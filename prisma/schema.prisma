@@ -1078,6 +1078,17 @@ model places_cache {
   @@index([city, country, category])
 }
 
+// Monthly Google Places/Maps API call counter — the hard bill-protection guard.
+// One row per calendar month (UTC). Incremented on every outbound Google call;
+// when callCount crosses GOOGLE_PLACES_MONTHLY_CAP the pipe fails loud instead
+// of bleeding spend. See src/lib/googlePlacesQuota.ts.
+model google_places_usage {
+  id        String   @id @default(cuid())
+  yearMonth String   @unique // "YYYY-MM" (UTC)
+  callCount Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
 // ============================================
 // LOT-BASED COST BASIS TRACKING
 // ============================================

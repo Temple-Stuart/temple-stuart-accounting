@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui';
-import { ACTIVITY_LABELS, ACTIVITY_GROUPS } from '@/lib/activities';
+import { ACTIVITY_LABELS } from '@/lib/activities';
 import { TRAVEL_COA, getActiveScanCategories } from '@/lib/travelCOA';
 
 // Grok response format with sentiment analysis
@@ -43,29 +43,7 @@ interface ScheduledSelection {
   splitType: 'personal' | 'split';
 }
 
-interface TravelerProfile {
-  tripType: string;
-  budget: string;
-  priorities: string[];
-  vibe: string[];
-  pace: string;
-  groupSize: number;
-}
-
-const DEFAULT_PROFILE: TravelerProfile = {
-  tripType: 'adventure',
-  budget: '100to200',
-  priorities: [],
-  vibe: [],
-  pace: 'balanced',
-  groupSize: 1
-};
-
-interface ParticipantProfile {
-  firstName: string;
-  profileTripType?: string | null;
-  profileActivities?: string[];
-}
+type SortBy = 'rating' | 'price' | 'reviews' | 'name';
 
 interface Props {
   tripId: string;
@@ -76,94 +54,9 @@ interface Props {
   month: number;
   year: number;
   daysTravel: number;
-  participantId?: string;
-  initialProfile?: Partial<TravelerProfile>;
-  participantProfiles?: ParticipantProfile[];
   tripDates?: { departure: string; return: string } | null;
   onCommitted?: () => void;
 }
-
-// Enhanced trip types with images/colors
-const TRIP_TYPES = [
-  { value: 'remote_work', label: 'Digital Nomad', icon: '', color: 'from-blue-500 to-cyan-500', desc: 'Work remotely with reliable wifi & coworking' },
-  { value: 'adventure', label: 'Adventure', icon: '', color: 'from-orange-500 to-red-500', desc: 'Outdoor activities, hiking, extreme sports' },
-  { value: 'romantic', label: 'Romantic Escape', icon: '', color: 'from-pink-500 to-rose-500', desc: 'Couples getaway, intimate experiences' },
-  { value: 'friends', label: 'Squad Trip', icon: '', color: 'from-purple-500 to-indigo-500', desc: 'Group fun, nightlife, shared memories' },
-  { value: 'family', label: 'Family Fun', icon: '', color: 'from-green-500 to-emerald-500', desc: 'Kid-friendly, safe, educational' },
-  { value: 'solo', label: 'Solo Explorer', icon: '', color: 'from-amber-500 to-yellow-500', desc: 'Independent travel, meet locals' },
-  { value: 'wellness', label: 'Wellness Retreat', icon: '', color: 'from-teal-500 to-green-500', desc: 'Spa, yoga, meditation, healing' },
-  { value: 'cultural', label: 'Culture Seeker', icon: '', color: 'from-violet-500 to-purple-500', desc: 'Museums, history, local traditions' },
-  { value: 'foodie', label: 'Food & Wine', icon: '', color: 'from-red-500 to-pink-500', desc: 'Culinary experiences, local cuisine' },
-  { value: 'party', label: 'Party Mode', icon: '', color: 'from-fuchsia-500 to-pink-500', desc: 'Nightlife, festivals, social scenes' },
-  { value: 'luxury', label: 'Luxury Escape', icon: '', color: 'from-amber-400 to-yellow-300', desc: 'Premium experiences, 5-star service' },
-  { value: 'budget', label: 'Budget Backpacker', icon: '', color: 'from-lime-500 to-green-500', desc: 'Hostels, street food, local transport' },
-];
-
-// Budget with context
-const BUDGET_OPTIONS = [
-  { value: 'backpacker', label: '$0-50', sublabel: '/night', desc: 'Hostels, street food', icon: '', color: 'bg-green-100 border-green-300' },
-  { value: 'budget', label: '$50-100', sublabel: '/night', desc: 'Budget hotels, local eats', icon: '', color: 'bg-emerald-100 border-emerald-300' },
-  { value: 'midrange', label: '$100-200', sublabel: '/night', desc: '3-4 star comfort', icon: '', color: 'bg-brand-purple-wash border-border' },
-  { value: 'comfort', label: '$200-350', sublabel: '/night', desc: 'Nice hotels, good dining', icon: '', color: 'bg-purple-100 border-purple-300' },
-  { value: 'premium', label: '$350-500', sublabel: '/night', desc: 'Premium experiences', icon: '', color: 'bg-amber-100 border-amber-300' },
-  { value: 'luxury', label: '$500+', sublabel: '/night', desc: 'Luxury & 5-star', icon: '', color: 'bg-yellow-100 border-yellow-300' },
-];
-
-// Expanded priorities organized by category
-const PRIORITY_GROUPS = [
-  {
-    label: 'Accommodation',
-    priorities: [
-      { value: 'wifi', label: 'Fast WiFi', icon: '' },
-      { value: 'pool', label: 'Pool', icon: '' },
-      { value: 'kitchen', label: 'Kitchen', icon: '' },
-      { value: 'workspace', label: 'Workspace', icon: '' },
-      { value: 'ac', label: 'A/C', icon: '' },
-      { value: 'gym', label: 'Gym', icon: '' },
-    ]
-  },
-  {
-    label: 'Location',
-    priorities: [
-      { value: 'central', label: 'Central Location', icon: '' },
-      { value: 'walkable', label: 'Walkable Area', icon: '' },
-      { value: 'beach', label: 'Near Beach', icon: '' },
-      { value: 'nature', label: 'Near Nature', icon: '' },
-      { value: 'nightlife', label: 'Near Nightlife', icon: '' },
-      { value: 'transit', label: 'Public Transit', icon: '' },
-    ]
-  },
-  {
-    label: 'Experience',
-    priorities: [
-      { value: 'quiet', label: 'Quiet & Peaceful', icon: '' },
-      { value: 'social', label: 'Social Scene', icon: '' },
-      { value: 'authentic', label: 'Authentic Local', icon: '' },
-      { value: 'instagram', label: 'Instagrammable', icon: '' },
-      { value: 'petfriendly', label: 'Pet Friendly', icon: '' },
-      { value: 'accessible', label: 'Accessible', icon: '' },
-    ]
-  },
-];
-
-// Travel vibe/style
-const VIBE_OPTIONS = [
-  { value: 'chill', label: 'Chill & Relaxed', icon: '', desc: 'No rushing, go with flow' },
-  { value: 'active', label: 'Active & Energetic', icon: '', desc: 'Pack in activities' },
-  { value: 'spontaneous', label: 'Spontaneous', icon: '', desc: 'Minimal planning' },
-  { value: 'planned', label: 'Well Planned', icon: '', desc: 'Itinerary ready' },
-  { value: 'offbeat', label: 'Off the Beaten Path', icon: '', desc: 'Hidden gems only' },
-  { value: 'touristy', label: 'Hit the Highlights', icon: '', desc: 'Must-see spots' },
-  { value: 'local', label: 'Live Like a Local', icon: '', desc: 'Blend in' },
-  { value: 'splurge', label: 'Treat Yourself', icon: '', desc: 'Special occasions' },
-];
-
-// Pace preference
-const PACE_OPTIONS = [
-  { value: 'slow', label: 'Slow & Savoring', icon: '', desc: '1-2 activities per day' },
-  { value: 'balanced', label: 'Balanced', icon: '', desc: 'Mix of activity & rest' },
-  { value: 'packed', label: 'Action-Packed', icon: '', desc: 'Maximum experiences' },
-];
 
 const CATEGORY_INFO: Record<string, { label: string; icon: string }> = {
   lodging: { label: 'Lodging', icon: '' },
@@ -259,7 +152,7 @@ const CATEGORY_TO_VENDOR_API: Record<string, string> = {
   wellness: 'activities',
 };
 
-export default function TripPlannerAI({ tripId, city, country, activity, activities = [], month, year, daysTravel, participantId, initialProfile, participantProfiles = [], tripDates, onCommitted }: Props) {
+export default function TripPlannerAI({ tripId, city, country, activity, activities = [], month, year, daysTravel, tripDates, onCommitted }: Props) {
   const [loading, setLoading] = useState(false);
   const [loadingCategory, setLoadingCategory] = useState<string | null>(null);
   const [completedCount, setCompletedCount] = useState(0);
@@ -272,19 +165,18 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   const [minRating, setMinRating] = useState(4.0);
   const [minReviews, setMinReviews] = useState(50);
   const [maxPriceLevel, setMaxPriceLevel] = useState(0); // 0 = any
+  const [sortBy, setSortBy] = useState<SortBy>('rating'); // Expedia-style result sort
+  // Photos are lazy: only fetched (and billed) when the user opens a result.
+  const [loadedPhotos, setLoadedPhotos] = useState<Set<string>>(new Set());
 
   const [selections, setSelections] = useState<ScheduledSelection[]>([]);
   const [editingSelection, setEditingSelection] = useState<ScheduledSelection | null>(null);
   const [editForm, setEditForm] = useState({ days: [] as number[], allDay: true, startTime: '09:00', endTime: '17:00', rateType: 'daily' as 'daily' | 'weekly' | 'monthly', customPrice: 0, splitType: 'personal' as 'personal' | 'split' });
 
-  // Track which recommendations have been added to vendor options (prevents duplicates)
-  const [addedToVendorOptions, setAddedToVendorOptions] = useState<Set<string>>(new Set());
   const [savingVendorOption, setSavingVendorOption] = useState(false);
-  const [vendorAddCounts, setVendorAddCounts] = useState<Record<string, number>>({});
 
   // Scanner results metadata (who scanned, when)
   const [scannerMeta, setScannerMeta] = useState<{ scannedBy: string; updatedAt: string } | null>(null);
-  const [scannerProfile, setScannerProfile] = useState<TravelerProfile | null>(null);
 
   // Card commit state
   const [commitCardKey, setCommitCardKey] = useState<string | null>(null);
@@ -308,7 +200,6 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
         const loaded: Record<string, GrokRecommendation[]> = {};
         let allRecs: GrokRecommendation[] = [];
         let latestMeta: { scannedBy: string; updatedAt: string } | null = null;
-        let savedProfile: TravelerProfile | null = null;
 
         for (const r of results) {
           const recs = r.recommendations as GrokRecommendation[];
@@ -318,7 +209,6 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
           }
           if (!latestMeta || new Date(r.updatedAt) > new Date(latestMeta.updatedAt)) {
             latestMeta = { scannedBy: r.scannedBy, updatedAt: r.updatedAt };
-            if (r.profileSnapshot) savedProfile = r.profileSnapshot as TravelerProfile;
           }
         }
 
@@ -327,7 +217,6 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
           setRecommendations(allRecs.sort((a, b) => (b.compositeScore || 0) - (a.compositeScore || 0) || a.valueRank - b.valueRank));
           setExpandedCategory(Object.keys(loaded)[0]);
           setScannerMeta(latestMeta);
-          setScannerProfile(savedProfile);
         }
       } catch (err) {
         console.error('Failed to load saved scanner results:', err);
@@ -335,53 +224,6 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
     };
     loadSavedResults();
   }, [tripId]);
-
-  const [profile, setProfile] = useState<TravelerProfile>(() => {
-    if (initialProfile && (initialProfile.tripType || initialProfile.budget)) {
-      return { ...DEFAULT_PROFILE, ...initialProfile };
-    }
-    return DEFAULT_PROFILE;
-  });
-
-  // Editable interests — initialized from participant profiles, user can toggle
-  const [selectedInterests, setSelectedInterests] = useState<string[]>(() =>
-    [...new Set(participantProfiles.flatMap(p => p.profileActivities || []))]
-  );
-  const [showProfileEditor, setShowProfileEditor] = useState(false);
-  const [savingProfile, setSavingProfile] = useState(false);
-
-  const toggleInterest = (slug: string) => {
-    setSelectedInterests(prev => prev.includes(slug) ? prev.filter(s => s !== slug) : [...prev, slug]);
-  };
-
-  const saveProfileToParticipant = async () => {
-    if (!participantId) return;
-    setSavingProfile(true);
-    try {
-      await fetch(`/api/trips/${tripId}/participants`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          participantId,
-          profile: {
-            activities: selectedInterests,
-            budget: profile.budget,
-            vibe: profile.vibe,
-            pace: profile.pace,
-            tripType: profile.tripType,
-          },
-        }),
-      });
-    } catch (err) { console.error('Failed to save profile:', err); }
-    finally { setSavingProfile(false); }
-  };
-
-  const combinedInterests = useMemo(() => {
-    return selectedInterests.map(a => ACTIVITY_LABELS[a] || a);
-  }, [selectedInterests]);
-
-  const profilesComplete = participantProfiles.filter(p => !!p.profileTripType).length;
-
 
   // Custom add state
   const [showCustomModal, setShowCustomModal] = useState(false);
@@ -392,26 +234,21 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   const tripDays = Array.from({ length: daysTravel }, (_, i) => i + 1);
   const tripActivities = activities.length > 0 ? activities : (activity ? [activity] : []);
 
-  const analyzeDestination = async () => {
+  const searchDestination = async () => {
     if (!city || !country) { setError('Please select a destination first'); return; }
     setLoading(true);
     setError(null);
     setByCategory({});
     setRecommendations([]);
     setSelections([]);
-    setAddedToVendorOptions(new Set());
-    setVendorAddCounts({});
     setScannerMeta(null);
-    setScannerProfile(null);
     setExpandedCategory(null);
     setCompletedCount(0);
 
-    // Build COA-driven category list from editable interests
-    const allInterestSlugs = selectedInterests;
-    const tripType = profile.tripType || 'adventure';
-
+    // Standard travel category set — no traveler profile. getActiveScanCategories
+    // with no interests/tripType returns the full scannable set.
     type ScanCategory = { key: string; label: string; maxResults: number };
-    const activeCoaKeys = getActiveScanCategories(allInterestSlugs, tripType);
+    const activeCoaKeys = getActiveScanCategories([], '');
     const categoriesToScan: ScanCategory[] = activeCoaKeys.map(key => ({
       key,
       label: TRAVEL_COA[key]?.label || key,
@@ -430,25 +267,26 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
         const res = await fetch('/api/trips/' + tripId + '/ai-assistant', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ city, country, activities: tripActivities, activity, month, year, daysTravel, minRating, minReviews, maxPriceLevel: maxPriceLevel || undefined, category: cat, profile, maxResults: catMaxResults })
+          body: JSON.stringify({ city, country, activities: tripActivities, activity, month, year, daysTravel, minRating, minReviews, maxPriceLevel: maxPriceLevel || undefined, category: cat, maxResults: catMaxResults })
         });
 
         // Guard against non-JSON responses (serverless timeout returns HTML)
         const contentType = res.headers.get('content-type') || '';
         if (!contentType.includes('application/json')) {
-          console.error(`[TripAI] ${cat}: non-JSON response — likely timeout`);
+          console.error(`[TripSearch] ${cat}: non-JSON response — likely timeout`);
           continue;
         }
 
         if (!res.ok) {
           const d = await res.json();
-          console.error(`[TripAI] ${cat} failed:`, d.error);
+          if (res.status === 429) { setError(d.error || 'Google Places monthly quota exceeded — bill protection active'); break; }
+          console.error(`[TripSearch] ${cat} failed:`, d.error);
           continue;
         }
 
         const data = await res.json();
         const items: GrokRecommendation[] = data.recommendations || [];
-        console.log(`[AI] ${cat}: ${items.length} results`);
+        console.log(`[Search] ${cat}: ${items.length} results`);
 
         if (items.length > 0) {
           setByCategory(prev => ({ ...prev, [cat]: items }));
@@ -459,16 +297,29 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
           }
         }
       } catch (err) {
-        console.error(`[TripAI] ${cat} error:`, err);
+        console.error(`[TripSearch] ${cat} error:`, err);
       }
     }
 
     setCompletedCount(categoriesToScan.length);
     setLoadingCategory(null);
     setLoading(false);
+  };
 
-    // Fix: set scannerProfile so the banner shows the actual profile used
-    setScannerProfile(profile);
+  // Expedia-style client-side sort of results within a category.
+  const sortItems = (items: GrokRecommendation[]): GrokRecommendation[] => {
+    const copy = [...items];
+    switch (sortBy) {
+      case 'price':
+        return copy.sort((a, b) => (a.priceLevel ?? 99) - (b.priceLevel ?? 99));
+      case 'reviews':
+        return copy.sort((a, b) => (b.reviewCount || 0) - (a.reviewCount || 0));
+      case 'name':
+        return copy.sort((a, b) => a.name.localeCompare(b.name));
+      case 'rating':
+      default:
+        return copy.sort((a, b) => (b.googleRating || 0) - (a.googleRating || 0) || (b.reviewCount || 0) - (a.reviewCount || 0));
+    }
   };
 
   const handleSelectItem = (item: GrokRecommendation) => {
@@ -581,11 +432,6 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
         }
       }
 
-      // Track as added
-      const key = `${updated.category}:${updated.item.name}`;
-      setAddedToVendorOptions(prev => new Set(prev).add(key));
-      setVendorAddCounts(prev => ({ ...prev, [vendorApi]: (prev[vendorApi] || 0) + (vendorApi === 'transfers' ? 2 : 1) }));
-
       // Still add to selections for onBudgetChange compatibility
       setSelections(prev => {
         const idx = prev.findIndex(s => s.category === updated.category && s.item.name === updated.item.name);
@@ -601,13 +447,6 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
       setEditingSelection(null);
     }
   };
-
-  const removeSelection = (category: string, name: string) => {
-    setSelections(prev => prev.filter(s => !(s.category === category && s.item.name === name)));
-  };
-
-  const isAddedToVendor = (item: GrokRecommendation) => addedToVendorOptions.has(`${item.category}:${item.name}`);
-  const isSelected = (item: GrokRecommendation) => isAddedToVendor(item) || selections.some(s => s.category === item.category && s.item.name === item.name);
 
   // Direct commit from scanner card: create vendor option then commit it
   const handleCommitCard = async (rec: GrokRecommendation) => {
@@ -626,7 +465,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
     setCommittingCard(cardKey);
     try {
       // Step 1: Create the vendor option record
-      const aiNote = `AI Score: ${rec.sentimentScore}/10 | Fit: ${rec.fitScore}/10 | ${rec.summary}\n${rateNote}`;
+      const aiNote = `${rec.googleRating} stars (${rec.reviewCount} reviews)\n${rateNote}`;
       let body: Record<string, any> = {};
       const vendorApi = catInfo.vendorApi;
 
@@ -757,206 +596,9 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
     setShowCustomModal(false);
   };
 
-  const calculateItemCost = (sel: ScheduledSelection): number => {
-    const price = sel.customPrice || 0;
-    const numDays = sel.days.length;
-    switch (sel.rateType) {
-      case 'monthly': return price;
-      case 'weekly': return price * Math.ceil(numDays / 7);
-      default: return price * numDays;
-    }
-  };
-
-  const totalBudget = useMemo(() => selections.reduce((sum, sel) => sum + calculateItemCost(sel), 0), [selections]);
-
-  const getProfileSummary = () => {
-    const tripType = TRIP_TYPES.find(t => t.value === profile.tripType);
-    const budget = BUDGET_OPTIONS.find(b => b.value === profile.budget);
-    const pace = PACE_OPTIONS.find(p => p.value === profile.pace);
-    const vibeLabels = (profile.vibe || []).slice(0, 2).map(v => VIBE_OPTIONS.find(vo => vo.value === v)?.label).filter(Boolean).join(', ');
-    const acts = tripActivities.length > 0 ? tripActivities.slice(0, 2).join(', ') : '';
-    return [
-      tripType?.icon + ' ' + tripType?.label,
-      (budget?.label || '') + (budget?.sublabel || ''),
-      pace?.label,
-      vibeLabels,
-      acts
-    ].filter(Boolean).join(' • ');
-  };
-
-  const formatScanProfile = (p: TravelerProfile) => {
-    const tripType = TRIP_TYPES.find(t => t.value === p.tripType);
-    const budget = BUDGET_OPTIONS.find(b => b.value === p.budget);
-    const pace = PACE_OPTIONS.find(pa => pa.value === p.pace);
-    const vibes = (p.vibe || []).map(v => VIBE_OPTIONS.find(vo => vo.value === v)?.label).filter(Boolean);
-    const prios = (p.priorities || []).slice(0, 4).join(', ');
-    const parts = [
-      tripType ? `${tripType.icon} ${tripType.label}` : p.tripType,
-      budget ? `${budget.label}${budget.sublabel}` : p.budget,
-      prios ? `Priorities: ${prios}` : null,
-      vibes.length > 0 ? `Vibe: ${vibes.join(', ')}` : null,
-      pace ? pace.label : null,
-    ].filter(Boolean);
-    return parts.join(' · ');
-  };
-
-  const getSentimentColor = (s: string) => s === 'positive' ? 'bg-green-100 text-brand-green' : s === 'negative' ? 'bg-red-100 text-brand-red' : 'bg-bg-row text-text-secondary';
-  const getScoreColor = (n: number) => n >= 8 ? 'text-brand-green' : n >= 5 ? 'text-yellow-600' : 'text-brand-red';
-
-
-  const renderSentimentTable = (items: GrokRecommendation[]) => {
-    if (!items?.length) return <p className="text-text-faint text-sm py-4 px-4">No recommendations found</p>;
-    return (
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-brand-purple text-white">
-              <th className="py-3 px-2 text-center w-10">+</th>
-              <th className="py-3 px-2 text-center w-10">#</th>
-              <th className="py-3 px-2 w-14">Photo</th>
-              <th className="py-3 px-2 text-left">Vendor</th>
-              <th className="py-3 px-2 text-center w-20">Sentiment</th>
-              <th className="py-3 px-2 text-center w-14">Score</th>
-              <th className="py-3 px-2 text-left max-w-[280px]">Summary</th>
-              <th className="py-3 px-2 text-left max-w-[140px]">Warnings</th>
-              <th className="py-3 px-2 text-center w-12">Trend</th>
-              <th className="py-3 px-2 text-center w-14">Fit</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((rec, idx) => {
-              const selected = isSelected(rec);
-              return (
-                <tr key={idx} className={selected ? 'bg-green-50' : idx % 2 ? 'bg-bg-row' : 'bg-white'}>
-                  <td className="py-2 px-2 text-center">
-                    {isAddedToVendor(rec) ? (
-                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-green-500 text-white text-xs font-bold" title="Added to Vendor Options">✓</span>
-                    ) : (
-                      <button onClick={() => handleSelectItem(rec)} className={'w-7 h-7 rounded-full font-bold text-xs ' + (selected ? 'bg-green-500 text-white' : 'bg-border hover:bg-brand-purple hover:text-white')}>
-                        {selected ? '✓' : '+'}
-                      </button>
-                    )}
-                  </td>
-                  <td className="py-2 px-2 text-center">
-                    <span className={'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ' + (rec.valueRank <= 3 ? 'bg-green-500 text-white' : rec.valueRank <= 6 ? 'bg-yellow-400 text-white' : 'bg-border')}>{rec.valueRank}</span>
-                  </td>
-                  <td className="py-2 px-2">
-                    {rec.photoUrl ? <img src={rec.photoUrl} alt="" className="w-12 h-12 object-cover rounded" /> : <div className="w-12 h-12 bg-border rounded flex items-center justify-center text-text-faint text-xs">img</div>}
-                  </td>
-                  <td className="py-2 px-2">
-                    <div className="font-medium text-text-primary">{rec.name}</div>
-                    <div className="text-xs text-text-muted">{rec.googleRating} ({rec.reviewCount}) {rec.website && <a href={rec.website} target="_blank" rel="noopener noreferrer" className="text-brand-purple hover:underline ml-1">Visit</a>}</div>
-                  </td>
-                  <td className="py-2 px-2 text-center">
-                    <span className={'inline-block px-2 py-0.5 rounded-full text-xs font-medium ' + getSentimentColor(rec.sentiment)}>
-                      {rec.sentiment}
-                    </span>
-                  </td>
-                  <td className="py-2 px-2 text-center">
-                    <span className={'text-terminal-lg font-bold ' + getScoreColor(rec.sentimentScore)}>{rec.sentimentScore}</span>
-                    <span className="text-xs text-text-faint">/10</span>
-                  </td>
-                  <td className="py-2 px-2 text-xs text-text-secondary max-w-[280px]">
-                    <div className="line-clamp-3">{rec.summary}</div>
-                  </td>
-                  <td className="py-2 px-2 text-xs max-w-[140px]">
-                    {rec.warnings.length > 0 ? rec.warnings.slice(0, 2).map((w, i) => <div key={i} className="text-orange-600">{w}</div>) : <span className="text-text-faint">—</span>}
-                  </td>
-                  <td className="py-2 px-2 text-center">{rec.trending ? <span className="text-orange-500 font-bold text-xs" title="Trending">HOT</span> : <span className="text-text-faint">—</span>}</td>
-                  <td className="py-2 px-2 text-center">
-                    <span className={'inline-block px-2 py-0.5 rounded text-xs font-bold ' + (rec.fitScore >= 8 ? 'bg-green-100 text-brand-green' : rec.fitScore >= 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-brand-red')}>{rec.fitScore}/10</span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
-
   return (
     <div className="space-y-6">
-      {/* Inline Profile Editor */}
-      <div className="bg-bg-row rounded border border-border p-3">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-gray-700">Your Interests ({selectedInterests.length} selected)</span>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setShowProfileEditor(p => !p)} className="text-xs text-brand-purple hover:underline">
-              {showProfileEditor ? 'Collapse' : 'Edit Profile'}
-            </button>
-            {participantId && (
-              <button onClick={saveProfileToParticipant} disabled={savingProfile} className="text-xs text-emerald-600 hover:underline disabled:opacity-50">
-                {savingProfile ? 'Saving...' : 'Save'}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Compact interest chips — always visible */}
-        <div className="flex flex-wrap gap-1 mb-2">
-          {selectedInterests.slice(0, showProfileEditor ? undefined : 12).map(slug => (
-            <button key={slug} onClick={() => toggleInterest(slug)}
-              className="px-2 py-0.5 rounded text-[10px] font-medium bg-brand-purple text-white hover:bg-brand-purple-hover">
-              {ACTIVITY_LABELS[slug] || slug} x
-            </button>
-          ))}
-          {!showProfileEditor && selectedInterests.length > 12 && (
-            <span className="text-[10px] text-gray-400 self-center">+{selectedInterests.length - 12} more</span>
-          )}
-        </div>
-
-        {/* Expanded editor */}
-        {showProfileEditor && (
-          <div className="space-y-3 pt-2 border-t border-border">
-            {/* Interest categories */}
-            {ACTIVITY_GROUPS.map(group => (
-              <div key={group.label}>
-                <div className="text-[10px] font-medium text-gray-500 mb-1">{group.label}</div>
-                <div className="flex flex-wrap gap-1">
-                  {group.activities.map(act => {
-                    const active = selectedInterests.includes(act.value);
-                    return (
-                      <button key={act.value} onClick={() => toggleInterest(act.value)}
-                        className={`px-2 py-0.5 rounded text-[10px] font-medium ${active ? 'bg-brand-purple text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
-                        {act.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-
-            {/* Budget / Vibe / Pace row */}
-            <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border">
-              <div>
-                <label className="text-[10px] text-gray-500 block mb-1">Budget</label>
-                <select value={profile.budget} onChange={e => setProfile(p => ({ ...p, budget: e.target.value }))}
-                  className="w-full border border-border rounded px-2 py-1 text-xs bg-white">
-                  {BUDGET_OPTIONS.map(b => <option key={b.value} value={b.value}>{b.label}{b.sublabel}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-[10px] text-gray-500 block mb-1">Vibe</label>
-                <select value={(profile.vibe || [])[0] || ''} onChange={e => setProfile(p => ({ ...p, vibe: e.target.value ? [e.target.value] : [] }))}
-                  className="w-full border border-border rounded px-2 py-1 text-xs bg-white">
-                  <option value="">Any</option>
-                  {VIBE_OPTIONS.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-[10px] text-gray-500 block mb-1">Pace</label>
-                <select value={profile.pace} onChange={e => setProfile(p => ({ ...p, pace: e.target.value }))}
-                  className="w-full border border-border rounded px-2 py-1 text-xs bg-white">
-                  {PACE_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-                </select>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Search Controls */}
+      {/* Search Controls — filters + sort + search (no profile, no AI) */}
       <div className="flex flex-wrap items-end gap-4 p-4 bg-bg-row rounded border border-border">
         <div>
           <label className="text-xs text-text-muted font-medium block mb-1.5">Min Rating</label>
@@ -976,26 +618,34 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
             <option value={0}>Any</option><option value={1}>$</option><option value={2}>$$</option><option value={3}>$$$</option><option value={4}>$$$$</option>
           </select>
         </div>
-        <Button onClick={analyzeDestination} loading={loading} disabled={!city} className="flex-1 py-3 text-base">
-          Analyze {city || 'Destination'} with AI
+        <div>
+          <label className="text-xs text-text-muted font-medium block mb-1.5">Sort by</label>
+          <select value={sortBy} onChange={e => setSortBy(e.target.value as SortBy)} className="border border-border rounded px-3 py-2.5 text-sm bg-white">
+            <option value="rating">Rating</option>
+            <option value="price">Price</option>
+            <option value="reviews">Reviews</option>
+            <option value="name">Name</option>
+          </select>
+        </div>
+        <Button onClick={searchDestination} loading={loading} disabled={!city} className="flex-1 py-3 text-base">
+          Search {city || 'Destination'}
         </Button>
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 rounded p-4 text-brand-red text-sm">{error}</div>}
 
       {loading && (
-        <div className="text-center py-16 bg-gradient-to-b from-purple-50 to-white rounded border border-purple-100">
-          <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-text-secondary font-semibold text-terminal-lg">Grok is analyzing {city}...</p>
+        <div className="text-center py-16 bg-gradient-to-b from-bg-row to-white rounded border border-border">
+          <div className="w-12 h-12 border-4 border-brand-purple border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-text-secondary font-semibold text-terminal-lg">Searching {city}...</p>
           {loadingCategory && (
-            <p className="text-purple-600 text-sm mt-2 font-medium">
+            <p className="text-brand-purple text-sm mt-2 font-medium">
               {loadingCategory} ({completedCount + 1}/{totalCategories})
             </p>
           )}
-          <p className="text-text-faint text-xs mt-1">Each category takes ~30 seconds</p>
           {completedCount > 0 && (
             <div className="mt-4 mx-auto w-64 bg-border rounded-full h-2">
-              <div className="bg-purple-500 h-2 rounded-full transition-all" style={{ width: `${(completedCount / totalCategories) * 100}%` }} />
+              <div className="bg-brand-purple h-2 rounded-full transition-all" style={{ width: `${(completedCount / totalCategories) * 100}%` }} />
             </div>
           )}
         </div>
@@ -1006,7 +656,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded max-w-lg w-full p-6 shadow-sm">
             <h3 className="font-bold text-terminal-lg mb-1">{CATEGORY_INFO[editingSelection.category]?.icon || ''} {editingSelection.item.name}</h3>
-            <p className="text-sm text-text-muted mb-4">Sentiment: {editingSelection.item.sentiment} ({editingSelection.item.sentimentScore}/10)</p>
+            <p className="text-sm text-text-muted mb-4">{editingSelection.item.googleRating} stars ({editingSelection.item.reviewCount} reviews)</p>
             
             <div className="space-y-4">
               <div>
@@ -1101,23 +751,15 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
       {Object.keys(byCategory).length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-bold text-sm text-text-primary">AI Analysis Results <span className="text-sm font-normal text-text-muted">({recommendations.length} places)</span></h3>
+            <h3 className="font-bold text-sm text-text-primary">Results <span className="text-sm font-normal text-text-muted">({recommendations.length} places)</span></h3>
             {scannerMeta && !loading && (
               <span className="text-xs text-text-muted">
-                Scanned by {scannerMeta.scannedBy.split('@')[0]} · {new Date(scannerMeta.updatedAt).toLocaleDateString()}
+                Searched by {scannerMeta.scannedBy.split('@')[0]} · {new Date(scannerMeta.updatedAt).toLocaleDateString()}
               </span>
             )}
           </div>
-          {scannerProfile && !loading && (
-            <div className="flex items-center justify-between px-4 py-2.5 bg-purple-50 border border-purple-200 rounded text-xs text-purple-800">
-              <span>{formatScanProfile(scannerProfile)}</span>
-            </div>
-          )}
-          {!scannerProfile && Object.keys(byCategory).length > 0 && !loading && (
-            <div className="px-4 py-2 bg-bg-row border border-border rounded text-xs text-text-muted">Default profile used</div>
-          )}
 
-          {/* Sort: accommodation first, brunch_coffee second, dinner third, rest alphabetical */}
+          {/* Category order: accommodation first, brunch_coffee second, dinner third, rest alphabetical */}
           {Object.keys(byCategory).sort((a, b) => {
             const order: Record<string, number> = { accommodation: 0, brunch_coffee: 1, dinner: 2 };
             const oa = order[a] ?? 99;
@@ -1138,7 +780,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                 <button type="button" onClick={() => setExpandedCategory(isExpanded ? null : cat)} className="w-full flex justify-between items-center px-5 py-3 bg-bg-row border-b border-border hover:bg-gray-100 transition-colors cursor-pointer">
                   <span className="flex items-center gap-2">
                     {info.icon ? <span>{info.icon}</span> : <span className="w-2.5 h-2.5 rounded-full bg-purple-500 shrink-0" />}
-                    <span className="font-semibold text-sm">{info.label}{cat === 'lodging' && profile.budget ? ` — ${BUDGET_OPTIONS.find(b => b.value === profile.budget)?.label || ''}${BUDGET_OPTIONS.find(b => b.value === profile.budget)?.sublabel || ''}` : ''}</span>
+                    <span className="font-semibold text-sm">{info.label}</span>
                     {committedCount > 0 && !isExpanded && (
                       <span className="text-[11px] text-emerald-700 font-medium">&middot; {committedCount} committed</span>
                     )}
@@ -1152,52 +794,47 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                   <>
                 <div className="max-h-[780px] overflow-y-auto" style={{ scrollBehavior: 'smooth' }}>
                 <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {items.map((rec, idx) => {
+                  {sortItems(items).map((rec, idx) => {
                     const cardKey = `${rec.category}:${rec.name}`;
                     const committed = committedCards[cardKey];
                     const isCommitting = committingCard === cardKey;
                     const showPanel = commitCardKey === cardKey;
+                    const photoShown = rec.photoUrl && (loadedPhotos.has(cardKey) || showPanel);
                     return (
                       <div key={`${rec.category}-${idx}`} className={`border rounded overflow-hidden ${committed ? 'border-emerald-400 bg-emerald-50/30' : 'border-border'}`}>
-                        {rec.photoUrl ? (
-                          <img src={rec.photoUrl} alt={rec.name} className="w-full h-40 object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
-                        ) : null}
-                        <div className={`w-full h-40 bg-gradient-to-br from-purple-100 to-indigo-100 flex items-center justify-center ${rec.photoUrl ? 'hidden' : ''}`}>
-                          <span className="text-4xl">{info.icon}</span>
-                        </div>
+                        {/* Lazy photo: only fetched (billed) when the user clicks to view or opens the commit panel. */}
+                        {photoShown ? (
+                          <img src={rec.photoUrl!} alt={rec.name} className="w-full h-40 object-cover" />
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => { if (rec.photoUrl) setLoadedPhotos(s => new Set(s).add(cardKey)); }}
+                            disabled={!rec.photoUrl}
+                            className="w-full h-40 bg-gradient-to-br from-purple-100 to-indigo-100 flex items-center justify-center text-text-muted text-xs"
+                          >
+                            {rec.photoUrl ? 'Show photo' : <span className="text-4xl">{info.icon}</span>}
+                          </button>
+                        )}
                         <div className="p-3 space-y-2">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <h4 className="font-semibold text-sm text-text-primary truncate">{rec.name}</h4>
-                              <div className="text-xs text-text-muted flex items-center gap-2 mt-0.5">
-                                <span>{'*'.repeat(Math.round(rec.googleRating))} {rec.googleRating} ({rec.reviewCount})</span>
-                                {rec.priceLevelDisplay ? (
-                                  <span className={`px-1 py-0.5 rounded text-[9px] font-bold ${
-                                    rec.priceLevel === 1 ? 'bg-green-100 text-green-700' :
-                                    rec.priceLevel === 2 ? 'bg-blue-100 text-blue-700' :
-                                    rec.priceLevel === 3 ? 'bg-orange-100 text-orange-700' :
-                                    rec.priceLevel === 4 ? 'bg-red-100 text-red-700' :
-                                    'bg-gray-100 text-gray-500'
-                                  }`}>{rec.priceLevelDisplay}</span>
-                                ) : (
-                                  <span className="px-1 py-0.5 rounded text-[9px] bg-gray-100 text-gray-400">N/A</span>
-                                )}
-                                {rec.trending && <span className="text-orange-500 font-bold text-[9px]" title="Trending">HOT</span>}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              {rec.compositeScore != null ? (
-                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${rec.compositeScore >= 75 ? 'bg-green-100 text-green-700' : rec.compositeScore >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>{rec.compositeScore}</span>
+                          <div className="min-w-0">
+                            <h4 className="font-semibold text-sm text-text-primary truncate">{rec.name}</h4>
+                            <div className="text-xs text-text-muted flex items-center gap-2 mt-0.5">
+                              <span>{'★'.repeat(Math.round(rec.googleRating))} {rec.googleRating} ({rec.reviewCount})</span>
+                              {rec.priceLevelDisplay ? (
+                                <span className={`px-1 py-0.5 rounded text-[9px] font-bold ${
+                                  rec.priceLevel === 1 ? 'bg-green-100 text-green-700' :
+                                  rec.priceLevel === 2 ? 'bg-blue-100 text-blue-700' :
+                                  rec.priceLevel === 3 ? 'bg-orange-100 text-orange-700' :
+                                  rec.priceLevel === 4 ? 'bg-red-100 text-red-700' :
+                                  'bg-gray-100 text-gray-500'
+                                }`}>{rec.priceLevelDisplay}</span>
                               ) : (
-                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${rec.fitScore >= 8 ? 'bg-green-100 text-green-700' : rec.fitScore >= 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>Fit {rec.fitScore}</span>
+                                <span className="px-1 py-0.5 rounded text-[9px] bg-gray-100 text-gray-400">N/A</span>
                               )}
-                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${getSentimentColor(rec.sentiment)}`}>
-                                {rec.sentiment === 'positive' ? '+' : rec.sentiment === 'negative' ? '-' : '~'}
-                              </span>
                             </div>
+                            {rec.address && <p className="text-[11px] text-text-faint truncate mt-0.5">{rec.address}</p>}
                           </div>
 
-                          <p className="text-xs text-text-secondary line-clamp-2">{rec.summary}</p>
                           {rec.viatorProductCode && (
                             <div className="flex items-center gap-2 text-[11px]">
                               {rec.price != null && <span className="font-semibold text-emerald-700">From ${rec.price}</span>}
@@ -1210,9 +847,6 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                               )}
                               <span className="text-[9px] text-gray-400 ml-auto">via Viator</span>
                             </div>
-                          )}
-                          {rec.warnings.length > 0 && (
-                            <div className="text-xs text-orange-600">{rec.warnings.slice(0, 1).map((w, i) => <span key={i}>{w}</span>)}</div>
                           )}
 
                           {committed ? (
@@ -1334,8 +968,8 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
 
       {!loading && Object.keys(byCategory).length === 0 && !error && (
         <div className="text-center py-16 bg-gradient-to-b from-bg-row to-white rounded border border-border">
-          <h3 className="font-bold text-sm text-text-primary mb-2">AI Trip Analyzer</h3>
-          <p className="text-text-muted">Customize your profile, pick a destination, and let AI find the perfect spots</p>
+          <h3 className="font-bold text-sm text-text-primary mb-2">Search a destination</h3>
+          <p className="text-text-muted">Pick a destination and search to see places to stay, eat, and explore.</p>
         </div>
       )}
     </div>
