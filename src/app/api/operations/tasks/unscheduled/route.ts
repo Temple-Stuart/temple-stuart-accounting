@@ -41,6 +41,7 @@ export async function GET() {
       title: true,
       status: true,
       estimated_minutes: true,
+      actual_minutes: true,
       estimated_cost_usd: true,
       coa_code: true,
       deadline: true,
