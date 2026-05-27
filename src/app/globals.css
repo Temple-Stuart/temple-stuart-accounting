@@ -15,11 +15,15 @@
      references them yet — component migration is the next sequenced PR.
      ───────────────────────────────────────────────────────────────────── */
 
-  /* Purple — command center. Collapses the former 8-way purple spread. */
-  --ts-purple-deep:  #2d1b4e;   /* darkest (= old brand-purple-deep) */
-  --ts-purple:       #3b2d6b;   /* command-center banner (= old brand-purple) */
-  --ts-purple-light: #4e3e85;   /* (= old brand-purple-hover value) */
-  --ts-purple-wash:  #eae7f2;   /* replaces BOTH the old wash AND Tailwind purple-50 */
+  /* Purple — command center. Collapses the former 8-way purple spread.
+     Stored as space-separated RGB CHANNELS (not hex) so tailwind.config can wrap
+     them in rgb(var() / <alpha-value>) — this makes BOTH solid (bg-brand-purple)
+     AND opacity-modified (bg-brand-purple/90) utilities emit valid CSS. Consumed
+     ONLY via the Tailwind config; never referenced directly as a color. */
+  --ts-purple-deep:  45 27 78;     /* #2d1b4e — darkest (= old brand-purple-deep) */
+  --ts-purple:       59 45 107;    /* #3b2d6b — command-center banner (= old brand-purple) */
+  --ts-purple-light: 78 62 133;    /* #4e3e85 — (= old brand-purple-hover value) */
+  --ts-purple-wash:  234 231 242;  /* #eae7f2 — replaces BOTH old wash AND Tailwind purple-50 */
 
   /* Aqua — NEW, punchier than the old teal-400. Calendar routine blocks. */
   --ts-aqua:      #14e0c8;      /* routine blocks */
