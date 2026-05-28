@@ -44,6 +44,16 @@ export function formatPriceLevel(level?: number): string | null {
   return '$'.repeat(level);
 }
 
+// Strip parenthetical annotations from a city string before stuffing it into a
+// Google Text Search `query=` parameter. Destinations like "Bali (Canggu)"
+// turn into `query=brunch in Bali (Canggu) Indonesia` which Google's text
+// parser sometimes rejects with INVALID_REQUEST (PR-1 surfaces those instead
+// of silently swallowing them). The Geocoding API is more permissive — we
+// leave the raw city alone there. Result: "Bali (Canggu)" → "Bali Canggu".
+function searchableCity(city: string): string {
+  return city.replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 // Calculate popularity score from real data
 export function calculatePopularity(rating: number, reviewCount: number): number {
   if (reviewCount < 1) return 0;
@@ -92,10 +102,10 @@ export async function searchPlaces(
     let nextPageToken: string | null = null;
     
     for (let page = 0; page < 3 && allPlaces.length < maxResults; page++) {
-      const searchUrl: string = nextPageToken 
+      const searchUrl: string = nextPageToken
         ? `https://maps.googleapis.com/maps/api/place/textsearch/json?pagetoken=${nextPageToken}&key=${apiKey}`
-        : `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query + ' in ' + city + ' ' + country)}&location=${lat},${lng}&radius=20000${type ? `&type=${type}` : ''}&key=${apiKey}`;
-      
+        : `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query + ' in ' + searchableCity(city) + ' ' + country)}&location=${lat},${lng}&radius=20000${type ? `&type=${type}` : ''}&key=${apiKey}`;
+
       if (page > 0 && nextPageToken) {
         // Google requires 2 second delay between page requests
         await new Promise(r => setTimeout(r, 2000));
@@ -317,7 +327,11 @@ export const CATEGORY_SEARCHES: Record<string, { queries: string[]; defaultFilte
   }
 };
 
-// Run multiple queries for a category, merge & deduplicate results
+// Run multiple queries for a category, merge & deduplicate results.
+// Per-query isolation: one query's failure (e.g. INVALID_REQUEST on an
+// awkward search term) does NOT kill the whole category. We only surface a
+// typed error to the caller when EVERY query failed — otherwise we return
+// the union of what succeeded and log the rest.
 export async function searchPlacesMultiQuery(
   queries: string[],
   city: string,
@@ -325,16 +339,32 @@ export async function searchPlacesMultiQuery(
   maxResults: number = 60,
   type?: string
 ): Promise<PlaceResult[]> {
-  // Run all queries in parallel (each query paginates internally)
-  const allResults = await Promise.all(
+  const settled = await Promise.allSettled(
     queries.map(q => searchPlaces(q, city, country, 60, type))
   );
+
+  const fulfilled = settled.filter(
+    (r): r is PromiseFulfilledResult<PlaceResult[]> => r.status === 'fulfilled'
+  );
+  const rejected = settled.filter(
+    (r): r is PromiseRejectedResult => r.status === 'rejected'
+  );
+
+  for (const r of rejected) {
+    console.error('[PLACES] Multi-query: one query failed —', r.reason);
+  }
+
+  // Every query in this category failed → re-throw the first error so the
+  // route surfaces a real banner (still fail-loud at the category level).
+  if (rejected.length > 0 && fulfilled.length === 0) {
+    throw rejected[0].reason;
+  }
 
   // Merge and deduplicate by placeId (keep first occurrence — highest quality from its query)
   const seen = new Set<string>();
   const merged: PlaceResult[] = [];
-  for (const results of allResults) {
-    for (const place of results) {
+  for (const r of fulfilled) {
+    for (const place of r.value) {
       if (!seen.has(place.placeId)) {
         seen.add(place.placeId);
         merged.push(place);
@@ -342,7 +372,7 @@ export async function searchPlacesMultiQuery(
     }
   }
 
-  console.log(`[PLACES] Multi-query: ${queries.length} queries, ${merged.length} unique places for ${city}`);
+  console.log(`[PLACES] Multi-query: ${queries.length} queries (${fulfilled.length} OK, ${rejected.length} failed), ${merged.length} unique places for ${city}`);
 
   // Sort by popularity score and take top N
   return merged
