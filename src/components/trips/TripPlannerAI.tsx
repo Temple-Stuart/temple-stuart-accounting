@@ -29,6 +29,9 @@ interface GrokRecommendation {
   bookingUrl?: string | null;
   durationMinutes?: number | null;
   price?: number | null;
+  // LiteAPI-specific fields (present when result is from LiteAPI / accommodation)
+  liteapiHotelId?: string;
+  liteapiOfferId?: string | null;
 }
 
 interface ScheduledSelection {
@@ -186,6 +189,12 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   const [cardDates, setCardDates] = useState<Record<string, { start: string; end?: string }>>({});
   const [cardFrequency, setCardFrequency] = useState<Record<string, string>>({});
   const [cardTimes, setCardTimes] = useState<Record<string, { startTime: string; endTime: string }>>({});
+
+  // LiteAPI Reserve flow (PR-3b) — tracks the in-flight reserve + each card's
+  // confirmation result. Intentionally minimal UI per scope; PR-4 rebuilds
+  // the booking UX with proper checkout panels.
+  const [reservingKey, setReservingKey] = useState<string | null>(null);
+  const [reservedKeys, setReservedKeys] = useState<Record<string, { confirmationCode: string | null; bookingId: string }>>({});
 
   // Load saved scanner results from DB on mount
   useEffect(() => {
@@ -550,6 +559,78 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
       if (onCommitted) onCommitted();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Uncommit failed');
+    }
+  };
+
+  // ─── LiteAPI Reserve flow (PR-3b) ────────────────────────────────────────
+  // Minimal: prebook → book in one click. Sandbox-only this PR — LiteAPI's
+  // sandbox accepts the prebook's transactionId without real card capture, so
+  // this proves the end-to-end pipe without integrating the payment SDK yet.
+  // PR-4 adds the proper checkout panel + LiteAPI's hosted payment SDK.
+  const handleLiteApiReserve = async (rec: GrokRecommendation, cardKey: string) => {
+    if (!rec.liteapiOfferId) {
+      setError(`Reserve unavailable — no bookable offer for ${rec.name}`);
+      return;
+    }
+    if (!tripDates?.departure || !tripDates?.return) {
+      setError('Reserve unavailable — set trip Start/End dates first');
+      return;
+    }
+    setReservingKey(cardKey);
+    setError(null);
+    try {
+      // 1. Prebook — get the SDK transactionId + final price.
+      const prebookRes = await fetch('/api/travel/liteapi/prebook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tripId, offerId: rec.liteapiOfferId }),
+      });
+      const prebookBody = await prebookRes.json().catch(() => ({}));
+      if (!prebookRes.ok) {
+        throw new Error(prebookBody.error || `Prebook failed (HTTP ${prebookRes.status})`);
+      }
+      const prebook = prebookBody.prebook;
+      if (!prebook?.prebookId || !prebook?.transactionId) {
+        throw new Error('Prebook response missing prebookId or transactionId');
+      }
+
+      // 2. Book — sandbox accepts the prebook's transactionId directly. The
+      // booking PR will replace this with real card capture via LiteAPI's SDK.
+      const ownerName = 'Trip Owner';
+      const [firstName, ...rest] = ownerName.split(' ');
+      const lastName = rest.join(' ') || 'Guest';
+      const ownerEmail = 'guest@example.com';
+      const bookRes = await fetch('/api/travel/liteapi/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tripId,
+          prebookId: prebook.prebookId,
+          paymentTransactionId: prebook.transactionId,
+          holder: { firstName, lastName, email: ownerEmail },
+          guests: [{ occupancyNumber: 1, firstName, lastName, email: ownerEmail }],
+          checkinDate: tripDates.departure,
+          checkoutDate: tripDates.return,
+          hotelName: rec.name,
+          guestCount: 1,
+          finalPriceCents: Math.round((prebook.price || 0) * 100),
+          currency: prebook.currency || 'USD',
+          commissionAmountCents: Math.round((prebook.commission || 0) * 100),
+        }),
+      });
+      const bookBody = await bookRes.json().catch(() => ({}));
+      if (!bookRes.ok) {
+        throw new Error(bookBody.error || `Book failed (HTTP ${bookRes.status})`);
+      }
+      const r = bookBody.reservation;
+      setReservedKeys(prev => ({
+        ...prev,
+        [cardKey]: { confirmationCode: r?.confirmationCode || null, bookingId: r?.bookingId || prebook.prebookId },
+      }));
+    } catch (err) {
+      setError(`Couldn't reserve ${rec.name} — ${err instanceof Error ? err.message : 'unknown error'}`);
+    } finally {
+      setReservingKey(null);
     }
   };
 
@@ -949,9 +1030,22 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                               </div>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-2 pt-2 border-t border-border">
+                            <div className="flex items-center gap-2 pt-2 border-t border-border flex-wrap">
                               <button onClick={() => { setCommitCardKey(cardKey); if (!cardDates[cardKey]) setCardDates(p => ({ ...p, [cardKey]: { start: tripDates?.departure || '', end: catVendor.multiDay ? (tripDates?.return || '') : '' } })); if (!cardFrequency[cardKey]) setCardFrequency(p => ({ ...p, [cardKey]: CATEGORY_DEFAULT_FREQ[rec.category] || TRAVEL_COA[rec.category]?.defaultFrequency || 'total' })); if (!cardTimes[cardKey]) { const defaults = CATEGORY_DEFAULT_TIMES[rec.category] || { startTime: '10:00', endTime: '12:00' }; setCardTimes(p => ({ ...p, [cardKey]: defaults })); } if (!cardPrices[cardKey] && rec.price) setCardPrices(p => ({ ...p, [cardKey]: String(rec.price) })); }}
                                 className="flex-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded hover:bg-emerald-700">Commit</button>
+                              {/* LiteAPI Reserve — only on accommodation cards that came back with a bookable offer. */}
+                              {rec.liteapiOfferId && (
+                                reservedKeys[cardKey] ? (
+                                  <span className="px-2 py-1.5 bg-emerald-100 text-emerald-800 text-xs font-medium rounded" title={`Booking ID: ${reservedKeys[cardKey].bookingId}`}>
+                                    Reserved{reservedKeys[cardKey].confirmationCode ? ` · ${reservedKeys[cardKey].confirmationCode}` : ''}
+                                  </span>
+                                ) : (
+                                  <button onClick={() => handleLiteApiReserve(rec, cardKey)} disabled={reservingKey === cardKey}
+                                    className="px-3 py-1.5 bg-brand-purple text-white text-xs font-medium rounded hover:bg-brand-purple-hover disabled:opacity-50">
+                                    {reservingKey === cardKey ? 'Reserving…' : 'Reserve'}
+                                  </button>
+                                )
+                              )}
                               {rec.website && <a href={rec.website} target="_blank" rel="noopener noreferrer" className="px-2 py-1.5 text-xs border border-border rounded hover:bg-bg-row">Visit</a>}
                             </div>
                           )}

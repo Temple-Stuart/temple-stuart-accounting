@@ -15,7 +15,12 @@
 
 import { MissingLiteApiKeyError, LiteApiError } from './travelErrors';
 
-const LITEAPI_BASE = 'https://api.liteapi.travel/v3.0';
+// LiteAPI uses two hosts:
+//   - api.liteapi.travel  → search + prebook
+//   - book.liteapi.travel → final book call (per their docs, /rates/book takes
+//     5-10s and lives on a separate book host).
+const LITEAPI_BASE      = 'https://api.liteapi.travel/v3.0';
+const LITEAPI_BOOK_BASE = 'https://book.liteapi.travel/v3.0';
 
 type LiteApiMode = 'sandbox' | 'production';
 
@@ -133,7 +138,10 @@ interface LiteApiHotelRate {
     longitude?: number;
   };
   roomTypes?: Array<{
+    offerId?: string;          // present on roomType in some response shapes
     rates?: Array<{
+      offerId?: string;        // per-rate offerId — what `/rates/prebook` needs
+      rateId?: string;
       retailRate?: { total?: Array<{ amount: number; currency: string }>; suggestedSellingPrice?: Array<{ amount: number; currency: string }> };
       offerRetailRate?: { amount: number; currency: string };
       name?: string;
@@ -200,6 +208,9 @@ interface HotelRecommendation {
   compositeScore: number;
   // Bookable signal — generalise to providerProductId in a later refactor.
   liteapiHotelId: string;
+  /** Rate-level offer ID for `/rates/prebook`. Null when no bookable rate
+   *  was returned for this hotel (sandbox metadata-only properties). */
+  liteapiOfferId: string | null;
   bookingUrl: string | null;
   price: number | null;          // nightly rate in USD
   durationMinutes: null;
@@ -218,6 +229,19 @@ function extractNightlyRate(hotel: LiteApiHotelRate): number | null {
       if (typeof suggested === 'number' && suggested > 0) return suggested;
       const offer = rate.offerRetailRate?.amount;
       if (typeof offer === 'number' && offer > 0) return offer;
+    }
+  }
+  return null;
+}
+
+/** Pick the first non-empty offerId we can find on this hotel — what `/rates/
+ *  prebook` requires. Returns null when LiteAPI didn't quote a bookable rate
+ *  (some sandbox properties are metadata-only). */
+function extractOfferId(hotel: LiteApiHotelRate): string | null {
+  for (const room of hotel.roomTypes || []) {
+    if (room.offerId) return room.offerId;
+    for (const rate of room.rates || []) {
+      if (rate.offerId) return rate.offerId;
     }
   }
   return null;
@@ -282,11 +306,158 @@ export function liteApiHotelToRecommendation(
     category,
     compositeScore,
     liteapiHotelId: hotel.hotelId,
-    // Booking URL stays null for SCAN-only PR-3; the booking flow PR adds
-    // prebook → book → checkout deeplink. The presence of `liteapiHotelId`
-    // alone is enough for the UI to surface a "Book" CTA in the next PR.
+    // Offer ID is what `/rates/prebook` needs (rate-level, not hotel-level).
+    // Hotels without a bookable rate quote → null; UI hides the Reserve button.
+    liteapiOfferId: extractOfferId(hotel),
+    // Booking URL stays null — bookings happen via prebook → SDK → book.
     bookingUrl: null,
     price: nightlyUsd,
     durationMinutes: null,
+  };
+}
+
+// ─── Prebook (checkout session creation) ─────────────────────────────────────
+// `POST /v3.0/rates/prebook` — Locks an offer for booking, returns final price,
+// cancellation policy, and the SDK payment context (`transactionId`+
+// `secretKey`) the browser uses to collect payment via LiteAPI's hosted SDK.
+// `usePaymentSdk: true` keeps card data OFF our servers — PCI scope minimised
+// (we never see PAN/CVV; LiteAPI handles tokenisation in the browser).
+
+export interface PrebookParams {
+  /** The `offerId` field returned on a hotel rate during search. */
+  offerId: string;
+  /** When true, LiteAPI returns SDK payment context for hosted card capture.
+   *  Defaults to true — keeps PCI scope out of our stack. */
+  usePaymentSdk?: boolean;
+}
+
+export interface PrebookResult {
+  prebookId: string;
+  hotelId: string;
+  offerId: string;
+  /** Final guest-paid price (in `currency`). */
+  price: number;
+  currency: string;
+  /** Our margin (set by the LiteAPI markup config). */
+  commission: number;
+  /** SDK payment context — the browser uses these to render LiteAPI's hosted
+   *  payment form. `transactionId` is what we send back to `/rates/book`. */
+  transactionId: string;
+  secretKey: string;
+  paymentTypes?: string[];
+  /** Cancellation policy snapshot (refundable tag + windows). Persisted onto
+   *  the reservation so we can show it to the user after booking. */
+  cancellationPolicies?: unknown;
+}
+
+/** Hit `/v3.0/rates/prebook`. Throws MissingLiteApiKeyError on no key,
+ *  LiteApiError on non-2xx. */
+export async function prebookRate(params: PrebookParams): Promise<PrebookResult> {
+  const body = {
+    offerId: params.offerId,
+    usePaymentSdk: params.usePaymentSdk ?? true,
+  };
+  const res = await fetch(`${LITEAPI_BASE}/rates/prebook`, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new LiteApiError('/v3.0/rates/prebook', res.status, await res.text());
+  }
+  const json = await res.json();
+  // LiteAPI returns either { data: {...} } or the prebook flat at the root
+  // depending on plan/version — accept both.
+  const d = json.data ?? json;
+  return {
+    prebookId: d.prebookId,
+    hotelId: d.hotelId,
+    offerId: d.offerId ?? params.offerId,
+    price: d.price ?? 0,
+    currency: d.currency ?? 'USD',
+    commission: d.commission ?? 0,
+    transactionId: d.transactionId,
+    secretKey: d.secretKey,
+    paymentTypes: d.paymentTypes,
+    cancellationPolicies: d.roomTypes?.[0]?.rates?.[0]?.cancellationPolicies ?? d.cancellationPolicies ?? null,
+  };
+}
+
+// ─── Book (complete reservation) ─────────────────────────────────────────────
+// `POST /v3.0/rates/book` — finalises the booking after the user paid via the
+// LiteAPI SDK. We pass `payment.method = "TRANSACTION_ID"` + the
+// `transactionId` returned from prebook; LiteAPI charges the card, books the
+// hotel, returns a confirmation code.
+
+export interface BookGuest {
+  occupancyNumber: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+export interface BookHolder {
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+export interface BookParams {
+  prebookId: string;
+  holder: BookHolder;
+  guests: BookGuest[];
+  /** `transactionId` returned by prebook + payment via the SDK. In sandbox,
+   *  LiteAPI accepts the prebook's transactionId without real card capture. */
+  paymentTransactionId: string;
+}
+
+export interface BookResult {
+  bookingId: string;
+  status: string;
+  hotelConfirmationCode?: string;
+  supplierConfirmationNum?: string;
+  checkin?: string;
+  checkout?: string;
+  hotelName?: string;
+  price?: number;
+  commission?: number;
+  currency?: string;
+  cancellationPolicies?: unknown;
+}
+
+/** Hit `/v3.0/rates/book`. Throws MissingLiteApiKeyError on no key,
+ *  LiteApiError on non-2xx. */
+export async function bookRate(params: BookParams): Promise<BookResult> {
+  const body = {
+    prebookId: params.prebookId,
+    holder: params.holder,
+    payment: {
+      method: 'TRANSACTION_ID',
+      transactionId: params.paymentTransactionId,
+    },
+    guests: params.guests,
+  };
+  const res = await fetch(`${LITEAPI_BOOK_BASE}/rates/book`, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new LiteApiError('/v3.0/rates/book', res.status, await res.text());
+  }
+  const json = await res.json();
+  const d = json.data ?? json;
+  return {
+    bookingId: d.bookingId,
+    status: d.status ?? 'CONFIRMED',
+    hotelConfirmationCode: d.hotelConfirmationCode,
+    supplierConfirmationNum: d.supplierConfirmationNum,
+    checkin: d.checkin,
+    checkout: d.checkout,
+    hotelName: d.hotel?.name,
+    price: d.price,
+    commission: d.commission,
+    currency: d.currency,
+    cancellationPolicies: d.cancellationPolicies,
   };
 }
