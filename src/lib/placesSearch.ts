@@ -1,4 +1,19 @@
-// Google Places: Source of Truth for Facts
+// Google Places: Source of Truth for Facts.
+// COMPLIANCE: per Google Places API terms, do NOT pipe Google Places data to
+// any AI/LLM. Results flow straight to the user, ranked by Google's own
+// popularity signal — no AI step.
+// COST: every outbound Google call goes through `googleFetch` (monthly cap
+// guard). Photos are returned as server-proxied URLs (/api/places/photo?ref=)
+// so the API key never reaches the client and photo bytes can be cached.
+
+import { googleFetch } from '@/lib/googlePlacesQuota';
+
+/** Server-side photo proxy URL — keeps the Google key off the client and lets
+ *  the proxy cache photo bytes. The browser only fetches this when a result is
+ *  actually expanded/selected (lazy). */
+export function photoProxyUrl(ref: string): string {
+  return `/api/places/photo?ref=${encodeURIComponent(ref)}`;
+}
 
 interface PlaceResult {
   name: string;
@@ -52,7 +67,7 @@ export async function searchPlaces(
   const geoUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(city + ', ' + country)}&key=${apiKey}`;
   
   try {
-    const geoRes = await fetch(geoUrl);
+    const geoRes = await googleFetch(geoUrl);
     const geoData = await geoRes.json();
     
     if (!geoData.results?.[0]?.geometry?.location) {
@@ -76,11 +91,11 @@ export async function searchPlaces(
         await new Promise(r => setTimeout(r, 2000));
       }
       
-      const searchRes = await fetch(searchUrl);
+      const searchRes = await googleFetch(searchUrl);
       const searchData = await searchRes.json();
-      
+
       if (!searchData.results) break;
-      
+
       const places: PlaceResult[] = searchData.results.map((p: any) => ({
         name: p.name,
         address: p.formatted_address,
@@ -91,9 +106,8 @@ export async function searchPlaces(
         priceLevelDisplay: formatPriceLevel(p.price_level),
         isOpen: p.business_status === 'OPERATIONAL',
         types: p.types || [],
-        photos: p.photos?.slice(0, 2).map((photo: any) => 
-          `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photo.photo_reference}&key=${apiKey}`
-        ),
+        // Server-proxied photo URLs (no API key, lazy-fetched, cacheable).
+        photos: p.photos?.slice(0, 2).map((photo: any) => photoProxyUrl(photo.photo_reference)),
         popularityScore: calculatePopularity(p.rating || 0, p.user_ratings_total || 0)
       }));
       
@@ -122,9 +136,9 @@ export async function getPlaceDetails(placeId: string): Promise<{ website?: stri
   if (!apiKey) return null;
   
   const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=website,price_level&key=${apiKey}`;
-  
+
   try {
-    const res = await fetch(url);
+    const res = await googleFetch(url);
     const data = await res.json();
     return { 
       website: data.result?.website,

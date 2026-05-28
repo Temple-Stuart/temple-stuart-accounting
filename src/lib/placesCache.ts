@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { photoProxyUrl } from '@/lib/placesSearch';
 
 export interface CachedPlace {
   placeId: string;
@@ -25,17 +26,16 @@ export async function getCachedPlaces(
   category: string
 ): Promise<CachedPlace[]> {
   try {
-    const apiKey = process.env.GOOGLE_PLACES_API_KEY;
     const cached = await prisma.places_cache.findMany({
       where: { city, country, category }
     });
 
     return cached.map(p => {
-      // Reconstruct signed photo URLs from stored references
+      // Photo references are stable per place and stored once (forever). Return
+      // them as server-proxied URLs — no API key on the client, and the photo
+      // bytes are only fetched lazily when the user expands a result.
       const photoRefs: string[] = p.photos ? JSON.parse(p.photos) : [];
-      const photos = apiKey && photoRefs.length > 0
-        ? photoRefs.map(ref => `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${ref}&key=${apiKey}`)
-        : [];
+      const photos = photoRefs.map(ref => photoProxyUrl(ref));
 
       return {
         placeId: p.placeId,
@@ -71,9 +71,11 @@ function extractPhotoRefs(photos: any[] | undefined): string {
   const refs: string[] = [];
   for (const photo of photos) {
     if (typeof photo === 'string') {
-      // Extract photo_reference param from signed URL
-      const match = photo.match(/photo_reference=([^&]+)/);
-      if (match) refs.push(match[1]);
+      // Accept our proxy URL (?ref=), a legacy signed Google URL
+      // (photo_reference=), or a bare reference string.
+      const m = photo.match(/[?&]ref=([^&]+)/) || photo.match(/photo_reference=([^&]+)/);
+      if (m) refs.push(decodeURIComponent(m[1]));
+      else if (!photo.includes('/') && !photo.includes('?')) refs.push(photo);
     } else if (photo?.photo_reference) {
       refs.push(photo.photo_reference);
     }
@@ -132,29 +134,34 @@ export async function cachePlaces(
   }
 }
 
-// Check if cache is fresh (less than 30 days old)
+/** Default cache TTL in days. Within this window the same city/country/category
+ *  is served entirely from places_cache — zero Google calls. Configurable via
+ *  PLACES_CACHE_TTL_DAYS (default 7). */
+export function cacheTtlDays(): number {
+  const raw = parseInt(process.env.PLACES_CACHE_TTL_DAYS || '', 10);
+  return Number.isFinite(raw) && raw > 0 ? raw : 7;
+}
+
+// Cache is fresh if the oldest entry for this key is younger than the TTL.
+// NOTE: we deliberately do NOT force a re-fetch when photos are empty — many
+// places legitimately have no photo, and forcing re-fetch on them re-bills
+// Google every scan. Photos are stored once and reused forever.
 export async function isCacheFresh(
   city: string,
   country: string,
   category: string,
-  maxAgeDays: number = 30
+  maxAgeDays: number = cacheTtlDays()
 ): Promise<boolean> {
   try {
     const oldest = await prisma.places_cache.findFirst({
       where: { city, country, category },
       orderBy: { cachedAt: 'asc' },
-      select: { cachedAt: true, photos: true }
+      select: { cachedAt: true }
     });
 
     if (!oldest) return false;
 
-    // If cached entries have no photos stored, treat as stale to force re-fetch
-    // This ensures a one-time backfill of photos for pre-existing cache entries
-    if (!oldest.photos || oldest.photos === '[]') return false;
-
-    const ageMs = Date.now() - oldest.cachedAt.getTime();
-    const ageDays = ageMs / (1000 * 60 * 60 * 24);
-
+    const ageDays = (Date.now() - oldest.cachedAt.getTime()) / (1000 * 60 * 60 * 24);
     return ageDays < maxAgeDays;
   } catch {
     return false;

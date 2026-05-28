@@ -1271,27 +1271,9 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     city={selectedDest?.resort?.name || trip.destination}
                     country={selectedDest?.resort?.country || null}
                     activity={trip.activity}
-                    participantProfiles={participants.map(p => ({
-                      firstName: p.firstName,
-                      profileTripType: p.profileTripType,
-                      profileActivities: p.profileActivities,
-                    }))}
                     month={trip.month}
                     year={trip.year}
                     daysTravel={trip.daysTravel}
-                    participantId={participants.find(p => p.isOwner)?.id}
-                    initialProfile={(() => {
-                      const owner = participants.find(p => p.isOwner);
-                      if (!owner?.profileTripType) return undefined;
-                      return {
-                        tripType: owner.profileTripType || undefined,
-                        budget: owner.profileBudget || undefined,
-                        priorities: owner.profilePriorities || [],
-                        vibe: owner.profileVibe || [],
-                        pace: owner.profilePace || undefined,
-                        groupSize: owner.profileGroupSize || undefined,
-                      };
-                    })()}
                     tripDates={tripDates}
                     onCommitted={() => { loadTrip(); loadBudgetItems(); loadVendorOptions(); loadScannerResults(); }}
                   />

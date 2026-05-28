@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { googleFetch } from '@/lib/googlePlacesQuota';
+import { photoProxyUrl } from '@/lib/placesSearch';
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -137,9 +139,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         if (apiKey) {
           // Search for the destination to get photo and coordinates
           const searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(trip.destination)}&key=${apiKey}`;
-          const searchRes = await fetch(searchUrl);
+          const searchRes = await googleFetch(searchUrl);
           const searchData = await searchRes.json();
-          
+
           const firstResult = searchData.results?.[0];
           if (firstResult) {
             // Extract coordinates
@@ -148,11 +150,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
               longitude = firstResult.geometry.location.lng;
               console.log("[Commit] Got coordinates for", trip.destination, latitude, longitude);
             }
-            
-            // Extract photo
+
+            // Extract photo — store the server proxy URL (no API key on client).
             if (firstResult.photos?.[0]?.photo_reference && !trip.destinationPhoto) {
-              const photoRef = firstResult.photos[0].photo_reference;
-              destinationPhoto = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoRef}&key=${apiKey}`;
+              destinationPhoto = photoProxyUrl(firstResult.photos[0].photo_reference);
               console.log("[Commit] Fetched destination photo for", trip.destination);
             }
           }
