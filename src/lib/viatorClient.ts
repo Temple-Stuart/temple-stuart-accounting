@@ -76,9 +76,25 @@ async function loadDestinations(): Promise<ViatorDestination[]> {
       throw new ViatorApiError('V2 /destinations', res.status, await res.text());
     }
     const data = await res.json();
-    cachedDestinations = data.destinations || data.data || [];
+    // Filter at load time: Viator's V2 destinations catalog includes a few
+    // taxonomic nodes (regions, "areas") where `destinationName` is null or
+    // missing. The downstream `findDestinationId` calls `.toLowerCase()` on
+    // every row during `Array.find()` iteration — one bad row crashes the
+    // whole search with "Cannot read properties of undefined (reading
+    // 'toLowerCase')". Drop the unusable rows here, log the count for
+    // visibility, and never assume `destinationName` is a string downstream.
+    const raw: unknown[] = data.destinations || data.data || [];
+    const usable = raw.filter((d): d is ViatorDestination =>
+      typeof d === 'object' && d !== null &&
+      typeof (d as { destinationName?: unknown }).destinationName === 'string'
+    );
+    const skipped = raw.length - usable.length;
+    cachedDestinations = usable;
     destinationCacheTime = Date.now();
-    console.log(`[Viator] Loaded ${cachedDestinations!.length} destinations (V2 /destinations)`);
+    console.log(
+      `[Viator] Loaded ${usable.length} destinations (V2 /destinations)` +
+      (skipped > 0 ? ` — skipped ${skipped} rows with missing destinationName` : '')
+    );
     return cachedDestinations!;
   } catch (err) {
     if (err instanceof MissingViatorKeyError) throw err;

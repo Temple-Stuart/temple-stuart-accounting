@@ -171,6 +171,11 @@ export async function searchHotelRates(params: SearchHotelsParams): Promise<Lite
     occupancies: params.occupancies,
     currency: params.currency || 'USD',
     guestNationality: params.guestNationality || 'US',
+    // Per LiteAPI's docs (Rate-and-Hotel-Query guide), hotel metadata (name,
+    // photo, address, rating, tags) is included when this flag is true. Auto-
+    // enabled for cityName filter, but we pass it explicitly so the behaviour
+    // never silently changes if LiteAPI flips the default.
+    includeHotelData: true,
   };
 
   const url = `${LITEAPI_BASE}/hotels/rates`;
@@ -185,9 +190,28 @@ export async function searchHotelRates(params: SearchHotelsParams): Promise<Lite
   }
 
   const data = await res.json();
-  const hotels: LiteApiHotelRate[] = data.data || data.hotels || [];
+
+  // LiteAPI returns rate items in `data.data[]` (each carries `hotelId` +
+  // `roomTypes[]` only) and hotel metadata in a PARALLEL `data.hotels[]`
+  // array, keyed by `id`. The mapper at `liteApiHotelToRecommendation`
+  // reads from `rate.hotel.<field>`, so we merge the parallel array onto
+  // each rate item here. Without this merge, every card defaults to
+  // name = "Hotel", photo = placeholder, rating = "★ —".
+  const rateItems: LiteApiHotelRate[] = data.data || [];
+  const hotelMetaById: Record<string, NonNullable<LiteApiHotelRate['hotel']>> = {};
+  for (const h of (data.hotels || []) as Array<{ id?: string } & NonNullable<LiteApiHotelRate['hotel']>>) {
+    if (h && typeof h.id === 'string') hotelMetaById[h.id] = h;
+  }
+  const merged: LiteApiHotelRate[] = rateItems.map(r => {
+    const meta = hotelMetaById[r.hotelId];
+    if (!meta) return r;
+    // Merge: keep any sub-fields already present on `r.hotel`, but fill in
+    // the metadata we just looked up.
+    return { ...r, hotel: { ...meta, ...(r.hotel || {}) } };
+  });
+
   const max = params.maxResults || 33;
-  return hotels.slice(0, max);
+  return merged.slice(0, max);
 }
 
 // ─── Mapping into the canonical recommendation shape ─────────────────────────

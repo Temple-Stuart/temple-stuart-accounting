@@ -52,7 +52,10 @@ export const TRAVEL_COA: Record<string, COACategory> = {
     coaPersonal: 'P-9310', coaBusiness: 'B-9310',
     alwaysScan: true,
     googlePlacesType: 'cafe',
-    scanQueries: ['brunch', 'breakfast cafe', 'coffee shop', 'bakery', 'specialty coffee'],
+    // Multi-word queries only — Google's text-search NL parser rejects bare
+    // Place-Type slugs ("brunch", "bakery") when combined with location+radius.
+    // Per audit-reports/travel-invalid-request-audit-v2.md.
+    scanQueries: ['brunch restaurant', 'breakfast cafe', 'coffee shop', 'bakery cafe', 'specialty coffee'],
     defaultFrequency: 'per_visit',
     vendorApi: 'activities', optionType: 'activity', multiDay: false,
   },
@@ -109,7 +112,10 @@ export const TRAVEL_COA: Record<string, COACategory> = {
     coaPersonal: 'P-9430', coaBusiness: null,
     alwaysScan: false,
     googlePlacesType: 'bar',
-    scanQueries: [],
+    // Empty scanQueries used to fall back to the label "nightlife & entertainment";
+    // explicit multi-word queries avoid the Place-Type-slug parser quirk
+    // (per audit-reports/travel-invalid-request-audit-v2.md).
+    scanQueries: ['nightlife venue', 'bar cocktail', 'live music club'],
     interestSlugs: ['clubs', 'rooftop_bars', 'live_music', 'jazz', 'comedy', 'dinner_shows'],
     defaultFrequency: 'per_visit',
     vendorApi: 'activities', optionType: 'activity', multiDay: false,
@@ -145,7 +151,10 @@ export const TRAVEL_COA: Record<string, COACategory> = {
     coaPersonal: 'P-9510', coaBusiness: 'B-9510',
     alwaysScan: false,
     googlePlacesType: null,
-    scanQueries: [],
+    // Empty scanQueries used to fall back to the bare label "coworking" —
+    // a single content word Google's NL parser sometimes rejects with
+    // INVALID_REQUEST (per audit-reports/travel-invalid-request-audit-v2.md).
+    scanQueries: ['coworking space', 'coworking office', 'shared workspace'],
     interestSlugs: ['day_pass', 'weekly_desk', 'nomad_community'],
     defaultFrequency: 'per_day',
     vendorApi: 'activities', optionType: 'activity', multiDay: true,
@@ -179,7 +188,9 @@ export const TRAVEL_COA: Record<string, COACategory> = {
     coaPersonal: 'P-9800', coaBusiness: 'B-9800',
     alwaysScan: false,
     googlePlacesType: null,
-    scanQueries: ['shopping mall', 'market', 'convenience store', 'pharmacy'],
+    // `market` and `pharmacy` are bare Google Place-Type slugs — substituting
+    // multi-word qualifiers per audit-reports/travel-invalid-request-audit-v2.md.
+    scanQueries: ['shopping mall', 'local market', 'convenience store', 'pharmacy drugstore'],
     defaultFrequency: 'total',
     vendorApi: 'activities', optionType: 'activity', multiDay: false,
   },
