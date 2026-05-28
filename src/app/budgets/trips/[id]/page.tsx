@@ -7,7 +7,6 @@ import DestinationSelector from '@/components/trips/DestinationSelector';
 import FlightPicker from '@/components/trips/FlightPicker';
 import DestinationMap from '@/components/trips/DestinationMap';
 import TripPlannerAI from '@/components/trips/TripPlannerAI';
-import TripProfileCard from '@/components/trips/TripProfileCard';
 import CalendarGrid, { CalendarEvent, SourceConfig } from '@/components/shared/CalendarGrid';
 import { ADMIN_USER_ID } from '@/lib/tiers';
 import { coaCodeToLabel } from '@/lib/travelCOA';
@@ -29,13 +28,6 @@ interface Participant {
   isOwner: boolean;
   unavailableDays: number[] | null;
   inviteUrl?: string;
-  profileTripType?: string | null;
-  profileBudget?: string | null;
-  profilePriorities?: string[];
-  profileVibe?: string[];
-  profilePace?: string | null;
-  profileGroupSize?: number | null;
-  profileActivities?: string[];
   homeAirport?: string | null;
 }
 
@@ -985,9 +977,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
               <div className="bg-brand-purple/80 text-white px-4 py-2.5 flex justify-between items-center">
                 <h2 className="text-sm font-semibold">Crew ({participants.length})</h2>
-                <span className="text-xs opacity-70">
-                  {participants.filter(p => !!p.profileTripType).length} of {participants.length} profiles complete
-                </span>
               </div>
               <div className="bg-white p-4">
               <div className="overflow-x-auto mb-4">
@@ -1041,18 +1030,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     ))}
                   </tbody>
                 </table>
-              </div>
-              {/* Inline profiles */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {participants.map(p => (
-                  <TripProfileCard
-                    key={p.id}
-                    participant={p}
-                    isCurrentUser={p.email.toLowerCase() === currentUserEmail.toLowerCase()}
-                    tripId={id}
-                    onProfileSaved={() => { loadParticipants(); }}
-                  />
-                ))}
               </div>
               </div>
             </div>
