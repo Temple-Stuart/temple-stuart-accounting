@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui';
 import { ACTIVITY_LABELS } from '@/lib/activities';
 import { TRAVEL_COA, getActiveScanCategories } from '@/lib/travelCOA';
+import { getSource, type Source } from '@/lib/travelSourceRegistry';
 
 // Grok response format with sentiment analysis
 interface GrokRecommendation {
@@ -156,6 +158,7 @@ const CATEGORY_TO_VENDOR_API: Record<string, string> = {
 };
 
 export default function TripPlannerAI({ tripId, city, country, activity, activities = [], month, year, daysTravel, tripDates, onCommitted }: Props) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [loadingCategory, setLoadingCategory] = useState<string | null>(null);
   const [completedCount, setCompletedCount] = useState(0);
@@ -196,43 +199,59 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   const [reservingKey, setReservingKey] = useState<string | null>(null);
   const [reservedKeys, setReservedKeys] = useState<Record<string, { confirmationCode: string | null; bookingId: string }>>({});
 
+  // PR-4: per-category loading + error state for the auto-load carousels.
+  // `loadingCategories` is the Set of category keys still in-flight;
+  // `categoryErrors` is the inline banner per category. Independent of the
+  // global `error` + `loading` flags so one bad category doesn't blank the page.
+  const [loadingCategories, setLoadingCategories] = useState<Set<string>>(new Set());
+  const [categoryErrors, setCategoryErrors] = useState<Record<string, string>>({});
+
   // Load saved scanner results from DB on mount
   useEffect(() => {
-    const loadSavedResults = async () => {
+    const loadSavedThenAutoScan = async () => {
+      // 1. Hydrate from persisted scanner_results — repeat opens see content
+      // immediately, no Google/Viator/LiteAPI calls needed.
+      const loaded: Record<string, GrokRecommendation[]> = {};
       try {
         const res = await fetch(`/api/trips/${tripId}/scanner-results`);
-        if (!res.ok) return;
-        const data = await res.json();
-        const results = data.results || [];
-        if (results.length === 0) return;
+        if (res.ok) {
+          const data = await res.json();
+          const results = data.results || [];
+          let allRecs: GrokRecommendation[] = [];
+          let latestMeta: { scannedBy: string; updatedAt: string } | null = null;
 
-        const loaded: Record<string, GrokRecommendation[]> = {};
-        let allRecs: GrokRecommendation[] = [];
-        let latestMeta: { scannedBy: string; updatedAt: string } | null = null;
-
-        for (const r of results) {
-          const recs = r.recommendations as GrokRecommendation[];
-          if (recs && recs.length > 0) {
-            loaded[r.category] = recs;
-            allRecs = [...allRecs, ...recs];
+          for (const r of results) {
+            const recs = r.recommendations as GrokRecommendation[];
+            if (recs && recs.length > 0) {
+              loaded[r.category] = recs;
+              allRecs = [...allRecs, ...recs];
+            }
+            if (!latestMeta || new Date(r.updatedAt) > new Date(latestMeta.updatedAt)) {
+              latestMeta = { scannedBy: r.scannedBy, updatedAt: r.updatedAt };
+            }
           }
-          if (!latestMeta || new Date(r.updatedAt) > new Date(latestMeta.updatedAt)) {
-            latestMeta = { scannedBy: r.scannedBy, updatedAt: r.updatedAt };
+          if (Object.keys(loaded).length > 0) {
+            setByCategory(loaded);
+            setRecommendations(allRecs.sort((a, b) => (b.compositeScore || 0) - (a.compositeScore || 0) || a.valueRank - b.valueRank));
+            setScannerMeta(latestMeta);
           }
-        }
-
-        if (Object.keys(loaded).length > 0) {
-          setByCategory(loaded);
-          setRecommendations(allRecs.sort((a, b) => (b.compositeScore || 0) - (a.compositeScore || 0) || a.valueRank - b.valueRank));
-          setExpandedCategory(Object.keys(loaded)[0]);
-          setScannerMeta(latestMeta);
         }
       } catch (err) {
         console.error('Failed to load saved scanner results:', err);
       }
+
+      // 2. Auto-scan ONLY the categories not already cached. Per-category
+      // isolation (Promise.allSettled inside autoScanCategoriesFor) so a
+      // single failure doesn't block the rest.
+      if (!city || !country) return;
+      const activeCoaKeys = getActiveScanCategories([], '');
+      const missing = activeCoaKeys.filter(k => !(k in loaded));
+      if (missing.length === 0) return;
+      await autoScanCategoriesFor(missing);
     };
-    loadSavedResults();
-  }, [tripId]);
+    loadSavedThenAutoScan();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tripId, city, country]);
 
   // Custom add state
   const [showCustomModal, setShowCustomModal] = useState(false);
@@ -243,85 +262,91 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   const tripDays = Array.from({ length: daysTravel }, (_, i) => i + 1);
   const tripActivities = activities.length > 0 ? activities : (activity ? [activity] : []);
 
-  const searchDestination = async () => {
-    if (!city || !country) { setError('Please select a destination first'); return; }
-    setLoading(true);
-    setError(null);
-    setByCategory({});
-    setRecommendations([]);
-    setSelections([]);
-    setScannerMeta(null);
-    setExpandedCategory(null);
-    setCompletedCount(0);
+  // ─── PR-4 auto-load orchestrator ─────────────────────────────────────────
+  // Replaces the old "Search" button. Fires every active category in PARALLEL
+  // via Promise.allSettled so one category's failure (e.g. Brunch's
+  // INVALID_REQUEST, or LiteAPI's missing key) does NOT block the others.
+  // Failed categories surface as inline banners in their carousel slot
+  // (categoryErrors map); other categories continue to load + display.
+  const scanSingleCategory = async (catKey: string, catLabel: string, catMaxResults: number) => {
+    const res = await fetch(`/api/trips/${tripId}/ai-assistant`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ city, country, activities: tripActivities, activity, month, year, daysTravel, minRating, minReviews, maxPriceLevel: maxPriceLevel || undefined, category: catKey, maxResults: catMaxResults }),
+    });
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      throw new Error(`Couldn't load ${catLabel} — request timed out. Try again.`);
+    }
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      const upstream = d.error || `HTTP ${res.status}`;
+      throw new Error(`Couldn't load ${catLabel} — ${upstream}`);
+    }
+    const data = await res.json();
+    return (data.recommendations || []) as GrokRecommendation[];
+  };
 
-    // Standard travel category set — no traveler profile. getActiveScanCategories
-    // with no interests/tripType returns the full scannable set.
+  // Scan a specific set of category keys in parallel. Leaves byCategory keys
+  // that aren't in the list untouched (so cached categories stay rendered
+  // while missing ones load).
+  const autoScanCategoriesFor = async (catKeys: string[]) => {
+    if (!city || !country || catKeys.length === 0) return;
+    setError(null);
+
     type ScanCategory = { key: string; label: string; maxResults: number };
-    const activeCoaKeys = getActiveScanCategories([], '');
-    const categoriesToScan: ScanCategory[] = activeCoaKeys.map(key => ({
+    const categoriesToScan: ScanCategory[] = catKeys.map(key => ({
       key,
       label: TRAVEL_COA[key]?.label || key,
       maxResults: 33,
     }));
 
+    setLoading(true);
     setTotalCategories(categoriesToScan.length);
-    let firstExpanded = false;
+    setLoadingCategories(new Set(categoriesToScan.map(c => c.key)));
 
-    for (let i = 0; i < categoriesToScan.length; i++) {
-      const { key: cat, label: catLabel, maxResults: catMaxResults } = categoriesToScan[i];
-      setLoadingCategory(catLabel);
-      setCompletedCount(i);
-
-      try {
-        const res = await fetch('/api/trips/' + tripId + '/ai-assistant', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ city, country, activities: tripActivities, activity, month, year, daysTravel, minRating, minReviews, maxPriceLevel: maxPriceLevel || undefined, category: cat, maxResults: catMaxResults })
-        });
-
-        // Guard against non-JSON responses (serverless timeout returns HTML).
-        // Fail loud — break the loop so the user sees a real banner instead
-        // of "0 results" with no explanation.
-        const contentType = res.headers.get('content-type') || '';
-        if (!contentType.includes('application/json')) {
-          setError(`Couldn't load ${catLabel} — request timed out. Try again.`);
-          break;
-        }
-
-        if (!res.ok) {
-          // Surface the upstream error verbatim and stop. Continuing would
-          // hammer the same broken config (Google billing/key/quota or Viator
-          // auth) for every remaining category and waste quota.
-          const d = await res.json().catch(() => ({}));
-          const upstream = d.error || `HTTP ${res.status}`;
-          setError(`Couldn't load ${catLabel} — ${upstream}`);
-          break;
-        }
-
-        const data = await res.json();
-        const items: GrokRecommendation[] = data.recommendations || [];
-        console.log(`[Search] ${cat}: ${items.length} results`);
-
-        // Empty array is a legitimate ZERO_RESULTS — show no banner, just no
-        // items. Real errors took the !res.ok branch above.
-        if (items.length > 0) {
+    await Promise.allSettled(
+      categoriesToScan.map(async ({ key: cat, label: catLabel, maxResults: catMaxResults }) => {
+        try {
+          const items = await scanSingleCategory(cat, catLabel, catMaxResults);
           setByCategory(prev => ({ ...prev, [cat]: items }));
           setRecommendations(prev => [...prev, ...items].sort((a, b) => (b.compositeScore || 0) - (a.compositeScore || 0)));
-          if (!firstExpanded) {
-            setExpandedCategory(cat);
-            firstExpanded = true;
-          }
+          setCategoryErrors(prev => {
+            if (!(cat in prev)) return prev;
+            const next = { ...prev };
+            delete next[cat];
+            return next;
+          });
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error(`[Scan] ${cat} failed:`, msg);
+          setCategoryErrors(prev => ({ ...prev, [cat]: msg }));
+        } finally {
+          setLoadingCategories(prev => {
+            const next = new Set(prev);
+            next.delete(cat);
+            return next;
+          });
+          setCompletedCount(c => c + 1);
         }
-      } catch (err) {
-        // Network error or JSON parse failure — fail loud, break the loop.
-        setError(`Couldn't load ${catLabel} — ${err instanceof Error ? err.message : 'unknown error'}`);
-        break;
-      }
-    }
+      })
+    );
 
-    setCompletedCount(categoriesToScan.length);
     setLoadingCategory(null);
     setLoading(false);
+  };
+
+  // Full re-scan trigger — clears state and scans every active category.
+  // Used by the "Refresh" button at the top of the planner section.
+  const rescanAll = async () => {
+    setByCategory({});
+    setRecommendations([]);
+    setSelections([]);
+    setScannerMeta(null);
+    setCategoryErrors({});
+    setCompletedCount(0);
+    const activeCoaKeys = getActiveScanCategories([], '');
+    await autoScanCategoriesFor(activeCoaKeys);
   };
 
   // Expedia-style client-side sort of results within a category.
@@ -688,58 +713,33 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
 
   return (
     <div className="space-y-6">
-      {/* Search Controls — filters + sort + search (no profile, no AI) */}
-      <div className="flex flex-wrap items-end gap-4 p-4 bg-bg-row rounded border border-border">
-        <div>
-          <label className="text-xs text-text-muted font-medium block mb-1.5">Min Rating</label>
-          <select value={minRating} onChange={e => setMinRating(+e.target.value)} className="border border-border rounded px-3 py-2.5 text-sm bg-white">
-            <option value={3.5}>3.5+</option><option value={4.0}>4.0+</option><option value={4.5}>4.5+</option>
-          </select>
+      {/* Compact trip-context header — replaces the old Search Controls.
+          Carousels auto-load on mount; user only needs Refresh + optional dates. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-bg-row rounded border border-border text-sm">
+        <div className="flex items-center gap-3 flex-wrap min-w-0">
+          <span className="font-semibold text-text-primary truncate">{city || 'Pick a destination'}{country ? `, ${country}` : ''}</span>
+          {tripDates?.departure && tripDates?.return ? (
+            <span className="text-text-muted">{tripDates.departure} → {tripDates.return} · {daysTravel} nights</span>
+          ) : (
+            <span className="text-orange-600 text-xs">⚠ Set trip dates above to enable Stays & Reserve</span>
+          )}
         </div>
-        <div>
-          <label className="text-xs text-text-muted font-medium block mb-1.5">Min Reviews</label>
-          <select value={minReviews} onChange={e => setMinReviews(+e.target.value)} className="border border-border rounded px-3 py-2.5 text-sm bg-white">
-            <option value={10}>10+</option><option value={50}>50+</option><option value={100}>100+</option>
-          </select>
+        <div className="flex items-center gap-2 shrink-0">
+          {loadingCategories.size > 0 && (
+            <span className="text-xs text-brand-purple">
+              Loading {loadingCategories.size} of {totalCategories}…
+            </span>
+          )}
+          <button onClick={rescanAll} disabled={loading || !city}
+            className="px-3 py-1.5 text-xs border border-border rounded hover:bg-white disabled:opacity-50">
+            {loading ? 'Refreshing…' : 'Refresh'}
+          </button>
         </div>
-        <div>
-          <label className="text-xs text-text-muted font-medium block mb-1.5">Max Price</label>
-          <select value={maxPriceLevel} onChange={e => setMaxPriceLevel(+e.target.value)} className="border border-border rounded px-3 py-2.5 text-sm bg-white">
-            <option value={0}>Any</option><option value={1}>$</option><option value={2}>$$</option><option value={3}>$$$</option><option value={4}>$$$$</option>
-          </select>
-        </div>
-        <div>
-          <label className="text-xs text-text-muted font-medium block mb-1.5">Sort by</label>
-          <select value={sortBy} onChange={e => setSortBy(e.target.value as SortBy)} className="border border-border rounded px-3 py-2.5 text-sm bg-white">
-            <option value="rating">Rating</option>
-            <option value="price">Price</option>
-            <option value="reviews">Reviews</option>
-            <option value="name">Name</option>
-          </select>
-        </div>
-        <Button onClick={searchDestination} loading={loading} disabled={!city} className="flex-1 py-3 text-base">
-          Search {city || 'Destination'}
-        </Button>
       </div>
 
+      {/* Top-level error banner only for global problems (network out, etc.).
+          Per-category errors render inline in their carousel slot. */}
       {error && <div className="bg-red-50 border border-red-200 rounded p-4 text-brand-red text-sm">{error}</div>}
-
-      {loading && (
-        <div className="text-center py-16 bg-gradient-to-b from-bg-row to-white rounded border border-border">
-          <div className="w-12 h-12 border-4 border-brand-purple border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-text-secondary font-semibold text-terminal-lg">Searching {city}...</p>
-          {loadingCategory && (
-            <p className="text-brand-purple text-sm mt-2 font-medium">
-              {loadingCategory} ({completedCount + 1}/{totalCategories})
-            </p>
-          )}
-          {completedCount > 0 && (
-            <div className="mt-4 mx-auto w-64 bg-border rounded-full h-2">
-              <div className="bg-brand-purple h-2 rounded-full transition-all" style={{ width: `${(completedCount / totalCategories) * 100}%` }} />
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Edit Selection Modal */}
       {editingSelection && (
@@ -837,242 +837,154 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
         </div>
       )}
 
-      {/* Results — Card Grid grouped by scanner category */}
-      {Object.keys(byCategory).length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-bold text-sm text-text-primary">Results <span className="text-sm font-normal text-text-muted">({recommendations.length} places)</span></h3>
-            {scannerMeta && !loading && (
-              <span className="text-xs text-text-muted">
-                Searched by {scannerMeta.scannedBy.split('@')[0]} · {new Date(scannerMeta.updatedAt).toLocaleDateString()}
-              </span>
-            )}
-          </div>
-
-          {/* Category order: accommodation first, brunch_coffee second, dinner third, rest alphabetical */}
-          {Object.keys(byCategory).sort((a, b) => {
-            const order: Record<string, number> = { accommodation: 0, brunch_coffee: 1, dinner: 2 };
-            const oa = order[a] ?? 99;
-            const ob = order[b] ?? 99;
-            if (oa !== ob) return oa - ob;
-            return a.localeCompare(b);
-          }).map(cat => {
-            const items = byCategory[cat];
-            if (!items || items.length === 0) return null;
-            const coaCat = TRAVEL_COA[cat];
-            const info = CATEGORY_INFO[cat] || (coaCat ? { label: coaCat.label, icon: '' } : { label: ACTIVITY_LABELS[cat] || cat, icon: '' });
-            const coaVendor = TRAVEL_COA[cat];
-            const catVendor = CATEGORY_VENDOR_INFO[cat] || (coaVendor ? { vendorApi: coaVendor.vendorApi, optionType: coaVendor.optionType, multiDay: coaVendor.multiDay } : { vendorApi: 'activities', optionType: 'activity', multiDay: false });
-            const isExpanded = expandedCategory === cat;
-            const committedCount = items.filter(r => committedCards[`${r.category}:${r.name}`]).length;
+      {/* ── PR-4 carousels: one row per active category, ordered by the curated
+            layout (Stays first → Things to do → Where to eat → discovery).
+            Each row independently shows items / skeleton / error banner so a
+            single failing category never blanks the rest of the page. ── */}
+      <div className="space-y-6 pt-2">
+        {CAROUSEL_ORDER
+          .filter(catKey => ACTIVE_SCAN_SET.has(catKey))
+          .map(catKey => {
+            const isLoading = loadingCategories.has(catKey);
+            const items = byCategory[catKey] || [];
+            const err = categoryErrors[catKey];
+            const coa = TRAVEL_COA[catKey];
+            const info = CATEGORY_INFO[catKey];
+            const label = info?.label || coa?.label || catKey;
+            const { source } = getSource(catKey);
             return (
-              <div key={cat} className="border border-border rounded overflow-hidden">
-                <button type="button" onClick={() => setExpandedCategory(isExpanded ? null : cat)} className="w-full flex justify-between items-center px-5 py-3 bg-bg-row border-b border-border hover:bg-gray-100 transition-colors cursor-pointer">
-                  <span className="flex items-center gap-2">
-                    {info.icon ? <span>{info.icon}</span> : <span className="w-2.5 h-2.5 rounded-full bg-purple-500 shrink-0" />}
-                    <span className="font-semibold text-sm">{info.label}</span>
-                    {committedCount > 0 && !isExpanded && (
-                      <span className="text-[11px] text-emerald-700 font-medium">&middot; {committedCount} committed</span>
-                    )}
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <span className="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-medium">{items.length}</span>
-                    <span className="text-xs text-text-muted">{isExpanded ? '▲' : '▼'}</span>
-                  </span>
-                </button>
-                {isExpanded && (
-                  <>
-                <div className="max-h-[780px] overflow-y-auto" style={{ scrollBehavior: 'smooth' }}>
-                <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {sortItems(items).map((rec, idx) => {
-                    const cardKey = `${rec.category}:${rec.name}`;
-                    const committed = committedCards[cardKey];
-                    const isCommitting = committingCard === cardKey;
-                    const showPanel = commitCardKey === cardKey;
-                    const photoShown = rec.photoUrl && (loadedPhotos.has(cardKey) || showPanel);
-                    return (
-                      <div key={`${rec.category}-${idx}`} className={`border rounded overflow-hidden ${committed ? 'border-emerald-400 bg-emerald-50/30' : 'border-border'}`}>
-                        {/* Lazy photo: only fetched (billed) when the user clicks to view or opens the commit panel. */}
-                        {photoShown ? (
-                          <img src={rec.photoUrl!} alt={rec.name} className="w-full h-40 object-cover" />
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => { if (rec.photoUrl) setLoadedPhotos(s => new Set(s).add(cardKey)); }}
-                            disabled={!rec.photoUrl}
-                            className="w-full h-40 bg-gradient-to-br from-purple-100 to-indigo-100 flex items-center justify-center text-text-muted text-xs"
-                          >
-                            {rec.photoUrl ? 'Show photo' : <span className="text-4xl">{info.icon}</span>}
-                          </button>
-                        )}
-                        <div className="p-3 space-y-2">
-                          <div className="min-w-0">
-                            <h4 className="font-semibold text-sm text-text-primary truncate">{rec.name}</h4>
-                            <div className="text-xs text-text-muted flex items-center gap-2 mt-0.5">
-                              <span>{'★'.repeat(Math.round(rec.googleRating))} {rec.googleRating} ({rec.reviewCount})</span>
-                              {rec.priceLevelDisplay ? (
-                                <span className={`px-1 py-0.5 rounded text-[9px] font-bold ${
-                                  rec.priceLevel === 1 ? 'bg-green-100 text-green-700' :
-                                  rec.priceLevel === 2 ? 'bg-blue-100 text-blue-700' :
-                                  rec.priceLevel === 3 ? 'bg-orange-100 text-orange-700' :
-                                  rec.priceLevel === 4 ? 'bg-red-100 text-red-700' :
-                                  'bg-gray-100 text-gray-500'
-                                }`}>{rec.priceLevelDisplay}</span>
-                              ) : (
-                                <span className="px-1 py-0.5 rounded text-[9px] bg-gray-100 text-gray-400">N/A</span>
-                              )}
-                            </div>
-                            {rec.address && <p className="text-[11px] text-text-faint truncate mt-0.5">{rec.address}</p>}
-                          </div>
-
-                          {rec.viatorProductCode && (
-                            <div className="flex items-center gap-2 text-[11px]">
-                              {rec.price != null && <span className="font-semibold text-emerald-700">From ${rec.price}</span>}
-                              {rec.durationMinutes != null && (
-                                <span className="text-text-muted">
-                                  {rec.durationMinutes >= 60
-                                    ? `${Math.floor(rec.durationMinutes / 60)}h${rec.durationMinutes % 60 ? ` ${rec.durationMinutes % 60}m` : ''}`
-                                    : `${rec.durationMinutes}m`}
-                                </span>
-                              )}
-                              <span className="text-[9px] text-gray-400 ml-auto">via Viator</span>
-                            </div>
-                          )}
-
-                          {committed ? (
-                            <div className="flex items-center justify-between pt-2 border-t border-border">
-                              <span className="px-2 py-1 bg-emerald-100 text-emerald-800 text-xs font-medium rounded">Committed</span>
-                              <button onClick={() => handleUncommitCard(cardKey, committed.optionType, committed.optionId)} className="text-xs text-text-muted hover:text-brand-red">Uncommit</button>
-                            </div>
-                          ) : showPanel ? (
-                            <div className="pt-2 border-t border-border space-y-2">
-                              <div className="font-medium text-[11px] text-gray-700 truncate">{rec.name}</div>
-                              <div>
-                                <label className="text-[10px] text-text-muted block mb-0.5">Price *</label>
-                                <div className="flex items-center gap-1">
-                                  <span className="text-xs text-text-muted">$</span>
-                                  <input type="number" min={0} placeholder="0" value={cardPrices[cardKey] || ''} onChange={e => setCardPrices(p => ({ ...p, [cardKey]: e.target.value }))}
-                                    className="flex-1 min-w-0 border border-border rounded px-2 py-1.5 text-xs" />
-                                  <select value={cardFrequency[cardKey] || CATEGORY_DEFAULT_FREQ[rec.category] || 'total'} onChange={e => setCardFrequency(p => ({ ...p, [cardKey]: e.target.value }))}
-                                    className="border border-border rounded px-1 py-1.5 text-xs bg-white">
-                                    {FREQUENCY_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-                                  </select>
-                                </div>
-                              </div>
-                              {(() => {
-                                const up = parseFloat(cardPrices[cardKey] || '0');
-                                const fr = cardFrequency[cardKey] || CATEGORY_DEFAULT_FREQ[rec.category] || 'total';
-                                const d = cardDates[cardKey];
-                                if (!up) return null;
-                                const tot = calcTotal(up, fr, d?.start || '', d?.end);
-                                const nDays = calcDaysBetween(d?.start || '', d?.end);
-                                if (fr === 'total' || fr === 'per_visit' || fr === 'per_trip') return <div className="text-[11px] text-emerald-700 font-medium">${up} {formatFreqLabel(fr)} = ${tot} total</div>;
-                                return <div className="text-[11px] text-emerald-700 font-medium">${up}{formatFreqLabel(fr)} × {nDays} {fr === 'per_night' ? 'nights' : 'days'} = ${tot} total</div>;
-                              })()}
-                              {/* Quick date pills */}
-                              {tripDates?.departure && (
-                                <div className="flex flex-wrap gap-1">
-                                  {Array.from({ length: Math.min(7, daysTravel) }, (_, i) => {
-                                    const d = new Date(tripDates.departure + 'T12:00:00');
-                                    d.setDate(d.getDate() + i);
-                                    const val = d.toISOString().split('T')[0];
-                                    const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                                    const isSelected = cardDates[cardKey]?.start === val;
-                                    return (
-                                      <button key={val} type="button" onClick={() => setCardDates(p => ({ ...p, [cardKey]: { ...p[cardKey], start: val } }))}
-                                        className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${isSelected ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                                        {label}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                              {/* Date inputs */}
-                              <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <label className="text-[10px] text-text-muted block mb-0.5">{catVendor.multiDay ? 'Check-in' : 'Date'} *</label>
-                                  <input type="date" value={cardDates[cardKey]?.start || ''}
-                                    min={tripDates?.departure || ''} max={tripDates?.return || ''}
-                                    onChange={e => setCardDates(p => ({ ...p, [cardKey]: { ...p[cardKey], start: e.target.value } }))}
-                                    className="w-full border border-border rounded px-2 py-1.5 text-xs" />
-                                </div>
-                                {catVendor.multiDay && (
-                                  <div>
-                                    <label className="text-[10px] text-text-muted block mb-0.5">Check-out</label>
-                                    <input type="date" value={cardDates[cardKey]?.end || ''}
-                                      min={cardDates[cardKey]?.start || tripDates?.departure || ''} max={tripDates?.return || ''}
-                                      onChange={e => setCardDates(p => ({ ...p, [cardKey]: { ...p[cardKey], end: e.target.value } }))}
-                                      className="w-full border border-border rounded px-2 py-1.5 text-xs" />
-                                  </div>
-                                )}
-                              </div>
-                              {/* Time inputs */}
-                              <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <label className="text-[10px] text-text-muted block mb-0.5">From</label>
-                                  <input type="time" value={cardTimes[cardKey]?.startTime || ''}
-                                    onChange={e => setCardTimes(p => ({ ...p, [cardKey]: { ...(p[cardKey] || { startTime: '', endTime: '' }), startTime: e.target.value } }))}
-                                    className="w-full border border-border rounded px-2 py-1.5 text-xs" />
-                                </div>
-                                <div>
-                                  <label className="text-[10px] text-text-muted block mb-0.5">To</label>
-                                  <input type="time" value={cardTimes[cardKey]?.endTime || ''}
-                                    onChange={e => setCardTimes(p => ({ ...p, [cardKey]: { ...(p[cardKey] || { startTime: '', endTime: '' }), endTime: e.target.value } }))}
-                                    className="w-full border border-border rounded px-2 py-1.5 text-xs" />
-                                </div>
-                              </div>
-                              <div className="flex gap-2">
-                                <button onClick={() => handleCommitCard(rec)} disabled={!cardPrices[cardKey] || !cardDates[cardKey]?.start || isCommitting}
-                                  className="flex-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded hover:bg-emerald-700 disabled:opacity-50">
-                                  {isCommitting ? 'Committing...' : 'Confirm'}
-                                </button>
-                                <button onClick={() => setCommitCardKey(null)} className="px-3 py-1.5 text-xs border border-border rounded">Cancel</button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2 pt-2 border-t border-border flex-wrap">
-                              <button onClick={() => { setCommitCardKey(cardKey); if (!cardDates[cardKey]) setCardDates(p => ({ ...p, [cardKey]: { start: tripDates?.departure || '', end: catVendor.multiDay ? (tripDates?.return || '') : '' } })); if (!cardFrequency[cardKey]) setCardFrequency(p => ({ ...p, [cardKey]: CATEGORY_DEFAULT_FREQ[rec.category] || TRAVEL_COA[rec.category]?.defaultFrequency || 'total' })); if (!cardTimes[cardKey]) { const defaults = CATEGORY_DEFAULT_TIMES[rec.category] || { startTime: '10:00', endTime: '12:00' }; setCardTimes(p => ({ ...p, [cardKey]: defaults })); } if (!cardPrices[cardKey] && rec.price) setCardPrices(p => ({ ...p, [cardKey]: String(rec.price) })); }}
-                                className="flex-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded hover:bg-emerald-700">Commit</button>
-                              {/* LiteAPI Reserve — only on accommodation cards that came back with a bookable offer. */}
-                              {rec.liteapiOfferId && (
-                                reservedKeys[cardKey] ? (
-                                  <span className="px-2 py-1.5 bg-emerald-100 text-emerald-800 text-xs font-medium rounded" title={`Booking ID: ${reservedKeys[cardKey].bookingId}`}>
-                                    Reserved{reservedKeys[cardKey].confirmationCode ? ` · ${reservedKeys[cardKey].confirmationCode}` : ''}
-                                  </span>
-                                ) : (
-                                  <button onClick={() => handleLiteApiReserve(rec, cardKey)} disabled={reservingKey === cardKey}
-                                    className="px-3 py-1.5 bg-brand-purple text-white text-xs font-medium rounded hover:bg-brand-purple-hover disabled:opacity-50">
-                                    {reservingKey === cardKey ? 'Reserving…' : 'Reserve'}
-                                  </button>
-                                )
-                              )}
-                              {rec.website && <a href={rec.website} target="_blank" rel="noopener noreferrer" className="px-2 py-1.5 text-xs border border-border rounded hover:bg-bg-row">Visit</a>}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                </div>
-                <div className="px-5 py-3 bg-bg-row border-t border-border">
-                  <button onClick={() => openCustomModal(cat)} className="text-sm text-purple-600 hover:text-purple-800 font-medium flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 text-xs">+</span>
-                    Add Custom {info.label || ACTIVITY_LABELS[cat] || cat}
-                  </button>
-                </div>
-                  </>
-                )}
-              </div>
+              <TravelCarousel
+                key={catKey}
+                catKey={catKey}
+                label={label}
+                source={source}
+                isLoading={isLoading}
+                items={items}
+                error={err}
+                onCardClick={(rec) => {
+                  const idForRoute = String(rec.valueRank ?? 0);
+                  router.push(`/budgets/trips/${tripId}/discover/${encodeURIComponent(catKey)}/${idForRoute}`);
+                }}
+              />
             );
           })}
-        </div>
-      )}
+      </div>
 
-      {!loading && Object.keys(byCategory).length === 0 && !error && (
-        <div className="text-center py-16 bg-gradient-to-b from-bg-row to-white rounded border border-border">
-          <h3 className="font-bold text-sm text-text-primary mb-2">Search a destination</h3>
-          <p className="text-text-muted">Pick a destination and search to see places to stay, eat, and explore.</p>
+    </div>
+  );
+}
+
+// ─── Carousel layout order (PR-4 locked design) ─────────────────────────────
+// Stays first (highest commission). Things to do second (Viator bookable).
+// Discovery (Google) last so eyes land on bookable rows before browsable ones.
+const CAROUSEL_ORDER = [
+  'accommodation',     // Stays (LiteAPI)
+  'sports_fitness',    // Things to do — Sports & fitness (Viator)
+  'arts_culture',      // Things to do — Arts & culture (Viator)
+  'wellness',          // Wellness & spas (Viator)
+  'bucket_list',       // Bucket-list experiences (Viator)
+  'brunch_coffee',     // Where to eat — Brunch & coffee (Google)
+  'dinner',            // Dinner (Google)
+  'nightlife',         // Nightlife (Google)
+  'coworking',         // Coworking (Google)
+  'shopping',          // Shopping (Google)
+  'conferences',       // Conferences (Google — business/mixed trips only)
+  'ground_transport',  // Transfers (Mozio — fails loud "not connected" today)
+] as const;
+
+const ACTIVE_SCAN_SET = new Set(getActiveScanCategories([], ''));
+
+// Source attribution label shown in each carousel header.
+function sourceAttribution(source: Source): string {
+  switch (source) {
+    case 'liteapi':     return 'via LiteAPI';
+    case 'viator':      return 'via Viator';
+    case 'google':      return 'Google · discovery';
+    case 'mozio':       return 'Mozio (coming soon)';
+    case 'duffel':      return 'via Duffel';
+    case 'airalo':      return 'Airalo (coming soon)';
+    case 'covergenius': return 'Cover Genius (coming soon)';
+  }
+}
+
+interface TravelCarouselProps {
+  catKey: string;
+  label: string;
+  source: Source;
+  isLoading: boolean;
+  items: GrokRecommendation[];
+  error?: string;
+  onCardClick: (rec: GrokRecommendation) => void;
+}
+
+// One horizontal-scroll row. Mobile-first: cards are 200px wide with
+// scroll-snap; desktop fits ~4-up. The header carries the source attribution
+// so the per-card chrome stays clean.
+function TravelCarousel({ catKey, label, source, isLoading, items, error, onCardClick }: TravelCarouselProps) {
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-2 px-1">
+        <h3 className="text-base font-semibold text-text-primary">{label}</h3>
+        <span className={`text-[10px] font-medium ${source === 'google' ? 'text-text-faint' : 'text-brand-purple'}`}>
+          {sourceAttribution(source)}
+        </span>
+      </div>
+
+      {error ? (
+        <div className="bg-red-50 border border-red-200 rounded p-3 text-brand-red text-xs">
+          {error}
+        </div>
+      ) : isLoading ? (
+        <div className="overflow-x-auto pb-2 -mx-1 px-1" style={{ scrollSnapType: 'x mandatory' }}>
+          <div className="flex gap-3">
+            {[0, 1, 2, 3].map(i => (
+              <div key={i} className="w-[200px] sm:w-[220px] flex-shrink-0 border border-border rounded overflow-hidden bg-bg-row animate-pulse" style={{ scrollSnapAlign: 'start' }}>
+                <div className="w-full h-32 bg-gray-200" />
+                <div className="p-3 space-y-1.5">
+                  <div className="h-3 bg-gray-200 rounded w-3/4" />
+                  <div className="h-2 bg-gray-200 rounded w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : items.length === 0 ? (
+        <div className="text-xs text-text-muted py-4 px-3 border border-dashed border-border rounded">
+          No {label.toLowerCase()} found for this destination.
+        </div>
+      ) : (
+        <div className="overflow-x-auto pb-2 -mx-1 px-1" style={{ scrollSnapType: 'x mandatory' }}>
+          <div className="flex gap-3">
+            {items.slice(0, 12).map((rec, idx) => (
+              <button
+                key={`${catKey}-${rec.valueRank ?? idx}`}
+                type="button"
+                onClick={() => onCardClick(rec)}
+                className="w-[200px] sm:w-[220px] flex-shrink-0 border border-border rounded overflow-hidden bg-white hover:shadow-md transition-shadow text-left"
+                style={{ scrollSnapAlign: 'start' }}
+              >
+                {rec.photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={rec.photoUrl} alt={rec.name} className="w-full h-32 object-cover" />
+                ) : (
+                  <div className="w-full h-32 bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center text-text-muted text-xs">
+                    {label}
+                  </div>
+                )}
+                <div className="p-3 space-y-1">
+                  <div className="text-xs font-semibold text-text-primary line-clamp-2 leading-tight">{rec.name}</div>
+                  <div className="flex items-center justify-between text-[11px] text-text-muted">
+                    <span>★ {rec.googleRating || '—'}{rec.reviewCount ? ` (${rec.reviewCount})` : ''}</span>
+                    {rec.price != null ? (
+                      <span className="font-semibold text-emerald-700">${rec.price}</span>
+                    ) : rec.priceLevelDisplay ? (
+                      <span className="font-semibold text-text-secondary">{rec.priceLevelDisplay}</span>
+                    ) : null}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
