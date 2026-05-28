@@ -56,11 +56,11 @@ export const SOURCE_BY_CATEGORY: Record<string, SourceAssignment> = {
   flights:          { source: 'duffel', hardBookable: true },
 
   // ─── Bookable categories ─────────────────────────────────────────────────
-  // TEMPORARY: accommodation stays on Google so live hotel discovery does
-  // NOT regress before the LiteAPI client lands. Flip to
-  // { source: 'liteapi', hardBookable: true } in the LiteAPI PR.
-  // See audit-reports/travel-registry-pr-2.md for the rationale.
-  accommodation:    { source: 'google', hardBookable: false }, // TODO(LiteAPI PR): switch to liteapi+hardBookable
+  // Accommodation: BOOKABLE inventory via LiteAPI (merchant-of-record).
+  // hardBookable means empty/error stays loud — no Google masking. The
+  // LiteAPI client lives at src/lib/liteapiClient.ts; the booking flow
+  // (prebook → book → payment) is a later PR.
+  accommodation:    { source: 'liteapi', hardBookable: true },
 
   // LIVE on Viator — Activities / Tours / Wellness / Sports / Bucket-list.
   // hardBookable: a Google "yoga studio" POI is not a bookable Viator
@@ -104,7 +104,7 @@ export function getSource(category: string): SourceAssignment {
 /** True for sources whose client lives in this codebase AND can be invoked
  *  from the scanner route today. Update when each provider PR lands. */
 export function isSourceImplemented(source: Source): boolean {
-  return source === 'google' || source === 'viator';
+  return source === 'google' || source === 'viator' || source === 'liteapi';
 }
 
 // ─── Self-check: every TRAVEL_COA key has a registry entry ───────────────────

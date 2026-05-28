@@ -59,6 +59,33 @@ export class ViatorApiError extends Error {
   }
 }
 
+// ─── LiteAPI (hotels) ────────────────────────────────────────────────────────
+
+/** Thrown when the active LiteAPI key (sandbox or production, depending on
+ *  LITEAPI_MODE) is unset/empty. Carries the mode so the banner can name the
+ *  exact env var the operator needs to set. */
+export class MissingLiteApiKeyError extends Error {
+  readonly source = 'liteapi' as const;
+  readonly kind = 'missing_key' as const;
+  constructor(public mode: 'sandbox' | 'production') {
+    const envVar = mode === 'production' ? 'LITEAPI_PRODUCTION_KEY' : 'LITEAPI_SANDBOX_KEY';
+    super(`${envVar} is not configured`);
+    this.name = 'MissingLiteApiKeyError';
+  }
+}
+
+/** Thrown when a LiteAPI endpoint returns non-2xx (401/403 auth, 422 invalid
+ *  search params, 429 rate-limit, 5xx server). Includes endpoint + HTTP status
+ *  + truncated body so the user sees the actual provider response. */
+export class LiteApiError extends Error {
+  readonly source = 'liteapi' as const;
+  readonly kind = 'api_error' as const;
+  constructor(public endpoint: string, public status: number, public body?: string) {
+    super(`LiteAPI: ${endpoint} returned ${status}${body ? ` — ${body.substring(0, 200)}` : ''}`);
+    this.name = 'LiteApiError';
+  }
+}
+
 // ─── Type guards ─────────────────────────────────────────────────────────────
 
 /** True for any typed travel-provider error this module owns. */
@@ -66,11 +93,15 @@ export function isTravelProviderError(err: unknown): err is
   | MissingGoogleKeyError
   | GooglePlacesApiError
   | MissingViatorKeyError
-  | ViatorApiError {
+  | ViatorApiError
+  | MissingLiteApiKeyError
+  | LiteApiError {
   return (
     err instanceof MissingGoogleKeyError ||
     err instanceof GooglePlacesApiError ||
     err instanceof MissingViatorKeyError ||
-    err instanceof ViatorApiError
+    err instanceof ViatorApiError ||
+    err instanceof MissingLiteApiKeyError ||
+    err instanceof LiteApiError
   );
 }

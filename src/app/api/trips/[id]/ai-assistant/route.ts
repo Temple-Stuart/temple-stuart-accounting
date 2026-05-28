@@ -7,12 +7,15 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { ACTIVITY_SEARCH_EXPANSIONS, ACTIVITY_LABELS } from '@/lib/activities';
 import { TRAVEL_COA, getCOAScanQueries } from '@/lib/travelCOA';
 import { searchViatorProducts, viatorProductToRecommendation } from '@/lib/viatorClient';
+import { searchHotelRates, liteApiHotelToRecommendation } from '@/lib/liteapiClient';
 import { googleFetch, GooglePlacesQuotaError } from '@/lib/googlePlacesQuota';
 import {
   MissingGoogleKeyError,
   GooglePlacesApiError,
   MissingViatorKeyError,
   ViatorApiError,
+  MissingLiteApiKeyError,
+  LiteApiError,
 } from '@/lib/travelErrors';
 import { getSource, UnimplementedSourceError } from '@/lib/travelSourceRegistry';
 
@@ -166,11 +169,64 @@ export async function POST(
     // loud with UnimplementedSourceError — never silently fall back to Google.
     const { source, hardBookable } = getSource(category);
 
-    if (source !== 'google' && source !== 'viator') {
+    if (source !== 'google' && source !== 'viator' && source !== 'liteapi') {
       // Declared bookable, provider client not yet wired — fail loud so the
       // user sees "Category X routes to <provider> (not yet connected)"
       // instead of getting unbookable Google POIs masked as bookable inventory.
       throw new UnimplementedSourceError(source, category);
+    }
+
+    // ─── LiteAPI path: bookable hotels (accommodation) ───────────────────────
+    if (source === 'liteapi') {
+      // LiteAPI's /hotels/rates needs check-in/check-out + occupancy, none of
+      // which the scan request body carries. Pull them from the trip + its
+      // participants — same source of truth the rest of the trip flow uses.
+      const trip = await prisma.trips.findFirst({
+        where: { id: tripId },
+        select: { startDate: true, endDate: true },
+      });
+      if (!trip?.startDate || !trip?.endDate) {
+        throw new Error('Trip dates required for hotel search — set Start/End on the trip first');
+      }
+      const participantCount = await prisma.trip_participants.count({ where: { tripId } });
+      const adults = Math.max(1, participantCount);
+      const checkin = trip.startDate.toISOString().slice(0, 10);
+      const checkout = trip.endDate.toISOString().slice(0, 10);
+
+      console.log(`[LiteAPI] ${category}: ${city}, ${country} (${checkin} → ${checkout}, ${adults} adults)`);
+      try {
+        const hotels = await searchHotelRates({
+          city, country, checkin, checkout,
+          occupancies: [{ adults }],
+          maxResults,
+        });
+
+        const finalResults = hotels
+          .map((h, idx) => liteApiHotelToRecommendation(h, idx, category))
+          .sort((a, b) => b.compositeScore - a.compositeScore)
+          .slice(0, maxResults)
+          .map((rec, idx) => ({ ...rec, valueRank: idx + 1 }));
+
+        console.log(`[LiteAPI] ${category}: ${finalResults.length} hotels (hardBookable=${hardBookable})`);
+
+        try {
+          await prisma.trip_scanner_results.upsert({
+            where: { tripId_destination_category: { tripId, destination: `${city}, ${country}`, category } },
+            update: { recommendations: finalResults as any, scannedBy: userEmail, minRating, minReviews, profileSnapshot: undefined, updatedAt: new Date() },
+            create: { tripId, destination: `${city}, ${country}`, category, recommendations: finalResults as any, scannedBy: userEmail, minRating, minReviews },
+          });
+        } catch (saveErr) {
+          console.error(`[LiteAPI] Failed to save results for ${category}:`, saveErr);
+        }
+
+        return NextResponse.json({ category, recommendations: finalResults });
+      } catch (liteApiErr) {
+        // hardBookable Accommodation must NOT silently fall back to Google —
+        // a Google "hotel POI" isn't bookable through LiteAPI's payment flow.
+        // Always rethrow; outer catch maps typed errors to structured HTTP.
+        console.error(`[LiteAPI] ${category} error — failing loud:`, liteApiErr);
+        throw liteApiErr;
+      }
     }
 
     // ─── Viator path: bookable tours / experiences ───────────────────────────
@@ -338,6 +394,20 @@ export async function POST(
       console.error(`[Scanner] ${category}: Viator API error ${err.status} on ${err.endpoint}`);
       return NextResponse.json(
         { error: err.message, source: 'viator', kind: 'api_error', status: err.status, category },
+        { status: 502 }
+      );
+    }
+    if (err instanceof MissingLiteApiKeyError) {
+      console.error(`[Scanner] ${category}: missing LiteAPI key (${err.mode})`);
+      return NextResponse.json(
+        { error: err.message, source: 'liteapi', kind: 'missing_key', mode: err.mode, category },
+        { status: 500 }
+      );
+    }
+    if (err instanceof LiteApiError) {
+      console.error(`[Scanner] ${category}: LiteAPI error ${err.status} on ${err.endpoint}`);
+      return NextResponse.json(
+        { error: err.message, source: 'liteapi', kind: 'api_error', status: err.status, category },
         { status: 502 }
       );
     }
