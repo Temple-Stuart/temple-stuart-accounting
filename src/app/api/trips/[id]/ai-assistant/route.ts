@@ -8,6 +8,12 @@ import { ACTIVITY_SEARCH_EXPANSIONS, ACTIVITY_LABELS } from '@/lib/activities';
 import { TRAVEL_COA, getCOAScanQueries } from '@/lib/travelCOA';
 import { isViatorCategory, searchViatorProducts, viatorProductToRecommendation } from '@/lib/viatorClient';
 import { googleFetch, GooglePlacesQuotaError } from '@/lib/googlePlacesQuota';
+import {
+  MissingGoogleKeyError,
+  GooglePlacesApiError,
+  MissingViatorKeyError,
+  ViatorApiError,
+} from '@/lib/travelErrors';
 
 // ─── Travel destination scan ─────────────────────────────────────────────────
 // COMPLIANCE: per Google Places API terms, Google Places data is NOT sent to any
@@ -62,7 +68,7 @@ function placeToRecommendation(p: any, category: string, idx: number) {
 // results we will actually show get enriched, to bound the call count.
 async function enrichPlaceDetails(places: any[], limit: number): Promise<any[]> {
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
-  if (!apiKey) return places;
+  if (!apiKey) throw new MissingGoogleKeyError();
 
   return Promise.all(
     places.slice(0, limit).map(async (p) => {
@@ -71,8 +77,23 @@ async function enrichPlaceDetails(places: any[], limit: number): Promise<any[]> 
         const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${p.placeId}&fields=website&key=${apiKey}`;
         const res = await googleFetch(url);
         const data = await res.json();
+        // OK, ZERO_RESULTS, NOT_FOUND are non-errors per-place. Anything else
+        // (REQUEST_DENIED, OVER_QUERY_LIMIT, INVALID_REQUEST) is a real error
+        // we must surface — likely all 33 details calls would fail the same way.
+        if (data.status && data.status !== 'OK' && data.status !== 'ZERO_RESULTS' && data.status !== 'NOT_FOUND') {
+          throw new GooglePlacesApiError(data.status, data.error_message);
+        }
         return { ...p, website: data.result?.website || '' };
-      } catch {
+      } catch (err) {
+        // Re-throw typed errors so the whole scan fails loud.
+        if (
+          err instanceof GooglePlacesQuotaError ||
+          err instanceof MissingGoogleKeyError ||
+          err instanceof GooglePlacesApiError
+        ) {
+          throw err;
+        }
+        // Per-place network blip — soft fail (other places may still enrich).
         return p;
       }
     })
@@ -86,6 +107,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Capture category early so the outer catch can include it in error
+  // responses (the request body stream is consumed once and can't be re-read).
+  let categoryForError: string | undefined;
   try {
     const userEmail = await getVerifiedEmail();
     if (!userEmail) {
@@ -109,6 +133,7 @@ export async function POST(
       category,
       maxResults: rawMaxResults,
     } = body;
+    categoryForError = category;
 
     if (!city || !country) {
       return NextResponse.json({ error: 'City and country required' }, { status: 400 });
@@ -166,7 +191,18 @@ export async function POST(
           return NextResponse.json({ category, recommendations: finalResults });
         }
       } catch (viatorErr) {
-        console.error(`[Viator] ${category} error, falling back to Google Places:`, viatorErr);
+        // Fail loud on auth/permission/missing-key — surface to the outer catch
+        // so the user sees the real Viator error instead of getting Google
+        // results masking the config problem.
+        if (
+          viatorErr instanceof MissingViatorKeyError ||
+          (viatorErr instanceof ViatorApiError && viatorErr.status >= 400 && viatorErr.status < 500)
+        ) {
+          throw viatorErr;
+        }
+        // Transient Viator outage (5xx/network) — preserve existing fallback
+        // to Google so the user still gets discovery data while Viator recovers.
+        console.error(`[Viator] ${category} transient error, falling back to Google Places:`, viatorErr);
       }
     }
 
@@ -241,15 +277,50 @@ export async function POST(
     return NextResponse.json({ category, recommendations: finalResults });
 
   } catch (err) {
+    // Fail-loud error mapping. Every typed provider error gets a structured
+    // body so the UI can render a precise banner ("Couldn't load Dinner —
+    // Google Places API: REQUEST_DENIED — This API project is not authorized
+    // to use this API") instead of a silent 0-results.
+    const category = categoryForError;
+
     if (err instanceof GooglePlacesQuotaError) {
+      console.error(`[Scanner] ${category}: Google quota exceeded`);
       return NextResponse.json(
-        { error: 'Google Places monthly quota exceeded — bill protection active' },
+        { error: err.message, source: 'google', kind: 'quota_exceeded', category },
         { status: 429 }
+      );
+    }
+    if (err instanceof MissingGoogleKeyError) {
+      console.error(`[Scanner] ${category}: missing Google key`);
+      return NextResponse.json(
+        { error: err.message, source: 'google', kind: 'missing_key', category },
+        { status: 500 }
+      );
+    }
+    if (err instanceof GooglePlacesApiError) {
+      console.error(`[Scanner] ${category}: Google API error ${err.status}: ${err.errorMessage}`);
+      return NextResponse.json(
+        { error: err.message, source: 'google', kind: 'api_error', status: err.status, category },
+        { status: 502 }
+      );
+    }
+    if (err instanceof MissingViatorKeyError) {
+      console.error(`[Scanner] ${category}: missing Viator key`);
+      return NextResponse.json(
+        { error: err.message, source: 'viator', kind: 'missing_key', category },
+        { status: 500 }
+      );
+    }
+    if (err instanceof ViatorApiError) {
+      console.error(`[Scanner] ${category}: Viator API error ${err.status} on ${err.endpoint}`);
+      return NextResponse.json(
+        { error: err.message, source: 'viator', kind: 'api_error', status: err.status, category },
+        { status: 502 }
       );
     }
     console.error('Travel scan error:', err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Search failed' },
+      { error: err instanceof Error ? err.message : 'Search failed', category },
       { status: 500 }
     );
   }

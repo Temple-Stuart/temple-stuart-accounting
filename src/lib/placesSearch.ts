@@ -6,7 +6,8 @@
 // guard). Photos are returned as server-proxied URLs (/api/places/photo?ref=)
 // so the API key never reaches the client and photo bytes can be cached.
 
-import { googleFetch } from '@/lib/googlePlacesQuota';
+import { googleFetch, GooglePlacesQuotaError } from '@/lib/googlePlacesQuota';
+import { MissingGoogleKeyError, GooglePlacesApiError } from '@/lib/travelErrors';
 
 /** Server-side photo proxy URL — keeps the Google key off the client and lets
  *  the proxy cache photo bytes. The browser only fetches this when a result is
@@ -59,19 +60,28 @@ export async function searchPlaces(
 ): Promise<PlaceResult[]> {
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
   if (!apiKey) {
-    console.error('[PLACES] No API key');
-    return [];
+    // Fail loud — surface to the route so the user sees "GOOGLE_PLACES_API_KEY
+    // is not configured" instead of "0 results."
+    throw new MissingGoogleKeyError();
   }
 
   // Geocode city
   const geoUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(city + ', ' + country)}&key=${apiKey}`;
-  
+
   try {
     const geoRes = await googleFetch(geoUrl);
     const geoData = await geoRes.json();
-    
+
+    // Geocoding statuses: OK | ZERO_RESULTS | OVER_QUERY_LIMIT | REQUEST_DENIED
+    // | INVALID_REQUEST | UNKNOWN_ERROR. ZERO_RESULTS = legit "no match"; the
+    // others are real errors we must surface.
+    if (geoData.status && geoData.status !== 'OK' && geoData.status !== 'ZERO_RESULTS') {
+      throw new GooglePlacesApiError(geoData.status, geoData.error_message);
+    }
+
     if (!geoData.results?.[0]?.geometry?.location) {
-      console.error('[PLACES] Could not geocode city');
+      // Legit ZERO_RESULTS — city not found. Not an error; just no places.
+      console.log(`[PLACES] Geocode ZERO_RESULTS for "${city}, ${country}"`);
       return [];
     }
     
@@ -93,6 +103,15 @@ export async function searchPlaces(
       
       const searchRes = await googleFetch(searchUrl);
       const searchData = await searchRes.json();
+
+      // Text Search statuses: OK | ZERO_RESULTS | OVER_QUERY_LIMIT |
+      // REQUEST_DENIED | INVALID_REQUEST | UNKNOWN_ERROR. ZERO_RESULTS is
+      // legit (no places match query); the others are real errors. Without
+      // this check, a REQUEST_DENIED (billing off, API not enabled, key
+      // restricted) silently became "0 results."
+      if (searchData.status && searchData.status !== 'OK' && searchData.status !== 'ZERO_RESULTS') {
+        throw new GooglePlacesApiError(searchData.status, searchData.error_message);
+      }
 
       if (!searchData.results) break;
 
@@ -125,8 +144,21 @@ export async function searchPlaces(
       .slice(0, maxResults);
       
   } catch (err) {
-    console.error('[PLACES] Search error:', err);
-    return [];
+    // Fail loud — re-throw typed errors so the route can map them to
+    // structured HTTP responses (was silently returning [] before).
+    if (
+      err instanceof GooglePlacesQuotaError ||
+      err instanceof MissingGoogleKeyError ||
+      err instanceof GooglePlacesApiError
+    ) {
+      throw err;
+    }
+    // Truly unexpected (network/DNS/timeout) — wrap as a Google API error so
+    // the user still sees a real message, not "0 results."
+    throw new GooglePlacesApiError(
+      'NETWORK_ERROR',
+      err instanceof Error ? err.message : String(err)
+    );
   }
 }
 

@@ -5,13 +5,14 @@
 
 import { ACTIVITY_LABELS } from './activities';
 import { TRAVEL_COA } from './travelCOA';
+import { MissingViatorKeyError, ViatorApiError } from './travelErrors';
 
 const VIATOR_V2_BASE = 'https://api.viator.com/partner';
 const VIATOR_V1_BASE = 'https://viatorapi.viator.com/service';
 
 function getApiKey(): string {
   const key = process.env.VIATOR_API_KEY;
-  if (!key) throw new Error('VIATOR_API_KEY environment variable not set');
+  if (!key) throw new MissingViatorKeyError();
   return key;
 }
 
@@ -66,39 +67,47 @@ async function loadDestinations(): Promise<ViatorDestination[]> {
     return cachedDestinations;
   }
 
-  // Try V2 endpoint first
+  // Try V2 (auth-required) first. Capture the V2 error so we can re-throw it
+  // if the V1 fallback also fails — the V2 error has the auth context the user
+  // needs to diagnose (key missing/wrong/expired).
+  let v2Error: Error | null = null;
   try {
     const res = await fetch(`${VIATOR_V2_BASE}/v1/taxonomy/destinations`, {
       headers: v2Headers(),
     });
-    if (res.ok) {
-      const data = await res.json();
-      cachedDestinations = data.destinations || data.data || [];
-      destinationCacheTime = Date.now();
-      console.log(`[Viator] Loaded ${cachedDestinations!.length} destinations (V2)`);
-      return cachedDestinations!;
+    if (!res.ok) {
+      throw new ViatorApiError('V2 /v1/taxonomy/destinations', res.status, await res.text());
     }
+    const data = await res.json();
+    cachedDestinations = data.destinations || data.data || [];
+    destinationCacheTime = Date.now();
+    console.log(`[Viator] Loaded ${cachedDestinations!.length} destinations (V2)`);
+    return cachedDestinations!;
   } catch (err) {
-    console.error('[Viator] V2 destination load failed:', err);
+    // Fail loud on missing-key — don't waste a V1 attempt; the config is wrong.
+    if (err instanceof MissingViatorKeyError) throw err;
+    v2Error = err instanceof Error ? err : new Error(String(err));
+    console.error('[Viator] V2 destination load failed:', v2Error.message);
   }
 
-  // Fallback to V1
+  // V1 fallback — no auth required. If it succeeds we use it (transient V2
+  // outage). If it also fails, throw the V2 error (more diagnostic value).
   try {
     const res = await fetch(`${VIATOR_V1_BASE}/taxonomy/destinations`, {
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
     });
-    if (res.ok) {
-      const data = await res.json();
-      cachedDestinations = data.data || [];
-      destinationCacheTime = Date.now();
-      console.log(`[Viator] Loaded ${cachedDestinations!.length} destinations (V1)`);
-      return cachedDestinations!;
+    if (!res.ok) {
+      throw new ViatorApiError('V1 /taxonomy/destinations', res.status, await res.text());
     }
-  } catch (err) {
-    console.error('[Viator] V1 destination load failed:', err);
+    const data = await res.json();
+    cachedDestinations = data.data || [];
+    destinationCacheTime = Date.now();
+    console.log(`[Viator] Loaded ${cachedDestinations!.length} destinations (V1)`);
+    return cachedDestinations!;
+  } catch (v1Err) {
+    console.error('[Viator] V1 destination load also failed:', v1Err instanceof Error ? v1Err.message : v1Err);
+    throw v2Error;
   }
-
-  return cachedDestinations || [];
 }
 
 /** Find a Viator destination ID by city name */
@@ -278,9 +287,7 @@ async function searchV2Products(destId: number, maxCount: number, tagIds?: numbe
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    console.error(`[Viator V2] /products/search failed: ${res.status} ${text.substring(0, 200)}`);
-    return [];
+    throw new ViatorApiError('V2 /products/search', res.status, await res.text());
   }
 
   const data = await res.json();
@@ -306,9 +313,7 @@ async function searchV2Freetext(searchTerm: string, destId: number | null, maxCo
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    console.error(`[Viator V2] Search failed: ${res.status} ${text.substring(0, 200)}`);
-    return [];
+    throw new ViatorApiError('V2 /search/freetext', res.status, await res.text());
   }
 
   const data = await res.json();
@@ -336,9 +341,7 @@ async function searchV1Products(destId: number, searchTerm: string, maxCount: nu
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    console.error(`[Viator V1] Search failed: ${res.status} ${text.substring(0, 200)}`);
-    return [];
+    throw new ViatorApiError('V1 /search/products', res.status, await res.text());
   }
 
   const data = await res.json();
@@ -373,6 +376,14 @@ export async function searchViatorProducts(
     }
   };
 
+  // Re-throw missing-key + 4xx errors so the route surfaces them; swallow
+  // 5xx/network errors and try the next step (transient — the next endpoint
+  // might still work).
+  const rethrowIfHardFailure = (err: unknown): void => {
+    if (err instanceof MissingViatorKeyError) throw err;
+    if (err instanceof ViatorApiError && err.status >= 400 && err.status < 500) throw err;
+  };
+
   // 1. Try V2 /products/search if we have a destId (fastest, best filtering)
   if (destId) {
     try {
@@ -380,7 +391,8 @@ export async function searchViatorProducts(
       addProducts(products);
       console.log(`[Viator] V2 /products/search: ${products.length} results for destId ${destId}`);
     } catch (err) {
-      console.error('[Viator] V2 /products/search error:', err);
+      rethrowIfHardFailure(err);
+      console.error('[Viator] V2 /products/search transient error:', err);
     }
   }
 
@@ -393,7 +405,8 @@ export async function searchViatorProducts(
         const products = await searchV2Freetext(searchQuery, destId, Math.min(maxResults, 50));
         addProducts(products);
       } catch (err) {
-        console.error(`[Viator] V2 freetext error for "${term}":`, err);
+        rethrowIfHardFailure(err);
+        console.error(`[Viator] V2 freetext transient error for "${term}":`, err);
       }
     }
   }
@@ -404,7 +417,8 @@ export async function searchViatorProducts(
       const v1Products = await searchV1Products(destId, searchTerms[0], 50);
       addProducts(v1Products);
     } catch (err) {
-      console.error('[Viator] V1 fallback error:', err);
+      rethrowIfHardFailure(err);
+      console.error('[Viator] V1 fallback transient error:', err);
     }
   }
 
