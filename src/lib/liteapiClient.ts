@@ -95,6 +95,14 @@ export function countryNameToIso2(name: string): string {
   return code;
 }
 
+/** Our destinations.ts uses "Region (City)" labels (e.g. "Bali (Canggu)") for
+ *  user-facing clarity. LiteAPI's catalog keys on the actual city ("Canggu").
+ *  Prefer the parenthesised value when present; otherwise pass through. */
+export function extractCityName(name: string): string {
+  const m = name.match(/\(([^)]+)\)/);
+  return (m ? m[1] : name).trim();
+}
+
 // ─── Search ──────────────────────────────────────────────────────────────────
 
 export interface LiteApiOccupancy {
@@ -156,7 +164,7 @@ interface LiteApiHotelRate {
 export async function searchHotelRates(params: SearchHotelsParams): Promise<LiteApiHotelRate[]> {
   const countryCode = countryNameToIso2(params.country);
   const body = {
-    cityName: params.city,
+    cityName: extractCityName(params.city),
     countryCode,
     checkin: params.checkin,
     checkout: params.checkout,

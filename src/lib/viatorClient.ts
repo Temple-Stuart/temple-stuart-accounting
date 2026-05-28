@@ -1,14 +1,15 @@
 // ─── Viator Partner API Client ────────────────────────────────────────────────
-// Searches Viator's inventory of bookable tours, activities, and experiences.
-// Supports both V2 (exp-api-key) and V1 (apiKey) API patterns.
-// Rate limit: 150 requests per 10-second rolling window.
+// Searches Viator's inventory of bookable tours, activities, and experiences
+// via the V2 Partner API. Rate limit: 150 requests per 10-second rolling window.
+//
+// V1 fallback host (viatorapi.viator.com) has been retired and now returns
+// HTTP 503 globally — all V1 paths were removed in PR-5 quickfix.
 
 import { ACTIVITY_LABELS } from './activities';
 import { TRAVEL_COA } from './travelCOA';
 import { MissingViatorKeyError, ViatorApiError } from './travelErrors';
 
 const VIATOR_V2_BASE = 'https://api.viator.com/partner';
-const VIATOR_V1_BASE = 'https://viatorapi.viator.com/service';
 
 function getApiKey(): string {
   const key = process.env.VIATOR_API_KEY;
@@ -67,46 +68,23 @@ async function loadDestinations(): Promise<ViatorDestination[]> {
     return cachedDestinations;
   }
 
-  // Try V2 (auth-required) first. Capture the V2 error so we can re-throw it
-  // if the V1 fallback also fails — the V2 error has the auth context the user
-  // needs to diagnose (key missing/wrong/expired).
-  let v2Error: Error | null = null;
   try {
-    const res = await fetch(`${VIATOR_V2_BASE}/v1/taxonomy/destinations`, {
+    const res = await fetch(`${VIATOR_V2_BASE}/destinations`, {
       headers: v2Headers(),
     });
     if (!res.ok) {
-      throw new ViatorApiError('V2 /v1/taxonomy/destinations', res.status, await res.text());
+      throw new ViatorApiError('V2 /destinations', res.status, await res.text());
     }
     const data = await res.json();
     cachedDestinations = data.destinations || data.data || [];
     destinationCacheTime = Date.now();
-    console.log(`[Viator] Loaded ${cachedDestinations!.length} destinations (V2)`);
+    console.log(`[Viator] Loaded ${cachedDestinations!.length} destinations (V2 /destinations)`);
     return cachedDestinations!;
   } catch (err) {
-    // Fail loud on missing-key — don't waste a V1 attempt; the config is wrong.
     if (err instanceof MissingViatorKeyError) throw err;
-    v2Error = err instanceof Error ? err : new Error(String(err));
-    console.error('[Viator] V2 destination load failed:', v2Error.message);
-  }
-
-  // V1 fallback — no auth required. If it succeeds we use it (transient V2
-  // outage). If it also fails, throw the V2 error (more diagnostic value).
-  try {
-    const res = await fetch(`${VIATOR_V1_BASE}/taxonomy/destinations`, {
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-    });
-    if (!res.ok) {
-      throw new ViatorApiError('V1 /taxonomy/destinations', res.status, await res.text());
-    }
-    const data = await res.json();
-    cachedDestinations = data.data || [];
-    destinationCacheTime = Date.now();
-    console.log(`[Viator] Loaded ${cachedDestinations!.length} destinations (V1)`);
-    return cachedDestinations!;
-  } catch (v1Err) {
-    console.error('[Viator] V1 destination load also failed:', v1Err instanceof Error ? v1Err.message : v1Err);
-    throw v2Error;
+    // V1 fallback host has been retired (returns 503 globally). Fail loud — no
+    // dead-fallback attempt. The V2 error has the auth context the user needs.
+    throw err;
   }
 }
 
@@ -141,46 +119,6 @@ export async function findDestinationId(cityName: string, countryName?: string):
 
   console.warn(`[Viator] No destination match for "${cityName}"`);
   return null;
-}
-
-// ─── V1 Response Normalizer ──────────────────────────────────────────────────
-
-function parseDurationMinutes(duration: string): number | null {
-  if (!duration) return null;
-  // "3 hours" → 180, "Full day (6 hours)" → 360, "1 hour 30 minutes" → 90
-  const hourMatch = duration.match(/(\d+)\s*hour/i);
-  const minMatch = duration.match(/(\d+)\s*min/i);
-  let mins = 0;
-  if (hourMatch) mins += parseInt(hourMatch[1]) * 60;
-  if (minMatch) mins += parseInt(minMatch[1]);
-  if (mins > 0) return mins;
-  if (/full\s*day/i.test(duration)) return 480;
-  if (/half\s*day/i.test(duration)) return 240;
-  return null;
-}
-
-function normalizeV1Product(p: any): ViatorProduct {
-  console.log('[Viator V1] Raw product fields:', JSON.stringify({
-    code: p.code, productCode: p.productCode, webURL: p.webURL,
-    title: p.title?.substring(0, 50),
-  }));
-  return {
-    productCode: p.code || p.productCode || '',
-    title: p.title || p.shortTitle || '',
-    description: (p.shortDescription || '').replace(/<[^>]*>/g, ''),
-    productUrl: p.webURL || '',
-    price: p.price || null,
-    priceFormatted: p.priceFormatted || (p.price ? `$${p.price}` : ''),
-    onSale: p.onSale || false,
-    originalPrice: p.rrp || null,
-    rating: p.rating || 0,
-    reviewCount: p.reviewCount || 0,
-    thumbnailUrl: p.thumbnailHiResURL || p.thumbnailURL || '',
-    duration: p.duration || '',
-    durationMinutes: parseDurationMinutes(p.duration || ''),
-    destinationName: p.primaryDestinationName || '',
-    categoryIds: p.catIds || [],
-  };
 }
 
 // ─── V2 Response Normalizer ──────────────────────────────────────────────────
@@ -322,34 +260,6 @@ async function searchV2Freetext(searchTerm: string, destId: number | null, maxCo
   return products.map(normalizeV2Product);
 }
 
-async function searchV1Products(destId: number, searchTerm: string, maxCount: number): Promise<ViatorProduct[]> {
-  const body = {
-    destId,
-    topX: `1-${Math.min(maxCount, 100)}`,
-    sortOrder: 'REVIEW_AVG_RATING_D',
-    currencyCode: 'USD',
-  };
-
-  const res = await fetch(`${VIATOR_V1_BASE}/search/products`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'exp-api-key': getApiKey(),
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) {
-    throw new ViatorApiError('V1 /search/products', res.status, await res.text());
-  }
-
-  const data = await res.json();
-  if (!data.success && data.data?.length === 0) return [];
-  const products = data.data || [];
-  return products.map(normalizeV1Product);
-}
-
 /** Search Viator products by destination + category terms */
 export async function searchViatorProducts(
   city: string,
@@ -411,16 +321,8 @@ export async function searchViatorProducts(
     }
   }
 
-  // 3. V1 fallback if still few results
-  if (allProducts.length < 10 && destId) {
-    try {
-      const v1Products = await searchV1Products(destId, searchTerms[0], 50);
-      addProducts(v1Products);
-    } catch (err) {
-      rethrowIfHardFailure(err);
-      console.error('[Viator] V1 fallback transient error:', err);
-    }
-  }
+  // V1 fallback paths were removed in PR-5 — the V1 host (viatorapi.viator.com)
+  // has been retired and returns 503 globally.
 
   console.log(`[Viator] ${coaCategory}: ${allProducts.length} products found for ${city}`);
 
