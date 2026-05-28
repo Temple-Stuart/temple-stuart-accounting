@@ -3,42 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AppLayout } from '@/components/ui';
-import { TRAVEL_INTERESTS, ACTIVITY_GROUPS, INTEREST_CATEGORIES } from '@/lib/activities';
 import { searchDestinations } from '@/lib/destinations';
-import { ChevronDown } from 'lucide-react';
-
-const BUDGET_OPTIONS = [
-  { value: 'backpacker', label: '$0-50/night', hint: 'We\'d suggest $ venues' },
-  { value: 'budget', label: '$50-100/night', hint: 'We\'d suggest $-$$ venues' },
-  { value: 'midrange', label: '$100-200/night', hint: 'We\'d suggest $$ venues' },
-  { value: 'comfort', label: '$200-350/night', hint: 'We\'d suggest $$-$$$ venues' },
-  { value: 'premium', label: '$350-500/night', hint: 'We\'d suggest $$$ venues' },
-  { value: 'luxury', label: '$500+/night', hint: 'All price levels' },
-];
-
-const VIBE_OPTIONS = [
-  { value: 'chill', label: 'Chill & Relaxed' },
-  { value: 'active', label: 'Adventurous' },
-  { value: 'social', label: 'Social & Party' },
-  { value: 'splurge', label: 'Luxe & Pampered' },
-  { value: 'spontaneous', label: 'Spontaneous' },
-  { value: 'offbeat', label: 'Off the Beaten Path' },
-  { value: 'touristy', label: 'Hit the Highlights' },
-  { value: 'local', label: 'Cultural & Immersive' },
-];
-
-const PACE_OPTIONS = [
-  { value: 'slow', label: 'Slow & Savoring' },
-  { value: 'balanced', label: 'Balanced' },
-  { value: 'packed', label: 'Packed & Hustling' },
-];
-
-const INTEREST_TO_ACTIVITIES: Record<string, string[]> = Object.fromEntries(
-  Object.entries(TRAVEL_INTERESTS).map(([category, items]) => [
-    category,
-    items.map(item => item.toLowerCase().replace(/[^a-z0-9]/g, '_')),
-  ])
-);
 
 function parseDate(val: string | null): string {
   if (!val) return '';
@@ -68,33 +33,10 @@ function NewTripForm() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const [selectedChips, setSelectedChips] = useState<string[]>([]);
-  const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
-  const [budget, setBudget] = useState('midrange');
-  const [vibes, setVibes] = useState<string[]>([]);
-  const [pace, setPace] = useState('balanced');
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  const [showAllCategories, setShowAllCategories] = useState(false);
-
-  // Track if we've already auto-created to prevent double submission
+  // Prevent double submission when the search-bar redirects with save=1.
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
-  // Sync interest categories from filter chips
-  useEffect(() => {
-    const expanded = new Set<string>();
-    const activities = new Set<string>();
-    selectedChips.forEach(label => {
-      const mapped = INTEREST_TO_ACTIVITIES[label];
-      if (mapped) {
-        expanded.add(label);
-        mapped.forEach(a => activities.add(a));
-      }
-    });
-    setExpandedCategories(expanded);
-    setSelectedActivities(Array.from(activities));
-  }, [selectedChips]);
-
-  // Auto-create when search bar sets save=1 in URL params
+  // Auto-create when the create-bar redirects here with save=1.
   useEffect(() => {
     if (searchParams.get('save') === '1' && !hasSubmitted && !saving) {
       handleCreate();
@@ -109,33 +51,6 @@ function NewTripForm() {
   const duration = startDate && endDate
     ? Math.round((new Date(endDate + 'T12:00:00').getTime() - new Date(startDate + 'T12:00:00').getTime()) / 86400000) + 1
     : 0;
-
-  const toggleChip = (chip: string) => {
-    setSelectedChips(prev =>
-      prev.includes(chip) ? prev.filter(c => c !== chip) : [...prev, chip]
-    );
-  };
-
-  const toggleActivity = (val: string) => {
-    setSelectedActivities(prev =>
-      prev.includes(val) ? prev.filter(a => a !== val) : [...prev, val]
-    );
-  };
-
-  const toggleVibe = (val: string) => {
-    setVibes(prev =>
-      prev.includes(val) ? prev.filter(v => v !== val) : prev.length < 3 ? [...prev, val] : prev
-    );
-  };
-
-  const toggleCategory = (label: string) => {
-    setExpandedCategories(prev => {
-      const next = new Set(prev);
-      if (next.has(label)) next.delete(label);
-      else next.add(label);
-      return next;
-    });
-  };
 
   const handleCreate = async () => {
     if (!name.trim() || !startDate || !endDate || duration <= 0) return;
@@ -168,28 +83,9 @@ function NewTripForm() {
 
       const { trip } = await tripRes.json();
       const tripId = trip.id;
-      const ownerId = trip.participants?.[0]?.id;
-
-      if (ownerId && (selectedActivities.length > 0 || budget || vibes.length > 0 || pace)) {
-        await fetch(`/api/trips/${tripId}/participants`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            participantId: ownerId,
-            profile: {
-              activities: selectedActivities,
-              budget,
-              vibe: vibes,
-              pace,
-              tripType: tripType === 'business' ? 'remote_work' : 'adventure',
-            },
-          }),
-        });
-      }
 
       // Save destinations using name-based API with coordinates from destinations.ts
       for (const destName of destinations) {
-        // Look up coordinates from the static destinations database
         const matches = searchDestinations(destName, 1);
         const match = matches.find(d => d.type === 'city' && d.name.toLowerCase() === destName.toLowerCase())
           || matches.find(d => d.type === 'city');
@@ -215,14 +111,9 @@ function NewTripForm() {
     }
   };
 
-  const budgetHint = BUDGET_OPTIONS.find(b => b.value === budget)?.hint;
-  const selectedCategoryGroups = ACTIVITY_GROUPS.filter(g => expandedCategories.has(g.label));
-  const unselectedCategoryGroups = ACTIVITY_GROUPS.filter(g => !expandedCategories.has(g.label));
-
   return (
     <div className="min-h-screen bg-bg-terminal">
       <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
-
         {error && (
           <div className="bg-red-50 border border-red-200 text-brand-red px-4 py-3 mb-4 text-sm">{error}</div>
         )}
@@ -233,156 +124,6 @@ function NewTripForm() {
             Creating your trip...
           </div>
         )}
-
-        {/* Activity filter chips — toggle interest categories below */}
-        <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1 scrollbar-hide">
-          {INTEREST_CATEGORIES.map(chip => {
-            const active = selectedChips.includes(chip);
-            return (
-              <button
-                key={chip}
-                onClick={() => toggleChip(chip)}
-                className={`text-xs px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors ${
-                  active
-                    ? 'bg-brand-purple text-white border-brand-purple'
-                    : 'bg-white text-gray-600 hover:bg-gray-50 border-gray-200'
-                }`}
-              >
-                {chip}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Travel Profile — Interests */}
-        <div className="bg-white border border-gray-200 rounded-lg p-4 mb-3">
-          <h2 className="text-sm font-semibold text-gray-700 border-b border-gray-200 pb-2 mb-3">
-            Your Travel Profile
-            {selectedActivities.length > 0 && (
-              <span className="ml-2 text-brand-purple font-normal text-xs">({selectedActivities.length} selected)</span>
-            )}
-          </h2>
-
-          {selectedCategoryGroups.length > 0 ? (
-            <div className="space-y-3">
-              {selectedCategoryGroups.map(group => (
-                <div key={group.label}>
-                  <button onClick={() => toggleCategory(group.label)}
-                    className="flex items-center gap-2 text-xs font-semibold text-gray-700 mb-1.5 hover:text-brand-purple">
-                    <ChevronDown className="w-3.5 h-3.5" />
-                    {group.label}
-                  </button>
-                  <div className="flex flex-wrap gap-1.5 pl-5">
-                    {group.activities.map(act => {
-                      const selected = selectedActivities.includes(act.value);
-                      return (
-                        <button key={act.value} type="button" onClick={() => toggleActivity(act.value)}
-                          className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                            selected ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border'
-                          }`}>
-                          {act.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-gray-400 mb-3">Select interest categories using the filter chips in the search bar above, or add them below.</p>
-          )}
-
-          {!showAllCategories && unselectedCategoryGroups.length > 0 && (
-            <button onClick={() => setShowAllCategories(true)}
-              className="mt-3 text-xs text-brand-purple hover:underline font-medium">
-              + Add Category ({unselectedCategoryGroups.length} more)
-            </button>
-          )}
-
-          {showAllCategories && unselectedCategoryGroups.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
-              {unselectedCategoryGroups.map(group => (
-                <div key={group.label}>
-                  <button onClick={() => toggleCategory(group.label)}
-                    className="flex items-center gap-2 text-xs font-medium text-gray-500 mb-1.5 hover:text-brand-purple">
-                    <ChevronDown className="w-3.5 h-3.5 -rotate-90" />
-                    {group.label}
-                  </button>
-                  {expandedCategories.has(group.label) && (
-                    <div className="flex flex-wrap gap-1.5 pl-5">
-                      {group.activities.map(act => {
-                        const selected = selectedActivities.includes(act.value);
-                        return (
-                          <button key={act.value} type="button" onClick={() => toggleActivity(act.value)}
-                            className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                              selected ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border'
-                            }`}>
-                            {act.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Preferences — Budget + Vibe + Pace */}
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <h2 className="text-sm font-semibold text-gray-700 border-b border-gray-200 pb-2 mb-3">Preferences</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div>
-              <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">Budget per Night</h4>
-              <div className="flex flex-wrap gap-1.5">
-                {BUDGET_OPTIONS.map(bo => (
-                  <button key={bo.value} type="button" onClick={() => setBudget(bo.value)}
-                    className={`px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${
-                      budget === bo.value ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border'
-                    }`}>
-                    {bo.label}
-                  </button>
-                ))}
-              </div>
-              {budgetHint && <div className="text-xs text-text-muted mt-1.5">{budgetHint}</div>}
-            </div>
-
-            <div>
-              <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
-                Vibe <span className="font-normal text-text-muted">(up to 3)</span>
-              </h4>
-              <div className="flex flex-wrap gap-1.5">
-                {VIBE_OPTIONS.map(vo => {
-                  const selected = vibes.includes(vo.value);
-                  return (
-                    <button key={vo.value} type="button" onClick={() => toggleVibe(vo.value)}
-                      className={`px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${
-                        selected ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border'
-                      }`}>
-                      {vo.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">Pace</h4>
-              <div className="flex gap-2">
-                {PACE_OPTIONS.map(po => (
-                  <button key={po.value} type="button" onClick={() => setPace(po.value)}
-                    className={`flex-1 px-3 py-2 rounded text-xs font-medium transition-colors ${
-                      pace === po.value ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border'
-                    }`}>
-                    {po.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
       </div>
     </div>
   );
