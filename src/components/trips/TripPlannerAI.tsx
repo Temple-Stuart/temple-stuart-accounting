@@ -270,24 +270,31 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
           body: JSON.stringify({ city, country, activities: tripActivities, activity, month, year, daysTravel, minRating, minReviews, maxPriceLevel: maxPriceLevel || undefined, category: cat, maxResults: catMaxResults })
         });
 
-        // Guard against non-JSON responses (serverless timeout returns HTML)
+        // Guard against non-JSON responses (serverless timeout returns HTML).
+        // Fail loud — break the loop so the user sees a real banner instead
+        // of "0 results" with no explanation.
         const contentType = res.headers.get('content-type') || '';
         if (!contentType.includes('application/json')) {
-          console.error(`[TripSearch] ${cat}: non-JSON response — likely timeout`);
-          continue;
+          setError(`Couldn't load ${catLabel} — request timed out. Try again.`);
+          break;
         }
 
         if (!res.ok) {
-          const d = await res.json();
-          if (res.status === 429) { setError(d.error || 'Google Places monthly quota exceeded — bill protection active'); break; }
-          console.error(`[TripSearch] ${cat} failed:`, d.error);
-          continue;
+          // Surface the upstream error verbatim and stop. Continuing would
+          // hammer the same broken config (Google billing/key/quota or Viator
+          // auth) for every remaining category and waste quota.
+          const d = await res.json().catch(() => ({}));
+          const upstream = d.error || `HTTP ${res.status}`;
+          setError(`Couldn't load ${catLabel} — ${upstream}`);
+          break;
         }
 
         const data = await res.json();
         const items: GrokRecommendation[] = data.recommendations || [];
         console.log(`[Search] ${cat}: ${items.length} results`);
 
+        // Empty array is a legitimate ZERO_RESULTS — show no banner, just no
+        // items. Real errors took the !res.ok branch above.
         if (items.length > 0) {
           setByCategory(prev => ({ ...prev, [cat]: items }));
           setRecommendations(prev => [...prev, ...items].sort((a, b) => (b.compositeScore || 0) - (a.compositeScore || 0)));
@@ -297,7 +304,9 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
           }
         }
       } catch (err) {
-        console.error(`[TripSearch] ${cat} error:`, err);
+        // Network error or JSON parse failure — fail loud, break the loop.
+        setError(`Couldn't load ${catLabel} — ${err instanceof Error ? err.message : 'unknown error'}`);
+        break;
       }
     }
 
