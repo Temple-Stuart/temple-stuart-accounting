@@ -6,14 +6,18 @@ import { getCachedPlaces, cachePlaces, isCacheFresh } from '@/lib/placesCache';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { ACTIVITY_SEARCH_EXPANSIONS, ACTIVITY_LABELS } from '@/lib/activities';
 import { TRAVEL_COA, getCOAScanQueries } from '@/lib/travelCOA';
-import { isViatorCategory, searchViatorProducts, viatorProductToRecommendation } from '@/lib/viatorClient';
+import { searchViatorProducts, viatorProductToRecommendation } from '@/lib/viatorClient';
+import { searchHotelRates, liteApiHotelToRecommendation } from '@/lib/liteapiClient';
 import { googleFetch, GooglePlacesQuotaError } from '@/lib/googlePlacesQuota';
 import {
   MissingGoogleKeyError,
   GooglePlacesApiError,
   MissingViatorKeyError,
   ViatorApiError,
+  MissingLiteApiKeyError,
+  LiteApiError,
 } from '@/lib/travelErrors';
+import { getSource, UnimplementedSourceError } from '@/lib/travelSourceRegistry';
 
 // ─── Travel destination scan ─────────────────────────────────────────────────
 // COMPLIANCE: per Google Places API terms, Google Places data is NOT sent to any
@@ -158,55 +162,130 @@ export async function POST(
 
     console.log(`[Scanner] ${category}: Starting search for ${city}, ${country}`);
 
-    // ─── Viator path: bookable activities/experiences (skip Google entirely) ──
-    if (isViatorCategory(category) && process.env.VIATOR_API_KEY) {
+    // ─── Registry dispatch: per-category source routing ──────────────────────
+    // Replaces the old hardcoded `if (isViatorCategory && VIATOR_API_KEY)` two-
+    // way. See src/lib/travelSourceRegistry.ts. Sources declared in the
+    // registry but not yet implemented (liteapi/mozio/covergenius/airalo) fail
+    // loud with UnimplementedSourceError — never silently fall back to Google.
+    const { source, hardBookable } = getSource(category);
+
+    if (source !== 'google' && source !== 'viator' && source !== 'liteapi') {
+      // Declared bookable, provider client not yet wired — fail loud so the
+      // user sees "Category X routes to <provider> (not yet connected)"
+      // instead of getting unbookable Google POIs masked as bookable inventory.
+      throw new UnimplementedSourceError(source, category);
+    }
+
+    // ─── LiteAPI path: bookable hotels (accommodation) ───────────────────────
+    if (source === 'liteapi') {
+      // LiteAPI's /hotels/rates needs check-in/check-out + occupancy, none of
+      // which the scan request body carries. Pull them from the trip + its
+      // participants — same source of truth the rest of the trip flow uses.
+      const trip = await prisma.trips.findFirst({
+        where: { id: tripId },
+        select: { startDate: true, endDate: true },
+      });
+      if (!trip?.startDate || !trip?.endDate) {
+        throw new Error('Trip dates required for hotel search — set Start/End on the trip first');
+      }
+      const participantCount = await prisma.trip_participants.count({ where: { tripId } });
+      const adults = Math.max(1, participantCount);
+      const checkin = trip.startDate.toISOString().slice(0, 10);
+      const checkout = trip.endDate.toISOString().slice(0, 10);
+
+      console.log(`[LiteAPI] ${category}: ${city}, ${country} (${checkin} → ${checkout}, ${adults} adults)`);
+      try {
+        const hotels = await searchHotelRates({
+          city, country, checkin, checkout,
+          occupancies: [{ adults }],
+          maxResults,
+        });
+
+        const finalResults = hotels
+          .map((h, idx) => liteApiHotelToRecommendation(h, idx, category))
+          .sort((a, b) => b.compositeScore - a.compositeScore)
+          .slice(0, maxResults)
+          .map((rec, idx) => ({ ...rec, valueRank: idx + 1 }));
+
+        console.log(`[LiteAPI] ${category}: ${finalResults.length} hotels (hardBookable=${hardBookable})`);
+
+        try {
+          await prisma.trip_scanner_results.upsert({
+            where: { tripId_destination_category: { tripId, destination: `${city}, ${country}`, category } },
+            update: { recommendations: finalResults as any, scannedBy: userEmail, minRating, minReviews, profileSnapshot: undefined, updatedAt: new Date() },
+            create: { tripId, destination: `${city}, ${country}`, category, recommendations: finalResults as any, scannedBy: userEmail, minRating, minReviews },
+          });
+        } catch (saveErr) {
+          console.error(`[LiteAPI] Failed to save results for ${category}:`, saveErr);
+        }
+
+        return NextResponse.json({ category, recommendations: finalResults });
+      } catch (liteApiErr) {
+        // hardBookable Accommodation must NOT silently fall back to Google —
+        // a Google "hotel POI" isn't bookable through LiteAPI's payment flow.
+        // Always rethrow; outer catch maps typed errors to structured HTTP.
+        console.error(`[LiteAPI] ${category} error — failing loud:`, liteApiErr);
+        throw liteApiErr;
+      }
+    }
+
+    // ─── Viator path: bookable tours / experiences ───────────────────────────
+    if (source === 'viator') {
+      if (!process.env.VIATOR_API_KEY) {
+        // Fail loud — Viator categories must come from Viator. A missing key
+        // is a config issue the user needs to see, not silently routed to Google.
+        throw new Error('VIATOR_API_KEY is not configured');
+      }
       console.log(`[Viator] ${category}: Using Viator API for ${city}, ${country}`);
       try {
         const viatorProducts = await searchViatorProducts(city, country, category, tripActivities, maxResults);
 
-        if (viatorProducts.length === 0) {
-          console.log(`[Viator] ${category}: 0 products, falling through to Google Places`);
-        } else {
-          const viatorResults = viatorProducts.map((p, idx) => {
-            const rec = viatorProductToRecommendation(p, category, 'midrange');
-            return { ...rec, valueRank: idx + 1 };
+        const viatorResults = viatorProducts.map((p, idx) => {
+          const rec = viatorProductToRecommendation(p, category, 'midrange');
+          return { ...rec, valueRank: idx + 1 };
+        });
+
+        const finalResults = viatorResults
+          .sort((a, b) => b.compositeScore - a.compositeScore)
+          .slice(0, maxResults);
+
+        console.log(`[Viator] ${category}: ${finalResults.length} results (hardBookable=${hardBookable})`);
+
+        // Persist even when empty — UI needs to know the scan ran for this
+        // destination/category and legitimately found nothing (vs "never scanned").
+        try {
+          await prisma.trip_scanner_results.upsert({
+            where: { tripId_destination_category: { tripId, destination: `${city}, ${country}`, category } },
+            update: { recommendations: finalResults as any, scannedBy: userEmail, minRating, minReviews, profileSnapshot: undefined, updatedAt: new Date() },
+            create: { tripId, destination: `${city}, ${country}`, category, recommendations: finalResults as any, scannedBy: userEmail, minRating, minReviews },
           });
-
-          const finalResults = viatorResults
-            .sort((a, b) => b.compositeScore - a.compositeScore)
-            .slice(0, maxResults);
-
-          console.log(`[Viator] ${category}: ${finalResults.length} results`);
-
-          try {
-            await prisma.trip_scanner_results.upsert({
-              where: { tripId_destination_category: { tripId, destination: `${city}, ${country}`, category } },
-              update: { recommendations: finalResults as any, scannedBy: userEmail, minRating, minReviews, profileSnapshot: undefined, updatedAt: new Date() },
-              create: { tripId, destination: `${city}, ${country}`, category, recommendations: finalResults as any, scannedBy: userEmail, minRating, minReviews },
-            });
-          } catch (saveErr) {
-            console.error(`[Viator] Failed to save results for ${category}:`, saveErr);
-          }
-
-          return NextResponse.json({ category, recommendations: finalResults });
+        } catch (saveErr) {
+          console.error(`[Viator] Failed to save results for ${category}:`, saveErr);
         }
+
+        return NextResponse.json({ category, recommendations: finalResults });
       } catch (viatorErr) {
-        // Fail loud on auth/permission/missing-key — surface to the outer catch
-        // so the user sees the real Viator error instead of getting Google
-        // results masking the config problem.
+        // Combined PR-1 (fail-loud typed errors) + PR-2 (hardBookable) semantics:
+        // - hardBookable categories: re-throw EVERYTHING — no Google masking,
+        //   because a Google POI in a bookable slot would be unbookable junk.
+        // - soft-bookable (none today, kept for the door): re-throw
+        //   missing-key/4xx so the user sees the real Viator error; only
+        //   swallow transient 5xx/network and fall through to Google.
+        if (hardBookable) {
+          console.error(`[Viator] ${category} hardBookable error — failing loud:`, viatorErr);
+          throw viatorErr;
+        }
         if (
           viatorErr instanceof MissingViatorKeyError ||
           (viatorErr instanceof ViatorApiError && viatorErr.status >= 400 && viatorErr.status < 500)
         ) {
           throw viatorErr;
         }
-        // Transient Viator outage (5xx/network) — preserve existing fallback
-        // to Google so the user still gets discovery data while Viator recovers.
         console.error(`[Viator] ${category} transient error, falling back to Google Places:`, viatorErr);
       }
     }
 
-    // ─── Google Places path (no AI, no profile) ──────────────────────────────
+    // ─── Google Places path (non-bookable / discovery — no AI, no profile) ───
     // Queries are category-driven only. Interests passed with the request expand
     // the query set, but there is no tripType/vibe/budget profile.
     let queries: string[] = [];
@@ -316,6 +395,30 @@ export async function POST(
       return NextResponse.json(
         { error: err.message, source: 'viator', kind: 'api_error', status: err.status, category },
         { status: 502 }
+      );
+    }
+    if (err instanceof MissingLiteApiKeyError) {
+      console.error(`[Scanner] ${category}: missing LiteAPI key (${err.mode})`);
+      return NextResponse.json(
+        { error: err.message, source: 'liteapi', kind: 'missing_key', mode: err.mode, category },
+        { status: 500 }
+      );
+    }
+    if (err instanceof LiteApiError) {
+      console.error(`[Scanner] ${category}: LiteAPI error ${err.status} on ${err.endpoint}`);
+      return NextResponse.json(
+        { error: err.message, source: 'liteapi', kind: 'api_error', status: err.status, category },
+        { status: 502 }
+      );
+    }
+    if (err instanceof UnimplementedSourceError) {
+      // Registry declares this category routes to a provider that isn't wired
+      // yet. 501 Not Implemented so the UI can render a precise "coming
+      // soon" banner per category instead of pretending Google data is bookable.
+      console.warn(`[Scanner] ${err.category}: ${err.message}`);
+      return NextResponse.json(
+        { error: err.message, source: err.source, kind: err.kind, category: err.category },
+        { status: 501 }
       );
     }
     console.error('Travel scan error:', err);
