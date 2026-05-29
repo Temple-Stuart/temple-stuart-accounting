@@ -75,6 +75,10 @@ const CATEGORY_INFO: Record<string, { label: string; icon: string }> = {
   nightlife: { label: 'Nightlife', icon: '' },
   toiletries: { label: 'Toiletries/Supplies', icon: '' },
   wellness: { label: 'Wellness/Gym', icon: '' },
+  // PR-10 Fix 3: defensive label entry so any stale client bundle / cache
+  // path still resolves to "Adventure" instead of falling through to a
+  // pre-PR-9 TRAVEL_COA snapshot that still says "Sports & Fitness".
+  adventure: { label: 'Adventure', icon: '' },
 };
 
 const FREQUENCY_OPTIONS = [
@@ -888,7 +892,9 @@ const CAROUSEL_ORDER = [
   'nightlife',         // Nightlife (Google)
   'coworking',         // Coworking (Google)
   'shopping',          // Shopping (Google)
-  'conferences',       // Conferences (Google — business/mixed trips only)
+  // PR-10 Fix 6: Conferences removed — Google returns venues, not actual
+  // upcoming conferences. Queued for a future PR with a real conference
+  // API (Eventbrite / 10times / Bizzabo).
   'ground_transport',  // Transfers (Mozio — fails loud "not connected" today)
 ] as const;
 

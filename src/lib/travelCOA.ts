@@ -283,6 +283,13 @@ export function getActiveScanCategories(userInterests: string[], tripType: strin
     if (key === 'flights') continue;
     // Skip communication and insurance — no scannable results
     if (key === 'communication' || key === 'insurance_fees') continue;
+    // PR-10 Fix 6: skip conferences. Google Places returns "venues that
+    // host events" (convention centers, ballrooms) — not actual upcoming
+    // conferences with dates, agendas, registration links. A future PR
+    // wires a real conference API (Eventbrite / 10times / Bizzabo) and
+    // re-enables the carousel. The TRAVEL_COA entry stays so the B-9500
+    // budget mapping for hand-entered conference expenses keeps working.
+    if (key === 'conferences') continue;
     // Skip business meals unless business/mixed trip
     if (key === 'business_meals' && tripType !== 'business' && tripType !== 'mixed') continue;
     // Everything else gets scanned
