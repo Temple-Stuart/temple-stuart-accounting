@@ -7,6 +7,7 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { ACTIVITY_SEARCH_EXPANSIONS, ACTIVITY_LABELS } from '@/lib/activities';
 import { TRAVEL_COA, getCOAScanQueries } from '@/lib/travelCOA';
 import { searchViatorProducts, viatorProductToRecommendation } from '@/lib/viatorClient';
+import { findViatorDestIdFor } from '@/lib/destinations';
 import { searchHotelRates, liteApiHotelToRecommendation } from '@/lib/liteapiClient';
 import { googleFetch, GooglePlacesQuotaError } from '@/lib/googlePlacesQuota';
 import {
@@ -238,7 +239,12 @@ export async function POST(
       }
       console.log(`[Viator] ${category}: Using Viator API for ${city}, ${country}`);
       try {
-        const viatorProducts = await searchViatorProducts(city, country, category, tripActivities, maxResults);
+        // PR-8: pass the static viatorDestId for high-traffic cities so
+        // searchViatorProducts can skip the rate-limited /partner/destinations
+        // call entirely. Returns null for long-tail cities — the dynamic
+        // fallback (loadDestinations + in-lambda memo) still kicks in for them.
+        const preResolvedDestId = findViatorDestIdFor(city, country);
+        const viatorProducts = await searchViatorProducts(city, country, category, tripActivities, maxResults, preResolvedDestId);
 
         const viatorResults = viatorProducts.map((p, idx) => {
           const rec = viatorProductToRecommendation(p, category, 'midrange');

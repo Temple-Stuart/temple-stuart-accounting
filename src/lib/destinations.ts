@@ -42,6 +42,12 @@ export interface Destination {
   lat?: number;
   /** Approximate longitude for map placement */
   lng?: number;
+  /** Viator destination ID (stable taxonomy integer). When set,
+   *  `findDestinationId` skips the rate-limited `/partner/destinations` call
+   *  and uses this directly. Verify each ID against Viator's public catalog
+   *  URLs (https://www.viator.com/<City>/d<ID>-ttd). Leave undefined to
+   *  fall back to the dynamic lookup (with PR-7's in-lambda memo). */
+  viatorDestId?: number;
 }
 
 // =============================================================================
@@ -50,9 +56,9 @@ export interface Destination {
 
 const southeastAsia: Destination[] = [
   // THAILAND
-  { name: 'Bangkok', type: 'city', country: 'Thailand', region: 'Southeast Asia', lat: 13.7563, lng: 100.5018 },
-  { name: 'Chiang Mai', type: 'city', country: 'Thailand', region: 'Southeast Asia', lat: 18.7883, lng: 98.9853 },
-  { name: 'Phuket', type: 'city', country: 'Thailand', region: 'Southeast Asia', lat: 7.8804, lng: 98.3923 },
+  { name: 'Bangkok', type: 'city', country: 'Thailand', region: 'Southeast Asia', lat: 13.7563, lng: 100.5018, viatorDestId: 343 },
+  { name: 'Chiang Mai', type: 'city', country: 'Thailand', region: 'Southeast Asia', lat: 18.7883, lng: 98.9853, viatorDestId: 5267 },
+  { name: 'Phuket', type: 'city', country: 'Thailand', region: 'Southeast Asia', lat: 7.8804, lng: 98.3923, viatorDestId: 349 },
   { name: 'Songkran Festival', type: 'festival', country: 'Thailand', region: 'Southeast Asia', category: 'cultural', when: 'April', nearestCity: 'Bangkok', description: 'Thai New Year water festival — the world\'s biggest water fight' },
   { name: 'Full Moon Party', type: 'event', country: 'Thailand', region: 'Southeast Asia', category: 'music', when: 'Monthly', nearestCity: 'Koh Phangan', description: 'Legendary monthly beach rave on Haad Rin beach' },
   { name: 'Loi Krathong', type: 'festival', country: 'Thailand', region: 'Southeast Asia', category: 'cultural', when: 'November', nearestCity: 'Chiang Mai', description: 'Festival of lights — thousands of floating lanterns released into the sky' },
@@ -60,7 +66,7 @@ const southeastAsia: Destination[] = [
   { name: 'Wonderfruit', type: 'festival', country: 'Thailand', region: 'Southeast Asia', category: 'music', when: 'December', nearestCity: 'Pattaya', description: 'Art, music, and sustainability festival in The Fields at Siam Country Club' },
 
   // INDONESIA
-  { name: 'Bali (Canggu)', type: 'city', country: 'Indonesia', region: 'Southeast Asia', lat: -8.6478, lng: 115.1385 },
+  { name: 'Bali (Canggu)', type: 'city', country: 'Indonesia', region: 'Southeast Asia', lat: -8.6478, lng: 115.1385, viatorDestId: 98 },
   { name: 'Jakarta', type: 'city', country: 'Indonesia', region: 'Southeast Asia', lat: -6.2088, lng: 106.8456 },
   { name: 'Yogyakarta', type: 'city', country: 'Indonesia', region: 'Southeast Asia', lat: -7.7956, lng: 110.3695 },
   { name: 'Nyepi (Day of Silence)', type: 'festival', country: 'Indonesia', region: 'Southeast Asia', category: 'cultural', when: 'March', nearestCity: 'Bali (Canggu)', description: 'Balinese New Year — entire island shuts down, no lights, no travel' },
@@ -70,9 +76,9 @@ const southeastAsia: Destination[] = [
   { name: 'Mount Bromo Sunrise', type: 'experience', country: 'Indonesia', region: 'Southeast Asia', nearestCity: 'Surabaya', description: 'Sunrise over an active volcano crater in the Sea of Sand' },
 
   // VIETNAM
-  { name: 'Ho Chi Minh City', type: 'city', country: 'Vietnam', region: 'Southeast Asia', lat: 10.8231, lng: 106.6297 },
+  { name: 'Ho Chi Minh City', type: 'city', country: 'Vietnam', region: 'Southeast Asia', lat: 10.8231, lng: 106.6297, viatorDestId: 352 },
   { name: 'Da Nang', type: 'city', country: 'Vietnam', region: 'Southeast Asia', lat: 16.0544, lng: 108.2022 },
-  { name: 'Hanoi', type: 'city', country: 'Vietnam', region: 'Southeast Asia', lat: 21.0285, lng: 105.8542 },
+  { name: 'Hanoi', type: 'city', country: 'Vietnam', region: 'Southeast Asia', lat: 21.0285, lng: 105.8542, viatorDestId: 351 },
   { name: 'Ha Long Bay', type: 'experience', country: 'Vietnam', region: 'Southeast Asia', nearestCity: 'Hanoi', description: 'UNESCO World Heritage — 1,600+ limestone islands and caves by boat' },
   { name: 'Hoi An Lantern Festival', type: 'festival', country: 'Vietnam', region: 'Southeast Asia', category: 'cultural', when: 'Monthly (14th lunar)', nearestCity: 'Da Nang', description: 'Ancient town lit by thousands of silk lanterns on the full moon' },
 
@@ -84,7 +90,7 @@ const southeastAsia: Destination[] = [
   { name: 'El Nido & Palawan', type: 'experience', country: 'Philippines', region: 'Southeast Asia', description: 'Hidden lagoons, limestone cliffs, and the world\'s clearest waters' },
 
   // MALAYSIA
-  { name: 'Kuala Lumpur', type: 'city', country: 'Malaysia', region: 'Southeast Asia', lat: 3.1390, lng: 101.6869 },
+  { name: 'Kuala Lumpur', type: 'city', country: 'Malaysia', region: 'Southeast Asia', lat: 3.1390, lng: 101.6869, viatorDestId: 335 },
   { name: 'Penang', type: 'city', country: 'Malaysia', region: 'Southeast Asia', lat: 5.4141, lng: 100.3288 },
   { name: 'Langkawi', type: 'city', country: 'Malaysia', region: 'Southeast Asia', lat: 6.3500, lng: 99.8000 },
   { name: 'George Town Festival', type: 'festival', country: 'Malaysia', region: 'Southeast Asia', category: 'art', when: 'June-July', nearestCity: 'Penang', description: 'Month-long arts festival in UNESCO heritage George Town' },
@@ -96,7 +102,7 @@ const southeastAsia: Destination[] = [
   { name: 'Angkor Wat', type: 'experience', country: 'Cambodia', region: 'Southeast Asia', nearestCity: 'Siem Reap', description: 'World\'s largest religious monument — sunrise over ancient temple complex' },
 
   // SINGAPORE
-  { name: 'Singapore', type: 'city', country: 'Singapore', region: 'Southeast Asia', lat: 1.3521, lng: 103.8198 },
+  { name: 'Singapore', type: 'city', country: 'Singapore', region: 'Southeast Asia', lat: 1.3521, lng: 103.8198, viatorDestId: 18 },
   { name: 'Singapore FinTech Festival', type: 'conference', country: 'Singapore', region: 'Southeast Asia', category: 'fintech', when: 'November', nearestCity: 'Singapore', description: 'World\'s largest fintech event — 60,000+ attendees from 130+ countries' },
   { name: 'Formula 1 Singapore Grand Prix', type: 'event', country: 'Singapore', region: 'Southeast Asia', category: 'cultural', when: 'September-October', nearestCity: 'Singapore', description: 'Only F1 night race — cars racing through illuminated city streets' },
   { name: 'Gardens by the Bay', type: 'experience', country: 'Singapore', region: 'Southeast Asia', nearestCity: 'Singapore', description: 'Futuristic Supertree Grove light show — iconic Singapore landmark' },
@@ -172,7 +178,7 @@ const europe: Destination[] = [
   { name: 'Serra da Estrela', type: 'ski', country: 'Portugal', region: 'Europe', season: 'Dec-Mar', nearestCity: 'Covilhã', description: 'Portugal\'s only ski resort — small but unique, mainland Portugal\'s highest point' },
 
   // SPAIN
-  { name: 'Barcelona', type: 'city', country: 'Spain', region: 'Europe', lat: 41.3851, lng: 2.1734 },
+  { name: 'Barcelona', type: 'city', country: 'Spain', region: 'Europe', lat: 41.3851, lng: 2.1734, viatorDestId: 562 },
   { name: 'Madrid', type: 'city', country: 'Spain', region: 'Europe', lat: 40.4168, lng: -3.7038 },
   { name: 'Tenerife', type: 'city', country: 'Spain', region: 'Europe', lat: 28.2916, lng: -16.6291 },
   { name: 'Baqueira-Beret', type: 'ski', country: 'Spain', region: 'Europe', season: 'Dec-Apr', nearestCity: 'Barcelona', description: 'Spain\'s top ski resort in the Pyrenees — 167km of runs, Spanish royal family favorite' },
@@ -186,7 +192,7 @@ const europe: Destination[] = [
   { name: 'South Summit', type: 'conference', country: 'Spain', region: 'Europe', category: 'fintech', when: 'June', nearestCity: 'Madrid', description: 'Major European startup and fintech conference' },
 
   // FRANCE
-  { name: 'Paris', type: 'city', country: 'France', region: 'Europe', lat: 48.8566, lng: 2.3522 },
+  { name: 'Paris', type: 'city', country: 'France', region: 'Europe', lat: 48.8566, lng: 2.3522, viatorDestId: 479 },
   { name: 'Lyon', type: 'city', country: 'France', region: 'Europe', lat: 45.7640, lng: 4.8357 },
   { name: 'Nice', type: 'city', country: 'France', region: 'Europe', lat: 43.7102, lng: 7.2620 },
   { name: 'Chamonix-Mont-Blanc', type: 'ski', country: 'France', region: 'Europe', season: 'Dec-Apr', nearestCity: 'Geneva', description: 'Home of the first Winter Olympics — legendary off-piste and the Vallée Blanche' },
@@ -221,7 +227,7 @@ const europe: Destination[] = [
   { name: 'Vienna Philharmonic New Year\'s Concert', type: 'event', country: 'Austria', region: 'Europe', category: 'music', when: 'January 1', nearestCity: 'Vienna', description: 'Most watched concert on Earth — broadcast to 90+ countries from the Musikverein' },
 
   // ITALY
-  { name: 'Rome', type: 'city', country: 'Italy', region: 'Europe', lat: 41.9028, lng: 12.4964 },
+  { name: 'Rome', type: 'city', country: 'Italy', region: 'Europe', lat: 41.9028, lng: 12.4964, viatorDestId: 511 },
   { name: 'Milan', type: 'city', country: 'Italy', region: 'Europe', lat: 45.4642, lng: 9.1900 },
   { name: 'Florence', type: 'city', country: 'Italy', region: 'Europe', lat: 43.7696, lng: 11.2558 },
   { name: 'Cortina d\'Ampezzo', type: 'ski', country: 'Italy', region: 'Europe', season: 'Dec-Apr', description: 'Queen of the Dolomites — hosting 2026 Winter Olympics, UNESCO World Heritage peaks' },
@@ -243,7 +249,7 @@ const europe: Destination[] = [
   { name: 'documenta', type: 'festival', country: 'Germany', region: 'Europe', category: 'art', when: 'June-September (every 5 years)', nearestCity: 'Kassel', description: 'Most important contemporary art exhibition — held every 5 years since 1955' },
 
   // UK
-  { name: 'London', type: 'city', country: 'United Kingdom', region: 'Europe', lat: 51.5074, lng: -0.1278 },
+  { name: 'London', type: 'city', country: 'United Kingdom', region: 'Europe', lat: 51.5074, lng: -0.1278, viatorDestId: 737 },
   { name: 'Edinburgh', type: 'city', country: 'United Kingdom', region: 'Europe', lat: 55.9533, lng: -3.1883 },
   { name: 'Manchester', type: 'city', country: 'United Kingdom', region: 'Europe', lat: 53.4808, lng: -2.2426 },
   { name: 'Glastonbury', type: 'festival', country: 'United Kingdom', region: 'Europe', category: 'music', when: 'June (fallow year 2026 — returns 2027)', nearestCity: 'Bristol', description: 'World\'s most iconic music festival — 200K+ on Worthy Farm (on break in 2026)' },
@@ -254,7 +260,7 @@ const europe: Destination[] = [
   { name: 'Stonehenge', type: 'experience', country: 'United Kingdom', region: 'Europe', description: 'Neolithic monument — 5,000 years old, summer solstice gathering' },
 
   // NETHERLANDS
-  { name: 'Amsterdam', type: 'city', country: 'Netherlands', region: 'Europe', lat: 52.3676, lng: 4.9041 },
+  { name: 'Amsterdam', type: 'city', country: 'Netherlands', region: 'Europe', lat: 52.3676, lng: 4.9041, viatorDestId: 525 },
   { name: 'Rotterdam', type: 'city', country: 'Netherlands', region: 'Europe', lat: 51.9244, lng: 4.4777 },
   { name: 'Amsterdam Dance Event (ADE)', type: 'festival', country: 'Netherlands', region: 'Europe', category: 'music', when: 'October', nearestCity: 'Amsterdam', description: 'World\'s biggest club festival — 2,500+ artists across 200+ venues in 5 days' },
   { name: 'King\'s Day', type: 'festival', country: 'Netherlands', region: 'Europe', category: 'cultural', when: 'April 27', nearestCity: 'Amsterdam', description: 'National holiday — entire country turns orange, canals become dance floors' },
@@ -336,7 +342,7 @@ const europe: Destination[] = [
 
 const eastAsia: Destination[] = [
   // JAPAN
-  { name: 'Tokyo', type: 'city', country: 'Japan', region: 'East Asia', lat: 35.6762, lng: 139.6503 },
+  { name: 'Tokyo', type: 'city', country: 'Japan', region: 'East Asia', lat: 35.6762, lng: 139.6503, viatorDestId: 334 },
   { name: 'Osaka', type: 'city', country: 'Japan', region: 'East Asia', lat: 34.6937, lng: 135.5023 },
   { name: 'Kyoto', type: 'city', country: 'Japan', region: 'East Asia', lat: 35.0116, lng: 135.7681 },
   { name: 'Niseko', type: 'ski', country: 'Japan', region: 'East Asia', season: 'Dec-Apr', nearestCity: 'Sapporo', description: 'World\'s best powder — 15+ meters of annual snowfall, legendary tree runs' },
@@ -370,7 +376,7 @@ const eastAsia: Destination[] = [
 
 const middleEastAfrica: Destination[] = [
   // UAE
-  { name: 'Dubai', type: 'city', country: 'UAE', region: 'Middle East & Africa', lat: 25.2048, lng: 55.2708 },
+  { name: 'Dubai', type: 'city', country: 'UAE', region: 'Middle East & Africa', lat: 25.2048, lng: 55.2708, viatorDestId: 828 },
   { name: 'Abu Dhabi', type: 'city', country: 'UAE', region: 'Middle East & Africa', lat: 24.4539, lng: 54.3773 },
   { name: 'Dubai FinTech Summit', type: 'conference', country: 'UAE', region: 'Middle East & Africa', category: 'fintech', when: 'May', nearestCity: 'Dubai', description: 'MENA\'s premier fintech event — at Dubai International Financial Centre' },
   { name: 'Abu Dhabi F1 Grand Prix', type: 'event', country: 'UAE', region: 'Middle East & Africa', category: 'cultural', when: 'December', nearestCity: 'Abu Dhabi', description: 'Season finale F1 race at Yas Marina — twilight race under the lights' },
@@ -416,7 +422,7 @@ const northAmerica: Destination[] = [
   { name: 'Los Angeles', type: 'city', country: 'USA', region: 'North America', lat: 34.0522, lng: -118.2437 },
   { name: 'Miami', type: 'city', country: 'USA', region: 'North America', lat: 25.7617, lng: -80.1918 },
   { name: 'Austin', type: 'city', country: 'USA', region: 'North America', lat: 30.2672, lng: -97.7431 },
-  { name: 'New York City', type: 'city', country: 'USA', region: 'North America', lat: 40.7128, lng: -74.0060 },
+  { name: 'New York City', type: 'city', country: 'USA', region: 'North America', lat: 40.7128, lng: -74.0060, viatorDestId: 687 },
   { name: 'Aspen Snowmass', type: 'ski', country: 'USA', region: 'North America', season: 'Nov-Apr', nearestCity: 'Denver', description: '4 mountains, 5,500+ acres — the most famous ski town in America' },
   { name: 'Vail', type: 'ski', country: 'USA', region: 'North America', season: 'Nov-Apr', nearestCity: 'Denver', description: 'Largest single-mountain ski area in the US — 5,317 acres, legendary back bowls' },
   { name: 'Park City / Deer Valley', type: 'ski', country: 'USA', region: 'North America', season: 'Nov-Apr', nearestCity: 'Salt Lake City', description: 'Host of 2002 Olympics — 7,300+ acres combined, world-class Utah powder' },
@@ -454,7 +460,7 @@ const northAmerica: Destination[] = [
 
 const oceania: Destination[] = [
   // AUSTRALIA
-  { name: 'Sydney', type: 'city', country: 'Australia', region: 'Oceania', lat: -33.8688, lng: 151.2093 },
+  { name: 'Sydney', type: 'city', country: 'Australia', region: 'Oceania', lat: -33.8688, lng: 151.2093, viatorDestId: 357 },
   { name: 'Melbourne', type: 'city', country: 'Australia', region: 'Oceania', lat: -37.8136, lng: 144.9631 },
   { name: 'Byron Bay', type: 'city', country: 'Australia', region: 'Oceania', lat: -28.6474, lng: 153.6020 },
   { name: 'Thredbo', type: 'ski', country: 'Australia', region: 'Oceania', season: 'Jun-Oct', nearestCity: 'Sydney', description: 'Australia\'s best resort — highest vertical drop in the country, vibrant village' },
@@ -546,6 +552,23 @@ export const searchDestinations = (query: string, limit: number = 12) => {
   );
   return results.slice(0, limit);
 };
+
+/**
+ * Look up the static Viator destination ID for a city/country pair. Returns
+ * `null` for any destination not in the pre-populated map; callers should
+ * then fall back to Viator's dynamic `/partner/destinations` lookup (with
+ * PR-7's in-lambda memo). Used by `searchViatorProducts` to skip the
+ * rate-limited destinations call entirely for high-traffic cities.
+ *
+ * Each ID is verified against Viator's public catalog URLs
+ * (https://www.viator.com/<City>/d<ID>-ttd) — verified at PR-8 time. If a
+ * destination's URL no longer resolves to the same ID, the dynamic fallback
+ * still works; the static map is a fast path, not a hard dependency.
+ */
+export function findViatorDestIdFor(cityName: string, _country?: string): number | null {
+  const match = ALL_DESTINATIONS.find(d => d.name === cityName && d.type === 'city');
+  return match?.viatorDestId ?? null;
+}
 
 // =============================================================================
 // STATS

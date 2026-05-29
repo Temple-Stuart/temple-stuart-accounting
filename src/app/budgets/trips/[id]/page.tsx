@@ -117,14 +117,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const [destinations, setDestinations] = useState<any[]>([]);
   const [vendorOptions, setVendorOptions] = useState<Record<string, { category?: string; imageUrl?: string; title?: string }>>({});
   const [scannerResults, setScannerResults] = useState<any[]>([]);
-  const [viatorCategoryFilter, setViatorCategoryFilter] = useState<string | null>(null);
-  const [viatorDestFilter, setViatorDestFilter] = useState<string | null>(null);
-  const [viatorCommitKey, setViatorCommitKey] = useState<string | null>(null);
-  const [viatorCommitDate, setViatorCommitDate] = useState('');
-  const [viatorCommitStartTime, setViatorCommitStartTime] = useState('10:00');
-  const [viatorCommitEndTime, setViatorCommitEndTime] = useState('12:00');
-  const [viatorCommitPrice, setViatorCommitPrice] = useState('');
-  const [viatorCommitting, setViatorCommitting] = useState(false);
   const [confirmedStartDay, setConfirmedStartDay] = useState<number | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [committing, setCommitting] = useState(false);
@@ -377,37 +369,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       alert(err instanceof Error ? err.message : 'Failed');
     } finally {
       setCommitting(false);
-    }
-  };
-
-  const handleViatorCommit = async (rec: any) => {
-    if (!viatorCommitDate) return;
-    setViatorCommitting(true);
-    try {
-      // Step 1: Create activity vendor option
-      const price = viatorCommitPrice ? parseFloat(viatorCommitPrice) : (rec.price || 0);
-      const notes = [rec.summary, rec.bookingUrl ? `Booking: ${rec.bookingUrl}` : ''].filter(Boolean).join('\n');
-      const createRes = await fetch(`/api/trips/${id}/activities`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ category: rec._scanCategory || rec.category, title: rec.name, url: rec.bookingUrl || rec.website || null, image_url: rec.photoUrl || null, vendor: rec.name, price, is_per_person: true, notes }),
-      });
-      if (!createRes.ok) throw new Error('Failed to create option');
-      const created = await createRes.json();
-      const optionId = created.option?.id;
-      if (!optionId) throw new Error('No option ID returned');
-
-      // Step 2: Commit to itinerary
-      await fetch(`/api/trips/${id}/vendor-commit`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ optionType: 'activity', optionId, startDate: viatorCommitDate, endDate: null, startTime: viatorCommitStartTime || null, endTime: viatorCommitEndTime || null, location: rec.address || rec._scanDest || null }),
-      });
-
-      setViatorCommitKey(null);
-      loadTrip(); loadBudgetItems(); loadVendorOptions(); loadScannerResults();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Commit failed');
-    } finally {
-      setViatorCommitting(false);
     }
   };
 
@@ -1052,145 +1013,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
               </div>
             )}
-
-            {/* ── Bookable Experiences (Viator) ── */}
-            {(() => {
-              const VIATOR_CATS = new Set(['sports_fitness', 'arts_culture', 'nightlife', 'festivals', 'wellness', 'bucket_list', 'ground_transport']);
-              const viatorResults = scannerResults.filter((r: any) => VIATOR_CATS.has(r.category));
-              const allRecs = viatorResults.flatMap((r: any) => (r.recommendations || []).map((rec: any) => ({ ...rec, _scanCategory: r.category, _scanDest: r.destination })));
-              const viatorCats = [...new Set(viatorResults.map((r: any) => r.category))];
-              const viatorDests = [...new Set(viatorResults.map((r: any) => r.destination).filter(Boolean))];
-              let filteredRecs = allRecs;
-              if (viatorDestFilter) filteredRecs = filteredRecs.filter((r: any) => r._scanDest === viatorDestFilter);
-              if (viatorCategoryFilter) filteredRecs = filteredRecs.filter((r: any) => r._scanCategory === viatorCategoryFilter);
-              const COA_LABELS: Record<string, string> = { sports_fitness: 'Sports & Fitness', arts_culture: 'Arts & Culture', nightlife: 'Nightlife', festivals: 'Festivals', wellness: 'Wellness', bucket_list: 'Bucket List', ground_transport: 'Transport' };
-
-              const fmtDuration = (mins: number) => mins >= 60 ? `${Math.floor(mins / 60)}h${mins % 60 ? ` ${mins % 60}m` : ''}` : `${mins}m`;
-
-              return (
-                <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-                  <div className="bg-brand-purple/80 text-white px-4 py-2.5 flex items-center justify-between">
-                    <h2 className="text-sm font-semibold tracking-wide">Bookable Experiences</h2>
-                    <span className="text-[10px] opacity-60">via Viator</span>
-                  </div>
-                  <div className="bg-white rounded-b-lg">
-                    {viatorCats.length > 0 ? (
-                      <>
-                        {/* Destination filter */}
-                        {viatorDests.length > 1 && (
-                          <div className="px-4 pt-3 flex flex-wrap items-center gap-1.5">
-                            <span className="text-[10px] text-gray-400 mr-1">Scan:</span>
-                            {viatorDests.map(dest => {
-                              const label = dest.split(',')[0].trim();
-                              return (
-                                <button key={dest} onClick={() => setViatorDestFilter(viatorDestFilter === dest ? null : dest)}
-                                  className={`px-2.5 py-1 rounded-full text-[11px] font-medium ${viatorDestFilter === dest ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                                  {label}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                        {/* Category filter */}
-                        <div className="px-4 pt-2 pb-2 flex flex-wrap gap-1.5">
-                          <button onClick={() => setViatorCategoryFilter(null)}
-                            className={`px-2.5 py-1 rounded-full text-[11px] font-medium ${!viatorCategoryFilter ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                            All ({filteredRecs.length})
-                          </button>
-                          {viatorCats.map(cat => (
-                            <button key={cat} onClick={() => setViatorCategoryFilter(viatorCategoryFilter === cat ? null : cat)}
-                              className={`px-2.5 py-1 rounded-full text-[11px] font-medium ${viatorCategoryFilter === cat ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                              {COA_LABELS[cat] || cat}
-                            </button>
-                          ))}
-                        </div>
-                        {/* Cards */}
-                        <div className="overflow-x-auto px-4 pb-4" style={{ scrollSnapType: 'x mandatory' }}>
-                          <div className="flex gap-3">
-                            {filteredRecs.slice(0, 50).map((rec: any, idx: number) => {
-                              const destCity = rec._scanDest ? rec._scanDest.split(',')[0].trim() : '';
-                              return (
-                                <div key={rec.viatorProductCode || idx} className="w-[240px] flex-shrink-0 border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow bg-white" style={{ scrollSnapAlign: 'start' }}>
-                                  {rec.photoUrl ? (
-                                    <img src={rec.photoUrl} alt={rec.name || ''} className="w-full h-[140px] object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
-                                  ) : null}
-                                  <div className={`w-full h-[140px] bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center ${rec.photoUrl ? 'hidden' : ''}`}>
-                                    <span className="text-sm font-medium text-purple-300">EXPERIENCE</span>
-                                  </div>
-                                  <div className="p-3 space-y-1.5">
-                                    <div className="font-medium text-xs text-gray-900 line-clamp-2 leading-snug">{rec.name}</div>
-                                    <div className="text-[11px] font-semibold text-emerald-700">
-                                      {rec.price != null ? `From $${rec.price}/person` : 'See pricing'}
-                                    </div>
-                                    <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
-                                      {rec.durationMinutes != null && <span>{fmtDuration(rec.durationMinutes)}</span>}
-                                      {rec.durationMinutes != null && destCity && <span>·</span>}
-                                      {destCity && <span>{destCity}</span>}
-                                    </div>
-                                    <div className="text-[11px] text-gray-500">
-                                      {rec.googleRating} ({rec.reviewCount})
-                                    </div>
-                                    {viatorCommitKey === (rec.viatorProductCode || rec.name) ? (
-                                      <div className="mt-2 space-y-1.5 border-t border-gray-100 pt-2">
-                                        <input type="date" value={viatorCommitDate}
-                                          min={tripDates?.departure || ''} max={tripDates?.return || ''}
-                                          onChange={e => setViatorCommitDate(e.target.value)}
-                                          className="w-full border border-gray-200 rounded px-2 py-1 text-xs" />
-                                        <div className="grid grid-cols-2 gap-1">
-                                          <input type="time" value={viatorCommitStartTime} onChange={e => setViatorCommitStartTime(e.target.value)}
-                                            className="border border-gray-200 rounded px-2 py-1 text-xs" />
-                                          <input type="time" value={viatorCommitEndTime} onChange={e => setViatorCommitEndTime(e.target.value)}
-                                            className="border border-gray-200 rounded px-2 py-1 text-xs" />
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                          <span className="text-xs text-gray-500">$</span>
-                                          <input type="number" step="0.01" min="0" placeholder="0.00" value={viatorCommitPrice}
-                                            onChange={e => setViatorCommitPrice(e.target.value)}
-                                            className="flex-1 border border-gray-200 rounded px-2 py-1 text-xs font-mono" />
-                                        </div>
-                                        <div className="flex gap-1">
-                                          <button onClick={() => handleViatorCommit(rec)} disabled={!viatorCommitDate || viatorCommitting}
-                                            className="flex-1 px-2 py-1.5 bg-brand-gold hover:bg-brand-gold-bright text-white text-xs font-medium rounded disabled:opacity-50">
-                                            {viatorCommitting ? '...' : 'Confirm'}
-                                          </button>
-                                          <button onClick={() => setViatorCommitKey(null)}
-                                            className="px-2 py-1.5 text-xs border border-gray-200 rounded">Cancel</button>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <>
-                                        <div className="flex gap-1.5 mt-2">
-                                          <button onClick={() => { setViatorCommitKey(rec.viatorProductCode || rec.name); setViatorCommitDate(tripDates?.departure || ''); setViatorCommitPrice(rec.price ? String(rec.price) : ''); }}
-                                            className="flex-1 text-center px-2 py-1.5 bg-brand-gold hover:bg-brand-gold-bright text-white text-xs font-medium rounded">
-                                            Commit
-                                          </button>
-                                          <a href={rec.bookingUrl || rec.website || '#'} target="_blank" rel="noopener noreferrer"
-                                            className="flex-1 text-center px-2 py-1.5 border border-brand-gold text-brand-gold hover:bg-brand-gold/5 text-xs font-medium rounded">
-                                            View
-                                          </a>
-                                        </div>
-                                        <a href={rec.bookingUrl || rec.website || '#'} target="_blank" rel="noopener noreferrer"
-                                          className="block text-center w-full px-2 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded mt-1.5">
-                                          Book on Viator
-                                        </a>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-center py-8 text-gray-400">
-                        <p className="text-xs">Scan a destination in Trip Planner below to find bookable experiences.</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
 
             {/* ── Trip Planner & Budget (with integrated destination selector) ── */}
             <div id="trip-planner-section" className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
