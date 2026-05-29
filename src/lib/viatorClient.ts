@@ -201,14 +201,15 @@ function normalizeV2Product(p: any): ViatorProduct {
 
 // ─── COA Category → Search Terms ─────────────────────────────────────────────
 
+// PR-9 Fix 3: tightened, intent-specific, non-overlapping search terms — three
+// per category, chosen so each Viator carousel returns distinct inventory
+// rather than the same generic "city tour" pool. See
+// audit-reports/travel-viator-category-filter-audit.md.
 const COA_TO_VIATOR_SEARCH: Record<string, string[]> = {
-  sports_fitness: ['outdoor activities', 'water sports', 'hiking', 'surfing', 'diving', 'yoga'],
-  arts_culture: ['museums', 'cultural tours', 'cooking classes', 'art galleries', 'temples', 'historical tours', 'food tours'],
-  nightlife: ['nightlife', 'pub crawls', 'dinner shows', 'evening tours', 'bar tours'],
-  festivals: ['festivals', 'events', 'concerts', 'cultural events'],
-  wellness: ['spa', 'wellness', 'yoga retreat', 'massage'],
-  bucket_list: ['adventure', 'unique experiences', 'safari', 'hot air balloon', 'volcano tours'],
-  ground_transport: ['airport transfers', 'private transfers', 'car rental', 'transportation'],
+  adventure: ['surfing lesson', 'diving snorkeling', 'hiking trek'],
+  arts_culture: ['temple tour', 'cultural show', 'traditional dance'],
+  wellness: ['yoga class', 'spa massage', 'meditation retreat'],
+  bucket_list: ['private day tour', 'luxury experience', 'multi day tour'],
 };
 
 function buildSearchTerms(coaCategory: string, userInterests: string[]): string[] {
@@ -245,13 +246,13 @@ function buildAffiliateUrl(productCode: string): string {
 // ─── Product Search ──────────────────────────────────────────────────────────
 
 /** V2 /products/search — best for destination-based filtering with tags */
-async function searchV2Products(destId: number, maxCount: number, tagIds?: number[]): Promise<ViatorProduct[]> {
+async function searchV2Products(destId: number, maxCount: number, tagIds?: number[], start: number = 1): Promise<ViatorProduct[]> {
   const body: Record<string, any> = {
     filtering: {
       destination: String(destId),
     },
     sorting: { sort: 'DEFAULT' },
-    pagination: { start: 1, count: Math.min(maxCount, 50) },
+    pagination: { start, count: Math.min(maxCount, 50) },
     currency: 'USD',
   };
   if (tagIds && tagIds.length > 0) {
@@ -273,10 +274,10 @@ async function searchV2Products(destId: number, maxCount: number, tagIds?: numbe
 }
 
 /** V2 /search/freetext — best for keyword-based searching */
-async function searchV2Freetext(searchTerm: string, destId: number | null, maxCount: number): Promise<ViatorProduct[]> {
+async function searchV2Freetext(searchTerm: string, destId: number | null, maxCount: number, start: number = 1): Promise<ViatorProduct[]> {
   const body: Record<string, any> = {
     searchTerm,
-    searchTypes: [{ searchType: 'PRODUCTS', pagination: { start: 1, count: Math.min(maxCount, 50) } }],
+    searchTypes: [{ searchType: 'PRODUCTS', pagination: { start, count: Math.min(maxCount, 50) } }],
     currency: 'USD',
     // /search/freetext accepts REVIEW_AVG_RATING (per Viator's documented
     // enum); TRAVELER_RATING is only valid on /products/search. Using the
@@ -348,31 +349,70 @@ export async function searchViatorProducts(
     if (err instanceof ViatorApiError && err.status >= 400 && err.status < 500) throw err;
   };
 
-  // 1. Try V2 /products/search if we have a destId (fastest, best filtering)
-  if (destId) {
-    try {
-      const products = await searchV2Products(destId, Math.min(maxResults, 50));
-      addProducts(products);
-      console.log(`[Viator] V2 /products/search: ${products.length} results for destId ${destId}`);
-    } catch (err) {
-      rethrowIfHardFailure(err);
-      console.error('[Viator] V2 /products/search transient error:', err);
-    }
-  }
+  // PR-9 Fix 1+4: PRIMARY path is /search/freetext per intent-specific term,
+  // paginated up to maxResults. This is what surfaces distinct inventory per
+  // carousel — the prior `/products/search`-first path returned the same
+  // destination-wide pool for every category. See
+  // audit-reports/travel-viator-category-filter-audit.md. Per-term pagination
+  // budget: ~5 pages × 3 terms × 4 categories ≈ 60 calls per scan, well
+  // inside Viator's 150-req/10s window.
+  const PAGE_SIZE = 50;
 
-  // 2. Supplement with V2 freetext for each search term (more targeted)
-  if (allProducts.length < maxResults) {
-    for (const term of searchTerms.slice(0, 3)) {
+  if (destId) {
+    for (const term of searchTerms) {
+      if (allProducts.length >= maxResults) break;
+      let start = 1;
+      // Paginate this term until we hit maxResults, an empty page, or a short page.
+      while (allProducts.length < maxResults) {
+        try {
+          const page = await searchV2Freetext(term, destId, PAGE_SIZE, start);
+          if (page.length === 0) break;
+          const beforeCount = allProducts.length;
+          addProducts(page);
+          console.log(`[Viator] freetext "${term}" page start=${start}: +${allProducts.length - beforeCount} new (${page.length} returned)`);
+          if (page.length < PAGE_SIZE) break;
+          start += PAGE_SIZE;
+        } catch (err) {
+          rethrowIfHardFailure(err);
+          console.error(`[Viator] V2 freetext transient error for "${term}" start=${start}:`, err);
+          break;
+        }
+      }
+    }
+  } else {
+    // No destId — city-suffixed freetext (legacy path for long-tail cities).
+    for (const term of searchTerms) {
       if (allProducts.length >= maxResults) break;
       try {
-        const searchQuery = destId ? term : `${term} ${city}`;
-        const products = await searchV2Freetext(searchQuery, destId, Math.min(maxResults, 50));
+        const products = await searchV2Freetext(`${term} ${city}`, null, PAGE_SIZE, 1);
         addProducts(products);
       } catch (err) {
         rethrowIfHardFailure(err);
-        console.error(`[Viator] V2 freetext transient error for "${term}":`, err);
+        console.error(`[Viator] V2 freetext transient error for "${term} ${city}":`, err);
       }
     }
+  }
+
+  // FALLBACK: when intent-specific freetext yielded nothing (e.g. niche
+  // category with no inventory for this destination), broadcast-fetch the
+  // destination via /products/search so the UI isn't empty for popular cities
+  // that do have generic tours. Paginated to the same maxResults cap.
+  if (destId && allProducts.length === 0) {
+    let start = 1;
+    while (allProducts.length < maxResults) {
+      try {
+        const page = await searchV2Products(destId, PAGE_SIZE, undefined, start);
+        if (page.length === 0) break;
+        addProducts(page);
+        if (page.length < PAGE_SIZE) break;
+        start += PAGE_SIZE;
+      } catch (err) {
+        rethrowIfHardFailure(err);
+        console.error(`[Viator] V2 /products/search fallback transient error start=${start}:`, err);
+        break;
+      }
+    }
+    console.log(`[Viator] /products/search fallback for destId ${destId}: ${allProducts.length} results`);
   }
 
   // V1 fallback paths were removed in PR-5 — the V1 host (viatorapi.viator.com)
@@ -483,14 +523,13 @@ export function viatorProductToRecommendation(
 
 // ─── Categories that use Viator vs Google Places ─────────────────────────────
 
+// Mirrors SOURCE_BY_CATEGORY in travelSourceRegistry.ts — these are the four
+// COA categories actually routed to Viator. Kept in sync with the registry.
 export const VIATOR_CATEGORIES = new Set([
-  'sports_fitness',
+  'adventure',
   'arts_culture',
-  'nightlife',
-  'festivals',
   'wellness',
   'bucket_list',
-  'ground_transport',
 ]);
 
 export function isViatorCategory(category: string): boolean {

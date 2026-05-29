@@ -15,7 +15,7 @@ const TRAVEL_CATEGORIES: Record<string, TravelCategory> = {
   brunch_coffee:  { key: 'brunch_coffee',  label: 'Brunch & Coffee',    section: 'dining',     coaCode: '9310', calendarColor: '#F59E0B' },
   dinner:         { key: 'dinner',         label: 'Dinner',             section: 'dining',     coaCode: '9320', calendarColor: '#F59E0B' },
   arts_culture:   { key: 'arts_culture',   label: 'Activities',         section: 'activities', coaCode: '9420', calendarColor: '#8B5CF6' },
-  sports_fitness: { key: 'sports_fitness', label: 'Sports & Fitness',   section: 'activities', coaCode: '9410', calendarColor: '#10B981' },
+  adventure:      { key: 'adventure',      label: 'Adventure',          section: 'activities', coaCode: '9410', calendarColor: '#10B981' },
   nightlife:      { key: 'nightlife',      label: 'Activities',         section: 'activities', coaCode: '9430', calendarColor: '#8B5CF6' },
   festivals:      { key: 'festivals',      label: 'Activities',         section: 'activities', coaCode: '9440', calendarColor: '#8B5CF6' },
   bucket_list:    { key: 'bucket_list',    label: 'Activities',         section: 'activities', coaCode: '9450', calendarColor: '#8B5CF6' },
@@ -28,7 +28,8 @@ const TRAVEL_CATEGORIES: Record<string, TravelCategory> = {
 const ALIASES: Record<string, string> = {
   brunchCoffee: 'brunch_coffee',
   artsCulture: 'arts_culture',
-  sportsFitness: 'sports_fitness',
+  sportsFitness: 'adventure',
+  sports_fitness: 'adventure',
   bucketList: 'bucket_list',
   groundTransport: 'transport',
   ground_transport: 'transport',
@@ -106,7 +107,7 @@ export function getExcludeFromActivitiesKeys(): Set<string> {
 
 // Consolidated legend labels — groups sub-categories under unified labels
 // Only these appear in the calendar legend:
-//   Flights, Accommodation, Dining, Activities, Sports & Fitness
+//   Flights, Accommodation, Dining, Activities, Adventure
 const LEGEND_GROUPS: Record<string, {
   label: string;
   color: string;
@@ -118,7 +119,7 @@ const LEGEND_GROUPS: Record<string, {
   accommodation:  { label: 'Accommodation',    color: '#60A5FA', bg: 'bg-blue-100',   dot: 'bg-blue-400',   badge: 'bg-blue-400' },
   dining:         { label: 'Dining',           color: '#F59E0B', bg: 'bg-amber-100',  dot: 'bg-amber-400',  badge: 'bg-amber-400' },
   activities:     { label: 'Activities',       color: '#8B5CF6', bg: 'bg-violet-100', dot: 'bg-violet-400', badge: 'bg-violet-400' },
-  sports_fitness: { label: 'Sports & Fitness', color: '#10B981', bg: 'bg-green-100',  dot: 'bg-green-500',  badge: 'bg-green-500' },
+  adventure:      { label: 'Adventure',        color: '#10B981', bg: 'bg-green-100',  dot: 'bg-green-500',  badge: 'bg-green-500' },
 };
 
 // Map every possible event source key to its legend group
@@ -128,7 +129,7 @@ function legendGroupFor(source: string): string {
   if (!cat) return 'activities';
   if (cat.section === 'lodging') return 'accommodation';
   if (cat.section === 'dining') return 'dining';
-  if (cat.key === 'sports_fitness') return 'sports_fitness';
+  if (cat.key === 'adventure') return 'adventure';
   return 'activities';
 }
 

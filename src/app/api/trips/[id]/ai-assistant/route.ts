@@ -7,7 +7,7 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { ACTIVITY_SEARCH_EXPANSIONS, ACTIVITY_LABELS } from '@/lib/activities';
 import { TRAVEL_COA, getCOAScanQueries } from '@/lib/travelCOA';
 import { searchViatorProducts, viatorProductToRecommendation } from '@/lib/viatorClient';
-import { findViatorDestIdFor } from '@/lib/destinations';
+import { findViatorDestIdFor, findDestinationCoords } from '@/lib/destinations';
 import { searchHotelRates, liteApiHotelToRecommendation } from '@/lib/liteapiClient';
 import { googleFetch, GooglePlacesQuotaError } from '@/lib/googlePlacesQuota';
 import {
@@ -194,12 +194,18 @@ export async function POST(
       const checkin = trip.startDate.toISOString().slice(0, 10);
       const checkout = trip.endDate.toISOString().slice(0, 10);
 
-      console.log(`[LiteAPI] ${category}: ${city}, ${country} (${checkin} → ${checkout}, ${adults} adults)`);
+      // PR-9 Fix 5: prefer the catalog's lat/lng over cityName when available.
+      // Brittle for parenthesised labels like "Bali (Canggu)" — coord-radius
+      // search avoids that whole class of zero-result misses. Falls through
+      // to cityName when the destination isn't in the static catalog.
+      const coords = findDestinationCoords(city, country);
+      console.log(`[LiteAPI] ${category}: ${city}, ${country} (${checkin} → ${checkout}, ${adults} adults)${coords ? ` coords=${coords.lat},${coords.lng}` : ''}`);
       try {
         const hotels = await searchHotelRates({
           city, country, checkin, checkout,
           occupancies: [{ adults }],
           maxResults,
+          ...(coords ? { latitude: coords.lat, longitude: coords.lng } : {}),
         });
 
         const finalResults = hotels
@@ -244,7 +250,12 @@ export async function POST(
         // call entirely. Returns null for long-tail cities — the dynamic
         // fallback (loadDestinations + in-lambda memo) still kicks in for them.
         const preResolvedDestId = findViatorDestIdFor(city, country);
-        const viatorProducts = await searchViatorProducts(city, country, category, tripActivities, maxResults, preResolvedDestId);
+        // PR-9 Fix 4: lift per-category cap to 250 ("show all") so each Viator
+        // carousel has enough distinct inventory to dedupe + sort. Stays
+        // inside Viator's 150-req/10s window: ~5 pages × 3 terms × 4
+        // categories ≈ 60 calls per scan. See PR-9 audit notes.
+        const viatorMax = Math.max(maxResults, 250);
+        const viatorProducts = await searchViatorProducts(city, country, category, tripActivities, viatorMax, preResolvedDestId);
 
         const viatorResults = viatorProducts.map((p, idx) => {
           const rec = viatorProductToRecommendation(p, category, 'midrange');
@@ -253,7 +264,7 @@ export async function POST(
 
         const finalResults = viatorResults
           .sort((a, b) => b.compositeScore - a.compositeScore)
-          .slice(0, maxResults);
+          .slice(0, viatorMax);
 
         console.log(`[Viator] ${category}: ${finalResults.length} results (hardBookable=${hardBookable})`);
 

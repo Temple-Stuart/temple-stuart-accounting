@@ -570,6 +570,20 @@ export function findViatorDestIdFor(cityName: string, _country?: string): number
   return match?.viatorDestId ?? null;
 }
 
+/**
+ * Look up the static lat/lng for a city in the catalog. Returns null when
+ * the destination isn't in the catalog (long-tail user-typed cities) or
+ * doesn't have coordinates populated. Used by LiteAPI to prefer a
+ * coordinate-radius search over `cityName` matching — LiteAPI's `cityName`
+ * filter is brittle for parenthesised labels (e.g. "Bali (Canggu)") and
+ * city/neighborhood ambiguity. PR-9 Fix 5.
+ */
+export function findDestinationCoords(cityName: string, _country?: string): { lat: number; lng: number } | null {
+  const match = ALL_DESTINATIONS.find(d => d.name === cityName && d.type === 'city');
+  if (match?.lat != null && match?.lng != null) return { lat: match.lat, lng: match.lng };
+  return null;
+}
+
 // =============================================================================
 // STATS
 // =============================================================================

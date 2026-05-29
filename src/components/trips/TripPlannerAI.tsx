@@ -879,7 +879,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
 // Discovery (Google) last so eyes land on bookable rows before browsable ones.
 const CAROUSEL_ORDER = [
   'accommodation',     // Stays (LiteAPI)
-  'sports_fitness',    // Things to do — Sports & fitness (Viator)
+  'adventure',         // Things to do — Adventure (Viator)
   'arts_culture',      // Things to do — Arts & culture (Viator)
   'wellness',          // Wellness & spas (Viator)
   'bucket_list',       // Bucket-list experiences (Viator)

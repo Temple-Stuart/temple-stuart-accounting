@@ -81,8 +81,8 @@ export const TRAVEL_COA: Record<string, COACategory> = {
     defaultFrequency: 'per_visit',
     vendorApi: 'activities', optionType: 'activity', multiDay: false,
   },
-  sports_fitness: {
-    label: 'Sports & Fitness',
+  adventure: {
+    label: 'Adventure',
     color: '#2ecc71',
     bg: 'bg-green-100', dot: 'bg-green-500', badge: 'bg-green-500',
     coaPersonal: 'P-9410', coaBusiness: null,
@@ -329,7 +329,7 @@ export function buildCalendarSourceConfig(): Record<string, { label: string; ico
   // Backward-compat aliases: map old event source keys to COA categories
   const ALIASES: Record<string, string> = {
     flight: 'flights', lodging: 'accommodation', brunchCoffee: 'brunch_coffee',
-    activities: 'sports_fitness', activity: 'sports_fitness',
+    activities: 'adventure', activity: 'adventure',
     transfer: 'ground_transport', vehicle: 'ground_transport',
     toiletries: 'shopping',
   };
