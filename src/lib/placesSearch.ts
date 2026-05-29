@@ -120,7 +120,37 @@ export async function searchPlaces(
       // this check, a REQUEST_DENIED (billing off, API not enabled, key
       // restricted) silently became "0 results."
       if (searchData.status && searchData.status !== 'OK' && searchData.status !== 'ZERO_RESULTS') {
-        throw new GooglePlacesApiError(searchData.status, searchData.error_message);
+        // ─── PR-7 diagnostic log ──────────────────────────────────────────
+        // One observation per failure: tells us whether the request fails
+        // at page 0 (real content/auth/billing issue — must surface) or
+        // page 1+ (pagetoken-not-yet-active timing race — page-0 results
+        // we already collected are real). Remove in a follow-up once
+        // confirmed.
+        console.error('[PLACES] textsearch failure', {
+          page,
+          query: query.substring(0, 60),
+          status: searchData.status,
+          error_message: searchData.error_message ?? null,
+          had_pagetoken: !!nextPageToken,
+          results_accumulated_so_far: allPlaces.length,
+        });
+
+        // Page 0 = real request-content failure (auth, key, malformed
+        // query, billing) — surface loud and throw per PR-1 fail-loud.
+        // Page 1+ failures are typically pagetoken-not-yet-active timing
+        // races (Google's documented behaviour); the page-0 results we
+        // already accumulated are real successful data and must NOT be
+        // discarded by a timing race. This is NOT a silent swallow:
+        // page-0 still throws verbatim, and the partial-success path
+        // emits a console.warn naming the query.
+        if (page === 0 || allPlaces.length === 0) {
+          throw new GooglePlacesApiError(searchData.status, searchData.error_message);
+        }
+        console.warn(
+          `[PLACES] pagination failed at page ${page} for "${query}" — preserving ${allPlaces.length} results from earlier pages`,
+          { status: searchData.status, error_message: searchData.error_message }
+        );
+        break;
       }
 
       if (!searchData.results) break;

@@ -140,6 +140,10 @@ interface LiteApiHotelRate {
     reviewCount?: number;
     main_photo?: string;
     thumbnail?: string;
+    /** Canonical image gallery from /data/hotel; used as fallback when
+     *  `main_photo`/`thumbnail` aren't populated. Each entry has `url`
+     *  plus caption/order/defaultImage. */
+    hotelImages?: Array<{ url: string; caption?: string; order?: number; defaultImage?: boolean }>;
     hotelDescription?: string;
     starRating?: number;
     latitude?: number;
@@ -191,16 +195,29 @@ export async function searchHotelRates(params: SearchHotelsParams): Promise<Lite
 
   const data = await res.json();
 
+  // ─── PR-7 diagnostic log ────────────────────────────────────────────────
+  // One-time observability: reveals the actual top-level + hotels[] field
+  // shape on the next deploy so we can confirm/deny the hotelId-vs-id
+  // hypothesis without further guessing. Pure observation, no behaviour
+  // change. Remove in a follow-up PR once the shape is confirmed.
+  console.log('[LiteAPI rates] response shape:', {
+    topKeys: Object.keys(data || {}),
+    dataLen: Array.isArray(data?.data) ? data.data.length : null,
+    hotelsLen: Array.isArray(data?.hotels) ? data.hotels.length : null,
+    hotelsKeys: Array.isArray(data?.hotels) && data.hotels[0] ? Object.keys(data.hotels[0]) : null,
+    firstRateKeys: Array.isArray(data?.data) && data.data[0] ? Object.keys(data.data[0]) : null,
+  });
+
   // LiteAPI returns rate items in `data.data[]` (each carries `hotelId` +
   // `roomTypes[]` only) and hotel metadata in a PARALLEL `data.hotels[]`
-  // array, keyed by `id`. The mapper at `liteApiHotelToRecommendation`
-  // reads from `rate.hotel.<field>`, so we merge the parallel array onto
-  // each rate item here. Without this merge, every card defaults to
-  // name = "Hotel", photo = placeholder, rating = "★ —".
+  // array. PR-6 assumed metadata items were keyed by `id`; in practice they
+  // may be keyed by `hotelId` (consistent with the rate side). Accept either
+  // so the merge works whichever LiteAPI uses.
   const rateItems: LiteApiHotelRate[] = data.data || [];
   const hotelMetaById: Record<string, NonNullable<LiteApiHotelRate['hotel']>> = {};
-  for (const h of (data.hotels || []) as Array<{ id?: string } & NonNullable<LiteApiHotelRate['hotel']>>) {
-    if (h && typeof h.id === 'string') hotelMetaById[h.id] = h;
+  for (const h of (data.hotels || []) as Array<{ id?: string; hotelId?: string } & NonNullable<LiteApiHotelRate['hotel']>>) {
+    const id = h?.hotelId ?? h?.id;
+    if (id && typeof id === 'string') hotelMetaById[id] = h;
   }
   const merged: LiteApiHotelRate[] = rateItems.map(r => {
     const meta = hotelMetaById[r.hotelId];
@@ -323,7 +340,12 @@ export function liteApiHotelToRecommendation(
     name: h.name || 'Hotel',
     address: h.address || h.city || '',
     website: null, // we only expose the booking URL — direct site comes from the booking flow
-    photoUrl: h.main_photo || h.thumbnail || null,
+    // Fallback chain: `main_photo` is the documented hero photo field;
+    // `thumbnail` is a smaller variant some sandbox properties return; the
+    // `hotelImages[0].url` path is LiteAPI's canonical image-gallery field
+    // (per /data/hotel docs) — used when the hero fields aren't populated
+    // but the gallery is.
+    photoUrl: h.main_photo || h.thumbnail || h.hotelImages?.[0]?.url || null,
     priceLevel,
     priceLevelDisplay,
     googleRating,
