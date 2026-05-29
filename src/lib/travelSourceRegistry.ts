@@ -65,7 +65,7 @@ export const SOURCE_BY_CATEGORY: Record<string, SourceAssignment> = {
   // LIVE on Viator — Activities / Tours / Wellness / Sports / Bucket-list.
   // hardBookable: a Google "yoga studio" POI is not a bookable Viator
   // experience, so empty Viator stays empty (no Google masking).
-  sports_fitness:   { source: 'viator', hardBookable: true },
+  adventure:        { source: 'viator', hardBookable: true },
   arts_culture:     { source: 'viator', hardBookable: true },
   wellness:         { source: 'viator', hardBookable: true },
   bucket_list:      { source: 'viator', hardBookable: true },

@@ -124,6 +124,15 @@ export interface SearchHotelsParams {
   guestNationality?: string;
   /** Cap on results returned by this client. */
   maxResults?: number;
+  /** PR-9 Fix 5: when provided, coordinate-radius search is preferred over
+   *  cityName matching. LiteAPI accepts (latitude, longitude, radius) on
+   *  `/hotels/rates` and the result is more tolerant of city-name spelling
+   *  variants ("Bali (Canggu)" vs "Canggu") + neighborhood ambiguity. */
+  latitude?: number;
+  longitude?: number;
+  /** Search radius in meters. Defaults to 25_000 (25km) — covers a metro
+   *  area plus its nearby beach towns / suburbs. */
+  radiusMeters?: number;
 }
 
 /** Raw hotel + rate as LiteAPI returns it. Keep loose — LiteAPI's V3 response
@@ -167,20 +176,41 @@ interface LiteApiHotelRate {
  *  Throws `MissingLiteApiKeyError` if no key set, `LiteApiError` on non-2xx. */
 export async function searchHotelRates(params: SearchHotelsParams): Promise<LiteApiHotelRate[]> {
   const countryCode = countryNameToIso2(params.country);
-  const body = {
-    cityName: extractCityName(params.city),
-    countryCode,
-    checkin: params.checkin,
-    checkout: params.checkout,
-    occupancies: params.occupancies,
-    currency: params.currency || 'USD',
-    guestNationality: params.guestNationality || 'US',
-    // Per LiteAPI's docs (Rate-and-Hotel-Query guide), hotel metadata (name,
-    // photo, address, rating, tags) is included when this flag is true. Auto-
-    // enabled for cityName filter, but we pass it explicitly so the behaviour
-    // never silently changes if LiteAPI flips the default.
-    includeHotelData: true,
-  };
+  // PR-9 Fix 5: prefer coordinate-radius search when lat/lng are on file.
+  // LiteAPI's `cityName` filter is brittle for parenthesised labels (e.g.
+  // "Bali (Canggu)") and city/neighborhood ambiguity. When the catalog has
+  // coords we send (latitude, longitude, radius); otherwise fall back to
+  // cityName so long-tail user-typed destinations still work.
+  const useCoords = typeof params.latitude === 'number' && typeof params.longitude === 'number';
+  const radius = params.radiusMeters ?? 25_000;
+  const body: Record<string, unknown> = useCoords
+    ? {
+        latitude: params.latitude,
+        longitude: params.longitude,
+        radius,
+        countryCode,
+        checkin: params.checkin,
+        checkout: params.checkout,
+        occupancies: params.occupancies,
+        currency: params.currency || 'USD',
+        guestNationality: params.guestNationality || 'US',
+        includeHotelData: true,
+      }
+    : {
+        cityName: extractCityName(params.city),
+        countryCode,
+        checkin: params.checkin,
+        checkout: params.checkout,
+        occupancies: params.occupancies,
+        currency: params.currency || 'USD',
+        guestNationality: params.guestNationality || 'US',
+        // Per LiteAPI's docs (Rate-and-Hotel-Query guide), hotel metadata
+        // (name, photo, address, rating, tags) is included when this flag is
+        // true. Auto-enabled for cityName filter, but we pass it explicitly
+        // so behaviour never silently changes if LiteAPI flips the default.
+        includeHotelData: true,
+      };
+  console.log(`[LiteAPI rates] mode=${useCoords ? `coords lat=${params.latitude} lng=${params.longitude} radius=${radius}m` : `cityName=${extractCityName(params.city)}`} country=${countryCode}`);
 
   const url = `${LITEAPI_BASE}/hotels/rates`;
   const res = await fetch(url, {
