@@ -88,7 +88,15 @@ export default function ItineraryComparison({
     const dates: string[] = [];
     for (let i = 0; i < daysTravel; i++) {
       const d = new Date(year, month - 1, startDay + i);
-      dates.push(d.toISOString().split('T')[0]);
+      // PR-10 Fix 4: format as local-time YYYY-MM-DD. `d.toISOString()`
+      // projects local midnight to UTC, which shifts the date backwards by
+      // one day for users in TZ ahead of UTC (Bali = UTC+8 → "Jun 30" for
+      // a "Jul 1" local date). Building the string manually keeps it in
+      // the local timezone without round-tripping through UTC.
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      dates.push(`${yyyy}-${mm}-${dd}`);
     }
     return dates;
   }, [startDay, month, year, daysTravel]);

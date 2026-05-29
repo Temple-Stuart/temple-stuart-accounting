@@ -285,7 +285,12 @@ async function searchV2Freetext(searchTerm: string, destId: number | null, maxCo
     productSorting: { sort: 'REVIEW_AVG_RATING', order: 'DESCENDING' },
   };
   if (destId) {
-    body.productFiltering = { destination: { type: 'DESTINATION', destId } };
+    // PR-10 Fix 1: Viator /search/freetext expects `destination` as a plain
+    // destId value, not the `{ type, destId }` shape used by /products/search.
+    // Sending the nested object returned BAD_REQUEST "Invalid value format
+    // for field: destination" on every freetext call — exposed once PR-9
+    // promoted freetext to the primary search path.
+    body.productFiltering = { destination: destId };
   }
 
   const res = await fetch(`${VIATOR_V2_BASE}/search/freetext`, {

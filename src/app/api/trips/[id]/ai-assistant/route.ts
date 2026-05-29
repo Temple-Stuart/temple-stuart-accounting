@@ -19,6 +19,7 @@ import {
   LiteApiError,
 } from '@/lib/travelErrors';
 import { getSource, UnimplementedSourceError } from '@/lib/travelSourceRegistry';
+import { getCategoryByKey } from '@/lib/travelCategories';
 
 // ─── Travel destination scan ─────────────────────────────────────────────────
 // COMPLIANCE: per Google Places API terms, Google Places data is NOT sent to any
@@ -135,9 +136,19 @@ export async function POST(
       minRating = 4.0,
       minReviews = 50,
       maxPriceLevel,
-      category,
+      category: rawCategory,
       maxResults: rawMaxResults,
     } = body;
+    // PR-10 Fix 2: alias-resolve legacy category keys before validation so
+    // stale client bundles (still sending 'sports_fitness') survive PR-9's
+    // rename to 'adventure'. getCategoryByKey() consults travelCategories.ts's
+    // ALIASES map (sports_fitness → adventure, sportsFitness → adventure, etc).
+    // Downstream code uses `category` (the resolved key) so registry dispatch,
+    // scanner_results upserts, and Viator/LiteAPI calls all see the canonical
+    // value regardless of what the client sent.
+    const category: string | undefined = rawCategory
+      ? getCategoryByKey(rawCategory)?.key || rawCategory
+      : rawCategory;
     categoryForError = category;
 
     if (!city || !country) {
@@ -145,9 +156,9 @@ export async function POST(
     }
 
     // Accept COA keys, legacy CATEGORY_SEARCHES keys, or interest slugs
-    const isCOACategory = !!TRAVEL_COA[category];
-    const isLegacyCategory = !!CATEGORY_SEARCHES[category];
-    const isInterestCategory = !!ACTIVITY_SEARCH_EXPANSIONS[category];
+    const isCOACategory = !!category && !!TRAVEL_COA[category];
+    const isLegacyCategory = !!category && !!CATEGORY_SEARCHES[category];
+    const isInterestCategory = !!category && !!ACTIVITY_SEARCH_EXPANSIONS[category];
     if (!category || (!isCOACategory && !isLegacyCategory && !isInterestCategory)) {
       return NextResponse.json({ error: 'Valid category required' }, { status: 400 });
     }
@@ -191,8 +202,24 @@ export async function POST(
       }
       const participantCount = await prisma.trip_participants.count({ where: { tripId } });
       const adults = Math.max(1, participantCount);
-      const checkin = trip.startDate.toISOString().slice(0, 10);
-      const checkout = trip.endDate.toISOString().slice(0, 10);
+      // PR-10 Fix 5 — STOPGAP pending PR-11 per-leg dates.
+      // Multi-destination trips currently store ONE startDate/endDate on
+      // `trips`; we don't yet have a `trip_destinations.startDate/endDate`
+      // schema. For a 185-night trip (Bali → Singapore → Phuket → …) we'd
+      // be asking LiteAPI for a property continuously available the full
+      // span — almost nothing qualifies, search returns 0–1 hotel, totals
+      // come back as e.g. $58k. As an explicit interim, cap the LiteAPI
+      // window to the first 7 nights from trip.startDate so the user sees
+      // realistic per-stay totals and a populated carousel. PR-11 lands
+      // the proper fix: per-destination startDate/endDate on
+      // trip_destinations + a per-chip date picker + destinationId
+      // plumbing into this route.
+      const STOPGAP_NIGHTS = 7;
+      const stopgapCheckin = new Date(trip.startDate);
+      const stopgapCheckout = new Date(stopgapCheckin);
+      stopgapCheckout.setDate(stopgapCheckout.getDate() + STOPGAP_NIGHTS);
+      const checkin = stopgapCheckin.toISOString().slice(0, 10);
+      const checkout = stopgapCheckout.toISOString().slice(0, 10);
 
       // PR-9 Fix 5: prefer the catalog's lat/lng over cityName when available.
       // Brittle for parenthesised labels like "Bali (Canggu)" — coord-radius
