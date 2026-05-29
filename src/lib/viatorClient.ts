@@ -61,46 +61,70 @@ export interface ViatorDestination {
 
 let cachedDestinations: ViatorDestination[] | null = null;
 let destinationCacheTime = 0;
+// In-flight promise: when N parallel callers in the SAME lambda all see
+// the cache empty at the same moment, they share one in-flight fetch
+// instead of firing N concurrent /destinations requests. Module-level
+// dedup — NOT cross-lambda (Vercel can spawn multiple instances; each has
+// its own module state). Cross-lambda dedup needs a persistent cache or
+// a static destId map (see audit `travel-viator-rate-limit-live-audit.md`
+// option 2A) — queued as a follow-up PR.
+let destinationLoadPromise: Promise<ViatorDestination[]> | null = null;
 const DEST_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 async function loadDestinations(): Promise<ViatorDestination[]> {
   if (cachedDestinations && Date.now() - destinationCacheTime < DEST_CACHE_TTL) {
     return cachedDestinations;
   }
+  // In-flight de-dup: if another caller in this lambda already kicked off
+  // the load, await its promise instead of firing our own /destinations.
+  if (destinationLoadPromise) return destinationLoadPromise;
+
+  destinationLoadPromise = (async (): Promise<ViatorDestination[]> => {
+    try {
+      const res = await fetch(`${VIATOR_V2_BASE}/destinations`, {
+        headers: v2Headers(),
+      });
+      if (!res.ok) {
+        throw new ViatorApiError('V2 /destinations', res.status, await res.text());
+      }
+      const data = await res.json();
+      // Filter at load time: Viator's V2 destinations catalog includes a few
+      // taxonomic nodes (regions, "areas") where `destinationName` is null or
+      // missing. The downstream `findDestinationId` calls `.toLowerCase()` on
+      // every row during `Array.find()` iteration — one bad row crashes the
+      // whole search with "Cannot read properties of undefined (reading
+      // 'toLowerCase')". Drop the unusable rows here, log the count for
+      // visibility, and never assume `destinationName` is a string downstream.
+      const raw: unknown[] = data.destinations || data.data || [];
+      const usable = raw.filter((d): d is ViatorDestination =>
+        typeof d === 'object' && d !== null &&
+        typeof (d as { destinationName?: unknown }).destinationName === 'string'
+      );
+      const skipped = raw.length - usable.length;
+      cachedDestinations = usable;
+      destinationCacheTime = Date.now();
+      console.log(
+        `[Viator] Loaded ${usable.length} destinations (V2 /destinations)` +
+        (skipped > 0 ? ` — skipped ${skipped} rows with missing destinationName` : '')
+      );
+      return cachedDestinations!;
+    } catch (err) {
+      if (err instanceof MissingViatorKeyError) throw err;
+      // V1 fallback host has been retired (returns 503 globally). Fail loud — no
+      // dead-fallback attempt. The V2 error has the auth context the user needs.
+      throw err;
+    }
+  })();
 
   try {
-    const res = await fetch(`${VIATOR_V2_BASE}/destinations`, {
-      headers: v2Headers(),
-    });
-    if (!res.ok) {
-      throw new ViatorApiError('V2 /destinations', res.status, await res.text());
-    }
-    const data = await res.json();
-    // Filter at load time: Viator's V2 destinations catalog includes a few
-    // taxonomic nodes (regions, "areas") where `destinationName` is null or
-    // missing. The downstream `findDestinationId` calls `.toLowerCase()` on
-    // every row during `Array.find()` iteration — one bad row crashes the
-    // whole search with "Cannot read properties of undefined (reading
-    // 'toLowerCase')". Drop the unusable rows here, log the count for
-    // visibility, and never assume `destinationName` is a string downstream.
-    const raw: unknown[] = data.destinations || data.data || [];
-    const usable = raw.filter((d): d is ViatorDestination =>
-      typeof d === 'object' && d !== null &&
-      typeof (d as { destinationName?: unknown }).destinationName === 'string'
-    );
-    const skipped = raw.length - usable.length;
-    cachedDestinations = usable;
-    destinationCacheTime = Date.now();
-    console.log(
-      `[Viator] Loaded ${usable.length} destinations (V2 /destinations)` +
-      (skipped > 0 ? ` — skipped ${skipped} rows with missing destinationName` : '')
-    );
-    return cachedDestinations!;
-  } catch (err) {
-    if (err instanceof MissingViatorKeyError) throw err;
-    // V1 fallback host has been retired (returns 503 globally). Fail loud — no
-    // dead-fallback attempt. The V2 error has the auth context the user needs.
-    throw err;
+    return await destinationLoadPromise;
+  } finally {
+    // Clear the in-flight slot. On success, the populated `cachedDestinations`
+    // serves the next caller. On failure, the next caller will retry the
+    // fetch (fail-loud is preserved — the rejection above bubbled up to the
+    // first caller; we just don't pin a rejected promise on the module
+    // forever).
+    destinationLoadPromise = null;
   }
 }
 
@@ -254,7 +278,10 @@ async function searchV2Freetext(searchTerm: string, destId: number | null, maxCo
     searchTerm,
     searchTypes: [{ searchType: 'PRODUCTS', pagination: { start: 1, count: Math.min(maxCount, 50) } }],
     currency: 'USD',
-    productSorting: { sort: 'TRAVELER_RATING', order: 'DESCENDING' },
+    // /search/freetext accepts REVIEW_AVG_RATING (per Viator's documented
+    // enum); TRAVELER_RATING is only valid on /products/search. Using the
+    // wrong value returns "Invalid sort: TRAVELER_RATING".
+    productSorting: { sort: 'REVIEW_AVG_RATING', order: 'DESCENDING' },
   };
   if (destId) {
     body.productFiltering = { destination: { type: 'DESTINATION', destId } };
