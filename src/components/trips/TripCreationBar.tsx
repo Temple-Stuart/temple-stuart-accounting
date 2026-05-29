@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Plane, FileText, MapPin, Calendar, Users, X, Save } from 'lucide-react';
 import { searchDestinations, type Destination } from '@/lib/destinations';
 
@@ -11,25 +11,17 @@ const TRIP_TYPES = [
   { value: 'mixed', label: 'Mixed' },
 ];
 
-function parseToDateInput(val: string): string | null {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
-  const match = val.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (match) {
-    const [, m, d, y] = match;
-    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-  }
-  return null;
-}
-
 export default function TripCreationBar() {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const isOnNewPage = pathname === '/budgets/trips/new';
   const tripDetailMatch = pathname?.match(/^\/budgets\/trips\/([^/]+)$/);
+  // PR-12 Fix 2: /budgets/trips/new is gone. Landing-mode click now POSTs
+  // directly to /api/trips + /destinations and router.push's to the new
+  // trip's detail page. The 'new' mode + URL-param pre-populate effect
+  // were removed along with the deleted page.
   const isOnDetailPage = !!(tripDetailMatch && tripDetailMatch[1] !== 'new');
   const detailTripId = tripDetailMatch?.[1] || null;
-  const mode: 'landing' | 'new' | 'detail' = isOnNewPage ? 'new' : isOnDetailPage ? 'detail' : 'landing';
+  const mode: 'landing' | 'detail' = isOnDetailPage ? 'detail' : 'landing';
 
   const [barName, setBarName] = useState('');
   const [selectedDestinations, setSelectedDestinations] = useState<string[]>([]);
@@ -75,25 +67,6 @@ export default function TripCreationBar() {
       } catch { /* ignore */ }
     })();
   }, [isOnDetailPage, detailTripId, didInit]);
-
-  // Pre-populate from URL params on /new page
-  useEffect(() => {
-    if (!isOnNewPage || didInit) return;
-    const tripName = searchParams.get('tripName');
-    const dests = searchParams.get('destinations');
-    const sd = searchParams.get('startDate');
-    const ed = searchParams.get('endDate');
-    const travelers = searchParams.get('travelers');
-    const tt = searchParams.get('tripType');
-
-    if (tripName) setBarName(tripName);
-    if (dests) setSelectedDestinations(dests.split(',').map(d => d.trim()).filter(Boolean));
-    if (sd) { const p = parseToDateInput(sd); if (p) setBarStartDate(p); }
-    if (ed) { const p = parseToDateInput(ed); if (p) setBarEndDate(p); }
-    if (travelers) setBarTravelers(parseInt(travelers) || 2);
-    if (tt) setTripType(tt);
-    setDidInit(true);
-  }, [isOnNewPage, searchParams, didInit]);
 
   const handleDestChange = (val: string) => {
     setDestQuery(val);
@@ -152,23 +125,9 @@ export default function TripCreationBar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [handleClickOutside]);
 
-  const buildParams = () => {
-    const params = new URLSearchParams();
-    if (barName) params.set('tripName', barName);
-    if (selectedDestinations.length > 0) params.set('destinations', selectedDestinations.join(','));
-    if (barStartDate) params.set('startDate', barStartDate);
-    if (barEndDate) params.set('endDate', barEndDate);
-    if (barTravelers > 1) params.set('travelers', String(barTravelers));
-    if (tripType !== 'personal') params.set('tripType', tripType);
-    return params;
-  };
-
   const [updating, setUpdating] = useState(false);
 
   const handleButtonClick = async () => {
-    const params = buildParams();
-    const qs = params.toString() ? '?' + params.toString() : '';
-
     if (mode === 'detail' && detailTripId) {
       // PATCH the existing trip
       setUpdating(true);
@@ -191,12 +150,66 @@ export default function TripCreationBar() {
         router.refresh();
       } catch { /* ignore */ }
       finally { setUpdating(false); }
-    } else if (mode === 'new') {
-      params.set('save', '1');
-      const saveQs = params.toString() ? '?' + params.toString() : '';
-      router.replace(`/budgets/trips/new${saveQs}`, { scroll: false });
-    } else {
-      router.push(`/budgets/trips/new${qs}`);
+      return;
+    }
+
+    // PR-12 Fix 2: landing-mode auto-save. Inlined from the deleted
+    // /budgets/trips/new page — POST the trip + per-destination rows
+    // sequentially, then router.push straight to the detail page.
+    if (!barName.trim() || !barStartDate || !barEndDate) return;
+    const duration = Math.round(
+      (new Date(barEndDate + 'T12:00:00').getTime() - new Date(barStartDate + 'T12:00:00').getTime()) / 86400000
+    ) + 1;
+    if (duration <= 0) return;
+
+    setUpdating(true);
+    try {
+      const tripRes = await fetch('/api/trips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: barName.trim(),
+          destination: selectedDestinations.length > 0 ? selectedDestinations[0] : undefined,
+          startDate: barStartDate,
+          endDate: barEndDate,
+          activity: 'all',
+          month: new Date(barStartDate + 'T12:00:00').getMonth() + 1,
+          year: new Date(barStartDate + 'T12:00:00').getFullYear(),
+          daysTravel: duration,
+          daysRiding: duration,
+          tripType,
+        }),
+      });
+      if (!tripRes.ok) {
+        const d = await tripRes.json().catch(() => ({}));
+        throw new Error(d.error || 'Failed to create trip');
+      }
+      const { trip } = await tripRes.json();
+      const tripId = trip.id;
+
+      // Per-destination rows (same flow the deleted page ran). Coordinates
+      // come from the static destinations catalog when there's a match.
+      for (const destName of selectedDestinations) {
+        const matches = searchDestinations(destName, 1);
+        const match = matches.find(d => d.type === 'city' && d.name.toLowerCase() === destName.toLowerCase())
+          || matches.find(d => d.type === 'city');
+        await fetch(`/api/trips/${tripId}/destinations`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: destName,
+            country: match?.country || null,
+            lat: match?.lat || null,
+            lng: match?.lng || null,
+          }),
+        });
+      }
+
+      router.push(`/budgets/trips/${tripId}`);
+    } catch {
+      // Swallow — failures are rare and the user can retry the button.
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -307,8 +320,8 @@ export default function TripCreationBar() {
         >
           {mode === 'detail' ? (
             <>{updating ? 'Updating...' : <><Save className="w-4 h-4" /> Update</>}</>
-          ) : mode === 'new' ? (
-            <><Save className="w-4 h-4" /> Save</>
+          ) : updating ? (
+            <><Save className="w-4 h-4" /> Saving…</>
           ) : (
             <><Plane className="w-4 h-4" /> Create Trip</>
           )}
