@@ -310,11 +310,22 @@ export async function searchViatorProducts(
   coaCategory: string,
   userInterests: string[],
   maxResults: number = 33,
+  /** Pre-resolved Viator destination ID (e.g. from
+   *  `findViatorDestIdFor()` in destinations.ts). When provided, we skip
+   *  the rate-limited `/partner/destinations` lookup entirely — the durable
+   *  fix for cross-lambda 429s identified in audit `travel-viator-rate-
+   *  limit-live-audit.md`. Pass `null`/`undefined` to fall back to the
+   *  dynamic lookup (with PR-7's in-lambda memo). */
+  preResolvedDestId?: number | null,
 ): Promise<ViatorProduct[]> {
   const searchTerms = buildSearchTerms(coaCategory, userInterests);
   if (searchTerms.length === 0) return [];
 
-  const destId = await findDestinationId(city, country);
+  // Skip-direct path: when a pre-resolved destId is on file, NEVER call
+  // /partner/destinations. Fall back to the dynamic lookup only when it
+  // isn't (long-tail destinations that haven't been added to the static
+  // map yet).
+  const destId = preResolvedDestId ?? await findDestinationId(city, country);
 
   const allProducts: ViatorProduct[] = [];
   const seenCodes = new Set<string>();
