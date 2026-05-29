@@ -81,6 +81,25 @@ export const TRAVEL_COA: Record<string, COACategory> = {
     defaultFrequency: 'per_visit',
     vendorApi: 'activities', optionType: 'activity', multiDay: false,
   },
+  // PR-11: single bookable-activities bucket. Replaces the four Viator
+  // carousels (adventure / arts_culture / wellness / bucket_list) with one
+  // "Activities" carousel that surfaces every Viator product for the
+  // active destination. The four legacy categories stay in TRAVEL_COA
+  // below for manual budget entries and historic data — only the SCAN +
+  // CAROUSEL surface collapses. Budget code 9400 matches the existing
+  // VENDOR_TYPE_TO_COA['activity'] default (vendor-commit/route.ts:13)
+  // so the commit→budget spine keeps working without a new mapping.
+  activities: {
+    label: 'Activities',
+    color: '#8B5CF6',
+    bg: 'bg-violet-100', dot: 'bg-violet-400', badge: 'bg-violet-400',
+    coaPersonal: 'P-9400', coaBusiness: 'B-9400',
+    alwaysScan: true,
+    googlePlacesType: null,
+    scanQueries: [],
+    defaultFrequency: 'per_visit',
+    vendorApi: 'activities', optionType: 'activity', multiDay: false,
+  },
   adventure: {
     label: 'Adventure',
     color: '#2ecc71',
@@ -290,6 +309,12 @@ export function getActiveScanCategories(userInterests: string[], tripType: strin
     // re-enables the carousel. The TRAVEL_COA entry stays so the B-9500
     // budget mapping for hand-entered conference expenses keeps working.
     if (key === 'conferences') continue;
+    // PR-11: collapse 4 Viator carousels to 1. The legacy adventure /
+    // arts_culture / wellness / bucket_list keys are kept in TRAVEL_COA
+    // for manual budget entries and historic data, but no longer scan —
+    // the single 'activities' carousel above pulls all Viator inventory
+    // for the destination.
+    if (key === 'adventure' || key === 'arts_culture' || key === 'wellness' || key === 'bucket_list') continue;
     // Skip business meals unless business/mixed trip
     if (key === 'business_meals' && tripType !== 'business' && tripType !== 'mixed') continue;
     // Everything else gets scanned

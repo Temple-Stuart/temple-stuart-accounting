@@ -71,7 +71,11 @@ const CATEGORY_INFO: Record<string, { label: string; icon: string }> = {
   airportTransfers: { label: 'Airport Transfers', icon: '' },
   brunchCoffee: { label: 'Brunch & Coffee', icon: '' },
   dinner: { label: 'Dinner', icon: '' },
-  activities: { label: 'Activities/Tours', icon: '' },
+  // PR-11: 'activities' is the unified Viator carousel — label rendered as
+  // the carousel header next to the "via Viator" source attribution.
+  // Pre-PR-11 this entry read 'Activities/Tours' (legacy CATEGORY_SEARCHES
+  // key); now it doubles as the canonical label for the unified bucket.
+  activities: { label: 'Activities', icon: '' },
   nightlife: { label: 'Nightlife', icon: '' },
   toiletries: { label: 'Toiletries/Supplies', icon: '' },
   wellness: { label: 'Wellness/Gym', icon: '' },
@@ -883,10 +887,12 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
 // Discovery (Google) last so eyes land on bookable rows before browsable ones.
 const CAROUSEL_ORDER = [
   'accommodation',     // Stays (LiteAPI)
-  'adventure',         // Things to do — Adventure (Viator)
-  'arts_culture',      // Things to do — Arts & culture (Viator)
-  'wellness',          // Wellness & spas (Viator)
-  'bucket_list',       // Bucket-list experiences (Viator)
+  // PR-11: single "Activities" row replaces the four Viator carousels
+  // (adventure / arts_culture / wellness / bucket_list). The carousel
+  // surfaces every Viator product for the active destination. COA-level
+  // budget categories are preserved in TRAVEL_COA for manual entries +
+  // historic data; only the visual + scanned surface collapses.
+  'activities',        // Things to do — Activities (Viator, unified)
   'brunch_coffee',     // Where to eat — Brunch & coffee (Google)
   'dinner',            // Dinner (Google)
   'nightlife',         // Nightlife (Google)

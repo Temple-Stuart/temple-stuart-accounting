@@ -62,6 +62,15 @@ export const SOURCE_BY_CATEGORY: Record<string, SourceAssignment> = {
   // (prebook → book → payment) is a later PR.
   accommodation:    { source: 'liteapi', hardBookable: true },
 
+  // PR-11: 'activities' is the unified Viator bucket — single carousel,
+  // all bookable Viator inventory for the destination. The four legacy
+  // keys (adventure / arts_culture / wellness / bucket_list) stay on
+  // viator+hardBookable so any code path that still calls them fails
+  // loud (per registry semantics) rather than silently falling back to
+  // Google. They're just no longer in the active scan loop (see
+  // travelCOA.getActiveScanCategories).
+  activities:       { source: 'viator', hardBookable: true },
+
   // LIVE on Viator — Activities / Tours / Wellness / Sports / Bucket-list.
   // hardBookable: a Google "yoga studio" POI is not a bookable Viator
   // experience, so empty Viator stays empty (no Google masking).

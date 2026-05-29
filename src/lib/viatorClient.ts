@@ -363,7 +363,31 @@ export async function searchViatorProducts(
   // inside Viator's 150-req/10s window.
   const PAGE_SIZE = 50;
 
-  if (destId) {
+  // PR-11: 'activities' is the unified bucket — every Viator product for the
+  // destination, no intent partitioning. Skip the per-term freetext loop and
+  // hit /products/search directly (paginated). Cuts the Viator call budget
+  // for activities from ~60 (4 cats × 3 terms × 5 pages) to ~5 pages × 1 call,
+  // and avoids the per-category dedupe problem entirely. Other COA keys
+  // (legacy adventure / arts_culture / wellness / bucket_list when they're
+  // still invoked from non-carousel code paths) keep the freetext orchestration.
+  if (destId && coaCategory === 'activities') {
+    let start = 1;
+    while (allProducts.length < maxResults) {
+      try {
+        const page = await searchV2Products(destId, PAGE_SIZE, undefined, start);
+        if (page.length === 0) break;
+        const beforeCount = allProducts.length;
+        addProducts(page);
+        console.log(`[Viator] /products/search activities page start=${start}: +${allProducts.length - beforeCount} new (${page.length} returned)`);
+        if (page.length < PAGE_SIZE) break;
+        start += PAGE_SIZE;
+      } catch (err) {
+        rethrowIfHardFailure(err);
+        console.error(`[Viator] V2 /products/search activities transient error start=${start}:`, err);
+        break;
+      }
+    }
+  } else if (destId) {
     for (const term of searchTerms) {
       if (allProducts.length >= maxResults) break;
       let start = 1;
@@ -401,8 +425,10 @@ export async function searchViatorProducts(
   // FALLBACK: when intent-specific freetext yielded nothing (e.g. niche
   // category with no inventory for this destination), broadcast-fetch the
   // destination via /products/search so the UI isn't empty for popular cities
-  // that do have generic tours. Paginated to the same maxResults cap.
-  if (destId && allProducts.length === 0) {
+  // that do have generic tours. Paginated to the same maxResults cap. The
+  // 'activities' bucket already used /products/search as the primary, so
+  // skipping the fallback for it avoids a redundant call.
+  if (destId && coaCategory !== 'activities' && allProducts.length === 0) {
     let start = 1;
     while (allProducts.length < maxResults) {
       try {

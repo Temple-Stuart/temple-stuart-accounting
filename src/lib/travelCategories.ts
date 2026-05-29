@@ -16,6 +16,11 @@ const TRAVEL_CATEGORIES: Record<string, TravelCategory> = {
   dinner:         { key: 'dinner',         label: 'Dinner',             section: 'dining',     coaCode: '9320', calendarColor: '#F59E0B' },
   arts_culture:   { key: 'arts_culture',   label: 'Activities',         section: 'activities', coaCode: '9420', calendarColor: '#8B5CF6' },
   adventure:      { key: 'adventure',      label: 'Adventure',          section: 'activities', coaCode: '9410', calendarColor: '#10B981' },
+  // PR-11: single bookable-activities bucket. Replaces the four Viator
+  // carousels (adventure / arts_culture / wellness / bucket_list) with one
+  // "Activities" carousel. Budget code 9400 aligns with the existing
+  // VENDOR_TYPE_TO_COA['activity'] default in vendor-commit/route.ts:13.
+  activities:     { key: 'activities',     label: 'Activities',         section: 'activities', coaCode: '9400', calendarColor: '#8B5CF6' },
   nightlife:      { key: 'nightlife',      label: 'Activities',         section: 'activities', coaCode: '9430', calendarColor: '#8B5CF6' },
   festivals:      { key: 'festivals',      label: 'Activities',         section: 'activities', coaCode: '9440', calendarColor: '#8B5CF6' },
   bucket_list:    { key: 'bucket_list',    label: 'Activities',         section: 'activities', coaCode: '9450', calendarColor: '#8B5CF6' },
@@ -43,8 +48,11 @@ const ALIASES: Record<string, string> = {
   cafe: 'brunch_coffee',
   business_meals: 'dinner',
   toiletries: 'shopping',
-  activities: 'arts_culture',
-  activity: 'arts_culture',
+  // PR-11: legacy 'activity' event-source key resolves to the new unified
+  // 'activities' bucket (was 'arts_culture' before the carousel collapse).
+  // 'activities' itself is now a real TRAVEL_CATEGORIES entry, so the
+  // resolver returns it directly without aliasing.
+  activity: 'activities',
   lodging: 'accommodation',
   flight: 'accommodation', // flights handled separately but alias for safety
   vehicle: 'transport',
