@@ -119,7 +119,11 @@ export default async function DiscoverDetailPage({
   // `stayTotal` is the whole-stay total (rec.price) — it is NOT pricePerNight ×
   // nights (that was the double-count bug). stayTotal also stays the charge
   // fallback handed to ReserveHotelButton, unchanged.
-  const nights = trip.daysTravel || 1;
+  // PR-21: nights MUST be the real search-window nights the card uses
+  // (`rec.nights`, the PR-13/15 field) — NOT `trip.daysTravel` (the whole-trip
+  // 185-night span). Reading daysTravel made the label say "× 185 nights" while
+  // the total was a 30-night number, so the math didn't reconcile.
+  const nights = rec.nights ?? null;
   const perNight = rec.pricePerNight ?? null;
   const stayTotal = rec.price ?? null;
 
@@ -180,8 +184,9 @@ export default async function DiscoverDetailPage({
           <p className="text-sm text-text-secondary mb-6 leading-relaxed">{rec.summary}</p>
         )}
 
-        {/* Pricing block — only when we have real numbers */}
-        {source === 'liteapi' && perNight != null && (
+        {/* Pricing block — only when we have real numbers (per-night AND the
+            real nights, so the label and total reconcile — PR-21). */}
+        {source === 'liteapi' && perNight != null && nights != null && (
           <div className="bg-bg-row border border-border rounded p-4 mb-4 text-sm">
             <div className="flex justify-between">
               <span>${perNight} <span className="text-text-muted">/ night</span></span>
