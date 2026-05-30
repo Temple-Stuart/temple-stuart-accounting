@@ -106,6 +106,14 @@ async function enrichPlaceDetails(places: any[], limit: number): Promise<any[]> 
   );
 }
 
+// PR-24: a category is "valid" if it exists in any taxonomy this route
+// dispatches on — the COA registry, the legacy Google search map, or the
+// interest-expansion map (the same three :163-165 validates against). Used to
+// decide whether an alias-resolved key is real before adopting it.
+function isValidCategory(key: string | undefined): key is string {
+  return !!key && (!!TRAVEL_COA[key] || !!CATEGORY_SEARCHES[key] || !!ACTIVITY_SEARCH_EXPANSIONS[key]);
+}
+
 // Accepts a single category per request — either a CATEGORY_SEARCHES key
 // (lodging, brunchCoffee, etc.) or an interest slug (surf, temples, etc.).
 // Client iterates categories and calls this endpoint once per category.
@@ -150,9 +158,21 @@ export async function POST(
     // Downstream code uses `category` (the resolved key) so registry dispatch,
     // scanner_results upserts, and Viator/LiteAPI calls all see the canonical
     // value regardless of what the client sent.
-    const category: string | undefined = rawCategory
-      ? getCategoryByKey(rawCategory)?.key || rawCategory
-      : rawCategory;
+    // PR-24: adopt the alias-resolved key ONLY when it points to a real
+    // category. The alias map can resolve a VALID COA key to a dead one — e.g.
+    // `ground_transport` → `transport`, which exists in no taxonomy, producing a
+    // 400 "Valid category required" on every scan. Preference order:
+    //   1. resolved-if-valid  → preserves sports_fitness→adventure,
+    //      business_meals→dinner, toiletries→shopping, … (resolved IS valid)
+    //   2. raw-if-valid       → keeps ground_transport as ground_transport so it
+    //      dispatches to its mozio source → the intended 501 "coming soon"
+    //   3. fall through       → truly-unknown keys still hit the 400 below
+    // This selects the valid one of two known keys; it is not a data fallback.
+    const resolvedCategory = rawCategory ? getCategoryByKey(rawCategory)?.key : undefined;
+    const category: string | undefined =
+      isValidCategory(resolvedCategory) ? resolvedCategory
+      : isValidCategory(rawCategory) ? rawCategory
+      : (resolvedCategory || rawCategory);
     categoryForError = category;
 
     if (!city || !country) {
