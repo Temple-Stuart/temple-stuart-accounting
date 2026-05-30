@@ -138,6 +138,10 @@ export async function POST(
       maxPriceLevel,
       category: rawCategory,
       maxResults: rawMaxResults,
+      // PR-19: per-location check-in/check-out from the scan row (optional —
+      // only the LiteAPI/accommodation path consumes them).
+      checkin: bodyCheckin,
+      checkout: bodyCheckout,
     } = body;
     // PR-10 Fix 2: alias-resolve legacy category keys before validation so
     // stale client bundles (still sending 'sports_fitness') survive PR-9's
@@ -214,12 +218,25 @@ export async function POST(
       // the proper fix: per-destination startDate/endDate on
       // trip_destinations + a per-chip date picker + destinationId
       // plumbing into this route.
-      const STOPGAP_NIGHTS = 7;
-      const stopgapCheckin = new Date(trip.startDate);
-      const stopgapCheckout = new Date(stopgapCheckin);
-      stopgapCheckout.setDate(stopgapCheckout.getDate() + STOPGAP_NIGHTS);
-      const checkin = stopgapCheckin.toISOString().slice(0, 10);
-      const checkout = stopgapCheckout.toISOString().slice(0, 10);
+      // PR-19: per-location dates supplied by the scan row take precedence.
+      // The else-branch stopgap is a CONSCIOUS UX DEFAULT for the untouched case
+      // (no per-location dates set) — NOT a silent fallback masking a date the
+      // user actually chose. Explicit if/else so that intent is visible.
+      let checkin: string;
+      let checkout: string;
+      if (bodyCheckin && bodyCheckout) {
+        checkin = bodyCheckin;
+        checkout = bodyCheckout;
+      } else {
+        // Default: the 7-night stopgap from trip.startDate (PR-10 Fix 5) —
+        // realistic per-stay window when the user hasn't set per-location dates.
+        const STOPGAP_NIGHTS = 7;
+        const stopgapCheckin = new Date(trip.startDate);
+        const stopgapCheckout = new Date(stopgapCheckin);
+        stopgapCheckout.setDate(stopgapCheckout.getDate() + STOPGAP_NIGHTS);
+        checkin = stopgapCheckin.toISOString().slice(0, 10);
+        checkout = stopgapCheckout.toISOString().slice(0, 10);
+      }
 
       // PR-9 Fix 5: prefer the catalog's lat/lng over cityName when available.
       // Brittle for parenthesised labels like "Bali (Canggu)" — coord-radius
