@@ -6,6 +6,31 @@ import { TRAVEL_COA } from '@/lib/travelCOA';
 import { getSource, type Source } from '@/lib/travelSourceRegistry';
 import { AppLayout } from '@/components/ui';
 import { ReserveHotelButton } from './ReserveHotelButton';
+import HotelGallery from '@/components/trips/HotelGallery';
+import HotelMap from '@/components/trips/HotelMap';
+import {
+  Waves, Wifi, Coffee, Dumbbell, Flower2, Car, Wind, Utensils, Wine, Dog, Baby,
+  Accessibility, Cigarette, Briefcase, ConciergeBell, WashingMachine, Tv, Bath, Star, MapPin,
+  type LucideIcon,
+} from 'lucide-react';
+
+// PR-22: facility-name → lucide icon for the full amenities grid. Includes the
+// six PR-14 card icons plus common LiteAPI facilities; unmapped facilities get a
+// generic check. Matching is case-insensitive contains-style.
+const FACILITY_ICON_MAP: { match: string; Icon: LucideIcon }[] = [
+  { match: 'pool', Icon: Waves }, { match: 'wifi', Icon: Wifi }, { match: 'breakfast', Icon: Coffee },
+  { match: 'gym', Icon: Dumbbell }, { match: 'fitness', Icon: Dumbbell }, { match: 'spa', Icon: Flower2 },
+  { match: 'parking', Icon: Car }, { match: 'air condition', Icon: Wind }, { match: 'restaurant', Icon: Utensils },
+  { match: 'bar', Icon: Wine }, { match: 'pet', Icon: Dog }, { match: 'family', Icon: Baby },
+  { match: 'wheelchair', Icon: Accessibility }, { match: 'accessible', Icon: Accessibility },
+  { match: 'smoking', Icon: Cigarette }, { match: 'business', Icon: Briefcase },
+  { match: 'concierge', Icon: ConciergeBell }, { match: 'laundry', Icon: WashingMachine },
+  { match: 'tv', Icon: Tv }, { match: 'bath', Icon: Bath },
+];
+function iconForFacility(name: string): LucideIcon {
+  const lower = name.toLowerCase();
+  return FACILITY_ICON_MAP.find(m => lower.includes(m.match))?.Icon ?? Star;
+}
 
 // Per-source action label + URL builder. Honest about what each source can
 // actually do — no fake Book buttons on Google places (Google can't take a
@@ -60,6 +85,8 @@ interface Recommendation {
   priceTotal?: number;
   nights?: number;
   pricePerNight?: number; // PR-15: priceTotal / nights
+  facilitiesAll?: string[]; // PR-22: full facility list (detail page)
+  descriptionFull?: string; // PR-22: untruncated description (detail page)
 }
 
 export default async function DiscoverDetailPage({
@@ -140,23 +167,22 @@ export default async function DiscoverDetailPage({
           ← Back to trip
         </Link>
 
-        {/* Photo */}
-        <div className="rounded-lg overflow-hidden border border-border bg-gray-100 mb-4">
-          {rec.photoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={rec.photoUrl} alt={rec.name} className="w-full h-72 sm:h-96 object-cover" />
-          ) : (
-            <div className="w-full h-72 sm:h-96 bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center text-text-muted text-sm">
-              No photo
-            </div>
-          )}
+        {/* Gallery (PR-22) — hero + clickable thumbnails from rec.images[];
+            single-hero fallback to rec.photoUrl when the gallery is empty. */}
+        <div className="mb-4">
+          <HotelGallery images={rec.images ?? []} fallback={rec.photoUrl} alt={rec.name} />
         </div>
 
-        {/* Header */}
+        {/* Header — name + optional chain badge */}
         <div className="flex items-start justify-between flex-wrap gap-2 mb-3">
           <div className="min-w-0">
             <div className="text-xs text-text-muted">{categoryLabel}{destinationLabel ? ` · ${destinationLabel}` : ''}</div>
-            <h1 className="text-2xl font-bold text-text-primary mt-1">{rec.name}</h1>
+            <div className="flex items-center gap-2 flex-wrap mt-1">
+              <h1 className="text-2xl font-bold text-text-primary">{rec.name}</h1>
+              {rec.chain && (
+                <span className="text-[10px] font-medium text-brand-purple bg-brand-purple-wash rounded px-2 py-0.5">{rec.chain}</span>
+              )}
+            </div>
           </div>
           <span className={`text-xs font-medium ${source === 'google' ? 'text-text-faint' : 'text-brand-purple'}`}>
             {sourceBadge}
@@ -166,7 +192,7 @@ export default async function DiscoverDetailPage({
         {/* Quick facts */}
         <div className="flex items-center gap-3 flex-wrap text-sm text-text-muted mb-4">
           {rec.googleRating > 0 && (
-            <span>★ {rec.googleRating}{rec.reviewCount ? ` (${rec.reviewCount} reviews)` : ''}</span>
+            <span><span className="text-brand-gold">★</span> <span className="text-text-primary font-medium">{rec.googleRating}</span></span>
           )}
           {rec.priceLevelDisplay && <span>{rec.priceLevelDisplay}</span>}
           {rec.durationMinutes != null && (
@@ -174,14 +200,75 @@ export default async function DiscoverDetailPage({
           )}
         </div>
 
-        {/* Address */}
-        {rec.address && (
-          <div className="text-sm text-text-secondary mb-4">{rec.address}</div>
+        {/* Address + interactive map (PR-22 — reuses the itinerary's Leaflet/CARTO setup) */}
+        {(rec.addressLine || rec.address || rec.city) && (
+          <div className="text-sm text-text-secondary mb-2 flex items-start gap-1.5">
+            <MapPin className="w-4 h-4 text-brand-purple flex-shrink-0 mt-0.5" aria-hidden="true" />
+            <span>{rec.addressLine || rec.address}{rec.city ? `, ${rec.city}` : ''}</span>
+          </div>
+        )}
+        {rec.latitude != null && rec.longitude != null && (
+          <div className="mb-6">
+            <HotelMap latitude={rec.latitude} longitude={rec.longitude} label={rec.name} />
+          </div>
         )}
 
-        {/* Description */}
-        {rec.summary && (
-          <p className="text-sm text-text-secondary mb-6 leading-relaxed">{rec.summary}</p>
+        {/* Amenities grid (PR-22) — full facilitiesAll; falls to the filtered 6
+            facilities[] when the full list is absent (render case, not fabricated). */}
+        {(() => {
+          const amenities = (rec.facilitiesAll && rec.facilitiesAll.length ? rec.facilitiesAll : rec.facilities) ?? [];
+          return amenities.length > 0 ? (
+            <div className="mb-6">
+              <h2 className="text-sm font-semibold text-text-primary mb-2">Amenities</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {amenities.map((f, i) => {
+                  const Icon = iconForFacility(f);
+                  return (
+                    <div key={`${f}-${i}`} className="flex items-center gap-2 text-sm text-text-secondary">
+                      <Icon className="w-4 h-4 text-brand-purple flex-shrink-0" aria-hidden="true" />
+                      <span className="truncate">{f}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null;
+        })()}
+
+        {/* Guest reviews — AGGREGATE only (PR-22). Real reviewScore/reviewCount,
+            no new API call. */}
+        {(rec.reviewScore != null || rec.reviewCount > 0) && (
+          <div className="mb-6">
+            <h2 className="text-sm font-semibold text-text-primary mb-2">Guest reviews</h2>
+            <div className="flex items-center gap-3">
+              {rec.reviewScore != null && (
+                <span className="text-white bg-brand-purple rounded px-2.5 py-1.5 text-lg font-bold leading-none"
+                  aria-label={`Guest review score ${rec.reviewScore} out of 10`}>
+                  {rec.reviewScore}
+                </span>
+              )}
+              <div className="text-sm">
+                {rec.reviewScore != null && (
+                  <div className="font-semibold text-text-primary">
+                    {rec.reviewScore >= 9 ? 'Wonderful' : rec.reviewScore >= 8 ? 'Very good' : rec.reviewScore >= 7 ? 'Good' : rec.reviewScore >= 5 ? 'Pleasant' : 'Rated'}
+                  </div>
+                )}
+                {rec.reviewCount > 0 && <div className="text-text-muted">{rec.reviewCount.toLocaleString()} reviews</div>}
+              </div>
+            </div>
+            {/* PR-23 SEAM: individual written reviews render here, fetched from
+                LiteAPI GET /v3.0/data/reviews?hotelId={rec.liteapiHotelId}. NOT in
+                PR-22 — aggregate only above, no new API call. */}
+          </div>
+        )}
+
+        {/* About this property (PR-22: full description when available, else the
+            300-char summary the card uses) */}
+        {(rec.descriptionFull || rec.summary) && (
+          <div className="mb-6">
+            <h2 className="text-sm font-semibold text-text-primary mb-2">About this property</h2>
+            <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-line">{rec.descriptionFull || rec.summary}</p>
+          </div>
         )}
 
         {/* Pricing block — only when we have real numbers (per-night AND the

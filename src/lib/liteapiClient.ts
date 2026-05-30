@@ -360,6 +360,12 @@ interface HotelRecommendation {
    *  (a date-handling bug — never in normal operation). Drives display + the
    *  per-night price-level bucketing. */
   pricePerNight?: number;
+  /** PR-22: full, unfiltered facility list (the detail page renders all of them;
+   *  the card keeps the filtered 6 in `facilities`). */
+  facilitiesAll?: string[];
+  /** PR-22: untruncated hotel description (the detail page has room; the card
+   *  keeps the 300-char `summary`). */
+  descriptionFull?: string;
 }
 
 /** Extract the WHOLE-STAY total the hotel returned, in the requested currency.
@@ -477,6 +483,12 @@ export function liteApiHotelToRecommendation(
 
   const images = h.hotelImages?.map(img => img.url).filter(Boolean) ?? [];
   const facilities = filterStandardFacilities(h.hotelFacilities);
+  // PR-22: full passthroughs for the institutional detail page. The card still
+  // uses the filtered `facilities` (6) + truncated `summary` (300) above.
+  const facilitiesAll = h.hotelFacilities?.length ? h.hotelFacilities : undefined;
+  const descriptionFull = h.hotelDescription
+    ? h.hotelDescription.replace(/<[^>]*>/g, '') || undefined
+    : undefined;
 
   // Prefer guest rating (0-10 scale, normalise to 0-5) over star rating;
   // either is usable — fall back through the options.
@@ -541,6 +553,8 @@ export function liteApiHotelToRecommendation(
     priceTotal: priceTotal ?? undefined,
     nights: hotel.nights,
     pricePerNight,
+    facilitiesAll,
+    descriptionFull,
   };
 }
 
