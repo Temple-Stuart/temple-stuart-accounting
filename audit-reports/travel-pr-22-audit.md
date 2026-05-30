@@ -6,52 +6,49 @@
 **Goal:** Map what's already available (PR-13) vs what needs a new LiteAPI call
 (individual reviews), and propose a Booking.com/Airbnb-class detail page.
 
-> **Docs caveat:** `docs.liteapi.travel` is behind a Cloudflare human-check from
-> this environment — I could not load the reviews reference live. The reviews
-> endpoint below is documented from LiteAPI v3 knowledge and **flagged for Alex
-> to confirm** against the dashboard/docs before any new call is built. All
+> **Docs:** the reviews reference loaded and is **confirmed** (see §3). All
 > codebase facts are verified from source.
 
 ---
 
 ## 1. Current detail-page anatomy
 
-`src/app/budgets/trips/[id]/discover/[category]/[rank]/page.tsx` (216 lines, an
+`src/app/budgets/trips/[id]/discover/[category]/[rank]/page.tsx` (263 lines, an
 async **server** component). Data load:
-- `rec` from `trip_scanner_results.recommendations` JSON (`:72-81`); `source`
-  derived `:83-85`; `destinationLabel = scan.destination` (`:92`); nights/
-  perNight/stayTotal (`:93-96`); checkin/checkout from trip dates (`:97-98`).
+- `rec` from `trip_scanner_results.recommendations` JSON (`:93-108`);
+  `destinationLabel = row.destination` (`:98-104`); `source` derived `:110`;
+  nights/perNight/stayTotal (`:126-128`); checkin/checkout from trip dates
+  (`:131-132`).
 
-Render (`:106-216`) — what it shows today and the fields it reads:
+Render (`:134-263`) — what it shows today and the fields it reads:
 | Section | Lines | Reads |
 |---|---|---|
-| Single hero photo | `:115-125` | `rec.photoUrl` only (one image) |
-| Name + category + source badge | `:127-136` | `rec.name`, `categoryLabel`, `destinationLabel` |
-| Quick facts | `:138-147` | `rec.googleRating`, `rec.reviewCount`, `rec.priceLevelDisplay` |
-| Address (one line) | `:149-152` | `rec.address` |
-| Description | `:154-157` | `rec.summary` (the 300-char-truncated desc) |
-| Pricing block | `:159-174` | `perNight`, `nights`, `stayTotal` (PR-21, reconciled) |
-| Reserve / actions | `:176-209` | `ReserveHotelButton` (offerId, dates, `nightly={stayTotal}`) |
-| Google note | `:211-216` | — |
+| Single hero photo | `:143-153` | `rec.photoUrl` only (one image) |
+| Name + category + source badge | `:155-164` | `rec.name`, `categoryLabel`, `destinationLabel` |
+| Quick facts | `:166-175` | `rec.googleRating`, `rec.reviewCount`, `rec.priceLevelDisplay` |
+| Address (one line) | `:177-180` | `rec.address` |
+| Description | `:182-185` | `rec.summary` (the 300-char-truncated desc) |
+| Pricing block | `:187-202` | `perNight`, `nights`, `stayTotal` (PR-21, reconciled) |
+| Reserve / actions | `:204-216+` | `ReserveHotelButton` (offerId, dates, `nightly={stayTotal}`) |
 
 **It ignores almost all of PR-13's richness** — no `images[]` gallery, no
 `facilities[]`, no `reviewScore`, no `chain`, no `city`, no `latitude/longitude`.
 
 ## 2. Data already available on `rec` (PR-13/15) — present, just unrendered
 
-The mapper (`liteapiClient.ts:471-end`) outputs, and the detail page's own
-`Recommendation` interface (`page.tsx:16-51`) already types:
+The mapper (`liteapiClient.ts:500-end`) outputs, and the detail page's own
+`Recommendation` interface (`page.tsx:16-62`, fields at `:53-62`) already types:
 | Field | Mapper line | Detail page uses it? |
 |---|---|---|
-| `images: string[]` (FULL gallery) | `:437` (`h.hotelImages.map(url)`) | ❌ no |
-| `facilities: string[]` (**filtered to 6**) | `:438` (`filterStandardFacilities`) | ❌ no |
-| `reviewScore` (0-10) | `:498` (`h.reviewScore`) | ❌ no |
-| `reviewCount` | mapper | ✅ (in quick facts) |
-| `chain` | `:499` (`h.chain`) | ❌ no |
-| `city` / `addressLine` | `:494-495` | ❌ (uses `rec.address`) |
-| `latitude` / `longitude` | `:496-497` | ❌ no |
-| `summary` (desc, **truncated 300**) | `:482` | ✅ (truncated) |
-| `priceTotal`/`nights`/`pricePerNight`/`currency` | `:440,463-465` | ✅ (pricing) |
+| `images: string[]` (FULL gallery) | `:478` (`h.hotelImages.map(url)`) | ❌ no |
+| `facilities: string[]` (**filtered to 6**) | `:479` (`filterStandardFacilities`) | ❌ no |
+| `reviewScore` (0-10) | mapper (`h.reviewScore`) | ❌ no |
+| `reviewCount` | `:485` | ✅ (in quick facts) |
+| `chain` | mapper (`h.chain`) | ❌ no |
+| `city` / `addressLine` | mapper | ❌ (uses `rec.address`) |
+| `latitude` / `longitude` | mapper | ❌ no |
+| `summary` (desc, **truncated 300**) | `:516` | ✅ (truncated) |
+| `priceTotal`/`nights`/`pricePerNight`/`currency` | `:467,440…` | ✅ (pricing) |
 
 **Populated on real hotels?** Yes — the live card (PR-14/19/21) already renders
 `images[0]`, the 6 facility icons, `pricePerNight·nights·priceTotal`, and the
@@ -71,12 +68,15 @@ detail page simply doesn't read them.
 - **Aggregate (have it now, no call):** `reviewScore` (0-10) + `reviewCount` are
   already on `rec` from the hotel-data/rates response. The detail page can render
   a Booking.com-style score badge + count **today, zero new calls**.
-- **Individual written reviews:** require a **separate LiteAPI endpoint**.
-  Per LiteAPI v3, that is **`GET /v3.0/data/reviews?hotelId={id}&limit={n}`**
-  (docs: https://docs.liteapi.travel/reference/get_data-reviews — *Cloudflare-
-  blocked from this env; Alex to confirm path/params*). Each review object
-  typically carries `averageScore`, `country`, `type`, `name`, `date`,
-  `headline`, `language`, `pros`, `cons`.
+- **Individual written reviews:** require a **separate LiteAPI endpoint —
+  CONFIRMED** via docs: **`GET https://api.liteapi.travel/v3.0/data/reviews`**
+  (https://docs.liteapi.travel/reference/get_data-reviews). Params: `hotelId`
+  (required), `limit` (default 200, max 5000), `offset` (default 0), `timeout`,
+  `getSentiment` (AI sentiment of last 1000 reviews), `language` (ISO-639-1, AI
+  translation). Returns individual review text + ratings + dates + detailed
+  guest comments. (The docs page confirms the endpoint + params; exact per-review
+  field names — author/headline/pros/cons — should be read off a live response
+  when building PR-23.)
 - **Do we call it today? NO** — grep for `reviews` across `src/lib`/`src/app`
   finds **no reviews endpoint, route, or client**. It would be net-new: a new
   client fn in `liteapiClient.ts` (`getHotelReviews(hotelId)`), a new API route
@@ -114,10 +114,11 @@ the rest. This is a **small mapper precursor** that belongs in PR-22.
 
 ## 6. Address / Map
 
-`latitude`/`longitude` are on `rec` (mapper `:496-497`). **Leaflet is already in
-the project** — `leaflet ^1.9.4` + `react-leaflet ^1.9.4` (package.json), used by
-`src/components/trips/DestinationMap.tsx` and `TripMap.tsx` with
-`leaflet/dist/leaflet.css`. **Proposal:** reuse Leaflet — a small **client** map
+`latitude`/`longitude` are on `rec` (from PR-13 mapper). **Leaflet is already in
+the project** — `leaflet ^1.9.4` + `react-leaflet ^5.0.0` + `@types/leaflet`
+(package.json), used by `src/components/trips/DestinationMap.tsx` and
+`TripMap.tsx` via **dynamic `import('react-leaflet')`/`import('leaflet')`** (SSR-
+safe) with CARTO/OSM tiles. **Proposal:** reuse Leaflet — a small **client** map
 component centered on `[latitude, longitude]` with a single marker (CARTO/OSM
 tiles, matching the itinerary map). **No new dep.** Render `addressLine` + `city`
 above it. (Static-image alternative exists, but interactive Leaflet is the house
