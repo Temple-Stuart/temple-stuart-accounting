@@ -229,6 +229,11 @@ export async function searchHotelRates(params: SearchHotelsParams): Promise<Lite
         // so behaviour never silently changes if LiteAPI flips the default.
         includeHotelData: true,
       };
+  // PR-20: env mode + key prefix (first 4 chars ONLY — never the full key) so
+  // "is production actually live" is readable on every accommodation search.
+  const liteMode = getMode();
+  const liteKeyPrefix = (liteMode === 'production' ? process.env.LITEAPI_PRODUCTION_KEY : process.env.LITEAPI_SANDBOX_KEY)?.slice(0, 4) ?? 'none';
+  console.log(`[LiteAPI] mode=${liteMode} keyPrefix=${liteKeyPrefix}`);
   console.log(`[LiteAPI rates] mode=${useCoords ? `coords lat=${params.latitude} lng=${params.longitude} radius=${radius}m` : `cityName=${extractCityName(params.city)}`} country=${countryCode}`);
 
   const url = `${LITEAPI_BASE}/hotels/rates`;
@@ -238,11 +243,20 @@ export async function searchHotelRates(params: SearchHotelsParams): Promise<Lite
     body: JSON.stringify(body),
   });
 
+  // PR-20: log HTTP status BEFORE the !res.ok throw, so a non-2xx (auth / mode /
+  // bad-request) is readable in Vercel — the object response-shape log below
+  // only runs on a 2xx (it sits after this throw).
+  console.log(`[LiteAPI] rates http: status=${res.status} ok=${res.ok}`);
+
   if (!res.ok) {
     throw new LiteApiError('/v3.0/hotels/rates', res.status, await res.text());
   }
 
   const data = await res.json();
+
+  // PR-20: flat, greppable raw counts on EVERY 2xx (empty or not) — separates
+  // upstream-empty (dataLen=0) from a mode/key problem without parsing the object log.
+  console.log(`[LiteAPI] rates raw: dataLen=${Array.isArray(data?.data) ? data.data.length : 'n/a'} hotelsLen=${Array.isArray(data?.hotels) ? data.hotels.length : 'n/a'} status=${res.status}`);
 
   // ─── PR-7 diagnostic log ────────────────────────────────────────────────
   // One-time observability: reveals the actual top-level + hotels[] field
