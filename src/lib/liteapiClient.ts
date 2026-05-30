@@ -703,3 +703,61 @@ export async function bookRate(params: BookParams): Promise<BookResult> {
     cancellationPolicies: d.cancellationPolicies,
   };
 }
+
+// ─── Individual guest reviews (Travel-PR-23) ─────────────────────────────────
+// `GET /v3.0/data/reviews` — real written guest reviews for a hotel. PAID call
+// (B-5100 COGS — see getHotelReviews note). Reuses the SAME mode/key/X-API-Key
+// path as searchHotelRates. Live response shape (per LiteAPI docs):
+//   { data: [ { averageScore, country, type, name, date, headline,
+//               language, pros, cons } ] }
+
+/** One written guest review, exactly as `/v3.0/data/reviews` returns it. All
+ *  fields optional except the score — we render only what's present, never
+ *  fabricate. */
+export interface HotelReview {
+  averageScore?: number;       // numeric rating, e.g. 9 (out of 10)
+  country?: string;            // 2-letter reviewer country, e.g. "us"
+  type?: string;               // guest category, e.g. "family with young children"
+  name?: string;               // reviewer first name
+  date?: string;               // "YYYY-MM-DD HH:MM:SS"
+  headline?: string;
+  language?: string;           // ISO-639-1
+  pros?: string;
+  cons?: string;
+}
+
+/** Hit `GET /v3.0/data/reviews?hotelId=…`. Throws MissingLiteApiKeyError on no
+ *  key, LiteApiError on non-2xx (fail-loud — an API error is NEVER returned as
+ *  an empty list, so callers can tell "errored" from "no reviews"). */
+export async function getHotelReviews(
+  hotelId: string,
+  opts?: { limit?: number; offset?: number; getSentiment?: boolean; timeout?: number },
+): Promise<HotelReview[]> {
+  const params = new URLSearchParams({ hotelId, limit: String(opts?.limit ?? 8) });
+  if (opts?.offset) params.set('offset', String(opts.offset));
+  if (opts?.getSentiment) params.set('getSentiment', 'true');
+  if (opts?.timeout) params.set('timeout', String(opts.timeout));
+
+  // PR-20-style observability: env mode + key prefix (4 chars only, never the
+  // full key) + the hotelId being priced.
+  const mode = getMode();
+  const keyPrefix = (mode === 'production' ? process.env.LITEAPI_PRODUCTION_KEY : process.env.LITEAPI_SANDBOX_KEY)?.slice(0, 4) ?? 'none';
+  console.log(`[LiteAPI] reviews: mode=${mode} keyPrefix=${keyPrefix} hotelId=${hotelId}`);
+
+  const res = await fetch(`${LITEAPI_BASE}/data/reviews?${params.toString()}`, {
+    method: 'GET',
+    headers: headers(),
+  });
+  console.log(`[LiteAPI] reviews http: status=${res.status} ok=${res.ok}`);
+  if (!res.ok) {
+    throw new LiteApiError('/v3.0/data/reviews', res.status, await res.text());
+  }
+  const json = await res.json();
+  const data: HotelReview[] = Array.isArray(json?.data) ? json.data : [];
+  // B-5100 COGS: this is a PAID LiteAPI call. Per-call cost is NOT yet ledgered
+  // (the rates/prebook/book calls don't track per-call COGS either — they only
+  // log). PR-23 matches that pattern (log, no ledger write on this read path);
+  // a unified LiteAPI COGS-tracking PR should ledger all paid calls to B-5100.
+  console.log(`[LiteAPI] reviews: dataLen=${data.length} (B-5100 COGS — paid call)`);
+  return data;
+}
