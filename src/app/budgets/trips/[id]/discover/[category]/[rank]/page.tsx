@@ -8,6 +8,7 @@ import { AppLayout } from '@/components/ui';
 import { ReserveHotelButton } from './ReserveHotelButton';
 import HotelGallery from '@/components/trips/HotelGallery';
 import HotelMap from '@/components/trips/HotelMap';
+import { getHotelReviews, type HotelReview } from '@/lib/liteapiClient';
 import {
   Waves, Wifi, Coffee, Dumbbell, Flower2, Car, Wind, Utensils, Wine, Dog, Baby,
   Accessibility, Cigarette, Briefcase, ConciergeBell, WashingMachine, Tv, Bath, Star, MapPin,
@@ -158,6 +159,23 @@ export default async function DiscoverDetailPage({
   const checkin = trip.startDate ? trip.startDate.toISOString().slice(0, 10) : null;
   const checkout = trip.endDate ? trip.endDate.toISOString().slice(0, 10) : null;
 
+  // PR-23: individual written guest reviews — a PAID LiteAPI call
+  // (GET /v3.0/data/reviews, B-5100 COGS). Safe to fetch directly here: this is
+  // a server component already gated by getVerifiedEmail() + trip-ownership
+  // above, so the paid call is never public. getHotelReviews throws on API
+  // error (fail-loud) — caught here so a reviews hiccup never 500s the whole
+  // page, and the error state stays DISTINCT from a legitimately-empty list.
+  let reviews: HotelReview[] = [];
+  let reviewsError = false;
+  if (source === 'liteapi' && rec.liteapiHotelId) {
+    try {
+      reviews = await getHotelReviews(rec.liteapiHotelId, { limit: 8 });
+    } catch (err) {
+      reviewsError = true;
+      console.error('[PR-23] getHotelReviews failed:', err instanceof Error ? err.message : err);
+    }
+  }
+
   return (
     <AppLayout>
       <div className="max-w-4xl mx-auto p-4 lg:p-6">
@@ -256,9 +274,37 @@ export default async function DiscoverDetailPage({
                 {rec.reviewCount > 0 && <div className="text-text-muted">{rec.reviewCount.toLocaleString()} reviews</div>}
               </div>
             </div>
-            {/* PR-23 SEAM: individual written reviews render here, fetched from
-                LiteAPI GET /v3.0/data/reviews?hotelId={rec.liteapiHotelId}. NOT in
-                PR-22 — aggregate only above, no new API call. */}
+            {/* PR-23: individual written reviews from /v3.0/data/reviews. Three
+                DISTINCT states — error (loud, logged), empty (quiet), list. Only
+                real returned fields render; nothing is fabricated. */}
+            {source === 'liteapi' && rec.liteapiHotelId && (
+              <div className="mt-4">
+                {reviewsError ? (
+                  <p className="text-xs text-text-muted">Guest reviews couldn&apos;t be loaded right now.</p>
+                ) : reviews.length === 0 ? (
+                  <p className="text-xs text-text-muted">No written guest reviews yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {reviews.map((r, i) => (
+                      <div key={i} className="border-t border-border pt-3">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          {typeof r.averageScore === 'number' && (
+                            <span className="text-white bg-brand-purple rounded px-1.5 py-0.5 text-xs font-bold leading-none">{r.averageScore}</span>
+                          )}
+                          {r.name && <span className="text-sm font-medium text-text-primary">{r.name}</span>}
+                          {r.country && <span className="text-[11px] text-text-faint uppercase">{r.country}</span>}
+                          {r.type && <span className="text-[11px] text-text-muted">· {r.type}</span>}
+                          {r.date && <span className="text-[11px] text-text-faint ml-auto">{r.date.slice(0, 10)}</span>}
+                        </div>
+                        {r.headline && <div className="text-sm text-text-secondary font-medium">{r.headline}</div>}
+                        {r.pros && <p className="text-xs text-text-secondary mt-1"><span className="text-brand-green font-medium">+ </span>{r.pros}</p>}
+                        {r.cons && <p className="text-xs text-text-secondary mt-0.5"><span className="text-brand-red font-medium">− </span>{r.cons}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
