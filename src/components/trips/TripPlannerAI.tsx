@@ -6,6 +6,7 @@ import { Button } from '@/components/ui';
 import { ACTIVITY_LABELS } from '@/lib/activities';
 import { TRAVEL_COA, getActiveScanCategories } from '@/lib/travelCOA';
 import { getSource, type Source } from '@/lib/travelSourceRegistry';
+import { Waves, Wifi, Coffee, Dumbbell, Flower2, Car, type LucideIcon } from 'lucide-react';
 
 // Grok response format with sentiment analysis
 interface GrokRecommendation {
@@ -34,6 +35,20 @@ interface GrokRecommendation {
   // LiteAPI-specific fields (present when result is from LiteAPI / accommodation)
   liteapiHotelId?: string;
   liteapiOfferId?: string | null;
+  // LiteAPI richness (PR-13 mapper output; PR-14 renders these — all optional,
+  // Viator/Google leave them undefined). Present at runtime in the JSON column
+  // since PR-13; typed here so the card can read them.
+  city?: string;
+  addressLine?: string;
+  latitude?: number;
+  longitude?: number;
+  reviewScore?: number;
+  chain?: string;
+  images?: string[];
+  facilities?: string[];
+  currency?: string;
+  priceTotal?: number;
+  nights?: number;
 }
 
 interface ScheduledSelection {
@@ -919,6 +934,18 @@ function sourceAttribution(source: Source): string {
   }
 }
 
+// PR-14: maps PR-13's six standard facility strings to lucide-react icons.
+// All six names verified present in lucide-react ^0.544.0. Keyed lowercase so
+// matching is case-insensitive.
+const FACILITY_ICONS: Record<string, LucideIcon> = {
+  pool: Waves,
+  wifi: Wifi,
+  breakfast: Coffee,
+  gym: Dumbbell,
+  spa: Flower2,
+  parking: Car,
+};
+
 interface TravelCarouselProps {
   catKey: string;
   label: string;
@@ -968,33 +995,112 @@ function TravelCarousel({ catKey, label, source, isLoading, items, error, onCard
         <div className="overflow-x-auto pb-2 -mx-1 px-1" style={{ scrollSnapType: 'x mandatory' }}>
           <div className="flex gap-3">
             {items.slice(0, 12).map((rec, idx) => (
-              <button
-                key={`${catKey}-${rec.valueRank ?? idx}`}
-                type="button"
-                onClick={() => onCardClick(rec)}
-                className="w-[200px] sm:w-[220px] flex-shrink-0 border border-border rounded overflow-hidden bg-white hover:shadow-md transition-shadow text-left"
-                style={{ scrollSnapAlign: 'start' }}
-              >
-                {rec.photoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={rec.photoUrl} alt={rec.name} className="w-full h-32 object-cover" />
-                ) : (
-                  <div className="w-full h-32 bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center text-text-muted text-xs">
-                    {label}
-                  </div>
-                )}
-                <div className="p-3 space-y-1">
-                  <div className="text-xs font-semibold text-text-primary line-clamp-2 leading-tight">{rec.name}</div>
-                  <div className="flex items-center justify-between text-[11px] text-text-muted">
-                    <span>★ {rec.googleRating || '—'}{rec.reviewCount ? ` (${rec.reviewCount})` : ''}</span>
-                    {rec.price != null ? (
-                      <span className="font-semibold text-emerald-700">${rec.price}</span>
-                    ) : rec.priceLevelDisplay ? (
-                      <span className="font-semibold text-text-secondary">{rec.priceLevelDisplay}</span>
+              source === 'liteapi' ? (
+                // ── PR-14: rich LiteAPI hotel card ───────────────────────────
+                <button
+                  key={`${catKey}-${rec.valueRank ?? idx}`}
+                  type="button"
+                  onClick={() => onCardClick(rec)}
+                  className="w-[260px] flex-shrink-0 border border-border rounded overflow-hidden bg-white hover:shadow-md transition-shadow text-left"
+                  style={{ scrollSnapAlign: 'start' }}
+                >
+                  {/* Single static hero — photo carousel deferred to a later
+                      cross-source PR. */}
+                  {rec.photoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={rec.photoUrl} alt={rec.name} className="w-full h-36 object-cover" />
+                  ) : (
+                    <div className="w-full h-36 bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center text-text-muted text-xs">
+                      {label}
+                    </div>
+                  )}
+                  <div className="p-3 space-y-1.5">
+                    {/* Name + optional chain pill */}
+                    <div className="flex items-start gap-1.5">
+                      <div className="text-xs font-semibold text-text-primary line-clamp-2 leading-tight flex-1">{rec.name}</div>
+                      {rec.chain ? (
+                        <span className="shrink-0 text-[9px] font-medium text-brand-purple bg-brand-purple-wash rounded px-1.5 py-0.5 leading-tight">
+                          {rec.chain}
+                        </span>
+                      ) : null}
+                    </div>
+                    {/* City subtitle */}
+                    {rec.city ? (
+                      <div className="text-[11px] text-text-muted leading-tight">{rec.city}</div>
                     ) : null}
+                    {/* Facility icon row */}
+                    {rec.facilities && rec.facilities.length > 0 ? (
+                      <div className="flex items-center gap-2 pt-0.5" aria-label={`Amenities: ${rec.facilities.join(', ')}`}>
+                        {rec.facilities.map(f => {
+                          const Icon = FACILITY_ICONS[f.toLowerCase()];
+                          return Icon ? <Icon key={f} className="w-3.5 h-3.5 text-brand-purple" aria-label={f} /> : null;
+                        })}
+                      </div>
+                    ) : null}
+                    {/* Rating (primary) + reviewScore (secondary) + price */}
+                    <div className="flex items-center justify-between text-[11px] text-text-muted pt-0.5">
+                      <span className="flex items-center gap-1.5">
+                        <span aria-label={`Rated ${rec.googleRating || 0} out of 5${rec.reviewCount ? `, ${rec.reviewCount} reviews` : ''}`}>
+                          <span className="text-brand-gold">★</span> <span className="text-text-primary">{rec.googleRating || '—'}</span>{rec.reviewCount ? ` (${rec.reviewCount})` : ''}
+                        </span>
+                        {rec.reviewScore != null ? (
+                          <span
+                            className="text-brand-purple bg-brand-purple-wash rounded px-1 py-0.5 font-semibold leading-none"
+                            aria-label={`Guest review score ${rec.reviewScore} out of 10`}
+                          >
+                            {rec.reviewScore}
+                          </span>
+                        ) : null}
+                      </span>
+                      {rec.priceTotal != null && rec.nights != null ? (
+                        <span className="font-semibold text-brand-gold-bright">
+                          {rec.currency || '$'}{rec.priceTotal} · {rec.nights} nights
+                        </span>
+                      ) : (
+                        /* PR-14 (Step 5, decided): priceTotal/nights absent →
+                           render NO price element. This is the absence of a
+                           fallback, not a fallback branch. We deliberately do
+                           NOT synthesize a $-band from priceLevelDisplay (that
+                           reuses the extractNightlyRate latent-bug bucketing —
+                           estimated data shown as real) nor reuse rec.price
+                           (the mislabeled whole-stay total). Missing price is a
+                           sandbox metadata-only artifact; production deletes it.
+                           Honors the no-silent-fallback mandate. */
+                        null
+                      )}
+                    </div>
                   </div>
-                </div>
-              </button>
+                </button>
+              ) : (
+                // ── Non-LiteAPI (Viator / Google): byte-identical to main ────
+                <button
+                  key={`${catKey}-${rec.valueRank ?? idx}`}
+                  type="button"
+                  onClick={() => onCardClick(rec)}
+                  className="w-[200px] sm:w-[220px] flex-shrink-0 border border-border rounded overflow-hidden bg-white hover:shadow-md transition-shadow text-left"
+                  style={{ scrollSnapAlign: 'start' }}
+                >
+                  {rec.photoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={rec.photoUrl} alt={rec.name} className="w-full h-32 object-cover" />
+                  ) : (
+                    <div className="w-full h-32 bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center text-text-muted text-xs">
+                      {label}
+                    </div>
+                  )}
+                  <div className="p-3 space-y-1">
+                    <div className="text-xs font-semibold text-text-primary line-clamp-2 leading-tight">{rec.name}</div>
+                    <div className="flex items-center justify-between text-[11px] text-text-muted">
+                      <span>★ {rec.googleRating || '—'}{rec.reviewCount ? ` (${rec.reviewCount})` : ''}</span>
+                      {rec.price != null ? (
+                        <span className="font-semibold text-emerald-700">${rec.price}</span>
+                      ) : rec.priceLevelDisplay ? (
+                        <span className="font-semibold text-text-secondary">{rec.priceLevelDisplay}</span>
+                      ) : null}
+                    </div>
+                  </div>
+                </button>
+              )
             ))}
           </div>
         </div>
