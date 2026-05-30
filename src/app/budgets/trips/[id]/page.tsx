@@ -8,6 +8,7 @@ import FlightPicker from '@/components/trips/FlightPicker';
 import DestinationMap from '@/components/trips/DestinationMap';
 import TripPlannerAI from '@/components/trips/TripPlannerAI';
 import CalendarGrid, { CalendarEvent, SourceConfig } from '@/components/shared/CalendarGrid';
+import ItineraryAgenda from '@/components/trips/ItineraryAgenda';
 import { ADMIN_USER_ID } from '@/lib/tiers';
 import { coaCodeToLabel } from '@/lib/travelCOA';
 import { buildCalendarSourceConfig, getDiningCategoryKeys } from '@/lib/travelCategories';
@@ -118,6 +119,9 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const [vendorOptions, setVendorOptions] = useState<Record<string, { category?: string; imageUrl?: string; title?: string }>>({});
   const [scannerResults, setScannerResults] = useState<any[]>([]);
   const [confirmedStartDay, setConfirmedStartDay] = useState<number | null>(null);
+  // PR-18: itinerary view mode (agenda default) + agenda granularity.
+  const [itinView, setItinView] = useState<'agenda' | 'grid'>('agenda');
+  const [agendaGran, setAgendaGran] = useState<'day' | 'week' | 'month'>('week');
   const [copiedLink, setCopiedLink] = useState(false);
   const [committing, setCommitting] = useState(false);
 
@@ -703,9 +707,34 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                   <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
                     <div className="bg-brand-purple/80 text-white px-4 py-2.5 flex items-center justify-between">
                       <h2 className="text-sm font-semibold">Itinerary</h2>
+                      <div className="flex items-center gap-2">
+                        {itinView === 'agenda' && (
+                          <div className="flex bg-white/15 rounded p-0.5 text-[11px]">
+                            {(['day', 'week', 'month'] as const).map(g => (
+                              <button key={g} onClick={() => setAgendaGran(g)}
+                                className={`px-2 py-0.5 rounded capitalize transition-colors ${agendaGran === g ? 'bg-white text-brand-purple font-semibold' : 'text-white/80 hover:text-white'}`}>{g}</button>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex bg-white/15 rounded p-0.5 text-[11px]">
+                          <button onClick={() => setItinView('agenda')}
+                            className={`px-2 py-0.5 rounded transition-colors ${itinView === 'agenda' ? 'bg-white text-brand-purple font-semibold' : 'text-white/80 hover:text-white'}`}>Agenda</button>
+                          <button onClick={() => setItinView('grid')}
+                            className={`px-2 py-0.5 rounded transition-colors ${itinView === 'grid' ? 'bg-white text-brand-purple font-semibold' : 'text-white/80 hover:text-white'}`}>Grid</button>
+                        </div>
+                      </div>
                     </div>
                     {calendarEvents.length > 0 || tripDates ? (
                       <div className="p-4">
+                        {itinView === 'agenda' ? (
+                          <ItineraryAgenda
+                            events={calendarEvents}
+                            sourceConfig={TRIP_SOURCE_CONFIG}
+                            view={agendaGran}
+                            anchorDate={tripDates?.departure || trip.startDate?.split('T')[0] || undefined}
+                            onEventClick={handleEventClick}
+                          />
+                        ) : (
                         <CalendarGrid
                           events={calendarEvents}
                           sourceConfig={TRIP_SOURCE_CONFIG}
@@ -718,6 +747,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                           showCategoryLegend={true}
                           compact={true}
                         />
+                        )}
                       </div>
                     ) : (
                       <div className="p-8 text-center text-gray-400">
