@@ -229,6 +229,11 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   // global `error` + `loading` flags so one bad category doesn't blank the page.
   const [loadingCategories, setLoadingCategories] = useState<Set<string>>(new Set());
   const [categoryErrors, setCategoryErrors] = useState<Record<string, string>>({});
+  // PR-19: per-location check-in/check-out, keyed by the active `city`. Drives
+  // the LiteAPI search for that destination instead of trip.startDate+7. These
+  // are search params only (not stored — trip_destinations has no date cols),
+  // and the component isn't remounted on chip switch, so they persist per session.
+  const [perLocationDates, setPerLocationDates] = useState<Record<string, { checkin: string; checkout: string }>>({});
 
   // Load saved scanner results from DB on mount
   useEffect(() => {
@@ -293,10 +298,14 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   // Failed categories surface as inline banners in their carousel slot
   // (categoryErrors map); other categories continue to load + display.
   const scanSingleCategory = async (catKey: string, catLabel: string, catMaxResults: number) => {
+    // PR-19: send the active destination's per-location dates when set, so the
+    // route searches that window instead of the trip.startDate+7 stopgap.
+    const loc = perLocationDates[city || ''];
+    const dateParams = loc?.checkin && loc?.checkout ? { checkin: loc.checkin, checkout: loc.checkout } : {};
     const res = await fetch(`/api/trips/${tripId}/ai-assistant`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ city, country, activities: tripActivities, activity, month, year, daysTravel, minRating, minReviews, maxPriceLevel: maxPriceLevel || undefined, category: catKey, maxResults: catMaxResults }),
+      body: JSON.stringify({ city, country, activities: tripActivities, activity, month, year, daysTravel, minRating, minReviews, maxPriceLevel: maxPriceLevel || undefined, category: catKey, maxResults: catMaxResults, ...dateParams }),
     });
     const contentType = res.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
@@ -735,6 +744,21 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
     setShowCustomModal(false);
   };
 
+  // PR-19: resolve the active destination's check-in/check-out for the header
+  // inputs. Prefill (simple, per audit §5) = trip.startDate for check-in, +7 for
+  // check-out — flight-aware default deferred. User edits override per city.
+  const activeCity = city || '';
+  const defaultCheckin = tripDates?.departure || '';
+  const defaultCheckout = tripDates?.departure
+    ? (() => { const d = new Date(tripDates.departure); d.setDate(d.getDate() + 7); return d.toISOString().slice(0, 10); })()
+    : '';
+  const checkinVal = perLocationDates[activeCity]?.checkin ?? defaultCheckin;
+  const checkoutVal = perLocationDates[activeCity]?.checkout ?? defaultCheckout;
+  // Validation: checkout must be strictly after check-in (nights >= 1) — keeps
+  // PR-15's per-night fail-loud assert from ever firing. String compare on
+  // YYYY-MM-DD is chronological.
+  const datesValid = !(checkinVal && checkoutVal) || checkoutVal > checkinVal;
+
   return (
     <div className="space-y-6">
       {/* Compact trip-context header — replaces the old Search Controls.
@@ -749,12 +773,36 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {/* PR-19: per-location check-in/check-out for the active destination. */}
+          {tripDates?.departure && city && (
+            <div className="flex items-center gap-1">
+              <input
+                type="date"
+                value={checkinVal}
+                aria-label="Check-in"
+                onChange={e => setPerLocationDates(prev => ({ ...prev, [activeCity]: { checkin: e.target.value, checkout: prev[activeCity]?.checkout ?? checkoutVal } }))}
+                className="text-xs border border-border rounded px-1.5 py-1 bg-white"
+              />
+              <span className="text-text-faint text-xs">→</span>
+              <input
+                type="date"
+                value={checkoutVal}
+                min={checkinVal || undefined}
+                aria-label="Check-out"
+                onChange={e => setPerLocationDates(prev => ({ ...prev, [activeCity]: { checkin: prev[activeCity]?.checkin ?? checkinVal, checkout: e.target.value } }))}
+                className="text-xs border border-border rounded px-1.5 py-1 bg-white"
+              />
+            </div>
+          )}
+          {!datesValid && (
+            <span className="text-xs text-brand-red">Check-out must be after check-in</span>
+          )}
           {loadingCategories.size > 0 && (
             <span className="text-xs text-brand-purple">
               Loading {loadingCategories.size} of {totalCategories}…
             </span>
           )}
-          <button onClick={rescanAll} disabled={loading || !city}
+          <button onClick={rescanAll} disabled={loading || !city || !datesValid}
             className="px-3 py-1.5 text-xs border border-border rounded hover:bg-white disabled:opacity-50">
             {loading ? 'Refreshing…' : 'Refresh'}
           </button>
