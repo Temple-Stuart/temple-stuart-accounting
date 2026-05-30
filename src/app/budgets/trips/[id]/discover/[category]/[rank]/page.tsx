@@ -59,6 +59,7 @@ interface Recommendation {
   currency?: string;
   priceTotal?: number;
   nights?: number;
+  pricePerNight?: number; // PR-15: priceTotal / nights
 }
 
 export default async function DiscoverDetailPage({
@@ -114,10 +115,13 @@ export default async function DiscoverDetailPage({
     : source === 'google' ? 'Google · discovery (no booking)'
     : `via ${source}`;
 
-  // For LiteAPI hotels: total price for the trip's nights.
+  // For LiteAPI hotels: PR-15 reads the per-night price directly (no recompute).
+  // `stayTotal` is the whole-stay total (rec.price) — it is NOT pricePerNight ×
+  // nights (that was the double-count bug). stayTotal also stays the charge
+  // fallback handed to ReserveHotelButton, unchanged.
   const nights = trip.daysTravel || 1;
-  const nightly = rec.price ?? null;
-  const totalForTrip = nightly != null ? nightly * nights : null;
+  const perNight = rec.pricePerNight ?? null;
+  const stayTotal = rec.price ?? null;
 
   // Dates for the Reserve flow (LiteAPI needs ISO YYYY-MM-DD).
   const checkin = trip.startDate ? trip.startDate.toISOString().slice(0, 10) : null;
@@ -177,16 +181,16 @@ export default async function DiscoverDetailPage({
         )}
 
         {/* Pricing block — only when we have real numbers */}
-        {source === 'liteapi' && nightly != null && (
+        {source === 'liteapi' && perNight != null && (
           <div className="bg-bg-row border border-border rounded p-4 mb-4 text-sm">
             <div className="flex justify-between">
-              <span>${nightly} <span className="text-text-muted">/ night</span></span>
+              <span>${perNight} <span className="text-text-muted">/ night</span></span>
               <span className="text-text-muted">× {nights} {nights === 1 ? 'night' : 'nights'}</span>
             </div>
-            {totalForTrip != null && (
+            {stayTotal != null && (
               <div className="flex justify-between font-semibold border-t border-border mt-2 pt-2">
                 <span>Total</span>
-                <span>${totalForTrip}</span>
+                <span>${stayTotal}</span>
               </div>
             )}
           </div>
@@ -201,7 +205,7 @@ export default async function DiscoverDetailPage({
               hotelName={rec.name}
               checkinDate={checkin}
               checkoutDate={checkout}
-              nightly={nightly}
+              nightly={stayTotal}
               currency="USD"
             />
           ) : source === 'liteapi' && (!checkin || !checkout) ? (

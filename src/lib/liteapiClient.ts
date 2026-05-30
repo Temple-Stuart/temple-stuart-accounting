@@ -319,7 +319,7 @@ interface HotelRecommendation {
    *  was returned for this hotel (sandbox metadata-only properties). */
   liteapiOfferId: string | null;
   bookingUrl: string | null;
-  price: number | null;          // nightly rate in USD
+  price: number | null;          // whole-stay total in USD (the booking charge fallback depends on this)
   durationMinutes: null;
   // ─── PR-13 richness (all optional — PR-14's card UI consumes these) ────────
   /** City sibling field, distinct from the flat address line. */
@@ -338,22 +338,26 @@ interface HotelRecommendation {
   facilities?: string[];
   /** ISO currency of the quoted rate. */
   currency?: string;
-  /** Whole-stay total (NOT per-night — see extractNightlyRate TODO / PR-15). */
+  /** Whole-stay total (NOT per-night; same value as `price`). */
   priceTotal?: number;
-  /** Nights in the search window; PR-15 uses this to compute per-night. */
+  /** Nights in the search window; per-night = priceTotal / nights. */
   nights?: number;
+  /** PR-15: true per-night price (priceTotal / nights). Absent when nights<1
+   *  (a date-handling bug — never in normal operation). Drives display + the
+   *  per-night price-level bucketing. */
+  pricePerNight?: number;
 }
 
-/** Extract the lowest rate the hotel returned, in the requested currency.
- *  LiteAPI V3 nests rates under roomTypes[].rates[].retailRate. Returns null
- *  if the hotel didn't quote a rate (some sandbox properties return
- *  metadata-only — surface as "see pricing" rather than dropping).
+/** Extract the WHOLE-STAY total the hotel returned, in the requested currency.
+ *  LiteAPI V3 nests rates under roomTypes[].rates[].retailRate; `retailRate.total`
+ *  is the total for the booked window, NOT a per-night rate. Returns null if the
+ *  hotel didn't quote a rate (some sandbox properties return metadata-only —
+ *  surface as "see pricing" rather than dropping).
  *
- *  TODO(PR-15): name says "nightly" but `retailRate.total` is the WHOLE-STAY
- *  total, so nightlyToPriceLevel() over-buckets multi-night stays. PR-15 owns
- *  the real per-night computation using `hotel.nights` (threaded in PR-13 via
- *  searchHotelRates). Left unfixed here to keep PR-13 a pure mapper expansion. */
-function extractNightlyRate(hotel: LiteApiHotelRate): number | null {
+ *  PR-15: renamed from the misleading `extractNightlyRate` — the honest name
+ *  prevents re-bucketing this stay total against per-night thresholds. Per-night
+ *  is computed in the mapper as priceTotal / nights. */
+function extractStayTotal(hotel: LiteApiHotelRate): number | null {
   for (const room of hotel.roomTypes || []) {
     for (const rate of room.rates || []) {
       const total = rate.retailRate?.total?.[0]?.amount;
@@ -368,8 +372,8 @@ function extractNightlyRate(hotel: LiteApiHotelRate): number | null {
 }
 
 /** PR-13: pull the whole-stay total + its currency off the same rate
- *  extractNightlyRate picks. Returns nulls when no bookable rate was quoted.
- *  Mirrors extractNightlyRate's fallback chain so `priceTotal` and `price`
+ *  extractStayTotal picks. Returns nulls when no bookable rate was quoted.
+ *  Mirrors extractStayTotal's fallback chain so `priceTotal` and `price`
  *  stay consistent. */
 function extractRateMeta(hotel: LiteApiHotelRate): { total: number | null; currency: string | null } {
   for (const room of hotel.roomTypes || []) {
@@ -430,11 +434,33 @@ export function liteApiHotelToRecommendation(
   category: string,
 ): HotelRecommendation {
   const h = hotel.hotel || {};
-  const nightlyUsd = extractNightlyRate(hotel);
-  const { level: priceLevel, display: priceLevelDisplay } = nightlyToPriceLevel(nightlyUsd);
-
-  // PR-13 richness pass-through (UI renders these in PR-14).
+  // `price` stays the WHOLE-STAY total (unchanged meaning — the booking charge
+  // fallback in ReserveHotelButton depends on it). Sourced from extractStayTotal
+  // exactly as before the PR-15 rename.
+  const stayTotal = extractStayTotal(hotel);
+  // PR-13 richness pass-through (UI renders these in PR-14/15).
   const { total: priceTotal, currency } = extractRateMeta(hotel);
+  const nights = hotel.nights;
+
+  // PR-15: true per-night price. `nights` is date-derived (checkout − checkin),
+  // so for any real stay nights >= 1 by construction — there is no missing-nights
+  // runtime state and therefore NO fallback. If nights < 1 ever appears it is a
+  // date-handling bug upstream: fail loud (console.error) and render no price,
+  // never a synthesized/defaulted value. This assertion must never fire normally.
+  let pricePerNight: number | undefined;
+  if (priceTotal != null) {
+    if (typeof nights === 'number' && nights >= 1) {
+      pricePerNight = Math.round(priceTotal / nights);
+    } else {
+      console.error(`[LiteAPI] pricePerNight: invalid nights=${nights} for hotelId=${hotel.hotelId} (priceTotal=${priceTotal}) — rendering no per-night`);
+    }
+  }
+
+  // Bucketing is PER-NIGHT (PR-15 fix): nightlyToPriceLevel's thresholds are
+  // per-night ($80/$200/$400), so it must see the per-night value, not the
+  // whole-stay total. Undefined per-night → no price level (mirror PR-14).
+  const { level: priceLevel, display: priceLevelDisplay } = nightlyToPriceLevel(pricePerNight ?? null);
+
   const images = h.hotelImages?.map(img => img.url).filter(Boolean) ?? [];
   const facilities = filterStandardFacilities(h.hotelFacilities);
 
@@ -486,7 +512,7 @@ export function liteApiHotelToRecommendation(
     liteapiOfferId: extractOfferId(hotel),
     // Booking URL stays null — bookings happen via prebook → SDK → book.
     bookingUrl: null,
-    price: nightlyUsd,
+    price: stayTotal,
     durationMinutes: null,
     // ─── PR-13 richness ───────────────────────────────────────────────────
     city: h.city || undefined,
@@ -500,6 +526,7 @@ export function liteApiHotelToRecommendation(
     currency: currency || undefined,
     priceTotal: priceTotal ?? undefined,
     nights: hotel.nights,
+    pricePerNight,
   };
 }
 
