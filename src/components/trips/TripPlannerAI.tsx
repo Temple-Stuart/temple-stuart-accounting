@@ -1057,9 +1057,15 @@ function TravelCarousel({ catKey, label, source, isLoading, items, error, onCard
                           {rec.currency || '$'}{rec.priceTotal} · {rec.nights} nights
                         </span>
                       ) : (
-                        /* PR-14 STOP (Step 5): priceTotal/nights absent — fallback
-                           to the existing price display is HALTED pending user
-                           yes/no. Renders nothing for now. */
+                        /* PR-14 (Step 5, decided): priceTotal/nights absent →
+                           render NO price element. This is the absence of a
+                           fallback, not a fallback branch. We deliberately do
+                           NOT synthesize a $-band from priceLevelDisplay (that
+                           reuses the extractNightlyRate latent-bug bucketing —
+                           estimated data shown as real) nor reuse rec.price
+                           (the mislabeled whole-stay total). Missing price is a
+                           sandbox metadata-only artifact; production deletes it.
+                           Honors the no-silent-fallback mandate. */
                         null
                       )}
                     </div>

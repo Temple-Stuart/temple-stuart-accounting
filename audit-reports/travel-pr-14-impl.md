@@ -5,10 +5,14 @@
 **Scope:** 1 file render layer + this report. Source-branched; Viator/Google
 byte-identical. No photo carousel, no per-night math, no new deps.
 
-> **⏸ STEP 5 STOP GATE HIT — awaiting your yes/no.** The price element renders
-> the present-case (`priceTotal` + `nights`) but the **absent-case fallback is
-> NOT coded** — it currently renders nothing. See "Step 5" below. Do not
-> consider PR-14 final until you answer the fallback question.
+> **✅ STEP 5 STOP GATE RESOLVED.** The gate was raised and answered:
+> **render nothing** when `priceTotal`/`nights` are absent. This is the
+> *absence* of a fallback, not a fallback branch — confirmed correct by the
+> user, who explicitly rejected synthesizing a `$`-band from
+> `priceLevelDisplay` (reuses the `extractNightlyRate` latent-bug bucketing)
+> and rejected reusing `rec.price` (mislabeled whole-stay total). Missing price
+> is a sandbox metadata-only artifact production deletes. No fallback code was
+> written. PR-14 is final.
 
 ---
 
@@ -107,24 +111,18 @@ the audit. (Note: the raw `text-emerald-700` still lives on the **non-LiteAPI**
 branch at `:1090` — left untouched to keep Viator/Google byte-identical, per
 hard constraint. A cross-source swap is a separate decision.)
 
-**🛑 Fallback NOT coded (`:1059-1064`).** Step 5 says "if priceTotal/nights
-absent, fall back to the existing `price` display." Per your explicit STOP
-gate, I halted before writing that branch — the absent-case currently renders
-`null`. **Rationale I owe you for the yes/no:**
+**✅ Fallback decision (`:1059-1071`): render nothing — no fallback coded.**
+The Step 5 gate was raised and the user chose **render nothing**, with explicit
+reasoning: a `$`-band synthesized from `priceLevelDisplay` would reuse the
+`extractNightlyRate` latent-bug bucketing (estimated data shown as real,
+violating the no-silent-fallback mandate), and `rec.price` is the mislabeled
+whole-stay total. A missing price is a sandbox metadata-only artifact that
+production deletes. So the LiteAPI card ships as:
+- real `priceTotal` + `nights` present → `"$X · N nights"` (`:1055-1058`);
+- absent → **no price element** (`:1059-1071`).
 
-- **Why a fallback might be wanted:** in sandbox, some LiteAPI properties are
-  metadata-only and quote no rate, so `priceTotal`/`nights` can be absent. With
-  no fallback, those hotel cards show **no price at all** — a regression vs.
-  today's card, which shows `priceLevelDisplay` (`$`/`$$`) when `price` is null.
-- **Why it might NOT be wanted:** the old `price`/`priceLevelDisplay` path
-  feeds off the same mislabeled whole-stay total the audit flagged; showing it
-  could reintroduce the exact confusion PR-13/PR-15 are untangling. A clean
-  "no price → no price element" may be the more honest interim.
-- **My recommendation:** fall back to **`priceLevelDisplay` only** (the `$`-`$$$$`
-  band), never the raw `price` number — keeps a price signal without the
-  misleading absolute figure. But this is your call.
-
-**I will not code any fallback branch until you answer.**
+No fallback branch exists in the code. The comment at the absent-case documents
+why, so a future reader doesn't "helpfully" add one.
 
 ## Step 6 — chain badge
 **`:1018-1026`.** When `rec.chain` present → subtle pill, `text-brand-purple`
@@ -160,7 +158,6 @@ to route / Viator mapper / Google / schema / `liteapiClient.ts`.
 
 ---
 
-## ⏸ AWAITING: Step 5 fallback yes/no
-Render nothing (current) **vs.** fall back to `priceLevelDisplay` **vs.** fall
-back to the full existing `price` display — surfaced as a question. The
-fallback branch stays uncoded until you decide.
+## ✅ RESOLVED: Step 5 fallback
+Decision: **render nothing** when `priceTotal`/`nights` are absent. No fallback
+branch coded. PR-14 is complete.
