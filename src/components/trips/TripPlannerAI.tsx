@@ -766,9 +766,11 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
       <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-bg-row rounded border border-border text-sm">
         <div className="flex items-center gap-3 flex-wrap min-w-0">
           <span className="font-semibold text-text-primary truncate">{city || 'Pick a destination'}{country ? `, ${country}` : ''}</span>
-          {tripDates?.departure && tripDates?.return ? (
-            <span className="text-text-muted">{tripDates.departure} → {tripDates.return} · {daysTravel} nights</span>
-          ) : (
+          {/* PR-21: removed the stale "{departure} → {return} · {daysTravel} nights"
+              trip-span label — per-location check-in/check-out (right) is now the
+              source of truth for each destination's window. Keep only the
+              no-trip-dates warning, since the date inputs need a trip start to prefill. */}
+          {!(tripDates?.departure && tripDates?.return) && (
             <span className="text-orange-600 text-xs">⚠ Set trip dates above to enable Stays & Reserve</span>
           )}
         </div>
