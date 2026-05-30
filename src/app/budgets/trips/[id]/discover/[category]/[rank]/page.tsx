@@ -47,6 +47,18 @@ interface Recommendation {
   // LiteAPI
   liteapiHotelId?: string;
   liteapiOfferId?: string | null;
+  // LiteAPI richness (PR-13) — all optional; PR-14's card UI consumes these.
+  city?: string;
+  addressLine?: string;
+  latitude?: number;
+  longitude?: number;
+  reviewScore?: number;
+  chain?: string;
+  images?: string[];
+  facilities?: string[];
+  currency?: string;
+  priceTotal?: number;
+  nights?: number;
 }
 
 export default async function DiscoverDetailPage({

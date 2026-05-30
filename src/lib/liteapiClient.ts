@@ -22,6 +22,14 @@ import { MissingLiteApiKeyError, LiteApiError } from './travelErrors';
 const LITEAPI_BASE      = 'https://api.liteapi.travel/v3.0';
 const LITEAPI_BOOK_BASE = 'https://book.liteapi.travel/v3.0';
 
+// ─── Standard facility set (PR-13) ───────────────────────────────────────────
+// LiteAPI's `hotelFacilities[]` can be a 50+ item list — too noisy for a card.
+// PR-14's UI renders a small row of amenity icons, so the mapper filters down
+// to this canonical six. Matching is case-insensitive + contains-style so
+// LiteAPI naming variants ("Swimming Pool"→"Pool", "Free WiFi"→"Wifi") still
+// resolve to the canonical label.
+const STANDARD_FACILITIES = ['Pool', 'Wifi', 'Breakfast', 'Gym', 'Spa', 'Parking'];
+
 type LiteApiMode = 'sandbox' | 'production';
 
 function getMode(): LiteApiMode {
@@ -157,7 +165,18 @@ interface LiteApiHotelRate {
     starRating?: number;
     latitude?: number;
     longitude?: number;
+    /** PR-13: amenity strings (e.g. "Swimming Pool", "Free WiFi"). Filtered to
+     *  STANDARD_FACILITIES by the mapper for card display. */
+    hotelFacilities?: string[];
+    /** PR-13: hotel chain name (e.g. "Marriott"). Surfaced as a card chip. */
+    chain?: string;
+    /** PR-13: 0-10 guest review score, distinct from the star `rating`. */
+    reviewScore?: number;
   };
+  /** PR-13: nights in the search window (checkout − checkin). Threaded on by
+   *  searchHotelRates so the mapper can pass it through without the route
+   *  changing its call. PR-15 uses it to compute a true per-night price. */
+  nights?: number;
   roomTypes?: Array<{
     offerId?: string;          // present on roomType in some response shapes
     rates?: Array<{
@@ -249,12 +268,21 @@ export async function searchHotelRates(params: SearchHotelsParams): Promise<Lite
     const id = h?.hotelId ?? h?.id;
     if (id && typeof id === 'string') hotelMetaById[id] = h;
   }
+  // PR-13: all hotels in a response share the same search window — compute
+  // nights once and stamp it on each item so the mapper (which only receives
+  // the hotel) can pass it through without the route changing its call shape.
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const nights = Math.max(
+    0,
+    Math.round((Date.parse(params.checkout) - Date.parse(params.checkin)) / msPerDay),
+  ) || undefined;
+
   const merged: LiteApiHotelRate[] = rateItems.map(r => {
     const meta = hotelMetaById[r.hotelId];
-    if (!meta) return r;
+    if (!meta) return { ...r, nights };
     // Merge: keep any sub-fields already present on `r.hotel`, but fill in
     // the metadata we just looked up.
-    return { ...r, hotel: { ...meta, ...(r.hotel || {}) } };
+    return { ...r, hotel: { ...meta, ...(r.hotel || {}) }, nights };
   });
 
   const max = params.maxResults || 33;
@@ -293,12 +321,38 @@ interface HotelRecommendation {
   bookingUrl: string | null;
   price: number | null;          // nightly rate in USD
   durationMinutes: null;
+  // ─── PR-13 richness (all optional — PR-14's card UI consumes these) ────────
+  /** City sibling field, distinct from the flat address line. */
+  city?: string;
+  /** Flat street-address string from the rates response. */
+  addressLine?: string;
+  latitude?: number;
+  longitude?: number;
+  /** 0-10 guest review score, alongside the 0-5 `googleRating`. */
+  reviewScore?: number;
+  /** Hotel chain name. */
+  chain?: string;
+  /** Full image gallery (URLs), not just the single `photoUrl`. */
+  images?: string[];
+  /** Amenities filtered to STANDARD_FACILITIES for card icons. */
+  facilities?: string[];
+  /** ISO currency of the quoted rate. */
+  currency?: string;
+  /** Whole-stay total (NOT per-night — see extractNightlyRate TODO / PR-15). */
+  priceTotal?: number;
+  /** Nights in the search window; PR-15 uses this to compute per-night. */
+  nights?: number;
 }
 
-/** Extract the lowest nightly rate the hotel returned, in the requested
- *  currency. LiteAPI V3 nests rates under roomTypes[].rates[].retailRate.
- *  Returns null if the hotel didn't quote a rate (some sandbox properties
- *  return metadata-only — surface as "see pricing" rather than dropping). */
+/** Extract the lowest rate the hotel returned, in the requested currency.
+ *  LiteAPI V3 nests rates under roomTypes[].rates[].retailRate. Returns null
+ *  if the hotel didn't quote a rate (some sandbox properties return
+ *  metadata-only — surface as "see pricing" rather than dropping).
+ *
+ *  TODO(PR-15): name says "nightly" but `retailRate.total` is the WHOLE-STAY
+ *  total, so nightlyToPriceLevel() over-buckets multi-night stays. PR-15 owns
+ *  the real per-night computation using `hotel.nights` (threaded in PR-13 via
+ *  searchHotelRates). Left unfixed here to keep PR-13 a pure mapper expansion. */
 function extractNightlyRate(hotel: LiteApiHotelRate): number | null {
   for (const room of hotel.roomTypes || []) {
     for (const rate of room.rates || []) {
@@ -311,6 +365,38 @@ function extractNightlyRate(hotel: LiteApiHotelRate): number | null {
     }
   }
   return null;
+}
+
+/** PR-13: pull the whole-stay total + its currency off the same rate
+ *  extractNightlyRate picks. Returns nulls when no bookable rate was quoted.
+ *  Mirrors extractNightlyRate's fallback chain so `priceTotal` and `price`
+ *  stay consistent. */
+function extractRateMeta(hotel: LiteApiHotelRate): { total: number | null; currency: string | null } {
+  for (const room of hotel.roomTypes || []) {
+    for (const rate of room.rates || []) {
+      const t = rate.retailRate?.total?.[0];
+      if (t && typeof t.amount === 'number' && t.amount > 0) return { total: t.amount, currency: t.currency ?? null };
+      const s = rate.retailRate?.suggestedSellingPrice?.[0];
+      if (s && typeof s.amount === 'number' && s.amount > 0) return { total: s.amount, currency: s.currency ?? null };
+      const o = rate.offerRetailRate;
+      if (o && typeof o.amount === 'number' && o.amount > 0) return { total: o.amount, currency: o.currency ?? null };
+    }
+  }
+  return { total: null, currency: null };
+}
+
+/** PR-13: filter a hotel's facility list to STANDARD_FACILITIES. Preserves the
+ *  hotel's original ordering, emits the canonical label, and dedups. Matching
+ *  is case-insensitive + contains-style ("Swimming Pool"→"Pool"). */
+function filterStandardFacilities(facilities?: string[]): string[] {
+  if (!facilities?.length) return [];
+  const out: string[] = [];
+  for (const f of facilities) {
+    const lower = String(f).toLowerCase();
+    const match = STANDARD_FACILITIES.find(std => lower.includes(std.toLowerCase()));
+    if (match && !out.includes(match)) out.push(match);
+  }
+  return out;
 }
 
 /** Pick the first non-empty offerId we can find on this hotel — what `/rates/
@@ -346,6 +432,11 @@ export function liteApiHotelToRecommendation(
   const h = hotel.hotel || {};
   const nightlyUsd = extractNightlyRate(hotel);
   const { level: priceLevel, display: priceLevelDisplay } = nightlyToPriceLevel(nightlyUsd);
+
+  // PR-13 richness pass-through (UI renders these in PR-14).
+  const { total: priceTotal, currency } = extractRateMeta(hotel);
+  const images = h.hotelImages?.map(img => img.url).filter(Boolean) ?? [];
+  const facilities = filterStandardFacilities(h.hotelFacilities);
 
   // Prefer guest rating (0-10 scale, normalise to 0-5) over star rating;
   // either is usable — fall back through the options.
@@ -397,6 +488,18 @@ export function liteApiHotelToRecommendation(
     bookingUrl: null,
     price: nightlyUsd,
     durationMinutes: null,
+    // ─── PR-13 richness ───────────────────────────────────────────────────
+    city: h.city || undefined,
+    addressLine: h.address || undefined,
+    latitude: h.latitude,
+    longitude: h.longitude,
+    reviewScore: h.reviewScore,
+    chain: h.chain || undefined,
+    images,
+    facilities,
+    currency: currency || undefined,
+    priceTotal: priceTotal ?? undefined,
+    nights: hotel.nights,
   };
 }
 
