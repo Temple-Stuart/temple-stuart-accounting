@@ -586,6 +586,51 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
     } catch (err) { alert(err instanceof Error ? err.message : "Failed"); }
   };
 
+  // PR-31: add a traveler via the existing auth+ownership-gated POST
+  // /api/trips/[id]/participants (route.ts:78-96). Creates a PENDING row + a
+  // shareable invite link (no email sent). Required fields match the route:
+  // firstName + lastName + email (we do NOT relax the route).
+  const [showAddTraveler, setShowAddTraveler] = useState(false);
+  const [addForm, setAddForm] = useState({ firstName: '', lastName: '', email: '', phone: '' });
+  const [addingTraveler, setAddingTraveler] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [copiedInvite, setCopiedInvite] = useState<string | null>(null);
+
+  const handleAddParticipant = async () => {
+    if (!addForm.firstName.trim() || !addForm.lastName.trim() || !addForm.email.trim()) {
+      setAddError('First name, last name, and email are required.');
+      return;
+    }
+    setAddingTraveler(true);
+    setAddError(null);
+    try {
+      const res = await fetch(`/api/trips/${id}/participants`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(addForm),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(res.status === 409 ? 'That email is already on this trip.' : (d.error || `Failed to add (HTTP ${res.status})`));
+      }
+      setAddForm({ firstName: '', lastName: '', email: '', phone: '' });
+      setShowAddTraveler(false);
+      loadParticipants();
+    } catch (err) {
+      setAddError(err instanceof Error ? err.message : 'Failed to add traveler');
+    } finally {
+      setAddingTraveler(false);
+    }
+  };
+
+  const copyInvite = async (url: string, pid: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedInvite(pid);
+      setTimeout(() => setCopiedInvite(null), 1500);
+    } catch { /* clipboard unavailable — no-op */ }
+  };
+
   const fmt = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
   if (loading) return <AppLayout><div className="flex items-center justify-center py-20"><div className="w-6 h-6 border-2 border-brand-purple border-t-transparent rounded-full animate-spin" /></div></AppLayout>;
@@ -594,6 +639,11 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const daysInMonth = new Date(trip.year, trip.month, 0).getDate();
   const calendarDays = Array.from({ length: daysInMonth }, (_, i) => i + 1);
   const confirmedParticipants = participants.filter(p => p.rsvpStatus === 'confirmed');
+  // PR-31: UI gate for the add action = the viewer is the trip organizer (owner).
+  // The real protection is server-side (POST /participants is owner-gated,
+  // route.ts:91-96); this just hides the affordance from non-organizers.
+  const ownerEmail = participants.find(p => p.isOwner)?.email?.toLowerCase();
+  const isOrganizer = !!ownerEmail && !!currentUserEmail && ownerEmail === currentUserEmail.toLowerCase();
   const totalExpenses = trip.expenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
   const totalBudget = committedBudgetItems.reduce((sum, item) => sum + Number(item.amount), 0);
 
@@ -983,10 +1033,19 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               </div>
             )}
 
-            {/* ── Crew & Profiles ── */}
-            <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+            {/* ── Crew & Profiles ── (PR-31: id="travelers" is the target of
+                  TripHeader's "Manage travelers" link) */}
+            <div id="travelers" className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm scroll-mt-4">
               <div className="bg-brand-purple/80 text-white px-4 py-2.5 flex justify-between items-center">
                 <h2 className="text-sm font-semibold">Crew ({participants.length})</h2>
+                {isOrganizer && (
+                  <button
+                    onClick={() => { setShowAddTraveler(v => !v); setAddError(null); }}
+                    className="text-xs font-medium bg-white/15 hover:bg-white/25 rounded px-2.5 py-1 transition-colors"
+                  >
+                    {showAddTraveler ? 'Cancel' : '+ Add traveler'}
+                  </button>
+                )}
               </div>
               <div className="bg-white p-4">
               <div className="overflow-x-auto mb-4">
@@ -1030,7 +1089,15 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                         <td className="px-3 py-3 text-center text-gray-400">
                           {(p.unavailableDays || []).length > 0 ? (p.unavailableDays || []).join(', ') : '—'}
                         </td>
-                        <td className="px-3 py-3 text-center">
+                        <td className="px-3 py-3 text-center whitespace-nowrap">
+                          {/* PR-31: copy the shareable invite link for pending
+                              travelers (inviteUrl comes from the GET). */}
+                          {p.rsvpStatus === 'pending' && p.inviteUrl && (
+                            <button onClick={() => copyInvite(p.inviteUrl!, p.id)}
+                              className="text-[11px] text-brand-purple hover:underline mr-2">
+                              {copiedInvite === p.id ? 'Copied!' : 'Copy invite link'}
+                            </button>
+                          )}
                           {!p.isOwner && (
                             <button onClick={() => removeParticipant(p.id, p.firstName)}
                               className="text-gray-400 hover:text-red-500">×</button>
@@ -1041,6 +1108,33 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                   </tbody>
                 </table>
               </div>
+
+              {/* PR-31: inline add-traveler form (organizer only). POST creates a
+                  pending row + invite link; share the link to get an RSVP. */}
+              {isOrganizer && showAddTraveler && (
+                <div className="border-t border-gray-200 pt-3 mt-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input type="text" value={addForm.firstName} onChange={e => setAddForm(f => ({ ...f, firstName: e.target.value }))}
+                      placeholder="First name *" aria-label="First name"
+                      className="border border-border rounded px-2 py-1.5 text-xs w-[110px]" />
+                    <input type="text" value={addForm.lastName} onChange={e => setAddForm(f => ({ ...f, lastName: e.target.value }))}
+                      placeholder="Last name *" aria-label="Last name"
+                      className="border border-border rounded px-2 py-1.5 text-xs w-[110px]" />
+                    <input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))}
+                      placeholder="Email *" aria-label="Email"
+                      className="border border-border rounded px-2 py-1.5 text-xs flex-1 min-w-[160px]" />
+                    <input type="tel" value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))}
+                      placeholder="Phone (optional)" aria-label="Phone"
+                      className="border border-border rounded px-2 py-1.5 text-xs w-[140px]" />
+                    <button onClick={handleAddParticipant} disabled={addingTraveler}
+                      className="text-xs font-medium bg-brand-purple text-white rounded px-3 py-1.5 hover:bg-brand-purple-hover disabled:opacity-50">
+                      {addingTraveler ? 'Adding…' : 'Add traveler'}
+                    </button>
+                  </div>
+                  {addError && <p className="text-xs text-brand-red mt-1.5">{addError}</p>}
+                  <p className="text-[11px] text-text-faint mt-1.5">Adds a pending traveler and creates a shareable invite link (use “Copy invite link” in the row). No email is sent.</p>
+                </div>
+              )}
               </div>
             </div>
 
