@@ -7,6 +7,7 @@ import { getSource, type Source } from '@/lib/travelSourceRegistry';
 import { AppLayout } from '@/components/ui';
 import { ReserveHotelButton } from './ReserveHotelButton';
 import { AddToTripButton } from './AddToTripButton';
+import { PlaceCommitForm } from './PlaceCommitForm';
 import HotelGallery from '@/components/trips/HotelGallery';
 import HotelMap from '@/components/trips/HotelMap';
 import { getHotelReviews, type HotelReview } from '@/lib/liteapiClient';
@@ -439,22 +440,37 @@ export default async function DiscoverDetailPage({
             </a>
           )}
 
-          {/* PR-32: "Add to trip" commits this hotel into Committed Budget via
+          {/* PR-32: "Add to trip" commits this HOTEL into Committed Budget via
               the synthetic lodging path (/vendor-commit). amount = rec.price (the
               reconciled PR-21 whole-stay total, NOT recomputed); location =
               destinationLabel (the scan destination → trip_itinerary.location →
-              the Committed Budget Country column). */}
-          <AddToTripButton
-            tripId={tripId}
-            hotelName={rec.name}
-            amount={stayTotal}
-            location={destinationLabel}
-            checkinDate={checkin}
-            checkoutDate={checkout}
-            liteapiHotelId={rec.liteapiHotelId ?? null}
-            perNight={perNight}
-            nights={nights}
-          />
+              the Committed Budget Country column). Hotels only. */}
+          {source === 'liteapi' && (
+            <AddToTripButton
+              tripId={tripId}
+              hotelName={rec.name}
+              amount={stayTotal}
+              location={destinationLabel}
+              checkinDate={checkin}
+              checkoutDate={checkout}
+              liteapiHotelId={rec.liteapiHotelId ?? null}
+              perNight={perNight}
+              nights={nights}
+            />
+          )}
+
+          {/* PR-35: Google places are UNPRICED — a manual-price one-time commit
+              form (amount + dates + times) instead of the hotel button. Commits
+              via the synthetic 'activity' path on the category's COA (PR-35a),
+              with the personal-only/Business rule enforced server-side. */}
+          {source === 'google' && (
+            <PlaceCommitForm
+              tripId={tripId}
+              category={category}
+              placeName={rec.name}
+              location={destinationLabel}
+            />
+          )}
         </div>
 
         {source === 'google' && (
