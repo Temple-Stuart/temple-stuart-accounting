@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { getCOACode } from '@/lib/travelCategories';
+import { TRAVEL_COA } from '@/lib/travelCOA';
 
 // Travel COA codes: P-9xxx (personal) / B-9xxx (business)
 // Maps vendor optionType to the 9xxx travel COA number
@@ -84,7 +85,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const trip = await prisma.trips.findFirst({ where: { id, userId: user.id } });
     if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
 
-    const { optionType, optionId, startDate, endDate, startTime, endTime, arriveDate, notes, amount: requestAmount, location: requestLocation, synthetic } = await request.json();
+    const { optionType, optionId, startDate, endDate, startTime, endTime, arriveDate, notes, amount: requestAmount, location: requestLocation, synthetic, category } = await request.json();
 
     // PR-32: a hotel committed from the discover detail page ("Add to trip")
     // has NO trip_lodging_options row (scanner recs live in
@@ -93,6 +94,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // path — instead of looking up a row that doesn't exist. The existing
     // row-based lodging commit (from the planner's vendor options) is untouched.
     const isSyntheticLodging = optionType === 'lodging' && synthetic === true;
+
+    // PR-35: a Google place committed from the detail page ("Add to trip") is an
+    // UNPRICED discovery result with NO trip_activity_expenses row — `synthetic:
+    // true` + a `category` (the scan catKey) builds the budget item from the
+    // manual-entry payload (amount/dates/times) and takes the per-category COA
+    // from the passed category (PR-35a-synced). One-time only (recurring is a
+    // later PR). The existing row-based activity commit is untouched.
+    const isSyntheticActivity = optionType === 'activity' && synthetic === true;
 
     if (!optionType || !optionId || !startDate) {
       return NextResponse.json({ error: 'optionType, optionId, and startDate are required' }, { status: 400 });
@@ -103,18 +112,50 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: `Invalid optionType: ${optionType}` }, { status: 400 });
     }
 
+    // ─── PR-35: validation + accounting rule for synthetic place commits ──────
+    // SERVER-SIDE guard (the real enforcement, not just UI). NO fallbacks: a bad
+    // amount/date fails loud; a personal-only category on a Business trip is
+    // BLOCKED (the COA's null-business constraint enforced, never substituted).
+    let placePrefix: 'P' | 'B' = trip.tripType === 'business' ? 'B' : 'P';
+    if (isSyntheticActivity) {
+      if (!category || !TRAVEL_COA[category]) {
+        return NextResponse.json({ error: 'A valid category is required to commit this place.' }, { status: 400 });
+      }
+      const amt = Number(requestAmount);
+      if (!Number.isFinite(amt) || amt <= 0) {
+        return NextResponse.json({ error: 'A positive amount is required — Google places have no price, so enter the expected cost.' }, { status: 400 });
+      }
+      if (!endDate) {
+        return NextResponse.json({ error: 'Start and end dates are required.' }, { status: 400 });
+      }
+      if (new Date(endDate) < new Date(startDate)) {
+        return NextResponse.json({ error: 'End date must be on or after start date.' }, { status: 400 });
+      }
+      const businessCapable = TRAVEL_COA[category].coaBusiness != null;
+      if (!businessCapable && trip.tripType === 'business') {
+        // Personal-only category (coaBusiness:null) on a Business trip → BLOCK.
+        return NextResponse.json({
+          error: `${TRAVEL_COA[category].label} is a personal-only category and can't be committed to a Business trip.`,
+        }, { status: 422 });
+      }
+      // Business-capable → B- on business/mixed, P- on personal. Personal-only →
+      // P- (mixed/personal; business already blocked). Never silently file a
+      // personal-only category as business.
+      placePrefix = businessCapable && (trip.tripType === 'business' || trip.tripType === 'mixed') ? 'B' : 'P';
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       // A. Verify option exists and get details
       // PR-32: flights AND synthetic lodging (detail-page hotels) build details
       // from the payload directly — no DB option row required.
-      const details = (optionType === 'flight' || isSyntheticLodging)
-        ? { title: notes || (isSyntheticLodging ? 'Lodging' : 'Flight'), amount: Number(requestAmount || 0), tripId: id }
+      const details = (optionType === 'flight' || isSyntheticLodging || isSyntheticActivity)
+        ? { title: notes || (isSyntheticLodging ? 'Lodging' : isSyntheticActivity ? 'Place' : 'Flight'), amount: Number(requestAmount || 0), tripId: id }
         : await getOptionDetails(tx, optionType, optionId, id);
       if (!details) throw new Error('Vendor option not found');
 
       // A. Update vendor option status to committed (only for real option rows —
-      // flights and synthetic lodging have none to update).
-      if (optionType !== 'flight' && !isSyntheticLodging) {
+      // flights, synthetic lodging, and synthetic activity have none to update).
+      if (optionType !== 'flight' && !isSyntheticLodging && !isSyntheticActivity) {
         await setOptionStatus(tx, optionType, optionId, 'committed', true);
       }
 
@@ -125,7 +166,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       let coaNumber = VENDOR_TYPE_TO_COA[optionType] || '9950';
       let activityCategory: string | null = null;
       let activityLocation: string | null = requestLocation || null;
-      if (optionType === 'activity') {
+      // PR-35: synthetic activity (Google place) takes its COA from the passed
+      // category (no DB row) — PR-35a synced these so the code is correct.
+      if (isSyntheticActivity && category) {
+        activityCategory = category;
+        const registryCode = getCOACode(category);
+        if (registryCode !== '9950') coaNumber = registryCode;
+      } else if (optionType === 'activity') {
         const actOpt = await tx.trip_activity_expenses.findFirst({ where: { id: optionId, trip_id: id }, select: { category: true, vendor: true, notes: true } });
         if (actOpt?.category) {
           activityCategory = actOpt.category;
@@ -152,7 +199,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       if (optionType === 'flight' && !activityLocation && notes) {
         activityLocation = notes;
       }
-      const coaCode = `${prefix}-${coaNumber}`;
+      // PR-35: synthetic place commits use placePrefix (enforces the personal-
+      // only/business rule); all other commits keep the trip-type prefix.
+      const coaCode = `${isSyntheticActivity ? placePrefix : prefix}-${coaNumber}`;
       const start = new Date(startDate);
 
       const budgetItem = await tx.budget_line_items.create({
