@@ -6,7 +6,7 @@ import { AppLayout } from '@/components/ui';
 import DestinationSelector from '@/components/trips/DestinationSelector';
 import FlightPicker from '@/components/trips/FlightPicker';
 import DestinationMap from '@/components/trips/DestinationMap';
-import TripPlannerAI from '@/components/trips/TripPlannerAI';
+import TripPlannerAI, { TripScanProvider } from '@/components/trips/TripPlannerAI';
 import CalendarGrid, { CalendarEvent, SourceConfig } from '@/components/shared/CalendarGrid';
 import ItineraryAgenda from '@/components/trips/ItineraryAgenda';
 import TripHeader from '@/components/trips/TripHeader';
@@ -1064,17 +1064,21 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     <button onClick={() => setShowUpgradeModal(true)} className="px-6 py-2 text-xs bg-brand-gold text-white font-medium rounded-lg hover:bg-brand-gold-bright">View Plans</button>
                   </div>
                 ) : (
-                  <TripPlannerAI
-                    tripId={id}
-                    city={selectedDest?.resort?.name || trip.destination}
-                    country={selectedDest?.resort?.country || null}
-                    activity={trip.activity}
-                    month={trip.month}
-                    year={trip.year}
-                    daysTravel={trip.daysTravel}
-                    tripDates={tripDates}
-                    onCommitted={() => { loadTrip(); loadBudgetItems(); loadVendorOptions(); loadScannerResults(); }}
-                  />
+                  <TripScanProvider
+                    input={{
+                      tripId: id,
+                      city: selectedDest?.resort?.name || trip.destination,
+                      country: selectedDest?.resort?.country || null,
+                      activity: trip.activity,
+                      month: trip.month,
+                      year: trip.year,
+                      daysTravel: trip.daysTravel,
+                      tripDates,
+                      onCommitted: () => { loadTrip(); loadBudgetItems(); loadVendorOptions(); loadScannerResults(); },
+                    }}
+                  >
+                    <TripPlannerAI />
+                  </TripScanProvider>
                 )
               );
               })()}
