@@ -65,7 +65,7 @@ interface ScheduledSelection {
   splitType: 'personal' | 'split';
 }
 
-type SortBy = 'rating' | 'price' | 'reviews' | 'name';
+type SortBy = 'rating' | 'price' | 'reviews' | 'name' | 'duration';
 
 interface Props {
   tripId: string;
@@ -196,7 +196,6 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   const [minRating, setMinRating] = useState(4.0);
   const [minReviews, setMinReviews] = useState(50);
   const [maxPriceLevel, setMaxPriceLevel] = useState(0); // 0 = any
-  const [sortBy, setSortBy] = useState<SortBy>('rating'); // Expedia-style result sort
   // Photos are lazy: only fetched (and billed) when the user opens a result.
   const [loadedPhotos, setLoadedPhotos] = useState<Set<string>>(new Set());
 
@@ -383,21 +382,9 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
     await autoScanCategoriesFor(activeCoaKeys);
   };
 
-  // Expedia-style client-side sort of results within a category.
-  const sortItems = (items: GrokRecommendation[]): GrokRecommendation[] => {
-    const copy = [...items];
-    switch (sortBy) {
-      case 'price':
-        return copy.sort((a, b) => (a.priceLevel ?? 99) - (b.priceLevel ?? 99));
-      case 'reviews':
-        return copy.sort((a, b) => (b.reviewCount || 0) - (a.reviewCount || 0));
-      case 'name':
-        return copy.sort((a, b) => a.name.localeCompare(b.name));
-      case 'rating':
-      default:
-        return copy.sort((a, b) => (b.googleRating || 0) - (a.googleRating || 0) || (b.reviewCount || 0) - (a.reviewCount || 0));
-    }
-  };
+  // PR-28b: the old dormant `sortItems` closure (never called) is reactivated as
+  // the module-level pure `sortRecs(items, sortBy)` below, wired into each
+  // section's render via SectionFilterBar + TravelCarousel.
 
   const handleSelectItem = (item: GrokRecommendation) => {
     const newSel: ScheduledSelection = {
@@ -1014,6 +1001,181 @@ const FACILITY_ICONS: Record<string, LucideIcon> = {
   parking: Car,
 };
 
+// ─── PR-28b: client-side per-section filtering + sort ───────────────────────
+// All facets are derived from the already-fetched recs (byCategory) — ZERO new
+// API calls. Combine rule: AND across different fields, OR within one
+// multi-select. Filters are only ever built for fields actually present on a
+// source's recs (see SectionFilterBar's source branches).
+
+interface SectionFilter {
+  sort: SortBy;
+  priceMax?: number;      // hotels: pricePerNight; viator: price
+  scoreMin?: number;      // hotels: reviewScore (0-10)
+  ratingMin?: number;     // googleRating (0-5)
+  chains?: string[];      // hotels (OR within)
+  facilities?: string[];  // hotels (OR within)
+  priceLevels?: number[]; // google (OR within)
+  durations?: string[];   // viator buckets (OR within)
+}
+
+const SORT_LABEL: Record<SortBy, string> = {
+  rating: 'Rating', price: 'Price', reviews: 'Reviews', name: 'Name', duration: 'Duration',
+};
+
+const DURATION_ORDER = ['<2h', '2–4h', 'Half day', 'Full day'] as const;
+function durationBucket(min: number | null | undefined): string | null {
+  if (min == null) return null;
+  if (min < 120) return '<2h';
+  if (min < 240) return '2–4h';
+  if (min <= 360) return 'Half day';
+  return 'Full day';
+}
+
+/** Per-section price accessor: hotels are priced per-night, others by `price`,
+ *  with priceLevel as a last resort for sort ordering. */
+function recPrice(r: GrokRecommendation, source: Source): number | null {
+  if (source === 'liteapi') return r.pricePerNight ?? null;
+  return r.price ?? null;
+}
+
+/** Apply the active filters (AND across fields, OR within a multi-select),
+ *  client-side, to already-fetched recs. */
+function filterRecs(items: GrokRecommendation[], source: Source, f: SectionFilter): GrokRecommendation[] {
+  return items.filter(r => {
+    if (f.priceMax != null) { const p = recPrice(r, source); if (p == null || p > f.priceMax) return false; }
+    if (f.scoreMin != null && (r.reviewScore == null || r.reviewScore < f.scoreMin)) return false;
+    if (f.ratingMin != null && (r.googleRating ?? 0) < f.ratingMin) return false;
+    if (f.chains?.length && (!r.chain || !f.chains.includes(r.chain))) return false;
+    if (f.facilities?.length) {
+      const fac = (r.facilities || []).map(x => x.toLowerCase());
+      if (!f.facilities.some(sel => fac.includes(sel.toLowerCase()))) return false;
+    }
+    if (f.priceLevels?.length && (r.priceLevel == null || !f.priceLevels.includes(r.priceLevel))) return false;
+    if (f.durations?.length) { const b = durationBucket(r.durationMinutes); if (!b || !f.durations.includes(b)) return false; }
+    return true;
+  });
+}
+
+/** Reactivated sort (was the dormant `sortItems`) — now source-aware on price. */
+function sortRecs(items: GrokRecommendation[], source: Source, sortBy: SortBy): GrokRecommendation[] {
+  const copy = [...items];
+  const priceOf = (r: GrokRecommendation) => recPrice(r, source) ?? (r.priceLevel != null ? r.priceLevel * 1000 : Infinity);
+  switch (sortBy) {
+    case 'price':    return copy.sort((a, b) => priceOf(a) - priceOf(b));
+    case 'reviews':  return copy.sort((a, b) => (b.reviewCount || 0) - (a.reviewCount || 0));
+    case 'duration': return copy.sort((a, b) => (a.durationMinutes ?? Infinity) - (b.durationMinutes ?? Infinity));
+    case 'name':     return copy.sort((a, b) => a.name.localeCompare(b.name));
+    case 'rating':
+    default:         return copy.sort((a, b) => (b.googleRating || 0) - (a.googleRating || 0) || (b.reviewCount || 0) - (a.reviewCount || 0));
+  }
+}
+
+function sectionFilterActive(f: SectionFilter): boolean {
+  return f.priceMax != null || f.scoreMin != null || f.ratingMin != null
+    || !!f.chains?.length || !!f.facilities?.length || !!f.priceLevels?.length || !!f.durations?.length;
+}
+
+const toggleIn = <T,>(arr: T[] | undefined, v: T): T[] => {
+  const s = new Set(arr || []);
+  if (s.has(v)) s.delete(v); else s.add(v);
+  return Array.from(s);
+};
+
+// Compact per-section filter bar. Only renders controls for fields present on
+// this source's recs; multi-select facets are derived from `items` so we never
+// offer a filter for data we don't have.
+function SectionFilterBar({ source, items, filter, onChange }: {
+  source: Source;
+  items: GrokRecommendation[];
+  filter: SectionFilter;
+  onChange: (f: SectionFilter) => void;
+}) {
+  const chains = Array.from(new Set(items.map(r => r.chain).filter((x): x is string => !!x))).sort();
+  const facilities = Array.from(new Set(items.flatMap(r => r.facilities || []))).sort();
+  const priceLevels = Array.from(new Set(items.map(r => r.priceLevel).filter((x): x is number => x != null))).sort((a, b) => a - b);
+  const durations = DURATION_ORDER.filter(b => items.some(r => durationBucket(r.durationMinutes) === b));
+
+  const sortOptions: SortBy[] = source === 'viator'
+    ? ['rating', 'price', 'reviews', 'duration', 'name']
+    : ['rating', 'price', 'reviews', 'name'];
+
+  const selectCls = 'text-xs border border-border rounded px-2 py-1 bg-white text-text-secondary';
+  const chip = (on: boolean) =>
+    `text-[11px] rounded-full px-2 py-0.5 border transition-colors ${on ? 'bg-brand-purple text-white border-brand-purple' : 'bg-white text-text-secondary border-border hover:border-brand-purple'}`;
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 mb-2 px-1">
+      <label className="text-[11px] text-text-muted flex items-center gap-1">
+        Sort
+        <select className={selectCls} value={filter.sort} onChange={e => onChange({ ...filter, sort: e.target.value as SortBy })}>
+          {sortOptions.map(s => <option key={s} value={s}>{SORT_LABEL[s]}</option>)}
+        </select>
+      </label>
+
+      {source === 'liteapi' && (
+        <>
+          <select aria-label="Max price per night" className={selectCls} value={filter.priceMax ?? ''}
+            onChange={e => onChange({ ...filter, priceMax: e.target.value ? Number(e.target.value) : undefined })}>
+            <option value="">Any price/night</option>
+            {[100, 200, 300, 500].map(v => <option key={v} value={v}>≤ ${v}/night</option>)}
+          </select>
+          <select aria-label="Minimum review score" className={selectCls} value={filter.scoreMin ?? ''}
+            onChange={e => onChange({ ...filter, scoreMin: e.target.value ? Number(e.target.value) : undefined })}>
+            <option value="">Any score</option>
+            {[7, 8, 9].map(v => <option key={v} value={v}>Score ≥ {v}</option>)}
+          </select>
+          {chains.map(c => (
+            <button key={c} type="button" className={chip(!!filter.chains?.includes(c))}
+              onClick={() => onChange({ ...filter, chains: toggleIn(filter.chains, c) })}>{c}</button>
+          ))}
+          {facilities.map(f => (
+            <button key={f} type="button" className={chip(!!filter.facilities?.includes(f))}
+              onClick={() => onChange({ ...filter, facilities: toggleIn(filter.facilities, f) })}>{f}</button>
+          ))}
+        </>
+      )}
+
+      {source === 'viator' && (
+        <>
+          <select aria-label="Max price" className={selectCls} value={filter.priceMax ?? ''}
+            onChange={e => onChange({ ...filter, priceMax: e.target.value ? Number(e.target.value) : undefined })}>
+            <option value="">Any price</option>
+            {[50, 100, 200, 400].map(v => <option key={v} value={v}>≤ ${v}</option>)}
+          </select>
+          <select aria-label="Minimum rating" className={selectCls} value={filter.ratingMin ?? ''}
+            onChange={e => onChange({ ...filter, ratingMin: e.target.value ? Number(e.target.value) : undefined })}>
+            <option value="">Any rating</option>
+            {[3, 4, 4.5].map(v => <option key={v} value={v}>★ ≥ {v}</option>)}
+          </select>
+          {durations.map(d => (
+            <button key={d} type="button" className={chip(!!filter.durations?.includes(d))}
+              onClick={() => onChange({ ...filter, durations: toggleIn(filter.durations, d) })}>{d}</button>
+          ))}
+        </>
+      )}
+
+      {source === 'google' && (
+        <>
+          <select aria-label="Minimum rating" className={selectCls} value={filter.ratingMin ?? ''}
+            onChange={e => onChange({ ...filter, ratingMin: e.target.value ? Number(e.target.value) : undefined })}>
+            <option value="">Any rating</option>
+            {[3, 4, 4.5].map(v => <option key={v} value={v}>★ ≥ {v}</option>)}
+          </select>
+          {priceLevels.map(pl => (
+            <button key={pl} type="button" className={chip(!!filter.priceLevels?.includes(pl))}
+              onClick={() => onChange({ ...filter, priceLevels: toggleIn(filter.priceLevels, pl) })}>{'$'.repeat(pl)}</button>
+          ))}
+        </>
+      )}
+
+      {sectionFilterActive(filter) && (
+        <button type="button" className="text-[11px] text-brand-purple underline ml-auto"
+          onClick={() => onChange({ sort: filter.sort })}>Clear filters</button>
+      )}
+    </div>
+  );
+}
+
 interface TravelCarouselProps {
   catKey: string;
   label: string;
@@ -1028,20 +1190,31 @@ interface TravelCarouselProps {
 // scroll-snap; desktop fits ~4-up. The header carries the source attribution
 // so the per-card chrome stays clean.
 function TravelCarousel({ catKey, label, source, isLoading, items, error, onCardClick }: TravelCarouselProps) {
+  // PR-28b: per-section filter + sort. Local state → naturally per-section (one
+  // TravelCarousel instance per catKey). Applied CLIENT-SIDE to the fetched recs.
+  const [filter, setFilter] = useState<SectionFilter>({ sort: 'rating' });
+  const visible = sortRecs(filterRecs(items, source, filter), source, filter.sort);
+  const showControls = !error && !isLoading && items.length > 0;
+
   return (
     <div>
       <div className="flex items-baseline justify-between mb-2 px-1">
         <div className="flex items-baseline gap-2 min-w-0">
           <h3 className="text-base font-semibold text-text-primary">{label}</h3>
-          {/* PR-28a: result count (from byCategory items). Hidden while loading/empty. */}
+          {/* PR-28a count, PR-28b: reflects the FILTERED visible set (live). */}
           {items.length > 0 && (
-            <span className="text-xs text-text-muted tabular-nums">{items.length} {sourceNoun(source, items.length)}</span>
+            <span className="text-xs text-text-muted tabular-nums">{visible.length} {sourceNoun(source, visible.length)}</span>
           )}
         </div>
         <span className={`text-[10px] font-medium ${source === 'google' ? 'text-text-faint' : 'text-brand-purple'}`}>
           {sourceAttribution(source)}
         </span>
       </div>
+
+      {/* PR-28b: per-section filter + sort bar (client-side, no re-fetch). */}
+      {showControls && (
+        <SectionFilterBar source={source} items={items} filter={filter} onChange={setFilter} />
+      )}
 
       {error ? (
         <div className="bg-red-50 border border-red-200 rounded p-3 text-brand-red text-xs">
@@ -1062,13 +1235,22 @@ function TravelCarousel({ catKey, label, source, isLoading, items, error, onCard
           </div>
         </div>
       ) : items.length === 0 ? (
+        /* No DATA (the source returned nothing for this destination). */
         <div className="text-xs text-text-muted py-4 px-3 border border-dashed border-border rounded">
           No {label.toLowerCase()} found for this destination.
+        </div>
+      ) : visible.length === 0 ? (
+        /* PR-28b: data exists but FILTERS narrowed to zero — distinct from no-data,
+           and never fabricated. Offer a clear-filters action. */
+        <div className="text-xs text-text-muted py-4 px-3 border border-dashed border-border rounded flex items-center justify-between gap-3">
+          <span>No {label.toLowerCase()} match your filters.</span>
+          <button type="button" className="text-brand-purple underline shrink-0"
+            onClick={() => setFilter({ sort: filter.sort })}>Clear filters</button>
         </div>
       ) : (
         <HScrollRow className="overflow-x-auto pb-2 -mx-1 px-1" style={{ scrollSnapType: 'x mandatory' }} scrollBy={272}>
           <div className="flex gap-3">
-            {items.slice(0, 12).map((rec, idx) => (
+            {visible.slice(0, 12).map((rec, idx) => (
               source === 'liteapi' ? (
                 // ── PR-14: rich LiteAPI hotel card ───────────────────────────
                 <button
