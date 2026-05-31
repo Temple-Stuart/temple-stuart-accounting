@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext, createContext, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui';
 import { ACTIVITY_LABELS } from '@/lib/activities';
@@ -182,7 +182,12 @@ const CATEGORY_TO_VENDOR_API: Record<string, string> = {
   wellness: 'activities',
 };
 
-export default function TripPlannerAI({ tripId, city, country, activity, activities = [], month, year, daysTravel, tripDates, onCommitted }: Props) {
+// ─── PR-28e1a: scan engine + state lifted into a hook + provider so 28e1b can
+// render per-API peer sections at page level. Pure plumbing — the hook body is
+// the VERBATIM former TripPlannerAI component body; the default export renders
+// the SAME JSX from context. No visual/behavior change.
+function useTripScanState(input: Props) {
+  const { tripId, city, country, activity, activities = [], month, year, daysTravel, tripDates, onCommitted } = input;
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [loadingCategory, setLoadingCategory] = useState<string | null>(null);
@@ -749,6 +754,28 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   // YYYY-MM-DD is chronological.
   const datesValid = !(checkinVal && checkoutVal) || checkoutVal > checkinVal;
 
+  return {
+    router, loading, setLoading, loadingCategory, setLoadingCategory, completedCount, setCompletedCount, totalCategories, setTotalCategories, recommendations, setRecommendations, byCategory, setByCategory, error, setError, expandedCategory, setExpandedCategory, minRating, setMinRating, minReviews, setMinReviews, maxPriceLevel, setMaxPriceLevel, loadedPhotos, setLoadedPhotos, selections, setSelections, editingSelection, setEditingSelection, editForm, setEditForm, savingVendorOption, setSavingVendorOption, scannerMeta, setScannerMeta, commitCardKey, setCommitCardKey, committingCard, setCommittingCard, committedCards, setCommittedCards, cardPrices, setCardPrices, cardDates, setCardDates, cardFrequency, setCardFrequency, cardTimes, setCardTimes, reservingKey, setReservingKey, reservedKeys, setReservedKeys, loadingCategories, setLoadingCategories, categoryErrors, setCategoryErrors, perLocationDates, setPerLocationDates, showCustomModal, setShowCustomModal, customCategory, setCustomCategory, customForm, setCustomForm, customLoading, setCustomLoading, customPreview, setCustomPreview, tripDays, tripActivities, scanSingleCategory, autoScanCategoriesFor, rescanAll, handleSelectItem, buildVendorBody, confirmSelection, handleCommitCard, handleUncommitCard, handleLiteApiReserve, fetchUrlPreview, openCustomModal, handleAddCustomItem, activeCity, defaultCheckin, defaultCheckout, checkinVal, checkoutVal, datesValid, tripId, city, country, activity, activities, month, year, daysTravel, tripDates, onCommitted,
+  };
+}
+
+const TripScanContext = createContext<ReturnType<typeof useTripScanState> | null>(null);
+
+export function TripScanProvider({ input, children }: { input: Props; children: ReactNode }) {
+  const value = useTripScanState(input);
+  return <TripScanContext.Provider value={value}>{children}</TripScanContext.Provider>;
+}
+
+function useTripScanCtx() {
+  const ctx = useContext(TripScanContext);
+  if (!ctx) throw new Error('useTripScanCtx must be used within a TripScanProvider');
+  return ctx;
+}
+
+export default function TripPlannerAI() {
+  const {
+    router, loading, totalCategories, byCategory, error, editingSelection, setEditingSelection, editForm, setEditForm, savingVendorOption, loadingCategories, categoryErrors, setPerLocationDates, showCustomModal, setShowCustomModal, customCategory, customForm, setCustomForm, customLoading, customPreview, tripDays, activeCity, checkinVal, checkoutVal, datesValid, rescanAll, confirmSelection, fetchUrlPreview, handleAddCustomItem, tripId, city, country, tripDates,
+  } = useTripScanCtx();
   return (
     <div className="space-y-6">
       {/* Compact trip-context header — replaces the old Search Controls.
