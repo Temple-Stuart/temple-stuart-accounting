@@ -9,6 +9,7 @@ import { ReserveHotelButton } from './ReserveHotelButton';
 import HotelGallery from '@/components/trips/HotelGallery';
 import HotelMap from '@/components/trips/HotelMap';
 import { getHotelReviews, type HotelReview } from '@/lib/liteapiClient';
+import { getHotelContent } from '@/lib/liteapiClient';
 import {
   Waves, Wifi, Coffee, Dumbbell, Flower2, Car, Wind, Utensils, Wine, Dog, Baby,
   Accessibility, Cigarette, Briefcase, ConciergeBell, WashingMachine, Tv, Bath, Star, MapPin,
@@ -142,6 +143,44 @@ export default async function DiscoverDetailPage({
     : source === 'viator' ? 'via Viator'
     : source === 'google' ? 'Google · discovery (no booking)'
     : `via ${source}`;
+
+  // PR-28c: enrich the ONE viewed hotel from the rich /data/hotel content
+  // endpoint (full gallery, full amenities, coords, guest-review aggregate,
+  // full description) — the thin /hotels/rates rec lacks these. PAID call
+  // (B-5100), one per detail-view, NEVER on scan. Rides inside this server
+  // component's existing auth gate (getVerifiedEmail + trip-ownership above).
+  // Graceful degradation: if the content call fails, we render `rec` exactly as
+  // it came from rates (already-real data) — not a fabricated fallback.
+  if (source === 'liteapi' && rec.liteapiHotelId) {
+    try {
+      const content = await getHotelContent(rec.liteapiHotelId);
+      if (content) {
+        const gallery = content.hotelImages?.map(im => im.urlHd || im.url).filter(Boolean) ?? [];
+        // Content `rating` is a 0-5 guest score in observed responses; the rec's
+        // reviewScore is 0-10. Normalise to 0-10 (mirrors the rates mapper's
+        // ">5 means already-10" convention) so the aggregate badge reads right.
+        const enrichedScore = content.rating != null
+          ? (content.rating <= 5 ? Math.round(content.rating * 2 * 10) / 10 : content.rating)
+          : undefined;
+        rec = {
+          ...rec,
+          images: gallery.length ? gallery : rec.images,
+          facilitiesAll: content.hotelFacilities?.length ? content.hotelFacilities : rec.facilitiesAll,
+          latitude: content.location?.latitude ?? rec.latitude,
+          longitude: content.location?.longitude ?? rec.longitude,
+          reviewScore: enrichedScore ?? rec.reviewScore,
+          reviewCount: content.reviewCount ?? rec.reviewCount,
+          descriptionFull: content.hotelDescription
+            ? content.hotelDescription.replace(/<[^>]*>/g, '')
+            : rec.descriptionFull,
+          city: rec.city ?? content.city,
+          addressLine: rec.addressLine ?? content.address,
+        };
+      }
+    } catch (err) {
+      console.error('[PR-28c] getHotelContent failed — rendering rates-only rec:', err instanceof Error ? err.message : err);
+    }
+  }
 
   // For LiteAPI hotels: PR-15 reads the per-night price directly (no recompute).
   // `stayTotal` is the whole-stay total (rec.price) — it is NOT pricePerNight ×

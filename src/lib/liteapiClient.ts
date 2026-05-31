@@ -761,3 +761,61 @@ export async function getHotelReviews(
   console.log(`[LiteAPI] reviews: dataLen=${data.length} (B-5100 COGS — paid call)`);
   return data;
 }
+
+// ─── Hotel content / details (Travel-PR-28c) ─────────────────────────────────
+// `GET /v3.0/data/hotel` — the RICH content endpoint. `/hotels/rates` returns
+// thin metadata (price+photo+address); the full gallery, full amenities, coords,
+// guest-review aggregate, and full description live here. PAID call (B-5100
+// COGS). Called ON DETAIL-VIEW ONLY (one hotel the user opened) — never on scan.
+// Live response shape (per LiteAPI docs):
+//   { data: { id, name, hotelDescription, hotelImportantInformation,
+//             hotelImages:[{url,urlHd,caption,order,defaultImage}],
+//             hotelFacilities:[str], facilities:[{facilityId,name}],
+//             address, city, country, zip, location:{latitude,longitude},
+//             starRating, rating, reviewCount, stars } }
+
+export interface HotelContent {
+  id?: string;
+  name?: string;
+  hotelDescription?: string;
+  hotelImportantInformation?: string;
+  hotelImages?: Array<{ url: string; urlHd?: string; caption?: string; order?: number; defaultImage?: boolean }>;
+  hotelFacilities?: string[];
+  facilities?: Array<{ facilityId: number; name: string }>;
+  address?: string;
+  city?: string;
+  country?: string;
+  zip?: string;
+  location?: { latitude?: number; longitude?: number };
+  starRating?: number;
+  rating?: number;       // guest review score (0-5 in observed responses)
+  reviewCount?: number;
+  stars?: number;
+}
+
+/** Hit `GET /v3.0/data/hotel?hotelId=…`. Throws MissingLiteApiKeyError on no key,
+ *  LiteApiError on non-2xx (fail-loud). Returns the `data` object, or null. */
+export async function getHotelContent(hotelId: string): Promise<HotelContent | null> {
+  const params = new URLSearchParams({ hotelId });
+
+  const mode = getMode();
+  const keyPrefix = (mode === 'production' ? process.env.LITEAPI_PRODUCTION_KEY : process.env.LITEAPI_SANDBOX_KEY)?.slice(0, 4) ?? 'none';
+  console.log(`[LiteAPI] hotel-content: mode=${mode} keyPrefix=${keyPrefix} hotelId=${hotelId}`);
+
+  const res = await fetch(`${LITEAPI_BASE}/data/hotel?${params.toString()}`, {
+    method: 'GET',
+    headers: headers(),
+  });
+  console.log(`[LiteAPI] hotel-content http: status=${res.status} ok=${res.ok}`);
+  if (!res.ok) {
+    throw new LiteApiError('/v3.0/data/hotel', res.status, await res.text());
+  }
+  const json = await res.json();
+  const data: HotelContent | null = json?.data ?? null;
+  const imgLen = Array.isArray(data?.hotelImages) ? data!.hotelImages!.length : 0;
+  // B-5100 COGS: paid call. Per-detail-view only (one hotel) — never on scan.
+  // Per-call cost not yet ledgered (matches rates/reviews pattern); a unified
+  // LiteAPI COGS PR should ledger all paid calls to B-5100.
+  console.log(`[LiteAPI] hotel-content: imagesLen=${imgLen} (B-5100 COGS — paid call, per detail-view)`);
+  return data;
+}
