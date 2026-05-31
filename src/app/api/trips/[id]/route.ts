@@ -180,9 +180,17 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { destination, startDate, endDate } = body;
+    const { destination, startDate, endDate, name, tripType } = body;
 
     const updateData: Record<string, any> = {};
+    // PR-29: persist name + tripType (previously sent by the bar but SILENTLY
+    // DROPPED here — only destination/startDate/endDate were destructured, so
+    // editing the trip name saved nothing). `trips.name`/`trips.tripType` columns
+    // already exist (no schema change).
+    if (name !== undefined) updateData.name = name;
+    if (tripType !== undefined && ['personal', 'business', 'mixed'].includes(tripType)) {
+      updateData.tripType = tripType;
+    }
     if (destination !== undefined) updateData.destination = destination;
     if (startDate !== undefined) {
       updateData.startDate = startDate ? new Date(startDate + 'T12:00:00') : null;

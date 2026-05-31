@@ -142,7 +142,12 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
 
   // ─── Active State Detection ────────────────────────────────────────────────
 
-  const showTravelSearch = TRAVEL_PREFIXES.some(r => pathname?.startsWith(r));
+  // PR-29: the search/create bar shows on travel routes EXCEPT a committed trip's
+  // detail page (/budgets/trips/{id} or /trips/{id}, but not .../new) — there the
+  // detail page renders the editable TripHeader instead. Landing (/budgets/trips)
+  // and /new keep the search/create bar.
+  const isTripDetail = /^\/(budgets\/)?trips\/[^/]+\/?$/.test(pathname || '') && !(pathname || '').endsWith('/new');
+  const showTravelSearch = TRAVEL_PREFIXES.some(r => pathname?.startsWith(r)) && !isTripDetail;
   const userLabel = currentUser?.name || currentUser?.email?.split('@')[0] || '';
 
   // ─── Render ────────────────────────────────────────────────────────────────
