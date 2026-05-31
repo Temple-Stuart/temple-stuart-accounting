@@ -671,6 +671,111 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               onChanged={() => { loadTrip(); loadDestinations(); loadParticipants(); }}
             />
 
+            {/* ── Crew & Profiles ── (PR-31: id="travelers" is the target of
+                  TripHeader's "Manage travelers" link) */}
+            <div id="travelers" className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm scroll-mt-4">
+              <div className="bg-brand-purple/80 text-white px-4 py-2.5 flex justify-between items-center">
+                <h2 className="text-sm font-semibold">Crew ({participants.length})</h2>
+                {isOrganizer && (
+                  <button
+                    onClick={() => { setShowAddTraveler(v => !v); setAddError(null); }}
+                    className="text-xs font-medium bg-white/15 hover:bg-white/25 rounded px-2.5 py-1 transition-colors"
+                  >
+                    {showAddTraveler ? 'Cancel' : '+ Add traveler'}
+                  </button>
+                )}
+              </div>
+              <div className="bg-white p-4">
+              <div className="overflow-x-auto mb-4">
+                <table className="w-full text-xs">
+                  <thead className="border-b border-gray-200">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-medium text-gray-500">Name</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-500">Email</th>
+                      <th className="px-3 py-2 text-center font-medium text-gray-500">Status</th>
+                      <th className="px-3 py-2 text-center font-medium text-gray-500">Role</th>
+                      <th className="px-3 py-2 text-center font-medium text-gray-500">Blackout Days</th>
+                      <th className="px-3 py-2 text-center font-medium text-gray-500"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {participants.map(p => (
+                      <tr key={p.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white ${
+                              p.rsvpStatus === 'confirmed' ? 'bg-emerald-500' : p.rsvpStatus === 'declined' ? 'bg-red-500' : 'bg-amber-500'
+                            }`}>
+                              {p.firstName[0]}
+                            </div>
+                            <span className="font-medium text-gray-900">{p.firstName} {p.lastName}</span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-gray-500">{p.email}</td>
+                        <td className="px-3 py-3 text-center">
+                          <span className={`px-2 py-0.5 text-xs rounded ${
+                            p.rsvpStatus === 'confirmed' ? 'bg-emerald-100 text-emerald-700' :
+                            p.rsvpStatus === 'declined' ? 'bg-red-100 text-red-700' :
+                            'bg-amber-100 text-amber-700'
+                          }`}>
+                            {p.rsvpStatus}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          {p.isOwner && <span className="px-2 py-0.5 bg-brand-purple/10 text-brand-purple text-xs rounded">Organizer</span>}
+                        </td>
+                        <td className="px-3 py-3 text-center text-gray-400">
+                          {(p.unavailableDays || []).length > 0 ? (p.unavailableDays || []).join(', ') : '—'}
+                        </td>
+                        <td className="px-3 py-3 text-center whitespace-nowrap">
+                          {/* PR-31: copy the shareable invite link for pending
+                              travelers (inviteUrl comes from the GET). */}
+                          {p.rsvpStatus === 'pending' && p.inviteUrl && (
+                            <button onClick={() => copyInvite(p.inviteUrl!, p.id)}
+                              className="text-[11px] text-brand-purple hover:underline mr-2">
+                              {copiedInvite === p.id ? 'Copied!' : 'Copy invite link'}
+                            </button>
+                          )}
+                          {!p.isOwner && (
+                            <button onClick={() => removeParticipant(p.id, p.firstName)}
+                              className="text-gray-400 hover:text-red-500">×</button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* PR-31: inline add-traveler form (organizer only). POST creates a
+                  pending row + invite link; share the link to get an RSVP. */}
+              {isOrganizer && showAddTraveler && (
+                <div className="border-t border-gray-200 pt-3 mt-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input type="text" value={addForm.firstName} onChange={e => setAddForm(f => ({ ...f, firstName: e.target.value }))}
+                      placeholder="First name *" aria-label="First name"
+                      className="border border-border rounded px-2 py-1.5 text-xs w-[110px]" />
+                    <input type="text" value={addForm.lastName} onChange={e => setAddForm(f => ({ ...f, lastName: e.target.value }))}
+                      placeholder="Last name *" aria-label="Last name"
+                      className="border border-border rounded px-2 py-1.5 text-xs w-[110px]" />
+                    <input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))}
+                      placeholder="Email *" aria-label="Email"
+                      className="border border-border rounded px-2 py-1.5 text-xs flex-1 min-w-[160px]" />
+                    <input type="tel" value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))}
+                      placeholder="Phone (optional)" aria-label="Phone"
+                      className="border border-border rounded px-2 py-1.5 text-xs w-[140px]" />
+                    <button onClick={handleAddParticipant} disabled={addingTraveler}
+                      className="text-xs font-medium bg-brand-purple text-white rounded px-3 py-1.5 hover:bg-brand-purple-hover disabled:opacity-50">
+                      {addingTraveler ? 'Adding…' : 'Add traveler'}
+                    </button>
+                  </div>
+                  {addError && <p className="text-xs text-brand-red mt-1.5">{addError}</p>}
+                  <p className="text-[11px] text-text-faint mt-1.5">Adds a pending traveler and creates a shareable invite link (use “Copy invite link” in the row). No email is sent.</p>
+                </div>
+              )}
+              </div>
+            </div>
+
             {/* PR-30: Map + Itinerary (lifted out of the removed IIFE). The
                 redundant "Committed Items" panel + its prep pipeline were deleted —
                 uncommit lives in the Itinerary popover; Committed Budget is independent. */}
@@ -737,6 +842,109 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
               )}
             </div>
+
+            {/* ── Committed Budget ── */}
+            {committedBudgetItems.length > 0 && (() => {
+              const toggleSort = (col: 'category' | 'item' | 'amount') => {
+                setBudgetSort(prev => ({
+                  col,
+                  dir: prev.col === col && prev.dir === 'asc' ? 'desc' : 'asc',
+                }));
+              };
+              const arrow = (col: string) => budgetSort.col === col ? (budgetSort.dir === 'asc' ? ' ↑' : ' ↓') : '';
+
+              // Build destination filter pills with totals
+              const destTotals: Record<string, number> = {};
+              for (const item of committedBudgetItems) {
+                const dest = item.location || '—';
+                destTotals[dest] = (destTotals[dest] || 0) + item.amount;
+              }
+              // Sort: named destinations alphabetically, "—" last
+              const destKeys = Object.keys(destTotals).sort((a, b) => {
+                if (a === '—') return 1;
+                if (b === '—') return -1;
+                return a.localeCompare(b);
+              });
+
+              // Filter items
+              const filtered = budgetFilter === 'all'
+                ? committedBudgetItems
+                : committedBudgetItems.filter(item => (item.location || '—') === budgetFilter);
+              const filteredTotal = filtered.reduce((sum, item) => sum + item.amount, 0);
+
+              const sorted = [...filtered].sort((a, b) => {
+                const dir = budgetSort.dir === 'asc' ? 1 : -1;
+                if (budgetSort.col === 'category') return a.category.localeCompare(b.category) * dir;
+                if (budgetSort.col === 'item') return (a.description || a.category).localeCompare(b.description || b.category) * dir;
+                return (a.amount - b.amount) * dir;
+              });
+              let lastCategory = '';
+
+              return (
+                <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+                  <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Committed Budget</div>
+                  {/* Destination filter pills */}
+                  <div className="px-4 py-2.5 bg-white border-b border-gray-100 flex flex-wrap gap-1.5">
+                    <button onClick={() => setBudgetFilter('all')}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${budgetFilter === 'all' ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                      All ({fmt(totalBudget)})
+                    </button>
+                    {destKeys.map(dest => (
+                      <button key={dest} onClick={() => setBudgetFilter(budgetFilter === dest ? 'all' : dest)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${budgetFilter === dest ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                        {dest === '—' ? 'Other' : dest} ({fmt(destTotals[dest])})
+                      </button>
+                    ))}
+                  </div>
+                  <div className="overflow-x-auto bg-white">
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th onClick={() => toggleSort('category')} className="px-3 py-2 text-left font-medium text-gray-500 cursor-pointer hover:text-gray-700 select-none">Category{arrow('category')}</th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-500">Country</th>
+                          <th onClick={() => toggleSort('item')} className="px-3 py-2 text-left font-medium text-gray-500 cursor-pointer hover:text-gray-700 select-none">Item{arrow('item')}</th>
+                          <th onClick={() => toggleSort('amount')} className="px-3 py-2 text-right font-medium text-gray-500 cursor-pointer hover:text-gray-700 select-none">Amount{arrow('amount')}</th>
+                          <th className="px-3 py-2 text-center font-medium text-gray-500 w-16">Vote</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {sorted.map((item, idx) => {
+                          const showCategory = item.category !== lastCategory;
+                          lastCategory = item.category;
+                          // Find original index in committedBudgetItems for vote toggling
+                          const origIdx = committedBudgetItems.findIndex(b => b.description === item.description && b.amount === item.amount && b.category === item.category);
+                          return (
+                            <tr key={idx} className="hover:bg-gray-50">
+                              <td className="px-3 py-2 text-gray-500">{showCategory ? item.category : ''}</td>
+                              <td className="px-3 py-2 text-gray-400 text-[11px]">{item.location || '—'}</td>
+                              <td className="px-3 py-2 font-medium text-gray-900">{item.description || item.category}</td>
+                              <td className="px-3 py-2 text-right font-semibold text-emerald-700">{fmt(item.amount)}</td>
+                              <td className="px-3 py-2 text-center">
+                                <button onClick={() => {
+                                  setCommittedBudgetItems(prev => prev.map((b, i) => i === origIdx ? { ...b, vote: b.vote === 'up' ? null : 'up' } : b));
+                                }} className={`text-sm mr-1 ${item.vote === 'up' ? 'text-emerald-600' : 'text-gray-300 hover:text-gray-500'}`}>+</button>
+                                <button onClick={() => {
+                                  setCommittedBudgetItems(prev => prev.map((b, i) => i === origIdx ? { ...b, vote: b.vote === 'down' ? null : 'down' } : b));
+                                }} className={`text-sm ${item.vote === 'down' ? 'text-red-500' : 'text-gray-300 hover:text-gray-500'}`}>-</button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot className="bg-gray-50 border-t border-gray-200">
+                        <tr>
+                          <td colSpan={3} className="px-3 py-2 font-semibold text-gray-900">
+                            {budgetFilter === 'all' ? 'Total' : `Total — ${budgetFilter === '—' ? 'Other' : budgetFilter}`}
+                          </td>
+                          <td className="px-3 py-2 text-right font-bold text-emerald-700">{fmt(filteredTotal)}</td>
+                          <td></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* ── Destinations & Dates + scan sections (PR-28e1b: each API is a
                   peer top-level section via <TripApiSection> reading TripScanContext;
@@ -857,109 +1065,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               );
             })()}
 
-            {/* ── Committed Budget ── */}
-            {committedBudgetItems.length > 0 && (() => {
-              const toggleSort = (col: 'category' | 'item' | 'amount') => {
-                setBudgetSort(prev => ({
-                  col,
-                  dir: prev.col === col && prev.dir === 'asc' ? 'desc' : 'asc',
-                }));
-              };
-              const arrow = (col: string) => budgetSort.col === col ? (budgetSort.dir === 'asc' ? ' ↑' : ' ↓') : '';
-
-              // Build destination filter pills with totals
-              const destTotals: Record<string, number> = {};
-              for (const item of committedBudgetItems) {
-                const dest = item.location || '—';
-                destTotals[dest] = (destTotals[dest] || 0) + item.amount;
-              }
-              // Sort: named destinations alphabetically, "—" last
-              const destKeys = Object.keys(destTotals).sort((a, b) => {
-                if (a === '—') return 1;
-                if (b === '—') return -1;
-                return a.localeCompare(b);
-              });
-
-              // Filter items
-              const filtered = budgetFilter === 'all'
-                ? committedBudgetItems
-                : committedBudgetItems.filter(item => (item.location || '—') === budgetFilter);
-              const filteredTotal = filtered.reduce((sum, item) => sum + item.amount, 0);
-
-              const sorted = [...filtered].sort((a, b) => {
-                const dir = budgetSort.dir === 'asc' ? 1 : -1;
-                if (budgetSort.col === 'category') return a.category.localeCompare(b.category) * dir;
-                if (budgetSort.col === 'item') return (a.description || a.category).localeCompare(b.description || b.category) * dir;
-                return (a.amount - b.amount) * dir;
-              });
-              let lastCategory = '';
-
-              return (
-                <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-                  <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Committed Budget</div>
-                  {/* Destination filter pills */}
-                  <div className="px-4 py-2.5 bg-white border-b border-gray-100 flex flex-wrap gap-1.5">
-                    <button onClick={() => setBudgetFilter('all')}
-                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${budgetFilter === 'all' ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                      All ({fmt(totalBudget)})
-                    </button>
-                    {destKeys.map(dest => (
-                      <button key={dest} onClick={() => setBudgetFilter(budgetFilter === dest ? 'all' : dest)}
-                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${budgetFilter === dest ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                        {dest === '—' ? 'Other' : dest} ({fmt(destTotals[dest])})
-                      </button>
-                    ))}
-                  </div>
-                  <div className="overflow-x-auto bg-white">
-                    <table className="w-full text-xs">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th onClick={() => toggleSort('category')} className="px-3 py-2 text-left font-medium text-gray-500 cursor-pointer hover:text-gray-700 select-none">Category{arrow('category')}</th>
-                          <th className="px-3 py-2 text-left font-medium text-gray-500">Country</th>
-                          <th onClick={() => toggleSort('item')} className="px-3 py-2 text-left font-medium text-gray-500 cursor-pointer hover:text-gray-700 select-none">Item{arrow('item')}</th>
-                          <th onClick={() => toggleSort('amount')} className="px-3 py-2 text-right font-medium text-gray-500 cursor-pointer hover:text-gray-700 select-none">Amount{arrow('amount')}</th>
-                          <th className="px-3 py-2 text-center font-medium text-gray-500 w-16">Vote</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {sorted.map((item, idx) => {
-                          const showCategory = item.category !== lastCategory;
-                          lastCategory = item.category;
-                          // Find original index in committedBudgetItems for vote toggling
-                          const origIdx = committedBudgetItems.findIndex(b => b.description === item.description && b.amount === item.amount && b.category === item.category);
-                          return (
-                            <tr key={idx} className="hover:bg-gray-50">
-                              <td className="px-3 py-2 text-gray-500">{showCategory ? item.category : ''}</td>
-                              <td className="px-3 py-2 text-gray-400 text-[11px]">{item.location || '—'}</td>
-                              <td className="px-3 py-2 font-medium text-gray-900">{item.description || item.category}</td>
-                              <td className="px-3 py-2 text-right font-semibold text-emerald-700">{fmt(item.amount)}</td>
-                              <td className="px-3 py-2 text-center">
-                                <button onClick={() => {
-                                  setCommittedBudgetItems(prev => prev.map((b, i) => i === origIdx ? { ...b, vote: b.vote === 'up' ? null : 'up' } : b));
-                                }} className={`text-sm mr-1 ${item.vote === 'up' ? 'text-emerald-600' : 'text-gray-300 hover:text-gray-500'}`}>+</button>
-                                <button onClick={() => {
-                                  setCommittedBudgetItems(prev => prev.map((b, i) => i === origIdx ? { ...b, vote: b.vote === 'down' ? null : 'down' } : b));
-                                }} className={`text-sm ${item.vote === 'down' ? 'text-red-500' : 'text-gray-300 hover:text-gray-500'}`}>-</button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                      <tfoot className="bg-gray-50 border-t border-gray-200">
-                        <tr>
-                          <td colSpan={3} className="px-3 py-2 font-semibold text-gray-900">
-                            {budgetFilter === 'all' ? 'Total' : `Total — ${budgetFilter === '—' ? 'Other' : budgetFilter}`}
-                          </td>
-                          <td className="px-3 py-2 text-right font-bold text-emerald-700">{fmt(filteredTotal)}</td>
-                          <td></td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                </div>
-              );
-            })()}
-
             {/* ── Add Expense (inline) ── */}
             {showExpenseForm && (
               <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
@@ -1007,111 +1112,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 </form>
               </div>
             )}
-
-            {/* ── Crew & Profiles ── (PR-31: id="travelers" is the target of
-                  TripHeader's "Manage travelers" link) */}
-            <div id="travelers" className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm scroll-mt-4">
-              <div className="bg-brand-purple/80 text-white px-4 py-2.5 flex justify-between items-center">
-                <h2 className="text-sm font-semibold">Crew ({participants.length})</h2>
-                {isOrganizer && (
-                  <button
-                    onClick={() => { setShowAddTraveler(v => !v); setAddError(null); }}
-                    className="text-xs font-medium bg-white/15 hover:bg-white/25 rounded px-2.5 py-1 transition-colors"
-                  >
-                    {showAddTraveler ? 'Cancel' : '+ Add traveler'}
-                  </button>
-                )}
-              </div>
-              <div className="bg-white p-4">
-              <div className="overflow-x-auto mb-4">
-                <table className="w-full text-xs">
-                  <thead className="border-b border-gray-200">
-                    <tr>
-                      <th className="px-3 py-2 text-left font-medium text-gray-500">Name</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-500">Email</th>
-                      <th className="px-3 py-2 text-center font-medium text-gray-500">Status</th>
-                      <th className="px-3 py-2 text-center font-medium text-gray-500">Role</th>
-                      <th className="px-3 py-2 text-center font-medium text-gray-500">Blackout Days</th>
-                      <th className="px-3 py-2 text-center font-medium text-gray-500"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {participants.map(p => (
-                      <tr key={p.id} className="hover:bg-gray-50">
-                        <td className="px-3 py-3">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white ${
-                              p.rsvpStatus === 'confirmed' ? 'bg-emerald-500' : p.rsvpStatus === 'declined' ? 'bg-red-500' : 'bg-amber-500'
-                            }`}>
-                              {p.firstName[0]}
-                            </div>
-                            <span className="font-medium text-gray-900">{p.firstName} {p.lastName}</span>
-                          </div>
-                        </td>
-                        <td className="px-3 py-3 text-gray-500">{p.email}</td>
-                        <td className="px-3 py-3 text-center">
-                          <span className={`px-2 py-0.5 text-xs rounded ${
-                            p.rsvpStatus === 'confirmed' ? 'bg-emerald-100 text-emerald-700' :
-                            p.rsvpStatus === 'declined' ? 'bg-red-100 text-red-700' :
-                            'bg-amber-100 text-amber-700'
-                          }`}>
-                            {p.rsvpStatus}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3 text-center">
-                          {p.isOwner && <span className="px-2 py-0.5 bg-brand-purple/10 text-brand-purple text-xs rounded">Organizer</span>}
-                        </td>
-                        <td className="px-3 py-3 text-center text-gray-400">
-                          {(p.unavailableDays || []).length > 0 ? (p.unavailableDays || []).join(', ') : '—'}
-                        </td>
-                        <td className="px-3 py-3 text-center whitespace-nowrap">
-                          {/* PR-31: copy the shareable invite link for pending
-                              travelers (inviteUrl comes from the GET). */}
-                          {p.rsvpStatus === 'pending' && p.inviteUrl && (
-                            <button onClick={() => copyInvite(p.inviteUrl!, p.id)}
-                              className="text-[11px] text-brand-purple hover:underline mr-2">
-                              {copiedInvite === p.id ? 'Copied!' : 'Copy invite link'}
-                            </button>
-                          )}
-                          {!p.isOwner && (
-                            <button onClick={() => removeParticipant(p.id, p.firstName)}
-                              className="text-gray-400 hover:text-red-500">×</button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* PR-31: inline add-traveler form (organizer only). POST creates a
-                  pending row + invite link; share the link to get an RSVP. */}
-              {isOrganizer && showAddTraveler && (
-                <div className="border-t border-gray-200 pt-3 mt-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <input type="text" value={addForm.firstName} onChange={e => setAddForm(f => ({ ...f, firstName: e.target.value }))}
-                      placeholder="First name *" aria-label="First name"
-                      className="border border-border rounded px-2 py-1.5 text-xs w-[110px]" />
-                    <input type="text" value={addForm.lastName} onChange={e => setAddForm(f => ({ ...f, lastName: e.target.value }))}
-                      placeholder="Last name *" aria-label="Last name"
-                      className="border border-border rounded px-2 py-1.5 text-xs w-[110px]" />
-                    <input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))}
-                      placeholder="Email *" aria-label="Email"
-                      className="border border-border rounded px-2 py-1.5 text-xs flex-1 min-w-[160px]" />
-                    <input type="tel" value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))}
-                      placeholder="Phone (optional)" aria-label="Phone"
-                      className="border border-border rounded px-2 py-1.5 text-xs w-[140px]" />
-                    <button onClick={handleAddParticipant} disabled={addingTraveler}
-                      className="text-xs font-medium bg-brand-purple text-white rounded px-3 py-1.5 hover:bg-brand-purple-hover disabled:opacity-50">
-                      {addingTraveler ? 'Adding…' : 'Add traveler'}
-                    </button>
-                  </div>
-                  {addError && <p className="text-xs text-brand-red mt-1.5">{addError}</p>}
-                  <p className="text-[11px] text-text-faint mt-1.5">Adds a pending traveler and creates a shareable invite link (use “Copy invite link” in the row). No email is sent.</p>
-                </div>
-              )}
-              </div>
-            </div>
 
             {/* ── Commit to Ledger ── */}
             <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
