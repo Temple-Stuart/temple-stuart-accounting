@@ -253,28 +253,39 @@ export default async function DiscoverDetailPage({
           ) : null;
         })()}
 
-        {/* Guest reviews — AGGREGATE only (PR-22). Real reviewScore/reviewCount,
-            no new API call. */}
-        {(rec.reviewScore != null || rec.reviewCount > 0) && (
+        {/* Guest reviews (PR-26: un-nested). The aggregate badge and the
+            individual written reviews are INDEPENDENT:
+              - aggregate badge gates on reviewScore/reviewCount (PR-22, unchanged)
+              - individual list gates on `source==='liteapi' && rec.liteapiHotelId`
+                — the SAME condition the fetch at :168-176 uses, so whenever we
+                pay for /v3.0/data/reviews we render the result (or honest
+                empty/error), never fetch-and-discard.
+            One shared "Guest reviews" header when either has something to show. */}
+        {((rec.reviewScore != null || rec.reviewCount > 0) || (source === 'liteapi' && rec.liteapiHotelId)) && (
           <div className="mb-6">
             <h2 className="text-sm font-semibold text-text-primary mb-2">Guest reviews</h2>
-            <div className="flex items-center gap-3">
-              {rec.reviewScore != null && (
-                <span className="text-white bg-brand-purple rounded px-2.5 py-1.5 text-lg font-bold leading-none"
-                  aria-label={`Guest review score ${rec.reviewScore} out of 10`}>
-                  {rec.reviewScore}
-                </span>
-              )}
-              <div className="text-sm">
+
+            {/* AGGREGATE badge — condition unchanged from PR-22 */}
+            {(rec.reviewScore != null || rec.reviewCount > 0) && (
+              <div className="flex items-center gap-3">
                 {rec.reviewScore != null && (
-                  <div className="font-semibold text-text-primary">
-                    {rec.reviewScore >= 9 ? 'Wonderful' : rec.reviewScore >= 8 ? 'Very good' : rec.reviewScore >= 7 ? 'Good' : rec.reviewScore >= 5 ? 'Pleasant' : 'Rated'}
-                  </div>
+                  <span className="text-white bg-brand-purple rounded px-2.5 py-1.5 text-lg font-bold leading-none"
+                    aria-label={`Guest review score ${rec.reviewScore} out of 10`}>
+                    {rec.reviewScore}
+                  </span>
                 )}
-                {rec.reviewCount > 0 && <div className="text-text-muted">{rec.reviewCount.toLocaleString()} reviews</div>}
+                <div className="text-sm">
+                  {rec.reviewScore != null && (
+                    <div className="font-semibold text-text-primary">
+                      {rec.reviewScore >= 9 ? 'Wonderful' : rec.reviewScore >= 8 ? 'Very good' : rec.reviewScore >= 7 ? 'Good' : rec.reviewScore >= 5 ? 'Pleasant' : 'Rated'}
+                    </div>
+                  )}
+                  {rec.reviewCount > 0 && <div className="text-text-muted">{rec.reviewCount.toLocaleString()} reviews</div>}
+                </div>
               </div>
-            </div>
-            {/* PR-23: individual written reviews from /v3.0/data/reviews. Three
+            )}
+
+            {/* INDIVIDUAL written reviews (PR-23) from /v3.0/data/reviews. Three
                 DISTINCT states — error (loud, logged), empty (quiet), list. Only
                 real returned fields render; nothing is fabricated. */}
             {source === 'liteapi' && rec.liteapiHotelId && (
