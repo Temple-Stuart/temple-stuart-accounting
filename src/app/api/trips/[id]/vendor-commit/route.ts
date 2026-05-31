@@ -84,7 +84,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const trip = await prisma.trips.findFirst({ where: { id, userId: user.id } });
     if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
 
-    const { optionType, optionId, startDate, endDate, startTime, endTime, arriveDate, notes, amount: requestAmount, location: requestLocation } = await request.json();
+    const { optionType, optionId, startDate, endDate, startTime, endTime, arriveDate, notes, amount: requestAmount, location: requestLocation, synthetic } = await request.json();
+
+    // PR-32: a hotel committed from the discover detail page ("Add to trip")
+    // has NO trip_lodging_options row (scanner recs live in
+    // trip_scanner_results). `synthetic: true` makes the lodging path build the
+    // budget item straight from the payload — mirroring the flight synthetic
+    // path — instead of looking up a row that doesn't exist. The existing
+    // row-based lodging commit (from the planner's vendor options) is untouched.
+    const isSyntheticLodging = optionType === 'lodging' && synthetic === true;
 
     if (!optionType || !optionId || !startDate) {
       return NextResponse.json({ error: 'optionType, optionId, and startDate are required' }, { status: 400 });
@@ -97,13 +105,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const result = await prisma.$transaction(async (tx) => {
       // A. Verify option exists and get details
-      const details = optionType === 'flight'
-        ? { title: notes || 'Flight', amount: Number(requestAmount || 0), tripId: id }
+      // PR-32: flights AND synthetic lodging (detail-page hotels) build details
+      // from the payload directly — no DB option row required.
+      const details = (optionType === 'flight' || isSyntheticLodging)
+        ? { title: notes || (isSyntheticLodging ? 'Lodging' : 'Flight'), amount: Number(requestAmount || 0), tripId: id }
         : await getOptionDetails(tx, optionType, optionId, id);
       if (!details) throw new Error('Vendor option not found');
 
-      // A. Update vendor option status to committed
-      if (optionType !== 'flight') {
+      // A. Update vendor option status to committed (only for real option rows —
+      // flights and synthetic lodging have none to update).
+      if (optionType !== 'flight' && !isSyntheticLodging) {
         await setOptionStatus(tx, optionType, optionId, 'committed', true);
       }
 
@@ -130,8 +141,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           if (scanResult?.destination) activityLocation = scanResult.destination;
         }
       }
-      // For lodging, pull location from the lodging option
-      if (optionType === 'lodging' && !activityLocation) {
+      // For row-based lodging, pull location from the lodging option. Synthetic
+      // lodging (PR-32) carries its location in the payload (requestLocation =
+      // the scan destination), so there's no row to read.
+      if (optionType === 'lodging' && !isSyntheticLodging && !activityLocation) {
         const lodgOpt = await tx.trip_lodging_options.findFirst({ where: { id: optionId, trip_id: id }, select: { location: true } });
         if (lodgOpt?.location) activityLocation = lodgOpt.location;
       }
