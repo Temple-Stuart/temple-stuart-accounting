@@ -6,7 +6,7 @@ import { AppLayout } from '@/components/ui';
 import DestinationSelector from '@/components/trips/DestinationSelector';
 import FlightPicker from '@/components/trips/FlightPicker';
 import DestinationMap from '@/components/trips/DestinationMap';
-import { TripScanProvider, TripScanControls, TripApiSection, TripPlacesSection, TripScanModals } from '@/components/trips/TripPlannerAI';
+import { TripScanProvider, TripScanControls, TripApiSection, getGooglePlaceCatKeys, TripScanModals } from '@/components/trips/TripPlannerAI';
 import CalendarGrid, { CalendarEvent, SourceConfig } from '@/components/shared/CalendarGrid';
 import ItineraryAgenda from '@/components/trips/ItineraryAgenda';
 import TripHeader from '@/components/trips/TripHeader';
@@ -1059,7 +1059,14 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                   <TripApiSection catKey="accommodation" title="Hotels" />
                   <TripApiSection catKey="ground_transport" title="Ground Transport" />
                   <TripApiSection catKey="activities" title="Activities" />
-                  <TripPlacesSection />
+                  {/* PR-36: each Google discovery category is its OWN peer section
+                      (re-applying PR-34's split, which never merged). Titled by its
+                      expense-category label (TRAVEL_COA), source read per-category
+                      from the registry — so "Places" dies and each API is swappable.
+                      Each reads byCategory[catKey] from context. */}
+                  {getGooglePlaceCatKeys().map((catKey) => (
+                    <TripApiSection key={catKey} catKey={catKey} />
+                  ))}
                   <TripScanModals />
                 </TripScanProvider>
               );

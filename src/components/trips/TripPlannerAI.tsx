@@ -861,7 +861,7 @@ export function TripScanControls() {
 /** One API as a peer section: the Flights-shell chrome around the existing
  *  TravelCarousel (28b filters + 28d load-more + honest empty/error preserved).
  *  Reads byCategory[catKey] / loadingCategories / categoryErrors from context. */
-export function TripApiSection({ catKey, title }: { catKey: string; title: string }) {
+export function TripApiSection({ catKey, title }: { catKey: string; title?: string }) {
   const { router, byCategory, loadingCategories, categoryErrors, tripId } = useTripScanCtx();
   if (!ACTIVE_SCAN_SET.has(catKey)) return null;
   const isLoading = loadingCategories.has(catKey);
@@ -869,10 +869,16 @@ export function TripApiSection({ catKey, title }: { catKey: string; title: strin
   const err = categoryErrors[catKey];
   const coa = TRAVEL_COA[catKey];
   const info = CATEGORY_INFO[catKey];
+  // PR-36: the section title is the EXPENSE-CATEGORY label (TRAVEL_COA is the
+  // complete source for all 9 Google catKeys; CATEGORY_INFO covers a subset).
+  // Never "Places"/"Google" — a section is named for what it budgets, not its API.
   const label = info?.label || coa?.label || catKey;
+  // PR-36: source is read PER CATEGORY from the registry — google today, but
+  // swapping a category (e.g. gyms → a sellable API) is a SOURCE_BY_CATEGORY
+  // edit with NO render change. This is the monetization-swap foundation.
   const { source } = getSource(catKey);
   return (
-    <SectionCard title={title}>
+    <SectionCard title={title ?? label}>
       <TravelCarousel
         catKey={catKey}
         label={label}
@@ -889,42 +895,16 @@ export function TripApiSection({ catKey, title }: { catKey: string; title: strin
   );
 }
 
-/** Combined "Places" peer section — merges all active Google discovery
- *  categories into a single TravelCarousel (PR-28e1b: one Places section, not
- *  five). Each card routes to the catKey it was scanned under (tracked in catOf)
- *  so detail links stay exact. Honest empty/error preserved (fail-loud: the
- *  first Google category error is surfaced, never masked). */
-export function TripPlacesSection() {
-  const { router, byCategory, loadingCategories, categoryErrors, tripId } = useTripScanCtx();
-  // Computed lazily (not module-level) so it never references CAROUSEL_ORDER
-  // before its declaration at module load.
-  const cats = CAROUSEL_ORDER.filter(
+/** PR-36: the active Google discovery catKeys, in CAROUSEL_ORDER order. Each
+ *  renders as its OWN peer TripApiSection (titled by its expense-category label,
+ *  source read per-category from the registry) — replacing the combined "Places"
+ *  section (PR-34's split, never merged; re-applied fresh here). Derived lazily
+ *  via a getter so it never reads CAROUSEL_ORDER before its module-load
+ *  declaration. Swappability: a category leaves this list automatically the
+ *  moment its SOURCE_BY_CATEGORY entry stops being 'google'. */
+export function getGooglePlaceCatKeys(): string[] {
+  return CAROUSEL_ORDER.filter(
     (k) => getSource(k).source === 'google' && ACTIVE_SCAN_SET.has(k),
-  );
-  if (cats.length === 0) return null;
-  const items: GrokRecommendation[] = [];
-  const catOf = new Map<GrokRecommendation, string>();
-  cats.forEach((k) => {
-    (byCategory[k] || []).forEach((r) => { items.push(r); catOf.set(r, k); });
-  });
-  const isLoading = cats.some((k) => loadingCategories.has(k));
-  const err = cats.map((k) => categoryErrors[k]).find(Boolean);
-  return (
-    <SectionCard title="Places">
-      <TravelCarousel
-        catKey="places"
-        label="Places"
-        source="google"
-        isLoading={isLoading}
-        items={items}
-        error={err}
-        onCardClick={(rec) => {
-          const k = catOf.get(rec) ?? rec.category;
-          const idForRoute = String(rec.valueRank ?? 0);
-          router.push(`/budgets/trips/${tripId}/discover/${encodeURIComponent(k)}/${idForRoute}`);
-        }}
-      />
-    </SectionCard>
   );
 }
 
@@ -1059,9 +1039,11 @@ const CAROUSEL_ORDER = [
   'nightlife',         // Nightlife (Google)
   'coworking',         // Coworking (Google)
   // PR-28f: recurring-membership PLACES (Google) — gyms, groceries (necessity,
-  // distinct from discretionary shopping), and sports courts/clubs/spots. All
-  // join the combined Places section (TripPlacesSection filters this list for
-  // source==='google'). Not Viator — the `activities` bucket above is untouched.
+  // distinct from discretionary shopping), and sports courts/clubs/spots.
+  // PR-36: each Google catKey here renders as its OWN per-category section (via
+  // getGooglePlaceCatKeys → TripApiSection), titled by its expense-category
+  // label, source per-category from the registry. Not Viator — the `activities`
+  // bucket above is untouched.
   'gyms',              // Gyms & fitness (Google — recurring membership)
   'sports',            // Sports courts/clubs/spots (Google — recurring membership)
   'groceries',         // Groceries (Google — recurring necessity)
