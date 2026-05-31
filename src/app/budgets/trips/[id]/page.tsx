@@ -9,6 +9,7 @@ import DestinationMap from '@/components/trips/DestinationMap';
 import TripPlannerAI from '@/components/trips/TripPlannerAI';
 import CalendarGrid, { CalendarEvent, SourceConfig } from '@/components/shared/CalendarGrid';
 import ItineraryAgenda from '@/components/trips/ItineraryAgenda';
+import TripHeader from '@/components/trips/TripHeader';
 import { ADMIN_USER_ID } from '@/lib/tiers';
 import { coaCodeToLabel } from '@/lib/travelCOA';
 import { buildCalendarSourceConfig, getDiningCategoryKeys } from '@/lib/travelCategories';
@@ -59,6 +60,7 @@ interface Trip {
   id: string;
   name: string;
   destination: string | null;
+  tripType?: string; // PR-29: TripHeader edits this (personal/business/mixed)
   activity: string | null;
   inviteToken: string | null;
   month: number;
@@ -601,6 +603,23 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
         <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
 
           <div className="space-y-4">
+
+            {/* ── PR-29: committed-trip header (replaces the search bar; the
+                  global search/create bar is suppressed on detail in AppLayout) ── */}
+            <TripHeader
+              tripId={trip.id}
+              name={trip.name}
+              startDate={trip.startDate}
+              endDate={trip.endDate}
+              tripType={trip.tripType || 'personal'}
+              destinations={destinations.map((d) => ({
+                id: d.id,
+                resortId: d.resortId,
+                name: d.name || d.resort?.name || '',
+              }))}
+              travelerCount={participants.length}
+              onChanged={() => { loadTrip(); loadDestinations(); loadParticipants(); }}
+            />
 
             {/* ── Map + Committed Rows (grouped by destination) ── */}
             {(() => {
