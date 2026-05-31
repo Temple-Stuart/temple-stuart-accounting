@@ -772,12 +772,35 @@ function useTripScanCtx() {
   return ctx;
 }
 
-export default function TripPlannerAI() {
+// ─── PR-28e1b: Destinations & Dates control + per-API peer sections ──────────
+// The former TripPlannerAI render is split into context-reading peer pieces so
+// page.tsx can render each API as a top-level section (peer to Flights). No new
+// state, no new fetches — every value comes from useTripScanCtx() (the PR-28e1a
+// lift). Structural only; the real aesthetic pass is PR-28e2.
+
+/** Shared peer-section shell — matches the Flights card chrome in page.tsx
+ *  (rounded-lg border shadow-sm + brand-purple header band + bg-white body). */
+function SectionCard({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+      <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">{title}</div>
+      <div className="bg-white p-4">{children}</div>
+    </div>
+  );
+}
+
+/** Destinations & Dates control — the former planner header (per-location dates +
+ *  Refresh + loading indicator) plus the global scan error banner. The
+ *  destination chips stay page-level (selectDestination) and are rendered by
+ *  page.tsx alongside this. Reads/writes scan state via context only. */
+export function TripScanControls() {
   const {
-    router, loading, totalCategories, byCategory, error, editingSelection, setEditingSelection, editForm, setEditForm, savingVendorOption, loadingCategories, categoryErrors, setPerLocationDates, showCustomModal, setShowCustomModal, customCategory, customForm, setCustomForm, customLoading, customPreview, tripDays, activeCity, checkinVal, checkoutVal, datesValid, rescanAll, confirmSelection, fetchUrlPreview, handleAddCustomItem, tripId, city, country, tripDates,
+    city, country, tripDates, checkinVal, checkoutVal, activeCity,
+    setPerLocationDates, datesValid, loadingCategories, totalCategories,
+    loading, rescanAll, error,
   } = useTripScanCtx();
   return (
-    <div className="space-y-6">
+    <>
       {/* Compact trip-context header — replaces the old Search Controls.
           Carousels auto-load on mount; user only needs Refresh + optional dates. */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-bg-row rounded border border-border text-sm">
@@ -831,7 +854,92 @@ export default function TripPlannerAI() {
       {/* Top-level error banner only for global problems (network out, etc.).
           Per-category errors render inline in their carousel slot. */}
       {error && <div className="bg-red-50 border border-red-200 rounded p-4 text-brand-red text-sm">{error}</div>}
+    </>
+  );
+}
 
+/** One API as a peer section: the Flights-shell chrome around the existing
+ *  TravelCarousel (28b filters + 28d load-more + honest empty/error preserved).
+ *  Reads byCategory[catKey] / loadingCategories / categoryErrors from context. */
+export function TripApiSection({ catKey, title }: { catKey: string; title: string }) {
+  const { router, byCategory, loadingCategories, categoryErrors, tripId } = useTripScanCtx();
+  if (!ACTIVE_SCAN_SET.has(catKey)) return null;
+  const isLoading = loadingCategories.has(catKey);
+  const items = byCategory[catKey] || [];
+  const err = categoryErrors[catKey];
+  const coa = TRAVEL_COA[catKey];
+  const info = CATEGORY_INFO[catKey];
+  const label = info?.label || coa?.label || catKey;
+  const { source } = getSource(catKey);
+  return (
+    <SectionCard title={title}>
+      <TravelCarousel
+        catKey={catKey}
+        label={label}
+        source={source}
+        isLoading={isLoading}
+        items={items}
+        error={err}
+        onCardClick={(rec) => {
+          const idForRoute = String(rec.valueRank ?? 0);
+          router.push(`/budgets/trips/${tripId}/discover/${encodeURIComponent(catKey)}/${idForRoute}`);
+        }}
+      />
+    </SectionCard>
+  );
+}
+
+/** Combined "Places" peer section — merges all active Google discovery
+ *  categories into a single TravelCarousel (PR-28e1b: one Places section, not
+ *  five). Each card routes to the catKey it was scanned under (tracked in catOf)
+ *  so detail links stay exact. Honest empty/error preserved (fail-loud: the
+ *  first Google category error is surfaced, never masked). */
+export function TripPlacesSection() {
+  const { router, byCategory, loadingCategories, categoryErrors, tripId } = useTripScanCtx();
+  // Computed lazily (not module-level) so it never references CAROUSEL_ORDER
+  // before its declaration at module load.
+  const cats = CAROUSEL_ORDER.filter(
+    (k) => getSource(k).source === 'google' && ACTIVE_SCAN_SET.has(k),
+  );
+  if (cats.length === 0) return null;
+  const items: GrokRecommendation[] = [];
+  const catOf = new Map<GrokRecommendation, string>();
+  cats.forEach((k) => {
+    (byCategory[k] || []).forEach((r) => { items.push(r); catOf.set(r, k); });
+  });
+  const isLoading = cats.some((k) => loadingCategories.has(k));
+  const err = cats.map((k) => categoryErrors[k]).find(Boolean);
+  return (
+    <SectionCard title="Places">
+      <TravelCarousel
+        catKey="places"
+        label="Places"
+        source="google"
+        isLoading={isLoading}
+        items={items}
+        error={err}
+        onCardClick={(rec) => {
+          const k = catOf.get(rec) ?? rec.category;
+          const idForRoute = String(rec.valueRank ?? 0);
+          router.push(`/budgets/trips/${tripId}/discover/${encodeURIComponent(k)}/${idForRoute}`);
+        }}
+      />
+    </SectionCard>
+  );
+}
+
+/** Edit-selection + custom-add modals — hosted under the provider so they keep
+ *  reading editing/custom state from context. (Verbatim from the former render.) */
+export function TripScanModals() {
+  const {
+    editingSelection, setEditingSelection, editForm, setEditForm,
+    savingVendorOption, confirmSelection, tripDays,
+    showCustomModal, customCategory, customForm, setCustomForm,
+    customLoading, customPreview, fetchUrlPreview, handleAddCustomItem,
+    setShowCustomModal,
+  } = useTripScanCtx();
+  return (
+    <>
       {/* Edit Selection Modal */}
       {editingSelection && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -927,43 +1035,7 @@ export default function TripPlannerAI() {
           </div>
         </div>
       )}
-
-      {/* ── PR-28a source-separated sections: Hotels → Ground Transport →
-            Activities (Viator) → Google discovery (Flights render above, in the
-            FlightPicker card in page.tsx). Each section header carries the
-            source badge + a result count. Each row independently shows items /
-            skeleton / error banner so a single failing source never blanks the
-            rest of the page. ── */}
-      <div className="space-y-6 pt-2">
-        {CAROUSEL_ORDER
-          .filter(catKey => ACTIVE_SCAN_SET.has(catKey))
-          .map(catKey => {
-            const isLoading = loadingCategories.has(catKey);
-            const items = byCategory[catKey] || [];
-            const err = categoryErrors[catKey];
-            const coa = TRAVEL_COA[catKey];
-            const info = CATEGORY_INFO[catKey];
-            const label = info?.label || coa?.label || catKey;
-            const { source } = getSource(catKey);
-            return (
-              <TravelCarousel
-                key={catKey}
-                catKey={catKey}
-                label={label}
-                source={source}
-                isLoading={isLoading}
-                items={items}
-                error={err}
-                onCardClick={(rec) => {
-                  const idForRoute = String(rec.valueRank ?? 0);
-                  router.push(`/budgets/trips/${tripId}/discover/${encodeURIComponent(catKey)}/${idForRoute}`);
-                }}
-              />
-            );
-          })}
-      </div>
-
-    </div>
+    </>
   );
 }
 

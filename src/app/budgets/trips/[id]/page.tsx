@@ -6,7 +6,7 @@ import { AppLayout } from '@/components/ui';
 import DestinationSelector from '@/components/trips/DestinationSelector';
 import FlightPicker from '@/components/trips/FlightPicker';
 import DestinationMap from '@/components/trips/DestinationMap';
-import TripPlannerAI, { TripScanProvider } from '@/components/trips/TripPlannerAI';
+import { TripScanProvider, TripScanControls, TripApiSection, TripPlacesSection, TripScanModals } from '@/components/trips/TripPlannerAI';
 import CalendarGrid, { CalendarEvent, SourceConfig } from '@/components/shared/CalendarGrid';
 import ItineraryAgenda from '@/components/trips/ItineraryAgenda';
 import TripHeader from '@/components/trips/TripHeader';
@@ -738,6 +738,125 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               )}
             </div>
 
+            {/* ── Destinations & Dates + scan sections (PR-28e1b: each API is a
+                  peer top-level section via <TripApiSection> reading TripScanContext;
+                  the planner panel is dissolved). Chips stay page-level; the dates +
+                  Refresh control (TripScanControls) and the sections share one
+                  provider. The provider is NOT mounted for gated users, so no scan /
+                  paid call fires for free/pro. ── */}
+            {(() => {
+              const selectedDest = destinations.find((d: any) => d.resort?.name === trip.destination);
+              const gated = (userTier === 'free' || userTier === 'pro') && currentUserId !== ADMIN_USER_ID;
+              const chipsBlock = (
+                <>
+              {/* Destination pills — select scan target */}
+              {destinations.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+                  <span className="text-xs text-gray-500">Scan:</span>
+                  {destinations.map((d: any) => {
+                    const name = d.name || d.resort?.name || '';
+                    const isActive = name === trip.destination;
+                    return (
+                      <button key={d.id} type="button" onClick={() => selectDestination(d.resortId, name)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${isActive ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                        {name}
+                      </button>
+                    );
+                  })}
+                  <DestinationSelector
+                    activity={trip.activity}
+                    tripId={id}
+                    selectedDestinations={destinations}
+                    onDestinationsChange={loadDestinations}
+                    selectedDestinationId={destinations.find((d: any) => d.resort?.name === trip.destination)?.resortId}
+                    onSelectDestination={selectDestination}
+                    compact
+                  />
+                </div>
+              )}
+              {destinations.length === 0 && (
+                <div className="mb-4">
+                  <DestinationSelector
+                    activity={trip.activity}
+                    tripId={id}
+                    selectedDestinations={destinations}
+                    onDestinationsChange={loadDestinations}
+                    selectedDestinationId={undefined}
+                    onSelectDestination={selectDestination}
+                  />
+                </div>
+              )}
+                </>
+              );
+              const flightsBlock = tripDates && trip.destination ? (
+              <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+                <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Flights</div>
+                <div className="bg-white p-4">
+                <FlightPicker
+                  tripId={id}
+                  destinationName={trip.destination}
+                  destinationAirport={destinationAirport}
+                  originAirport={originAirport}
+                  departureDate={tripDates.departure}
+                  returnDate={tripDates.return}
+                  passengers={confirmedParticipants.length || 1}
+                  onCommitted={() => { loadTrip(); loadBudgetItems(); loadVendorOptions(); loadScannerResults(); }}
+                />
+                </div>
+              </div>
+              ) : null;
+              if (gated) {
+                return (
+                  <>
+                    <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+                      <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Destinations &amp; Dates</div>
+                      <div className="bg-white p-4 space-y-4">{chipsBlock}</div>
+                    </div>
+                    {flightsBlock}
+                    <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+                      <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Trip Planner</div>
+                      <div className="bg-white p-4">
+                        <div className="text-center py-8">
+                          <div className="text-sm font-medium text-gray-900 mb-2">AI Trip Planner requires Pro+</div>
+                          <div className="text-xs text-gray-500 mb-4">Upgrade to Pro+ ($40/mo) to unlock AI-powered trip planning.</div>
+                          <button onClick={() => setShowUpgradeModal(true)} className="px-6 py-2 text-xs bg-brand-gold text-white font-medium rounded-lg hover:bg-brand-gold-bright">View Plans</button>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                );
+              }
+              return (
+                <TripScanProvider
+                  input={{
+                    tripId: id,
+                    city: selectedDest?.resort?.name || trip.destination,
+                    country: selectedDest?.resort?.country || null,
+                    activity: trip.activity,
+                    month: trip.month,
+                    year: trip.year,
+                    daysTravel: trip.daysTravel,
+                    tripDates,
+                    onCommitted: () => { loadTrip(); loadBudgetItems(); loadVendorOptions(); loadScannerResults(); },
+                  }}
+                >
+                  <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+                    <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Destinations &amp; Dates</div>
+                    <div className="bg-white p-4 space-y-4">
+                      {chipsBlock}
+                      <TripScanControls />
+                    </div>
+                  </div>
+                  {flightsBlock}
+                  <TripApiSection catKey="accommodation" title="Hotels" />
+                  <TripApiSection catKey="ground_transport" title="Ground Transport" />
+                  <TripApiSection catKey="activities" title="Activities" />
+                  <TripPlacesSection />
+                  <TripScanModals />
+                </TripScanProvider>
+              );
+            })()}
+
             {/* ── Committed Budget ── */}
             {committedBudgetItems.length > 0 && (() => {
               const toggleSort = (col: 'category' | 'item' | 'amount') => {
@@ -991,97 +1110,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                   <p className="text-[11px] text-text-faint mt-1.5">Adds a pending traveler and creates a shareable invite link (use “Copy invite link” in the row). No email is sent.</p>
                 </div>
               )}
-              </div>
-            </div>
-
-            {/* ── Flights ── */}
-            {tripDates && trip.destination && (
-              <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-                <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Flights</div>
-                <div className="bg-white p-4">
-                <FlightPicker
-                  tripId={id}
-                  destinationName={trip.destination}
-                  destinationAirport={destinationAirport}
-                  originAirport={originAirport}
-                  departureDate={tripDates.departure}
-                  returnDate={tripDates.return}
-                  passengers={confirmedParticipants.length || 1}
-                  onCommitted={() => { loadTrip(); loadBudgetItems(); loadVendorOptions(); loadScannerResults(); }}
-                />
-                </div>
-              </div>
-            )}
-
-            {/* ── Trip Planner & Budget (with integrated destination selector) ── */}
-            <div id="trip-planner-section" className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-              <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Trip Planner &amp; Budget</div>
-              <div className="bg-white p-4">
-              {/* Destination pills — select scan target */}
-              {destinations.length > 0 && (
-                <div className="flex flex-wrap items-center gap-2 mb-4">
-                  <span className="text-xs text-gray-500">Scan:</span>
-                  {destinations.map((d: any) => {
-                    const name = d.name || d.resort?.name || '';
-                    const isActive = name === trip.destination;
-                    return (
-                      <button key={d.id} type="button" onClick={() => selectDestination(d.resortId, name)}
-                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${isActive ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                        {name}
-                      </button>
-                    );
-                  })}
-                  <DestinationSelector
-                    activity={trip.activity}
-                    tripId={id}
-                    selectedDestinations={destinations}
-                    onDestinationsChange={loadDestinations}
-                    selectedDestinationId={destinations.find((d: any) => d.resort?.name === trip.destination)?.resortId}
-                    onSelectDestination={selectDestination}
-                    compact
-                  />
-                </div>
-              )}
-              {destinations.length === 0 && (
-                <div className="mb-4">
-                  <DestinationSelector
-                    activity={trip.activity}
-                    tripId={id}
-                    selectedDestinations={destinations}
-                    onDestinationsChange={loadDestinations}
-                    selectedDestinationId={undefined}
-                    onSelectDestination={selectDestination}
-                  />
-                </div>
-              )}
-              {(() => {
-                const selectedDest = destinations.find((d: any) => d.resort?.name === trip.destination);
-                return (
-                  (userTier === 'free' || userTier === 'pro') && currentUserId !== ADMIN_USER_ID ? (
-                  <div className="text-center py-8">
-                    <div className="text-sm font-medium text-gray-900 mb-2">AI Trip Planner requires Pro+</div>
-                    <div className="text-xs text-gray-500 mb-4">Upgrade to Pro+ ($40/mo) to unlock AI-powered trip planning.</div>
-                    <button onClick={() => setShowUpgradeModal(true)} className="px-6 py-2 text-xs bg-brand-gold text-white font-medium rounded-lg hover:bg-brand-gold-bright">View Plans</button>
-                  </div>
-                ) : (
-                  <TripScanProvider
-                    input={{
-                      tripId: id,
-                      city: selectedDest?.resort?.name || trip.destination,
-                      country: selectedDest?.resort?.country || null,
-                      activity: trip.activity,
-                      month: trip.month,
-                      year: trip.year,
-                      daysTravel: trip.daysTravel,
-                      tripDates,
-                      onCommitted: () => { loadTrip(); loadBudgetItems(); loadVendorOptions(); loadScannerResults(); },
-                    }}
-                  >
-                    <TripPlannerAI />
-                  </TripScanProvider>
-                )
-              );
-              })()}
               </div>
             </div>
 
