@@ -7,6 +7,7 @@ import { ACTIVITY_LABELS } from '@/lib/activities';
 import { TRAVEL_COA, getActiveScanCategories } from '@/lib/travelCOA';
 import { getSource, type Source } from '@/lib/travelSourceRegistry';
 import { Waves, Wifi, Coffee, Dumbbell, Flower2, Car, type LucideIcon } from 'lucide-react';
+import HScrollRow from '@/components/trips/HScrollRow';
 
 // Grok response format with sentiment analysis
 interface GrokRecommendation {
@@ -1043,7 +1044,7 @@ function TravelCarousel({ catKey, label, source, isLoading, items, error, onCard
           No {label.toLowerCase()} found for this destination.
         </div>
       ) : (
-        <div className="overflow-x-auto pb-2 -mx-1 px-1" style={{ scrollSnapType: 'x mandatory' }}>
+        <HScrollRow className="overflow-x-auto pb-2 -mx-1 px-1" style={{ scrollSnapType: 'x mandatory' }} scrollBy={272}>
           <div className="flex gap-3">
             {items.slice(0, 12).map((rec, idx) => (
               source === 'liteapi' ? (
@@ -1155,7 +1156,7 @@ function TravelCarousel({ catKey, label, source, isLoading, items, error, onCard
               )
             ))}
           </div>
-        </div>
+        </HScrollRow>
       )}
     </div>
   );
