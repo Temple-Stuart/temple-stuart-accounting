@@ -254,7 +254,28 @@ export const TRAVEL_COA: Record<string, COACategory> = {
     coaPersonal: 'P-9530', coaBusiness: null,
     alwaysScan: false,
     googlePlacesType: null,
-    scanQueries: ['tennis court club', 'pickleball court', 'golf club course', 'surf school spot', 'kitesurfing center', 'ski snowboard resort'],
+    // PR-28f-2: full membership/recreation-PLACE spectrum (racket → golf →
+    // water → snow → climbing → combat → studios). Multi-word qualifiers match
+    // the file's existing query style (e.g. shopping/gyms) and dodge the bare
+    // Place-Type-slug INVALID_REQUEST quirk. Still Google Places (P-9530), still
+    // the Places section — only the query list grew (6 → 15).
+    scanQueries: [
+      'tennis court club',
+      'pickleball court',
+      'padel club',
+      'squash court',
+      'golf club course',
+      'surf school spot',
+      'kitesurfing center',
+      'ski snowboard resort',
+      'ice skating rink',
+      'climbing gym bouldering',
+      'boxing martial arts gym',
+      'yoga pilates studio',
+      'crossfit box',
+      'swimming pool aquatic center',
+      'skate park',
+    ],
     defaultFrequency: 'total',
     vendorApi: 'activities', optionType: 'activity', multiDay: true,
   },
