@@ -861,7 +861,7 @@ export function TripScanControls() {
 /** One API as a peer section: the Flights-shell chrome around the existing
  *  TravelCarousel (28b filters + 28d load-more + honest empty/error preserved).
  *  Reads byCategory[catKey] / loadingCategories / categoryErrors from context. */
-export function TripApiSection({ catKey, title }: { catKey: string; title: string }) {
+export function TripApiSection({ catKey, title }: { catKey: string; title?: string }) {
   const { router, byCategory, loadingCategories, categoryErrors, tripId } = useTripScanCtx();
   if (!ACTIVE_SCAN_SET.has(catKey)) return null;
   const isLoading = loadingCategories.has(catKey);
@@ -872,7 +872,7 @@ export function TripApiSection({ catKey, title }: { catKey: string; title: strin
   const label = info?.label || coa?.label || catKey;
   const { source } = getSource(catKey);
   return (
-    <SectionCard title={title}>
+    <SectionCard title={title ?? label}>
       <TravelCarousel
         catKey={catKey}
         label={label}
@@ -889,42 +889,13 @@ export function TripApiSection({ catKey, title }: { catKey: string; title: strin
   );
 }
 
-/** Combined "Places" peer section — merges all active Google discovery
- *  categories into a single TravelCarousel (PR-28e1b: one Places section, not
- *  five). Each card routes to the catKey it was scanned under (tracked in catOf)
- *  so detail links stay exact. Honest empty/error preserved (fail-loud: the
- *  first Google category error is surfaced, never masked). */
-export function TripPlacesSection() {
-  const { router, byCategory, loadingCategories, categoryErrors, tripId } = useTripScanCtx();
-  // Computed lazily (not module-level) so it never references CAROUSEL_ORDER
-  // before its declaration at module load.
-  const cats = CAROUSEL_ORDER.filter(
+/** PR-34: the active Google discovery catKeys, in CAROUSEL_ORDER order. Each
+ *  renders as its OWN peer TripApiSection (reversing 28e1b's single combined
+ *  "Places" section) — same treatment as Hotels/Activities. Derived lazily via a
+ *  getter so it never reads CAROUSEL_ORDER before its module-load declaration. */
+export function getGooglePlaceCatKeys(): string[] {
+  return CAROUSEL_ORDER.filter(
     (k) => getSource(k).source === 'google' && ACTIVE_SCAN_SET.has(k),
-  );
-  if (cats.length === 0) return null;
-  const items: GrokRecommendation[] = [];
-  const catOf = new Map<GrokRecommendation, string>();
-  cats.forEach((k) => {
-    (byCategory[k] || []).forEach((r) => { items.push(r); catOf.set(r, k); });
-  });
-  const isLoading = cats.some((k) => loadingCategories.has(k));
-  const err = cats.map((k) => categoryErrors[k]).find(Boolean);
-  return (
-    <SectionCard title="Places">
-      <TravelCarousel
-        catKey="places"
-        label="Places"
-        source="google"
-        isLoading={isLoading}
-        items={items}
-        error={err}
-        onCardClick={(rec) => {
-          const k = catOf.get(rec) ?? rec.category;
-          const idForRoute = String(rec.valueRank ?? 0);
-          router.push(`/budgets/trips/${tripId}/discover/${encodeURIComponent(k)}/${idForRoute}`);
-        }}
-      />
-    </SectionCard>
   );
 }
 
@@ -1059,9 +1030,10 @@ const CAROUSEL_ORDER = [
   'nightlife',         // Nightlife (Google)
   'coworking',         // Coworking (Google)
   // PR-28f: recurring-membership PLACES (Google) — gyms, groceries (necessity,
-  // distinct from discretionary shopping), and sports courts/clubs/spots. All
-  // join the combined Places section (TripPlacesSection filters this list for
-  // source==='google'). Not Viator — the `activities` bucket above is untouched.
+  // distinct from discretionary shopping), and sports courts/clubs/spots.
+  // PR-34: each Google catKey here renders as its OWN peer section (via
+  // getGooglePlaceCatKeys → TripApiSection), no longer a single combined Places
+  // section. Not Viator — the `activities` bucket above is untouched.
   'gyms',              // Gyms & fitness (Google — recurring membership)
   'sports',            // Sports courts/clubs/spots (Google — recurring membership)
   'groceries',         // Groceries (Google — recurring necessity)
