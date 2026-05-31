@@ -1058,7 +1058,18 @@ const CAROUSEL_ORDER = [
   'dinner',            // Dinner (Google)
   'nightlife',         // Nightlife (Google)
   'coworking',         // Coworking (Google)
-  'shopping',          // Shopping (Google)
+  // PR-28f: recurring-membership PLACES (Google) — gyms, groceries (necessity,
+  // distinct from discretionary shopping), and sports courts/clubs/spots. All
+  // join the combined Places section (TripPlacesSection filters this list for
+  // source==='google'). Not Viator — the `activities` bucket above is untouched.
+  'gyms',              // Gyms & fitness (Google — recurring membership)
+  'sports',            // Sports courts/clubs/spots (Google — recurring membership)
+  'groceries',         // Groceries (Google — recurring necessity)
+  'shopping',          // Shopping (Google — discretionary)
+  // PR-28f: festivals restored — it was already in the active scan set
+  // (getActiveScanCategories) but missing from this render list, so it was
+  // scanned and never shown. One-line regression fix.
+  'festivals',         // Festivals & events (Google)
   // PR-10 Fix 6: Conferences removed — Google returns venues, not actual
   // upcoming conferences. Queued for a future PR with a real conference
   // API (Eventbrite / 10times / Bizzabo).

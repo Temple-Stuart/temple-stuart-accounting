@@ -213,6 +213,51 @@ export const TRAVEL_COA: Record<string, COACategory> = {
     defaultFrequency: 'total',
     vendorApi: 'activities', optionType: 'activity', multiDay: false,
   },
+  // PR-28f: Groceries — recurring NECESSITY, distinct from discretionary
+  // `shopping` (P-9800). A separate Google-Places line so weekly food spend is
+  // budgeted apart from one-off mall/market purchases. Multi-word queries avoid
+  // the bare Place-Type-slug INVALID_REQUEST quirk (see `shopping` above).
+  groceries: {
+    label: 'Groceries',
+    color: '#27ae60',
+    bg: 'bg-emerald-100', dot: 'bg-emerald-500', badge: 'bg-emerald-500',
+    coaPersonal: 'P-9830', coaBusiness: 'B-9830',
+    alwaysScan: false,
+    googlePlacesType: null,
+    scanQueries: ['supermarket grocery store', 'local food market', 'organic health food store', 'butcher fishmonger deli'],
+    defaultFrequency: 'total',
+    vendorApi: 'activities', optionType: 'activity', multiDay: false,
+  },
+  // PR-28f: Gyms — recurring MEMBERSHIP place (Google Places, not Viator). The
+  // gym terms previously lived only inside the Viator-routed `wellness`
+  // CATEGORY_SEARCHES; here they get a proper Google line. Membership spans the
+  // stay → multiDay. Multi-word queries (no bare 'gym' slug).
+  gyms: {
+    label: 'Gyms & Fitness',
+    color: '#e74c3c',
+    bg: 'bg-red-100', dot: 'bg-red-400', badge: 'bg-red-400',
+    coaPersonal: 'P-9520', coaBusiness: null,
+    alwaysScan: false,
+    googlePlacesType: null,
+    scanQueries: ['gym fitness center', 'crossfit box', 'climbing gym bouldering', 'pilates reformer studio'],
+    defaultFrequency: 'total',
+    vendorApi: 'activities', optionType: 'activity', multiDay: true,
+  },
+  // PR-28f: Sports — recurring-MEMBERSHIP PLACES you join (courts / clubs /
+  // spots), NOT book-once Viator activities. Same shape as Gyms/Coworking:
+  // Google Places, recurring expense, multiDay membership. Viator `activities`
+  // bucket is untouched.
+  sports: {
+    label: 'Sports & Recreation',
+    color: '#3498db',
+    bg: 'bg-sky-100', dot: 'bg-sky-500', badge: 'bg-sky-500',
+    coaPersonal: 'P-9530', coaBusiness: null,
+    alwaysScan: false,
+    googlePlacesType: null,
+    scanQueries: ['tennis court club', 'pickleball court', 'golf club course', 'surf school spot', 'kitesurfing center', 'ski snowboard resort'],
+    defaultFrequency: 'total',
+    vendorApi: 'activities', optionType: 'activity', multiDay: true,
+  },
   bucket_list: {
     label: 'Bucket List',
     color: '#9b59b6',

@@ -98,6 +98,12 @@ export const SOURCE_BY_CATEGORY: Record<string, SourceAssignment> = {
   conferences:      { source: 'google', hardBookable: false },
   coworking:        { source: 'google', hardBookable: false },
   shopping:         { source: 'google', hardBookable: false },
+  // PR-28f: recurring-membership PLACES (Google Places, not Viator). Gyms,
+  // groceries (necessity, distinct from discretionary `shopping`), and sports
+  // courts/clubs/spots are non-bookable discovery — budgeted, not booked.
+  groceries:        { source: 'google', hardBookable: false },
+  gyms:             { source: 'google', hardBookable: false },
+  sports:           { source: 'google', hardBookable: false },
 };
 
 // Default for any non-COA category (e.g. legacy interest slugs that still
