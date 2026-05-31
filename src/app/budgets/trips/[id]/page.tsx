@@ -12,7 +12,7 @@ import ItineraryAgenda from '@/components/trips/ItineraryAgenda';
 import TripHeader from '@/components/trips/TripHeader';
 import { ADMIN_USER_ID } from '@/lib/tiers';
 import { coaCodeToLabel } from '@/lib/travelCOA';
-import { buildCalendarSourceConfig, getDiningCategoryKeys } from '@/lib/travelCategories';
+import { buildCalendarSourceConfig } from '@/lib/travelCategories';
 import 'leaflet/dist/leaflet.css';
 
 // Calendar source config derived from category registry
@@ -621,216 +621,72 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               onChanged={() => { loadTrip(); loadDestinations(); loadParticipants(); }}
             />
 
-            {/* ── Map + Committed Rows (grouped by destination) ── */}
-            {(() => {
-              const itinerary = trip.itinerary || [];
-              const DINING_CATEGORIES = getDiningCategoryKeys();
+            {/* PR-30: Map + Itinerary (lifted out of the removed IIFE). The
+                redundant "Committed Items" panel + its prep pipeline were deleted —
+                uncommit lives in the Itinerary popover; Committed Budget is independent. */}
+            {/* Full-width Map */}
+            <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+              <DestinationMap
+                destinations={destinations}
+                selectedName={trip.destination}
+                onDestinationClick={(resortId: string, name: string) => selectDestination(resortId, name)}
+                height="400px"
+              />
+            </div>
 
-              // Build scanner name→destination map
-              const scannerNameToDest: Record<string, string> = {};
-              for (const sr of scannerResults) {
-                if (!sr.destination) continue;
-                for (const rec of (sr.recommendations || [])) {
-                  if (rec.name) scannerNameToDest[rec.name] = sr.destination;
-                }
-              }
-
-              const resolveDestination = (item: any): string =>
-                item.location || scannerNameToDest[item.vendor] || 'Other';
-
-              const resolveCategoryLabel = (item: any): string => {
-                const cat = item.resolvedCategory || item.vendorOptionType || item.category || '';
-                if (cat === 'lodging' || cat === 'accommodation') return 'Lodging';
-                if (DINING_CATEGORIES.has(cat)) return 'Dining';
-                if (cat === 'flight') return 'Flight';
-                return 'Activity';
-              };
-
-              const CATEGORY_SORT_ORDER: Record<string, number> = { 'Lodging': 0, 'Dining': 1, 'Activity': 2, 'Flight': 3 };
-              const CATEGORY_BADGE_COLORS: Record<string, string> = {
-                'Lodging': 'bg-blue-100 text-blue-700',
-                'Dining': 'bg-amber-100 text-amber-700',
-                'Activity': 'bg-violet-100 text-violet-700',
-                'Flight': 'bg-purple-100 text-purple-700',
-              };
-
-              const resolvedItems = itinerary
-                .filter((item: any) => (item.vendorOptionType || item.category) !== 'flight')
-                .map((item: any) => {
-                  const optInfo = item.vendorOptionId ? vendorOptions[item.vendorOptionId] : null;
-                  return {
-                    ...item,
-                    resolvedCategory: optInfo?.category || item.vendorOptionType || item.category || '',
-                    imageUrl: optInfo?.imageUrl || null,
-                    _destination: resolveDestination(item),
-                    _categoryLabel: '',
-                  };
-                });
-
-              // Set category labels
-              for (const item of resolvedItems) {
-                item._categoryLabel = resolveCategoryLabel(item);
-              }
-
-              // Deduplicate multi-day items (lodging etc.) by vendorOptionId
-              const deduped: Record<string, any> = {};
-              for (const item of resolvedItems) {
-                const key = item.vendorOptionId || item.id;
-                if (!deduped[key]) {
-                  deduped[key] = { ...item, nightCount: 1, _firstDate: item.homeDate, _lastDate: item.homeDate };
-                } else {
-                  deduped[key].nightCount++;
-                  if (item.homeDate && new Date(item.homeDate) > new Date(deduped[key]._lastDate)) deduped[key]._lastDate = item.homeDate;
-                  if (item.homeDate && new Date(item.homeDate) < new Date(deduped[key]._firstDate)) deduped[key]._firstDate = item.homeDate;
-                }
-              }
-              const allItems = Object.values(deduped).map((item: any) => {
-                if (item._firstDate && item._lastDate) {
-                  const nights = Math.round((new Date(item._lastDate).getTime() - new Date(item._firstDate).getTime()) / (1000 * 60 * 60 * 24));
-                  item.nightCount = Math.max(nights, 1);
-                }
-                return item;
-              });
-
-              // Group by destination
-              const byDestination: Record<string, any[]> = {};
-              for (const item of allItems) {
-                const dest = item._destination;
-                if (!byDestination[dest]) byDestination[dest] = [];
-                byDestination[dest].push(item);
-              }
-              // Sort items within each destination: lodging → dining → activities
-              for (const items of Object.values(byDestination)) {
-                items.sort((a: any, b: any) => (CATEGORY_SORT_ORDER[a._categoryLabel] ?? 9) - (CATEGORY_SORT_ORDER[b._categoryLabel] ?? 9));
-              }
-              // Sort destinations: named first (alphabetical), "Other" last
-              const destEntries = Object.entries(byDestination).sort(([a], [b]) => {
-                if (a === 'Other') return 1;
-                if (b === 'Other') return -1;
-                return a.localeCompare(b);
-              });
-
-              return (
-                <>
-                  {/* Full-width Map */}
-                  <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-                    <DestinationMap
-                      destinations={destinations}
-                      selectedName={trip.destination}
-                      onDestinationClick={(resortId: string, name: string) => selectDestination(resortId, name)}
-                      height="400px"
-                    />
-                  </div>
-
-                  {/* ── Itinerary Calendar (primary view — first after map) ── */}
-                  <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-                    <div className="bg-brand-purple/80 text-white px-4 py-2.5 flex items-center justify-between">
-                      <h2 className="text-sm font-semibold">Itinerary</h2>
-                      <div className="flex items-center gap-2">
-                        {itinView === 'agenda' && (
-                          <div className="flex bg-white/15 rounded p-0.5 text-[11px]">
-                            {(['day', 'week', 'month'] as const).map(g => (
-                              <button key={g} onClick={() => setAgendaGran(g)}
-                                className={`px-2 py-0.5 rounded capitalize transition-colors ${agendaGran === g ? 'bg-white text-brand-purple font-semibold' : 'text-white/80 hover:text-white'}`}>{g}</button>
-                            ))}
-                          </div>
-                        )}
-                        <div className="flex bg-white/15 rounded p-0.5 text-[11px]">
-                          <button onClick={() => setItinView('agenda')}
-                            className={`px-2 py-0.5 rounded transition-colors ${itinView === 'agenda' ? 'bg-white text-brand-purple font-semibold' : 'text-white/80 hover:text-white'}`}>Agenda</button>
-                          <button onClick={() => setItinView('grid')}
-                            className={`px-2 py-0.5 rounded transition-colors ${itinView === 'grid' ? 'bg-white text-brand-purple font-semibold' : 'text-white/80 hover:text-white'}`}>Grid</button>
-                        </div>
-                      </div>
-                    </div>
-                    {calendarEvents.length > 0 || tripDates ? (
-                      <div className="p-4">
-                        {itinView === 'agenda' ? (
-                          <ItineraryAgenda
-                            events={calendarEvents}
-                            sourceConfig={TRIP_SOURCE_CONFIG}
-                            view={agendaGran}
-                            anchorDate={tripDates?.departure || trip.startDate?.split('T')[0] || undefined}
-                            onEventClick={handleEventClick}
-                          />
-                        ) : (
-                        <CalendarGrid
-                          events={calendarEvents}
-                          sourceConfig={TRIP_SOURCE_CONFIG}
-                          defaultView="week"
-                          anchorDate={tripDates?.departure || trip.startDate?.split('T')[0] || undefined}
-                          highlightStart={tripDates?.departure || trip.startDate?.split('T')[0] || undefined}
-                          highlightEnd={tripDates?.return || trip.endDate?.split('T')[0] || undefined}
-                          onEventClick={handleEventClick}
-                          showBudgetTotals={true}
-                          showCategoryLegend={true}
-                          compact={true}
-                        />
-                        )}
-                      </div>
-                    ) : (
-                      <div className="p-8 text-center text-gray-400">
-                        <p className="text-sm mb-2">Commit vendors to see itinerary calendar</p>
-                        <p className="text-xs">Select dates and destination first, then commit lodging, flights, etc.</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* ── Committed items by destination ── */}
-                  {destEntries.length > 0 ? destEntries.map(([dest, items]) => (
-                    <div key={dest} className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-                      <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">{dest} <span className="font-normal opacity-70">({items.length})</span></div>
-                      <div className="overflow-x-auto bg-white p-3" style={{ scrollSnapType: 'x mandatory' }}>
-                        <div className="flex gap-3">
-                          {items.map((item: any, idx: number) => (
-                            <div key={item.vendorOptionId || idx} className="w-[240px] flex-shrink-0 border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow" style={{ scrollSnapAlign: 'start' }}>
-                              {item.imageUrl ? (
-                                <img src={item.imageUrl} alt={item.vendor || ''} className="w-full h-[120px] object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
-                              ) : null}
-                              <div className={`w-full h-[120px] bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center ${item.imageUrl ? 'hidden' : ''}`}>
-                                <span className="text-sm font-medium text-gray-400">{item._categoryLabel.toUpperCase()}</span>
-                              </div>
-                              <div className="p-3">
-                                <div className="flex items-center gap-1.5 mb-1">
-                                  <span className={`px-1.5 py-0.5 text-[9px] font-medium rounded ${CATEGORY_BADGE_COLORS[item._categoryLabel] || 'bg-gray-100 text-gray-600'}`}>
-                                    {item._categoryLabel}
-                                  </span>
-                                </div>
-                                <div className="font-medium text-xs text-gray-900 truncate">{item.vendor || 'Untitled'}</div>
-                                <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500">
-                                  {item.cost && <span className="font-semibold text-emerald-700">${parseFloat(item.cost).toFixed(0)}</span>}
-                                  {item.nightCount > 1 && <span>{item.nightCount} nights</span>}
-                                </div>
-                                {item.homeDate && (
-                                  <div className="text-[10px] text-gray-400 mt-1">
-                                    {new Date(item.homeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                    {item.nightCount > 1 && ' onwards'}
-                                  </div>
-                                )}
-                                <div className="mt-1.5 flex items-center gap-2">
-                                  <span className="px-1.5 py-0.5 text-[9px] font-medium bg-emerald-100 text-emerald-700 rounded">Committed</span>
-                                  {item.vendorOptionId && (
-                                    <button onClick={() => handleUncommitItem(item.vendorOptionId, item.vendorOptionType || item.resolvedCategory || 'activity')}
-                                      className="text-[9px] text-red-400 hover:text-red-600">Uncommit</button>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )) : (
-                    <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-                      <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Committed Items</div>
-                      <div className="bg-white text-center py-6 text-gray-400">
-                        <p className="text-xs">No items committed yet. Scan destinations to find places.</p>
-                      </div>
+            {/* ── Itinerary Calendar (primary view — first after map) ── */}
+            <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+              <div className="bg-brand-purple/80 text-white px-4 py-2.5 flex items-center justify-between">
+                <h2 className="text-sm font-semibold">Itinerary</h2>
+                <div className="flex items-center gap-2">
+                  {itinView === 'agenda' && (
+                    <div className="flex bg-white/15 rounded p-0.5 text-[11px]">
+                      {(['day', 'week', 'month'] as const).map(g => (
+                        <button key={g} onClick={() => setAgendaGran(g)}
+                          className={`px-2 py-0.5 rounded capitalize transition-colors ${agendaGran === g ? 'bg-white text-brand-purple font-semibold' : 'text-white/80 hover:text-white'}`}>{g}</button>
+                      ))}
                     </div>
                   )}
-                </>
-              );
-            })()}
+                  <div className="flex bg-white/15 rounded p-0.5 text-[11px]">
+                    <button onClick={() => setItinView('agenda')}
+                      className={`px-2 py-0.5 rounded transition-colors ${itinView === 'agenda' ? 'bg-white text-brand-purple font-semibold' : 'text-white/80 hover:text-white'}`}>Agenda</button>
+                    <button onClick={() => setItinView('grid')}
+                      className={`px-2 py-0.5 rounded transition-colors ${itinView === 'grid' ? 'bg-white text-brand-purple font-semibold' : 'text-white/80 hover:text-white'}`}>Grid</button>
+                  </div>
+                </div>
+              </div>
+              {calendarEvents.length > 0 || tripDates ? (
+                <div className="p-4">
+                  {itinView === 'agenda' ? (
+                    <ItineraryAgenda
+                      events={calendarEvents}
+                      sourceConfig={TRIP_SOURCE_CONFIG}
+                      view={agendaGran}
+                      anchorDate={tripDates?.departure || trip.startDate?.split('T')[0] || undefined}
+                      onEventClick={handleEventClick}
+                    />
+                  ) : (
+                  <CalendarGrid
+                    events={calendarEvents}
+                    sourceConfig={TRIP_SOURCE_CONFIG}
+                    defaultView="week"
+                    anchorDate={tripDates?.departure || trip.startDate?.split('T')[0] || undefined}
+                    highlightStart={tripDates?.departure || trip.startDate?.split('T')[0] || undefined}
+                    highlightEnd={tripDates?.return || trip.endDate?.split('T')[0] || undefined}
+                    onEventClick={handleEventClick}
+                    showBudgetTotals={true}
+                    showCategoryLegend={true}
+                    compact={true}
+                  />
+                  )}
+                </div>
+              ) : (
+                <div className="p-8 text-center text-gray-400">
+                  <p className="text-sm mb-2">Commit vendors to see itinerary calendar</p>
+                  <p className="text-xs">Select dates and destination first, then commit lodging, flights, etc.</p>
+                </div>
+              )}
+            </div>
 
             {/* ── Committed Budget ── */}
             {committedBudgetItems.length > 0 && (() => {
