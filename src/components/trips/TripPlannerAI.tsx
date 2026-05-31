@@ -912,10 +912,12 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
         </div>
       )}
 
-      {/* ── PR-4 carousels: one row per active category, ordered by the curated
-            layout (Stays first → Things to do → Where to eat → discovery).
-            Each row independently shows items / skeleton / error banner so a
-            single failing category never blanks the rest of the page. ── */}
+      {/* ── PR-28a source-separated sections: Hotels → Ground Transport →
+            Activities (Viator) → Google discovery (Flights render above, in the
+            FlightPicker card in page.tsx). Each section header carries the
+            source badge + a result count. Each row independently shows items /
+            skeleton / error banner so a single failing source never blanks the
+            rest of the page. ── */}
       <div className="space-y-6 pt-2">
         {CAROUSEL_ORDER
           .filter(catKey => ACTIVE_SCAN_SET.has(catKey))
@@ -949,18 +951,22 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   );
 }
 
-// ─── Carousel layout order (PR-4 locked design) ─────────────────────────────
-// Stays first (highest commission). Things to do second (Viator bookable).
-// Discovery (Google) last so eyes land on bookable rows before browsable ones.
+// ─── Carousel layout order (PR-28a: source-separated sections) ──────────────
+// Sequence beneath the Flights card (FlightPicker, in page.tsx, renders first):
+//   Hotels → Ground Transport → Activities (Viator) → Google categories.
+// PR-28a moved ground_transport up to 2nd (was last) so all bookable inventory
+// (hotels, transfers, activities) leads, and browsable Google discovery trails.
 const CAROUSEL_ORDER = [
-  'accommodation',     // Stays (LiteAPI)
+  'accommodation',     // Hotels (LiteAPI)
+  'ground_transport',  // Ground Transport (Mozio — 501 "coming soon" today, PR-24)
   // PR-11: single "Activities" row replaces the four Viator carousels
   // (adventure / arts_culture / wellness / bucket_list). The carousel
   // surfaces every Viator product for the active destination. COA-level
   // budget categories are preserved in TRAVEL_COA for manual entries +
   // historic data; only the visual + scanned surface collapses.
-  'activities',        // Things to do — Activities (Viator, unified)
-  'brunch_coffee',     // Where to eat — Brunch & coffee (Google)
+  'activities',        // Activities (Viator, unified)
+  // ─── Google discovery categories (browsable, not bookable) ───────────────
+  'brunch_coffee',     // Brunch & coffee (Google)
   'dinner',            // Dinner (Google)
   'nightlife',         // Nightlife (Google)
   'coworking',         // Coworking (Google)
@@ -968,7 +974,6 @@ const CAROUSEL_ORDER = [
   // PR-10 Fix 6: Conferences removed — Google returns venues, not actual
   // upcoming conferences. Queued for a future PR with a real conference
   // API (Eventbrite / 10times / Bizzabo).
-  'ground_transport',  // Transfers (Mozio — fails loud "not connected" today)
 ] as const;
 
 const ACTIVE_SCAN_SET = new Set(getActiveScanCategories([], ''));
@@ -984,6 +989,17 @@ function sourceAttribution(source: Source): string {
     case 'airalo':      return 'Airalo (coming soon)';
     case 'covergenius': return 'Cover Genius (coming soon)';
   }
+}
+
+// PR-28a: result-count noun per source (e.g. "12 hotels"). Pluralised on count.
+function sourceNoun(source: Source, n: number): string {
+  const base = source === 'liteapi' ? 'hotel'
+    : source === 'viator' ? 'activity'
+    : source === 'google' ? 'place'
+    : source === 'mozio' ? 'option'
+    : 'result';
+  if (base === 'activity') return n === 1 ? 'activity' : 'activities';
+  return n === 1 ? base : `${base}s`;
 }
 
 // PR-14: maps PR-13's six standard facility strings to lucide-react icons.
@@ -1015,7 +1031,13 @@ function TravelCarousel({ catKey, label, source, isLoading, items, error, onCard
   return (
     <div>
       <div className="flex items-baseline justify-between mb-2 px-1">
-        <h3 className="text-base font-semibold text-text-primary">{label}</h3>
+        <div className="flex items-baseline gap-2 min-w-0">
+          <h3 className="text-base font-semibold text-text-primary">{label}</h3>
+          {/* PR-28a: result count (from byCategory items). Hidden while loading/empty. */}
+          {items.length > 0 && (
+            <span className="text-xs text-text-muted tabular-nums">{items.length} {sourceNoun(source, items.length)}</span>
+          )}
+        </div>
         <span className={`text-[10px] font-medium ${source === 'google' ? 'text-text-faint' : 'text-brand-purple'}`}>
           {sourceAttribution(source)}
         </span>
