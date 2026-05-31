@@ -146,7 +146,12 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
   // detail page (/budgets/trips/{id} or /trips/{id}, but not .../new) — there the
   // detail page renders the editable TripHeader instead. Landing (/budgets/trips)
   // and /new keep the search/create bar.
-  const isTripDetail = /^\/(budgets\/)?trips\/[^/]+\/?$/.test(pathname || '') && !(pathname || '').endsWith('/new');
+  // PR-32: also suppress on the discover detail route
+  // (/budgets/trips/{id}/discover/{category}/{rank}) — the `(\/discover\/.*)?`
+  // group lets the match extend past {id} into the detail page, which the old
+  // `$`-anchored single-segment pattern missed. Landing (/budgets/trips) and
+  // /new still show the search/create bar.
+  const isTripDetail = /^\/(budgets\/)?trips\/[^/]+(\/discover\/.*)?\/?$/.test(pathname || '') && !(pathname || '').endsWith('/new');
   const showTravelSearch = TRAVEL_PREFIXES.some(r => pathname?.startsWith(r)) && !isTripDetail;
   const userLabel = currentUser?.name || currentUser?.email?.split('@')[0] || '';
 

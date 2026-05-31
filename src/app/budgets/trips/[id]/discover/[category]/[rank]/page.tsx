@@ -6,6 +6,7 @@ import { TRAVEL_COA } from '@/lib/travelCOA';
 import { getSource, type Source } from '@/lib/travelSourceRegistry';
 import { AppLayout } from '@/components/ui';
 import { ReserveHotelButton } from './ReserveHotelButton';
+import { AddToTripButton } from './AddToTripButton';
 import HotelGallery from '@/components/trips/HotelGallery';
 import HotelMap from '@/components/trips/HotelMap';
 import { getHotelReviews, type HotelReview } from '@/lib/liteapiClient';
@@ -423,15 +424,22 @@ export default async function DiscoverDetailPage({
             </a>
           )}
 
-          {/* "Add to trip" — links back to the planner where the existing
-              commit-to-budget flow lives. The carousel cards on the planner
-              page reopen for a quick commit. */}
-          <Link
-            href={`/budgets/trips/${tripId}`}
-            className="px-4 py-2 border border-border text-sm font-medium rounded hover:bg-bg-row"
-          >
-            Add to trip
-          </Link>
+          {/* PR-32: "Add to trip" commits this hotel into Committed Budget via
+              the synthetic lodging path (/vendor-commit). amount = rec.price (the
+              reconciled PR-21 whole-stay total, NOT recomputed); location =
+              destinationLabel (the scan destination → trip_itinerary.location →
+              the Committed Budget Country column). */}
+          <AddToTripButton
+            tripId={tripId}
+            hotelName={rec.name}
+            amount={stayTotal}
+            location={destinationLabel}
+            checkinDate={checkin}
+            checkoutDate={checkout}
+            liteapiHotelId={rec.liteapiHotelId ?? null}
+            perNight={perNight}
+            nights={nights}
+          />
         </div>
 
         {source === 'google' && (
