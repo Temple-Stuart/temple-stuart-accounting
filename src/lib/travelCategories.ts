@@ -26,6 +26,16 @@ const TRAVEL_CATEGORIES: Record<string, TravelCategory> = {
   bucket_list:    { key: 'bucket_list',    label: 'Activities',         section: 'activities', coaCode: '9450', calendarColor: '#8B5CF6' },
   wellness:       { key: 'wellness',       label: 'Activities',         section: 'activities', coaCode: '9700', calendarColor: '#8B5CF6' },
   shopping:       { key: 'shopping',       label: 'Activities',         section: 'activities', coaCode: '9800', calendarColor: '#8B5CF6' },
+  // PR-35a: sync the PR-28f Google membership/necessity categories so getCOACode
+  // returns their canonical travelCOA.ts codes instead of the 9950 default.
+  // Re-verified from travelCOA.ts: coworking P-9510 (:170), gyms P-9520 (:239),
+  // sports P-9530 (:254), groceries P-9830 (:224). Numeric code only (getCOACode
+  // returns the bare number); the P-/B- prefix + null-business handling is a
+  // commit-logic question flagged for PR-35.
+  coworking:      { key: 'coworking',      label: 'Coworking',          section: 'activities', coaCode: '9510', calendarColor: '#8B5CF6' },
+  gyms:           { key: 'gyms',           label: 'Gyms & Fitness',     section: 'activities', coaCode: '9520', calendarColor: '#8B5CF6' },
+  sports:         { key: 'sports',         label: 'Sports & Recreation',section: 'activities', coaCode: '9530', calendarColor: '#8B5CF6' },
+  groceries:      { key: 'groceries',      label: 'Groceries',          section: 'activities', coaCode: '9830', calendarColor: '#8B5CF6' },
   transport:      { key: 'transport',      label: 'Transport',          section: 'activities', coaCode: '9200', calendarColor: '#64748B' },
 };
 
