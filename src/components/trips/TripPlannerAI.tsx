@@ -331,7 +331,9 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
     const categoriesToScan: ScanCategory[] = catKeys.map(key => ({
       key,
       label: TRAVEL_COA[key]?.label || key,
-      maxResults: 33,
+      // PR-28d: hotels fetch 50 (was 33). Google stays 33 (quota-limited — do NOT
+      // increase). Viator ignores this and forces 250 server-side (route.ts).
+      maxResults: key === 'accommodation' ? 50 : 33,
     }));
 
     setLoading(true);
@@ -1195,6 +1197,12 @@ function TravelCarousel({ catKey, label, source, isLoading, items, error, onCard
   const [filter, setFilter] = useState<SectionFilter>({ sort: 'rating' });
   const visible = sortRecs(filterRecs(items, source, filter), source, filter.sort);
   const showControls = !error && !isLoading && items.length > 0;
+  // PR-28d: client-side load-more — page through the ALREADY-FETCHED `visible`
+  // set (no extra API call). Reset to the first page when filters change or a
+  // fresh scan replaces the items.
+  const PAGE = 12;
+  const [shown, setShown] = useState(PAGE);
+  useEffect(() => { setShown(PAGE); }, [filter, items]);
 
   return (
     <div>
@@ -1248,9 +1256,10 @@ function TravelCarousel({ catKey, label, source, isLoading, items, error, onCard
             onClick={() => setFilter({ sort: filter.sort })}>Clear filters</button>
         </div>
       ) : (
+        <>
         <HScrollRow className="overflow-x-auto pb-2 -mx-1 px-1" style={{ scrollSnapType: 'x mandatory' }} scrollBy={272}>
           <div className="flex gap-3">
-            {visible.slice(0, 12).map((rec, idx) => (
+            {visible.slice(0, shown).map((rec, idx) => (
               source === 'liteapi' ? (
                 // ── PR-14: rich LiteAPI hotel card ───────────────────────────
                 <button
@@ -1361,6 +1370,17 @@ function TravelCarousel({ catKey, label, source, isLoading, items, error, onCard
             ))}
           </div>
         </HScrollRow>
+        {/* PR-28d: load more — reveals additional ALREADY-FETCHED results
+            (client-side; no API call). Pages the filtered `visible` set. */}
+        {shown < visible.length && (
+          <div className="mt-1 px-1">
+            <button type="button" onClick={() => setShown(s => s + PAGE)}
+              className="text-xs font-medium text-brand-purple hover:underline">
+              Load more ({visible.length - shown} more)
+            </button>
+          </div>
+        )}
+        </>
       )}
     </div>
   );
