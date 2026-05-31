@@ -177,6 +177,11 @@ interface LiteApiHotelRate {
    *  searchHotelRates so the mapper can pass it through without the route
    *  changing its call. PR-15 uses it to compute a true per-night price. */
   nights?: number;
+  /** PR-33: the EXACT search-window dates (ISO YYYY-MM-DD) these rates were
+   *  quoted for. Threaded on alongside `nights` so the commit path can write the
+   *  real stay window instead of the whole-trip span (the 184-night bug). */
+  checkinDate?: string;
+  checkoutDate?: string;
   roomTypes?: Array<{
     offerId?: string;          // present on roomType in some response shapes
     rates?: Array<{
@@ -291,12 +296,17 @@ export async function searchHotelRates(params: SearchHotelsParams): Promise<Lite
     Math.round((Date.parse(params.checkout) - Date.parse(params.checkin)) / msPerDay),
   ) || undefined;
 
+  // PR-33: thread the exact search-window dates alongside `nights` so the
+  // commit path writes the real stay window (not the whole-trip span).
+  const checkinDate = params.checkin;
+  const checkoutDate = params.checkout;
+
   const merged: LiteApiHotelRate[] = rateItems.map(r => {
     const meta = hotelMetaById[r.hotelId];
-    if (!meta) return { ...r, nights };
+    if (!meta) return { ...r, nights, checkinDate, checkoutDate };
     // Merge: keep any sub-fields already present on `r.hotel`, but fill in
     // the metadata we just looked up.
-    return { ...r, hotel: { ...meta, ...(r.hotel || {}) }, nights };
+    return { ...r, hotel: { ...meta, ...(r.hotel || {}) }, nights, checkinDate, checkoutDate };
   });
 
   const max = params.maxResults || 33;
@@ -356,6 +366,11 @@ interface HotelRecommendation {
   priceTotal?: number;
   /** Nights in the search window; per-night = priceTotal / nights. */
   nights?: number;
+  /** PR-33: the EXACT search-window dates (ISO YYYY-MM-DD) these rates were
+   *  quoted for — the booking-integrity source of truth for the commit path.
+   *  checkout − checkin === nights by construction. */
+  checkinDate?: string;
+  checkoutDate?: string;
   /** PR-15: true per-night price (priceTotal / nights). Absent when nights<1
    *  (a date-handling bug — never in normal operation). Drives display + the
    *  per-night price-level bucketing. */
@@ -552,6 +567,8 @@ export function liteApiHotelToRecommendation(
     currency: currency || undefined,
     priceTotal: priceTotal ?? undefined,
     nights: hotel.nights,
+    checkinDate: hotel.checkinDate,
+    checkoutDate: hotel.checkoutDate,
     pricePerNight,
     facilitiesAll,
     descriptionFull,

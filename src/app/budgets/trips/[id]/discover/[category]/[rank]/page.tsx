@@ -87,6 +87,11 @@ interface Recommendation {
   currency?: string;
   priceTotal?: number;
   nights?: number;
+  // PR-33: the exact search-window dates these rates were quoted for (ISO).
+  // The commit path writes THIS window (the 29-night stay), not the whole-trip
+  // span. checkout − checkin === nights by construction.
+  checkinDate?: string;
+  checkoutDate?: string;
   pricePerNight?: number; // PR-15: priceTotal / nights
   facilitiesAll?: string[]; // PR-22: full facility list (detail page)
   descriptionFull?: string; // PR-22: untruncated description (detail page)
@@ -195,9 +200,16 @@ export default async function DiscoverDetailPage({
   const perNight = rec.pricePerNight ?? null;
   const stayTotal = rec.price ?? null;
 
-  // Dates for the Reserve flow (LiteAPI needs ISO YYYY-MM-DD).
-  const checkin = trip.startDate ? trip.startDate.toISOString().slice(0, 10) : null;
-  const checkout = trip.endDate ? trip.endDate.toISOString().slice(0, 10) : null;
+  // PR-33: the Reserve + "Add to trip" dates MUST be the exact search window the
+  // rates were quoted for — `rec.checkinDate`/`rec.checkoutDate`, threaded from
+  // the LiteAPI mapper (liteapiClient.ts). NEVER trip.startDate/endDate (the
+  // whole-trip span) — that wrote a 184-night itinerary against a 29-night stay.
+  // NO fallback to trip dates: if the rec lacks these (an older cached scan),
+  // commit/Reserve are disabled with an honest message rather than committing a
+  // wrong window. checkout − checkin === nights by construction (asserted at
+  // commit in AddToTripButton).
+  const checkin = rec.checkinDate ?? null;
+  const checkout = rec.checkoutDate ?? null;
 
   // PR-23: individual written guest reviews — a PAID LiteAPI call
   // (GET /v3.0/data/reviews, B-5100 COGS). Safe to fetch directly here: this is
@@ -399,7 +411,10 @@ export default async function DiscoverDetailPage({
             />
           ) : source === 'liteapi' && (!checkin || !checkout) ? (
             <span className="text-xs text-orange-600 px-3 py-2 border border-orange-200 bg-orange-50 rounded">
-              Set trip Start/End dates to enable Reserve.
+              {/* PR-33: missing search-window dates on the rec (an older cached
+                  scan) — re-scan this hotel to enable Reserve. NO trip-date
+                  fallback (that committed the wrong 184-night window). */}
+              Re-scan this hotel to refresh its dates, then Reserve.
             </span>
           ) : source === 'liteapi' ? (
             <span className="text-xs text-text-muted px-3 py-2 border border-border rounded">
