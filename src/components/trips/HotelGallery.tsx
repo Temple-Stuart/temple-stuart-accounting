@@ -7,6 +7,7 @@
 // the detail page did before PR-22) — not a synthesized fallback.
 
 import { useState } from 'react';
+import HScrollRow from '@/components/trips/HScrollRow';
 
 interface HotelGalleryProps {
   images: string[];
@@ -37,7 +38,7 @@ export default function HotelGallery({ images, fallback, alt }: HotelGalleryProp
         <img src={hero} alt={alt} className="w-full h-72 sm:h-96 object-cover" />
       </div>
       {gallery.length > 1 && (
-        <div className="mt-2 flex gap-2 overflow-x-auto pb-1" style={{ scrollSnapType: 'x mandatory' }}>
+        <HScrollRow className="mt-2 flex gap-2 overflow-x-auto pb-1" style={{ scrollSnapType: 'x mandatory' }} scrollBy={180}>
           {gallery.map((url, i) => (
             <button
               key={`${url}-${i}`}
@@ -52,7 +53,7 @@ export default function HotelGallery({ images, fallback, alt }: HotelGalleryProp
               <img src={url} alt={`${alt} — photo ${i + 1}`} className="w-20 h-16 object-cover" />
             </button>
           ))}
-        </div>
+        </HScrollRow>
       )}
     </div>
   );
