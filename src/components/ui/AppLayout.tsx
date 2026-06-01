@@ -152,7 +152,11 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
   // `$`-anchored single-segment pattern missed. Landing (/budgets/trips) and
   // /new still show the search/create bar.
   const isTripDetail = /^\/(budgets\/)?trips\/[^/]+(\/discover\/.*)?\/?$/.test(pathname || '') && !(pathname || '').endsWith('/new');
-  const showTravelSearch = TRAVEL_PREFIXES.some(r => pathname?.startsWith(r)) && !isTripDetail;
+  // PR-37a: the trips INDEX (/budgets/trips or /trips) now renders its own
+  // in-page create-trip form, so suppress the global search/create bar there too
+  // (it would double up). /budgets/trips/new still shows the bar (create page).
+  const isTripIndex = /^\/(budgets\/)?trips\/?$/.test(pathname || '');
+  const showTravelSearch = TRAVEL_PREFIXES.some(r => pathname?.startsWith(r)) && !isTripDetail && !isTripIndex;
   const userLabel = currentUser?.name || currentUser?.email?.split('@')[0] || '';
 
   // ─── Render ────────────────────────────────────────────────────────────────
