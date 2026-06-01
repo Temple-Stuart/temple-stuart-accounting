@@ -7,37 +7,40 @@ import ScanFilterForm from '@/components/trading/ScanFilterForm';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
 import { DEFAULT_FILTERS } from '@/lib/convergence/filter-types';
 
-// HOME-PR-1: the home-page module launcher. A pill row (Travel + 5 paid stubs)
-// over the selected module's card. Travel is LIVE + free + guest-usable (the
-// shared CreateTripForm; saving is register-gated). The 5 paid modules are stubs
-// that prompt sign-in / "coming soon". Pills match the trip-type pill style
-// (budgets/trips/page.tsx:313-326).
+// HOME-PR-3: the home-page module launcher = SIX separate stacked module
+// SectionCards (no toggle pills) — Travel (live, free, guest-ok) + Trading,
+// Bookkeeping, Tax, Operations, Compliance (paid). Each is its own SectionCard
+// (one purple band w/ module name + tag, white body). Travel renders the shared
+// CreateTripForm (guest register-gated save); Trading renders the admin
+// ScanFilterForm for admins, a stub otherwise; the rest are stubs. Reuses
+// CreateTripForm + ScanFilterForm unchanged.
 
 interface ModuleDef {
   key: string;
   label: string;
   live: boolean;
+  /** One-line description shown under the module name in the stub body. */
   blurb: string;
 }
 
+// Order per HOME-PR-3: Travel, Trading, Bookkeeping, Tax, Operations, Compliance.
 const MODULES: ModuleDef[] = [
-  { key: 'travel',     label: 'Travel',     live: true,  blurb: 'AI trip & flight planning — free to use.' },
+  { key: 'travel',      label: 'Travel',      live: true,  blurb: 'AI trip & flight planning — free to use.' },
+  { key: 'trading',     label: 'Trading',     live: false, blurb: 'AI vol scanner + options strategy builder.' },
   { key: 'bookkeeping', label: 'Bookkeeping', live: false, blurb: 'GAAP accounting engine, Plaid bank sync, period close.' },
-  { key: 'tax',        label: 'Tax',        live: false, blurb: 'Form 1040, Schedule C/D/SE, Form 8949.' },
-  { key: 'trading',    label: 'Trading',    live: false, blurb: 'AI vol scanner + options strategy builder.' },
-  { key: 'operations', label: 'Operations', live: false, blurb: 'Routines, daily plan, command center.' },
-  { key: 'compliance', label: 'Compliance', live: false, blurb: 'Monitoring, attestations, audit trail.' },
+  { key: 'tax',         label: 'Tax',         live: false, blurb: 'Form 1040, Schedule C/D/SE, Form 8949.' },
+  { key: 'operations',  label: 'Operations',  live: false, blurb: 'Routines, daily plan, command center.' },
+  { key: 'compliance',  label: 'Compliance',  live: false, blurb: 'Monitoring, attestations, audit trail.' },
 ];
 
 interface Props {
   /** Opens the existing register/login modal on the home page. Called when a
-   *  guest tries to save a trip, or selects a paid module's CTA. */
+   *  guest tries to save a trip, or clicks a paid module's "Launch" button. */
   onRequireAuth: () => void;
 }
 
 export default function ModuleLauncher({ onRequireAuth }: Props) {
   const router = useRouter();
-  const [active, setActive] = useState('travel');
   // Auth state: null = unknown (initial), true/false once /api/auth/me resolves.
   const [authed, setAuthed] = useState<boolean | null>(null);
   // TRADING-PR-2: admin status (server-computed via /api/auth/me isAdmin). The
@@ -75,8 +78,6 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
   // The home Scan routes to the full dashboard, where the admin-gated scan runs.
   // Filters carry over via the shared localStorage 'scanner-filters' key, which
   // the dashboard reads on init (trading/page.tsx loads it into scannerFilters).
-  // We don't auto-fire the scan (that would require dashboard scan-logic changes,
-  // out of scope) — the dashboard opens with the home-set filters pre-loaded.
   const scanTriggerRef = useRef<(() => void) | null>(null);
   scanTriggerRef.current = () => router.push('/trading');
 
@@ -84,8 +85,6 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
     setScannerFilters(next);
     try { localStorage.setItem('scanner-filters', JSON.stringify(next)); } catch {}
   };
-
-  const activeMod = MODULES.find(m => m.key === active) || MODULES[0];
 
   // Travel register-gate: guests fill the form freely, but "Create trip" while
   // unauthenticated opens the register modal instead of POSTing. Returns true
@@ -99,85 +98,59 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
                   // 401 there surfaces as its inline error (fail-loud).
   };
 
+  // One module SectionCard: purple band (name + tag) + white body. Travel's form
+  // and the admin Trading form render bandless inside (showHeader={false}) so each
+  // card has exactly ONE purple band (the app design rule).
+  const renderBody = (m: ModuleDef) => {
+    if (m.key === 'travel') {
+      return <CreateTripForm onUnauthenticated={gateGuestCreate} showHeader={false} />;
+    }
+    if (m.key === 'trading' && isAdmin) {
+      // TRADING-PR-2/3: admin sees the working ScanFilterForm (Scan routes to
+      // /trading, where the admin-gated scan runs). Non-admins fall to the stub.
+      return (
+        <ScanFilterForm
+          scannerUniverse={scannerUniverse}
+          setScannerUniverse={setScannerUniverse}
+          scannerFilters={scannerFilters}
+          onFiltersChange={handleFiltersChange}
+          scanTriggerRef={scanTriggerRef}
+          showHeader={false}
+        />
+      );
+    }
+    // Paid stub (Trading non-admin + Bookkeeping/Tax/Operations/Compliance).
+    return (
+      <div>
+        <p className="text-sm text-text-primary mb-1">{m.label} — coming soon.</p>
+        <p className="text-xs text-text-muted mb-4">{m.blurb} Requires an account.</p>
+        <button
+          type="button"
+          onClick={onRequireAuth}
+          className="px-6 py-2 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm rounded"
+        >
+          Launch {m.label} Module
+        </button>
+      </div>
+    );
+  };
+
   return (
     <section className="py-10 bg-bg-terminal">
-      <div className="max-w-7xl mx-auto px-4 lg:px-8">
-        {/* HOME-PR-1b: single SectionCard container — the purple band is now
-            "Launch a module" (app-standard chrome, matching the trips-index
-            SectionCard). Body: the selected module's card FIRST, then a divider,
-            then the module pills + hint BELOW. */}
-        <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-          <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">
-            Launch a module
-          </div>
-          <div className="bg-white p-4">
-
-            {/* Selected module's card (form first). */}
-            {activeMod.live ? (
-              // Travel — the shared create-trip card. Guests can fill it; saving
-              // is register-gated via gateGuestCreate.
-              <CreateTripForm onUnauthenticated={gateGuestCreate} showHeader={false} />
-            ) : activeMod.key === 'trading' && isAdmin ? (
-              // TRADING-PR-2: Trading is paid + admin-gated. ADMIN sees the working
-              // shared <ScanFilterForm> (same component as the dashboard); its Scan
-              // routes to /trading (the full dashboard runs the admin-gated scan).
-              // Non-admins fall through to the stub below — no working form, no 403
-              // dead-end, no exposed scanner internals.
-              <ScanFilterForm
-                scannerUniverse={scannerUniverse}
-                setScannerUniverse={setScannerUniverse}
-                scannerFilters={scannerFilters}
-                onFiltersChange={handleFiltersChange}
-                scanTriggerRef={scanTriggerRef}
-                showHeader={false}
-              />
-            ) : (
-              // HOME-PR-1d: paid module stub rendered BARE under the single
-              // "Launch a module" band (no inner module-name band/card — that was
-              // a redundant second banner). The module name stays as plain text in
-              // the copy below. Matches the bare layout 1c gave the Travel form.
-              <div className="pb-1">
-                <p className="text-sm text-text-primary mb-1">{activeMod.label} — coming soon.</p>
-                <p className="text-xs text-text-muted mb-4">{activeMod.blurb} Requires an account.</p>
-                <button
-                  type="button"
-                  onClick={onRequireAuth}
-                  className="px-6 py-2 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm rounded"
-                >
-                  Sign in to get started
-                </button>
-              </div>
-            )}
-
-            {/* Divider, then the module pill row + hint BELOW the form. */}
-            <div className="border-t border-gray-100 pt-3">
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Pill row — matches the trip-type pill style. */}
-                {MODULES.map(m => (
-                  <button
-                    key={m.key}
-                    type="button"
-                    onClick={() => setActive(m.key)}
-                    className={`text-xs px-3 py-1 rounded-full border transition-colors ${
-                      active === m.key
-                        ? 'bg-brand-purple text-white border-brand-purple'
-                        : 'bg-white text-text-secondary border-border hover:bg-bg-row'
-                    }`}
-                  >
-                    {m.label}
-                    {!m.live && (
-                      <span className="ml-1.5 text-[9px] uppercase tracking-wider opacity-70">Paid</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-              <p className="text-[11px] text-text-muted mt-2">
-                Travel is free to use — sign in to save. Other modules require an account.
-              </p>
+      <div className="max-w-7xl mx-auto px-4 lg:px-8 space-y-3">
+        {MODULES.map(m => (
+          <div key={m.key} className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+            <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
+              <span>{m.label}</span>
+              <span className="text-[10px] uppercase tracking-wider font-normal text-white/80">
+                {m.live ? 'Free · guest ok' : 'Paid'}
+              </span>
             </div>
-
+            <div className="bg-white p-4">
+              {renderBody(m)}
+            </div>
           </div>
-        </div>
+        ))}
       </div>
     </section>
   );
