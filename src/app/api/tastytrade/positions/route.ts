@@ -2,9 +2,17 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedClient, getTastytradeConnection } from '@/lib/tastytrade';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireAdmin } from '@/lib/require-admin';
 
 export async function GET() {
   try {
+    // SECURITY-PR-SEC4: TastyTrade uses a SHARED FIRM account (env creds via
+    // getTastytradeClient — NOT per-user OAuth; the tastytrade_connections row is
+    // just a flag that unlocks the shared session). So any caller spends/reads
+    // ALEX'S brokerage. Gate to admin BEFORE any TT call or data read — 403 for
+    // non-admins, 401 for guests. (Same requireAdmin pattern as /trading/convergence.)
+    const adminGate = await requireAdmin();
+    if (adminGate instanceof NextResponse) return adminGate;
     const userEmail = await getVerifiedEmail();
     if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
