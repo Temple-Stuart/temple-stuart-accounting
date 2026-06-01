@@ -6,21 +6,6 @@ import Image from 'next/image';
 import LoginBox from '@/components/LoginBox';
 import ModuleLauncher from '@/components/home/ModuleLauncher';
 
-const MODULES = [
-  { name: 'Hub', desc: 'Command center', href: '/hub' },
-  { name: 'Books', desc: 'GAAP accounting engine', href: '/dashboard' },
-  { name: 'Business', desc: 'Business expenses', href: '/business' },
-  { name: 'Trading', desc: 'AI scanner + strategy builder', href: '/trading', featured: true },
-  { name: 'Home', desc: 'Rent, mortgage, utilities, household', href: '/home' },
-  { name: 'Auto', desc: 'Gas, insurance', href: '/auto' },
-  { name: 'Shopping', desc: 'AI grocery carts + meal planning', href: '/shopping' },
-  { name: 'Personal', desc: 'Subscriptions, dining', href: '/personal' },
-  { name: 'Health', desc: 'Gym, medical, wellness', href: '/health' },
-  { name: 'Growth', desc: 'Education, courses, self-development', href: '/growth' },
-  { name: 'Trips', desc: 'AI trips & flights', href: '/budgets/trips' },
-  { name: 'Income', desc: 'Income tracking', href: '/income' },
-];
-
 const FEATURES = [
   { title: 'Plaid Integration', desc: 'Bank sync for all accounts' },
   { title: 'GAAP Accounting', desc: 'Trial balance, period close, year-end close, audit trail' },
@@ -100,56 +85,6 @@ export default function LandingPage() {
           via the existing LoginBox modal). The 5 paid pills are stubs. Nothing
           below is removed — old landing content is HOME-PR-2. */}
       <ModuleLauncher onRequireAuth={() => { setLoginMode('register'); setShowLogin(true); }} />
-
-      {/* Stats Bar */}
-      <section className="bg-white border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-6">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            <div>
-              <div className="text-sm font-bold font-mono text-brand-purple">12</div>
-              <div className="text-[10px] text-text-muted uppercase tracking-wider">Modules</div>
-            </div>
-            <div>
-              <div className="text-sm font-bold font-mono text-brand-purple">Plaid</div>
-              <div className="text-[10px] text-text-muted uppercase tracking-wider">Bank Sync</div>
-            </div>
-            <div>
-              <div className="text-sm font-bold font-mono text-brand-purple">IRS</div>
-              <div className="text-[10px] text-text-muted uppercase tracking-wider">Compliant</div>
-            </div>
-            <div>
-              <div className="text-sm font-bold font-mono text-brand-purple">AI</div>
-              <div className="text-[10px] text-text-muted uppercase tracking-wider">Powered</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Modules Grid */}
-      <section className="py-12">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8">
-          <div className="mb-8">
-            <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Platform</div>
-            <h2 className="text-sm font-light text-text-primary">Modules</h2>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-            {MODULES.map((mod) => (
-              <div key={mod.name}
-                className={`bg-white p-4 hover:border-brand-purple transition-colors cursor-pointer group ${
-                  (mod as any).featured ? 'border-2 border-brand-accent relative' : 'border border-border'
-                }`}
-                onClick={() => { setLoginMode('register'); setShowLogin(true); }}>
-                {(mod as any).featured && (
-                  <div className="absolute -top-2 right-2 bg-brand-accent text-white text-[8px] px-1.5 py-0.5 uppercase tracking-wider font-semibold">New</div>
-                )}
-                <div className="text-xs font-medium text-text-primary group-hover:text-brand-purple mb-1">{mod.name}</div>
-                <div className="text-[10px] text-text-muted">{mod.desc}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* Three Pillars */}
       <section className="bg-white border-y border-border py-12">
