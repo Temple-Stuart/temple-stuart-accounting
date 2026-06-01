@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { runPipeline } from '@/lib/convergence/pipeline';
 import type { PipelineResult } from '@/lib/convergence/pipeline';
-import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireAdmin } from '@/lib/require-admin';
 import { prisma } from '@/lib/prisma';
 
 export const maxDuration = 300;
@@ -41,10 +41,16 @@ function setCache(limit: number, data: PipelineResult, universe?: string): void 
 
 export async function GET(request: Request) {
   try {
-    const userEmail = await getVerifiedEmail();
-    if (!userEmail) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // TRADING-PR-SEC: this scan runs the convergence pipeline, which hits PAID
+    // data feeds (TastyTrade / Finnhub / FRED / xAI). Gate it to the admin/owner
+    // (OWNER_EMAIL — Alex, the sole admin today) using the existing requireAdmin
+    // helper. requireAdmin returns 401 for guests and 403 for non-admins BEFORE
+    // any param parsing, cache read, SSE stream, or runPipeline — so no paid call
+    // fires for unauthorized users. Hard gate, no fallback. (Same pattern as the
+    // src/app/api/admin/* routes.)
+    const adminResult = await requireAdmin();
+    if (adminResult instanceof NextResponse) return adminResult;
+    const userEmail = adminResult; // the verified admin email
 
     const { searchParams } = new URL(request.url);
 
