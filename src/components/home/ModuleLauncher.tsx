@@ -1,7 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import CreateTripForm from '@/components/trips/CreateTripForm';
+import ScanFilterForm from '@/components/trading/ScanFilterForm';
+import type { ScannerFilters } from '@/lib/convergence/filter-types';
+import { DEFAULT_FILTERS } from '@/lib/convergence/filter-types';
 
 // HOME-PR-1: the home-page module launcher. A pill row (Travel + 5 paid stubs)
 // over the selected module's card. Travel is LIVE + free + guest-usable (the
@@ -32,17 +36,54 @@ interface Props {
 }
 
 export default function ModuleLauncher({ onRequireAuth }: Props) {
+  const router = useRouter();
   const [active, setActive] = useState('travel');
   // Auth state: null = unknown (initial), true/false once /api/auth/me resolves.
   const [authed, setAuthed] = useState<boolean | null>(null);
+  // TRADING-PR-2: admin status (server-computed via /api/auth/me isAdmin). The
+  // Trading scan is admin-gated (requireAdmin), so only the admin sees the working
+  // ScanFilterForm; everyone else keeps the paid stub.
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     fetch('/api/auth/me')
-      .then(res => { if (!cancelled) setAuthed(res.ok); })
+      .then(async res => {
+        if (cancelled) return;
+        setAuthed(res.ok);
+        if (res.ok) {
+          const data = await res.json().catch(() => null);
+          setIsAdmin(!!data?.user?.isAdmin);
+        }
+      })
       .catch(() => { if (!cancelled) setAuthed(false); });
     return () => { cancelled = true; };
   }, []);
+
+  // TRADING-PR-2: launcher-owned scan filter state (mirrors the dashboard's lifted
+  // state + the same localStorage 'scanner-filters' key the dashboard reads). The
+  // home form can't host the full ConvergenceIntelligence results view, so its
+  // Scan persists the filters and routes the admin to /trading (the full dashboard
+  // runs the scan there). No half-wired scan.
+  const [scannerFilters, setScannerFilters] = useState<ScannerFilters>(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('scanner-filters') : null;
+      return saved ? JSON.parse(saved) : DEFAULT_FILTERS;
+    } catch { return DEFAULT_FILTERS; }
+  });
+  const [scannerUniverse, setScannerUniverse] = useState('sp500');
+  // The home Scan routes to the full dashboard, where the admin-gated scan runs.
+  // Filters carry over via the shared localStorage 'scanner-filters' key, which
+  // the dashboard reads on init (trading/page.tsx loads it into scannerFilters).
+  // We don't auto-fire the scan (that would require dashboard scan-logic changes,
+  // out of scope) — the dashboard opens with the home-set filters pre-loaded.
+  const scanTriggerRef = useRef<(() => void) | null>(null);
+  scanTriggerRef.current = () => router.push('/trading');
+
+  const handleFiltersChange = (next: ScannerFilters) => {
+    setScannerFilters(next);
+    try { localStorage.setItem('scanner-filters', JSON.stringify(next)); } catch {}
+  };
 
   const activeMod = MODULES.find(m => m.key === active) || MODULES[0];
 
@@ -76,6 +117,19 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
               // Travel — the shared create-trip card. Guests can fill it; saving
               // is register-gated via gateGuestCreate.
               <CreateTripForm onUnauthenticated={gateGuestCreate} showHeader={false} />
+            ) : activeMod.key === 'trading' && isAdmin ? (
+              // TRADING-PR-2: Trading is paid + admin-gated. ADMIN sees the working
+              // shared <ScanFilterForm> (same component as the dashboard); its Scan
+              // routes to /trading (the full dashboard runs the admin-gated scan).
+              // Non-admins fall through to the stub below — no working form, no 403
+              // dead-end, no exposed scanner internals.
+              <ScanFilterForm
+                scannerUniverse={scannerUniverse}
+                setScannerUniverse={setScannerUniverse}
+                scannerFilters={scannerFilters}
+                onFiltersChange={handleFiltersChange}
+                scanTriggerRef={scanTriggerRef}
+              />
             ) : (
               // HOME-PR-1d: paid module stub rendered BARE under the single
               // "Launch a module" band (no inner module-name band/card — that was
