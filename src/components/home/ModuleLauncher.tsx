@@ -77,22 +77,20 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
               // is register-gated via gateGuestCreate.
               <CreateTripForm onUnauthenticated={gateGuestCreate} showHeader={false} />
             ) : (
-              // Paid module stub.
-              <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm mb-4">
-                <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">
-                  {activeMod.label}
-                </div>
-                <div className="bg-white p-6">
-                  <p className="text-sm text-text-primary mb-1">{activeMod.label} — coming soon.</p>
-                  <p className="text-xs text-text-muted mb-4">{activeMod.blurb} Requires an account.</p>
-                  <button
-                    type="button"
-                    onClick={onRequireAuth}
-                    className="px-6 py-2 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm rounded"
-                  >
-                    Sign in to get started
-                  </button>
-                </div>
+              // HOME-PR-1d: paid module stub rendered BARE under the single
+              // "Launch a module" band (no inner module-name band/card — that was
+              // a redundant second banner). The module name stays as plain text in
+              // the copy below. Matches the bare layout 1c gave the Travel form.
+              <div className="pb-1">
+                <p className="text-sm text-text-primary mb-1">{activeMod.label} — coming soon.</p>
+                <p className="text-xs text-text-muted mb-4">{activeMod.blurb} Requires an account.</p>
+                <button
+                  type="button"
+                  onClick={onRequireAuth}
+                  className="px-6 py-2 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm rounded"
+                >
+                  Sign in to get started
+                </button>
               </div>
             )}
 
