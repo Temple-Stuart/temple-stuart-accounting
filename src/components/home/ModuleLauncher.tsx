@@ -75,7 +75,7 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
             {activeMod.live ? (
               // Travel — the shared create-trip card. Guests can fill it; saving
               // is register-gated via gateGuestCreate.
-              <CreateTripForm onUnauthenticated={gateGuestCreate} />
+              <CreateTripForm onUnauthenticated={gateGuestCreate} showHeader={false} />
             ) : (
               // Paid module stub.
               <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm mb-4">
