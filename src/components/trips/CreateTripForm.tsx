@@ -16,13 +16,18 @@ interface Props {
    *  freely usable by guests; only the save is register-gated. Omit on the trips
    *  index (always authenticated there) → POSTs directly as before. */
   onUnauthenticated?: () => boolean | Promise<boolean>;
+  /** HOME-PR-1c: render the "Plan a new trip" SectionCard band + card chrome.
+   *  Default true (the trips index is unchanged). The home launcher passes
+   *  false — it already wraps the form in its single "Launch a module" band, so
+   *  the inner band/card would be a redundant second banner. */
+  showHeader?: boolean;
 }
 
 // HOME-PR-1: shared create-trip card, extracted VERBATIM from
 // budgets/trips/page.tsx (PR-37a/b) so the trips index and the home module
 // launcher render ONE component. Behavior on the trips index is unchanged
 // (onUnauthenticated omitted → direct POST). POST /api/trips is unchanged.
-export default function CreateTripForm({ onUnauthenticated }: Props) {
+export default function CreateTripForm({ onUnauthenticated, showHeader = true }: Props) {
   const router = useRouter();
 
   const [name, setName] = useState('');
@@ -116,12 +121,8 @@ export default function CreateTripForm({ onUnauthenticated }: Props) {
     }
   };
 
-  return (
-    <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm mb-4">
-      <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">
-        Plan a new trip
-      </div>
-      <div className="bg-white p-4">
+  const formBody = (
+    <>
         <div className="flex flex-col lg:flex-row lg:items-end gap-3">
           {/* Trip name */}
           <label className="flex flex-col gap-1 lg:flex-[3] min-w-0">
@@ -240,6 +241,21 @@ export default function CreateTripForm({ onUnauthenticated }: Props) {
           )}
           {createError && <span className="text-xs text-brand-red ml-2">{createError}</span>}
         </div>
+    </>
+  );
+
+  // HOME-PR-1c: with showHeader (default — trips index), wrap the form in the
+  // "Plan a new trip" SectionCard band + card chrome. The home launcher passes
+  // showHeader={false} — it already provides the single "Launch a module" band,
+  // so the form renders bare (no redundant second banner/card).
+  if (!showHeader) return formBody;
+  return (
+    <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm mb-4">
+      <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">
+        Plan a new trip
+      </div>
+      <div className="bg-white p-4">
+        {formBody}
       </div>
     </div>
   );
