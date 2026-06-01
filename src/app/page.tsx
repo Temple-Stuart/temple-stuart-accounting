@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import LoginBox from '@/components/LoginBox';
+import ModuleLauncher from '@/components/home/ModuleLauncher';
 
 const MODULES = [
   { name: 'Hub', desc: 'Command center', href: '/hub' },
@@ -93,6 +94,12 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* HOME-PR-1: module launcher (additive, directly under the Hero). Travel
+          is live + guest-usable (shared CreateTripForm; saving is register-gated
+          via the existing LoginBox modal). The 5 paid pills are stubs. Nothing
+          below is removed — old landing content is HOME-PR-2. */}
+      <ModuleLauncher onRequireAuth={() => { setLoginMode('register'); setShowLogin(true); }} />
 
       {/* Stats Bar */}
       <section className="bg-white border-b border-border">
