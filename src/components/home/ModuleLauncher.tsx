@@ -129,6 +129,7 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
                 scannerFilters={scannerFilters}
                 onFiltersChange={handleFiltersChange}
                 scanTriggerRef={scanTriggerRef}
+                showHeader={false}
               />
             ) : (
               // HOME-PR-1d: paid module stub rendered BARE under the single

@@ -743,50 +743,43 @@ export default function TradingPage() {
       <div className="min-h-screen bg-bg-terminal">
         <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
 
-          {/* ── Purple Background Zone ── */}
-          <div className="-mx-4 lg:-mx-6 -mt-4 lg:-mt-6 px-3 lg:px-6 py-3 pb-5 bg-brand-purple/95 backdrop-blur-sm sticky top-0 z-40">
-            <div className="max-w-[1800px] mx-auto">
+          {/* TRADING-PR-3: the sticky/backdrop-blur "Purple Background Zone" is
+              dissolved — the scan form is a full-height SectionCard in normal flow
+              (nothing pinned/clipped), and the metrics row is its own "Performance"
+              SectionCard below it. Travel-style stacked cards. ── */}
+          <ScanFilterForm
+            scannerUniverse={scannerUniverse}
+            setScannerUniverse={setScannerUniverse}
+            scannerFilters={scannerFilters}
+            onFiltersChange={handleFiltersChange}
+            scanTriggerRef={scanTriggerRef}
+            ttConnected={ttConnected}
+          />
 
-              {/* TRADING-PR-1: the cramped gold-bordered scanner strip is now the
-                  shared <ScanFilterForm> SectionCard form. Same scannerFilters/
-                  scannerUniverse state, same handleFiltersChange (localStorage),
-                  same scanTriggerRef → GET /api/trading/convergence. 0 scan-logic
-                  change; all 18 filters still applied client-side via applyFilters. */}
-              <ScanFilterForm
-                scannerUniverse={scannerUniverse}
-                setScannerUniverse={setScannerUniverse}
-                scannerFilters={scannerFilters}
-                onFiltersChange={handleFiltersChange}
-                scanTriggerRef={scanTriggerRef}
-                ttConnected={ttConnected}
-              />
-
-              {/* ROW 2 — 7 Metrics Bar */}
-              {(() => { const m = filteredMetrics; return (
-              <div className="bg-brand-purple/90 rounded-lg mt-2 px-3 py-2">
-                <div className="flex items-center">
-                  <div className="flex items-center gap-1.5 pr-3 border-r border-white/20 shrink-0">
-                    <span className="text-[9px] text-white/50 uppercase">Period</span>
-                    <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="bg-white/20 border border-white/30 rounded px-1.5 py-0.5 text-white text-[11px] font-mono w-[100px] outline-none" />
-                    <span className="text-white/50">—</span>
-                    <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="bg-white/20 border border-white/30 rounded px-1.5 py-0.5 text-white text-[11px] font-mono w-[100px] outline-none" />
-                    {(dateFrom || dateTo) && <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="text-white/50 hover:text-white text-xs">x</button>}
-                  </div>
-                  <div className="flex-1 grid grid-cols-7 text-center min-w-0">
-                    <div className="px-2 border-r border-white/10 min-w-0"><div className="text-[9px] text-white/60 uppercase">P&L</div><div className={`text-sm font-bold font-mono truncate ${m.totalRealizedPL >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>{fmtPL(m.totalRealizedPL)}</div></div>
-                    <div className="px-2 border-r border-white/10 min-w-0"><div className="text-[9px] text-white/60 uppercase">WR</div><div className="text-sm font-bold font-mono text-white truncate">{m.winRate}%</div></div>
-                    <div className="px-2 border-r border-white/10 min-w-0"><div className="text-[9px] text-white/60 uppercase">PF</div><div className="text-sm font-bold font-mono text-white truncate">{m.profitFactor >= 999 ? '∞' : m.profitFactor.toFixed(2)}</div></div>
-                    <div className="px-2 border-r border-white/10 min-w-0"><div className="text-[9px] text-white/60 uppercase">Max W</div><div className="text-sm font-bold font-mono text-emerald-300 truncate">{fmt(m.largestWin)}</div></div>
-                    <div className="px-2 border-r border-white/10 min-w-0"><div className="text-[9px] text-white/60 uppercase">Max L</div><div className="text-sm font-bold font-mono text-red-300 truncate">{fmt(Math.abs(m.largestLoss))}</div></div>
-                    <div className="px-2 border-r border-white/10 min-w-0"><div className="text-[9px] text-white/60 uppercase">Avg W</div><div className="text-sm font-bold font-mono text-emerald-300 truncate">{fmt(m.avgWin)}</div></div>
-                    <div className="px-2 min-w-0"><div className="text-[9px] text-white/60 uppercase">Avg L</div><div className="text-sm font-bold font-mono text-red-300 truncate">{fmt(m.avgLoss)}</div></div>
-                  </div>
-                </div>
-              </div>
-              ); })()}
-
+          {/* Performance — the 7-metric row (was ROW 2 in the sticky zone). */}
+          {(() => { const m = filteredMetrics; return (
+          <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm mb-3">
+            <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center gap-2">
+              <span>Performance</span>
+              <span className="flex items-center gap-1.5 text-xs font-normal ml-auto">
+                <span className="text-white/60 uppercase text-[10px]">Period</span>
+                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="bg-white/20 border border-white/30 rounded px-1.5 py-0.5 text-white text-[11px] font-mono w-[110px] outline-none" />
+                <span className="text-white/50">—</span>
+                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="bg-white/20 border border-white/30 rounded px-1.5 py-0.5 text-white text-[11px] font-mono w-[110px] outline-none" />
+                {(dateFrom || dateTo) && <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="text-white/60 hover:text-white text-xs">x</button>}
+              </span>
+            </div>
+            <div className="bg-white px-3 py-3 grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2 text-center">
+              <div className="px-2"><div className="text-[9px] text-text-muted uppercase">P&amp;L</div><div className={`text-sm font-bold font-mono truncate ${m.totalRealizedPL >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{fmtPL(m.totalRealizedPL)}</div></div>
+              <div className="px-2"><div className="text-[9px] text-text-muted uppercase">WR</div><div className="text-sm font-bold font-mono text-text-primary truncate">{m.winRate}%</div></div>
+              <div className="px-2"><div className="text-[9px] text-text-muted uppercase">PF</div><div className="text-sm font-bold font-mono text-text-primary truncate">{m.profitFactor >= 999 ? '∞' : m.profitFactor.toFixed(2)}</div></div>
+              <div className="px-2"><div className="text-[9px] text-text-muted uppercase">Max W</div><div className="text-sm font-bold font-mono text-emerald-600 truncate">{fmt(m.largestWin)}</div></div>
+              <div className="px-2"><div className="text-[9px] text-text-muted uppercase">Max L</div><div className="text-sm font-bold font-mono text-red-500 truncate">{fmt(Math.abs(m.largestLoss))}</div></div>
+              <div className="px-2"><div className="text-[9px] text-text-muted uppercase">Avg W</div><div className="text-sm font-bold font-mono text-emerald-600 truncate">{fmt(m.avgWin)}</div></div>
+              <div className="px-2"><div className="text-[9px] text-text-muted uppercase">Avg L</div><div className="text-sm font-bold font-mono text-red-500 truncate">{fmt(m.avgLoss)}</div></div>
             </div>
           </div>
+          ); })()}
 
           {/* ── Page Content ── */}
           <div className="space-y-3 mt-4">
