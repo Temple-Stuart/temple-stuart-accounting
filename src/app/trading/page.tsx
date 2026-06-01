@@ -8,7 +8,8 @@ import ConvergenceIntelligence from '@/components/convergence/ConvergenceIntelli
 import TradeLabPanel from '@/components/trading/TradeLabPanel';
 import DataObservatory from '@/components/data-observatory/DataObservatory';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
-import { DEFAULT_FILTERS, AVAILABLE_STRATEGIES } from '@/lib/convergence/filter-types';
+import { DEFAULT_FILTERS } from '@/lib/convergence/filter-types';
+import ScanFilterForm from '@/components/trading/ScanFilterForm';
 import COAManagementTable from '@/components/bookkeeping/COAManagementTable';
 
 
@@ -115,7 +116,6 @@ export default function TradingPage() {
     return DEFAULT_FILTERS;
   });
   const [scannerUniverse, setScannerUniverse] = useState('sp500');
-  const [openPopover, setOpenPopover] = useState<string | null>(null);
   const scanTriggerRef = useRef<(() => void) | null>(null);
   const scanningRef = useRef<boolean>(false);
   const [scanningDisplay, setScanningDisplay] = useState(false);
@@ -747,149 +747,19 @@ export default function TradingPage() {
           <div className="-mx-4 lg:-mx-6 -mt-4 lg:-mt-6 px-3 lg:px-6 py-3 pb-5 bg-brand-purple/95 backdrop-blur-sm sticky top-0 z-40">
             <div className="max-w-[1800px] mx-auto">
 
-              {/* ROW 1 — Scanner Bar (compact with category popovers) */}
-              <div className="bg-white border-2 border-brand-gold/60 rounded-xl shadow-md flex flex-col lg:flex-row" style={{ overflow: 'visible' }}>
-
-                {/* Zone 1: Identity */}
-                <div className="px-4 py-3 lg:w-[160px] lg:flex-shrink-0 lg:border-r border-b lg:border-b-0 border-gray-200">
-                  <div className="text-sm font-bold text-text-primary">Trading Dashboard</div>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    {ttConnected ? (
-                      <><div className="w-2 h-2 bg-emerald-500 rounded-full" /><span className="text-xs text-emerald-600">TT Connected</span></>
-                    ) : ttConnected === false ? (
-                      <><div className="w-2 h-2 bg-red-400 rounded-full" /><span className="text-xs text-text-muted">No Broker</span></>
-                    ) : (
-                      <span className="text-xs text-text-faint">Checking...</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Zone 2: Filters — inline toggles + category popovers */}
-                <div className="px-4 py-2.5 lg:flex-1 lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0 space-y-1.5">
-                  {/* Row 1: Universe + Direction + Premium + Risk Type */}
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {[{ val: 'sp500', label: 'S&P 500' }, { val: 'nasdaq100', label: 'Nasdaq 100' }].map(u => (
-                      <button key={u.val} onClick={() => setScannerUniverse(u.val)}
-                        className={`text-[11px] px-2 py-1 rounded-full border ${scannerUniverse === u.val ? 'bg-brand-purple/10 text-brand-purple border-brand-purple/30 font-medium' : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'}`}>
-                        {u.label}
-                      </button>
-                    ))}
-                    <div className="flex gap-px rounded overflow-hidden border border-gray-200 ml-1">
-                      {(['ALL', 'BULLISH', 'BEARISH', 'NEUTRAL'] as const).map(d => (
-                        <button key={d} onClick={() => handleFiltersChange({ ...scannerFilters, risk: { ...scannerFilters.risk, direction: d } })}
-                          className={`px-2 py-1 text-[11px] font-bold ${scannerFilters.risk.direction === d ? 'bg-brand-purple text-white' : 'bg-white text-gray-400 hover:bg-gray-50'}`}>
-                          {d === 'BULLISH' ? 'Bull' : d === 'BEARISH' ? 'Bear' : d === 'NEUTRAL' ? 'Ntrl' : 'All'}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex gap-px rounded overflow-hidden border border-gray-200">
-                      {(['SELL', 'BUY', 'BOTH'] as const).map(s => (
-                        <button key={s} onClick={() => handleFiltersChange({ ...scannerFilters, risk: { ...scannerFilters.risk, premiumStance: s } })}
-                          className={`px-2 py-1 text-[11px] font-bold ${scannerFilters.risk.premiumStance === s ? 'bg-brand-purple text-white' : 'bg-white text-gray-400 hover:bg-gray-50'}`}>
-                          {s === 'BOTH' ? 'Both' : s}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex gap-px rounded overflow-hidden border border-gray-200">
-                      {(['DEFINED_ONLY', 'INCLUDE_UNLIMITED'] as const).map(r => (
-                        <button key={r} onClick={() => handleFiltersChange({ ...scannerFilters, risk: { ...scannerFilters.risk, riskType: r } })}
-                          className={`px-2 py-1 text-[11px] font-bold ${scannerFilters.risk.riskType === r ? 'bg-brand-purple text-white' : 'bg-white text-gray-400 hover:bg-gray-50'}`}>
-                          {r === 'DEFINED_ONLY' ? 'Defined' : 'Unlimited'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  {/* Row 2: Category popovers + DTE + Width + Strategies */}
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {/* Liquidity popover */}
-                    <div className="relative">
-                      <button onClick={() => setOpenPopover(openPopover === 'liquidity' ? null : 'liquidity')}
-                        className={`px-2.5 py-1 text-[11px] font-medium rounded-md border cursor-pointer ${openPopover === 'liquidity' ? 'bg-brand-purple/10 text-brand-purple border-brand-purple/30' : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'}`}>
-                        Liquidity
-                      </button>
-                      {openPopover === 'liquidity' && (
-                        <div className="absolute top-full left-0 mt-1 z-50 bg-white rounded-lg border-2 border-brand-gold/60 shadow-lg p-3 w-[300px]" onClick={e => e.stopPropagation()}>
-                          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-2">Liquidity Gates</div>
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2"><span className="text-[11px] text-gray-600 w-[80px] shrink-0">Min OI</span><input type="range" min={0} max={5000} step={50} value={scannerFilters.liquidity.minOpenInterest} onChange={e => handleFiltersChange({ ...scannerFilters, liquidity: { ...scannerFilters.liquidity, minOpenInterest: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[50px] text-right">{scannerFilters.liquidity.minOpenInterest}</span></div>
-                            <div className="flex items-center gap-2"><span className="text-[11px] text-gray-600 w-[80px] shrink-0">Max Spread</span><input type="range" min={1} max={50} value={scannerFilters.liquidity.maxBidAskSpreadPct} onChange={e => handleFiltersChange({ ...scannerFilters, liquidity: { ...scannerFilters.liquidity, maxBidAskSpreadPct: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[50px] text-right">{scannerFilters.liquidity.maxBidAskSpreadPct}%</span></div>
-                            <div className="flex items-center gap-2"><span className="text-[11px] text-gray-600 w-[80px] shrink-0">Min Volume</span><input type="range" min={0} max={10000000} step={100000} value={scannerFilters.liquidity.minUnderlyingVolume} onChange={e => handleFiltersChange({ ...scannerFilters, liquidity: { ...scannerFilters.liquidity, minUnderlyingVolume: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[50px] text-right">{scannerFilters.liquidity.minUnderlyingVolume >= 1e6 ? `${(scannerFilters.liquidity.minUnderlyingVolume / 1e6).toFixed(1)}M` : `${(scannerFilters.liquidity.minUnderlyingVolume / 1e3).toFixed(0)}K`}</span></div>
-                            <div className="flex items-center gap-2"><span className="text-[11px] text-gray-600 w-[80px] shrink-0">Min Rating</span><div className="flex gap-1">{[1,2,3,4,5].map(n => (<button key={n} onClick={() => handleFiltersChange({ ...scannerFilters, liquidity: { ...scannerFilters.liquidity, minLiquidityRating: n } })} className={`text-base ${n <= scannerFilters.liquidity.minLiquidityRating ? 'text-brand-gold' : 'text-gray-300'}`}>*</button>))}</div></div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    {/* Edge popover */}
-                    <div className="relative">
-                      <button onClick={() => setOpenPopover(openPopover === 'edge' ? null : 'edge')}
-                        className={`px-2.5 py-1 text-[11px] font-medium rounded-md border cursor-pointer ${openPopover === 'edge' ? 'bg-brand-purple/10 text-brand-purple border-brand-purple/30' : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'}`}>
-                        Edge
-                      </button>
-                      {openPopover === 'edge' && (
-                        <div className="absolute top-full left-0 mt-1 z-50 bg-white rounded-lg border-2 border-brand-gold/60 shadow-lg p-3 w-[300px]" onClick={e => e.stopPropagation()}>
-                          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-2">Edge Metrics</div>
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2"><span className="text-[11px] text-gray-600 w-[80px] shrink-0">Min PoP</span><input type="range" min={0} max={100} value={scannerFilters.edge.minPop} onChange={e => handleFiltersChange({ ...scannerFilters, edge: { ...scannerFilters.edge, minPop: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[50px] text-right">{scannerFilters.edge.minPop}%</span></div>
-                            <div className="flex items-center gap-2"><span className="text-[11px] text-gray-600 w-[80px] shrink-0">Min EV</span><input type="range" min={-500} max={1000} step={10} value={scannerFilters.edge.minEv} onChange={e => handleFiltersChange({ ...scannerFilters, edge: { ...scannerFilters.edge, minEv: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[50px] text-right">${scannerFilters.edge.minEv}</span></div>
-                            <div className="flex items-center gap-2"><span className="text-[11px] text-gray-600 w-[80px] shrink-0">Min EV/Risk</span><input type="range" min={-200} max={200} step={5} value={Math.round(scannerFilters.edge.minEvPerRisk * 100)} onChange={e => handleFiltersChange({ ...scannerFilters, edge: { ...scannerFilters.edge, minEvPerRisk: +e.target.value / 100 } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[50px] text-right">{scannerFilters.edge.minEvPerRisk.toFixed(2)}</span></div>
-                            <div className="flex items-center gap-2"><span className="text-[11px] text-gray-600 w-[80px] shrink-0">Vol Edge</span><div className="flex gap-px rounded overflow-hidden border border-gray-200">{(['IV_ABOVE_HV', 'IV_BELOW_HV', 'ANY'] as const).map(v => (<button key={v} onClick={() => handleFiltersChange({ ...scannerFilters, edge: { ...scannerFilters.edge, volEdge: v } })} className={`px-2 py-0.5 text-[10px] font-bold ${scannerFilters.edge.volEdge === v ? 'bg-brand-purple text-white' : 'bg-white text-gray-400 hover:bg-gray-50'}`}>{v === 'IV_ABOVE_HV' ? 'IV>HV' : v === 'IV_BELOW_HV' ? 'IV<HV' : 'Any'}</button>))}</div></div>
-                            <div className="flex items-center gap-2"><span className="text-[11px] text-gray-600 w-[80px] shrink-0">Min IV Rank</span><input type="range" min={0} max={100} value={scannerFilters.edge.minIvRank} onChange={e => handleFiltersChange({ ...scannerFilters, edge: { ...scannerFilters.edge, minIvRank: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[50px] text-right">{scannerFilters.edge.minIvRank}%</span></div>
-                            <div className="flex items-center gap-2"><span className="text-[11px] text-gray-600 w-[80px] shrink-0">Sentiment</span><input type="range" min={-100} max={100} value={scannerFilters.edge.minSentiment} onChange={e => handleFiltersChange({ ...scannerFilters, edge: { ...scannerFilters.edge, minSentiment: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[50px] text-right">{(scannerFilters.edge.minSentiment / 100).toFixed(1)}</span></div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    {/* DTE inline */}
-                    <span className="text-[10px] text-gray-500">DTE</span>
-                    <input type="number" min={0} max={365} value={scannerFilters.risk.minDte} onChange={e => handleFiltersChange({ ...scannerFilters, risk: { ...scannerFilters.risk, minDte: +e.target.value } })}
-                      className="w-14 border border-gray-200 rounded px-1.5 py-0.5 text-xs font-mono text-center" />
-                    <span className="text-gray-400 text-xs">—</span>
-                    <input type="number" min={0} max={365} value={scannerFilters.risk.maxDte} onChange={e => handleFiltersChange({ ...scannerFilters, risk: { ...scannerFilters.risk, maxDte: +e.target.value } })}
-                      className="w-14 border border-gray-200 rounded px-1.5 py-0.5 text-xs font-mono text-center" />
-                    {/* Width inline */}
-                    <span className="text-[10px] text-gray-500">W$</span>
-                    <input type="number" min={0} max={100} value={scannerFilters.risk.minSpreadWidth} onChange={e => handleFiltersChange({ ...scannerFilters, risk: { ...scannerFilters.risk, minSpreadWidth: +e.target.value } })}
-                      className="w-14 border border-gray-200 rounded px-1.5 py-0.5 text-xs font-mono text-center" />
-                    <span className="text-gray-400 text-xs">—</span>
-                    <input type="number" min={0} max={100} value={scannerFilters.risk.maxSpreadWidth} onChange={e => handleFiltersChange({ ...scannerFilters, risk: { ...scannerFilters.risk, maxSpreadWidth: +e.target.value } })}
-                      className="w-14 border border-gray-200 rounded px-1.5 py-0.5 text-xs font-mono text-center" />
-                    {/* Strategies popover */}
-                    <div className="relative">
-                      <button onClick={() => setOpenPopover(openPopover === 'strategies' ? null : 'strategies')}
-                        className={`px-2.5 py-1 text-[11px] font-medium rounded-md border cursor-pointer ${openPopover === 'strategies' ? 'bg-brand-purple/10 text-brand-purple border-brand-purple/30' : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'}`}>
-                        {scannerFilters.risk.strategies.length > 0 ? `${scannerFilters.risk.strategies.length}/16 strats` : '16 strats'}
-                      </button>
-                      {openPopover === 'strategies' && (
-                        <div className="absolute top-full right-0 mt-1 z-50 bg-white rounded-lg border-2 border-brand-gold/60 shadow-lg p-3 w-[320px]" onClick={e => e.stopPropagation()}>
-                          <div className="flex flex-wrap gap-1">
-                            {AVAILABLE_STRATEGIES.map(s => {
-                              const active = scannerFilters.risk.strategies.length === 0 || scannerFilters.risk.strategies.includes(s);
-                              return (
-                                <button key={s} onClick={() => {
-                                  const curr = scannerFilters.risk.strategies;
-                                  const next = curr.includes(s) ? curr.filter(x => x !== s) : [...curr, s];
-                                  handleFiltersChange({ ...scannerFilters, risk: { ...scannerFilters.risk, strategies: next } });
-                                }}
-                                  className={`px-2 py-0.5 rounded text-[11px] font-medium ${active ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
-                                  {s}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          <button onClick={() => handleFiltersChange({ ...scannerFilters, risk: { ...scannerFilters.risk, strategies: [] } })}
-                            className="text-[11px] text-brand-purple hover:underline mt-2">Reset all</button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Zone 3: Scan */}
-                <button onClick={() => { setOpenPopover(null); if (scanTriggerRef.current) scanTriggerRef.current(); }}
-                  className="flex items-center justify-center px-5 min-w-[80px] bg-brand-gold hover:bg-brand-gold-bright text-white font-bold text-base transition-colors whitespace-nowrap lg:rounded-r-xl shrink-0">
-                  Scan
-                </button>
-              </div>
+              {/* TRADING-PR-1: the cramped gold-bordered scanner strip is now the
+                  shared <ScanFilterForm> SectionCard form. Same scannerFilters/
+                  scannerUniverse state, same handleFiltersChange (localStorage),
+                  same scanTriggerRef → GET /api/trading/convergence. 0 scan-logic
+                  change; all 18 filters still applied client-side via applyFilters. */}
+              <ScanFilterForm
+                scannerUniverse={scannerUniverse}
+                setScannerUniverse={setScannerUniverse}
+                scannerFilters={scannerFilters}
+                onFiltersChange={handleFiltersChange}
+                scanTriggerRef={scanTriggerRef}
+                ttConnected={ttConnected}
+              />
 
               {/* ROW 2 — 7 Metrics Bar */}
               {(() => { const m = filteredMetrics; return (
