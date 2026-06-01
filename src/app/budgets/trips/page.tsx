@@ -205,12 +205,12 @@ export default function TripsPage() {
         <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
 
           {/* ── PR-37a: Create-trip form (POSTs /api/trips directly → detail).
-              Basic styling; full detail-page-template adoption is PR-37b. ── */}
-          <div className="bg-white border border-border mb-4">
-            <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
+              PR-37b: chrome adopts the detail-page SectionCard template. ── */}
+          <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm mb-4">
+            <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">
               Plan a new trip
             </div>
-            <div className="p-4">
+            <div className="bg-white p-4">
               <div className="flex flex-col lg:flex-row lg:items-end gap-3">
                 {/* Trip name */}
                 <label className="flex flex-col gap-1 lg:flex-[3] min-w-0">
@@ -332,35 +332,37 @@ export default function TripsPage() {
             </div>
           </div>
 
-          {/* Trip List */}
-          <div className="bg-white border border-border mb-4">
-            <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
+          {/* Trip List — PR-37b: SectionCard chrome + light table header (one
+              purple band + bg-gray-50/text-gray-500 header), matching the
+              detail-page Committed Budget/Crew tables. */}
+          <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm mb-4">
+            <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">
               All Trips
             </div>
 
             {trips.length === 0 ? (
-              <div className="p-8 text-center text-text-faint">
+              <div className="bg-white p-8 text-center text-text-faint">
                 <p className="text-sm mb-4">No trips yet. Use the form above to create your first trip.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto bg-white">
                 <table className="w-full text-xs">
-                  <thead className="bg-brand-purple-hover text-white">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-3 py-2 text-left font-medium">Trip</th>
-                      <th className="px-3 py-2 text-left font-medium">Destination</th>
-                      <th className="px-3 py-2 text-left font-medium">Activity</th>
-                      <th className="px-3 py-2 text-left font-medium">Dates</th>
-                      <th className="px-3 py-2 text-center font-medium">Days</th>
-                      <th className="px-3 py-2 text-center font-medium">Crew</th>
-                      <th className="px-3 py-2 text-center font-medium">Status</th>
-                      <th className="px-3 py-2 text-center font-medium"></th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-500">Trip</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-500">Destination</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-500">Activity</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-500">Dates</th>
+                      <th className="px-3 py-2 text-center font-medium text-gray-500">Days</th>
+                      <th className="px-3 py-2 text-center font-medium text-gray-500">Crew</th>
+                      <th className="px-3 py-2 text-center font-medium text-gray-500">Status</th>
+                      <th className="px-3 py-2 text-center font-medium text-gray-500"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border">
+                  <tbody className="divide-y divide-gray-100">
                     {trips.map(trip => (
                       <tr key={trip.id} onClick={() => router.push(`/budgets/trips/${trip.id}`)}
-                        className="hover:bg-bg-row cursor-pointer">
+                        className="hover:bg-gray-50 cursor-pointer">
                         <td className="px-3 py-3">
                           <div className="font-medium text-text-primary">{trip.name}</div>
                         </td>
