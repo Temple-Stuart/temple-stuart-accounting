@@ -61,56 +61,70 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
   return (
     <section className="py-10 bg-bg-terminal">
       <div className="max-w-7xl mx-auto px-4 lg:px-8">
-        <div className="mb-4">
-          <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Start here</div>
-          <h2 className="text-sm font-light text-text-primary">Launch a module</h2>
-        </div>
-
-        {/* Pill row — matches the trip-type pill style. */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          {MODULES.map(m => (
-            <button
-              key={m.key}
-              type="button"
-              onClick={() => setActive(m.key)}
-              className={`text-xs px-3 py-1 rounded-full border transition-colors ${
-                active === m.key
-                  ? 'bg-brand-purple text-white border-brand-purple'
-                  : 'bg-white text-text-secondary border-border hover:bg-bg-row'
-              }`}
-            >
-              {m.label}
-              {!m.live && (
-                <span className="ml-1.5 text-[9px] uppercase tracking-wider opacity-70">Paid</span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Selected module's card. */}
-        {activeMod.live ? (
-          // Travel — the shared create-trip card. Guests can fill it; saving is
-          // register-gated via gateGuestCreate.
-          <CreateTripForm onUnauthenticated={gateGuestCreate} />
-        ) : (
-          // Paid module stub.
-          <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm mb-4">
-            <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">
-              {activeMod.label}
-            </div>
-            <div className="bg-white p-6">
-              <p className="text-sm text-text-primary mb-1">{activeMod.label} — coming soon.</p>
-              <p className="text-xs text-text-muted mb-4">{activeMod.blurb} Requires an account.</p>
-              <button
-                type="button"
-                onClick={onRequireAuth}
-                className="px-6 py-2 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm rounded"
-              >
-                Sign in to get started
-              </button>
-            </div>
+        {/* HOME-PR-1b: single SectionCard container — the purple band is now
+            "Launch a module" (app-standard chrome, matching the trips-index
+            SectionCard). Body: the selected module's card FIRST, then a divider,
+            then the module pills + hint BELOW. */}
+        <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+          <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">
+            Launch a module
           </div>
-        )}
+          <div className="bg-white p-4">
+
+            {/* Selected module's card (form first). */}
+            {activeMod.live ? (
+              // Travel — the shared create-trip card. Guests can fill it; saving
+              // is register-gated via gateGuestCreate.
+              <CreateTripForm onUnauthenticated={gateGuestCreate} />
+            ) : (
+              // Paid module stub.
+              <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm mb-4">
+                <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">
+                  {activeMod.label}
+                </div>
+                <div className="bg-white p-6">
+                  <p className="text-sm text-text-primary mb-1">{activeMod.label} — coming soon.</p>
+                  <p className="text-xs text-text-muted mb-4">{activeMod.blurb} Requires an account.</p>
+                  <button
+                    type="button"
+                    onClick={onRequireAuth}
+                    className="px-6 py-2 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm rounded"
+                  >
+                    Sign in to get started
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Divider, then the module pill row + hint BELOW the form. */}
+            <div className="border-t border-gray-100 pt-3">
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Pill row — matches the trip-type pill style. */}
+                {MODULES.map(m => (
+                  <button
+                    key={m.key}
+                    type="button"
+                    onClick={() => setActive(m.key)}
+                    className={`text-xs px-3 py-1 rounded-full border transition-colors ${
+                      active === m.key
+                        ? 'bg-brand-purple text-white border-brand-purple'
+                        : 'bg-white text-text-secondary border-border hover:bg-bg-row'
+                    }`}
+                  >
+                    {m.label}
+                    {!m.live && (
+                      <span className="ml-1.5 text-[9px] uppercase tracking-wider opacity-70">Paid</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-text-muted mt-2">
+                Travel is free to use — sign in to save. Other modules require an account.
+              </p>
+            </div>
+
+          </div>
+        </div>
       </div>
     </section>
   );
