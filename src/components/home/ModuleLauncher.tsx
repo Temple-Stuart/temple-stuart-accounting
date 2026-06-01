@@ -136,22 +136,29 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
   };
 
   return (
-    <section className="py-10 bg-bg-terminal">
-      <div className="max-w-7xl mx-auto px-4 lg:px-8 space-y-3">
-        {MODULES.map(m => (
-          <div key={m.key} className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-            <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
-              <span>{m.label}</span>
-              <span className="text-[10px] uppercase tracking-wider font-normal text-white/80">
-                {m.live ? 'Free · guest ok' : 'Paid'}
-              </span>
-            </div>
-            <div className="bg-white p-4">
-              {renderBody(m)}
+    <>
+      {/* HOME-PR-7: each module is its own FULL-WIDTH band with an ALTERNATING
+          background (white / light-gray bg-bg-row) + generous vertical padding,
+          so the six read as distinct breathing sections (the old marketing
+          rhythm). The card content + its single purple band header are unchanged —
+          the separation comes from the full-width bg, NOT a second purple. */}
+      {MODULES.map((m, i) => (
+        <section key={m.key} className={`w-full py-10 ${i % 2 === 1 ? 'bg-bg-row' : 'bg-white'} border-b border-border`}>
+          <div className="max-w-7xl mx-auto px-4 lg:px-8">
+            <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+              <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
+                <span>{m.label}</span>
+                <span className="text-[10px] uppercase tracking-wider font-normal text-white/80">
+                  {m.live ? 'Free · guest ok' : 'Paid'}
+                </span>
+              </div>
+              <div className="bg-white p-4">
+                {renderBody(m)}
+              </div>
             </div>
           </div>
-        ))}
-      </div>
-    </section>
+        </section>
+      ))}
+    </>
   );
 }
