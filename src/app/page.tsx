@@ -61,8 +61,8 @@ export default function LandingPage() {
           <div className="max-w-3xl">
             <h1 className="text-4xl lg:text-5xl font-light tracking-tight mb-4">
               Track your money.<br />
-              Trade smarter.<br />
-              <span className="text-text-faint">Plan your life.</span>
+              Plan your life.<br />
+              <span className="text-text-faint">Act smarter.</span>
             </h1>
             <p className="text-text-faint text-terminal-lg mb-8 max-w-xl">
               Bookkeeping, AI-powered options analytics, trip planning, and budgeting &mdash; one platform.
