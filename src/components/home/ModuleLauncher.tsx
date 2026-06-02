@@ -23,13 +23,14 @@ interface ModuleDef {
   blurb: string;
 }
 
-// Order per HOME-PR-3: Travel, Trading, Bookkeeping, Tax, Operations, Compliance.
+// Order per HOME-PR-9: Travel, Trading, Operations, Bookkeeping, Tax, Compliance
+// (Travel + Trading + Operations are the input build-outs — surfaced first).
 const MODULES: ModuleDef[] = [
   { key: 'travel',      label: 'Travel',      live: true,  blurb: 'AI trip & flight planning — free to use.' },
   { key: 'trading',     label: 'Trading',     live: false, blurb: 'AI vol scanner + options strategy builder.' },
+  { key: 'operations',  label: 'Operations',  live: false, blurb: 'Routines, daily plan, command center.' },
   { key: 'bookkeeping', label: 'Bookkeeping', live: false, blurb: 'GAAP accounting engine, Plaid bank sync, period close.' },
   { key: 'tax',         label: 'Tax',         live: false, blurb: 'Form 1040, Schedule C/D/SE, Form 8949.' },
-  { key: 'operations',  label: 'Operations',  live: false, blurb: 'Routines, daily plan, command center.' },
   { key: 'compliance',  label: 'Compliance',  live: false, blurb: 'Monitoring, attestations, audit trail.' },
 ];
 
