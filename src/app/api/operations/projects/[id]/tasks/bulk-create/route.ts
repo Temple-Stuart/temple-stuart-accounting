@@ -207,6 +207,11 @@ export async function POST(
             link_url: task.link_url,
             notes: task.notes,
             display_order: baseOrder + task.suggested_order,
+            // Link each task to the AI re-run (ai_usage row) that produced it.
+            // sourceAiUsageId is already ownership-verified above (the aiUsage
+            // findFirst). Persisting it on the row makes the append batch
+            // first-class (queryable) instead of audit-log-only.
+            source_ai_usage_id: sourceAiUsageId,
             // status defaults to 'open' per Prisma schema default
           },
         })
