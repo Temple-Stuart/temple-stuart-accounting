@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import CreateTripForm from '@/components/trips/CreateTripForm';
 import ScanFilterForm from '@/components/trading/ScanFilterForm';
+import OperationsShowroom from '@/components/home/OperationsShowroom';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
 import { DEFAULT_FILTERS } from '@/lib/convergence/filter-types';
 
@@ -106,6 +107,12 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
     if (m.key === 'travel') {
       return <CreateTripForm onUnauthenticated={gateGuestCreate} showHeader={false} />;
     }
+    if (m.key === 'operations') {
+      // HOME-PR-10: presentational showroom (hardcoded sample data, no fetch).
+      // Every action reuses onRequireAuth — the SAME login-modal trigger Travel's
+      // gateGuestCreate + the paid stubs use. Safe by construction: nothing to call.
+      return <OperationsShowroom onRequireAuth={onRequireAuth} />;
+    }
     if (m.key === 'trading' && isAdmin) {
       // TRADING-PR-2/3: admin sees the working ScanFilterForm (Scan routes to
       // /trading, where the admin-gated scan runs). Non-admins fall to the stub.
@@ -150,7 +157,7 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
               <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
                 <span>{m.label}</span>
                 <span className="text-[10px] uppercase tracking-wider font-normal text-white/80">
-                  {m.live ? 'Free · guest ok' : 'Paid'}
+                  {m.key === 'operations' ? 'Live demo · log in to use' : m.live ? 'Free · guest ok' : 'Paid'}
                 </span>
               </div>
               <div className="bg-white p-4">
