@@ -2691,11 +2691,13 @@ model operations_project_tasks {
   actual_minutes       Int?
   display_order        Int                  @default(0)
   completed_at         DateTime?            @db.Timestamptz(6)
+  source_ai_usage_id   String?              @db.Uuid
   created_at           DateTime             @default(now()) @db.Timestamptz(6)
   updated_at           DateTime             @updatedAt @db.Timestamptz(6)
   created_by           String?
 
   project          operations_projects              @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  source_ai_usage  operations_ai_usage?             @relation("TaskSourceAiUsage", fields: [source_ai_usage_id], references: [id], onDelete: SetNull)
   daily_plan_items operations_daily_plan_items[]
   status_history   operations_task_status_history[]
 
@@ -2704,6 +2706,7 @@ model operations_project_tasks {
   @@index([deadline])
   @@index([entity_id])
   @@index([coa_code])
+  @@index([source_ai_usage_id])
   @@map("operations_project_tasks")
 }
 
@@ -2928,7 +2931,8 @@ model operations_ai_usage {
   created_at         DateTime @default(now()) @db.Timestamptz(6)
   created_by         String?
 
-  user users @relation(fields: [user_id], references: [id])
+  user            users                      @relation(fields: [user_id], references: [id])
+  generated_tasks operations_project_tasks[] @relation("TaskSourceAiUsage")
 
   @@index([user_id, created_at(sort: Desc)])
   @@index([target_table, target_id])
