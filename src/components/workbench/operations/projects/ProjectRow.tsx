@@ -20,6 +20,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Project, ProjectForm, ProjectStatus } from './types';
 import { STATUS_LABELS, STATUS_PILL_CLASSES } from './types';
 import TaskList from './TaskList';
+import EvolutionTimeline from './EvolutionTimeline';
 import DependencyList from './DependencyList';
 import ListManager from './ListManager';
 import InspectionDrawer, { type InspectionData } from '../ai/InspectionDrawer';
@@ -112,6 +113,10 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   } | null>(null);
   const [flash, setFlash] = useState(false);
   const [showDesignReasoning, setShowDesignReasoning] = useState(false);
+  // PR-Ops-Content-2: lazy-mount the read-only evolution timeline (the project's
+  // trajectory by AI re-run). Fetches only when opened (mirrors the design-reasoning
+  // toggle + TaskRow history-on-demand pattern).
+  const [showEvolution, setShowEvolution] = useState(false);
   // PR-Ops-Evolve-1: manual paste targets that feed reality into task generation.
   const [researchInput, setResearchInput] = useState(project.deep_research_input ?? '');
   const [auditInput, setAuditInput] = useState(project.claude_code_audit_input ?? '');
@@ -410,6 +415,19 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
           <div className="pt-2 border-t border-border-light">
             <div className={labelClass}>5 · execute (tasks)</div>
             <TaskList projectId={project.id} entity_id={project.entity_id} />
+          </div>
+          <div className="pt-2 border-t border-border-light">
+            <div className="flex items-center justify-between mb-1">
+              <div className={labelClass}>evolution (trajectory by AI re-run)</div>
+              <button
+                type="button"
+                onClick={() => setShowEvolution((x) => !x)}
+                className="px-2 py-0.5 border border-border rounded text-xs font-mono text-text-muted hover:bg-bg-row"
+              >
+                {showEvolution ? 'hide evolution' : 'view evolution'}
+              </button>
+            </div>
+            {showEvolution && <EvolutionTimeline projectId={project.id} />}
           </div>
           <div className="pt-2 border-t border-border-light">
             <div className={labelClass}>6 · dependencies</div>
