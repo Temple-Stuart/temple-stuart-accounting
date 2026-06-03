@@ -47,7 +47,10 @@ export async function GET(request: NextRequest) {
 
     const [scenes, pieces, cells] = await Promise.all([
       prisma.operations_content_scenes.findMany({
-        where: scope,
+        // OPS-CE-1: hide rows whose routine step was archived (soft-deleted).
+        // The scene-row + its take-cells stay in the DB (history preserved);
+        // they simply drop out of the active grid. Never deleted.
+        where: { ...scope, routine_step: { is_active: true } },
         include: {
           routine_step: {
             select: {

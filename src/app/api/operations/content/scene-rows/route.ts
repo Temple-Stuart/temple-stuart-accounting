@@ -104,8 +104,11 @@ export async function POST(request: NextRequest) {
     if ('error' in narrativePurpose) return narrativePurpose.error;
 
     // --- Ownership: the routine step must belong to the caller (defensive 404) ---
+    // OPS-CE-1: is_active guard — an archived (soft-deleted) step is inert; no
+    // new scene-row may be created/refined on it (404), so removed steps can't
+    // be silently resurrected with content.
     const step = await prisma.operations_routine_steps.findFirst({
-      where: { id: routineStepId, user_id: user.id },
+      where: { id: routineStepId, user_id: user.id, is_active: true },
     });
     if (!step) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 

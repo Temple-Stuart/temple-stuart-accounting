@@ -2840,6 +2840,11 @@ model operations_routine_steps {
   location         String?   @db.VarChar(200)
   duration_minutes Int?
   notes            String?   @db.Text
+  // OPS-CE-1: soft-delete flag. Removing a step ARCHIVES it (is_active=false)
+  // instead of hard-deleting, so its content_scene row + every logged take
+  // (answer) survive. Active routine/grid views filter is_active=true. Mirrors
+  // operations_routines.is_active and the evolution loop's append/preserve rule.
+  is_active        Boolean   @default(true)
   created_at       DateTime  @default(now()) @db.Timestamptz(6)
   updated_at       DateTime  @updatedAt @db.Timestamptz(6)
   created_by       String?
@@ -2849,6 +2854,7 @@ model operations_routine_steps {
 
   @@index([routine_id, step_order])
   @@index([routine_id])
+  @@index([routine_id, is_active])
   @@index([user_id])
   @@map("operations_routine_steps")
 }
