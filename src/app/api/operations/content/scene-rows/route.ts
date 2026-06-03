@@ -102,6 +102,24 @@ export async function POST(request: NextRequest) {
     if ('error' in bRoll) return bRoll.error;
     const narrativePurpose = parseText(body, 'narrative_purpose');
     if ('error' in narrativePurpose) return narrativePurpose.error;
+    // OPS-CE-3: the assigned question (snapshot text always; live id when from
+    // the library). Proposed-new commits with assigned_question_id=null + text.
+    const assignedQuestionText = parseText(body, 'assigned_question_text');
+    if ('error' in assignedQuestionText) return assignedQuestionText.error;
+
+    // assigned_question_id is optional: null (proposed-new / no question) or a
+    // UUID that must reference an ACTIVE question owned by the caller (fail-loud,
+    // never persist a forged/foreign/retired id).
+    let assignedQuestionId: string | null = null;
+    if (body.assigned_question_id !== undefined && body.assigned_question_id !== null) {
+      if (typeof body.assigned_question_id !== 'string' || !isValidUuid(body.assigned_question_id)) {
+        return NextResponse.json(
+          { error: 'Validation', field: 'assigned_question_id', message: 'assigned_question_id must be a valid UUID or null' },
+          { status: 400 }
+        );
+      }
+      assignedQuestionId = body.assigned_question_id;
+    }
 
     // --- Ownership: the routine step must belong to the caller (defensive 404) ---
     // OPS-CE-1: is_active guard — an archived (soft-deleted) step is inert; no
@@ -115,6 +133,20 @@ export async function POST(request: NextRequest) {
     // entity_id is server-derived from the parent step — never the client.
     const entityId = step.entity_id;
 
+    // If a library question id is supplied, verify it is the caller's and ACTIVE
+    // (defensive — a 400, not a silent drop). Proposed-new (id=null) skips this.
+    if (assignedQuestionId) {
+      const q = await prisma.operations_content_questions.findFirst({
+        where: { id: assignedQuestionId, user_id: user.id, is_active: true },
+      });
+      if (!q) {
+        return NextResponse.json(
+          { error: 'Validation', field: 'assigned_question_id', message: 'assigned_question_id does not reference an active question owned by this user' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Resolve create-vs-update up front for an accurate audit action.
     const existing = await prisma.operations_content_scenes.findUnique({
       where: { routine_step_id: routineStepId },
@@ -126,6 +158,10 @@ export async function POST(request: NextRequest) {
       shot_type: shotType.value,
       b_roll: bRoll.value,
       narrative_purpose: narrativePurpose.value,
+      // Always persist the snapshot text shown/accepted (library or proposed-new);
+      // assigned_question_id is the live link only when from the library.
+      assigned_question_id: assignedQuestionId,
+      assigned_question_text: assignedQuestionText.value,
     };
 
     const sceneRow = existing
