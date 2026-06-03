@@ -31,7 +31,7 @@ export type Step = {
   time_of_day: string | null;
   step_order: number;
   /** Present when the step has been take-ified; null/absent otherwise. */
-  content_take?: { id: string } | null;
+  content_scene?: { id: string } | null;
 };
 
 export type Routine = {
@@ -41,7 +41,7 @@ export type Routine = {
   schedule_rrule: string | null;
   steps: Step[];
   /** Present when the routine has been scenified; null/absent otherwise. */
-  content_scene?: { id: string } | null;
+  content_scene_group?: { id: string } | null;
 };
 
 export type Scene = {

@@ -73,19 +73,19 @@ export default function RoutineList({ entities, onCommitted }: Props) {
     onCommitted?.();
   };
 
-  // Optimistic update — a successful scenify POST adds the content_scene
+  // Optimistic update — a successful scenify POST adds the content_scene_group
   // relation to the routine so the 🎬 badge appears without a refetch.
   const handleScenify = (newScene: Scene) => {
     setRoutines((prev) =>
       prev.map((r) =>
         r.id === newScene.routine_id
-          ? { ...r, content_scene: { id: newScene.id } }
+          ? { ...r, content_scene_group: { id: newScene.id } }
           : r
       )
     );
   };
 
-  // Optimistic update — a successful take-ify POST adds the content_take
+  // Optimistic update — a successful take-ify POST adds the content_scene
   // relation to the matching step so its 🎬 badge appears without a refetch.
   const handleTakeify = (newTake: Take) => {
     setRoutines((prev) =>
@@ -93,7 +93,7 @@ export default function RoutineList({ entities, onCommitted }: Props) {
         ...r,
         steps: r.steps.map((s) =>
           s.id === newTake.routine_step_id
-            ? { ...s, content_take: { id: newTake.id } }
+            ? { ...s, content_scene: { id: newTake.id } }
             : s
         ),
       }))

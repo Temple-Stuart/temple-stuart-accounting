@@ -23,7 +23,7 @@ import type { Take } from './ContentTable';
 
 type TakeifyStep = {
   id: string;
-  content_take?: { id: string } | null;
+  content_scene?: { id: string } | null;
 };
 
 export default function TakeifyButton({
@@ -36,7 +36,7 @@ export default function TakeifyButton({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (step.content_take) {
+  if (step.content_scene) {
     return (
       <span
         className="px-2 py-0.5 border border-border rounded bg-purple-50 text-brand-purple text-xs font-mono"

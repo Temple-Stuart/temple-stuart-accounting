@@ -48,7 +48,7 @@ export async function GET(
       );
     }
 
-    const take = await prisma.operations_content_takes.findFirst({
+    const take = await prisma.operations_content_scenes.findFirst({
       where: { id, user_id: user.id },
     });
     if (!take) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -96,7 +96,7 @@ export async function PATCH(
       }
     }
 
-    const data: Prisma.operations_content_takesUpdateInput = {};
+    const data: Prisma.operations_content_scenesUpdateInput = {};
 
     if (body.filming_location_specific !== undefined) {
       if (body.filming_location_specific === null) {
@@ -176,12 +176,12 @@ export async function PATCH(
       }
     }
 
-    const existing = await prisma.operations_content_takes.findFirst({
+    const existing = await prisma.operations_content_scenes.findFirst({
       where: { id, user_id: user.id },
     });
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    const updated = await prisma.operations_content_takes.update({
+    const updated = await prisma.operations_content_scenes.update({
       where: { id },
       data,
     });
@@ -192,7 +192,7 @@ export async function PATCH(
         type: 'operations_content_take_updated',
         description: `Updated content take ${id}`,
       },
-      target: { table: 'operations_content_takes', id: updated.id },
+      target: { table: 'operations_content_scenes', id: updated.id },
       payload: {
         before: existing,
         after: updated,
@@ -234,12 +234,12 @@ export async function DELETE(
       );
     }
 
-    const existing = await prisma.operations_content_takes.findFirst({
+    const existing = await prisma.operations_content_scenes.findFirst({
       where: { id, user_id: user.id },
     });
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    await prisma.operations_content_takes.delete({ where: { id } });
+    await prisma.operations_content_scenes.delete({ where: { id } });
 
     await writeAuditLog({
       actor: { user_id: user.id, email: userEmail, type: 'human_user' },
@@ -247,7 +247,7 @@ export async function DELETE(
         type: 'operations_content_take_deleted',
         description: `Deleted content take ${id}`,
       },
-      target: { table: 'operations_content_takes', id },
+      target: { table: 'operations_content_scenes', id },
       payload: {
         before: existing,
         metadata: {

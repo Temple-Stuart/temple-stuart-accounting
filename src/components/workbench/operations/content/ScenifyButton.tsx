@@ -19,7 +19,7 @@ import ScenifyModal from './ScenifyModal';
 type ScenifyRoutine = {
   id: string;
   name: string;
-  content_scene?: { id: string } | null;
+  content_scene_group?: { id: string } | null;
 };
 
 export default function ScenifyButton({
@@ -31,7 +31,7 @@ export default function ScenifyButton({
 }) {
   const [open, setOpen] = useState(false);
 
-  if (routine.content_scene) {
+  if (routine.content_scene_group) {
     return (
       <span
         className="px-2 py-1 border border-border rounded bg-purple-50 text-brand-purple text-xs font-mono"

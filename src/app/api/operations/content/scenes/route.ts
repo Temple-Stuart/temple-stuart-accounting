@@ -1,7 +1,7 @@
 /**
  * /api/operations/content/scenes
  *
- * GET  — list operations_content_scenes for the authenticated user,
+ * GET  — list operations_content_scene_groups for the authenticated user,
  *        ordered by scene_number ASC. Optional ?entity_id filter.
  *        No audit (read-only).
  * POST — create a scene. routine_id must reference a routine owned by
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
       where.entity_id = entityId;
     }
 
-    const scenes = await prisma.operations_content_scenes.findMany({
+    const scenes = await prisma.operations_content_scene_groups.findMany({
       where,
       orderBy: { scene_number: 'asc' },
     });
@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
     const entityId = routine.entity_id;
 
     // --- UNIQUE constraint pre-checks ---
-    const existingForRoutine = await prisma.operations_content_scenes.findFirst({
+    const existingForRoutine = await prisma.operations_content_scene_groups.findFirst({
       where: { routine_id: routineId },
     });
     if (existingForRoutine) {
@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const existingForNumber = await prisma.operations_content_scenes.findFirst({
+    const existingForNumber = await prisma.operations_content_scene_groups.findFirst({
       where: { user_id: user.id, scene_number: sceneNumber },
     });
     if (existingForNumber) {
@@ -201,7 +201,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const scene = await prisma.operations_content_scenes.create({
+    const scene = await prisma.operations_content_scene_groups.create({
       data: {
         user_id: user.id,
         entity_id: entityId,
@@ -221,7 +221,7 @@ export async function POST(request: NextRequest) {
         type: 'operations_content_scene_created',
         description: `Created content scene ${sceneNumber} for routine ${routineId}`,
       },
-      target: { table: 'operations_content_scenes', id: scene.id },
+      target: { table: 'operations_content_scene_groups', id: scene.id },
       payload: {
         after: scene,
         metadata: {
