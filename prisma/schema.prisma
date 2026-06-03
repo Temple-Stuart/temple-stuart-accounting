@@ -2901,7 +2901,10 @@ model operations_content_scenes {
   filming_location_specific String?  @db.VarChar(200)
   camera_needed             String?  @db.VarChar(200)
   filming_angle             String?  @db.VarChar(200)
+  shot_type                 String?  @db.VarChar(200)
   notes                     String?  @db.Text
+  b_roll                    String?  @db.Text
+  narrative_purpose         String?  @db.Text
   created_at                DateTime @default(now()) @db.Timestamptz(6)
   updated_at                DateTime @updatedAt @db.Timestamptz(6)
 
