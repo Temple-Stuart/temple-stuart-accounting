@@ -1,7 +1,7 @@
 /**
  * /api/operations/content/takes
  *
- * GET  — list operations_content_takes for the authenticated user,
+ * GET  — list operations_content_scenes for the authenticated user,
  *        ordered by created_at ASC. Optional ?entity_id filter.
  *        No audit (read-only).
  * POST — create a take. routine_step_id must reference a routine step
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       where.entity_id = entityId;
     }
 
-    const takes = await prisma.operations_content_takes.findMany({
+    const takes = await prisma.operations_content_scenes.findMany({
       where,
       orderBy: { created_at: 'asc' },
     });
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
     const entityId = step.entity_id;
 
     // --- UNIQUE constraint pre-check ---
-    const existingForStep = await prisma.operations_content_takes.findFirst({
+    const existingForStep = await prisma.operations_content_scenes.findFirst({
       where: { routine_step_id: routineStepId },
     });
     if (existingForStep) {
@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const take = await prisma.operations_content_takes.create({
+    const take = await prisma.operations_content_scenes.create({
       data: {
         user_id: user.id,
         entity_id: entityId,
@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
         type: 'operations_content_take_created',
         description: `Created content take for routine step ${routineStepId}`,
       },
-      target: { table: 'operations_content_takes', id: take.id },
+      target: { table: 'operations_content_scenes', id: take.id },
       payload: {
         after: take,
         metadata: {

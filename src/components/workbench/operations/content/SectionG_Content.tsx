@@ -10,7 +10,7 @@
  * error and empty states stay as plain text.
  *
  * "Scenified" status is derived client-side: GET /api/operations/
- * routines does not include the content_scene relation, so we join
+ * routines does not include the content_scene_group relation, so we join
  * on routine_id against the scenes list.
  */
 
@@ -91,7 +91,7 @@ export default function SectionG_Content() {
       prev
         ? prev.map((r) =>
             r.id === newScene.routine_id
-              ? { ...r, content_scene: { id: newScene.id } }
+              ? { ...r, content_scene_group: { id: newScene.id } }
               : r
           )
         : prev

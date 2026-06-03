@@ -49,7 +49,7 @@ export async function GET(
       );
     }
 
-    const scene = await prisma.operations_content_scenes.findFirst({
+    const scene = await prisma.operations_content_scene_groups.findFirst({
       where: { id, user_id: user.id },
     });
     if (!scene) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -97,7 +97,7 @@ export async function PATCH(
       }
     }
 
-    const data: Prisma.operations_content_scenesUpdateInput = {};
+    const data: Prisma.operations_content_scene_groupsUpdateInput = {};
 
     if (body.scene_title !== undefined) {
       if (typeof body.scene_title !== 'string') {
@@ -199,12 +199,12 @@ export async function PATCH(
       }
     }
 
-    const existing = await prisma.operations_content_scenes.findFirst({
+    const existing = await prisma.operations_content_scene_groups.findFirst({
       where: { id, user_id: user.id },
     });
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    const updated = await prisma.operations_content_scenes.update({
+    const updated = await prisma.operations_content_scene_groups.update({
       where: { id },
       data,
     });
@@ -215,7 +215,7 @@ export async function PATCH(
         type: 'operations_content_scene_updated',
         description: `Updated content scene ${id}`,
       },
-      target: { table: 'operations_content_scenes', id: updated.id },
+      target: { table: 'operations_content_scene_groups', id: updated.id },
       payload: {
         before: existing,
         after: updated,
@@ -257,12 +257,12 @@ export async function DELETE(
       );
     }
 
-    const existing = await prisma.operations_content_scenes.findFirst({
+    const existing = await prisma.operations_content_scene_groups.findFirst({
       where: { id, user_id: user.id },
     });
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    await prisma.operations_content_scenes.delete({ where: { id } });
+    await prisma.operations_content_scene_groups.delete({ where: { id } });
 
     await writeAuditLog({
       actor: { user_id: user.id, email: userEmail, type: 'human_user' },
@@ -270,7 +270,7 @@ export async function DELETE(
         type: 'operations_content_scene_deleted',
         description: `Deleted content scene ${id}`,
       },
-      target: { table: 'operations_content_scenes', id },
+      target: { table: 'operations_content_scene_groups', id },
       payload: {
         before: existing,
         metadata: {

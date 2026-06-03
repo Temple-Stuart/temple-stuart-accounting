@@ -1,7 +1,7 @@
 /**
  * AvailableRoutinesList — interactive list of not-yet-scenified routines.
  *
- * Filters the supplied routines to those without a content_scene and
+ * Filters the supplied routines to those without a content_scene_group and
  * renders each with a ScenifyButton. Mounted on the Content tab below
  * the ContentTable. When every routine has a scene, shows a done state.
  */
@@ -18,7 +18,7 @@ export default function AvailableRoutinesList({
   routines: Routine[];
   onScenify: (newScene: Scene) => void;
 }) {
-  const available = routines.filter((r) => !r.content_scene);
+  const available = routines.filter((r) => !r.content_scene_group);
 
   return (
     <div className="space-y-2">

@@ -2818,7 +2818,7 @@ model operations_routines {
 
   completions   operations_routine_completions[]
   steps         operations_routine_steps[]
-  content_scene operations_content_scenes?
+  content_scene_group operations_content_scene_groups?
 
   @@unique([user_id, name])
   @@index([user_id, is_active, next_due_at])
@@ -2844,7 +2844,7 @@ model operations_routine_steps {
   created_by       String?
 
   routine      operations_routines       @relation(fields: [routine_id], references: [id], onDelete: Cascade)
-  content_take operations_content_takes?
+  content_scene operations_content_scenes?
 
   @@index([routine_id, step_order])
   @@index([routine_id])
@@ -2870,7 +2870,7 @@ model operations_routine_completions {
   @@map("operations_routine_completions")
 }
 
-model operations_content_scenes {
+model operations_content_scene_groups {
   id                    String   @id @default(uuid()) @db.Uuid
   user_id               String
   entity_id             String
@@ -2890,10 +2890,10 @@ model operations_content_scenes {
   @@index([user_id])
   @@index([entity_id])
   @@index([routine_id])
-  @@map("operations_content_scenes")
+  @@map("operations_content_scene_groups")
 }
 
-model operations_content_takes {
+model operations_content_scenes {
   id                        String   @id @default(uuid()) @db.Uuid
   user_id                   String
   entity_id                 String
@@ -2910,7 +2910,7 @@ model operations_content_takes {
   @@index([user_id])
   @@index([entity_id])
   @@index([routine_step_id])
-  @@map("operations_content_takes")
+  @@map("operations_content_scenes")
 }
 
 model operations_ai_usage {

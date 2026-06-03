@@ -68,9 +68,9 @@ async function loadAuthorizedRoutine(routineId: string, userId: string) {
     include: {
       steps: {
         orderBy: { step_order: 'asc' },
-        include: { content_take: true },
+        include: { content_scene: true },
       },
-      content_scene: true,
+      content_scene_group: true,
     },
   });
 }

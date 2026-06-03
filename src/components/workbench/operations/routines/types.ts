@@ -59,9 +59,9 @@ export interface Routine {
   /**
    * The content scene this routine has been scenified into, if any.
    * Populated by GET /api/operations/routines (and /[id]) via the
-   * content_scene include; absent on endpoints that don't include it.
+   * content_scene_group include; absent on endpoints that don't include it.
    */
-  content_scene?: { id: string } | null;
+  content_scene_group?: { id: string } | null;
 }
 
 /**
@@ -91,10 +91,10 @@ export interface RoutineStep {
   /**
    * The content take this step has been take-ified into, if any.
    * Populated by GET /api/operations/routines (and /[id]) via the
-   * nested steps→content_take include; absent on endpoints that
+   * nested steps→content_scene include; absent on endpoints that
    * don't include it.
    */
-  content_take?: { id: string } | null;
+  content_scene?: { id: string } | null;
 }
 
 export interface RoutineCompletion {
