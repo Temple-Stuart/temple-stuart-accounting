@@ -1,13 +1,16 @@
 /**
  * ScenifyButton — the 🎬 Scenify affordance for a routine.
  *
- * If the routine already has a scene, renders a non-interactive
- * "🎬 Scenified" badge. Otherwise renders a button that toggles the
- * inline ScenifyModal form. On a successful POST the modal calls
- * onScenify with the new scene so the parent can update state.
+ * Reshaped (PR-Ops-grid-6): always offers the Scenify form (it now creates/
+ * edits grid scene-ROWS per step rather than a one-off container, so a
+ * routine can be re-scenified to refine its shot fields). Toggles the
+ * inline ScenifyModal, which upserts one scene-row per routine step and
+ * broadcasts a refresh to the PieceGrid.
  *
- * Used on the Routines tab (via RoutineRow) and the Content tab
- * (via AvailableRoutinesList).
+ * Used on the Content tab (AvailableRoutinesList) and the Routines tab
+ * (RoutineRow). `onScenify` is retained as an optional, no-longer-invoked
+ * prop purely so those existing call sites compile unchanged — the grid
+ * refresh is driven by the modal's window event, not this callback.
  */
 
 'use client';
@@ -16,31 +19,14 @@ import { useState } from 'react';
 import type { Scene } from './ContentTable';
 import ScenifyModal from './ScenifyModal';
 
-type ScenifyRoutine = {
-  id: string;
-  name: string;
-  content_scene_group?: { id: string } | null;
-};
-
 export default function ScenifyButton({
   routine,
-  onScenify,
 }: {
-  routine: ScenifyRoutine;
-  onScenify: (newScene: Scene) => void;
+  routine: { id: string; name: string };
+  /** Legacy callback from the container-scene flow; no longer invoked. */
+  onScenify?: (newScene: Scene) => void;
 }) {
   const [open, setOpen] = useState(false);
-
-  if (routine.content_scene_group) {
-    return (
-      <span
-        className="px-2 py-1 border border-border rounded bg-purple-50 text-brand-purple text-xs font-mono"
-        title="this routine already has a scene"
-      >
-        🎬 Scenified
-      </span>
-    );
-  }
 
   return (
     <>
@@ -59,7 +45,6 @@ export default function ScenifyButton({
           routine={{ id: routine.id, name: routine.name }}
           open={open}
           onClose={() => setOpen(false)}
-          onSuccess={onScenify}
         />
       )}
     </>
