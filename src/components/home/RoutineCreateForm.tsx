@@ -34,9 +34,14 @@ export default function RoutineCreateForm({ onRequireAuth }: Props) {
   // Local form state only — same shape the real RoutineList uses. No fetch seeds it.
   const [form, setForm] = useState<RoutineForm>(DEFAULT_ROUTINE_FORM);
 
+  // HOME-STYLE-PR-1: contrast pass (existing palette only). White field on the light-
+  // gray panel (bg-bg-row) so edges show; darker muted-purple border (brand-purple/40,
+  // alpha-derived from the existing token — no new color); readable typed/placeholder
+  // text; purple focus ring (brand-purple/20 ≈ the approved rgba(83,74,183,0.15)).
   const inputClass =
-    'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
-  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs font-mono';
+    'w-full px-2 py-1 bg-white border border-brand-purple/40 rounded text-xs font-mono text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20';
+  // Labels → dark brand-purple, weight 500 (scannable, not ghost-gray).
+  const labelClass = 'text-brand-purple font-medium uppercase tracking-wide mb-1 text-xs font-mono';
 
   // The gate: logged-out, "create routine" opens the login modal and returns —
   // there is no fetch on this path (or anywhere in this file).
@@ -47,7 +52,7 @@ export default function RoutineCreateForm({ onRequireAuth }: Props) {
   return (
     <div className="space-y-4">
       {/* ── REAL input form (fields mirror RoutineList.tsx:219-300 + RRULEBuilder) ── */}
-      <div className="border border-border rounded p-3 bg-white space-y-3">
+      <div className="border border-border rounded p-3 bg-bg-row space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
             <div className={labelClass}>name</div>
@@ -141,21 +146,21 @@ export default function RoutineCreateForm({ onRequireAuth }: Props) {
       <div>
         <div className="flex items-center justify-between mb-1.5">
           <span className={labelClass}>your routines</span>
-          <span className="text-text-faint text-[10px] font-mono">0 routines</span>
+          <span className="text-text-muted text-[10px] font-mono">0 routines</span>
         </div>
         {/* The real list groups rows by cadence (Daily / Weekly / Monthly / …). */}
         <div className="flex flex-wrap gap-1 mb-2">
           {CADENCE_GROUP_ORDER.map((g) => (
             <span
               key={g}
-              className="px-1.5 py-0.5 border border-gray-200 bg-gray-50 text-text-faint rounded text-[10px] font-mono"
+              className="px-1.5 py-0.5 border border-gray-200 bg-gray-50 text-text-muted rounded text-[10px] font-mono"
             >
               {CADENCE_GROUP_LABELS[g]} (0)
             </span>
           ))}
         </div>
         <div className="border border-gray-200 rounded overflow-hidden">
-          <div className="grid grid-cols-[2fr_1fr_1fr] gap-2 bg-gray-50 border-b border-gray-200 px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider text-text-faint">
+          <div className="grid grid-cols-[2fr_1fr_1fr] gap-2 bg-gray-50 border-b border-gray-200 px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider text-text-muted">
             <span>Routine</span>
             <span>Streak</span>
             <span>Next due</span>

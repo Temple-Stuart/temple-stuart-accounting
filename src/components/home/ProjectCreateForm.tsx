@@ -36,9 +36,14 @@ export default function ProjectCreateForm({ onRequireAuth }: Props) {
   // fetch seeds it.
   const [form, setForm] = useState<ProjectForm>(DEFAULT_PROJECT_FORM);
 
+  // HOME-STYLE-PR-1: contrast pass (existing palette only). White field on the light-
+  // gray panel (bg-bg-row) so edges show; darker muted-purple border (brand-purple/40,
+  // alpha-derived from the existing token — no new color); readable typed/placeholder
+  // text; purple focus ring (brand-purple/20 ≈ the approved rgba(83,74,183,0.15)).
   const inputClass =
-    'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
-  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs font-mono';
+    'w-full px-2 py-1 bg-white border border-brand-purple/40 rounded text-xs font-mono text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20';
+  // Labels + numbered section headers → dark brand-purple, weight 500 (scannable).
+  const labelClass = 'text-brand-purple font-medium uppercase tracking-wide mb-1 text-xs font-mono';
 
   // THE HARD LINE: every action gates to the login modal and returns. There is no
   // fetch (and specifically no generate-design / generate-tasks) on any path here.
@@ -49,7 +54,7 @@ export default function ProjectCreateForm({ onRequireAuth }: Props) {
   return (
     <div className="space-y-4">
       {/* ── REAL 5-step input form (fields mirror SectionD_ProjectBacklog:344-578) ── */}
-      <div className="border border-border rounded p-3 bg-white space-y-3">
+      <div className="border border-border rounded p-3 bg-bg-row space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
             <div className={labelClass}>title</div>
@@ -125,7 +130,7 @@ export default function ProjectCreateForm({ onRequireAuth }: Props) {
               ↑ generate plan <span aria-hidden>→</span> log in
             </button>
           </div>
-          <div className="text-text-muted text-xs font-mono italic p-3 bg-bg-row border border-border-light rounded">
+          <div className="text-text-muted text-xs font-mono italic p-3 bg-white border border-border-light rounded">
             (no design yet — fill in goal/problem/diagnosis items above, then generate
             the plan after you log in)
           </div>
@@ -179,10 +184,10 @@ export default function ProjectCreateForm({ onRequireAuth }: Props) {
       <div>
         <div className="flex items-center justify-between mb-1.5">
           <span className={labelClass}>5 · execute (tasks)</span>
-          <span className="text-text-faint text-[10px] font-mono">0 tasks</span>
+          <span className="text-text-muted text-[10px] font-mono">0 tasks</span>
         </div>
         <div className="border border-gray-200 rounded overflow-hidden">
-          <div className="grid grid-cols-[1.5rem_3fr_1fr_1fr] gap-2 bg-gray-50 border-b border-gray-200 px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider text-text-faint">
+          <div className="grid grid-cols-[1.5rem_3fr_1fr_1fr] gap-2 bg-gray-50 border-b border-gray-200 px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider text-text-muted">
             <span>#</span>
             <span>Task</span>
             <span>Status</span>

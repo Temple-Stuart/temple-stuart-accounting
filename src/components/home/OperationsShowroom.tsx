@@ -55,7 +55,7 @@ function Panel({
   return (
     <div className="rounded-lg border border-gray-200/70 bg-white overflow-hidden flex flex-col">
       <div className="bg-gray-50 border-b border-gray-200/70 px-3 py-2 flex items-center gap-2">
-        <span className="text-[10px] uppercase tracking-wider text-text-faint font-mono">{step}</span>
+        <span className="text-[10px] uppercase tracking-wider text-text-muted font-mono">{step}</span>
         <span className="text-sm font-semibold text-text-primary">{title}</span>
       </div>
       <div className="p-3 text-xs font-mono flex-1">{children}</div>

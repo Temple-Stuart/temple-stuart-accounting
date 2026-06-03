@@ -54,7 +54,7 @@ export default function EvolutionPreview() {
         ))}
       </div>
 
-      <div className="text-text-faint italic">
+      <div className="text-text-muted italic">
         Your real versions populate this spine after you log in and re-run the AI.
       </div>
     </div>
