@@ -1,8 +1,12 @@
 'use client';
 
-// HOME-PR-10 / HOME-OPS-PR-1 / HOME-OPS-PR-2 / HOME-OPS-PR-3: Operations "showroom"
-// on the public home page. Safe by construction — NO fetch on mount, NO server/paid
-// call logged out:
+// HOME-PR-10 / HOME-OPS-PR-1 / HOME-OPS-PR-2 / HOME-OPS-PR-3 / HOME-OPS-PR-4:
+// Operations "showroom" on the public home page. Safe by construction — NO fetch on
+// mount, NO server/paid call logged out. Every panel is now REAL and fetch-free:
+//   - Panel 01 (Make a project) is the REAL 5-step input form + the REAL (empty) task
+//     table, via ProjectCreateForm — extracted FETCH-FREE (HOME-OPS-PR-4). HARD LINE:
+//     it is the only paid surface, and its AI buttons (generate plan / preview tasks)
+//     call onRequireAuth and NEVER fetch — no paid AI call is reachable logged-out.
 //   - Panel 02 (Make a routine) is the REAL routine input form + the REAL (empty)
 //     output table, via RoutineCreateForm — extracted FETCH-FREE (HOME-OPS-PR-1).
 //   - Panel 03 (Create content) is the REAL content table structure that exists today
@@ -12,8 +16,6 @@
 //   - Panel 04 (Evolution loop) is the REAL version-spine structure, via
 //     EvolutionPreview — extracted FETCH-FREE, shown as a muted structural preview
 //     (no fabricated version data presented as real) (HOME-OPS-PR-2).
-//   - Panel 01 (project) remains hardcoded sample data (no fetch) —
-//     replaced with a real fetch-free form in HOME-OPS-PR-4.
 //   - The ONLY action anywhere is opening the existing login modal via onRequireAuth
 //     (the same trigger Travel/Trading gate to). A visitor cannot trigger a server
 //     or paid call — no fetch code exists on any render or submit path here.
@@ -22,35 +24,15 @@
 // brand-purple version chips, the EvolutionTimeline spine) so visitors SEE the real
 // product, then log in to use it.
 
+import ProjectCreateForm from '@/components/home/ProjectCreateForm';
 import RoutineCreateForm from '@/components/home/RoutineCreateForm';
-import EvolutionPreview from '@/components/home/EvolutionPreview';
 import ContentPreview from '@/components/home/ContentPreview';
+import EvolutionPreview from '@/components/home/EvolutionPreview';
 
 interface Props {
   /** Opens the existing home register/login modal (reused from ModuleLauncher —
    *  the same trigger Travel's gateGuestCreate + the paid stubs use). */
   onRequireAuth: () => void;
-}
-
-// ── Hardcoded sample data (no fetch) ────────────────────────────────────────
-const SAMPLE_TASKS: { title: string; status: 'done' | 'in process' | 'new' }[] = [
-  { title: 'Create FSA ID + verify identity', status: 'done' },
-  { title: 'Gather 2025 tax transcripts', status: 'in process' },
-  { title: 'Draft SBA Form 1919', status: 'new' },
-];
-
-const PILL: Record<string, string> = {
-  done: 'bg-green-50 text-green-800 border-green-300',
-  'in process': 'bg-blue-50 text-blue-800 border-blue-300',
-  new: 'bg-gray-100 text-gray-700 border-gray-300',
-};
-
-function SamplePill({ status }: { status: string }) {
-  return (
-    <span className={`inline-block px-1.5 py-0.5 border rounded text-[10px] font-mono shrink-0 ${PILL[status] ?? PILL.new}`}>
-      {status}
-    </span>
-  );
 }
 
 /** One showroom panel: a light inner header (NOT purple — one purple band per
@@ -93,8 +75,6 @@ function Panel({
 }
 
 export default function OperationsShowroom({ onRequireAuth }: Props) {
-  const labelClass = 'text-text-faint uppercase tracking-wide text-[10px] font-mono';
-
   return (
     <div>
       <p className="text-sm text-text-primary mb-1">
@@ -105,32 +85,12 @@ export default function OperationsShowroom({ onRequireAuth }: Props) {
       </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* 1 · Make a project — the 5-step glimpse */}
-        <Panel step="01" title="Make a project" action="Generate tasks" onRequireAuth={onRequireAuth}>
-          <div className="font-bold text-text-primary mb-2">Apply for SBA microloan</div>
-          <div className="space-y-1.5">
-            <div><span className={labelClass}>1 · goal</span> <span className="text-text-primary">secure $25k working capital</span></div>
-            <div><span className={labelClass}>2 · problem</span> <span className="text-text-primary">no business credit history yet</span></div>
-            <div><span className={labelClass}>3 · diagnosis</span> <span className="text-text-primary">never registered the EIN to a bank</span></div>
-            <div><span className={labelClass}>4 · design</span> <span className="text-text-primary">lender-ready packet in 3 steps</span></div>
-          </div>
-          <div className={`${labelClass} mt-3 mb-1`}>5 · execute</div>
-          <ul className="space-y-1">
-            {SAMPLE_TASKS.map((t) => (
-              <li key={t.title} className="flex items-center gap-2 min-w-0">
-                <span
-                  className={
-                    t.status === 'done'
-                      ? 'text-text-muted line-through truncate'
-                      : 'text-text-primary truncate'
-                  }
-                >
-                  {t.title}
-                </span>
-                <SamplePill status={t.status} />
-              </li>
-            ))}
-          </ul>
+        {/* 1 · Make a project — the REAL fetch-free 5-step form + REAL empty task
+            table (HOME-OPS-PR-4). No `action` prop: the form carries its own gated
+            buttons. HARD LINE: the AI buttons (generate plan / preview tasks) call
+            onRequireAuth and NEVER fetch — no paid call is reachable logged-out. */}
+        <Panel step="01" title="Make a project" onRequireAuth={onRequireAuth}>
+          <ProjectCreateForm onRequireAuth={onRequireAuth} />
         </Panel>
 
         {/* 2 · Make a routine — the REAL fetch-free input form + REAL empty output
