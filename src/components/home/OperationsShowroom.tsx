@@ -1,14 +1,19 @@
 'use client';
 
-// HOME-PR-10 / HOME-OPS-PR-1 / HOME-OPS-PR-2: Operations "showroom" on the public
-// home page. Safe by construction — NO fetch on mount, NO server/paid call logged out:
+// HOME-PR-10 / HOME-OPS-PR-1 / HOME-OPS-PR-2 / HOME-OPS-PR-3: Operations "showroom"
+// on the public home page. Safe by construction — NO fetch on mount, NO server/paid
+// call logged out:
 //   - Panel 02 (Make a routine) is the REAL routine input form + the REAL (empty)
 //     output table, via RoutineCreateForm — extracted FETCH-FREE (HOME-OPS-PR-1).
+//   - Panel 03 (Create content) is the REAL content table structure that exists today
+//     (the genuine 14-column ContentTable rendered empty + the real badge/filter row
+//     + empty state), via ContentPreview — extracted FETCH-FREE (HOME-OPS-PR-3). Only
+//     what's built is shown; the unbuilt content workspace/piece grouping is not.
 //   - Panel 04 (Evolution loop) is the REAL version-spine structure, via
 //     EvolutionPreview — extracted FETCH-FREE, shown as a muted structural preview
 //     (no fabricated version data presented as real) (HOME-OPS-PR-2).
-//   - Panels 01/03 (project/content) remain hardcoded sample data (no fetch) —
-//     replaced with real fetch-free forms in later HOME-OPS PRs.
+//   - Panel 01 (project) remains hardcoded sample data (no fetch) —
+//     replaced with a real fetch-free form in HOME-OPS-PR-4.
 //   - The ONLY action anywhere is opening the existing login modal via onRequireAuth
 //     (the same trigger Travel/Trading gate to). A visitor cannot trigger a server
 //     or paid call — no fetch code exists on any render or submit path here.
@@ -19,6 +24,7 @@
 
 import RoutineCreateForm from '@/components/home/RoutineCreateForm';
 import EvolutionPreview from '@/components/home/EvolutionPreview';
+import ContentPreview from '@/components/home/ContentPreview';
 
 interface Props {
   /** Opens the existing home register/login modal (reused from ModuleLauncher —
@@ -134,26 +140,12 @@ export default function OperationsShowroom({ onRequireAuth }: Props) {
           <RoutineCreateForm onRequireAuth={onRequireAuth} />
         </Panel>
 
-        {/* 3 · Create content — piece glimpse */}
-        <Panel step="03" title="Create content" action="Assemble piece" onRequireAuth={onRequireAuth}>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="font-bold text-text-primary">Day 2 reel</span>
-            <span className="px-1.5 py-0.5 border border-gray-300 bg-gray-100 text-gray-700 rounded text-[10px]">draft</span>
-          </div>
-          <div className="text-text-muted mb-3">8 routines · 2 projects grouped for this day</div>
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <span className="text-text-faint">scene</span>
-              <span className="text-text-primary">Morning filming → hook on the SBA win</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-text-faint">b-roll</span>
-              <span className="text-text-primary">desk close-ups · approval email</span>
-            </div>
-          </div>
-          <div className="mt-3 p-2 rounded bg-bg-row text-text-muted italic">
-            find the story: &ldquo;Day 2 — the loan packet came together&rdquo;
-          </div>
+        {/* 3 · Create content — the REAL content table structure that exists today,
+            fetch-free + EMPTY (HOME-OPS-PR-3). The gated "Scenify a routine → log in"
+            footer (Panel's action) calls onRequireAuth. The unbuilt content
+            "workspace"/"piece" grouping is NOT shown — only what's built. */}
+        <Panel step="03" title="Create content" action="Scenify a routine" onRequireAuth={onRequireAuth}>
+          <ContentPreview />
         </Panel>
 
         {/* 4 · Evolution loop — the REAL version-spine structure, fetch-free
