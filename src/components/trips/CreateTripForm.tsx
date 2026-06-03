@@ -126,20 +126,20 @@ export default function CreateTripForm({ onUnauthenticated, showHeader = true }:
         <div className="flex flex-col lg:flex-row lg:items-end gap-3">
           {/* Trip name */}
           <label className="flex flex-col gap-1 lg:flex-[3] min-w-0">
-            <span className="text-[11px] text-text-muted">Trip name *</span>
+            <span className="text-[11px] text-brand-purple font-medium">Trip name *</span>
             <input
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="e.g., Bali Surf Trip 2026"
-              className="border border-border rounded px-3 py-2 text-sm bg-white"
+              className="border border-brand-purple/40 rounded px-3 py-2 text-sm bg-white focus:outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20"
             />
           </label>
 
           {/* Destinations with autocomplete */}
           <div className="flex flex-col gap-1 lg:flex-[3] min-w-0 relative" ref={dropdownRef}>
-            <span className="text-[11px] text-text-muted">Destination(s)</span>
-            <div className="flex flex-wrap items-center gap-1 border border-border rounded px-2 py-1.5 bg-white min-h-[38px]">
+            <span className="text-[11px] text-brand-purple font-medium">Destination(s)</span>
+            <div className="flex flex-wrap items-center gap-1 border border-brand-purple/40 rounded px-2 py-1.5 bg-white min-h-[38px] focus-within:border-brand-purple focus-within:ring-2 focus-within:ring-brand-purple/20">
               {selectedDestinations.map(n => (
                 <span key={n} className="inline-flex items-center gap-1 bg-brand-purple/10 text-brand-purple text-xs px-2 py-0.5 rounded-full">
                   {n}
@@ -175,33 +175,33 @@ export default function CreateTripForm({ onUnauthenticated, showHeader = true }:
 
           {/* Date range */}
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] text-text-muted">Start *</span>
+            <span className="text-[11px] text-brand-purple font-medium">Start *</span>
             <input
               type="date"
               value={startDate}
               min={new Date().toISOString().split('T')[0]}
               onChange={e => setStartDate(e.target.value)}
-              className="border border-border rounded px-2 py-2 text-sm bg-white"
+              className="border border-brand-purple/40 rounded px-2 py-2 text-sm bg-white focus:outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20"
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] text-text-muted">End *</span>
+            <span className="text-[11px] text-brand-purple font-medium">End *</span>
             <input
               type="date"
               value={endDate}
               min={startDate || new Date().toISOString().split('T')[0]}
               onChange={e => setEndDate(e.target.value)}
-              className="border border-border rounded px-2 py-2 text-sm bg-white"
+              className="border border-brand-purple/40 rounded px-2 py-2 text-sm bg-white focus:outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20"
             />
           </label>
 
           {/* Travelers */}
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] text-text-muted">Travelers</span>
+            <span className="text-[11px] text-brand-purple font-medium">Travelers</span>
             <select
               value={travelers}
               onChange={e => setTravelers(+e.target.value)}
-              className="border border-border rounded px-2 py-2 text-sm bg-white"
+              className="border border-brand-purple/40 rounded px-2 py-2 text-sm bg-white focus:outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20"
             >
               {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
                 <option key={n} value={n}>{n} {n === 1 ? 'person' : 'people'}</option>

@@ -36,10 +36,12 @@ const UNIVERSES = [{ val: 'sp500', label: 'S&P 500' }, { val: 'nasdaq100', label
 
 // Light/secondary group label — the Travel one-purple + secondary-white inner rule.
 function GroupLabel({ children }: { children: React.ReactNode }) {
-  return <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1.5">{children}</div>;
+  // HOME-STYLE-PR-1: section/group headers → brand-purple, weight 600 (scannable).
+  return <div className="text-[10px] uppercase tracking-wider font-semibold text-brand-purple mb-1.5">{children}</div>;
 }
 function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <span className="text-[11px] text-gray-600 w-[88px] shrink-0">{children}</span>;
+  // HOME-STYLE-PR-1: field sub-labels → readable secondary text, weight 500.
+  return <span className="text-[11px] text-text-secondary font-medium w-[88px] shrink-0">{children}</span>;
 }
 
 export default function ScanFilterForm({
@@ -101,20 +103,20 @@ export default function ScanFilterForm({
           <GroupLabel>DTE</GroupLabel>
           <div className="flex items-center gap-1">
             <input type="number" min={0} max={365} value={f.risk.minDte} onChange={e => onFiltersChange({ ...f, risk: { ...f.risk, minDte: +e.target.value } })}
-              className="w-14 border border-gray-200 rounded px-1.5 py-1 text-xs font-mono text-center" />
+              className="w-14 border border-brand-purple/40 rounded px-1.5 py-1 text-xs font-mono text-center focus:outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20" />
             <span className="text-gray-400 text-xs">—</span>
             <input type="number" min={0} max={365} value={f.risk.maxDte} onChange={e => onFiltersChange({ ...f, risk: { ...f.risk, maxDte: +e.target.value } })}
-              className="w-14 border border-gray-200 rounded px-1.5 py-1 text-xs font-mono text-center" />
+              className="w-14 border border-brand-purple/40 rounded px-1.5 py-1 text-xs font-mono text-center focus:outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20" />
           </div>
         </div>
         <div className="flex flex-col gap-1">
           <GroupLabel>Width $</GroupLabel>
           <div className="flex items-center gap-1">
             <input type="number" min={0} max={100} value={f.risk.minSpreadWidth} onChange={e => onFiltersChange({ ...f, risk: { ...f.risk, minSpreadWidth: +e.target.value } })}
-              className="w-14 border border-gray-200 rounded px-1.5 py-1 text-xs font-mono text-center" />
+              className="w-14 border border-brand-purple/40 rounded px-1.5 py-1 text-xs font-mono text-center focus:outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20" />
             <span className="text-gray-400 text-xs">—</span>
             <input type="number" min={0} max={100} value={f.risk.maxSpreadWidth} onChange={e => onFiltersChange({ ...f, risk: { ...f.risk, maxSpreadWidth: +e.target.value } })}
-              className="w-14 border border-gray-200 rounded px-1.5 py-1 text-xs font-mono text-center" />
+              className="w-14 border border-brand-purple/40 rounded px-1.5 py-1 text-xs font-mono text-center focus:outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20" />
           </div>
         </div>
       </div>

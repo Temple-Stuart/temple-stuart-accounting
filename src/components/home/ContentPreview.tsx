@@ -31,7 +31,8 @@ export default function ContentPreview() {
   // The exact badge style from SectionG_Content.tsx:285-286.
   const badgeClass =
     'px-2 py-0.5 text-xs font-mono rounded border border-border-light bg-bg-row text-text-primary';
-  const labelClass = 'text-text-faint uppercase tracking-wide text-[10px] font-mono';
+  // HOME-STYLE-PR-1: label → dark brand-purple, weight 500 (scannable, not ghost-gray).
+  const labelClass = 'text-brand-purple font-medium uppercase tracking-wide text-[10px] font-mono';
 
   return (
     <div className="space-y-3">
@@ -48,7 +49,7 @@ export default function ContentPreview() {
           value="all"
           disabled
           aria-label="Filter by entity"
-          className="px-2 py-1 border border-border rounded text-xs font-mono text-text-primary"
+          className="px-2 py-1 bg-white border border-brand-purple/40 rounded text-xs font-mono text-text-primary"
         >
           <option value="all">All entities</option>
         </select>
@@ -74,7 +75,7 @@ export default function ContentPreview() {
           onTakeUpdate={noopUpdate}
           onScriptClick={noopScriptClick}
         />
-        <div className="text-text-faint italic text-xs font-mono mt-1">
+        <div className="text-text-muted italic text-xs font-mono mt-1">
           Your scenes &amp; takes populate this table once you scenify a routine.
         </div>
       </div>
