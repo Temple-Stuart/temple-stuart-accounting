@@ -2659,6 +2659,7 @@ model operations_projects {
   outgoing_dependencies operations_project_dependencies[] @relation("project_dependency_source")
   incoming_dependencies operations_project_dependencies[] @relation("project_dependency_target")
   linked_issues         operations_issue_log_entries[]
+  content_pieces        operations_content_pieces[]       @relation("ProjectContentPieces")
 
   @@unique([user_id, title])
   @@index([user_id, entity_id, status])
@@ -2916,6 +2917,35 @@ model operations_content_scenes {
   @@map("operations_content_scenes")
 }
 
+// The per-day "column" in Alex's content grid: one piece = one day = one reel.
+// A piece optionally documents a project (project_id) at a specific re-run
+// (source_ai_usage_id, the immutable version anchor) so a "Day 2" reel stays
+// pinned to that day's project state even after later re-runs. Both FKs are
+// nullable + onDelete SetNull — deleting a project or an ai_usage row never
+// deletes the piece, it just unpins it. Take-cells (per scene × piece) are PR-4.
+model operations_content_pieces {
+  id                 String   @id @default(uuid()) @db.Uuid
+  user_id            String
+  entity_id          String
+  piece_date         DateTime @db.Date
+  title              String?  @db.VarChar(200)
+  project_id         String?  @db.Uuid
+  source_ai_usage_id String?  @db.Uuid
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime @updatedAt @db.Timestamptz(6)
+  created_by         String?
+
+  project         operations_projects? @relation("ProjectContentPieces", fields: [project_id], references: [id], onDelete: SetNull)
+  source_ai_usage operations_ai_usage? @relation("PieceSourceAiUsage", fields: [source_ai_usage_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id])
+  @@index([entity_id])
+  @@index([piece_date])
+  @@index([project_id])
+  @@index([source_ai_usage_id])
+  @@map("operations_content_pieces")
+}
+
 model operations_ai_usage {
   id                 String   @id @default(uuid()) @db.Uuid
   user_id            String
@@ -2934,8 +2964,9 @@ model operations_ai_usage {
   created_at         DateTime @default(now()) @db.Timestamptz(6)
   created_by         String?
 
-  user            users                      @relation(fields: [user_id], references: [id])
-  generated_tasks operations_project_tasks[] @relation("TaskSourceAiUsage")
+  user             users                       @relation(fields: [user_id], references: [id])
+  generated_tasks  operations_project_tasks[]  @relation("TaskSourceAiUsage")
+  generated_pieces operations_content_pieces[] @relation("PieceSourceAiUsage")
 
   @@index([user_id, created_at(sort: Desc)])
   @@index([target_table, target_id])
