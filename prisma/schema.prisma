@@ -2906,15 +2906,25 @@ model operations_content_scenes {
   notes                     String?  @db.Text
   b_roll                    String?  @db.Text
   narrative_purpose         String?  @db.Text
+  // OPS-CE-2: the question assigned to this scene-row (from Alex's library).
+  // assigned_question_id is a nullable FK (SetNull — deleting/retiring a library
+  // question never deletes the scene). assigned_question_text is the SNAPSHOT of
+  // the wording AT ASSIGNMENT TIME, so a scene keeps the exact prompt it asked
+  // even if the library question is later edited or soft-deleted (immutability,
+  // same spirit as the ai_usage version anchor). CE-3 (AI) populates these.
+  assigned_question_id      String?  @db.Uuid
+  assigned_question_text    String?  @db.Text
   created_at                DateTime @default(now()) @db.Timestamptz(6)
   updated_at                DateTime @updatedAt @db.Timestamptz(6)
 
-  routine_step operations_routine_steps  @relation(fields: [routine_step_id], references: [id], onDelete: Cascade)
-  takes        operations_content_takes[] @relation("SceneTakes")
+  routine_step      operations_routine_steps      @relation(fields: [routine_step_id], references: [id], onDelete: Cascade)
+  takes             operations_content_takes[]    @relation("SceneTakes")
+  assigned_question operations_content_questions? @relation("SceneAssignedQuestion", fields: [assigned_question_id], references: [id], onDelete: SetNull, map: "content_scenes_assigned_question_id_fkey")
 
   @@index([user_id])
   @@index([entity_id])
   @@index([routine_step_id])
+  @@index([assigned_question_id], map: "content_scenes_assigned_question_id_idx")
   @@map("operations_content_scenes")
 }
 
@@ -2975,6 +2985,35 @@ model operations_content_takes {
   @@index([scene_id])
   @@index([piece_id])
   @@map("operations_content_takes")
+}
+
+// OPS-CE-2: Alex's reusable SCENE-QUESTION library — his designed prompt set
+// ("today's 3 priorities", "the discomfort you're choosing", "biggest lesson",
+// "day score 1-10"). This is data, not AI: Alex owns the framework. CE-3 will
+// have AI ASSIGN a best-fit question from this library to each scene-row.
+// Soft-delete only (is_active) — a question is NEVER hard-deleted, because
+// scene-rows snapshot its wording (assigned_question_text) and retiring a
+// question must not disturb past scenes. Mirrors the operations_content_*
+// conventions: uuid id, TEXT user_id/entity_id, Timestamptz(6), per-col @@index,
+// @@map; is_active soft-delete idiom from operations_routines.
+model operations_content_questions {
+  id            String   @id @default(uuid()) @db.Uuid
+  user_id       String
+  entity_id     String
+  question_text String   @db.Text
+  label         String?  @db.VarChar(200)
+  sort_order    Int      @default(0)
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime @updatedAt @db.Timestamptz(6)
+  created_by    String?
+
+  assigned_scenes operations_content_scenes[] @relation("SceneAssignedQuestion")
+
+  @@index([user_id])
+  @@index([entity_id])
+  @@index([is_active])
+  @@map("operations_content_questions")
 }
 
 model operations_ai_usage {
