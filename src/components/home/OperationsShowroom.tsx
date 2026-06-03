@@ -1,19 +1,23 @@
 'use client';
 
-// HOME-PR-10: Operations "showroom" — a PURELY PRESENTATIONAL preview of the
-// Operations dashboard for the public home page. Safe by construction:
-//   - ZERO data fetches / API calls (no fetch, no axios, no /api/).
-//   - ZERO imports of the real Operations components (SectionD_ProjectBacklog,
-//     RoutineList, ContentTable, EvolutionTimeline) or their endpoints — those
-//     call paid AI + load user data and must never run on the public page.
-//   - ALL data below is hardcoded sample data.
-//   - The ONLY action is opening the existing login modal via the onRequireAuth
-//     prop (the same trigger Travel/Trading gate to). A visitor literally cannot
-//     trigger a paid call because this component has nothing to call.
+// HOME-PR-10 / HOME-OPS-PR-1: Operations "showroom" on the public home page.
+// Safe by construction — NO fetch on mount, NO server/paid call when logged out:
+//   - Panel 02 (Make a routine) is now the REAL routine input form + the REAL
+//     (empty) routines output table, via RoutineCreateForm — extracted FETCH-FREE
+//     (no /api/ anywhere; the "Create routine" submit gates to onRequireAuth before
+//     any network call, mirroring Travel/Trading). This is the first panel to go
+//     real; the other 3 stay sample-data until their own PRs.
+//   - Panels 01/03/04 (project/content/evolution) remain hardcoded sample data
+//     (no fetch) — replaced with real fetch-free forms in later HOME-OPS PRs.
+//   - The ONLY action anywhere is opening the existing login modal via onRequireAuth
+//     (the same trigger Travel/Trading gate to). A visitor cannot trigger a server
+//     or paid call — no fetch code exists on any render or submit path here.
 //
-// It mirrors the real Operations surface's visual language (font-mono, status
-// pills, brand-purple version chips, the EvolutionTimeline spine) so visitors
-// SEE the real product, then log in to use it.
+// Mirrors the real Operations surface's visual language (font-mono, status pills,
+// brand-purple version chips, the EvolutionTimeline spine) so visitors SEE the real
+// product, then log in to use it.
+
+import RoutineCreateForm from '@/components/home/RoutineCreateForm';
 
 interface Props {
   /** Opens the existing home register/login modal (reused from ModuleLauncher —
@@ -48,7 +52,9 @@ function SamplePill({ status }: { status: string }) {
 }
 
 /** One showroom panel: a light inner header (NOT purple — one purple band per
- *  card lives on the module section) + a sample-data body + a gated action. */
+ *  card lives on the module section) + a body + an optional gated action footer.
+ *  When `action` is omitted (e.g. the real Routine panel, which carries its own
+ *  gated "Create routine → log in" button), the footer button is not rendered. */
 function Panel({
   step,
   title,
@@ -59,7 +65,7 @@ function Panel({
   step: string;
   title: string;
   children: React.ReactNode;
-  action: string;
+  action?: string;
   onRequireAuth: () => void;
 }) {
   return (
@@ -69,15 +75,17 @@ function Panel({
         <span className="text-sm font-semibold text-text-primary">{title}</span>
       </div>
       <div className="p-3 text-xs font-mono flex-1">{children}</div>
-      <div className="px-3 pb-3">
-        <button
-          type="button"
-          onClick={onRequireAuth}
-          className="w-full px-3 py-1.5 border border-brand-purple text-brand-purple rounded text-xs font-mono font-semibold hover:bg-purple-50 transition-colors"
-        >
-          {action} <span aria-hidden>→</span> log in
-        </button>
-      </div>
+      {action && (
+        <div className="px-3 pb-3">
+          <button
+            type="button"
+            onClick={onRequireAuth}
+            className="w-full px-3 py-1.5 border border-brand-purple text-brand-purple rounded text-xs font-mono font-semibold hover:bg-purple-50 transition-colors"
+          >
+            {action} <span aria-hidden>→</span> log in
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -123,20 +131,11 @@ export default function OperationsShowroom({ onRequireAuth }: Props) {
           </ul>
         </Panel>
 
-        {/* 2 · Make a routine — cadence glimpse */}
-        <Panel step="02" title="Make a routine" action="Create routine" onRequireAuth={onRequireAuth}>
-          <div className="font-bold text-text-primary mb-2">Morning content filming</div>
-          <div className="flex flex-wrap items-center gap-2 mb-3">
-            <span className="px-1.5 py-0.5 border border-brand-purple/40 bg-purple-50 text-brand-purple rounded text-[10px]">daily</span>
-            <span className="px-1.5 py-0.5 border border-gray-200 bg-gray-50 text-text-muted rounded text-[10px]">06:00</span>
-            <span className="px-1.5 py-0.5 border border-amber-300 bg-amber-50 text-amber-800 rounded text-[10px]">🔥 12-day streak</span>
-          </div>
-          <div className="space-y-1 text-text-primary">
-            <div>· Set up tripod + ring light</div>
-            <div>· Film 3 hook variations</div>
-            <div>· Log B-roll shot list</div>
-          </div>
-          <div className={`${labelClass} mt-3`}>next fire · tomorrow 06:00</div>
+        {/* 2 · Make a routine — the REAL fetch-free input form + REAL empty output
+            table (HOME-OPS-PR-1). No `action` prop: the form carries its own gated
+            "Create routine → log in" button. */}
+        <Panel step="02" title="Make a routine" onRequireAuth={onRequireAuth}>
+          <RoutineCreateForm onRequireAuth={onRequireAuth} />
         </Panel>
 
         {/* 3 · Create content — piece glimpse */}
