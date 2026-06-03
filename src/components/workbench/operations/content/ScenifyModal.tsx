@@ -1,20 +1,22 @@
 /**
  * ScenifyModal — turn a routine's STEPS into grid scene-rows.
  *
- * Reshaped (PR-Ops-grid-6): Scenify no longer writes the old per-routine
- * container (operations_content_scene_groups: Scene#/Title/Focus/Location/
- * Hours/Script) — those fields don't map to Alex's grid. Instead it loads
- * the routine's steps (GET /api/operations/routines/{id}) and, for each
- * step, lets Alex fill the STABLE shot fields, then upserts one scene-ROW
- * per step (POST /api/operations/content/scene-rows, keyed by
- * routine_step_id). Those rows are exactly what the PieceGrid renders.
+ * Reshaped (PR-Ops-grid-6): Scenify loads the routine's steps
+ * (GET /api/operations/routines/{id}) and, for each step, lets Alex fill the
+ * STABLE shot fields, then upserts one scene-ROW per step
+ * (POST /api/operations/content/scene-rows, keyed by routine_step_id).
  *
- * Per-day SCRIPT lives in the grid's take-cells, not here. Re-opening a
- * scenified routine prefills the existing shot fields (rows are editable —
- * "evolve how I shoot"). On success it broadcasts a window event so the
- * PieceGrid refetches.
+ * OPS-CE-3 (Stage-1 AI enrich): an "✨ AI suggest" action calls
+ * POST /api/operations/content/enrich-routine and PREFILLS each step's
+ * angle / shot type / b-roll plus the best-fit QUESTION (assigned from Alex's
+ * library, or proposed-new when none fits). The prefills are fully EDITABLE —
+ * this modal IS the human gate; nothing is written until Alex clicks "save
+ * scenes". The accepted question is persisted as a snapshot
+ * (assigned_question_text) plus the live library id (assigned_question_id, null
+ * for proposed-new).
  *
- * Operations-surface convention: inline expanding form (not an overlay).
+ * Per-day SCRIPT lives in the grid's take-cells, not here. On success it
+ * broadcasts a window event so the PieceGrid refetches.
  */
 
 'use client';
@@ -33,6 +35,8 @@ interface StepSceneRow {
   shot_type: string | null;
   b_roll: string | null;
   narrative_purpose: string | null;
+  assigned_question_id: string | null;
+  assigned_question_text: string | null;
 }
 
 interface RoutineStep {
@@ -49,6 +53,23 @@ interface Draft {
   shot_type: string;
   b_roll: string;
   narrative_purpose: string;
+  // Question assignment (CE-3): id is the live library link (null = proposed-new
+  // or none); text is the snapshot always persisted; proposed_new flags AI's
+  // newly-proposed wording so the gate shows it distinctly.
+  assigned_question_id: string | null;
+  assigned_question_text: string;
+  proposed_new: boolean;
+}
+
+// AI enrichment response shape (per step).
+interface EnrichedStep {
+  routine_step_id: string;
+  filming_angle: string | null;
+  shot_type: string | null;
+  b_roll: string | null;
+  question_id: string | null;
+  question_text: string;
+  proposed_new: boolean;
 }
 
 const draftFromStep = (step: RoutineStep): Draft => ({
@@ -57,6 +78,10 @@ const draftFromStep = (step: RoutineStep): Draft => ({
   shot_type: step.content_scene?.shot_type ?? '',
   b_roll: step.content_scene?.b_roll ?? '',
   narrative_purpose: step.content_scene?.narrative_purpose ?? '',
+  assigned_question_id: step.content_scene?.assigned_question_id ?? null,
+  assigned_question_text: step.content_scene?.assigned_question_text ?? '',
+  // An existing assignment is not a fresh AI proposal.
+  proposed_new: false,
 });
 
 const fmtTime = (t: string | null): string => {
@@ -82,6 +107,8 @@ export default function ScenifyModal({
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [enriching, setEnriching] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -89,6 +116,7 @@ export default function ScenifyModal({
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setNotice(null);
     (async () => {
       try {
         const res = await fetch(`/api/operations/routines/${routine.id}`, {
@@ -121,6 +149,70 @@ export default function ScenifyModal({
     setDrafts((prev) => ({ ...prev, [stepId]: { ...prev[stepId], [field]: value } }));
   };
 
+  // Editing the question text by hand detaches it from the library link and
+  // marks it as a (manual) proposed-new wording — the snapshot is what counts.
+  const setQuestionText = (stepId: string, value: string) => {
+    setError(null);
+    setDrafts((prev) => ({
+      ...prev,
+      [stepId]: { ...prev[stepId], assigned_question_text: value, assigned_question_id: null, proposed_new: true },
+    }));
+  };
+
+  const handleEnrich = async () => {
+    if (enriching || submitting || !steps || steps.length === 0) return;
+    setEnriching(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch('/api/operations/content/enrich-routine', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ routine_id: routine.id }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        throw new Error(body?.message ?? body?.error ?? `enrich failed (${res.status})`);
+      }
+      const enriched: EnrichedStep[] = body.steps ?? [];
+      const byId = new Map(enriched.map((e) => [e.routine_step_id, e]));
+      // Prefill suggestions — fully editable (the human gate). Only overwrite a
+      // craft field when the AI offered one; leave Alex's existing value otherwise.
+      setDrafts((prev) => {
+        const next = { ...prev };
+        for (const step of steps) {
+          const e = byId.get(step.id);
+          if (!e) continue;
+          const d = next[step.id];
+          next[step.id] = {
+            ...d,
+            filming_angle: e.filming_angle ?? d.filming_angle,
+            shot_type: e.shot_type ?? d.shot_type,
+            b_roll: e.b_roll ?? d.b_roll,
+            assigned_question_id: e.question_id,
+            assigned_question_text: e.question_text ?? d.assigned_question_text,
+            proposed_new: e.proposed_new,
+          };
+        }
+        return next;
+      });
+      const proposedCount = enriched.filter((e) => e.proposed_new).length;
+      setNotice(
+        `AI suggested ${enriched.length} scene${enriched.length === 1 ? '' : 's'}` +
+          (body.library_size === 0
+            ? ' — your question library is empty, so all questions are newly proposed. Review, then add the keepers to your library.'
+            : proposedCount > 0
+              ? ` — ${proposedCount} use newly-proposed wording (no library fit). Review all before saving.`
+              : ' — all questions assigned from your library. Review/tweak, then save.')
+      );
+      setEnriching(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'failed to get AI suggestions');
+      setEnriching(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (submitting || !steps) return;
     setSubmitting(true);
@@ -141,6 +233,9 @@ export default function ScenifyModal({
             shot_type: d.shot_type,
             b_roll: d.b_roll,
             narrative_purpose: d.narrative_purpose,
+            // Persist the snapshot always; the library id only when still linked.
+            assigned_question_id: d.assigned_question_id,
+            assigned_question_text: d.assigned_question_text,
           }),
         });
         if (!res.ok) {
@@ -167,11 +262,27 @@ export default function ScenifyModal({
 
   return (
     <div className="w-full border border-brand-purple rounded p-3 bg-purple-50/30 text-xs font-mono space-y-3">
-      <div className="font-bold text-text-primary">🎬 Scenify &ldquo;{routine.name}&rdquo;</div>
+      <div className="flex items-center justify-between gap-2">
+        <div className="font-bold text-text-primary">🎬 Scenify &ldquo;{routine.name}&rdquo;</div>
+        <button
+          type="button"
+          onClick={handleEnrich}
+          disabled={enriching || submitting || loading || !steps || steps.length === 0}
+          className="px-2 py-1 border border-brand-purple rounded text-brand-purple hover:bg-purple-100/50 disabled:opacity-50"
+        >
+          {enriching ? 'thinking…' : '✨ AI suggest'}
+        </button>
+      </div>
       <p className="text-text-muted">
         One scene-row per step — fill the shot fields (the per-day script lives in the grid cells).
+        AI suggest prefills angle / shot type / b-roll and the best-fit question; everything stays editable.
       </p>
 
+      {notice && (
+        <div className="px-3 py-2 rounded border bg-purple-50 border-brand-purple/40 text-text-primary">
+          {notice}
+        </div>
+      )}
       {error && (
         <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
           {error}
@@ -185,10 +296,11 @@ export default function ScenifyModal({
           This routine has no steps yet — add steps on the Routines tab first.
         </p>
       ) : (
-        <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+        <div className="space-y-3 max-h-[460px] overflow-y-auto pr-1">
           {steps.map((step) => {
             const d = drafts[step.id];
             const time = fmtTime(step.time_of_day);
+            const hasQuestion = d.assigned_question_text.trim().length > 0;
             return (
               <div key={step.id} className="border border-border-light rounded p-2 space-y-2 bg-white">
                 <div className="text-text-primary font-semibold">
@@ -244,6 +356,28 @@ export default function ScenifyModal({
                       className={inputClass}
                     />
                   </div>
+                  <div className="col-span-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`${labelClass} mb-0`}>question</span>
+                      {hasQuestion &&
+                        (d.assigned_question_id ? (
+                          <span className="px-1.5 py-0.5 rounded bg-brand-purple text-white text-[10px] tracking-wide">
+                            from library
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded border border-amber-400 bg-amber-50 text-amber-700 text-[10px] tracking-wide">
+                            proposed new
+                          </span>
+                        ))}
+                    </div>
+                    <textarea
+                      value={d.assigned_question_text}
+                      onChange={(e) => setQuestionText(step.id, e.target.value)}
+                      rows={2}
+                      placeholder="the on-camera question for this scene (AI suggest assigns the best fit)"
+                      className={inputClass}
+                    />
+                  </div>
                 </div>
               </div>
             );
@@ -255,7 +389,7 @@ export default function ScenifyModal({
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={submitting || loading || !steps || steps.length === 0}
+          disabled={submitting || enriching || loading || !steps || steps.length === 0}
           className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
         >
           {submitting ? 'saving…' : 'save scenes'}

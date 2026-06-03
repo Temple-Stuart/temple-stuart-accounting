@@ -12,11 +12,13 @@
 
 import SectionG_Content from '@/components/workbench/operations/content/SectionG_Content';
 import PieceGrid from '@/components/workbench/operations/content/PieceGrid';
+import QuestionLibrary from '@/components/workbench/operations/content/QuestionLibrary';
 
 export default function OperationsContentPage() {
   return (
     <div className="space-y-4">
       <SectionG_Content />
+      <QuestionLibrary />
       <PieceGrid />
     </div>
   );
