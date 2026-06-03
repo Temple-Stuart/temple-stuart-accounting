@@ -21,6 +21,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import ScriptDrawer from './ScriptDrawer';
+import { CONTENT_SCENES_CHANGED_EVENT } from './ScenifyModal';
 
 interface RoutineStepLite {
   id: string;
@@ -118,6 +119,27 @@ export default function PieceGrid() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // Re-fetch grid rows when Scenify upserts scene-rows (the ScenifyModal
+  // sibling broadcasts CONTENT_SCENES_CHANGED_EVENT). Additive refresh of
+  // scenes/pieces/cells only — preserves the entity selection and does not
+  // touch the take-cell edit logic.
+  useEffect(() => {
+    const refetch = async () => {
+      try {
+        const res = await fetch('/api/operations/content/grid', { credentials: 'include' });
+        if (!res.ok) return;
+        const grid = await res.json();
+        setScenes(grid.scenes);
+        setPieces(grid.pieces);
+        setCells(grid.cells);
+      } catch {
+        /* leave current state on a transient refresh failure */
+      }
+    };
+    window.addEventListener(CONTENT_SCENES_CHANGED_EVENT, refetch);
+    return () => window.removeEventListener(CONTENT_SCENES_CHANGED_EVENT, refetch);
   }, []);
 
   const cellByKey = useMemo(() => {
