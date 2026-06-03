@@ -67,6 +67,9 @@ async function loadAuthorizedRoutine(routineId: string, userId: string) {
     where: { id: routineId, user_id: userId },
     include: {
       steps: {
+        // OPS-CE-1: only active steps; archived (soft-deleted) steps are hidden
+        // from the routine view while their scene-row + takes stay in the DB.
+        where: { is_active: true },
         orderBy: { step_order: 'asc' },
         include: { content_scene: true },
       },

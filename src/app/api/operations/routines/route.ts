@@ -89,6 +89,9 @@ export async function GET(request: NextRequest) {
       ],
       include: {
         steps: {
+          // OPS-CE-1: only active steps; archived (soft-deleted) steps stay in
+          // the DB (with their scene-row + takes) but are hidden from the list.
+          where: { is_active: true },
           orderBy: { step_order: 'asc' },
           include: { content_scene: true },
         },

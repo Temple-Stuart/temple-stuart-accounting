@@ -102,7 +102,9 @@ export async function GET(_request: NextRequest) {
       where: { user_id: user.id, is_active: true },
       orderBy: { name: 'asc' },
       include: {
-        steps: { orderBy: { step_order: 'asc' } },
+        // OPS-CE-1: today's strip shows only active steps; archived steps are
+        // hidden but preserved (scene-row + logged takes survive in the DB).
+        steps: { where: { is_active: true }, orderBy: { step_order: 'asc' } },
       },
     });
 

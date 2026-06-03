@@ -5,7 +5,10 @@
  *          sub_activity, location, duration_minutes, notes. Immutable:
  *          id, routine_id, user_id, entity_id, created_by, created_at.
  *          Reordering is a step_order PATCH (audits as _updated).
- * DELETE — hard delete; full row captured in the audit payload_before.
+ * DELETE — OPS-CE-1: NON-DESTRUCTIVE. Soft-deletes (is_active=false) instead
+ *          of hard-deleting, so the step's content_scene row and every logged
+ *          take (answer) survive. Active routine/grid views filter is_active.
+ *          The full row is still captured in the audit payload_before.
  *
  * Both scope by user_id (denormalized on the step row) with defensive 404.
  */
@@ -180,18 +183,28 @@ export async function DELETE(
     const existing = await loadAuthorizedRoutineStep(stepId, user.id);
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    await prisma.operations_routine_steps.delete({ where: { id: stepId } });
+    // OPS-CE-1: ARCHIVE, do NOT hard-delete. A hard delete would CASCADE through
+    // operations_content_scenes (routine_step_id, onDelete: Cascade) into
+    // operations_content_takes (scene_id, onDelete: Cascade) — wiping every
+    // logged answer. Soft-deleting preserves the scene-row + all takes; active
+    // views filter is_active=true so the step disappears from the routine while
+    // its history stays queryable (the evolution loop's append/preserve rule).
+    const archived = await prisma.operations_routine_steps.update({
+      where: { id: stepId },
+      data: { is_active: false },
+    });
 
     await writeAuditLog({
       actor: { user_id: user.id, email: userEmail, type: 'human_user' },
       action: {
         type: 'operations_routine_step_deleted',
-        description: `Deleted routine step "${existing.activity}"`,
+        description: `Archived (soft-deleted) routine step "${existing.activity}" — scene-row and logged takes preserved`,
       },
       target: { table: 'operations_routine_steps', id: existing.id },
       payload: {
         before: existing,
-        metadata: { routine_id: existing.routine_id },
+        after: archived,
+        metadata: { routine_id: existing.routine_id, soft_delete: true },
       },
     });
 
