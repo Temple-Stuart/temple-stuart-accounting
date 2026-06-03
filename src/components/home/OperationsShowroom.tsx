@@ -1,14 +1,14 @@
 'use client';
 
-// HOME-PR-10 / HOME-OPS-PR-1: Operations "showroom" on the public home page.
-// Safe by construction — NO fetch on mount, NO server/paid call when logged out:
-//   - Panel 02 (Make a routine) is now the REAL routine input form + the REAL
-//     (empty) routines output table, via RoutineCreateForm — extracted FETCH-FREE
-//     (no /api/ anywhere; the "Create routine" submit gates to onRequireAuth before
-//     any network call, mirroring Travel/Trading). This is the first panel to go
-//     real; the other 3 stay sample-data until their own PRs.
-//   - Panels 01/03/04 (project/content/evolution) remain hardcoded sample data
-//     (no fetch) — replaced with real fetch-free forms in later HOME-OPS PRs.
+// HOME-PR-10 / HOME-OPS-PR-1 / HOME-OPS-PR-2: Operations "showroom" on the public
+// home page. Safe by construction — NO fetch on mount, NO server/paid call logged out:
+//   - Panel 02 (Make a routine) is the REAL routine input form + the REAL (empty)
+//     output table, via RoutineCreateForm — extracted FETCH-FREE (HOME-OPS-PR-1).
+//   - Panel 04 (Evolution loop) is the REAL version-spine structure, via
+//     EvolutionPreview — extracted FETCH-FREE, shown as a muted structural preview
+//     (no fabricated version data presented as real) (HOME-OPS-PR-2).
+//   - Panels 01/03 (project/content) remain hardcoded sample data (no fetch) —
+//     replaced with real fetch-free forms in later HOME-OPS PRs.
 //   - The ONLY action anywhere is opening the existing login modal via onRequireAuth
 //     (the same trigger Travel/Trading gate to). A visitor cannot trigger a server
 //     or paid call — no fetch code exists on any render or submit path here.
@@ -18,6 +18,7 @@
 // product, then log in to use it.
 
 import RoutineCreateForm from '@/components/home/RoutineCreateForm';
+import EvolutionPreview from '@/components/home/EvolutionPreview';
 
 interface Props {
   /** Opens the existing home register/login modal (reused from ModuleLauncher —
@@ -30,11 +31,6 @@ const SAMPLE_TASKS: { title: string; status: 'done' | 'in process' | 'new' }[] =
   { title: 'Create FSA ID + verify identity', status: 'done' },
   { title: 'Gather 2025 tax transcripts', status: 'in process' },
   { title: 'Draft SBA Form 1919', status: 'new' },
-];
-
-const SAMPLE_VERSIONS: { v: number; date: string; added: number }[] = [
-  { v: 1, date: 'Jun 1', added: 4 },
-  { v: 2, date: 'Jun 2', added: 3 },
 ];
 
 const PILL: Record<string, string> = {
@@ -160,26 +156,11 @@ export default function OperationsShowroom({ onRequireAuth }: Props) {
           </div>
         </Panel>
 
-        {/* 4 · Evolution loop — version timeline glimpse */}
+        {/* 4 · Evolution loop — the REAL version-spine structure, fetch-free
+            (HOME-OPS-PR-2). The "Re-run AI → log in" footer (Panel's gated action)
+            calls onRequireAuth. */}
         <Panel step="04" title="Evolution loop" action="Re-run AI" onRequireAuth={onRequireAuth}>
-          <div className="text-text-muted mb-3">
-            {SAMPLE_VERSIONS.length} re-runs · the task list grows, never resets
-          </div>
-          <div className="border-l-2 border-border-light pl-4 space-y-3">
-            {SAMPLE_VERSIONS.map((ver) => (
-              <div key={ver.v} className="relative">
-                <span className="absolute -left-[1.3rem] top-1 w-2.5 h-2.5 rounded-full bg-brand-purple border-2 border-white" />
-                <div className="flex items-center gap-2">
-                  <span className="px-1.5 py-0.5 rounded bg-brand-purple text-white text-[10px] font-semibold">
-                    v{ver.v}
-                  </span>
-                  <span className="text-text-primary">{ver.date}</span>
-                  <span className="text-text-muted">· added {ver.added} tasks</span>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className={`${labelClass} mt-3`}>each re-run is an immutable version on record</div>
+          <EvolutionPreview />
         </Panel>
       </div>
     </div>
