@@ -2909,7 +2909,8 @@ model operations_content_scenes {
   created_at                DateTime @default(now()) @db.Timestamptz(6)
   updated_at                DateTime @updatedAt @db.Timestamptz(6)
 
-  routine_step operations_routine_steps @relation(fields: [routine_step_id], references: [id], onDelete: Cascade)
+  routine_step operations_routine_steps  @relation(fields: [routine_step_id], references: [id], onDelete: Cascade)
+  takes        operations_content_takes[] @relation("SceneTakes")
 
   @@index([user_id])
   @@index([entity_id])
@@ -2935,8 +2936,9 @@ model operations_content_pieces {
   updated_at         DateTime @updatedAt @db.Timestamptz(6)
   created_by         String?
 
-  project         operations_projects? @relation("ProjectContentPieces", fields: [project_id], references: [id], onDelete: SetNull)
-  source_ai_usage operations_ai_usage? @relation("PieceSourceAiUsage", fields: [source_ai_usage_id], references: [id], onDelete: SetNull)
+  project         operations_projects?       @relation("ProjectContentPieces", fields: [project_id], references: [id], onDelete: SetNull)
+  source_ai_usage operations_ai_usage?       @relation("PieceSourceAiUsage", fields: [source_ai_usage_id], references: [id], onDelete: SetNull)
+  takes           operations_content_takes[] @relation("PieceTakes")
 
   @@index([user_id])
   @@index([entity_id])
@@ -2944,6 +2946,35 @@ model operations_content_pieces {
   @@index([project_id])
   @@index([source_ai_usage_id])
   @@map("operations_content_pieces")
+}
+
+// The CELL in Alex's content grid: one row per (scene × piece) = a "take" =
+// the per-day script for a scene. The scene-row holds STABLE shot metadata; the
+// script that differs day-to-day lives here, joining a scene to a piece/day.
+// @@unique([scene_id, piece_id]) is the grid invariant: a scene has exactly one
+// script per day. Both FKs onDelete Cascade — a cell can't outlive its scene or
+// its piece. (Old operations_content_takes was renamed to _scenes in PR-1; this
+// name is now free and reclaimed for its true meaning — the take/cell.)
+model operations_content_takes {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String
+  entity_id  String
+  scene_id   String   @db.Uuid
+  piece_id   String   @db.Uuid
+  script     String?  @db.Text
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+  created_by String?
+
+  scene operations_content_scenes @relation("SceneTakes", fields: [scene_id], references: [id], onDelete: Cascade)
+  piece operations_content_pieces @relation("PieceTakes", fields: [piece_id], references: [id], onDelete: Cascade)
+
+  @@unique([scene_id, piece_id])
+  @@index([user_id])
+  @@index([entity_id])
+  @@index([scene_id])
+  @@index([piece_id])
+  @@map("operations_content_takes")
 }
 
 model operations_ai_usage {
