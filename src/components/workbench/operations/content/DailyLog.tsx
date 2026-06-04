@@ -204,10 +204,15 @@ export default function DailyLog({ date }: { date: string }) {
   const taskBlocks = useMemo(() => {
     const rows: {
       id: string;
-      itemId?: string;
+      itemId: string;
+      blockId: string | null;
+      taskId: string | null;
+      projectId: string | null;
       title: string;
       projectName: string | null;
       status: string;
+      scheduledStart: string | null;
+      scheduledEnd: string | null;
       label: string;
       minute: number | null;
       order: number;
@@ -218,15 +223,22 @@ export default function DailyLog({ date }: { date: string }) {
       // CROSS-ENTITY: all items for the date (personal + business).
       const title = item.task?.title ?? item.ad_hoc_title ?? 'Untitled';
       const projectName = item.task?.project_id ? projectNameById[item.task.project_id] ?? null : null;
+      const taskId = item.task?.id ?? null;
+      const projectId = item.task?.project_id ?? null;
       if (item.calendar_blocks.length === 0) {
         // Assigned to the day but no time committed yet — visible immediately.
         rows.push({
           id: `item-${item.id}`,
           itemId: item.id,
+          blockId: null,
+          taskId,
+          projectId,
           title,
           projectName,
           status: 'planned',
-          label: 'planned · no time yet',
+          scheduledStart: null,
+          scheduledEnd: null,
+          label: '',
           minute: null,
           order: UNTIMED_TASK_ORDER_BASE + plannedIndex++,
           planned: true,
@@ -241,9 +253,15 @@ export default function DailyLog({ date }: { date: string }) {
         const minute = minuteOfDayFromInstant(start);
         rows.push({
           id: b.id,
+          itemId: item.id,
+          blockId: b.id,
+          taskId,
+          projectId,
           title,
           projectName,
           status: b.status,
+          scheduledStart: b.scheduled_start,
+          scheduledEnd: b.scheduled_end,
           label,
           minute,
           order: minute,
@@ -412,13 +430,18 @@ export default function DailyLog({ date }: { date: string }) {
     <tr key={`task-${b.id}`}>
       <td colSpan={6} className="border border-border-light border-l-4 border-l-amber-400 bg-amber-50/50 px-3 py-2 align-top">
         <TaskBand
-          timeLabel={b.planned ? '' : b.label}
+          date={date}
           planned={b.planned}
           itemId={b.itemId}
-          date={date}
+          blockId={b.blockId}
+          taskId={b.taskId}
+          projectId={b.projectId}
           title={b.title}
           projectName={b.projectName}
           status={b.status}
+          scheduledStart={b.scheduledStart}
+          scheduledEnd={b.scheduledEnd}
+          timeLabel={b.label}
         />
       </td>
     </tr>
