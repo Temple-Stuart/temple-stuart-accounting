@@ -50,6 +50,7 @@ interface EnrichInput {
 
 export interface EnrichedStep {
   routine_step_id: string;
+  camera_needed: string | null;
   filming_angle: string | null;
   shot_type: string | null;
   b_roll: string | null;
@@ -83,6 +84,7 @@ const ENRICHMENT_SCHEMA = {
         type: 'object',
         properties: {
           routine_step_id: { type: 'string', description: 'The id of the step being enriched (echo it back exactly).' },
+          camera_needed: { type: 'string', maxLength: 200, description: 'CAMERA = the iPhone rig + placement (he shoots iPhone-only — never name another device). Say how the phone is mounted and where, e.g. "tripod bedside", "handheld", "desk tripod", "selfie stick", "phone leaned on the shelf".' },
           filming_angle: { type: 'string', maxLength: 200, description: 'Suggested camera angle (e.g. "eye-level over-the-shoulder").' },
           shot_type: { type: 'string', maxLength: 200, description: 'Suggested shot type (e.g. "close-up", "wide establishing").' },
           b_roll: { type: 'string', maxLength: 800, description: 'A concrete b-roll idea to cut to during this step.' },
@@ -107,6 +109,7 @@ ABSOLUTE RULES:
   - ONLY when no library question genuinely fits a step may you propose new wording: set question_id=null, proposed_new=true, and put your proposed question in question_text. Prefer assigning an existing question over proposing a new one. If the library is empty, every step is proposed_new.
 
 PER STEP you also suggest filming craft (these are SUGGESTIONS he will edit):
+  - camera_needed: the CAMERA — rig + placement. He shoots iPhone-ONLY, so NEVER name a different device (no DSLR, no webcam, no "camera B"). Describe how the phone is mounted and where: "tripod bedside", "handheld", "desk tripod", "selfie stick", "phone leaned on the shelf". Device variety (lenses/bodies) is a future gear library — not your concern.
   - filming_angle: the camera angle.
   - shot_type: the shot framing.
   - b_roll: one concrete cutaway idea that illustrates this step.
@@ -211,6 +214,10 @@ Call return_scene_enrichment with exactly ${input.steps.length} enrichment objec
           : '';
       return {
         routine_step_id: rsid,
+        camera_needed:
+          typeof s.camera_needed === 'string' && s.camera_needed.trim().length > 0
+            ? s.camera_needed.trim().slice(0, 200)
+            : null,
         filming_angle:
           typeof s.filming_angle === 'string' && s.filming_angle.trim().length > 0
             ? s.filming_angle.trim().slice(0, 200)

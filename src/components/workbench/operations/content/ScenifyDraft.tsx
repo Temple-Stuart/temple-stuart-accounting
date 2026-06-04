@@ -50,6 +50,7 @@ interface Draft {
 }
 interface EnrichedStep {
   routine_step_id: string;
+  camera_needed: string | null;
   filming_angle: string | null;
   shot_type: string | null;
   b_roll: string | null;
@@ -188,6 +189,7 @@ export default function ScenifyDraft({
             const d = next[s.id];
             next[s.id] = {
               ...d,
+              camera_needed: e.camera_needed ?? d.camera_needed,
               filming_angle: e.filming_angle ?? d.filming_angle,
               shot_type: e.shot_type ?? d.shot_type,
               b_roll: e.b_roll ?? d.b_roll,
@@ -401,31 +403,31 @@ function RoutineGroup({
                 <div className="font-medium">{step.activity}</div>
                 {time && <div className="text-text-muted">{time}</div>}
               </th>
-              <td className="border border-border-light p-0 align-top min-w-[110px]">
-                <input
-                  type="text"
+              <td className="border border-border-light p-0 align-top min-w-[120px]">
+                <textarea
                   maxLength={200}
                   value={d.camera_needed}
                   onChange={(e) => setField(step.id, 'camera_needed', e.target.value)}
-                  className={cellInputClass}
+                  rows={2}
+                  className={`${cellInputClass} block resize-y`}
                 />
               </td>
-              <td className="border border-border-light p-0 align-top min-w-[110px]">
-                <input
-                  type="text"
+              <td className="border border-border-light p-0 align-top min-w-[120px]">
+                <textarea
                   maxLength={200}
                   value={d.filming_angle}
                   onChange={(e) => setField(step.id, 'filming_angle', e.target.value)}
-                  className={cellInputClass}
+                  rows={2}
+                  className={`${cellInputClass} block resize-y`}
                 />
               </td>
-              <td className="border border-border-light p-0 align-top min-w-[110px]">
-                <input
-                  type="text"
+              <td className="border border-border-light p-0 align-top min-w-[120px]">
+                <textarea
                   maxLength={200}
                   value={d.shot_type}
                   onChange={(e) => setField(step.id, 'shot_type', e.target.value)}
-                  className={cellInputClass}
+                  rows={2}
+                  className={`${cellInputClass} block resize-y`}
                 />
               </td>
               <td className="border border-border-light p-0 align-top min-w-[180px]">

@@ -23,6 +23,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useOperationsEntity } from '../EntitySelector';
 import { CONTENT_SCENES_CHANGED_EVENT } from './ScenifyModal';
 
 interface RoutineStepLite {
@@ -63,20 +64,22 @@ interface Cell {
   script: string | null;
 }
 
-interface EntityLite {
-  id: string;
-  name: string;
-}
-
 const cellKey = (sceneId: string, pieceId: string) => `${sceneId}:${pieceId}`;
 const fmtDate = (iso: string) => iso.slice(0, 10);
+// Prisma @db.Time → "HH:MM".
+const fmtTime = (t: string | null): string => {
+  if (!t) return '';
+  const m = t.match(/T(\d{2}:\d{2})/);
+  return m ? m[1] : '';
+};
 
 export default function PieceGrid() {
+  // OPS-CE-7B: the grid is scoped by the ONE pipeline entity selector (context),
+  // not its own dropdown.
+  const { selectedEntityId } = useOperationsEntity();
   const [scenes, setScenes] = useState<SceneRow[] | null>(null);
   const [pieces, setPieces] = useState<PieceCol[] | null>(null);
   const [cells, setCells] = useState<Cell[] | null>(null);
-  const [entities, setEntities] = useState<EntityLite[] | null>(null);
-  const [entityId, setEntityId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -98,27 +101,13 @@ export default function PieceGrid() {
     let cancelled = false;
     async function load() {
       try {
-        const [gridRes, entitiesRes] = await Promise.all([
-          fetch('/api/operations/content/grid', { credentials: 'include' }),
-          fetch('/api/entities', { credentials: 'include' }),
-        ]);
-        const parse = async (res: Response, label: string) => {
-          if (!res.ok) throw new Error(`${label} failed (${res.status}): ${await res.text()}`);
-          return res.json();
-        };
-        const [grid, entitiesBody] = await Promise.all([
-          parse(gridRes, 'grid'),
-          parse(entitiesRes, 'entities'),
-        ]);
+        const gridRes = await fetch('/api/operations/content/grid', { credentials: 'include' });
+        if (!gridRes.ok) throw new Error(`grid failed (${gridRes.status}): ${await gridRes.text()}`);
+        const grid = await gridRes.json();
         if (cancelled) return;
         setScenes(grid.scenes);
         setPieces(grid.pieces);
         setCells(grid.cells);
-        setEntities(entitiesBody.entities);
-        // Default the entity selector to the first entity that has scenes,
-        // else the first entity — so "+ day" always has a concrete target.
-        const withScenes = (grid.scenes as SceneRow[])[0]?.entity_id;
-        setEntityId(withScenes ?? (entitiesBody.entities as EntityLite[])[0]?.id ?? '');
         setLoading(false);
       } catch (e) {
         if (cancelled) return;
@@ -160,12 +149,12 @@ export default function PieceGrid() {
   }, [cells]);
 
   const visibleScenes = useMemo(
-    () => (scenes ?? []).filter((s) => !entityId || s.entity_id === entityId),
-    [scenes, entityId]
+    () => (scenes ?? []).filter((s) => !selectedEntityId || s.entity_id === selectedEntityId),
+    [scenes, selectedEntityId]
   );
   const visiblePieces = useMemo(
-    () => (pieces ?? []).filter((p) => !entityId || p.entity_id === entityId),
-    [pieces, entityId]
+    () => (pieces ?? []).filter((p) => !selectedEntityId || p.entity_id === selectedEntityId),
+    [pieces, selectedEntityId]
   );
 
   // Upsert a cell and merge the result into local state.
@@ -236,8 +225,8 @@ export default function PieceGrid() {
       setAddDayError('Pick a date.');
       return;
     }
-    if (!entityId) {
-      setAddDayError('Select an entity first.');
+    if (!selectedEntityId) {
+      setAddDayError('Pick an entity in the pipeline header.');
       return;
     }
     setAddDaySaving(true);
@@ -246,7 +235,7 @@ export default function PieceGrid() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ piece_date: newDayDate, entity_id: entityId }),
+        body: JSON.stringify({ piece_date: newDayDate, entity_id: selectedEntityId }),
       });
       if (!res.ok) {
         let msg = `${res.status} ${res.statusText}`;
@@ -273,38 +262,22 @@ export default function PieceGrid() {
     }
   };
 
-  const entityOptions = useMemo(() => {
-    const nameById = new Map((entities ?? []).map((e) => [e.id, e.name]));
-    const ids = new Set<string>();
-    for (const s of scenes ?? []) ids.add(s.entity_id);
-    for (const p of pieces ?? []) ids.add(p.entity_id);
-    for (const e of entities ?? []) ids.add(e.id);
-    return Array.from(ids)
-      .map((id) => ({ id, name: nameById.get(id) ?? id }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [entities, scenes, pieces]);
+  // One labeled, WRAPPING line of the scene's shot card (rendered only if filled).
+  const shotLine = (label: string, value: string | null) =>
+    value && value.trim() ? (
+      <div className="leading-snug">
+        <span className="text-text-faint uppercase tracking-wide text-[10px] mr-1">{label}</span>
+        <span className="text-text-muted">{value}</span>
+      </div>
+    ) : null;
 
   return (
     <section className="bg-white rounded border border-border shadow-sm p-5 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-mono text-sm font-bold tracking-wide text-text-primary">
-          G · PIECE GRID
+          3 · CONFIRMED
           <span className="ml-2 font-normal text-text-faint">scenes × days</span>
         </h2>
-        {!loading && !error && entityOptions.length > 0 && (
-          <select
-            value={entityId}
-            onChange={(e) => setEntityId(e.target.value)}
-            className="px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple"
-            aria-label="Filter grid by entity"
-          >
-            {entityOptions.map(({ id, name }) => (
-              <option key={id} value={id}>
-                {name}
-              </option>
-            ))}
-          </select>
-        )}
       </div>
 
       {loading ? (
@@ -318,7 +291,7 @@ export default function PieceGrid() {
           <div className="text-2xl mb-2" aria-hidden="true">🎬</div>
           <div className="text-sm font-mono font-semibold text-text-primary">No scenes yet</div>
           <div className="text-xs font-mono text-text-muted mt-1">
-            Scenify a routine on the Content table above — its steps become the grid rows.
+            Select routines above and save the Scenify draft — their steps become these rows.
           </div>
         </div>
       ) : (
@@ -397,19 +370,26 @@ export default function PieceGrid() {
             </thead>
             <tbody>
               {visibleScenes.map((s) => {
-                const question =
-                  s.assigned_question_text?.trim() || s.narrative_purpose?.trim() || null;
+                const question = s.assigned_question_text?.trim() || null;
+                const time = fmtTime(s.routine_step.time_of_day);
                 return (
                   <tr key={s.id}>
-                    <th className="sticky left-0 z-10 bg-white border border-border-light px-3 py-2 text-left align-top min-w-[240px]">
-                      <div className="text-text-primary font-semibold">
+                    {/* The full shot card — all draft data per scene, wrapped + compact. */}
+                    <th className="sticky left-0 z-10 bg-white border border-border-light px-3 py-2 text-left align-top w-[300px] min-w-[260px] max-w-[320px] whitespace-normal break-words">
+                      <div className="text-text-primary font-semibold leading-snug">
                         {s.routine_step.step_order}. {s.routine_step.activity}
+                        {time && <span className="ml-2 font-normal text-text-muted">{time}</span>}
                       </div>
-                      <div className="font-normal text-text-muted">
-                        {[s.filming_angle, s.shot_type].filter(Boolean).join(' · ') || '—'}
+                      <div className="mt-1 space-y-0.5">
+                        {shotLine('camera', s.camera_needed)}
+                        {shotLine('angle', s.filming_angle)}
+                        {shotLine('shot', s.shot_type)}
+                        {shotLine('b-roll', s.b_roll)}
+                        {shotLine('narrative', s.narrative_purpose)}
                       </div>
                       {/* The question, always on the surface while answering. */}
-                      <div className="mt-1 font-normal text-brand-purple">
+                      <div className="mt-1 leading-snug text-brand-purple">
+                        <span className="text-text-faint uppercase tracking-wide text-[10px] mr-1">Q</span>
                         {question ?? <span className="text-text-faint">no question — set in Scenify</span>}
                       </div>
                     </th>

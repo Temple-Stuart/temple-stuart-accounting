@@ -259,7 +259,7 @@ export default function DailyLog() {
   const startDay = async () => {
     if (starting) return;
     if (!selectedEntityId) {
-      setError('Select an entity (top of the Operations tab) to start a log.');
+      setError('Pick an entity in the pipeline header to start a log.');
       return;
     }
     setStarting(true);
