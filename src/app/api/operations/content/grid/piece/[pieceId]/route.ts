@@ -45,32 +45,44 @@ export async function PATCH(
 
     const body = (await request.json()) as Record<string, unknown>;
 
-    // script: required for this endpoint; trim, empty → null.
-    if (body.script !== undefined && body.script !== null && typeof body.script !== 'string') {
+    // Only the fields PRESENT in the body are updated — so saving execution_notes
+    // never clobbers the script, and vice-versa. Each: trim, empty → null.
+    const data: Record<string, string | null> = {};
+    const fields = ['script', 'execution_notes'] as const;
+    for (const f of fields) {
+      if (body[f] === undefined) continue;
+      if (body[f] !== null && typeof body[f] !== 'string') {
+        return NextResponse.json(
+          { error: 'Validation', field: f, message: `${f} must be a string or null` },
+          { status: 400 }
+        );
+      }
+      const v = typeof body[f] === 'string' ? (body[f] as string).trim() : '';
+      data[f] = v.length > 0 ? v : null;
+    }
+    if (Object.keys(data).length === 0) {
       return NextResponse.json(
-        { error: 'Validation', field: 'script', message: 'script must be a string or null' },
+        { error: 'Validation', message: 'provide script and/or execution_notes' },
         { status: 400 }
       );
     }
-    const script =
-      typeof body.script === 'string' && body.script.trim().length > 0 ? body.script.trim() : null;
 
     const piece = await prisma.operations_content_pieces.update({
       where: { id: pieceId },
-      data: { script },
+      data,
     });
 
     await writeAuditLog({
       actor: { user_id: user.id, email: userEmail, type: 'human_user' },
       action: {
         type: 'system_other',
-        description: `Saved reel script on content piece ${pieceId} (${piece.piece_date.toISOString().slice(0, 10)})`,
+        description: `Saved ${Object.keys(data).join(' + ')} on content piece ${pieceId} (${piece.piece_date.toISOString().slice(0, 10)})`,
       },
       target: { table: 'operations_content_pieces', id: piece.id },
       payload: {
-        before: { script: existing.script },
-        after: { script: piece.script },
-        metadata: { piece_date: piece.piece_date.toISOString().slice(0, 10) },
+        before: { script: existing.script, execution_notes: existing.execution_notes },
+        after: { script: piece.script, execution_notes: piece.execution_notes },
+        metadata: { piece_date: piece.piece_date.toISOString().slice(0, 10), fields: Object.keys(data) },
       },
     });
 

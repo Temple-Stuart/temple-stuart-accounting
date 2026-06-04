@@ -2953,6 +2953,10 @@ model operations_content_pieces {
   // immutable per-run reasoning lives in operations_ai_usage; this holds the
   // latest accepted draft (last-write-wins, like the project design field).
   script             String?  @db.Text
+  // OPS-CE-5B: Alex's authoritative receipts of what actually got built/done that day
+  // (task titles are labels, not descriptions). The script generator grounds its work
+  // claims in these — where notes and a task title differ, the notes win. Nullable.
+  execution_notes    String?  @db.Text
   created_at         DateTime @default(now()) @db.Timestamptz(6)
   updated_at         DateTime @updatedAt @db.Timestamptz(6)
   created_by         String?

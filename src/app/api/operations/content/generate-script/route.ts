@@ -178,6 +178,8 @@ export async function POST(request: NextRequest) {
       dateLabel: dayKey,
       scenes,
       tasks,
+      // OPS-CE-5B: the authoritative receipts ground the script's work claims.
+      executionNotes: piece.execution_notes,
     });
 
     return NextResponse.json({

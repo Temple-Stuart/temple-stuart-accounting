@@ -22,6 +22,7 @@ interface PieceLite {
   id: string;
   piece_date: string;
   script: string | null;
+  execution_notes: string | null;
 }
 interface CellLite {
   piece_id: string;
@@ -29,6 +30,14 @@ interface CellLite {
 }
 
 const dayOf = (iso: string) => iso.slice(0, 10);
+
+// The DAY-AUDIT prompt — Alex runs this in Claude Code, pastes the output as notes.
+const DAY_AUDIT_PROMPT = `DAY-AUDIT (READ-ONLY) — Tell me what actually shipped today, in plain language.
+git fetch origin && git log origin/main --since="today 00:00" --oneline --merges
+For each PR/commit merged today: ONE line, plain words a non-programmer understands —
+what changed for the user (not the code mechanics). Note anything merged but not yet
+usable (e.g. migration pending). No jargon, no file paths, no code. Output a short
+bullet list I can paste as today's execution notes. Read-only — touch nothing.`;
 
 // ~150 words/min spoken → mm:ss.
 const readTime = (words: number): string => {
@@ -44,6 +53,10 @@ export default function ScriptGenerator({ date }: { date: string }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // OPS-CE-5B: the receipts.
+  const [execNotes, setExecNotes] = useState('');
+  const [execSaving, setExecSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
@@ -81,12 +94,46 @@ export default function ScriptGenerator({ date }: { date: string }) {
     [cells, piece]
   );
 
-  // Reset the editor draft to the saved script whenever the day/piece changes.
+  // Reset the editor draft + execution notes to the saved values on day/piece change.
   useEffect(() => {
     setDraft(piece?.script ?? null);
+    setExecNotes(piece?.execution_notes ?? '');
     setNotice(null);
     setError(null);
-  }, [piece?.id, piece?.script]);
+  }, [piece?.id, piece?.script, piece?.execution_notes]);
+
+  const copyPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(DAY_AUDIT_PROMPT);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError('Could not copy — select the prompt and copy manually.');
+    }
+  };
+
+  const saveNotes = async () => {
+    if (execSaving || !piece) return;
+    setExecSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/operations/content/grid/piece/${piece.id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ execution_notes: execNotes }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body?.message ?? body?.error ?? `failed (${res.status})`);
+      const saved = body.piece?.execution_notes ?? (execNotes.trim() || null);
+      setPieces((prev) => prev.map((p) => (p.id === piece.id ? { ...p, execution_notes: saved } : p)));
+      setNotice('Execution notes saved.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'failed to save notes');
+    } finally {
+      setExecSaving(false);
+    }
+  };
 
   const disabledReason = !piece
     ? 'Start the day’s log first (section 3 · Answer).'
@@ -174,6 +221,51 @@ export default function ScriptGenerator({ date }: { date: string }) {
       {error && (
         <div className="font-mono text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">{error}</div>
       )}
+
+      {/* DAY-AUDIT helper — run in Claude Code, paste the output below. Always visible. */}
+      <div className="rounded border border-border-light bg-bg-row p-3 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-mono text-xs text-brand-purple font-medium uppercase tracking-wide">
+            Day-audit — run this in Claude Code, paste the output below
+          </span>
+          <button
+            type="button"
+            onClick={copyPrompt}
+            className="px-2 py-0.5 font-mono text-xs border border-brand-purple rounded text-brand-purple hover:bg-purple-100/50"
+          >
+            {copied ? 'copied ✓' : 'copy prompt'}
+          </button>
+        </div>
+        <pre className="font-mono text-[11px] leading-relaxed text-text-muted whitespace-pre-wrap break-words bg-white border border-border-light rounded p-2">
+{DAY_AUDIT_PROMPT}
+        </pre>
+      </div>
+
+      {/* EXECUTION NOTES — the authoritative receipts. */}
+      <div className="space-y-1">
+        <label className="font-mono text-xs text-brand-purple font-medium uppercase tracking-wide">
+          Execution notes (optional)
+        </label>
+        <p className="font-mono text-xs text-text-muted">
+          what actually got built/done today, in your words — the receipts. The script grounds its work claims in this.
+        </p>
+        <textarea
+          value={execNotes}
+          onChange={(e) => setExecNotes(e.target.value)}
+          rows={4}
+          disabled={!piece}
+          placeholder={piece ? 'paste the day-audit bullets, or jot the receipts…' : 'start the day’s log first (section 3)'}
+          className="w-full resize-y bg-white border border-brand-purple/40 rounded px-3 py-2 font-mono text-xs leading-relaxed text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple disabled:opacity-50"
+        />
+        <button
+          type="button"
+          onClick={saveNotes}
+          disabled={execSaving || !piece}
+          className="px-3 py-1 font-mono text-xs border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
+        >
+          {execSaving ? 'saving…' : 'save notes'}
+        </button>
+      </div>
 
       {hasScript && (
         <div className="space-y-2">
