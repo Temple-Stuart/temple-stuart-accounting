@@ -23,7 +23,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useOperationsEntity } from '../EntitySelector';
 import { CONTENT_SCENES_CHANGED_EVENT } from './ScenifyModal';
 import ScenifyDraft from './ScenifyDraft';
-import QuestionLibrary from './QuestionLibrary';
 import PieceGrid from './PieceGrid';
 import DailyLog from './DailyLog';
 
@@ -54,7 +53,9 @@ const STATUS_PILL: Record<string, string> = {
 };
 
 export default function ContentPipeline() {
-  const { selectedEntityId } = useOperationsEntity();
+  // ONE entity selector scopes the whole pipeline (draft saves, grid, daily log,
+  // piece creation). Sensible default: the default entity, else the first.
+  const { entities, selectedEntityId, setSelectedEntityId } = useOperationsEntity();
   const [routines, setRoutines] = useState<RoutineLite[]>([]);
   const [tasks, setTasks] = useState<TaskLite[]>([]);
   const [gridScenes, setGridScenes] = useState<GridScene[]>([]);
@@ -102,6 +103,14 @@ export default function ContentPipeline() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // The pipeline is entity-scoped — ensure a concrete entity is always selected
+  // (no "All", no scolding gate). Default to is_default, else the first entity.
+  useEffect(() => {
+    if (!selectedEntityId && entities.length > 0) {
+      setSelectedEntityId((entities.find((e) => e.is_default) ?? entities[0]).id);
+    }
+  }, [selectedEntityId, entities, setSelectedEntityId]);
 
   // When a scenify save lands, refresh the truthful counts (the grid refetches itself).
   useEffect(() => {
@@ -156,6 +165,21 @@ export default function ContentPipeline() {
           <span className="px-2 py-0.5 rounded border border-border-light bg-bg-row text-text-primary">
             {answeredCount} answered
           </span>
+          {/* The ONE entity selector — scopes the whole pipeline. */}
+          {entities.length > 0 && (
+            <select
+              value={selectedEntityId ?? ''}
+              onChange={(e) => setSelectedEntityId(e.target.value)}
+              className="px-2 py-1 border border-border rounded text-text-primary focus:outline-none focus:border-brand-purple"
+              aria-label="Pipeline entity"
+            >
+              {entities.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
@@ -251,25 +275,29 @@ export default function ContentPipeline() {
         )}
       </section>
 
-      {/* Question library — compact; feeds the draft's question assignment. */}
-      <QuestionLibrary />
-
-      {/* 2 · SCENIFY DRAFT (only when ≥1 routine selected) */}
+      {/* 2 · SCENIFY DRAFT (renders inline when ≥1 routine selected). The question
+          library lives in the draft's editable Question column (snapshot per scene) —
+          off-page as its own panel per CE-7B. */}
       {selectedRoutines.length > 0 && (
         <ScenifyDraft routines={selectedRoutines} onSaved={loadCounts} />
       )}
 
-      {/* 3 · CONFIRMED */}
+      {/* 3 · CONFIRMED — the confirmed scenes × days (PieceGrid self-labels). */}
       <PieceGrid />
-      <DailyLog />
 
-      {/* 4 · SCRIPT OUTPUT — next (CE-5). Quiet structural mount point. */}
-      <section className="bg-white rounded border border-dashed border-border-light p-5 text-center">
-        <div className="font-mono text-sm font-bold tracking-wide text-text-faint">4 · SCRIPT OUTPUT</div>
-        <div className="font-mono text-xs text-text-faint mt-1">
-          the day&rsquo;s answers → voiceover script — next (CE-5)
-        </div>
-      </section>
+      {/* 4 · DAY → SCRIPT — the day's answers (input preview) feed the script. */}
+      <div className="space-y-4">
+        <h2 className="font-mono text-sm font-bold tracking-wide text-text-primary">
+          4 · DAY → SCRIPT
+          <span className="ml-2 font-normal text-text-faint">answer the day → voiceover</span>
+        </h2>
+        <DailyLog />
+        <section className="bg-white rounded border border-dashed border-border-light p-5 text-center">
+          <div className="font-mono text-xs text-text-faint">
+            script output — the day&rsquo;s answers → voiceover script — next (CE-5)
+          </div>
+        </section>
+      </div>
     </div>
   );
 }
