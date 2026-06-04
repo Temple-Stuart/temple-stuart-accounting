@@ -25,9 +25,15 @@ import { useEffect, useState } from 'react';
 
 export const CONTENT_SCENES_CHANGED_EVENT = 'operations:content-scenes-changed';
 
-const inputClass =
-  'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
-const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs font-mono';
+// Table styling matches the PieceGrid below it (PieceGrid.tsx:288-393) so the two
+// read as one family: border-collapse text-xs font-mono, border-border-light grid
+// lines, gray header band. Per the contrast standard, column headers are purple
+// labels; editable cells are white fields with a purple focus state — borderless so
+// the cell border IS the field boundary (spreadsheet feel, like Alex's Excel).
+const headerCellClass =
+  'sticky top-0 z-10 bg-bg-row border border-border-light px-2 py-1.5 text-left text-brand-purple font-semibold uppercase tracking-wide whitespace-nowrap';
+const cellInputClass =
+  'w-full px-2 py-1 bg-white text-text-primary placeholder:text-text-faint focus:outline-none focus:bg-purple-50/40 focus:ring-1 focus:ring-inset focus:ring-brand-purple';
 
 interface StepSceneRow {
   camera_needed: string | null;
@@ -296,92 +302,111 @@ export default function ScenifyModal({
           This routine has no steps yet — add steps on the Routines tab first.
         </p>
       ) : (
-        <div className="space-y-3 max-h-[460px] overflow-y-auto pr-1">
-          {steps.map((step) => {
-            const d = drafts[step.id];
-            const time = fmtTime(step.time_of_day);
-            const hasQuestion = d.assigned_question_text.trim().length > 0;
-            return (
-              <div key={step.id} className="border border-border-light rounded p-2 space-y-2 bg-white">
-                <div className="text-text-primary font-semibold">
-                  {step.step_order}. {step.activity}
-                  {time && <span className="ml-2 font-normal text-text-muted">{time}</span>}
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <div className={labelClass}>camera</div>
-                    <input
-                      type="text"
-                      maxLength={200}
-                      value={d.camera_needed}
-                      onChange={(e) => setField(step.id, 'camera_needed', e.target.value)}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <div className={labelClass}>angle</div>
-                    <input
-                      type="text"
-                      maxLength={200}
-                      value={d.filming_angle}
-                      onChange={(e) => setField(step.id, 'filming_angle', e.target.value)}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <div className={labelClass}>shot type</div>
-                    <input
-                      type="text"
-                      maxLength={200}
-                      value={d.shot_type}
-                      onChange={(e) => setField(step.id, 'shot_type', e.target.value)}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div className="col-span-3">
-                    <div className={labelClass}>b-roll</div>
-                    <textarea
-                      value={d.b_roll}
-                      onChange={(e) => setField(step.id, 'b_roll', e.target.value)}
-                      rows={2}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div className="col-span-3">
-                    <div className={labelClass}>narrative purpose</div>
-                    <textarea
-                      value={d.narrative_purpose}
-                      onChange={(e) => setField(step.id, 'narrative_purpose', e.target.value)}
-                      rows={2}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div className="col-span-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`${labelClass} mb-0`}>question</span>
-                      {hasQuestion &&
-                        (d.assigned_question_id ? (
-                          <span className="px-1.5 py-0.5 rounded bg-brand-purple text-white text-[10px] tracking-wide">
-                            from library
-                          </span>
-                        ) : (
-                          <span className="px-1.5 py-0.5 rounded border border-amber-400 bg-amber-50 text-amber-700 text-[10px] tracking-wide">
-                            proposed new
-                          </span>
-                        ))}
-                    </div>
-                    <textarea
-                      value={d.assigned_question_text}
-                      onChange={(e) => setQuestionText(step.id, e.target.value)}
-                      rows={2}
-                      placeholder="the on-camera question for this scene (AI suggest assigns the best fit)"
-                      className={inputClass}
-                    />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+        // One ROW per step, columns for the editable shot fields — a single table
+        // that reads as one family with the PieceGrid below. Horizontal scroll on
+        // narrow widths rather than squashing the cells.
+        <div className="overflow-x-auto max-h-[460px] overflow-y-auto border border-border-light rounded">
+          <table className="border-collapse text-xs font-mono w-full">
+            <thead>
+              <tr>
+                <th className={`${headerCellClass} text-center`}>#</th>
+                <th className={headerCellClass}>Activity</th>
+                <th className={headerCellClass}>Camera</th>
+                <th className={headerCellClass}>Angle</th>
+                <th className={headerCellClass}>Shot Type</th>
+                <th className={headerCellClass}>B-Roll</th>
+                <th className={headerCellClass}>Narrative</th>
+                <th className={headerCellClass}>Question</th>
+              </tr>
+            </thead>
+            <tbody>
+              {steps.map((step) => {
+                const d = drafts[step.id];
+                const time = fmtTime(step.time_of_day);
+                const hasQuestion = d.assigned_question_text.trim().length > 0;
+                return (
+                  <tr key={step.id}>
+                    {/* # + Activity: prefilled from the step, read-only / de-emphasized */}
+                    <td className="border border-border-light px-2 py-1 align-top text-center text-text-muted">
+                      {step.step_order}
+                    </td>
+                    <th
+                      scope="row"
+                      className="border border-border-light px-2 py-1 align-top text-left font-normal text-text-primary min-w-[140px]"
+                    >
+                      <div className="font-medium">{step.activity}</div>
+                      {time && <div className="text-text-muted">{time}</div>}
+                    </th>
+                    <td className="border border-border-light p-0 align-top min-w-[110px]">
+                      <input
+                        type="text"
+                        maxLength={200}
+                        value={d.camera_needed}
+                        onChange={(e) => setField(step.id, 'camera_needed', e.target.value)}
+                        className={cellInputClass}
+                      />
+                    </td>
+                    <td className="border border-border-light p-0 align-top min-w-[110px]">
+                      <input
+                        type="text"
+                        maxLength={200}
+                        value={d.filming_angle}
+                        onChange={(e) => setField(step.id, 'filming_angle', e.target.value)}
+                        className={cellInputClass}
+                      />
+                    </td>
+                    <td className="border border-border-light p-0 align-top min-w-[110px]">
+                      <input
+                        type="text"
+                        maxLength={200}
+                        value={d.shot_type}
+                        onChange={(e) => setField(step.id, 'shot_type', e.target.value)}
+                        className={cellInputClass}
+                      />
+                    </td>
+                    <td className="border border-border-light p-0 align-top min-w-[180px]">
+                      <textarea
+                        value={d.b_roll}
+                        onChange={(e) => setField(step.id, 'b_roll', e.target.value)}
+                        rows={2}
+                        className={`${cellInputClass} block resize-y`}
+                      />
+                    </td>
+                    <td className="border border-border-light p-0 align-top min-w-[180px]">
+                      <textarea
+                        value={d.narrative_purpose}
+                        onChange={(e) => setField(step.id, 'narrative_purpose', e.target.value)}
+                        rows={2}
+                        className={`${cellInputClass} block resize-y`}
+                      />
+                    </td>
+                    <td className="border border-border-light p-1 align-top min-w-[200px]">
+                      {hasQuestion && (
+                        <div className="mb-1">
+                          {d.assigned_question_id ? (
+                            <span className="px-1.5 py-0.5 rounded bg-brand-purple text-white text-[10px] tracking-wide">
+                              from library
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.5 rounded border border-amber-400 bg-amber-50 text-amber-700 text-[10px] tracking-wide">
+                              proposed new
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <textarea
+                        value={d.assigned_question_text}
+                        onChange={(e) => setQuestionText(step.id, e.target.value)}
+                        rows={2}
+                        placeholder="the on-camera question (AI suggest assigns the best fit)"
+                        className={`${cellInputClass} block resize-y`}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
