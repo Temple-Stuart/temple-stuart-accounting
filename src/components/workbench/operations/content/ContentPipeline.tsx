@@ -76,13 +76,16 @@ export default function ContentPipeline() {
     setGridCells(body.cells ?? []);
   }, [selectedEntityId]);
 
+  // OPS-CE-7C: the SOURCES lists are CROSS-ENTITY — Alex's day mixes personal
+  // routines with business tasks, so the source menus must never hide his work.
+  // Loaded once (no entity_id), independent of the entity selector. The selector
+  // scopes the OUTPUT side only (grid, daily log, piece creation, header counts).
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const qs = selectedEntityId ? `?entity_id=${encodeURIComponent(selectedEntityId)}` : '';
       const [routinesRes, tasksRes] = await Promise.all([
-        fetch(`/api/operations/routines${qs}`, { credentials: 'include' }),
+        fetch('/api/operations/routines', { credentials: 'include' }),
         fetch('/api/operations/tasks/unscheduled', { credentials: 'include' }),
       ]);
       if (!routinesRes.ok) throw new Error(`Failed to load routines (${routinesRes.status})`);
@@ -92,17 +95,21 @@ export default function ContentPipeline() {
         const tasksBody = await tasksRes.json();
         setTasks(tasksBody.tasks ?? []);
       }
-      await loadCounts();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'failed to load content pipeline');
     } finally {
       setLoading(false);
     }
-  }, [selectedEntityId, loadCounts]);
+  }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Entity-scoped counts — refetch when the selector changes.
+  useEffect(() => {
+    void loadCounts();
+  }, [loadCounts]);
 
   // The pipeline is entity-scoped — ensure a concrete entity is always selected
   // (no "All", no scolding gate). Default to is_default, else the first entity.
@@ -119,13 +126,12 @@ export default function ContentPipeline() {
     return () => window.removeEventListener(CONTENT_SCENES_CHANGED_EVENT, refresh);
   }, [loadCounts]);
 
-  const visibleRoutines = useMemo(
-    () => routines.filter((r) => entityScope(r.entity_id)),
-    [routines, selectedEntityId] // eslint-disable-line react-hooks/exhaustive-deps
-  );
-  const visibleTasks = useMemo(
-    () => tasks.filter((t) => !t.project || entityScope(t.project.entity_id)),
-    [tasks, selectedEntityId] // eslint-disable-line react-hooks/exhaustive-deps
+  // CROSS-ENTITY sources — show ALL routines + ALL open tasks (never hide his work).
+  const visibleRoutines = routines;
+  const visibleTasks = tasks;
+  const entityNameById = useMemo(
+    () => new Map(entities.map((e) => [e.id, e.name])),
+    [entities]
   );
 
   const sceneCount = useMemo(
@@ -227,6 +233,9 @@ export default function ContentPipeline() {
                             {isSel ? order + 1 : ''}
                           </span>
                           <span className="text-text-primary font-medium flex-1">{r.name}</span>
+                          {entityNameById.get(r.entity_id) && (
+                            <span className="text-text-faint truncate max-w-[90px]">{entityNameById.get(r.entity_id)}</span>
+                          )}
                           <span className="text-text-muted">
                             {r.steps.length} step{r.steps.length === 1 ? '' : 's'}
                           </span>
@@ -258,7 +267,12 @@ export default function ContentPipeline() {
                       <span className="text-text-primary flex-1 truncate" title={t.title}>
                         {t.title}
                       </span>
-                      {t.project && <span className="text-text-muted truncate max-w-[120px]">{t.project.title}</span>}
+                      {t.project && <span className="text-text-muted truncate max-w-[110px]">{t.project.title}</span>}
+                      {t.project && entityNameById.get(t.project.entity_id) && (
+                        <span className="text-text-faint shrink-0 truncate max-w-[90px]">
+                          {entityNameById.get(t.project.entity_id)}
+                        </span>
+                      )}
                       <span
                         className={`shrink-0 px-1.5 py-0.5 rounded border text-[10px] uppercase tracking-wide ${
                           STATUS_PILL[t.status] ?? 'border-border text-text-muted'
