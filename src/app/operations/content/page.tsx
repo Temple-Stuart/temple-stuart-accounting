@@ -1,27 +1,22 @@
 /**
  * /operations/content
  *
- * Section G · Content page. The OperationsEntityProvider is wired in the
- * parent /operations/layout.tsx, so this page just mounts the content
- * surfaces directly — same shape as routines/page.tsx.
+ * Section G · Content page — Alex's 4-step pipeline (OPS-CE-7), one flat page:
+ *   1 · SOURCES (routines + project tasks) → 2 · SCENIFY DRAFT (inline, multi-routine)
+ *   → 3 · CONFIRMED (PieceGrid + Daily Log) → 4 · SCRIPT OUTPUT (CE-5 mount point).
  *
- * SectionG_Content is the existing field-list table; PieceGrid (PR-Ops-
- * grid-5) is the pivoted scenes × days cell grid built on the same three
- * content tables. Both live on this tab.
+ * The whole composition lives in ContentPipeline (client). The OperationsEntity
+ * Provider is wired in the parent /operations/layout.tsx.
+ *
+ * RETIRED here (OPS-CE-7): the legacy SectionG_Content surface (the "No scenes yet"
+ * container UI + legacy ContentTable + its ScriptDrawer) is no longer mounted on this
+ * page. Those component files are left in place (not deleted) — ContentTable is still
+ * used by the home ContentPreview; SectionG_Content/ScriptDrawer/AvailableRoutinesList/
+ * SceneHeaderRow/TakeRow are now dead on this page → flagged for a later cleanup PR.
  */
 
-import SectionG_Content from '@/components/workbench/operations/content/SectionG_Content';
-import PieceGrid from '@/components/workbench/operations/content/PieceGrid';
-import QuestionLibrary from '@/components/workbench/operations/content/QuestionLibrary';
-import DailyLog from '@/components/workbench/operations/content/DailyLog';
+import ContentPipeline from '@/components/workbench/operations/content/ContentPipeline';
 
 export default function OperationsContentPage() {
-  return (
-    <div className="space-y-4">
-      <SectionG_Content />
-      <QuestionLibrary />
-      <DailyLog />
-      <PieceGrid />
-    </div>
-  );
+  return <ContentPipeline />;
 }
