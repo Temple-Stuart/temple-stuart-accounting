@@ -23,7 +23,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useOperationsEntity } from '../EntitySelector';
 import { CONTENT_DAY_PLAN_CHANGED_EVENT } from './ScenifyModal';
-import TaskTimeCommit from './TaskTimeCommit';
+import TaskBand from './TaskBand';
 import {
   compareDayOrder,
   minuteOfDayFromInstant,
@@ -407,21 +407,19 @@ export default function DailyLog({ date }: { date: string }) {
     );
   };
 
-  // Read-only execution band — a task block, visually distinct (gold left accent).
+  // Read-only execution band — fully legible, labeled, wrapped (shared TaskBand).
   const renderTaskRow = (b: (typeof taskBlocks)[number]) => (
     <tr key={`task-${b.id}`}>
-      <td colSpan={6} className="border border-border-light border-l-4 border-l-amber-400 bg-amber-50/50 px-3 py-1.5 align-top">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
-          <span className="text-amber-700" aria-hidden="true">▦</span>
-          <span className={b.planned ? 'text-text-muted' : 'text-text-primary font-semibold tabular-nums'}>{b.label}</span>
-          <span className="text-text-primary break-words">{b.title}</span>
-          {b.projectName && <span className="text-text-muted">· {b.projectName}</span>}
-          {/* OPS-CE-8E: set the time inline (first commit) for block-less rows. */}
-          {b.planned && b.itemId && <TaskTimeCommit itemId={b.itemId} date={date} />}
-          <span className="ml-auto px-1.5 py-0.5 rounded border border-amber-300 bg-white text-amber-700 text-[10px] uppercase tracking-wide">
-            {b.status}
-          </span>
-        </div>
+      <td colSpan={6} className="border border-border-light border-l-4 border-l-amber-400 bg-amber-50/50 px-3 py-2 align-top">
+        <TaskBand
+          timeLabel={b.planned ? '' : b.label}
+          planned={b.planned}
+          itemId={b.itemId}
+          date={date}
+          title={b.title}
+          projectName={b.projectName}
+          status={b.status}
+        />
       </td>
     </tr>
   );
