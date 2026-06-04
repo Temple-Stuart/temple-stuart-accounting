@@ -276,7 +276,7 @@ export default function ContentPipeline() {
                           </span>
                           <span className="text-text-primary font-medium flex-1">{r.name}</span>
                           {entityNameById.get(r.entity_id) && (
-                            <span className="text-text-muted truncate max-w-[90px]">{entityNameById.get(r.entity_id)}</span>
+                            <span className="text-text-muted break-words">{entityNameById.get(r.entity_id)}</span>
                           )}
                           <span className="text-text-muted">
                             {r.steps.length} step{r.steps.length === 1 ? '' : 's'}
@@ -309,9 +309,9 @@ export default function ContentPipeline() {
                         <span className="text-text-primary flex-1 break-words" title={t.title}>
                           {t.title}
                         </span>
-                        {t.project && <span className="text-text-muted truncate max-w-[100px]">{t.project.title}</span>}
+                        {t.project && <span className="text-text-muted break-words max-w-[140px]">{t.project.title}</span>}
                         {t.project && entityNameById.get(t.project.entity_id) && (
-                          <span className="text-text-muted shrink-0 truncate max-w-[80px]">
+                          <span className="text-text-muted break-words max-w-[110px]">
                             {entityNameById.get(t.project.entity_id)}
                           </span>
                         )}

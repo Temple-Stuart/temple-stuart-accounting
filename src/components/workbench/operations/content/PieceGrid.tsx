@@ -318,7 +318,7 @@ export default function PieceGrid() {
                   >
                     <div>{fmtDate(p.piece_date)}</div>
                     {p.title && (
-                      <div className="font-normal text-text-muted truncate max-w-[160px]">{p.title}</div>
+                      <div className="font-normal text-text-muted break-words max-w-[160px]">{p.title}</div>
                     )}
                     {(p.project_id || p.source_ai_usage_id) && (
                       <div
