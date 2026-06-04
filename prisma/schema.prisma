@@ -2948,6 +2948,11 @@ model operations_content_pieces {
   title              String?  @db.VarChar(200)
   project_id         String?  @db.Uuid
   source_ai_usage_id String?  @db.Uuid
+  // OPS-CE-5: the generated reel voiceover for the day (Stage 3). Nullable —
+  // human-gated: written only when Alex saves a generated/edited script. The
+  // immutable per-run reasoning lives in operations_ai_usage; this holds the
+  // latest accepted draft (last-write-wins, like the project design field).
+  script             String?  @db.Text
   created_at         DateTime @default(now()) @db.Timestamptz(6)
   updated_at         DateTime @updatedAt @db.Timestamptz(6)
   created_by         String?

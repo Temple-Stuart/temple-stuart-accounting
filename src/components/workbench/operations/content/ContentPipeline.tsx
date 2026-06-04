@@ -27,6 +27,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useOperationsEntity } from '../EntitySelector';
 import { CONTENT_DAY_PLAN_CHANGED_EVENT, CONTENT_SCENES_CHANGED_EVENT } from './ScenifyModal';
 import ScenifyDraft from './ScenifyDraft';
+import ScriptGenerator from './ScriptGenerator';
 import PieceGrid from './PieceGrid';
 import DailyLog from './DailyLog';
 
@@ -387,13 +388,8 @@ export default function ContentPipeline() {
         <PieceGrid />
       </section>
 
-      {/* 4 · SCRIPT — the CE-5 mount point, labeled with its inputs. */}
-      <section className="bg-white rounded border border-dashed border-brand-purple/40 p-5 text-center space-y-1">
-        <div className={sectionHeader}>4 · SCRIPT</div>
-        <div className="font-mono text-xs text-text-muted">
-          generates from Scene + Narrative + B-Roll + Question + Answer + the day&rsquo;s task blocks — next (CE-5)
-        </div>
-      </section>
+      {/* 4 · SCRIPT — the reel voiceover generator (CE-5). */}
+      <ScriptGenerator date={date} />
     </div>
   );
 }
