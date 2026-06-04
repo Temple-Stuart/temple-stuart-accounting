@@ -19,6 +19,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CONTENT_DAY_PLAN_CHANGED_EVENT, CONTENT_SCENES_CHANGED_EVENT } from './ScenifyModal';
+import TaskTimeCommit from './TaskTimeCommit';
 import {
   compareDayOrder,
   minuteOfDayFromInstant,
@@ -83,6 +84,7 @@ interface PlanItem {
 // A read-only task band in the day map.
 interface TaskView {
   id: string;
+  itemId?: string; // the daily_plan_item id — present on planned (block-less) rows
   title: string;
   projectName: string | null;
   status: string;
@@ -360,10 +362,11 @@ export default function ScenifyDraft({
           order: UNTIMED_TASK_ORDER_BASE + plannedIndex++,
           task: {
             id: `item-${item.id}`,
+            itemId: item.id,
             title,
             projectName,
             status: 'planned',
-            label: 'planned · no time committed — set times on Daily Plan',
+            label: 'planned · no time yet',
             planned: true,
           },
         });
@@ -484,11 +487,13 @@ export default function ScenifyDraft({
   const renderTaskRow = (task: TaskView) => (
     <tr key={`task-${task.id}`}>
       <td colSpan={8} className="border border-border-light border-l-4 border-l-amber-400 bg-amber-50/50 px-3 py-1.5 align-top">
-        <div className="flex flex-wrap items-start gap-x-3 gap-y-0.5">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="text-amber-700" aria-hidden="true">▦</span>
           <span className={task.planned ? 'text-text-muted' : 'text-text-primary font-semibold tabular-nums'}>{task.label}</span>
           <span className="text-text-primary break-words">{task.title}</span>
           {task.projectName && <span className="text-text-muted">· {task.projectName}</span>}
+          {/* OPS-CE-8E: set the time inline (first commit) for block-less rows. */}
+          {task.planned && task.itemId && <TaskTimeCommit itemId={task.itemId} date={date} />}
           <span className="ml-auto shrink-0 px-1.5 py-0.5 rounded border border-amber-300 bg-white text-amber-700 text-[10px] uppercase tracking-wide">
             {task.status}
           </span>

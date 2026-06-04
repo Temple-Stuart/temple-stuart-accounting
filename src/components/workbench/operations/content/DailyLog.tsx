@@ -23,6 +23,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useOperationsEntity } from '../EntitySelector';
 import { CONTENT_DAY_PLAN_CHANGED_EVENT } from './ScenifyModal';
+import TaskTimeCommit from './TaskTimeCommit';
 import {
   compareDayOrder,
   minuteOfDayFromInstant,
@@ -203,6 +204,7 @@ export default function DailyLog({ date }: { date: string }) {
   const taskBlocks = useMemo(() => {
     const rows: {
       id: string;
+      itemId?: string;
       title: string;
       projectName: string | null;
       status: string;
@@ -220,10 +222,11 @@ export default function DailyLog({ date }: { date: string }) {
         // Assigned to the day but no time committed yet — visible immediately.
         rows.push({
           id: `item-${item.id}`,
+          itemId: item.id,
           title,
           projectName,
           status: 'planned',
-          label: 'planned · no time committed — set times on Daily Plan',
+          label: 'planned · no time yet',
           minute: null,
           order: UNTIMED_TASK_ORDER_BASE + plannedIndex++,
           planned: true,
@@ -411,8 +414,10 @@ export default function DailyLog({ date }: { date: string }) {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
           <span className="text-amber-700" aria-hidden="true">▦</span>
           <span className={b.planned ? 'text-text-muted' : 'text-text-primary font-semibold tabular-nums'}>{b.label}</span>
-          <span className="text-text-primary">{b.title}</span>
+          <span className="text-text-primary break-words">{b.title}</span>
           {b.projectName && <span className="text-text-muted">· {b.projectName}</span>}
+          {/* OPS-CE-8E: set the time inline (first commit) for block-less rows. */}
+          {b.planned && b.itemId && <TaskTimeCommit itemId={b.itemId} date={date} />}
           <span className="ml-auto px-1.5 py-0.5 rounded border border-amber-300 bg-white text-amber-700 text-[10px] uppercase tracking-wide">
             {b.status}
           </span>
