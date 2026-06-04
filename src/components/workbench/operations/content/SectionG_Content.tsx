@@ -32,6 +32,11 @@ export default function SectionG_Content() {
   const [takes, setTakes] = useState<Take[] | null>(null);
   const [routines, setRoutines] = useState<Routine[] | null>(null);
   const [entities, setEntities] = useState<EntityLite[] | null>(null);
+  // OPS-CE-4-flat: truthful badge sources — the REAL grid tables. The legacy
+  // /content/scenes (scene_groups) + /content/takes (scene_rows) feed the table
+  // below but lie as headline counts. Badges read scene-ROWS + ANSWERED cells.
+  const [gridSceneRows, setGridSceneRows] = useState<{ entity_id: string }[]>([]);
+  const [gridCells, setGridCells] = useState<{ entity_id: string; script: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [scriptDrawerScene, setScriptDrawerScene] = useState<Scene | null>(null);
@@ -42,11 +47,12 @@ export default function SectionG_Content() {
 
     async function load() {
       try {
-        const [scenesRes, takesRes, routinesRes, entitiesRes] = await Promise.all([
+        const [scenesRes, takesRes, routinesRes, entitiesRes, gridRes] = await Promise.all([
           fetch('/api/operations/content/scenes', { credentials: 'include' }),
           fetch('/api/operations/content/takes', { credentials: 'include' }),
           fetch('/api/operations/routines', { credentials: 'include' }),
           fetch('/api/entities', { credentials: 'include' }),
+          fetch('/api/operations/content/grid', { credentials: 'include' }),
         ]);
 
         const parse = async (res: Response, label: string) => {
@@ -57,11 +63,12 @@ export default function SectionG_Content() {
           return res.json();
         };
 
-        const [scenesBody, takesBody, routinesBody, entitiesBody] = await Promise.all([
+        const [scenesBody, takesBody, routinesBody, entitiesBody, gridBody] = await Promise.all([
           parse(scenesRes, 'scenes'),
           parse(takesRes, 'takes'),
           parse(routinesRes, 'routines'),
           parse(entitiesRes, 'entities'),
+          parse(gridRes, 'grid'),
         ]);
 
         if (cancelled) return;
@@ -69,6 +76,8 @@ export default function SectionG_Content() {
         setTakes(takesBody.takes);
         setRoutines(routinesBody.routines);
         setEntities(entitiesBody.entities);
+        setGridSceneRows(gridBody.scenes ?? []);
+        setGridCells(gridBody.cells ?? []);
         setLoading(false);
       } catch (e) {
         if (cancelled) return;
@@ -207,6 +216,8 @@ export default function SectionG_Content() {
           takes={takes}
           routines={routines}
           entities={entities}
+          gridSceneRows={gridSceneRows}
+          gridCells={gridCells}
           entityFilter={entityFilter}
           onEntityFilterChange={setEntityFilter}
           onScenify={handleScenify}
@@ -233,6 +244,8 @@ function ContentSummary({
   takes,
   routines,
   entities,
+  gridSceneRows,
+  gridCells,
   entityFilter,
   onEntityFilterChange,
   onScenify,
@@ -244,6 +257,8 @@ function ContentSummary({
   takes: Take[];
   routines: Routine[];
   entities: EntityLite[];
+  gridSceneRows: { entity_id: string }[];
+  gridCells: { entity_id: string; script: string | null }[];
   entityFilter: string;
   onEntityFilterChange: (next: string) => void;
   onScenify: (newScene: Scene) => void;
@@ -285,12 +300,24 @@ function ContentSummary({
   const badgeClass =
     'px-2 py-0.5 text-xs font-mono rounded border border-border-light bg-bg-row text-text-primary';
 
+  // OPS-CE-4-flat: truthful badges read the REAL grid tables, not the legacy
+  // scene_groups/scene_rows the table below renders. scenes = scene-ROW count
+  // (operations_content_scenes); takes = ANSWERED cell count
+  // (operations_content_takes with a non-empty script). Filtered by entity to
+  // match the selector.
+  const sceneRowCount = gridSceneRows.filter(
+    (s) => entityFilter === 'all' || s.entity_id === entityFilter
+  ).length;
+  const answeredCellCount = gridCells.filter(
+    (c) => (entityFilter === 'all' || c.entity_id === entityFilter) && (c.script ?? '').trim().length > 0
+  ).length;
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className={badgeClass}>{filteredScenes.length} scenes</span>
-          <span className={badgeClass}>{filteredTakes.length} takes</span>
+          <span className={badgeClass}>{sceneRowCount} scenes</span>
+          <span className={badgeClass}>{answeredCellCount} takes</span>
           <span className={badgeClass}>{filteredRoutines.length} routines</span>
         </div>
         <select
