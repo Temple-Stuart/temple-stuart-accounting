@@ -38,6 +38,9 @@ interface GenInput {
   dateLabel: string;
   scenes: ScriptSceneInput[];
   tasks: ScriptTaskInput[];
+  // OPS-CE-5B: Alex's authoritative receipts of what actually got built/done. When
+  // present, this is the AUTHORITY on the execution — task titles are just labels.
+  executionNotes?: string | null;
 }
 interface GenOutput {
   script: string;
@@ -64,6 +67,12 @@ THE LOCKED REEL FORMAT:
 2. BODY — the planning / goals / stakes / mindset answers, voiced over the day's life footage (morning scenes through the day, in order). This is most of the reel.
 3. PROOF-BURST — near the END, compress the EXECUTION (the task blocks: what got built, planned vs actual, what shipped) into a rapid-fire burst. Fast, concrete, receipts.
 4. CLOSE — the day score + a "catch me tomorrow" hook, pulled from the tomorrow/closing answers.
+
+GROUNDING THE WORK (anti-confabulation — NON-NEGOTIABLE):
+- A task TITLE is a LABEL, not a description. You do NOT know what a task actually involved from its title.
+- The EXECUTION NOTES (when present) are the AUTHORITATIVE account of what got built/done. Where the notes and a task title differ, the NOTES WIN.
+- You may NOT state any work specific (what was built, how, what shipped, any number) that is not grounded in the EXECUTION NOTES, the task record, or Alex's answers. Do not infer or dramatize the work.
+- If there are NO execution notes and the task titles are thin, keep the proof-burst HIGH-LEVEL — e.g. "real hours into the build — receipts tomorrow" — and NEVER invent specifics. Honest-and-vague beats confident-and-wrong.
 
 OUTPUT SHAPE:
 - SCENE-MAPPED: tag each beat with [scene N · activity] (use the scene numbers + activities given) so Alex can match clips while editing. The proof-burst may be tagged [execution].
@@ -103,17 +112,25 @@ function bulletTasks(tasks: ScriptTaskInput[]): string {
 }
 
 export async function generateReelScript(input: GenInput): Promise<GenOutput> {
+  const notes = input.executionNotes?.trim();
+  const executionBlock = notes
+    ? `EXECUTION NOTES — Alex's authoritative receipts of what ACTUALLY got built/done (this is the AUTHORITY; task titles are only labels; where this differs from a title, THIS wins):
+${notes}`
+    : `EXECUTION NOTES: (none provided — task titles are LABELS only; keep the proof-burst HIGH-LEVEL, never invent work specifics).`;
+
   const userMessage = `DAY: ${input.dateLabel}
 
 THE DAY'S SCENES (in clock order — these are the life-footage beats; voice the BODY from these answers):
 ${bulletScenes(input.scenes)}
 
-THE EXECUTION RECORD (the task blocks — compress these into the rapid proof-burst near the end; planned-vs-actual + what shipped):
+THE TASK RECORD (the calendar blocks — planned vs actual; the skeleton of the proof-burst):
 ${bulletTasks(input.tasks)}
 
-Write Alex's reel voiceover per the format and his voice. Scene-map every beat. Use ONLY the above. Never fabricate.`;
+${executionBlock}
 
-  const inputsSummary = `piece_id=${input.pieceId}; scenes_answered=${input.scenes.length}; task_blocks=${input.tasks.length}`;
+Write Alex's reel voiceover per the format and his voice. Scene-map every beat. Ground every work claim in the execution notes + task record + answers. Never fabricate.`;
+
+  const inputsSummary = `piece_id=${input.pieceId}; scenes_answered=${input.scenes.length}; task_blocks=${input.tasks.length}; execution_notes=${notes ? 'yes' : 'no'}`;
 
   const result = await recordUsage({
     userId: input.userId,
