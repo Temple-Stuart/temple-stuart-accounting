@@ -84,11 +84,16 @@ interface PlanItem {
 // A read-only task band in the day map.
 interface TaskView {
   id: string;
-  itemId?: string; // the daily_plan_item id — present on planned (block-less) rows
+  itemId: string; // the daily_plan_item id (for planned commit)
+  blockId: string | null; // the calendar_block id (committed rows)
+  taskId: string | null; // for completing the task on "mark done"
+  projectId: string | null;
   title: string;
   projectName: string | null;
   status: string;
-  label: string;
+  scheduledStart: string | null;
+  scheduledEnd: string | null;
+  label: string; // time label for committed rows
   planned: boolean;
 }
 
@@ -363,10 +368,15 @@ export default function ScenifyDraft({
           task: {
             id: `item-${item.id}`,
             itemId: item.id,
+            blockId: null,
+            taskId: item.task?.id ?? null,
+            projectId: item.task?.project_id ?? null,
             title,
             projectName,
             status: 'planned',
-            label: 'planned · no time yet',
+            scheduledStart: null,
+            scheduledEnd: null,
+            label: '',
             planned: true,
           },
         });
@@ -383,9 +393,15 @@ export default function ScenifyDraft({
           order: minute,
           task: {
             id: b.id,
+            itemId: item.id,
+            blockId: b.id,
+            taskId: item.task?.id ?? null,
+            projectId: item.task?.project_id ?? null,
             title,
             projectName,
             status: b.status,
+            scheduledStart: b.scheduled_start,
+            scheduledEnd: b.scheduled_end,
             label: `${fmtClock(start)}–${end ? fmtClock(end) : '…'} ${useActual ? '(actual)' : '(scheduled)'}`,
             planned: false,
           },
@@ -488,13 +504,18 @@ export default function ScenifyDraft({
     <tr key={`task-${task.id}`}>
       <td colSpan={8} className="border border-border-light border-l-4 border-l-amber-400 bg-amber-50/50 px-3 py-2 align-top">
         <TaskBand
-          timeLabel={task.planned ? '' : task.label}
+          date={date}
           planned={task.planned}
           itemId={task.itemId}
-          date={date}
+          blockId={task.blockId}
+          taskId={task.taskId}
+          projectId={task.projectId}
           title={task.title}
           projectName={task.projectName}
           status={task.status}
+          scheduledStart={task.scheduledStart}
+          scheduledEnd={task.scheduledEnd}
+          timeLabel={task.label}
         />
       </td>
     </tr>

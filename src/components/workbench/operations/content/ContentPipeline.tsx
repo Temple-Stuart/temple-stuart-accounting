@@ -149,6 +149,18 @@ export default function ContentPipeline() {
     return () => window.removeEventListener(CONTENT_SCENES_CHANGED_EVENT, refresh);
   }, [loadCounts]);
 
+  // A day-plan change (add / commit / uncommit / done) → refresh the S1 to-do pool
+  // (/tasks/unscheduled drops committed + completed tasks) + the day pre-marks + counts.
+  useEffect(() => {
+    const refresh = () => {
+      void load();
+      void loadDayItems();
+      void loadCounts();
+    };
+    window.addEventListener(CONTENT_DAY_PLAN_CHANGED_EVENT, refresh);
+    return () => window.removeEventListener(CONTENT_DAY_PLAN_CHANGED_EVENT, refresh);
+  }, [load, loadDayItems, loadCounts]);
+
   const entityNameById = useMemo(
     () => new Map(entities.map((e) => [e.id, e.name])),
     [entities]
