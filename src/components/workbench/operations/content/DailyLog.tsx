@@ -22,6 +22,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useOperationsEntity } from '../EntitySelector';
+import {
+  compareDayOrder,
+  minuteOfDayFromInstant,
+  minuteOfDayFromTime,
+} from '@/lib/content/dayOrder';
 
 interface RoutineStepLite {
   id: string;
@@ -69,26 +74,17 @@ type RowState = 'idle' | 'saving' | 'saved' | 'error';
 
 const dayOf = (iso: string) => iso.slice(0, 10);
 
-// "1970-01-01T07:30:00Z" (Prisma @db.Time) → "07:30"; minutes-of-day for sorting.
+// "1970-01-01T07:30:00Z" (Prisma @db.Time) → "07:30" for DISPLAY. Sort minutes come
+// from the shared dayOrder helper so S3 and the record grid can never drift.
 const fmtTimeOfDay = (t: string | null): string => {
   if (!t) return '';
   const m = t.match(/T(\d{2}:\d{2})/);
   return m ? m[1] : '';
 };
-const minuteOfTimeOfDay = (t: string | null): number | null => {
-  const hhmm = fmtTimeOfDay(t);
-  if (!hhmm) return null;
-  const [h, m] = hhmm.split(':').map(Number);
-  return h * 60 + m;
-};
-// Timestamptz instant → local wall-clock "HH:MM" + minutes-of-day.
+// Timestamptz instant → local wall-clock "HH:MM" for DISPLAY.
 const fmtClock = (iso: string): string => {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-};
-const minuteOfInstant = (iso: string): number => {
-  const d = new Date(iso);
-  return d.getHours() * 60 + d.getMinutes();
 };
 
 const headerCellClass =
@@ -214,7 +210,7 @@ export default function DailyLog({ date }: { date: string }) {
           projectName: item.task?.project_id ? projectNameById[item.task.project_id] ?? null : null,
           status: b.status,
           label,
-          minute: minuteOfInstant(start),
+          minute: minuteOfDayFromInstant(start),
         });
       }
     }
@@ -230,20 +226,14 @@ export default function DailyLog({ date }: { date: string }) {
     const rows: TimelineRow[] = [
       ...dayScenes.map((s) => ({
         kind: 'scene' as const,
-        minute: minuteOfTimeOfDay(s.routine_step.time_of_day),
+        minute: minuteOfDayFromTime(s.routine_step.time_of_day),
         order: s.routine_step.step_order,
         scene: s,
       })),
       ...taskBlocks.map((b) => ({ kind: 'task' as const, minute: b.minute, order: b.minute, block: b })),
     ];
-    rows.sort((a, b) => {
-      if (a.minute == null && b.minute == null) return a.order - b.order;
-      if (a.minute == null) return 1;
-      if (b.minute == null) return -1;
-      if (a.minute !== b.minute) return a.minute - b.minute;
-      if (a.kind !== b.kind) return a.kind === 'scene' ? -1 : 1; // scene before task on a tie
-      return a.order - b.order;
-    });
+    // The ONE shared day-anchored order (midnight wraps to day-end).
+    rows.sort(compareDayOrder);
     return rows;
   }, [dayScenes, taskBlocks]);
 

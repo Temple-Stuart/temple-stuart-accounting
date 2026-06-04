@@ -25,6 +25,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useOperationsEntity } from '../EntitySelector';
 import { CONTENT_SCENES_CHANGED_EVENT } from './ScenifyModal';
+import { compareDayOrder, minuteOfDayFromTime } from '@/lib/content/dayOrder';
 
 interface RoutineStepLite {
   id: string;
@@ -151,7 +152,18 @@ export default function PieceGrid() {
   // OPS-CE-8: CROSS-ENTITY day-to-day record — the reel spans entities, so the
   // record shows ALL scenes × ALL day-pieces (no entity filter). selectedEntityId is
   // used only to create a new day column (+ day).
-  const visibleScenes = scenes ?? [];
+  // OPS-CE-8B: rows sort by the ONE shared day-anchored order (midnight wraps to
+  // day-end), matching the S3 timeline — never by raw step_order.
+  const visibleScenes = useMemo(
+    () =>
+      [...(scenes ?? [])].sort((a, b) =>
+        compareDayOrder(
+          { minute: minuteOfDayFromTime(a.routine_step.time_of_day), order: a.routine_step.step_order },
+          { minute: minuteOfDayFromTime(b.routine_step.time_of_day), order: b.routine_step.step_order }
+        )
+      ),
+    [scenes]
+  );
   const visiblePieces = pieces ?? [];
 
   // Upsert a cell and merge the result into local state.
