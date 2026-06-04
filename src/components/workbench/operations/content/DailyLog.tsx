@@ -67,15 +67,6 @@ interface PlanItem {
 
 type RowState = 'idle' | 'saving' | 'saved' | 'error';
 
-// Local YYYY-MM-DD (NOT toISOString — that flips to UTC and can show "tomorrow"
-// or "yesterday" depending on the user's offset). OPS-CE-6 default-day fix.
-const todayLocal = () => {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-};
 const dayOf = (iso: string) => iso.slice(0, 10);
 
 // "1970-01-01T07:30:00Z" (Prisma @db.Time) → "07:30"; minutes-of-day for sorting.
@@ -103,9 +94,10 @@ const minuteOfInstant = (iso: string): number => {
 const headerCellClass =
   'bg-bg-row border border-border-light px-2 py-1.5 text-left text-brand-purple font-semibold uppercase tracking-wide whitespace-nowrap';
 
-export default function DailyLog() {
+export default function DailyLog({ date }: { date: string }) {
+  // selectedEntityId is used ONLY to create the day's canonical piece. Reading is
+  // CROSS-ENTITY (OPS-CE-8): the day is ONE reel — scenes/answers/blocks span entities.
   const { selectedEntityId } = useOperationsEntity();
-  const [date, setDate] = useState(todayLocal());
   const [scenes, setScenes] = useState<SceneRow[] | null>(null);
   const [pieces, setPieces] = useState<PieceCol[] | null>(null);
   const [cells, setCells] = useState<Cell[]>([]);
@@ -120,15 +112,15 @@ export default function DailyLog() {
   const [rowState, setRowState] = useState<Record<string, RowState>>({});
   const [rowError, setRowError] = useState<Record<string, string>>({});
 
-  // Grid (scenes/pieces/cells) + project names — entity-scoped, not date-scoped.
+  // Grid (scenes/pieces/cells) + project names — CROSS-ENTITY (no entity filter):
+  // the day's reel reads every entity's scenes/answers.
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const qs = selectedEntityId ? `?entity_id=${encodeURIComponent(selectedEntityId)}` : '';
       const [gridRes, projRes] = await Promise.all([
-        fetch(`/api/operations/content/grid${qs}`, { credentials: 'include' }),
-        fetch(`/api/operations/projects${qs}`, { credentials: 'include' }),
+        fetch('/api/operations/content/grid', { credentials: 'include' }),
+        fetch('/api/operations/projects', { credentials: 'include' }),
       ]);
       if (!gridRes.ok) throw new Error(`Failed to load (${gridRes.status})`);
       const body = await gridRes.json();
@@ -146,7 +138,7 @@ export default function DailyLog() {
     } finally {
       setLoading(false);
     }
-  }, [selectedEntityId]);
+  }, []);
 
   // Committed task blocks for the selected day (read-only execution record).
   const loadBlocks = useCallback(async () => {
@@ -170,20 +162,22 @@ export default function DailyLog() {
     void loadBlocks();
   }, [loadBlocks]);
 
+  // CROSS-ENTITY: every active scene for the day, regardless of entity.
   const dayScenes = useMemo(
     () =>
       (scenes ?? [])
-        .filter((s) => !selectedEntityId || s.entity_id === selectedEntityId)
+        .slice()
         .sort((a, b) => a.routine_step.step_order - b.routine_step.step_order),
-    [scenes, selectedEntityId]
+    [scenes]
   );
 
+  // The day's CANONICAL piece: ONE piece per date = ONE reel. Resolve the first
+  // piece for the date across ALL entities (grid GET orders by piece_date, created_at),
+  // so cross-entity answers attach to a single day column. (Cells allow scene.entity ≠
+  // piece.entity — the cell route checks user ownership, not entity match.)
   const piece = useMemo(
-    () =>
-      (pieces ?? []).find(
-        (p) => dayOf(p.piece_date) === date && (!selectedEntityId || p.entity_id === selectedEntityId)
-      ) ?? null,
-    [pieces, date, selectedEntityId]
+    () => (pieces ?? []).find((p) => dayOf(p.piece_date) === date) ?? null,
+    [pieces, date]
   );
 
   const cellByScene = useMemo(() => {
@@ -208,7 +202,7 @@ export default function DailyLog() {
       minute: number;
     }[] = [];
     for (const item of planItems) {
-      if (selectedEntityId && item.entity_id !== selectedEntityId) continue;
+      // CROSS-ENTITY: all committed blocks for the date (personal + business).
       for (const b of item.calendar_blocks) {
         const useActual = !!b.actual_start;
         const start = useActual ? (b.actual_start as string) : b.scheduled_start;
@@ -225,7 +219,7 @@ export default function DailyLog() {
       }
     }
     return rows;
-  }, [planItems, selectedEntityId, projectNameById]);
+  }, [planItems, projectNameById]);
 
   // Merge-sort scenes + task blocks into one timeline. Timed rows by minute-of-day;
   // untimed scenes (no step time) sink to the end by step_order (no fabricated time).
@@ -314,7 +308,8 @@ export default function DailyLog() {
 
   const renderSceneRow = (s: SceneRow) => {
     const time = fmtTimeOfDay(s.routine_step.time_of_day);
-    const question = s.assigned_question_text?.trim() || s.narrative_purpose?.trim() || null;
+    const question = s.assigned_question_text?.trim() || null;
+    const narrative = s.narrative_purpose?.trim() || null;
     const saved = (cellByScene.get(s.id)?.script ?? '').trim().length > 0;
     const state = rowState[s.id] ?? 'idle';
     return (
@@ -322,7 +317,7 @@ export default function DailyLog() {
         <td className="border border-border-light px-2 py-1 align-top text-center">
           <span
             className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] ${
-              saved ? 'bg-brand-purple text-white' : 'border border-border text-text-faint'
+              saved ? 'bg-brand-purple text-white' : 'border border-border text-text-muted'
             }`}
             aria-hidden="true"
           >
@@ -333,11 +328,18 @@ export default function DailyLog() {
           <div className="text-text-primary font-medium">{s.routine_step.activity}</div>
           {time && <div className="text-text-muted">{time}</div>}
         </td>
+        <td className="border border-border-light px-2 py-1 align-top min-w-[180px]">
+          {narrative ? (
+            <span className="text-text-muted">{narrative}</span>
+          ) : (
+            <span className="text-text-muted">—</span>
+          )}
+        </td>
         <td className="border border-border-light px-2 py-1 align-top min-w-[200px]">
           {question ? (
             <span className="text-text-primary">{question}</span>
           ) : (
-            <span className="text-text-faint">none — set in Scenify</span>
+            <span className="text-text-muted">none — set in the script map</span>
           )}
         </td>
         <td className="border border-border-light px-2 py-1 align-top min-w-[150px] text-text-muted">
@@ -346,7 +348,7 @@ export default function DailyLog() {
               <span aria-hidden="true">🎥</span> {s.b_roll}
             </span>
           ) : (
-            <span className="text-text-faint">—</span>
+            <span className="text-text-muted">—</span>
           )}
         </td>
         <td className="border border-border-light px-2 py-1 align-top min-w-[260px]">
@@ -381,7 +383,7 @@ export default function DailyLog() {
   // Read-only execution band — a task block, visually distinct (gold left accent).
   const renderTaskRow = (b: (typeof taskBlocks)[number]) => (
     <tr key={`task-${b.id}`}>
-      <td colSpan={5} className="border border-border-light border-l-4 border-l-amber-400 bg-amber-50/50 px-3 py-1.5 align-top">
+      <td colSpan={6} className="border border-border-light border-l-4 border-l-amber-400 bg-amber-50/50 px-3 py-1.5 align-top">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
           <span className="text-amber-700" aria-hidden="true">▦</span>
           <span className="text-text-primary font-semibold tabular-nums">{b.label}</span>
@@ -396,26 +398,17 @@ export default function DailyLog() {
   );
 
   return (
-    <section className="bg-white rounded border border-border shadow-sm p-5 space-y-4">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-mono text-sm font-bold tracking-wide text-text-primary">
-          DAILY LOG
-          <span className="ml-2 font-normal text-text-faint">the day, top to bottom — mindset + execution</span>
-        </h2>
-        <div className="flex items-center gap-2">
-          {piece && dayScenes.length > 0 && (
-            <span className="font-mono text-xs text-text-muted">
-              {answeredCount} of {dayScenes.length} answered
-            </span>
-          )}
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple"
-            aria-label="Log date"
-          />
-        </div>
+        <h3 className="font-mono text-sm font-medium tracking-wide text-brand-purple">
+          ANSWER
+          <span className="ml-2 font-normal text-text-muted">the day, top to bottom — mindset + execution</span>
+        </h3>
+        {piece && dayScenes.length > 0 && (
+          <span className="font-mono text-xs text-text-muted">
+            {answeredCount} of {dayScenes.length} answered
+          </span>
+        )}
       </div>
 
       {error && (
@@ -425,7 +418,7 @@ export default function DailyLog() {
       )}
 
       {loading ? (
-        <p className="text-sm font-mono text-text-faint">Loading…</p>
+        <p className="text-sm font-mono text-text-muted">Loading…</p>
       ) : dayScenes.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 px-4 border border-border-light rounded bg-bg-row text-center">
           <div className="text-2xl mb-2" aria-hidden="true">🎬</div>
@@ -455,6 +448,7 @@ export default function DailyLog() {
               <tr>
                 <th className={`${headerCellClass} text-center`}>#</th>
                 <th className={headerCellClass}>Activity</th>
+                <th className={headerCellClass}>Narrative</th>
                 <th className={headerCellClass}>Question</th>
                 <th className={headerCellClass}>B-Roll</th>
                 <th className={headerCellClass}>Answer</th>
@@ -466,8 +460,8 @@ export default function DailyLog() {
               )}
               {taskBlocks.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="border border-border-light px-3 py-1.5 text-text-faint">
-                    no task blocks committed — assign tasks on the Daily Plan tab
+                  <td colSpan={6} className="border border-border-light px-3 py-1.5 text-text-muted">
+                    no task blocks committed — assign tasks in section 1 or on the Daily Plan tab
                   </td>
                 </tr>
               )}
@@ -475,6 +469,6 @@ export default function DailyLog() {
           </table>
         </div>
       )}
-    </section>
+    </div>
   );
 }

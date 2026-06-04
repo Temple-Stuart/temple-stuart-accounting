@@ -67,7 +67,7 @@ interface Group {
 const headerCellClass =
   'sticky top-0 z-10 bg-bg-row border border-border-light px-2 py-1.5 text-left text-brand-purple font-semibold uppercase tracking-wide whitespace-nowrap';
 const cellInputClass =
-  'w-full px-2 py-1 bg-white text-text-primary placeholder:text-text-faint focus:outline-none focus:bg-purple-50/40 focus:ring-1 focus:ring-inset focus:ring-brand-purple';
+  'w-full px-2 py-1 bg-white text-text-primary placeholder:text-text-muted focus:outline-none focus:bg-purple-50/40 focus:ring-1 focus:ring-inset focus:ring-brand-purple';
 
 const draftFromStep = (step: RoutineStep): Draft => ({
   camera_needed: step.content_scene?.camera_needed ?? '',
@@ -101,6 +101,9 @@ export default function ScenifyDraft({
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // OPS-CE-8: Alex's actual gear, passed per-call to enrich (no persistence yet —
+  // the gear library is the schema follow-up). Default iPhone.
+  const [cameras, setCameras] = useState('iPhone');
 
   // The selection key — re-load when the set OR order of selected routines changes.
   const key = routines.map((r) => r.id).join(',');
@@ -174,7 +177,7 @@ export default function ScenifyDraft({
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ routine_id: g.routineId }),
+          body: JSON.stringify({ routine_id: g.routineId, cameras }),
         });
         const body = await res.json();
         if (!res.ok) throw new Error(`"${g.routineName}": ${body?.message ?? body?.error ?? res.status}`);
@@ -269,24 +272,37 @@ export default function ScenifyDraft({
   return (
     <div className="bg-white rounded border border-brand-purple shadow-sm p-5 space-y-3 text-xs font-mono">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-bold tracking-wide text-text-primary text-sm">
-          2 · SCENIFY DRAFT
-          <span className="ml-2 font-normal text-text-faint">
+        <h2 className="font-medium tracking-wide text-brand-purple text-sm">
+          2 · AI SCRIPT MAP
+          <span className="ml-2 font-normal text-text-muted">
             {groups.length} routine{groups.length === 1 ? '' : 's'} · {allSteps.length} scene{allSteps.length === 1 ? '' : 's'}
           </span>
         </h2>
-        <button
-          type="button"
-          onClick={handleEnrich}
-          disabled={enriching || submitting || loading || allSteps.length === 0}
-          className="px-2 py-1 border border-brand-purple rounded text-brand-purple hover:bg-purple-100/50 disabled:opacity-50"
-        >
-          {enriching ? 'thinking…' : '✨ AI suggest'}
-        </button>
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-1.5 text-brand-purple font-medium">
+            cameras available
+            <input
+              type="text"
+              value={cameras}
+              onChange={(e) => setCameras(e.target.value)}
+              placeholder="iPhone"
+              className="w-40 px-2 py-1 bg-white border border-brand-purple/40 rounded text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={handleEnrich}
+            disabled={enriching || submitting || loading || allSteps.length === 0}
+            className="px-2 py-1 border border-brand-purple rounded text-brand-purple hover:bg-purple-100/50 disabled:opacity-50"
+          >
+            {enriching ? 'thinking…' : '✨ AI suggest'}
+          </button>
+        </div>
       </div>
       <p className="text-text-muted">
         Selected routines, in order — fill the shot fields (the per-day script lives in the grid cells).
-        AI suggest prefills angle / shot type / b-roll and the best-fit question; everything stays editable.
+        AI suggest tunes the map for virality (hook · variety · pattern interrupts · strong close) using your
+        cameras, prefilling camera / angle / shot / b-roll and the best-fit question; everything stays editable.
       </p>
 
       {notice && (
@@ -297,7 +313,7 @@ export default function ScenifyDraft({
       )}
 
       {loading ? (
-        <p className="text-text-faint">Loading steps…</p>
+        <p className="text-text-muted">Loading steps…</p>
       ) : allSteps.length === 0 ? (
         <p className="text-text-muted">
           The selected routine{groups.length === 1 ? ' has' : 's have'} no steps yet — add steps on the Routines tab first.
@@ -343,7 +359,7 @@ export default function ScenifyDraft({
         >
           {submitting ? 'saving…' : 'save scenes'}
         </button>
-        <span className="text-text-faint">saved scenes appear in the confirmed grid below</span>
+        <span className="text-text-muted">saved scenes appear in the confirmed grid below</span>
       </div>
     </div>
   );
@@ -382,7 +398,7 @@ function RoutineGroup({
       </tr>
       {group.steps.length === 0 ? (
         <tr>
-          <td colSpan={8} className="border border-border-light px-2 py-1 text-text-faint">
+          <td colSpan={8} className="border border-border-light px-2 py-1 text-text-muted">
             no steps — add them on the Routines tab
           </td>
         </tr>

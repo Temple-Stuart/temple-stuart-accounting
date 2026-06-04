@@ -100,6 +100,9 @@ export async function POST(request: NextRequest) {
         label: q.label,
         question_text: q.question_text,
       })),
+      // OPS-CE-8: Alex's available gear (free text, default iPhone). Per-call only —
+      // no persistence; the gear library is the schema follow-up.
+      cameras: typeof body.cameras === 'string' ? body.cameras : undefined,
     });
 
     return NextResponse.json({

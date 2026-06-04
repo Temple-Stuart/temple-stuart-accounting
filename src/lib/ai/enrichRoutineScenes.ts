@@ -46,6 +46,9 @@ interface EnrichInput {
   routineName: string;
   steps: EnrichStepInput[];
   questions: EnrichQuestionInput[];
+  // OPS-CE-8: Alex's actual gear (free text, default "iPhone"). Not persisted yet —
+  // the gear library is the schema follow-up. Suggestions use only these cameras.
+  cameras?: string;
 }
 
 export interface EnrichedStep {
@@ -84,7 +87,7 @@ const ENRICHMENT_SCHEMA = {
         type: 'object',
         properties: {
           routine_step_id: { type: 'string', description: 'The id of the step being enriched (echo it back exactly).' },
-          camera_needed: { type: 'string', maxLength: 200, description: 'CAMERA = the iPhone rig + placement (he shoots iPhone-only — never name another device). Say how the phone is mounted and where, e.g. "tripod bedside", "handheld", "desk tripod", "selfie stick", "phone leaned on the shelf".' },
+          camera_needed: { type: 'string', maxLength: 200, description: 'CAMERA = rig + placement using ONLY the AVAILABLE CAMERAS named in the user message (default iPhone). Name the camera + how it is mounted + where, e.g. "iPhone on tripod bedside", "iPhone handheld", "iPhone on desk tripod", "iPhone on selfie stick". Never name a camera that is not in the available list.' },
           filming_angle: { type: 'string', maxLength: 200, description: 'Suggested camera angle (e.g. "eye-level over-the-shoulder").' },
           shot_type: { type: 'string', maxLength: 200, description: 'Suggested shot type (e.g. "close-up", "wide establishing").' },
           b_roll: { type: 'string', maxLength: 800, description: 'A concrete b-roll idea to cut to during this step.' },
@@ -101,7 +104,14 @@ const ENRICHMENT_SCHEMA = {
 
 const SYSTEM_PROMPT = `You are a short-form video director helping a solo founder turn a daily ROUTINE into a filmable scene map for a reel.
 
-You are given the routine's STEPS (what he actually does, in order) and his OWN QUESTION LIBRARY (a designed set of reflective prompts he asks himself on camera). For EACH step you produce a scene enrichment.
+You are given the routine's STEPS (what he actually does, in order), his OWN QUESTION LIBRARY (a designed set of reflective prompts he asks himself on camera), and his AVAILABLE CAMERAS. For EACH step you produce a scene enrichment.
+
+OPTIMIZE THE MAP FOR VIRALITY (while staying 100% true to the real activities):
+  - HOOK: the first scene must stop the scroll — the strongest visual or the sharpest question goes up front.
+  - VISUAL VARIETY: vary camera placement, angle, shot type, and b-roll so no two consecutive scenes look the same.
+  - PATTERN INTERRUPTS: change the pace/framing partway through so the reel never settles into a monotonous rhythm.
+  - STRONG CLOSE: the final scene lands the payoff — the day's lesson, the score, or the hardest question.
+  Virality comes from HOW you film and WHAT you ask — NEVER from inventing, embellishing, or reordering steps. Use ONLY the cameras provided.
 
 ABSOLUTE RULES:
   - NEVER invent, merge, split, rename, or reorder steps. You enrich ONLY the steps you are given, one enrichment per step, echoing routine_step_id back exactly. The operator owns WHAT he does; you suggest only HOW to film it and WHICH question to ask.
@@ -141,7 +151,10 @@ export async function enrichRoutineScenes(input: EnrichInput): Promise<EnrichOut
           .map((q) => `- id=${q.id}${q.label ? ` [${q.label}]` : ''}: ${q.question_text}`)
           .join('\n');
 
+  const cameras = input.cameras?.trim() || 'iPhone';
   const userMessage = `Routine: "${input.routineName}"
+
+AVAILABLE CAMERAS (use ONLY these — name the rig + placement): ${cameras}
 
 STEPS (enrich each, one-to-one, echo routine_step_id exactly — never invent steps):
 ${stepsBlock}
