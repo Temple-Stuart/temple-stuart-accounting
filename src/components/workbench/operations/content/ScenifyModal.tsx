@@ -24,6 +24,9 @@
 import { useEffect, useState } from 'react';
 
 export const CONTENT_SCENES_CHANGED_EVENT = 'operations:content-scenes-changed';
+// OPS-CE-8D: a task was assigned to / changed on the day's plan — the day map (S2)
+// and the answer timeline (S3) re-read the day's tasks.
+export const CONTENT_DAY_PLAN_CHANGED_EVENT = 'operations:content-day-plan-changed';
 
 // Table styling matches the PieceGrid below it (PieceGrid.tsx:288-393) so the two
 // read as one family: border-collapse text-xs font-mono, border-border-light grid

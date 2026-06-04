@@ -25,7 +25,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useOperationsEntity } from '../EntitySelector';
-import { CONTENT_SCENES_CHANGED_EVENT } from './ScenifyModal';
+import { CONTENT_DAY_PLAN_CHANGED_EVENT, CONTENT_SCENES_CHANGED_EVENT } from './ScenifyModal';
 import ScenifyDraft from './ScenifyDraft';
 import PieceGrid from './PieceGrid';
 import DailyLog from './DailyLog';
@@ -183,6 +183,8 @@ export default function ContentPipeline() {
       });
       if (res.ok || res.status === 409) {
         setAddedTaskIds((prev) => new Set(prev).add(taskId));
+        // Tell the day map (S2) + answer timeline (S3) to re-read the day's tasks.
+        window.dispatchEvent(new Event(CONTENT_DAY_PLAN_CHANGED_EVENT));
       } else {
         const b = await res.json().catch(() => ({}));
         setError(b?.message ?? b?.error ?? `failed to add task (${res.status})`);
@@ -302,9 +304,9 @@ export default function ContentPipeline() {
                     return (
                       <li
                         key={t.id}
-                        className="flex items-center gap-2 px-2 py-1.5 rounded border border-border-light"
+                        className="flex items-start gap-2 px-2 py-1.5 rounded border border-border-light"
                       >
-                        <span className="text-text-primary flex-1 truncate" title={t.title}>
+                        <span className="text-text-primary flex-1 break-words" title={t.title}>
                           {t.title}
                         </span>
                         {t.project && <span className="text-text-muted truncate max-w-[100px]">{t.project.title}</span>}
@@ -347,7 +349,9 @@ export default function ContentPipeline() {
       </section>
 
       {/* 2 · AI SCRIPT MAP (renders inline when ≥1 routine selected) */}
-      {selectedRoutines.length > 0 && <ScenifyDraft routines={selectedRoutines} onSaved={loadCounts} />}
+      {selectedRoutines.length > 0 && (
+        <ScenifyDraft routines={selectedRoutines} date={date} onSaved={loadCounts} />
+      )}
 
       {/* 3 · ANSWER + RECORD — date at top, the answer timeline over the record grid. */}
       <section className="bg-white rounded border border-border shadow-sm p-5 space-y-4">
