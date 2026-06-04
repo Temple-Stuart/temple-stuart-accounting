@@ -1,26 +1,29 @@
 /**
- * ScenifyDraft — STEP 2 of the Content pipeline (OPS-CE-7): the inline, multi-routine
- * scene-map DRAFT table. This is the CE-3B Scenify table, DE-MODALIZED — it renders
- * in the page flow under the sources (never an overlay), and spans MULTIPLE selected
- * routines in selection order into ONE combined editable table.
+ * ScenifyDraft — STEP 2: THE DAY'S MAP (OPS-CE-8D). The inline scene-map draft now
+ * shows the whole selected DAY in chronological order: the selected routines' steps
+ * (editable scene rows) INTERLEAVED with the day's committed/planned project TASKS
+ * (read-only amber bands), positioned by the CE-8B shared dayOrder comparator —
+ * routines and tasks both have times; projects are done BETWEEN routines.
  *
- * Rows = the selected routines' active steps, grouped by routine in selection order,
- * each group preceded by a routine separator band. The # column is the COMBINED scene
- * number across the whole table. Per row: editable shot fields (camera/angle/shot/
- * b-roll/narrative) + the assigned QUESTION (library purple / proposed-new amber).
+ * Scene rows are unchanged (editable shot fields + assigned question; "✨ AI suggest"
+ * per-routine; "save scenes" → the EXISTING /content/scene-rows upsert, payload
+ * byte-identical). Task rows are READ-ONLY (time · full wrapped title · project ·
+ * status), loaded via the EXISTING GET /daily-plan/items for the selected date.
  *
- * "✨ AI suggest" enriches the whole selection by calling the EXISTING enrich route
- * once PER routine, in order (recordUsage stays per-call — clean attribution). "Save
- * scenes" upserts every step via the EXISTING /content/scene-rows route, then
- * broadcasts CONTENT_SCENES_CHANGED_EVENT so the confirmed grid refetches.
- *
- * 0-schema, zero new write paths. Flat: no modal/drawer/expander.
+ * Chronology wins the ordering; each scene keeps its routine name as a secondary
+ * label. Tasks get NO shot fields this PR (a "shotify a task" concept needs schema —
+ * flagged follow-up). 0-schema, zero new write paths.
  */
 
 'use client';
 
-import { useEffect, useState } from 'react';
-import { CONTENT_SCENES_CHANGED_EVENT } from './ScenifyModal';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { CONTENT_DAY_PLAN_CHANGED_EVENT, CONTENT_SCENES_CHANGED_EVENT } from './ScenifyModal';
+import {
+  compareDayOrder,
+  minuteOfDayFromInstant,
+  minuteOfDayFromTime,
+} from '@/lib/content/dayOrder';
 
 interface StepSceneRow {
   camera_needed: string | null;
@@ -63,11 +66,36 @@ interface Group {
   routineName: string;
   steps: RoutineStep[];
 }
+interface CalendarBlock {
+  id: string;
+  scheduled_start: string;
+  scheduled_end: string;
+  actual_start: string | null;
+  actual_end: string | null;
+  status: string;
+}
+interface PlanItem {
+  id: string;
+  ad_hoc_title: string | null;
+  task: { id: string; title: string; project_id: string; status: string } | null;
+  calendar_blocks: CalendarBlock[];
+}
+// A read-only task band in the day map.
+interface TaskView {
+  id: string;
+  title: string;
+  projectName: string | null;
+  status: string;
+  label: string;
+  planned: boolean;
+}
 
 const headerCellClass =
   'sticky top-0 z-10 bg-bg-row border border-border-light px-2 py-1.5 text-left text-brand-purple font-semibold uppercase tracking-wide whitespace-nowrap';
 const cellInputClass =
   'w-full px-2 py-1 bg-white text-text-primary placeholder:text-text-muted focus:outline-none focus:bg-purple-50/40 focus:ring-1 focus:ring-inset focus:ring-brand-purple';
+// Untimed/planned task rows sink after the untimed scenes (whose order is small).
+const UNTIMED_TASK_ORDER_BASE = 100000;
 
 const draftFromStep = (step: RoutineStep): Draft => ({
   camera_needed: step.content_scene?.camera_needed ?? '',
@@ -86,16 +114,24 @@ const fmtTime = (t: string | null): string => {
   if (m) return m[1];
   return t.length >= 5 ? t.slice(0, 5) : t;
 };
+const fmtClock = (iso: string): string => {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
 
 export default function ScenifyDraft({
   routines,
+  date,
   onSaved,
 }: {
   routines: { id: string; name: string }[];
+  date: string;
   onSaved?: () => void;
 }) {
   const [groups, setGroups] = useState<Group[]>([]);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
+  const [planItems, setPlanItems] = useState<PlanItem[]>([]);
+  const [projectNameById, setProjectNameById] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [enriching, setEnriching] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -145,6 +181,34 @@ export default function ScenifyDraft({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
+
+  // The day's project tasks (read-only) — the EXISTING GET; items + their blocks are
+  // already returned. Re-load on date change. + project names for labels.
+  const loadDay = useCallback(async () => {
+    try {
+      const [itemsRes, projRes] = await Promise.all([
+        fetch(`/api/operations/daily-plan/items?from=${date}&to=${date}`, { credentials: 'include' }),
+        fetch('/api/operations/projects', { credentials: 'include' }),
+      ]);
+      if (itemsRes.ok) setPlanItems((await itemsRes.json()).items ?? []);
+      if (projRes.ok) {
+        const map: Record<string, string> = {};
+        for (const p of (await projRes.json()).projects ?? []) map[p.id] = p.title;
+        setProjectNameById(map);
+      }
+    } catch {
+      /* leave prior tasks on a transient failure */
+    }
+  }, [date]);
+  useEffect(() => {
+    void loadDay();
+  }, [loadDay]);
+  // Re-read the day's tasks when one is added to the day (S1 add-to-day).
+  useEffect(() => {
+    const refresh = () => void loadDay();
+    window.addEventListener(CONTENT_DAY_PLAN_CHANGED_EVENT, refresh);
+    return () => window.removeEventListener(CONTENT_DAY_PLAN_CHANGED_EVENT, refresh);
+  }, [loadDay]);
 
   const setField = (stepId: string, field: keyof Draft, value: string) => {
     setError(null);
@@ -266,8 +330,174 @@ export default function ScenifyDraft({
     }
   };
 
-  // Combined scene number across the whole table.
-  let runningNumber = 0;
+  // THE DAY'S MAP: scenes (all routines) + tasks, sorted chronologically by the ONE
+  // shared dayOrder comparator. Untimed scenes sink by selection-then-step order;
+  // planned (block-less) tasks sink after them; timed rows interleave by clock.
+  type MapRow =
+    | { kind: 'scene'; minute: number | null; order: number; step: RoutineStep; routineName: string }
+    | { kind: 'task'; minute: number | null; order: number; task: TaskView };
+  const dayMap = useMemo<MapRow[]>(() => {
+    const rows: MapRow[] = [];
+    groups.forEach((g, gi) => {
+      for (const s of g.steps) {
+        rows.push({
+          kind: 'scene',
+          minute: minuteOfDayFromTime(s.time_of_day),
+          order: gi * 1000 + s.step_order,
+          step: s,
+          routineName: g.routineName,
+        });
+      }
+    });
+    let plannedIndex = 0;
+    for (const item of planItems) {
+      const title = item.task?.title ?? item.ad_hoc_title ?? 'Untitled';
+      const projectName = item.task?.project_id ? projectNameById[item.task.project_id] ?? null : null;
+      if (item.calendar_blocks.length === 0) {
+        rows.push({
+          kind: 'task',
+          minute: null,
+          order: UNTIMED_TASK_ORDER_BASE + plannedIndex++,
+          task: {
+            id: `item-${item.id}`,
+            title,
+            projectName,
+            status: 'planned',
+            label: 'planned · no time committed — set times on Daily Plan',
+            planned: true,
+          },
+        });
+        continue;
+      }
+      for (const b of item.calendar_blocks) {
+        const useActual = !!b.actual_start;
+        const start = useActual ? (b.actual_start as string) : b.scheduled_start;
+        const end = useActual ? b.actual_end : b.scheduled_end;
+        const minute = minuteOfDayFromInstant(start);
+        rows.push({
+          kind: 'task',
+          minute,
+          order: minute,
+          task: {
+            id: b.id,
+            title,
+            projectName,
+            status: b.status,
+            label: `${fmtClock(start)}–${end ? fmtClock(end) : '…'} ${useActual ? '(actual)' : '(scheduled)'}`,
+            planned: false,
+          },
+        });
+      }
+    }
+    rows.sort(compareDayOrder);
+    return rows;
+  }, [groups, planItems, projectNameById]);
+
+  const taskCount = dayMap.filter((r) => r.kind === 'task').length;
+
+  const renderSceneRow = (step: RoutineStep, routineName: string, n: number) => {
+    const d = drafts[step.id];
+    if (!d) return null;
+    const time = fmtTime(step.time_of_day);
+    const hasQuestion = d.assigned_question_text.trim().length > 0;
+    return (
+      <tr key={`scene-${step.id}`}>
+        <td className="border border-border-light px-2 py-1 align-top text-center text-text-muted">{n}</td>
+        <th
+          scope="row"
+          className="border border-border-light px-2 py-1 align-top text-left font-normal text-text-primary min-w-[140px]"
+        >
+          <div className="font-medium">{step.activity}</div>
+          {time && <div className="text-text-muted">{time}</div>}
+          <div className="text-text-muted text-[10px]">🎬 {routineName}</div>
+        </th>
+        <td className="border border-border-light p-0 align-top min-w-[120px]">
+          <textarea
+            maxLength={200}
+            value={d.camera_needed}
+            onChange={(e) => setField(step.id, 'camera_needed', e.target.value)}
+            rows={2}
+            className={`${cellInputClass} block resize-y`}
+          />
+        </td>
+        <td className="border border-border-light p-0 align-top min-w-[120px]">
+          <textarea
+            maxLength={200}
+            value={d.filming_angle}
+            onChange={(e) => setField(step.id, 'filming_angle', e.target.value)}
+            rows={2}
+            className={`${cellInputClass} block resize-y`}
+          />
+        </td>
+        <td className="border border-border-light p-0 align-top min-w-[120px]">
+          <textarea
+            maxLength={200}
+            value={d.shot_type}
+            onChange={(e) => setField(step.id, 'shot_type', e.target.value)}
+            rows={2}
+            className={`${cellInputClass} block resize-y`}
+          />
+        </td>
+        <td className="border border-border-light p-0 align-top min-w-[180px]">
+          <textarea
+            value={d.b_roll}
+            onChange={(e) => setField(step.id, 'b_roll', e.target.value)}
+            rows={2}
+            className={`${cellInputClass} block resize-y`}
+          />
+        </td>
+        <td className="border border-border-light p-0 align-top min-w-[180px]">
+          <textarea
+            value={d.narrative_purpose}
+            onChange={(e) => setField(step.id, 'narrative_purpose', e.target.value)}
+            rows={2}
+            className={`${cellInputClass} block resize-y`}
+          />
+        </td>
+        <td className="border border-border-light p-1 align-top min-w-[200px]">
+          {hasQuestion && (
+            <div className="mb-1">
+              {d.assigned_question_id ? (
+                <span className="px-1.5 py-0.5 rounded bg-brand-purple text-white text-[10px] tracking-wide">
+                  from library
+                </span>
+              ) : (
+                <span className="px-1.5 py-0.5 rounded border border-amber-400 bg-amber-50 text-amber-700 text-[10px] tracking-wide">
+                  proposed new
+                </span>
+              )}
+            </div>
+          )}
+          <textarea
+            value={d.assigned_question_text}
+            onChange={(e) => setQuestionText(step.id, e.target.value)}
+            rows={2}
+            placeholder="the on-camera question (AI suggest assigns the best fit)"
+            className={`${cellInputClass} block resize-y`}
+          />
+        </td>
+      </tr>
+    );
+  };
+
+  // Read-only task band (S3's style), spanning the table; full title WRAPPED.
+  const renderTaskRow = (task: TaskView) => (
+    <tr key={`task-${task.id}`}>
+      <td colSpan={8} className="border border-border-light border-l-4 border-l-amber-400 bg-amber-50/50 px-3 py-1.5 align-top">
+        <div className="flex flex-wrap items-start gap-x-3 gap-y-0.5">
+          <span className="text-amber-700" aria-hidden="true">▦</span>
+          <span className={task.planned ? 'text-text-muted' : 'text-text-primary font-semibold tabular-nums'}>{task.label}</span>
+          <span className="text-text-primary break-words">{task.title}</span>
+          {task.projectName && <span className="text-text-muted">· {task.projectName}</span>}
+          <span className="ml-auto shrink-0 px-1.5 py-0.5 rounded border border-amber-300 bg-white text-amber-700 text-[10px] uppercase tracking-wide">
+            {task.status}
+          </span>
+        </div>
+      </td>
+    </tr>
+  );
+
+  let sceneNo = 0;
 
   return (
     <div className="bg-white rounded border border-brand-purple shadow-sm p-5 space-y-3 text-xs font-mono">
@@ -275,7 +505,7 @@ export default function ScenifyDraft({
         <h2 className="font-medium tracking-wide text-brand-purple text-sm">
           2 · AI SCRIPT MAP
           <span className="ml-2 font-normal text-text-muted">
-            {groups.length} routine{groups.length === 1 ? '' : 's'} · {allSteps.length} scene{allSteps.length === 1 ? '' : 's'}
+            the day in order · {allSteps.length} scene{allSteps.length === 1 ? '' : 's'} · {taskCount} task{taskCount === 1 ? '' : 's'}
           </span>
         </h2>
         <div className="flex items-center gap-2">
@@ -300,9 +530,9 @@ export default function ScenifyDraft({
         </div>
       </div>
       <p className="text-text-muted">
-        Selected routines, in order — fill the shot fields (the per-day script lives in the grid cells).
-        AI suggest tunes the map for virality (hook · variety · pattern interrupts · strong close) using your
-        cameras, prefilling camera / angle / shot / b-roll and the best-fit question; everything stays editable.
+        The whole day in clock order — routine scenes (editable) with the day&rsquo;s project tasks
+        slotted between them (read-only; commit times on the Daily Plan tab). AI suggest tunes the
+        scenes for virality using your cameras; everything on the scene rows stays editable.
       </p>
 
       {notice && (
@@ -334,17 +564,11 @@ export default function ScenifyDraft({
               </tr>
             </thead>
             <tbody>
-              {groups.map((g, gi) => (
-                <RoutineGroup
-                  key={g.routineId}
-                  group={g}
-                  index={gi}
-                  drafts={drafts}
-                  startNumber={() => (runningNumber += 1)}
-                  setField={setField}
-                  setQuestionText={setQuestionText}
-                />
-              ))}
+              {dayMap.map((row) =>
+                row.kind === 'scene'
+                  ? renderSceneRow(row.step, row.routineName, ++sceneNo)
+                  : renderTaskRow(row.task)
+              )}
             </tbody>
           </table>
         </div>
@@ -359,135 +583,8 @@ export default function ScenifyDraft({
         >
           {submitting ? 'saving…' : 'save scenes'}
         </button>
-        <span className="text-text-muted">saved scenes appear in the confirmed grid below</span>
+        <span className="text-text-muted">saved scenes appear in the confirmed grid below · task rows are read-only</span>
       </div>
     </div>
-  );
-}
-
-// A routine's separator band + its step rows (combined numbering via startNumber()).
-function RoutineGroup({
-  group,
-  index,
-  drafts,
-  startNumber,
-  setField,
-  setQuestionText,
-}: {
-  group: Group;
-  index: number;
-  drafts: Record<string, Draft>;
-  startNumber: () => number;
-  setField: (stepId: string, field: keyof Draft, value: string) => void;
-  setQuestionText: (stepId: string, value: string) => void;
-}) {
-  return (
-    <>
-      <tr>
-        <td
-          colSpan={8}
-          className={`border border-border-light px-2 py-1 bg-purple-50/60 text-brand-purple font-semibold ${
-            index > 0 ? 'border-t-2 border-t-brand-purple/40' : ''
-          }`}
-        >
-          🎬 {group.routineName}
-          <span className="ml-2 font-normal text-text-muted">
-            {group.steps.length} step{group.steps.length === 1 ? '' : 's'}
-          </span>
-        </td>
-      </tr>
-      {group.steps.length === 0 ? (
-        <tr>
-          <td colSpan={8} className="border border-border-light px-2 py-1 text-text-muted">
-            no steps — add them on the Routines tab
-          </td>
-        </tr>
-      ) : (
-        group.steps.map((step) => {
-          const d = drafts[step.id];
-          if (!d) return null;
-          const n = startNumber();
-          const time = fmtTime(step.time_of_day);
-          const hasQuestion = d.assigned_question_text.trim().length > 0;
-          return (
-            <tr key={step.id}>
-              <td className="border border-border-light px-2 py-1 align-top text-center text-text-muted">{n}</td>
-              <th
-                scope="row"
-                className="border border-border-light px-2 py-1 align-top text-left font-normal text-text-primary min-w-[140px]"
-              >
-                <div className="font-medium">{step.activity}</div>
-                {time && <div className="text-text-muted">{time}</div>}
-              </th>
-              <td className="border border-border-light p-0 align-top min-w-[120px]">
-                <textarea
-                  maxLength={200}
-                  value={d.camera_needed}
-                  onChange={(e) => setField(step.id, 'camera_needed', e.target.value)}
-                  rows={2}
-                  className={`${cellInputClass} block resize-y`}
-                />
-              </td>
-              <td className="border border-border-light p-0 align-top min-w-[120px]">
-                <textarea
-                  maxLength={200}
-                  value={d.filming_angle}
-                  onChange={(e) => setField(step.id, 'filming_angle', e.target.value)}
-                  rows={2}
-                  className={`${cellInputClass} block resize-y`}
-                />
-              </td>
-              <td className="border border-border-light p-0 align-top min-w-[120px]">
-                <textarea
-                  maxLength={200}
-                  value={d.shot_type}
-                  onChange={(e) => setField(step.id, 'shot_type', e.target.value)}
-                  rows={2}
-                  className={`${cellInputClass} block resize-y`}
-                />
-              </td>
-              <td className="border border-border-light p-0 align-top min-w-[180px]">
-                <textarea
-                  value={d.b_roll}
-                  onChange={(e) => setField(step.id, 'b_roll', e.target.value)}
-                  rows={2}
-                  className={`${cellInputClass} block resize-y`}
-                />
-              </td>
-              <td className="border border-border-light p-0 align-top min-w-[180px]">
-                <textarea
-                  value={d.narrative_purpose}
-                  onChange={(e) => setField(step.id, 'narrative_purpose', e.target.value)}
-                  rows={2}
-                  className={`${cellInputClass} block resize-y`}
-                />
-              </td>
-              <td className="border border-border-light p-1 align-top min-w-[200px]">
-                {hasQuestion && (
-                  <div className="mb-1">
-                    {d.assigned_question_id ? (
-                      <span className="px-1.5 py-0.5 rounded bg-brand-purple text-white text-[10px] tracking-wide">
-                        from library
-                      </span>
-                    ) : (
-                      <span className="px-1.5 py-0.5 rounded border border-amber-400 bg-amber-50 text-amber-700 text-[10px] tracking-wide">
-                        proposed new
-                      </span>
-                    )}
-                  </div>
-                )}
-                <textarea
-                  value={d.assigned_question_text}
-                  onChange={(e) => setQuestionText(step.id, e.target.value)}
-                  rows={2}
-                  placeholder="the on-camera question (AI suggest assigns the best fit)"
-                  className={`${cellInputClass} block resize-y`}
-                />
-              </td>
-            </tr>
-          );
-        })
-      )}
-    </>
   );
 }

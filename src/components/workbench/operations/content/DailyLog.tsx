@@ -22,6 +22,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useOperationsEntity } from '../EntitySelector';
+import { CONTENT_DAY_PLAN_CHANGED_EVENT } from './ScenifyModal';
 import {
   compareDayOrder,
   minuteOfDayFromInstant,
@@ -156,6 +157,12 @@ export default function DailyLog({ date }: { date: string }) {
   }, [load]);
   useEffect(() => {
     void loadBlocks();
+  }, [loadBlocks]);
+  // OPS-CE-8D: re-read the day's tasks when one is added on the day (S1 add-to-day).
+  useEffect(() => {
+    const refresh = () => void loadBlocks();
+    window.addEventListener(CONTENT_DAY_PLAN_CHANGED_EVENT, refresh);
+    return () => window.removeEventListener(CONTENT_DAY_PLAN_CHANGED_EVENT, refresh);
   }, [loadBlocks]);
 
   // CROSS-ENTITY: every active scene for the day, regardless of entity.
