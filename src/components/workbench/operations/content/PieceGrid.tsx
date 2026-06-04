@@ -8,19 +8,21 @@
  *           creates a new column. If a piece links a project/version, that
  *           is surfaced read-only in the column header (no linking UI here —
  *           that is a later PR).
- * Cells   = takes   (operations_content_takes): the per-day script. Click a
- *           cell to edit it in the reused ScriptDrawer; saving upserts via
- *           POST /api/operations/content/grid/cell (the @@unique grid key).
+ * Cells   = takes   (operations_content_takes): the per-day ANSWER to the
+ *           scene's question (CE-4). Click a cell to edit it IN PLACE (the cell
+ *           becomes a textarea where it sits — no drawer, no panel); blur saves,
+ *           Esc cancels, via POST /api/operations/content/grid/cell (the @@unique
+ *           grid key). The take.script column stores the answer (storage
+ *           unchanged); the voiceover is generated from answers in CE-5.
  *
- * This is a NEW view that REUSES the ScriptDrawer primitive — it does not
- * reshape ContentTable. It reads/writes only the authed user's own data
- * (every route is user-scoped); the grid never fabricates a cell.
+ * Everything is on the surface: the scene's question is rendered in its row cell
+ * so it stays visible while answering. Reads/writes only the authed user's own
+ * data (every route is user-scoped); the grid never fabricates a cell.
  */
 
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import ScriptDrawer from './ScriptDrawer';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CONTENT_SCENES_CHANGED_EVENT } from './ScenifyModal';
 
 interface RoutineStepLite {
@@ -38,6 +40,10 @@ interface SceneRow {
   camera_needed: string | null;
   filming_angle: string | null;
   shot_type: string | null;
+  // OPS-CE-4: shown in the row so the question stays visible while answering.
+  assigned_question_text: string | null;
+  narrative_purpose: string | null;
+  b_roll: string | null;
   routine_step: RoutineStepLite;
 }
 
@@ -74,8 +80,13 @@ export default function PieceGrid() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // The cell currently open in the drawer.
-  const [active, setActive] = useState<{ scene: SceneRow; piece: PieceCol } | null>(null);
+  // The cell being edited IN PLACE (no drawer). One at a time.
+  const [editing, setEditing] = useState<{ sceneId: string; pieceId: string } | null>(null);
+  const [draft, setDraft] = useState('');
+  const [cellSaving, setCellSaving] = useState(false);
+  const [cellError, setCellError] = useState<string | null>(null);
+  // Set when Esc cancels, so the textarea's onBlur does not also save.
+  const escRef = useRef(false);
 
   // "+ day" inline form.
   const [addingDay, setAddingDay] = useState(false);
@@ -185,10 +196,37 @@ export default function PieceGrid() {
     });
   };
 
-  const handleCellSave = async (script: string | null) => {
-    if (!active) return;
-    await upsertCell(active.scene.id, active.piece.id, script);
-    setActive(null);
+  const startEdit = (sceneId: string, pieceId: string) => {
+    setEditing({ sceneId, pieceId });
+    setDraft(cellByKey.get(cellKey(sceneId, pieceId))?.script ?? '');
+    setCellError(null);
+  };
+
+  // Commit the in-place edit (blur or Cmd/Ctrl+Enter). Trim, empty→null,
+  // no-change closes without a write; on error keep the editor open.
+  const commitEdit = async (sceneId: string, pieceId: string) => {
+    if (escRef.current) {
+      escRef.current = false;
+      return;
+    }
+    if (cellSaving) return;
+    const trimmed = draft.trim();
+    const next: string | null = trimmed === '' ? null : trimmed;
+    const current = cellByKey.get(cellKey(sceneId, pieceId))?.script ?? null;
+    if (next === current) {
+      setEditing(null);
+      return;
+    }
+    setCellSaving(true);
+    setCellError(null);
+    try {
+      await upsertCell(sceneId, pieceId, next);
+      setEditing(null);
+    } catch (e) {
+      setCellError(e instanceof Error ? e.message : 'failed to save answer');
+    } finally {
+      setCellSaving(false);
+    }
   };
 
   const handleAddDay = async () => {
@@ -358,42 +396,80 @@ export default function PieceGrid() {
               </tr>
             </thead>
             <tbody>
-              {visibleScenes.map((s) => (
-                <tr key={s.id}>
-                  <th className="sticky left-0 z-10 bg-white border border-border-light px-3 py-2 text-left align-top min-w-[220px]">
-                    <div className="text-text-primary font-semibold">
-                      {s.routine_step.step_order}. {s.routine_step.activity}
-                    </div>
-                    <div className="font-normal text-text-muted">
-                      {[s.filming_angle, s.shot_type].filter(Boolean).join(' · ') || '—'}
-                    </div>
-                  </th>
-                  {visiblePieces.map((p) => {
-                    const cell = cellByKey.get(cellKey(s.id, p.id));
-                    const script = cell?.script ?? null;
-                    return (
-                      <td
-                        key={p.id}
-                        className="border border-border-light p-0 align-top min-w-[180px]"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => setActive({ scene: s, piece: p })}
-                          className="w-full h-full text-left px-3 py-2 hover:bg-bg-row min-h-[44px]"
-                          title="Edit script"
+              {visibleScenes.map((s) => {
+                const question =
+                  s.assigned_question_text?.trim() || s.narrative_purpose?.trim() || null;
+                return (
+                  <tr key={s.id}>
+                    <th className="sticky left-0 z-10 bg-white border border-border-light px-3 py-2 text-left align-top min-w-[240px]">
+                      <div className="text-text-primary font-semibold">
+                        {s.routine_step.step_order}. {s.routine_step.activity}
+                      </div>
+                      <div className="font-normal text-text-muted">
+                        {[s.filming_angle, s.shot_type].filter(Boolean).join(' · ') || '—'}
+                      </div>
+                      {/* The question, always on the surface while answering. */}
+                      <div className="mt-1 font-normal text-brand-purple">
+                        {question ?? <span className="text-text-faint">no question — set in Scenify</span>}
+                      </div>
+                    </th>
+                    {visiblePieces.map((p) => {
+                      const cell = cellByKey.get(cellKey(s.id, p.id));
+                      const answer = cell?.script ?? null;
+                      const isEditing = editing?.sceneId === s.id && editing?.pieceId === p.id;
+                      return (
+                        <td
+                          key={p.id}
+                          className="border border-border-light p-0 align-top min-w-[200px]"
                         >
-                          {script ? (
-                            <span className="text-text-primary whitespace-pre-wrap line-clamp-3">{script}</span>
+                          {isEditing ? (
+                            <div className="p-1">
+                              <textarea
+                                value={draft}
+                                onChange={(e) => setDraft(e.target.value)}
+                                onBlur={() => commitEdit(s.id, p.id)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Escape') {
+                                    escRef.current = true;
+                                    setEditing(null);
+                                  } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                                    e.preventDefault();
+                                    (e.target as HTMLTextAreaElement).blur();
+                                  }
+                                }}
+                                disabled={cellSaving}
+                                autoFocus
+                                rows={4}
+                                placeholder="your answer for today…"
+                                className="w-full resize-y border border-brand-purple rounded px-2 py-1 text-text-primary focus:outline-none disabled:opacity-50"
+                              />
+                              <div className="mt-0.5 text-text-faint flex items-center justify-between">
+                                <span>esc cancels · blur saves</span>
+                                {cellSaving && <span className="text-brand-purple">saving…</span>}
+                              </div>
+                              {cellError && <div className="mt-0.5 text-red-700">{cellError}</div>}
+                            </div>
                           ) : (
-                            <span className="text-text-faint">+ script</span>
+                            <button
+                              type="button"
+                              onClick={() => startEdit(s.id, p.id)}
+                              className="w-full h-full text-left px-3 py-2 hover:bg-bg-row min-h-[44px]"
+                              title="Edit answer"
+                            >
+                              {answer ? (
+                                <span className="text-text-primary whitespace-pre-wrap line-clamp-4">{answer}</span>
+                              ) : (
+                                <span className="text-text-faint">+ answer</span>
+                              )}
+                            </button>
                           )}
-                        </button>
-                      </td>
-                    );
-                  })}
-                  <td className="border border-border-light bg-bg-row" />
-                </tr>
-              ))}
+                        </td>
+                      );
+                    })}
+                    <td className="border border-border-light bg-bg-row" />
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 
@@ -405,19 +481,6 @@ export default function PieceGrid() {
         </div>
       )}
 
-      {active && (
-        <ScriptDrawer
-          open
-          scene={{
-            id: cellKey(active.scene.id, active.piece.id),
-            scene_number: active.scene.routine_step.step_order,
-            scene_title: `${active.scene.routine_step.activity} · ${fmtDate(active.piece.piece_date)}`,
-            script: cellByKey.get(cellKey(active.scene.id, active.piece.id))?.script ?? null,
-          }}
-          onSave={handleCellSave}
-          onCancel={() => setActive(null)}
-        />
-      )}
     </section>
   );
 }
