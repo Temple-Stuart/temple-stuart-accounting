@@ -8,19 +8,20 @@
  *           creates a new column. If a piece links a project/version, that
  *           is surfaced read-only in the column header (no linking UI here —
  *           that is a later PR).
- * Cells   = takes   (operations_content_takes): the per-day script. Click a
- *           cell to edit it in the reused ScriptDrawer; saving upserts via
- *           POST /api/operations/content/grid/cell (the @@unique grid key).
+ * Cells   = takes   (operations_content_takes): the per-day ANSWER to the
+ *           scene's question (CE-4). Click a cell to answer it in the compact
+ *           AnswerEditor; saving upserts via POST /api/operations/content/grid/cell
+ *           (the @@unique grid key). The take.script column stores the answer
+ *           (storage unchanged); the voiceover is generated from answers in CE-5.
  *
- * This is a NEW view that REUSES the ScriptDrawer primitive — it does not
- * reshape ContentTable. It reads/writes only the authed user's own data
- * (every route is user-scoped); the grid never fabricates a cell.
+ * This view reads/writes only the authed user's own data (every route is
+ * user-scoped); the grid never fabricates a cell.
  */
 
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import ScriptDrawer from './ScriptDrawer';
+import AnswerEditor from './AnswerEditor';
 import { CONTENT_SCENES_CHANGED_EVENT } from './ScenifyModal';
 
 interface RoutineStepLite {
@@ -38,6 +39,10 @@ interface SceneRow {
   camera_needed: string | null;
   filming_angle: string | null;
   shot_type: string | null;
+  // OPS-CE-4: shown in the answer editor — the cell is the ANSWER to this question.
+  assigned_question_text: string | null;
+  narrative_purpose: string | null;
+  b_roll: string | null;
   routine_step: RoutineStepLite;
 }
 
@@ -406,17 +411,20 @@ export default function PieceGrid() {
       )}
 
       {active && (
-        <ScriptDrawer
-          open
-          scene={{
-            id: cellKey(active.scene.id, active.piece.id),
-            scene_number: active.scene.routine_step.step_order,
-            scene_title: `${active.scene.routine_step.activity} · ${fmtDate(active.piece.piece_date)}`,
-            script: cellByKey.get(cellKey(active.scene.id, active.piece.id))?.script ?? null,
-          }}
-          onSave={handleCellSave}
-          onCancel={() => setActive(null)}
-        />
+        // Compact, question-forward panel (not a full-height empty drawer). No
+        // backdrop — the grid stays readable behind it, matching the prior pattern.
+        <div className="fixed right-0 top-0 h-full w-[34%] min-w-[360px] max-w-[520px] bg-white border-l border-border shadow-lg z-50 overflow-y-auto p-4">
+          <AnswerEditor
+            questionText={active.scene.assigned_question_text}
+            narrativePurpose={active.scene.narrative_purpose}
+            bRoll={active.scene.b_roll}
+            activityLabel={`${active.scene.routine_step.step_order}. ${active.scene.routine_step.activity}`}
+            dateLabel={fmtDate(active.piece.piece_date)}
+            initialAnswer={cellByKey.get(cellKey(active.scene.id, active.piece.id))?.script ?? null}
+            onSave={handleCellSave}
+            onCancel={() => setActive(null)}
+          />
+        </div>
       )}
     </section>
   );
