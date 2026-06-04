@@ -148,14 +148,11 @@ export default function PieceGrid() {
     return m;
   }, [cells]);
 
-  const visibleScenes = useMemo(
-    () => (scenes ?? []).filter((s) => !selectedEntityId || s.entity_id === selectedEntityId),
-    [scenes, selectedEntityId]
-  );
-  const visiblePieces = useMemo(
-    () => (pieces ?? []).filter((p) => !selectedEntityId || p.entity_id === selectedEntityId),
-    [pieces, selectedEntityId]
-  );
+  // OPS-CE-8: CROSS-ENTITY day-to-day record — the reel spans entities, so the
+  // record shows ALL scenes × ALL day-pieces (no entity filter). selectedEntityId is
+  // used only to create a new day column (+ day).
+  const visibleScenes = scenes ?? [];
+  const visiblePieces = pieces ?? [];
 
   // Upsert a cell and merge the result into local state.
   const upsertCell = async (sceneId: string, pieceId: string, script: string | null) => {
@@ -266,7 +263,7 @@ export default function PieceGrid() {
   const shotLine = (label: string, value: string | null) =>
     value && value.trim() ? (
       <div className="leading-snug">
-        <span className="text-text-faint uppercase tracking-wide text-[10px] mr-1">{label}</span>
+        <span className="text-text-muted uppercase tracking-wide text-[10px] mr-1">{label}</span>
         <span className="text-text-muted">{value}</span>
       </div>
     ) : null;
@@ -274,14 +271,14 @@ export default function PieceGrid() {
   return (
     <section className="bg-white rounded border border-border shadow-sm p-5 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-mono text-sm font-bold tracking-wide text-text-primary">
-          3 · CONFIRMED
-          <span className="ml-2 font-normal text-text-faint">scenes × days</span>
+        <h2 className="font-mono text-sm font-medium tracking-wide text-brand-purple">
+          DAY-TO-DAY RECORD
+          <span className="ml-2 font-normal text-text-muted">scenes × days — the evolution record</span>
         </h2>
       </div>
 
       {loading ? (
-        <p className="text-sm font-mono text-text-faint">Loading grid…</p>
+        <p className="text-sm font-mono text-text-muted">Loading grid…</p>
       ) : error ? (
         <div className="text-xs font-mono px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
           {error}
@@ -313,7 +310,7 @@ export default function PieceGrid() {
                     )}
                     {(p.project_id || p.source_ai_usage_id) && (
                       <div
-                        className="font-normal text-text-faint"
+                        className="font-normal text-text-muted"
                         title={`project ${p.project_id ?? '—'} · version ${p.source_ai_usage_id ?? '—'}`}
                       >
                         🔗 linked
@@ -389,8 +386,8 @@ export default function PieceGrid() {
                       </div>
                       {/* The question, always on the surface while answering. */}
                       <div className="mt-1 leading-snug text-brand-purple">
-                        <span className="text-text-faint uppercase tracking-wide text-[10px] mr-1">Q</span>
-                        {question ?? <span className="text-text-faint">no question — set in Scenify</span>}
+                        <span className="text-text-muted uppercase tracking-wide text-[10px] mr-1">Q</span>
+                        {question ?? <span className="text-text-muted">no question — set in Scenify</span>}
                       </div>
                     </th>
                     {visiblePieces.map((p) => {
@@ -423,7 +420,7 @@ export default function PieceGrid() {
                                 placeholder="your answer for today…"
                                 className="w-full resize-y border border-brand-purple rounded px-2 py-1 text-text-primary focus:outline-none disabled:opacity-50"
                               />
-                              <div className="mt-0.5 text-text-faint flex items-center justify-between">
+                              <div className="mt-0.5 text-text-muted flex items-center justify-between">
                                 <span>esc cancels · blur saves</span>
                                 {cellSaving && <span className="text-brand-purple">saving…</span>}
                               </div>
@@ -439,7 +436,7 @@ export default function PieceGrid() {
                               {answer ? (
                                 <span className="text-text-primary whitespace-pre-wrap line-clamp-4">{answer}</span>
                               ) : (
-                                <span className="text-text-faint">+ answer</span>
+                                <span className="text-text-muted">+ answer</span>
                               )}
                             </button>
                           )}
