@@ -187,7 +187,12 @@ export default function DailyLog({ date }: { date: string }) {
     [dayScenes, cellByScene]
   );
 
-  // Flatten committed blocks (entity-scoped) into read-only task rows.
+  // Flatten plan items into read-only task rows: one TIMED row per calendar block,
+  // plus — OPS-CE-8C — one UNTIMED "planned" row for any item with NO block yet
+  // (added via "+ add to day" but not time-committed). Untimed rows sink after the
+  // untimed scenes (large order base) and order among themselves by plan order, via
+  // the CE-8B shared comparator.
+  const UNTIMED_TASK_ORDER_BASE = 100000;
   const taskBlocks = useMemo(() => {
     const rows: {
       id: string;
@@ -195,22 +200,44 @@ export default function DailyLog({ date }: { date: string }) {
       projectName: string | null;
       status: string;
       label: string;
-      minute: number;
+      minute: number | null;
+      order: number;
+      planned: boolean;
     }[] = [];
+    let plannedIndex = 0;
     for (const item of planItems) {
-      // CROSS-ENTITY: all committed blocks for the date (personal + business).
+      // CROSS-ENTITY: all items for the date (personal + business).
+      const title = item.task?.title ?? item.ad_hoc_title ?? 'Untitled';
+      const projectName = item.task?.project_id ? projectNameById[item.task.project_id] ?? null : null;
+      if (item.calendar_blocks.length === 0) {
+        // Assigned to the day but no time committed yet — visible immediately.
+        rows.push({
+          id: `item-${item.id}`,
+          title,
+          projectName,
+          status: 'planned',
+          label: 'planned · no time committed — set times on Daily Plan',
+          minute: null,
+          order: UNTIMED_TASK_ORDER_BASE + plannedIndex++,
+          planned: true,
+        });
+        continue;
+      }
       for (const b of item.calendar_blocks) {
         const useActual = !!b.actual_start;
         const start = useActual ? (b.actual_start as string) : b.scheduled_start;
         const end = useActual ? b.actual_end : b.scheduled_end;
         const label = `${fmtClock(start)}–${end ? fmtClock(end) : '…'} ${useActual ? '(actual)' : '(scheduled)'}`;
+        const minute = minuteOfDayFromInstant(start);
         rows.push({
           id: b.id,
-          title: item.task?.title ?? item.ad_hoc_title ?? 'Untitled',
-          projectName: item.task?.project_id ? projectNameById[item.task.project_id] ?? null : null,
+          title,
+          projectName,
           status: b.status,
           label,
-          minute: minuteOfDayFromInstant(start),
+          minute,
+          order: minute,
+          planned: false,
         });
       }
     }
@@ -221,7 +248,7 @@ export default function DailyLog({ date }: { date: string }) {
   // untimed scenes (no step time) sink to the end by step_order (no fabricated time).
   type TimelineRow =
     | { kind: 'scene'; minute: number | null; order: number; scene: SceneRow }
-    | { kind: 'task'; minute: number; order: number; block: (typeof taskBlocks)[number] };
+    | { kind: 'task'; minute: number | null; order: number; block: (typeof taskBlocks)[number] };
   const timeline = useMemo<TimelineRow[]>(() => {
     const rows: TimelineRow[] = [
       ...dayScenes.map((s) => ({
@@ -230,7 +257,7 @@ export default function DailyLog({ date }: { date: string }) {
         order: s.routine_step.step_order,
         scene: s,
       })),
-      ...taskBlocks.map((b) => ({ kind: 'task' as const, minute: b.minute, order: b.minute, block: b })),
+      ...taskBlocks.map((b) => ({ kind: 'task' as const, minute: b.minute, order: b.order, block: b })),
     ];
     // The ONE shared day-anchored order (midnight wraps to day-end).
     rows.sort(compareDayOrder);
@@ -376,7 +403,7 @@ export default function DailyLog({ date }: { date: string }) {
       <td colSpan={6} className="border border-border-light border-l-4 border-l-amber-400 bg-amber-50/50 px-3 py-1.5 align-top">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
           <span className="text-amber-700" aria-hidden="true">▦</span>
-          <span className="text-text-primary font-semibold tabular-nums">{b.label}</span>
+          <span className={b.planned ? 'text-text-muted' : 'text-text-primary font-semibold tabular-nums'}>{b.label}</span>
           <span className="text-text-primary">{b.title}</span>
           {b.projectName && <span className="text-text-muted">· {b.projectName}</span>}
           <span className="ml-auto px-1.5 py-0.5 rounded border border-amber-300 bg-white text-amber-700 text-[10px] uppercase tracking-wide">
