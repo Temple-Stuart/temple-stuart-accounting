@@ -29,6 +29,7 @@ const STATUS_ORDER: Record<OperationsTaskStatus, number> = {
   completed: 3,
   cancelled: 4,
   superseded: 5,
+  archived: 6,
 };
 
 async function loadAuthorizedProject(projectId: string, userId: string) {
@@ -38,7 +39,7 @@ async function loadAuthorizedProject(projectId: string, userId: string) {
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -54,8 +55,16 @@ export async function GET(
     const project = await loadAuthorizedProject(projectId, user.id);
     if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
 
+    // Archived tasks are out of scope: hidden unless explicitly requested (the
+    // "show archived" toggle). Read filter only; history is preserved.
+    const includeArchived = request.nextUrl.searchParams.get('include_archived') === 'true';
+    const where: Prisma.operations_project_tasksWhereInput = { project_id: projectId };
+    if (!includeArchived) {
+      where.status = { not: 'archived' };
+    }
+
     const tasks = await prisma.operations_project_tasks.findMany({
-      where: { project_id: projectId },
+      where,
       orderBy: [
         { display_order: 'asc' },
         { deadline: { sort: 'asc', nulls: 'last' } },

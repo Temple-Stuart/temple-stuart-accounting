@@ -16,6 +16,20 @@ import { Prisma, ProjectStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
+import { recordTaskStatusChange } from '@/lib/operations/recordTaskStatusChange';
+
+// Active task statuses that an archive cascade retires to 'archived'. Terminal
+// states (completed, cancelled, superseded) are LEFT UNTOUCHED — they are the
+// audit trail. Mirrors the unscheduled-queue active set.
+const ARCHIVABLE_TASK_STATUSES = ['open', 'in_progress', 'blocked'] as const;
+
+// "Today" at UTC midnight, matching how daily-plan plan_date is stored/compared
+// (daily-plan/items/route.ts parsePlanDate → `${date}T00:00:00.000Z`). Items with
+// plan_date < today are PAST (untouched); >= today are future (removable).
+function todayUtcMidnight(): Date {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
 
 const VALID_STATUSES: ProjectStatus[] = [
   'not_started',
@@ -219,12 +233,55 @@ export async function PATCH(
       }
     }
 
-    const project = await prisma.operations_projects.update({
-      where: { id },
-      data,
+    // Archiving a project cascades (in ONE transaction): its ACTIVE tasks retire
+    // to 'archived' (terminal-status tasks keep their status — audit trail), and
+    // their FUTURE, not-yet-DONE daily-plan items are removed (cascading any
+    // scheduled block via FK). Past-dated and DONE items are never touched.
+    const isArchiving = statusChange?.to === 'archived';
+    let archivedTaskIds: string[] = [];
+    let removedItemCount = 0;
+
+    const project = await prisma.$transaction(async (tx) => {
+      const updated = await tx.operations_projects.update({ where: { id }, data });
+
+      if (isArchiving) {
+        const activeTasks = await tx.operations_project_tasks.findMany({
+          where: { project_id: id, status: { in: [...ARCHIVABLE_TASK_STATUSES] } },
+          select: { id: true, status: true },
+        });
+        archivedTaskIds = activeTasks.map((t) => t.id);
+
+        for (const t of activeTasks) {
+          // Status-history row per task — preserves the single-funnel invariant
+          // (a task status change never lands without its history row).
+          await recordTaskStatusChange(tx, t.id, user.id, t.status, 'archived', userEmail, 'project archived');
+          await tx.operations_project_tasks.update({
+            where: { id: t.id },
+            data: { status: 'archived' },
+          });
+        }
+
+        if (archivedTaskIds.length > 0) {
+          // Future (plan_date >= today), not-DONE items for the now-archived
+          // tasks. `none: { status: completed }` spares DONE items; FK cascade
+          // removes any scheduled (non-completed) block.
+          const removed = await tx.operations_daily_plan_items.deleteMany({
+            where: {
+              task_id: { in: archivedTaskIds },
+              plan_date: { gte: todayUtcMidnight() },
+              calendar_blocks: { none: { status: 'completed' } },
+            },
+          });
+          removedItemCount = removed.count;
+        }
+      }
+
+      return updated;
     });
 
-    // Status changes audit as a distinct evidentiary event.
+    // Status changes audit as a distinct evidentiary event. For an archive
+    // cascade, the project-level audit records the cascade counts (matching the
+    // project-DELETE sibling, which documents its cascade at the project level).
     await writeAuditLog({
       actor: {
         user_id: user.id,
@@ -234,7 +291,10 @@ export async function PATCH(
       action: {
         type: statusChange ? 'operations_project_status_changed' : 'operations_project_updated',
         description: statusChange
-          ? `Project "${existing.title}" status: ${statusChange.from} → ${statusChange.to}`
+          ? `Project "${existing.title}" status: ${statusChange.from} → ${statusChange.to}` +
+            (isArchiving
+              ? ` (archived ${archivedTaskIds.length} active task(s); removed ${removedItemCount} future plan item(s))`
+              : '')
           : `Updated project "${existing.title}" for ${userEmail}`,
       },
       target: {
@@ -245,7 +305,16 @@ export async function PATCH(
         before: existing,
         after: project,
         metadata: statusChange
-          ? { status_from: statusChange.from, status_to: statusChange.to }
+          ? {
+              status_from: statusChange.from,
+              status_to: statusChange.to,
+              ...(isArchiving
+                ? {
+                    cascade_archived_task_ids: archivedTaskIds,
+                    cascade_removed_future_item_count: removedItemCount,
+                  }
+                : {}),
+            }
           : undefined,
       },
     });

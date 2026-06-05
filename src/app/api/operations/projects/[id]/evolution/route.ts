@@ -32,6 +32,7 @@ const STATUS_ORDER: Record<OperationsTaskStatus, number> = {
   completed: 3,
   cancelled: 4,
   superseded: 5,
+  archived: 6,
 };
 
 export async function GET(

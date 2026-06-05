@@ -34,6 +34,9 @@ export default function SectionD_ProjectBacklog() {
   // stays stable while open (the page-level filter changing must not retarget an
   // open form — identical to the pre-extraction behavior).
   const [createDefaultEntityId, setCreateDefaultEntityId] = useState('');
+  // Archived projects are hidden by default; the toggle mirrors RoutineList's
+  // "show inactive".
+  const [showArchived, setShowArchived] = useState(false);
 
   // Lifted target state for cross-row navigation. When a dependency in
   // ProjectRow A is clicked, this is set to the target project's id;
@@ -44,9 +47,11 @@ export default function SectionD_ProjectBacklog() {
     setLoading(true);
     setError(null);
     try {
-      const url = selectedEntityId
-        ? `/api/operations/projects?entity_id=${encodeURIComponent(selectedEntityId)}`
-        : '/api/operations/projects';
+      const params = new URLSearchParams();
+      if (selectedEntityId) params.set('entity_id', selectedEntityId);
+      if (showArchived) params.set('include_archived', 'true');
+      const qs = params.toString();
+      const url = qs ? `/api/operations/projects?${qs}` : '/api/operations/projects';
       const res = await fetch(url);
       const body = await res.json();
       if (!res.ok) {
@@ -65,7 +70,7 @@ export default function SectionD_ProjectBacklog() {
   useEffect(() => {
     fetchProjects();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedEntityId]);
+  }, [selectedEntityId, showArchived]);
 
   const startCreate = () => {
     // Default the new project's entity to the currently-selected one, or the
@@ -87,6 +92,14 @@ export default function SectionD_ProjectBacklog() {
           <span className="text-text-muted">
             {projects.length} {projects.length === 1 ? 'project' : 'projects'}
           </span>
+          <label className="flex items-center gap-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
+            />
+            <span className="text-text-muted">show archived</span>
+          </label>
           {!showCreate && (
             <button
               type="button"
