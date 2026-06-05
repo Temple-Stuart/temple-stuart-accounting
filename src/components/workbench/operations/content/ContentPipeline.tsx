@@ -77,9 +77,14 @@ export default function ContentPipeline() {
   const [selected, setSelected] = useState<string[]>([]);
   // Shared date — S1 (add-to-day) + S3 (the answer table) read the same day.
   const [date, setDate] = useState(todayLocal());
-  // Tasks assigned to the day this session (+ tasks already on the day → 409).
-  const [addedTaskIds, setAddedTaskIds] = useState<Set<string>>(new Set());
+  // Tasks on the selected day: task_id → { itemId, committed }. The item id lets
+  // INPUTS un-assign a planned piece via DELETE; `committed` (a calendar block
+  // exists) guards that toggle so it never cascade-deletes committed time.
+  const [dayByTaskId, setDayByTaskId] = useState<Map<string, { itemId: string; committed: boolean }>>(
+    new Map()
+  );
   const [addingTaskId, setAddingTaskId] = useState<string | null>(null);
+  const [removingTaskId, setRemovingTaskId] = useState<string | null>(null);
   // Section 0 · CREATE — collapsed by default on every load (no persistence).
   const [createOpen, setCreateOpen] = useState(false);
   const [createMsg, setCreateMsg] = useState<string | null>(null);
@@ -94,7 +99,10 @@ export default function ContentPipeline() {
 
   // Which tasks are ALREADY on the selected day — so "add to day" pre-marks them
   // (an unblocked daily-plan item still shows as "unscheduled", and re-adding hits
-  // the @@unique([task_id, plan_date])). Read-only; no new write path.
+  // the @@unique([task_id, plan_date])). Read-only; no new write path. Each item
+  // carries its id (for un-assign) and calendar_blocks (committed?) — see the GET
+  // include at daily-plan/items/route.ts:90-107. This is the authoritative hydration
+  // source for the task→item map, so it survives reloads.
   const loadDayItems = useCallback(async () => {
     try {
       const res = await fetch(`/api/operations/daily-plan/items?from=${date}&to=${date}`, {
@@ -102,9 +110,16 @@ export default function ContentPipeline() {
       });
       if (!res.ok) return;
       const body = await res.json();
-      const ids = new Set<string>();
-      for (const it of body.items ?? []) if (it.task_id) ids.add(it.task_id as string);
-      setAddedTaskIds(ids);
+      const map = new Map<string, { itemId: string; committed: boolean }>();
+      for (const it of body.items ?? []) {
+        if (it.task_id) {
+          map.set(it.task_id as string, {
+            itemId: it.id as string,
+            committed: Array.isArray(it.calendar_blocks) && it.calendar_blocks.length > 0,
+          });
+        }
+      }
+      setDayByTaskId(map);
     } catch {
       /* leave prior state on a transient failure */
     }
@@ -211,7 +226,7 @@ export default function ContentPipeline() {
   // (entity_id is derived server-side from the task). A 409 means it's already on the
   // day — treat as added (idempotent UX). Zero new write paths.
   const addTaskToDay = async (taskId: string) => {
-    if (addingTaskId) return;
+    if (addingTaskId || removingTaskId) return;
     setAddingTaskId(taskId);
     try {
       const res = await fetch('/api/operations/daily-plan/items', {
@@ -220,9 +235,19 @@ export default function ContentPipeline() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ task_id: taskId, plan_date: date }),
       });
-      if (res.ok || res.status === 409) {
-        setAddedTaskIds((prev) => new Set(prev).add(taskId));
-        // Tell the day map (S2) + answer timeline (S3) to re-read the day's tasks.
+      if (res.ok) {
+        // 201 returns { item, isCreate } — capture the new item id so the row can
+        // be un-assigned immediately (a fresh item has no block → not committed).
+        const body = await res.json().catch(() => null);
+        const newItemId = body?.item?.id;
+        if (newItemId) {
+          setDayByTaskId((prev) =>
+            new Map(prev).set(taskId, { itemId: newItemId as string, committed: false })
+          );
+        }
+        window.dispatchEvent(new Event(CONTENT_DAY_PLAN_CHANGED_EVENT));
+      } else if (res.status === 409) {
+        // Already on the day — the loadDayItems resync below maps it authoritatively.
         window.dispatchEvent(new Event(CONTENT_DAY_PLAN_CHANGED_EVENT));
       } else {
         const b = await res.json().catch(() => ({}));
@@ -233,6 +258,43 @@ export default function ContentPipeline() {
     } finally {
       setAddingTaskId(null);
       // Resync from the source of truth (also catches the duplicate-500 case).
+      void loadDayItems();
+    }
+  };
+
+  // Un-assign a task from the day (undo "✓ on day") via the EXISTING item DELETE
+  // route. GUARD: if the task's piece has been time-committed (a calendar block
+  // exists), refuse — never cascade-delete committed time from this toggle; the
+  // user must uncommit on the day section below first.
+  const removeTaskFromDay = async (taskId: string) => {
+    if (addingTaskId || removingTaskId) return;
+    const entry = dayByTaskId.get(taskId);
+    if (!entry) return;
+    if (entry.committed) {
+      setError('This task has committed time on the day — uncommit it in the day section below before removing.');
+      return;
+    }
+    setRemovingTaskId(taskId);
+    try {
+      const res = await fetch(`/api/operations/daily-plan/items/${entry.itemId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setDayByTaskId((prev) => {
+          const next = new Map(prev);
+          next.delete(taskId);
+          return next;
+        });
+        window.dispatchEvent(new Event(CONTENT_DAY_PLAN_CHANGED_EVENT));
+      } else {
+        const b = await res.json().catch(() => ({}));
+        setError(b?.message ?? b?.error ?? `failed to remove task (${res.status})`);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'failed to remove task from day');
+    } finally {
+      setRemovingTaskId(null);
       void loadDayItems();
     }
   };
@@ -392,7 +454,8 @@ export default function ContentPipeline() {
               ) : (
                 <ul className="space-y-1 max-h-[260px] overflow-y-auto pr-1">
                   {tasks.map((t) => {
-                    const added = addedTaskIds.has(t.id);
+                    const entry = dayByTaskId.get(t.id);
+                    const added = !!entry;
                     return (
                       <li
                         key={t.id}
@@ -416,15 +479,28 @@ export default function ContentPipeline() {
                         </span>
                         <button
                           type="button"
-                          onClick={() => addTaskToDay(t.id)}
-                          disabled={added || addingTaskId === t.id}
+                          onClick={() => (added ? removeTaskFromDay(t.id) : addTaskToDay(t.id))}
+                          disabled={addingTaskId === t.id || removingTaskId === t.id}
+                          title={
+                            added
+                              ? entry?.committed
+                                ? 'committed time — uncommit in the day section below to remove'
+                                : 'click to remove from day'
+                              : 'add to the day'
+                          }
                           className={`shrink-0 px-2 py-0.5 rounded border text-[11px] ${
                             added
-                              ? 'border-brand-purple text-brand-purple'
+                              ? 'border-brand-purple text-brand-purple hover:bg-purple-50'
                               : 'border-brand-purple bg-brand-purple text-white hover:opacity-90'
                           } disabled:opacity-60`}
                         >
-                          {added ? '✓ on day' : addingTaskId === t.id ? '…' : '+ add to day'}
+                          {added
+                            ? removingTaskId === t.id
+                              ? 'removing…'
+                              : '✓ on day'
+                            : addingTaskId === t.id
+                              ? '…'
+                              : '+ add to day'}
                         </button>
                       </li>
                     );

@@ -44,7 +44,7 @@ const isoToTime = (iso: string | null): string => {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
-type Mode = 'view' | 'edit' | 'uncommit' | 'done';
+type Mode = 'view' | 'edit' | 'uncommit' | 'remove' | 'done';
 
 export default function TaskBand({
   date,
@@ -158,6 +158,42 @@ export default function TaskBand({
     }
   };
 
+  // Remove the whole piece from the day via the EXISTING item DELETE route. The
+  // route cascade-deletes any calendar block (daily-plan/items/[itemId]/route.ts:
+  // 192-196), so it works for both a planned piece (no block) and a committed one.
+  // DONE pieces never reach this — they render the permanent record branch with no
+  // actions. Same refresh + error affordance as uncommit; the row leaves the day.
+  const removeFromDay = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/operations/daily-plan/items/${itemId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.message ?? `failed (${res.status})`);
+      done2(); // the row leaves the day (re-read via CONTENT_DAY_PLAN_CHANGED_EVENT)
+    } catch (e) {
+      fail(e, 'failed to remove from day');
+      setBusy(false);
+    }
+  };
+
+  // Shared confirm row for "remove from day" — used by both the planned branch and
+  // the committed default view (one source).
+  const removeConfirm = (
+    <span className="flex flex-wrap items-center gap-1.5">
+      <span className="text-text-muted">Remove this task from the day?</span>
+      <button type="button" onClick={removeFromDay} disabled={busy} className={`${btn} border-red-300 text-red-700 hover:bg-red-50`}>
+        {busy ? 'removing…' : 'remove from day'}
+      </button>
+      <button type="button" onClick={() => setMode('view')} disabled={busy} className={`${btn} border-border text-text-muted hover:bg-bg-row`}>
+        cancel
+      </button>
+    </span>
+  );
+
   const markDone = async () => {
     if (busy || !blockId) return;
     const iso = toIso();
@@ -200,7 +236,20 @@ export default function TaskBand({
 
       <Field label="time">
         {planned && !blockId ? (
-          <TaskTimeCommit itemId={itemId} date={date} />
+          mode === 'remove' ? (
+            removeConfirm
+          ) : (
+            <span className="flex flex-wrap items-center gap-2">
+              <TaskTimeCommit itemId={itemId} date={date} />
+              <button
+                type="button"
+                onClick={() => setMode('remove')}
+                className={`${btn} border-border text-text-muted hover:bg-bg-row`}
+              >
+                remove from day
+              </button>
+            </span>
+          )
         ) : done ? (
           <span className="text-text-primary font-medium tabular-nums whitespace-nowrap">✓ DONE · {timeLabel}</span>
         ) : mode === 'edit' || mode === 'done' ? (
@@ -245,6 +294,8 @@ export default function TaskBand({
               cancel
             </button>
           </span>
+        ) : mode === 'remove' ? (
+          removeConfirm
         ) : (
           <span className="flex flex-wrap items-center gap-2">
             <span className="text-text-primary font-medium tabular-nums whitespace-nowrap">{timeLabel}</span>
@@ -253,6 +304,9 @@ export default function TaskBand({
             </button>
             <button type="button" onClick={() => setMode('uncommit')} className={`${btn} border-border text-text-muted hover:bg-bg-row`}>
               uncommit
+            </button>
+            <button type="button" onClick={() => setMode('remove')} className={`${btn} border-border text-text-muted hover:bg-bg-row`}>
+              remove from day
             </button>
             <button type="button" onClick={() => open('done')} className={`${btn} border-brand-purple bg-brand-purple text-white hover:opacity-90`}>
               ✓ mark done
