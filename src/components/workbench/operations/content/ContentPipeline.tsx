@@ -30,6 +30,8 @@ import ScenifyDraft from './ScenifyDraft';
 import ScriptGenerator from './ScriptGenerator';
 import PieceGrid from './PieceGrid';
 import DailyLog from './DailyLog';
+import ProjectCreateForm from '../projects/ProjectCreateForm';
+import RoutineCreateForm from '../routines/RoutineCreateForm';
 
 interface RoutineLite {
   id: string;
@@ -78,6 +80,9 @@ export default function ContentPipeline() {
   // Tasks assigned to the day this session (+ tasks already on the day → 409).
   const [addedTaskIds, setAddedTaskIds] = useState<Set<string>>(new Set());
   const [addingTaskId, setAddingTaskId] = useState<string | null>(null);
+  // Section 0 · CREATE — collapsed by default on every load (no persistence).
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createMsg, setCreateMsg] = useState<string | null>(null);
 
   const loadCounts = useCallback(async () => {
     const res = await fetch('/api/operations/content/grid', { credentials: 'include' });
@@ -161,6 +166,27 @@ export default function ContentPipeline() {
     window.addEventListener(CONTENT_DAY_PLAN_CHANGED_EVENT, refresh);
     return () => window.removeEventListener(CONTENT_DAY_PLAN_CHANGED_EVENT, refresh);
   }, [load, loadDayItems, loadCounts]);
+
+  // Auto-clear the create success banner after a few seconds (mirrors the
+  // SectionB North Star success affordance).
+  useEffect(() => {
+    if (!createMsg) return;
+    const t = setTimeout(() => setCreateMsg(null), 3000);
+    return () => clearTimeout(t);
+  }, [createMsg]);
+
+  // After a successful create, collapse section 0 and re-run load() so the new
+  // project's tasks / new routine surface in the INPUTS queues without a reload.
+  const handleProjectCreated = useCallback(() => {
+    setCreateOpen(false);
+    setCreateMsg('project created');
+    void load();
+  }, [load]);
+  const handleRoutineCreated = useCallback(() => {
+    setCreateOpen(false);
+    setCreateMsg('routine created');
+    void load();
+  }, [load]);
 
   const entityNameById = useMemo(
     () => new Map(entities.map((e) => [e.id, e.name])),
@@ -249,6 +275,59 @@ export default function ContentPipeline() {
           {error}
         </div>
       )}
+
+      {/* 0 · CREATE — collapsed by default; make a project · make a routine, mirroring
+          the homepage live-demo two-up layout. The forms are the SAME extracted
+          components the Projects/Routines tabs use (one source of truth each). */}
+      <section className="bg-white rounded border border-border shadow-sm p-5 space-y-3">
+        <button
+          type="button"
+          onClick={() => setCreateOpen((o) => !o)}
+          className="w-full flex items-center justify-between text-left"
+          aria-expanded={createOpen}
+        >
+          <h2 className={sectionHeader}>
+            0 · CREATE
+            <span className="ml-2 font-normal text-text-muted">make a project · make a routine</span>
+          </h2>
+          <span className="font-mono text-xs text-brand-purple" aria-hidden="true">
+            {createOpen ? '▾ hide' : '▸ show'}
+          </span>
+        </button>
+
+        {createMsg && (
+          <div className="text-xs font-mono px-3 py-2 rounded border bg-green-50 border-green-200 text-green-800">
+            {createMsg}
+          </div>
+        )}
+
+        {createOpen && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <h3 className="font-mono text-xs font-medium uppercase tracking-wide text-brand-purple">
+                Make a project
+              </h3>
+              <ProjectCreateForm
+                entities={entities}
+                defaultEntityId={selectedEntityId ?? ''}
+                onCreated={handleProjectCreated}
+                onCancel={() => setCreateOpen(false)}
+              />
+            </div>
+            <div className="space-y-2">
+              <h3 className="font-mono text-xs font-medium uppercase tracking-wide text-brand-purple">
+                Make a routine
+              </h3>
+              <RoutineCreateForm
+                entities={entities}
+                defaultEntityId={selectedEntityId ?? ''}
+                onCreated={handleRoutineCreated}
+                onCancel={() => setCreateOpen(false)}
+              />
+            </div>
+          </div>
+        )}
+      </section>
 
       {/* 1 · INPUTS */}
       <section className="bg-white rounded border border-border shadow-sm p-5 space-y-3">
