@@ -74,6 +74,7 @@ export default function TaskRow({ task, projectId, index, coaAccounts, onUpdate,
   const [saving, setSaving] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<TaskStatusHistoryRow[] | null>(null);
@@ -268,13 +269,68 @@ export default function TaskRow({ task, projectId, index, coaAccounts, onUpdate,
     }
   };
 
+  // Soft archive: hide an out-of-scope task from active views; history preserved
+  // (distinct from delete). PATCH to 'archived' rides the existing task status
+  // flow (status-history row + audit). Unarchive restores to 'open'.
+  const handleArchive = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (
+      !confirm(
+        `Archive task "${task.title}"? It is hidden from active views but its history is preserved. (This is NOT delete — nothing is destroyed; restore it later via "show archived".)`
+      )
+    )
+      return;
+    setArchiving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/operations/projects/${projectId}/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'archived' }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setError(body?.message ?? body?.error ?? 'failed to archive');
+        return;
+      }
+      onUpdate();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'failed to archive');
+    } finally {
+      setArchiving(false);
+    }
+  };
+
+  const handleUnarchive = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setArchiving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/operations/projects/${projectId}/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'open' }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setError(body?.message ?? body?.error ?? 'failed to unarchive');
+        return;
+      }
+      onUpdate();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'failed to unarchive');
+    } finally {
+      setArchiving(false);
+    }
+  };
+
   const inputClass =
     'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
   const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs font-mono';
   const pillClass = `inline-block px-2 py-0.5 border rounded text-xs font-mono ${TASK_STATUS_PILL_CLASSES[task.status]}`;
 
   return (
-    <div className="border border-border-light rounded bg-white">
+    <div className={`border border-border-light rounded bg-white${task.status === 'archived' ? ' opacity-60' : ''}`}>
       <div
         className="flex items-center justify-between px-3 py-1.5 cursor-pointer hover:bg-bg-row text-xs font-mono"
         onClick={() => !editing && setExpanded((x) => !x)}
@@ -534,6 +590,25 @@ export default function TaskRow({ task, projectId, index, coaAccounts, onUpdate,
             >
               edit
             </button>
+            {task.status === 'archived' ? (
+              <button
+                type="button"
+                onClick={handleUnarchive}
+                disabled={archiving}
+                className="px-2 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
+              >
+                {archiving ? 'unarchiving…' : 'unarchive'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleArchive}
+                disabled={archiving}
+                className="px-2 py-1 border border-border text-text-muted rounded hover:bg-bg-row disabled:opacity-50"
+              >
+                {archiving ? 'archiving…' : 'archive'}
+              </button>
+            )}
             <button
               type="button"
               onClick={handleDelete}

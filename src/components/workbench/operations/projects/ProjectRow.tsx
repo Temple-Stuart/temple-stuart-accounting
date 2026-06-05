@@ -87,6 +87,7 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   const [form, setForm] = useState<ProjectForm>(() => projectToForm(project));
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generatingDesign, setGeneratingDesign] = useState(false);
   const [generatedDesignPreview, setGeneratedDesignPreview] = useState<string | null>(null);
@@ -303,6 +304,62 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
     }
   };
 
+  // Soft archive: hides the project + its active tasks from active views; all
+  // history is preserved (distinct from delete, which destroys records). Active
+  // tasks are retired + future plan items removed server-side in one transaction.
+  const handleArchive = async () => {
+    if (
+      !confirm(
+        `Archive project "${project.title}"? It and its active tasks are hidden from active views but all history is preserved. (This is NOT delete — nothing is destroyed; you can unarchive later via "show archived".)`
+      )
+    )
+      return;
+    setArchiving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/operations/projects/${project.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'archived' }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setError(body?.message ?? body?.error ?? 'failed to archive');
+        return;
+      }
+      onUpdate();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'failed to archive');
+    } finally {
+      setArchiving(false);
+    }
+  };
+
+  // Unarchive restores the project to the non-archived default status
+  // (not_started — the schema/create default). Does NOT auto-restore task
+  // statuses; archived tasks are unarchived individually.
+  const handleUnarchive = async () => {
+    setArchiving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/operations/projects/${project.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'not_started' }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setError(body?.message ?? body?.error ?? 'failed to unarchive');
+        return;
+      }
+      onUpdate();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'failed to unarchive');
+    } finally {
+      setArchiving(false);
+    }
+  };
+
   const inputClass =
     'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
   const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs font-mono';
@@ -357,7 +414,8 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
       ref={rowRef}
       className={
         'border rounded bg-white transition-colors ' +
-        (flash ? 'border-brand-purple shadow-md' : 'border-border')
+        (flash ? 'border-brand-purple shadow-md' : 'border-border') +
+        (project.status === 'archived' ? ' opacity-60' : '')
       }
     >
       <div
@@ -490,6 +548,25 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
             >
               edit
             </button>
+            {project.status === 'archived' ? (
+              <button
+                type="button"
+                onClick={handleUnarchive}
+                disabled={archiving}
+                className="px-2 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
+              >
+                {archiving ? 'unarchiving…' : 'unarchive'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleArchive}
+                disabled={archiving}
+                className="px-2 py-1 border border-border text-text-muted rounded hover:bg-bg-row disabled:opacity-50"
+              >
+                {archiving ? 'archiving…' : 'archive'}
+              </button>
+            )}
             <button
               type="button"
               onClick={handleDelete}

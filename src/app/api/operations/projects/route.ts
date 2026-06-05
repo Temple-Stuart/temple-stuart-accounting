@@ -49,8 +49,15 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const entityId = searchParams.get('entity_id');
+    // Archived projects are out of scope: hidden from the active backlog unless
+    // explicitly requested (the "show archived" toggle). History is preserved —
+    // this is a read filter only.
+    const includeArchived = searchParams.get('include_archived') === 'true';
 
     const where: Prisma.operations_projectsWhereInput = { user_id: user.id };
+    if (!includeArchived) {
+      where.status = { not: 'archived' };
+    }
     if (entityId) {
       // Verify entity ownership before filtering.
       const entity = await prisma.entities.findFirst({

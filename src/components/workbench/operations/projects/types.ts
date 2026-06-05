@@ -114,7 +114,8 @@ export type TaskStatus =
   | 'in_progress'
   | 'blocked'
   | 'completed'
-  | 'cancelled';
+  | 'cancelled'
+  | 'archived';
 
 export interface Task {
   id: string;
@@ -196,6 +197,7 @@ export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
   blocked: 'blocked',
   completed: 'done',
   cancelled: 'cancelled',
+  archived: 'archived',
 };
 
 export const TASK_STATUS_PILL_CLASSES: Record<TaskStatus, string> = {
@@ -204,6 +206,7 @@ export const TASK_STATUS_PILL_CLASSES: Record<TaskStatus, string> = {
   blocked: 'bg-amber-50 text-amber-800 border-amber-300',
   completed: 'bg-green-50 text-green-800 border-green-300',
   cancelled: 'bg-gray-50 text-gray-500 border-gray-200',
+  archived: 'bg-gray-50 text-gray-500 border-gray-200',
 };
 
 /**

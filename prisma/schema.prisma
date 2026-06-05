@@ -2597,6 +2597,7 @@ enum OperationsTaskStatus {
   completed
   cancelled
   superseded
+  archived
 }
 
 enum CalendarBlockStatus {

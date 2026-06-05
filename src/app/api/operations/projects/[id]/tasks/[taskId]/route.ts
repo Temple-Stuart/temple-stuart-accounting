@@ -29,6 +29,7 @@ const VALID_STATUSES: OperationsTaskStatus[] = [
   'blocked',
   'completed',
   'cancelled',
+  'archived',
 ];
 
 async function loadAuthorizedTask(taskId: string, projectId: string, userId: string) {

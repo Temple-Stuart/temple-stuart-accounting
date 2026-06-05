@@ -199,7 +199,8 @@ export async function POST(request: NextRequest) {
     const tasksRaw =
       projects.length > 0
         ? await prisma.operations_project_tasks.findMany({
-            where: { project_id: { in: projects.map((p) => p.id) } },
+            // Archived tasks are out of scope — never feed them to the optimizer.
+            where: { project_id: { in: projects.map((p) => p.id) }, status: { not: 'archived' } },
             orderBy: [{ display_order: 'asc' }, { updated_at: 'desc' }],
           })
         : [];

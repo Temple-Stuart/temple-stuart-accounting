@@ -32,6 +32,8 @@ export default function TaskList({ projectId, entity_id }: Props) {
   const [createForm, setCreateForm] = useState<TaskForm>(DEFAULT_TASK_FORM);
   const [createSaving, setCreateSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  // Archived tasks hidden by default; toggle mirrors RoutineList's "show inactive".
+  const [showArchived, setShowArchived] = useState(false);
 
   // COA accounts for the category dropdown — fetched once per entity_id.
   // entity_id is sourced from the project (via prop), not derived from the
@@ -44,7 +46,9 @@ export default function TaskList({ projectId, entity_id }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/operations/projects/${projectId}/tasks`);
+      const res = await fetch(
+        `/api/operations/projects/${projectId}/tasks${showArchived ? '?include_archived=true' : ''}`
+      );
       const body = await res.json();
       if (!res.ok) {
         setError(body?.message ?? body?.error ?? 'failed to load tasks');
@@ -62,7 +66,7 @@ export default function TaskList({ projectId, entity_id }: Props) {
   useEffect(() => {
     fetchTasks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]);
+  }, [projectId, showArchived]);
 
   // Eager COA fetch — fires on mount as soon as entity_id is known, so
   // even brand-new projects with zero tasks have the dropdown populated
@@ -157,8 +161,18 @@ export default function TaskList({ projectId, entity_id }: Props) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <div className="text-xs font-mono text-text-muted">
-          {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
+        <div className="flex items-center gap-3 text-xs font-mono">
+          <span className="text-text-muted">
+            {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
+          </span>
+          <label className="flex items-center gap-1 cursor-pointer" onClick={(e) => e.stopPropagation()}>
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
+            />
+            <span className="text-text-muted">show archived</span>
+          </label>
         </div>
         {!showCreate && (
           <button
