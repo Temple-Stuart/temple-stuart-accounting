@@ -419,9 +419,9 @@ export default function ContentPipeline() {
                       return (
                         <li
                           key={t.id}
-                          className="grid items-center gap-2 px-2 py-1.5 rounded border border-border-light grid-cols-[minmax(0,1fr)_11.5rem] lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)_5rem_11.5rem]"
+                          className="grid items-start gap-2 px-2 py-1.5 rounded border border-border-light grid-cols-[minmax(0,1fr)_11.5rem] lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)_minmax(0,1fr)_11.5rem]"
                         >
-                          <span className="text-text-primary truncate" title={t.title}>
+                          <span className="text-text-primary line-clamp-2" title={t.title}>
                             {t.title}
                           </span>
                           <span
