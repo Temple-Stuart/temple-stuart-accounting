@@ -401,116 +401,121 @@ export default function ContentPipeline() {
           <p className="text-sm font-mono text-text-muted">Loading…</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 font-mono text-xs">
-            {/* Left: routines (selectable, order tracked) */}
-            <div className="space-y-2">
-              <h3 className="text-brand-purple font-medium uppercase tracking-wide">Routines</h3>
-              {routines.length === 0 ? (
-                <p className="text-text-muted">No routines — create one on the Routines tab.</p>
-              ) : (
-                <ul className="space-y-1">
-                  {routines.map((r) => {
-                    const order = selected.indexOf(r.id);
-                    const isSel = order >= 0;
-                    return (
-                      <li key={r.id}>
-                        <button
-                          type="button"
-                          onClick={() => toggle(r.id)}
-                          className={`w-full flex items-center gap-2 text-left px-2 py-1.5 rounded border ${
-                            isSel ? 'border-brand-purple bg-purple-50/50' : 'border-border-light hover:bg-bg-row'
-                          }`}
-                        >
-                          <span
-                            className={`shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] ${
-                              isSel ? 'bg-brand-purple text-white' : 'border border-border text-text-muted'
-                            }`}
-                            aria-hidden="true"
-                          >
-                            {isSel ? order + 1 : ''}
-                          </span>
-                          <span className="text-text-primary font-medium flex-1">{r.name}</span>
-                          {entityNameById.get(r.entity_id) && (
-                            <span className="text-text-muted break-words">{entityNameById.get(r.entity_id)}</span>
-                          )}
-                          <span className="text-text-muted">
-                            {r.steps.length} step{r.steps.length === 1 ? '' : 's'}
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-
-            {/* Right: project tasks — SELECTABLE INPUTS (add to the selected day) */}
+            {/* Left: project tasks — SELECTABLE INPUTS (add to the selected day).
+                Column order mirrors section 0 (project left / routine right). */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h3 className="text-brand-purple font-medium uppercase tracking-wide">Project tasks</h3>
                 <span className="text-text-muted">add to {date}</span>
               </div>
-              {tasks.length === 0 ? (
-                <p className="text-text-muted">No unscheduled tasks.</p>
-              ) : (
-                <ul className="space-y-1 max-h-[260px] overflow-y-auto pr-1">
-                  {tasks.map((t) => {
-                    const entry = dayByTaskId.get(t.id);
-                    const added = !!entry;
-                    return (
-                      <li
-                        key={t.id}
-                        className="flex items-start gap-2 px-2 py-1.5 rounded border border-border-light"
-                      >
-                        <span className="text-text-primary flex-1 break-words" title={t.title}>
-                          {t.title}
-                        </span>
-                        {t.project && <span className="text-text-muted break-words max-w-[140px]">{t.project.title}</span>}
-                        {t.project && entityNameById.get(t.project.entity_id) && (
-                          <span className="text-text-muted break-words max-w-[110px]">
-                            {entityNameById.get(t.project.entity_id)}
+              <div className="border border-brand-purple rounded p-3 bg-purple-50/30 text-xs font-mono space-y-3">
+                {tasks.length === 0 ? (
+                  <p className="text-text-muted">No unscheduled tasks.</p>
+                ) : (
+                  <ul className="space-y-1 max-h-[260px] overflow-y-auto pr-1">
+                    {tasks.map((t) => {
+                      const entry = dayByTaskId.get(t.id);
+                      const added = !!entry;
+                      return (
+                        <li
+                          key={t.id}
+                          className="flex items-start gap-2 px-2 py-1.5 rounded border border-border-light"
+                        >
+                          <span className="text-text-primary flex-1 break-words" title={t.title}>
+                            {t.title}
                           </span>
-                        )}
-                        <span
-                          className={`shrink-0 px-1.5 py-0.5 rounded border text-[10px] uppercase tracking-wide ${
-                            STATUS_PILL[t.status] ?? 'border-border text-text-muted'
-                          }`}
-                        >
-                          {t.status}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => (added ? removeTaskFromDay(t.id) : addTaskToDay(t.id))}
-                          disabled={addingTaskId === t.id || removingTaskId === t.id}
-                          title={
-                            added
-                              ? entry?.committed
-                                ? 'committed time — uncommit in the day section below to remove'
-                                : 'click to remove from day'
-                              : 'add to the day'
-                          }
-                          className={`shrink-0 px-2 py-0.5 rounded border text-[11px] ${
-                            added
-                              ? 'border-brand-purple text-brand-purple hover:bg-purple-50'
-                              : 'border-brand-purple bg-brand-purple text-white hover:opacity-90'
-                          } disabled:opacity-60`}
-                        >
-                          {added
-                            ? removingTaskId === t.id
-                              ? 'removing…'
-                              : '✓ on day'
-                            : addingTaskId === t.id
-                              ? '…'
-                              : '+ add to day'}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-              <p className="text-text-muted">
-                Adds the task to the day (commit times on the{' '}
-                <a href="/operations" className="text-brand-purple hover:underline">Daily Plan</a> tab).
-              </p>
+                          {t.project && <span className="text-text-muted break-words max-w-[140px]">{t.project.title}</span>}
+                          {t.project && entityNameById.get(t.project.entity_id) && (
+                            <span className="text-text-muted break-words max-w-[110px]">
+                              {entityNameById.get(t.project.entity_id)}
+                            </span>
+                          )}
+                          <span
+                            className={`shrink-0 px-1.5 py-0.5 rounded border text-[10px] uppercase tracking-wide ${
+                              STATUS_PILL[t.status] ?? 'border-border text-text-muted'
+                            }`}
+                          >
+                            {t.status}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => (added ? removeTaskFromDay(t.id) : addTaskToDay(t.id))}
+                            disabled={addingTaskId === t.id || removingTaskId === t.id}
+                            title={
+                              added
+                                ? entry?.committed
+                                  ? 'committed time — uncommit in the day section below to remove'
+                                  : 'click to remove from day'
+                                : 'add to the day'
+                            }
+                            className={`shrink-0 px-2 py-0.5 rounded border text-[11px] ${
+                              added
+                                ? 'border-brand-purple text-brand-purple hover:bg-purple-50'
+                                : 'border-brand-purple bg-brand-purple text-white hover:opacity-90'
+                            } disabled:opacity-60`}
+                          >
+                            {added
+                              ? removingTaskId === t.id
+                                ? 'removing…'
+                                : '✓ on day'
+                              : addingTaskId === t.id
+                                ? '…'
+                                : '+ add to day'}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                <p className="text-text-muted">
+                  Adds the task to the day (commit times on the{' '}
+                  <a href="/operations" className="text-brand-purple hover:underline">Daily Plan</a> tab).
+                </p>
+              </div>
+            </div>
+
+            {/* Right: routines (selectable, order tracked) */}
+            <div className="space-y-2">
+              <h3 className="text-brand-purple font-medium uppercase tracking-wide">Routines</h3>
+              <div className="border border-brand-purple rounded p-3 bg-purple-50/30 text-xs font-mono space-y-3">
+                {routines.length === 0 ? (
+                  <p className="text-text-muted">No routines — create one on the Routines tab.</p>
+                ) : (
+                  <ul className="space-y-1">
+                    {routines.map((r) => {
+                      const order = selected.indexOf(r.id);
+                      const isSel = order >= 0;
+                      return (
+                        <li key={r.id}>
+                          <button
+                            type="button"
+                            onClick={() => toggle(r.id)}
+                            className={`w-full flex items-center gap-2 text-left px-2 py-1.5 rounded border ${
+                              isSel ? 'border-brand-purple bg-purple-50/50' : 'border-border-light hover:bg-bg-row'
+                            }`}
+                          >
+                            <span
+                              className={`shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] ${
+                                isSel ? 'bg-brand-purple text-white' : 'border border-border text-text-muted'
+                              }`}
+                              aria-hidden="true"
+                            >
+                              {isSel ? order + 1 : ''}
+                            </span>
+                            <span className="text-text-primary font-medium flex-1">{r.name}</span>
+                            {entityNameById.get(r.entity_id) && (
+                              <span className="text-text-muted break-words">{entityNameById.get(r.entity_id)}</span>
+                            )}
+                            <span className="text-text-muted">
+                              {r.steps.length} step{r.steps.length === 1 ? '' : 's'}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
             </div>
           </div>
         )}
