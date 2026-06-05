@@ -15,9 +15,9 @@
 
 import { useEffect, useState } from 'react';
 import RoutineRow from './RoutineRow';
-import RRULEBuilder from './RRULEBuilder';
-import type { CadenceGroup, Routine, RoutineForm } from './types';
-import { CADENCE_GROUP_LABELS, CADENCE_GROUP_ORDER, DEFAULT_ROUTINE_FORM } from './types';
+import RoutineCreateForm from './RoutineCreateForm';
+import type { CadenceGroup, Routine } from './types';
+import { CADENCE_GROUP_LABELS, CADENCE_GROUP_ORDER } from './types';
 import type { Scene, Take } from '../content/ContentTable';
 
 interface Entity {
@@ -37,9 +37,9 @@ export default function RoutineList({ entities, onCommitted }: Props) {
   const [showInactive, setShowInactive] = useState(false);
 
   const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState<RoutineForm>(DEFAULT_ROUTINE_FORM);
-  const [createSaving, setCreateSaving] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
+  // Entity to seed the create form with, captured when the form is opened so it
+  // stays stable while open (identical to the pre-extraction behavior).
+  const [createDefaultEntityId, setCreateDefaultEntityId] = useState('');
 
   const fetchRoutines = async () => {
     setLoading(true);
@@ -102,44 +102,8 @@ export default function RoutineList({ entities, onCommitted }: Props) {
 
   const startCreate = () => {
     const initialEntity = entities[0]?.id ?? '';
-    setCreateForm({ ...DEFAULT_ROUTINE_FORM, entity_id: initialEntity });
-    setCreateError(null);
+    setCreateDefaultEntityId(initialEntity);
     setShowCreate(true);
-  };
-
-  const cancelCreate = () => {
-    setShowCreate(false);
-    setCreateForm(DEFAULT_ROUTINE_FORM);
-    setCreateError(null);
-  };
-
-  const handleCreate = async () => {
-    setCreateSaving(true);
-    setCreateError(null);
-    try {
-      const res = await fetch('/api/operations/routines', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...createForm,
-          start_date: createForm.start_date || null,
-          end_date: createForm.end_date || null,
-          start_time: createForm.start_time || null,
-          end_time: createForm.end_time || null,
-        }),
-      });
-      const body = await res.json();
-      if (!res.ok) {
-        setCreateError(body?.message ?? body?.error ?? 'failed to create');
-        return;
-      }
-      cancelCreate();
-      refresh();
-    } catch (e) {
-      setCreateError(e instanceof Error ? e.message : 'failed to create');
-    } finally {
-      setCreateSaving(false);
-    }
   };
 
   // Group routines by classifyCadence-equivalent client-side bucketing.
@@ -168,10 +132,6 @@ export default function RoutineList({ entities, onCommitted }: Props) {
     if (!grouped.has(g)) grouped.set(g, []);
     grouped.get(g)!.push(r);
   }
-
-  const inputClass =
-    'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
-  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs font-mono';
 
   return (
     <div className="space-y-3">
@@ -208,116 +168,15 @@ export default function RoutineList({ entities, onCommitted }: Props) {
       )}
 
       {showCreate && (
-        <div className="border border-brand-purple rounded p-3 bg-purple-50/30 text-xs font-mono space-y-3">
-          <div className="font-bold text-text-primary">new routine</div>
-          {createError && (
-            <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
-              {createError}
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
-              <div className={labelClass}>name</div>
-              <input
-                type="text"
-                value={createForm.name}
-                onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-                className={inputClass}
-                maxLength={200}
-                placeholder="e.g., Morning reflection"
-              />
-            </div>
-            <div className="col-span-2">
-              <div className={labelClass}>description (optional)</div>
-              <textarea
-                value={createForm.description}
-                onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
-                rows={2}
-                className={inputClass}
-                placeholder="what does this routine accomplish?"
-              />
-            </div>
-            <div>
-              <div className={labelClass}>entity</div>
-              <select
-                value={createForm.entity_id}
-                onChange={(e) => setCreateForm({ ...createForm, entity_id: e.target.value })}
-                className={inputClass}
-              >
-                <option value="">— select —</option>
-                {entities.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <RRULEBuilder form={createForm} setForm={setCreateForm} />
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <div className={labelClass}>start date (optional)</div>
-              <input
-                type="date"
-                value={createForm.start_date}
-                onChange={(e) => setCreateForm({ ...createForm, start_date: e.target.value })}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <div className={labelClass}>end date (optional)</div>
-              <input
-                type="date"
-                value={createForm.end_date}
-                onChange={(e) => setCreateForm({ ...createForm, end_date: e.target.value })}
-                className={inputClass}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <div className={labelClass}>start time (optional)</div>
-              <input
-                type="time"
-                value={createForm.start_time}
-                onChange={(e) => setCreateForm({ ...createForm, start_time: e.target.value })}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <div className={labelClass}>end time (optional)</div>
-              <input
-                type="time"
-                value={createForm.end_time}
-                onChange={(e) => setCreateForm({ ...createForm, end_time: e.target.value })}
-                className={inputClass}
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 pt-2 border-t border-border-light">
-            <button
-              type="button"
-              onClick={handleCreate}
-              disabled={createSaving}
-              className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
-            >
-              {createSaving ? 'creating…' : 'create routine'}
-            </button>
-            <button
-              type="button"
-              onClick={cancelCreate}
-              disabled={createSaving}
-              className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
-            >
-              cancel
-            </button>
-          </div>
-        </div>
+        <RoutineCreateForm
+          entities={entities}
+          defaultEntityId={createDefaultEntityId}
+          onCreated={() => {
+            setShowCreate(false);
+            refresh();
+          }}
+          onCancel={() => setShowCreate(false)}
+        />
       )}
 
       {loading ? (
