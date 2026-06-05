@@ -419,49 +419,57 @@ export default function ContentPipeline() {
                       return (
                         <li
                           key={t.id}
-                          className="flex items-start gap-2 px-2 py-1.5 rounded border border-border-light"
+                          className="grid items-center gap-2 px-2 py-1.5 rounded border border-border-light grid-cols-[minmax(0,1fr)_11.5rem] lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)_5rem_11.5rem]"
                         >
-                          <span className="text-text-primary flex-1 break-words" title={t.title}>
+                          <span className="text-text-primary truncate" title={t.title}>
                             {t.title}
                           </span>
-                          {t.project && <span className="text-text-muted break-words max-w-[140px]">{t.project.title}</span>}
-                          {t.project && entityNameById.get(t.project.entity_id) && (
-                            <span className="text-text-muted break-words max-w-[110px]">
-                              {entityNameById.get(t.project.entity_id)}
-                            </span>
-                          )}
                           <span
-                            className={`shrink-0 px-1.5 py-0.5 rounded border text-[10px] uppercase tracking-wide ${
-                              STATUS_PILL[t.status] ?? 'border-border text-text-muted'
-                            }`}
+                            className="hidden lg:block text-text-muted truncate"
+                            title={t.project?.title ?? ''}
                           >
-                            {t.status}
+                            {t.project?.title ?? ''}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => (added ? removeTaskFromDay(t.id) : addTaskToDay(t.id))}
-                            disabled={addingTaskId === t.id || removingTaskId === t.id}
-                            title={
-                              added
-                                ? entry?.committed
-                                  ? 'committed time — uncommit in the day section below to remove'
-                                  : 'click to remove from day'
-                                : 'add to the day'
-                            }
-                            className={`shrink-0 px-2 py-0.5 rounded border text-[11px] ${
-                              added
-                                ? 'border-brand-purple text-brand-purple hover:bg-purple-50'
-                                : 'border-brand-purple bg-brand-purple text-white hover:opacity-90'
-                            } disabled:opacity-60`}
+                          <span
+                            className="hidden lg:block text-text-muted truncate"
+                            title={(t.project && entityNameById.get(t.project.entity_id)) || ''}
                           >
-                            {added
-                              ? removingTaskId === t.id
-                                ? 'removing…'
-                                : '✓ on day'
-                              : addingTaskId === t.id
-                                ? '…'
-                                : '+ add to day'}
-                          </button>
+                            {(t.project && entityNameById.get(t.project.entity_id)) || ''}
+                          </span>
+                          <div className="flex items-center justify-end gap-2">
+                            <span
+                              className={`shrink-0 px-1.5 py-0.5 rounded border text-[10px] uppercase tracking-wide ${
+                                STATUS_PILL[t.status] ?? 'border-border text-text-muted'
+                              }`}
+                            >
+                              {t.status}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => (added ? removeTaskFromDay(t.id) : addTaskToDay(t.id))}
+                              disabled={addingTaskId === t.id || removingTaskId === t.id}
+                              title={
+                                added
+                                  ? entry?.committed
+                                    ? 'committed time — uncommit in the day section below to remove'
+                                    : 'click to remove from day'
+                                  : 'add to the day'
+                              }
+                              className={`shrink-0 px-2 py-0.5 rounded border text-[11px] ${
+                                added
+                                  ? 'border-brand-purple text-brand-purple hover:bg-purple-50'
+                                  : 'border-brand-purple bg-brand-purple text-white hover:opacity-90'
+                              } disabled:opacity-60`}
+                            >
+                              {added
+                                ? removingTaskId === t.id
+                                  ? 'removing…'
+                                  : '✓ on day'
+                                : addingTaskId === t.id
+                                  ? '…'
+                                  : '+ add to day'}
+                            </button>
+                          </div>
                         </li>
                       );
                     })}
