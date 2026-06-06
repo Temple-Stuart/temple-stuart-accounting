@@ -474,26 +474,10 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
             )}
           </div>
           <div className="pt-2 border-t border-border-light">
-            <div className={labelClass}>5 · execute (tasks)</div>
-            <TaskList projectId={project.id} entity_id={project.entity_id} />
-          </div>
-          <div className="pt-2 border-t border-border-light">
-            <div className="flex items-center justify-between mb-1">
-              <div className={labelClass}>evolution (trajectory by AI re-run)</div>
-              <button
-                type="button"
-                onClick={() => setShowEvolution((x) => !x)}
-                className="px-2 py-0.5 border border-border rounded text-xs font-mono text-text-muted hover:bg-bg-row"
-              >
-                {showEvolution ? 'hide evolution' : 'view evolution'}
-              </button>
-            </div>
-            {showEvolution && <EvolutionTimeline projectId={project.id} />}
-          </div>
-          <div className="pt-2 border-t border-border-light">
-            <div className={labelClass}>6 · dependencies</div>
+            <div className={labelClass}>reality inputs (ground AI regeneration)</div>
             {/* PR-Ops-Evolve-1: reality inputs — paste targets that ground task
-                regeneration in external research + a codebase audit. */}
+                regeneration in external research + a codebase audit. Sits beside the
+                design/plan it grounds. */}
             <div className="mb-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
               <div>
                 <div className={labelClass}>deep research input</div>
@@ -527,6 +511,26 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
               </button>
               {inputsSaved && <span className="text-text-faint text-xs">saved — regenerate tasks to use these</span>}
             </div>
+          </div>
+          <div className="pt-2 border-t border-border-light">
+            <div className={labelClass}>5 · execute (tasks)</div>
+            <TaskList projectId={project.id} entity_id={project.entity_id} />
+          </div>
+          <div className="pt-2 border-t border-border-light">
+            <div className="flex items-center justify-between mb-1">
+              <div className={labelClass}>evolution (trajectory by AI re-run)</div>
+              <button
+                type="button"
+                onClick={() => setShowEvolution((x) => !x)}
+                className="px-2 py-0.5 border border-border rounded text-xs font-mono text-text-muted hover:bg-bg-row"
+              >
+                {showEvolution ? 'hide evolution' : 'view evolution'}
+              </button>
+            </div>
+            {showEvolution && <EvolutionTimeline projectId={project.id} />}
+          </div>
+          <div className="pt-2 border-t border-border-light">
+            <div className={labelClass}>6 · dependencies</div>
             <DependencyList
               projectId={project.id}
               allProjects={allProjects}
