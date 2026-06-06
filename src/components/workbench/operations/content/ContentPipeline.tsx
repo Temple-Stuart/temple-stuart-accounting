@@ -30,6 +30,7 @@ import ScenifyDraft from './ScenifyDraft';
 import ScriptGenerator from './ScriptGenerator';
 import PieceGrid from './PieceGrid';
 import DailyLog from './DailyLog';
+import DayCalendar from './DayCalendar';
 import ProjectCreateForm from '../projects/ProjectCreateForm';
 import RoutineCreateForm from '../routines/RoutineCreateForm';
 
@@ -337,6 +338,10 @@ export default function ContentPipeline() {
           {error}
         </div>
       )}
+
+      {/* · DAY — the day's blocks as a stacked clock-order list (shares useDayFeed
+          with section 3's answer timeline). Collapsed by default; sits above 0·CREATE. */}
+      <DayCalendar date={date} />
 
       {/* 0 · CREATE — collapsed by default; make a project · make a routine, mirroring
           the homepage live-demo two-up layout. The forms are the SAME extracted
