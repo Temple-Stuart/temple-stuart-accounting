@@ -33,6 +33,7 @@ import InspectionDrawer, { type InspectionData } from '../ai/InspectionDrawer';
 const KICKOFF_PROMPT = `I'm starting a new project in Temple Stuart and I need you to prep all my inputs.
 
 From my vision below, write:
+0 · TITLE — short, distinctive, unique within my projects
 1 · GOAL — "I WANT to..." items (what success looks like, 3-5 items)
 2 · PROBLEM — "I HAVE NOT..." / "I KEEP..." items (the gap, 2-4 items)
 3 · DIAGNOSIS — "Because..." / "The root cause is..." items (causes, not solutions — 2-3 items, the last one is THE root cause)
