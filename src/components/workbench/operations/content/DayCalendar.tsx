@@ -1,17 +1,23 @@
 /**
- * DayCalendar — the day's blocks as a STACKED LIST in clock order (NOT an hour-grid).
- * Pure presentation over the shared useDayFeed(date) feed; rows are already
- * DAY_START-ordered by the hook's compareDayOrder. Collapsed by default.
+ * DayCalendar — the day's blocks as a dense, ONE-LINE stacked list in clock order
+ * (NOT an hour-grid). Pure presentation over the shared useDayFeed(date) feed; rows
+ * are already DAY_START-ordered by the hook's compareDayOrder. Collapsed by default.
  *
- * This PR finishes it:
- *   • GAPS — between two consecutive timed rows whose bounds are BOTH known
- *     (prev end → next start), a muted divider names the open duration. Only when
- *     both bounds exist (a row with no end makes no gap claim); ≥15m to cut noise.
- *   • COLLISIONS — timed rows whose [start,end) overlap get a red warning tint (both
- *     rows). Rows with no end can't collide — skipped honestly.
- *   • UNSCHEDULED LANE — a real sub-header ("unscheduled — no time set") + count.
- *   • NAV — ‹ prev · today · next › in the header, driving the SHARED date state
- *     (lifted via onDateChange, same setter that drives section 3).
+ * One shared CSS grid for every row (scene AND task) so columns align vertically —
+ * house style adopted from hub/UnscheduledTaskTable.tsx:171,183 (grid-cols-[…] +
+ * items-center + text-xs font-mono, dominant fr for the reading column). Columns:
+ *   [ time | name | project | entity | status ]
+ * Source is shown by the LEFT EDGE (amber = task, purple = scene) — the redundant
+ * marker-text column is dropped for density (the edge is the echo). Name is the
+ * dominant track and truncates (the INPUTS-grid lesson: never starve the reading col).
+ *
+ *   • GAPS — between two consecutive timed rows with BOTH bounds known, a muted
+ *     divider names the open span (≥15m). No end → no gap claim (never guess).
+ *   • COLLISIONS — timed rows whose [start,end) overlap get the red warning tint
+ *     (both rows). No end → can't collide, skipped honestly.
+ *   • UNSCHEDULED LANE — a real sub-header ("unscheduled — no time set" + count).
+ *   • NAV — ‹ prev · today · next › drive the SHARED date (via onDateChange), the
+ *     same setter behind section 3 (nav button treatment echoes ItineraryAgenda).
  *
  * No useDayFeed change, no new fetch, no hour-grid, no fallback for missing times.
  */
@@ -35,13 +41,27 @@ const STATUS_PILL: Record<string, string> = {
 const statusPillClass = (status: string) =>
   STATUS_PILL[status] ?? 'border-border text-text-muted';
 
-// minute-of-day (0–1439, wrap-safe) → "HH:MM".
+// Shared row grid: dense, one line, columns aligned. Mobile shows [time|name|status];
+// lg+ adds [project|entity]. Name is the dominant flexible track.
+const ROW_GRID =
+  'grid items-center gap-x-3 px-2 py-1.5 rounded border border-l-4 ' +
+  'grid-cols-[5.5rem_minmax(0,1fr)_5.5rem] ' +
+  'lg:grid-cols-[7rem_minmax(0,1fr)_minmax(0,0.6fr)_5rem_5.5rem]';
+
+const chipBase = 'px-2 py-0.5 rounded border text-[11px] font-mono';
+const chipOn = 'border-brand-purple bg-brand-purple text-white';
+const chipOff = 'border-border-light text-text-muted hover:bg-bg-row';
+const navBtn =
+  'w-7 h-7 flex items-center justify-center rounded text-text-muted hover:bg-bg-row';
+
 const fmtMinute = (min: number): string => {
   const m = ((min % 1440) + 1440) % 1440;
   return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 };
-
-// open-duration label: "1h 30m" / "45m" / "2h".
+const fmtClock = (iso: string): string => {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
 const fmtDuration = (min: number): string => {
   const h = Math.floor(min / 60);
   const m = min % 60;
@@ -51,16 +71,27 @@ const fmtDuration = (min: number): string => {
 
 const rowEntityId = (row: TimelineRow): string =>
   row.kind === 'scene' ? row.scene.entity_id : row.block.entity_id;
-
 const rowKey = (row: TimelineRow): string =>
   row.kind === 'scene' ? `scene-${row.scene.id}` : `task-${row.block.id}`;
 
-/**
- * Day-anchored [start, end) for a TIMED row, end null when unknown (no guessing).
- * Scene end = anchored start + duration (only when duration_minutes != null).
- * Task end = the end that pairs with the start shown (actual vs scheduled), anchored;
- * wrapped past start if it crosses the 04:00 boundary.
- */
+// Compact time text + actual flag. Tasks show "act" instead of the verbose "(actual)".
+function deriveTime(row: TimelineRow): { timeText: string; isActual: boolean } {
+  if (row.kind === 'scene') {
+    if (row.minute == null) return { timeText: '', isActual: false };
+    const dur = row.scene.routine_step.duration_minutes;
+    const start = fmtMinute(row.minute);
+    return { timeText: dur != null ? `${start}–${fmtMinute(row.minute + dur)}` : start, isActual: false };
+  }
+  const b = row.block;
+  if (row.minute == null) return { timeText: '', isActual: false }; // planned / untimed
+  const useActual = !!b.actualStart;
+  const startIso = useActual ? b.actualStart : b.scheduledStart;
+  const endIso = useActual ? b.actualEnd : b.scheduledEnd;
+  const start = startIso ? fmtClock(startIso) : fmtMinute(row.minute);
+  return { timeText: `${start}–${endIso ? fmtClock(endIso) : '…'}`, isActual: useActual };
+}
+
+// Day-anchored [start, end) for a TIMED row; end null when unknown (never guessed).
 function bounds(row: TimelineRow): { startA: number; endA: number | null } {
   const startA = dayAnchoredMinute(row.minute as number);
   if (row.kind === 'scene') {
@@ -71,7 +102,7 @@ function bounds(row: TimelineRow): { startA: number; endA: number | null } {
   const endIso = b.actualStart ? b.actualEnd : b.scheduledEnd;
   if (!endIso) return { startA, endA: null };
   let endA = dayAnchoredMinute(minuteOfDayFromInstant(endIso));
-  if (endA < startA) endA += 1440; // block crosses the content-day boundary
+  if (endA < startA) endA += 1440;
   return { startA, endA };
 }
 
@@ -95,7 +126,6 @@ export default function DayCalendar({
   const [activeEntities, setActiveEntities] = useState<Set<string>>(new Set());
   const [activeSources, setActiveSources] = useState<Set<'scene' | 'task'>>(new Set());
 
-  // Chips derive ONLY from what the rows actually contain (no hardcoding).
   const presentEntityIds = useMemo(() => {
     const s = new Set<string>();
     for (const r of timeline) s.add(rowEntityId(r));
@@ -116,11 +146,10 @@ export default function DayCalendar({
     );
   }, [timeline, activeEntities, activeSources]);
 
-  // Timed rows keep the hook's clock order; untimed (no start) sink below the lane.
   const timed = useMemo(() => visible.filter((r) => r.minute != null), [visible]);
   const untimed = useMemo(() => visible.filter((r) => r.minute == null), [visible]);
 
-  // Collisions: any two timed rows with known ends whose intervals overlap.
+  // Collisions: timed rows with known ends whose intervals overlap.
   const collidingKeys = useMemo(() => {
     const wb = timed.map((r) => ({ key: rowKey(r), ...bounds(r) }));
     const set = new Set<string>();
@@ -154,56 +183,44 @@ export default function DayCalendar({
       return next;
     });
 
-  const chipBase = 'px-2 py-0.5 rounded border text-[11px] font-mono';
-  const chipOn = 'border-brand-purple bg-brand-purple text-white';
-  const chipOff = 'border-border-light text-text-muted hover:bg-bg-row';
-  const navBtn = 'px-1.5 py-0.5 rounded border border-border-light text-text-muted hover:bg-bg-row';
-
-  // Collision tint reuses the warning-red palette (error banners bg-red-50/border-red;
-  // TaskBand.tsx confirm uses border-red-300 text-red-700).
-  const renderRow = (row: TimelineRow, colliding: boolean) => {
+  // ONE shared grid row for scenes + tasks. Source = left edge (amber task / purple
+  // scene); collision = red warning tint (both rows) — palette reused from the error
+  // banners (bg-red-50/border-red) + TaskBand.tsx confirm (border-red-300 text-red-700).
+  const renderRow = (row: TimelineRow, colliding: boolean): ReactNode => {
     const entityName = entityNameById.get(rowEntityId(row)) ?? rowEntityId(row);
-    const collideClass = colliding ? ' border-red-300 bg-red-50' : '';
-    if (row.kind === 'scene') {
-      const s = row.scene;
-      const start = row.minute != null ? fmtMinute(row.minute) : '';
-      const dur = s.routine_step.duration_minutes;
-      const timeText =
-        row.minute != null
-          ? dur != null
-            ? `${start}–${fmtMinute(row.minute + dur)}`
-            : start
-          : '';
-      return (
-        <li
-          key={`scene-${s.id}`}
-          className={`flex flex-wrap items-center gap-x-3 gap-y-1 px-2 py-1.5 rounded border border-border-light${collideClass}`}
-        >
-          {timeText && (
-            <span className="text-text-primary font-medium tabular-nums whitespace-nowrap">{timeText}</span>
-          )}
-          <span className="text-text-primary flex-1 min-w-[120px] break-words">{s.routine_step.activity}</span>
-          {colliding && <span className={`${chipBase} border-red-300 text-red-700`}>⚠ overlap</span>}
-          <span className={`${chipBase} border-brand-purple/40 text-brand-purple uppercase tracking-wide`}>scene</span>
-          <span className="text-text-muted break-words">{entityName}</span>
-        </li>
-      );
-    }
-    const b = row.block;
+    const { timeText, isActual } = deriveTime(row);
+    const isTask = row.kind === 'task';
+    const name = isTask ? row.block.title : row.scene.routine_step.activity;
+    const project = isTask ? row.block.projectName : null;
+    const skin = colliding
+      ? 'border-red-300 bg-red-50'
+      : isTask
+        ? 'border-border-light border-l-amber-400 bg-amber-50/30'
+        : 'border-border-light border-l-brand-purple/40';
     return (
       <li
-        key={`task-${b.id}`}
-        className={`flex flex-wrap items-center gap-x-3 gap-y-1 px-2 py-1.5 rounded border border-border-light border-l-4 border-l-amber-400 bg-amber-50/30${collideClass}`}
+        key={rowKey(row)}
+        className={`${ROW_GRID} ${skin}`}
+        title={colliding ? 'overlaps another block on this day' : undefined}
       >
-        {b.label && (
-          <span className="text-text-primary font-medium tabular-nums whitespace-nowrap">{b.label}</span>
-        )}
-        <span className="text-text-primary flex-1 min-w-[120px] break-words">{b.title}</span>
-        {colliding && <span className={`${chipBase} border-red-300 text-red-700`}>⚠ overlap</span>}
-        <span className={`${chipBase} border-amber-400 text-amber-700 uppercase tracking-wide`}>task</span>
-        {b.projectName && <span className="text-text-muted break-words">{b.projectName}</span>}
-        <span className="text-text-muted break-words">{entityName}</span>
-        <span className={`${chipBase} uppercase tracking-wide ${statusPillClass(b.status)}`}>{b.status}</span>
+        <span className="text-text-primary font-medium tabular-nums whitespace-nowrap truncate">
+          {timeText}
+          {isActual && <span className="ml-1 text-[10px] text-text-muted">act</span>}
+        </span>
+        <span className="text-text-primary truncate" title={name}>{name}</span>
+        <span className="hidden lg:block text-text-muted truncate" title={project ?? ''}>
+          {project ?? ''}
+        </span>
+        <span className="hidden lg:block text-text-muted truncate" title={entityName}>
+          {entityName}
+        </span>
+        <span className="justify-self-start">
+          {isTask && (
+            <span className={`${chipBase} uppercase tracking-wide ${statusPillClass(row.block.status)}`}>
+              {row.block.status}
+            </span>
+          )}
+        </span>
       </li>
     );
   };
@@ -233,7 +250,6 @@ export default function DayCalendar({
       prevEndA = endA;
     }
     return els;
-    // renderRow/entityNameById are stable enough for this presentational list.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timed, collidingKeys, entityNameById]);
 
@@ -254,24 +270,28 @@ export default function DayCalendar({
             {open ? '▾ hide' : '▸ show'}
           </span>
         </button>
-        {/* Day nav — drives the SHARED date (same setter as section 3). */}
+        {/* Day nav — drives the SHARED date (same setter as section 3). Button
+            treatment echoes trips/ItineraryAgenda.tsx:151-155. */}
         <div className="flex items-center gap-1 font-mono text-xs">
           <button type="button" onClick={() => onDateChange(shiftDay(date, -1))} className={navBtn} aria-label="Previous day">
-            ‹ prev
+            ‹
           </button>
-          <button type="button" onClick={() => onDateChange(todayLocal())} className={navBtn}>
+          <button
+            type="button"
+            onClick={() => onDateChange(todayLocal())}
+            className="px-2 h-7 rounded border border-border-light text-text-muted hover:bg-bg-row"
+          >
             today
           </button>
           <span className="px-1 text-text-muted tabular-nums">{date}</span>
           <button type="button" onClick={() => onDateChange(shiftDay(date, 1))} className={navBtn} aria-label="Next day">
-            next ›
+            ›
           </button>
         </div>
       </div>
 
       {open && (
         <div className="space-y-3">
-          {/* Filter chips — entity (derived) + source (scenes / tasks). */}
           {(presentEntityIds.length > 0 || hasScenes || hasTasks) && (
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               {presentEntityIds.length > 0 && (
@@ -350,7 +370,6 @@ function todayLocal(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-// Shift a YYYY-MM-DD by whole days in LOCAL time.
 function shiftDay(ymd: string, delta: number): string {
   const [y, m, d] = ymd.split('-').map(Number);
   const dt = new Date(y, m - 1, d);
