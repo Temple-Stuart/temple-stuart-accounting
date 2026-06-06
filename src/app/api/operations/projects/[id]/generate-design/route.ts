@@ -83,6 +83,9 @@ export async function POST(
       problemItems,
       diagnosisItems,
       northStar: toNorthStarContext(nsRow),
+      // Ground the plan in the project's pasted codebase audit (same source the
+      // tasks endpoint uses) so it reuses what exists instead of rebuilding it.
+      auditInput: project.claude_code_audit_input,
     });
 
     return NextResponse.json({

@@ -30,6 +30,9 @@ interface RequestBody {
   goalItems?: unknown;
   problemItems?: unknown;
   diagnosisItems?: unknown;
+  // Optional pasted codebase audit (create path). Passed through to ground the plan;
+  // the create form wires this in a later PR.
+  auditInput?: unknown;
 }
 
 const MAX_ITEMS_PER_ARRAY = 20;
@@ -104,6 +107,8 @@ export async function POST(request: NextRequest) {
       problemItems: problemResult.items,
       diagnosisItems: diagnosisResult.items,
       northStar: toNorthStarContext(nsRow),
+      // Whole text in (no truncation); only a string is meaningful, else undefined.
+      auditInput: typeof body.auditInput === 'string' ? body.auditInput : undefined,
     });
 
     return NextResponse.json({
