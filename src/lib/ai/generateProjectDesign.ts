@@ -27,6 +27,10 @@ interface GenerateInput {
   problemItems: string[];
   diagnosisItems: string[];
   northStar?: NorthStarContext | null;
+  // Optional pasted codebase audit (Claude Code). When present it is injected as a
+  // CODEBASE REALITY block so the plan reuses what already exists and never proposes
+  // building it again. Whole text in — no truncation (the API fails loud if oversized).
+  auditInput?: string | null;
 }
 
 interface GenerateOutput {
@@ -61,6 +65,8 @@ The user's natural-voice grammar maps to Bridgewater's 5-step scoping:
   - DESIGN field: numbered STEPS with timelines and decision points (you produce this)
 
 When a NORTH STAR block is present at the top of the user message, treat it as the strategic frame — scope this project as a coherent part of that vision, respecting its sequencing and dependencies, and do not propose work that contradicts it.
+
+When CODEBASE REALITY is provided: every step must be consistent with it. Reuse components, feeds, routes, and tables it documents as existing. NEVER propose building something it says exists. Where a step touches an existing component, name it.
 
 SOLO-FOUNDER OPERATOR CONTEXT: The user is a solo founder and User #1 of their own product. They validate by USING the thing in real production, not by controlled experiments. Favor decide-by-use over A/B tests, completion-rate metrics, abandonment funnels, or "test with N users" studies. Do NOT propose steps whose only deliverable is a measurement or a study. Institutional rigor here means sequencing and dependency discipline, not corporate product-management ceremony. NOTE: legitimate correctness-validation work (verifying a calculation against known-correct examples, reconciling data against a source of truth) IS real work and SHOULD be proposed when relevant — the guardrail targets ceremony, not correctness checks.
 
@@ -101,6 +107,13 @@ ${PROJECT_DESIGN_EXEMPLAR.design}
 Now produce a DESIGN field at this exact rigor for the user's project below. Remember: declarative voice, STEP-based output, decision points section, research the topic with your domain knowledge.`;
 
 export async function generateProjectDesign(input: GenerateInput): Promise<GenerateOutput> {
+  // Only emit the reality block when the box is non-empty — no empty header. Whole
+  // text in, no truncation (no-fallback law: oversized → the API errors loud).
+  const audit = input.auditInput?.trim();
+  const realityBlock = audit
+    ? `\n## CODEBASE REALITY (from Claude Code audit — what is actually shipped / stale / missing)\n${audit}\n`
+    : '';
+
   const userMessage = `${formatNorthStarBlock(input.northStar ?? null)}Project title: "${input.projectTitle}"
 
 GOAL items:
@@ -111,7 +124,7 @@ ${bulletList(input.problemItems)}
 
 DIAGNOSIS items:
 ${bulletList(input.diagnosisItems)}
-
+${realityBlock}
 DESIGN field: [you produce this — match the exemplar's depth and structure]`;
 
   const inputsSummary =
