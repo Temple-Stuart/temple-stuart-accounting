@@ -341,7 +341,7 @@ export default function ContentPipeline() {
 
       {/* · DAY — the day's blocks as a stacked clock-order list (shares useDayFeed
           with section 3's answer timeline). Collapsed by default; sits above 0·CREATE. */}
-      <DayCalendar date={date} />
+      <DayCalendar date={date} onDateChange={setDate} />
 
       {/* 0 · CREATE — collapsed by default; make a project · make a routine, mirroring
           the homepage live-demo two-up layout. The forms are the SAME extracted
