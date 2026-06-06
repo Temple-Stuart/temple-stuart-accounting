@@ -27,6 +27,23 @@ import type { ProjectForm } from './types';
 import { DEFAULT_PROJECT_FORM } from './types';
 import InspectionDrawer, { type InspectionData } from '../ai/InspectionDrawer';
 
+// KICKOFF prompt — the user copies this into their AI chat with their vision and
+// gets back form-ready GOAL/PROBLEM/DIAGNOSIS + a Claude Code audit prompt. Stored
+// as an in-file constant, matching the day-audit helper precedent (ScriptGenerator).
+const KICKOFF_PROMPT = `I'm starting a new project in Temple Stuart and I need you to prep all my inputs.
+
+From my vision below, write:
+1 · GOAL — "I WANT to..." items (what success looks like, 3-5 items)
+2 · PROBLEM — "I HAVE NOT..." / "I KEEP..." items (the gap, 2-4 items)
+3 · DIAGNOSIS — "Because..." / "The root cause is..." items (causes, not solutions — 2-3 items, the last one is THE root cause)
+
+Then write a READ-ONLY AUDIT PROMPT for Claude Code that investigates what already exists in my codebase relevant to this project. It must demand: file + line citations for every claim, what exists vs. what's missing vs. what's reusable, a deliverable filename in audit-reports/, and a full GIT block (branch, commit, push). Put the GIT block and deliverable name EARLY in the prompt, not at the end.
+
+I'll paste the audit report into the project's reality audit box, then generate the plan.
+
+MY VISION:
+[dump everything — messy is fine]`;
+
 interface Entity {
   id: string;
   name: string;
@@ -50,6 +67,18 @@ export default function ProjectCreateForm({ entities, defaultEntityId, onCreated
   const [entityTouched, setEntityTouched] = useState(false);
   const [createSaving, setCreateSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+
+  // Copy-prompt affordance — mirrors the day-audit helper (ScriptGenerator).
+  const [copied, setCopied] = useState(false);
+  const copyPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(KICKOFF_PROMPT);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCreateError('Could not copy — select the prompt and copy manually.');
+    }
+  };
 
   const [generatingCreateDesign, setGeneratingCreateDesign] = useState(false);
   const [createDesignPreview, setCreateDesignPreview] = useState<string | null>(null);
@@ -293,6 +322,30 @@ export default function ProjectCreateForm({ entities, defaultEntityId, onCreated
   return (
     <div className="mb-4 border border-brand-purple rounded p-3 bg-purple-50/30 text-xs font-mono space-y-3">
       <div className="font-bold text-text-primary">new project · 5-step scoping required</div>
+
+      {/* KICKOFF helper — copy to an AI chat with your vision; paste back the inputs +
+          audit prompt. Same pattern/classes as the day-audit helper (ScriptGenerator). */}
+      <div className="rounded border border-border-light bg-bg-row p-3 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-mono text-xs text-brand-purple font-medium uppercase tracking-wide">
+            kickoff — copy this to your AI chat first
+          </span>
+          <button
+            type="button"
+            onClick={copyPrompt}
+            className="px-2 py-0.5 font-mono text-xs border border-brand-purple rounded text-brand-purple hover:bg-purple-100/50"
+          >
+            {copied ? 'copied ✓' : 'copy prompt'}
+          </button>
+        </div>
+        <p className="text-text-muted">
+          Turns your raw vision into the inputs below + an audit prompt for Claude Code.
+        </p>
+        <pre className="font-mono text-[11px] leading-relaxed text-text-muted whitespace-pre-wrap break-words bg-white border border-border-light rounded p-2">
+{KICKOFF_PROMPT}
+        </pre>
+      </div>
+
       {createError && (
         <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
           {createError}
