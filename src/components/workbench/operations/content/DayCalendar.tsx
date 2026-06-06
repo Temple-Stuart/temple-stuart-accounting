@@ -9,7 +9,7 @@
  *   [ time | name | project | entity | status ]
  * Source is shown by the LEFT EDGE (amber = task, purple = scene) — the redundant
  * marker-text column is dropped for density (the edge is the echo). Name is the
- * dominant track and truncates (the INPUTS-grid lesson: never starve the reading col).
+ * dominant track and WRAPS — no truncation; readability beats uniform row height.
  *
  *   • GAPS — between two consecutive timed rows with BOTH bounds known, a muted
  *     divider names the open span (≥15m). No end → no gap claim (never guess).
@@ -31,20 +31,19 @@ import { dayAnchoredMinute, minuteOfDayFromInstant } from '@/lib/content/dayOrde
 
 const sectionHeader = 'font-mono text-sm font-medium tracking-wide text-brand-purple';
 
-// Status chip styling reused from the Content pipeline (ContentPipeline.tsx:55-59),
-// including its muted fallback for statuses outside the map (ContentPipeline.tsx:442).
-const STATUS_PILL: Record<string, string> = {
-  open: 'border-border text-text-muted',
-  in_progress: 'border-brand-purple text-brand-purple',
-  blocked: 'border-amber-400 text-amber-700 bg-amber-50',
-};
-const statusPillClass = (status: string) =>
-  STATUS_PILL[status] ?? 'border-border text-text-muted';
+// House calendar block colors — adopted from the shared CalendarGrid's filled blocks
+// (CalendarGrid.tsx:516 renders `${calendarColor} text-white`), with the per-source
+// tokens defined at hub/page.tsx:69-70: routines → bg-teal-400, operations → bg-indigo-400.
+// Scene/routine rows take the teal (aqua) fill; task rows take the indigo (purple) fill.
+const SCENE_FILL = 'bg-teal-400 text-white';
+const TASK_FILL = 'bg-indigo-400 text-white';
 
-// Shared row grid: dense, one line, columns aligned. Mobile shows [time|name|status];
-// lg+ adds [project|entity]. Name is the dominant flexible track.
+// Shared row grid: columns aligned across scene + task rows. Mobile shows
+// [time|name|status]; lg+ adds [project|entity]. Name is the dominant flexible track.
+// items-start so wrapped (non-truncated) rows read top-aligned. No border/edge — the
+// fill carries the source; rounded block per the house calendar.
 const ROW_GRID =
-  'grid items-center gap-x-3 px-2 py-1.5 rounded border border-l-4 ' +
+  'grid items-start gap-x-3 px-2 py-1.5 rounded ' +
   'grid-cols-[5.5rem_minmax(0,1fr)_5.5rem] ' +
   'lg:grid-cols-[7rem_minmax(0,1fr)_minmax(0,0.6fr)_5rem_5.5rem]';
 
@@ -192,31 +191,33 @@ export default function DayCalendar({
     const isTask = row.kind === 'task';
     const name = isTask ? row.block.title : row.scene.routine_step.activity;
     const project = isTask ? row.block.projectName : null;
-    const skin = colliding
-      ? 'border-red-300 bg-red-50'
-      : isTask
-        ? 'border-border-light border-l-amber-400 bg-amber-50/30'
-        : 'border-border-light border-l-brand-purple/40';
+    // Source = the FILL (teal scene / indigo task). Collision keeps the fill but adds a
+    // bold red inset ring (reads over any fill) + a ⚠ marker — unmistakable.
+    const fill = isTask ? TASK_FILL : SCENE_FILL;
+    const collide = colliding ? ' ring-2 ring-inset ring-red-500' : '';
     return (
       <li
         key={rowKey(row)}
-        className={`${ROW_GRID} ${skin}`}
+        className={`${ROW_GRID} ${fill}${collide}`}
         title={colliding ? 'overlaps another block on this day' : undefined}
       >
-        <span className="text-text-primary font-medium tabular-nums whitespace-nowrap truncate">
+        <span className="text-white font-medium tabular-nums whitespace-nowrap">
+          {colliding && <span className="mr-1" aria-hidden="true">⚠</span>}
           {timeText}
-          {isActual && <span className="ml-1 text-[10px] text-text-muted">act</span>}
+          {isActual && <span className="ml-1 text-[10px] text-white/70">act</span>}
         </span>
-        <span className="text-text-primary truncate" title={name}>{name}</span>
-        <span className="hidden lg:block text-text-muted truncate" title={project ?? ''}>
+        <span className="text-white font-medium break-words" title={name}>{name}</span>
+        <span className="hidden lg:block text-white/85 break-words" title={project ?? ''}>
           {project ?? ''}
         </span>
-        <span className="hidden lg:block text-text-muted truncate" title={entityName}>
+        <span className="hidden lg:block text-white/85 break-words" title={entityName}>
           {entityName}
         </span>
         <span className="justify-self-start">
           {isTask && (
-            <span className={`${chipBase} uppercase tracking-wide ${statusPillClass(row.block.status)}`}>
+            // White pill so the status stays legible on the indigo fill (the muted
+            // STATUS_PILL outline was illegible over a colored block).
+            <span className="px-2 py-0.5 rounded border border-transparent bg-white text-indigo-700 text-[11px] font-mono uppercase tracking-wide whitespace-nowrap">
               {row.block.status}
             </span>
           )}
