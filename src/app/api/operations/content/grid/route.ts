@@ -59,6 +59,8 @@ export async function GET(request: NextRequest) {
               activity: true,
               time_of_day: true,
               routine_id: true,
+              // OPS-CE day-calendar: a scene's end = start + duration (null stays null).
+              duration_minutes: true,
             },
           },
         },
