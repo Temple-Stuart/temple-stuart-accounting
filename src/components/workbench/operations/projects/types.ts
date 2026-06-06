@@ -64,6 +64,7 @@ export interface ProjectForm {
   target_completion_date: string;          // ISO date (yyyy-mm-dd) or empty
   estimated_total_minutes: string;         // string for input binding; coerced server-side
   estimated_total_cost_usd: string;        // string for decimal fidelity
+  claude_code_audit_input: string;         // pasted Claude Code audit; grounds plan/task generation
 }
 
 export const DEFAULT_PROJECT_FORM: ProjectForm = {
@@ -77,6 +78,7 @@ export const DEFAULT_PROJECT_FORM: ProjectForm = {
   target_completion_date: '',
   estimated_total_minutes: '',
   estimated_total_cost_usd: '',
+  claude_code_audit_input: '',
 };
 
 /**

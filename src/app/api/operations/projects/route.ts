@@ -231,6 +231,10 @@ export async function POST(request: NextRequest) {
     // Optional at create time; client may send it pre-populated.
     const design = trimNullable(body.design);
 
+    // Optional pasted Claude Code audit — persisted so later re-runs (design/tasks)
+    // stay grounded in the same codebase reality. Column is @db.Text; whole text in.
+    const claude_code_audit_input = trimNullable(body.claude_code_audit_input);
+
     // Verify entity ownership.
     const entity = await prisma.entities.findFirst({
       where: { id: entity_id_raw, userId: user.id },
@@ -299,6 +303,7 @@ export async function POST(request: NextRequest) {
         target_completion_date,
         estimated_total_minutes,
         estimated_total_cost_usd,
+        claude_code_audit_input,
         created_by: userEmail,
       },
     });

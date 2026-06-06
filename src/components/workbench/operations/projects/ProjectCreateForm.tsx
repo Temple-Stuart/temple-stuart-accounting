@@ -112,6 +112,7 @@ export default function ProjectCreateForm({ entities, defaultEntityId, onCreated
           goalItems: createForm.goalItems,
           problemItems: createForm.problemItems,
           diagnosisItems: createForm.diagnosisItems,
+          auditInput: createForm.claude_code_audit_input,
         }),
       });
       const body = await res.json();
@@ -173,6 +174,7 @@ export default function ProjectCreateForm({ entities, defaultEntityId, onCreated
           goalItems: createForm.goalItems,
           problemItems: createForm.problemItems,
           diagnosisItems: createForm.diagnosisItems,
+          auditInput: createForm.claude_code_audit_input,
         }),
       });
       const body = await res.json();
@@ -366,6 +368,17 @@ export default function ProjectCreateForm({ entities, defaultEntityId, onCreated
           verbPrefix="Because "
           altVerbPrefix="The root cause is "
           placeholder="I never blocked dedicated time for it"
+          disabled={createSaving}
+        />
+      </div>
+      <div>
+        <div className={labelClass}>reality audit (optional — paste Claude Code audit report)</div>
+        <textarea
+          value={createForm.claude_code_audit_input}
+          onChange={(e) => setCreateForm({ ...createForm, claude_code_audit_input: e.target.value })}
+          rows={4}
+          className="w-full px-2 py-1 bg-white border border-brand-purple/40 rounded text-xs font-mono text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20"
+          placeholder="Paste a codebase audit here so the plan reuses what already exists instead of proposing to rebuild it."
           disabled={createSaving}
         />
       </div>
