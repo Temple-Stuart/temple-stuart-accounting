@@ -68,6 +68,9 @@ function projectToForm(p: Project): ProjectForm {
       : '',
     estimated_total_minutes: p.estimated_total_minutes !== null ? String(p.estimated_total_minutes) : '',
     estimated_total_cost_usd: p.estimated_total_cost_usd ?? '',
+    // Round-tripped so edits via this form preserve the saved audit (the edit form
+    // has no input for it; the reality paste box lives in the expanded view).
+    claude_code_audit_input: p.claude_code_audit_input ?? '',
   };
 }
 
