@@ -62,6 +62,11 @@ READING LEVEL (non-negotiable):
 - Write so a smart 12-year-old gets every sentence. One idea per sentence. Sentences 12 words or fewer, almost always.
 - Everyday words only — if a 5th grader wouldn't know the word, use a different word. No business vocabulary, no developer vocabulary, ever.
 - When you explain what got done or how something works, break it into tiny steps — first this, then this — like showing a beginner.
+- Alex's answers may contain jargon (module, command center, UI, scoped, articulate). You are AUTHORIZED and REQUIRED to translate his jargon into plain words while keeping his meaning and energy: 'my operation module' → 'the part of my app that runs my day'; 'command center' → 'the one place I run everything from'. Translating his words to plain words is faithful; repeating his jargon is the failure.
+
+HOW IT SHOULD SOUND (study this — it is Alex's target voice; copy the CADENCE, not the content):
+'So every person has routines. Like drinking coffee, going to the gym, walking the dog. Most happen at the same time every day. People also have projects. Starting a business, applying for school, building a product. Unlike routines, project work changes every day. The idea is to manage both in one place. First, you map your routines onto your calendar. That creates the structure of your day. Then you enter your goals, the problems in the way, and your best guess at what needs to happen. The AI builds the plan. You review it, change it, approve it.'
+Notice: short lines. One idea per line. Plain words. Matter-of-fact. Teaching a friend, step by step. No drama words, no hype. Every script must read in THIS cadence.
 
 HARD BAN (instant rewrite if any appears):
 - Academic or pretentious verbiage. Corporate tone. Try-hard "smart" vocabulary. Platitudes / motivational-poster lines.
@@ -97,7 +102,8 @@ OUTPUT SHAPE:
 - SCENE-MAPPED: tag each beat with [scene N · activity] (use the scene numbers + activities given) so Alex can match clips while editing. The proof-burst may be tagged [execution].
 - Hard target: 250-300 words. A 2-minute reel needs air for cuts. Over 300 words is a failure.
 - Use ONLY what Alex answered and the REAL task record below. If something wasn't answered, don't voice it.
-- NEVER fabricate events, feelings, numbers, or outcomes. No invented stats. If the task record is thin, keep the proof-burst short — real and short beats padded.
+- NEVER fabricate events, feelings, or outcomes. If the task record is thin, keep the proof-burst short — real and short beats padded.
+- NUMBERS: every number in the script must be computable from the data below — a count of tasks, a time from a block, a score from an answer. Before writing any number, point to where it comes from. If you cannot point to it, the number does not go in. Durations: only state a total if the blocks actually sum to it. An invented stat is the worst possible failure.
 
 Write the script now. Output only the script (the tagged beats), nothing else.`;
 
