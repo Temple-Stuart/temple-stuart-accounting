@@ -100,10 +100,13 @@ interface Recommendation {
 
 export default async function DiscoverDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string; category: string; rank: string }>;
+  searchParams: Promise<{ destination?: string }>;
 }) {
   const { id: tripId, category, rank: rankStr } = await params;
+  const { destination } = await searchParams;
 
   // ─── Auth + ownership (security mandate) ─────────────────────────────────
   const userEmail = await getVerifiedEmail();
@@ -122,12 +125,21 @@ export default async function DiscoverDetailPage({
   });
   if (!trip) notFound();
 
-  // ─── Find the recommendation by (tripId, category, valueRank) ────────────
+  // ─── Find the recommendation by (tripId, destination, category, valueRank) ──
+  // Resolve against the schema's unique key (tripId, destination, category) —
+  // schema.prisma @@unique([tripId, destination, category]). valueRank is unique
+  // only WITHIN a destination's row, so omitting destination let rank collide
+  // across destinations of the same category and commit the WRONG place. The
+  // destination is threaded from the carousel link (TripPlannerAI). If it's
+  // absent we FAIL LOUD (notFound) rather than fall back to the old colliding
+  // cross-destination query — ambiguous resolution must never guess.
+  if (!destination) notFound();
+
   const wantedRank = parseInt(rankStr, 10);
   if (!Number.isFinite(wantedRank)) notFound();
 
   const rows = await prisma.trip_scanner_results.findMany({
-    where: { tripId, category },
+    where: { tripId, destination, category },
     orderBy: { updatedAt: 'desc' },
   });
   let rec: Recommendation | null = null;
