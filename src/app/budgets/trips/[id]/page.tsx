@@ -9,6 +9,7 @@ import DestinationMap from '@/components/trips/DestinationMap';
 import { TripScanProvider, TripScanControls, TripApiSection, getGooglePlaceCatKeys, TripScanModals } from '@/components/trips/TripPlannerAI';
 import CalendarGrid, { CalendarEvent, SourceConfig } from '@/components/shared/CalendarGrid';
 import ItineraryAgenda from '@/components/trips/ItineraryAgenda';
+import TripTimeline from '@/components/trips/TripTimeline';
 import TripHeader from '@/components/trips/TripHeader';
 import { ADMIN_USER_ID } from '@/lib/tiers';
 import { coaCodeToLabel } from '@/lib/travelCOA';
@@ -122,7 +123,9 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const [scannerResults, setScannerResults] = useState<any[]>([]);
   const [confirmedStartDay, setConfirmedStartDay] = useState<number | null>(null);
   // PR-18: itinerary view mode (agenda default) + agenda granularity.
-  const [itinView, setItinView] = useState<'agenda' | 'grid'>('agenda');
+  // Travel-PR-5: Timeline is the new DEFAULT view; Agenda/Grid kept behind the
+  // toggle (atomic + revertible — removing the old views is a later PR).
+  const [itinView, setItinView] = useState<'timeline' | 'agenda' | 'grid'>('timeline');
   const [agendaGran, setAgendaGran] = useState<'day' | 'week' | 'month'>('week');
   const [copiedLink, setCopiedLink] = useState(false);
   const [committing, setCommitting] = useState(false);
@@ -803,6 +806,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     </div>
                   )}
                   <div className="flex bg-white/15 rounded p-0.5 text-[11px]">
+                    <button onClick={() => setItinView('timeline')}
+                      className={`px-2 py-0.5 rounded transition-colors ${itinView === 'timeline' ? 'bg-white text-brand-purple font-semibold' : 'text-white/80 hover:text-white'}`}>Timeline</button>
                     <button onClick={() => setItinView('agenda')}
                       className={`px-2 py-0.5 rounded transition-colors ${itinView === 'agenda' ? 'bg-white text-brand-purple font-semibold' : 'text-white/80 hover:text-white'}`}>Agenda</button>
                     <button onClick={() => setItinView('grid')}
@@ -812,7 +817,14 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               </div>
               {calendarEvents.length > 0 || tripDates ? (
                 <div className="p-4">
-                  {itinView === 'agenda' ? (
+                  {itinView === 'timeline' ? (
+                    <TripTimeline
+                      itinerary={trip.itinerary || []}
+                      startDate={trip.startDate ?? null}
+                      endDate={trip.endDate ?? null}
+                      onUncommit={handleUncommitItem}
+                    />
+                  ) : itinView === 'agenda' ? (
                     <ItineraryAgenda
                       events={calendarEvents}
                       sourceConfig={TRIP_SOURCE_CONFIG}
