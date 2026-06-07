@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { getCOACode } from '@/lib/travelCategories';
-import { TRAVEL_COA } from '@/lib/travelCOA';
+import { TRAVEL_COA, isValidTravelCoaCode } from '@/lib/travelCOA';
 import { parseTimeOrNull } from '@/lib/operations/parseTime';
 
 // Travel COA codes: P-9xxx (personal) / B-9xxx (business)
@@ -86,7 +86,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const trip = await prisma.trips.findFirst({ where: { id, userId: user.id } });
     if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
 
-    const { optionType, optionId, startDate, endDate, startTime, endTime, arriveDate, notes, amount: requestAmount, location: requestLocation, synthetic, category } = await request.json();
+    const { optionType, optionId, startDate, endDate, startTime, endTime, arriveDate, notes, amount: requestAmount, location: requestLocation, synthetic, category,
+      // PR 3 — commit-time capture (all optional; absent = old client → derive/default):
+      recurrence: recurrenceInput, coa_code: coaCodeInput, vendor_name: vendorNameInput } = await request.json();
+
+    // PR 3: validate the user-selected COA against the canonical travel account
+    // list — NO free-text COA codes. Absent is fine (server derives, below);
+    // present-but-unknown is rejected loud (never silently coerced).
+    if (coaCodeInput != null && coaCodeInput !== '' && !isValidTravelCoaCode(coaCodeInput)) {
+      return NextResponse.json({ error: `Unknown COA code "${coaCodeInput}" — not a travel account.` }, { status: 400 });
+    }
+    const recurrenceOverride: 'once' | 'daily' | null =
+      recurrenceInput === 'once' || recurrenceInput === 'daily' ? recurrenceInput : null;
 
     // PR-32: a hotel committed from the discover detail page ("Add to trip")
     // has NO trip_lodging_options row (scanner recs live in
@@ -202,7 +213,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
       // PR-35: synthetic place commits use placePrefix (enforces the personal-
       // only/business rule); all other commits keep the trip-type prefix.
-      const coaCode = `${isSyntheticActivity ? placePrefix : prefix}-${coaNumber}`;
+      const derivedCoaCode = `${isSyntheticActivity ? placePrefix : prefix}-${coaNumber}`;
+      // PR 3: the user's validated COA selection wins; absent → derive as today
+      // (logged, so a fallback never diverges silently from the new capture path).
+      let coaCode: string;
+      if (coaCodeInput) {
+        coaCode = coaCodeInput;
+      } else {
+        coaCode = derivedCoaCode;
+        console.log(`[vendor-commit] COA fallback (no coa_code in body) → derived ${derivedCoaCode} for optionType=${optionType} category=${category ?? 'n/a'}`);
+      }
       const start = new Date(startDate);
 
       const budgetItem = await tx.budget_line_items.create({
@@ -277,10 +297,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             destDate: end, destTime: endTime || null,
             category: optionType, vendor: details.title, cost: Math.round(details.amount * 100) / 100,
             note: notes || null, location: activityLocation, vendorOptionId: optionId, vendorOptionType: optionType,
-            recurrence: isRange ? 'daily' : 'once',
+            // PR 3: the user's recurrence choice wins; absent → span default.
+            recurrence: recurrenceOverride ?? (isRange ? 'daily' : 'once'),
             block_start_time: blockStart,
             block_end_time: blockEnd,
-            vendor_name: details.title,
+            // PR 3: clean vendor name + COA captured on the itinerary row.
+            vendor_name: vendorNameInput || details.title,
+            coa_code: coaCode,
           },
         });
         itineraryEntries.push(entry);

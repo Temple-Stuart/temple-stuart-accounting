@@ -417,6 +417,37 @@ export function coaCodeToLabel(code: string): string {
   return LEGACY[code] || code;
 }
 
+// ─── Canonical travel COA account list (for the commit-time COA selector) ────
+// The single source the commit forms render as options AND the server validates
+// against (no free-text COA codes). Built from every non-null coaPersonal /
+// coaBusiness in TRAVEL_COA, deduped, with the category label for display
+// ("P-9520 · Gyms & Fitness").
+
+export interface TravelCOAAccount {
+  code: string;
+  label: string;
+}
+
+export function listTravelCOAAccounts(): TravelCOAAccount[] {
+  const seen = new Set<string>();
+  const out: TravelCOAAccount[] = [];
+  for (const cat of Object.values(TRAVEL_COA)) {
+    for (const code of [cat.coaPersonal, cat.coaBusiness]) {
+      if (code && !seen.has(code)) {
+        seen.add(code);
+        out.push({ code, label: cat.label });
+      }
+    }
+  }
+  return out.sort((a, b) => a.code.localeCompare(b.code));
+}
+
+/** True only for codes in the canonical travel account list — the server guard
+ *  that rejects unknown / free-text COA codes from a commit. */
+export function isValidTravelCoaCode(code: string): boolean {
+  return listTravelCOAAccounts().some((a) => a.code === code);
+}
+
 // ─── Calendar Source Config (derived from COA) ───────────────────────────────
 
 /** Build TRIP_SOURCE_CONFIG for CalendarGrid from TRAVEL_COA.

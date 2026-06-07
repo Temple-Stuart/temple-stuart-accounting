@@ -120,7 +120,7 @@ export default async function DiscoverDetailPage({
   const trip = await prisma.trips.findFirst({
     where: { id: tripId, userId: user.id },
     select: {
-      id: true, destination: true, startDate: true, endDate: true, daysTravel: true,
+      id: true, destination: true, startDate: true, endDate: true, daysTravel: true, tripType: true,
     },
   });
   if (!trip) notFound();
@@ -162,6 +162,23 @@ export default async function DiscoverDetailPage({
     : source === 'viator' ? 'via Viator'
     : source === 'google' ? 'Google · discovery (no booking)'
     : `via ${source}`;
+
+  // Pre-select the commit COA to the SAME code the server would derive today, so
+  // leaving the selector untouched reproduces current behaviour (it stays user-
+  // overridable). Mirrors vendor-commit's prefix rules: synthetic activity
+  // (Google) uses the placePrefix rule (B on business/mixed when the category is
+  // business-capable, else P); lodging (LiteAPI) uses the plain trip-type prefix
+  // (B only on a business trip). Codes come from the canonical TRAVEL_COA.
+  const coaCat = TRAVEL_COA[category];
+  const businessCapable = coaCat?.coaBusiness != null;
+  let suggestedCoaCode: string | null = null;
+  if (source === 'google' && coaCat) {
+    const useBusiness = businessCapable && (trip.tripType === 'business' || trip.tripType === 'mixed');
+    suggestedCoaCode = (useBusiness ? coaCat.coaBusiness : coaCat.coaPersonal) ?? coaCat.coaPersonal ?? coaCat.coaBusiness ?? null;
+  } else if (source === 'liteapi') {
+    const acc = TRAVEL_COA['accommodation'];
+    suggestedCoaCode = (trip.tripType === 'business' ? acc.coaBusiness : acc.coaPersonal) ?? acc.coaPersonal ?? null;
+  }
 
   // PR-28c: enrich the ONE viewed hotel from the rich /data/hotel content
   // endpoint (full gallery, full amenities, coords, guest-review aggregate,
@@ -468,6 +485,7 @@ export default async function DiscoverDetailPage({
               liteapiHotelId={rec.liteapiHotelId ?? null}
               perNight={perNight}
               nights={nights}
+              suggestedCoaCode={suggestedCoaCode}
             />
           )}
 
@@ -481,6 +499,7 @@ export default async function DiscoverDetailPage({
               category={category}
               placeName={rec.name}
               location={destinationLabel}
+              suggestedCoaCode={suggestedCoaCode}
             />
           )}
         </div>
