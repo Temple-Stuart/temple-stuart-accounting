@@ -324,9 +324,21 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       return NextResponse.json({ error: 'optionType and optionId are required' }, { status: 400 });
     }
 
+    // Synthetic commits — Google places via PlaceCommitForm (`place-…`,
+    // PlaceCommitForm.tsx:52) and LiteAPI hotels via AddToTripButton (`hotel-…`,
+    // AddToTripButton.tsx:77) — carry a NON-UUID placeholder in vendorOptionId and
+    // have NO option row: the commit POST builds them from the payload and skips
+    // the option-row update via its guard (route.ts:158). Mirror that guard here so
+    // the uncommit never looks the placeholder up in a @db.Uuid option table (which
+    // throws "Error creating UUID"). These `place-`/`hotel-` prefixes are the only
+    // two synthetic optionId constructors in the codebase. NON-synthetic optionIds
+    // are untouched, so a genuinely malformed UUID still surfaces its error below.
+    const isSynthetic = optionId.startsWith('place-') || optionId.startsWith('hotel-');
+
     await prisma.$transaction(async (tx) => {
-      // A. Reset vendor option status to proposed
-      if (optionType !== 'flight') {
+      // A. Reset vendor option status to proposed (real option rows only —
+      // flights and synthetic commits have no option row to update).
+      if (optionType !== 'flight' && !isSynthetic) {
         await setOptionStatus(tx, optionType, optionId, 'proposed', false);
       }
 
@@ -341,6 +353,20 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
         await tx.budget_line_items.deleteMany({
           where: { tripId: id, description: flightTitle, source: 'trip' },
         });
+      } else if (isSynthetic) {
+        // Synthetic commits have no option row — the budget title lives on the
+        // itinerary rows (vendor), exactly as the commit wrote it (route.ts:264),
+        // mirroring the flight branch above (no getOptionDetails / UUID lookup).
+        const itinEntries = await tx.trip_itinerary.findMany({
+          where: { tripId: id, vendorOptionId: optionId, vendorOptionType: optionType },
+          select: { vendor: true },
+        });
+        const syntheticTitle = itinEntries[0]?.vendor || deleteNotes || null;
+        if (syntheticTitle) {
+          await tx.budget_line_items.deleteMany({
+            where: { tripId: id, description: syntheticTitle, source: 'trip' },
+          });
+        }
       } else {
         const details = await getOptionDetails(tx, optionType, optionId, id);
         if (details) {
