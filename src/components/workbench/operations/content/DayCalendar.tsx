@@ -27,7 +27,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useOperationsEntity } from '../EntitySelector';
 import { useDayFeed, type TimelineRow } from './useDayFeed';
-import { dayAnchoredMinute, minuteOfDayFromInstant } from '@/lib/content/dayOrder';
+import { dayAnchoredMinute, minuteOfDayFromInstant, minuteOfDayFromTime } from '@/lib/content/dayOrder';
 
 const sectionHeader = 'font-mono text-sm font-medium tracking-wide text-brand-purple';
 
@@ -37,6 +37,8 @@ const sectionHeader = 'font-mono text-sm font-medium tracking-wide text-brand-pu
 // Scene/routine rows take the teal (aqua) fill; task rows take the indigo (purple) fill.
 const SCENE_FILL = 'bg-teal-400 text-white';
 const TASK_FILL = 'bg-indigo-400 text-white';
+// Travel rows take the house trip cyan (CalendarGrid trip events render cyan).
+const TRAVEL_FILL = 'bg-cyan-500 text-white';
 
 // Shared row grid: columns aligned across scene + task rows. Mobile shows
 // [time|name|status]; lg+ adds [project|entity]. Name is the dominant flexible track.
@@ -68,10 +70,18 @@ const fmtDuration = (min: number): string => {
   return `${m}m`;
 };
 
+// @db.Time ISO ("1970-01-01T22:00:00.000Z") → "22:00" (the wall-clock as set).
+const clockFromTimeIso = (iso: string | null): string =>
+  iso?.match(/T(\d{2}:\d{2})/)?.[1] ?? '';
+
 const rowEntityId = (row: TimelineRow): string =>
-  row.kind === 'scene' ? row.scene.entity_id : row.block.entity_id;
+  row.kind === 'scene' ? row.scene.entity_id
+  : row.kind === 'travel' ? row.travel.entity_id
+  : row.block.entity_id;
 const rowKey = (row: TimelineRow): string =>
-  row.kind === 'scene' ? `scene-${row.scene.id}` : `task-${row.block.id}`;
+  row.kind === 'scene' ? `scene-${row.scene.id}`
+  : row.kind === 'travel' ? `travel-${row.travel.id}`
+  : `task-${row.block.id}`;
 
 // Compact time text + actual flag. Tasks show "act" instead of the verbose "(actual)".
 function deriveTime(row: TimelineRow): { timeText: string; isActual: boolean } {
@@ -80,6 +90,12 @@ function deriveTime(row: TimelineRow): { timeText: string; isActual: boolean } {
     const dur = row.scene.routine_step.duration_minutes;
     const start = fmtMinute(row.minute);
     return { timeText: dur != null ? `${start}–${fmtMinute(row.minute + dur)}` : start, isActual: false };
+  }
+  if (row.kind === 'travel') {
+    if (row.minute == null) return { timeText: '', isActual: false }; // untimed (NULL block_start_time)
+    const start = clockFromTimeIso(row.travel.blockStartTime) || fmtMinute(row.minute);
+    const end = clockFromTimeIso(row.travel.blockEndTime);
+    return { timeText: `${start}${end ? `–${end}` : ''}`, isActual: false };
   }
   const b = row.block;
   if (row.minute == null) return { timeText: '', isActual: false }; // planned / untimed
@@ -96,6 +112,15 @@ function bounds(row: TimelineRow): { startA: number; endA: number | null } {
   if (row.kind === 'scene') {
     const dur = row.scene.routine_step.duration_minutes;
     return { startA, endA: dur != null ? startA + dur : null };
+  }
+  if (row.kind === 'travel') {
+    // End from block_end_time; an overnight window (e.g. 22:00→07:00) wraps past
+    // midnight, so add a day when the anchored end precedes the start.
+    const endMin = minuteOfDayFromTime(row.travel.blockEndTime);
+    if (endMin == null) return { startA, endA: null };
+    let endA = dayAnchoredMinute(endMin);
+    if (endA < startA) endA += 1440;
+    return { startA, endA };
   }
   const b = row.block;
   const endIso = b.actualStart ? b.actualEnd : b.scheduledEnd;
@@ -123,7 +148,7 @@ export default function DayCalendar({
 
   // Filters — empty set = no filter (all). OR within group, AND across groups.
   const [activeEntities, setActiveEntities] = useState<Set<string>>(new Set());
-  const [activeSources, setActiveSources] = useState<Set<'scene' | 'task'>>(new Set());
+  const [activeSources, setActiveSources] = useState<Set<'scene' | 'task' | 'travel'>>(new Set());
 
   const presentEntityIds = useMemo(() => {
     const s = new Set<string>();
@@ -134,6 +159,7 @@ export default function DayCalendar({
   }, [timeline, entityNameById]);
   const hasScenes = useMemo(() => timeline.some((r) => r.kind === 'scene'), [timeline]);
   const hasTasks = useMemo(() => timeline.some((r) => r.kind === 'task'), [timeline]);
+  const hasTravel = useMemo(() => timeline.some((r) => r.kind === 'travel'), [timeline]);
 
   const visible = useMemo(() => {
     const eOn = activeEntities.size > 0;
@@ -174,7 +200,7 @@ export default function DayCalendar({
       else next.add(id);
       return next;
     });
-  const toggleSource = (k: 'scene' | 'task') =>
+  const toggleSource = (k: 'scene' | 'task' | 'travel') =>
     setActiveSources((prev) => {
       const next = new Set(prev);
       if (next.has(k)) next.delete(k);
@@ -188,12 +214,36 @@ export default function DayCalendar({
   const renderRow = (row: TimelineRow, colliding: boolean): ReactNode => {
     const entityName = entityNameById.get(rowEntityId(row)) ?? rowEntityId(row);
     const { timeText, isActual } = deriveTime(row);
-    const isTask = row.kind === 'task';
-    const name = isTask ? row.block.title : row.scene.routine_step.activity;
-    const project = isTask ? row.block.projectName : null;
-    // Source = the FILL (teal scene / indigo task). Collision keeps the fill but adds a
-    // bold red inset ring (reads over any fill) + a ⚠ marker — unmistakable.
-    const fill = isTask ? TASK_FILL : SCENE_FILL;
+    // Per-kind name / secondary column / fill / right-edge pill.
+    let name: string;
+    let project: string | null;
+    let fill: string;
+    let rightPill: ReactNode = null;
+    if (row.kind === 'scene') {
+      name = row.scene.routine_step.activity;
+      project = null;
+      fill = SCENE_FILL;
+    } else if (row.kind === 'travel') {
+      name = row.travel.title;
+      project = row.travel.coaCode; // the COA shows in the project column for travel
+      fill = TRAVEL_FILL;
+      rightPill = (
+        <span className="px-2 py-0.5 rounded border border-transparent bg-white text-cyan-700 text-[11px] font-mono whitespace-nowrap">
+          ${Math.round(row.travel.cost).toLocaleString()}
+        </span>
+      );
+    } else {
+      name = row.block.title;
+      project = row.block.projectName;
+      fill = TASK_FILL;
+      rightPill = (
+        <span className="px-2 py-0.5 rounded border border-transparent bg-white text-indigo-700 text-[11px] font-mono uppercase tracking-wide whitespace-nowrap">
+          {row.block.status}
+        </span>
+      );
+    }
+    // Source = the FILL (teal scene / cyan travel / indigo task). Collision keeps the
+    // fill but adds a bold red inset ring (reads over any fill) + a ⚠ marker.
     const collide = colliding ? ' ring-2 ring-inset ring-red-500' : '';
     return (
       <li
@@ -214,13 +264,8 @@ export default function DayCalendar({
           {entityName}
         </span>
         <span className="justify-self-start">
-          {isTask && (
-            // White pill so the status stays legible on the indigo fill (the muted
-            // STATUS_PILL outline was illegible over a colored block).
-            <span className="px-2 py-0.5 rounded border border-transparent bg-white text-indigo-700 text-[11px] font-mono uppercase tracking-wide whitespace-nowrap">
-              {row.block.status}
-            </span>
-          )}
+          {/* White pill stays legible on the colored fill: task → status, travel → cost. */}
+          {rightPill}
         </span>
       </li>
     );
@@ -310,7 +355,7 @@ export default function DayCalendar({
                   ))}
                 </div>
               )}
-              {(hasScenes || hasTasks) && (
+              {(hasScenes || hasTasks || hasTravel) && (
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="font-mono text-[10px] uppercase tracking-wide text-text-muted">source</span>
                   {hasScenes && (
@@ -320,6 +365,15 @@ export default function DayCalendar({
                       className={`${chipBase} ${activeSources.has('scene') ? chipOn : chipOff}`}
                     >
                       scenes
+                    </button>
+                  )}
+                  {hasTravel && (
+                    <button
+                      type="button"
+                      onClick={() => toggleSource('travel')}
+                      className={`${chipBase} ${activeSources.has('travel') ? chipOn : chipOff}`}
+                    >
+                      travel
                     </button>
                   )}
                   {hasTasks && (

@@ -105,9 +105,43 @@ export interface DayTaskBlock {
   actualEnd: string | null;
 }
 
+/** Raw travel block as /api/trips/day-blocks returns it. */
+export interface TravelBlockRaw {
+  id: string;
+  tripId: string;
+  vendorName: string;
+  cost: number;
+  coaCode: string | null;
+  recurrence: string;
+  /** @db.Time ISO ("1970-01-01T22:00:00.000Z") or null — same shape as a
+   *  scene's routine_step.time_of_day, read via minuteOfDayFromTime. */
+  blockStartTime: string | null;
+  blockEndTime: string | null;
+}
+
+/** One flattened travel row in the day feed (mirrors DayTaskBlock's role). */
+export interface DayTravelBlock {
+  id: string;
+  tripId: string;
+  /** Synthetic entity bucket — trips carry no entity, but the DayCalendar
+   *  groups/filters every row by an entity id. Constant so travel reads as one
+   *  "travel" source-entity. */
+  entity_id: string;
+  title: string;
+  cost: number;
+  coaCode: string | null;
+  recurrence: string;
+  blockStartTime: string | null;
+  blockEndTime: string | null;
+  label: string;
+  minute: number | null;
+  order: number;
+}
+
 export type TimelineRow =
   | { kind: 'scene'; minute: number | null; order: number; scene: SceneRow }
-  | { kind: 'task'; minute: number | null; order: number; block: DayTaskBlock };
+  | { kind: 'task'; minute: number | null; order: number; block: DayTaskBlock }
+  | { kind: 'travel'; minute: number | null; order: number; travel: DayTravelBlock };
 
 export interface UseDayFeed {
   timeline: TimelineRow[];
@@ -131,6 +165,14 @@ const fmtClock = (iso: string): string => {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
+// @db.Time ISO ("1970-01-01T22:00:00.000Z") → "22:00" for the travel label
+// DISPLAY (the wall-clock the user set; never shifted by timezone).
+const clockFromTimeIso = (iso: string | null): string =>
+  iso?.match(/T(\d{2}:\d{2})/)?.[1] ?? '';
+
+// Synthetic entity bucket for travel rows (trips carry no entity).
+const TRAVEL_ENTITY_ID = 'travel';
+
 // Untimed task rows sink after the untimed scenes; ordered among themselves by plan order.
 const UNTIMED_TASK_ORDER_BASE = 100000;
 
@@ -140,6 +182,7 @@ export function useDayFeed(date: string): UseDayFeed {
   const [cells, setCells] = useState<Cell[]>([]);
   const [projectNameById, setProjectNameById] = useState<Record<string, string>>({});
   const [planItems, setPlanItems] = useState<PlanItem[]>([]);
+  const [travelRaw, setTravelRaw] = useState<TravelBlockRaw[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -186,12 +229,28 @@ export function useDayFeed(date: string): UseDayFeed {
     }
   }, [date]);
 
+  // Travel itinerary blocks for the selected day — CROSS-TRIP (user-scoped),
+  // the third source. Day-scoped sibling of loadBlocks (tasks).
+  const loadTravel = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/trips/day-blocks?date=${date}`, { credentials: 'include' });
+      if (!res.ok) return;
+      const body = await res.json();
+      setTravelRaw(body.blocks ?? []);
+    } catch {
+      /* leave prior travel blocks on a transient failure */
+    }
+  }, [date]);
+
   useEffect(() => {
     void load();
   }, [load]);
   useEffect(() => {
     void loadBlocks();
   }, [loadBlocks]);
+  useEffect(() => {
+    void loadTravel();
+  }, [loadTravel]);
   // OPS-CE-8D: re-read the day's tasks when one is added on the day (S1 add-to-day).
   useEffect(() => {
     const refresh = () => void loadBlocks();
@@ -291,8 +350,36 @@ export function useDayFeed(date: string): UseDayFeed {
     return rows;
   }, [planItems, projectNameById]);
 
-  // Merge-sort scenes + task blocks into one timeline via the ONE shared
-  // day-anchored order (midnight wraps to day-end).
+  // Flatten travel blocks into read-only rows. minute comes from block_start_time
+  // via minuteOfDayFromTime — the SAME extraction the scene path uses for
+  // time_of_day (a @db.Time value). NULL block_start_time → untimed: minute null
+  // + a high order so it sinks into the unscheduled lane, mirroring planned tasks.
+  const travelBlocks = useMemo<DayTravelBlock[]>(() => {
+    return travelRaw.map((t, idx) => {
+      const minute = minuteOfDayFromTime(t.blockStartTime);
+      const start = clockFromTimeIso(t.blockStartTime);
+      const end = clockFromTimeIso(t.blockEndTime);
+      const costLabel = `$${Math.round(t.cost).toLocaleString()}`;
+      const label = minute != null ? `${start}${end ? `–${end}` : ''} · ${costLabel}` : costLabel;
+      return {
+        id: t.id,
+        tripId: t.tripId,
+        entity_id: TRAVEL_ENTITY_ID,
+        title: t.vendorName,
+        cost: t.cost,
+        coaCode: t.coaCode,
+        recurrence: t.recurrence,
+        blockStartTime: t.blockStartTime,
+        blockEndTime: t.blockEndTime,
+        label,
+        minute,
+        order: minute != null ? minute : UNTIMED_TASK_ORDER_BASE + idx,
+      };
+    });
+  }, [travelRaw]);
+
+  // Merge-sort scenes + task blocks + travel blocks into one timeline via the ONE
+  // shared day-anchored order (midnight wraps to day-end; tie = scene→travel→task).
   const timeline = useMemo<TimelineRow[]>(() => {
     const rows: TimelineRow[] = [
       ...dayScenes.map((s) => ({
@@ -302,10 +389,11 @@ export function useDayFeed(date: string): UseDayFeed {
         scene: s,
       })),
       ...taskBlocks.map((b) => ({ kind: 'task' as const, minute: b.minute, order: b.order, block: b })),
+      ...travelBlocks.map((t) => ({ kind: 'travel' as const, minute: t.minute, order: t.order, travel: t })),
     ];
     rows.sort(compareDayOrder);
     return rows;
-  }, [dayScenes, taskBlocks]);
+  }, [dayScenes, taskBlocks, travelBlocks]);
 
   return {
     timeline,
