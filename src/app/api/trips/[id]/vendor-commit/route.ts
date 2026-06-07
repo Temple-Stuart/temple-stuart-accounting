@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { getCOACode } from '@/lib/travelCategories';
 import { TRAVEL_COA } from '@/lib/travelCOA';
+import { parseTimeOrNull } from '@/lib/operations/parseTime';
 
 // Travel COA codes: P-9xxx (personal) / B-9xxx (business)
 // Maps vendor optionType to the 9xxx travel COA number
@@ -250,24 +251,49 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         });
         itineraryEntries.push(entry);
       } else {
-        // Multi-day bookings (lodging, vehicles, etc.) — create entry per day
-        const current = new Date(start);
+        // Date-range bookings (lodging, gym membership, multi-day activities) →
+        // ONE recurrence-template row, NOT N amortized per-day rows. cost is the
+        // FULL real amount (no division) so the itinerary never penny-drifts from
+        // the single honest budget row. recurrence='daily' for a real range,
+        // 'once' for a single date. Per-night/per-day display math is the
+        // renderer's job (later PR), never stored.
         const totalDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-        const dailyCost = details.amount / totalDays;
+        const isRange = totalDays > 1;
+        const dayNum = Math.round((start.getTime() - tripStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-        while (current <= end) {
-          const dayNum = Math.round((current.getTime() - tripStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-          const entry = await tx.trip_itinerary.create({
-            data: {
-              tripId: id, day: dayNum, homeDate: current, homeTime: startTime || null,
-              destDate: current, destTime: endTime || null,
-              category: optionType, vendor: details.title, cost: Math.round(dailyCost * 100) / 100,
-              note: notes || null, location: activityLocation, vendorOptionId: optionId, vendorOptionType: optionType,
-            },
-          });
-          itineraryEntries.push(entry);
-          current.setDate(current.getDate() + 1);
-        }
+        // Daily time window (@db.Time(6), 1970-anchored): use the commit's time
+        // inputs when present; lodging falls back to an overnight 22:00–07:00 stay
+        // window; other types stay NULL (no fabricated window).
+        const blockStart =
+          parseTimeOrNull(startTime, 'block_start_time').value ??
+          (optionType === 'lodging' ? parseTimeOrNull('22:00', 'block_start_time').value : null);
+        const blockEnd =
+          parseTimeOrNull(endTime, 'block_end_time').value ??
+          (optionType === 'lodging' ? parseTimeOrNull('07:00', 'block_end_time').value : null);
+
+        const entry = await tx.trip_itinerary.create({
+          data: {
+            tripId: id, day: dayNum, homeDate: start, homeTime: startTime || null,
+            destDate: end, destTime: endTime || null,
+            category: optionType, vendor: details.title, cost: Math.round(details.amount * 100) / 100,
+            note: notes || null, location: activityLocation, vendorOptionId: optionId, vendorOptionType: optionType,
+            recurrence: isRange ? 'daily' : 'once',
+            block_start_time: blockStart,
+            block_end_time: blockEnd,
+            vendor_name: details.title,
+          },
+        });
+        itineraryEntries.push(entry);
+      }
+
+      // Auditable 1:1 link: point the single budget row at its itinerary template
+      // (budget_line_items.itineraryId was previously never populated). Every
+      // branch now writes exactly one primary itinerary row.
+      if (itineraryEntries[0]) {
+        await tx.budget_line_items.update({
+          where: { id: budgetItem.id },
+          data: { itineraryId: itineraryEntries[0].id },
+        });
       }
 
       return { budgetItem, itineraryEntries, optionType, optionId, details };
