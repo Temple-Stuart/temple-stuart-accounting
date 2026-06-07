@@ -4,6 +4,7 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { getCOACode } from '@/lib/travelCategories';
 import { TRAVEL_COA, isValidTravelCoaCode } from '@/lib/travelCOA';
 import { parseTimeOrNull } from '@/lib/operations/parseTime';
+import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 
 // Travel COA codes: P-9xxx (personal) / B-9xxx (business)
 // Maps vendor optionType to the 9xxx travel COA number
@@ -340,6 +341,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       console.error('Calendar event insert failed (non-fatal):', calErr);
     }
 
+    // Audit — mirrors the operations sibling (daily-plan/blocks/[blockId]:163-179).
+    await writeAuditLog({
+      actor: { user_id: user.id, email: userEmail, type: 'human_user' },
+      action: {
+        type: 'trip_itinerary_committed',
+        description: `Committed ${optionType} "${result.details.title}" to trip ${id}`,
+      },
+      target: { table: 'trip_itinerary', id: result.itineraryEntries[0]?.id ?? result.budgetItem.id },
+      payload: {
+        after: { itineraryEntries: result.itineraryEntries, budgetItem: result.budgetItem },
+        metadata: { tripId: id, optionType, optionId, budgetItemId: result.budgetItem.id },
+      },
+    });
+
     return NextResponse.json({
       success: true,
       budgetItemId: result.budgetItem.id,
@@ -438,6 +453,17 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     } catch (calErr) {
       console.error('Calendar event delete failed (non-fatal):', calErr);
     }
+
+    // Audit — mirrors the operations sibling (daily-plan/blocks/[blockId]:213-226).
+    await writeAuditLog({
+      actor: { user_id: user.id, email: userEmail, type: 'human_user' },
+      action: {
+        type: 'trip_itinerary_uncommitted',
+        description: `Uncommitted ${optionType} (${optionId}) from trip ${id}`,
+      },
+      target: { table: 'trip_itinerary', id: optionId },
+      payload: { metadata: { tripId: id, optionType, optionId } },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

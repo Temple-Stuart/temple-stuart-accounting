@@ -2167,6 +2167,10 @@ enum AuditActionType {
   operations_north_star_created
   operations_north_star_updated
   operations_north_star_reviewed
+  // Trip itinerary (Travel) — see prisma/migrations-manual/trip_audit_enums.sql
+  trip_itinerary_updated
+  trip_itinerary_committed
+  trip_itinerary_uncommitted
   system_other
 }
 

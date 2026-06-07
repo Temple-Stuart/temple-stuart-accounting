@@ -21,6 +21,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { parseTimeOrNull } from '@/lib/operations/parseTime';
 
 /** YYYY-MM-DD → UTC-midnight Date, or null if malformed. */
@@ -96,10 +97,17 @@ export async function PATCH(
 
     const updated = await prisma.trip_itinerary.update({ where: { id: itineraryId }, data });
 
-    // NOTE: no writeAuditLog here. The trip domain has no AuditActionType enum
-    // value (it's a Prisma enum — adding one is a schema change, out of scope for
-    // this PR), and the trip-side siblings (vendor-commit, itinerary GET) don't
-    // audit either. Matching them rather than fabricating a mismatched action type.
+    // Audit — mirrors the operations sibling (daily-plan/blocks/[blockId]:163-179).
+    await writeAuditLog({
+      actor: { user_id: user.id, email: userEmail, type: 'human_user' },
+      action: {
+        type: 'trip_itinerary_updated',
+        description: `Updated itinerary block ${itineraryId} on trip ${tripId}`,
+      },
+      target: { table: 'trip_itinerary', id: itineraryId },
+      payload: { before: existing, after: updated, metadata: { tripId } },
+    });
+
     return NextResponse.json({ itinerary: updated });
   } catch (error) {
     console.error('[Trip Itinerary PATCH]', error);
