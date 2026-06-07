@@ -150,6 +150,9 @@ export async function POST(
       // only the LiteAPI/accommodation path consumes them).
       checkin: bodyCheckin,
       checkout: bodyCheckout,
+      // Optional caller override for the LiteAPI coordinate-radius (meters). When
+      // absent the client keeps its 25km default — behaviour is identical to before.
+      radiusMeters: bodyRadiusMeters,
     } = body;
     // PR-10 Fix 2: alias-resolve legacy category keys before validation so
     // stale client bundles (still sending 'sports_fitness') survive PR-9's
@@ -270,14 +273,22 @@ export async function POST(
           occupancies: [{ adults }],
           maxResults,
           ...(coords ? { latitude: coords.lat, longitude: coords.lng } : {}),
+          ...(bodyRadiusMeters ? { radiusMeters: bodyRadiusMeters } : {}),
         });
 
-        const finalResults = hotels
+        // Rank the FULL mapped set FIRST, then truncate to the best `maxResults`.
+        // (The client no longer pre-slices in native order — so a high-scoring
+        // hotel at native position 90 now survives to the top of the ranking.)
+        const rankedAll = hotels
           .map((h, idx) => liteApiHotelToRecommendation(h, idx, category))
-          .sort((a, b) => b.compositeScore - a.compositeScore)
+          .sort((a, b) => b.compositeScore - a.compositeScore);
+        const finalResults = rankedAll
           .slice(0, maxResults)
           .map((rec, idx) => ({ ...rec, valueRank: idx + 1 }));
 
+        // Completeness instrument: total ranked (X) vs returned (N) per search,
+        // so truncation pressure is observable alongside the client's dataLen log.
+        console.log(`[LiteAPI] ${category}: ranked=${rankedAll.length} returned=${finalResults.length} (cap=${maxResults})`);
         console.log(`[LiteAPI] ${category}: ${finalResults.length} hotels (hardBookable=${hardBookable})`);
 
         try {

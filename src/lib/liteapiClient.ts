@@ -309,8 +309,14 @@ export async function searchHotelRates(params: SearchHotelsParams): Promise<Lite
     return { ...r, hotel: { ...meta, ...(r.hotel || {}) }, nights, checkinDate, checkoutDate };
   });
 
-  const max = params.maxResults || 33;
-  return merged.slice(0, max);
+  // Return the FULL merged set — ranking + truncation happen in the caller
+  // (ai-assistant route: compositeScore sort, THEN slice to maxResults). Slicing
+  // here in LiteAPI's native order would cut high-scoring hotels BEFORE they are
+  // ranked (the Canggu-vs-Kuta completeness bug). No client-side cap: one
+  // /hotels/rates response is already server-bounded by LiteAPI, so there is no
+  // payload/memory reason to truncate here — a hidden cap would silently re-create
+  // the same loss. `params.maxResults` is now consumed only by the caller's slice.
+  return merged;
 }
 
 // ─── Mapping into the canonical recommendation shape ─────────────────────────
