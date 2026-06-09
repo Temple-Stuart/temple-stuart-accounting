@@ -22,11 +22,15 @@ import { dirname, resolve } from 'node:path';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BASE = 'src/components/workbench/operations/projects';
+const OPS = 'src/components/workbench/operations';
 
 // The subtree that renders on the public page. EXPLICIT list — every file here
 // must stay fetch-free. (The Layer-2 runtime guard lives in src/lib and is
 // intentionally NOT in this list.)
 const SUBTREE_FILES = [
+  // PR E wrapper — the full 3-panel Operations story root.
+  `${OPS}/showroom/OperationsPipelineShowroom.tsx`,
+  // Projects pipe (PR5–PR9).
   `${BASE}/showroom/ProjectsPipelineShowroom.tsx`,
   `${BASE}/showroom/demoData.ts`,
   `${BASE}/showroom/narrativeCopy.ts`,
@@ -35,6 +39,10 @@ const SUBTREE_FILES = [
   `${BASE}/EvolutionTimelineView.tsx`,
   `${BASE}/DependencyListView.tsx`,
   `${BASE}/TaskRowView.tsx`,
+  // Day + Script panels (PR B/C views, PR D seed) — now public via PR E.
+  `${OPS}/content/DayCalendarView.tsx`,
+  `${OPS}/content/ScriptGeneratorView.tsx`,
+  `${OPS}/content/showroom/demoData.ts`,
 ];
 
 // Forbidden patterns. Each is a real data-access or live-container signal. The
@@ -47,8 +55,10 @@ const FORBIDDEN = [
   { name: 'useOperationsEntity', re: /\buseOperationsEntity\s*\(/ },
   { name: "'/api/' path string", re: /['"`]\/api\// },
   {
-    name: 'live container import (TaskList/EvolutionTimeline/DependencyList/ProjectRow/TaskRow)',
-    re: /from\s+['"][^'"]*\/(TaskList|EvolutionTimeline|DependencyList|ProjectRow|TaskRow)['"]/,
+    name: 'live container import (TaskList/EvolutionTimeline/DependencyList/ProjectRow/TaskRow/DayCalendar/ScriptGenerator)',
+    // Trailing quote anchors the exact module name, so the pure *View imports
+    // (DayCalendarView / ScriptGeneratorView / TaskListView …) never match.
+    re: /from\s+['"][^'"]*\/(TaskList|EvolutionTimeline|DependencyList|ProjectRow|TaskRow|DayCalendar|ScriptGenerator)['"]/,
   },
 ];
 
