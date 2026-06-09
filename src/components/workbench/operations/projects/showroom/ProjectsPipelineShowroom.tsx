@@ -43,6 +43,7 @@ import {
   demoEvolution,
 } from './demoData';
 import { showroomNarrativeCopy, type CopyBlock } from './narrativeCopy';
+import { guardShowroomRender } from '@/lib/showroom/renderGuard';
 
 interface Props {
   /** Opens the existing home register/login modal (page.tsx:74 — the same
@@ -182,7 +183,10 @@ export default function ProjectsPipelineShowroom({ onRequireAuth }: Props) {
     </>
   );
 
-  return (
+  // LAYER 2 runtime guard (PR10): any fetch initiated during the showroom's
+  // synchronous render throws ShowroomFetchError instead of reaching the server.
+  // Normal render calls no fetch, so this never trips in normal use.
+  return guardShowroomRender(() => (
     <div>
       {/* Intro — what this is, above the pipe. */}
       <div className="mb-4">
@@ -261,5 +265,5 @@ export default function ProjectsPipelineShowroom({ onRequireAuth }: Props) {
         </button>
       </div>
     </div>
-  );
+  ));
 }
