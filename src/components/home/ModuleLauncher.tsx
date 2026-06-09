@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import CreateTripForm from '@/components/trips/CreateTripForm';
 import ScanFilterForm from '@/components/trading/ScanFilterForm';
-import ProjectsPipelineShowroom from '@/components/workbench/operations/projects/showroom/ProjectsPipelineShowroom';
+import OperationsPipelineShowroom from '@/components/workbench/operations/showroom/OperationsPipelineShowroom';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
 import { DEFAULT_FILTERS } from '@/lib/convergence/filter-types';
 
@@ -108,12 +108,11 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
       return <CreateTripForm onUnauthenticated={gateGuestCreate} showHeader={false} />;
     }
     if (m.key === 'operations') {
-      // PR11: the narrated, locked-but-visible Operations Projects pipe — the REAL
-      // slot-based ProjectRowView fed the static demo seed, built from pure views
-      // only (no live container, no fetch at any depth; PR5–PR10). Every action
-      // reuses onRequireAuth — the SAME login-modal trigger Travel's gateGuestCreate
-      // + the paid stubs use. Safe by construction + guarded (PR10): nothing to call.
-      return <ProjectsPipelineShowroom onRequireAuth={onRequireAuth} />;
+      // PR E: the FULL locked-but-visible Operations story — Project → Day → Script,
+      // three REAL pure views fed static demo seed, every action (incl. the PAID
+      // generate-script) bound to onRequireAuth. No live container, no fetch at any
+      // depth (PR5–PR10 + guardrail). Safe by construction: nothing to call.
+      return <OperationsPipelineShowroom onRequireAuth={onRequireAuth} />;
     }
     if (m.key === 'trading' && isAdmin) {
       // TRADING-PR-2/3: admin sees the working ScanFilterForm (Scan routes to
