@@ -28,6 +28,7 @@ import {
   type SceneRow,
   type Cell,
   type DayTaskBlock,
+  type DayTravelBlock,
 } from './useDayFeed';
 
 type RowState = 'idle' | 'saving' | 'saved' | 'error';
@@ -225,6 +226,21 @@ export default function DailyLog({ date }: { date: string }) {
     </tr>
   );
 
+  // Read-only travel band — cyan left edge (house trip color), time · vendor · cost.
+  // Minimal sibling of renderTaskRow; no TaskBand (that's task-specific).
+  const renderTravelRow = (t: DayTravelBlock) => (
+    <tr key={`travel-${t.id}`}>
+      <td colSpan={6} className="border border-border-light border-l-4 border-l-cyan-500 bg-cyan-50/50 px-3 py-2 align-top">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 font-mono text-xs">
+          <span className="tabular-nums text-text-muted">{t.label}</span>
+          <span className="font-medium text-text-primary break-words">{t.title}</span>
+          {t.coaCode && <span className="text-text-faint">· {t.coaCode}</span>}
+          {t.recurrence === 'daily' && <span className="text-cyan-700">· daily</span>}
+        </div>
+      </td>
+    </tr>
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -284,7 +300,9 @@ export default function DailyLog({ date }: { date: string }) {
             </thead>
             <tbody>
               {timeline.map((row) =>
-                row.kind === 'scene' ? renderSceneRow(row.scene) : renderTaskRow(row.block)
+                row.kind === 'scene' ? renderSceneRow(row.scene)
+                : row.kind === 'travel' ? renderTravelRow(row.travel)
+                : renderTaskRow(row.block)
               )}
               {!timeline.some((row) => row.kind === 'task') && (
                 <tr>

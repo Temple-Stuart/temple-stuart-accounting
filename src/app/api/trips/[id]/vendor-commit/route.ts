@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { getCOACode } from '@/lib/travelCategories';
-import { TRAVEL_COA } from '@/lib/travelCOA';
+import { TRAVEL_COA, isValidTravelCoaCode } from '@/lib/travelCOA';
+import { parseTimeOrNull } from '@/lib/operations/parseTime';
 
 // Travel COA codes: P-9xxx (personal) / B-9xxx (business)
 // Maps vendor optionType to the 9xxx travel COA number
@@ -85,7 +86,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const trip = await prisma.trips.findFirst({ where: { id, userId: user.id } });
     if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
 
-    const { optionType, optionId, startDate, endDate, startTime, endTime, arriveDate, notes, amount: requestAmount, location: requestLocation, synthetic, category } = await request.json();
+    const { optionType, optionId, startDate, endDate, startTime, endTime, arriveDate, notes, amount: requestAmount, location: requestLocation, synthetic, category,
+      // PR 3 — commit-time capture (all optional; absent = old client → derive/default):
+      recurrence: recurrenceInput, coa_code: coaCodeInput, vendor_name: vendorNameInput } = await request.json();
+
+    // PR 3: validate the user-selected COA against the canonical travel account
+    // list — NO free-text COA codes. Absent is fine (server derives, below);
+    // present-but-unknown is rejected loud (never silently coerced).
+    if (coaCodeInput != null && coaCodeInput !== '' && !isValidTravelCoaCode(coaCodeInput)) {
+      return NextResponse.json({ error: `Unknown COA code "${coaCodeInput}" — not a travel account.` }, { status: 400 });
+    }
+    const recurrenceOverride: 'once' | 'daily' | null =
+      recurrenceInput === 'once' || recurrenceInput === 'daily' ? recurrenceInput : null;
 
     // PR-32: a hotel committed from the discover detail page ("Add to trip")
     // has NO trip_lodging_options row (scanner recs live in
@@ -201,7 +213,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
       // PR-35: synthetic place commits use placePrefix (enforces the personal-
       // only/business rule); all other commits keep the trip-type prefix.
-      const coaCode = `${isSyntheticActivity ? placePrefix : prefix}-${coaNumber}`;
+      const derivedCoaCode = `${isSyntheticActivity ? placePrefix : prefix}-${coaNumber}`;
+      // PR 3: the user's validated COA selection wins; absent → derive as today
+      // (logged, so a fallback never diverges silently from the new capture path).
+      let coaCode: string;
+      if (coaCodeInput) {
+        coaCode = coaCodeInput;
+      } else {
+        coaCode = derivedCoaCode;
+        console.log(`[vendor-commit] COA fallback (no coa_code in body) → derived ${derivedCoaCode} for optionType=${optionType} category=${category ?? 'n/a'}`);
+      }
       const start = new Date(startDate);
 
       const budgetItem = await tx.budget_line_items.create({
@@ -250,24 +271,52 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         });
         itineraryEntries.push(entry);
       } else {
-        // Multi-day bookings (lodging, vehicles, etc.) — create entry per day
-        const current = new Date(start);
+        // Date-range bookings (lodging, gym membership, multi-day activities) →
+        // ONE recurrence-template row, NOT N amortized per-day rows. cost is the
+        // FULL real amount (no division) so the itinerary never penny-drifts from
+        // the single honest budget row. recurrence='daily' for a real range,
+        // 'once' for a single date. Per-night/per-day display math is the
+        // renderer's job (later PR), never stored.
         const totalDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-        const dailyCost = details.amount / totalDays;
+        const isRange = totalDays > 1;
+        const dayNum = Math.round((start.getTime() - tripStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-        while (current <= end) {
-          const dayNum = Math.round((current.getTime() - tripStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-          const entry = await tx.trip_itinerary.create({
-            data: {
-              tripId: id, day: dayNum, homeDate: current, homeTime: startTime || null,
-              destDate: current, destTime: endTime || null,
-              category: optionType, vendor: details.title, cost: Math.round(dailyCost * 100) / 100,
-              note: notes || null, location: activityLocation, vendorOptionId: optionId, vendorOptionType: optionType,
-            },
-          });
-          itineraryEntries.push(entry);
-          current.setDate(current.getDate() + 1);
-        }
+        // Daily time window (@db.Time(6), 1970-anchored): use the commit's time
+        // inputs when present; lodging falls back to an overnight 22:00–07:00 stay
+        // window; other types stay NULL (no fabricated window).
+        const blockStart =
+          parseTimeOrNull(startTime, 'block_start_time').value ??
+          (optionType === 'lodging' ? parseTimeOrNull('22:00', 'block_start_time').value : null);
+        const blockEnd =
+          parseTimeOrNull(endTime, 'block_end_time').value ??
+          (optionType === 'lodging' ? parseTimeOrNull('07:00', 'block_end_time').value : null);
+
+        const entry = await tx.trip_itinerary.create({
+          data: {
+            tripId: id, day: dayNum, homeDate: start, homeTime: startTime || null,
+            destDate: end, destTime: endTime || null,
+            category: optionType, vendor: details.title, cost: Math.round(details.amount * 100) / 100,
+            note: notes || null, location: activityLocation, vendorOptionId: optionId, vendorOptionType: optionType,
+            // PR 3: the user's recurrence choice wins; absent → span default.
+            recurrence: recurrenceOverride ?? (isRange ? 'daily' : 'once'),
+            block_start_time: blockStart,
+            block_end_time: blockEnd,
+            // PR 3: clean vendor name + COA captured on the itinerary row.
+            vendor_name: vendorNameInput || details.title,
+            coa_code: coaCode,
+          },
+        });
+        itineraryEntries.push(entry);
+      }
+
+      // Auditable 1:1 link: point the single budget row at its itinerary template
+      // (budget_line_items.itineraryId was previously never populated). Every
+      // branch now writes exactly one primary itinerary row.
+      if (itineraryEntries[0]) {
+        await tx.budget_line_items.update({
+          where: { id: budgetItem.id },
+          data: { itineraryId: itineraryEntries[0].id },
+        });
       }
 
       return { budgetItem, itineraryEntries, optionType, optionId, details };
@@ -324,9 +373,21 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       return NextResponse.json({ error: 'optionType and optionId are required' }, { status: 400 });
     }
 
+    // Synthetic commits — Google places via PlaceCommitForm (`place-…`,
+    // PlaceCommitForm.tsx:52) and LiteAPI hotels via AddToTripButton (`hotel-…`,
+    // AddToTripButton.tsx:77) — carry a NON-UUID placeholder in vendorOptionId and
+    // have NO option row: the commit POST builds them from the payload and skips
+    // the option-row update via its guard (route.ts:158). Mirror that guard here so
+    // the uncommit never looks the placeholder up in a @db.Uuid option table (which
+    // throws "Error creating UUID"). These `place-`/`hotel-` prefixes are the only
+    // two synthetic optionId constructors in the codebase. NON-synthetic optionIds
+    // are untouched, so a genuinely malformed UUID still surfaces its error below.
+    const isSynthetic = optionId.startsWith('place-') || optionId.startsWith('hotel-');
+
     await prisma.$transaction(async (tx) => {
-      // A. Reset vendor option status to proposed
-      if (optionType !== 'flight') {
+      // A. Reset vendor option status to proposed (real option rows only —
+      // flights and synthetic commits have no option row to update).
+      if (optionType !== 'flight' && !isSynthetic) {
         await setOptionStatus(tx, optionType, optionId, 'proposed', false);
       }
 
@@ -341,6 +402,20 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
         await tx.budget_line_items.deleteMany({
           where: { tripId: id, description: flightTitle, source: 'trip' },
         });
+      } else if (isSynthetic) {
+        // Synthetic commits have no option row — the budget title lives on the
+        // itinerary rows (vendor), exactly as the commit wrote it (route.ts:264),
+        // mirroring the flight branch above (no getOptionDetails / UUID lookup).
+        const itinEntries = await tx.trip_itinerary.findMany({
+          where: { tripId: id, vendorOptionId: optionId, vendorOptionType: optionType },
+          select: { vendor: true },
+        });
+        const syntheticTitle = itinEntries[0]?.vendor || deleteNotes || null;
+        if (syntheticTitle) {
+          await tx.budget_line_items.deleteMany({
+            where: { tripId: id, description: syntheticTitle, source: 'trip' },
+          });
+        }
       } else {
         const details = await getOptionDetails(tx, optionType, optionId, id);
         if (details) {

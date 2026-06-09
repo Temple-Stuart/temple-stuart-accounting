@@ -7,16 +7,11 @@ import DestinationSelector from '@/components/trips/DestinationSelector';
 import FlightPicker from '@/components/trips/FlightPicker';
 import DestinationMap from '@/components/trips/DestinationMap';
 import { TripScanProvider, TripScanControls, TripApiSection, getGooglePlaceCatKeys, TripScanModals } from '@/components/trips/TripPlannerAI';
-import CalendarGrid, { CalendarEvent, SourceConfig } from '@/components/shared/CalendarGrid';
-import ItineraryAgenda from '@/components/trips/ItineraryAgenda';
+import TripTimeline from '@/components/trips/TripTimeline';
 import TripHeader from '@/components/trips/TripHeader';
 import { ADMIN_USER_ID } from '@/lib/tiers';
 import { coaCodeToLabel } from '@/lib/travelCOA';
-import { buildCalendarSourceConfig } from '@/lib/travelCategories';
 import 'leaflet/dist/leaflet.css';
-
-// Calendar source config derived from category registry
-const TRIP_SOURCE_CONFIG: Record<string, SourceConfig> = buildCalendarSourceConfig();
 
 interface Participant {
   id: string;
@@ -86,14 +81,6 @@ interface DateWindow {
 
 const MONTHS = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-function formatTime12h(time: string): string {
-  if (!time) return '';
-  const [h, m] = time.split(':').map(Number);
-  if (isNaN(h)) return time;
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  const h12 = h % 12 || 12;
-  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
-}
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const CATEGORIES = [
@@ -122,8 +109,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const [scannerResults, setScannerResults] = useState<any[]>([]);
   const [confirmedStartDay, setConfirmedStartDay] = useState<number | null>(null);
   // PR-18: itinerary view mode (agenda default) + agenda granularity.
-  const [itinView, setItinView] = useState<'agenda' | 'grid'>('agenda');
-  const [agendaGran, setAgendaGran] = useState<'day' | 'week' | 'month'>('week');
+  // Travel-PR-5: Timeline is the new DEFAULT view; Agenda/Grid kept behind the
+  // toggle (atomic + revertible — removing the old views is a later PR).
   const [copiedLink, setCopiedLink] = useState(false);
   const [committing, setCommitting] = useState(false);
 
@@ -149,24 +136,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-
-  // Calendar event popover
-  const [popoverEvent, setPopoverEvent] = useState<(CalendarEvent & Record<string, any>) | null>(null);
-  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
-
-  const handleEventClick = (event: CalendarEvent, mouseEvent?: MouseEvent) => {
-    // Position popover near the click position
-    if (mouseEvent) {
-      const scrollY = window.scrollY || document.documentElement.scrollTop;
-      const top = mouseEvent.clientY + scrollY + 8;
-      const left = Math.min(window.innerWidth - 340, Math.max(16, mouseEvent.clientX - 160));
-      setPopoverPos({ top, left });
-    } else {
-      // Fallback: center of viewport
-      setPopoverPos({ top: window.scrollY + 200, left: Math.max(16, (window.innerWidth - 320) / 2) });
-    }
-    setPopoverEvent(event as any);
-  };
 
   // Inline date editing
   const [editingDates, setEditingDates] = useState(false);
@@ -427,130 +396,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   }, [trip, participants]);
 
 
-  // Transform itinerary into CalendarGrid events
-  const calendarEvents: CalendarEvent[] = useMemo(() => {
-    if (!trip) return [];
-    const items = trip.itinerary || [];
-
-    // Build scanner name→destination fallback for items without location
-    const scannerNameToDest: Record<string, string> = {};
-    for (const sr of scannerResults) {
-      if (!sr.destination) continue;
-      for (const rec of (sr.recommendations || [])) {
-        if (rec.name) scannerNameToDest[rec.name] = sr.destination;
-      }
-    }
-    const resolveLocation = (item: any): string | null =>
-      item.location || scannerNameToDest[item.vendor] || null;
-
-    // For flights: each itinerary entry is its own event (don't group)
-    // For other types: group by vendorOptionId for multi-day bookings
-    const flightItems = items.filter((item: any) => (item.vendorOptionType || item.category) === 'flight');
-    const otherItems = items.filter((item: any) => (item.vendorOptionType || item.category) !== 'flight');
-
-    // Resolve correct source key using vendorOptions category
-    const resolveSource = (item: any): string => {
-      const optInfo = item.vendorOptionId ? vendorOptions[item.vendorOptionId] : null;
-      return optInfo?.category || item.vendorOptionType || item.category || 'activities';
-    };
-
-    // Flight events — one per entry
-    const flightEvents: CalendarEvent[] = flightItems.map((item: any) => {
-      const dateStr = item.homeDate ? new Date(item.homeDate).toISOString().split('T')[0] : '';
-      const destDateStr = item.destDate ? new Date(item.destDate).toISOString().split('T')[0] : null;
-      return {
-        id: item.id,
-        source: 'flights',
-        title: item.vendor || 'Flight',
-        icon: null,
-        startDate: dateStr,
-        endDate: destDateStr !== dateStr ? destDateStr : null,
-        startTime: item.homeTime || null,
-        endTime: item.destTime || null,
-        location: resolveLocation(item),
-        budgetAmount: parseFloat(item.cost || 0),
-        _vendorOptionId: item.vendorOptionId,
-        _vendorOptionType: item.vendorOptionType,
-        _vendor: item.vendor,
-        _note: item.note,
-        _homeTime: item.homeTime,
-        _destTime: item.destTime,
-        _location: resolveLocation(item),
-        _category: 'flights',
-      } as CalendarEvent & Record<string, any>;
-    });
-
-    // Other events — group by vendorOptionId for multi-day
-    const grouped: Record<string, any[]> = {};
-    otherItems.forEach((item: any) => {
-      const key = item.vendorOptionId || item.id;
-      if (!grouped[key]) grouped[key] = [];
-      grouped[key].push(item);
-    });
-
-    const otherEvents: (CalendarEvent & Record<string, any>)[] = [];
-
-    for (const [key, entries] of Object.entries(grouped)) {
-      const first = entries[0];
-      const source = resolveSource(first);
-      const totalCost = entries.reduce((s: number, e: any) => s + parseFloat(e.cost || 0), 0);
-      const vendorName = first.vendor || 'Untitled';
-      const isLodging = source === 'lodging' || source === 'accommodation';
-
-      if (isLodging) {
-        const sortedEntries = [...entries].sort((a, b) =>
-          new Date(a.homeDate).getTime() - new Date(b.homeDate).getTime()
-        );
-        const firstDate = new Date(sortedEntries[0].homeDate).toISOString().split('T')[0];
-        const lastDate = sortedEntries.length > 1
-          ? new Date(sortedEntries[sortedEntries.length - 1].homeDate).toISOString().split('T')[0]
-          : null;
-        otherEvents.push({
-          id: key,
-          source,
-          title: vendorName,
-          icon: null,
-          startDate: firstDate,
-          endDate: lastDate,
-          startTime: null,
-          endTime: null,
-          location: resolveLocation(first),
-          budgetAmount: totalCost,
-          _vendorOptionId: first.vendorOptionId,
-          _vendorOptionType: first.vendorOptionType,
-          _vendor: vendorName,
-          _location: resolveLocation(first),
-          _category: source,
-        } as any);
-      } else {
-        const dateStr = first.homeDate ? new Date(first.homeDate).toISOString().split('T')[0] : '';
-        otherEvents.push({
-          id: key,
-          source,
-          title: vendorName,
-          icon: null,
-          startDate: dateStr,
-          endDate: entries.length > 1 && entries[entries.length - 1].homeDate
-            ? new Date(entries[entries.length - 1].homeDate).toISOString().split('T')[0]
-            : null,
-          startTime: first.homeTime || null,
-          endTime: first.destTime || null,
-          location: resolveLocation(first),
-          budgetAmount: totalCost,
-          _vendorOptionId: first.vendorOptionId,
-          _vendorOptionType: first.vendorOptionType,
-          _vendor: first.vendor,
-          _note: first.note,
-          _homeTime: first.homeTime,
-          _destTime: first.destTime,
-          _location: resolveLocation(first),
-          _category: source,
-        } as any);
-      }
-    }
-
-    return [...flightEvents, ...otherEvents];
-  }, [trip, vendorOptions, scannerResults]);
+// (CalendarGrid event transform removed — TripTimeline reads raw trip.itinerary)
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -789,51 +635,21 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               />
             </div>
 
-            {/* ── Itinerary Calendar (primary view — first after map) ── */}
+            {/* ── Itinerary day timeline (the one view — Agenda/Grid retired) ── */}
             <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
               <div className="bg-brand-purple/80 text-white px-4 py-2.5 flex items-center justify-between">
                 <h2 className="text-sm font-semibold">Itinerary</h2>
-                <div className="flex items-center gap-2">
-                  {itinView === 'agenda' && (
-                    <div className="flex bg-white/15 rounded p-0.5 text-[11px]">
-                      {(['day', 'week', 'month'] as const).map(g => (
-                        <button key={g} onClick={() => setAgendaGran(g)}
-                          className={`px-2 py-0.5 rounded capitalize transition-colors ${agendaGran === g ? 'bg-white text-brand-purple font-semibold' : 'text-white/80 hover:text-white'}`}>{g}</button>
-                      ))}
-                    </div>
-                  )}
-                  <div className="flex bg-white/15 rounded p-0.5 text-[11px]">
-                    <button onClick={() => setItinView('agenda')}
-                      className={`px-2 py-0.5 rounded transition-colors ${itinView === 'agenda' ? 'bg-white text-brand-purple font-semibold' : 'text-white/80 hover:text-white'}`}>Agenda</button>
-                    <button onClick={() => setItinView('grid')}
-                      className={`px-2 py-0.5 rounded transition-colors ${itinView === 'grid' ? 'bg-white text-brand-purple font-semibold' : 'text-white/80 hover:text-white'}`}>Grid</button>
-                  </div>
-                </div>
               </div>
-              {calendarEvents.length > 0 || tripDates ? (
+              {(trip.itinerary && trip.itinerary.length > 0) || tripDates ? (
                 <div className="p-4">
-                  {itinView === 'agenda' ? (
-                    <ItineraryAgenda
-                      events={calendarEvents}
-                      sourceConfig={TRIP_SOURCE_CONFIG}
-                      view={agendaGran}
-                      anchorDate={tripDates?.departure || trip.startDate?.split('T')[0] || undefined}
-                      onEventClick={handleEventClick}
-                    />
-                  ) : (
-                  <CalendarGrid
-                    events={calendarEvents}
-                    sourceConfig={TRIP_SOURCE_CONFIG}
-                    defaultView="week"
-                    anchorDate={tripDates?.departure || trip.startDate?.split('T')[0] || undefined}
-                    highlightStart={tripDates?.departure || trip.startDate?.split('T')[0] || undefined}
-                    highlightEnd={tripDates?.return || trip.endDate?.split('T')[0] || undefined}
-                    onEventClick={handleEventClick}
-                    showBudgetTotals={true}
-                    showCategoryLegend={true}
-                    compact={true}
+                  <TripTimeline
+                    tripId={id}
+                    itinerary={trip.itinerary || []}
+                    startDate={trip.startDate ?? null}
+                    endDate={trip.endDate ?? null}
+                    onUncommit={handleUncommitItem}
+                    onChanged={loadTrip}
                   />
-                  )}
                 </div>
               ) : (
                 <div className="p-8 text-center text-gray-400">
@@ -1199,69 +1015,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
           </div>
 
-          {/* ── Event Detail Popover ── */}
-          {popoverEvent && (
-            <div className="fixed inset-0 z-50" onClick={() => setPopoverEvent(null)}>
-              <div
-                className="absolute bg-white rounded-lg shadow-xl border border-gray-200 w-[320px] p-4"
-                style={{ top: popoverPos?.top || 100, left: popoverPos?.left || 100 }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <button onClick={() => setPopoverEvent(null)} className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>
-                <div className="space-y-2">
-                  <div className="font-semibold text-sm text-gray-900 pr-6">{(popoverEvent as any)._vendor || popoverEvent.title}</div>
-                  {popoverEvent.startDate && (
-                    <div className="text-xs text-gray-500">
-                      {new Date(popoverEvent.startDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
-                    </div>
-                  )}
-                  {(popoverEvent.startTime || popoverEvent.endTime) && (
-                    <div className="text-xs text-gray-600">
-                      {popoverEvent.startTime ? formatTime12h(popoverEvent.startTime) : ''}
-                      {popoverEvent.startTime && popoverEvent.endTime ? ' — ' : ''}
-                      {popoverEvent.endTime ? formatTime12h(popoverEvent.endTime) : ''}
-                    </div>
-                  )}
-                  {(popoverEvent.location || (popoverEvent as any)._location) && (
-                    <div className="text-xs text-gray-500">{popoverEvent.location || (popoverEvent as any)._location}</div>
-                  )}
-                  {popoverEvent.budgetAmount != null && popoverEvent.budgetAmount > 0 && (
-                    <div className="text-xs font-semibold text-emerald-700">{fmt(popoverEvent.budgetAmount)}</div>
-                  )}
-                  {(popoverEvent as any)._category && (
-                    <div className="text-xs text-gray-400">Category: {(popoverEvent as any)._category}</div>
-                  )}
-                  {(popoverEvent as any)._note && (
-                    <div className="text-xs text-gray-400 line-clamp-2">{(popoverEvent as any)._note}</div>
-                  )}
-                  <div className="flex gap-2 pt-2 border-t border-gray-100">
-                    {(popoverEvent as any)._vendorOptionId && (
-                      <button
-                        onClick={() => {
-                          const evt = popoverEvent as any;
-                          handleUncommitItem(evt._vendorOptionId, evt._vendorOptionType || 'activity');
-                          setPopoverEvent(null);
-                        }}
-                        className="px-3 py-1.5 text-xs text-red-600 border border-red-200 rounded hover:bg-red-50 font-medium"
-                      >
-                        Uncommit
-                      </button>
-                    )}
-                    {(popoverEvent.location || (popoverEvent as any)._location) && (
-                      <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((popoverEvent as any)._vendor || popoverEvent.title)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-3 py-1.5 text-xs text-brand-purple border border-brand-purple/30 rounded hover:bg-brand-purple/5 font-medium"
-                      >
-                        View on Map
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
         </div>
       </div>

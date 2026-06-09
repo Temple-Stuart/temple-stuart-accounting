@@ -540,6 +540,10 @@ model trips {
 
   tripType TripType @default(personal)
 
+  // Future Travel entity binding (schema only; nothing reads/writes this yet —
+  // see prisma/migrations-manual/itinerary_time_blocks.sql).
+  entity_id String?
+
   owner             users                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   participants      trip_participants[]
   expenses          trip_expenses[]
@@ -660,10 +664,19 @@ model trip_itinerary {
   vendorOptionType String?  @db.VarChar(20)
   createdAt        DateTime @default(now())
 
+  // Itinerary-as-time-blocks foundation (schema only; nothing reads/writes these
+  // yet — see prisma/migrations-manual/itinerary_time_blocks.sql).
+  recurrence       String   @default("once") @db.VarChar(10) // 'once' | 'daily'
+  block_start_time DateTime? @db.Time(6)                      // daily window start (time-of-day)
+  block_end_time   DateTime? @db.Time(6)                      // daily window end (time-of-day)
+  coa_code         String?  @db.VarChar(20)
+  vendor_name      String?  @db.VarChar(255)
+
   trip trips @relation(fields: [tripId], references: [id], onDelete: Cascade)
 
   @@index([tripId, day])
   @@index([vendorOptionId])
+  @@index([tripId, recurrence], map: "trip_itinerary_recurrence_idx")
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1033,6 +1046,10 @@ model budget_line_items {
   source      String   @db.VarChar(20) // 'trip', 'manual', 'recurring'
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  // Future Travel entity binding (schema only; nothing reads/writes this yet —
+  // see prisma/migrations-manual/itinerary_time_blocks.sql).
+  entity_id String?
 
   trip trips? @relation(fields: [tripId], references: [id], onDelete: SetNull)
   user users  @relation(fields: [userId], references: [id], onDelete: Cascade)

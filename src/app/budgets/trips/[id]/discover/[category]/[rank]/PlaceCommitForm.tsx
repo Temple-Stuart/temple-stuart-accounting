@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { listTravelCOAAccounts } from '@/lib/travelCOA';
 
 interface Props {
   tripId: string;
@@ -11,6 +12,9 @@ interface Props {
   /** Scan destination (destinationLabel) → trip_itinerary.location → the
    *  Committed Budget Country column. */
   location: string | null;
+  /** Server-derived COA the selector pre-selects (leaving it reproduces today's
+   *  behaviour); user can override to any canonical travel account. */
+  suggestedCoaCode: string | null;
 }
 
 // PR-35: manual-price ONE-TIME commit for unpriced Google places. Google returns
@@ -18,12 +22,18 @@ interface Props {
 // the commit lands in Committed Budget on the category's COA (PR-35a-synced) with
 // the correct P-/B- prefix (enforced server-side in vendor-commit, incl. the
 // personal-only/Business block). Recurring is a separate later PR.
-export function PlaceCommitForm({ tripId, category, placeName, location }: Props) {
+const COA_ACCOUNTS = listTravelCOAAccounts();
+
+export function PlaceCommitForm({ tripId, category, placeName, location, suggestedCoaCode }: Props) {
   const [amount, setAmount] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
+  // New capture (PR 3): recurrence override, COA account, clean vendor name.
+  const [recurrenceOverride, setRecurrenceOverride] = useState<'once' | 'daily' | null>(null);
+  const [coaCode, setCoaCode] = useState(suggestedCoaCode ?? '');
+  const [vendorName, setVendorName] = useState(placeName);
   const [state, setState] = useState<'idle' | 'adding' | 'added' | 'failed'>('idle');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -33,6 +43,15 @@ export function PlaceCommitForm({ tripId, category, placeName, location }: Props
   const amountValid = Number.isFinite(amt) && amt > 0;
   const datesValid = !!startDate && !!endDate && endDate >= startDate;
   const canSubmit = amountValid && datesValid && state !== 'adding';
+
+  // Recurrence: auto 'daily' when the date range spans >1 day, else 'once';
+  // the user can override either way. The daily window = the start/end time below.
+  const spanDays =
+    startDate && endDate
+      ? Math.round((Date.parse(endDate) - Date.parse(startDate)) / 86_400_000) + 1
+      : 1;
+  const autoRecurrence: 'once' | 'daily' = spanDays > 1 ? 'daily' : 'once';
+  const recurrence = recurrenceOverride ?? autoRecurrence;
 
   const handleAdd = async () => {
     setState('adding');
@@ -53,9 +72,12 @@ export function PlaceCommitForm({ tripId, category, placeName, location }: Props
           amount: amt,                     // manual cost (Google has no price)
           startDate,
           endDate,
-          startTime: startTime || undefined,
-          endTime: endTime || undefined,
+          startTime: startTime || undefined,   // = the daily window start (block_start_time)
+          endTime: endTime || undefined,       // = the daily window end (block_end_time)
           notes: placeName,
+          recurrence,                          // 'once' | 'daily' (override of the span default)
+          coa_code: coaCode || undefined,      // user-selected COA; server validates, else derives
+          vendor_name: vendorName || undefined, // clean place name → trip_itinerary.vendor_name
           location,                        // destinationLabel → Country column
         }),
       });
@@ -107,14 +129,45 @@ export function PlaceCommitForm({ tripId, category, placeName, location }: Props
             onChange={e => setEndDate(e.target.value)} aria-label="End date" className={inputCls} />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-text-muted">Start time</span>
+          <span className="text-[11px] text-text-muted">{recurrence === 'daily' ? 'Window start' : 'Start time'}</span>
           <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
             aria-label="Start time" className={inputCls} />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-text-muted">End time</span>
+          <span className="text-[11px] text-text-muted">{recurrence === 'daily' ? 'Window end' : 'End time'}</span>
           <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)}
             aria-label="End time" className={inputCls} />
+        </label>
+      </div>
+
+      {/* PR 3 capture — recurrence, vendor name, COA account (all inline, no modal) */}
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1">
+          <span className="text-[11px] text-text-muted">Recurrence</span>
+          <div className="inline-flex rounded border border-border overflow-hidden text-sm">
+            {(['once', 'daily'] as const).map(r => (
+              <button key={r} type="button" onClick={() => setRecurrenceOverride(r)}
+                aria-pressed={recurrence === r}
+                className={`px-3 py-1.5 ${recurrence === r ? 'bg-brand-purple text-white' : 'bg-white text-text-secondary hover:bg-bg-row'}`}>
+                {r === 'once' ? 'One-time' : 'Daily'}
+              </button>
+            ))}
+          </div>
+        </div>
+        <label className="flex flex-col gap-1 min-w-[10rem]">
+          <span className="text-[11px] text-text-muted">Vendor name</span>
+          <input type="text" value={vendorName} onChange={e => setVendorName(e.target.value)}
+            aria-label="Vendor name" className={`${inputCls} w-48`} />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] text-text-muted">COA account</span>
+          <select value={coaCode} onChange={e => setCoaCode(e.target.value)}
+            aria-label="COA account" className={`${inputCls} w-56`}>
+            <option value="">Auto (suggested)</option>
+            {COA_ACCOUNTS.map(a => (
+              <option key={a.code} value={a.code}>{a.code} · {a.label}</option>
+            ))}
+          </select>
         </label>
         <button type="button" onClick={handleAdd} disabled={!canSubmit}
           className="px-4 py-2 bg-brand-purple text-white text-sm font-medium rounded hover:bg-brand-purple-hover disabled:opacity-50">

@@ -46,14 +46,20 @@ export interface DayOrderRow {
   minute: number | null;
   /** secondary key — step_order for scenes; the block's minute for tasks. */
   order: number;
-  /** scenes sort before task blocks on a tie. */
-  kind?: 'scene' | 'task';
+  /** On a tie, rows sort scene → travel → task. */
+  kind?: 'scene' | 'travel' | 'task';
+}
+
+/** Tie-break rank: routine scenes anchor the day, travel wraps around them,
+ *  tasks fill. Lower sorts first. */
+function kindRank(kind: DayOrderRow['kind']): number {
+  return kind === 'task' ? 2 : kind === 'travel' ? 1 : 0;
 }
 
 /**
  * The shared comparator. Timed rows sort by their DAY-ANCHORED minute (midnight
  * wraps to day-end); untimed scenes sink to the end by step_order; ties keep
- * scenes before task blocks.
+ * scenes before travel before task blocks.
  */
 export function compareDayOrder(a: DayOrderRow, b: DayOrderRow): number {
   if (a.minute == null && b.minute == null) return a.order - b.order;
@@ -62,8 +68,8 @@ export function compareDayOrder(a: DayOrderRow, b: DayOrderRow): number {
   const ad = dayAnchoredMinute(a.minute);
   const bd = dayAnchoredMinute(b.minute);
   if (ad !== bd) return ad - bd;
-  const ak = a.kind === 'task' ? 1 : 0;
-  const bk = b.kind === 'task' ? 1 : 0;
+  const ak = kindRank(a.kind);
+  const bk = kindRank(b.kind);
   if (ak !== bk) return ak - bk;
   return a.order - b.order;
 }
