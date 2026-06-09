@@ -70,11 +70,19 @@ function makeLockedHandlers(onRequireAuth: () => void) {
 function SectionNote({ copy }: { copy: CopyBlock }) {
   return (
     <div className="mb-2">
-      <div className="text-xs font-mono font-semibold text-text-primary">{copy.heading}</div>
+      <div className="text-xs font-mono font-semibold uppercase tracking-wide text-brand-purple-hover mb-1">{copy.heading}</div>
       <div className="text-xs font-mono text-text-muted">{copy.body}</div>
     </div>
   );
 }
+
+// PR F1 — institutional visual separation. Each showroom data section sits in a
+// clean card: a soft brand-purple-tinted border + a faint brand-purple-wash tint
+// (matching the lighter-purple headers) + the existing rounded-lg radius + real
+// interior padding, so a stranger sees the section boundaries at a glance.
+// Tokens only (tailwind.config.ts:20-24) — no invented hex. Showroom-scoped:
+// this class is applied only in the showroom wrappers, never on a shared view.
+const SECTION_CARD = 'rounded-lg border border-brand-purple/15 bg-brand-purple-wash/40 p-4';
 
 export default function ProjectsPipelineShowroom({ onRequireAuth }: Props) {
   const lock = makeLockedHandlers(onRequireAuth);
@@ -86,7 +94,7 @@ export default function ProjectsPipelineShowroom({ onRequireAuth }: Props) {
 
   // ── taskSection: real TaskListView, rows = pure TaskRowView (NOT TaskRow) ──
   const taskSection = (
-    <>
+    <div className={SECTION_CARD}>
       <SectionNote copy={showroomNarrativeCopy.sections.tasks} />
     <TaskListView
       tasks={demoTasks}
@@ -144,20 +152,20 @@ export default function ProjectsPipelineShowroom({ onRequireAuth }: Props) {
         />
       )}
     />
-    </>
+    </div>
   );
 
   // ── evolutionSection: read-only timeline, no callbacks ────────────────────
   const evolutionSection = (
-    <>
+    <div className={SECTION_CARD}>
       <SectionNote copy={showroomNarrativeCopy.sections.evolution} />
       <EvolutionTimelineView loading={false} error={null} data={demoEvolution} />
-    </>
+    </div>
   );
 
   // ── dependencySection: real DependencyListView fed seed edges ─────────────
   const dependencySection = (
-    <>
+    <div className={SECTION_CARD}>
       <SectionNote copy={showroomNarrativeCopy.sections.dependencies} />
     <DependencyListView
       projectId={demoProjectId}
@@ -180,7 +188,7 @@ export default function ProjectsPipelineShowroom({ onRequireAuth }: Props) {
       onCreate={lock}
       onDelete={lock}
     />
-    </>
+    </div>
   );
 
   // ── readViewAiActions: the LOCKED AI loop, shown under the reality inputs ──
@@ -189,7 +197,7 @@ export default function ProjectsPipelineShowroom({ onRequireAuth }: Props) {
   // input → generate → plan loop visible on one screen (the plan it "made" is the
   // design in step 4 + the evolution history, both already rendered above/below).
   const readViewAiActions = (
-    <div className="pt-2 border-t border-border-light">
+    <div className={SECTION_CARD}>
       <p className="text-xs font-mono text-text-muted mb-2">
         {showroomNarrativeCopy.aiLoop.caption}
       </p>
