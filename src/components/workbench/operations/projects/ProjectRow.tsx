@@ -1,35 +1,35 @@
 /**
- * ProjectRow — single row in the Section D project list.
+ * ProjectRow — the LIVE, authed container for a single Section D project row.
  *
- * Three modes, toggled by local state:
- *   1. Compact (default): one line — title + status pill + target date
- *   2. Expanded: compact line + 4 Bridgewater scoping fields readable
- *   3. Edit: inline form covering all writable fields
+ * PR5 split: this file keeps the EXACT live behavior it had before — every
+ * fetch it fired itself (PATCH save / PATCH save-inputs / POST generate-design /
+ * POST generate-tasks / DELETE / PATCH archive / PATCH unarchive) plus the
+ * scroll-into-view jump effect and all UI toggles — and now renders the pure
+ * <ProjectRowView/> with the live state + the real handlers wired to its
+ * callbacks. The two PAID Anthropic AI calls (generate-design, generate-tasks)
+ * are container-owned, never reachable from the pure view. The public name +
+ * prop shape ({ project, entities, allProjects, onUpdate, onDelete, isJumpTarget,
+ * onClearTarget, onJumpTo }) are unchanged, so the existing call site
+ * (SectionD_ProjectBacklog.tsx:145) is untouched and /operations/projects behaves
+ * identically. NO new behavior, NO demo data, NO fallback.
  *
- * Click row body → toggle expand. "edit" button (in expanded view) → swap to
- * edit mode. Save → PATCH → refetch parent (via onUpdate callback) → exit
- * edit mode. Delete → confirmation prompt → DELETE → refetch parent.
- *
- * Pattern mirrors COAManagementTable's editingId sentinel + per-row form
- * state, adapted for a card-style layout with long-form Text fields.
+ * Three modes (unchanged): compact (title + status + target), expanded (4
+ * scoping fields + live task list / evolution / dependencies children), edit
+ * (inline form covering all writable fields + the two AI generators).
  */
 
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { Project, ProjectForm, ProjectStatus } from './types';
-import { STATUS_LABELS, STATUS_PILL_CLASSES } from './types';
-import TaskList from './TaskList';
-import EvolutionTimeline from './EvolutionTimeline';
-import DependencyList from './DependencyList';
-import ListManager from './ListManager';
-import InspectionDrawer, { type InspectionData } from '../ai/InspectionDrawer';
-import AITaskPreview, { type AIGeneratedTask } from './AITaskPreview';
-
-interface Entity {
-  id: string;
-  name: string;
-}
+import type { Project, ProjectForm } from './types';
+import { type InspectionData } from '../ai/InspectionDrawer';
+import { type AIGeneratedTask } from './AITaskPreview';
+import ProjectRowView, {
+  type Entity,
+  type GenerationCost,
+  type GenerationInspection,
+  type TasksPreview,
+} from './ProjectRowView';
 
 interface Props {
   project: Project;
@@ -44,15 +44,6 @@ interface Props {
   /** Called when the user clicks a dependency link inside this row. */
   onJumpTo: (projectId: string) => void;
 }
-
-const STATUS_OPTIONS: ProjectStatus[] = [
-  'not_started',
-  'in_progress',
-  'blocked',
-  'completed',
-  'cancelled',
-  'archived',
-];
 
 function projectToForm(p: Project): ProjectForm {
   return {
@@ -74,16 +65,6 @@ function projectToForm(p: Project): ProjectForm {
   };
 }
 
-function formatTargetDate(iso: string | null): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-}
-
-function entityName(entities: Entity[], entityId: string): string {
-  return entities.find((e) => e.id === entityId)?.name ?? entityId;
-}
-
 export default function ProjectRow({ project, entities, allProjects, onUpdate, onDelete, isJumpTarget, onClearTarget, onJumpTo }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -95,26 +76,11 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   const [generatingDesign, setGeneratingDesign] = useState(false);
   const [generatedDesignPreview, setGeneratedDesignPreview] = useState<string | null>(null);
   const [generationError, setGenerationError] = useState<string | null>(null);
-  const [generationCost, setGenerationCost] = useState<
-    { cost_usd: string; input_tokens: number; output_tokens: number } | null
-  >(null);
-  const [generationInspection, setGenerationInspection] = useState<{
-    model: string;
-    temperature: number;
-    maxTokens: number;
-    systemPrompt: string;
-    userMessage: string;
-    rawResponse: string;
-    usageId: string;
-  } | null>(null);
+  const [generationCost, setGenerationCost] = useState<GenerationCost | null>(null);
+  const [generationInspection, setGenerationInspection] = useState<GenerationInspection | null>(null);
   const [generatingTasks, setGeneratingTasks] = useState(false);
   const [tasksGenError, setTasksGenError] = useState<string | null>(null);
-  const [tasksPreview, setTasksPreview] = useState<{
-    tasks: AIGeneratedTask[];
-    sourceAiUsageId: string;
-    inspection?: InspectionData;
-    costSummary?: { cost_usd: string; input_tokens: number; output_tokens: number };
-  } | null>(null);
+  const [tasksPreview, setTasksPreview] = useState<TasksPreview | null>(null);
   const [flash, setFlash] = useState(false);
   const [showDesignReasoning, setShowDesignReasoning] = useState(false);
   // PR-Ops-Content-2: lazy-mount the read-only evolution timeline (the project's
@@ -205,6 +171,8 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
     }
   };
 
+  // PAID Anthropic AI — POST generate-design. Container-owned: never reachable
+  // from the pure <ProjectRowView/>.
   const handleGenerateDesign = async () => {
     setGeneratingDesign(true);
     setGenerationError(null);
@@ -244,6 +212,8 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
     }
   };
 
+  // PAID Anthropic AI — POST generate-tasks. Container-owned: never reachable
+  // from the pure <ProjectRowView/>.
   const handleGenerateTasks = async () => {
     setGeneratingTasks(true);
     setTasksGenError(null);
@@ -363,495 +333,68 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
     }
   };
 
-  const inputClass =
-    'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
-  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs font-mono';
-  const pillClass = `inline-block px-2 py-0.5 border rounded text-xs font-mono ${STATUS_PILL_CLASSES[project.status]}`;
+  const handleUseGeneratedDesign = () => {
+    if (generatedDesignPreview === null) return;
+    setForm({ ...form, design: generatedDesignPreview });
+    setGeneratedDesignPreview(null);
+    setGenerationCost(null);
+    setGenerationInspection(null);
+  };
 
-  // Derive structured-list arrays from the project. JsonB columns may
-  // come back as JsonValue at runtime; filter to strings defensively.
-  const goalItems = Array.isArray(project.goal_items)
-    ? project.goal_items.filter((x): x is string => typeof x === 'string')
-    : [];
-  const problemItems = Array.isArray(project.problem_items)
-    ? project.problem_items.filter((x): x is string => typeof x === 'string')
-    : [];
-  const diagnosisItems = Array.isArray(project.diagnosis_items)
-    ? project.diagnosis_items.filter((x): x is string => typeof x === 'string')
-    : [];
-
-  /**
-   * Render a structured field that may be either:
-   *   - new structured array (project.goal_items / problem_items / diagnosis_items)
-   *   - legacy paragraph (project.goal / problem / diagnosis as string|null)
-   *
-   * Prefers structured items; falls back to legacy paragraph when items
-   * array is empty. Both states render readably in the row.
-   */
-  const renderStructuredField = (
-    items: string[],
-    legacyText: string | null
-  ) => {
-    if (items.length > 0) {
-      return (
-        <ul className="list-disc list-inside text-text-primary text-xs font-mono space-y-0.5 ml-2">
-          {items.map((it, i) => (
-            <li key={i} className="break-words">{it}</li>
-          ))}
-        </ul>
-      );
-    }
-    if (legacyText && legacyText.trim().length > 0) {
-      return (
-        <div className="text-text-primary text-xs font-mono whitespace-pre-wrap">
-          {legacyText}
-          <span className="text-text-faint italic ml-2">(legacy paragraph format)</span>
-        </div>
-      );
-    }
-    return <div className="text-text-muted text-xs font-mono italic">(no content)</div>;
+  const handleDiscardGeneratedDesign = () => {
+    setGeneratedDesignPreview(null);
+    setGenerationCost(null);
+    setGenerationInspection(null);
   };
 
   return (
-    <div
-      ref={rowRef}
-      className={
-        'border rounded bg-white transition-colors ' +
-        (flash ? 'border-brand-purple shadow-md' : 'border-border') +
-        (project.status === 'archived' ? ' opacity-60' : '')
-      }
-    >
-      <div
-        className="flex items-center justify-between px-4 py-2 cursor-pointer hover:bg-bg-row text-xs font-mono"
-        onClick={() => !editing && setExpanded((x) => !x)}
-      >
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <span className="text-text-faint">{expanded ? '▾' : '▸'}</span>
-          <span className="font-bold text-text-primary truncate">{project.title}</span>
-          <span className={pillClass}>{STATUS_LABELS[project.status]}</span>
-          <span className="text-text-muted">{entityName(entities, project.entity_id)}</span>
-        </div>
-        <div className="flex items-center gap-3 text-text-muted shrink-0">
-          <span>target: {formatTargetDate(project.target_completion_date)}</span>
-        </div>
-      </div>
-
-      {expanded && !editing && (
-        <div className="px-4 py-3 border-t border-border-light text-xs font-mono space-y-3">
-          <div>
-            <div className={labelClass}>1 · goal</div>
-            {renderStructuredField(goalItems, project.goal)}
-          </div>
-          <div>
-            <div className={labelClass}>2 · problem</div>
-            {renderStructuredField(problemItems, project.problem)}
-          </div>
-          <div>
-            <div className={labelClass}>3 · diagnosis</div>
-            {renderStructuredField(diagnosisItems, project.diagnosis)}
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <div className={labelClass}>4 · design</div>
-              {(project.design ?? '').trim().length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setShowDesignReasoning((x) => !x)}
-                  className="px-2 py-0.5 border border-border rounded text-xs font-mono text-text-muted hover:bg-bg-row"
-                >
-                  {showDesignReasoning ? 'hide AI design reasoning' : 'view AI design reasoning'}
-                </button>
-              )}
-            </div>
-            {(project.design ?? '').trim().length > 0 ? (
-              showDesignReasoning && (
-                <div className="text-text-primary text-xs font-mono whitespace-pre-wrap p-3 bg-white border border-border-light rounded">
-                  {project.design}
-                </div>
-              )
-            ) : (
-              <div className="text-text-muted text-xs font-mono italic">(no design)</div>
-            )}
-          </div>
-          <div className="pt-2 border-t border-border-light">
-            <div className={labelClass}>reality inputs (ground AI regeneration)</div>
-            {/* PR-Ops-Evolve-1: reality inputs — paste targets that ground task
-                regeneration in external research + a codebase audit. Sits beside the
-                design/plan it grounds. */}
-            <div className="mb-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
-              <div>
-                <div className={labelClass}>deep research input</div>
-                <textarea
-                  value={researchInput}
-                  onChange={(e) => { setResearchInput(e.target.value); setInputsSaved(false); }}
-                  placeholder="Paste deep research output here…"
-                  rows={4}
-                  className="w-full text-xs font-mono border border-border rounded px-2 py-1.5 bg-white text-text-primary"
-                />
-              </div>
-              <div>
-                <div className={labelClass}>claude code audit input</div>
-                <textarea
-                  value={auditInput}
-                  onChange={(e) => { setAuditInput(e.target.value); setInputsSaved(false); }}
-                  placeholder="Paste Claude Code audit findings here…"
-                  rows={4}
-                  className="w-full text-xs font-mono border border-border rounded px-2 py-1.5 bg-white text-text-primary"
-                />
-              </div>
-            </div>
-            <div className="mb-3 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleSaveInputs}
-                disabled={savingInputs}
-                className="px-2 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
-              >
-                {savingInputs ? 'saving…' : 'save inputs'}
-              </button>
-              {inputsSaved && <span className="text-text-faint text-xs">saved — regenerate tasks to use these</span>}
-            </div>
-          </div>
-          <div className="pt-2 border-t border-border-light">
-            <div className={labelClass}>5 · execute (tasks)</div>
-            <TaskList projectId={project.id} entity_id={project.entity_id} />
-          </div>
-          <div className="pt-2 border-t border-border-light">
-            <div className="flex items-center justify-between mb-1">
-              <div className={labelClass}>evolution (trajectory by AI re-run)</div>
-              <button
-                type="button"
-                onClick={() => setShowEvolution((x) => !x)}
-                className="px-2 py-0.5 border border-border rounded text-xs font-mono text-text-muted hover:bg-bg-row"
-              >
-                {showEvolution ? 'hide evolution' : 'view evolution'}
-              </button>
-            </div>
-            {showEvolution && <EvolutionTimeline projectId={project.id} />}
-          </div>
-          <div className="pt-2 border-t border-border-light">
-            <div className={labelClass}>6 · dependencies</div>
-            <DependencyList
-              projectId={project.id}
-              allProjects={allProjects}
-              onJumpTo={onJumpTo}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border-light">
-            <div>
-              <div className={labelClass}>est. minutes</div>
-              <div className="text-text-primary">{project.estimated_total_minutes ?? '—'}</div>
-            </div>
-            <div>
-              <div className={labelClass}>est. cost (usd)</div>
-              <div className="text-text-primary">{project.estimated_total_cost_usd ?? '—'}</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 pt-2 border-t border-border-light">
-            <button
-              type="button"
-              onClick={enterEdit}
-              className="px-2 py-1 border border-border rounded hover:bg-bg-row"
-            >
-              edit
-            </button>
-            {project.status === 'archived' ? (
-              <button
-                type="button"
-                onClick={handleUnarchive}
-                disabled={archiving}
-                className="px-2 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
-              >
-                {archiving ? 'unarchiving…' : 'unarchive'}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleArchive}
-                disabled={archiving}
-                className="px-2 py-1 border border-border text-text-muted rounded hover:bg-bg-row disabled:opacity-50"
-              >
-                {archiving ? 'archiving…' : 'archive'}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={deleting}
-              className="px-2 py-1 border border-red-300 text-red-700 rounded hover:bg-red-50 disabled:opacity-50"
-            >
-              {deleting ? 'deleting…' : 'delete'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {editing && (
-        <div className="px-4 py-3 border-t border-border-light text-xs font-mono space-y-3">
-          {error && (
-            <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
-              {error}
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
-              <div className={labelClass}>title</div>
-              <input
-                type="text"
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                className={inputClass}
-                maxLength={500}
-              />
-            </div>
-            <div>
-              <div className={labelClass}>entity</div>
-              <select
-                value={form.entity_id}
-                onChange={(e) => setForm({ ...form, entity_id: e.target.value })}
-                className={inputClass}
-              >
-                {entities.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <div className={labelClass}>status</div>
-              <select
-                value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value as ProjectStatus })}
-                className={inputClass}
-              >
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {STATUS_LABELS[s]}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <div className={labelClass}>1 · goal — what success looks like</div>
-            <ListManager
-              items={form.goalItems}
-              onChange={(next) => setForm({ ...form, goalItems: next })}
-              verbPrefix="I WANT to "
-              placeholder="get loans approved"
-              disabled={saving}
-            />
-          </div>
-          <div>
-            <div className={labelClass}>2 · problem — gap between current and goal</div>
-            <ListManager
-              items={form.problemItems}
-              onChange={(next) => setForm({ ...form, problemItems: next })}
-              verbPrefix="I HAVE NOT "
-              altVerbPrefix="I KEEP "
-              placeholder="created an FSA ID yet"
-              disabled={saving}
-            />
-          </div>
-          <div>
-            <div className={labelClass}>3 · diagnosis — root cause of the gap</div>
-            <ListManager
-              items={form.diagnosisItems}
-              onChange={(next) => setForm({ ...form, diagnosisItems: next })}
-              verbPrefix="Because "
-              altVerbPrefix="The root cause is "
-              placeholder="I never blocked dedicated time for it"
-              disabled={saving}
-            />
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <div className={labelClass}>4 · design — the plan (AI-generated)</div>
-              <button
-                type="button"
-                onClick={handleGenerateDesign}
-                disabled={generatingDesign}
-                className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs font-mono hover:bg-purple-50 disabled:opacity-50"
-                title="Generate institutional-rigor design field from your goal/problem/diagnosis items"
-              >
-                {generatingDesign ? 'generating…' : '↑ generate plan'}
-              </button>
-            </div>
-            {form.design.trim().length > 0 ? (
-              <div className="text-text-primary text-xs font-mono whitespace-pre-wrap p-3 bg-white border border-border-light rounded">
-                {form.design}
-              </div>
-            ) : (
-              <div className="text-text-muted text-xs font-mono italic p-3 bg-bg-row border border-border-light rounded">
-                (no design yet — fill in goal/problem/diagnosis items above, then click "↑ generate plan")
-              </div>
-            )}
-            {generationError && (
-              <div className="mt-2 px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs font-mono">
-                {generationError}
-              </div>
-            )}
-            {generatedDesignPreview && (
-              <div className="mt-2 border border-brand-purple rounded p-3 bg-purple-50/30 text-xs font-mono space-y-2">
-                <div className="font-bold text-text-primary flex items-center justify-between">
-                  <span>AI-generated design (review before saving)</span>
-                  {generationCost && (
-                    <span className="text-text-muted text-xs font-normal">
-                      ${generationCost.cost_usd} · {generationCost.input_tokens} in · {generationCost.output_tokens} out
-                    </span>
-                  )}
-                </div>
-                <div className="text-text-primary whitespace-pre-wrap p-2 bg-white border border-border-light rounded">
-                  {generatedDesignPreview}
-                </div>
-                {generationInspection && (
-                  <InspectionDrawer
-                    data={{
-                      model: generationInspection.model,
-                      temperature: generationInspection.temperature,
-                      maxTokens: generationInspection.maxTokens,
-                      systemPrompt: generationInspection.systemPrompt,
-                      userMessage: generationInspection.userMessage,
-                      rawResponse: generationInspection.rawResponse,
-                      inputTokens: generationCost?.input_tokens ?? 0,
-                      outputTokens: generationCost?.output_tokens ?? 0,
-                      costUsd: generationCost?.cost_usd ?? '0',
-                      usageId: generationInspection.usageId,
-                    }}
-                  />
-                )}
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setForm({ ...form, design: generatedDesignPreview });
-                      setGeneratedDesignPreview(null);
-                      setGenerationCost(null);
-                      setGenerationInspection(null);
-                    }}
-                    className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90"
-                  >
-                    use this
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setGeneratedDesignPreview(null);
-                      setGenerationCost(null);
-                      setGenerationInspection(null);
-                    }}
-                    className="px-3 py-1 border border-border rounded hover:bg-bg-row"
-                  >
-                    discard
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <div className={labelClass}>5 · execute (tasks) — AI-generated</div>
-              <button
-                type="button"
-                onClick={handleGenerateTasks}
-                disabled={generatingTasks}
-                className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs font-mono hover:bg-purple-50 disabled:opacity-50"
-                title="Generate institutional-rigor task array (web-search verified URLs) from your goal/problem/diagnosis items"
-              >
-                {generatingTasks ? 'generating…' : '↑ generate tasks'}
-              </button>
-            </div>
-            {!tasksPreview && (
-              <div className="text-text-muted text-xs font-mono italic p-3 bg-bg-row border border-border-light rounded">
-                (tasks are saved directly to this project on accept — click "↑ generate tasks" to synthesize an atomic task array from the goal/problem/diagnosis items above)
-              </div>
-            )}
-            {tasksGenError && (
-              <div className="mt-2 px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs font-mono">
-                {tasksGenError}
-              </div>
-            )}
-            {tasksPreview && (
-              <>
-                {tasksPreview.costSummary && (
-                  <div className="text-text-muted text-xs font-mono text-right mb-1">
-                    ${tasksPreview.costSummary.cost_usd} · {tasksPreview.costSummary.input_tokens} in · {tasksPreview.costSummary.output_tokens} out
-                  </div>
-                )}
-                <AITaskPreview
-                  tasks={tasksPreview.tasks}
-                  sourceAiUsageId={tasksPreview.sourceAiUsageId}
-                  projectId={project.id}
-                  inspection={tasksPreview.inspection}
-                  onAccepted={() => {
-                    setTasksPreview(null);
-                    setTasksGenError(null);
-                  }}
-                  onDiscarded={() => {
-                    setTasksPreview(null);
-                    setTasksGenError(null);
-                  }}
-                />
-              </>
-            )}
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <div className={labelClass}>target date</div>
-              <input
-                type="date"
-                value={form.target_completion_date}
-                onChange={(e) => setForm({ ...form, target_completion_date: e.target.value })}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <div className={labelClass}>est. minutes</div>
-              <input
-                type="number"
-                min={0}
-                value={form.estimated_total_minutes}
-                onChange={(e) => setForm({ ...form, estimated_total_minutes: e.target.value })}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <div className={labelClass}>est. cost (usd)</div>
-              <input
-                type="text"
-                value={form.estimated_total_cost_usd}
-                onChange={(e) => setForm({ ...form, estimated_total_cost_usd: e.target.value })}
-                className={inputClass}
-                placeholder="0.00"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 pt-2 border-t border-border-light">
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-              className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
-            >
-              {saving ? 'saving…' : 'save'}
-            </button>
-            <button
-              type="button"
-              onClick={cancelEdit}
-              disabled={saving}
-              className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
-            >
-              cancel
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+    <ProjectRowView
+      project={project}
+      entities={entities}
+      allProjects={allProjects}
+      onJumpTo={onJumpTo}
+      rowRef={rowRef}
+      expanded={expanded}
+      editing={editing}
+      form={form}
+      saving={saving}
+      deleting={deleting}
+      archiving={archiving}
+      error={error}
+      generatingDesign={generatingDesign}
+      generatedDesignPreview={generatedDesignPreview}
+      generationError={generationError}
+      generationCost={generationCost}
+      generationInspection={generationInspection}
+      generatingTasks={generatingTasks}
+      tasksGenError={tasksGenError}
+      tasksPreview={tasksPreview}
+      flash={flash}
+      showDesignReasoning={showDesignReasoning}
+      showEvolution={showEvolution}
+      researchInput={researchInput}
+      auditInput={auditInput}
+      savingInputs={savingInputs}
+      inputsSaved={inputsSaved}
+      onToggleExpanded={() => setExpanded((x) => !x)}
+      onEnterEdit={enterEdit}
+      onCancelEdit={cancelEdit}
+      onFormChange={setForm}
+      onSave={handleSave}
+      onResearchInputChange={(value) => { setResearchInput(value); setInputsSaved(false); }}
+      onAuditInputChange={(value) => { setAuditInput(value); setInputsSaved(false); }}
+      onSaveInputs={handleSaveInputs}
+      onToggleDesignReasoning={() => setShowDesignReasoning((x) => !x)}
+      onToggleEvolution={() => setShowEvolution((x) => !x)}
+      onGenerateDesign={handleGenerateDesign}
+      onUseGeneratedDesign={handleUseGeneratedDesign}
+      onDiscardGeneratedDesign={handleDiscardGeneratedDesign}
+      onGenerateTasks={handleGenerateTasks}
+      onTasksAccepted={() => { setTasksPreview(null); setTasksGenError(null); }}
+      onTasksDiscarded={() => { setTasksPreview(null); setTasksGenError(null); }}
+      onDelete={handleDelete}
+      onArchive={handleArchive}
+      onUnarchive={handleUnarchive}
+    />
   );
 }
