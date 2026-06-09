@@ -368,7 +368,9 @@ export const demoEvolution: EvolutionResponse = {
  */
 const _checkProject: ProjectRowViewProps['project'] = demoProject;
 const _checkEntities: ProjectRowViewProps['entities'] = demoEntities;
-const _checkAllProjects: ProjectRowViewProps['allProjects'] = demoAllProjects;
+// PR7a moved allProjects off ProjectRowView onto the dependency section, so the
+// seed's project list is now consumed by DependencyListView's contract.
+const _checkAllProjects: DependencyListViewProps['allProjects'] = demoAllProjects;
 const _checkTasks: TaskListViewProps['tasks'] = demoTasks;
 const _checkTaskRow: TaskRowViewProps['task'] = demoTasks[0];
 const _checkCoa: TaskListViewProps['coaAccounts'] = demoCoaAccounts;
