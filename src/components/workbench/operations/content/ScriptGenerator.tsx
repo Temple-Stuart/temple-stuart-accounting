@@ -1,22 +1,25 @@
 /**
- * ScriptGenerator — S4 of the pipeline (OPS-CE-5): generate the day's reel voiceover
- * from the answers + task record, human-gated, on the surface.
+ * ScriptGenerator — the LIVE, authed container for S4 (OPS-CE-5): generate the
+ * day's reel voiceover from the answers + task record, human-gated.
  *
- * Resolves the day's canonical piece (cross-entity, like DailyLog), counts its answers,
- * and:
- *   - "generate script" (disabled with a reason when the day has no answers) → POST
- *     /content/generate-script { piece_id } → the script renders inline as an EDITABLE
- *     textarea with the [scene N · activity] tags + word count + ~read time.
- *   - "save" → PATCH /content/grid/piece/[pieceId] { script } → persists to piece.script.
- *   - "regenerate" → a fresh run (new operations_ai_usage row); saving overwrites the
- *     draft (history lives in ai_usage).
- * A saved script renders on the surface when present. Nothing saves without Alex's action.
+ * PR C split: this file keeps the EXACT live behavior it had before — it owns
+ * ALL four fetches (GET content grid load / PATCH execution notes / POST the
+ * PAID generate-script / PATCH save script), the mount + event-listener loads,
+ * the day-piece resolution, the editor draft/notes state, and the clipboard
+ * helper — and now renders the pure <ScriptGeneratorView/> with the live values
+ * + the real handlers wired to its callbacks. The public name + prop shape
+ * ({ date }) are unchanged, so the existing call site (ContentPipeline.tsx:565)
+ * is untouched and /operations/content generates scripts EXACTLY as before — the
+ * PAID, tier-gated POST /content/generate-script still fires here for authed
+ * users. The paid call is container-only: it is NEVER reachable from the pure
+ * view. NO new behavior, NO demo data, NO fallback.
  */
 
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CONTENT_DAY_PLAN_CHANGED_EVENT, CONTENT_SCENES_CHANGED_EVENT } from './ScenifyModal';
+import ScriptGeneratorView from './ScriptGeneratorView';
 
 interface PieceLite {
   id: string;
@@ -38,12 +41,6 @@ For each PR/commit merged today: ONE line, plain words a non-programmer understa
 what changed for the user (not the code mechanics). Note anything merged but not yet
 usable (e.g. migration pending). No jargon, no file paths, no code. Output a short
 bullet list I can paste as today's execution notes. Read-only — touch nothing.`;
-
-// ~150 words/min spoken → mm:ss.
-const readTime = (words: number): string => {
-  const secs = Math.round((words / 150) * 60);
-  return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
-};
 
 export default function ScriptGenerator({ date }: { date: string }) {
   const [pieces, setPieces] = useState<PieceLite[]>([]);
@@ -141,6 +138,8 @@ export default function ScriptGenerator({ date }: { date: string }) {
       ? 'Answer the day’s scenes first — the script is built only from what you logged.'
       : null;
 
+  // PAID Anthropic — POST /content/generate-script (tier-gated server-side).
+  // Container-only: never reachable from the pure <ScriptGeneratorView/>.
   const generate = async () => {
     if (generating || !piece || disabledReason) return;
     setGenerating(true);
@@ -186,109 +185,25 @@ export default function ScriptGenerator({ date }: { date: string }) {
     }
   };
 
-  const words = (draft ?? '').trim() ? (draft as string).trim().split(/\s+/).length : 0;
-  const hasScript = draft !== null;
-
   return (
-    <section className="bg-white rounded border border-border shadow-sm p-5 space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-mono text-sm font-medium tracking-wide text-brand-purple">
-          4 · SCRIPT
-          <span className="ml-2 font-normal text-text-muted">the day&rsquo;s answers + task record → reel voiceover</span>
-        </h2>
-        <div className="flex items-center gap-2">
-          {hasScript && (
-            <span className="font-mono text-xs text-text-muted">
-              {words} words · ~{readTime(words)} read
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={generate}
-            disabled={generating || !!disabledReason}
-            title={disabledReason ?? undefined}
-            className="px-3 py-1 font-mono text-xs border border-brand-purple rounded text-brand-purple hover:bg-purple-100/50 disabled:opacity-50"
-          >
-            {generating ? 'writing…' : hasScript ? '↻ regenerate' : '✨ generate script'}
-          </button>
-        </div>
-      </div>
-
-      {disabledReason && <p className="font-mono text-xs text-text-muted">{disabledReason}</p>}
-      {notice && (
-        <div className="font-mono text-xs px-3 py-2 rounded border bg-purple-50 border-brand-purple/40 text-text-primary">{notice}</div>
-      )}
-      {error && (
-        <div className="font-mono text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">{error}</div>
-      )}
-
-      {/* DAY-AUDIT helper — run in Claude Code, paste the output below. Always visible. */}
-      <div className="rounded border border-border-light bg-bg-row p-3 space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <span className="font-mono text-xs text-brand-purple font-medium uppercase tracking-wide">
-            Day-audit — run this in Claude Code, paste the output below
-          </span>
-          <button
-            type="button"
-            onClick={copyPrompt}
-            className="px-2 py-0.5 font-mono text-xs border border-brand-purple rounded text-brand-purple hover:bg-purple-100/50"
-          >
-            {copied ? 'copied ✓' : 'copy prompt'}
-          </button>
-        </div>
-        <pre className="font-mono text-[11px] leading-relaxed text-text-muted whitespace-pre-wrap break-words bg-white border border-border-light rounded p-2">
-{DAY_AUDIT_PROMPT}
-        </pre>
-      </div>
-
-      {/* EXECUTION NOTES — the authoritative receipts. */}
-      <div className="space-y-1">
-        <label className="font-mono text-xs text-brand-purple font-medium uppercase tracking-wide">
-          Execution notes (optional)
-        </label>
-        <p className="font-mono text-xs text-text-muted">
-          what actually got built/done today, in your words — the receipts. The script grounds its work claims in this.
-        </p>
-        <textarea
-          value={execNotes}
-          onChange={(e) => setExecNotes(e.target.value)}
-          rows={4}
-          disabled={!piece}
-          placeholder={piece ? 'paste the day-audit bullets, or jot the receipts…' : 'start the day’s log first (section 3)'}
-          className="w-full resize-y bg-white border border-brand-purple/40 rounded px-3 py-2 font-mono text-xs leading-relaxed text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple disabled:opacity-50"
-        />
-        <button
-          type="button"
-          onClick={saveNotes}
-          disabled={execSaving || !piece}
-          className="px-3 py-1 font-mono text-xs border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
-        >
-          {execSaving ? 'saving…' : 'save notes'}
-        </button>
-      </div>
-
-      {hasScript && (
-        <div className="space-y-2">
-          <textarea
-            value={draft ?? ''}
-            onChange={(e) => setDraft(e.target.value)}
-            rows={16}
-            placeholder="the reel voiceover, scene-tagged…"
-            className="w-full resize-y bg-white border border-brand-purple/40 rounded px-3 py-2 font-mono text-xs leading-relaxed text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple"
-          />
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={save}
-              disabled={saving}
-              className="px-3 py-1 font-mono text-xs border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
-            >
-              {saving ? 'saving…' : 'save to the day'}
-            </button>
-            <span className="font-mono text-xs text-text-muted">edits are yours — saving overwrites the day&rsquo;s script (every run is logged)</span>
-          </div>
-        </div>
-      )}
-    </section>
+    <ScriptGeneratorView
+      dayAuditPrompt={DAY_AUDIT_PROMPT}
+      hasPiece={piece !== null}
+      disabledReason={disabledReason}
+      draft={draft}
+      execNotes={execNotes}
+      generating={generating}
+      saving={saving}
+      execSaving={execSaving}
+      error={error}
+      notice={notice}
+      copied={copied}
+      onGenerate={generate}
+      onSave={save}
+      onSaveNotes={saveNotes}
+      onCopyPrompt={copyPrompt}
+      onDraftChange={setDraft}
+      onExecNotesChange={setExecNotes}
+    />
   );
 }
