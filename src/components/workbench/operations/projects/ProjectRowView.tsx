@@ -9,20 +9,21 @@
  * arrives as a callback prop owned by the container. The rendered markup is
  * byte-for-byte equivalent to the pre-extraction ProjectRow output.
  *
- * Its four display children remain the LIVE PR1–PR4 containers rendered as-is —
- * <TaskList/> (PR1), <EvolutionTimeline/> (PR2), <DependencyList/> (PR3, which
- * renders the PR4 <TaskRow/> containers). This view does not inline copies of
- * them; it composes the existing containers. <ListManager/>, <InspectionDrawer/>
- * and <AITaskPreview/> are likewise rendered as-is.
+ * Its three data-bearing sections (task list, evolution, dependencies) are NOT
+ * rendered by this view directly — they arrive as injected slots
+ * (taskSection / evolutionSection / dependencySection, PR7a). The authed
+ * container passes the LIVE PR1–PR3 containers (TaskList / EvolutionTimeline /
+ * DependencyList); the public showroom passes the pure PR1–PR4 views fed with
+ * static seed. The view owns only the section wrappers + the showEvolution gate,
+ * never the section's data source — so when fed pure views the whole expanded
+ * subtree is provably fetch-free. <ListManager/>, <InspectionDrawer/> and
+ * <AITaskPreview/> remain rendered as-is.
  */
 
 'use client';
 
 import type { Project, ProjectForm, ProjectStatus } from './types';
 import { STATUS_LABELS, STATUS_PILL_CLASSES } from './types';
-import TaskList from './TaskList';
-import EvolutionTimeline from './EvolutionTimeline';
-import DependencyList from './DependencyList';
 import ListManager from './ListManager';
 import InspectionDrawer, { type InspectionData } from '../ai/InspectionDrawer';
 import AITaskPreview, { type AIGeneratedTask } from './AITaskPreview';
@@ -59,11 +60,15 @@ export interface ProjectRowViewProps {
   // ── data ──────────────────────────────────────────────────────────────
   project: Project;
   entities: Entity[];
-  allProjects: Project[];
-  /** Forwarded to the live <DependencyList/> container as-is. */
-  onJumpTo: (projectId: string) => void;
   /** Attached to the outer row div; the container owns the scroll-into-view effect. */
   rowRef: React.RefObject<HTMLDivElement>;
+
+  // ── injected section slots (PR7a) ───────────────────────────────────────
+  // The data source for each section is the slot-builder's concern, never this
+  // view's. Authed → live containers; showroom → pure views fed with seed.
+  taskSection: React.ReactNode;
+  evolutionSection: React.ReactNode;
+  dependencySection: React.ReactNode;
 
   // ── display state (fully controlled) ─────────────────────────────────────
   expanded: boolean;
@@ -135,9 +140,10 @@ function entityName(entities: Entity[], entityId: string): string {
 export default function ProjectRowView({
   project,
   entities,
-  allProjects,
-  onJumpTo,
   rowRef,
+  taskSection,
+  evolutionSection,
+  dependencySection,
   expanded,
   editing,
   form,
@@ -331,7 +337,7 @@ export default function ProjectRowView({
           </div>
           <div className="pt-2 border-t border-border-light">
             <div className={labelClass}>5 · execute (tasks)</div>
-            <TaskList projectId={project.id} entity_id={project.entity_id} />
+            {taskSection}
           </div>
           <div className="pt-2 border-t border-border-light">
             <div className="flex items-center justify-between mb-1">
@@ -344,15 +350,11 @@ export default function ProjectRowView({
                 {showEvolution ? 'hide evolution' : 'view evolution'}
               </button>
             </div>
-            {showEvolution && <EvolutionTimeline projectId={project.id} />}
+            {showEvolution && evolutionSection}
           </div>
           <div className="pt-2 border-t border-border-light">
             <div className={labelClass}>6 · dependencies</div>
-            <DependencyList
-              projectId={project.id}
-              allProjects={allProjects}
-              onJumpTo={onJumpTo}
-            />
+            {dependencySection}
           </div>
           <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border-light">
             <div>

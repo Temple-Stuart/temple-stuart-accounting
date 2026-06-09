@@ -24,6 +24,9 @@ import { useEffect, useRef, useState } from 'react';
 import type { Project, ProjectForm } from './types';
 import { type InspectionData } from '../ai/InspectionDrawer';
 import { type AIGeneratedTask } from './AITaskPreview';
+import TaskList from './TaskList';
+import EvolutionTimeline from './EvolutionTimeline';
+import DependencyList from './DependencyList';
 import ProjectRowView, {
   type Entity,
   type GenerationCost,
@@ -351,9 +354,21 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
     <ProjectRowView
       project={project}
       entities={entities}
-      allProjects={allProjects}
-      onJumpTo={onJumpTo}
       rowRef={rowRef}
+      // PR7a slots — the SAME live containers with the SAME props as before.
+      // These are plain React elements; React mounts each only when the view
+      // actually renders it (taskSection/dependencySection inside the expanded
+      // block, evolutionSection only when showEvolution), so the lazy-fetch
+      // behavior is byte-for-byte identical to the pre-slot inline renders.
+      taskSection={<TaskList projectId={project.id} entity_id={project.entity_id} />}
+      evolutionSection={<EvolutionTimeline projectId={project.id} />}
+      dependencySection={
+        <DependencyList
+          projectId={project.id}
+          allProjects={allProjects}
+          onJumpTo={onJumpTo}
+        />
+      }
       expanded={expanded}
       editing={editing}
       form={form}
