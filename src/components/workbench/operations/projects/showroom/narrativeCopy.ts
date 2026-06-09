@@ -23,6 +23,16 @@ export interface ShowroomNarrativeCopy {
     evolution: CopyBlock;
     dependencies: CopyBlock;
   };
+  /**
+   * The AI loop, shown under the reality-input boxes: a plain cause → effect line
+   * plus the two (locked) generate-button labels, so a visitor sees
+   * "type here → press → here's the plan it built".
+   */
+  aiLoop: {
+    caption: string;
+    generatePlanLabel: string;
+    generateTasksLabel: string;
+  };
   /** Friendly sign-up invite. ctaLabel is the button text (wired in PR9/PR11). */
   closingNudge: {
     body: string;
@@ -58,6 +68,15 @@ export const showroomNarrativeCopy: ShowroomNarrativeCopy = {
         "Some things can't start until other things finish. Link them up, and " +
         "the app keeps the order straight. No more guessing what you're stuck on.",
     },
+  },
+  aiLoop: {
+    caption:
+      "Here's the cool part. Type what you know in the boxes up top, tap a " +
+      'button, and the app writes your plan and your to-do list for you. The ' +
+      'design in step 4 and the version history below? The app made those from ' +
+      'your words.',
+    generatePlanLabel: '↑ generate plan',
+    generateTasksLabel: '↑ generate tasks',
   },
   closingNudge: {
     body:

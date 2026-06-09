@@ -70,6 +70,16 @@ export interface ProjectRowViewProps {
   evolutionSection: React.ReactNode;
   dependencySection: React.ReactNode;
 
+  /**
+   * Optional read-view slot (PR A). Rendered in the EXPANDED, NON-editing read
+   * block, directly under the reality-input boxes. The authed container leaves
+   * it undefined → the read view is byte-for-byte unchanged. The public showroom
+   * fills it with the LOCKED generate buttons + a plain-language caption, so a
+   * logged-out visitor sees the whole input → generate → plan loop on one screen.
+   * Never carries data or a fetch — just inert nodes supplied by the parent.
+   */
+  readViewAiActions?: React.ReactNode;
+
   // ── display state (fully controlled) ─────────────────────────────────────
   expanded: boolean;
   editing: boolean;
@@ -144,6 +154,7 @@ export default function ProjectRowView({
   taskSection,
   evolutionSection,
   dependencySection,
+  readViewAiActions,
   expanded,
   editing,
   form,
@@ -335,6 +346,9 @@ export default function ProjectRowView({
               {inputsSaved && <span className="text-text-faint text-xs">saved — regenerate tasks to use these</span>}
             </div>
           </div>
+          {/* PR A: optional read-view slot — undefined on the authed path (read view
+              unchanged), the locked generate buttons + caption in the showroom. */}
+          {readViewAiActions}
           <div className="pt-2 border-t border-border-light">
             <div className={labelClass}>5 · execute (tasks)</div>
             {taskSection}

@@ -183,6 +183,35 @@ export default function ProjectsPipelineShowroom({ onRequireAuth }: Props) {
     </>
   );
 
+  // ── readViewAiActions: the LOCKED AI loop, shown under the reality inputs ──
+  // Plain cause → effect caption + the two generate buttons. Every button is the
+  // same inert `lock` (→ onRequireAuth): no fetch, no paid call. This makes the
+  // input → generate → plan loop visible on one screen (the plan it "made" is the
+  // design in step 4 + the evolution history, both already rendered above/below).
+  const readViewAiActions = (
+    <div className="pt-2 border-t border-border-light">
+      <p className="text-xs font-mono text-text-muted mb-2">
+        {showroomNarrativeCopy.aiLoop.caption}
+      </p>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={lock}
+          className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs font-mono hover:bg-purple-50"
+        >
+          {showroomNarrativeCopy.aiLoop.generatePlanLabel}
+        </button>
+        <button
+          type="button"
+          onClick={lock}
+          className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs font-mono hover:bg-purple-50"
+        >
+          {showroomNarrativeCopy.aiLoop.generateTasksLabel}
+        </button>
+      </div>
+    </div>
+  );
+
   // LAYER 2 runtime guard (PR10): any fetch initiated during the showroom's
   // synchronous render throws ShowroomFetchError instead of reaching the server.
   // Normal render calls no fetch, so this never trips in normal use.
@@ -203,6 +232,7 @@ export default function ProjectsPipelineShowroom({ onRequireAuth }: Props) {
       taskSection={taskSection}
       evolutionSection={evolutionSection}
       dependencySection={dependencySection}
+      readViewAiActions={readViewAiActions}
       // Force-expand via static controlled props (these are props, not internal
       // state) so every section is visible; the row never edits (editing=false
       // → the ListManager/InspectionDrawer/AITaskPreview edit-branch children
