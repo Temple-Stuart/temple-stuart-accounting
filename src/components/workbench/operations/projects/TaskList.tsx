@@ -17,6 +17,7 @@
 
 import { useEffect, useState } from 'react';
 import TaskListView from './TaskListView';
+import TaskRow from './TaskRow';
 import type { Task, TaskForm, CoaAccountSummary } from './types';
 import { DEFAULT_TASK_FORM } from './types';
 
@@ -158,7 +159,6 @@ export default function TaskList({ projectId, entity_id }: Props) {
 
   return (
     <TaskListView
-      projectId={projectId}
       tasks={tasks}
       loading={loading}
       error={error}
@@ -173,8 +173,19 @@ export default function TaskList({ projectId, entity_id }: Props) {
       onCancelCreate={cancelCreate}
       onCreateFormChange={setCreateForm}
       onCreate={handleCreate}
-      onTaskUpdate={fetchTasks}
-      onTaskDelete={fetchTasks}
+      // PR7b row slot — the SAME live <TaskRow> container with the SAME props as
+      // before (1-based index forwarded verbatim). TaskListView wraps each call
+      // in a keyed Fragment, so per-row behavior is byte-for-byte identical.
+      renderTaskRow={(task, index) => (
+        <TaskRow
+          task={task}
+          projectId={projectId}
+          index={index}
+          coaAccounts={coaAccounts}
+          onUpdate={fetchTasks}
+          onDelete={fetchTasks}
+        />
+      )}
     />
   );
 }

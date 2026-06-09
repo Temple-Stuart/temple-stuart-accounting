@@ -6,16 +6,20 @@
  * It is FULLY CONTROLLED — every piece of data and every action arrives as a
  * prop, so the parent (the TaskList container) owns all behavior. The rendered
  * markup is byte-for-byte equivalent to the pre-extraction TaskList output.
+ *
+ * The per-task rows are NOT rendered by this view directly — they arrive via the
+ * `renderTaskRow` render-prop (PR7b). The authed TaskList container injects the
+ * LIVE <TaskRow> container; the public showroom injects the pure <TaskRowView>.
+ * The view owns only the list wrapper, header, create-form and empty/loading
+ * states — never a row's data source — so when fed pure rows it is fetch-free.
  */
 
 'use client';
 
-import TaskRow from './TaskRow';
+import { Fragment } from 'react';
 import type { Task, TaskForm, CoaAccountSummary } from './types';
 
 export interface TaskListViewProps {
-  /** Threaded to each TaskRow (TaskRow needs the project id for its mutations). */
-  projectId: string;
   // ── Data (loaded by the container) ──────────────────────────────────────────
   tasks: Task[];
   loading: boolean;
@@ -33,13 +37,14 @@ export interface TaskListViewProps {
   onCancelCreate: () => void;
   onCreateFormChange: (form: TaskForm) => void;
   onCreate: () => void;
-  /** Per-row refresh — the container re-fetches the task list. */
-  onTaskUpdate: () => void;
-  onTaskDelete: () => void;
+  // ── Injected row slot (PR7b) ────────────────────────────────────────────────
+  // Each row's data source is the slot-builder's concern, never this view's.
+  // Authed → live <TaskRow> containers; showroom → pure <TaskRowView> rows.
+  // `index` is the 1-based display index (this view passes `i + 1`, unchanged).
+  renderTaskRow: (task: Task, index: number) => React.ReactNode;
 }
 
 export default function TaskListView({
-  projectId,
   tasks,
   loading,
   error,
@@ -54,8 +59,7 @@ export default function TaskListView({
   onCancelCreate,
   onCreateFormChange,
   onCreate,
-  onTaskUpdate,
-  onTaskDelete,
+  renderTaskRow,
 }: TaskListViewProps) {
   const inputClass =
     'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
@@ -209,15 +213,7 @@ export default function TaskListView({
       ) : (
         <div className="space-y-1.5">
           {tasks.map((t, i) => (
-            <TaskRow
-              key={t.id}
-              task={t}
-              projectId={projectId}
-              index={i + 1}
-              coaAccounts={coaAccounts}
-              onUpdate={onTaskUpdate}
-              onDelete={onTaskDelete}
-            />
+            <Fragment key={t.id}>{renderTaskRow(t, i + 1)}</Fragment>
           ))}
         </div>
       )}
