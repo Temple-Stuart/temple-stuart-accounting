@@ -42,6 +42,7 @@ import {
   demoIncomingDependencies,
   demoEvolution,
 } from './demoData';
+import { showroomNarrativeCopy, type CopyBlock } from './narrativeCopy';
 
 interface Props {
   /** Opens the existing home register/login modal (page.tsx:74 — the same
@@ -60,6 +61,20 @@ function makeLockedHandlers(onRequireAuth: () => void) {
   return lock;
 }
 
+/**
+ * A plain-language note rendered above a pipe section (the human "what is this"
+ * for the real UI below it). Pure presentational — text only, no data, no
+ * callbacks. Voice/wording live in showroomNarrativeCopy (PR8), never inline.
+ */
+function SectionNote({ copy }: { copy: CopyBlock }) {
+  return (
+    <div className="mb-2">
+      <div className="text-xs font-mono font-semibold text-text-primary">{copy.heading}</div>
+      <div className="text-xs font-mono text-text-muted">{copy.body}</div>
+    </div>
+  );
+}
+
 export default function ProjectsPipelineShowroom({ onRequireAuth }: Props) {
   const lock = makeLockedHandlers(onRequireAuth);
 
@@ -70,6 +85,8 @@ export default function ProjectsPipelineShowroom({ onRequireAuth }: Props) {
 
   // ── taskSection: real TaskListView, rows = pure TaskRowView (NOT TaskRow) ──
   const taskSection = (
+    <>
+      <SectionNote copy={showroomNarrativeCopy.sections.tasks} />
     <TaskListView
       tasks={demoTasks}
       loading={false}
@@ -126,15 +143,21 @@ export default function ProjectsPipelineShowroom({ onRequireAuth }: Props) {
         />
       )}
     />
+    </>
   );
 
   // ── evolutionSection: read-only timeline, no callbacks ────────────────────
   const evolutionSection = (
-    <EvolutionTimelineView loading={false} error={null} data={demoEvolution} />
+    <>
+      <SectionNote copy={showroomNarrativeCopy.sections.evolution} />
+      <EvolutionTimelineView loading={false} error={null} data={demoEvolution} />
+    </>
   );
 
   // ── dependencySection: real DependencyListView fed seed edges ─────────────
   const dependencySection = (
+    <>
+      <SectionNote copy={showroomNarrativeCopy.sections.dependencies} />
     <DependencyListView
       projectId={demoProjectId}
       allProjects={demoAllProjects}
@@ -156,10 +179,20 @@ export default function ProjectsPipelineShowroom({ onRequireAuth }: Props) {
       onCreate={lock}
       onDelete={lock}
     />
+    </>
   );
 
   return (
-    <ProjectRowView
+    <div>
+      {/* Intro — what this is, above the pipe. */}
+      <div className="mb-4">
+        <h2 className="text-base font-semibold text-text-primary mb-1">
+          {showroomNarrativeCopy.intro.heading}
+        </h2>
+        <p className="text-sm text-text-muted">{showroomNarrativeCopy.intro.body}</p>
+      </div>
+
+      <ProjectRowView
       project={demoProject}
       entities={demoEntities}
       rowRef={rowRef}
@@ -213,6 +246,20 @@ export default function ProjectsPipelineShowroom({ onRequireAuth }: Props) {
       onDelete={lock}
       onArchive={lock}
       onUnarchive={lock}
-    />
+      />
+
+      {/* Closing nudge — friendly sign-up invite, below the pipe. The CTA does
+          ONLY onRequireAuth() (the shared lock handler): no fetch, no nav. */}
+      <div className="mt-4">
+        <p className="text-sm text-text-muted mb-2">{showroomNarrativeCopy.closingNudge.body}</p>
+        <button
+          type="button"
+          onClick={lock}
+          className="px-3 py-1.5 border border-brand-purple text-brand-purple rounded text-xs font-mono font-semibold hover:bg-purple-50 transition-colors"
+        >
+          {showroomNarrativeCopy.closingNudge.ctaLabel} <span aria-hidden>→</span>
+        </button>
+      </div>
+    </div>
   );
 }
