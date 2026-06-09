@@ -46,6 +46,12 @@ const DEMO_DAY_AUDIT_PROMPT =
   'receipts. The app turns these notes into your script, so it only talks about ' +
   'stuff that really happened.';
 
+// PR F1 — institutional visual separation: frame the Day + Script tool panels in
+// the SAME faint brand-purple section card the project sub-sections use, so the
+// whole stack reads as one designed system. Tokens only (tailwind.config.ts:20-24);
+// applied here in the wrapper, never on the shared DayCalendarView/ScriptGeneratorView.
+const SECTION_CARD = 'rounded-lg border border-brand-purple/15 bg-brand-purple-wash/40 p-4';
+
 export default function OperationsPipelineShowroom({ onRequireAuth }: Props) {
   // One inert handler for every action across all three panels: it does ONLY
   // onRequireAuth() — never a fetch, never the paid generate-script call.
@@ -59,6 +65,7 @@ export default function OperationsPipelineShowroom({ onRequireAuth }: Props) {
 
       {/* ── PANEL 2 · DAY CALENDAR (her tasks mapped into the day) ────────── */}
       {/* narrative beat slot — copy lands in PR F */}
+      <div className={SECTION_CARD}>
       <DayCalendarView
         date={demoDayDate}
         onDateChange={lock}
@@ -67,9 +74,11 @@ export default function OperationsPipelineShowroom({ onRequireAuth }: Props) {
         error={null}
         entities={demoDayEntities}
       />
+      </div>
 
       {/* ── PANEL 3 · SCRIPT (AI narrates what actually happened) ─────────── */}
       {/* narrative beat slot — copy lands in PR F */}
+      <div className={SECTION_CARD}>
       <ScriptGeneratorView
         dayAuditPrompt={DEMO_DAY_AUDIT_PROMPT}
         hasPiece={true}
@@ -90,6 +99,7 @@ export default function OperationsPipelineShowroom({ onRequireAuth }: Props) {
         onDraftChange={lock}
         onExecNotesChange={lock}
       />
+      </div>
     </div>
   ));
 }
