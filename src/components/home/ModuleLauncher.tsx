@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import CreateTripForm from '@/components/trips/CreateTripForm';
-import TravelPipelineShowroom from '@/components/trips/showroom/TravelPipelineShowroom';
+import PublicFlightSearch from '@/components/trips/PublicFlightSearch';
 import ScanFilterForm from '@/components/trading/ScanFilterForm';
 import OperationsPipelineShowroom from '@/components/workbench/operations/showroom/OperationsPipelineShowroom';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
@@ -106,12 +106,14 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
   // card has exactly ONE purple band (the app design rule).
   const renderBody = (m: ModuleDef) => {
     if (m.key === 'travel') {
-      // Keep the live, guest-gated banner as-is; add the locked, fetch-free Travel
-      // showroom (Maria's Oaxaca trip) BELOW it. Every showroom action → onRequireAuth.
+      // Keep the live, guest-gated banner as-is; below it, the LIVE public flight
+      // search (PR-4): a logged-out visitor searches real fares against the now-public
+      // /api/flights/search. SAVING a flight to a trip routes to onRequireAuth (booking
+      // stays gated). Replaces the locked TravelPipelineShowroom (now unmounted).
       return (
         <>
           <CreateTripForm onUnauthenticated={gateGuestCreate} showHeader={false} />
-          <TravelPipelineShowroom onRequireAuth={onRequireAuth} />
+          <PublicFlightSearch onRequireAuth={onRequireAuth} />
         </>
       );
     }
