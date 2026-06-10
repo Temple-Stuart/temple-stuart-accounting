@@ -1126,6 +1126,25 @@ model travel_search_usage {
   @@unique([searchDate, provider])
 }
 
+// ─── Per-key request rate-limiter (durable, fixed-window) ────────────────────
+// Net-new: there is no app rate-limiter today. Mirrors the durable usage-counter
+// shape so it survives deploys AND holds across serverless instances (an in-memory
+// Map would reset per lambda and let a bot fan out across instances). One row per
+// (rlKey + windowStart bucket); rateLimit() (src/lib/rateLimit.ts) atomically
+// increments it and throws RateLimitError when the count exceeds the limit in the
+// current window. The caller (PR-3) passes the client IP as rlKey. Old buckets are
+// harmless once their window passes (never read again); periodic cleanup is a
+// fast-follow, not required for correctness.
+model rate_limit_hits {
+  id          String   @id @default(cuid())
+  rlKey       String // caller key — e.g. "search:duffel:<client-ip>"
+  windowStart Int // unix epoch seconds at the start of the fixed window bucket
+  count       Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([rlKey, windowStart])
+}
+
 // ─── Travel reservations (real bookings against provider APIs) ──────────────
 // One row per confirmed booking through a bookable provider (LiteAPI / Viator
 // / Duffel / Mozio in the future). Per the user-scoping mandate, every read/
