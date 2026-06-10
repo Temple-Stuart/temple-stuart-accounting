@@ -1109,6 +1109,23 @@ model google_places_usage {
   updatedAt DateTime @updatedAt
 }
 
+// ─── Travel SEARCH daily spend-cap counter (bill protection) ─────────────────
+// Mirrors google_places_usage, but keyed by (UTC date + provider). Every real
+// (uncached) provider SEARCH call increments the day's counter via
+// reserveTravelSearch() (src/lib/travelSearchQuota.ts), which throws
+// TravelSearchQuotaError — fail loud — when the per-provider daily cap is
+// crossed. Built BEFORE any search route goes public (PR-3 wires it); a bot
+// cannot run up a bill past the cap. Caps: TRAVEL_SEARCH_DAILY_CAP[_<PROVIDER>].
+model travel_search_usage {
+  id         String   @id @default(cuid())
+  searchDate String // "YYYY-MM-DD" (UTC)
+  provider   String // "duffel" | "liteapi" | "viator" | "mozio"
+  callCount  Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  @@unique([searchDate, provider])
+}
+
 // ─── Travel reservations (real bookings against provider APIs) ──────────────
 // One row per confirmed booking through a bookable provider (LiteAPI / Viator
 // / Duffel / Mozio in the future). Per the user-scoping mandate, every read/
