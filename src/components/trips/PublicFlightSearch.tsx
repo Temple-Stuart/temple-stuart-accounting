@@ -149,9 +149,9 @@ export default function PublicFlightSearch({ onRequireAuth }: Props) {
   const book = () => onRequireAuth();
 
   return (
-    <div className="mt-6 space-y-3">
+    <div className="mt-10 pt-8 border-t border-border space-y-3">
       <div>
-        <p className="text-sm text-text-primary mb-1">Search real flights — free, no account needed.</p>
+        <p className="text-lg font-bold text-brand-purple mb-1">Search real flights — free, no account needed.</p>
         <p className="text-xs text-text-muted">
           Type two airports and a date to see live fares. Saving a flight to a trip asks
           you to sign up. Hotels, activities, and rides are coming next.
