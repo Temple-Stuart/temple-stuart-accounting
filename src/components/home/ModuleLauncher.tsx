@@ -107,9 +107,18 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
   // card has exactly ONE purple band (the app design rule).
   const renderBody = (m: ModuleDef) => {
     if (m.key === 'travel') {
-      // The LIVE public flight search renders FULL-WIDTH above this card (see the
-      // MODULES map below). The card body keeps the guest-gated trip banner.
-      return <CreateTripForm onUnauthenticated={gateGuestCreate} showHeader={false} />;
+      // PR-T-Layout: the Create-a-trip bar is now the FIRST travel section, with a
+      // plain explainer above it; the two live searches follow below (see the
+      // MODULES map). The guest Create-trip gate is unchanged — gateGuestCreate
+      // (passed as onUnauthenticated) opens the login popup for logged-out guests.
+      return (
+        <div className="space-y-3">
+          <p className="text-sm text-text-muted">
+            Start a trip and we&apos;ll help you plan, book, and budget it — sign up free to save it.
+          </p>
+          <CreateTripForm onUnauthenticated={gateGuestCreate} showHeader={false} />
+        </div>
+      );
     }
     if (m.key === 'operations') {
       // PR E: the FULL locked-but-visible Operations story — Project → Day → Script,
@@ -158,14 +167,6 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
       {MODULES.map((m, i) => (
         <section key={m.key} className={`w-full py-10 ${i % 2 === 1 ? 'bg-bg-row' : 'bg-white'} border-b border-border`}>
           <div className="max-w-7xl mx-auto px-4 lg:px-8 space-y-6">
-            {/* PR-5L: the live flight search is a FULL-WIDTH row on TOP of the
-                Travel module, OUTSIDE the card chrome — not squeezed into the
-                card body. Everything else (the banner) sits in the card below. */}
-            {m.key === 'travel' && <PublicFlightSearch onRequireAuth={onRequireAuth} />}
-            {/* PR-H3: the live hotel search sits FULL-WIDTH directly below the
-                flight search (same space-y-6 stack, above the card) — real,
-                image-rich LiteAPI results; "Book" routes to sign-up. */}
-            {m.key === 'travel' && <PublicHotelSearch onRequireAuth={onRequireAuth} />}
             <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
               <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
                 <span>{m.label}</span>
@@ -177,6 +178,11 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
                 {renderBody(m)}
               </div>
             </div>
+            {/* PR-T-Layout: top-to-bottom order is Create-a-trip bar (the card
+                above) → live flight search → live hotel search. Each search keeps
+                its own built-in explainer; their fetch/booking logic is unchanged. */}
+            {m.key === 'travel' && <PublicFlightSearch onRequireAuth={onRequireAuth} />}
+            {m.key === 'travel' && <PublicHotelSearch onRequireAuth={onRequireAuth} />}
           </div>
         </section>
       ))}
