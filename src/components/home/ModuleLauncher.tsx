@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import CreateTripForm from '@/components/trips/CreateTripForm';
 import PublicFlightSearch from '@/components/trips/PublicFlightSearch';
+import PublicHotelSearch from '@/components/trips/PublicHotelSearch';
 import ScanFilterForm from '@/components/trading/ScanFilterForm';
 import OperationsPipelineShowroom from '@/components/workbench/operations/showroom/OperationsPipelineShowroom';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
@@ -161,6 +162,10 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
                 Travel module, OUTSIDE the card chrome — not squeezed into the
                 card body. Everything else (the banner) sits in the card below. */}
             {m.key === 'travel' && <PublicFlightSearch onRequireAuth={onRequireAuth} />}
+            {/* PR-H3: the live hotel search sits FULL-WIDTH directly below the
+                flight search (same space-y-6 stack, above the card) — real,
+                image-rich LiteAPI results; "Book" routes to sign-up. */}
+            {m.key === 'travel' && <PublicHotelSearch onRequireAuth={onRequireAuth} />}
             <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
               <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
                 <span>{m.label}</span>
