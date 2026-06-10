@@ -106,16 +106,9 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
   // card has exactly ONE purple band (the app design rule).
   const renderBody = (m: ModuleDef) => {
     if (m.key === 'travel') {
-      // Keep the live, guest-gated banner as-is; below it, the LIVE public flight
-      // search (PR-4): a logged-out visitor searches real fares against the now-public
-      // /api/flights/search. SAVING a flight to a trip routes to onRequireAuth (booking
-      // stays gated). Replaces the locked TravelPipelineShowroom (now unmounted).
-      return (
-        <>
-          <CreateTripForm onUnauthenticated={gateGuestCreate} showHeader={false} />
-          <PublicFlightSearch onRequireAuth={onRequireAuth} />
-        </>
-      );
+      // The LIVE public flight search renders FULL-WIDTH above this card (see the
+      // MODULES map below). The card body keeps the guest-gated trip banner.
+      return <CreateTripForm onUnauthenticated={gateGuestCreate} showHeader={false} />;
     }
     if (m.key === 'operations') {
       // PR E: the FULL locked-but-visible Operations story — Project → Day → Script,
@@ -163,7 +156,11 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
           the separation comes from the full-width bg, NOT a second purple. */}
       {MODULES.map((m, i) => (
         <section key={m.key} className={`w-full py-10 ${i % 2 === 1 ? 'bg-bg-row' : 'bg-white'} border-b border-border`}>
-          <div className="max-w-7xl mx-auto px-4 lg:px-8">
+          <div className="max-w-7xl mx-auto px-4 lg:px-8 space-y-6">
+            {/* PR-5L: the live flight search is a FULL-WIDTH row on TOP of the
+                Travel module, OUTSIDE the card chrome — not squeezed into the
+                card body. Everything else (the banner) sits in the card below. */}
+            {m.key === 'travel' && <PublicFlightSearch onRequireAuth={onRequireAuth} />}
             <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
               <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
                 <span>{m.label}</span>
