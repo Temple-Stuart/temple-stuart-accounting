@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import CreateTripForm from '@/components/trips/CreateTripForm';
 import PublicFlightSearch from '@/components/trips/PublicFlightSearch';
 import PublicHotelSearch from '@/components/trips/PublicHotelSearch';
+import PublicActivitySearch from '@/components/trips/PublicActivitySearch';
 import ScanFilterForm from '@/components/trading/ScanFilterForm';
 import OperationsPipelineShowroom from '@/components/workbench/operations/showroom/OperationsPipelineShowroom';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
@@ -178,11 +179,13 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
                 {renderBody(m)}
               </div>
             </div>
-            {/* PR-T-Layout: top-to-bottom order is Create-a-trip bar (the card
-                above) → live flight search → live hotel search. Each search keeps
-                its own built-in explainer; their fetch/booking logic is unchanged. */}
+            {/* PR-T-Layout + PR-A3: top-to-bottom order is Create-a-trip bar (the
+                card above) → live flight search → live hotel search → live activity
+                search. Each search keeps its own built-in explainer; their
+                fetch/booking logic is unchanged. */}
             {m.key === 'travel' && <PublicFlightSearch onRequireAuth={onRequireAuth} />}
             {m.key === 'travel' && <PublicHotelSearch onRequireAuth={onRequireAuth} />}
+            {m.key === 'travel' && <PublicActivitySearch onRequireAuth={onRequireAuth} />}
           </div>
         </section>
       ))}
