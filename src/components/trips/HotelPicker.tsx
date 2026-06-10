@@ -27,6 +27,10 @@ interface Props {
   bedsNeeded: number;
   selectedHotel: HotelOption | null;
   onSelectHotel: (hotel: HotelOption) => void;
+  /** OPTIONAL showroom list (T4a). When provided, it supplies the hotel options
+   *  the view renders; when undefined the component behaves EXACTLY as today (the
+   *  internal list, only ever set by the stubbed search / manual entry). No fetch. */
+  hotelOptions?: HotelOption[];
 }
 
 export default function HotelPicker({
@@ -39,8 +43,12 @@ export default function HotelPicker({
   bedsNeeded,
   selectedHotel,
   onSelectHotel,
+  hotelOptions,
 }: Props) {
   const [hotels, setHotels] = useState<HotelOption[]>([]);
+  // T4a: a showroom-fed list overrides the (empty) internal list when provided;
+  // undefined → identical to today. Only the RENDER reads use this, not the setters.
+  const displayHotels = hotelOptions ?? hotels;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState(false);
@@ -105,7 +113,7 @@ export default function HotelPicker({
       {/* Header */}
       <div 
         className="p-4 cursor-pointer hover:bg-bg-row flex justify-between items-center"
-        onClick={() => hotels.length > 0 || searched ? setExpanded(!expanded) : fetchHotels()}
+        onClick={() => displayHotels.length > 0 || searched ? setExpanded(!expanded) : fetchHotels()}
       >
         <div>
           <div className="font-medium">{destinationName}</div>
@@ -160,7 +168,7 @@ export default function HotelPicker({
           {/* Manual Entry Section - Always show */}
           <div className="p-4 bg-white border-b border-border">
             <div className="text-sm text-text-muted mb-3">
-              {hotels.length === 0 && searched 
+              {displayHotels.length === 0 && searched 
                 ? "No hotels found via API. Enter lodging details manually:"
                 : "Or enter lodging manually:"}
             </div>
@@ -205,13 +213,13 @@ export default function HotelPicker({
           </div>
 
           {/* API Results */}
-          {hotels.length > 0 && (
+          {displayHotels.length > 0 && (
             <div className="text-xs text-text-faint px-4 py-2 bg-bg-row">
-              {hotels.length} hotels from Amadeus API (test data):
+              {displayHotels.length} hotels from Amadeus API (test data):
             </div>
           )}
           
-          {hotels.map((hotel) => (
+          {displayHotels.map((hotel) => (
             <div
               key={hotel.hotelId}
               onClick={() => {
@@ -252,7 +260,7 @@ export default function HotelPicker({
             </div>
           ))}
 
-          {hotels.length > 0 && (
+          {displayHotels.length > 0 && (
             <div className="p-3 bg-white text-xs text-text-faint text-center">
               ⚠️ Test data from Amadeus API — prices may not reflect actual rates
             </div>
