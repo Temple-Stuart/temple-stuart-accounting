@@ -76,9 +76,9 @@ export default function PublicActivitySearch({ onRequireAuth }: Props) {
     'focus:outline-none focus:ring-2 focus:ring-brand-purple/40';
 
   return (
-    <div className="mt-6 space-y-4">
+    <div className="mt-10 pt-8 border-t border-border space-y-4">
       <div>
-        <p className="text-sm text-text-primary mb-1">Find real things to do — free, no account needed.</p>
+        <p className="text-lg font-bold text-brand-purple mb-1">Find real things to do — free, no account needed.</p>
         <p className="text-xs text-text-muted">
           Type a city and country to see real tours and experiences with photos and prices.
           Booking asks you to sign up.
