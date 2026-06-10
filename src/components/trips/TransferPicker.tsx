@@ -36,6 +36,12 @@ interface Props {
   selectedDeparture: TransferOption | null;
   onSelectArrival: (transfer: TransferOption) => void;
   onSelectDeparture: (transfer: TransferOption) => void;
+  /** OPTIONAL showroom lists (T4a), per direction. When provided, they supply the
+   *  transfer options the view renders; when undefined the component behaves
+   *  EXACTLY as today (the internal lists, only set by the stubbed search / manual
+   *  entry). No fetch. */
+  arrivalOptions?: TransferOption[];
+  departureOptions?: TransferOption[];
 }
 
 const TRANSFER_TYPES = [
@@ -55,9 +61,15 @@ export default function TransferPicker({
   selectedDeparture,
   onSelectArrival,
   onSelectDeparture,
+  arrivalOptions,
+  departureOptions,
 }: Props) {
   const [arrivalTransfers, setArrivalTransfers] = useState<TransferOption[]>([]);
   const [departureTransfers, setDepartureTransfers] = useState<TransferOption[]>([]);
+  // T4a: showroom-fed lists override the (empty) internal lists when provided;
+  // undefined → identical to today. Only the RENDER reads use these, not setters.
+  const displayArrival = arrivalOptions ?? arrivalTransfers;
+  const displayDeparture = departureOptions ?? departureTransfers;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState(false);
@@ -127,7 +139,7 @@ export default function TransferPicker({
   };
 
   const totalPrice = (selectedArrival?.price || 0) + (selectedDeparture?.price || 0);
-  const currentTransfers = activeTab === 'arrival' ? arrivalTransfers : departureTransfers;
+  const currentTransfers = activeTab === 'arrival' ? displayArrival : displayDeparture;
   const currentSelected = activeTab === 'arrival' ? selectedArrival : selectedDeparture;
   const onSelect = activeTab === 'arrival' ? onSelectArrival : onSelectDeparture;
 
@@ -136,7 +148,7 @@ export default function TransferPicker({
       {/* Header */}
       <div 
         className="p-4 cursor-pointer hover:bg-bg-row flex justify-between items-center"
-        onClick={() => (arrivalTransfers.length > 0 || searched) ? setExpanded(!expanded) : fetchTransfers()}
+        onClick={() => (displayArrival.length > 0 || searched) ? setExpanded(!expanded) : fetchTransfers()}
       >
         <div>
           <div className="font-medium">{destinationName}</div>
