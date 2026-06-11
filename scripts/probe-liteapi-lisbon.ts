@@ -1,9 +1,11 @@
 // Diagnostic only — run: npx tsx scripts/probe-liteapi-lisbon.ts
 //
-// Standalone LiteAPI probe for Lisbon. NOT wired into the app. Settles whether
-// the "only Canggu" empty-results bug is RESOLUTION (cityName brittle, coords/
-// catalog fix it → 200 with data on the coord/catalog calls) or ACCOUNT COVERAGE
-// (production account not activated → 401/403 everywhere).
+// Standalone LiteAPI probe for Lisbon (v2). NOT wired into the app. v1 proved
+// /data/hotels returns 200 real hotels but /hotels/rates returned data[]=n/a
+// (expected field absent). v2 prints the RAW rates response shape (top-level
+// keys + body) AND tests the TWO-STEP: hotelIds from /data/hotels → /hotels/rates
+// {hotelIds[]}. Settles whether the fix is the two-step (build it) or an account/
+// coverage issue.
 //
 // It mirrors src/lib/liteapiClient.ts EXACTLY so the auth/base/mode match the app:
 //   - LITEAPI_BASE          (liteapiClient.ts:22)
@@ -139,12 +141,30 @@ async function main(): Promise<void> {
   }
 
   // TEST 1 — /data/hotels by city name (the catalog step the two-step flow needs)
+  // Captures hotel IDs for the TEST 5 two-step.
+  let catalogIds: string[] = [];
+  let idFieldName = '(unknown)';
   banner('TEST 1 — GET /data/hotels?cityName=Lisbon&countryCode=PT');
   try {
     const url = `${LITEAPI_BASE}/data/hotels?cityName=${encodeURIComponent(CITY_NAME)}&countryCode=${COUNTRY_CODE}`;
     const { status, json, text } = await getJson(url);
     const arr = hotelsArray(json);
-    console.log(`status=${status}  catalogHotels=${arr.length}  first=${firstHotelSummary(arr)}`);
+    console.log(`status=${status}  catalogHotels=${arr.length}`);
+    const first = arr[0];
+    if (first) {
+      // Reveal the EXACT shape so the build knows the id field name.
+      idFieldName = first.id !== undefined ? 'id' : first.hotelId !== undefined ? 'hotelId' : '(neither id nor hotelId!)';
+      console.log(`firstHotelKeys=${JSON.stringify(Object.keys(first))}`);
+      console.log(`idField='${idFieldName}'`);
+      console.log(`sample[0]=${firstHotelSummary(arr)}`);
+      if (arr[1]) console.log(`sample[1]=id=${arr[1].id ?? arr[1].hotelId} name=${JSON.stringify(arr[1].name ?? arr[1].hotel?.name)}`);
+    }
+    // Collect up to 20 ids for the two-step (accept either id field).
+    catalogIds = arr
+      .map((h: any) => h.id ?? h.hotelId)
+      .filter((x: any) => typeof x === 'string' && x.length > 0)
+      .slice(0, 20);
+    console.log(`collectedIdsForTwoStep=${catalogIds.length}`);
     if (status >= 400) console.log(`body: ${text.slice(0, 300)}`);
   } catch (e) {
     console.log(`ERROR: ${e instanceof Error ? e.message : String(e)}`);
@@ -162,8 +182,10 @@ async function main(): Promise<void> {
     console.log(`ERROR: ${e instanceof Error ? e.message : String(e)}`);
   }
 
-  // TEST 3 — /hotels/rates by cityName (what the app did before the coords fix)
-  banner('TEST 3 — POST /hotels/rates  (cityName=Lisbon)');
+  // TEST 3 — /hotels/rates by cityName (what the app did before the coords fix).
+  // Print the RAW shape — the v1 probe showed data[]=n/a, so the expected field
+  // is absent; we need to SEE the actual top-level keys + body.
+  banner('TEST 3 — POST /hotels/rates  (cityName=Lisbon) — RAW shape');
   try {
     const body = {
       cityName: CITY_NAME,
@@ -176,10 +198,13 @@ async function main(): Promise<void> {
       includeHotelData: true,
     };
     const { status, json, text } = await postJson(`${LITEAPI_BASE}/hotels/rates`, body);
-    const dataLen = Array.isArray(json?.data) ? json.data.length : 'n/a';
-    const hotelsLen = Array.isArray(json?.hotels) ? json.hotels.length : 'n/a';
-    console.log(`status=${status}  data[]=${dataLen}  hotels[]=${hotelsLen}`);
-    if (status >= 400) console.log(`body: ${text.slice(0, 300)}`);
+    console.log(`status=${status}`);
+    console.log(`topLevelKeys=${json ? JSON.stringify(Object.keys(json)) : '(non-JSON body)'}`);
+    if (json && typeof json.data !== 'undefined') {
+      console.log(`typeof data=${Array.isArray(json.data) ? `array(len=${json.data.length})` : typeof json.data}`);
+      if (json.data && !Array.isArray(json.data)) console.log(`data subKeys=${JSON.stringify(Object.keys(json.data))}`);
+    }
+    console.log(`rawBody(first 800): ${text.slice(0, 800)}`);
   } catch (e) {
     console.log(`ERROR: ${e instanceof Error ? e.message : String(e)}`);
   }
@@ -200,21 +225,61 @@ async function main(): Promise<void> {
       includeHotelData: true,
     };
     const { status, json, text } = await postJson(`${LITEAPI_BASE}/hotels/rates`, body);
+    console.log(`status=${status}`);
+    console.log(`topLevelKeys=${json ? JSON.stringify(Object.keys(json)) : '(non-JSON body)'}`);
     const dataLen = Array.isArray(json?.data) ? json.data.length : 'n/a';
-    const hotelsLen = Array.isArray(json?.hotels) ? json.hotels.length : 'n/a';
-    console.log(`status=${status}  data[]=${dataLen}  hotels[]=${hotelsLen}`);
-    if (status >= 400) console.log(`body: ${text.slice(0, 300)}`);
+    console.log(`data[]=${dataLen}`);
+    if (dataLen === 'n/a') console.log(`rawBody(first 500): ${text.slice(0, 500)}`);
   } catch (e) {
     console.log(`ERROR: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  // TEST 5 — THE TWO-STEP: hotelIds from TEST 1's /data/hotels → /hotels/rates.
+  // This is the candidate fix for long-tail cities: resolve the city to real
+  // hotelIds via the catalog, then price exactly those.
+  banner('TEST 5 — POST /hotels/rates  (hotelIds[] from TEST 1) — the two-step');
+  if (catalogIds.length === 0) {
+    console.log(`skipped: TEST 1 returned no usable hotel IDs (idField='${idFieldName}').`);
+  } else {
+    try {
+      const body = {
+        hotelIds: catalogIds,
+        checkin: CHECKIN,
+        checkout: CHECKOUT,
+        occupancies: OCCUPANCIES,
+        currency: 'USD',
+        guestNationality: 'US',
+      };
+      const { status, json, text } = await postJson(`${LITEAPI_BASE}/hotels/rates`, body);
+      console.log(`status=${status}  sentHotelIds=${catalogIds.length}`);
+      console.log(`topLevelKeys=${json ? JSON.stringify(Object.keys(json)) : '(non-JSON body)'}`);
+      const rateArr = Array.isArray(json?.data) ? json.data : [];
+      console.log(`rateEntries(data[])=${rateArr.length}`);
+      const r0 = rateArr[0];
+      if (r0) {
+        console.log(`rate[0]Keys=${JSON.stringify(Object.keys(r0))}`);
+        const hid = r0.hotelId ?? r0.id ?? '(no id)';
+        // Best-effort price dig (path may differ — rawBody below shows the truth).
+        const price =
+          r0?.roomTypes?.[0]?.rates?.[0]?.retailRate?.total?.[0]?.amount ??
+          r0?.roomTypes?.[0]?.offerRetailRate?.amount ??
+          '(price path unknown — see rawBody)';
+        console.log(`rate[0]: hotelId=${hid}  price=${price}`);
+      }
+      console.log(`rawBody(first 800): ${text.slice(0, 800)}`);
+    } catch (e) {
+      console.log(`ERROR: ${e instanceof Error ? e.message : String(e)}`);
+    }
   }
 
   // ── How to read it ───────────────────────────────────────────────────────
   console.log(`\n══════════════════════════════════════════════════════════════`);
   console.log(`HOW TO READ:`);
   console.log(`  • Any 401/403  → production account NOT activated (or wrong key). No code fix helps — activate with LiteAPI first.`);
-  console.log(`  • T3 cityName data[]=0 but T4 coords data[]>0 → RESOLUTION bug; the coords fix (already shipped) is correct.`);
-  console.log(`  • T1 /data/hotels >0 → the catalog two-step is viable for long-tail cities (and shows the live list shape).`);
-  console.log(`  • All 200 but every count=0 → account is activated but has no Lisbon inventory (coverage) — escalate to LiteAPI.`);
+  console.log(`  • T1 firstHotelKeys/idField → the EXACT hotel id field to use in the two-step build.`);
+  console.log(`  • T3/T4 topLevelKeys + rawBody → what the cityName/coords rates call actually returns (empty vs different shape vs error).`);
+  console.log(`  • T5 rateEntries>0 → THE TWO-STEP IS THE FIX: resolve city → hotelIds (/data/hotels) → price via /hotels/rates {hotelIds[]}. Build it.`);
+  console.log(`  • T5 rateEntries=0 on 200 → IDs returned but no bookable rates for the window (try other dates) — coverage, not code.`);
   console.log(`══════════════════════════════════════════════════════════════`);
 }
 
