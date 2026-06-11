@@ -578,8 +578,56 @@ export function findViatorDestIdFor(cityName: string, _country?: string): number
  * filter is brittle for parenthesised labels (e.g. "Bali (Canggu)") and
  * city/neighborhood ambiguity. PR-9 Fix 5.
  */
-export function findDestinationCoords(cityName: string, _country?: string): { lat: number; lng: number } | null {
-  const match = ALL_DESTINATIONS.find(d => d.name === cityName && d.type === 'city');
+export function findDestinationCoords(cityName: string, country?: string): { lat: number; lng: number } | null {
+  const q = cityName.trim().toLowerCase();
+  if (!q) return null;
+
+  // Catalog cities with usable coordinates.
+  const cities = ALL_DESTINATIONS.filter(
+    d => d.type === 'city' && d.lat != null && d.lng != null,
+  );
+  // Soft country narrowing: prefer same-country cities to disambiguate
+  // same-named cities, but NEVER exclude everything — an unknown/mismatched
+  // country name falls back to the full city pool so exact matches still resolve.
+  const c = country?.trim().toLowerCase();
+  const narrowed = c ? cities.filter(d => d.country.toLowerCase() === c) : [];
+  const pool = narrowed.length > 0 ? narrowed : cities;
+
+  // Each catalog name yields its own comparable forms so user input matches the
+  // canonical label OR the city inside it: "Bali (Canggu)" → ["bali (canggu)",
+  // "canggu", "bali"]; "Lisbon, Portugal" → ["lisbon, portugal", "lisbon"].
+  const forms = (name: string): string[] => {
+    const lower = name.trim().toLowerCase();
+    const out = [lower];
+    const paren = lower.match(/\(([^)]+)\)/);
+    if (paren) {
+      out.push(paren[1].trim());                 // inside the parens
+      out.push(lower.replace(/\([^)]*\)/, '').trim()); // before the parens
+    }
+    const beforeComma = lower.split(',')[0].trim();
+    if (beforeComma && beforeComma !== lower) out.push(beforeComma);
+    return out.filter(Boolean);
+  };
+  const qForms = forms(cityName);
+
+  // 1. Exact (normalized) on any form of either side — this is a SUPERSET of the
+  //    old `d.name === cityName` exact match, so existing callers are unchanged.
+  let match = pool.find(d => {
+    const dForms = forms(d.name);
+    return dForms.some(df => qForms.includes(df));
+  });
+
+  // 2. Containment either direction (≥3 chars, within the country-narrowed pool
+  //    to limit false positives): user "Canggu" ⊂ entry "bali (canggu)", or
+  //    user "Lisbon, Portugal" ⊃ entry "lisbon".
+  if (!match) {
+    match = pool.find(d =>
+      forms(d.name).some(df =>
+        df.length >= 3 && (df.includes(q) || q.includes(df)),
+      ),
+    );
+  }
+
   if (match?.lat != null && match?.lng != null) return { lat: match.lat, lng: match.lng };
   return null;
 }

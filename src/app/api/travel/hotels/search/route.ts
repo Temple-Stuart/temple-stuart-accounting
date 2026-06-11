@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchHotelRates, liteApiHotelToRecommendation } from '@/lib/liteapiClient';
+import { findDestinationCoords } from '@/lib/destinations';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
 
@@ -63,6 +64,18 @@ export async function GET(request: NextRequest) {
     // PROVIDER CALL — only reachable after BOTH guards passed.
     console.log(`[LiteAPI] Searching: ${city}, ${country}, ${checkin} → ${checkout}, ${adults} adults`);
 
+    // Resolve the typed city → catalog coordinates so LiteAPI uses its ROBUST
+    // coord-radius search instead of the brittle cityName match (the "only
+    // Canggu" 200-empty bug: cityName 200-empties for most cities). Explicit
+    // query lat/lng win; otherwise a tolerant static-catalog lookup. A catalog
+    // miss → coords null → graceful cityName fallback (less precise, NOT an
+    // error) until the /data/hotels two-step lands for long-tail cities. This
+    // mirrors the authed flow (ai-assistant/route.ts:268,275).
+    const coords =
+      Number.isFinite(latitude) && Number.isFinite(longitude)
+        ? { lat: latitude as number, lng: longitude as number }
+        : findDestinationCoords(city, country);
+
     const hotels = await searchHotelRates({
       city,
       country,
@@ -71,8 +84,7 @@ export async function GET(request: NextRequest) {
       occupancies: [{ adults }],
       ...(currency ? { currency } : {}),
       ...(guestNationality ? { guestNationality } : {}),
-      ...(Number.isFinite(latitude) ? { latitude } : {}),
-      ...(Number.isFinite(longitude) ? { longitude } : {}),
+      ...(coords ? { latitude: coords.lat, longitude: coords.lng } : {}),
       ...(Number.isFinite(radiusMeters) ? { radiusMeters } : {}),
     });
 
