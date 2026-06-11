@@ -6,6 +6,7 @@ import CreateTripForm from '@/components/trips/CreateTripForm';
 import PublicFlightSearch from '@/components/trips/PublicFlightSearch';
 import PublicHotelSearch from '@/components/trips/PublicHotelSearch';
 import PublicActivitySearch from '@/components/trips/PublicActivitySearch';
+import PublicVisaCheck from '@/components/trips/PublicVisaCheck';
 import ComingSoonSection from '@/components/home/ComingSoonSection';
 import ScanFilterForm from '@/components/trading/ScanFilterForm';
 import OperationsPipelineShowroom from '@/components/workbench/operations/showroom/OperationsPipelineShowroom';
@@ -196,13 +197,9 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
               />
             )}
             {m.key === 'travel' && <PublicActivitySearch onRequireAuth={onRequireAuth} />}
-            {/* Post-Activities placeholders: Visa → Insurance → eSIM → Events. */}
-            {m.key === 'travel' && (
-              <ComingSoonSection
-                title="Visas & entry"
-                explainer="Check what you need to enter, and handle visas without the guesswork."
-              />
-            )}
+            {/* PR-V4: the live visa check replaces the "Visas & entry" placeholder.
+                Post-Activities order: Visa (live) → Insurance → eSIM → Events. */}
+            {m.key === 'travel' && <PublicVisaCheck />}
             {m.key === 'travel' && (
               <ComingSoonSection
                 title="Travel insurance"
