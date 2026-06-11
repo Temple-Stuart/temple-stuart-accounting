@@ -16,7 +16,7 @@ const DEFAULT_DAILY_CAP = 1000;
 const WARN_RATIO = 0.8;
 
 /** Providers whose SEARCH calls are metered. String is accepted too (forward-compat). */
-export type TravelProvider = 'duffel' | 'liteapi' | 'viator' | 'mozio';
+export type TravelProvider = 'duffel' | 'liteapi' | 'viator' | 'mozio' | 'travelbuddy';
 
 export class TravelSearchQuotaError extends Error {
   constructor(
@@ -34,11 +34,27 @@ function currentDate(): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
 }
 
-/** Per-provider daily cap. TRAVEL_SEARCH_DAILY_CAP_<PROVIDER> overrides the
- *  global TRAVEL_SEARCH_DAILY_CAP, which overrides DEFAULT_DAILY_CAP. */
+/** Safe per-provider default caps for providers with a known-TINY allowance.
+ *  Used when no TRAVEL_SEARCH_DAILY_CAP_<PROVIDER> env is set, and it takes
+ *  precedence over the shared global cap so a high global value can't blow a
+ *  small monthly tier. An explicit per-provider env still wins over this. */
+const PROVIDER_SAFE_DEFAULT_CAP: Record<string, number> = {
+  // Travel Buddy (visa) free tier is ~120–200 requests per MONTH → ~5/day keeps
+  // us inside it by default. Raise via TRAVEL_SEARCH_DAILY_CAP_TRAVELBUDDY only
+  // once on a paid plan.
+  travelbuddy: 5,
+};
+
+/** Per-provider daily cap. Precedence: TRAVEL_SEARCH_DAILY_CAP_<PROVIDER> env →
+ *  a provider's safe default (tiny-tier protection) → the global
+ *  TRAVEL_SEARCH_DAILY_CAP env → DEFAULT_DAILY_CAP. */
 export function dailyCap(provider: string): number {
   const perProvider = parseInt(process.env[`TRAVEL_SEARCH_DAILY_CAP_${provider.toUpperCase()}`] || '', 10);
   if (Number.isFinite(perProvider) && perProvider > 0) return perProvider;
+  // Tiny-tier providers fall back to their safe default BEFORE the shared global
+  // cap, so a high global value can't overspend a small monthly allowance.
+  const safeDefault = PROVIDER_SAFE_DEFAULT_CAP[provider.toLowerCase()];
+  if (safeDefault != null) return safeDefault;
   const global = parseInt(process.env.TRAVEL_SEARCH_DAILY_CAP || '', 10);
   return Number.isFinite(global) && global > 0 ? global : DEFAULT_DAILY_CAP;
 }
