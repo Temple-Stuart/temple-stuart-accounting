@@ -21,6 +21,8 @@
 
 import { useState } from 'react';
 import HorizontalScroller from './HorizontalScroller';
+import ResultsFilterBar from './ResultsFilterBar';
+import { sortAndFilterResults, type SortKey } from '@/lib/resultsSortFilter';
 
 /** The fields this view renders off a PR-H1 result item. Typed against the
  *  liteApiHotelToRecommendation shape (liteapiClient.ts:328-389); kept local
@@ -113,6 +115,10 @@ function RatingPill({ hotel }: { hotel: HotelResult }) {
 }
 
 export default function HotelResultsView({ results, loading, error, onBook }: Props) {
+  // Client-side sort/filter over the already-fetched results — NO refetch.
+  const [sort, setSort] = useState<SortKey>('price-asc');
+  const [minRating, setMinRating] = useState(0);
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
@@ -149,9 +155,34 @@ export default function HotelResultsView({ results, loading, error, onBook }: Pr
     );
   }
 
+  // Per-view accessors: hotels sort on per-night (fallback total/whole price) +
+  // the 0–5 googleRating. sortAndFilterResults returns a NEW array (no refetch).
+  const displayed = sortAndFilterResults(
+    results,
+    { sort, minRating },
+    {
+      getPrice: (h) => h.pricePerNight ?? h.priceTotal ?? h.price,
+      getRating: (h) => h.googleRating,
+    },
+  );
+
   return (
-    <HorizontalScroller ariaLabel="Hotel results">
-      {results.map((hotel, idx) => {
+    <div>
+      <ResultsFilterBar
+        sort={sort}
+        minRating={minRating}
+        onSortChange={setSort}
+        onMinRatingChange={setMinRating}
+        shownCount={displayed.length}
+        totalCount={results.length}
+      />
+      {displayed.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border bg-white p-6 text-center text-sm text-text-muted">
+          No results match these filters.
+        </div>
+      ) : (
+        <HorizontalScroller ariaLabel="Hotel results">
+          {displayed.map((hotel, idx) => {
         // Per-night first (the number travelers compare on); total as support.
         const perNight = hotel.pricePerNight;
         const total = hotel.priceTotal ?? hotel.price ?? null;
@@ -210,7 +241,9 @@ export default function HotelResultsView({ results, loading, error, onBook }: Pr
             </div>
           </article>
         );
-      })}
-    </HorizontalScroller>
+          })}
+        </HorizontalScroller>
+      )}
+    </div>
   );
 }

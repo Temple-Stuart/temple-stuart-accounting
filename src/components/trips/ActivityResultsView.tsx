@@ -21,6 +21,8 @@
 
 import { useState } from 'react';
 import HorizontalScroller from './HorizontalScroller';
+import ResultsFilterBar from './ResultsFilterBar';
+import { sortAndFilterResults, type SortKey } from '@/lib/resultsSortFilter';
 
 /** The fields this view renders off a PR-A1 result item — the
  *  viatorProductToRecommendation shape MINUS the stripped affiliate fields
@@ -114,6 +116,10 @@ function RatingPill({ activity }: { activity: ActivityResult }) {
 }
 
 export default function ActivityResultsView({ results, loading, error, onBook }: Props) {
+  // Client-side sort/filter over the already-fetched results — NO refetch.
+  const [sort, setSort] = useState<SortKey>('price-asc');
+  const [minRating, setMinRating] = useState(0);
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
@@ -150,9 +156,34 @@ export default function ActivityResultsView({ results, loading, error, onBook }:
     );
   }
 
+  // Per-view accessors: activities sort on the from-price + the 0–5 googleRating.
+  // sortAndFilterResults returns a NEW array (no refetch).
+  const displayed = sortAndFilterResults(
+    results,
+    { sort, minRating },
+    {
+      getPrice: (a) => a.price,
+      getRating: (a) => a.googleRating,
+    },
+  );
+
   return (
-    <HorizontalScroller ariaLabel="Activity results">
-      {results.map((activity, idx) => {
+    <div>
+      <ResultsFilterBar
+        sort={sort}
+        minRating={minRating}
+        onSortChange={setSort}
+        onMinRatingChange={setMinRating}
+        shownCount={displayed.length}
+        totalCount={results.length}
+      />
+      {displayed.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border bg-white p-6 text-center text-sm text-text-muted">
+          No results match these filters.
+        </div>
+      ) : (
+        <HorizontalScroller ariaLabel="Activity results">
+          {displayed.map((activity, idx) => {
         const duration = formatDuration(activity.durationMinutes);
         const place = activity.address;
 
@@ -203,7 +234,9 @@ export default function ActivityResultsView({ results, loading, error, onBook }:
             </div>
           </article>
         );
-      })}
-    </HorizontalScroller>
+          })}
+        </HorizontalScroller>
+      )}
+    </div>
   );
 }
