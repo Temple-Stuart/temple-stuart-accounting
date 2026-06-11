@@ -217,7 +217,7 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
             )}
             {m.key === 'travel' && (
               <ComingSoonSection
-                title="Things to see"
+                title="Events"
                 explainer="Concerts, shows, and live events wherever you're headed."
               />
             )}
