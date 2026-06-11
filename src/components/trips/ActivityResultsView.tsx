@@ -20,6 +20,7 @@
  */
 
 import { useState } from 'react';
+import HorizontalScroller from './HorizontalScroller';
 
 /** The fields this view renders off a PR-A1 result item — the
  *  viatorProductToRecommendation shape MINUS the stripped affiliate fields
@@ -150,7 +151,7 @@ export default function ActivityResultsView({ results, loading, error, onBook }:
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <HorizontalScroller ariaLabel="Activity results">
       {results.map((activity, idx) => {
         const duration = formatDuration(activity.durationMinutes);
         const place = activity.address;
@@ -203,6 +204,6 @@ export default function ActivityResultsView({ results, loading, error, onBook }:
           </article>
         );
       })}
-    </div>
+    </HorizontalScroller>
   );
 }
