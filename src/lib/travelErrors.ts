@@ -86,6 +86,31 @@ export class LiteApiError extends Error {
   }
 }
 
+// ─── Travel Buddy (visa requirements, via RapidAPI) ──────────────────────────
+
+/** Thrown when RAPIDAPI_VISA_KEY is unset/empty. */
+export class MissingVisaKeyError extends Error {
+  readonly source = 'travelbuddy' as const;
+  readonly kind = 'missing_key' as const;
+  constructor() {
+    super('RAPIDAPI_VISA_KEY is not configured');
+    this.name = 'MissingVisaKeyError';
+  }
+}
+
+/** Thrown when the Travel Buddy visa endpoint returns non-2xx (401 auth/quota,
+ *  404 no data, 422 validation — e.g. identical passport/destination, 429
+ *  rate-limit, 5xx server) OR an unexpected/empty response body. Includes the
+ *  endpoint + HTTP status + truncated body so the user sees the actual reason. */
+export class TravelBuddyApiError extends Error {
+  readonly source = 'travelbuddy' as const;
+  readonly kind = 'api_error' as const;
+  constructor(public endpoint: string, public status: number, public body?: string) {
+    super(`Travel Buddy API: ${endpoint} returned ${status}${body ? ` — ${body.substring(0, 200)}` : ''}`);
+    this.name = 'TravelBuddyApiError';
+  }
+}
+
 // ─── Type guards ─────────────────────────────────────────────────────────────
 
 /** True for any typed travel-provider error this module owns. */
@@ -95,13 +120,17 @@ export function isTravelProviderError(err: unknown): err is
   | MissingViatorKeyError
   | ViatorApiError
   | MissingLiteApiKeyError
-  | LiteApiError {
+  | LiteApiError
+  | MissingVisaKeyError
+  | TravelBuddyApiError {
   return (
     err instanceof MissingGoogleKeyError ||
     err instanceof GooglePlacesApiError ||
     err instanceof MissingViatorKeyError ||
     err instanceof ViatorApiError ||
     err instanceof MissingLiteApiKeyError ||
-    err instanceof LiteApiError
+    err instanceof LiteApiError ||
+    err instanceof MissingVisaKeyError ||
+    err instanceof TravelBuddyApiError
   );
 }
