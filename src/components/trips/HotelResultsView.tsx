@@ -20,6 +20,7 @@
  */
 
 import { useState } from 'react';
+import HorizontalScroller from './HorizontalScroller';
 
 /** The fields this view renders off a PR-H1 result item. Typed against the
  *  liteApiHotelToRecommendation shape (liteapiClient.ts:328-389); kept local
@@ -149,7 +150,7 @@ export default function HotelResultsView({ results, loading, error, onBook }: Pr
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <HorizontalScroller ariaLabel="Hotel results">
       {results.map((hotel, idx) => {
         // Per-night first (the number travelers compare on); total as support.
         const perNight = hotel.pricePerNight;
@@ -210,6 +211,6 @@ export default function HotelResultsView({ results, loading, error, onBook }: Pr
           </article>
         );
       })}
-    </div>
+    </HorizontalScroller>
   );
 }
