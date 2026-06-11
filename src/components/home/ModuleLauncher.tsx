@@ -179,12 +179,16 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
                 {renderBody(m)}
               </div>
             </div>
-            {/* PR-T-Layout + PR-A3: top-to-bottom order is Create-a-trip bar (the
-                card above) → live flight search → live hotel search → live activity
-                search. Each search keeps its own built-in explainer; their
-                fetch/booking logic is unchanged. */}
+            {/* PR-T-Layout + PR-A3 + PR-T-Reorder: top-to-bottom live order is
+                Create-a-trip bar (the card above) → flights → hotels →
+                [Ground] → activities. Each search keeps its own built-in
+                explainer; their fetch/booking logic is unchanged. Future
+                placeholders (PR-2) land as: Ground (slot marked below), then
+                after Activities: Visa, Insurance, eSIM, Events. */}
             {m.key === 'travel' && <PublicFlightSearch onRequireAuth={onRequireAuth} />}
             {m.key === 'travel' && <PublicHotelSearch onRequireAuth={onRequireAuth} />}
+            {/* GROUND PLACEHOLDER INSERTS HERE (PR-2) — live ground transit search
+                (Mozio) mounts between Hotels and Activities. No content yet. */}
             {m.key === 'travel' && <PublicActivitySearch onRequireAuth={onRequireAuth} />}
           </div>
         </section>
