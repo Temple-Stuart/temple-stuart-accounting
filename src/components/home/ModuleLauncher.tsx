@@ -6,6 +6,7 @@ import CreateTripForm from '@/components/trips/CreateTripForm';
 import PublicFlightSearch from '@/components/trips/PublicFlightSearch';
 import PublicHotelSearch from '@/components/trips/PublicHotelSearch';
 import PublicActivitySearch from '@/components/trips/PublicActivitySearch';
+import ComingSoonSection from '@/components/home/ComingSoonSection';
 import ScanFilterForm from '@/components/trading/ScanFilterForm';
 import OperationsPipelineShowroom from '@/components/workbench/operations/showroom/OperationsPipelineShowroom';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
@@ -179,17 +180,47 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
                 {renderBody(m)}
               </div>
             </div>
-            {/* PR-T-Layout + PR-A3 + PR-T-Reorder: top-to-bottom live order is
-                Create-a-trip bar (the card above) → flights → hotels →
-                [Ground] → activities. Each search keeps its own built-in
-                explainer; their fetch/booking logic is unchanged. Future
-                placeholders (PR-2) land as: Ground (slot marked below), then
-                after Activities: Visa, Insurance, eSIM, Events. */}
+            {/* PR-T-Layout + PR-A3 + PR-T-Placeholders: top-to-bottom travel stack
+                is Create-a-trip bar (the card above) → flights → hotels → [Ground,
+                coming soon] → activities → [Visa, Insurance, eSIM, Events — coming
+                soon]. The live searches keep their own explainers + logic; the
+                ComingSoonSection rows are STATIC promises (no fetch/state). */}
             {m.key === 'travel' && <PublicFlightSearch onRequireAuth={onRequireAuth} />}
             {m.key === 'travel' && <PublicHotelSearch onRequireAuth={onRequireAuth} />}
-            {/* GROUND PLACEHOLDER INSERTS HERE (PR-2) — live ground transit search
-                (Mozio) mounts between Hotels and Activities. No content yet. */}
+            {/* GROUND placeholder — slots between Hotels and Activities (the live
+                ground search, Mozio, lands here in a future PR). */}
+            {m.key === 'travel' && (
+              <ComingSoonSection
+                title="Getting around"
+                explainer="Airport rides and transfers, booked and budgeted with your trip."
+              />
+            )}
             {m.key === 'travel' && <PublicActivitySearch onRequireAuth={onRequireAuth} />}
+            {/* Post-Activities placeholders: Visa → Insurance → eSIM → Events. */}
+            {m.key === 'travel' && (
+              <ComingSoonSection
+                title="Visas & entry"
+                explainer="Check what you need to enter, and handle visas without the guesswork."
+              />
+            )}
+            {m.key === 'travel' && (
+              <ComingSoonSection
+                title="Travel insurance"
+                explainer="Cover your trip — medical, delays, lost bags — priced into your budget."
+              />
+            )}
+            {m.key === 'travel' && (
+              <ComingSoonSection
+                title="Stay connected"
+                explainer="Get data the moment you land, no hunting for a SIM."
+              />
+            )}
+            {m.key === 'travel' && (
+              <ComingSoonSection
+                title="Things to see"
+                explainer="Concerts, shows, and live events wherever you're headed."
+              />
+            )}
           </div>
         </section>
       ))}
