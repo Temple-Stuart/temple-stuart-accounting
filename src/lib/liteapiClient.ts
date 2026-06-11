@@ -196,126 +196,134 @@ interface LiteApiHotelRate {
   }>;
 }
 
-/** Hit `/v3.0/hotels/rates` and return the normalised hotel list.
- *  Throws `MissingLiteApiKeyError` if no key set, `LiteApiError` on non-2xx. */
-export async function searchHotelRates(params: SearchHotelsParams): Promise<LiteApiHotelRate[]> {
-  const countryCode = countryNameToIso2(params.country);
-  // PR-9 Fix 5: prefer coordinate-radius search when lat/lng are on file.
-  // LiteAPI's `cityName` filter is brittle for parenthesised labels (e.g.
-  // "Bali (Canggu)") and city/neighborhood ambiguity. When the catalog has
-  // coords we send (latitude, longitude, radius); otherwise fall back to
-  // cityName so long-tail user-typed destinations still work.
+// ─── Two-step search (PR-hotels-two-step) ────────────────────────────────────
+// PROVEN LIVE (scripts/probe-liteapi-lisbon.ts): POSTing /hotels/rates with a
+// cityName or coords filter returns {error:{code:2001,"no availability found"}}
+// for every city — that single-step path is dead. The working flow is TWO calls:
+//   STEP 1  GET  /v3.0/data/hotels?cityName=&countryCode=  → { data:[{id,name,…}] }
+//   STEP 2  POST /v3.0/hotels/rates  { hotelIds:[…] }       → { data:[{hotelId,roomTypes}] }
+// then JOIN each rate (by hotelId) with its catalog hotel (by id): the catalog
+// gives name/photo/stars/coords, the rate gives price/roomTypes — both needed by
+// liteApiHotelToRecommendation.
+
+/** Hotels priced per user search (one /hotels/rates call). The catalog can return
+ *  hundreds; we price the first N. A larger caller maxResults raises it, hard
+ *  ceiling 100 to bound the rates body. */
+const CITY_CATALOG_LIMIT = 50;
+
+/** A /v3.0/data/hotels catalog item: `id` (the join key) + the hotel-content
+ *  metadata fields liteApiHotelToRecommendation reads. Loose — LiteAPI sends more
+ *  than we consume; absent fields are handled by the mapper's optionals. */
+type LiteApiCatalogHotel = { id?: string } & NonNullable<LiteApiHotelRate['hotel']>;
+
+/** STEP 1: GET /v3.0/data/hotels for a city → the hotel catalog (id + name +
+ *  coords + photo + stars). Mirrors getHotelContent's GET pattern (base/auth/
+ *  mode/error). Throws MissingLiteApiKeyError on no key, LiteApiError on non-2xx.
+ *  Returns [] when the city has no catalog hotels (honest empty). */
+async function getCityHotelCatalog(params: SearchHotelsParams, countryCode: string): Promise<LiteApiCatalogHotel[]> {
   const useCoords = typeof params.latitude === 'number' && typeof params.longitude === 'number';
   const radius = params.radiusMeters ?? 25_000;
-  const body: Record<string, unknown> = useCoords
-    ? {
-        latitude: params.latitude,
-        longitude: params.longitude,
-        radius,
-        countryCode,
-        checkin: params.checkin,
-        checkout: params.checkout,
-        occupancies: params.occupancies,
-        currency: params.currency || 'USD',
-        guestNationality: params.guestNationality || 'US',
-        includeHotelData: true,
-      }
-    : {
-        cityName: extractCityName(params.city),
-        countryCode,
-        checkin: params.checkin,
-        checkout: params.checkout,
-        occupancies: params.occupancies,
-        currency: params.currency || 'USD',
-        guestNationality: params.guestNationality || 'US',
-        // Per LiteAPI's docs (Rate-and-Hotel-Query guide), hotel metadata
-        // (name, photo, address, rating, tags) is included when this flag is
-        // true. Auto-enabled for cityName filter, but we pass it explicitly
-        // so behaviour never silently changes if LiteAPI flips the default.
-        includeHotelData: true,
-      };
-  // PR-20: env mode + key prefix (first 4 chars ONLY — never the full key) so
-  // "is production actually live" is readable on every accommodation search.
-  const liteMode = getMode();
-  const liteKeyPrefix = (liteMode === 'production' ? process.env.LITEAPI_PRODUCTION_KEY : process.env.LITEAPI_SANDBOX_KEY)?.slice(0, 4) ?? 'none';
-  console.log(`[LiteAPI] mode=${liteMode} keyPrefix=${liteKeyPrefix}`);
-  console.log(`[LiteAPI rates] mode=${useCoords ? `coords lat=${params.latitude} lng=${params.longitude} radius=${radius}m` : `cityName=${extractCityName(params.city)}`} country=${countryCode}`);
+  const qs = new URLSearchParams(
+    useCoords
+      ? { latitude: String(params.latitude), longitude: String(params.longitude), radius: String(radius), countryCode }
+      : { cityName: extractCityName(params.city), countryCode },
+  );
+  const mode = getMode();
+  const keyPrefix = (mode === 'production' ? process.env.LITEAPI_PRODUCTION_KEY : process.env.LITEAPI_SANDBOX_KEY)?.slice(0, 4) ?? 'none';
+  console.log(`[LiteAPI] data/hotels: mode=${mode} keyPrefix=${keyPrefix} ${useCoords ? `coords=${params.latitude},${params.longitude}` : `cityName=${extractCityName(params.city)}`} country=${countryCode}`);
 
-  const url = `${LITEAPI_BASE}/hotels/rates`;
-  const res = await fetch(url, {
+  const res = await fetch(`${LITEAPI_BASE}/data/hotels?${qs.toString()}`, {
+    method: 'GET',
+    headers: headers(),
+  });
+  console.log(`[LiteAPI] data/hotels http: status=${res.status} ok=${res.ok}`);
+  if (!res.ok) {
+    throw new LiteApiError('/v3.0/data/hotels', res.status, await res.text());
+  }
+  const json = await res.json();
+  const list: LiteApiCatalogHotel[] = Array.isArray(json?.data) ? json.data : [];
+  console.log(`[LiteAPI] data/hotels: catalogLen=${list.length}`);
+  return list;
+}
+
+/** Two-step hotel search: resolve a city → real hotelIds via /data/hotels, then
+ *  price those IDs via /hotels/rates and join catalog metadata with rate pricing.
+ *  Throws `MissingLiteApiKeyError` if no key set, `LiteApiError` on a real non-2xx.
+ *  Returns [] (honest empty) when the city has no catalog hotels OR the rates call
+ *  reports no availability (error 2001) — never a faked/default result. */
+export async function searchHotelRates(params: SearchHotelsParams): Promise<LiteApiHotelRate[]> {
+  const countryCode = countryNameToIso2(params.country);
+
+  // ── STEP 1: city → catalog hotelIds. ──
+  const catalog = await getCityHotelCatalog(params, countryCode);
+  if (catalog.length === 0) return []; // honest empty — no catalog hotels for this city
+
+  const catalogById: Record<string, LiteApiCatalogHotel> = {};
+  const hotelIds: string[] = [];
+  // Cap priced hotels: max(caller maxResults, default) bounded to 100 — the
+  // catalog can be large; one /hotels/rates body shouldn't be unbounded.
+  const limit = Math.min(Math.max(params.maxResults ?? CITY_CATALOG_LIMIT, CITY_CATALOG_LIMIT), 100);
+  for (const h of catalog) {
+    if (typeof h.id === 'string' && h.id.length > 0 && !catalogById[h.id]) {
+      catalogById[h.id] = h;
+      if (hotelIds.length < limit) hotelIds.push(h.id);
+    }
+  }
+  if (hotelIds.length === 0) return [];
+
+  // ── STEP 2: price those hotelIds. /hotels/rates ONLY works with hotelIds[]
+  //    (cityName/coords → error 2001). ──
+  const body = {
+    hotelIds,
+    checkin: params.checkin,
+    checkout: params.checkout,
+    occupancies: params.occupancies,
+    currency: params.currency || 'USD',
+    guestNationality: params.guestNationality || 'US',
+  };
+  const mode = getMode();
+  const keyPrefix = (mode === 'production' ? process.env.LITEAPI_PRODUCTION_KEY : process.env.LITEAPI_SANDBOX_KEY)?.slice(0, 4) ?? 'none';
+  console.log(`[LiteAPI] rates(two-step): mode=${mode} keyPrefix=${keyPrefix} hotelIds=${hotelIds.length}`);
+
+  const res = await fetch(`${LITEAPI_BASE}/hotels/rates`, {
     method: 'POST',
     headers: headers(),
     body: JSON.stringify(body),
   });
+  const text = await res.text();
+  let json: any = null;
+  try { json = JSON.parse(text); } catch { /* non-JSON body */ }
+  const rawLen = Array.isArray(json?.data) ? json.data.length : 'n/a';
+  const errCode = json?.error?.code ?? 'none';
+  console.log(`[LiteAPI] rates http: status=${res.status} ok=${res.ok} dataLen=${rawLen} errCode=${errCode}`);
 
-  // PR-20: log HTTP status BEFORE the !res.ok throw, so a non-2xx (auth / mode /
-  // bad-request) is readable in Vercel — the object response-shape log below
-  // only runs on a 2xx (it sits after this throw).
-  console.log(`[LiteAPI] rates http: status=${res.status} ok=${res.ok}`);
-
+  // "no availability found" for these hotels/dates → honest empty, not a crash.
+  if (json?.error?.code === 2001) return [];
+  // Any other non-2xx (auth/key/quota/5xx) → fail loud so the route surfaces it.
   if (!res.ok) {
-    throw new LiteApiError('/v3.0/hotels/rates', res.status, await res.text());
+    throw new LiteApiError('/v3.0/hotels/rates', res.status, text);
   }
 
-  const data = await res.json();
+  const rateItems: LiteApiHotelRate[] = Array.isArray(json?.data) ? json.data : [];
 
-  // PR-20: flat, greppable raw counts on EVERY 2xx (empty or not) — separates
-  // upstream-empty (dataLen=0) from a mode/key problem without parsing the object log.
-  console.log(`[LiteAPI] rates raw: dataLen=${Array.isArray(data?.data) ? data.data.length : 'n/a'} hotelsLen=${Array.isArray(data?.hotels) ? data.hotels.length : 'n/a'} status=${res.status}`);
-
-  // ─── PR-7 diagnostic log ────────────────────────────────────────────────
-  // One-time observability: reveals the actual top-level + hotels[] field
-  // shape on the next deploy so we can confirm/deny the hotelId-vs-id
-  // hypothesis without further guessing. Pure observation, no behaviour
-  // change. Remove in a follow-up PR once the shape is confirmed.
-  console.log('[LiteAPI rates] response shape:', {
-    topKeys: Object.keys(data || {}),
-    dataLen: Array.isArray(data?.data) ? data.data.length : null,
-    hotelsLen: Array.isArray(data?.hotels) ? data.hotels.length : null,
-    hotelsKeys: Array.isArray(data?.hotels) && data.hotels[0] ? Object.keys(data.hotels[0]) : null,
-    firstRateKeys: Array.isArray(data?.data) && data.data[0] ? Object.keys(data.data[0]) : null,
-  });
-
-  // LiteAPI returns rate items in `data.data[]` (each carries `hotelId` +
-  // `roomTypes[]` only) and hotel metadata in a PARALLEL `data.hotels[]`
-  // array. PR-6 assumed metadata items were keyed by `id`; in practice they
-  // may be keyed by `hotelId` (consistent with the rate side). Accept either
-  // so the merge works whichever LiteAPI uses.
-  const rateItems: LiteApiHotelRate[] = data.data || [];
-  const hotelMetaById: Record<string, NonNullable<LiteApiHotelRate['hotel']>> = {};
-  for (const h of (data.hotels || []) as Array<{ id?: string; hotelId?: string } & NonNullable<LiteApiHotelRate['hotel']>>) {
-    const id = h?.hotelId ?? h?.id;
-    if (id && typeof id === 'string') hotelMetaById[id] = h;
-  }
-  // PR-13: all hotels in a response share the same search window — compute
-  // nights once and stamp it on each item so the mapper (which only receives
-  // the hotel) can pass it through without the route changing its call shape.
+  // PR-13/PR-33: all hotels share the search window — stamp nights + the exact
+  // dates once so the mapper + commit path read them off each item.
   const msPerDay = 24 * 60 * 60 * 1000;
   const nights = Math.max(
     0,
     Math.round((Date.parse(params.checkout) - Date.parse(params.checkin)) / msPerDay),
   ) || undefined;
-
-  // PR-33: thread the exact search-window dates alongside `nights` so the
-  // commit path writes the real stay window (not the whole-trip span).
   const checkinDate = params.checkin;
   const checkoutDate = params.checkout;
 
+  // ── JOIN: each rate (by hotelId) ⨝ its catalog hotel (by id). Catalog → the
+  //    `hotel` metadata (name/photo/stars); rate → roomTypes (price). ──
   const merged: LiteApiHotelRate[] = rateItems.map(r => {
-    const meta = hotelMetaById[r.hotelId];
+    const meta = catalogById[r.hotelId];
     if (!meta) return { ...r, nights, checkinDate, checkoutDate };
-    // Merge: keep any sub-fields already present on `r.hotel`, but fill in
-    // the metadata we just looked up.
-    return { ...r, hotel: { ...meta, ...(r.hotel || {}) }, nights, checkinDate, checkoutDate };
+    const { id: _omitId, ...metaFields } = meta;
+    return { ...r, hotel: { ...metaFields, ...(r.hotel || {}) }, nights, checkinDate, checkoutDate };
   });
-
-  // Return the FULL merged set — ranking + truncation happen in the caller
-  // (ai-assistant route: compositeScore sort, THEN slice to maxResults). Slicing
-  // here in LiteAPI's native order would cut high-scoring hotels BEFORE they are
-  // ranked (the Canggu-vs-Kuta completeness bug). No client-side cap: one
-  // /hotels/rates response is already server-bounded by LiteAPI, so there is no
-  // payload/memory reason to truncate here — a hidden cap would silently re-create
-  // the same loss. `params.maxResults` is now consumed only by the caller's slice.
   return merged;
 }
 
