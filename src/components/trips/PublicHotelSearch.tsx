@@ -31,7 +31,7 @@ function defaultDate(daysFromNow: number): string {
 export default function PublicHotelSearch({ onRequireAuth }: Props) {
   // PR-loc-2: destination is a LIST-CONFIRMED { city, country } from the linked
   // country→city picker (no free-text typos). null until a city is chosen.
-  const [picked, setPicked] = useState<{ city: string; country: string } | null>(null);
+  const [picked, setPicked] = useState<{ city: string; country: string; countryCode: string } | null>(null);
   const [checkin, setCheckin] = useState(defaultDate(30));
   const [checkout, setCheckout] = useState(defaultDate(33));
   const [adults, setAdults] = useState(2);
@@ -63,6 +63,9 @@ export default function PublicHotelSearch({ onRequireAuth }: Props) {
       const params = new URLSearchParams({
         city: picked.city,
         country: picked.country,
+        // PR-loc-3: send the ISO-2 code so the search uses it directly (all 249
+        // picker countries resolve). `country` name is kept too (back-compat/logs).
+        countryCode: picked.countryCode,
         checkin,
         checkout,
         adults: String(adults),

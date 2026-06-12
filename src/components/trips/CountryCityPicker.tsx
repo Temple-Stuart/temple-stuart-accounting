@@ -19,8 +19,11 @@ import { useEffect, useRef, useState } from 'react';
 interface Country { code: string; name: string }
 
 interface Props {
-  /** Called with the list-confirmed selection, or null when there isn't one. */
-  onChange: (selection: { city: string; country: string } | null) => void;
+  /** Called with the list-confirmed selection, or null when there isn't one.
+   *  `country` is the country NAME; `countryCode` is its ISO-2 (PR-loc-3: passed
+   *  end-to-end so the hotel search resolves every country, not just the ~60 the
+   *  name→code map knows). */
+  onChange: (selection: { city: string; country: string; countryCode: string } | null) => void;
 }
 
 const inputClass =
@@ -114,7 +117,7 @@ export default function CountryCityPicker({ onChange }: Props) {
     setCityQuery(city);
     setCityChosen(city);
     setShowDropdown(false);
-    onChange({ city, country: countryName }); // list-confirmed → report up
+    onChange({ city, country: countryName, countryCode }); // list-confirmed → report up (name + ISO-2)
   };
 
   return (
