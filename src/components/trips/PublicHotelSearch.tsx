@@ -15,6 +15,7 @@
 
 import { useState } from 'react';
 import HotelResultsView, { type HotelResult } from './HotelResultsView';
+import CountryCityPicker from './CountryCityPicker';
 
 interface Props {
   /** Opens the existing home register/login modal (booking requires sign-in). */
@@ -28,10 +29,9 @@ function defaultDate(daysFromNow: number): string {
 }
 
 export default function PublicHotelSearch({ onRequireAuth }: Props) {
-  // Guest has no trip/destination props — start empty with near-future dates so
-  // they can search immediately by typing a city + country.
-  const [city, setCity] = useState('');
-  const [country, setCountry] = useState('');
+  // PR-loc-2: destination is a LIST-CONFIRMED { city, country } from the linked
+  // country→city picker (no free-text typos). null until a city is chosen.
+  const [picked, setPicked] = useState<{ city: string; country: string } | null>(null);
   const [checkin, setCheckin] = useState(defaultDate(30));
   const [checkout, setCheckout] = useState(defaultDate(33));
   const [adults, setAdults] = useState(2);
@@ -45,8 +45,8 @@ export default function PublicHotelSearch({ onRequireAuth }: Props) {
   const search = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!city.trim() || !country.trim()) {
-      setError('Enter a destination city and country.');
+    if (!picked) {
+      setError('Pick a country and a city from the list.');
       return;
     }
     if (!checkin || !checkout) {
@@ -61,8 +61,8 @@ export default function PublicHotelSearch({ onRequireAuth }: Props) {
 
     try {
       const params = new URLSearchParams({
-        city: city.trim(),
-        country: country.trim(),
+        city: picked.city,
+        country: picked.country,
         checkin,
         checkout,
         adults: String(adults),
@@ -101,22 +101,9 @@ export default function PublicHotelSearch({ onRequireAuth }: Props) {
       </div>
 
       <form onSubmit={search} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
-        <input
-          type="text"
-          value={city}
-          onChange={(e) => setCity(e.target.value)}
-          placeholder="City (e.g. Lisbon)"
-          className={`${inputClass} lg:col-span-2`}
-          aria-label="Destination city"
-        />
-        <input
-          type="text"
-          value={country}
-          onChange={(e) => setCountry(e.target.value)}
-          placeholder="Country (e.g. Portugal)"
-          className={inputClass}
-          aria-label="Destination country"
-        />
+        {/* PR-loc-2: linked country→city picker (real LiteAPI cities only)
+            replaces the free-text city + country inputs. */}
+        <CountryCityPicker onChange={setPicked} />
         <input
           type="date"
           value={checkin}
@@ -144,7 +131,7 @@ export default function PublicHotelSearch({ onRequireAuth }: Props) {
           </select>
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !picked}
             className="rounded bg-brand-purple px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-purple-hover disabled:opacity-50"
           >
             {loading ? 'Searching…' : 'Search'}
