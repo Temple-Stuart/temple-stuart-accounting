@@ -850,3 +850,45 @@ export async function getHotelContent(hotelId: string): Promise<HotelContent | n
   console.log(`[LiteAPI] hotel-content: imagesLen=${imgLen} (B-5100 COGS — paid call, per detail-view)`);
   return data;
 }
+
+// ─── Location lists (PR-loc-1) — for the hotel picker's country→city dropdown ──
+// LiteAPI's static-ish location catalogs. Mirrors getHotelContent's /data/* GET
+// pattern (base/auth/mode/error). PROVEN live (scripts/probe-liteapi-cities.ts):
+//   GET /data/countries            → { data: [ {code:'PT', name:'Portugal'}, … ] }
+//   GET /data/cities?countryCode=PT → { data: [ {city:'Lisbon'}, … ] }
+// Fail-loud on non-2xx (LiteApiError) — never a faked/partial list.
+
+export interface LiteApiCountry { code: string; name: string }
+export interface LiteApiCity { city: string }
+
+/** GET /v3.0/data/countries → the country list ([{code,name}]). Throws
+ *  MissingLiteApiKeyError on no key, LiteApiError on non-2xx. */
+export async function getCountries(): Promise<LiteApiCountry[]> {
+  const mode = getMode();
+  const keyPrefix = (mode === 'production' ? process.env.LITEAPI_PRODUCTION_KEY : process.env.LITEAPI_SANDBOX_KEY)?.slice(0, 4) ?? 'none';
+  console.log(`[LiteAPI] data/countries: mode=${mode} keyPrefix=${keyPrefix}`);
+  const res = await fetch(`${LITEAPI_BASE}/data/countries`, { method: 'GET', headers: headers() });
+  console.log(`[LiteAPI] data/countries http: status=${res.status} ok=${res.ok}`);
+  if (!res.ok) {
+    throw new LiteApiError('/v3.0/data/countries', res.status, await res.text());
+  }
+  const json = await res.json();
+  return Array.isArray(json?.data) ? json.data : [];
+}
+
+/** GET /v3.0/data/cities?countryCode=XX → the city list ([{city}]). LiteAPI
+ *  REQUIRES countryCode (400 without it). Throws MissingLiteApiKeyError on no key,
+ *  LiteApiError on non-2xx. */
+export async function getCities(countryCode: string): Promise<LiteApiCity[]> {
+  const qs = new URLSearchParams({ countryCode });
+  const mode = getMode();
+  const keyPrefix = (mode === 'production' ? process.env.LITEAPI_PRODUCTION_KEY : process.env.LITEAPI_SANDBOX_KEY)?.slice(0, 4) ?? 'none';
+  console.log(`[LiteAPI] data/cities: mode=${mode} keyPrefix=${keyPrefix} countryCode=${countryCode}`);
+  const res = await fetch(`${LITEAPI_BASE}/data/cities?${qs.toString()}`, { method: 'GET', headers: headers() });
+  console.log(`[LiteAPI] data/cities http: status=${res.status} ok=${res.ok}`);
+  if (!res.ok) {
+    throw new LiteApiError('/v3.0/data/cities', res.status, await res.text());
+  }
+  const json = await res.json();
+  return Array.isArray(json?.data) ? json.data : [];
+}
