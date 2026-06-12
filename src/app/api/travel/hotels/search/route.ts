@@ -39,6 +39,10 @@ export async function GET(request: NextRequest) {
 
     const city = params.get('city');
     const country = params.get('country');
+    // PR-loc-3: optional ISO-2 code from the picker — used directly for the
+    // /data/hotels catalog (skips the lossy name→code map). Absent for legacy
+    // name-only callers (they derive from `country` as before).
+    const countryCode = params.get('countryCode') || undefined;
     const checkin = params.get('checkin');
     const checkout = params.get('checkout');
     const adults = parseInt(params.get('adults') || '2');
@@ -82,6 +86,7 @@ export async function GET(request: NextRequest) {
       checkin,
       checkout,
       occupancies: [{ adults }],
+      ...(countryCode ? { countryCode } : {}),
       ...(currency ? { currency } : {}),
       ...(guestNationality ? { guestNationality } : {}),
       ...(coords ? { latitude: coords.lat, longitude: coords.lng } : {}),

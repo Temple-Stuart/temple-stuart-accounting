@@ -121,6 +121,11 @@ export interface LiteApiOccupancy {
 export interface SearchHotelsParams {
   city: string;
   country: string;
+  /** PR-loc-3: an explicit ISO-2 country code. When set, it's used DIRECTLY for
+   *  the /data/hotels catalog (every country resolves). When absent, the code is
+   *  derived from `country` via the ~60-entry countryNameToIso2 map (legacy
+   *  callers, e.g. the authed trip flow). */
+  countryCode?: string;
   /** ISO date YYYY-MM-DD */
   checkin: string;
   /** ISO date YYYY-MM-DD */
@@ -252,7 +257,12 @@ async function getCityHotelCatalog(params: SearchHotelsParams, countryCode: stri
  *  Returns [] (honest empty) when the city has no catalog hotels OR the rates call
  *  reports no availability (error 2001) — never a faked/default result. */
 export async function searchHotelRates(params: SearchHotelsParams): Promise<LiteApiHotelRate[]> {
-  const countryCode = countryNameToIso2(params.country);
+  // PR-loc-3: prefer an explicit ISO-2 code (the picker already holds it → all
+  // 249 countries resolve). Fall back to deriving from the country NAME for
+  // callers that don't pass a code (the authed flow). This is an EXPLICIT
+  // code-vs-name precedence, NOT a silent error fallback: when no code is given,
+  // countryNameToIso2 still THROWS on an unmapped name exactly as before.
+  const countryCode = params.countryCode?.trim().toUpperCase() || countryNameToIso2(params.country);
 
   // ── STEP 1: city → catalog hotelIds. ──
   const catalog = await getCityHotelCatalog(params, countryCode);
