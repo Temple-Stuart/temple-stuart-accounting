@@ -100,14 +100,17 @@ export async function POST(request: NextRequest) {
       : null;
     const isAccount = !!user;
 
-    // ACCOUNT path requires a tripId the user owns — that ownership-checked trip
-    // is the save-to-trip/budget linkage (the value-add). GUEST path: no trip.
+    // tripId is OPTIONAL (PR-G3). When PRESENT it links the booking to a trip —
+    // the save-to-trip/budget value-add — which requires an authed OWNER. When
+    // ABSENT the booking is STANDALONE (a public guest, OR an authed user not
+    // saving to a trip). This keeps the authed trip-linked flow unchanged while
+    // letting the public surface book with no trip (guest or logged-in alike).
     let resolvedTripId: string | null = null;
-    if (isAccount) {
-      if (!tripId) {
+    if (tripId) {
+      if (!isAccount) {
         return NextResponse.json(
-          { error: 'tripId is required for an account booking' },
-          { status: 400 }
+          { error: 'Sign in to save a booking to a trip.' },
+          { status: 401 }
         );
       }
       const trip = await prisma.trips.findFirst({

@@ -34,7 +34,10 @@ interface Confirmation {
 }
 
 interface Props {
-  tripId: string;
+  /** PR-G3: optional. Present → ACCOUNT booking linked to that trip (authed). Absent
+   *  → standalone booking (a public GUEST, or an authed user not saving to a trip).
+   *  The book route persists the right row either way; prebook ignores it. */
+  tripId?: string;
   offerId: string;
   hotelName: string;
   checkin: string;   // ISO YYYY-MM-DD
@@ -58,6 +61,9 @@ function money(amount: number, currency: string): string {
 }
 
 export default function CheckoutPanel({ tripId, offerId, hotelName, checkin, checkout, onClose, onBooked }: Props) {
+  // tripId is sent only when present → guest/standalone bookings omit it (the
+  // book route then writes a guest/standalone reservation; prebook ignores it).
+  const tripIdBody = tripId ? { tripId } : {};
   const [phase, setPhase] = useState<Phase>('prebooking');
   const [error, setError] = useState('');
   const [prebook, setPrebook] = useState<Prebook | null>(null);
@@ -80,7 +86,7 @@ export default function CheckoutPanel({ tripId, offerId, hotelName, checkin, che
         const res = await fetch('/api/travel/liteapi/prebook', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tripId, offerId }),
+          body: JSON.stringify({ offerId }), // prebook is offer-only (route ignores tripId)
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || `Prebook failed (HTTP ${res.status})`);
@@ -116,7 +122,7 @@ export default function CheckoutPanel({ tripId, offerId, hotelName, checkin, che
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tripId,
+          ...tripIdBody,
           prebookId: prebook.prebookId,
           paymentTransactionId: prebook.transactionId, // sandbox — no SDK yet (PR-B2)
           holder: { firstName: holderFirst.trim(), lastName: holderLast.trim(), email: holderEmail.trim() },
