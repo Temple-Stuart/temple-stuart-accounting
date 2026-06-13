@@ -43,6 +43,12 @@ const PROVIDER_SAFE_DEFAULT_CAP: Record<string, number> = {
   // us inside it by default. Raise via TRAVEL_SEARCH_DAILY_CAP_TRAVELBUDDY only
   // once on a paid plan.
   travelbuddy: 5,
+  // PR-G2: hotel BOOKING is real money in production (guest booking is public, no
+  // auth) → tight daily caps, bounded even if no env override is set. prebook is a
+  // quote (looser); book is the actual spend (tight). Raise via
+  // TRAVEL_SEARCH_DAILY_CAP_HOTELPREBOOK / _HOTELBOOKING on a real volume plan.
+  hotelprebook: 100,
+  hotelbooking: 25,
 };
 
 /** Per-provider daily cap. Precedence: TRAVEL_SEARCH_DAILY_CAP_<PROVIDER> env →
