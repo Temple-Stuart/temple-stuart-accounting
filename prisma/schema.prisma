@@ -1152,8 +1152,10 @@ model rate_limit_hits {
 // the natural key into the upstream system for reconciliation.
 model reservations {
   id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId                   String
-  tripId                   String
+  userId                   String?
+  tripId                   String?
+  bookingType              String   @default("account") @db.VarChar(20)  // 'guest' | 'account' — distinguishes guest (no-account) vs account bookings
+  guestEmail               String?  @db.VarChar(255)                     // contact email for a guest (no-account) booking; null for account bookings
   provider                 String   @db.VarChar(20)  // 'liteapi' | 'viator' | 'duffel' | ...
   providerBookingId        String   @db.VarChar(120) // upstream booking ID
   providerConfirmationCode String?  @db.VarChar(120) // human confirmation code
@@ -1168,8 +1170,8 @@ model reservations {
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 
-  user              users               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  trip              trips               @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user              users?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trip              trips?              @relation(fields: [tripId], references: [id], onDelete: Cascade)
   commission_ledger commission_ledger[]
 
   @@index([userId])
@@ -1184,7 +1186,7 @@ model reservations {
 // 'paid' as the provider confirms the booking + remits payout.
 model commission_ledger {
   id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId                String
+  userId                String?
   reservationId         String    @db.Uuid
   provider              String    @db.VarChar(20)
   grossAmountCents      Int       // total guest paid (final price)
@@ -1195,7 +1197,7 @@ model commission_ledger {
   providerInvoiceRef    String?   @db.VarChar(120)
   createdAt             DateTime  @default(now())
 
-  user        users        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        users?       @relation(fields: [userId], references: [id], onDelete: Cascade)
   reservation reservations @relation(fields: [reservationId], references: [id], onDelete: Cascade)
 
   @@index([userId])
