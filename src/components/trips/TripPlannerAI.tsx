@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useContext, createContext, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import CheckoutPanel from './CheckoutPanel';
 import { Button } from '@/components/ui';
 import { ACTIVITY_LABELS } from '@/lib/activities';
 import { TRAVEL_COA, getActiveScanCategories } from '@/lib/travelCOA';
@@ -227,6 +228,11 @@ function useTripScanState(input: Props) {
   // the booking UX with proper checkout panels.
   const [reservingKey, setReservingKey] = useState<string | null>(null);
   const [reservedKeys, setReservedKeys] = useState<Record<string, { confirmationCode: string | null; bookingId: string }>>({});
+  // PR-B1: the open checkout target. Reserve now OPENS the real CheckoutPanel
+  // (prebook → guest form → book) instead of the old one-click hardcoded stub.
+  const [checkoutTarget, setCheckoutTarget] = useState<
+    { offerId: string; hotelName: string; cardKey: string; checkin: string; checkout: string } | null
+  >(null);
 
   // PR-4: per-category loading + error state for the auto-load carousels.
   // `loadingCategories` is the Set of category keys still in-flight;
@@ -615,12 +621,13 @@ function useTripScanState(input: Props) {
     }
   };
 
-  // ─── LiteAPI Reserve flow (PR-3b) ────────────────────────────────────────
-  // Minimal: prebook → book in one click. Sandbox-only this PR — LiteAPI's
-  // sandbox accepts the prebook's transactionId without real card capture, so
-  // this proves the end-to-end pipe without integrating the payment SDK yet.
-  // PR-4 adds the proper checkout panel + LiteAPI's hosted payment SDK.
-  const handleLiteApiReserve = async (rec: GrokRecommendation, cardKey: string) => {
+  // ─── LiteAPI Reserve flow (PR-B1) ────────────────────────────────────────
+  // Reserve now OPENS the real CheckoutPanel (prebook → guest form → book →
+  // confirmation), replacing the old one-click stub that booked with hardcoded
+  // 'Trip Owner' / guest@example.com guest data. Validation stays here; the panel
+  // does the prebook/book against the unchanged routes. (No payment SDK yet —
+  // sandbox; PR-B2 adds production card capture.)
+  const handleLiteApiReserve = (rec: GrokRecommendation, cardKey: string) => {
     if (!rec.liteapiOfferId) {
       setError(`Reserve unavailable — no bookable offer for ${rec.name}`);
       return;
@@ -629,62 +636,14 @@ function useTripScanState(input: Props) {
       setError('Reserve unavailable — set trip Start/End dates first');
       return;
     }
-    setReservingKey(cardKey);
     setError(null);
-    try {
-      // 1. Prebook — get the SDK transactionId + final price.
-      const prebookRes = await fetch('/api/travel/liteapi/prebook', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tripId, offerId: rec.liteapiOfferId }),
-      });
-      const prebookBody = await prebookRes.json().catch(() => ({}));
-      if (!prebookRes.ok) {
-        throw new Error(prebookBody.error || `Prebook failed (HTTP ${prebookRes.status})`);
-      }
-      const prebook = prebookBody.prebook;
-      if (!prebook?.prebookId || !prebook?.transactionId) {
-        throw new Error('Prebook response missing prebookId or transactionId');
-      }
-
-      // 2. Book — sandbox accepts the prebook's transactionId directly. The
-      // booking PR will replace this with real card capture via LiteAPI's SDK.
-      const ownerName = 'Trip Owner';
-      const [firstName, ...rest] = ownerName.split(' ');
-      const lastName = rest.join(' ') || 'Guest';
-      const ownerEmail = 'guest@example.com';
-      const bookRes = await fetch('/api/travel/liteapi/book', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tripId,
-          prebookId: prebook.prebookId,
-          paymentTransactionId: prebook.transactionId,
-          holder: { firstName, lastName, email: ownerEmail },
-          guests: [{ occupancyNumber: 1, firstName, lastName, email: ownerEmail }],
-          checkinDate: tripDates.departure,
-          checkoutDate: tripDates.return,
-          hotelName: rec.name,
-          guestCount: 1,
-          finalPriceCents: Math.round((prebook.price || 0) * 100),
-          currency: prebook.currency || 'USD',
-          commissionAmountCents: Math.round((prebook.commission || 0) * 100),
-        }),
-      });
-      const bookBody = await bookRes.json().catch(() => ({}));
-      if (!bookRes.ok) {
-        throw new Error(bookBody.error || `Book failed (HTTP ${bookRes.status})`);
-      }
-      const r = bookBody.reservation;
-      setReservedKeys(prev => ({
-        ...prev,
-        [cardKey]: { confirmationCode: r?.confirmationCode || null, bookingId: r?.bookingId || prebook.prebookId },
-      }));
-    } catch (err) {
-      setError(`Couldn't reserve ${rec.name} — ${err instanceof Error ? err.message : 'unknown error'}`);
-    } finally {
-      setReservingKey(null);
-    }
+    setCheckoutTarget({
+      offerId: rec.liteapiOfferId,
+      hotelName: rec.name,
+      cardKey,
+      checkin: tripDates.departure,
+      checkout: tripDates.return,
+    });
   };
 
   // Custom spot functions
@@ -755,7 +714,7 @@ function useTripScanState(input: Props) {
   const datesValid = !(checkinVal && checkoutVal) || checkoutVal > checkinVal;
 
   return {
-    router, loading, setLoading, loadingCategory, setLoadingCategory, completedCount, setCompletedCount, totalCategories, setTotalCategories, recommendations, setRecommendations, byCategory, setByCategory, error, setError, expandedCategory, setExpandedCategory, minRating, setMinRating, minReviews, setMinReviews, maxPriceLevel, setMaxPriceLevel, loadedPhotos, setLoadedPhotos, selections, setSelections, editingSelection, setEditingSelection, editForm, setEditForm, savingVendorOption, setSavingVendorOption, scannerMeta, setScannerMeta, commitCardKey, setCommitCardKey, committingCard, setCommittingCard, committedCards, setCommittedCards, cardPrices, setCardPrices, cardDates, setCardDates, cardFrequency, setCardFrequency, cardTimes, setCardTimes, reservingKey, setReservingKey, reservedKeys, setReservedKeys, loadingCategories, setLoadingCategories, categoryErrors, setCategoryErrors, perLocationDates, setPerLocationDates, showCustomModal, setShowCustomModal, customCategory, setCustomCategory, customForm, setCustomForm, customLoading, setCustomLoading, customPreview, setCustomPreview, tripDays, tripActivities, scanSingleCategory, autoScanCategoriesFor, rescanAll, handleSelectItem, buildVendorBody, confirmSelection, handleCommitCard, handleUncommitCard, handleLiteApiReserve, fetchUrlPreview, openCustomModal, handleAddCustomItem, activeCity, defaultCheckin, defaultCheckout, checkinVal, checkoutVal, datesValid, tripId, city, country, activity, activities, month, year, daysTravel, tripDates, onCommitted,
+    router, loading, setLoading, loadingCategory, setLoadingCategory, completedCount, setCompletedCount, totalCategories, setTotalCategories, recommendations, setRecommendations, byCategory, setByCategory, error, setError, expandedCategory, setExpandedCategory, minRating, setMinRating, minReviews, setMinReviews, maxPriceLevel, setMaxPriceLevel, loadedPhotos, setLoadedPhotos, selections, setSelections, editingSelection, setEditingSelection, editForm, setEditForm, savingVendorOption, setSavingVendorOption, scannerMeta, setScannerMeta, commitCardKey, setCommitCardKey, committingCard, setCommittingCard, committedCards, setCommittedCards, cardPrices, setCardPrices, cardDates, setCardDates, cardFrequency, setCardFrequency, cardTimes, setCardTimes, reservingKey, setReservingKey, reservedKeys, setReservedKeys, checkoutTarget, setCheckoutTarget, loadingCategories, setLoadingCategories, categoryErrors, setCategoryErrors, perLocationDates, setPerLocationDates, showCustomModal, setShowCustomModal, customCategory, setCustomCategory, customForm, setCustomForm, customLoading, setCustomLoading, customPreview, setCustomPreview, tripDays, tripActivities, scanSingleCategory, autoScanCategoriesFor, rescanAll, handleSelectItem, buildVendorBody, confirmSelection, handleCommitCard, handleUncommitCard, handleLiteApiReserve, fetchUrlPreview, openCustomModal, handleAddCustomItem, activeCity, defaultCheckin, defaultCheckout, checkinVal, checkoutVal, datesValid, tripId, city, country, activity, activities, month, year, daysTravel, tripDates, onCommitted,
   };
 }
 
@@ -923,9 +882,25 @@ export function TripScanModals() {
     showCustomModal, customCategory, customForm, setCustomForm,
     customLoading, customPreview, fetchUrlPreview, handleAddCustomItem,
     setShowCustomModal,
+    tripId, checkoutTarget, setCheckoutTarget, setReservedKeys,
   } = useTripScanCtx();
   return (
     <>
+      {/* PR-B1: the real hotel checkout (prebook → guest form → book). Opens when
+          handleLiteApiReserve sets a target; books via the unchanged routes. */}
+      {checkoutTarget && (
+        <CheckoutPanel
+          tripId={tripId}
+          offerId={checkoutTarget.offerId}
+          hotelName={checkoutTarget.hotelName}
+          checkin={checkoutTarget.checkin}
+          checkout={checkoutTarget.checkout}
+          onClose={() => setCheckoutTarget(null)}
+          onBooked={(r) => {
+            setReservedKeys((prev) => ({ ...prev, [checkoutTarget.cardKey]: r }));
+          }}
+        />
+      )}
       {/* Edit Selection Modal */}
       {editingSelection && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
