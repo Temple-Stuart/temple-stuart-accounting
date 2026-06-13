@@ -1265,6 +1265,9 @@ interface TravelCarouselProps {
 // scroll-snap; desktop fits ~4-up. The header carries the source attribution
 // so the per-card chrome stays clean.
 function TravelCarousel({ catKey, label, source, isLoading, items, error, onCardClick }: TravelCarouselProps) {
+  // PR-B1.5: the Reserve trigger — opens the CheckoutPanel (PR-B1) via the ctx
+  // handler. reservedKeys flips the button to "Reserved ✓" after a booking.
+  const { handleLiteApiReserve, reservedKeys } = useTripScanCtx();
   // PR-28b: per-section filter + sort. Local state → naturally per-section (one
   // TravelCarousel instance per catKey). Applied CLIENT-SIDE to the fetched recs.
   const [filter, setFilter] = useState<SectionFilter>({ sort: 'rating' });
@@ -1335,12 +1338,17 @@ function TravelCarousel({ catKey, label, source, isLoading, items, error, onCard
             {visible.slice(0, shown).map((rec, idx) => (
               source === 'liteapi' ? (
                 // ── PR-14: rich LiteAPI hotel card ───────────────────────────
-                <button
+                // PR-B1.5: wrapped so the Reserve button can sit BELOW the card
+                // (a card-button can't nest a button). Width/snap move to the wrapper.
+                <div
                   key={`${catKey}-${rec.valueRank ?? idx}`}
+                  className="w-[260px] flex-shrink-0 flex flex-col"
+                  style={{ scrollSnapAlign: 'start' }}
+                >
+                <button
                   type="button"
                   onClick={() => onCardClick(rec)}
-                  className="w-[260px] flex-shrink-0 border border-border rounded overflow-hidden bg-white hover:shadow-md transition-shadow text-left"
-                  style={{ scrollSnapAlign: 'start' }}
+                  className="w-full border border-border rounded overflow-hidden bg-white hover:shadow-md transition-shadow text-left"
                 >
                   {/* Single static hero — photo carousel deferred to a later
                       cross-source PR. */}
@@ -1410,6 +1418,18 @@ function TravelCarousel({ catKey, label, source, isLoading, items, error, onCard
                     </div>
                   </div>
                 </button>
+                {/* PR-B1.5: Reserve opens the CheckoutPanel — ONLY when the hotel
+                    carries a bookable offerId (else prebook can't run). */}
+                {rec.liteapiOfferId ? (
+                  <button
+                    type="button"
+                    onClick={() => handleLiteApiReserve(rec, `${rec.category}:${rec.name}`)}
+                    className="mt-1.5 w-full rounded bg-brand-purple px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-purple-hover"
+                  >
+                    {reservedKeys[`${rec.category}:${rec.name}`] ? 'Reserved ✓' : 'Reserve'}
+                  </button>
+                ) : null}
+                </div>
               ) : (
                 // ── Non-LiteAPI (Viator / Google): byte-identical to main ────
                 <button
