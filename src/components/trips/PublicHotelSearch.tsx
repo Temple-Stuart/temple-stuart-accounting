@@ -15,6 +15,7 @@
 
 import { useState } from 'react';
 import HotelResultsView, { type HotelResult } from './HotelResultsView';
+import CheckoutPanel from './CheckoutPanel';
 import CountryCityPicker from './CountryCityPicker';
 
 interface Props {
@@ -85,9 +86,21 @@ export default function PublicHotelSearch({ onRequireAuth }: Props) {
     }
   };
 
-  // BOOKING is gated: tapping "Book" routes to sign-up, never a booking/prebook
-  // fetch (those routes 401 guests anyway). The view never books — it calls back.
-  const book = () => onRequireAuth();
+  // PR-G3: BOOKING is now GUEST-FRIENDLY — tapping "Book" opens the real checkout
+  // panel right here (no login). Guests book end-to-end (no trip); the routes
+  // persist a guest reservation + commission. (onRequireAuth is kept for a future
+  // "save to a trip — sign in" upsell, PR-G4.) A hotel with no bookable offer
+  // can't be booked — surface that honestly instead of opening an empty checkout.
+  const [checkoutHotel, setCheckoutHotel] = useState<HotelResult | null>(null);
+  const book = (hotel: HotelResult) => {
+    if (!hotel.liteapiOfferId) {
+      setError(`${hotel.name} can't be booked right now — try another stay.`);
+      return;
+    }
+    setError('');
+    setCheckoutHotel(hotel);
+  };
+  void onRequireAuth; // reserved for the PR-G4 save-to-trip upsell
 
   const inputClass =
     'bg-white border border-border rounded px-3 py-2 text-sm text-text-primary ' +
@@ -148,6 +161,19 @@ export default function PublicHotelSearch({ onRequireAuth }: Props) {
       )}
       {!searched && error && (
         <div className="rounded-lg border border-border bg-white p-4 text-sm text-brand-red">{error}</div>
+      )}
+
+      {/* PR-G3: guest checkout — opens directly on Book, NO tripId (standalone
+          guest reservation), NO login. Real prebook → guest form → book → confirm. */}
+      {checkoutHotel && checkoutHotel.liteapiOfferId && (
+        <CheckoutPanel
+          offerId={checkoutHotel.liteapiOfferId}
+          hotelName={checkoutHotel.name}
+          checkin={checkin}
+          checkout={checkout}
+          onClose={() => setCheckoutHotel(null)}
+          onBooked={() => { /* confirmation shows in-panel; nothing to persist here */ }}
+        />
       )}
     </div>
   );
