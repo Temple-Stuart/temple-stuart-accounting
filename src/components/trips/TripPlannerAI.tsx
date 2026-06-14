@@ -231,7 +231,7 @@ function useTripScanState(input: Props) {
   // PR-B1: the open checkout target. Reserve now OPENS the real CheckoutPanel
   // (prebook → guest form → book) instead of the old one-click hardcoded stub.
   const [checkoutTarget, setCheckoutTarget] = useState<
-    { offerId: string; hotelName: string; cardKey: string; checkin: string; checkout: string } | null
+    { offerId: string; hotelId?: string; hotelName: string; cardKey: string; checkin: string; checkout: string } | null
   >(null);
 
   // PR-4: per-category loading + error state for the auto-load carousels.
@@ -639,6 +639,7 @@ function useTripScanState(input: Props) {
     setError(null);
     setCheckoutTarget({
       offerId: rec.liteapiOfferId,
+      hotelId: rec.liteapiHotelId,
       hotelName: rec.name,
       cardKey,
       checkin: tripDates.departure,
@@ -892,6 +893,7 @@ export function TripScanModals() {
         <CheckoutPanel
           tripId={tripId}
           offerId={checkoutTarget.offerId}
+          hotelId={checkoutTarget.hotelId}
           hotelName={checkoutTarget.hotelName}
           checkin={checkoutTarget.checkin}
           checkout={checkoutTarget.checkout}
