@@ -39,19 +39,21 @@ interface CalendarEvent {
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-// Same three Hub sources + their grid styling (hub/page.tsx:68-83), plus the
-// Trade layer (PR-HCR-TRADE) — added the SAME way: one entry here gives it a
-// legend chip + grid color automatically (HUB_GRID_CONFIG below + CalendarGrid).
-// Trade uses the warm amber scale so it stands apart from trip/operations/routines.
-const SOURCE_CONFIG: Record<string, { icon: string; color: string; bgColor: string; dotColor: string; calendarColor: string }> = {
+// The four calendar layers + their grid styling: Trips · Projects · Routines · Trade.
+// PR-HCR-LAYERS: the old 'operations' layer is renamed to 'project' — Operations is
+// the UMBRELLA (Projects + Routines), so the events tagged here are really PROJECT
+// events; the legend now reads "Projects". One entry here gives a layer its legend
+// chip + grid color automatically (HUB_GRID_CONFIG below + CalendarGrid). Each layer
+// uses a distinct color scale: trip=cyan, project=indigo, routines=teal, trade=amber.
+const SOURCE_CONFIG: Record<string, { label?: string; icon: string; color: string; bgColor: string; dotColor: string; calendarColor: string }> = {
   trip: { icon: '✈️', color: 'text-cyan-600', bgColor: 'bg-cyan-50', dotColor: 'bg-cyan-500', calendarColor: 'bg-cyan-400' },
-  operations: { icon: '🎯', color: 'text-indigo-600', bgColor: 'bg-indigo-50', dotColor: 'bg-indigo-500', calendarColor: 'bg-indigo-400' },
+  project: { label: 'Projects', icon: '🎯', color: 'text-indigo-600', bgColor: 'bg-indigo-50', dotColor: 'bg-indigo-500', calendarColor: 'bg-indigo-400' },
   routines: { icon: '🔁', color: 'text-teal-600', bgColor: 'bg-teal-50', dotColor: 'bg-teal-500', calendarColor: 'bg-teal-400' },
   trade: { icon: '📈', color: 'text-amber-600', bgColor: 'bg-amber-50', dotColor: 'bg-amber-500', calendarColor: 'bg-amber-400' },
 };
 const HUB_GRID_CONFIG: Record<string, SourceConfig> = Object.fromEntries(
   Object.entries(SOURCE_CONFIG).map(([key, cfg]) => [key, {
-    label: key.charAt(0).toUpperCase() + key.slice(1),
+    label: cfg.label ?? (key.charAt(0).toUpperCase() + key.slice(1)),
     icon: cfg.icon,
     bg: cfg.bgColor,
     dot: cfg.dotColor,
@@ -154,12 +156,17 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
       location: e.location,
       budgetAmount: e.budget_amount,
     }));
-    return [...calendarSourceEvents, ...mapOperationsBlocks(operationsItems), ...mapOperationsRoutines(routinesWindow)];
+    // mapOperationsBlocks is SHARED with /hub and still emits source:'operations'
+    // there; remap to 'project' HERE so these land on the renamed Projects layer
+    // without touching the shared mapper or /hub (PR-HCR-LAYERS).
+    const projectEvents: GridEvent[] = mapOperationsBlocks(operationsItems).map((e) => ({ ...e, source: 'project' }));
+    return [...calendarSourceEvents, ...projectEvents, ...mapOperationsRoutines(routinesWindow)];
   }, [demoEvents, events, operationsItems, routinesWindow]);
 
-  // ── Click → open the operations block's card (SAME as hub/page.tsx:165-178). ──
+  // ── Click → open the project block's card (SAME lookup as hub/page.tsx:165-178;
+  //    the events now carry source:'project' after the remap above). ──
   const handleEventClick = (event: GridEvent) => {
-    if (event.source !== 'operations') return;
+    if (event.source !== 'project') return;
     for (const item of operationsItems) {
       const block = item.calendar_blocks.find((b) => b.id === event.id);
       if (block) { setCardSelection({ item, block }); return; }
