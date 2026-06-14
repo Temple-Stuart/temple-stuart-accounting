@@ -36,6 +36,13 @@ function getMode(): LiteApiMode {
   return process.env.LITEAPI_MODE === 'production' ? 'production' : 'sandbox';
 }
 
+/** PR-B2: the Payment SDK's `publicKey` value, driven off the SAME env as the API
+ *  key (production → 'live', sandbox → 'sandbox'). The prebook route returns this
+ *  to the client so the hosted SDK inits with the right key — never hardcoded. */
+export function liteApiPaymentEnv(): 'live' | 'sandbox' {
+  return getMode() === 'production' ? 'live' : 'sandbox';
+}
+
 function getApiKey(): string {
   const mode = getMode();
   const key = mode === 'production'
