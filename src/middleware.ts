@@ -69,6 +69,8 @@ const PUBLIC_PATHS = [
   // + would break guest search/booking next). Additive — exact paths only.
   '/api/flights/search',
   '/api/travel/hotels/search',
+  '/api/travel/hotels/content',
+  '/api/travel/hotels/reviews',
   '/api/travel/activities/search',
   '/api/travel/visa/check',
   '/api/travel/locations/countries',

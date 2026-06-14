@@ -49,6 +49,11 @@ const PROVIDER_SAFE_DEFAULT_CAP: Record<string, number> = {
   // TRAVEL_SEARCH_DAILY_CAP_HOTELPREBOOK / _HOTELBOOKING on a real volume plan.
   hotelprebook: 100,
   hotelbooking: 25,
+  // PR-RC1: hotel content + reviews are PAID LiteAPI calls (B-5100 COGS), fetched
+  // when a guest opens the checkout panel (≈ per booking-intent, one hotel). Higher
+  // than booking but still capped so a public, no-auth route can't run up COGS.
+  hotelcontent: 500,
+  hotelreviews: 500,
 };
 
 /** Per-provider daily cap. Precedence: TRAVEL_SEARCH_DAILY_CAP_<PROVIDER> env →
