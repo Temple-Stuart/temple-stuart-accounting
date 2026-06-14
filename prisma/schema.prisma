@@ -544,18 +544,19 @@ model trips {
   // see prisma/migrations-manual/itinerary_time_blocks.sql).
   entity_id String?
 
-  owner             users                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  participants      trip_participants[]
-  expenses          trip_expenses[]
-  itinerary         trip_itinerary[]
-  destinations      trip_destinations[]
-  budget_line_items budget_line_items[]
-  lodging_options   trip_lodging_options[]
-  transfer_options  trip_transfer_options[]
-  vehicle_options   trip_vehicle_options[]
-  activity_expenses trip_activity_expenses[]
-  scannerResults    trip_scanner_results[]
-  reservations      reservations[]
+  owner               users                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  participants        trip_participants[]
+  expenses            trip_expenses[]
+  itinerary           trip_itinerary[]
+  destinations        trip_destinations[]
+  budget_line_items   budget_line_items[]
+  lodging_options     trip_lodging_options[]
+  transfer_options    trip_transfer_options[]
+  vehicle_options     trip_vehicle_options[]
+  activity_expenses   trip_activity_expenses[]
+  scannerResults      trip_scanner_results[]
+  reservations        reservations[]
+  hub_scheduled_items hub_scheduled_items[]
 
   @@index([userId])
   @@index([year, month])
@@ -2963,6 +2964,17 @@ model hub_scheduled_items {
   budget_usd      Decimal?        @db.Decimal(15, 2)
   actual_usd      Decimal?        @db.Decimal(15, 2)
   description     String?         @db.Text
+  // PR-HCR2-cols: travel-item fields so a flight/hotel/activity can live here as a
+  // master budget/calendar line. All nullable — non-travel rows (operations) leave
+  // them NULL. vendor = airline/hotel/operator name; item_type = a small soft enum
+  // (DB CHECK allows the travel types or NULL); trip_id = the trip this belongs to
+  // (real FK to trips.id, which is a cuid TEXT — NOT @db.Uuid; SetNull on delete so
+  // the schedule row survives, mirroring budget_line_items.tripId); provider_ref =
+  // an optional vendor offer/booking id (Duffel offer, LiteAPI booking) for pay/book.
+  vendor          String?         @db.VarChar(255)
+  item_type       String?         @db.VarChar(20)
+  trip_id         String?
+  provider_ref    String?         @db.VarChar(255)
   created_at      DateTime        @default(now()) @db.Timestamptz(6)
   updated_at      DateTime        @updatedAt @db.Timestamptz(6)
 
@@ -2970,12 +2982,14 @@ model hub_scheduled_items {
   routine      operations_routines?      @relation(fields: [routine_id], references: [id], onDelete: SetNull)
   task         operations_project_tasks? @relation(fields: [task_id], references: [id], onDelete: SetNull)
   routine_step operations_routine_steps? @relation(fields: [routine_step_id], references: [id], onDelete: SetNull)
+  trip         trips?                    @relation(fields: [trip_id], references: [id], onDelete: SetNull)
 
   @@index([user_id, starts_at])
   @@index([entity_id])
   @@index([coa_code])
   @@index([project_id])
   @@index([routine_id])
+  @@index([trip_id])
   @@map("hub_scheduled_items")
 }
 
