@@ -94,22 +94,42 @@ not a leak.
 - `PublicFlightSearch` has **no auth check**; it fetches `/api/flights/search`
   directly and shows `data.error` from the route on failure
   (`PublicFlightSearch.tsx:106-114`). There is **no "not logged in"/"log in" string**
-  anywhere in `PublicFlightSearch.tsx` or `FlightPickerView.tsx` (grep: none).
+  anywhere in `PublicFlightSearch.tsx` or `FlightPickerView.tsx` (grep: none). In fact
+  the literal phrase "not logged in" appears **nowhere** in `src/` — the closest are
+  `/api/auth/me`'s "Not authenticated" (`auth/me/route.ts:12`) and the booking-to-trip
+  gate's "Sign in to save a booking to a trip." (`liteapi/book/route.ts:112`).
 - `/api/flights/search/route.ts` has **NO auth gate** (no `getVerifiedEmail`, no 401)
-  and **is in `PUBLIC_PATHS`** (`middleware.ts:70`). So the app is **not** gating
-  flights behind login.
-- The error the user sees is the **Duffel provider error passed through**: `lib/duffel.ts:6`
-  throws `'DUFFEL_API_TOKEN not configured'` when the env token is missing
-  (`:2` `process.env.DUFFEL_API_TOKEN`); an **invalid/expired** token makes Duffel
-  return a 401, and the route surfaces `error.message` verbatim
-  (`flights/search/route.ts:96`). That raw provider auth message reads like "not
-  logged in."
-- **Verdict:** flights is correctly **real-guest (ungated)** per the model. The bug is
-  **environmental/provider** (`DUFFEL_API_TOKEN` missing or invalid), leaking a raw
-  provider error into the UI — **not** an app login gate. **Fix = set/refresh the
-  Duffel token (env, Alex)** + optionally map provider-auth errors to a friendly
-  "Flight search is temporarily unavailable" (the route already does this for the
-  rate-limit/quota cases, `:84,90`). **No un-gating needed.**
+  and **is in `PUBLIC_PATHS`** (`middleware.ts:70`). So **current code does not gate
+  flights behind login** — the widget is correctly real-guest.
+
+**Two candidate causes (both → NOT an app login gate in current code):**
+
+1. **A now-FIXED middleware-history bug (if the deploy is stale).** Before commit
+   `43766c8f` (PR-G-public-paths), the travel search routes were **not** in
+   `PUBLIC_PATHS`, so a guest's `/api/flights/search` fetch was **redirected to `/`**,
+   which returns HTML; `res.json()` then failed and the widget showed a generic error
+   that reads like "not logged in." `43766c8f` added all travel routes to PUBLIC_PATHS
+   (`middleware.ts:70-79`), and current HEAD includes it — so **a current build is
+   already fixed.** If the user still sees it, suspect a **stale deploy** of the
+   pre-fix middleware.
+2. **Duffel provider/env error passed through (if reproduced on current code).**
+   `lib/duffel.ts:6` throws `'DUFFEL_API_TOKEN not configured'` when the env token is
+   missing (`:2` `process.env.DUFFEL_API_TOKEN`); an **invalid/expired** token makes
+   Duffel return a 401, and the route surfaces `error.message` verbatim
+   (`flights/search/route.ts:96`). That raw provider auth message reads like "not
+   logged in."
+
+- **Verdict:** flights is correctly **real-guest (ungated)** in current code — the
+  app is **not** gating it behind login. The symptom is either a **stale deploy** of
+  the pre-`43766c8f` middleware (cause 1, already fixed in HEAD) or a **Duffel
+  env/provider** error (cause 2). **To disambiguate:** confirm the deployed commit
+  includes `43766c8f`, then `curl -i '/api/flights/search?origin=JFK&destination=LAX&departureDate=2026-09-01&passengers=1'`
+  with **no cookie** — a 200 with offers = fully fixed; a 5xx with a Duffel/token
+  message = cause 2 (set/refresh `DUFFEL_API_TOKEN`); a 3xx redirect to `/` = stale
+  deploy (cause 1). **Fix:** (1) redeploy current `main`; (2) set/refresh the Duffel
+  token (env, Alex) + optionally map provider-auth errors to a friendly "Flight search
+  is temporarily unavailable" (the route already does this for rate-limit/quota,
+  `:84,90`). **No un-gating needed** either way.
 
 ---
 
@@ -170,12 +190,16 @@ real-when-authed half added.
 ## REPORT: THE CLEANUP PLAN
 
 ### The flights bug (do first — the acquisition hook is visibly broken)
-- **Root cause:** `DUFFEL_API_TOKEN` missing/invalid (env), leaking a raw provider
-  auth error through `flights/search/route.ts:96` (`lib/duffel.ts:6`).
-- **Fix:** set/refresh the token (Alex/env) — the real fix; then optionally map
-  provider-auth errors to a friendly message (mirroring the route's existing
-  rate-limit/quota messages `:84,90`). **No gating change** — flights is correctly
-  public (`middleware.ts:70`, no `getVerifiedEmail`).
+- **Root cause (one of two):** (1) a **stale deploy** of the pre-`43766c8f`
+  middleware (travel routes not yet in PUBLIC_PATHS → guest fetch redirected to `/` →
+  HTML → JSON-parse error) — already fixed in current HEAD; or (2) `DUFFEL_API_TOKEN`
+  missing/invalid, leaking a raw provider auth error through
+  `flights/search/route.ts:96` (`lib/duffel.ts:6`). Disambiguate with the cookieless
+  `curl` in §2.
+- **Fix:** (1) redeploy current `main`; (2) set/refresh the token (Alex/env), then
+  optionally map provider-auth errors to a friendly message (mirroring the route's
+  existing rate-limit/quota messages `:84,90`). **No gating change** — flights is
+  correctly public (`middleware.ts:70`, no `getVerifiedEmail`).
 
 ### Staged module cleanup (by impact)
 1. **Flights env/error (above)** — highest impact, smallest change (env + a message map).
