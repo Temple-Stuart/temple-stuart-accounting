@@ -9,13 +9,15 @@
  * whenever `refreshSignal` changes — the home Create-trip form bumps that after a
  * successful create, so a new trip shows up here in place (no navigation away).
  *
- * Clicking a row sets a local selected state only — the click→populate detail view
- * is the NEXT PR. This PR just lists + refreshes.
+ * PR-HCR-Trips2: selection is LIFTED — clicking a row calls `onSelect(trip)` and the
+ * parent (ModuleLauncher) owns the current trip, so later budget actions can read it.
+ * The row highlight is driven by the parent's `selectedTripId`. This PR is selection +
+ * context only — the click→populate detail view and budget writes are later PRs.
  */
 
 import { useEffect, useState } from 'react';
 
-interface TripRow {
+export interface TripRow {
   id: string;
   name: string;
   destination: string | null;
@@ -28,6 +30,11 @@ interface TripRow {
 interface Props {
   /** Bumped by the parent after a create so the list re-fetches in place. */
   refreshSignal?: number;
+  /** PR-HCR-Trips2: lifted selection. The parent owns the current trip; clicking a
+   *  row calls this so budget actions (later PRs) can read the selected trip. */
+  onSelect?: (trip: TripRow) => void;
+  /** The currently selected trip id (from the parent) — drives the row highlight. */
+  selectedTripId?: string | null;
 }
 
 function formatRange(start: string | null, end: string | null): string {
@@ -36,11 +43,10 @@ function formatRange(start: string | null, end: string | null): string {
   return end ? `${fmt(start)} – ${fmt(end)}` : fmt(start);
 }
 
-export default function AllTripsList({ refreshSignal = 0 }: Props) {
+export default function AllTripsList({ refreshSignal = 0, onSelect, selectedTripId = null }: Props) {
   const [trips, setTrips] = useState<TripRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -88,8 +94,9 @@ export default function AllTripsList({ refreshSignal = 0 }: Props) {
               {trips.map((trip) => (
                 <tr
                   key={trip.id}
-                  onClick={() => setSelectedId(trip.id)}
-                  className={`cursor-pointer border-t border-border transition-colors hover:bg-bg-row ${selectedId === trip.id ? 'bg-bg-row' : 'bg-white'}`}
+                  onClick={() => onSelect?.(trip)}
+                  aria-selected={selectedTripId === trip.id}
+                  className={`cursor-pointer border-t transition-colors hover:bg-bg-row ${selectedTripId === trip.id ? 'border-brand-purple bg-brand-purple/5' : 'border-border bg-white'}`}
                 >
                   <td className="px-3 py-3 font-medium text-text-primary">{trip.name}</td>
                   <td className="px-3 py-3 text-text-secondary">{trip.destination || '—'}</td>
