@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LiteAPI Payment SDK — runtime probe (diagnostic only)</title>
+
+  <!--
+    DIAGNOSTIC ONLY — NOT app code, not a route, not built into the app.
+
+    PURPOSE: confirm how LiteAPI's hosted Payment SDK actually behaves before
+    PR-B2, so we build to the REAL flow (no guessing):
+      • Does handlePayment() REDIRECT the browser to returnUrl, or resolve IN-PAGE?
+      • What params does returnUrl receive after payment (status? transactionId?)?
+      • Does the card form render into the targetElement div?
+
+    HOW TO RUN (the SDK needs a real http origin — file:// may be rejected):
+      1) Get a FRESH secretKey:  npx tsx scripts/probe-liteapi-prebook-sdk.ts
+         (copy the data.secretKey value from STEP 3's raw body — it's session-
+          scoped + time-limited, so do this right before step 3.)
+      2) Serve this folder:      npx serve scripts -l 5050
+      3) Open:                    http://localhost:5050/sdk-probe.html
+      4) Paste the secretKey, keep publicKey=sandbox, click "Init + handlePayment()".
+      5) Use the SANDBOX test card 4242 4242 4242 4242, any future expiry, any CVV.
+      6) WATCH: does the page redirect? If it returns here, the banner up top shows
+         exactly which query params the SDK appended to returnUrl.
+
+    SDK script + init config per the confirmed contract (LiteAPI docs):
+      new LiteAPIPayment({ publicKey, appearance:{theme:'flat'}, targetElement,
+                           secretKey, returnUrl }).handlePayment()
+  -->
+  <script src="https://payment-wrapper.liteapi.travel/dist/liteAPIPayment.js?v=a1"></script>
+
+  <style>
+    body { font: 14px/1.5 system-ui, sans-serif; max-width: 720px; margin: 24px auto; padding: 0 16px; color: #222; }
+    h1 { font-size: 18px; }
+    label { display: block; margin: 10px 0 2px; font-weight: 600; font-size: 13px; }
+    input, select { width: 100%; padding: 8px; box-sizing: border-box; font: inherit; }
+    button { margin-top: 14px; padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer; }
+    #returned { padding: 10px 12px; border-radius: 6px; margin-bottom: 14px; font-size: 13px; }
+    #payment-target { margin-top: 18px; min-height: 40px; border: 1px dashed #bbb; border-radius: 6px; padding: 8px; }
+    #log { margin-top: 16px; padding: 10px; background: #111; color: #5e5; font: 12px/1.45 ui-monospace, monospace;
+           white-space: pre-wrap; word-break: break-word; border-radius: 6px; max-height: 320px; overflow: auto; }
+    .muted { color: #666; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>LiteAPI Payment SDK — runtime probe</h1>
+  <p class="muted">Diagnostic only. Sandbox test card: <strong>4242 4242 4242 4242</strong>, any future expiry, any CVV.</p>
+
+  <!-- If we arrived here FROM a payment redirect, show exactly what returnUrl got. -->
+  <div id="returned"></div>
+
+  <form id="cfg">
+    <label for="secretKey">secretKey (from the prebook probe — data.secretKey)</label>
+    <input id="secretKey" placeholder="paste a fresh secretKey" autocomplete="off" />
+
+    <label for="publicKey">publicKey (MUST match the API key env)</label>
+    <select id="publicKey">
+      <option value="sandbox" selected>sandbox</option>
+      <option value="live">live</option>
+    </select>
+
+    <label for="returnUrl">returnUrl (where the SDK sends the browser after payment)</label>
+    <input id="returnUrl" />
+
+    <button type="submit">Init + handlePayment()</button>
+  </form>
+
+  <div id="payment-target"><span class="muted">card form renders here (if the SDK is in-page)</span></div>
+
+  <pre id="log"></pre>
+
+  <script>
+    (function () {
+      var logEl = document.getElementById('log');
+      function log() {
+        var msg = Array.prototype.map.call(arguments, function (a) {
+          try { return typeof a === 'string' ? a : JSON.stringify(a); } catch (e) { return String(a); }
+        }).join(' ');
+        logEl.textContent += msg + '\n';
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+      // Mirror console into the on-page log so SDK output is visible even right
+      // before a redirect navigates away.
+      ['log', 'warn', 'error'].forEach(function (k) {
+        var orig = console[k].bind(console);
+        console[k] = function () { try { log('[console.' + k + ']', Array.prototype.slice.call(arguments).join(' ')); } catch (e) {} orig.apply(console, arguments); };
+      });
+      window.addEventListener('error', function (e) { log('[window.error]', e.message); });
+
+      // Default returnUrl = this page (so a redirect-BACK is observable here).
+      var here = location.href.split('?')[0];
+      document.getElementById('returnUrl').value = here + '?returned=1';
+
+      // If we came back from a payment redirect, surface the params loudly — THIS
+      // answers "does it redirect, and with what params".
+      var ret = document.getElementById('returned');
+      if (location.search && location.search.length > 1) {
+        ret.style.background = '#e7f6e7';
+        ret.innerHTML = '<strong>RETURNED FROM A REDIRECT.</strong> The SDK redirected to returnUrl with these query params:<br><code>' +
+          location.search.replace(/</g, '&lt;') + '</code><br>→ The SDK is REDIRECT-based; PR-B2 must finalize (book) at the returnUrl target.';
+        log('RETURNED with params:', location.search);
+      } else {
+        ret.style.background = '#fff6e0';
+        ret.innerHTML = 'Not returned from a redirect yet. Run the SDK below, pay with the test card, and watch whether the page navigates to returnUrl (redirect) or the card form stays here (in-page).';
+      }
+
+      document.getElementById('cfg').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var secretKey = document.getElementById('secretKey').value.trim();
+        var publicKey = document.getElementById('publicKey').value;
+        var returnUrl = document.getElementById('returnUrl').value.trim();
+        if (!secretKey) { log('!! paste a secretKey first'); return; }
+        if (typeof window.LiteAPIPayment !== 'function') {
+          log('!! window.LiteAPIPayment is not a function — did the SDK script load? (check the network tab / served over http)');
+          return;
+        }
+        var config = {
+          publicKey: publicKey,
+          appearance: { theme: 'flat' },
+          targetElement: '#payment-target',
+          secretKey: secretKey,
+          returnUrl: returnUrl,
+        };
+        log('init config (secretKey hidden):', JSON.stringify(Object.assign({}, config, { secretKey: '<' + secretKey.length + ' chars>' })));
+        try {
+          var p = new window.LiteAPIPayment(config);
+          log('new LiteAPIPayment() ok — calling handlePayment()…');
+          var r = p.handlePayment();
+          log('handlePayment() returned:', (r && typeof r.then === 'function') ? 'a Promise' : String(r));
+          if (r && typeof r.then === 'function') {
+            r.then(function (res) { log('handlePayment() RESOLVED in-page (no redirect):', JSON.stringify(res)); })
+             .catch(function (err) { log('handlePayment() rejected:', (err && err.message) || String(err)); });
+          }
+          log('→ Now watch: card form in the box above? page navigates to returnUrl? (redirect) or stays here? (in-page)');
+        } catch (err) {
+          log('!! handlePayment threw:', (err && err.message) || String(err));
+        }
+      });
+
+      log('SDK loaded? window.LiteAPIPayment =', typeof window.LiteAPIPayment);
+    })();
+  </script>
+</body>
+</html>
