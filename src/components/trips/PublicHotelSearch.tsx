@@ -168,6 +168,8 @@ export default function PublicHotelSearch({ onRequireAuth }: Props) {
       {checkoutHotel && checkoutHotel.liteapiOfferId && (
         <CheckoutPanel
           offerId={checkoutHotel.liteapiOfferId}
+          hotelId={checkoutHotel.liteapiHotelId}
+          images={checkoutHotel.images}
           hotelName={checkoutHotel.name}
           checkin={checkin}
           checkout={checkout}
