@@ -20,6 +20,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import CalendarGrid, { type CalendarEvent as GridEvent, type SourceConfig } from '@/components/shared/CalendarGrid';
 import HubEventCard from '@/components/hub/HubEventCard';
+import EventDetailPanel from '@/components/hub/EventDetailPanel';
 import { mapOperationsBlocks } from '@/lib/hub/mapOperationsBlocks';
 import { mapOperationsRoutines, type RoutinesWindowResponse } from '@/lib/hub/mapOperationsRoutines';
 import type { DailyPlanItem, CalendarBlockSummary } from '@/components/workbench/operations/dailyplan/types';
@@ -86,6 +87,8 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
   const [operationsItems, setOperationsItems] = useState<DailyPlanItem[]>([]);
   const [routinesWindow, setRoutinesWindow] = useState<RoutinesWindowResponse>({ routines: [], truncated: false });
   const [cardSelection, setCardSelection] = useState<{ item: DailyPlanItem; block: CalendarBlockSummary } | null>(null);
+  // PR-HCR3: the clicked event for the read-only type-aware detail panel.
+  const [detailEvent, setDetailEvent] = useState<GridEvent | null>(null);
 
   // ── The 3 calendar loaders — SAME logic as hub/page.tsx:192-294. ──
   const loadCalendar = async () => {
@@ -163,15 +166,19 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
     return [...calendarSourceEvents, ...projectEvents, ...mapOperationsRoutines(routinesWindow)];
   }, [demoEvents, events, operationsItems, routinesWindow]);
 
-  // ── Click → open the project block's card (SAME lookup as hub/page.tsx:165-178;
-  //    the events now carry source:'project' after the remap above). ──
+  // ── Click → open a detail panel (PR-HCR3). A LIVE project block keeps its rich
+  //    HubEventCard (reschedule/reconcile); everything else (the demo's trip/
+  //    project/routine/trade, and live trip/trade) opens the read-only, type-aware
+  //    EventDetailPanel. Live routines never reach here — CalendarGrid navigates
+  //    them via their href (mapOperationsRoutines), which we leave unchanged. ──
   const handleEventClick = (event: GridEvent) => {
-    if (event.source !== 'project') return;
-    for (const item of operationsItems) {
-      const block = item.calendar_blocks.find((b) => b.id === event.id);
-      if (block) { setCardSelection({ item, block }); return; }
+    if (!isDemo && event.source === 'project') {
+      for (const item of operationsItems) {
+        const block = item.calendar_blocks.find((b) => b.id === event.id);
+        if (block) { setCardSelection({ item, block }); return; }
+      }
     }
-    console.warn('[Hub] Could not locate item+block for event id:', event.id);
+    setDetailEvent(event);
   };
 
   const goMonth = (delta: number) => {
@@ -232,6 +239,10 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
           onClose={() => setCardSelection(null)}
           onUpdated={() => { loadOperationsBlocks(); setCardSelection(null); }}
         />
+      )}
+
+      {detailEvent && (
+        <EventDetailPanel event={detailEvent} onClose={() => setDetailEvent(null)} />
       )}
     </div>
   );
