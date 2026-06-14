@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import CreateTripForm from '@/components/trips/CreateTripForm';
 import HubCalendar from '@/components/hub/HubCalendar';
+import { demoCalendar } from '@/components/hub/showroom/demoCalendar';
 import PublicFlightSearch from '@/components/trips/PublicFlightSearch';
 import PublicHotelSearch from '@/components/trips/PublicHotelSearch';
 import PublicActivitySearch from '@/components/trips/PublicActivitySearch';
@@ -168,13 +169,13 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
           so the six read as distinct breathing sections (the old marketing
           rhythm). The card content + its single purple band header are unchanged —
           the separation comes from the full-width bg, NOT a second purple. */}
-      {/* PR-HCR1.1: the shared master calendar is the TOP of the module stack —
-          ABOVE the Travel/Create-trip section and everything else. It links across
-          travel, operations, routines, and bookkeeping, so it sits first under the
-          hero. ACCOUNT-GATED (unchanged from HCR1): logged in → the calendar (only
-          mounted when authed, so it never fetches a personal route for a guest);
-          logged out → a login card; auth still resolving (authed === null) →
-          nothing. /hub is untouched. */}
+      {/* PR-HCR1.1 + PR-HCR-DEMO: the shared master calendar is the TOP of the
+          module stack — ABOVE the Travel/Create-trip section and everything else.
+          It links across travel, operations, routines, and bookkeeping, so it sits
+          first under the hero. Logged in → the real calendar (fetches the viewer's
+          data). Logged out → a LIVING DEMO fed a static fictional seed, which
+          fetches NOTHING (zero personal-route calls — fake by construction). Auth
+          still resolving (authed === null) → nothing. /hub is untouched. */}
       {authed === true && (
         <section className="w-full py-10 bg-white border-b border-border">
           <div className="max-w-7xl mx-auto px-4 lg:px-8">
@@ -185,19 +186,7 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
       {authed === false && (
         <section className="w-full py-10 bg-white border-b border-border">
           <div className="max-w-7xl mx-auto px-4 lg:px-8">
-            <div className="rounded-lg border border-border bg-bg-row p-5 text-center">
-              <p className="text-lg font-bold text-brand-purple mb-1">Your calendar</p>
-              <p className="text-sm text-text-muted mb-4">
-                Log in to see your trips, routines, and daily plan all in one place.
-              </p>
-              <button
-                type="button"
-                onClick={onRequireAuth}
-                className="px-6 py-2 bg-brand-purple hover:bg-brand-purple-hover text-white font-semibold text-sm rounded"
-              >
-                Log in to see your calendar
-              </button>
-            </div>
+            <HubCalendar demoEvents={demoCalendar} onRequireAuth={onRequireAuth} />
           </div>
         </section>
       )}

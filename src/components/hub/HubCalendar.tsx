@@ -11,9 +11,10 @@
  *   • /api/hub/operations-routines     → routine occurrences (mapOperationsRoutines)
  * merged into CalendarGrid (the same component /hub + /trading use).
  *
- * AUTH: all three routes are account-gated (NOT public). This component is only
- * MOUNTED when the viewer is logged in (the home page shows a login card otherwise),
- * so it never fetches a personal route while logged out.
+ * AUTH: all three routes are account-gated (NOT public). Logged IN, the component
+ * fetches and renders the viewer's real calendar. Logged OUT, the home page passes
+ * a static `demoEvents` seed — the fetch effect early-returns, so it never calls a
+ * personal route for a guest (PR-HCR-DEMO).
  */
 
 import { useEffect, useMemo, useState } from 'react';
@@ -57,7 +58,20 @@ const HUB_GRID_CONFIG: Record<string, SourceConfig> = Object.fromEntries(
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-export default function HubCalendar() {
+interface HubCalendarProps {
+  /**
+   * When set, the calendar renders THIS static list and fetches NOTHING — the
+   * logged-out "living demo" path. The fetch effect early-returns, so no
+   * personal route is ever called for a guest. Omit it for the real,
+   * logged-in calendar (the existing behavior).
+   */
+  demoEvents?: GridEvent[];
+  /** Opens the home register/login modal — used by the demo's sign-up button. */
+  onRequireAuth?: () => void;
+}
+
+export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarProps = {}) {
+  const isDemo = !!demoEvents;
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
@@ -113,10 +127,18 @@ export default function HubCalendar() {
     }
   };
 
-  useEffect(() => { loadCalendar(); loadOperationsBlocks(); loadOperationsRoutines(); }, [selectedYear, selectedMonth]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Demo mode is STATIC: skip all three personal fetches entirely (the zero-fetch
+  // guarantee — a logged-out guest never calls /api/calendar, /api/operations/*,
+  // or /api/hub/*). The real, logged-in path is unchanged.
+  useEffect(() => {
+    if (demoEvents) return;
+    loadCalendar(); loadOperationsBlocks(); loadOperationsRoutines();
+  }, [selectedYear, selectedMonth, demoEvents]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── The merge — SAME as hub/page.tsx:379-394. ──
+  // ── The merge — SAME as hub/page.tsx:379-394. In demo mode, render the static
+  //    seed straight through (already in CalendarEvent shape). ──
   const gridEvents: GridEvent[] = useMemo(() => {
+    if (demoEvents) return demoEvents;
     const calendarSourceEvents: GridEvent[] = events.map((e) => ({
       id: e.id,
       source: e.source,
@@ -129,7 +151,7 @@ export default function HubCalendar() {
       budgetAmount: e.budget_amount,
     }));
     return [...calendarSourceEvents, ...mapOperationsBlocks(operationsItems), ...mapOperationsRoutines(routinesWindow)];
-  }, [events, operationsItems, routinesWindow]);
+  }, [demoEvents, events, operationsItems, routinesWindow]);
 
   // ── Click → open the operations block's card (SAME as hub/page.tsx:165-178). ──
   const handleEventClick = (event: GridEvent) => {
@@ -152,8 +174,19 @@ export default function HubCalendar() {
     <div className="mt-6 space-y-3">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-lg font-bold text-brand-purple">Your calendar</p>
-          <p className="text-xs text-text-muted">Trips, routines, and your daily plan — all in one place.</p>
+          <div className="flex items-center gap-2">
+            <p className="text-lg font-bold text-brand-purple">Your calendar</p>
+            {isDemo && (
+              <span className="rounded-full bg-brand-purple/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-purple">
+                Live demo
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-text-muted">
+            {isDemo
+              ? 'This is the real app — these events are made up, and nothing here gets saved.'
+              : 'Trips, routines, and your daily plan — all in one place.'}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button type="button" onClick={() => goMonth(-1)} aria-label="Previous month" className="rounded border border-border px-2 py-1 text-sm text-text-secondary hover:bg-bg-row">‹</button>
@@ -175,6 +208,21 @@ export default function HubCalendar() {
           onEventClick={handleEventClick}
         />
       </div>
+
+      {isDemo && (
+        <div className="flex flex-col items-start gap-2 rounded-lg border border-border bg-bg-row p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-text-secondary">
+            Like what you see? Make a free account and fill it with your own trips, routines, and plans.
+          </p>
+          <button
+            type="button"
+            onClick={() => onRequireAuth?.()}
+            className="shrink-0 rounded bg-brand-purple px-6 py-2 text-sm font-semibold text-white hover:bg-brand-purple-hover"
+          >
+            Make my free account
+          </button>
+        </div>
+      )}
 
       {cardSelection && (
         <HubEventCard
