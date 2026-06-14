@@ -179,14 +179,30 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
       {authed === true && (
         <section className="w-full py-10 bg-white border-b border-border">
           <div className="max-w-7xl mx-auto px-4 lg:px-8">
-            <HubCalendar />
+            <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+              <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
+                <span>Calendar</span>
+                <span className="text-[10px] uppercase tracking-wider font-normal text-white/80">Your data</span>
+              </div>
+              <div className="bg-white p-4">
+                <HubCalendar />
+              </div>
+            </div>
           </div>
         </section>
       )}
       {authed === false && (
         <section className="w-full py-10 bg-white border-b border-border">
           <div className="max-w-7xl mx-auto px-4 lg:px-8">
-            <HubCalendar demoEvents={demoCalendar} onRequireAuth={onRequireAuth} />
+            <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+              <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
+                <span>Calendar</span>
+                <span className="text-[10px] uppercase tracking-wider font-normal text-white/80">Live demo · log in to use</span>
+              </div>
+              <div className="bg-white p-4">
+                <HubCalendar demoEvents={demoCalendar} onRequireAuth={onRequireAuth} />
+              </div>
+            </div>
           </div>
         </section>
       )}

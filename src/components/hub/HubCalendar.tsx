@@ -171,24 +171,14 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
   const goToday = () => { const t = new Date(); setSelectedYear(t.getFullYear()); setSelectedMonth(t.getMonth()); };
 
   return (
-    <div className="mt-6 space-y-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <p className="text-lg font-bold text-brand-purple">Your calendar</p>
-            {isDemo && (
-              <span className="rounded-full bg-brand-purple/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-purple">
-                Live demo
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-text-muted">
-            {isDemo
-              ? 'This is the real app — these events are made up, and nothing here gets saved.'
-              : 'Trips, routines, and your daily plan — all in one place.'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs text-text-muted">
+          {isDemo
+            ? 'This is the real app — these events are made up, and nothing here gets saved.'
+            : 'Trips, routines, and your daily plan — all in one place.'}
+        </p>
+        <div className="flex shrink-0 items-center gap-2">
           <button type="button" onClick={() => goMonth(-1)} aria-label="Previous month" className="rounded border border-border px-2 py-1 text-sm text-text-secondary hover:bg-bg-row">‹</button>
           <span className="min-w-[120px] text-center text-sm font-medium text-text-primary">{MONTHS[selectedMonth]} {selectedYear}</span>
           <button type="button" onClick={() => goMonth(1)} aria-label="Next month" className="rounded border border-border px-2 py-1 text-sm text-text-secondary hover:bg-bg-row">›</button>
