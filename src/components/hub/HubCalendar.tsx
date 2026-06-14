@@ -1,0 +1,189 @@
+'use client';
+
+/**
+ * HubCalendar — the shared master calendar (PR-HCR1). It moves the calendar-feeding
+ * logic out of the /hub page (verbatim) into a self-contained component so it can be
+ * mounted on the public home page (account-gated) while /hub stays untouched.
+ *
+ * It fetches the SAME three sources the Hub merges and renders the SAME shared grid:
+ *   • /api/calendar          → calendar_events (filtered to source 'trip')
+ *   • /api/operations/daily-plan/items → operations blocks (mapOperationsBlocks)
+ *   • /api/hub/operations-routines     → routine occurrences (mapOperationsRoutines)
+ * merged into CalendarGrid (the same component /hub + /trading use).
+ *
+ * AUTH: all three routes are account-gated (NOT public). This component is only
+ * MOUNTED when the viewer is logged in (the home page shows a login card otherwise),
+ * so it never fetches a personal route while logged out.
+ */
+
+import { useEffect, useMemo, useState } from 'react';
+import CalendarGrid, { type CalendarEvent as GridEvent, type SourceConfig } from '@/components/shared/CalendarGrid';
+import HubEventCard from '@/components/hub/HubEventCard';
+import { mapOperationsBlocks } from '@/lib/hub/mapOperationsBlocks';
+import { mapOperationsRoutines, type RoutinesWindowResponse } from '@/lib/hub/mapOperationsRoutines';
+import type { DailyPlanItem, CalendarBlockSummary } from '@/components/workbench/operations/dailyplan/types';
+
+// The /api/calendar event shape (same as hub/page.tsx:25-35).
+interface CalendarEvent {
+  id: string;
+  source: string;
+  title: string;
+  icon: string | null;
+  start_date: string;
+  end_date: string | null;
+  is_recurring: boolean;
+  location: string | null;
+  budget_amount: number;
+}
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+// Same three Hub sources + their grid styling (hub/page.tsx:68-83).
+const SOURCE_CONFIG: Record<string, { icon: string; color: string; bgColor: string; dotColor: string; calendarColor: string }> = {
+  trip: { icon: '✈️', color: 'text-cyan-600', bgColor: 'bg-cyan-50', dotColor: 'bg-cyan-500', calendarColor: 'bg-cyan-400' },
+  operations: { icon: '🎯', color: 'text-indigo-600', bgColor: 'bg-indigo-50', dotColor: 'bg-indigo-500', calendarColor: 'bg-indigo-400' },
+  routines: { icon: '🔁', color: 'text-teal-600', bgColor: 'bg-teal-50', dotColor: 'bg-teal-500', calendarColor: 'bg-teal-400' },
+};
+const HUB_GRID_CONFIG: Record<string, SourceConfig> = Object.fromEntries(
+  Object.entries(SOURCE_CONFIG).map(([key, cfg]) => [key, {
+    label: key.charAt(0).toUpperCase() + key.slice(1),
+    icon: cfg.icon,
+    bg: cfg.bgColor,
+    dot: cfg.dotColor,
+    badge: cfg.calendarColor,
+    text: cfg.color,
+  }])
+);
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+export default function HubCalendar() {
+  const now = new Date();
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
+
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [operationsItems, setOperationsItems] = useState<DailyPlanItem[]>([]);
+  const [routinesWindow, setRoutinesWindow] = useState<RoutinesWindowResponse>({ routines: [], truncated: false });
+  const [cardSelection, setCardSelection] = useState<{ item: DailyPlanItem; block: CalendarBlockSummary } | null>(null);
+
+  // ── The 3 calendar loaders — SAME logic as hub/page.tsx:192-294. ──
+  const loadCalendar = async () => {
+    try {
+      const res = await fetch(`/api/calendar?year=${selectedYear}&month=${selectedMonth + 1}`);
+      if (res.ok) {
+        const data = await res.json();
+        const raw = (data.events || []) as CalendarEvent[];
+        setEvents(raw.filter((e) => e.source === 'trip'));
+      }
+    } catch (err) { console.error('Failed to load calendar:', err); }
+  };
+
+  const loadOperationsBlocks = async () => {
+    try {
+      const from = `${selectedYear}-${pad(selectedMonth + 1)}-01`;
+      const lastDay = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+      const to = `${selectedYear}-${pad(selectedMonth + 1)}-${pad(lastDay)}`;
+      const res = await fetch(`/api/operations/daily-plan/items?from=${from}&to=${to}`);
+      setOperationsItems(res.ok ? ((await res.json()).items || []) : []);
+    } catch (err) {
+      console.error('Failed to load operations blocks:', err);
+      setOperationsItems([]);
+    }
+  };
+
+  const loadOperationsRoutines = async () => {
+    try {
+      const from = `${selectedYear}-${pad(selectedMonth + 1)}-01`;
+      const lastDay = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+      const to = `${selectedYear}-${pad(selectedMonth + 1)}-${pad(lastDay)}`;
+      const res = await fetch(`/api/hub/operations-routines?from=${from}&to=${to}`);
+      if (res.ok) {
+        const data: RoutinesWindowResponse = await res.json();
+        setRoutinesWindow(data);
+        if (data.truncated) {
+          console.warn('[Hub] Routines window truncated — occurrence cap reached. Not all recurring routines may be visible.');
+        }
+      } else {
+        setRoutinesWindow({ routines: [], truncated: false });
+      }
+    } catch (err) {
+      console.error('Failed to load operations routines:', err);
+      setRoutinesWindow({ routines: [], truncated: false });
+    }
+  };
+
+  useEffect(() => { loadCalendar(); loadOperationsBlocks(); loadOperationsRoutines(); }, [selectedYear, selectedMonth]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── The merge — SAME as hub/page.tsx:379-394. ──
+  const gridEvents: GridEvent[] = useMemo(() => {
+    const calendarSourceEvents: GridEvent[] = events.map((e) => ({
+      id: e.id,
+      source: e.source,
+      title: e.title,
+      icon: e.icon,
+      startDate: e.start_date,
+      endDate: e.end_date,
+      isRecurring: e.is_recurring,
+      location: e.location,
+      budgetAmount: e.budget_amount,
+    }));
+    return [...calendarSourceEvents, ...mapOperationsBlocks(operationsItems), ...mapOperationsRoutines(routinesWindow)];
+  }, [events, operationsItems, routinesWindow]);
+
+  // ── Click → open the operations block's card (SAME as hub/page.tsx:165-178). ──
+  const handleEventClick = (event: GridEvent) => {
+    if (event.source !== 'operations') return;
+    for (const item of operationsItems) {
+      const block = item.calendar_blocks.find((b) => b.id === event.id);
+      if (block) { setCardSelection({ item, block }); return; }
+    }
+    console.warn('[Hub] Could not locate item+block for event id:', event.id);
+  };
+
+  const goMonth = (delta: number) => {
+    const d = new Date(selectedYear, selectedMonth + delta, 1);
+    setSelectedYear(d.getFullYear());
+    setSelectedMonth(d.getMonth());
+  };
+  const goToday = () => { const t = new Date(); setSelectedYear(t.getFullYear()); setSelectedMonth(t.getMonth()); };
+
+  return (
+    <div className="mt-6 space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-lg font-bold text-brand-purple">Your calendar</p>
+          <p className="text-xs text-text-muted">Trips, routines, and your daily plan — all in one place.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => goMonth(-1)} aria-label="Previous month" className="rounded border border-border px-2 py-1 text-sm text-text-secondary hover:bg-bg-row">‹</button>
+          <span className="min-w-[120px] text-center text-sm font-medium text-text-primary">{MONTHS[selectedMonth]} {selectedYear}</span>
+          <button type="button" onClick={() => goMonth(1)} aria-label="Next month" className="rounded border border-border px-2 py-1 text-sm text-text-secondary hover:bg-bg-row">›</button>
+          <button type="button" onClick={goToday} className="rounded border border-border px-2 py-1 text-xs text-text-secondary hover:bg-bg-row">Today</button>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-border">
+        <CalendarGrid
+          events={gridEvents}
+          sourceConfig={HUB_GRID_CONFIG}
+          defaultView="day"
+          enableDayView={true}
+          enableHubChrome={true}
+          showBudgetTotals={true}
+          showCategoryLegend={true}
+          onEventClick={handleEventClick}
+        />
+      </div>
+
+      {cardSelection && (
+        <HubEventCard
+          item={cardSelection.item}
+          block={cardSelection.block}
+          onClose={() => setCardSelection(null)}
+          onUpdated={() => { loadOperationsBlocks(); setCardSelection(null); }}
+        />
+      )}
+    </div>
+  );
+}
