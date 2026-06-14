@@ -91,10 +91,17 @@ export async function GET(request: NextRequest) {
         { status: 503 }
       );
     }
+    // Everything left here is a provider/config/auth failure from the Duffel call
+    // (e.g. 'DUFFEL_API_TOKEN not configured' from lib/duffel.ts:6, or a Duffel
+    // 401/auth error surfaced at lib/duffel.ts:57) — the two guards + param
+    // validation already ran. Log the REAL cause server-side, but NEVER leak the raw
+    // provider/env message to the client: a guest reads "DUFFEL_API_TOKEN…" or a
+    // provider auth string as a scary "not logged in". Return a friendly, generic
+    // message instead, mirroring the rate-limit/quota mappings above.
     console.error('Flight search error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Flight search failed' },
-      { status: 500 }
+      { error: 'Flight search is temporarily unavailable. Please try again later.' },
+      { status: 503 }
     );
   }
 }
