@@ -10,9 +10,9 @@
  * `demo-cal-*` prefixed and every name is made up. Nothing here is real.
  *
  * Shape: the SAME `CalendarEvent` the grid renders (CalendarGrid.tsx:11-31),
- * already merged across the three sources the Hub shows — `trip`, `routines`,
- * and `operations` — so HubCalendar can drop it straight into CalendarGrid with
- * no mapper. The `_check` at the bottom proves it stays assignable to that type.
+ * already merged across the four layers the Hub shows — `trip`, `project`,
+ * `routines`, and `trade` — so HubCalendar can drop it straight into CalendarGrid
+ * with no mapper. The `_check` at the bottom proves it stays assignable to that type.
  */
 
 import type { CalendarEvent } from '@/components/shared/CalendarGrid';
@@ -79,11 +79,11 @@ const demoRoutines: CalendarEvent[] = [
   })),
 ];
 
-// ── A pretend operations block or two (the daily-plan layer) ────────────────
-const demoOperations: CalendarEvent[] = [
+// ── A pretend project block or two (the Projects layer — PR-HCR-LAYERS) ──────
+const demoProjects: CalendarEvent[] = [
   {
-    id: 'demo-cal-ops-week-plan',
-    source: 'operations',
+    id: 'demo-cal-project-week-plan',
+    source: 'project',
     title: 'Plan the week',
     icon: '🎯',
     startDate: d(8),
@@ -92,8 +92,8 @@ const demoOperations: CalendarEvent[] = [
     details: ['Personal · weekly review', '30 min'],
   },
   {
-    id: 'demo-cal-ops-budget',
-    source: 'operations',
+    id: 'demo-cal-project-budget',
+    source: 'project',
     title: 'Tidy the budget',
     icon: '🎯',
     startDate: d(15),
@@ -137,7 +137,7 @@ const demoTrades: CalendarEvent[] = [
 export const demoCalendar: CalendarEvent[] = [
   ...demoTrip,
   ...demoRoutines,
-  ...demoOperations,
+  ...demoProjects,
   ...demoTrades,
 ];
 
