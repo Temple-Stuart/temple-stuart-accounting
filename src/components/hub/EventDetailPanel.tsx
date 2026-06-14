@@ -16,8 +16,9 @@
  * ZERO FETCH: it renders the passed `event` object only. Nothing here calls a route,
  * so it is safe on the logged-out demo (no personal data, no leak).
  *
- * Chrome mirrors HubEventCard (HubEventCard.tsx:5-21): right-side slide-in panel,
- * bg-black/30 backdrop, click-outside + Escape to close, × button, brand-purple header.
+ * Chrome is a centered modal box matching the booking popup (CheckoutPanel.tsx:249,256):
+ * a dimmed full-screen backdrop, a centered max-w-lg / max-h-[90vh] scroll box,
+ * click-outside + Escape to close, × button, brand-purple header.
  */
 
 import { useEffect, useRef } from 'react';
@@ -122,15 +123,11 @@ export default function EventDetailPanel({ event, onClose }: Props) {
   const rows = isTrade ? tradeRows : scheduledRows;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/30" />
-
-      {/* Panel */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
+      {/* Centered modal box — matches the booking popup (CheckoutPanel.tsx:249,256). */}
       <div
         ref={panelRef}
-        className="relative flex w-full max-w-lg flex-col bg-white shadow-2xl"
-        style={{ animation: 'slideInRight 0.2s ease-out' }}
+        className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-lg bg-white shadow-sm"
       >
         {/* Header */}
         <div className="flex items-start justify-between bg-brand-purple px-5 py-4 text-white">
