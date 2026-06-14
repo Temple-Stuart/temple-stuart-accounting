@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prebookRate } from '@/lib/liteapiClient';
+import { prebookRate, liteApiPaymentEnv } from '@/lib/liteapiClient';
 import { MissingLiteApiKeyError, LiteApiError } from '@/lib/travelErrors';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
@@ -38,10 +38,11 @@ export async function POST(request: NextRequest) {
     await reserveTravelSearch('hotelprebook');
 
     const prebook = await prebookRate({ offerId, usePaymentSdk });
-    // Return the prebook payload as-is — client uses transactionId + secretKey
-    // to drive the LiteAPI Payment SDK in the browser (PR-B2/G3). Sensitive bits
-    // (secretKey) are scoped to this single prebook session, time-limited by LiteAPI.
-    return NextResponse.json({ prebook });
+    // Return the prebook payload (it already carries transactionId + secretKey) +
+    // paymentEnv ('live'|'sandbox') so the browser inits the LiteAPI Payment SDK
+    // (PR-B2) with the publicKey that MATCHES the server's key env — never
+    // hardcoded. secretKey is session-scoped + time-limited by LiteAPI.
+    return NextResponse.json({ prebook, paymentEnv: liteApiPaymentEnv() });
   } catch (err) {
     // Guard rejections map to their own statuses BEFORE the provider errors — the
     // prebookRate call was never reached on these paths.
