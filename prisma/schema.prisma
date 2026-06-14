@@ -666,11 +666,11 @@ model trip_itinerary {
 
   // Itinerary-as-time-blocks foundation (schema only; nothing reads/writes these
   // yet — see prisma/migrations-manual/itinerary_time_blocks.sql).
-  recurrence       String   @default("once") @db.VarChar(10) // 'once' | 'daily'
-  block_start_time DateTime? @db.Time(6)                      // daily window start (time-of-day)
-  block_end_time   DateTime? @db.Time(6)                      // daily window end (time-of-day)
-  coa_code         String?  @db.VarChar(20)
-  vendor_name      String?  @db.VarChar(255)
+  recurrence       String    @default("once") @db.VarChar(10) // 'once' | 'daily'
+  block_start_time DateTime? @db.Time(6) // daily window start (time-of-day)
+  block_end_time   DateTime? @db.Time(6) // daily window end (time-of-day)
+  coa_code         String?   @db.VarChar(20)
+  vendor_name      String?   @db.VarChar(255)
 
   trip trips @relation(fields: [tripId], references: [id], onDelete: Cascade)
 
@@ -1154,17 +1154,17 @@ model reservations {
   id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId                   String?
   tripId                   String?
-  bookingType              String   @default("account") @db.VarChar(20)  // 'guest' | 'account' — distinguishes guest (no-account) vs account bookings
-  guestEmail               String?  @db.VarChar(255)                     // contact email for a guest (no-account) booking; null for account bookings
-  provider                 String   @db.VarChar(20)  // 'liteapi' | 'viator' | 'duffel' | ...
+  bookingType              String   @default("account") @db.VarChar(20) // 'guest' | 'account' — distinguishes guest (no-account) vs account bookings
+  guestEmail               String?  @db.VarChar(255) // contact email for a guest (no-account) booking; null for account bookings
+  provider                 String   @db.VarChar(20) // 'liteapi' | 'viator' | 'duffel' | ...
   providerBookingId        String   @db.VarChar(120) // upstream booking ID
   providerConfirmationCode String?  @db.VarChar(120) // human confirmation code
-  status                   String   @db.VarChar(20)  // 'pending' | 'confirmed' | 'cancelled' | 'failed'
+  status                   String   @db.VarChar(20) // 'pending' | 'confirmed' | 'cancelled' | 'failed'
   hotelName                String?  @db.VarChar(255)
   checkinDate              DateTime @db.Date
   checkoutDate             DateTime @db.Date
   guestCount               Int      @default(1)
-  finalPriceCents          Int                       // integer cents to avoid float math
+  finalPriceCents          Int // integer cents to avoid float math
   currency                 String   @default("USD") @db.VarChar(3)
   cancellationPolicyJson   Json?
   createdAt                DateTime @default(now())
@@ -1189,10 +1189,10 @@ model commission_ledger {
   userId                String?
   reservationId         String    @db.Uuid
   provider              String    @db.VarChar(20)
-  grossAmountCents      Int       // total guest paid (final price)
-  commissionAmountCents Int       // our margin (in cents)
+  grossAmountCents      Int // total guest paid (final price)
+  commissionAmountCents Int // our margin (in cents)
   currency              String    @default("USD") @db.VarChar(3)
-  status                String    @db.VarChar(20)  // 'estimated' | 'confirmed' | 'paid'
+  status                String    @db.VarChar(20) // 'estimated' | 'confirmed' | 'paid'
   payoutDate            DateTime?
   providerInvoiceRef    String?   @db.VarChar(120)
   createdAt             DateTime  @default(now())
@@ -2716,6 +2716,7 @@ model operations_projects {
   incoming_dependencies operations_project_dependencies[] @relation("project_dependency_target")
   linked_issues         operations_issue_log_entries[]
   content_pieces        operations_content_pieces[]       @relation("ProjectContentPieces")
+  hub_scheduled_items   hub_scheduled_items[]
 
   @@unique([user_id, title])
   @@index([user_id, entity_id, status])
@@ -2753,10 +2754,11 @@ model operations_project_tasks {
   updated_at           DateTime             @updatedAt @db.Timestamptz(6)
   created_by           String?
 
-  project          operations_projects              @relation(fields: [project_id], references: [id], onDelete: Cascade)
-  source_ai_usage  operations_ai_usage?             @relation("TaskSourceAiUsage", fields: [source_ai_usage_id], references: [id], onDelete: SetNull)
-  daily_plan_items operations_daily_plan_items[]
-  status_history   operations_task_status_history[]
+  project             operations_projects              @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  source_ai_usage     operations_ai_usage?             @relation("TaskSourceAiUsage", fields: [source_ai_usage_id], references: [id], onDelete: SetNull)
+  daily_plan_items    operations_daily_plan_items[]
+  status_history      operations_task_status_history[]
+  hub_scheduled_items hub_scheduled_items[]
 
   @@index([project_id, status, display_order])
   @@index([user_id, status, priority_score])
@@ -2873,9 +2875,10 @@ model operations_routines {
   updated_at                    DateTime  @updatedAt @db.Timestamptz(6)
   created_by                    String?
 
-  completions   operations_routine_completions[]
-  steps         operations_routine_steps[]
+  completions         operations_routine_completions[]
+  steps               operations_routine_steps[]
   content_scene_group operations_content_scene_groups?
+  hub_scheduled_items hub_scheduled_items[]
 
   @@unique([user_id, name])
   @@index([user_id, is_active, next_due_at])
@@ -2905,14 +2908,75 @@ model operations_routine_steps {
   updated_at       DateTime  @updatedAt @db.Timestamptz(6)
   created_by       String?
 
-  routine      operations_routines       @relation(fields: [routine_id], references: [id], onDelete: Cascade)
-  content_scene operations_content_scenes?
+  routine             operations_routines        @relation(fields: [routine_id], references: [id], onDelete: Cascade)
+  content_scene       operations_content_scenes?
+  hub_scheduled_items hub_scheduled_items[]
 
   @@index([routine_id, step_order])
   @@index([routine_id])
   @@index([routine_id, is_active])
   @@index([user_id])
   @@map("operations_routine_steps")
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// HUB MASTER CALENDAR — PR-HCR2
+// ═══════════════════════════════════════════════════════════════════
+
+/// Recurrence cadence for a hub_scheduled_items row. Modeled the same way as
+/// RefreshCadence (a Prisma enum + a matching SQL CREATE TYPE). `one_time` = a
+/// single, non-repeating event; the rest repeat (advanced patterns use `rrule`).
+enum ScheduleCadence {
+  daily
+  weekly
+  monthly
+  one_time
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// PR-HCR2 — the unifying master-calendar row (the 12 calendar columns). One row =
+/// one scheduled thing on the Hub calendar. Links are NULLABLE on purpose (never
+/// fake a relationship): a row points to EITHER a project OR a routine (DB CHECK
+/// allows ≤1), and EITHER a task OR a routine-step (DB CHECK allows ≤1); COA,
+/// budget, and actual are all optional. Only user_id + entity_id + cadence +
+/// starts_at are required (the facts a scheduled row always has).
+///
+/// FK id-type split per HCR2-SCHEMA-AUDIT.md: the operations links are @db.Uuid
+/// real @relations (SetNull on delete — the schedule row survives, the link clears);
+/// user_id/entity_id are bare-String soft refs (text, NO @relation — mirrors the
+/// operations_* pattern); coa_code is a soft VarChar ref to chart_of_accounts.code
+/// (no FK). Money is Decimal(15,2) USD, matching operations_project_tasks cost.
+model hub_scheduled_items {
+  id              String          @id @default(uuid()) @db.Uuid
+  user_id         String
+  entity_id       String
+  starts_at       DateTime        @db.Timestamptz(6)
+  ends_at         DateTime?       @db.Timestamptz(6)
+  cadence         ScheduleCadence
+  rrule           String?         @db.Text
+  coa_code        String?         @db.VarChar(50)
+  project_id      String?         @db.Uuid
+  routine_id      String?         @db.Uuid
+  task_id         String?         @db.Uuid
+  routine_step_id String?         @db.Uuid
+  is_billable     Boolean         @default(false)
+  budget_usd      Decimal?        @db.Decimal(15, 2)
+  actual_usd      Decimal?        @db.Decimal(15, 2)
+  description     String?         @db.Text
+  created_at      DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime        @updatedAt @db.Timestamptz(6)
+
+  project      operations_projects?      @relation(fields: [project_id], references: [id], onDelete: SetNull)
+  routine      operations_routines?      @relation(fields: [routine_id], references: [id], onDelete: SetNull)
+  task         operations_project_tasks? @relation(fields: [task_id], references: [id], onDelete: SetNull)
+  routine_step operations_routine_steps? @relation(fields: [routine_step_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id, starts_at])
+  @@index([entity_id])
+  @@index([coa_code])
+  @@index([project_id])
+  @@index([routine_id])
+  @@map("hub_scheduled_items")
 }
 
 model operations_routine_completions {
