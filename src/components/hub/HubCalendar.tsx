@@ -39,11 +39,15 @@ interface CalendarEvent {
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-// Same three Hub sources + their grid styling (hub/page.tsx:68-83).
+// Same three Hub sources + their grid styling (hub/page.tsx:68-83), plus the
+// Trade layer (PR-HCR-TRADE) — added the SAME way: one entry here gives it a
+// legend chip + grid color automatically (HUB_GRID_CONFIG below + CalendarGrid).
+// Trade uses the warm amber scale so it stands apart from trip/operations/routines.
 const SOURCE_CONFIG: Record<string, { icon: string; color: string; bgColor: string; dotColor: string; calendarColor: string }> = {
   trip: { icon: '✈️', color: 'text-cyan-600', bgColor: 'bg-cyan-50', dotColor: 'bg-cyan-500', calendarColor: 'bg-cyan-400' },
   operations: { icon: '🎯', color: 'text-indigo-600', bgColor: 'bg-indigo-50', dotColor: 'bg-indigo-500', calendarColor: 'bg-indigo-400' },
   routines: { icon: '🔁', color: 'text-teal-600', bgColor: 'bg-teal-50', dotColor: 'bg-teal-500', calendarColor: 'bg-teal-400' },
+  trade: { icon: '📈', color: 'text-amber-600', bgColor: 'bg-amber-50', dotColor: 'bg-amber-500', calendarColor: 'bg-amber-400' },
 };
 const HUB_GRID_CONFIG: Record<string, SourceConfig> = Object.fromEntries(
   Object.entries(SOURCE_CONFIG).map(([key, cfg]) => [key, {

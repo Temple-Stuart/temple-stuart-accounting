@@ -103,11 +103,42 @@ const demoOperations: CalendarEvent[] = [
   },
 ];
 
+// ── A few pretend trades (the Trade layer, PR-HCR-TRADE) — made up, NOT real
+//    positions or account data. Real trade wiring comes later. ────────────────
+const demoTrades: CalendarEvent[] = [
+  {
+    id: 'demo-cal-trade-msft-condor',
+    source: 'trade',
+    title: 'MSFT Iron Condor',
+    icon: '📈',
+    startDate: d(7),
+    details: ['Options · opened', '30 days out'],
+  },
+  {
+    id: 'demo-cal-trade-nvda-signal',
+    source: 'trade',
+    title: 'Scanner: NVDA signal',
+    icon: '📈',
+    startDate: d(14),
+    startTime: '09:30',
+    details: ['Watchlist · high IV'],
+  },
+  {
+    id: 'demo-cal-trade-aapl-expiry',
+    source: 'trade',
+    title: 'AAPL covered call expiry',
+    icon: '📈',
+    startDate: d(21),
+    details: ['Options · expires'],
+  },
+];
+
 /** The full pretend calendar — merged, ready to drop into CalendarGrid. */
 export const demoCalendar: CalendarEvent[] = [
   ...demoTrip,
   ...demoRoutines,
   ...demoOperations,
+  ...demoTrades,
 ];
 
 // Type-conformance proof: this line fails to compile if the seed drifts from the
