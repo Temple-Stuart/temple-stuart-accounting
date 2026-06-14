@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import CreateTripForm from '@/components/trips/CreateTripForm';
-import AllTripsList from '@/components/trips/AllTripsList';
+import AllTripsList, { type TripRow } from '@/components/trips/AllTripsList';
 import HubCalendar from '@/components/hub/HubCalendar';
 import { demoCalendar } from '@/components/hub/showroom/demoCalendar';
 import PublicFlightSearch from '@/components/trips/PublicFlightSearch';
@@ -59,6 +59,10 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
   const [isAdmin, setIsAdmin] = useState(false);
   // PR-HCR-Trips1: bumped after a create so the All Trips list re-fetches in place.
   const [tripsRefresh, setTripsRefresh] = useState(0);
+  // PR-HCR-Trips2: the selected trip, lifted out of AllTripsList so later budget
+  // actions in the Travel section can read which trip they attach to. Selection +
+  // context only — no budget writes here.
+  const [currentTrip, setCurrentTrip] = useState<TripRow | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -131,8 +135,24 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
           />
           {/* PR-HCR-Trips1: the All Trips list is personal — only mounted when logged
               in (same gate as the calendar), so it never fetches for a guest. A new
-              trip bumps tripsRefresh, which re-fetches the list in place. */}
-          {authed === true && <AllTripsList refreshSignal={tripsRefresh} />}
+              trip bumps tripsRefresh, which re-fetches the list in place.
+              PR-HCR-Trips2: clicking a row sets currentTrip (lifted here), so later
+              budget actions know which trip to attach to. */}
+          {authed === true && (
+            <>
+              <AllTripsList
+                refreshSignal={tripsRefresh}
+                onSelect={setCurrentTrip}
+                selectedTripId={currentTrip?.id ?? null}
+              />
+              {currentTrip && (
+                <p className="text-sm text-text-secondary">
+                  Selected: <span className="font-semibold text-brand-purple">{currentTrip.name}</span>
+                  <span className="text-text-muted"> — pick a trip to budget flights, hotels, and more into it (coming next).</span>
+                </p>
+              )}
+            </>
+          )}
         </div>
       );
     }
