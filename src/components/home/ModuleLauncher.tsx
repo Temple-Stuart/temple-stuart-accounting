@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import CreateTripForm from '@/components/trips/CreateTripForm';
+import HubCalendar from '@/components/hub/HubCalendar';
 import PublicFlightSearch from '@/components/trips/PublicFlightSearch';
 import PublicHotelSearch from '@/components/trips/PublicHotelSearch';
 import PublicActivitySearch from '@/components/trips/PublicActivitySearch';
@@ -186,6 +187,27 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
                 coming soon] → activities → [Visa, Insurance, eSIM, Events — coming
                 soon]. The live searches keep their own explainers + logic; the
                 ComingSoonSection rows are STATIC promises (no fetch/state). */}
+            {/* PR-HCR1: the shared master calendar sits at the TOP of the travel
+                stack (above the live searches). It's ACCOUNT-GATED — only mounted
+                when logged in, so it never fetches a personal route for a guest.
+                Logged-out guests see a login card; while auth is still resolving
+                (authed === null) nothing renders. /hub is untouched. */}
+            {m.key === 'travel' && authed === true && <HubCalendar />}
+            {m.key === 'travel' && authed === false && (
+              <div className="mt-6 rounded-lg border border-border bg-bg-row p-5 text-center">
+                <p className="text-lg font-bold text-brand-purple mb-1">Your calendar</p>
+                <p className="text-sm text-text-muted mb-4">
+                  Log in to see your trips, routines, and daily plan all in one place.
+                </p>
+                <button
+                  type="button"
+                  onClick={onRequireAuth}
+                  className="px-6 py-2 bg-brand-purple hover:bg-brand-purple-hover text-white font-semibold text-sm rounded"
+                >
+                  Log in to see your calendar
+                </button>
+              </div>
+            )}
             {m.key === 'travel' && <PublicFlightSearch onRequireAuth={onRequireAuth} />}
             {m.key === 'travel' && <PublicHotelSearch onRequireAuth={onRequireAuth} />}
             {/* GROUND placeholder — slots between Hotels and Activities (the live
