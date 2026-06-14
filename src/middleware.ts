@@ -61,6 +61,20 @@ const PUBLIC_PATHS = [
   '/opengraph-image',
   '/terms',
   '/privacy',
+  // Public travel surface (PR-G-public-paths) — a LOGGED-OUT guest must call these
+  // with NO account. Each is guarded: the search/booking routes have per-IP
+  // rateLimit + a durable daily cap (PR-3/H1/A1/V2/G2); the location lists are
+  // rate-limited cheap reads (PR-loc-1). Without these, middleware redirects a
+  // guest's fetch to '/', which returned no data (the "Countries unavailable" bug
+  // + would break guest search/booking next). Additive — exact paths only.
+  '/api/flights/search',
+  '/api/travel/hotels/search',
+  '/api/travel/activities/search',
+  '/api/travel/visa/check',
+  '/api/travel/locations/countries',
+  '/api/travel/locations/cities',
+  '/api/travel/liteapi/prebook',
+  '/api/travel/liteapi/book',
 ];
 
 function isPublic(pathname: string): boolean {
