@@ -21,13 +21,18 @@ interface Props {
    *  false — it already wraps the form in its single "Launch a module" band, so
    *  the inner band/card would be a redundant second banner. */
   showHeader?: boolean;
+  /** PR-HCR-Trips1: when set, a successful create calls this with the new trip id
+   *  INSTEAD of navigating to /budgets/trips/[id]. The home launcher passes it so
+   *  the new trip refreshes the All Trips list in place. Omit it (trips index) →
+   *  the existing navigation is unchanged. */
+  onCreated?: (tripId: string) => void;
 }
 
 // HOME-PR-1: shared create-trip card, extracted VERBATIM from
 // budgets/trips/page.tsx (PR-37a/b) so the trips index and the home module
 // launcher render ONE component. Behavior on the trips index is unchanged
 // (onUnauthenticated omitted → direct POST). POST /api/trips is unchanged.
-export default function CreateTripForm({ onUnauthenticated, showHeader = true }: Props) {
+export default function CreateTripForm({ onUnauthenticated, showHeader = true, onCreated }: Props) {
   const router = useRouter();
 
   const [name, setName] = useState('');
@@ -114,7 +119,18 @@ export default function CreateTripForm({ onUnauthenticated, showHeader = true }:
       if (!res.ok) throw new Error(data.error || `Create failed (HTTP ${res.status})`);
       const newId = data.trip?.id;
       if (!newId) throw new Error('Create succeeded but no trip id was returned.');
-      router.push(`/budgets/trips/${newId}`);
+      if (onCreated) {
+        // Home launcher: stay put, clear the form, and let the All Trips list refresh.
+        setName('');
+        setSelectedDestinations([]);
+        setStartDate('');
+        setEndDate('');
+        setCreating(false);
+        onCreated(newId);
+      } else {
+        // Trips index: unchanged — navigate to the new trip.
+        router.push(`/budgets/trips/${newId}`);
+      }
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : 'Failed to create trip');
       setCreating(false);

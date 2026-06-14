@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import CreateTripForm from '@/components/trips/CreateTripForm';
+import AllTripsList from '@/components/trips/AllTripsList';
 import HubCalendar from '@/components/hub/HubCalendar';
 import { demoCalendar } from '@/components/hub/showroom/demoCalendar';
 import PublicFlightSearch from '@/components/trips/PublicFlightSearch';
@@ -56,6 +57,8 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
   // Trading scan is admin-gated (requireAdmin), so only the admin sees the working
   // ScanFilterForm; everyone else keeps the paid stub.
   const [isAdmin, setIsAdmin] = useState(false);
+  // PR-HCR-Trips1: bumped after a create so the All Trips list re-fetches in place.
+  const [tripsRefresh, setTripsRefresh] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,7 +124,15 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
           <p className="text-sm text-text-muted">
             Start a trip and we&apos;ll help you plan, book, and budget it — sign up free to save it.
           </p>
-          <CreateTripForm onUnauthenticated={gateGuestCreate} showHeader={false} />
+          <CreateTripForm
+            onUnauthenticated={gateGuestCreate}
+            showHeader={false}
+            onCreated={() => setTripsRefresh((n) => n + 1)}
+          />
+          {/* PR-HCR-Trips1: the All Trips list is personal — only mounted when logged
+              in (same gate as the calendar), so it never fetches for a guest. A new
+              trip bumps tripsRefresh, which re-fetches the list in place. */}
+          {authed === true && <AllTripsList refreshSignal={tripsRefresh} />}
         </div>
       );
     }
