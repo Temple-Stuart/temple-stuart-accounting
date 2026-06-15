@@ -27,9 +27,9 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <a href="#pricing" className="text-xs text-text-faint hover:text-white hidden sm:block">
+              <Link href="/how-pricing-works" className="text-xs text-text-faint hover:text-white hidden sm:block">
                 Pricing
-              </a>
+              </Link>
               <a href="mailto:astuart@templestuart.com" className="text-xs text-text-faint hover:text-white hidden sm:block">
                 Contact
               </a>
