@@ -7,10 +7,13 @@
  * (/api/travel/hotels/search — no auth, bounded by per-IP rate-limit + the daily
  * LiteAPI cap). Results render through the pure <HotelResultsView/> (PR-H2).
  *
- * SEARCH is public; BOOKING is gated. "Book" routes to onRequireAuth (sign-up) —
- * this component fires NO booking/prebook fetch (those routes 401 guests anyway).
- * No authed loads, no trip scope — a guest has neither. No fake results: the grid
- * renders exactly what the route returns.
+ * SEARCH is always free + public. Two actions per stay: "Book" (pay now → a real
+ * guest reservation via CheckoutPanel, no login) and "Save to trip" (plan → a
+ * budgeted line). Save follows the freemium model (PR-Hotel-Commit): a guest gets
+ * the sign-up nudge; a logged-in user with a selected trip commits to
+ * /api/trips/[id]/vendor-commit as synthetic lodging (budget line + itinerary +
+ * calendar event, the SAME path the discover "Add to trip" uses); a logged-in user
+ * with no trip picked is told to pick or create one. No fake results.
  */
 
 import { useState } from 'react';
@@ -19,8 +22,14 @@ import CheckoutPanel from './CheckoutPanel';
 import CountryCityPicker from './CountryCityPicker';
 
 interface Props {
-  /** Opens the existing home register/login modal (booking requires sign-in). */
+  /** Opens the existing home register/login modal (saving requires sign-in). */
   onRequireAuth: () => void;
+  /** Login state from the home shell: null = resolving, true/false once known. */
+  authed?: boolean | null;
+  /** The trip selected in the trips list above — where a saved stay is budgeted. */
+  currentTrip?: { id: string; name?: string } | null;
+  /** Called after a successful save so the trip's budget re-fetches. */
+  onCommitted?: () => void;
 }
 
 function defaultDate(daysFromNow: number): string {
@@ -29,7 +38,7 @@ function defaultDate(daysFromNow: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-export default function PublicHotelSearch({ onRequireAuth }: Props) {
+export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, onCommitted }: Props) {
   // PR-loc-2: destination is a LIST-CONFIRMED { city, country } from the linked
   // country→city picker (no free-text typos). null until a city is chosen.
   const [picked, setPicked] = useState<{ city: string; country: string; countryCode: string } | null>(null);
@@ -100,7 +109,62 @@ export default function PublicHotelSearch({ onRequireAuth }: Props) {
     setError('');
     setCheckoutHotel(hotel);
   };
-  void onRequireAuth; // reserved for the PR-G4 save-to-trip upsell
+
+  // ── Save to trip (budget) — the three freemium states (mirrors flights). ──
+  // Guest → sign-up nudge. Logged in + no trip → "pick a trip" (NOT a login prompt).
+  // Logged in + a trip → POST the SAME synthetic-lodging vendor-commit the discover
+  // "Add to trip" uses (budget line + itinerary + calendar), against currentTrip.id.
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [saveNote, setSaveNote] = useState<{ kind: 'ok' | 'err' | 'info'; text: string } | null>(null);
+
+  const saveToTrip = async (hotel: HotelResult) => {
+    if (authed !== true) { onRequireAuth(); return; }
+    if (!currentTrip) {
+      setSaveNote({ kind: 'info', text: 'Pick or create a trip above first, then save this stay to it.' });
+      return;
+    }
+    const amount = hotel.priceTotal ?? hotel.price;
+    if (amount == null) {
+      setSaveNote({ kind: 'err', text: `${hotel.name} has no price to save — try another stay.` });
+      return;
+    }
+
+    setSavingId(hotel.liteapiHotelId);
+    setSaveNote(null);
+    try {
+      const detail = [
+        hotel.pricePerNight != null ? `$${hotel.pricePerNight}/night` : null,
+        hotel.nights != null ? `${hotel.nights} night${hotel.nights === 1 ? '' : 's'}` : null,
+        hotel.liteapiHotelId ? `hotel:${hotel.liteapiHotelId}` : null,
+      ].filter(Boolean).join(' · ');
+
+      const res = await fetch(`/api/trips/${currentTrip.id}/vendor-commit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          optionType: 'lodging',
+          synthetic: true,                  // no DB option row — build from this payload
+          optionId: `hotel-${hotel.liteapiHotelId || 'manual'}-${Date.now()}`,
+          startDate: checkin,
+          endDate: checkout,
+          amount,                            // whole-stay total — not recomputed
+          notes: detail ? `${hotel.name} | ${detail}` : hotel.name,
+          recurrence: 'daily',              // a stay is a nightly recurring block
+          location: hotel.city || hotel.address || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Save failed');
+      }
+      setSaveNote({ kind: 'ok', text: `Saved ${hotel.name} to ${currentTrip.name ?? 'your trip'}.` });
+      onCommitted?.();
+    } catch (err) {
+      setSaveNote({ kind: 'err', text: err instanceof Error ? err.message : 'Save failed' });
+    } finally {
+      setSavingId(null);
+    }
+  };
 
   const inputClass =
     'bg-white border border-border rounded px-3 py-2 text-sm text-text-primary ' +
@@ -112,7 +176,7 @@ export default function PublicHotelSearch({ onRequireAuth }: Props) {
         <p className="text-lg font-bold text-brand-purple mb-1">Search real hotels — free, no account needed.</p>
         <p className="text-xs text-text-muted">
           Type a destination and your dates to see live stays with photos and nightly prices.
-          Booking a room asks you to sign up.
+          Book a room now, or save a stay to a trip to budget it (log in and pick a trip).
         </p>
       </div>
 
@@ -155,9 +219,32 @@ export default function PublicHotelSearch({ onRequireAuth }: Props) {
         </div>
       </form>
 
+      {/* Save-to-trip feedback (separate from the search error): pick-a-trip prompt,
+          a saved confirmation, or a save error. */}
+      {saveNote && (
+        <div
+          className={`rounded-lg border bg-white p-3 text-sm ${
+            saveNote.kind === 'ok'
+              ? 'border-brand-green/40 text-brand-green'
+              : saveNote.kind === 'err'
+                ? 'border-brand-red/40 text-brand-red'
+                : 'border-border text-text-secondary'
+          }`}
+        >
+          {saveNote.text}
+        </div>
+      )}
+
       {/* Results: only after the first search. Empty/loading/error live in the view. */}
       {searched && (
-        <HotelResultsView results={results} loading={loading} error={error} onBook={book} />
+        <HotelResultsView
+          results={results}
+          loading={loading}
+          error={error}
+          onBook={book}
+          onSave={saveToTrip}
+          savingId={savingId}
+        />
       )}
       {!searched && error && (
         <div className="rounded-lg border border-border bg-white p-4 text-sm text-brand-red">{error}</div>

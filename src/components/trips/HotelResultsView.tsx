@@ -15,8 +15,10 @@
  * of local state is a per-card image-error fallback (UI only, not data) so a URL
  * that 404s degrades to the neutral placeholder instead of a broken <img>.
  *
- * SEARCH is public; BOOKING is gated — this view never books. The `Book` button
- * calls the onBook(hotel) callback prop; the container routes that to sign-up.
+ * PURE VIEW for actions too: the `Book` button calls onBook(hotel); when the
+ * container wires onSave, each card also shows a "Save to trip" button calling
+ * onSave(hotel). The view never books or saves itself — the container decides what
+ * each action does (guest checkout, sign-up nudge, or a budget commit).
  */
 
 import { useState } from 'react';
@@ -53,6 +55,12 @@ interface Props {
   /** Booking is gated — the view never books. The container routes this to
    *  sign-up (guests) or the authed commit flow. */
   onBook: (hotel: HotelResult) => void;
+  /** Optional: save the stay to the selected trip's budget (the home Travel tab
+   *  wires this). Consumers that omit it simply show no "Save to trip" button —
+   *  additive, so existing callers are unaffected. */
+  onSave?: (hotel: HotelResult) => void;
+  /** The hotel id currently being saved — its Save button shows a pending state. */
+  savingId?: string | null;
 }
 
 function money(amount: number, currency?: string): string {
@@ -114,7 +122,7 @@ function RatingPill({ hotel }: { hotel: HotelResult }) {
   );
 }
 
-export default function HotelResultsView({ results, loading, error, onBook }: Props) {
+export default function HotelResultsView({ results, loading, error, onBook, onSave, savingId }: Props) {
   // Client-side sort/filter over the already-fetched results — NO refetch.
   const [sort, setSort] = useState<SortKey>('price-asc');
   const [minRating, setMinRating] = useState(0);
@@ -238,6 +246,19 @@ export default function HotelResultsView({ results, loading, error, onBook }: Pr
               >
                 Book
               </button>
+              {/* PR-Hotel-Commit: a second action — save the stay to a trip's budget
+                  (plan), separate from "Book" (pay now). Only shown when the container
+                  wires onSave (the home Travel tab). */}
+              {onSave && (
+                <button
+                  type="button"
+                  onClick={() => onSave(hotel)}
+                  disabled={savingId === hotel.liteapiHotelId}
+                  className="mt-2 w-full rounded border border-brand-purple bg-white px-4 py-2 text-sm font-semibold text-brand-purple transition-colors hover:bg-brand-purple-wash disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+                >
+                  {savingId === hotel.liteapiHotelId ? 'Saving…' : 'Save to trip'}
+                </button>
+              )}
             </div>
           </article>
         );
