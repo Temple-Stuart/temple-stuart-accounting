@@ -187,6 +187,12 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
                 refreshSignal={tripsRefresh}
                 onSelect={setCurrentTrip}
                 selectedTripId={currentTrip?.id ?? null}
+                onDeleted={(deletedId) => {
+                  // PR-Trips3: refresh the list, and drop the selection if the
+                  // deleted trip was the current one (so nothing points at it).
+                  setTripsRefresh((n) => n + 1);
+                  setCurrentTrip((cur) => (cur?.id === deletedId ? null : cur));
+                }}
               />
               {currentTrip && (
                 <p className="text-sm text-text-secondary">
