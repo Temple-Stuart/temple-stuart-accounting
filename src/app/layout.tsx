@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
@@ -9,6 +9,15 @@ const ibmMono = IBM_Plex_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
 });
+
+// PR-Mobile2: viewport-fit=cover so env(safe-area-inset-*) resolves on phones (the
+// mobile bottom tab bar uses it to sit above the home indicator). width/initial-scale
+// match Next's defaults — additive, no visual change on desktop.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   title: "Temple Stuart | Personal Back Office",

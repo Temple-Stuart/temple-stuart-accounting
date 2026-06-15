@@ -44,6 +44,27 @@ const MODULES: ModuleDef[] = [
   { key: 'compliance',  label: 'Compliance',  live: false, blurb: 'Monitoring, attestations, audit trail.' },
 ];
 
+// PR-Mobile2: the 5 phone tabs. On mobile one panel shows at a time (the bottom bar
+// switches activeModule); on desktop every panel stays visible (md:block) and the bar
+// is hidden (md:hidden), so desktop is unchanged. Operations/Tax/Compliance group
+// under "More".
+const TABS: { key: string; label: string; icon: string }[] = [
+  { key: 'calendar', label: 'Calendar', icon: '📅' },
+  { key: 'travel',   label: 'Travel',   icon: '✈️' },
+  { key: 'trade',    label: 'Trade',    icon: '📈' },
+  { key: 'books',    label: 'Books',    icon: '📒' },
+  { key: 'more',     label: 'More',     icon: '⋯' },
+];
+// Which tab each module section belongs to (the calendar is its own 'calendar' tab).
+const MODULE_TO_TAB: Record<string, string> = {
+  travel: 'travel',
+  trading: 'trade',
+  bookkeeping: 'books',
+  operations: 'more',
+  tax: 'more',
+  compliance: 'more',
+};
+
 // PR-MODULE-INTROS: a short, sellable plain-language intro for each module — what you
 // put in, what it does, what comes out, how it maps to your calendar, and a soft
 // signup nudge. One array of paragraphs per module key, rendered ABOVE the module's
@@ -144,6 +165,10 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
   // actions in the Travel section can read which trip they attach to. Selection +
   // context only — no budget writes here.
   const [currentTrip, setCurrentTrip] = useState<TripRow | null>(null);
+  // PR-Mobile2: which tab is active on MOBILE (default the master calendar). Additive
+  // — desktop ignores it (every panel renders via md:block). Does not touch any
+  // existing state (authed/currentTrip/tripsRefresh/scanner).
+  const [activeModule, setActiveModule] = useState('calendar');
 
   useEffect(() => {
     let cancelled = false;
@@ -285,6 +310,9 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
 
   return (
     <>
+      {/* PR-Mobile2: bottom padding so the fixed mobile tab bar never covers the last
+          content; removed on desktop (md:pb-0), where there is no bar. */}
+      <div className="pb-20 md:pb-0">
       {/* HOME-PR-7: each module is its own FULL-WIDTH band with an ALTERNATING
           background (white / light-gray bg-bg-row) + generous vertical padding,
           so the six read as distinct breathing sections (the old marketing
@@ -298,7 +326,7 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
           fetches NOTHING (zero personal-route calls — fake by construction). Auth
           still resolving (authed === null) → nothing. /hub is untouched. */}
       {authed === true && (
-        <section className="w-full py-10 bg-white border-b border-border">
+        <section className={`w-full py-10 bg-white border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'} md:block`}>
           <div className="max-w-7xl mx-auto px-4 lg:px-8">
             <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
               <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
@@ -313,7 +341,7 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
         </section>
       )}
       {authed === false && (
-        <section className="w-full py-10 bg-white border-b border-border">
+        <section className={`w-full py-10 bg-white border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'} md:block`}>
           <div className="max-w-7xl mx-auto px-4 lg:px-8">
             <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
               <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
@@ -328,7 +356,7 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
         </section>
       )}
       {MODULES.map((m, i) => (
-        <section key={m.key} className={`w-full py-10 ${i % 2 === 1 ? 'bg-bg-row' : 'bg-white'} border-b border-border`}>
+        <section key={m.key} className={`w-full py-10 ${i % 2 === 1 ? 'bg-bg-row' : 'bg-white'} border-b border-border ${activeModule === (MODULE_TO_TAB[m.key] ?? 'more') ? 'block' : 'hidden'} md:block`}>
           <div className="max-w-7xl mx-auto px-4 lg:px-8 space-y-6">
             <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
               <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
@@ -382,6 +410,26 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
           </div>
         </section>
       ))}
+      </div>
+
+      {/* PR-Mobile2: the fixed mobile bottom tab bar — phone only (md:hidden). Tapping
+          a tab sets activeModule, which shows that one panel above (desktop ignores
+          this; every panel stays md:block). Safe-area padding lifts it above the iOS
+          home indicator. */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => setActiveModule(t.key)}
+            aria-current={activeModule === t.key ? 'page' : undefined}
+            className={`flex min-h-[44px] flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] font-medium transition-colors ${activeModule === t.key ? 'text-brand-purple' : 'text-text-muted'}`}
+          >
+            <span className="text-lg leading-none" aria-hidden="true">{t.icon}</span>
+            {t.label}
+          </button>
+        ))}
+      </nav>
     </>
   );
 }
