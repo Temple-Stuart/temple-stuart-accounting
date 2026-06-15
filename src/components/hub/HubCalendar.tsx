@@ -38,8 +38,6 @@ interface CalendarEvent {
   budget_amount: number;
 }
 
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
 // The four calendar layers + their grid styling: Trips · Projects · Routines · Trade.
 // PR-HCR-LAYERS: the old 'operations' layer is renamed to 'project' — Operations is
 // the UMBRELLA (Projects + Routines), so the events tagged here are really PROJECT
@@ -187,31 +185,21 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
     setDetailEvent(event);
   };
 
-  const goMonth = (delta: number) => {
-    const d = new Date(selectedYear, selectedMonth + delta, 1);
-    setSelectedYear(d.getFullYear());
-    setSelectedMonth(d.getMonth());
-  };
-  const goToday = () => { const t = new Date(); setSelectedYear(t.getFullYear()); setSelectedMonth(t.getMonth()); };
-
   return (
     <div className="space-y-3">
-      {/* PR-Calendar-Apple: the caption is its OWN full-width line now (out of the
-          nav row), so it never squishes the controls, and the grid gets full width. */}
+      {/* PR-Calendar-Apple: the caption is its OWN full-width line (out of the nav row).
+          PR-Calendar-Native: the redundant month-nav is gone — the grid's own toolbar is
+          the single date nav; onMonthChange keeps this component's fetch window in sync
+          with the grid's displayed month. */}
       <p className="text-xs text-text-muted">
         {isDemo
           ? 'This is the real app — these events are made up, and nothing here gets saved.'
           : 'Trips, routines, and your daily plan — all in one place.'}
       </p>
-      <div className="flex items-center justify-end gap-2">
-        <button type="button" onClick={() => goMonth(-1)} aria-label="Previous month" className="rounded border border-border px-3 py-2 text-sm text-text-secondary hover:bg-bg-row">‹</button>
-        <span className="min-w-[120px] text-center text-sm font-medium text-text-primary">{MONTHS[selectedMonth]} {selectedYear}</span>
-        <button type="button" onClick={() => goMonth(1)} aria-label="Next month" className="rounded border border-border px-3 py-2 text-sm text-text-secondary hover:bg-bg-row">›</button>
-        <button type="button" onClick={goToday} className="rounded border border-border px-3 py-2 text-xs text-text-secondary hover:bg-bg-row">Today</button>
-      </div>
 
-      {/* PR-Calendar-Apple: edge-to-edge — the grid renders flush (no floating rounded
-          card around it), Apple day-view style. */}
+      {/* PR-Calendar-Apple: edge-to-edge grid (Apple day-view). PR-Calendar-Native:
+          phone = day-only + a week strip; the grid's nav drives this component's fetch
+          month via onMonthChange. */}
       <CalendarGrid
         events={gridEvents}
         sourceConfig={HUB_GRID_CONFIG}
@@ -221,6 +209,8 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
         showBudgetTotals={true}
         showCategoryLegend={true}
         onEventClick={handleEventClick}
+        phoneDayOnly={true}
+        onMonthChange={(year, month) => { setSelectedYear(year); setSelectedMonth(month); }}
       />
 
       {isDemo && (
