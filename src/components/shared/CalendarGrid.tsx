@@ -65,6 +65,20 @@ export interface CalendarGridProps {
    * before, so Trading and both Trips are unaffected.
    */
   enableHubChrome?: boolean;
+  /**
+   * Opt-in (PR-Calendar-Native): on phone (<768px, via the enableDayView/enableHubChrome
+   * mobile signal) show ONLY the Day view — hide the Week/Month buttons — and surface a
+   * horizontal week strip (S M T W T F S + dates) to tap between days. Default false →
+   * desktop and the other callers keep Day/Week/Month unchanged.
+   */
+  phoneDayOnly?: boolean;
+  /**
+   * Opt-in (PR-Calendar-Native): fires when the grid's own nav changes the visible
+   * month, so the parent can refetch that month's events. This lets the grid's toolbar
+   * be the single date nav (the parent drops its own redundant month-nav). Default
+   * undefined → no-op for the other callers.
+   */
+  onMonthChange?: (year: number, month: number) => void;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -164,6 +178,8 @@ export default function CalendarGrid({
   compact = false,
   enableDayView = false,
   enableHubChrome = false,
+  phoneDayOnly = false,
+  onMonthChange,
 }: CalendarGridProps) {
   const router = useRouter();
   const now = new Date();
@@ -306,6 +322,21 @@ export default function CalendarGrid({
   const viewBtnActive = enableHubChrome ? 'bg-brand-purple-hover text-white shadow-sm' : 'bg-white shadow-sm text-text-primary';
   const viewBtnInactive = enableHubChrome ? 'text-brand-purple/70 hover:text-brand-purple' : 'text-text-muted hover:text-text-secondary';
 
+  // PR-Calendar-Native: when phone-day-only is on, hide Week/Month → keep the mobile
+  // signal so the toolbar + body know to show the week strip + a single day.
+  const phoneOnlyActive = phoneDayOnly && isMobile;
+
+  // PR-Calendar-Native: tell the parent when our nav crosses into a new month so it can
+  // refetch — lets our toolbar be the single date nav.
+  useEffect(() => {
+    onMonthChange?.(selectedYear, selectedMonth);
+  }, [selectedYear, selectedMonth]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // PR-Calendar-Native: on phone-day-only, force the Day view (Week/Month are hidden).
+  useEffect(() => {
+    if (phoneOnlyActive && calendarView !== 'day') setCalendarView('day');
+  }, [phoneOnlyActive]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Auto-scroll to first timed event ──
   useEffect(() => {
     if (calendarView === 'month' || !scrollRef.current) return;
@@ -347,8 +378,13 @@ export default function CalendarGrid({
             {enableDayView && (
               <button onClick={() => selectView('day')} className={`${viewBtnExtra}px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'day' ? viewBtnActive : viewBtnInactive}`}>Day</button>
             )}
-            <button onClick={() => selectView('week')} className={`${viewBtnExtra}px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'week' ? viewBtnActive : viewBtnInactive}`}>Week</button>
-            <button onClick={() => selectView('month')} className={`${viewBtnExtra}px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'month' ? viewBtnActive : viewBtnInactive}`}>Month</button>
+            {/* PR-Calendar-Native: Week/Month hidden on phone-day-only (phone = day-only). */}
+            {!phoneOnlyActive && (
+              <>
+                <button onClick={() => selectView('week')} className={`${viewBtnExtra}px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'week' ? viewBtnActive : viewBtnInactive}`}>Week</button>
+                <button onClick={() => selectView('month')} className={`${viewBtnExtra}px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'month' ? viewBtnActive : viewBtnInactive}`}>Month</button>
+              </>
+            )}
           </div>
           {/* Timezone toggle */}
           {calendarView !== 'month' && (
@@ -403,7 +439,30 @@ export default function CalendarGrid({
         <div className="flex-1 min-w-0">
           {calendarView !== 'month' ? (
             <div>
-              {/* Week/Day header — sticky */}
+              {/* PR-Calendar-Native: phone-day-only → a tappable week strip (S M T W T F
+                  S + dates, selected day in a purple circle, today in red). Tap a day to
+                  switch; the toolbar arrows move day-by-day and the strip follows across
+                  weeks. Otherwise the normal sticky Week/Day header. */}
+              {phoneOnlyActive ? (
+                <div className="flex border-b border-border sticky top-0 z-10 bg-white">
+                  {weekDays.map((day, idx) => {
+                    const isSel = day.toDateString() === selectedDay.toDateString();
+                    const isToday = day.toDateString() === now.toDateString();
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => goToDay(day)}
+                        aria-current={isSel ? 'date' : undefined}
+                        className="flex flex-1 flex-col items-center py-2"
+                      >
+                        <span className="text-[10px] uppercase tracking-wide text-text-muted">{DAYS[day.getDay()][0]}</span>
+                        <span className={`mt-1 flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${isSel ? 'bg-brand-purple text-white' : isToday ? 'text-red-500' : 'text-text-primary'}`}>{day.getDate()}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
               <div className="flex border-b border-border sticky top-0 z-10 bg-white">
                 <div className="w-14 flex-shrink-0" />
                 {gridDays.map((day, idx) => {
@@ -417,6 +476,7 @@ export default function CalendarGrid({
                   );
                 })}
               </div>
+              )}
 
               {/* All-day events row */}
               {(() => {
