@@ -74,7 +74,7 @@ export interface CalendarGridProps {
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const HOUR_HEIGHT = 40;
+const HOUR_HEIGHT = 52; // PR-Calendar-Apple: roomier rows, Apple day-view spacing
 const START_HOUR = 0;   // 12 AM
 const END_HOUR = 24;    // 12 AM next day
 const TOTAL_HOURS = END_HOUR - START_HOUR; // 24
@@ -457,11 +457,11 @@ export default function CalendarGrid({
               {/* Scrollable time grid */}
               <div ref={scrollRef} className="overflow-y-auto" style={{ maxHeight: '600px' }}>
                 <div className="flex relative" style={{ height: `${TOTAL_HOURS * HOUR_HEIGHT}px` }}>
-                  {/* Time gutter */}
-                  <div className="w-14 flex-shrink-0 relative">
+                  {/* Time gutter — PR-Calendar-Apple: roomier width + clearer labels */}
+                  <div className="w-16 flex-shrink-0 relative">
                     {hours.map(hour => (
                       <div key={hour} className="absolute w-full text-right pr-2" style={{ top: `${(hour - START_HOUR) * HOUR_HEIGHT}px` }}>
-                        <span className="text-[10px] text-text-faint leading-none relative -top-1.5">
+                        <span className="text-xs text-text-muted leading-none relative -top-1.5">
                           {hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}
                         </span>
                       </div>
@@ -486,14 +486,17 @@ export default function CalendarGrid({
                           <div key={`half-${hour}`} className="absolute w-full border-t border-border-light/30" style={{ top: `${(hour - START_HOUR) * HOUR_HEIGHT + HOUR_HEIGHT / 2}px` }} />
                         ))}
 
-                        {/* Current time indicator */}
+                        {/* Current time indicator — PR-Calendar-Apple: a crisp red
+                            "now" line with the current time on a small pill, Apple style. */}
                         {isToday && (() => {
                           const nowMin = now.getHours() * 60 + now.getMinutes();
                           const top = (nowMin / 60) * HOUR_HEIGHT;
                           return (
                             <div className="absolute w-full z-20" style={{ top: `${top}px` }}>
-                              <div className="flex items-center">
-                                <div className="w-2 h-2 rounded-full bg-red-500 -ml-1" />
+                              <div className="flex items-center -translate-y-1/2">
+                                <span className="rounded bg-red-500 px-1 py-0.5 text-[9px] font-bold leading-none text-white shadow-sm">
+                                  {formatTime12h(`${now.getHours()}:${now.getMinutes()}`)}
+                                </span>
                                 <div className="flex-1 h-[2px] bg-red-500" />
                               </div>
                             </div>
