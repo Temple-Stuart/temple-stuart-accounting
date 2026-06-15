@@ -197,9 +197,8 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
         </p>
       )}
 
-      {/* PR-Calendar-Apple: edge-to-edge grid (Apple day-view). PR-Calendar-Native:
-          phone = day-only + a week strip; the grid's nav drives this component's fetch
-          month via onMonthChange. */}
+      {/* Edge-to-edge day-view grid. On phone it's day-only with a week strip; the grid's
+          nav drives this component's fetch month via onMonthChange. */}
       <CalendarGrid
         events={gridEvents}
         sourceConfig={HUB_GRID_CONFIG}

@@ -16,7 +16,7 @@
 <br>
 
 <h3>
-  <strong>Track your money. Trade smarter. Plan your life.</strong>
+  <strong>Track your money. Plan your life. Act smarter.</strong>
 </h3>
 
 <p>
@@ -68,7 +68,7 @@
 
 ```yaml
 name: Temple Stuart
-version: 1.0.0
+status: in active development (fast-moving; some modules live, some behind login)
 type: Personal Back Office / Financial Operating System
 
 mission: |
@@ -108,157 +108,167 @@ principles:
 <div align="center">
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────────────┐
-│                                                                                      │
-│  ╔════════════╗ ╔════════════╗ ╔════════════╗ ╔════════════╗ ╔══════════╗ ╔════════╗ │
-│  ║ BOOKKEEPING║ ║  TRADING   ║ ║   TRIPS    ║ ║ BUDGETING  ║ ║   TAX    ║ ║  HUB   ║ │
-│  ║   ENGINE   ║ ║ ANALYTICS  ║ ║  PLANNER   ║ ║  6 MODULES ║ ║REPORTING ║ ║COMMAND ║ │
-│  ║            ║ ║ + AI SCAN  ║ ║            ║ ║ + AI MEALS ║ ║ + 1040   ║ ║        ║ │
-│  ╚═════╤══════╝ ╚═════╤══════╝ ╚═════╤══════╝ ╚═════╤══════╝ ╚════╤═════╝ ╚═══╤════╝ │
-│        │              │              │              │              │            │      │
-│  ┌─────┴──────────────┴──────────────┴──────────────┴──────────────┴────────────┴───┐ │
-│  │                    🔒 UNIFIED DOUBLE-ENTRY LEDGER                                │ │
-│  │                          Full Audit Trail                                        │ │
-│  └──────────────────────────────────┬───────────────────────────────────────────────┘ │
-│                                     │                                                 │
-│  ┌──────────────────────────────────┴───────────────────────────────────────────────┐ │
-│  │                          🔌 INTEGRATION LAYER                                    │ │
-│  │    Plaid • Duffel • Google Places • xAI Grok • OpenAI • Tastytrade • Stripe      │ │
-│  │                        Claude AI • Finnhub                                       │ │
-│  └──────────────────────────────────────────────────────────────────────────────────┘ │
-│                                                                                      │
-└──────────────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│  THE HOME APP — 7 tabs, one timeline                                             │
+│  ╔════════╗ ╔════════╗ ╔═══════╗ ╔════════════╗ ╔═══════╗ ╔═════╗ ╔════════════╗  │
+│  ║CALENDAR║ ║ TRAVEL ║ ║ TRADE ║ ║ OPERATIONS ║ ║ BOOKS ║ ║ TAX ║ ║ COMPLIANCE ║  │
+│  ╚═══╤════╝ ╚═══╤════╝ ╚═══╤═══╝ ╚═════╤══════╝ ╚═══╤═══╝ ╚══╤══╝ ╚═════╤══════╝  │
+│      └──────────┴──────────┴───────────┴────────────┴────────┴──────────┘         │
+│  ┌────────────────────────────────────────────────────────────────────────────┐  │
+│  │           🔒 UNIFIED DOUBLE-ENTRY LEDGER  ·  one shared calendar            │  │
+│  └────────────────────────────────────────────────────────────────────────────┘  │
+│  ┌────────────────────────────────────────────────────────────────────────────┐  │
+│  │  🔌 LIVE: Plaid · Duffel · LiteAPI · Viator · Google Places · TastyTrade    │  │
+│  │           Finnhub · FRED · SEC EDGAR · Anthropic Claude · xAI Grok          │  │
+│  │     PARTIAL: Stripe      PARKED: Mozio · CoverGenius · Airalo               │  │
+│  └────────────────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 </div>
 
 <br>
 
+> **How to read this:** Temple Stuart is one app with three layers. The **home app** at `/`
+> is the front door — a 7-tab, mobile-friendly launcher. Some tabs are usable right away
+> (Calendar, Travel search); the rest run as a **deep app behind login** (~57 routes:
+> bookkeeping, trading, tax, operations, compliance) that the home tab will surface over
+> time. An older **Hub** cockpit and a first-pass tier `/pricing` page still exist and are
+> being folded into the home app. The status badge on each card below says where it stands
+> **on the public home surface** — not a blanket "done."
+
 <table>
 <tr>
 <td width="50%" valign="top">
 
-### 📊 Double-Entry Bookkeeping
+### 📅 Calendar
 
-<img src="https://img.shields.io/badge/Status-Production%20Ready-success?style=flat-square" alt="Production Ready">
+<img src="https://img.shields.io/badge/Status-Live-success?style=flat-square" alt="Live">
 
-Real accounting, not "tracking."
+One timeline for your whole life.
 
-- **Plaid Sync** — Multi-institution import (banks, brokerages, credit cards)
-- **Auto-Categorization** — Merchant mapping with confidence scores, learns from corrections
-- **Entity Separation** — P- (personal) • B- (business) • T- (trading) prefixes
-- **Journal Entries** — Every transaction creates balanced debits/credits
-- **Merchant Learning** — Override once, categorize forever
-- **Bank Reconciliation** — Month-end verification against statements
-- **Balance Sheet** — Monthly view with prior-year carry-forward
-- **Income Statement** — Year selector with revenue/expense breakdown
-- **Three-Statement View** — Balance Sheet + Income Statement combined analysis
-- **Period Close** — Month-end close workflow with locked periods
+- **Live for everyone** — logged in, it shows your real calendar; logged out, a static demo
+- **Day view** — edge-to-edge, with a roomy time gutter and a crisp "now" line
+- **Phone** — day-only with a horizontal week strip; **desktop** keeps Day / Week / Month
+- **Four layers** — trips, projects, routines, trades, color-coded on one grid
+- Shared `CalendarGrid` reused across the home app and the deep app
 
 </td>
 <td width="50%" valign="top">
 
-### 📈 Trading Analytics
+### 🗺️ Travel
 
-<img src="https://img.shields.io/badge/Status-Production%20Ready-success?style=flat-square" alt="Production Ready">
+<img src="https://img.shields.io/badge/Status-Live%20(search)-success?style=flat-square" alt="Live (search)">
 
-Built by a daily options trader.
+Plan a trip; search real fares and stays.
 
-- **AI Volatility Scanner** — Scans 475 S&P 500 stocks through institutional-grade filters
-- **AI Market Brief** — Claude Sonnet analyzes regime, risk clusters, sector heatmap, top picks
-- **Strategy Builder** — Auto-generates Iron Condors, Credit Spreads, Straddles with P&L charts
-- **Finnhub Integration** — News headlines, analyst ratings (Buy/Hold/Sell), per ticker
-- **Per-Strategy AI Analysis** — Plain-English explanation of every strategy card
-- **Strategy Detection** — Spreads, straddles, iron condors auto-identified
-- **Position Lifecycle** — Open → partial → closed with full audit trail
-- **Lot-Based Cost Basis** — FIFO, LIFO, HIFO, Specific ID per IRS requirements
-- **Wash Sale Tracking** — Disallowed loss + cost basis adjustment fields
-- **Trade Journal** — Link thesis, emotion, mistakes to each trade number
-- **Robinhood CSV Import** — Parse history, match to Plaid transactions
-- **Convergence Pipeline** — Scores 500 stocks across 4 categories (Vol-Edge, Quality, Regime, Info-Edge)
-- **Convergence Gate** — 3/4 categories must score above 50 to qualify for trade generation
-- **Trade Card Generation** — Real strikes, premiums, max profit/loss, PoP, risk/reward from live chains
-- **Plain English Signals** — AI translates scores into sentences anyone can understand
-- **Risk Flags** — Insider selling (MSPR), earnings proximity, low liquidity warnings
-- **Institutional Pre-Filter** — Market-metrics hard gates before full convergence pipeline
-- **Three-Outcome EV Model** — Win/loss/breakeven expected value with honest "Est. PoP" labels
-- **N(d2) Breakeven PoP** — Black-Scholes probability at actual breakeven prices (Abramowitz & Stegun normalCDF)
-- **3-Tier Filter Panel** — Liquidity gates, risk profile, edge metrics — 15 configurable parameters
-- **Social Sentiment** — Real-time X/Twitter analysis via xAI Grok x_search (two-stage pipeline)
-- **Market Intelligence Dashboard** — Universe scanner + progressive trade card enrichment
-- **Trade Lab** — Queue scanner cards, link to real positions, grade results
-- **Trade Card Persistence** — Save, link, and grade trades (A/B/C/D/F system)
-- **Position Reporting** — Realized/unrealized P&L with ST/LT classification
+- **Live search** — flights (Duffel), hotels (LiteAPI), things to do (Viator), visa check
+- **Trips money-arc** — create a trip, budget items, mark planned vs actual, photos, uncommit
+- **Budget integration** — committed trip costs flow toward your chart of accounts
+- ⏳ **Coming:** booking/commit a flight to a trip *from the home page* (the deep
+  `/budgets/trips` flow does this today; the home commit is being wired)
+- ⏳ **Parked:** ground transit (Mozio), insurance (CoverGenius), eSIM (Airalo)
 
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
 
-### 🗺️ Trip Planning
+### 📈 Trade
 
-<img src="https://img.shields.io/badge/Status-Production%20Ready-success?style=flat-square" alt="Production Ready">
+<img src="https://img.shields.io/badge/Status-Behind%20login-blue?style=flat-square" alt="Behind login">
 
-Activity-based, not destination-based.
+Built by a daily options trader. Full engine lives at `/trading`.
 
-- **Multi-Activity Support** — Surf + nomad + coworking in one trip
-- **Duffel GDS** — Real-time flight search, offers, booking
-- **Google Places** — 60 results per category with photos and ratings
-- **Grok AI Analysis** — Sentiment scoring, fit scoring, warnings per place
-- **Group Management** — Invite tokens, RSVP tracking, expense splitting
-- **Budget Integration** — Trip expenses flow to your Chart of Accounts
+- **AI volatility scanner** — S&P 500 universe through a convergence pipeline (4 categories, 3/4 gate)
+- **AI market brief + per-strategy analysis** — Claude reads regime, risk, picks; plain-English signals
+- **Strategy builder** — iron condors, credit spreads, straddles with P&L
+- **Live options data** — quotes, chains, Greeks, IV/HV via TastyTrade
+- **Cost basis + wash sales** — FIFO/LIFO/HIFO/SpecID, IRS Pub 550 30-day window
+- **Feeds** — Finnhub (news/analysts), FRED (macro), SEC EDGAR (filings), xAI Grok (sentiment)
+- On the home page: the scan form is admin-only today; everyone else sees a preview
 
 </td>
 <td width="50%" valign="top">
 
-### 🎛️ Hub / Command Center
+### 🎯 Operations
 
-<img src="https://img.shields.io/badge/Status-Production%20Ready-success?style=flat-square" alt="Production Ready">
+<img src="https://img.shields.io/badge/Status-Behind%20login-blue?style=flat-square" alt="Behind login">
 
-Your financial cockpit.
+Turn a messy goal into a dated plan. Lives at `/operations`.
 
-- **Unified Calendar** — All committed expenses across modules
-- **Budget Comparison** — Homebase vs Travel vs Business, month by month
-- **Travel Calculator** — Toggle months to see nomad savings
-- **Trip Cards** — Destination photos, nomad metrics, budget summaries
-- **Committed Trips** — Map view with coordinates and itineraries
-- **Wall Street Style** — Dense, data-rich tables, no fluff
+- **Projects** — design, tasks, dependencies, evolution history
+- **Routines** — steps, completions, upcoming/today views
+- **Daily plan + north star** — blocks that drop onto your calendar with times
+- **Content studio** — scenes, takes, scripts
+- **AI plan / brain-dump** — Claude turns rambly input into a step list
+- On the home page: a static, fetch-free **preview** (no live data for guests)
 
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
 
-### 💰 Budgeting
+### 📒 Books (Double-Entry Bookkeeping)
 
-<img src="https://img.shields.io/badge/Status-Production%20Ready-success?style=flat-square" alt="Production Ready">
+<img src="https://img.shields.io/badge/Status-Behind%20login-blue?style=flat-square" alt="Behind login">
 
-Six spending modules built from real transaction history.
+Real accounting, not "tracking." Lives at `/ledger`, `/transactions`, `/statements`.
 
-- **Budget Templates** — Built from real spending patterns across modules
-- **Six Modules** — Home, Auto, Shopping, Personal, Health, Growth
-- **AI Meal Planning** — Weekly meal plans with grocery cart builder
-- **AI Spending Insights** — Pattern detection and optimization suggestions
-- **Module-Level Tracking** — Per-category expense monitoring and comparison
+- **Plaid sync** — banks, brokerages, credit cards into one place
+- **Auto-categorization** — merchant mapping that learns from your corrections
+- **Entity separation** — P- (personal) · B- (business) · T- (trading)
+- **Double-entry** — balanced debits/credits, commit-to-ledger, journal entries
+- **Statements** — balance sheet (prior-year carry-forward), income statement, three-statement view
+- **Bank reconciliation + period close** — month-end verify and lock
+- On the home page: a paid tab (use it in the deep app today)
 
 </td>
 <td width="50%" valign="top">
 
-### 🧾 Tax Reporting
+### 🧾 Tax
 
-<img src="https://img.shields.io/badge/Status-Production%20Ready-success?style=flat-square" alt="Production Ready">
+<img src="https://img.shields.io/badge/Status-Behind%20login-blue?style=flat-square" alt="Behind login">
 
-Full tax estimation pipeline from ledger data to Form 1040.
+From clean books toward Form 1040. Lives at `/dashboard/tax`.
 
-- **Form 1040 Estimator** — Bracket breakdown with line item mapping
-- **Schedule C** — Business profit/loss with expense line mapping
-- **Schedule SE** — Self-employment tax calculation
-- **Schedule D + Form 8949** — Capital gains with CSV export
-- **Wash Sale Detection** — IRS Publication 550 compliant (30-day window)
-- **Manual Overrides** — W-2 / 1099-R data entry for complete picture
-- **CPA Disclaimer** — Prominent disclaimer on all tax output
+- **Form 1040 estimator** — bracket breakdown, line-item mapping
+- **Schedule C / SE / D + Form 8949** — business P&L, self-employment, capital gains (CSV/PDF export)
+- **Wash sale detection** — IRS Pub 550, 30-day window
+- **Manual overrides** — W-2 / 1099-R entry for the full picture
+- On the home page: a paid tab (use it in the deep app today)
 
-> ⚠️ **All tax reports include a prominent disclaimer:** Temple Stuart is not a CPA firm or tax preparer. All estimates must be verified by a licensed professional before filing.
+> ⚠️ **Disclaimer:** Temple Stuart is not a CPA firm or tax preparer. All tax figures are estimates and must be verified by a licensed professional before filing.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 🛡️ Compliance
+
+<img src="https://img.shields.io/badge/Status-Behind%20login-blue?style=flat-square" alt="Behind login">
+
+A timestamped record that you did things right. Lives at `/compliance`.
+
+- **Missions + tasks** — what needs doing, tracked
+- **Citations** — pulled and verified against source regulation
+- **Discovery** — runs, proposals, profile
+- **Registry + audit log** — a tamper-evident, chain-verified trail (`/soc2`)
+- On the home page: a paid tab (use it in the deep app today)
+
+</td>
+<td width="50%" valign="top">
+
+### 🎛️ Hub (legacy cockpit)
+
+<img src="https://img.shields.io/badge/Status-Legacy-lightgrey?style=flat-square" alt="Legacy">
+
+The original command center at `/hub` — being folded into the home app.
+
+- **Unified calendar** — its calendar logic now powers the home Calendar tab
+- **Budget comparison + trip cards + map view** — homebase vs travel vs business
+- Still works today; the home app is the new front door
 
 </td>
 </tr>
@@ -345,18 +355,25 @@ Full tax estimation pipeline from ledger data to Form 1040.
 
 ### Integration Details
 
-| Integration | Purpose | Implementation |
-|-------------|---------|----------------|
-| **Plaid** | Banking data sync | Production environment, transactions + investments + balances |
-| **Duffel** | Flight booking | GDS access: search → offers → passenger details → order creation |
-| **Google Places** | Location intelligence | Geocoding, text search (60 results/category), photos, price levels |
-| **xAI Grok** | Trip AI + Social Sentiment | Trip analysis, X/Twitter sentiment via x_search (grok-4-1-fast) |
-| **OpenAI** | General AI | Singleton client for explanatory features |
-| **Anthropic Claude** | AI analysis | Market briefs, strategy analysis (claude-sonnet-4-20250514) |
-| **Finnhub** | Market data | Company news, analyst recommendations, price targets (free tier) |
-| **Tastytrade** | Options data | Live quotes, option chains, Greeks, IV, HV, earnings |
-| **Stripe** | Payments | Subscription management, tier gating (Free/Pro/Pro+/Trader Pro) |
-| **Leaflet** | Maps | Trip visualization, destination markers, interactive popups |
+| Integration | Status | Purpose | Implementation |
+|-------------|--------|---------|----------------|
+| **Plaid** | 🟢 Live | Banking data sync | Production: transactions + investments + balances |
+| **Duffel** | 🟢 Live | Flight search/booking | GDS: search → offers → passenger details → order |
+| **LiteAPI** | 🟢 Live | Hotel search | Search + content + reviews; booking flow (prebook/book) maturing |
+| **Viator** | 🟢 Live | Things to do | Bookable tours / activities / wellness search |
+| **Google Places** | 🟢 Live | Location intelligence | Geocoding, text search (60 results/category), photos, price levels |
+| **TastyTrade** | 🟢 Live | Options data | Live quotes, chains, Greeks, IV/HV, positions, scanner |
+| **Finnhub** | 🟢 Live | Market data | Company news, analyst ratings, price targets (free tier) |
+| **FRED** | 🟢 Live | Macro data | St. Louis Fed indicators feeding the convergence regime score |
+| **SEC EDGAR** | 🟢 Live | Filings | Filings ingest for discovery + convergence info-edge |
+| **Anthropic Claude** | 🟢 Live | AI analysis | Market briefs, strategy analysis, ops planning, discovery |
+| **xAI Grok** | 🟢 Live | Trip AI + sentiment | Trip analysis, X/Twitter sentiment via x_search |
+| **OpenAI** | 🟢 Live | General AI | Client for some explanatory features |
+| **Stripe** | 🟡 Partial | Payments | Checkout/portal/webhook routes built; checkout not surfaced yet |
+| **Mozio** | ⚪ Parked | Ground transit | Declared in the source registry, not connected |
+| **CoverGenius** | ⚪ Parked | Travel insurance | Declared, not connected |
+| **Airalo** | ⚪ Parked | eSIM / data | Declared, not connected |
+| **Leaflet** | 🟢 Live | Maps | Trip visualization, destination markers, popups |
 
 <br>
 
@@ -1157,87 +1174,50 @@ Documentation is maintained in-app and in code comments. See `src/lib/` for serv
 
 <table>
 <tr>
-<td align="center" width="25%"><strong>✅ 2025 — Shipped</strong></td>
-<td align="center" width="25%"><strong>🔧 2026 Q1</strong></td>
-<td align="center" width="25%"><strong>🚀 2026 Q2–Q3</strong></td>
-<td align="center" width="25%"><strong>🔮 2026 Q4+</strong></td>
+<td align="center" width="33%"><strong>✅ Live now</strong></td>
+<td align="center" width="33%"><strong>🔧 In progress</strong></td>
+<td align="center" width="33%"><strong>🔮 Planned</strong></td>
 </tr>
 <tr>
 <td valign="top">
 
-✅ Double-Entry Bookkeeping<br>
-✅ Plaid Real-Time Sync<br>
-✅ Trading P&L Engine<br>
-✅ Lot-Based Cost Basis<br>
-✅ Wash Sale Tracking<br>
-✅ Auto-Categorization<br>
-✅ Bank Reconciliation<br>
-✅ General Ledger<br>
-✅ Period Close<br>
-✅ Budget Builder<br>
-✅ Trip Planning + AI Recs<br>
-✅ Duffel Flight Booking<br>
-✅ Google Places Integration<br>
-✅ Grok Sentiment Analysis<br>
-✅ Robinhood CSV Import<br>
-✅ Hub Command Center<br>
-✅ AI Volatility Scanner<br>
-✅ AI Market Brief (Claude)<br>
-✅ Strategy Builder<br>
-✅ Finnhub News + Analysts<br>
-✅ Convergence Pipeline (4-cat scoring)<br>
-✅ Convergence Gate (3/4 > 50)<br>
-✅ Trade Card Generation (live chains)<br>
-✅ Plain English Signals<br>
-✅ Risk Flags (insider, earnings, liquidity)<br>
-✅ Market Intelligence Dashboard<br>
-✅ SPY Correlation Modifier<br>
-✅ FRED Macro Integration (9 indicators)<br>
-✅ Stress Tested (20/20 tickers)
+✅ Double-entry bookkeeping + general ledger<br>
+✅ Plaid sync + auto-categorization<br>
+✅ Bank reconciliation + period close<br>
+✅ Trading scanner + convergence pipeline<br>
+✅ AI market brief + strategy builder (Claude)<br>
+✅ Lot cost basis + wash sales<br>
+✅ Tax: 1040 / Sch C / SE / D + Form 8949<br>
+✅ Operations: projects + routines + daily plan<br>
+✅ Compliance: missions + citations + audit log<br>
+✅ Travel live search (Duffel / LiteAPI / Viator / visa)<br>
+✅ Trips money-arc (budget vs actual, photos, uncommit)<br>
+✅ The home app — 7-tab mobile-friendly front door<br>
+✅ Day-view calendar + phone week strip, edge-to-edge<br>
+✅ Cost-build pricing page (`/how-pricing-works`)<br>
+✅ Account creation (cookie auth + next-auth)
 
 </td>
 <td valign="top">
 
-✅ Auth + Account Creation<br>
-✅ Free & Paid Tiers (tier gating)<br>
-✅ Tax Export (Form 8949)<br>
-✅ Schedule C Generation<br>
-✅ Form 1040 Tax Estimator<br>
-✅ Schedule SE (Self-Employment Tax)<br>
-✅ Tax Overrides (Manual W-2/1099-R Entry)<br>
-✅ Wash Sale Detection<br>
-✅ Trade Card Queue + Linking + Grading<br>
-✅ Balance Sheet Carry-Forward<br>
-✅ Position Reporting (P&L, ST/LT)<br>
-✅ CPA Disclaimer on Tax Forms<br>
-✅ Meal Planning Module<br>
-✅ Institutional Pre-Filter (Market Metrics)<br>
-✅ Three-Outcome EV Model + Honest Labels<br>
-✅ N(d2) Breakeven PoP (Abramowitz &amp; Stegun)<br>
-✅ 3-Tier Filter Panel (15 Parameters)<br>
-✅ Social Sentiment (xAI Grok x_search)<br>
-🔲 Onboarding Flow<br>
-🔲 Results Tracking (scanner vs actuals)<br>
-🔲 Multi-Broker Support (Schwab, IBKR)
+🔧 Home commit-wiring (search → commit → trip → calendar)<br>
+🔧 Surface Books / Tax / Compliance on the public home<br>
+🔧 Login → home redirect + demo→real flip<br>
+🔧 Pricing page → real numbers (from Books cost data)<br>
+🔧 Stripe checkout activation (routes built, not surfaced)<br>
+🔧 Retire / fold in the legacy Hub + tier `/pricing`
 
 </td>
 <td valign="top">
 
-🔲 Invoice Generation<br>
-🔲 Advanced Analytics<br>
-🔲 Mobile-Responsive UI<br>
-🔲 iOS & Android App<br>
-🔲 CPA Client Portal<br>
-🔲 Team / Multi-User
-
-</td>
-<td valign="top">
-
-🔲 Multi-Currency Support<br>
-🔲 Direct Bank Feeds<br>
-🔲 Payroll Integration<br>
-🔲 White-Label for CPAs<br>
-🔲 Additional Integrations
+🔲 `hub_scheduled_items` master schedule live<br>
+🔲 Resume Mozio / CoverGenius / Airalo<br>
+🔲 Onboarding flow + results tracking<br>
+🔲 Multi-broker support (Schwab, IBKR)<br>
+🔲 Invoice generation + advanced analytics<br>
+🔲 iOS / Android app<br>
+🔲 CPA client portal + team / multi-user<br>
+🔲 Multi-currency + payroll + white-label
 
 </td>
 </tr>
