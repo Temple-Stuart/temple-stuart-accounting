@@ -43,6 +43,49 @@ const MODULES: ModuleDef[] = [
   { key: 'compliance',  label: 'Compliance',  live: false, blurb: 'Monitoring, attestations, audit trail.' },
 ];
 
+// PR-MODULE-INTROS: a short, sellable plain-language intro for each module — what you
+// put in, what it does, what comes out, how it maps to your calendar, and a soft
+// signup nudge. One array of paragraphs per module key, rendered ABOVE the module's
+// body (demo/stub/content). Copy is fixed (5th-grade voice) — render verbatim.
+const MODULE_INTROS: Record<string, string[]> = {
+  travel: [
+    'Type where you want to go, and book your flights from the Duffel API, hotels from LiteAPI, things to do from Viator, and ground transportation from Mozio. Competitive prices, actual times, real data.',
+    "You find something you like, you do one of two things: save it as a plan (your budget), or pay for it right now (your actual). That's accounting, sneakily — you just learned it without trying. Either way it drops onto your calendar: the day, the time, what it cost, who got paid, which trip it belongs to. Your hotel shows up check-in to check-out. Your flight shows up wheels-up to wheels-down.",
+    "So now you can look at any day and actually see it: here's what I planned, here's what I actually spent. No more 'wait, where did my trip money go.' It's right there.",
+    'Make a free account if you want to save your trips.',
+  ],
+  trading: [
+    "Tell the scanner what you're hunting, and it pulls live prices from TastyTrade, company numbers from Finnhub, economy data from FRED, official filings from SEC EDGAR, and the mood online from Grok. Real data, every feed.",
+    'It runs all of it through a 12-step gauntlet — volatility, quality, timing, edge — and only the trades that survive come out the other side. You see why it liked each one. No black box.',
+    'Every trade you take drops onto your calendar: when you opened it, when you closed it, what it made or lost. So you can look back and actually see your wins and your bleeds, laid out by day.',
+    'Make an account to run the scanner on your own watchlist.',
+  ],
+  operations: [
+    "Type the big messy goal that's rattling around your head — plain, rambly, however it actually lives up there. The tool turns that mess into a real plan: the goal, the problem, why it's stuck, and a step-by-step list of small to-dos you can actually finish.",
+    'Change your mind? Re-run it. It writes a fresh plan and keeps the old one, so you watch your thinking grow.',
+    "Then those to-dos drop onto your calendar with times. A giant scary project becomes 'do this one thing at 2pm.' Small steps, on a calendar, moving.",
+    'Make a free account to keep your plans.',
+  ],
+  bookkeeping: [
+    'Connect your bank through Plaid and every transaction flows in. The tool sorts them — income, expense, what category each thing belongs to — using a real double-entry engine, the same kind big firms use, minus the headache.',
+    'You get clean books without touching a spreadsheet. What you make, what you spend, where it goes.',
+    "And it all drops onto your calendar: not just 'I spent $4,000 this month,' but which day each dollar left, what it bought, and whether you planned for it. Your money, on a timeline, finally making sense.",
+    'Make an account to connect your bank.',
+  ],
+  tax: [
+    'Your books are already clean, so your taxes are half-done before you start. The tool takes your real income and expenses and maps them onto the actual forms — the 1040, the Schedule C, the D, the 8949 — as the year goes.',
+    "What comes out: a running count of what you'll likely owe, instead of a spring surprise. No shoebox, no last-minute panic, because the work already happened quietly in the background.",
+    "It builds on your calendar month by month, so you watch your tax picture grow. (I'm a tool, not your CPA — have a real tax pro check the numbers before you file.)",
+    'Make an account to start your year clean.',
+  ],
+  compliance: [
+    "This one's for when things get serious. The tool watches the rules that apply to you — pulled straight from the government's own regulation library — and keeps a clean record of what got done and when. Monitoring, attestations, an audit trail.",
+    'What you get: proof. A tidy, timestamped record that you did things right, ready the second someone official asks.',
+    'It lives on your calendar with everything else, so your whole world — money, trips, work, rules — sits in one honest timeline.',
+    "Made for folks who need to show their work. Make an account when that's you.",
+  ],
+};
+
 interface Props {
   /** Opens the existing register/login modal on the home page. Called when a
    *  guest tries to save a trip, or clicks a paid module's "Launch" button. */
@@ -248,6 +291,13 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
                 </span>
               </div>
               <div className="bg-white p-4">
+                {MODULE_INTROS[m.key] && (
+                  <div className="mb-4 space-y-2 border-b border-border pb-4">
+                    {MODULE_INTROS[m.key].map((para, i) => (
+                      <p key={i} className="text-sm leading-relaxed text-text-secondary">{para}</p>
+                    ))}
+                  </div>
+                )}
                 {renderBody(m)}
               </div>
             </div>
