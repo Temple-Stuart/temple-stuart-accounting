@@ -27,6 +27,7 @@ interface BudgetItem {
   coaCode: string | null;
   year: number;
   month: number;
+  photoUrl?: string | null; // already returned by /budget (raw budget_line_items)
   // PR-Trips7: the vendor-option keys (from the linked trip_itinerary, surfaced by
   // /budget). Present only on lines that came from a vendor commit; null for manual
   // budget lines. Needed to uncommit via DELETE /vendor-commit.
@@ -66,6 +67,41 @@ function perDayUsd(amount: number, start?: string | null, end?: string | null): 
   if (Number.isNaN(a) || Number.isNaN(b)) return null;
   const days = Math.max(1, Math.round((b - a) / MS_DAY));
   return amount / days;
+}
+
+/** Pick an icon from a kind hint — a reservation type ('hotel'/'flight'/'activity')
+ *  or a budget line's coa_code ('…9100' flight, '…9200' lodging, etc.). */
+function iconFor(kind: string): string {
+  const k = (kind || '').toLowerCase();
+  if (k.includes('hotel') || k.includes('lodging') || k.includes('9200')) return '🛏️';
+  if (k.includes('flight') || k.includes('9100')) return '✈️';
+  if (k.includes('activity') || k.includes('9400')) return '📍';
+  if (k.includes('vehicle') || k.includes('9300')) return '🚗';
+  if (k.includes('transfer') || k.includes('9600')) return '🚐';
+  return '🧾';
+}
+
+/** Card media: a photo when one's available, otherwise a type icon. A broken image
+ *  URL falls back to the icon (onError) without breaking the card's height/layout. */
+function CardMedia({ photoUrl, icon }: { photoUrl?: string | null; icon: string }) {
+  const [failed, setFailed] = useState(false);
+  const showPhoto = !!photoUrl && !failed;
+  return (
+    <div className="mb-2 flex h-20 w-full items-center justify-center overflow-hidden rounded bg-bg-row">
+      {showPhoto ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={photoUrl as string}
+          alt=""
+          loading="lazy"
+          onError={() => setFailed(true)}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <span className="text-2xl" aria-hidden="true">{icon}</span>
+      )}
+    </div>
+  );
 }
 
 export default function TripBudgetActual({ trip }: { trip: TripRow }) {
@@ -153,6 +189,7 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
               const amt = Number(item.amount);
               return (
                 <div key={item.id} className="min-w-[180px] shrink-0 snap-start rounded-lg border border-brand-purple/30 bg-white p-3">
+                  <CardMedia photoUrl={item.photoUrl} icon={iconFor(item.coaCode || item.description || '')} />
                   <p className="truncate text-sm font-medium text-text-primary">{item.description || item.coaCode || 'Planned item'}</p>
                   <p className="mt-1 text-base font-bold text-brand-purple">{usd(amt)}</p>
                   {item.coaCode && <p className="mt-1 text-xs text-text-muted">{item.coaCode}</p>}
@@ -186,6 +223,7 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
               const inOut = [shortDate(res.checkIn), shortDate(res.checkOut)].filter(Boolean).join(' – ');
               return (
                 <div key={res.id} className="min-w-[180px] shrink-0 snap-start rounded-lg border border-brand-green/30 bg-white p-3">
+                  <CardMedia icon={iconFor(res.type)} />
                   <p className="truncate text-sm font-medium text-text-primary">{res.name}</p>
                   <p className="mt-1 text-base font-bold text-brand-green">{usd(res.amountUsd)}</p>
                   {pd != null && <p className="text-xs text-text-muted">${Math.round(pd)}/day</p>}
