@@ -52,16 +52,13 @@ export default function LandingPage() {
               <span className="text-text-faint">Act smarter.</span>
             </h1>
             <p className="text-text-faint text-terminal-lg mb-8 max-w-xl">
-              Bookkeeping, AI-powered options analytics, trip planning, and budgeting &mdash; one platform.
+              Plan your trips, projects, and routines. Track your trades, books, and taxes. Stay on top of budgets and compliance &mdash; all in one place.
             </p>
             <div className="flex items-center gap-4">
               <button onClick={() => { setLoginMode('register'); setShowLogin(true); }}
                 className="px-6 py-3 bg-white text-brand-purple font-medium hover:bg-bg-row text-sm">
                 Get Started
               </button>
-              <div className="text-xs text-text-muted">
-                Featured in <span className="text-text-faint italic">The New York Times</span>
-              </div>
             </div>
           </div>
         </div>
