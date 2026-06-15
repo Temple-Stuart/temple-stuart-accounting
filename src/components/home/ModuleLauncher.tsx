@@ -427,7 +427,12 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
               currentTrip={currentTrip}
               onCommitted={() => setTripsRefresh((n) => n + 1)}
             />
-            <PublicHotelSearch onRequireAuth={onRequireAuth} />
+            <PublicHotelSearch
+              onRequireAuth={onRequireAuth}
+              authed={authed}
+              currentTrip={currentTrip}
+              onCommitted={() => setTripsRefresh((n) => n + 1)}
+            />
             <ComingSoonSection
               title="Getting around"
               explainer="Airport rides and transfers, booked and budgeted with your trip."
