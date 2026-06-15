@@ -280,7 +280,9 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
               )}
               {/* PR-Trips5: the selected trip's Budgeted + Actual rows. Only mounted
                   when a trip is picked, so it never fetches with no trip / no login. */}
-              {currentTrip && <TripBudgetActual trip={currentTrip} />}
+              {/* Keyed by tripsRefresh so a flight commit (which bumps it via
+                  onCommitted) remounts this and re-fetches the budget + actual rows. */}
+              {currentTrip && <TripBudgetActual key={tripsRefresh} trip={currentTrip} />}
             </>
           )}
         </div>
@@ -419,7 +421,12 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
                 activities → visa (live) → [Insurance, eSIM, Events — coming soon]. The
                 live searches keep their own explainers + logic; the ComingSoonSection
                 rows are STATIC promises (no fetch/state). */}
-            <PublicFlightSearch onRequireAuth={onRequireAuth} />
+            <PublicFlightSearch
+              onRequireAuth={onRequireAuth}
+              authed={authed}
+              currentTrip={currentTrip}
+              onCommitted={() => setTripsRefresh((n) => n + 1)}
+            />
             <PublicHotelSearch onRequireAuth={onRequireAuth} />
             <ComingSoonSection
               title="Getting around"
