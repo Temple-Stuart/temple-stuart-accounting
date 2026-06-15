@@ -1,25 +1,32 @@
 'use client';
 
 /**
- * PublicFlightSearch — the LIVE, logged-out flight search on the public travel
- * card (PR-4). It reuses the pure <FlightPickerView/> (T1) and drives a REAL
- * search against the now-PUBLIC /api/flights/search route (PR-3: auth gate gone,
- * bounded by per-IP rate-limit + daily provider cap). A guest types airports +
+ * PublicFlightSearch — the LIVE flight search on the public travel card (PR-4). It
+ * reuses the pure <FlightPickerView/> (T1) and drives a REAL search against the
+ * now-PUBLIC /api/flights/search route (PR-3: auth gate gone, bounded by per-IP
+ * rate-limit + daily provider cap). Anyone — logged in or not — types airports +
  * dates and sees real Duffel results.
  *
- * SEARCH is public; BOOKING is gated. The commit/uncommit ("Commit to Budget")
- * actions route to onRequireAuth (sign-up) — they do NOT fire the auth-gated
- * vendor-commit fetch (which 401s for guests anyway). No itinerary load (that's
- * authed + trip-scoped). No fake hotel/ground/activity cards — flights is the one
- * live public tool today; a short note says the rest is coming.
+ * SEARCH is always free. SAVING a flight to a trip follows the freemium model
+ * (PR-Flight-Commit): a guest gets the sign-up nudge (onRequireAuth); a logged-in
+ * user with a selected trip commits to /api/trips/[id]/vendor-commit (the SAME path
+ * the in-trip FlightPicker uses — budget line + itinerary + calendar event); a
+ * logged-in user with no trip picked is told to pick or create a trip first. No fake
+ * hotel/ground/activity cards — flights is the one live public tool here.
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import FlightPickerView, { type FlightOffer, type FlightLeg } from './FlightPickerView';
 
 interface Props {
-  /** Opens the existing home register/login modal (booking requires sign-in). */
+  /** Opens the existing home register/login modal (saving requires sign-in). */
   onRequireAuth: () => void;
+  /** Login state from the home shell: null = still resolving, true/false once known. */
+  authed?: boolean | null;
+  /** The trip selected in the trips list above — where a committed flight is saved. */
+  currentTrip?: { id: string; name?: string } | null;
+  /** Called after a successful commit/uncommit so the trip's budget re-fetches. */
+  onCommitted?: () => void;
 }
 
 function defaultDate(daysFromNow: number): string {
@@ -28,7 +35,7 @@ function defaultDate(daysFromNow: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-export default function PublicFlightSearch({ onRequireAuth }: Props) {
+export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip, onCommitted }: Props) {
   // A guest has no trip/airport props — start one empty round-trip leg with
   // sensible near-future dates so they can search immediately by typing airports.
   const makeLeg = useCallback((overrides?: Partial<FlightLeg>): FlightLeg => ({
@@ -54,6 +61,8 @@ export default function PublicFlightSearch({ onRequireAuth }: Props) {
   }), []);
 
   const [legs, setLegs] = useState<FlightLeg[]>([]);
+  // The leg currently committing (its button shows a pending state) — same as FlightPicker.
+  const [committing, setCommitting] = useState<string | null>(null);
 
   // One empty leg on mount. No authed itinerary load (guest has no trip).
   useEffect(() => {
@@ -144,31 +153,102 @@ export default function PublicFlightSearch({ onRequireAuth }: Props) {
     updateLeg(legId, { selectedOffer: manualFlight, expanded: false, manualAirline: '', manualPrice: '', manualDepartTime: '', manualArriveTime: '', manualArriveDate: '' });
   };
 
-  // BOOKING is gated: the "Commit to Budget" / uncommit actions route to sign-up,
-  // never the auth-gated vendor-commit fetch. (vendor-commit also 401s guests.)
-  const book = () => onRequireAuth();
+  // ── Commit a flight to the selected trip — the three freemium states. ──
+  // Guest → sign-up nudge. Logged in + no trip → "pick a trip" (NOT a login prompt).
+  // Logged in + a trip → the SAME vendor-commit POST the in-trip FlightPicker uses
+  // (budget line + itinerary + calendar event), against currentTrip.id.
+  const commitLeg = async (legId: string) => {
+    if (authed !== true) { onRequireAuth(); return; }
+    if (!currentTrip) {
+      updateLeg(legId, { error: 'Pick or create a trip above first, then save this flight to it.' });
+      return;
+    }
+    const leg = legs.find(l => l.id === legId);
+    if (!leg?.selectedOffer) return;
+
+    setCommitting(legId);
+    try {
+      const offer = leg.selectedOffer;
+      const title = `${leg.origin} → ${leg.destination}`;
+      const flightId = `flight-${leg.id}-${Date.now()}`;
+      const departTime = offer.outbound?.departure?.localTime || undefined;
+      const arriveTime = offer.outbound?.arrival?.localTime || undefined;
+      const arriveDate = offer.outbound?.arrival?.date || undefined;
+
+      const res = await fetch(`/api/trips/${currentTrip.id}/vendor-commit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          optionType: 'flight',
+          optionId: flightId,
+          startDate: leg.departureDate,
+          endDate: leg.tripType === 'roundtrip' && leg.returnDate ? leg.returnDate : leg.departureDate,
+          amount: offer.price,
+          notes: title,
+          startTime: departTime,
+          endTime: arriveTime,
+          arriveDate,
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Commit failed');
+      }
+      updateLeg(legId, { committed: true, commitId: flightId, expanded: false });
+      onCommitted?.();
+    } catch (err) {
+      updateLeg(legId, { error: err instanceof Error ? err.message : 'Commit failed' });
+    } finally {
+      setCommitting(null);
+    }
+  };
+
+  const uncommitLeg = async (legId: string) => {
+    if (authed !== true || !currentTrip) { onRequireAuth(); return; }
+    const leg = legs.find(l => l.id === legId);
+    if (!leg?.commitId) return;
+    try {
+      const res = await fetch(`/api/trips/${currentTrip.id}/vendor-commit`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          optionType: 'flight',
+          optionId: leg.commitId,
+          notes: `${leg.origin} → ${leg.destination}`,
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Uncommit failed');
+      }
+      updateLeg(legId, { committed: false, commitId: null, selectedOffer: null });
+      onCommitted?.();
+    } catch (err) {
+      updateLeg(legId, { error: err instanceof Error ? err.message : 'Uncommit failed' });
+    }
+  };
 
   return (
     <div className="mt-10 pt-8 border-t border-border space-y-3">
       <div>
         <p className="text-lg font-bold text-brand-purple mb-1">Search real flights — free, no account needed.</p>
         <p className="text-xs text-text-muted">
-          Type two airports and a date to see live fares. Saving a flight to a trip asks
-          you to sign up. Hotels, activities, and rides are coming next.
+          Type two airports and a date to see live fares — free, no account needed. To save a
+          flight to a trip, log in and pick a trip above. Hotels, activities, and rides are coming next.
         </p>
       </div>
 
       <FlightPickerView
         legs={legs}
-        committing={null}
+        committing={committing}
         liveSearchEnabled={true}
         onUpdateLeg={updateLeg}
         onRemoveLeg={removeLeg}
         onAddLeg={addLeg}
         onSearchLeg={searchLeg}
         onSubmitManual={submitManual}
-        onCommitLeg={book}
-        onUncommitLeg={book}
+        onCommitLeg={commitLeg}
+        onUncommitLeg={uncommitLeg}
       />
     </div>
   );
