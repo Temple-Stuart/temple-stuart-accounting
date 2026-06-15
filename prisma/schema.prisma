@@ -1334,6 +1334,8 @@ model calendar_events {
   color           String?   @db.VarChar(20)
   start_date      DateTime  @db.Date
   end_date        DateTime? @db.Date
+  start_time      DateTime? @db.Time(6) // PR-Calendar-Times-Schema: time-of-day so trip events render as timed blocks (null = all-day, the prior behavior)
+  end_time        DateTime? @db.Time(6) // PR-Calendar-Times-Schema: time-of-day (paired with start_time)
   is_recurring    Boolean?  @default(false)
   recurrence_rule String?   @db.VarChar(50)
   location        String?   @db.VarChar(255)
