@@ -196,32 +196,32 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-text-muted">
-          {isDemo
-            ? 'This is the real app — these events are made up, and nothing here gets saved.'
-            : 'Trips, routines, and your daily plan — all in one place.'}
-        </p>
-        <div className="flex shrink-0 items-center gap-2">
-          <button type="button" onClick={() => goMonth(-1)} aria-label="Previous month" className="rounded border border-border px-2 py-1 text-sm text-text-secondary hover:bg-bg-row">‹</button>
-          <span className="min-w-[120px] text-center text-sm font-medium text-text-primary">{MONTHS[selectedMonth]} {selectedYear}</span>
-          <button type="button" onClick={() => goMonth(1)} aria-label="Next month" className="rounded border border-border px-2 py-1 text-sm text-text-secondary hover:bg-bg-row">›</button>
-          <button type="button" onClick={goToday} className="rounded border border-border px-2 py-1 text-xs text-text-secondary hover:bg-bg-row">Today</button>
-        </div>
+      {/* PR-Calendar-Apple: the caption is its OWN full-width line now (out of the
+          nav row), so it never squishes the controls, and the grid gets full width. */}
+      <p className="text-xs text-text-muted">
+        {isDemo
+          ? 'This is the real app — these events are made up, and nothing here gets saved.'
+          : 'Trips, routines, and your daily plan — all in one place.'}
+      </p>
+      <div className="flex items-center justify-end gap-2">
+        <button type="button" onClick={() => goMonth(-1)} aria-label="Previous month" className="rounded border border-border px-3 py-2 text-sm text-text-secondary hover:bg-bg-row">‹</button>
+        <span className="min-w-[120px] text-center text-sm font-medium text-text-primary">{MONTHS[selectedMonth]} {selectedYear}</span>
+        <button type="button" onClick={() => goMonth(1)} aria-label="Next month" className="rounded border border-border px-3 py-2 text-sm text-text-secondary hover:bg-bg-row">›</button>
+        <button type="button" onClick={goToday} className="rounded border border-border px-3 py-2 text-xs text-text-secondary hover:bg-bg-row">Today</button>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-border">
-        <CalendarGrid
-          events={gridEvents}
-          sourceConfig={HUB_GRID_CONFIG}
-          defaultView="day"
-          enableDayView={true}
-          enableHubChrome={true}
-          showBudgetTotals={true}
-          showCategoryLegend={true}
-          onEventClick={handleEventClick}
-        />
-      </div>
+      {/* PR-Calendar-Apple: edge-to-edge — the grid renders flush (no floating rounded
+          card around it), Apple day-view style. */}
+      <CalendarGrid
+        events={gridEvents}
+        sourceConfig={HUB_GRID_CONFIG}
+        defaultView="day"
+        enableDayView={true}
+        enableHubChrome={true}
+        showBudgetTotals={true}
+        showCategoryLegend={true}
+        onEventClick={handleEventClick}
+      />
 
       {isDemo && (
         <div className="flex flex-col items-start gap-2 rounded-lg border border-border bg-bg-row p-4 sm:flex-row sm:items-center sm:justify-between">
