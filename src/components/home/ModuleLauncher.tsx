@@ -93,6 +93,43 @@ interface Props {
   onRequireAuth: () => void;
 }
 
+// PR-Mobile1: the first sentence of a paragraph — used as the collapsed teaser.
+function firstSentence(text: string): string {
+  const m = text.match(/^.*?[.!?](\s|$)/);
+  return (m ? m[0] : text).trim();
+}
+
+// PR-Mobile1: a module's intro, collapsed by default to one teaser line with a
+// "How it works" toggle that reveals the FULL copy (all paragraphs, verbatim). Kills
+// the mobile word-walls without losing any words. Each instance owns its own expand
+// state, so this adds nothing to ModuleLauncher's state.
+function ModuleIntro({ paragraphs }: { paragraphs: string[] }) {
+  const [expanded, setExpanded] = useState(false);
+  if (paragraphs.length === 0) return null;
+  return (
+    <div className="mb-4 border-b border-border pb-4">
+      {expanded ? (
+        <div className="space-y-2">
+          {paragraphs.map((para, i) => (
+            <p key={i} className="text-sm leading-relaxed text-text-secondary">{para}</p>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm leading-relaxed text-text-secondary">{firstSentence(paragraphs[0])}</p>
+      )}
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-brand-purple hover:text-brand-purple-hover"
+      >
+        {expanded ? 'Hide' : 'How it works'}
+        <span aria-hidden="true">{expanded ? '▲' : '▼'}</span>
+      </button>
+    </div>
+  );
+}
+
 export default function ModuleLauncher({ onRequireAuth }: Props) {
   const router = useRouter();
   // Auth state: null = unknown (initial), true/false once /api/auth/me resolves.
@@ -301,13 +338,7 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
                 </span>
               </div>
               <div className="bg-white p-4">
-                {MODULE_INTROS[m.key] && (
-                  <div className="mb-4 space-y-2 border-b border-border pb-4">
-                    {MODULE_INTROS[m.key].map((para, i) => (
-                      <p key={i} className="text-sm leading-relaxed text-text-secondary">{para}</p>
-                    ))}
-                  </div>
-                )}
+                {MODULE_INTROS[m.key] && <ModuleIntro paragraphs={MODULE_INTROS[m.key]} />}
                 {renderBody(m)}
               </div>
             </div>
