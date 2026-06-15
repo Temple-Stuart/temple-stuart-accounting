@@ -185,16 +185,17 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
     setDetailEvent(event);
   };
 
-  // PR-Calendar-Seamless: no root gap — the caption + grid flow FLUSH under the parent's
-  // purple band (one continuous surface). The redundant month-nav is gone
-  // (PR-Calendar-Native); the grid's own toolbar is the single date nav.
+  // PR-Calendar-Flush: the descriptive caption + the parent purple band are gone — the
+  // grid's toolbar flows flush under the tab row. The only thing kept up top is a tiny
+  // logged-out "live demo" tag (the signal that used to live in the band), so a guest
+  // still knows the data is made up.
   return (
     <div>
-      <p className="px-4 pt-2 pb-1.5 text-[11px] leading-snug text-text-muted">
-        {isDemo
-          ? 'This is the real app — these events are made up, and nothing here gets saved.'
-          : 'Trips, routines, and your daily plan — all in one place.'}
-      </p>
+      {isDemo && (
+        <p className="px-4 pt-2 text-[10px] font-semibold uppercase tracking-wider text-brand-purple">
+          Live demo · log in to use
+        </p>
+      )}
 
       {/* PR-Calendar-Apple: edge-to-edge grid (Apple day-view). PR-Calendar-Native:
           phone = day-only + a week strip; the grid's nav drives this component's fetch
