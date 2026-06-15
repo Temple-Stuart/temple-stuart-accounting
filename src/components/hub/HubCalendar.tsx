@@ -185,13 +185,12 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
     setDetailEvent(event);
   };
 
+  // PR-Calendar-Seamless: no root gap — the caption + grid flow FLUSH under the parent's
+  // purple band (one continuous surface). The redundant month-nav is gone
+  // (PR-Calendar-Native); the grid's own toolbar is the single date nav.
   return (
-    <div className="space-y-3">
-      {/* PR-Calendar-Apple: the caption is its OWN full-width line (out of the nav row).
-          PR-Calendar-Native: the redundant month-nav is gone — the grid's own toolbar is
-          the single date nav; onMonthChange keeps this component's fetch window in sync
-          with the grid's displayed month. */}
-      <p className="text-xs text-text-muted">
+    <div>
+      <p className="px-4 pt-2 pb-1.5 text-[11px] leading-snug text-text-muted">
         {isDemo
           ? 'This is the real app — these events are made up, and nothing here gets saved.'
           : 'Trips, routines, and your daily plan — all in one place.'}
@@ -211,10 +210,11 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
         onEventClick={handleEventClick}
         phoneDayOnly={true}
         onMonthChange={(year, month) => { setSelectedYear(year); setSelectedMonth(month); }}
+        flush={true}
       />
 
       {isDemo && (
-        <div className="flex flex-col items-start gap-2 rounded-lg border border-border bg-bg-row p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="m-4 flex flex-col items-start gap-2 rounded-lg border border-border bg-bg-row p-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-text-secondary">
             Like what you see? Make a free account and fill it with your own trips, routines, and plans.
           </p>

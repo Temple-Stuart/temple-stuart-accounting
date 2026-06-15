@@ -357,7 +357,9 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
                 <span>Calendar</span>
                 <span className="text-[10px] uppercase tracking-wider font-normal text-white/80">Your data</span>
               </div>
-              <div className="bg-white p-4">
+              {/* PR-Calendar-Seamless: no body padding — the calendar flows flush under
+                  the purple band (one continuous surface, Apple/Outlook style). */}
+              <div className="bg-white">
                 <HubCalendar />
               </div>
             </div>
@@ -372,7 +374,8 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
                 <span>Calendar</span>
                 <span className="text-[10px] uppercase tracking-wider font-normal text-white/80">Live demo · log in to use</span>
               </div>
-              <div className="bg-white p-4">
+              {/* PR-Calendar-Seamless: no body padding — flush under the purple band. */}
+              <div className="bg-white">
                 <HubCalendar demoEvents={demoCalendar} onRequireAuth={onRequireAuth} />
               </div>
             </div>
