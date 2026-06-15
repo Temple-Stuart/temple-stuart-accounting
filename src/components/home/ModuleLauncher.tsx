@@ -73,11 +73,22 @@ const MODULE_TO_TAB: Record<string, string> = {
 // signup nudge. One array of paragraphs per module key, rendered ABOVE the module's
 // body (demo/stub/content). Copy is fixed (5th-grade voice) — render verbatim.
 const MODULE_INTROS: Record<string, string[]> = {
+  calendar: [
+    'Your whole life lands here — trips, projects, routines, trades, and every dollar you plan or spend.',
+    'Plan something in any tab — a trip, a project task, a routine, a trade — and it drops onto this calendar with the day, the time, and what it costs. Plan vs. actual, side by side.',
+    "So you can look at any day and see exactly what you've got going on and where your money's going. One honest timeline for everything.",
+    'Make an account to fill it with your own life.',
+  ],
   travel: [
-    'Type where you want to go, and book your flights from the Duffel API, hotels from LiteAPI, things to do from Viator, and ground transportation from Mozio. Competitive prices, actual times, real data.',
-    "You find something you like, you do one of two things: save it as a plan (your budget), or pay for it right now (your actual). That's accounting, sneakily — you just learned it without trying. Either way it drops onto your calendar: the day, the time, what it cost, who got paid, which trip it belongs to. Your hotel shows up check-in to check-out. Your flight shows up wheels-up to wheels-down.",
-    "So now you can look at any day and actually see it: here's what I planned, here's what I actually spent. No more 'wait, where did my trip money go.' It's right there.",
-    'Make a free account if you want to save your trips.',
+    'Book your flights, hotels, things to do, and ground transportation.',
+    'Competitive prices, actual times, real data.',
+    'You find something you like, you do one of two things:',
+    '1. save it as a plan (your budget), or',
+    '2. pay for it right now (your actual).',
+    'Either way it drops onto your calendar: the day, the time, what it cost, who got paid, which trip it belongs to.',
+    "So now you can look at any day and actually see it: here's what I planned on spending, and here's what I actually spent.",
+    'The travel booking tool is free.',
+    'Make a free account if you want to budget and save your trips.',
   ],
   trading: [
     "Tell the scanner what you're hunting, and it pulls live prices from TastyTrade, company numbers from Finnhub, economy data from FRED, official filings from SEC EDGAR, and the mood online from Grok. Real data, every feed.",
@@ -359,6 +370,14 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
       {authed === true && (
         <section className={`w-full bg-white border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto">
+            {/* PR-Intro-Copy: the calendar lost its band/caption in PR-Calendar-Flush, so
+                its intro renders here at the top of the panel, same collapsible
+                "How it works" style as the other modules. */}
+            {MODULE_INTROS.calendar && (
+              <div className="px-4 pt-2">
+                <ModuleIntro paragraphs={MODULE_INTROS.calendar} />
+              </div>
+            )}
             <HubCalendar />
           </div>
         </section>
@@ -366,6 +385,11 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
       {authed === false && (
         <section className={`w-full bg-white border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto">
+            {MODULE_INTROS.calendar && (
+              <div className="px-4 pt-2">
+                <ModuleIntro paragraphs={MODULE_INTROS.calendar} />
+              </div>
+            )}
             <HubCalendar demoEvents={demoCalendar} onRequireAuth={onRequireAuth} />
           </div>
         </section>
