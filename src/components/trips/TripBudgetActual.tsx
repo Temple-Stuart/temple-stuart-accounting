@@ -27,6 +27,11 @@ interface BudgetItem {
   coaCode: string | null;
   year: number;
   month: number;
+  // PR-Trips7: the vendor-option keys (from the linked trip_itinerary, surfaced by
+  // /budget). Present only on lines that came from a vendor commit; null for manual
+  // budget lines. Needed to uncommit via DELETE /vendor-commit.
+  vendorOptionId?: string | null;
+  vendorOptionType?: string | null;
 }
 
 interface Reservation {
@@ -68,6 +73,38 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
   const [actual, setActual] = useState<Reservation[]>([]);
   const [budgetState, setBudgetState] = useState<RowState>('loading');
   const [actualState, setActualState] = useState<RowState>('loading');
+  // PR-Trips7: uncommit state. reloadKey re-runs the fetch after a remove.
+  const [reloadKey, setReloadKey] = useState(0);
+  const [uncommittingId, setUncommittingId] = useState<string | null>(null);
+  const [uncommitError, setUncommitError] = useState<string | null>(null);
+
+  // PR-Trips7: uncommit a BUDGETED vendor line — confirm, then call the EXISTING
+  // ownership-scoped DELETE /vendor-commit (which atomically cleans budget_line_items
+  // + trip_itinerary + calendar_events). Only ever runs for a line that has the vendor
+  // keys; ACTUAL/paid items never get this. On success it re-fetches the rows.
+  const handleUncommit = async (item: BudgetItem) => {
+    if (!item.vendorOptionId || !item.vendorOptionType) return;
+    const label = item.description || item.coaCode || 'this item';
+    if (!window.confirm(`Remove ${label} from this trip's budget?`)) return;
+    setUncommittingId(item.id);
+    setUncommitError(null);
+    try {
+      const res = await fetch(`/api/trips/${trip.id}/vendor-commit`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ optionType: item.vendorOptionType, optionId: item.vendorOptionId }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Could not remove the item (HTTP ${res.status})`);
+      }
+      setReloadKey((n) => n + 1);
+    } catch (err) {
+      setUncommitError(err instanceof Error ? err.message : 'Could not remove the item');
+    } finally {
+      setUncommittingId(null);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -99,13 +136,14 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
     });
 
     return () => { cancelled = true; };
-  }, [trip.id]);
+  }, [trip.id, reloadKey]);
 
   return (
     <div className="mt-4 space-y-4 rounded-lg border border-border bg-bg-row p-4">
       {/* ── BUDGETED (purple) — what you planned ─────────────────────────────── */}
       <div>
         <p className="mb-2 text-sm font-bold text-brand-purple">Budgeted — what you planned</p>
+        {uncommitError && <p className="mb-2 rounded border border-border bg-white p-2 text-sm text-brand-red">{uncommitError}</p>}
         {budgetState === 'loading' && <p className="text-sm text-text-muted">Loading your planned items…</p>}
         {budgetState === 'error' && <p className="text-sm text-brand-red">Couldn&apos;t load your planned items.</p>}
         {budgetState === 'ok' && budget.length === 0 && <p className="text-sm text-text-muted">Nothing planned yet.</p>}
@@ -118,6 +156,16 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
                   <p className="truncate text-sm font-medium text-text-primary">{item.description || item.coaCode || 'Planned item'}</p>
                   <p className="mt-1 text-base font-bold text-brand-purple">{usd(amt)}</p>
                   {item.coaCode && <p className="mt-1 text-xs text-text-muted">{item.coaCode}</p>}
+                  {item.vendorOptionId && (
+                    <button
+                      type="button"
+                      onClick={() => handleUncommit(item)}
+                      disabled={uncommittingId === item.id}
+                      className="mt-2 w-full rounded border border-border px-2 py-1 text-xs text-text-muted transition-colors hover:bg-bg-row hover:text-brand-red disabled:opacity-50"
+                    >
+                      {uncommittingId === item.id ? 'Removing…' : 'Remove'}
+                    </button>
+                  )}
                 </div>
               );
             })}
