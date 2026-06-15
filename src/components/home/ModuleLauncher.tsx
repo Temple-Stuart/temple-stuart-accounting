@@ -44,25 +44,28 @@ const MODULES: ModuleDef[] = [
   { key: 'compliance',  label: 'Compliance',  live: false, blurb: 'Monitoring, attestations, audit trail.' },
 ];
 
-// PR-Mobile2: the 5 phone tabs. On mobile one panel shows at a time (the bottom bar
-// switches activeModule); on desktop every panel stays visible (md:block) and the bar
-// is hidden (md:hidden), so desktop is unchanged. Operations/Tax/Compliance group
-// under "More".
+// PR-Mobile2 + PR-Edge-A: the phone tabs — ONE per module (no grouping). On mobile one
+// panel shows at a time (the bottom bar switches activeModule); on desktop every panel
+// stays visible (md:block) and the bar is hidden (md:hidden). The bar horizontal-scrolls
+// so 7 tabs stay clean on a narrow phone.
 const TABS: { key: string; label: string; icon: string }[] = [
-  { key: 'calendar', label: 'Calendar', icon: '📅' },
-  { key: 'travel',   label: 'Travel',   icon: '✈️' },
-  { key: 'trade',    label: 'Trade',    icon: '📈' },
-  { key: 'books',    label: 'Books',    icon: '📒' },
-  { key: 'more',     label: 'More',     icon: '⋯' },
+  { key: 'calendar',   label: 'Calendar',   icon: '📅' },
+  { key: 'travel',     label: 'Travel',     icon: '✈️' },
+  { key: 'trade',      label: 'Trade',      icon: '📈' },
+  { key: 'operations', label: 'Operations', icon: '🎯' },
+  { key: 'books',      label: 'Books',      icon: '📒' },
+  { key: 'tax',        label: 'Tax',        icon: '📄' },
+  { key: 'compliance', label: 'Compliance', icon: '🛡️' },
 ];
-// Which tab each module section belongs to (the calendar is its own 'calendar' tab).
+// Which tab each module section belongs to — 1:1, every module its own tab (the
+// calendar is its own 'calendar' tab, rendered separately).
 const MODULE_TO_TAB: Record<string, string> = {
   travel: 'travel',
   trading: 'trade',
   bookkeeping: 'books',
-  operations: 'more',
-  tax: 'more',
-  compliance: 'more',
+  operations: 'operations',
+  tax: 'tax',
+  compliance: 'compliance',
 };
 
 // PR-MODULE-INTROS: a short, sellable plain-language intro for each module — what you
@@ -356,7 +359,7 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
         </section>
       )}
       {MODULES.map((m, i) => (
-        <section key={m.key} className={`w-full py-10 ${i % 2 === 1 ? 'bg-bg-row' : 'bg-white'} border-b border-border ${activeModule === (MODULE_TO_TAB[m.key] ?? 'more') ? 'block' : 'hidden'} md:block`}>
+        <section key={m.key} className={`w-full py-10 ${i % 2 === 1 ? 'bg-bg-row' : 'bg-white'} border-b border-border ${activeModule === (MODULE_TO_TAB[m.key] ?? m.key) ? 'block' : 'hidden'} md:block`}>
           <div className="max-w-7xl mx-auto px-4 lg:px-8 space-y-6">
             <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
               <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
@@ -412,18 +415,19 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
       ))}
       </div>
 
-      {/* PR-Mobile2: the fixed mobile bottom tab bar — phone only (md:hidden). Tapping
-          a tab sets activeModule, which shows that one panel above (desktop ignores
-          this; every panel stays md:block). Safe-area padding lifts it above the iOS
-          home indicator. */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
+      {/* PR-Mobile2 + PR-Edge-A: the fixed mobile bottom tab bar — phone only
+          (md:hidden), one tab per module. It horizontal-scrolls (overflow-x-auto + a
+          hidden scrollbar) so the 7 tabs stay clean and tappable on a narrow phone —
+          each tab is a fixed min-w-[64px], never crushed. Safe-area padding lifts it
+          above the iOS home indicator. */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto border-t border-border bg-white pb-[env(safe-area-inset-bottom)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:hidden">
         {TABS.map((t) => (
           <button
             key={t.key}
             type="button"
             onClick={() => setActiveModule(t.key)}
             aria-current={activeModule === t.key ? 'page' : undefined}
-            className={`flex min-h-[44px] flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] font-medium transition-colors ${activeModule === t.key ? 'text-brand-purple' : 'text-text-muted'}`}
+            className={`flex min-h-[44px] min-w-[64px] flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] font-medium transition-colors ${activeModule === t.key ? 'text-brand-purple' : 'text-text-muted'}`}
           >
             <span className="text-lg leading-none" aria-hidden="true">{t.icon}</span>
             {t.label}
