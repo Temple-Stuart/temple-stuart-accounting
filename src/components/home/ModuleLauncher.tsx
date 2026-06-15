@@ -349,36 +349,20 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
           data). Logged out → a LIVING DEMO fed a static fictional seed, which
           fetches NOTHING (zero personal-route calls — fake by construction). Auth
           still resolving (authed === null) → nothing. /hub is untouched. */}
+      {/* PR-Calendar-Flush: Calendar tab is flush — no purple band, no card chrome (the
+          highlighted Calendar tab already says you're here). The grid toolbar sits right
+          under the tab row, one continuous surface. Other modules keep their bands. */}
       {authed === true && (
-        <section className={`w-full py-10 bg-white border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
+        <section className={`w-full bg-white border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto px-4 lg:px-8">
-            <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-              <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
-                <span>Calendar</span>
-                <span className="text-[10px] uppercase tracking-wider font-normal text-white/80">Your data</span>
-              </div>
-              {/* PR-Calendar-Seamless: no body padding — the calendar flows flush under
-                  the purple band (one continuous surface, Apple/Outlook style). */}
-              <div className="bg-white">
-                <HubCalendar />
-              </div>
-            </div>
+            <HubCalendar />
           </div>
         </section>
       )}
       {authed === false && (
-        <section className={`w-full py-10 bg-white border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
+        <section className={`w-full bg-white border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto px-4 lg:px-8">
-            <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-              <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
-                <span>Calendar</span>
-                <span className="text-[10px] uppercase tracking-wider font-normal text-white/80">Live demo · log in to use</span>
-              </div>
-              {/* PR-Calendar-Seamless: no body padding — flush under the purple band. */}
-              <div className="bg-white">
-                <HubCalendar demoEvents={demoCalendar} onRequireAuth={onRequireAuth} />
-              </div>
-            </div>
+            <HubCalendar demoEvents={demoCalendar} onRequireAuth={onRequireAuth} />
           </div>
         </section>
       )}
