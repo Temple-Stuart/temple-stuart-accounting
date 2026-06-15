@@ -7,7 +7,7 @@
 
 <div align="center">
 
-[![AGPL License](https://img.shields.io/badge/License-AGPL%20v3-blue.svg?style=for-the-badge&logo=gnu&logoColor=white)](https://www.gnu.org/licenses/agpl-3.0)
+[![License: BSL 1.1](https://img.shields.io/badge/License-BSL%201.1-blue.svg?style=for-the-badge&logo=mariadb&logoColor=white)](LICENSE)
 [![Commercial License](https://img.shields.io/badge/Commercial-License%20Available-ff6b6b?style=for-the-badge&logo=handshake&logoColor=white)](#-licensing)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
@@ -929,7 +929,7 @@ Open [http://localhost:3000](http://localhost:3000) 🎉
 
 <div align="center">
 
-Temple Stuart uses a **dual-license model** to balance open-source values with sustainable development.
+Temple Stuart is **source-available** under the **Business Source License 1.1** — free for personal use, a paid license for commercial use, and fully open (Apache 2.0) from 2028.
 
 </div>
 
@@ -939,51 +939,45 @@ Temple Stuart uses a **dual-license model** to balance open-source values with s
 <tr>
 <td width="50%" valign="top">
 
-### 🆓 AGPL v3 — Free Forever
+### 🆓 Free for personal use
 
-**For personal use & open-source projects**
+**Personal, non-commercial use**
 
 <img src="https://img.shields.io/badge/Cost-$0-success?style=flat-square" alt="Free">
 
-✅ Self-host for your personal finances<br>
-✅ Modify and extend as you wish<br>
-✅ Contribute back to the community<br>
-✅ Full feature access
+✅ Self-host it for your own personal finances<br>
+✅ Read the full source — learn from it<br>
+✅ Modify and extend it for yourself<br>
+✅ Full feature access — no paywalled code
 
-⚠️ **Copyleft**: If you deploy Temple Stuart publicly (even as internal SaaS), your **entire codebase** must be open-sourced under AGPL.
+🔓 **Converts to Apache 2.0 on 2028-01-01** (the BSL Change Date) — fully open from then on, for everyone.
 
 <br>
 
 **Perfect for:**
 - Personal finance tracking
-- Open-source projects
 - Learning and experimentation
+- Self-hosting your own back office
 
 </td>
 <td width="50%" valign="top">
 
-### 💼 Commercial License
+### 💼 Commercial license
 
-**For businesses & proprietary use**
+**For business & production use**
 
 <img src="https://img.shields.io/badge/Pricing-Contact%20Us-blue?style=flat-square" alt="Contact Us">
 
-✅ Keep your code proprietary<br>
-✅ No copyleft obligations<br>
-✅ Use in commercial products<br>
+✅ Run it as a business or in production<br>
+✅ Host it as a service for others<br>
+✅ Use it inside a company<br>
 ✅ Priority support included
 
-<br>
-
-| Tier | Notes |
-|------|-------|
-| 🌱 **Indie** | Small teams, < $100K revenue |
-| 🏢 **Business** | Growing companies |
-| 🏛️ **Enterprise** | Custom terms |
+⚠️ Commercial or production use needs a paid license from Temple Stuart LLC — you can't take it and sell it.
 
 <br>
 
-[**📧 Contact for Pricing →**](mailto:astuart@templestuart.com)
+[**📧 Contact for a commercial license →**](mailto:astuart@templestuart.com)
 
 </td>
 </tr>
@@ -993,16 +987,16 @@ Temple Stuart uses a **dual-license model** to balance open-source values with s
 
 <div align="center">
 
-### Why This Model?
+### Why this model?
 
-> *"If you use my code to make money, I want to be part of that."*
+> *"Free to use for yourself. Pay if you build a business on it. Fully open in 2028."*
 
-The AGPL + Commercial model ensures:
+The BSL + Commercial model means:
 
-**Personal Users** → Use free, forever, no strings attached<br>
-**Open-Source Projects** → Contribute and benefit from the community<br>
-**Businesses** → Pay fairly for the value you extract<br>
-**Competitors** → Can't take, modify, and sell without contributing back
+**Personal users** → Use it free, forever, for your own life<br>
+**Tinkerers** → Read every line, learn from it, modify it<br>
+**Businesses** → Pay fairly for the value you build on it<br>
+**Everyone, eventually** → It becomes Apache 2.0 on 2028-01-01
 
 </div>
 
@@ -1281,7 +1275,7 @@ git push origin feature/amazing-feature
 
 By contributing to Temple Stuart, you agree that:
 
-1. Your contributions are licensed under AGPL v3
+1. Your contributions are licensed under the Business Source License 1.1
 2. You grant us the right to include your contributions under our commercial license
 3. You have the right to make the contribution (no proprietary code)
 
