@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import CreateTripForm from '@/components/trips/CreateTripForm';
 import AllTripsList, { type TripRow } from '@/components/trips/AllTripsList';
+import TripBudgetActual from '@/components/trips/TripBudgetActual';
 import HubCalendar from '@/components/hub/HubCalendar';
 import { demoCalendar } from '@/components/hub/showroom/demoCalendar';
 import PublicFlightSearch from '@/components/trips/PublicFlightSearch';
@@ -200,6 +201,9 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
                   <span className="text-text-muted"> — pick a trip to budget flights, hotels, and more into it (coming next).</span>
                 </p>
               )}
+              {/* PR-Trips5: the selected trip's Budgeted + Actual rows. Only mounted
+                  when a trip is picked, so it never fetches with no trip / no login. */}
+              {currentTrip && <TripBudgetActual trip={currentTrip} />}
             </>
           )}
         </div>
