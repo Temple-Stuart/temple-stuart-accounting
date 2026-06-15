@@ -82,7 +82,7 @@ export interface CalendarGridProps {
   /**
    * Opt-in (PR-Calendar-Seamless): drop the outer card chrome (rounded corners, border,
    * shadow) so the grid sits FLUSH inside a parent that already provides the frame —
-   * one continuous surface under a header band, Apple/Outlook style. Default false →
+   * one continuous surface under a header band (a flush day-view look). Default false →
    * the other callers keep their floating card.
    */
   flush?: boolean;
@@ -95,7 +95,7 @@ export interface CalendarGridProps {
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const HOUR_HEIGHT = 52; // PR-Calendar-Apple: roomier rows, Apple day-view spacing
+const HOUR_HEIGHT = 52; // Calendar redesign: roomier rows, day-view spacing
 const START_HOUR = 0;   // 12 AM
 const END_HOUR = 24;    // 12 AM next day
 const TOTAL_HOURS = END_HOUR - START_HOUR; // 24
@@ -525,7 +525,7 @@ export default function CalendarGrid({
               {/* Scrollable time grid */}
               <div ref={scrollRef} className="overflow-y-auto" style={{ maxHeight: '600px' }}>
                 <div className="flex relative" style={{ height: `${TOTAL_HOURS * HOUR_HEIGHT}px` }}>
-                  {/* Time gutter — PR-Calendar-Apple: roomier width + clearer labels */}
+                  {/* Time gutter — calendar redesign: roomier width + clearer labels */}
                   <div className="w-16 flex-shrink-0 relative">
                     {hours.map(hour => (
                       <div key={hour} className="absolute w-full text-right pr-2" style={{ top: `${(hour - START_HOUR) * HOUR_HEIGHT}px` }}>
@@ -554,8 +554,8 @@ export default function CalendarGrid({
                           <div key={`half-${hour}`} className="absolute w-full border-t border-border-light/30" style={{ top: `${(hour - START_HOUR) * HOUR_HEIGHT + HOUR_HEIGHT / 2}px` }} />
                         ))}
 
-                        {/* Current time indicator — PR-Calendar-Apple: a crisp red
-                            "now" line with the current time on a small pill, Apple style. */}
+                        {/* Current time indicator — a crisp red "now" line with the
+                            current time on a small pill. */}
                         {isToday && (() => {
                           const nowMin = now.getHours() * 60 + now.getMinutes();
                           const top = (nowMin / 60) * HOUR_HEIGHT;
