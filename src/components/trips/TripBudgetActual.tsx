@@ -113,6 +113,8 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
   const [reloadKey, setReloadKey] = useState(0);
   const [uncommittingId, setUncommittingId] = useState<string | null>(null);
   const [uncommitError, setUncommitError] = useState<string | null>(null);
+  // PR-Trips8: plain-delete state for unlinked (manual) budget lines.
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // PR-Trips7: uncommit a BUDGETED vendor line — confirm, then call the EXISTING
   // ownership-scoped DELETE /vendor-commit (which atomically cleans budget_line_items
@@ -139,6 +141,33 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
       setUncommitError(err instanceof Error ? err.message : 'Could not remove the item');
     } finally {
       setUncommittingId(null);
+    }
+  };
+
+  // PR-Trips8: delete an UNLINKED (manual) budget line — confirm, then call the new
+  // ownership-scoped DELETE /budget-line, which removes ONLY that one row (no cascade;
+  // unlinked lines have no itinerary/calendar rows). Vendor-linked lines use the
+  // "Remove" (uncommit) path above instead — never this. On success, re-fetch the rows.
+  const handleDeleteLine = async (item: BudgetItem) => {
+    const label = item.description || item.coaCode || 'this item';
+    if (!window.confirm(`Delete ${label} from this trip's budget?`)) return;
+    setDeletingId(item.id);
+    setUncommitError(null);
+    try {
+      const res = await fetch(`/api/trips/${trip.id}/budget-line`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ budgetLineId: item.id }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Could not delete the item (HTTP ${res.status})`);
+      }
+      setReloadKey((n) => n + 1);
+    } catch (err) {
+      setUncommitError(err instanceof Error ? err.message : 'Could not delete the item');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -193,7 +222,10 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
                   <p className="truncate text-sm font-medium text-text-primary">{item.description || item.coaCode || 'Planned item'}</p>
                   <p className="mt-1 text-base font-bold text-brand-purple">{usd(amt)}</p>
                   {item.coaCode && <p className="mt-1 text-xs text-text-muted">{item.coaCode}</p>}
-                  {item.vendorOptionId && (
+                  {/* Exactly one removal path per card: vendor-linked lines uncommit
+                      ("Remove", PR-Trips7); unlinked manual lines plain-delete
+                      ("Delete", PR-Trips8). Never both. */}
+                  {item.vendorOptionId ? (
                     <button
                       type="button"
                       onClick={() => handleUncommit(item)}
@@ -201,6 +233,15 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
                       className="mt-2 w-full rounded border border-border px-2 py-1 text-xs text-text-muted transition-colors hover:bg-bg-row hover:text-brand-red disabled:opacity-50"
                     >
                       {uncommittingId === item.id ? 'Removing…' : 'Remove'}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteLine(item)}
+                      disabled={deletingId === item.id}
+                      className="mt-2 w-full rounded border border-border px-2 py-1 text-xs text-text-muted transition-colors hover:bg-bg-row hover:text-brand-red disabled:opacity-50"
+                    >
+                      {deletingId === item.id ? 'Deleting…' : 'Delete'}
                     </button>
                   )}
                 </div>
