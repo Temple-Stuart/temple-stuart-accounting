@@ -1,15 +1,54 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import Image from 'next/image';
 import LoginBox from '@/components/LoginBox';
 import ModuleLauncher from '@/components/home/ModuleLauncher';
 
 export default function LandingPage() {
+  const { data: session } = useSession();
   const [showLogin, setShowLogin] = useState(false);
-  const [loginRedirect, setLoginRedirect] = useState('/hub');
+  // PR-Auth-Home: login from the home page lands back on the home tabs (in logged-in
+  // mode), not the old /hub cockpit. (Other /hub entry points are a separate retire PR.)
+  const [loginRedirect] = useState('/');
   const [loginMode, setLoginMode] = useState<'login' | 'register'>('login');
+
+  // PR-Auth-Home: the home shell now learns who's logged in (same /api/auth/me check the
+  // rest of the app uses) so the header can switch Enter ↔ Log out. null = still loading
+  // (render a neutral placeholder, never flash the wrong action); true/false once resolved.
+  const [authed, setAuthed] = useState<boolean | null>(null);
+  const [userLabel, setUserLabel] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/auth/me')
+      .then(async (res) => {
+        if (cancelled) return;
+        setAuthed(res.ok);
+        if (res.ok) {
+          const data = await res.json().catch(() => null);
+          const u = data?.user;
+          if (u) setUserLabel(u.name || u.email?.split('@')[0] || '');
+        }
+      })
+      .catch(() => { if (!cancelled) setAuthed(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  // PR-Auth-Home: log out from the home header — the SAME recipe the app shell uses
+  // (AppLayout.handleSignOut): clear the cookie-auth cookie, sign out of next-auth if
+  // there's a session, otherwise hit the clear-cookie route. End on the home page,
+  // logged out (a full load so the header + tabs reflect the guest state cleanly).
+  const handleSignOut = async () => {
+    document.cookie = 'userEmail=; path=/; max-age=0';
+    if (session) {
+      await signOut({ callbackUrl: '/' });
+    } else {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/';
+    }
+  };
 
   return (
     <div className="min-h-screen bg-bg-terminal">
@@ -33,10 +72,27 @@ export default function LandingPage() {
               <a href="mailto:astuart@templestuart.com" className="text-xs text-text-faint hover:text-white hidden sm:block">
                 Contact
               </a>
-              <button onClick={() => { setLoginMode('login'); setShowLogin(true); }}
-                className="px-4 py-2 text-xs bg-white text-brand-purple font-medium hover:bg-bg-row">
-                Enter →
-              </button>
+              {/* PR-Auth-Home: logged in → name + Log out; logged out → Enter →. While auth
+                  is still resolving (authed === null), show an invisible placeholder so the
+                  header never flashes the wrong action or shifts width. */}
+              {authed === null ? (
+                <span className="px-4 py-2 text-xs opacity-0 select-none" aria-hidden="true">Enter →</span>
+              ) : authed ? (
+                <>
+                  {userLabel && (
+                    <span className="text-xs text-text-faint hidden sm:block">{userLabel}</span>
+                  )}
+                  <button onClick={handleSignOut}
+                    className="px-4 py-2 text-xs bg-white text-brand-purple font-medium hover:bg-bg-row">
+                    Log out
+                  </button>
+                </>
+              ) : (
+                <button onClick={() => { setLoginMode('login'); setShowLogin(true); }}
+                  className="px-4 py-2 text-xs bg-white text-brand-purple font-medium hover:bg-bg-row">
+                  Enter →
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -159,7 +215,12 @@ export default function LandingPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowLogin(false)} />
           <div className="relative z-10">
-            <LoginBox onClose={() => setShowLogin(false)} redirectTo={loginRedirect} initialMode={loginMode} />
+            <LoginBox
+              onClose={() => setShowLogin(false)}
+              onSuccess={() => { window.location.href = '/'; }}
+              redirectTo={loginRedirect}
+              initialMode={loginMode}
+            />
           </div>
         </div>
       )}
