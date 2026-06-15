@@ -79,6 +79,13 @@ export interface CalendarGridProps {
    * undefined → no-op for the other callers.
    */
   onMonthChange?: (year: number, month: number) => void;
+  /**
+   * Opt-in (PR-Calendar-Seamless): drop the outer card chrome (rounded corners, border,
+   * shadow) so the grid sits FLUSH inside a parent that already provides the frame —
+   * one continuous surface under a header band, Apple/Outlook style. Default false →
+   * the other callers keep their floating card.
+   */
+  flush?: boolean;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -180,6 +187,7 @@ export default function CalendarGrid({
   enableHubChrome = false,
   phoneDayOnly = false,
   onMonthChange,
+  flush = false,
 }: CalendarGridProps) {
   const router = useRouter();
   const now = new Date();
@@ -359,7 +367,7 @@ export default function CalendarGrid({
   // ═══════════════════════════════════════════════════════════════
 
   return (
-    <div className={`bg-white ${hubMobileToolbar ? 'rounded-lg' : 'rounded'} border border-border overflow-hidden shadow-sm`}>
+    <div className={flush ? 'bg-white overflow-hidden' : `bg-white ${hubMobileToolbar ? 'rounded-lg' : 'rounded'} border border-border overflow-hidden shadow-sm`}>
       {/* Mobile auto-default to Day view (PR-Ops-Cal-4) — opt-in only.
           Mounting the controller only when enableDayView keeps the responsive
           hook/listener off the prop-off path entirely. */}
