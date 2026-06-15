@@ -312,6 +312,10 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
     );
   };
 
+  // PR-TG1: the Travel ModuleDef, fed to renderBody from Travel's own dedicated block
+  // (now that Travel is pulled out of MODULES.map). label/live/blurb are unchanged.
+  const travelModule = MODULES.find((m) => m.key === 'travel')!;
+
   return (
     <>
       {/* PR-Mobile2: bottom padding so the fixed mobile tab bar never covers the last
@@ -366,7 +370,61 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
           </div>
         </section>
       )}
-      {MODULES.map((m, i) => (
+      {/* PR-TG1: Travel gets its own dedicated block (mirrors the calendar above) — pulled
+          OUT of MODULES.map so it sheds the generic purple band + rounded card + wide
+          container inset + py-10 gap. It sits FLUSH under the tab row and runs EDGE-TO-EDGE
+          full width, same as the calendar (centered max-w only on huge desktop). The
+          1-2-3-4 body order (renderBody) is unchanged; the search stack follows. The other
+          5 modules stay in MODULES.map with their bands. */}
+      <section className={`w-full bg-white border-b border-border ${activeModule === 'travel' ? 'block' : 'hidden'}`}>
+        <div className="max-w-7xl mx-auto">
+          {/* The "Free · guest ok" signal used to live in the band's tag — relocated here
+              as a tiny tag (like the calendar's "live demo" tag) so the guest signal
+              survives the band's removal. */}
+          <p className="px-4 pt-2 text-[10px] font-semibold uppercase tracking-wider text-brand-purple">
+            Free · guest ok
+          </p>
+          <div className="px-4 pb-4 space-y-6">
+            {/* 1·Create-a-trip → 2·Your trips → 3·Budgeted+Actual (renderBody, order
+                unchanged), with the intro tucked tight above it. */}
+            <div>
+              {MODULE_INTROS.travel && <ModuleIntro paragraphs={MODULE_INTROS.travel} />}
+              {renderBody(travelModule)}
+            </div>
+            {/* 4·The search tools, stacked: flights → hotels → [Ground, coming soon] →
+                activities → visa (live) → [Insurance, eSIM, Events — coming soon]. The
+                live searches keep their own explainers + logic; the ComingSoonSection
+                rows are STATIC promises (no fetch/state). */}
+            <PublicFlightSearch onRequireAuth={onRequireAuth} />
+            <PublicHotelSearch onRequireAuth={onRequireAuth} />
+            <ComingSoonSection
+              title="Getting around"
+              explainer="Airport rides and transfers, booked and budgeted with your trip."
+            />
+            <PublicActivitySearch onRequireAuth={onRequireAuth} />
+            <PublicVisaCheck />
+            <ComingSoonSection
+              title="Travel insurance"
+              explainer="Cover your trip — medical, delays, lost bags — priced into your budget."
+            />
+            <ComingSoonSection
+              title="Stay connected"
+              explainer="Get data the moment you land, no hunting for a SIM."
+            />
+            <ComingSoonSection
+              title="Events"
+              explainer="Concerts, shows, and live events wherever you're headed."
+            />
+          </div>
+        </div>
+      </section>
+      {MODULES.map((m, i) => {
+        // PR-TG1: Travel now renders in its own flush, edge-to-edge block above (out of
+        // this map, no purple band). Skip it here so it never double-renders. Returning
+        // null keeps the index `i` stable for the other 5 modules, so their alternating
+        // bg (bg-row / white) is byte-identical to before.
+        if (m.key === 'travel') return null;
+        return (
         <section key={m.key} className={`w-full py-10 ${i % 2 === 1 ? 'bg-bg-row' : 'bg-white'} border-b border-border ${activeModule === (MODULE_TO_TAB[m.key] ?? m.key) ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto px-4 lg:px-8 space-y-6">
             <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
@@ -381,46 +439,10 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
                 {renderBody(m)}
               </div>
             </div>
-            {/* PR-T-Layout + PR-A3 + PR-T-Placeholders: top-to-bottom travel stack
-                is Create-a-trip bar (the card above) → flights → hotels → [Ground,
-                coming soon] → activities → [Visa, Insurance, eSIM, Events — coming
-                soon]. The live searches keep their own explainers + logic; the
-                ComingSoonSection rows are STATIC promises (no fetch/state). */}
-            {m.key === 'travel' && <PublicFlightSearch onRequireAuth={onRequireAuth} />}
-            {m.key === 'travel' && <PublicHotelSearch onRequireAuth={onRequireAuth} />}
-            {/* GROUND placeholder — slots between Hotels and Activities (the live
-                ground search, Mozio, lands here in a future PR). */}
-            {m.key === 'travel' && (
-              <ComingSoonSection
-                title="Getting around"
-                explainer="Airport rides and transfers, booked and budgeted with your trip."
-              />
-            )}
-            {m.key === 'travel' && <PublicActivitySearch onRequireAuth={onRequireAuth} />}
-            {/* PR-V4: the live visa check replaces the "Visas & entry" placeholder.
-                Post-Activities order: Visa (live) → Insurance → eSIM → Events. */}
-            {m.key === 'travel' && <PublicVisaCheck />}
-            {m.key === 'travel' && (
-              <ComingSoonSection
-                title="Travel insurance"
-                explainer="Cover your trip — medical, delays, lost bags — priced into your budget."
-              />
-            )}
-            {m.key === 'travel' && (
-              <ComingSoonSection
-                title="Stay connected"
-                explainer="Get data the moment you land, no hunting for a SIM."
-              />
-            )}
-            {m.key === 'travel' && (
-              <ComingSoonSection
-                title="Events"
-                explainer="Concerts, shows, and live events wherever you're headed."
-              />
-            )}
           </div>
         </section>
-      ))}
+        );
+      })}
       </div>
 
       {/* PR-Mobile2 + PR-Edge-A: the fixed mobile bottom tab bar — phone only
