@@ -41,6 +41,10 @@ interface Props {
   /** PR-Trips3: called with the deleted trip id after a successful delete, so the
    *  parent re-fetches the list and clears the selection if it was the current trip. */
   onDeleted?: (tripId: string) => void;
+  /** PR-Trip-Modal: an action rendered in the header's upper-right (next to the
+   *  trip count) — the home Travel block passes the "+ Create a trip" button that
+   *  opens the create form in a modal. */
+  headerAction?: React.ReactNode;
 }
 
 function formatRange(start: string | null, end: string | null): string {
@@ -49,7 +53,7 @@ function formatRange(start: string | null, end: string | null): string {
   return end ? `${fmt(start)} – ${fmt(end)}` : fmt(start);
 }
 
-export default function AllTripsList({ refreshSignal = 0, onSelect, selectedTripId = null, onDeleted }: Props) {
+export default function AllTripsList({ refreshSignal = 0, onSelect, selectedTripId = null, onDeleted, headerAction }: Props) {
   const [trips, setTrips] = useState<TripRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -95,9 +99,12 @@ export default function AllTripsList({ refreshSignal = 0, onSelect, selectedTrip
 
   return (
     <div className="mt-6">
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between gap-3">
         <p className="text-lg font-bold text-brand-purple">Your trips</p>
-        {!loading && !error && <span className="text-xs text-text-muted">{trips.length} {trips.length === 1 ? 'trip' : 'trips'}</span>}
+        <div className="flex items-center gap-3">
+          {!loading && !error && <span className="text-xs text-text-muted">{trips.length} {trips.length === 1 ? 'trip' : 'trips'}</span>}
+          {headerAction}
+        </div>
       </div>
 
       {loading && <p className="text-sm text-text-muted">Loading your trips…</p>}
@@ -105,7 +112,7 @@ export default function AllTripsList({ refreshSignal = 0, onSelect, selectedTrip
 
       {!loading && !error && trips.length === 0 && (
         <p className="rounded-lg border border-border bg-bg-row p-4 text-sm text-text-muted">
-          No trips yet. Make one above and it shows up here.
+          No trips yet. Tap &ldquo;+ Create a trip&rdquo; and it shows up here.
         </p>
       )}
 
