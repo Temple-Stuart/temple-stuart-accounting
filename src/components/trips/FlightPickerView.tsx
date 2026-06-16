@@ -84,6 +84,10 @@ export interface FlightPickerViewProps {
   /** The "Save to trip" action (container-owned). */
   onCommitLeg: (legId: string) => void;
   onUncommitLeg: (legId: string) => void;
+  /** PR-Duffel-Pay-3: "Book" (pay now) — opens the FlightCheckoutPanel for the leg's
+   *  selected offer (container-owned). Optional: only shown when wired (the public flight
+   *  search passes it). Guest-ok, mirroring the hotel Book. */
+  onBookLeg?: (legId: string) => void;
   /** PR-Travel-Cleanup: show the manual "enter flight details" block (Airline/Price/times
    *  + "Use This"). Default true (the authed in-trip picker keeps it for "booked
    *  elsewhere"). The public home flight search passes false — guests use Duffel only. */
@@ -107,6 +111,7 @@ export default function FlightPickerView({
   onSubmitManual,
   onCommitLeg,
   onUncommitLeg,
+  onBookLeg,
   enableManualEntry = true,
 }: FlightPickerViewProps) {
   const totalCommitted = legs.filter(l => l.committed).reduce((s, l) => s + (l.selectedOffer?.price || 0), 0);
@@ -335,6 +340,14 @@ export default function FlightPickerView({
                           className="px-3 py-1.5 text-xs font-semibold rounded border border-brand-purple bg-white text-brand-purple transition-colors hover:bg-brand-purple-wash disabled:opacity-50">
                           {committing === leg.id ? 'Saving…' : 'Save to trip'}
                         </button>
+                        {/* PR-Duffel-Pay-3: Book = pay now (primary, solid), alongside Save to
+                            trip = plan it. Real Duffel offers only (not manual entries). Guest-ok. */}
+                        {onBookLeg && !leg.selectedOffer.isManual && (
+                          <button onClick={() => onBookLeg(leg.id)}
+                            className="px-3 py-1.5 text-xs font-semibold rounded bg-brand-purple text-white transition-colors hover:bg-brand-purple/90">
+                            Book
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
