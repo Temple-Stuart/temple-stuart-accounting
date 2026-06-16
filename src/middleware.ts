@@ -81,6 +81,9 @@ const PUBLIC_PATHS = [
   // the hotel book routes above). Guarded by a per-IP rate limit + a tight durable
   // daily cap, and pinned to Duffel TEST mode this PR.
   '/api/flights/book',
+  // PR-Duffel-Pay-2: the payment-intent step (returns the Card component's client_token)
+  // is part of the same guest-ok checkout — public, rate-limited, TEST mode.
+  '/api/flights/payment-intent',
 ];
 
 function isPublic(pathname: string): boolean {
