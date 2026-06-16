@@ -5,6 +5,7 @@ import {
   createOrder,
   createPaymentIntent,
   confirmPaymentIntent,
+  getPaymentIntent,
   applyMarkup,
   duffelMode,
   type PassengerDetails,
@@ -54,7 +55,10 @@ export async function POST(request: NextRequest) {
     void user; // resolved for forward-compat (trip-linking lands with the UI in PR-2)
 
     const body = await request.json();
-    const { offerId, passengers, idempotencyKey } = body;
+    // paymentIntentId is present on the PR-2 panel/component flow (the Duffel Card
+    // component already collected the card + confirmed the intent client-side). When
+    // absent, the PR-1 server-side test path creates + confirms the intent here.
+    const { offerId, passengers, idempotencyKey, paymentIntentId } = body;
 
     if (!offerId || !passengers || passengers.length === 0) {
       return NextResponse.json(
@@ -104,22 +108,40 @@ export async function POST(request: NextRequest) {
         email: paxDetails.email,
         phone_number: paxDetails.phone_number || paxDetails.phone,
         gender: paxDetails.gender || 'm',
+        // Passport — passed through ONLY when collected (international itineraries).
+        ...(paxDetails.identity_documents ? { identity_documents: paxDetails.identity_documents } : {}),
       };
     });
 
-    // ── DUFFEL PAYMENTS: intent → confirm → order ──────────────────────────────────
+    // ── DUFFEL PAYMENTS — two shapes, both ending in createOrder(instant, balance) ──
+    //  (A) PR-2 panel/component flow: paymentIntentId present. The Duffel Card component
+    //      already collected the card + confirmed the intent client-side; we VERIFY the
+    //      intent succeeded SERVER-SIDE (never trust the client) — no re-charge here.
+    //  (B) PR-1 server-side test path: no paymentIntentId → create + confirm here.
     // Markup is a CONFIG POINT (applyMarkup) — 0 for now; finance owns it later.
-    const intentAmount = applyMarkup(offer.total_amount);
-    const intent = await createPaymentIntent(intentAmount, offer.total_currency, idempotencyKey);
-    const confirmed = await confirmPaymentIntent(intent.id);
-    if (confirmed.status !== 'succeeded') {
-      // Card was not captured — do NOT create an order (never a fake success).
-      return NextResponse.json(
-        { error: 'Payment was not completed. Please try a different card.' },
-        { status: 402 }
-      );
+    if (paymentIntentId) {
+      const intent = await getPaymentIntent(paymentIntentId);
+      if (intent.status !== 'succeeded') {
+        // The component did not complete the charge — do NOT order (never fake success).
+        return NextResponse.json(
+          { error: 'Payment was not completed. Please try again.' },
+          { status: 402 }
+        );
+      }
+      paymentConfirmed = true;
+    } else {
+      const intentAmount = applyMarkup(offer.total_amount);
+      const intent = await createPaymentIntent(intentAmount, offer.total_currency, idempotencyKey);
+      const confirmed = await confirmPaymentIntent(intent.id);
+      if (confirmed.status !== 'succeeded') {
+        // Card was not captured — do NOT create an order (never a fake success).
+        return NextResponse.json(
+          { error: 'Payment was not completed. Please try a different card.' },
+          { status: 402 }
+        );
+      }
+      paymentConfirmed = true;
     }
-    paymentConfirmed = true;
 
     // Pay the order from balance (now funded by the customer's confirmed intent).
     const order = await createOrder(

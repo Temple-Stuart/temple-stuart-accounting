@@ -112,6 +112,13 @@ export async function getOffer(offerId: string) {
 // ═══════════════════════════════════════════════════════════════════
 // CREATE ORDER - Book the flight
 // ═══════════════════════════════════════════════════════════════════
+export interface IdentityDocument {
+  type: 'passport';
+  unique_identifier: string;       // passport number
+  expires_on?: string;             // YYYY-MM-DD
+  issuing_country_code?: string;   // ISO 3166-1 alpha-2
+}
+
 export interface PassengerDetails {
   id: string;
   title: 'mr' | 'ms' | 'mrs' | 'miss' | 'dr';
@@ -121,6 +128,9 @@ export interface PassengerDetails {
   email: string;
   phone_number: string;
   gender: 'm' | 'f';
+  // Optional — required by Duffel for INTERNATIONAL itineraries. Passed through only
+  // when collected (domestic test offers don't need it).
+  identity_documents?: IdentityDocument[];
 }
 
 export interface PaymentDetails {
@@ -232,6 +242,25 @@ export async function confirmPaymentIntent(intentId: string): Promise<PaymentInt
     const error = await response.json().catch(() => ({}));
     console.error('Duffel payment confirm error:', error?.errors?.[0]?.code || 'unknown');
     throw new Error(error.errors?.[0]?.message || 'Payment confirmation failed');
+  }
+
+  const data = await response.json();
+  return data.data;
+}
+
+// Read a Payment Intent's status. Used by the book route to VERIFY (server-side) that
+// the frontend Card component (PR-2) actually confirmed the payment before an order is
+// created — we never trust the client's word that money moved.
+export async function getPaymentIntent(intentId: string): Promise<PaymentIntent> {
+  const response = await fetch(
+    `${DUFFEL_API_URL}/payments/payment_intents/${intentId}`,
+    { method: 'GET', headers: getHeaders() },
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    console.error('Duffel payment intent fetch error:', error?.errors?.[0]?.code || 'unknown');
+    throw new Error(error.errors?.[0]?.message || 'Payment lookup failed');
   }
 
   const data = await response.json();
