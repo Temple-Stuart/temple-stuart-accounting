@@ -5,11 +5,15 @@ import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import Image from 'next/image';
 import LoginBox from '@/components/LoginBox';
-import ModuleLauncher from '@/components/home/ModuleLauncher';
+import ModuleLauncher, { TAB_DESCRIPTORS } from '@/components/home/ModuleLauncher';
 
 export default function LandingPage() {
   const { data: session } = useSession();
   const [showLogin, setShowLogin] = useState(false);
+  // PR-Hero-PerTab: the hero subhead swaps with the active tab. ModuleLauncher owns the
+  // tabs and reports the active one via onTabChange; this mirror drives the hero copy.
+  // Default 'calendar' matches ModuleLauncher's initial tab (no flash, no mismatch).
+  const [activeTab, setActiveTab] = useState('calendar');
   // PR-Auth-Home: login from the home page lands back on the home tabs (in logged-in
   // mode), not the old /hub cockpit. (Other /hub entry points are a separate retire PR.)
   const [loginRedirect] = useState('/');
@@ -107,8 +111,11 @@ export default function LandingPage() {
               Plan your life.<br />
               <span className="text-text-faint">Act smarter.</span>
             </h1>
-            <p className="text-text-faint text-terminal-lg mb-8 max-w-xl">
-              Plan your trips, projects, and routines. Track your trades, books, and taxes. Stay on top of budgets and compliance &mdash; all in one place.
+            {/* PR-Hero-PerTab: the subhead swaps to the active tab's descriptor. min-h
+                reserves space so the Get Started button never jumps as the line changes
+                length. The headline above + Get Started below are unchanged. */}
+            <p className="text-text-faint text-terminal-lg mb-8 max-w-xl min-h-[4rem]">
+              {TAB_DESCRIPTORS[activeTab]}
             </p>
             <div className="flex items-center gap-4">
               <button onClick={() => { setLoginMode('register'); setShowLogin(true); }}
@@ -124,7 +131,10 @@ export default function LandingPage() {
           is live + guest-usable (shared CreateTripForm; saving is register-gated
           via the existing LoginBox modal). The 5 paid pills are stubs. Nothing
           below is removed — old landing content is HOME-PR-2. */}
-      <ModuleLauncher onRequireAuth={() => { setLoginMode('register'); setShowLogin(true); }} />
+      <ModuleLauncher
+        onRequireAuth={() => { setLoginMode('register'); setShowLogin(true); }}
+        onTabChange={setActiveTab}
+      />
 
       {/* CPA Disclaimer */}
       <section className="bg-brand-purple py-8">

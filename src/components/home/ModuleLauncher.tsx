@@ -72,7 +72,7 @@ const MODULE_TO_TAB: Record<string, string> = {
 // swapped by activeModule (this replaces the old per-panel "How it works" collapsibles).
 // Keyed by TAB key (the activeModule values). Calendar + Travel are the lines we wrote;
 // the rest are the first sentence of each module's prior intro copy.
-const TAB_DESCRIPTORS: Record<string, string> = {
+export const TAB_DESCRIPTORS: Record<string, string> = {
   calendar: 'Your whole life lands here — trips, projects, routines, trades, and every dollar you plan or spend.',
   travel: 'Book your flights, hotels, things to do, and ground transportation — competitive prices, real times, real data.',
   trade: "Tell the scanner what you're hunting, and it pulls live prices from TastyTrade, company numbers from Finnhub, economy data from FRED, official filings from SEC EDGAR, and the mood online from Grok.",
@@ -86,9 +86,12 @@ interface Props {
   /** Opens the existing register/login modal on the home page. Called when a
    *  guest tries to save a trip, or clicks a paid module's "Launch" button. */
   onRequireAuth: () => void;
+  /** PR-Hero-PerTab: notifies the parent (page.tsx) of the active tab so the hero
+   *  subhead up top can swap to that tab's descriptor. Optional/additive. */
+  onTabChange?: (tab: string) => void;
 }
 
-export default function ModuleLauncher({ onRequireAuth }: Props) {
+export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   const router = useRouter();
   // Auth state: null = unknown (initial), true/false once /api/auth/me resolves.
   const [authed, setAuthed] = useState<boolean | null>(null);
@@ -107,6 +110,9 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
   // not touch any existing state (authed/currentTrip/tripsRefresh/scanner). Default the
   // master calendar.
   const [activeModule, setActiveModule] = useState('calendar');
+  // PR-Hero-PerTab: switch the active tab AND tell the parent, so the hero subhead up top
+  // (page.tsx) reflects the same tab. Both tab bars (desktop + mobile) route through this.
+  const selectTab = (key: string) => { setActiveModule(key); onTabChange?.(key); };
 
   useEffect(() => {
     let cancelled = false;
@@ -267,7 +273,7 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
             <button
               key={t.key}
               type="button"
-              onClick={() => setActiveModule(t.key)}
+              onClick={() => selectTab(t.key)}
               aria-current={activeModule === t.key ? 'page' : undefined}
               className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${activeModule === t.key ? 'border-brand-purple text-brand-purple' : 'border-transparent text-text-muted hover:text-text-primary'}`}
             >
@@ -277,16 +283,6 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
           ))}
         </div>
       </nav>
-      {/* PR-PerTab-Descriptor: one descriptor line under the tab row that swaps with the
-          active tab (replaces the old per-panel "How it works" collapsibles). The hero
-          subhead up top is separate and stays. */}
-      {TAB_DESCRIPTORS[activeModule] && (
-        <div className="w-full bg-white border-b border-border">
-          <div className="max-w-7xl mx-auto px-4 py-3 lg:px-8">
-            <p className="text-sm leading-relaxed text-text-secondary">{TAB_DESCRIPTORS[activeModule]}</p>
-          </div>
-        </div>
-      )}
       {/* HOME-PR-7: each module is its own FULL-WIDTH band with an ALTERNATING
           background (white / light-gray bg-bg-row) + generous vertical padding,
           so the six read as distinct breathing sections (the old marketing
@@ -409,7 +405,7 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
           <button
             key={t.key}
             type="button"
-            onClick={() => setActiveModule(t.key)}
+            onClick={() => selectTab(t.key)}
             aria-current={activeModule === t.key ? 'page' : undefined}
             className={`flex min-h-[44px] min-w-[64px] flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] font-medium transition-colors ${activeModule === t.key ? 'text-brand-purple' : 'text-text-muted'}`}
           >
