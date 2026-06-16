@@ -79,10 +79,15 @@ export interface FlightPickerViewProps {
   onAddLeg: () => void;
   /** Triggers the PAID Duffel search (container-owned). */
   onSearchLeg: (legId: string) => void;
-  onSubmitManual: (legId: string) => void;
+  /** Optional — only needed when the manual-entry block is shown (see enableManualEntry). */
+  onSubmitManual?: (legId: string) => void;
   /** The BOOK / "Commit to Budget" action (container-owned). */
   onCommitLeg: (legId: string) => void;
   onUncommitLeg: (legId: string) => void;
+  /** PR-Travel-Cleanup: show the manual "enter flight details" block (Airline/Price/times
+   *  + "Use This"). Default true (the authed in-trip picker keeps it for "booked
+   *  elsewhere"). The public home flight search passes false — guests use Duffel only. */
+  enableManualEntry?: boolean;
 }
 
 const formatStops = (stops: number) => {
@@ -102,6 +107,7 @@ export default function FlightPickerView({
   onSubmitManual,
   onCommitLeg,
   onUncommitLeg,
+  enableManualEntry = true,
 }: FlightPickerViewProps) {
   const totalCommitted = legs.filter(l => l.committed).reduce((s, l) => s + (l.selectedOffer?.price || 0), 0);
 
@@ -208,16 +214,15 @@ export default function FlightPickerView({
                     <div className="p-2 bg-red-50 border border-red-200 rounded text-red-600 text-xs">{leg.error}</div>
                   )}
 
-                  {/* Manual entry */}
+                  {/* Manual entry (booked elsewhere) — PR-Travel-Cleanup: the Google
+                      Flights / Kayak competitor links are removed everywhere; the whole
+                      block is hidden on the public home (enableManualEntry={false}), kept
+                      on the authed in-trip picker. */}
+                  {enableManualEntry && (
                   <div className="p-3 bg-bg-row border border-border rounded">
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="mb-2">
                       <div className="text-xs text-text-secondary font-medium">
                         {leg.offers.length === 0 && !leg.loading ? 'Enter flight details manually:' : 'Or enter manually (booked elsewhere):'}
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-[10px] text-text-faint">Search on:</span>
-                        <a href="https://www.google.com/flights" target="_blank" rel="noopener noreferrer" className="text-[10px] text-brand-purple">Google Flights ↗</a>
-                        <a href="https://www.kayak.com/flights" target="_blank" rel="noopener noreferrer" className="text-[10px] text-brand-purple">Kayak ↗</a>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
@@ -235,12 +240,13 @@ export default function FlightPickerView({
                       <input type="date" value={leg.manualArriveDate} onChange={e => onUpdateLeg(leg.id, { manualArriveDate: e.target.value })}
                         min={leg.departureDate}
                         className="w-[130px] bg-white border border-border rounded px-2 py-1.5 text-xs" title="Arrival date (if next day)" />
-                      <button onClick={() => onSubmitManual(leg.id)} disabled={!leg.manualPrice}
+                      <button onClick={() => onSubmitManual?.(leg.id)} disabled={!leg.manualPrice}
                         className="px-3 py-1.5 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700 disabled:opacity-50">
                         Use This
                       </button>
                     </div>
                   </div>
+                  )}
 
                   {/* Search results */}
                   {leg.loading ? (

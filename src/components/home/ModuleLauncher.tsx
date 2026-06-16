@@ -175,6 +175,9 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       // (passed as onUnauthenticated) opens the login popup for logged-out guests.
       return (
         <div className="space-y-3">
+          {/* PR-Travel-Cleanup: the create form was headerless (showHeader={false}); add a
+              "Create a trip" header to match the "Your trips" / "Search real flights" sections. */}
+          <p className="text-lg font-bold text-brand-purple">Create a trip</p>
           <p className="text-sm text-text-muted">
             Start a trip and we&apos;ll help you plan, book, and budget it — sign up free to save it.
           </p>
