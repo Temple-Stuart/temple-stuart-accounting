@@ -33,9 +33,23 @@ interface CalendarEvent {
   icon: string | null;
   start_date: string;
   end_date: string | null;
+  // PR-Calendar-Times-Schema: time-of-day for timed events. Null for older/all-day rows.
+  // From a raw SELECT these come back either as "HH:MM:SS" or an ISO time
+  // ("1970-01-01THH:MM:SS.000Z") — toClock() normalizes both to "HH:MM".
+  start_time: string | null;
+  end_time: string | null;
   is_recurring: boolean;
   location: string | null;
   budget_amount: number;
+}
+
+// Normalize a raw TIME value to "HH:MM" (what the grid's timeToMinutes expects), or null.
+// Handles "HH:MM:SS", a bare "HH:MM", and an ISO time string; null/empty → null (all-day).
+function toClock(v: string | null): string | null {
+  if (!v) return null;
+  const timePart = v.includes('T') ? v.split('T')[1] : v;
+  const m = timePart.match(/^(\d{2}):(\d{2})/);
+  return m ? `${m[1]}:${m[2]}` : null;
 }
 
 // The four calendar layers + their grid styling: Trips · Projects · Routines · Trade.
@@ -153,6 +167,10 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
       icon: e.icon,
       startDate: e.start_date,
       endDate: e.end_date,
+      // PR-Flight-Times: carry the stored times through so the grid renders a timed block
+      // (wheels-up → wheels-down). Null times → undefined → all-day, exactly as before.
+      startTime: toClock(e.start_time),
+      endTime: toClock(e.end_time),
       isRecurring: e.is_recurring,
       location: e.location,
       budgetAmount: e.budget_amount,
