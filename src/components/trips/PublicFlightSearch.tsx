@@ -160,6 +160,9 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
       const departTime = offer.outbound?.departure?.localTime || undefined;
       const arriveTime = offer.outbound?.arrival?.localTime || undefined;
       const arriveDate = offer.outbound?.arrival?.date || undefined;
+      // PR-Flight-Duration-1: Duffel's TRUE elapsed minutes (already parsed) so the calendar
+      // can draw depart+duration instead of a naive cross-zone span (PR-2 renders it).
+      const durationMinutes = offer.outbound?.durationMinutes ?? undefined;
 
       const res = await fetch(`/api/trips/${currentTrip.id}/vendor-commit`, {
         method: 'POST',
@@ -174,6 +177,7 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
           startTime: departTime,
           endTime: arriveTime,
           arriveDate,
+          durationMinutes,
         }),
       });
       if (!res.ok) {

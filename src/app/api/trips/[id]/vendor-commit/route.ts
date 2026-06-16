@@ -88,7 +88,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const { optionType, optionId, startDate, endDate, startTime, endTime, arriveDate, notes, amount: requestAmount, location: requestLocation, synthetic, category,
       // PR 3 — commit-time capture (all optional; absent = old client → derive/default):
-      recurrence: recurrenceInput, coa_code: coaCodeInput, vendor_name: vendorNameInput } = await request.json();
+      recurrence: recurrenceInput, coa_code: coaCodeInput, vendor_name: vendorNameInput,
+      // PR-Flight-Duration-1: the flight's true elapsed minutes (Duffel). Flights only; null otherwise.
+      durationMinutes: durationMinutesInput } = await request.json();
+    const durationMinutes = optionType === 'flight' && Number.isFinite(durationMinutesInput)
+      ? Math.round(durationMinutesInput)
+      : null;
 
     // PR 3: validate the user-selected COA against the canonical travel account
     // list — NO free-text COA codes. Absent is fine (server derives, below);
@@ -267,6 +272,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             destDate: flightArriveDate, destTime: endTime || null,
             category: optionType, vendor: details.title, cost: Math.round(details.amount * 100) / 100,
             note: notes || null, location: activityLocation, vendorOptionId: optionId, vendorOptionType: optionType,
+            // PR-Flight-Duration-1: the true elapsed minutes (Duffel) — render depart+duration (PR-2).
+            duration_minutes: durationMinutes,
           },
         });
         itineraryEntries.push(entry);
@@ -348,8 +355,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const calEndTime = isFlight ? (endTime || null) : null;     // arrive (wheels-down), "HH:MM"
     try {
       await prisma.$queryRaw`
-        INSERT INTO calendar_events (user_id, source, source_id, title, category, icon, color, start_date, end_date, start_time, end_time, is_recurring, coa_code, budget_amount)
-        VALUES (${user.id}, 'trip', ${calSourceId}, ${calTitle}, 'trip', ${calIcon}, 'cyan', ${calStart}, ${calEnd}, ${calStartTime}::time, ${calEndTime}::time, false, ${result.budgetItem.coaCode}, ${Math.round(result.details.amount)})
+        INSERT INTO calendar_events (user_id, source, source_id, title, category, icon, color, start_date, end_date, start_time, end_time, is_recurring, coa_code, budget_amount, duration_minutes)
+        VALUES (${user.id}, 'trip', ${calSourceId}, ${calTitle}, 'trip', ${calIcon}, 'cyan', ${calStart}, ${calEnd}, ${calStartTime}::time, ${calEndTime}::time, false, ${result.budgetItem.coaCode}, ${Math.round(result.details.amount)}, ${durationMinutes})
       `;
     } catch (calErr) {
       console.error('Calendar event insert failed (non-fatal):', calErr);
