@@ -148,28 +148,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Press */}
-      <section className="bg-white border-t border-border py-8">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8">
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 text-center">
-            <span className="text-[10px] text-text-faint uppercase tracking-wider">Featured in</span>
-            <div className="flex items-center gap-6">
-              <a href="https://www.nytimes.com/2025/09/13/business/chatgpt-financial-advice.html"
-                target="_blank" rel="noopener noreferrer"
-                className="text-text-faint hover:text-text-secondary transition-colors">
-                <span className="font-serif text-sm italic">The New York Times</span>
-              </a>
-              <span className="text-text-faint">·</span>
-              <a href="https://www.straitstimes.com/business/they-had-money-problems-they-turned-to-chatgpt-for-solutions"
-                target="_blank" rel="noopener noreferrer"
-                className="text-text-faint hover:text-text-secondary transition-colors">
-                <span className="font-serif text-sm italic">The Straits Times</span>
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Social */}
       <section className="bg-brand-purple text-white py-8">
         <div className="max-w-7xl mx-auto px-4 lg:px-8">
