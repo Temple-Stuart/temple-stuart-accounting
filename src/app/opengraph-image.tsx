@@ -73,12 +73,6 @@ export default async function Image() {
             <span style={{ color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px' }}>Powered</span>
           </div>
         </div>
-
-        {/* Press mention */}
-        <div style={{ display: 'flex', marginTop: '24px', alignItems: 'center' }}>
-          <span style={{ color: '#6b7280', fontSize: '12px', marginRight: '10px' }}>Featured in</span>
-          <span style={{ color: '#9ca3af', fontSize: '14px', fontStyle: 'italic' }}>The New York Times</span>
-        </div>
       </div>
     ),
     { ...size }
