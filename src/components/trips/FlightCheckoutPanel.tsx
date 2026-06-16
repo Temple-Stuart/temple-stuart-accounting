@@ -93,6 +93,12 @@ export default function FlightCheckoutPanel({ offer, passengerCount, onClose, on
   const [bookingRef, setBookingRef] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [chargedNoOrder, setChargedNoOrder] = useState(false);
+  // PR-Flight-Panel-ErrorState: the "charged but no order" banner must NEVER show until a
+  // real card-payment success has actually run the order step. This flag is the explicit
+  // precondition — false on open and through the whole form + card-entry flow, set true
+  // only inside finalizeOrder (which only runs from a genuine Duffel card success). Without
+  // it the alarming banner is gated on chargedNoOrder alone, with no proof a charge happened.
+  const [paymentAttempted, setPaymentAttempted] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const setPax = (i: number, patch: Partial<Passenger>) =>
@@ -156,6 +162,7 @@ export default function FlightCheckoutPanel({ offer, passengerCount, onClose, on
   // STEP 4 — the Card component confirmed the payment; create the order from balance.
   const finalizeOrder = async () => {
     setPhase('booking');
+    setPaymentAttempted(true); // a genuine card-payment success reached the order step
     setError(null);
     setChargedNoOrder(false);
     try {
@@ -200,7 +207,7 @@ export default function FlightCheckoutPanel({ offer, passengerCount, onClose, on
         </p>
       )}
 
-      {chargedNoOrder && (
+      {paymentAttempted && chargedNoOrder && (
         <p className="mb-3 rounded border border-brand-red/40 bg-bg-row px-3 py-2 text-sm text-brand-red">
           Your card was charged but the booking did not finalize. Please contact support —
           we will refund or complete it. Do not pay again.
