@@ -672,6 +672,11 @@ model trip_itinerary {
   block_end_time   DateTime? @db.Time(6) // daily window end (time-of-day)
   coa_code         String?   @db.VarChar(20)
   vendor_name      String?   @db.VarChar(255)
+  // PR-Flight-Duration-1: the flight's TRUE elapsed minutes from Duffel (slice.duration,
+  // e.g. PT19H5M → 1145). Lets the calendar draw depart+duration instead of a naive
+  // cross-zone span (PR-2). Nullable — flights only; null on hotels/manual/old rows.
+  // Manual SQL: prisma/migrations-manual/flight_duration_minutes.sql.
+  duration_minutes Int?
 
   trip trips @relation(fields: [tripId], references: [id], onDelete: Cascade)
 
@@ -1343,6 +1348,11 @@ model calendar_events {
   longitude       Decimal?  @db.Decimal(10, 7)
   coa_code        String?   @db.VarChar(50)
   budget_amount   Int?      @default(0)
+  // PR-Flight-Duration-1: the flight's TRUE elapsed minutes (Duffel slice.duration). The
+  // calendar renders depart+duration from this (PR-2), fixing the naive cross-zone span.
+  // Nullable — flights only; null on hotels/manual/old rows. Manual SQL:
+  // prisma/migrations-manual/flight_duration_minutes.sql.
+  duration_minutes Int?
   status          String?   @default("committed") @db.VarChar(20)
   created_at      DateTime? @default(now()) @db.Timestamp(6)
   updated_at      DateTime? @default(now()) @db.Timestamp(6)
