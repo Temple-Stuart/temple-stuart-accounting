@@ -246,6 +246,10 @@ export default function FlightPicker({
       const departTime = offer.outbound?.departure?.localTime || undefined;
       const arriveTime = offer.outbound?.arrival?.localTime || undefined;
       const arriveDate = offer.outbound?.arrival?.date || undefined;
+      // PR-Flight-Duration-Capture-AllPaths: Duffel's true elapsed minutes (parsed at
+      // duffel.ts:307), mirroring PublicFlightSearch.tsx:165,180 so this in-trip path also
+      // stores duration_minutes. undefined for manual offers → vendor-commit gate stores null.
+      const durationMinutes = offer.outbound?.durationMinutes ?? undefined;
 
       const res = await fetch(`/api/trips/${tripId}/vendor-commit`, {
         method: 'POST',
@@ -260,6 +264,7 @@ export default function FlightPicker({
           startTime: departTime,
           endTime: arriveTime,
           arriveDate,
+          durationMinutes,
         }),
       });
 
