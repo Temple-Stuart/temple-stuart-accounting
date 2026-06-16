@@ -144,8 +144,13 @@ function getBlocksForDay(dayKey: string, events: CalendarEvent[]): DayBlock[] {
 
   for (const event of events) {
     if (!event.startTime) continue;
-    const evtStartKey = event.startDate;
-    const evtEndKey = event.endDate || event.startDate;
+    // Normalize to the SAME "YYYY-MM-DD" key dayKey uses (dateToKey). event.startDate/endDate
+    // can arrive as a full ISO datetime — trip events come from calendar_events (@db.Date),
+    // serialized as "2026-07-01T00:00:00.000Z" — and comparing that raw against dayKey
+    // ("2026-07-01") silently failed, so timed trip blocks were dropped entirely. parseDate
+    // handles both ISO and plain "YYYY-MM-DD", so other sources are unaffected.
+    const evtStartKey = dateToKey(parseDate(event.startDate));
+    const evtEndKey = event.endDate ? dateToKey(parseDate(event.endDate)) : evtStartKey;
     const startMin = timeToMinutes(event.startTime);
     const endMin = event.endTime ? timeToMinutes(event.endTime) : startMin + 120;
 
