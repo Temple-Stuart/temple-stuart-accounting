@@ -16,7 +16,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import FlightPickerView, { type FlightOffer, type FlightLeg } from './FlightPickerView';
+import FlightPickerView, { type FlightLeg } from './FlightPickerView';
 
 interface Props {
   /** Opens the existing home register/login modal (saving requires sign-in). */
@@ -124,34 +124,10 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
     }
   };
 
-  // ── Manual entry (local only — "booked elsewhere") → sets a selected offer. ──
-  const submitManual = (legId: string) => {
-    const leg = legs.find(l => l.id === legId);
-    if (!leg || !leg.manualPrice) return;
-
-    const manualFlight: FlightOffer = {
-      id: `manual-${Date.now()}`,
-      price: parseFloat(leg.manualPrice),
-      currency: 'USD',
-      outbound: {
-        departure: { airport: leg.origin, localTime: leg.manualDepartTime || '', date: leg.departureDate },
-        arrival: { airport: leg.destination, localTime: leg.manualArriveTime || '', date: leg.manualArriveDate || leg.departureDate },
-        duration: '',
-        stops: 0,
-        carriers: [leg.manualAirline || 'Manual Entry'],
-      },
-      return: leg.tripType === 'roundtrip' && leg.returnDate ? {
-        departure: { airport: leg.destination, localTime: '', date: leg.returnDate },
-        arrival: { airport: leg.origin, localTime: '', date: leg.returnDate },
-        duration: '',
-        stops: 0,
-        carriers: [leg.manualAirline || 'Manual Entry'],
-      } : null,
-      isManual: true,
-    };
-
-    updateLeg(legId, { selectedOffer: manualFlight, expanded: false, manualAirline: '', manualPrice: '', manualDepartTime: '', manualArriveTime: '', manualArriveDate: '' });
-  };
+  // PR-Travel-Cleanup: the public home flight search drops the manual "enter flight
+  // details" block entirely (enableManualEntry={false} below) — guests use the live Duffel
+  // search, not hand-typed flights or competitor sites. The authed in-trip picker keeps
+  // manual "booked elsewhere" entry. No submitManual handler is needed here anymore.
 
   // ── Commit a flight to the selected trip — the three freemium states. ──
   // Guest → sign-up nudge. Logged in + no trip → "pick a trip" (NOT a login prompt).
@@ -246,7 +222,7 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
         onRemoveLeg={removeLeg}
         onAddLeg={addLeg}
         onSearchLeg={searchLeg}
-        onSubmitManual={submitManual}
+        enableManualEntry={false}
         onCommitLeg={commitLeg}
         onUncommitLeg={uncommitLeg}
       />
