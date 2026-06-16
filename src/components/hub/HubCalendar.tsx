@@ -38,6 +38,9 @@ interface CalendarEvent {
   // ("1970-01-01THH:MM:SS.000Z") — toClock() normalizes both to "HH:MM".
   start_time: string | null;
   end_time: string | null;
+  // PR-Flight-Duration-Render: a flight's TRUE elapsed minutes (Duffel). Null for
+  // non-flights / older rows. The grid draws depart+duration from this, not a naive span.
+  duration_minutes: number | null;
   is_recurring: boolean;
   location: string | null;
   budget_amount: number;
@@ -171,6 +174,7 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
       // (wheels-up → wheels-down). Null times → undefined → all-day, exactly as before.
       startTime: toClock(e.start_time),
       endTime: toClock(e.end_time),
+      durationMinutes: e.duration_minutes ?? null,
       isRecurring: e.is_recurring,
       location: e.location,
       budgetAmount: e.budget_amount,
