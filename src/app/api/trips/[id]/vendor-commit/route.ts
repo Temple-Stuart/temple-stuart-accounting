@@ -282,19 +282,25 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const dayNum = Math.round((start.getTime() - tripStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
         // Daily time window (@db.Time(6), 1970-anchored): use the commit's time
-        // inputs when present; lodging falls back to an overnight 22:00–07:00 stay
-        // window; other types stay NULL (no fabricated window).
+        // inputs when present; lodging falls back to hotel-standard check-in 15:00 /
+        // check-out 11:00; other types stay NULL (no fabricated window).
         const blockStart =
           parseTimeOrNull(startTime, 'block_start_time').value ??
-          (optionType === 'lodging' ? parseTimeOrNull('22:00', 'block_start_time').value : null);
+          (optionType === 'lodging' ? parseTimeOrNull('15:00', 'block_start_time').value : null);
         const blockEnd =
           parseTimeOrNull(endTime, 'block_end_time').value ??
-          (optionType === 'lodging' ? parseTimeOrNull('07:00', 'block_end_time').value : null);
+          (optionType === 'lodging' ? parseTimeOrNull('11:00', 'block_end_time').value : null);
 
         const entry = await tx.trip_itinerary.create({
           data: {
-            tripId: id, day: dayNum, homeDate: start, homeTime: startTime || null,
-            destDate: end, destTime: endTime || null,
+            tripId: id, day: dayNum, homeDate: start,
+            // PR-Hotel-Default-Times: lodging with no commit times gets hotel-standard
+            // check-in 15:00 / check-out 11:00, so the ledger shows them (not "—") and there
+            // is a clock to map to the calendar later. Other date-range types (gym, multi-day
+            // activity) keep null — no fabricated times. These are plain VarChar(10) strings,
+            // the same format the flight branch writes.
+            homeTime: startTime || (optionType === 'lodging' ? '15:00' : null),
+            destDate: end, destTime: endTime || (optionType === 'lodging' ? '11:00' : null),
             category: optionType, vendor: details.title, cost: Math.round(details.amount * 100) / 100,
             note: notes || null, location: activityLocation, vendorOptionId: optionId, vendorOptionType: optionType,
             // PR 3: the user's recurrence choice wins; absent → span default.
