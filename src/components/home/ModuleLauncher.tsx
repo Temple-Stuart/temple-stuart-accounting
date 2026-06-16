@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import CreateTripForm from '@/components/trips/CreateTripForm';
 import AllTripsList, { type TripRow } from '@/components/trips/AllTripsList';
+import TripFormModal from '@/components/trips/TripFormModal';
 import TripBudgetActual from '@/components/trips/TripBudgetActual';
 import HubCalendar from '@/components/hub/HubCalendar';
 import { demoCalendar } from '@/components/hub/showroom/demoCalendar';
@@ -116,6 +117,10 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // actions in the Travel section can read which trip they attach to. Selection +
   // context only — no budget writes here.
   const [currentTrip, setCurrentTrip] = useState<TripRow | null>(null);
+  // PR-Trip-Modal: the create-trip form now lives in a modal off the "Your trips"
+  // table (the table is the primary view; creating is one tap → modal). This is open
+  // when the "+ Create a trip" button is tapped; a successful create closes it.
+  const [showCreate, setShowCreate] = useState(false);
   // PR-Mobile2 + PR-Edge-B: which tab is active — now on BOTH mobile (bottom bar) and
   // desktop (top tab row); one module panel shows at a time on each. Additive — does
   // not touch any existing state (authed/currentTrip/tripsRefresh/scanner). Default the
@@ -180,29 +185,29 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // card has exactly ONE purple band (the app design rule).
   const renderBody = (m: ModuleDef) => {
     if (m.key === 'travel') {
-      // PR-T-Layout: the Create-a-trip bar is now the FIRST travel section, with a
-      // plain explainer above it; the two live searches follow below (see the
-      // MODULES map). The guest Create-trip gate is unchanged — gateGuestCreate
-      // (passed as onUnauthenticated) opens the login popup for logged-out guests.
+      // PR-Trip-Modal: "Your trips" is the primary view — the create form moved off
+      // the top and into a modal opened by the "+ Create a trip" button in the table
+      // header (data on the surface; creating on demand). The guest gate is unchanged:
+      // gateGuestCreate (onUnauthenticated) opens the sign-up popup for logged-out
+      // guests, so a guest's "Create trip" still nudges to register instead of POSTing.
+      const createTripButton = (
+        <button
+          type="button"
+          onClick={() => setShowCreate(true)}
+          className="shrink-0 rounded-lg bg-brand-purple px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-brand-purple/90"
+        >
+          + Create a trip
+        </button>
+      );
       return (
         <div className="space-y-3">
-          {/* PR-Travel-Cleanup: the create form was headerless (showHeader={false}); add a
-              "Create a trip" header to match the "Your trips" / "Search real flights" sections. */}
-          <p className="text-lg font-bold text-brand-purple">Create a trip</p>
-          <p className="text-sm text-text-muted">
-            Start a trip and we&apos;ll help you plan, book, and budget it — sign up free to save it.
-          </p>
-          <CreateTripForm
-            onUnauthenticated={gateGuestCreate}
-            showHeader={false}
-            onCreated={() => setTripsRefresh((n) => n + 1)}
-          />
           {/* PR-HCR-Trips1: the All Trips list is personal — only mounted when logged
               in (same gate as the calendar), so it never fetches for a guest. A new
-              trip bumps tripsRefresh, which re-fetches the list in place.
+              trip bumps tripsRefresh, which re-fetches the list in place. The "+ Create
+              a trip" button rides in its header (upper-right, next to the count).
               PR-HCR-Trips2: clicking a row sets currentTrip (lifted here), so later
               budget actions know which trip to attach to. */}
-          {authed === true && (
+          {authed === true ? (
             <>
               <AllTripsList
                 refreshSignal={tripsRefresh}
@@ -214,6 +219,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                   setTripsRefresh((n) => n + 1);
                   setCurrentTrip((cur) => (cur?.id === deletedId ? null : cur));
                 }}
+                headerAction={createTripButton}
               />
               {currentTrip && (
                 <p className="text-sm text-text-secondary">
@@ -227,6 +233,38 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                   onCommitted) remounts this and re-fetches the budget + actual rows. */}
               {currentTrip && <TripBudgetActual key={tripsRefresh} trip={currentTrip} />}
             </>
+          ) : (
+            // Guest (or auth still resolving): no personal table to fetch, but the
+            // "Your trips" header + button still show so a guest can start one — the
+            // create attempt then nudges to sign up (gateGuestCreate), unchanged.
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="text-lg font-bold text-brand-purple">Your trips</p>
+                {createTripButton}
+              </div>
+              <p className="rounded-lg border border-border bg-bg-row p-4 text-sm text-text-muted">
+                Sign up free to save trips here — tap &ldquo;+ Create a trip&rdquo; to start one.
+              </p>
+            </div>
+          )}
+
+          {/* The create form, unchanged, in a centered phone-first modal. On a
+              successful create it closes + bumps tripsRefresh so the table re-fetches. */}
+          {showCreate && (
+            <TripFormModal
+              title="Create a trip"
+              subtitle="Start a trip and we'll help you plan, book, and budget it — sign up free to save it."
+              onClose={() => setShowCreate(false)}
+            >
+              <CreateTripForm
+                onUnauthenticated={gateGuestCreate}
+                showHeader={false}
+                onCreated={() => {
+                  setTripsRefresh((n) => n + 1);
+                  setShowCreate(false);
+                }}
+              />
+            </TripFormModal>
           )}
         </div>
       );
