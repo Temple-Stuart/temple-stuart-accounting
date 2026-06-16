@@ -68,101 +68,24 @@ const MODULE_TO_TAB: Record<string, string> = {
   compliance: 'compliance',
 };
 
-// PR-MODULE-INTROS: a short, sellable plain-language intro for each module — what you
-// put in, what it does, what comes out, how it maps to your calendar, and a soft
-// signup nudge. One array of paragraphs per module key, rendered ABOVE the module's
-// body (demo/stub/content). Copy is fixed (5th-grade voice) — render verbatim.
-const MODULE_INTROS: Record<string, string[]> = {
-  calendar: [
-    'Your whole life lands here — trips, projects, routines, trades, and every dollar you plan or spend.',
-    'Plan something in any tab — a trip, a project task, a routine, a trade — and it drops onto this calendar with the day, the time, and what it costs. Plan vs. actual, side by side.',
-    "So you can look at any day and see exactly what you've got going on and where your money's going. One honest timeline for everything.",
-    'Make an account to fill it with your own life.',
-  ],
-  travel: [
-    'Book your flights, hotels, things to do, and ground transportation.',
-    'Competitive prices, actual times, real data.',
-    'You find something you like, you do one of two things:',
-    '1. save it as a plan (your budget), or',
-    '2. pay for it right now (your actual).',
-    'Either way it drops onto your calendar: the day, the time, what it cost, who got paid, which trip it belongs to.',
-    "So now you can look at any day and actually see it: here's what I planned on spending, and here's what I actually spent.",
-    'The travel booking tool is free.',
-    'Make a free account if you want to budget and save your trips.',
-  ],
-  trading: [
-    "Tell the scanner what you're hunting, and it pulls live prices from TastyTrade, company numbers from Finnhub, economy data from FRED, official filings from SEC EDGAR, and the mood online from Grok. Real data, every feed.",
-    'It runs all of it through a 12-step gauntlet — volatility, quality, timing, edge — and only the trades that survive come out the other side. You see why it liked each one. No black box.',
-    'Every trade you take drops onto your calendar: when you opened it, when you closed it, what it made or lost. So you can look back and actually see your wins and your bleeds, laid out by day.',
-    'Make an account to run the scanner on your own watchlist.',
-  ],
-  operations: [
-    "Type the big messy goal that's rattling around your head — plain, rambly, however it actually lives up there. The tool turns that mess into a real plan: the goal, the problem, why it's stuck, and a step-by-step list of small to-dos you can actually finish.",
-    'Change your mind? Re-run it. It writes a fresh plan and keeps the old one, so you watch your thinking grow.',
-    "Then those to-dos drop onto your calendar with times. A giant scary project becomes 'do this one thing at 2pm.' Small steps, on a calendar, moving.",
-    'Make a free account to keep your plans.',
-  ],
-  bookkeeping: [
-    'Connect your bank through Plaid and every transaction flows in. The tool sorts them — income, expense, what category each thing belongs to — using a real double-entry engine, the same kind big firms use, minus the headache.',
-    'You get clean books without touching a spreadsheet. What you make, what you spend, where it goes.',
-    "And it all drops onto your calendar: not just 'I spent $4,000 this month,' but which day each dollar left, what it bought, and whether you planned for it. Your money, on a timeline, finally making sense.",
-    'Make an account to connect your bank.',
-  ],
-  tax: [
-    'Your books are already clean, so your taxes are half-done before you start. The tool takes your real income and expenses and maps them onto the actual forms — the 1040, the Schedule C, the D, the 8949 — as the year goes.',
-    "What comes out: a running count of what you'll likely owe, instead of a spring surprise. No shoebox, no last-minute panic, because the work already happened quietly in the background.",
-    "It builds on your calendar month by month, so you watch your tax picture grow. (I'm a tool, not your CPA — have a real tax pro check the numbers before you file.)",
-    'Make an account to start your year clean.',
-  ],
-  compliance: [
-    "This one's for when things get serious. The tool watches the rules that apply to you — pulled straight from the government's own regulation library — and keeps a clean record of what got done and when. Monitoring, attestations, an audit trail.",
-    'What you get: proof. A tidy, timestamped record that you did things right, ready the second someone official asks.',
-    'It lives on your calendar with everything else, so your whole world — money, trips, work, rules — sits in one honest timeline.',
-    "Made for folks who need to show their work. Make an account when that's you.",
-  ],
+// PR-PerTab-Descriptor: one plain descriptor line per tab, shown under the tab row and
+// swapped by activeModule (this replaces the old per-panel "How it works" collapsibles).
+// Keyed by TAB key (the activeModule values). Calendar + Travel are the lines we wrote;
+// the rest are the first sentence of each module's prior intro copy.
+const TAB_DESCRIPTORS: Record<string, string> = {
+  calendar: 'Your whole life lands here — trips, projects, routines, trades, and every dollar you plan or spend.',
+  travel: 'Book your flights, hotels, things to do, and ground transportation — competitive prices, real times, real data.',
+  trade: "Tell the scanner what you're hunting, and it pulls live prices from TastyTrade, company numbers from Finnhub, economy data from FRED, official filings from SEC EDGAR, and the mood online from Grok.",
+  operations: "Type the big messy goal that's rattling around your head — plain, rambly, however it actually lives up there.",
+  books: 'Connect your bank through Plaid and every transaction flows in.',
+  tax: 'Your books are already clean, so your taxes are half-done before you start.',
+  compliance: "This one's for when things get serious.",
 };
 
 interface Props {
   /** Opens the existing register/login modal on the home page. Called when a
    *  guest tries to save a trip, or clicks a paid module's "Launch" button. */
   onRequireAuth: () => void;
-}
-
-// PR-Mobile1: the first sentence of a paragraph — used as the collapsed teaser.
-function firstSentence(text: string): string {
-  const m = text.match(/^.*?[.!?](\s|$)/);
-  return (m ? m[0] : text).trim();
-}
-
-// PR-Mobile1: a module's intro, collapsed by default to one teaser line with a
-// "How it works" toggle that reveals the FULL copy (all paragraphs, verbatim). Kills
-// the mobile word-walls without losing any words. Each instance owns its own expand
-// state, so this adds nothing to ModuleLauncher's state.
-function ModuleIntro({ paragraphs }: { paragraphs: string[] }) {
-  const [expanded, setExpanded] = useState(false);
-  if (paragraphs.length === 0) return null;
-  return (
-    <div className="mb-4 border-b border-border pb-4">
-      {expanded ? (
-        <div className="space-y-2">
-          {paragraphs.map((para, i) => (
-            <p key={i} className="text-sm leading-relaxed text-text-secondary">{para}</p>
-          ))}
-        </div>
-      ) : (
-        <p className="text-sm leading-relaxed text-text-secondary">{firstSentence(paragraphs[0])}</p>
-      )}
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        aria-expanded={expanded}
-        className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-brand-purple hover:text-brand-purple-hover"
-      >
-        {expanded ? 'Hide' : 'How it works'}
-        <span aria-hidden="true">{expanded ? '▲' : '▼'}</span>
-      </button>
-    </div>
-  );
 }
 
 export default function ModuleLauncher({ onRequireAuth }: Props) {
@@ -354,6 +277,16 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
           ))}
         </div>
       </nav>
+      {/* PR-PerTab-Descriptor: one descriptor line under the tab row that swaps with the
+          active tab (replaces the old per-panel "How it works" collapsibles). The hero
+          subhead up top is separate and stays. */}
+      {TAB_DESCRIPTORS[activeModule] && (
+        <div className="w-full bg-white border-b border-border">
+          <div className="max-w-7xl mx-auto px-4 py-3 lg:px-8">
+            <p className="text-sm leading-relaxed text-text-secondary">{TAB_DESCRIPTORS[activeModule]}</p>
+          </div>
+        </div>
+      )}
       {/* HOME-PR-7: each module is its own FULL-WIDTH band with an ALTERNATING
           background (white / light-gray bg-bg-row) + generous vertical padding,
           so the six read as distinct breathing sections (the old marketing
@@ -372,14 +305,6 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
       {authed === true && (
         <section className={`w-full bg-white border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto">
-            {/* PR-Intro-Copy: the calendar lost its band/caption in PR-Calendar-Flush, so
-                its intro renders here at the top of the panel, same collapsible
-                "How it works" style as the other modules. */}
-            {MODULE_INTROS.calendar && (
-              <div className="px-4 pt-2">
-                <ModuleIntro paragraphs={MODULE_INTROS.calendar} />
-              </div>
-            )}
             <HubCalendar />
           </div>
         </section>
@@ -387,11 +312,6 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
       {authed === false && (
         <section className={`w-full bg-white border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto">
-            {MODULE_INTROS.calendar && (
-              <div className="px-4 pt-2">
-                <ModuleIntro paragraphs={MODULE_INTROS.calendar} />
-              </div>
-            )}
             <HubCalendar demoEvents={demoCalendar} onRequireAuth={onRequireAuth} />
           </div>
         </section>
@@ -412,9 +332,8 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
           </p>
           <div className="px-4 pb-4 space-y-6">
             {/* 1·Create-a-trip → 2·Your trips → 3·Budgeted+Actual (renderBody, order
-                unchanged), with the intro tucked tight above it. */}
+                unchanged). */}
             <div>
-              {MODULE_INTROS.travel && <ModuleIntro paragraphs={MODULE_INTROS.travel} />}
               {renderBody(travelModule)}
             </div>
             {/* 4·The search tools, stacked: flights → hotels → [Ground, coming soon] →
@@ -471,7 +390,6 @@ export default function ModuleLauncher({ onRequireAuth }: Props) {
                 </span>
               </div>
               <div className="bg-white p-4">
-                {MODULE_INTROS[m.key] && <ModuleIntro paragraphs={MODULE_INTROS[m.key]} />}
                 {renderBody(m)}
               </div>
             </div>
