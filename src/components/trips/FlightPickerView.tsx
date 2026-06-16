@@ -81,7 +81,7 @@ export interface FlightPickerViewProps {
   onSearchLeg: (legId: string) => void;
   /** Optional — only needed when the manual-entry block is shown (see enableManualEntry). */
   onSubmitManual?: (legId: string) => void;
-  /** The BOOK / "Commit to Budget" action (container-owned). */
+  /** The "Save to trip" action (container-owned). */
   onCommitLeg: (legId: string) => void;
   onUncommitLeg: (legId: string) => void;
   /** PR-Travel-Cleanup: show the manual "enter flight details" block (Airline/Price/times
@@ -117,7 +117,7 @@ export default function FlightPickerView({
       {totalCommitted > 0 && (
         <div className="flex items-center justify-between px-4 py-2 bg-emerald-50 border border-emerald-200 rounded text-sm">
           <span className="text-emerald-800 font-medium">
-            {legs.filter(l => l.committed).length} flight{legs.filter(l => l.committed).length !== 1 ? 's' : ''} committed
+            {legs.filter(l => l.committed).length} flight{legs.filter(l => l.committed).length !== 1 ? 's' : ''} saved
           </span>
           <span className="font-bold text-emerald-700">${totalCommitted.toLocaleString()}</span>
         </div>
@@ -137,7 +137,7 @@ export default function FlightPickerView({
                 <div className="flex items-center gap-2 text-sm font-medium text-text-primary">
                   {legs.length > 1 && <span className="text-text-muted">Leg {legIdx + 1}:</span>}
                   {leg.origin || '???'} → {leg.destination || '???'}
-                  {leg.committed && <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-medium rounded">Committed</span>}
+                  {leg.committed && <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-medium rounded">Saved</span>}
                 </div>
                 <div className="text-xs text-text-muted">
                   {leg.departureDate}{leg.tripType === 'roundtrip' && leg.returnDate ? ` — ${leg.returnDate}` : ''} • {leg.tripType === 'roundtrip' ? 'Round-trip' : 'One-way'}
@@ -162,7 +162,7 @@ export default function FlightPickerView({
                     <span className="text-text-muted ml-2">{leg.origin} → {leg.destination}</span>
                     <span className="ml-2 font-bold text-brand-green">${leg.selectedOffer?.price}</span>
                   </div>
-                  <button onClick={(e) => { e.stopPropagation(); onUncommitLeg(leg.id); }} className="text-xs text-text-muted hover:text-red-600">Uncommit</button>
+                  <button onClick={(e) => { e.stopPropagation(); onUncommitLeg(leg.id); }} className="text-xs text-text-muted hover:text-red-600">Remove</button>
                 </div>
               ) : (
                 <>
@@ -320,7 +320,7 @@ export default function FlightPickerView({
                     </div>
                   ) : null}
 
-                  {/* Selected offer → Commit button */}
+                  {/* Selected offer → Save button */}
                   {leg.selectedOffer && !leg.committed && (
                     <div className="flex items-center justify-between p-3 bg-purple-50 border border-purple-200 rounded">
                       <div className="text-sm">
@@ -332,8 +332,8 @@ export default function FlightPickerView({
                       <div className="flex items-center gap-2">
                         <button onClick={() => onUpdateLeg(leg.id, { selectedOffer: null })} className="px-2 py-1 text-xs border border-border rounded">Clear</button>
                         <button onClick={() => onCommitLeg(leg.id)} disabled={committing === leg.id}
-                          className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded hover:bg-emerald-700 disabled:opacity-50">
-                          {committing === leg.id ? 'Committing...' : 'Commit to Budget'}
+                          className="px-3 py-1.5 text-xs font-semibold rounded border border-brand-purple bg-white text-brand-purple transition-colors hover:bg-brand-purple-wash disabled:opacity-50">
+                          {committing === leg.id ? 'Saving…' : 'Save to trip'}
                         </button>
                       </div>
                     </div>
