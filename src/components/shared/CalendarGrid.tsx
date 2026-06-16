@@ -382,18 +382,18 @@ export default function CalendarGrid({
       {/* Header bar */}
       <div className={toolbarBarClass}>
         <div className={toolbarLeftClass}>
-          <div className={`${viewTrackExtra}flex bg-border/70 rounded p-0.5`}>
-            {enableDayView && (
-              <button onClick={() => selectView('day')} className={`${viewBtnExtra}px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'day' ? viewBtnActive : viewBtnInactive}`}>Day</button>
-            )}
-            {/* PR-Calendar-Native: Week/Month hidden on phone-day-only (phone = day-only). */}
-            {!phoneOnlyActive && (
-              <>
-                <button onClick={() => selectView('week')} className={`${viewBtnExtra}px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'week' ? viewBtnActive : viewBtnInactive}`}>Week</button>
-                <button onClick={() => selectView('month')} className={`${viewBtnExtra}px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'month' ? viewBtnActive : viewBtnInactive}`}>Month</button>
-              </>
-            )}
-          </div>
+          {/* PR-Mobile-Calendar-Declutter: on phone-day-only the view is locked to Day, so
+              hide the WHOLE Day/Week/Month track — the lone "Day" button was dead UI eating
+              a row. Desktop (a real Day/Week/Month choice) keeps it. */}
+          {!phoneOnlyActive && (
+            <div className={`${viewTrackExtra}flex bg-border/70 rounded p-0.5`}>
+              {enableDayView && (
+                <button onClick={() => selectView('day')} className={`${viewBtnExtra}px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'day' ? viewBtnActive : viewBtnInactive}`}>Day</button>
+              )}
+              <button onClick={() => selectView('week')} className={`${viewBtnExtra}px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'week' ? viewBtnActive : viewBtnInactive}`}>Week</button>
+              <button onClick={() => selectView('month')} className={`${viewBtnExtra}px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'month' ? viewBtnActive : viewBtnInactive}`}>Month</button>
+            </div>
+          )}
           {/* Timezone toggle */}
           {calendarView !== 'month' && (
             <select
