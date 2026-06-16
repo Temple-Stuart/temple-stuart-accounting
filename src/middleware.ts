@@ -77,6 +77,10 @@ const PUBLIC_PATHS = [
   '/api/travel/locations/cities',
   '/api/travel/liteapi/prebook',
   '/api/travel/liteapi/book',
+  // PR-Duffel-Pay-1: flight BOOKING is public too — booking is never locked (mirrors
+  // the hotel book routes above). Guarded by a per-IP rate limit + a tight durable
+  // daily cap, and pinned to Duffel TEST mode this PR.
+  '/api/flights/book',
 ];
 
 function isPublic(pathname: string): boolean {

@@ -54,6 +54,10 @@ const PROVIDER_SAFE_DEFAULT_CAP: Record<string, number> = {
   // than booking but still capped so a public, no-auth route can't run up COGS.
   hotelcontent: 500,
   hotelreviews: 500,
+  // PR-Duffel-Pay-1: flight BOOKING is real money + public (guest-ok), like hotel
+  // booking → a tight daily cap, bounded even with no env override. Raise via
+  // TRAVEL_SEARCH_DAILY_CAP_FLIGHTBOOKING on a real volume plan.
+  flightbooking: 25,
 };
 
 /** Per-provider daily cap. Precedence: TRAVEL_SEARCH_DAILY_CAP_<PROVIDER> env →
