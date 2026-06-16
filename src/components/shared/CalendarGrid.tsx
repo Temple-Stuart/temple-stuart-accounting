@@ -17,6 +17,10 @@ export interface CalendarEvent {
   endDate?: string | null;  // YYYY-MM-DD (for multi-day events)
   startTime?: string | null; // HH:MM (24h) for time-based positioning
   endTime?: string | null;   // HH:MM (24h)
+  /** PR-Flight-Duration-Render: a flight's TRUE elapsed minutes. When present, block
+   *  geometry is depart → depart+duration (NOT the naive stored end, which is a different
+   *  zone → a 34h span). Null → an explicit flagged marker, never start→end. */
+  durationMinutes?: number | null;
   isRecurring?: boolean;
   location?: string | null;
   budgetAmount?: number;
@@ -152,6 +156,42 @@ function getBlocksForDay(dayKey: string, events: CalendarEvent[]): DayBlock[] {
     const evtStartKey = dateToKey(parseDate(event.startDate));
     const evtEndKey = event.endDate ? dateToKey(parseDate(event.endDate)) : evtStartKey;
     const startMin = timeToMinutes(event.startTime);
+
+    // ── PR-Flight-Duration-Render: trip events that reach here are FLIGHTS (only flights
+    // get a start_time in calendar_events — non-flight trip rows are all-day and skipped
+    // above). Draw their geometry from the TRUE elapsed duration, NOT the naive stored end
+    // (which is in the arrival's DIFFERENT zone → a 34h span). Day-membership is by the
+    // DERIVED end (start + duration), so the block lives only on the days the duration
+    // actually covers — no phantom on the stored end_date. Zone reconciliation of the
+    // arrival LABEL vs the geometry is PR-4, intentionally NOT done here.
+    if (event.source === 'trip') {
+      const dayOffset = Math.round((parseDate(dayKey).getTime() - parseDate(evtStartKey).getTime()) / 86_400_000);
+      if (dayOffset < 0) continue;
+
+      if (event.durationMinutes == null) {
+        // POLICY (decided): unknown duration → a MINIMAL fixed-height marker on the depart
+        // day ONLY, visibly flagged. NEVER reconstruct start→end (that is the 34h bug). This
+        // is an explicit "we don't trust this" state, not a silent fallback.
+        if (dayOffset === 0) {
+          blocks.push({ event, startMin, endMin: startMin + 30, label: `⚠ duration unverified · ${event.title}`, isDepart: true, isArrive: false });
+        }
+        continue;
+      }
+
+      const totalEndMin = startMin + event.durationMinutes; // absolute minutes from depart-day midnight
+      const dayStartAbs = dayOffset * 1440;
+      if (dayStartAbs >= totalEndMin) continue; // duration doesn't reach this day → no phantom
+      const segStart = dayOffset === 0 ? startMin : 0;
+      const segEnd = Math.min(totalEndMin - dayStartAbs, 1440);
+      const isArriveSeg = dayStartAbs + 1440 >= totalEndMin; // this day contains the duration end
+      const label = isArriveSeg
+        ? `arr ${event.endTime ? formatTime12h(event.endTime) : ''} ${event.title.replace(/^\d+:\d+\s*(AM|PM)\s*/i, '')}`.trim()
+        : event.title;
+      blocks.push({ event, startMin: segStart, endMin: Math.max(segEnd, segStart + 30), label, isDepart: dayOffset === 0, isArrive: isArriveSeg });
+      continue;
+    }
+
+    // ── Non-trip (operations / project / routine) — UNCHANGED start→end behavior. ──
     const endMin = event.endTime ? timeToMinutes(event.endTime) : startMin + 120;
 
     if (evtStartKey === evtEndKey || !event.endDate) {
