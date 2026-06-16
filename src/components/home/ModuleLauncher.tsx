@@ -346,13 +346,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           5 modules stay in MODULES.map with their bands. */}
       <section className={`w-full bg-white border-b border-border ${activeModule === 'travel' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
-          {/* The "Free · guest ok" signal used to live in the band's tag — relocated here
-              as a tiny tag (like the calendar's "live demo" tag) so the guest signal
-              survives the band's removal. */}
-          <p className="px-4 pt-2 text-[10px] font-semibold uppercase tracking-wider text-brand-purple">
-            Free · guest ok
-          </p>
-          <div className="px-4 pb-4 space-y-6">
+          <div className="px-4 py-4 space-y-6">
             {/* 1·Create-a-trip → 2·Your trips → 3·Budgeted+Actual (renderBody, order
                 unchanged). */}
             <div>
