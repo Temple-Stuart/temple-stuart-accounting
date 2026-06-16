@@ -59,7 +59,13 @@ function usd(n: number): string {
 
 function fmtDate(s: string | null): string {
   if (!s) return DASH;
-  const d = new Date(s);
+  // Parse the DATE-PORTION only (mirrors CalendarGrid.parseDate, CalendarGrid.tsx:104-107)
+  // so a UTC-midnight stored value isn't localized BACKWARD a day. Building a LOCAL-midnight
+  // Date from the Y-M-D parts formats to the true calendar date in any viewer zone — unlike
+  // `new Date(isoString)`, which rolls a 00:00Z value back a day west of UTC. Malformed
+  // input → Invalid Date → DASH (the existing visible-failure contract, no substitute).
+  const [year, month, day] = s.split('T')[0].split('-').map(Number);
+  const d = new Date(year, month - 1, day);
   return Number.isNaN(d.getTime())
     ? DASH
     : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
