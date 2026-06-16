@@ -2,6 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  Calendar, Plane, Repeat, FolderKanban, TrendingUp, BookOpen, Receipt, ShieldCheck,
+  type LucideIcon,
+} from 'lucide-react';
 import CreateTripForm from '@/components/trips/CreateTripForm';
 import AllTripsList, { type TripRow } from '@/components/trips/AllTripsList';
 import TripBudgetActual from '@/components/trips/TripBudgetActual';
@@ -38,7 +42,11 @@ interface ModuleDef {
 const MODULES: ModuleDef[] = [
   { key: 'travel',      label: 'Travel',      live: true,  blurb: 'AI trip & flight planning — free to use.' },
   { key: 'trading',     label: 'Trading',     live: false, blurb: 'AI vol scanner + options strategy builder.' },
-  { key: 'operations',  label: 'Operations',  live: false, blurb: 'Routines, daily plan, command center.' },
+  // PR-A-Tabs: the home "Operations" tab is renamed to "Projects" (label/key only — the
+  // backend /operations routes + operations_routines table are unchanged). Routines is a
+  // new sibling tab (its real surface lands in PR-B).
+  { key: 'projects',    label: 'Projects',    live: false, blurb: 'Brain-dump a goal → a scoped project → tasks on your calendar.' },
+  { key: 'routines',    label: 'Routines',    live: false, blurb: 'Recurring routines that land on your calendar.' },
   { key: 'bookkeeping', label: 'Bookkeeping', live: false, blurb: 'GAAP accounting engine, Plaid bank sync, period close.' },
   { key: 'tax',         label: 'Tax',         live: false, blurb: 'Form 1040, Schedule C/D/SE, Form 8949.' },
   { key: 'compliance',  label: 'Compliance',  live: false, blurb: 'Monitoring, attestations, audit trail.' },
@@ -48,14 +56,15 @@ const MODULES: ModuleDef[] = [
 // panel shows at a time (the bottom bar switches activeModule); on desktop every panel
 // stays visible (md:block) and the bar is hidden (md:hidden). The bar horizontal-scrolls
 // so 7 tabs stay clean on a narrow phone.
-const TABS: { key: string; label: string; icon: string }[] = [
-  { key: 'calendar',   label: 'Calendar',   icon: '📅' },
-  { key: 'travel',     label: 'Travel',     icon: '✈️' },
-  { key: 'trade',      label: 'Trade',      icon: '📈' },
-  { key: 'operations', label: 'Operations', icon: '🎯' },
-  { key: 'books',      label: 'Books',      icon: '📒' },
-  { key: 'tax',        label: 'Tax',        icon: '📄' },
-  { key: 'compliance', label: 'Compliance', icon: '🛡️' },
+const TABS: { key: string; label: string; icon: LucideIcon }[] = [
+  { key: 'calendar',   label: 'Calendar',   icon: Calendar },
+  { key: 'travel',     label: 'Travel',     icon: Plane },
+  { key: 'routines',   label: 'Routines',   icon: Repeat },
+  { key: 'projects',   label: 'Projects',   icon: FolderKanban },
+  { key: 'trade',      label: 'Trade',      icon: TrendingUp },
+  { key: 'books',      label: 'Books',      icon: BookOpen },
+  { key: 'tax',        label: 'Tax',        icon: Receipt },
+  { key: 'compliance', label: 'Compliance', icon: ShieldCheck },
 ];
 // Which tab each module section belongs to — 1:1, every module its own tab (the
 // calendar is its own 'calendar' tab, rendered separately).
@@ -63,7 +72,8 @@ const MODULE_TO_TAB: Record<string, string> = {
   travel: 'travel',
   trading: 'trade',
   bookkeeping: 'books',
-  operations: 'operations',
+  projects: 'projects',
+  routines: 'routines',
   tax: 'tax',
   compliance: 'compliance',
 };
@@ -76,7 +86,8 @@ export const TAB_DESCRIPTORS: Record<string, string> = {
   calendar: 'Your whole life lands here — trips, projects, routines, trades, and every dollar you plan or spend.',
   travel: 'Book your flights, hotels, things to do, and ground transportation — competitive prices, real times, real data.',
   trade: "Tell the scanner what you're hunting, and it pulls live prices from TastyTrade, company numbers from Finnhub, economy data from FRED, official filings from SEC EDGAR, and the mood online from Grok.",
-  operations: "Type the big messy goal that's rattling around your head — plain, rambly, however it actually lives up there.",
+  routines: 'Build your recurring routines and watch them land on your calendar — the rhythms that run your day.',
+  projects: "Type the big messy goal that's rattling around your head — plain, rambly, however it actually lives up there.",
   books: 'Connect your bank through Plaid and every transaction flows in.',
   tax: 'Your books are already clean, so your taxes are half-done before you start.',
   compliance: "This one's for when things get serious.",
@@ -217,12 +228,24 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         </div>
       );
     }
-    if (m.key === 'operations') {
-      // PR E: the FULL locked-but-visible Operations story — Project → Day → Script,
-      // three REAL pure views fed static demo seed, every action (incl. the PAID
-      // generate-script) bound to onRequireAuth. No live container, no fetch at any
-      // depth (PR5–PR10 + guardrail). Safe by construction: nothing to call.
+    if (m.key === 'projects') {
+      // PR-A-Tabs: the Projects tab keeps the existing Operations project showroom (the
+      // component file/path stays 'operations' — backend untouched; this is a home label
+      // rename only). Project → Day → Script, fetch-free, every action → onRequireAuth.
       return <OperationsPipelineShowroom onRequireAuth={onRequireAuth} />;
+    }
+    if (m.key === 'routines') {
+      // PR-A-Tabs: placeholder for the new Routines tab. PR-B mounts the real, fetch-free
+      // routine builder (home/RoutineCreateForm). Time-block routines only for now.
+      return (
+        <div>
+          <p className="text-sm font-semibold text-text-primary mb-1">Routines</p>
+          <p className="text-sm text-text-muted">
+            Build recurring routines that land on your calendar — the rhythms that run your day.
+            The routine builder lands here next.
+          </p>
+        </div>
+      );
     }
     if (m.key === 'trading' && isAdmin) {
       // TRADING-PR-2/3: admin sees the working ScanFilterForm (Scan routes to
@@ -277,7 +300,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
               aria-current={activeModule === t.key ? 'page' : undefined}
               className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${activeModule === t.key ? 'border-brand-purple text-brand-purple' : 'border-transparent text-text-muted hover:text-text-primary'}`}
             >
-              <span aria-hidden="true">{t.icon}</span>
+              <t.icon className="h-4 w-4" aria-hidden="true" />
               {t.label}
             </button>
           ))}
@@ -382,7 +405,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
               <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
                 <span>{m.label}</span>
                 <span className="text-[10px] uppercase tracking-wider font-normal text-white/80">
-                  {m.key === 'operations' ? 'Live demo · log in to use' : m.live ? 'Free · guest ok' : 'Paid'}
+                  {m.key === 'projects' || m.key === 'routines' ? 'Live demo · log in to use' : m.live ? 'Free · guest ok' : 'Paid'}
                 </span>
               </div>
               <div className="bg-white p-4">
@@ -409,7 +432,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
             aria-current={activeModule === t.key ? 'page' : undefined}
             className={`flex min-h-[44px] min-w-[64px] flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] font-medium transition-colors ${activeModule === t.key ? 'text-brand-purple' : 'text-text-muted'}`}
           >
-            <span className="text-lg leading-none" aria-hidden="true">{t.icon}</span>
+            <t.icon className="h-5 w-5" aria-hidden="true" />
             {t.label}
           </button>
         ))}
