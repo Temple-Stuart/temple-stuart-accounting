@@ -204,17 +204,12 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
   };
 
   // PR-Calendar-Flush: the descriptive caption + the parent purple band are gone — the
-  // grid's toolbar flows flush under the tab row. The only thing kept up top is a tiny
-  // logged-out "live demo" tag (the signal that used to live in the band), so a guest
-  // still knows the data is made up.
+  // grid's toolbar flows flush under the tab row.
+  // PR-Mobile-Calendar-Declutter: the small "live demo" tag that used to sit up top is
+  // removed too (clutter, worst on phone's tight space); the logged-out sign-up CTA below
+  // still tells a guest the data is a demo.
   return (
     <div>
-      {isDemo && (
-        <p className="px-4 pt-2 text-[10px] font-semibold uppercase tracking-wider text-brand-purple">
-          Live demo · log in to use
-        </p>
-      )}
-
       {/* Edge-to-edge day-view grid. On phone it's day-only with a week strip; the grid's
           nav drives this component's fetch month via onMonthChange. */}
       <CalendarGrid
