@@ -330,11 +330,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const calTitle = `${result.details.title} (${optionType})`;
     const calSourceId = `trip:${id}:vendor:${optionId}`;
     const calStart = new Date(startDate);
-    const calEnd = endDate ? new Date(endDate) : calStart;
+    // PR-Flight-Times: a flight is a timed block wheels-up → wheels-down (the OUTBOUND leg).
+    // For flights, end_date is the ARRIVAL date (not the roundtrip return date) and the new
+    // start_time/end_time carry depart/arrive, so the calendar draws a timed block. Every
+    // other option type keeps end_date = endDate and null times (all-day, exactly as before).
+    const isFlight = optionType === 'flight';
+    const calEnd = isFlight
+      ? (arriveDate ? new Date(arriveDate) : calStart)
+      : (endDate ? new Date(endDate) : calStart);
+    const calStartTime = isFlight ? (startTime || null) : null; // depart (wheels-up), "HH:MM"
+    const calEndTime = isFlight ? (endTime || null) : null;     // arrive (wheels-down), "HH:MM"
     try {
       await prisma.$queryRaw`
-        INSERT INTO calendar_events (user_id, source, source_id, title, category, icon, color, start_date, end_date, is_recurring, coa_code, budget_amount)
-        VALUES (${user.id}, 'trip', ${calSourceId}, ${calTitle}, 'trip', ${calIcon}, 'cyan', ${calStart}, ${calEnd}, false, ${result.budgetItem.coaCode}, ${Math.round(result.details.amount)})
+        INSERT INTO calendar_events (user_id, source, source_id, title, category, icon, color, start_date, end_date, start_time, end_time, is_recurring, coa_code, budget_amount)
+        VALUES (${user.id}, 'trip', ${calSourceId}, ${calTitle}, 'trip', ${calIcon}, 'cyan', ${calStart}, ${calEnd}, ${calStartTime}::time, ${calEndTime}::time, false, ${result.budgetItem.coaCode}, ${Math.round(result.details.amount)})
       `;
     } catch (calErr) {
       console.error('Calendar event insert failed (non-fatal):', calErr);
