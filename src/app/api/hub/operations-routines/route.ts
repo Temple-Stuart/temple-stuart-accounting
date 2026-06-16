@@ -132,14 +132,15 @@ export async function GET(request: NextRequest) {
       // via formatLocalDate, not UTC, to avoid edge-of-day off-by-ones.
       const fromLocal = formatLocalDate(from, r.timezone);
       const toLocal = formatLocalDate(windowEnd, r.timezone);
+      // PR-Routine-EndDate: the routine's calendar end date. Formatted in UTC because the
+      // @db.Date column stores the intended date at UTC midnight (the same idiom the coarse
+      // skip already used). Reused for BOTH the coarse skip and the per-occurrence clamp below.
+      const endDateStr = r.end_date ? formatLocalDate(r.end_date, 'UTC') : null;
       if (r.start_date) {
         const startDateStr = formatLocalDate(r.start_date, 'UTC');
         if (startDateStr > toLocal) continue; // routine starts after window
       }
-      if (r.end_date) {
-        const endDateStr = formatLocalDate(r.end_date, 'UTC');
-        if (endDateStr < fromLocal) continue; // routine ended before window
-      }
+      if (endDateStr && endDateStr < fromLocal) continue; // routine ended before window
 
       let occurrences: Date[] = [];
       try {
@@ -149,6 +150,16 @@ export async function GET(request: NextRequest) {
         // log so the gap is visible. Same idiom as /today endpoint.
         console.error(`[Hub Routines] RRULE expand failed for ${r.id}:`, e);
         continue;
+      }
+
+      // PR-Routine-EndDate: the RRULE carries no UNTIL, so expandBetween runs to windowEnd
+      // regardless of the routine's end_date. Drop any occurrence whose LOCAL day (the day it
+      // renders on — the SAME formatter the mapper uses to place the tile) is AFTER end_date.
+      // Through end_date is inclusive (<=); a routine with no end_date keeps every occurrence.
+      if (endDateStr) {
+        occurrences = occurrences.filter(
+          (occ) => formatLocalDate(occ, r.timezone) <= endDateStr
+        );
       }
 
       // Cap per-routine if the global ceiling would be exceeded.
