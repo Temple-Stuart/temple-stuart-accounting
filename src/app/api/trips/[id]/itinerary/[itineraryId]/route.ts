@@ -13,6 +13,14 @@
  *   blockEndTime:   'HH:MM' | null
  *   date:           'YYYY-MM-DD'      — ONCE rows only (move between days)
  *
+ * PR-Ledger-Edit-Times — the ledger's inline Start/End date+time cells:
+ *   startTime: 'HH:MM' | null  — writes homeTime (the ledger's Start time) AND keeps
+ *                                block_start_time in sync (same clock for the calendar)
+ *   endTime:   'HH:MM' | null  — writes destTime + block_end_time
+ *   startDate: 'YYYY-MM-DD'    — writes homeDate (independent; allows a real range,
+ *                                unlike the same-day `date` key above)
+ *   endDate:   'YYYY-MM-DD'    — writes destDate
+ *
  * Times use parseTimeOrNull (the canonical @db.Time serializer); malformed → 400.
  * Overnight windows (end < start, e.g. 22:00→07:00) are VALID — no end>start check.
  */
@@ -30,6 +38,26 @@ function parseDayUtc(v: unknown): Date | null {
   if (!m) return null;
   const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
   return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** A ledger time field: validates HH:MM(:SS), returns the HH:MM string (for the VarChar
+ *  homeTime/destTime the ledger reads) plus the parsed @db.Time (for the paired block_*).
+ *  '' / null clears both. Malformed → a 400 response in `.error`. */
+function parseLedgerTime(
+  v: unknown,
+  field: string,
+): { str: string | null; block: Date | null; error?: NextResponse } {
+  if (v === null || v === '') return { str: null, block: null };
+  if (typeof v !== 'string' || !/^\d{2}:\d{2}(:\d{2})?$/.test(v)) {
+    return {
+      str: null,
+      block: null,
+      error: NextResponse.json({ error: 'Validation', field, message: `${field} must be HH:MM` }, { status: 400 }),
+    };
+  }
+  const r = parseTimeOrNull(v, field);
+  if (r.error) return { str: null, block: null, error: r.error };
+  return { str: v.slice(0, 5), block: r.value };
 }
 
 export async function PATCH(
@@ -87,6 +115,34 @@ export async function PATCH(
       }
       // ONCE rows keep homeDate and destDate on the same day.
       data.homeDate = d;
+      data.destDate = d;
+    }
+
+    // ── PR-Ledger-Edit-Times: the ledger's Start/End date+time cells ─────────────
+    // startTime/endTime write the VarChar homeTime/destTime the ledger DISPLAYS, and
+    // keep the paired @db.Time block_start_time/block_end_time in sync (same clock).
+    if (body.startTime !== undefined) {
+      const t = parseLedgerTime(body.startTime, 'startTime');
+      if (t.error) return t.error;
+      data.homeTime = t.str;
+      data.block_start_time = t.block;
+    }
+    if (body.endTime !== undefined) {
+      const t = parseLedgerTime(body.endTime, 'endTime');
+      if (t.error) return t.error;
+      data.destTime = t.str;
+      data.block_end_time = t.block;
+    }
+    // startDate/endDate move homeDate/destDate INDEPENDENTLY (a real check-in→check-out
+    // span), unlike the same-day `date` key above.
+    if (body.startDate !== undefined) {
+      const d = parseDayUtc(body.startDate);
+      if (!d) return NextResponse.json({ error: 'Validation', field: 'startDate', message: 'startDate must be a valid YYYY-MM-DD' }, { status: 400 });
+      data.homeDate = d;
+    }
+    if (body.endDate !== undefined) {
+      const d = parseDayUtc(body.endDate);
+      if (!d) return NextResponse.json({ error: 'Validation', field: 'endDate', message: 'endDate must be a valid YYYY-MM-DD' }, { status: 400 });
       data.destDate = d;
     }
 

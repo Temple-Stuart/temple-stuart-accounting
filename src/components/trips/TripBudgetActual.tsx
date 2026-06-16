@@ -12,6 +12,10 @@
  * PR-Trip-Ledger-1 — the route already loaded the row, it was just dropping these). Manual
  * lines have no itinerary, so those cells show "—" (never faked).
  *
+ * PR-Ledger-Edit-Times: the Start/End date + time cells are INLINE-EDITABLE for
+ * itinerary-backed rows (click → in-cell input → PATCH the trip_itinerary row → re-fetch).
+ * The 15:00/11:00 hotel defaults are just the starting value; editing overrides them.
+ *
  * COA + Project are DISPLAY-ONLY this PR (inline dropdown edits are later PRs). Project
  * shows "—" on every row — there is no project linkage yet (that's a schema migration).
  *
@@ -22,11 +26,14 @@
  * join / a status column to mark genuinely-booked lines.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { TripRow } from './AllTripsList';
 
 interface LedgerItem {
   id: string;
+  // The linked trip_itinerary row id (null on manual lines). Drives the inline
+  // date/time edit — only itinerary-backed rows are editable.
+  itineraryId: string | null;
   description: string | null;
   amount: string | number; // Prisma Decimal serializes as a string
   coaCode: string | null;
@@ -70,6 +77,88 @@ function fmtCadence(c: string | null): string {
 
 function txt(s: string | null | undefined): string {
   return s && String(s).trim() ? String(s) : DASH;
+}
+
+/** Stored value → the value an <input type="date"> expects (YYYY-MM-DD). */
+function toDateInput(s: string | null): string {
+  if (!s) return '';
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+}
+
+/** Stored "HH:MM[:SS]" → the value an <input type="time"> expects (HH:MM). */
+function toTimeInput(s: string | null): string {
+  return s && /^\d{2}:\d{2}/.test(s) ? s.slice(0, 5) : '';
+}
+
+/**
+ * One inline-editable date/time cell. Click → an in-cell <input> (no modal/drawer);
+ * blur or Enter saves via onSave; Escape cancels. A failed save THROWS → the cell
+ * reverts to the old value and the parent shows the error (never a fake success).
+ * Display-only when not editable (manual lines with no itinerary row).
+ */
+function EditableCell({
+  kind,
+  value,
+  editable,
+  onSave,
+}: {
+  kind: 'date' | 'time';
+  value: string | null;
+  editable: boolean;
+  onSave: (next: string) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const cancelled = useRef(false);
+
+  const display = kind === 'date' ? fmtDate(value) : fmtTime(value);
+  const inputVal = kind === 'date' ? toDateInput(value) : toTimeInput(value);
+
+  if (!editable) return <span className="text-text-faint">{display}</span>;
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => { cancelled.current = false; setEditing(true); }}
+        title="Click to edit"
+        className="rounded px-1 text-left text-text-secondary transition-colors hover:bg-bg-row hover:text-brand-purple"
+      >
+        {value ? display : <span className="text-brand-purple underline decoration-dotted">Set</span>}
+      </button>
+    );
+  }
+
+  const commit = async (raw: string) => {
+    if (saving) return;
+    if (cancelled.current) { cancelled.current = false; setEditing(false); return; }
+    if (!raw || raw === inputVal) { setEditing(false); return; } // no change → no PATCH
+    setSaving(true);
+    try {
+      await onSave(raw); // success → parent re-fetches, remounting this cell with the saved value
+    } catch {
+      // error is surfaced by the parent banner; the cell reverts to the old display
+    } finally {
+      setSaving(false);
+      setEditing(false);
+    }
+  };
+
+  return (
+    <input
+      type={kind}
+      autoFocus
+      defaultValue={inputVal}
+      disabled={saving}
+      onBlur={(e) => commit(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+        if (e.key === 'Escape') { cancelled.current = true; (e.target as HTMLInputElement).blur(); }
+      }}
+      className="w-32 rounded border border-brand-purple/50 bg-white px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-purple disabled:opacity-50"
+    />
+  );
 }
 
 export default function TripBudgetActual({ trip }: { trip: TripRow }) {
@@ -131,6 +220,30 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
     } finally {
       setDeletingId(null);
     }
+  };
+
+  // PR-Ledger-Edit-Times: persist an inline Start/End date+time edit. PATCHes the linked
+  // trip_itinerary row (auth + ownership gated server-side), then re-fetches so the cell
+  // shows the SERVER's saved value (no optimistic drift). On failure it sets the error
+  // banner and THROWS so the cell reverts — never a fake success.
+  const saveCell = async (
+    item: LedgerItem,
+    field: 'startDate' | 'startTime' | 'endDate' | 'endTime',
+    value: string,
+  ) => {
+    if (!item.itineraryId) return;
+    setActionError(null);
+    const res = await fetch(`/api/trips/${trip.id}/itinerary/${item.itineraryId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [field]: value }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setActionError(data.message || data.error || 'Could not save the change.');
+      throw new Error('save failed');
+    }
+    setReloadKey((n) => n + 1);
   };
 
   useEffect(() => {
@@ -198,10 +311,10 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
                   <td className={td}>
                     <span className="rounded-full bg-brand-purple/10 px-2 py-0.5 text-xs font-medium text-brand-purple">Saved</span>
                   </td>
-                  <td className={`${td} text-text-secondary`}>{fmtDate(it.startDate)}</td>
-                  <td className={`${td} text-text-secondary`}>{fmtTime(it.startTime)}</td>
-                  <td className={`${td} text-text-secondary`}>{fmtDate(it.endDate)}</td>
-                  <td className={`${td} text-text-secondary`}>{fmtTime(it.endTime)}</td>
+                  <td className={td}><EditableCell kind="date" value={it.startDate} editable={!!it.itineraryId} onSave={(v) => saveCell(it, 'startDate', v)} /></td>
+                  <td className={td}><EditableCell kind="time" value={it.startTime} editable={!!it.itineraryId} onSave={(v) => saveCell(it, 'startTime', v)} /></td>
+                  <td className={td}><EditableCell kind="date" value={it.endDate} editable={!!it.itineraryId} onSave={(v) => saveCell(it, 'endDate', v)} /></td>
+                  <td className={td}><EditableCell kind="time" value={it.endTime} editable={!!it.itineraryId} onSave={(v) => saveCell(it, 'endTime', v)} /></td>
                   <td className={`${td} text-text-secondary`}>{fmtCadence(it.cadence)}</td>
                   <td className={`${td} text-text-secondary`}>{txt(it.coaCode)}</td>
                   <td className={`${td} text-text-secondary`}>{txt(it.vendor)}</td>
