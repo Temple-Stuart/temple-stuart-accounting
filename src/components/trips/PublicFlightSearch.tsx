@@ -168,12 +168,12 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        throw new Error(d.error || 'Commit failed');
+        throw new Error(d.error || 'Could not save the flight.');
       }
       updateLeg(legId, { committed: true, commitId: flightId, expanded: false });
       onCommitted?.();
     } catch (err) {
-      updateLeg(legId, { error: err instanceof Error ? err.message : 'Commit failed' });
+      updateLeg(legId, { error: err instanceof Error ? err.message : 'Could not save the flight.' });
     } finally {
       setCommitting(null);
     }
@@ -195,12 +195,12 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        throw new Error(d.error || 'Uncommit failed');
+        throw new Error(d.error || 'Could not remove the flight.');
       }
       updateLeg(legId, { committed: false, commitId: null, selectedOffer: null });
       onCommitted?.();
     } catch (err) {
-      updateLeg(legId, { error: err instanceof Error ? err.message : 'Uncommit failed' });
+      updateLeg(legId, { error: err instanceof Error ? err.message : 'Could not remove the flight.' });
     }
   };
 
