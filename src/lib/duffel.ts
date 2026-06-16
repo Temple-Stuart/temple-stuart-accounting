@@ -12,6 +12,18 @@ function getHeaders(): Record<string, string> {
   };
 }
 
+// Test vs live is determined ENTIRELY by which DUFFEL_API_TOKEN is set — Duffel
+// test tokens are prefixed `duffel_test_`, live ones `duffel_live_`. This reads the
+// mode from the prefix WITHOUT ever exposing the token, so routes can log/guard on
+// it. STAY ON TEST for PR-Duffel-Pay-1 — switching to live is a separate, deliberate
+// step (set the live token AND the explicit live-booking flag together).
+export function duffelMode(): 'test' | 'live' | 'unknown' {
+  if (!DUFFEL_TOKEN) return 'unknown';
+  if (DUFFEL_TOKEN.startsWith('duffel_test_')) return 'test';
+  if (DUFFEL_TOKEN.startsWith('duffel_live_')) return 'live';
+  return 'unknown';
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // OFFER REQUESTS - Search for flights
 // ═══════════════════════════════════════════════════════════════════
@@ -120,11 +132,12 @@ export interface PaymentDetails {
 export async function createOrder(
   offerId: string,
   passengers: PassengerDetails[],
-  payment?: PaymentDetails
+  payment?: PaymentDetails,
+  idempotencyKey?: string,
 ) {
   const body: any = {
     data: {
-      type: 'instant',
+      type: 'instant',   // UNCHANGED — a Duffel Payments order finalizes as instant + balance
       selected_offers: [offerId],
       passengers,
     },
@@ -134,16 +147,91 @@ export async function createOrder(
     body.data.payments = [payment];
   }
 
+  const headers = getHeaders();
+  // Idempotency: an identical retry returns the SAME order instead of double-booking
+  // (Duffel dedupes by this header). The order step is also naturally single-use per
+  // offer — re-ordering a used offer fails loud, which the route maps to a clear error.
+  if (idempotencyKey) headers['Idempotency-Key'] = `order-${idempotencyKey}`;
+
   const response = await fetch(`${DUFFEL_API_URL}/air/orders`, {
     method: 'POST',
-    headers: getHeaders(),
+    headers,
     body: JSON.stringify(body),
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    console.error('Duffel booking error:', error);
+    const error = await response.json().catch(() => ({}));
+    // PCI: log the Duffel error CODE only — never the full body (it can echo the
+    // submitted passenger fields) and never card / payment-secret / token data.
+    console.error('Duffel order error:', error?.errors?.[0]?.code || 'unknown');
     throw new Error(error.errors?.[0]?.message || 'Booking failed');
+  }
+
+  const data = await response.json();
+  return data.data;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DUFFEL PAYMENTS — Payment Intents
+// Collect the customer's card (via Duffel's PCI component) into our Duffel balance;
+// the order is then paid FROM that balance. The card NEVER touches our server — the
+// frontend Card component (PR-2) uses the per-intent `client_token` returned here.
+// Flow: createPaymentIntent → (component collects card) → confirmPaymentIntent →
+// createOrder(instant, balance). This PR wires the server pieces; PR-2 adds the UI.
+// ═══════════════════════════════════════════════════════════════════
+export interface PaymentIntent {
+  id: string;
+  client_token: string;   // for the frontend Card component (PR-2) — treat as a secret
+  status: string;         // 'requires_action' → 'succeeded' once confirmed
+  amount: string;
+  currency: string;
+}
+
+// MARKUP CONFIG POINT. Duffel Payments lets the intent amount EXCEED the offer total;
+// the delta stays in our balance after the order is paid (our margin). Intentionally
+// NO markup yet — this returns the base amount unchanged. Pricing is a separate,
+// deliberate decision finance owns; when set, compute it from config/env HERE and
+// mind currency minor-unit rounding. Do NOT hardcode a number.
+export function applyMarkup(baseAmount: string): string {
+  return baseAmount;
+}
+
+export async function createPaymentIntent(
+  amount: string,
+  currency: string,
+  idempotencyKey?: string,
+): Promise<PaymentIntent> {
+  const headers = getHeaders();
+  // Idempotency: a double-submit reuses the same intent rather than charging twice.
+  if (idempotencyKey) headers['Idempotency-Key'] = `intent-${idempotencyKey}`;
+
+  const response = await fetch(`${DUFFEL_API_URL}/payments/payment_intents`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ data: { amount, currency } }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    // PCI-safe: error CODE only — never the client_token / payment secret or full body.
+    console.error('Duffel payment intent error:', error?.errors?.[0]?.code || 'unknown');
+    throw new Error(error.errors?.[0]?.message || 'Payment setup failed');
+  }
+
+  const data = await response.json();
+  return data.data;
+}
+
+export async function confirmPaymentIntent(intentId: string): Promise<PaymentIntent> {
+  const response = await fetch(
+    `${DUFFEL_API_URL}/payments/payment_intents/${intentId}/actions/confirm`,
+    { method: 'POST', headers: getHeaders() },
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    console.error('Duffel payment confirm error:', error?.errors?.[0]?.code || 'unknown');
+    throw new Error(error.errors?.[0]?.message || 'Payment confirmation failed');
   }
 
   const data = await response.json();
