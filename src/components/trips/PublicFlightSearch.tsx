@@ -16,7 +16,8 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import FlightPickerView, { type FlightLeg } from './FlightPickerView';
+import FlightPickerView, { type FlightLeg, type FlightOffer } from './FlightPickerView';
+import FlightCheckoutPanel from './FlightCheckoutPanel';
 
 interface Props {
   /** Opens the existing home register/login modal (saving requires sign-in). */
@@ -63,6 +64,15 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
   const [legs, setLegs] = useState<FlightLeg[]>([]);
   // The leg currently committing (its button shows a pending state) — same as FlightPicker.
   const [committing, setCommitting] = useState<string | null>(null);
+  // PR-Duffel-Pay-3: the offer being booked (pay now). Set when a card's "Book" is tapped;
+  // mounts the FlightCheckoutPanel. Guest-ok — NO auth gate (booking is never locked, like
+  // hotels); the panel + backend run the Duffel Payments flow (TEST mode).
+  const [bookingOffer, setBookingOffer] = useState<FlightOffer | null>(null);
+
+  const bookLeg = (legId: string) => {
+    const leg = legs.find((l) => l.id === legId);
+    if (leg?.selectedOffer) setBookingOffer(leg.selectedOffer);
+  };
 
   // One empty leg on mount. No authed itinerary load (guest has no trip).
   useEffect(() => {
@@ -225,7 +235,20 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
         enableManualEntry={false}
         onCommitLeg={commitLeg}
         onUncommitLeg={uncommitLeg}
+        onBookLeg={bookLeg}
       />
+
+      {/* PR-Duffel-Pay-3: Book opens the flight checkout (PR-2) for the selected offer —
+          pay now via Duffel Payments (TEST mode). Standalone + guest-ok, like the hotel
+          Book; the confirmation shows in-panel and its "Done" button closes it. */}
+      {bookingOffer && (
+        <FlightCheckoutPanel
+          offer={{ id: bookingOffer.id, price: bookingOffer.price, currency: bookingOffer.currency }}
+          passengerCount={1}
+          onClose={() => setBookingOffer(null)}
+          onBooked={() => { /* confirmation shows in-panel; nothing to persist here */ }}
+        />
+      )}
     </div>
   );
 }
