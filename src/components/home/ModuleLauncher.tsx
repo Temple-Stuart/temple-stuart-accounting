@@ -20,6 +20,11 @@ import PublicVisaCheck from '@/components/trips/PublicVisaCheck';
 import ComingSoonSection from '@/components/home/ComingSoonSection';
 import ScanFilterForm from '@/components/trading/ScanFilterForm';
 import OperationsPipelineShowroom from '@/components/workbench/operations/showroom/OperationsPipelineShowroom';
+// HB-4e-mount: the real routine builder (workbench CRUD) + its self-fetching entity provider, plus
+// the fetch-free logged-out teaser. Mounted verbatim on the homepage Routines tab — no restyle yet.
+import { OperationsEntityProvider } from '@/components/workbench/operations/EntitySelector';
+import SectionE_Routines from '@/components/workbench/operations/SectionE_Routines';
+import HomeRoutineCreateForm from '@/components/home/RoutineCreateForm';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
 import { DEFAULT_FILTERS } from '@/lib/convergence/filter-types';
 
@@ -277,17 +282,23 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       return <OperationsPipelineShowroom onRequireAuth={onRequireAuth} />;
     }
     if (m.key === 'routines') {
-      // PR-A-Tabs: placeholder for the new Routines tab. PR-B mounts the real, fetch-free
-      // routine builder (home/RoutineCreateForm). Time-block routines only for now.
-      return (
-        <div>
-          <p className="text-sm font-semibold text-text-primary mb-1">Routines</p>
-          <p className="text-sm text-text-muted">
-            Build recurring routines that land on your calendar — the rhythms that run your day.
-            The routine builder lands here next.
-          </p>
-        </div>
-      );
+      // HB-4e-mount: authed users get the REAL routine builder — the workbench SectionE_Routines
+      // (create form w/ HB-4b COA picker + budget input, self-fetching routine list, edit) wrapped
+      // in its OperationsEntityProvider (which self-fetches /api/entities). Reused VERBATIM — no
+      // CRUD rewrite, /operations/routines untouched. Logged-out keeps the fetch-free teaser
+      // ("create" → login modal). Auth resolving → nothing. (Styling aligns to the homepage tab
+      // contract in HB-4e-style — it reads workbench/terminal for now, intentionally.)
+      if (authed === true) {
+        return (
+          <OperationsEntityProvider>
+            <SectionE_Routines />
+          </OperationsEntityProvider>
+        );
+      }
+      if (authed === false) {
+        return <HomeRoutineCreateForm onRequireAuth={onRequireAuth} />;
+      }
+      return null; // authed === null → resolving
     }
     if (m.key === 'trading' && isAdmin) {
       // TRADING-PR-2/3: admin sees the working ScanFilterForm (Scan routes to
@@ -444,7 +455,9 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
               <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
                 <span>{m.label}</span>
                 <span className="text-[10px] uppercase tracking-wider font-normal text-white/80">
-                  {m.key === 'projects' || m.key === 'routines' ? 'Live demo · log in to use' : m.live ? 'Free · guest ok' : 'Paid'}
+                  {/* HB-4e-mount: an authed user on Routines sees the REAL builder, not a demo —
+                      drop the "Live demo" tag for them. Projects stays a showroom → keeps its tag. */}
+                  {m.key === 'routines' && authed === true ? '' : (m.key === 'projects' || m.key === 'routines' ? 'Live demo · log in to use' : m.live ? 'Free · guest ok' : 'Paid')}
                 </span>
               </div>
               <div className="bg-white p-4">
