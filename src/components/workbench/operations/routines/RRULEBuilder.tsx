@@ -34,8 +34,8 @@ const CADENCE_MODES: CadenceMode[] = [
 
 export default function RRULEBuilder({ form, setForm }: Props) {
   const inputClass =
-    'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
-  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs font-mono';
+    'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
+  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
 
   const toggleWeekday = (d: WeekDay) => {
     const has = form.weekly_byday.includes(d);
@@ -76,7 +76,7 @@ export default function RRULEBuilder({ form, setForm }: Props) {
                   type="button"
                   onClick={() => toggleWeekday(d)}
                   className={
-                    'px-2 py-1 border rounded text-xs font-mono ' +
+                    'px-2 py-1 border rounded text-xs ' +
                     (selected
                       ? 'bg-brand-purple text-white border-brand-purple'
                       : 'bg-white text-text-primary border-border hover:bg-bg-row')
@@ -140,11 +140,13 @@ export default function RRULEBuilder({ form, setForm }: Props) {
       {form.cadence_mode === 'custom' && (
         <div>
           <div className={labelClass}>raw RRULE (RFC 5545)</div>
+          {/* HB-4e-style-2: the raw RRULE is a CODE value (RFC 5545) — keep it monospace, like the
+              rrule string shown in RoutineRow:249. Every other field in this builder is sans. */}
           <input
             type="text"
             value={form.custom_rrule}
             onChange={(e) => setForm({ ...form, custom_rrule: e.target.value })}
-            className={inputClass}
+            className={`${inputClass} font-mono`}
             placeholder="FREQ=YEARLY;BYMONTH=3,6,9,12;BYMONTHDAY=15"
           />
           <div className="text-text-faint text-xs italic mt-1">

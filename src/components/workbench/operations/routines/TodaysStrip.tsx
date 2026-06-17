@@ -39,10 +39,10 @@ interface Props {
 }
 
 const STATUS_PILL: Record<TodayStatus, string> = {
-  pending: 'bg-amber-50 text-amber-800 border-amber-300',
-  completed: 'bg-green-50 text-green-800 border-green-300',
-  missed: 'bg-red-50 text-red-800 border-red-300',
-  upcoming: 'bg-blue-50 text-blue-800 border-blue-300',
+  pending: 'bg-amber-50 text-amber-800',
+  completed: 'bg-green-50 text-green-800',
+  missed: 'bg-red-50 text-red-800',
+  upcoming: 'bg-blue-50 text-blue-800',
 };
 
 const STATUS_LABEL: Record<TodayStatus, string> = {
@@ -117,12 +117,12 @@ export default function TodaysStrip({ onCommitted }: Props) {
   const totalMissed = entries.filter((e) => e.status === 'missed').length;
 
   if (loading) {
-    return <div className="text-xs font-mono text-text-muted">loading today's routines…</div>;
+    return <div className="text-xs text-text-muted">loading today's routines…</div>;
   }
 
   if (entries.length === 0) {
     return (
-      <div className="text-xs font-mono text-text-muted italic">
+      <div className="text-xs text-text-muted italic">
         no routines scheduled for today.
       </div>
     );
@@ -130,29 +130,29 @@ export default function TodaysStrip({ onCommitted }: Props) {
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between text-xs font-mono">
+      <div className="flex items-center justify-between text-xs">
         <div className="text-text-muted">
           {totalDone} done · {totalDue} due · {totalMissed} missed
         </div>
       </div>
 
       {error && (
-        <div className="text-xs font-mono px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
+        <div className="text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
           {error}
         </div>
       )}
 
       <div className="space-y-1">
         {entries.map((e) => {
-          const pillClass = `inline-block px-2 py-0.5 border rounded text-xs font-mono ${STATUS_PILL[e.status]}`;
+          const pillClass = `inline-block px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_PILL[e.status]}`;
           const canComplete = e.status === 'pending' || e.status === 'upcoming' || e.status === 'missed';
           return (
             <div
               key={e.routine.id}
-              className="flex items-center justify-between gap-2 py-1.5 px-3 border border-border-light rounded bg-white text-xs font-mono"
+              className="flex items-center justify-between gap-2 py-1.5 px-3 border border-border-light rounded bg-white text-xs"
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
-                <span className="text-text-muted shrink-0 w-12 text-right">
+                <span className="text-text-muted shrink-0 w-14 text-right tabular-nums">
                   {formatTime(e.expected_at, e.routine.timezone)}
                 </span>
                 <span className={
@@ -175,7 +175,7 @@ export default function TodaysStrip({ onCommitted }: Props) {
                     type="button"
                     onClick={() => handleComplete(e.routine.id, e.expected_at)}
                     disabled={completingId === e.routine.id}
-                    className="px-2 py-0.5 border border-green-300 text-green-800 rounded hover:bg-green-50 disabled:opacity-50 text-xs font-mono"
+                    className="px-2 py-0.5 border border-green-300 text-green-800 rounded hover:bg-green-50 disabled:opacity-50 text-xs"
                     title="Mark this occurrence as completed"
                   >
                     {completingId === e.routine.id ? '…' : '✓ mark done'}
