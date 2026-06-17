@@ -282,6 +282,11 @@ export function parseOffer(offer: any) {
     const firstSeg = segments[0];
     const lastSeg = segments[segments.length - 1];
 
+    // tz-probe: TEMPORARY diagnostic — remove after C1/C2 resolved. Logs the raw Duffel
+    // airport object's keys + whether time_zone is present on the OFFER-embedded airport,
+    // to disambiguate C1 (stale offer) vs C2 (Duffel omits time_zone from /air/offers).
+    console.log('[tz-probe] firstSeg.origin keys:', firstSeg?.origin ? Object.keys(firstSeg.origin) : 'NO ORIGIN', '| time_zone:', firstSeg?.origin?.time_zone ?? 'UNDEFINED');
+
     const carriers = [...new Set(segments.map((s: any) => s.marketing_carrier?.name || s.operating_carrier?.name))];
 
     const duration = slice.duration || '';
