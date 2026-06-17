@@ -352,6 +352,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // (now that Travel is pulled out of MODULES.map). label/live/blurb are unchanged.
   const travelModule = MODULES.find((m) => m.key === 'travel')!;
   const routinesModule = MODULES.find((m) => m.key === 'routines')!;
+  const projectsModule = MODULES.find((m) => m.key === 'projects')!;
 
   return (
     <>
@@ -471,13 +472,23 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           </div>
         </div>
       </section>
+      {/* Projects-style-1: Projects renders in its own FLUSH block (mirrors Calendar/Travel/
+          Routines) — out of the MODULES.map purple-band card, so the authed builder reads as the
+          app. renderBody handles the authed-builder / logged-out-showroom branch. */}
+      <section className={`w-full bg-white border-b border-border ${activeModule === 'projects' ? 'block' : 'hidden'}`}>
+        <div className="max-w-7xl mx-auto">
+          <div className="px-4 py-4 lg:px-8 space-y-6">
+            {renderBody(projectsModule)}
+          </div>
+        </div>
+      </section>
       {MODULES.map((m, i) => {
         // PR-TG1: Travel now renders in its own flush, edge-to-edge block above (out of
         // this map, no purple band). Skip it here so it never double-renders. Returning
         // null keeps the index `i` stable for the other modules, so their alternating
         // bg (bg-row / white) is byte-identical to before. HB-4e-style: Routines is now
         // ALSO flush (its own block above) → skip it here too.
-        if (m.key === 'travel' || m.key === 'routines') return null;
+        if (m.key === 'travel' || m.key === 'routines' || m.key === 'projects') return null;
         return (
         <section key={m.key} className={`w-full py-10 ${i % 2 === 1 ? 'bg-bg-row' : 'bg-white'} border-b border-border ${activeModule === (MODULE_TO_TAB[m.key] ?? m.key) ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto px-4 lg:px-8 space-y-6">

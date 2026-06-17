@@ -83,12 +83,12 @@ export default function SectionD_ProjectBacklog() {
   };
 
   return (
-    <section className="bg-white rounded border border-border shadow-sm p-5">
+    <section className="space-y-5">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-mono text-sm font-bold tracking-wide text-text-primary">
-          D · PROJECT BACKLOG
+        <h2 className="text-lg font-bold text-brand-purple">
+          Projects
         </h2>
-        <div className="flex items-center gap-3 text-xs font-mono">
+        <div className="flex items-center gap-3 text-xs">
           <span className="text-text-muted">
             {projects.length} {projects.length === 1 ? 'project' : 'projects'}
           </span>
@@ -114,7 +114,7 @@ export default function SectionD_ProjectBacklog() {
       </div>
 
       {error && (
-        <div className="text-xs font-mono mb-3 px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
+        <div className="text-xs mb-3 px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
           {error}
         </div>
       )}
@@ -132,9 +132,9 @@ export default function SectionD_ProjectBacklog() {
       )}
 
       {loading ? (
-        <div className="text-xs font-mono text-text-muted">loading projects…</div>
+        <div className="text-xs text-text-muted">loading projects…</div>
       ) : projects.length === 0 ? (
-        <div className="text-xs font-mono text-text-muted">
+        <div className="text-xs text-text-muted">
           {selectedEntityId
             ? 'no projects for this entity yet — click "+ new project" to scope your first one.'
             : 'no projects yet — click "+ new project" to scope your first one.'}
