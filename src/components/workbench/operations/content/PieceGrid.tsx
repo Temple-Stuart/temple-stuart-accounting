@@ -66,7 +66,11 @@ interface Cell {
 }
 
 const cellKey = (sceneId: string, pieceId: string) => `${sceneId}:${pieceId}`;
-const fmtDate = (iso: string) => iso.slice(0, 10);
+const fmtDate = (iso: string) => {
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
+  if (!y || !m || !d) return iso.slice(0, 10);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+};
 // Prisma @db.Time → "HH:MM".
 const fmtTime = (t: string | null): string => {
   if (!t) return '';
@@ -281,31 +285,31 @@ export default function PieceGrid() {
     ) : null;
 
   return (
-    <section className="bg-white rounded border border-border shadow-sm p-5 space-y-4">
+    <section className="bg-white rounded border border-border p-4 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-mono text-sm font-medium tracking-wide text-brand-purple">
+        <h2 className="text-sm font-medium tracking-wide text-brand-purple">
           DAY-TO-DAY RECORD
           <span className="ml-2 font-normal text-text-muted">scenes × days — the evolution record</span>
         </h2>
       </div>
 
       {loading ? (
-        <p className="text-sm font-mono text-text-muted">Loading grid…</p>
+        <p className="text-sm text-text-muted">Loading grid…</p>
       ) : error ? (
-        <div className="text-xs font-mono px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
+        <div className="text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
           {error}
         </div>
       ) : visibleScenes.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 px-4 border border-border-light rounded bg-bg-row text-center">
           <div className="text-2xl mb-2" aria-hidden="true">🎬</div>
-          <div className="text-sm font-mono font-semibold text-text-primary">No scenes yet</div>
-          <div className="text-xs font-mono text-text-muted mt-1">
+          <div className="text-sm font-semibold text-text-primary">No scenes yet</div>
+          <div className="text-xs text-text-muted mt-1">
             Select routines above and save the Scenify draft — their steps become these rows.
           </div>
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="border-collapse text-xs font-mono">
+          <table className="border-collapse text-xs">
             <thead>
               <tr>
                 <th className="sticky left-0 z-10 bg-bg-row border border-border-light px-3 py-2 text-left text-text-primary font-semibold min-w-[220px]">
@@ -338,7 +342,7 @@ export default function PieceGrid() {
                         value={newDayDate}
                         onChange={(e) => setNewDayDate(e.target.value)}
                         disabled={addDaySaving}
-                        className="px-1 py-0.5 border border-border rounded text-xs font-mono focus:outline-none focus:border-brand-purple"
+                        className="px-1 py-0.5 border border-border rounded text-xs focus:outline-none focus:border-brand-purple"
                         aria-label="New day date"
                       />
                       {addDayError && <div className="text-red-700">{addDayError}</div>}
@@ -463,7 +467,7 @@ export default function PieceGrid() {
           </table>
 
           {visiblePieces.length === 0 && (
-            <p className="mt-3 text-xs font-mono text-text-muted">
+            <p className="mt-3 text-xs text-text-muted">
               No days yet — use <span className="text-text-primary">+ day</span> to add the first column.
             </p>
           )}

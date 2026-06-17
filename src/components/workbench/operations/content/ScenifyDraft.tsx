@@ -481,7 +481,7 @@ export default function ScenifyDraft({
                   from library
                 </span>
               ) : (
-                <span className="px-1.5 py-0.5 rounded border border-amber-400 bg-amber-50 text-amber-700 text-[10px] tracking-wide">
+                <span className="px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-medium tracking-wide">
                   proposed new
                 </span>
               )}
@@ -524,7 +524,7 @@ export default function ScenifyDraft({
   let sceneNo = 0;
 
   return (
-    <div className="bg-white rounded border border-brand-purple shadow-sm p-5 space-y-3 text-xs font-mono">
+    <div className="bg-white rounded border border-border p-4 space-y-3 text-xs">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-medium tracking-wide text-brand-purple text-sm">
           2 · AI SCRIPT MAP
@@ -574,7 +574,7 @@ export default function ScenifyDraft({
         </p>
       ) : (
         <div className="overflow-x-auto max-h-[520px] overflow-y-auto border border-border-light rounded">
-          <table className="border-collapse text-xs font-mono w-full">
+          <table className="border-collapse text-xs w-full">
             <thead>
               <tr>
                 <th className={`${headerCellClass} text-center`}>#</th>

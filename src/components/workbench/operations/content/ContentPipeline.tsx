@@ -54,9 +54,9 @@ interface GridCell {
 }
 
 const STATUS_PILL: Record<string, string> = {
-  open: 'border-border text-text-muted',
-  in_progress: 'border-brand-purple text-brand-purple',
-  blocked: 'border-amber-400 text-amber-700 bg-amber-50',
+  open: 'bg-gray-100 text-gray-600',
+  in_progress: 'bg-brand-purple/10 text-brand-purple',
+  blocked: 'bg-amber-50 text-amber-700',
 };
 
 // Local YYYY-MM-DD (NOT toISOString — that flips to UTC and can show the wrong day).
@@ -65,7 +65,7 @@ const todayLocal = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-const sectionHeader = 'font-mono text-sm font-medium tracking-wide text-brand-purple';
+const sectionHeader = 'text-sm font-medium tracking-wide text-brand-purple';
 
 export default function ContentPipeline() {
   const { entities, selectedEntityId, setSelectedEntityId } = useOperationsEntity();
@@ -304,11 +304,11 @@ export default function ContentPipeline() {
     <div className="space-y-4">
       {/* Header + truthful counts + the new-day entity selector. */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-mono text-sm font-medium tracking-wide text-brand-purple">
-          CONTENT PIPELINE
-          <span className="ml-2 font-normal text-text-muted">inputs → script map → answer + record → script</span>
+        <h1 className="text-lg font-bold text-brand-purple">
+          Content
+          <span className="ml-2 text-sm font-normal text-text-muted">inputs → script map → answer + record → script</span>
         </h1>
-        <div className="flex items-center gap-2 font-mono text-xs">
+        <div className="flex items-center gap-2 text-xs">
           <span className="px-2 py-0.5 rounded border border-border-light bg-bg-row text-text-primary">
             {sceneCount} scenes
           </span>
@@ -334,7 +334,7 @@ export default function ContentPipeline() {
       </div>
 
       {error && (
-        <div className="text-xs font-mono px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
+        <div className="text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
           {error}
         </div>
       )}
@@ -346,7 +346,7 @@ export default function ContentPipeline() {
       {/* 0 · CREATE — collapsed by default; make a project · make a routine, mirroring
           the homepage live-demo two-up layout. The forms are the SAME extracted
           components the Projects/Routines tabs use (one source of truth each). */}
-      <section className="bg-white rounded border border-border shadow-sm p-5 space-y-3">
+      <section className="bg-white rounded border border-border p-4 space-y-3">
         <button
           type="button"
           onClick={() => setCreateOpen((o) => !o)}
@@ -357,13 +357,13 @@ export default function ContentPipeline() {
             0 · CREATE
             <span className="ml-2 font-normal text-text-muted">make a project · make a routine</span>
           </h2>
-          <span className="font-mono text-xs text-brand-purple" aria-hidden="true">
+          <span className="text-xs text-brand-purple" aria-hidden="true">
             {createOpen ? '▾ hide' : '▸ show'}
           </span>
         </button>
 
         {createMsg && (
-          <div className="text-xs font-mono px-3 py-2 rounded border bg-green-50 border-green-200 text-green-800">
+          <div className="text-xs px-3 py-2 rounded border bg-green-50 border-green-200 text-green-800">
             {createMsg}
           </div>
         )}
@@ -371,7 +371,7 @@ export default function ContentPipeline() {
         {createOpen && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <h3 className="font-mono text-xs font-medium uppercase tracking-wide text-brand-purple">
+              <h3 className="text-xs font-medium uppercase tracking-wide text-brand-purple">
                 Make a project
               </h3>
               <ProjectCreateForm
@@ -382,7 +382,7 @@ export default function ContentPipeline() {
               />
             </div>
             <div className="space-y-2">
-              <h3 className="font-mono text-xs font-medium uppercase tracking-wide text-brand-purple">
+              <h3 className="text-xs font-medium uppercase tracking-wide text-brand-purple">
                 Make a routine
               </h3>
               <RoutineCreateForm
@@ -397,15 +397,15 @@ export default function ContentPipeline() {
       </section>
 
       {/* 1 · INPUTS */}
-      <section className="bg-white rounded border border-border shadow-sm p-5 space-y-3">
+      <section className="bg-white rounded border border-border p-4 space-y-3">
         <h2 className={sectionHeader}>
           1 · INPUTS
           <span className="ml-2 font-normal text-text-muted">pick routines to scenify · add tasks to the day</span>
         </h2>
         {loading ? (
-          <p className="text-sm font-mono text-text-muted">Loading…</p>
+          <p className="text-sm text-text-muted">Loading…</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 font-mono text-xs">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
             {/* Left: project tasks — SELECTABLE INPUTS (add to the selected day).
                 Column order mirrors section 0 (project left / routine right). */}
             <div className="space-y-2">
@@ -413,7 +413,7 @@ export default function ContentPipeline() {
                 <h3 className="text-brand-purple font-medium uppercase tracking-wide">Project tasks</h3>
                 <span className="text-text-muted">add to {date}</span>
               </div>
-              <div className="border border-brand-purple rounded p-3 bg-purple-50/30 text-xs font-mono space-y-3">
+              <div className="border border-border rounded p-3 bg-white text-xs space-y-3">
                 {tasks.length === 0 ? (
                   <p className="text-text-muted">No unscheduled tasks.</p>
                 ) : (
@@ -443,8 +443,8 @@ export default function ContentPipeline() {
                           </span>
                           <div className="flex items-center justify-end gap-2">
                             <span
-                              className={`shrink-0 px-1.5 py-0.5 rounded border text-[10px] uppercase tracking-wide ${
-                                STATUS_PILL[t.status] ?? 'border-border text-text-muted'
+                              className={`shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide ${
+                                STATUS_PILL[t.status] ?? 'bg-gray-100 text-gray-600'
                               }`}
                             >
                               {t.status}
@@ -490,7 +490,7 @@ export default function ContentPipeline() {
             {/* Right: routines (selectable, order tracked) */}
             <div className="space-y-2">
               <h3 className="text-brand-purple font-medium uppercase tracking-wide">Routines</h3>
-              <div className="border border-brand-purple rounded p-3 bg-purple-50/30 text-xs font-mono space-y-3">
+              <div className="border border-border rounded p-3 bg-white text-xs space-y-3">
                 {routines.length === 0 ? (
                   <p className="text-text-muted">No routines — create one on the Routines tab.</p>
                 ) : (
@@ -540,13 +540,13 @@ export default function ContentPipeline() {
       )}
 
       {/* 3 · ANSWER + RECORD — date at top, the answer timeline over the record grid. */}
-      <section className="bg-white rounded border border-border shadow-sm p-5 space-y-4">
+      <section className="bg-white rounded border border-border p-4 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className={sectionHeader}>
             3 · ANSWER + RECORD
             <span className="ml-2 font-normal text-text-muted">answer the day → the evolution record</span>
           </h2>
-          <label className="flex items-center gap-1.5 font-mono text-xs text-brand-purple font-medium">
+          <label className="flex items-center gap-1.5 text-xs text-brand-purple font-medium">
             day
             <input
               type="date"

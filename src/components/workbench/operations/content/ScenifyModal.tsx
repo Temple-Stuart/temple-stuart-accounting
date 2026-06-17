@@ -29,7 +29,7 @@ export const CONTENT_SCENES_CHANGED_EVENT = 'operations:content-scenes-changed';
 export const CONTENT_DAY_PLAN_CHANGED_EVENT = 'operations:content-day-plan-changed';
 
 // Table styling matches the PieceGrid below it (PieceGrid.tsx:288-393) so the two
-// read as one family: border-collapse text-xs font-mono, border-border-light grid
+// read as one family: border-collapse text-xs, border-border-light grid
 // lines, gray header band. Per the contrast standard, column headers are purple
 // labels; editable cells are white fields with a purple focus state — borderless so
 // the cell border IS the field boundary (spreadsheet feel, like Alex's Excel).
@@ -270,7 +270,7 @@ export default function ScenifyModal({
   };
 
   return (
-    <div className="w-full border border-brand-purple rounded p-3 bg-purple-50/30 text-xs font-mono space-y-3">
+    <div className="w-full border border-border rounded p-3 bg-white text-xs space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div className="font-bold text-text-primary">🎬 Scenify &ldquo;{routine.name}&rdquo;</div>
         <button
@@ -309,7 +309,7 @@ export default function ScenifyModal({
         // that reads as one family with the PieceGrid below. Horizontal scroll on
         // narrow widths rather than squashing the cells.
         <div className="overflow-x-auto max-h-[460px] overflow-y-auto border border-border-light rounded">
-          <table className="border-collapse text-xs font-mono w-full">
+          <table className="border-collapse text-xs w-full">
             <thead>
               <tr>
                 <th className={`${headerCellClass} text-center`}>#</th>
@@ -391,7 +391,7 @@ export default function ScenifyModal({
                               from library
                             </span>
                           ) : (
-                            <span className="px-1.5 py-0.5 rounded border border-amber-400 bg-amber-50 text-amber-700 text-[10px] tracking-wide">
+                            <span className="px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-medium tracking-wide">
                               proposed new
                             </span>
                           )}
