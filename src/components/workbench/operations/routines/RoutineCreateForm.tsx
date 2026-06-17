@@ -91,12 +91,12 @@ export default function RoutineCreateForm({ entities, defaultEntityId, onCreated
   };
 
   const inputClass =
-    'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
-  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs font-mono';
+    'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
+  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
 
   return (
-    <div className="border border-brand-purple rounded p-3 bg-purple-50/30 text-xs font-mono space-y-3">
-      <div className="font-bold text-text-primary">new routine</div>
+    <div className="border border-border rounded p-3 bg-white text-xs space-y-3">
+      <div className="text-sm font-semibold text-text-primary">new routine</div>
       {createError && (
         <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
           {createError}

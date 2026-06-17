@@ -170,8 +170,8 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
   };
 
   const inputClass =
-    'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
-  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs font-mono';
+    'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
+  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
 
   return (
     <div
@@ -181,7 +181,7 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
       }
     >
       <div
-        className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-bg-row text-xs font-mono"
+        className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-bg-row text-xs"
         onClick={() => !editing && setExpanded((x) => !x)}
       >
         <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -201,7 +201,7 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
             next: {formatDateTime(routine.next_due_at, routine.timezone)}
           </span>
           {(routine.start_date || routine.end_date) && (
-            <span className="text-xs font-mono text-text-muted" title="active date window">
+            <span className="text-xs text-text-muted" title="active date window">
               {(() => {
                 const startStr = routine.start_date ? routine.start_date.slice(0, 10) : null;
                 const endStr = routine.end_date ? routine.end_date.slice(0, 10) : null;
@@ -213,7 +213,7 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
             </span>
           )}
           {(routine.start_time || routine.end_time) && (
-            <span className="text-xs font-mono text-text-muted" title="intent time window">
+            <span className="text-xs text-text-muted" title="intent time window">
               {(() => {
                 const startStr = routine.start_time ? routine.start_time.slice(11, 16) : null;
                 const endStr = routine.end_time ? routine.end_time.slice(11, 16) : null;
@@ -228,7 +228,7 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
       </div>
 
       {expanded && !editing && (
-        <div className="px-4 py-3 border-t border-border-light text-xs font-mono space-y-3">
+        <div className="px-4 py-3 border-t border-border-light text-xs space-y-3">
           {error && (
             <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
               {error}
@@ -305,7 +305,7 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
       )}
 
       {editing && (
-        <div className="px-4 py-3 border-t border-border-light text-xs font-mono space-y-3">
+        <div className="px-4 py-3 border-t border-border-light text-xs space-y-3">
           {error && (
             <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
               {error}

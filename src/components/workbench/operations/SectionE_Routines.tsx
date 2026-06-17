@@ -26,22 +26,22 @@ export default function SectionE_Routines() {
   const bump = () => setRefreshCounter((n) => n + 1);
 
   return (
-    <section className="bg-white rounded border border-border shadow-sm p-5 space-y-5">
+    <section className="space-y-5">
       <div className="flex items-center justify-between">
-        <h2 className="font-mono text-sm font-bold tracking-wide text-text-primary">
-          E · ROUTINES
+        <h2 className="text-sm font-semibold text-text-primary tracking-tight">
+          Routines
         </h2>
       </div>
 
       <div>
-        <div className="text-xs font-mono text-text-faint uppercase tracking-wide mb-2">
+        <div className="text-xs text-text-faint uppercase tracking-wide mb-2">
           today
         </div>
         <TodaysStrip onCommitted={bump} />
       </div>
 
       <div className="pt-3 border-t border-border-light">
-        <div className="text-xs font-mono text-text-faint uppercase tracking-wide mb-2">
+        <div className="text-xs text-text-faint uppercase tracking-wide mb-2">
           all routines
         </div>
         <RoutineList entities={entities} onCommitted={bump} />
