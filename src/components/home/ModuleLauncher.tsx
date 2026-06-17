@@ -24,6 +24,10 @@ import OperationsPipelineShowroom from '@/components/workbench/operations/showro
 // the fetch-free logged-out teaser. Mounted verbatim on the homepage Routines tab — no restyle yet.
 import { OperationsEntityProvider } from '@/components/workbench/operations/EntitySelector';
 import SectionE_Routines from '@/components/workbench/operations/SectionE_Routines';
+// Projects-mount: the real Projects CRUD (Bridgewater backlog). Authed users get this verbatim,
+// wrapped in the same self-fetching OperationsEntityProvider as SectionE_Routines; logged-out
+// keeps the rich OperationsPipelineShowroom (Option B).
+import SectionD_ProjectBacklog from '@/components/workbench/operations/SectionD_ProjectBacklog';
 import HomeRoutineCreateForm from '@/components/home/RoutineCreateForm';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
 import { DEFAULT_FILTERS } from '@/lib/convergence/filter-types';
@@ -276,10 +280,24 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       );
     }
     if (m.key === 'projects') {
-      // PR-A-Tabs: the Projects tab keeps the existing Operations project showroom (the
-      // component file/path stays 'operations' — backend untouched; this is a home label
-      // rename only). Project → Day → Script, fetch-free, every action → onRequireAuth.
-      return <OperationsPipelineShowroom onRequireAuth={onRequireAuth} />;
+      // Projects-mount (Option B): authed users get the REAL project builder — the workbench
+      // SectionD_ProjectBacklog (self-fetching project list + create form + edit) wrapped in its
+      // OperationsEntityProvider (self-fetches /api/entities). Reused VERBATIM — no CRUD rewrite,
+      // /operations/projects untouched. This kills the "logged-in kick to login/operations": authed
+      // users now author projects inline instead of every click → onRequireAuth. Logged-out KEEPS
+      // the rich fetch-free showroom (the marketing demo, unchanged). Auth resolving → nothing.
+      // (Styling aligns to the homepage tab contract in PR-Projects-style — terminal for now.)
+      if (authed === true) {
+        return (
+          <OperationsEntityProvider>
+            <SectionD_ProjectBacklog />
+          </OperationsEntityProvider>
+        );
+      }
+      if (authed === false) {
+        return <OperationsPipelineShowroom onRequireAuth={onRequireAuth} />;
+      }
+      return null; // authed === null → resolving
     }
     if (m.key === 'routines') {
       // HB-4e-mount: authed users get the REAL routine builder — the workbench SectionE_Routines
@@ -467,9 +485,10 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
               <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
                 <span>{m.label}</span>
                 <span className="text-[10px] uppercase tracking-wider font-normal text-white/80">
-                  {/* HB-4e-mount: an authed user on Routines sees the REAL builder, not a demo —
-                      drop the "Live demo" tag for them. Projects stays a showroom → keeps its tag. */}
-                  {m.key === 'routines' && authed === true ? '' : (m.key === 'projects' || m.key === 'routines' ? 'Live demo · log in to use' : m.live ? 'Free · guest ok' : 'Paid')}
+                  {/* HB-4e-mount + Projects-mount: an authed user on Routines OR Projects sees the
+                      REAL builder, not a demo — drop the "Live demo" tag for them. Logged-out keeps
+                      it (still a showroom/teaser). */}
+                  {(m.key === 'routines' || m.key === 'projects') && authed === true ? '' : (m.key === 'projects' || m.key === 'routines' ? 'Live demo · log in to use' : m.live ? 'Free · guest ok' : 'Paid')}
                 </span>
               </div>
               <div className="bg-white p-4">
