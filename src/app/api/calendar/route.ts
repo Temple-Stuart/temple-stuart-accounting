@@ -17,10 +17,24 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const year = parseInt(searchParams.get('year') || new Date().getFullYear().toString());
     const month = searchParams.get('month') ? parseInt(searchParams.get('month')!) : null;
+    // PR-calendar-visible-range: optional explicit visible window (inclusive 'YYYY-MM-DD').
+    // When present it takes precedence over month/year so a week/day spanning a month boundary
+    // loads ALL its events. month + year modes are kept for the other caller (hub/page.tsx).
+    const fromParam = searchParams.get('from');
+    const toParam = searchParams.get('to');
+    const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
     let events: any[];
-    
-    if (month) {
+
+    if (fromParam && toParam && DATE_RE.test(fromParam) && DATE_RE.test(toParam)) {
+      events = await prisma.$queryRaw`
+        SELECT * FROM calendar_events
+        WHERE user_id = ${user.id}
+        AND start_date >= ${fromParam}::date
+        AND start_date <= ${toParam}::date
+        ORDER BY start_date ASC
+      `;
+    } else if (month) {
       const startOfMonth = `${year}-${String(month).padStart(2, '0')}-01`;
       const endOfMonth = month === 12 
         ? `${year + 1}-01-01` 
