@@ -148,6 +148,16 @@ type TzMode = 'local' | 'home';
 // swap this for the tzMode-selected (trip-local) zone — tz-3b is the fixed anchor only.
 const HOME_ANCHOR = 'America/Los_Angeles';
 
+// PR-tz-4: resolve the DISPLAY zone for one end of an event from the live Trip-Local toggle.
+// 'home' → the fixed HOME_ANCHOR (tz-3b behavior, one timeline). 'local' (Trip Local) → the
+// event's OWN stored trip zone (depart uses start_zone, arrival uses end_zone). When Trip Local
+// is selected but this row carries no trip zone (non-flight/old rows have null zones — nothing
+// to localize), fall to HOME_ANCHOR: there is no trip clock to show, so the anchor is the only
+// honest zone. This is NOT a fallback that hides data — it's "no trip zone ⇒ show the anchor".
+function resolveDisplayZone(tzMode: TzMode, eventZone: string | null | undefined): string {
+  return tzMode === 'home' ? HOME_ANCHOR : (eventZone ?? HOME_ANCHOR);
+}
+
 // ═══════════════════════════════════════════════════════════════
 // Multi-day event splitter
 // ═══════════════════════════════════════════════════════════════
@@ -159,9 +169,14 @@ interface DayBlock {
   label: string;     // display label
   isDepart: boolean; // true = departure half
   isArrive: boolean; // true = arrival half
+  // PR-tz-4: the time-range subtitle, pre-resolved in the toggle-selected zone so the block's
+  // subtitle agrees with its title (both depart→arrival in the same toggled zone). Naive clock
+  // for non-trip rows + naive-path trip rows; resolved wall-clock when the instant is present.
+  startLabel?: string;
+  endLabel?: string;
 }
 
-function getBlocksForDay(dayKey: string, events: CalendarEvent[]): DayBlock[] {
+function getBlocksForDay(dayKey: string, events: CalendarEvent[], tzMode: TzMode): DayBlock[] {
   const blocks: DayBlock[] = [];
 
   for (const event of events) {
@@ -191,11 +206,24 @@ function getBlocksForDay(dayKey: string, events: CalendarEvent[]): DayBlock[] {
       let tripStartKey = evtStartKey;
       let tripStartMin = startMin;
       let arriveLabelTime = event.endTime ? formatTime12h(event.endTime) : '';
+      // PR-tz-4: subtitle range, resolved alongside the title so they always agree.
+      let subStart = event.startTime ? formatTime12h(event.startTime) : undefined;
+      let subEnd = event.endTime ? formatTime12h(event.endTime) : undefined;
       if (event.startAt) {
-        const dep = instantToZoned(new Date(event.startAt), HOME_ANCHOR);
+        // PR-tz-4: depart end uses start_zone, arrival end uses end_zone — each routed through the
+        // live toggle (Home → HOME_ANCHOR; Trip Local → that end's own trip zone). Geometry + the
+        // day key follow the DEPART zone (mirrored in eventsByDateKey, so bucketing agrees).
+        const departZone = resolveDisplayZone(tzMode, event.startZone);
+        const arriveZone = resolveDisplayZone(tzMode, event.endZone);
+        const dep = instantToZoned(new Date(event.startAt), departZone);
         tripStartKey = dep.date;
         tripStartMin = timeToMinutes(dep.time);
-        if (event.endAt) arriveLabelTime = formatTime12h(instantToZoned(new Date(event.endAt), HOME_ANCHOR).time);
+        subStart = formatTime12h(dep.time);
+        if (event.endAt) {
+          const arr = instantToZoned(new Date(event.endAt), arriveZone);
+          arriveLabelTime = formatTime12h(arr.time);
+          subEnd = formatTime12h(arr.time);
+        }
       }
 
       const dayOffset = Math.round((parseDate(dayKey).getTime() - parseDate(tripStartKey).getTime()) / 86_400_000);
@@ -206,7 +234,7 @@ function getBlocksForDay(dayKey: string, events: CalendarEvent[]): DayBlock[] {
         // day ONLY, visibly flagged. NEVER reconstruct start→end (that is the 34h bug). This
         // is an explicit "we don't trust this" state, not a silent fallback.
         if (dayOffset === 0) {
-          blocks.push({ event, startMin: tripStartMin, endMin: tripStartMin + 30, label: `⚠ duration unverified · ${event.title}`, isDepart: true, isArrive: false });
+          blocks.push({ event, startMin: tripStartMin, endMin: tripStartMin + 30, label: `⚠ duration unverified · ${event.title}`, isDepart: true, isArrive: false, startLabel: subStart, endLabel: subEnd });
         }
         continue;
       }
@@ -220,26 +248,30 @@ function getBlocksForDay(dayKey: string, events: CalendarEvent[]): DayBlock[] {
       const label = isArriveSeg
         ? `arr ${arriveLabelTime} ${event.title.replace(/^\d+:\d+\s*(AM|PM)\s*/i, '')}`.trim()
         : event.title;
-      blocks.push({ event, startMin: segStart, endMin: Math.max(segEnd, segStart + 30), label, isDepart: dayOffset === 0, isArrive: isArriveSeg });
+      blocks.push({ event, startMin: segStart, endMin: Math.max(segEnd, segStart + 30), label, isDepart: dayOffset === 0, isArrive: isArriveSeg, startLabel: subStart, endLabel: subEnd });
       continue;
     }
 
     // ── Non-trip (operations / project / routine) — UNCHANGED start→end behavior. ──
+    // PR-tz-4: non-trip rows have no zones (null start_zone/end_zone) — the toggle has nothing to
+    // localize, so the subtitle stays the naive stored clock (same as the pre-tz-4 render).
     const endMin = event.endTime ? timeToMinutes(event.endTime) : startMin + 120;
+    const naiveStart = event.startTime ? formatTime12h(event.startTime) : undefined;
+    const naiveEnd = event.endTime ? formatTime12h(event.endTime) : undefined;
 
     if (evtStartKey === evtEndKey || !event.endDate) {
       // Same-day event — only show on its start date
       if (dayKey === evtStartKey) {
-        blocks.push({ event, startMin, endMin: Math.max(endMin, startMin + 60), label: event.title, isDepart: false, isArrive: false });
+        blocks.push({ event, startMin, endMin: Math.max(endMin, startMin + 60), label: event.title, isDepart: false, isArrive: false, startLabel: naiveStart, endLabel: naiveEnd });
       }
     } else {
       // Multi-day event
       if (dayKey === evtStartKey) {
         // Departure day: from departure time to end of day
-        blocks.push({ event, startMin, endMin: 24 * 60, label: event.title, isDepart: true, isArrive: false });
+        blocks.push({ event, startMin, endMin: 24 * 60, label: event.title, isDepart: true, isArrive: false, startLabel: naiveStart, endLabel: naiveEnd });
       } else if (dayKey === evtEndKey) {
         // Arrival day: from start of day to arrival time
-        blocks.push({ event, startMin: 0, endMin: Math.max(endMin, 60), label: `arr ${event.endTime ? formatTime12h(event.endTime) : ''} ${event.title.replace(/^\d+:\d+\s*(AM|PM)\s*/i, '')}`.trim(), isDepart: false, isArrive: true });
+        blocks.push({ event, startMin: 0, endMin: Math.max(endMin, 60), label: `arr ${event.endTime ? formatTime12h(event.endTime) : ''} ${event.title.replace(/^\d+:\d+\s*(AM|PM)\s*/i, '')}`.trim(), isDepart: false, isArrive: true, startLabel: naiveStart, endLabel: naiveEnd });
       }
     }
   }
@@ -335,7 +367,9 @@ export default function CalendarGrid({
       let startKey: string;
       let startMinForSpan: number | null;
       if (e.startAt) {
-        const dep = instantToZoned(new Date(e.startAt), HOME_ANCHOR);
+        // PR-tz-4: bucket by the DEPART zone resolved from the toggle (Home → HOME_ANCHOR; Trip
+        // Local → start_zone), so day-membership matches getBlocksForDay's depart-day geometry.
+        const dep = instantToZoned(new Date(e.startAt), resolveDisplayZone(tzMode, e.startZone));
         startKey = dep.date;
         startMinForSpan = timeToMinutes(dep.time);
       } else {
@@ -366,7 +400,7 @@ export default function CalendarGrid({
       }
     });
     return map;
-  }, [events]);
+  }, [events, tzMode]);
 
   const getEventsForDate = (date: Date) => {
     const key = dateToKey(date);
@@ -671,7 +705,7 @@ export default function CalendarGrid({
                     const hl = isInHighlight(day);
                     const dayKey = dateToKey(day);
                     const dayEvents = getEventsForDate(day);
-                    const blocks = getBlocksForDay(dayKey, dayEvents);
+                    const blocks = getBlocksForDay(dayKey, dayEvents, tzMode);
 
                     return (
                       <div key={dayIdx} className={`flex-1 relative border-l border-border-light ${isToday ? 'bg-red-50/20' : hl ? 'bg-purple-50/10' : ''}`}>
@@ -719,10 +753,10 @@ export default function CalendarGrid({
                             >
                               <div className="px-2 py-1.5 h-full overflow-hidden">
                                 <div className="text-[11px] font-semibold leading-tight truncate">{block.label}</div>
-                                {block.event.startTime && (
+                                {block.startLabel && (
                                   <div className="text-[10px] opacity-80 leading-tight mt-0.5 truncate">
-                                    {formatTime12h(block.event.startTime)}
-                                    {block.event.endTime ? ` — ${formatTime12h(block.event.endTime)}` : ''}
+                                    {block.startLabel}
+                                    {block.endLabel ? ` — ${block.endLabel}` : ''}
                                   </div>
                                 )}
                                 {block.event.location && (
