@@ -28,7 +28,20 @@ async function getOptionDetails(
     case 'lodging': {
       const opt = await tx.trip_lodging_options.findFirst({ where: { id: optionId, trip_id: tripId } });
       if (!opt) return null;
-      return { title: opt.title || 'Lodging', amount: Number(opt.total_price || opt.price_per_night || 0), tripId: opt.trip_id };
+      // PR-Lodging-Total-Guard: total_price is the canonical WHOLE-STAY amount — the active path
+      // writes price_per_night × nights + taxes (LodgingOptions.tsx:72). NEVER fall back to bare
+      // price_per_night: that is ONE night masquerading as the full stay (a silent under-count).
+      // If total_price is absent/non-positive, FAIL LOUD — trip_lodging_options persists no nights
+      // count to recompute from, so any substitute would either undercount (one night) or invent a
+      // divisor. The outer catch surfaces this as a 500 with the message.
+      const totalPrice = Number(opt.total_price);
+      if (!Number.isFinite(totalPrice) || totalPrice <= 0) {
+        throw new Error(
+          `Lodging option ${optionId} has no total_price — refusing to substitute one night's ` +
+          `price_per_night as the whole-stay amount. Re-save the stay with a total.`,
+        );
+      }
+      return { title: opt.title || 'Lodging', amount: totalPrice, tripId: opt.trip_id };
     }
     case 'transfer': {
       const opt = await tx.trip_transfer_options.findFirst({ where: { id: optionId, trip_id: tripId } });
