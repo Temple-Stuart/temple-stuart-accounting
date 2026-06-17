@@ -226,6 +226,24 @@ export async function POST(request: NextRequest) {
       ? body.ideal_time_label.trim()
       : null;
 
+    // HB-4a: per-occurrence budget + COA (both optional). NO FALLBACK — absent/empty → null (a
+    // routine genuinely has no budget, never 0); a present-but-invalid amount fails loud (400),
+    // never coerced. budget_amount is a Decimal(12,2) money column; coa_code is a soft string ref.
+    let budgetAmount: number | null = null;
+    if (body.budget_amount != null && String(body.budget_amount).trim() !== '') {
+      const n = Number(body.budget_amount);
+      if (!Number.isFinite(n) || n < 0) {
+        return NextResponse.json(
+          { error: 'Validation', field: 'budget_amount', message: 'must be a non-negative number' },
+          { status: 400 }
+        );
+      }
+      budgetAmount = n;
+    }
+    const coaCode = typeof body.coa_code === 'string' && body.coa_code.trim().length > 0
+      ? body.coa_code.trim()
+      : null;
+
     // Compute initial next_due_at.
     let nextDueAt: Date | null = null;
     try {
@@ -262,6 +280,9 @@ export async function POST(request: NextRequest) {
         end_time: endTimeResult.value,
         is_active: body.is_active !== false,
         next_due_at: nextDueAt,
+        // HB-4a: nullable money fields — null when unset (no fake 0 / no default COA).
+        budget_amount: budgetAmount,
+        coa_code: coaCode,
         created_by: userEmail,
       },
     });
