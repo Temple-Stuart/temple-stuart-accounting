@@ -79,11 +79,16 @@ export default function HubBudgetSection() {
   }, [active.route, year]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Rows for the selected month — one per COA the route returned (never invented).
-  const rows = Object.entries(data.coaNames).map(([code, name]) => {
+  const allRows = Object.entries(data.coaNames).map(([code, name]) => {
     const budget = data.budgetData[code]?.[monthIdx] ?? 0;
     const actual = data.actualData[code]?.[monthIdx] ?? 0;
     return { code, name, budget, actual, variance: actual - budget };
   });
+  // PR-HB-1b: hide fully-empty ($0 budget AND $0 actual) accounts for the month. Uses !== 0 (NOT
+  // > 0) so a genuine NEGATIVE row — a Trading P&L loss or a refund/credit — still shows.
+  const rows = allRows.filter(r => r.budget !== 0 || r.actual !== 0);
+  // Totals sum the SAME visible (filtered) set — numerically identical to the full set since
+  // hidden rows are 0/0, but explicitly matched so the footer always equals the visible rows.
   const totalBudget = rows.reduce((s, r) => s + r.budget, 0);
   const totalActual = rows.reduce((s, r) => s + r.actual, 0);
 
@@ -146,7 +151,7 @@ export default function HubBudgetSection() {
         <div className="px-4 py-8 text-center text-sm text-text-faint">Loading…</div>
       ) : rows.length === 0 ? (
         <div className="rounded-lg border border-border bg-bg-row/40 px-4 py-8 text-center text-sm text-text-muted">
-          No {active.label.toLowerCase()} budget accounts for {year}.
+          No budget or actual activity for {MONTHS[monthIdx]} {year}.
         </div>
       ) : (
         <div className="overflow-x-auto">
