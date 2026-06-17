@@ -678,7 +678,7 @@ export default function CalendarGrid({
                     {gridDays.map((day, idx) => {
                       const evts = allDayEvents[idx];
                       return (
-                        <div key={idx} className="flex-1 border-l border-border-light p-0.5 min-h-[28px]">
+                        <div key={idx} className="flex-1 min-w-0 border-l border-border-light p-0.5 min-h-[28px]">
                           {evts.slice(0, 3).map((event, i) => {
                             const config = sourceConfig[event.source] || { badge: 'bg-gray-400', dot: 'bg-gray-400' };
                             return (
