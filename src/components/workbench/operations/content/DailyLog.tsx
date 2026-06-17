@@ -231,7 +231,7 @@ export default function DailyLog({ date }: { date: string }) {
   const renderTravelRow = (t: DayTravelBlock) => (
     <tr key={`travel-${t.id}`}>
       <td colSpan={6} className="border border-border-light border-l-4 border-l-cyan-500 bg-cyan-50/50 px-3 py-2 align-top">
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 font-mono text-xs">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs">
           <span className="tabular-nums text-text-muted">{t.label}</span>
           <span className="font-medium text-text-primary break-words">{t.title}</span>
           {t.coaCode && <span className="text-text-faint">· {t.coaCode}</span>}
@@ -244,50 +244,50 @@ export default function DailyLog({ date }: { date: string }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="font-mono text-sm font-medium tracking-wide text-brand-purple">
+        <h3 className="text-sm font-medium tracking-wide text-brand-purple">
           ANSWER
           <span className="ml-2 font-normal text-text-muted">the day, top to bottom — mindset + execution</span>
         </h3>
         {piece && dayScenes.length > 0 && (
-          <span className="font-mono text-xs text-text-muted">
+          <span className="text-xs text-text-muted">
             {answeredCount} of {dayScenes.length} answered
           </span>
         )}
       </div>
 
       {error && (
-        <div className="text-xs font-mono px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
+        <div className="text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
           {error}
         </div>
       )}
 
       {loading ? (
-        <p className="text-sm font-mono text-text-muted">Loading…</p>
+        <p className="text-sm text-text-muted">Loading…</p>
       ) : dayScenes.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 px-4 border border-border-light rounded bg-bg-row text-center">
           <div className="text-2xl mb-2" aria-hidden="true">🎬</div>
-          <div className="text-sm font-mono font-semibold text-text-primary">No scenes yet</div>
-          <div className="text-xs font-mono text-text-muted mt-1">
+          <div className="text-sm font-semibold text-text-primary">No scenes yet</div>
+          <div className="text-xs text-text-muted mt-1">
             Scenify a routine first — its steps become the scenes you answer here.
           </div>
         </div>
       ) : !piece ? (
         <div className="flex flex-col items-center justify-center py-8 px-4 border border-border-light rounded bg-bg-row text-center gap-3">
-          <div className="text-xs font-mono text-text-muted">
+          <div className="text-xs text-text-muted">
             No log started for <span className="text-text-primary font-semibold">{date}</span> yet.
           </div>
           <button
             type="button"
             onClick={startDay}
             disabled={starting}
-            className="px-3 py-1.5 font-mono text-xs border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
+            className="px-3 py-1.5 text-xs border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
           >
             {starting ? 'Starting…' : `Start ${date} log`}
           </button>
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="border-collapse text-xs font-mono w-full">
+          <table className="border-collapse text-xs w-full">
             <thead>
               <tr>
                 <th className={`${headerCellClass} text-center`}>#</th>
