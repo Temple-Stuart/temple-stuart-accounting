@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { routinesMonthlyByCoa } from '@/lib/operations/routineBudget';
 
 export async function GET(request: Request) {
   try {
@@ -86,6 +87,49 @@ export async function GET(request: Request) {
         if (val !== 0) {
           budgetData[coa][m] = (budgetData[coa][m] || 0) + val;
           budgetGrandTotal += val;
+        }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // HB-4d: bridge BUDGETED ROUTINES into the planned budget (aggregate-on-read).
+    // A Personal-entity routine with a per-occurrence budget + COA contributes
+    // (occurrences-in-month × budget_amount) to its COA's monthly figure, computed via
+    // routinesMonthlyByCoa (HB-4c → expandBetween, the same recurrence helper the calendar uses).
+    // ADDITIVE + no double-count: routines write to NEITHER `budgets` NOR budget_line_items (the
+    // `budgets` table is fed only by the category routes), so this is the sole routine path into
+    // budgetData. Gated on COA_NAMES so the contribution renders as a row AND budgetGrandTotal
+    // stays consistent with the visible accounts (a routine on an excluded/travel COA does not
+    // surface here — that belongs to nomad-budget). Only is_active + fully-budgeted routines count
+    // (the helper returns null otherwise — no guessed amounts).
+    // ═══════════════════════════════════════════════════════════════════
+    if (personalEntity) {
+      const budgetedRoutines = await prisma.operations_routines.findMany({
+        where: {
+          user_id: user.id,
+          entity_id: personalEntity.id,
+          is_active: true,
+          budget_amount: { not: null },
+          coa_code: { not: null },
+        },
+        select: { budget_amount: true, coa_code: true, schedule_rrule: true, timezone: true },
+      });
+      if (budgetedRoutines.length > 0) {
+        const routineInputs = budgetedRoutines.map(r => ({
+          budget_amount: r.budget_amount != null ? Number(r.budget_amount) : null,
+          coa_code: r.coa_code,
+          schedule_rrule: r.schedule_rrule,
+          timezone: r.timezone,
+        }));
+        for (let m = 0; m < 12; m++) {
+          const byCoa = routinesMonthlyByCoa(routineInputs, year, m);
+          for (const [rawCoa, amount] of Object.entries(byCoa)) {
+            const coa = rawCoa.replace(/^[PB]-/, ''); // bare code, mirroring the budgets read (:82)
+            if (!COA_NAMES[coa]) continue; // not a homebase account → not this table's row
+            if (!budgetData[coa]) budgetData[coa] = {};
+            budgetData[coa][m] = (budgetData[coa][m] || 0) + amount;
+            budgetGrandTotal += amount;
+          }
         }
       }
     }
