@@ -20,8 +20,8 @@ import TakeifyButton from '../content/TakeifyButton';
 const STEP_DEFAULT_INTERVAL_MINUTES = 15;
 
 const inputClass =
-  'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
-const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs font-mono';
+  'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
+const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
 
 interface StepForm {
   activity: string;
@@ -218,16 +218,16 @@ export function RoutineStepList({ routine, onUpdate, onTakeify }: Props) {
   };
 
   const arrowClass =
-    'px-1.5 py-0.5 border border-border rounded hover:bg-bg-row disabled:opacity-30 text-xs font-mono';
+    'px-1.5 py-0.5 border border-border rounded hover:bg-bg-row disabled:opacity-30 text-xs';
   const actionClass =
-    'px-2 py-0.5 border border-border text-text-muted rounded hover:bg-bg-row disabled:opacity-50 text-xs font-mono';
+    'px-2 py-0.5 border border-border text-text-muted rounded hover:bg-bg-row disabled:opacity-50 text-xs';
 
   return (
     <div className="pt-2 border-t border-border-light space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className={labelClass}>steps</span>
-          <span className="text-text-muted text-xs font-mono">
+          <span className="text-text-muted text-xs">
             {steps.length} {steps.length === 1 ? 'step' : 'steps'}
           </span>
         </div>
@@ -243,19 +243,19 @@ export function RoutineStepList({ routine, onUpdate, onTakeify }: Props) {
       </div>
 
       {error && (
-        <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs font-mono">
+        <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs">
           {error}
         </div>
       )}
 
       {steps.length === 0 && !openAdd && (
-        <div className="text-text-muted italic text-xs font-mono">no steps yet</div>
+        <div className="text-text-muted italic text-xs">no steps yet</div>
       )}
 
       {steps.map((step, index) => (
         <div
           key={step.id}
-          className="border border-border-light rounded bg-white px-3 py-2 text-xs font-mono"
+          className="border border-border-light rounded bg-white px-3 py-2 text-xs"
         >
           {editingId === step.id ? (
             <div className="space-y-2">
@@ -324,7 +324,7 @@ export function RoutineStepList({ routine, onUpdate, onTakeify }: Props) {
                   type="button"
                   onClick={() => handleSave(step.id)}
                   disabled={saving}
-                  className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50 text-xs font-mono"
+                  className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50 text-xs"
                 >
                   {saving ? 'saving…' : 'save'}
                 </button>
@@ -332,7 +332,7 @@ export function RoutineStepList({ routine, onUpdate, onTakeify }: Props) {
                   type="button"
                   onClick={() => setEditingId(null)}
                   disabled={saving}
-                  className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50 text-xs font-mono"
+                  className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50 text-xs"
                 >
                   cancel
                 </button>
@@ -391,7 +391,7 @@ export function RoutineStepList({ routine, onUpdate, onTakeify }: Props) {
                     type="button"
                     onClick={() => handleDelete(step)}
                     disabled={busy}
-                    className="px-2 py-0.5 border border-red-300 text-red-700 rounded hover:bg-red-50 disabled:opacity-50 text-xs font-mono"
+                    className="px-2 py-0.5 border border-red-300 text-red-700 rounded hover:bg-red-50 disabled:opacity-50 text-xs"
                   >
                     delete
                   </button>
@@ -408,7 +408,7 @@ export function RoutineStepList({ routine, onUpdate, onTakeify }: Props) {
 
       {openAdd && (
         <div className="border border-brand-purple rounded p-3 bg-purple-50/30 space-y-2">
-          <div className="font-mono text-xs font-bold text-text-primary">new step</div>
+          <div className="text-xs font-bold text-text-primary">new step</div>
           <div className="grid grid-cols-2 gap-2">
             <div className="col-span-2">
               <div className={labelClass}>activity</div>
@@ -475,7 +475,7 @@ export function RoutineStepList({ routine, onUpdate, onTakeify }: Props) {
               type="button"
               onClick={handleCreate}
               disabled={creating}
-              className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50 text-xs font-mono"
+              className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50 text-xs"
             >
               {creating ? 'creating…' : 'create step'}
             </button>
@@ -487,7 +487,7 @@ export function RoutineStepList({ routine, onUpdate, onTakeify }: Props) {
                 setError(null);
               }}
               disabled={creating}
-              className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50 text-xs font-mono"
+              className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50 text-xs"
             >
               cancel
             </button>

@@ -28,7 +28,7 @@ export default function SectionE_Routines() {
   return (
     <section className="space-y-5">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-text-primary tracking-tight">
+        <h2 className="text-lg font-bold text-brand-purple">
           Routines
         </h2>
       </div>

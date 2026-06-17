@@ -76,6 +76,24 @@ function formatDateTime(iso: string | null, tz: string): string {
   });
 }
 
+// HB-4e-style-2: humanize the "active" window's date (display only — same @db.Date value, rendered
+// "Jun 1, 2026" not raw ISO "2026-06-01"). Build the Date from the Y-M-D parts so a UTC-midnight
+// @db.Date never drifts a day under a negative-offset locale.
+function formatDate(iso: string): string {
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
+  if (!y || !m || !d) return iso.slice(0, 10);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+// HB-4e-style-2: humanize the intent-time window (display only — "00:00" → "12:00 AM").
+function formatTime12h(hhmm: string): string {
+  const [h, m] = hhmm.split(':').map(Number);
+  if (Number.isNaN(h)) return hhmm;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m || 0).padStart(2, '0')} ${ampm}`;
+}
+
 export default function RoutineRow({ routine, entities, onUpdate, onDelete, onScenify, onTakeify }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -203,9 +221,9 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
           {(routine.start_date || routine.end_date) && (
             <span className="text-xs text-text-muted" title="active date window">
               {(() => {
-                const startStr = routine.start_date ? routine.start_date.slice(0, 10) : null;
-                const endStr = routine.end_date ? routine.end_date.slice(0, 10) : null;
-                if (startStr && endStr) return `active ${startStr}–${endStr}`;
+                const startStr = routine.start_date ? formatDate(routine.start_date) : null;
+                const endStr = routine.end_date ? formatDate(routine.end_date) : null;
+                if (startStr && endStr) return `active ${startStr} – ${endStr}`;
                 if (startStr) return `active from ${startStr}`;
                 if (endStr) return `active until ${endStr}`;
                 return '';
@@ -215,9 +233,9 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
           {(routine.start_time || routine.end_time) && (
             <span className="text-xs text-text-muted" title="intent time window">
               {(() => {
-                const startStr = routine.start_time ? routine.start_time.slice(11, 16) : null;
-                const endStr = routine.end_time ? routine.end_time.slice(11, 16) : null;
-                if (startStr && endStr) return `${startStr}–${endStr}`;
+                const startStr = routine.start_time ? formatTime12h(routine.start_time.slice(11, 16)) : null;
+                const endStr = routine.end_time ? formatTime12h(routine.end_time.slice(11, 16)) : null;
+                if (startStr && endStr) return `${startStr} – ${endStr}`;
                 if (startStr) return `from ${startStr}`;
                 if (endStr) return `until ${endStr}`;
                 return '';
