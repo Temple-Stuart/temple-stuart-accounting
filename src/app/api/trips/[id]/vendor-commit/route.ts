@@ -90,10 +90,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       // PR 3 — commit-time capture (all optional; absent = old client → derive/default):
       recurrence: recurrenceInput, coa_code: coaCodeInput, vendor_name: vendorNameInput,
       // PR-Flight-Duration-1: the flight's true elapsed minutes (Duffel). Flights only; null otherwise.
-      durationMinutes: durationMinutesInput } = await request.json();
+      durationMinutes: durationMinutesInput,
+      // PR-tz-1: departure/arrival airport IANA zones (tz-0b sends them). Persisted as
+      // passthrough below — flight-only; null otherwise. NEVER defaulted to a hardcoded zone.
+      originZone: originZoneInput, destZone: destZoneInput } = await request.json();
     const durationMinutes = optionType === 'flight' && Number.isFinite(durationMinutesInput)
       ? Math.round(durationMinutesInput)
       : null;
+    // Flight-only zone passthrough (mirrors the durationMinutes gate). A non-flight commit
+    // has no airport zone → null (genuinely absent, not a substitute).
+    const startZone = optionType === 'flight' && typeof originZoneInput === 'string' ? originZoneInput : null;
+    const endZone = optionType === 'flight' && typeof destZoneInput === 'string' ? destZoneInput : null;
 
     // PR 3: validate the user-selected COA against the canonical travel account
     // list — NO free-text COA codes. Absent is fine (server derives, below);
@@ -274,6 +281,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             note: notes || null, location: activityLocation, vendorOptionId: optionId, vendorOptionType: optionType,
             // PR-Flight-Duration-1: the true elapsed minutes (Duffel) — render depart+duration (PR-2).
             duration_minutes: durationMinutes,
+            // PR-tz-1: persist the airport IANA zones (passthrough). start_at/end_at (the UTC
+            // instant) are STAGED null this PR — filled post-tz-2 by the canonical converter.
+            start_zone: startZone,
+            end_zone: endZone,
           },
         });
         itineraryEntries.push(entry);
@@ -353,10 +364,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       : (endDate ? new Date(endDate) : calStart);
     const calStartTime = isFlight ? (startTime || null) : null; // depart (wheels-up), "HH:MM"
     const calEndTime = isFlight ? (endTime || null) : null;     // arrive (wheels-down), "HH:MM"
+    // PR-tz-1: persist the airport IANA zones (passthrough; flight-only via startZone/endZone,
+    // which are already null for non-flights). start_at/end_at (the UTC instant) are STAGED
+    // null this PR — filled post-tz-2 by the canonical converter (no inline conversion here).
     try {
       await prisma.$queryRaw`
-        INSERT INTO calendar_events (user_id, source, source_id, title, category, icon, color, start_date, end_date, start_time, end_time, is_recurring, coa_code, budget_amount, duration_minutes)
-        VALUES (${user.id}, 'trip', ${calSourceId}, ${calTitle}, 'trip', ${calIcon}, 'cyan', ${calStart}, ${calEnd}, ${calStartTime}::time, ${calEndTime}::time, false, ${result.budgetItem.coaCode}, ${Math.round(result.details.amount)}, ${durationMinutes})
+        INSERT INTO calendar_events (user_id, source, source_id, title, category, icon, color, start_date, end_date, start_time, end_time, is_recurring, coa_code, budget_amount, duration_minutes, start_zone, end_zone)
+        VALUES (${user.id}, 'trip', ${calSourceId}, ${calTitle}, 'trip', ${calIcon}, 'cyan', ${calStart}, ${calEnd}, ${calStartTime}::time, ${calEndTime}::time, false, ${result.budgetItem.coaCode}, ${Math.round(result.details.amount)}, ${durationMinutes}, ${startZone}, ${endZone})
       `;
     } catch (calErr) {
       console.error('Calendar event insert failed (non-fatal):', calErr);

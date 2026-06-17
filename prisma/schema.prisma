@@ -677,6 +677,15 @@ model trip_itinerary {
   // cross-zone span (PR-2). Nullable — flights only; null on hotels/manual/old rows.
   // Manual SQL: prisma/migrations-manual/flight_duration_minutes.sql.
   duration_minutes Int?
+  // PR-tz-1: timezone storage. start_zone/end_zone = the departure/arrival airport IANA
+  // zones (Duffel Airport.time_zone), persisted as passthrough now. start_at/end_at = the
+  // true UTC instant anchor — STAGED null this PR; filled post-tz-2 by the canonical
+  // converter (lib/time.ts). Additive + nullable; old rows stay null (no backfill).
+  // Manual SQL: prisma/migrations-manual/tz_storage_zones.sql.
+  start_at   DateTime? @db.Timestamptz(6)
+  end_at     DateTime? @db.Timestamptz(6)
+  start_zone String?
+  end_zone   String?
 
   trip trips @relation(fields: [tripId], references: [id], onDelete: Cascade)
 
@@ -1353,6 +1362,14 @@ model calendar_events {
   // Nullable — flights only; null on hotels/manual/old rows. Manual SQL:
   // prisma/migrations-manual/flight_duration_minutes.sql.
   duration_minutes Int?
+  // PR-tz-1: timezone storage (additive, nullable). start_zone/end_zone = departure/arrival
+  // airport IANA zones (passthrough now). start_at/end_at = the UTC instant anchor — STAGED
+  // null this PR; filled post-tz-2 by lib/time.ts. Old rows stay null (no backfill).
+  // Manual SQL: prisma/migrations-manual/tz_storage_zones.sql.
+  start_at        DateTime? @db.Timestamptz(6)
+  end_at          DateTime? @db.Timestamptz(6)
+  start_zone      String?
+  end_zone        String?
   status          String?   @default("committed") @db.VarChar(20)
   created_at      DateTime? @default(now()) @db.Timestamp(6)
   updated_at      DateTime? @default(now()) @db.Timestamp(6)
