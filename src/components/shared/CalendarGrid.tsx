@@ -360,9 +360,22 @@ export default function CalendarGrid({
           }
         }
       } else if (!e.startAt && e.endDate && e.endDate !== e.startDate) {
-        // Legitimate multi-day ALL-DAY event (hotel/lodging, multi-day op) — UNCHANGED: index
-        // the stored end day. Guarded on !startAt so an instant-bearing row never spills here.
-        pushOn(dateToKey(parseDate(e.endDate)), e);
+        // PR-Hotel-Span-Fill: a multi-day ALL-DAY event (hotel/lodging, multi-day op) is a
+        // CONTINUOUS occupancy span — push membership on EVERY day from start through the stored
+        // end_date INCLUSIVE, not just the two endpoints (the prior end-only push left the middle
+        // nights blank). Mirrors the flight day-loop above; end_date is inclusive (standard
+        // all-day convention — a Jul 1→Jul 31 stay is a member of all 31 days). Guarded on
+        // !startAt so an instant-bearing row never spills here.
+        // NO FALLBACK: if end_date < start_date (bad data) dayDiff <= 0 → the loop never runs →
+        // start-day-only membership, left visibly wrong rather than swapped or clamped.
+        const startD = parseDate(startKey);
+        const endD = parseDate(e.endDate);
+        const dayDiff = Math.round((endD.getTime() - startD.getTime()) / 86_400_000);
+        for (let off = 1; off <= dayDiff; off++) {
+          const d = new Date(startD);
+          d.setDate(d.getDate() + off);
+          pushOn(dateToKey(d), e);
+        }
       }
     });
     return map;
