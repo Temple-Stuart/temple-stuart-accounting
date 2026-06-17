@@ -2901,6 +2901,13 @@ model operations_routines {
   start_time                    DateTime? @db.Time(6)
   end_time                      DateTime? @db.Time(6)
   is_active                     Boolean   @default(true)
+  // HB-4a: a budgeted routine carries a PER-OCCURRENCE amount + a COA. Both nullable — a routine
+  // with no budget stays null (never 0). The monthly budget figure is computed on-read later
+  // (HB-4c: occurrences-in-month × budget_amount), and bridged into the homepage budget section
+  // (HB-4d). budget_amount matches budget_line_items.amount (Decimal 12,2); coa_code is a soft
+  // ref to chart_of_accounts.code (validated against the entity's COA in the UI, HB-4b).
+  budget_amount                 Decimal?  @db.Decimal(12, 2)
+  coa_code                      String?
   created_at                    DateTime  @default(now()) @db.Timestamptz(6)
   updated_at                    DateTime  @updatedAt @db.Timestamptz(6)
   created_by                    String?

@@ -157,6 +157,11 @@ export interface RoutineForm {
   start_time: string;                 // HH:MM intent-window start; '' = unset
   end_time: string;                   // HH:MM intent-window end; '' = unset
   is_active: boolean;
+  // HB-4a: optional money fields (wired into the form UI in HB-4b). Per-occurrence budget amount
+  // as a string ('' = unset → null) + a COA code ('' = none → null). Optional so existing form
+  // seeds (DEFAULT_ROUTINE_FORM) and consumers are unaffected until the HB-4b picker lands.
+  budget_amount?: string;             // per-occurrence amount; '' = unset
+  coa_code?: string;                  // chart_of_accounts.code; '' = none
 }
 
 export const DEFAULT_ROUTINE_FORM: RoutineForm = {

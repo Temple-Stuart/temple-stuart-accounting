@@ -173,6 +173,30 @@ export async function PATCH(
       data.fail_threshold_minutes = n;
     }
 
+    // HB-4a: per-occurrence budget. Absent key → untouched; empty/null → clear to null (no budget,
+    // never 0); present-but-invalid → fail loud (400), never coerced.
+    if (body.budget_amount !== undefined) {
+      if (body.budget_amount === null || String(body.budget_amount).trim() === '') {
+        data.budget_amount = null;
+      } else {
+        const n = Number(body.budget_amount);
+        if (!Number.isFinite(n) || n < 0) {
+          return NextResponse.json(
+            { error: 'Validation', field: 'budget_amount', message: 'must be a non-negative number' },
+            { status: 400 }
+          );
+        }
+        data.budget_amount = n;
+      }
+    }
+
+    // HB-4a: COA code (soft string ref). Empty → null (no default COA, no coercion).
+    if (body.coa_code !== undefined) {
+      data.coa_code = typeof body.coa_code === 'string' && body.coa_code.trim().length > 0
+        ? body.coa_code.trim()
+        : null;
+    }
+
     if (body.timezone !== undefined) {
       if (typeof body.timezone !== 'string' || body.timezone.trim().length === 0) {
         return NextResponse.json(
