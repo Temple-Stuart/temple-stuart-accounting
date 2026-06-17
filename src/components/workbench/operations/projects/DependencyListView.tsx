@@ -70,8 +70,8 @@ export default function DependencyListView({
   onDelete,
 }: DependencyListViewProps) {
   const inputClass =
-    'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
-  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs font-mono';
+    'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
+  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
 
   // Filter to blocks-only by default; show advisory edges only when toggled.
   const outgoingBlocks = outgoing.filter((d) => d.dependency_type === 'blocks');
@@ -142,7 +142,7 @@ export default function DependencyListView({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <div className="text-xs font-mono text-text-muted">
+        <div className="text-xs text-text-muted">
           {outgoingBlocks.length + incomingBlocks.length} blocks edges
           {(outgoingAdvisory.length + incomingAdvisory.length > 0) && (
             <>, {outgoingAdvisory.length + incomingAdvisory.length} advisory</>
@@ -153,7 +153,7 @@ export default function DependencyListView({
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onToggleAdvisory(); }}
-              className="px-2 py-1 border border-border rounded text-xs font-mono hover:bg-bg-row"
+              className="px-2 py-1 border border-border rounded text-xs hover:bg-bg-row"
             >
               {showAdvisory ? 'hide advisory' : 'show advisory'}
             </button>
@@ -163,7 +163,7 @@ export default function DependencyListView({
               type="button"
               onClick={(e) => { e.stopPropagation(); onStartCreate(); }}
               disabled={targetCandidates.length === 0}
-              className="px-2 py-1 border border-brand-purple bg-brand-purple text-white rounded text-xs font-mono hover:opacity-90 disabled:opacity-50"
+              className="px-2 py-1 border border-brand-purple bg-brand-purple text-white rounded text-xs hover:opacity-90 disabled:opacity-50"
             >
               + add dependency
             </button>
@@ -172,13 +172,13 @@ export default function DependencyListView({
       </div>
 
       {error && (
-        <div className="text-xs font-mono px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
+        <div className="text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
           {error}
         </div>
       )}
 
       {showCreate && (
-        <div className="border border-brand-purple rounded p-3 bg-purple-50/30 text-xs font-mono space-y-3">
+        <div className="border border-border rounded p-3 bg-white text-xs space-y-3">
           <div className="font-bold text-text-primary">new dependency</div>
           {createError && (
             <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
@@ -251,9 +251,9 @@ export default function DependencyListView({
       )}
 
       {loading ? (
-        <div className="text-xs font-mono text-text-muted">loading dependencies…</div>
+        <div className="text-xs text-text-muted">loading dependencies…</div>
       ) : outgoingBlocks.length === 0 && incomingBlocks.length === 0 && (!showAdvisory || (outgoingAdvisory.length === 0 && incomingAdvisory.length === 0)) ? (
-        <div className="text-xs font-mono text-text-muted italic">
+        <div className="text-xs text-text-muted italic">
           no dependencies yet — click "+ add dependency" to link this project to others.
         </div>
       ) : (

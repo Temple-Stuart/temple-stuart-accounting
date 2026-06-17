@@ -62,13 +62,13 @@ export default function TaskListView({
   renderTaskRow,
 }: TaskListViewProps) {
   const inputClass =
-    'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
-  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs font-mono';
+    'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
+  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 text-xs font-mono">
+        <div className="flex items-center gap-3 text-xs">
           <span className="text-text-muted">
             {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
           </span>
@@ -85,7 +85,7 @@ export default function TaskListView({
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onStartCreate(); }}
-            className="px-2 py-1 border border-brand-purple bg-brand-purple text-white rounded text-xs font-mono hover:opacity-90"
+            className="px-2 py-1 border border-brand-purple bg-brand-purple text-white rounded text-xs hover:opacity-90"
           >
             + add task
           </button>
@@ -93,13 +93,13 @@ export default function TaskListView({
       </div>
 
       {error && (
-        <div className="text-xs font-mono px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
+        <div className="text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
           {error}
         </div>
       )}
 
       {showCreate && (
-        <div className="border border-brand-purple rounded p-3 bg-purple-50/30 text-xs font-mono space-y-3">
+        <div className="border border-border rounded p-3 bg-white text-xs space-y-3">
           <div className="font-bold text-text-primary">new task</div>
           {createError && (
             <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
@@ -205,9 +205,9 @@ export default function TaskListView({
       )}
 
       {loading ? (
-        <div className="text-xs font-mono text-text-muted">loading tasks…</div>
+        <div className="text-xs text-text-muted">loading tasks…</div>
       ) : tasks.length === 0 ? (
-        <div className="text-xs font-mono text-text-muted italic">
+        <div className="text-xs text-text-muted italic">
           no tasks yet — click "+ add task" to break this project down into atomic execution units.
         </div>
       ) : (

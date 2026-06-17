@@ -60,10 +60,10 @@ function formatDateTime(iso: string): string {
 function StatusPill({ status }: { status: string }) {
   const cls =
     (TASK_STATUS_PILL_CLASSES as Record<string, string>)[status] ??
-    'bg-gray-50 text-gray-500 border-gray-200';
+    'bg-gray-50 text-gray-500';
   const label = (TASK_STATUS_LABELS as Record<string, string>)[status] ?? status;
   return (
-    <span className={`inline-block px-1.5 py-0.5 border rounded text-[10px] font-mono shrink-0 ${cls}`}>
+    <span className={`inline-block px-1.5 py-0.5 rounded-full text-[10px] font-medium shrink-0 ${cls}`}>
       {label}
     </span>
   );
@@ -93,11 +93,11 @@ function TaskLines({ tasks }: { tasks: EvolutionTask[] }) {
 
 export default function EvolutionTimelineView({ loading, error, data }: EvolutionTimelineViewProps) {
   if (loading) {
-    return <div className="text-xs font-mono text-text-muted">loading evolution…</div>;
+    return <div className="text-xs text-text-muted">loading evolution…</div>;
   }
   if (error) {
     return (
-      <div className="text-xs font-mono px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
+      <div className="text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
         {error}
       </div>
     );
@@ -110,14 +110,14 @@ export default function EvolutionTimelineView({ loading, error, data }: Evolutio
 
   if (totalTasks === 0) {
     return (
-      <div className="text-xs font-mono text-text-muted italic">
+      <div className="text-xs text-text-muted italic">
         no tasks yet — generate tasks to start this project&apos;s trajectory.
       </div>
     );
   }
 
   return (
-    <div className="text-xs font-mono space-y-3">
+    <div className="text-xs space-y-3">
       <div className="text-text-muted">
         {versions.length} {versions.length === 1 ? 're-run' : 're-runs'}
         {unversioned.length > 0 && ` · ${unversioned.length} unversioned`}
