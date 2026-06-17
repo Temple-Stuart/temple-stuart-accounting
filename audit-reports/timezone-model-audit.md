@@ -238,3 +238,68 @@ tz-0b (PR-tz-0-airport-zone-capture) is a **SMALL-FIX**: stop dropping it — re
 LARGE-path branch.** The PR sequence's tz-0 "(SMALL if Duffel gives `time_zone`, else LARGE)"
 collapses to the **SMALL** branch.
 
+---
+
+## Zone-blank-write diagnosis (READ-ONLY — fresh commit stored duration_minutes=1145 but start_zone/end_zone NULL)
+
+**Control = `duration_minutes` (works). Compare it to the zone fields at all 4 layers.**
+
+### (a) The divergence point
+**`src/lib/duffel.ts:302` (and `:310`)** — `timeZone: firstSeg?.origin?.time_zone ?? null`
+evaluates to **`null` because `firstSeg.origin.time_zone` is `undefined` in the parsed offer
+object.** The control diverges *here*: `durationMinutes` (`:313`) is computed from
+**`slice.duration`** (`:287` — a top-level slice field that IS present in the offer JSON),
+while `timeZone` is read from **`segment.origin.time_zone`** (a nested *airport* sub-field).
+They come from **different parts of the Duffel payload**, so one can be present (duration) while
+the other is absent (zone). Everything downstream (`?? null` → payload → vendor-commit gate →
+INSERT) faithfully carries the `null`.
+
+### (b) Field-name / path audit — ALL keys MATCH (so it is NOT a name or path mismatch)
+| Layer | `duration` (control) | `originZone` / `destZone` |
+|---|---|---|
+| parseOffer output | `outbound.durationMinutes` ← `slice.duration` (`duffel.ts:313, 287`) | `outbound.departure.timeZone` / `outbound.arrival.timeZone` ← `segment.origin/destination.time_zone` (`duffel.ts:302, 310`) |
+| /api/flights/search | `.map(parseOffer)` verbatim (`search/route.ts:64`) | verbatim (`search/route.ts:64`) |
+| FlightPicker payload | `durationMinutes` ← `offer.outbound?.durationMinutes` (`FlightPicker.tsx:252, 271`) | `originZone` ← `offer.outbound?.departure?.timeZone`; `destZone` ← `offer.outbound?.arrival?.timeZone` (`FlightPicker.tsx:255-256, 272-273`) |
+| vendor-commit destructure | `durationMinutes: durationMinutesInput` (`vendor-commit/route.ts:93`) | `originZone: originZoneInput, destZone: destZoneInput` (`:96`) |
+| flight-only gate | `…Number.isFinite(durationMinutesInput)…` (`:97-99`) | `…typeof originZoneInput === 'string'…` (`:102-103`) |
+| INSERT column ← value | `duration_minutes` ← `durationMinutes` (`:372-373`) | `start_zone` / `end_zone` ← `startZone` / `endZone` (`:372-373`) |
+
+**Every row's key string matches on both sides.** No name mismatch, no path mismatch — the
+plumbing is correct end-to-end (consistent with the prior layer-trace). The value is simply
+**`undefined` at the source**.
+
+### (c) Classification — **NULL-AT-SOURCE** at `parseOffer` (`duffel.ts:302/310`)
+Not a NAME mismatch, not a PATH mismatch. `firstSeg.origin.time_zone` is `undefined`. Two
+candidate causes — **the code cannot distinguish them; a live probe is required:**
+
+- **C1 — stale offer (RISK):** the committed offer was searched **before tz-0b shipped**, so its
+  `outbound.departure` object never had a `timeZone` key. `durationMinutes` is on the same
+  object but was added by the *earlier* duration PR, so it survives. (tz-0b and tz-1 are
+  consecutive deploys; a long-lived browser tab with a searched-but-uncommitted leg across the
+  tz-0b→tz-1 gap reproduces this exactly.)
+- **C2 — Duffel's raw `/air/offers` response omits airport `time_zone` (RISK):** `duffel.ts` uses
+  **raw `fetch`** to `api.duffel.com/air/offers` (`:98-109`) and parses `data.data` directly —
+  **not** the typed `@duffel/api` SDK. **tz-0a verified `Airport.time_zone` from the SDK *type*,
+  not a live offer payload** (it explicitly relied on the type, no live call). If the
+  offer-embedded airport object is slimmer than the full `/air/airports` resource, `time_zone`
+  is genuinely absent on every offer — fresh ones too.
+
+The structural evidence (duration from `slice.duration` present, zone from
+`segment.origin.time_zone` absent) is consistent with **both** — hence the probe.
+
+### Recommended SMALL fix — diagnose first, then branch
+1. **One-line diagnostic (SMALL):** in `parseOffer` (or the search route), temporarily
+   `console.log('tz-probe', firstSeg?.origin?.iata_code, firstSeg?.origin?.time_zone)` (or
+   `JSON.stringify(firstSeg?.origin)`) on the next **fresh** real search. — EXISTS-as-the-only
+   way to disambiguate C1 vs C2.
+2. **If `time_zone` IS present (→ C1, stale offer):** no code change — **re-search + re-commit**;
+   a post-tz-0b offer carries the zone. Optionally hard-refresh stale leg state.
+3. **If `time_zone` is `undefined` (→ C2, Duffel omits it from offers):** resolve IATA→zone via
+   Duffel's own **`/air/airports`** endpoint (keyed by the `iata_code` we already capture) at
+   parse/commit time — no third-party table; bounded **SMALL-MED** fix. This is the "airport
+   lookup" the tz-0a note flagged as the fallback.
+
+**Do not implement — diagnosis only.** The plumbing is correct; the missing value is at the
+Duffel-source boundary, and the probe (step 1) picks the one-line vs lookup fix.
+
+
