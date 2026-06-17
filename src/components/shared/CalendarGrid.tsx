@@ -290,17 +290,35 @@ export default function CalendarGrid({
 
   const eventsByDateKey = useMemo(() => {
     const map: Record<string, CalendarEvent[]> = {};
-    events.forEach(e => {
-      const d = parseDate(e.startDate);
-      const key = dateToKey(d);
+    const pushOn = (key: string, e: CalendarEvent) => {
       if (!map[key]) map[key] = [];
-      map[key].push(e);
-      // For multi-day events, also index on endDate
-      if (e.endDate && e.endDate !== e.startDate) {
-        const ed = parseDate(e.endDate);
-        const ekey = dateToKey(ed);
-        if (!map[ekey]) map[ekey] = [];
-        if (!map[ekey].some(x => x.id === e.id)) map[ekey].push(e);
+      if (!map[key].some(x => x.id === e.id)) map[key].push(e);
+    };
+    events.forEach(e => {
+      const start = parseDate(e.startDate);
+      pushOn(dateToKey(start), e);
+
+      if (e.durationMinutes != null) {
+        // PR-Month-Phantom-Fix: a flight (the ONLY event type with duration_minutes) belongs
+        // to the days its TRUE elapsed time covers — start → start+duration — NOT the stored
+        // end_date (the arrival's different zone). Mirror PR-3's day-view coverage: a day at
+        // offset d is covered iff d*1440 < startMin+duration. For the live row (00:00 +
+        // 1145min = 19:05 same day) that is Jul 1 ONLY → no Jul 2 phantom. NEVER falls through
+        // to the stored-end_date branch below.
+        if (e.startTime) {
+          const totalEndMin = timeToMinutes(e.startTime) + e.durationMinutes;
+          const lastDayOffset = Math.ceil(totalEndMin / 1440) - 1; // 0 = same day
+          for (let off = 1; off <= lastDayOffset; off++) {
+            const d = new Date(start);
+            d.setDate(d.getDate() + off);
+            pushOn(dateToKey(d), e);
+          }
+        }
+        // (duration present but no start_time → start day only; never spill to end_date)
+      } else if (e.endDate && e.endDate !== e.startDate) {
+        // Legitimate multi-day ALL-DAY event (hotel/lodging, multi-day op) — UNCHANGED:
+        // index the stored end day so it still appears on its end/checkout day.
+        pushOn(dateToKey(parseDate(e.endDate)), e);
       }
     });
     return map;
