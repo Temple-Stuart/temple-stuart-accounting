@@ -50,6 +50,9 @@ interface CalendarEvent {
   is_recurring: boolean;
   location: string | null;
   budget_amount: number;
+  // PR-Hotel-Daily-Amortize: the COA code (e.g. 'P-9200'). From the raw SELECT *; carried to
+  // the grid so the per-day footer can identify lodging (suffix '9200') for nightly amortization.
+  coa_code: string | null;
 }
 
 // Normalize a raw TIME value to "HH:MM" (what the grid's timeToMinutes expects), or null.
@@ -196,6 +199,9 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
       isRecurring: e.is_recurring,
       location: e.location,
       budgetAmount: e.budget_amount,
+      // PR-Hotel-Daily-Amortize: pure passthrough (mirrors durationMinutes) — the footer reads
+      // it to amortize lodging (coa_code suffix '9200') to a nightly rate.
+      coaCode: e.coa_code ?? null,
     }));
     // mapOperationsBlocks is SHARED with /hub and still emits source:'operations'
     // there; remap to 'project' HERE so these land on the renamed Projects layer
