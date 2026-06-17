@@ -2906,8 +2906,11 @@ model operations_routines {
   // (HB-4c: occurrences-in-month × budget_amount), and bridged into the homepage budget section
   // (HB-4d). budget_amount matches budget_line_items.amount (Decimal 12,2); coa_code is a soft
   // ref to chart_of_accounts.code (validated against the entity's COA in the UI, HB-4b).
+  // HB-4a-fix: coa_code already EXISTED in the live DB as character varying(50) (undeclared in
+  // schema — a pre-existing drift); declared here as VarChar(50) to match. budget_amount is the
+  // only genuinely new column. No DB change for coa_code.
   budget_amount                 Decimal?  @db.Decimal(12, 2)
-  coa_code                      String?
+  coa_code                      String?   @db.VarChar(50)
   created_at                    DateTime  @default(now()) @db.Timestamptz(6)
   updated_at                    DateTime  @updatedAt @db.Timestamptz(6)
   created_by                    String?
