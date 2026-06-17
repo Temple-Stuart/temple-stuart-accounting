@@ -21,6 +21,7 @@
 import { useEffect, useState } from 'react';
 import RRULEBuilder from './RRULEBuilder';
 import type { RoutineForm } from './types';
+import CoaSelect from './CoaSelect';
 import { DEFAULT_ROUTINE_FORM } from './types';
 
 interface Entity {
@@ -141,6 +142,32 @@ export default function RoutineCreateForm({ entities, defaultEntityId, onCreated
               </option>
             ))}
           </select>
+        </div>
+      </div>
+
+      {/* HB-4b: per-occurrence budget + COA. Both optional — empty budget → null (never 0), no COA
+          → null (no default account). The COA list is scoped to the selected entity. */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <div className={labelClass}>budget / occurrence (optional)</div>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={createForm.budget_amount ?? ''}
+            onChange={(e) => setCreateForm({ ...createForm, budget_amount: e.target.value })}
+            className={inputClass}
+            placeholder="e.g., 60"
+          />
+        </div>
+        <div>
+          <div className={labelClass}>COA (optional)</div>
+          <CoaSelect
+            entityId={createForm.entity_id}
+            value={createForm.coa_code ?? ''}
+            onChange={(code) => setCreateForm({ ...createForm, coa_code: code })}
+            className={inputClass}
+          />
         </div>
       </div>
 

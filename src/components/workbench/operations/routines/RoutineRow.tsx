@@ -18,6 +18,7 @@ import { useState } from 'react';
 import type { Routine, RoutineForm } from './types';
 import { DEFAULT_ROUTINE_FORM } from './types';
 import RRULEBuilder from './RRULEBuilder';
+import CoaSelect from './CoaSelect';
 import { RoutineStepList } from './RoutineStepList';
 import ScenifyButton from '../content/ScenifyButton';
 import type { Scene, Take } from '../content/ContentTable';
@@ -56,6 +57,9 @@ function routineToForm(r: Routine): RoutineForm {
     is_active: r.is_active,
     cadence_mode: 'custom',
     custom_rrule: r.schedule_rrule,
+    // HB-4b: pre-fill budget + COA on edit (null → '' empty input/no selection).
+    budget_amount: r.budget_amount != null ? String(r.budget_amount) : '',
+    coa_code: r.coa_code ?? '',
   };
 }
 
@@ -343,6 +347,32 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
                   </option>
                 ))}
               </select>
+            </div>
+          </div>
+
+          {/* HB-4b: per-occurrence budget + COA (pre-filled from the routine; empty → null on save).
+              COA scoped to the routine's entity (entity is fixed after creation). */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className={labelClass}>budget / occurrence (optional)</div>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.budget_amount ?? ''}
+                onChange={(e) => setForm({ ...form, budget_amount: e.target.value })}
+                className={inputClass}
+                placeholder="e.g., 60"
+              />
+            </div>
+            <div>
+              <div className={labelClass}>COA (optional)</div>
+              <CoaSelect
+                entityId={form.entity_id}
+                value={form.coa_code ?? ''}
+                onChange={(code) => setForm({ ...form, coa_code: code })}
+                className={inputClass}
+              />
             </div>
           </div>
 
