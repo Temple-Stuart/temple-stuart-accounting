@@ -24,7 +24,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { dayAnchoredMinute, minuteOfDayFromInstant, minuteOfDayFromTime } from '@/lib/content/dayOrder';
 import type { TimelineRow, Entity } from './dayCalendarTypes';
 
-const sectionHeader = 'font-mono text-sm font-medium tracking-wide text-brand-purple';
+const sectionHeader = 'text-sm font-medium tracking-wide text-brand-purple';
 
 // House calendar block colors — adopted from the shared CalendarGrid's filled blocks
 // (CalendarGrid.tsx:516 renders `${calendarColor} text-white`), with the per-source
@@ -44,7 +44,7 @@ const ROW_GRID =
   'grid-cols-[5.5rem_minmax(0,1fr)_5.5rem] ' +
   'lg:grid-cols-[7rem_minmax(0,1fr)_minmax(0,0.6fr)_5rem_5.5rem]';
 
-const chipBase = 'px-2 py-0.5 rounded border text-[11px] font-mono';
+const chipBase = 'px-2 py-0.5 rounded border text-[11px]';
 const chipOn = 'border-brand-purple bg-brand-purple text-white';
 const chipOff = 'border-border-light text-text-muted hover:bg-bg-row';
 const navBtn =
@@ -233,7 +233,7 @@ export default function DayCalendarView({
       project = row.travel.coaCode; // the COA shows in the project column for travel
       fill = TRAVEL_FILL;
       rightPill = (
-        <span className="px-2 py-0.5 rounded border border-transparent bg-white text-cyan-700 text-[11px] font-mono whitespace-nowrap">
+        <span className="px-2 py-0.5 rounded border border-transparent bg-white text-cyan-700 text-[11px] whitespace-nowrap">
           ${Math.round(row.travel.cost).toLocaleString()}
         </span>
       );
@@ -242,7 +242,7 @@ export default function DayCalendarView({
       project = row.block.projectName;
       fill = TASK_FILL;
       rightPill = (
-        <span className="px-2 py-0.5 rounded border border-transparent bg-white text-indigo-700 text-[11px] font-mono uppercase tracking-wide whitespace-nowrap">
+        <span className="px-2 py-0.5 rounded border border-transparent bg-white text-indigo-700 text-[11px] uppercase tracking-wide whitespace-nowrap">
           {row.block.status}
         </span>
       );
@@ -288,7 +288,7 @@ export default function DayCalendarView({
           els.push(
             <li
               key={`gap-${rowKey(r)}`}
-              className="flex items-center gap-2 px-2 py-0.5 text-[10px] font-mono uppercase tracking-wide text-text-muted"
+              className="flex items-center gap-2 px-2 py-0.5 text-[10px] uppercase tracking-wide text-text-muted"
             >
               <span className="flex-1 border-t border-dashed border-border-light" aria-hidden="true" />
               {fmtDuration(gap)} open
@@ -305,7 +305,7 @@ export default function DayCalendarView({
   }, [timed, collidingKeys, entityNameById]);
 
   return (
-    <section className="bg-white rounded border border-border shadow-sm p-5 space-y-3">
+    <section className="bg-white rounded border border-border p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <button
           type="button"
@@ -317,13 +317,13 @@ export default function DayCalendarView({
             · DAY
             <span className="ml-2 font-normal text-text-muted">time blocks</span>
           </h2>
-          <span className="font-mono text-xs text-brand-purple" aria-hidden="true">
+          <span className="text-xs text-brand-purple" aria-hidden="true">
             {open ? '▾ hide' : '▸ show'}
           </span>
         </button>
         {/* Day nav — drives the SHARED date (same setter as section 3). Button
             treatment echoes trips/ItineraryAgenda.tsx:151-155. */}
-        <div className="flex items-center gap-1 font-mono text-xs">
+        <div className="flex items-center gap-1 text-xs">
           <button type="button" onClick={() => onDateChange(shiftDay(date, -1))} className={navBtn} aria-label="Previous day">
             ‹
           </button>
@@ -347,7 +347,7 @@ export default function DayCalendarView({
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               {presentEntityIds.length > 0 && (
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="font-mono text-[10px] uppercase tracking-wide text-text-muted">entity</span>
+                  <span className="text-[10px] uppercase tracking-wide text-text-muted">entity</span>
                   {presentEntityIds.map((id) => (
                     <button
                       key={id}
@@ -362,7 +362,7 @@ export default function DayCalendarView({
               )}
               {(hasScenes || hasTasks || hasTravel) && (
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="font-mono text-[10px] uppercase tracking-wide text-text-muted">source</span>
+                  <span className="text-[10px] uppercase tracking-wide text-text-muted">source</span>
                   {hasScenes && (
                     <button
                       type="button"
@@ -396,21 +396,21 @@ export default function DayCalendarView({
           )}
 
           {error && (
-            <div className="text-xs font-mono px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
+            <div className="text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
               {error}
             </div>
           )}
 
           {loading ? (
-            <p className="text-sm font-mono text-text-muted">Loading…</p>
+            <p className="text-sm text-text-muted">Loading…</p>
           ) : visible.length === 0 ? (
-            <p className="text-xs font-mono text-text-muted">No time blocks for {date}.</p>
+            <p className="text-xs text-text-muted">No time blocks for {date}.</p>
           ) : (
-            <ul className="space-y-1 font-mono text-xs">
+            <ul className="space-y-1 text-xs">
               {timedElements}
               {untimed.length > 0 && (
                 <li className="pt-3 mt-2 border-t border-border-light">
-                  <span className="font-mono text-xs font-medium text-brand-purple uppercase tracking-wide">
+                  <span className="text-xs font-medium text-brand-purple uppercase tracking-wide">
                     unscheduled
                   </span>
                   <span className="ml-2 font-normal text-text-muted">no time set · {untimed.length}</span>
