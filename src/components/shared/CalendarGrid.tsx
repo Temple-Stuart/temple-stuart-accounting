@@ -3,6 +3,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import ResponsiveViewController from './ResponsiveViewController';
+import { formatMoney, moneyColorClass, kindForSource } from '@/lib/money';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -109,9 +110,6 @@ const parseDate = (dateStr: string): Date => {
   const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
   return new Date(year, month - 1, day);
 };
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(amount);
 
 const dateToKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
@@ -649,7 +647,7 @@ export default function CalendarGrid({
                               onClick={(e) => handleTileClick(block.event, e.nativeEvent)}
                               className={`absolute left-0.5 right-0.5 ${badgeColor} text-white ${roundClass} overflow-hidden z-10 ${(block.event.href || onEventClick) ? 'cursor-pointer hover:opacity-90' : ''} transition-opacity`}
                               style={{ top: `${top}px`, height: `${height}px` }}
-                              title={`${block.label}${block.event.budgetAmount ? ' - ' + formatCurrency(block.event.budgetAmount) : ''}`}
+                              title={`${block.label}${block.event.budgetAmount ? ' · ' + formatMoney(block.event.budgetAmount, { kind: kindForSource(block.event.source), fractionDigits: 0 }) : ''}`}
                             >
                               <div className="px-2 py-1.5 h-full overflow-hidden">
                                 <div className="text-[11px] font-semibold leading-tight truncate">{block.label}</div>
@@ -665,8 +663,10 @@ export default function CalendarGrid({
                                 {block.event.details && block.event.details[0] && (
                                   <div className="text-[10px] opacity-80 leading-tight mt-0.5 truncate">{block.event.details[0]}</div>
                                 )}
+                                {/* On a source-colored badge (white text) the SIGN only is applied
+                                    (moneyColorClass would be unreadable here, so color stays the badge's). */}
                                 {!block.event.startTime && block.event.budgetAmount && block.event.budgetAmount > 0 && (
-                                  <div className="text-[10px] opacity-80 leading-tight mt-0.5">{formatCurrency(block.event.budgetAmount)}</div>
+                                  <div className="text-[10px] opacity-80 leading-tight mt-0.5">{formatMoney(block.event.budgetAmount, { kind: kindForSource(block.event.source), fractionDigits: 0 })}</div>
                                 )}
                               </div>
                               {/* Recurrence signal — quiet corner glyph, NOT a text
@@ -699,9 +699,10 @@ export default function CalendarGrid({
                   {gridDays.map((day, idx) => {
                     const dayEvents = getEventsForDate(day);
                     const total = dayEvents.reduce((s, e) => s + (e.budgetAmount || 0), 0);
+                    const totalKind = dayEvents.some(e => kindForSource(e.source) === 'pnl') ? 'pnl' : 'expense';
                     return (
                       <div key={idx} className="flex-1 border-l border-border-light px-1 py-1 text-center">
-                        {total > 0 && <div className="text-[10px] font-bold text-text-secondary tabular-nums">{formatCurrency(total)}</div>}
+                        {total !== 0 && <div className={`text-[10px] font-bold tabular-nums ${moneyColorClass(total, totalKind)}`}>{formatMoney(total, { kind: totalKind, fractionDigits: 0 })}</div>}
                       </div>
                     );
                   })}
@@ -722,9 +723,13 @@ export default function CalendarGrid({
                   const dayTotal = dayEvents.reduce((sum, e) => sum + (e.budgetAmount || 0), 0);
                   const isToday = day === now.getDate() && selectedMonth === now.getMonth() && selectedYear === now.getFullYear();
                   const hl = isInHighlight(date);
-                  const hasTradeData = showBudgetTotals && dayEvents.length > 0 && dayTotal !== 0;
-                  const isWin = hasTradeData && dayTotal > 0;
-                  const isLoss = hasTradeData && dayTotal < 0;
+                  const showDayTotal = showBudgetTotals && dayEvents.length > 0 && dayTotal !== 0;
+                  // PR-Money-Convention: direction comes from the events' source. Trade days
+                  // ('win'/'loss', SIGNED amounts) keep the green/red win-loss glow; trip /
+                  // expense days do NOT (an expense is money out, not a "win").
+                  const dayKind = dayEvents.some(e => kindForSource(e.source) === 'pnl') ? 'pnl' : 'expense';
+                  const isWin = showDayTotal && dayKind === 'pnl' && dayTotal > 0;
+                  const isLoss = showDayTotal && dayKind === 'pnl' && dayTotal < 0;
 
                   let cellClass: string;
                   let cellStyle: React.CSSProperties = {};
@@ -753,9 +758,9 @@ export default function CalendarGrid({
                         <div className={`text-xs font-semibold mb-0.5 ${isToday ? 'text-brand-purple' : 'text-text-secondary'}`}>{day}</div>
                         {dayEvents.length > 0 && (
                           <div className="flex-1 flex flex-col">
-                            {hasTradeData && (
-                              <div className={`text-sm font-bold font-mono tabular-nums ${isWin ? 'text-brand-green' : isLoss ? 'text-brand-red' : 'text-text-secondary'}`}>
-                                {dayTotal > 0 ? '+' : ''}{formatCurrency(dayTotal)}
+                            {showDayTotal && (
+                              <div className={`text-sm font-bold font-mono tabular-nums ${moneyColorClass(dayTotal, dayKind)}`}>
+                                {formatMoney(dayTotal, { kind: dayKind, fractionDigits: 0 })}
                               </div>
                             )}
                             {allDetails.length > 0 && (
@@ -766,7 +771,7 @@ export default function CalendarGrid({
                                 {allDetails.length > 2 && <div className="text-[9px] text-text-faint">+{allDetails.length - 2} more</div>}
                               </div>
                             )}
-                            {!hasTradeData && (
+                            {!showDayTotal && (
                               <div className="flex flex-wrap gap-0.5 mt-auto">
                                 {dayEvents.slice(0, 4).map((e, i) => {
                                   const config = sourceConfig[e.source] || { dot: 'bg-gray-400' };

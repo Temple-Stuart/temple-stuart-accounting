@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { formatMoney, moneyColorClass } from '@/lib/money';
 
 interface TradeCard {
   id: string;
@@ -419,8 +420,8 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
                       {card.link?.actual_pl != null && (
                         <div className="mb-1">
                           <div className="text-[9px] text-text-faint uppercase">Actual P&L</div>
-                          <div className={`text-terminal-lg font-mono font-black ${Number(card.link.actual_pl) >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
-                            {fmtDollar(Number(card.link.actual_pl))}
+                          <div className={`text-terminal-lg font-mono font-black ${moneyColorClass(Number(card.link.actual_pl), 'pnl')}`}>
+                            {formatMoney(Number(card.link.actual_pl), { kind: 'pnl', fractionDigits: 0 })}
                           </div>
                         </div>
                       )}
@@ -578,8 +579,8 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
                             <div className="space-y-1 text-xs">
                               <div className="flex justify-between">
                                 <span className="text-text-muted">P&L</span>
-                                <span className={`font-mono font-bold ${card.link.actual_pl != null && Number(card.link.actual_pl) >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
-                                  {card.link.actual_pl != null ? fmtDollar(Number(card.link.actual_pl)) : 'Open'}
+                                <span className={`font-mono font-bold ${card.link.actual_pl != null ? moneyColorClass(Number(card.link.actual_pl), 'pnl') : 'text-text-secondary'}`}>
+                                  {card.link.actual_pl != null ? formatMoney(Number(card.link.actual_pl), { kind: 'pnl', fractionDigits: 0 }) : 'Open'}
                                 </span>
                               </div>
                               {card.link.actual_entry_price != null && (

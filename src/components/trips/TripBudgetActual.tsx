@@ -28,6 +28,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { TripRow } from './AllTripsList';
+import { formatMoney, moneyColorClass } from '@/lib/money';
 
 interface LedgerItem {
   id: string;
@@ -52,10 +53,6 @@ interface LedgerItem {
 type RowState = 'loading' | 'ok' | 'error';
 
 const DASH = '—';
-
-function usd(n: number): string {
-  return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 function fmtDate(s: string | null): string {
   if (!s) return DASH;
@@ -277,7 +274,7 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
         <p className="text-sm font-bold text-brand-purple">Budget ledger</p>
         {state === 'ok' && items.length > 0 && (
           <p className="text-sm text-text-secondary">
-            Total <span className="font-bold text-brand-purple">{usd(total)}</span>
+            Total <span className={`font-bold ${moneyColorClass(total, 'expense')}`}>{formatMoney(total, { kind: 'expense' })}</span>
           </p>
         )}
       </div>
@@ -327,7 +324,8 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
                   <td className={`${td} font-medium text-text-primary`}>
                     {it.description?.trim() ? it.description : txt(it.coaCode)}
                   </td>
-                  <td className={`${td} text-right font-bold text-brand-purple`}>{usd(Number(it.amount || 0))}</td>
+                  {/* PR-Money-Convention: trip lines are EXPENSES → red, negative-signed. */}
+                  <td className={`${td} text-right font-bold ${moneyColorClass(Number(it.amount || 0), 'expense')}`}>{formatMoney(Number(it.amount || 0), { kind: 'expense' })}</td>
                   {/* Project: no linkage yet (the FK is a later migration PR) → honest "—". */}
                   <td className={`${td} text-text-faint`}>{DASH}</td>
                   <td className={`${td} text-right`}>
