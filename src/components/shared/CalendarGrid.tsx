@@ -4,6 +4,7 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import ResponsiveViewController from './ResponsiveViewController';
 import { formatMoney, moneyColorClass, kindForSource } from '@/lib/money';
+import { instantToZoned } from '@/lib/time';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -135,6 +136,11 @@ const formatTime12h = (time: string): string => {
 
 type TzMode = 'local' | 'home';
 
+// PR-tz-3b: the FIXED home-base anchor. Trip events with a stored UTC instant (start_at)
+// render their wall-clock in THIS zone, so geometry + label agree on one timeline. tz-4 will
+// swap this for the tzMode-selected (trip-local) zone — tz-3b is the fixed anchor only.
+const HOME_ANCHOR = 'America/Los_Angeles';
+
 // ═══════════════════════════════════════════════════════════════
 // Multi-day event splitter
 // ═══════════════════════════════════════════════════════════════
@@ -170,7 +176,22 @@ function getBlocksForDay(dayKey: string, events: CalendarEvent[]): DayBlock[] {
     // actually covers — no phantom on the stored end_date. Zone reconciliation of the
     // arrival LABEL vs the geometry is PR-4, intentionally NOT done here.
     if (event.source === 'trip') {
-      const dayOffset = Math.round((parseDate(dayKey).getTime() - parseDate(evtStartKey).getTime()) / 86_400_000);
+      // PR-tz-3b: when the true UTC instant is stored, position the block by the HOME_ANCHOR
+      // wall-clock — the depart DAY + depart MINUTE + arrival LABEL all move to the anchor, so
+      // geometry and label agree on one timeline. durationMinutes (elapsed time) is zone-
+      // independent, so the span is unchanged. startAt null → the naive path below, UNCHANGED.
+      // Strict presence gate (not a fallback): instant-path iff startAt is set.
+      let tripStartKey = evtStartKey;
+      let tripStartMin = startMin;
+      let arriveLabelTime = event.endTime ? formatTime12h(event.endTime) : '';
+      if (event.startAt) {
+        const dep = instantToZoned(new Date(event.startAt), HOME_ANCHOR);
+        tripStartKey = dep.date;
+        tripStartMin = timeToMinutes(dep.time);
+        if (event.endAt) arriveLabelTime = formatTime12h(instantToZoned(new Date(event.endAt), HOME_ANCHOR).time);
+      }
+
+      const dayOffset = Math.round((parseDate(dayKey).getTime() - parseDate(tripStartKey).getTime()) / 86_400_000);
       if (dayOffset < 0) continue;
 
       if (event.durationMinutes == null) {
@@ -178,19 +199,19 @@ function getBlocksForDay(dayKey: string, events: CalendarEvent[]): DayBlock[] {
         // day ONLY, visibly flagged. NEVER reconstruct start→end (that is the 34h bug). This
         // is an explicit "we don't trust this" state, not a silent fallback.
         if (dayOffset === 0) {
-          blocks.push({ event, startMin, endMin: startMin + 30, label: `⚠ duration unverified · ${event.title}`, isDepart: true, isArrive: false });
+          blocks.push({ event, startMin: tripStartMin, endMin: tripStartMin + 30, label: `⚠ duration unverified · ${event.title}`, isDepart: true, isArrive: false });
         }
         continue;
       }
 
-      const totalEndMin = startMin + event.durationMinutes; // absolute minutes from depart-day midnight
+      const totalEndMin = tripStartMin + event.durationMinutes; // absolute minutes from depart-day midnight (anchor)
       const dayStartAbs = dayOffset * 1440;
       if (dayStartAbs >= totalEndMin) continue; // duration doesn't reach this day → no phantom
-      const segStart = dayOffset === 0 ? startMin : 0;
+      const segStart = dayOffset === 0 ? tripStartMin : 0;
       const segEnd = Math.min(totalEndMin - dayStartAbs, 1440);
       const isArriveSeg = dayStartAbs + 1440 >= totalEndMin; // this day contains the duration end
       const label = isArriveSeg
-        ? `arr ${event.endTime ? formatTime12h(event.endTime) : ''} ${event.title.replace(/^\d+:\d+\s*(AM|PM)\s*/i, '')}`.trim()
+        ? `arr ${arriveLabelTime} ${event.title.replace(/^\d+:\d+\s*(AM|PM)\s*/i, '')}`.trim()
         : event.title;
       blocks.push({ event, startMin: segStart, endMin: Math.max(segEnd, segStart + 30), label, isDepart: dayOffset === 0, isArrive: isArriveSeg });
       continue;
@@ -300,29 +321,39 @@ export default function CalendarGrid({
       if (!map[key].some(x => x.id === e.id)) map[key].push(e);
     };
     events.forEach(e => {
-      const start = parseDate(e.startDate);
-      pushOn(dateToKey(start), e);
+      // PR-tz-3b: anchor the depart day + the span's start minute to the stored instant when
+      // present (else the naive startDate/startTime). Day-membership then covers the days the
+      // duration spans IN THE ANCHOR — same coverage rule as PR-Month-Phantom-Fix.
+      let startKey: string;
+      let startMinForSpan: number | null;
+      if (e.startAt) {
+        const dep = instantToZoned(new Date(e.startAt), HOME_ANCHOR);
+        startKey = dep.date;
+        startMinForSpan = timeToMinutes(dep.time);
+      } else {
+        startKey = dateToKey(parseDate(e.startDate));
+        startMinForSpan = e.startTime ? timeToMinutes(e.startTime) : null;
+      }
+      pushOn(startKey, e);
 
       if (e.durationMinutes != null) {
-        // PR-Month-Phantom-Fix: a flight (the ONLY event type with duration_minutes) belongs
-        // to the days its TRUE elapsed time covers — start → start+duration — NOT the stored
-        // end_date (the arrival's different zone). Mirror PR-3's day-view coverage: a day at
-        // offset d is covered iff d*1440 < startMin+duration. For the live row (00:00 +
-        // 1145min = 19:05 same day) that is Jul 1 ONLY → no Jul 2 phantom. NEVER falls through
-        // to the stored-end_date branch below.
-        if (e.startTime) {
-          const totalEndMin = timeToMinutes(e.startTime) + e.durationMinutes;
+        // A flight belongs to the days its TRUE elapsed time covers — start → start+duration —
+        // NOT the stored end_date (the arrival's different zone). A day at offset d is covered
+        // iff d*1440 < startMin+duration. (00:00 + 1145min = 19:05 same day → Jul 1 only.)
+        // Needs a start minute; if absent (no instant + no naive time) → start day only.
+        if (startMinForSpan != null) {
+          const totalEndMin = startMinForSpan + e.durationMinutes;
           const lastDayOffset = Math.ceil(totalEndMin / 1440) - 1; // 0 = same day
+          const startD = parseDate(startKey);
           for (let off = 1; off <= lastDayOffset; off++) {
-            const d = new Date(start);
+            const d = new Date(startD);
             d.setDate(d.getDate() + off);
             pushOn(dateToKey(d), e);
           }
         }
-        // (duration present but no start_time → start day only; never spill to end_date)
-      } else if (e.endDate && e.endDate !== e.startDate) {
-        // Legitimate multi-day ALL-DAY event (hotel/lodging, multi-day op) — UNCHANGED:
-        // index the stored end day so it still appears on its end/checkout day.
+      } else if (!e.startAt && e.endDate && e.endDate !== e.startDate) {
+        // Legitimate multi-day ALL-DAY event (hotel/lodging, multi-day op) — UNCHANGED: index
+        // the stored end day. Guarded on !startAt so an instant-bearing row never spills here.
         pushOn(dateToKey(parseDate(e.endDate)), e);
       }
     });
