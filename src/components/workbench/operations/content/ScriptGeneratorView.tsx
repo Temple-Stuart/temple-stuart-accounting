@@ -75,15 +75,15 @@ export default function ScriptGeneratorView({
   const hasScript = draft !== null;
 
   return (
-    <section className="bg-white rounded border border-border shadow-sm p-5 space-y-3">
+    <section className="bg-white rounded border border-border p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-mono text-sm font-medium tracking-wide text-brand-purple">
+        <h2 className="text-sm font-medium tracking-wide text-brand-purple">
           4 · SCRIPT
           <span className="ml-2 font-normal text-text-muted">the day&rsquo;s answers + task record → reel voiceover</span>
         </h2>
         <div className="flex items-center gap-2">
           {hasScript && (
-            <span className="font-mono text-xs text-text-muted">
+            <span className="text-xs text-text-muted">
               {words} words · ~{readTime(words)} read
             </span>
           )}
@@ -92,35 +92,37 @@ export default function ScriptGeneratorView({
             onClick={onGenerate}
             disabled={generating || !!disabledReason}
             title={disabledReason ?? undefined}
-            className="px-3 py-1 font-mono text-xs border border-brand-purple rounded text-brand-purple hover:bg-purple-100/50 disabled:opacity-50"
+            className="px-3 py-1 text-xs border border-brand-purple rounded text-brand-purple hover:bg-purple-100/50 disabled:opacity-50"
           >
             {generating ? 'writing…' : hasScript ? '↻ regenerate' : '✨ generate script'}
           </button>
         </div>
       </div>
 
-      {disabledReason && <p className="font-mono text-xs text-text-muted">{disabledReason}</p>}
+      {disabledReason && <p className="text-xs text-text-muted">{disabledReason}</p>}
       {notice && (
-        <div className="font-mono text-xs px-3 py-2 rounded border bg-purple-50 border-brand-purple/40 text-text-primary">{notice}</div>
+        <div className="text-xs px-3 py-2 rounded border bg-purple-50 border-brand-purple/40 text-text-primary">{notice}</div>
       )}
       {error && (
-        <div className="font-mono text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">{error}</div>
+        <div className="text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">{error}</div>
       )}
 
       {/* DAY-AUDIT helper — run in Claude Code, paste the output below. Always visible. */}
       <div className="rounded border border-border-light bg-bg-row p-3 space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <span className="font-mono text-xs text-brand-purple font-medium uppercase tracking-wide">
+          <span className="text-xs text-brand-purple font-medium uppercase tracking-wide">
             Day-audit — run this in Claude Code, paste the output below
           </span>
           <button
             type="button"
             onClick={onCopyPrompt}
-            className="px-2 py-0.5 font-mono text-xs border border-brand-purple rounded text-brand-purple hover:bg-purple-100/50"
+            className="px-2 py-0.5 text-xs border border-brand-purple rounded text-brand-purple hover:bg-purple-100/50"
           >
             {copied ? 'copied ✓' : 'copy prompt'}
           </button>
         </div>
+        {/* Content-style-2: the day-audit PROMPT is a code value (pasted into Claude Code) — kept
+            monospace, like the rrule input. The surrounding chrome is sans. */}
         <pre className="font-mono text-[11px] leading-relaxed text-text-muted whitespace-pre-wrap break-words bg-white border border-border-light rounded p-2">
 {dayAuditPrompt}
         </pre>
@@ -128,10 +130,10 @@ export default function ScriptGeneratorView({
 
       {/* EXECUTION NOTES — the authoritative receipts. */}
       <div className="space-y-1">
-        <label className="font-mono text-xs text-brand-purple font-medium uppercase tracking-wide">
+        <label className="text-xs text-brand-purple font-medium uppercase tracking-wide">
           Execution notes (optional)
         </label>
-        <p className="font-mono text-xs text-text-muted">
+        <p className="text-xs text-text-muted">
           what actually got built/done today, in your words — the receipts. The script grounds its work claims in this.
         </p>
         <textarea
@@ -140,13 +142,13 @@ export default function ScriptGeneratorView({
           rows={4}
           disabled={!hasPiece}
           placeholder={hasPiece ? 'paste the day-audit bullets, or jot the receipts…' : 'start the day’s log first (section 3)'}
-          className="w-full resize-y bg-white border border-brand-purple/40 rounded px-3 py-2 font-mono text-xs leading-relaxed text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple disabled:opacity-50"
+          className="w-full resize-y bg-white border border-brand-purple/40 rounded px-3 py-2 text-xs leading-relaxed text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple disabled:opacity-50"
         />
         <button
           type="button"
           onClick={onSaveNotes}
           disabled={execSaving || !hasPiece}
-          className="px-3 py-1 font-mono text-xs border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
+          className="px-3 py-1 text-xs border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
         >
           {execSaving ? 'saving…' : 'save notes'}
         </button>
@@ -154,6 +156,8 @@ export default function ScriptGeneratorView({
 
       {hasScript && (
         <div className="space-y-2">
+          {/* Content-style-2: the scene-tagged reel SCRIPT stays monospace (the raw-script artifact
+              — scene tags align), like the rrule/COA code-value precedent. */}
           <textarea
             value={draft ?? ''}
             onChange={(e) => onDraftChange(e.target.value)}
@@ -166,11 +170,11 @@ export default function ScriptGeneratorView({
               type="button"
               onClick={onSave}
               disabled={saving}
-              className="px-3 py-1 font-mono text-xs border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
+              className="px-3 py-1 text-xs border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
             >
               {saving ? 'saving…' : 'save to the day'}
             </button>
-            <span className="font-mono text-xs text-text-muted">edits are yours — saving overwrites the day&rsquo;s script (every run is logged)</span>
+            <span className="text-xs text-text-muted">edits are yours — saving overwrites the day&rsquo;s script (every run is logged)</span>
           </div>
         </div>
       )}
