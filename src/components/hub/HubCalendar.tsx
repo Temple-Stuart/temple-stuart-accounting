@@ -103,6 +103,14 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
+  // PR-calendar-visible-range: the VISIBLE window (inclusive YYYY-MM-DD) drives ALL three
+  // fetches — replacing the month-only window so a week/day spanning a month boundary loads
+  // every event. Seeded to the current month; the grid's onRangeChange swaps in the on-screen
+  // window (day/week/month). Always a valid range (no fallback).
+  const [range, setRange] = useState<{ from: string; to: string }>(() => {
+    const lastDay = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+    return { from: `${selectedYear}-${pad(selectedMonth + 1)}-01`, to: `${selectedYear}-${pad(selectedMonth + 1)}-${pad(lastDay)}` };
+  });
 
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [operationsItems, setOperationsItems] = useState<DailyPlanItem[]>([]);
@@ -114,7 +122,7 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
   // ── The 3 calendar loaders — SAME logic as hub/page.tsx:192-294. ──
   const loadCalendar = async () => {
     try {
-      const res = await fetch(`/api/calendar?year=${selectedYear}&month=${selectedMonth + 1}`);
+      const res = await fetch(`/api/calendar?from=${range.from}&to=${range.to}`);
       if (res.ok) {
         const data = await res.json();
         const raw = (data.events || []) as CalendarEvent[];
@@ -125,9 +133,8 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
 
   const loadOperationsBlocks = async () => {
     try {
-      const from = `${selectedYear}-${pad(selectedMonth + 1)}-01`;
-      const lastDay = new Date(selectedYear, selectedMonth + 1, 0).getDate();
-      const to = `${selectedYear}-${pad(selectedMonth + 1)}-${pad(lastDay)}`;
+      const from = range.from;
+      const to = range.to;
       const res = await fetch(`/api/operations/daily-plan/items?from=${from}&to=${to}`);
       setOperationsItems(res.ok ? ((await res.json()).items || []) : []);
     } catch (err) {
@@ -138,9 +145,8 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
 
   const loadOperationsRoutines = async () => {
     try {
-      const from = `${selectedYear}-${pad(selectedMonth + 1)}-01`;
-      const lastDay = new Date(selectedYear, selectedMonth + 1, 0).getDate();
-      const to = `${selectedYear}-${pad(selectedMonth + 1)}-${pad(lastDay)}`;
+      const from = range.from;
+      const to = range.to;
       const res = await fetch(`/api/hub/operations-routines?from=${from}&to=${to}`);
       if (res.ok) {
         const data: RoutinesWindowResponse = await res.json();
@@ -163,7 +169,7 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
   useEffect(() => {
     if (demoEvents) return;
     loadCalendar(); loadOperationsBlocks(); loadOperationsRoutines();
-  }, [selectedYear, selectedMonth, demoEvents]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [range.from, range.to, demoEvents]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── The merge — SAME as hub/page.tsx:379-394. In demo mode, render the static
   //    seed straight through (already in CalendarEvent shape). ──
@@ -239,6 +245,7 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
         onEventClick={handleEventClick}
         phoneDayOnly={true}
         onMonthChange={(year, month) => { setSelectedYear(year); setSelectedMonth(month); }}
+        onRangeChange={(from, to) => setRange({ from, to })}
         flush={true}
       />
 

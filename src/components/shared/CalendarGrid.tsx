@@ -93,6 +93,13 @@ export interface CalendarGridProps {
    */
   onMonthChange?: (year: number, month: number) => void;
   /**
+   * PR-calendar-visible-range: fires with the VISIBLE window (inclusive 'YYYY-MM-DD')
+   * whenever the view/nav changes — day→[day,day], week→[weekStart,weekStart+6],
+   * month→[month-01,month-lastDay]. Lets the parent fetch exactly what's on screen, so a
+   * week/day spanning a month boundary loads ALL its events. Additive — onMonthChange stays.
+   */
+  onRangeChange?: (from: string, to: string) => void;
+  /**
    * Opt-in (PR-Calendar-Seamless): drop the outer card chrome (rounded corners, border,
    * shadow) so the grid sits FLUSH inside a parent that already provides the frame —
    * one continuous surface under a header band (a flush day-view look). Default false →
@@ -258,6 +265,7 @@ export default function CalendarGrid({
   enableHubChrome = false,
   phoneDayOnly = false,
   onMonthChange,
+  onRangeChange,
   flush = false,
 }: CalendarGridProps) {
   const router = useRouter();
@@ -438,6 +446,28 @@ export default function CalendarGrid({
   useEffect(() => {
     onMonthChange?.(selectedYear, selectedMonth);
   }, [selectedYear, selectedMonth]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // PR-calendar-visible-range: emit the VISIBLE window (inclusive YYYY-MM-DD) so the parent
+  // fetches exactly what's on screen — fixing the boundary-week gap. Day→[day,day],
+  // week→[weekStart,weekStart+6], month→[month-01,month-lastDay]. Always derivable from view
+  // state (no fallback). Keyed on every input that moves the window.
+  useEffect(() => {
+    if (!onRangeChange) return;
+    let from: Date;
+    let to: Date;
+    if (calendarView === 'day') {
+      from = selectedDay;
+      to = selectedDay;
+    } else if (calendarView === 'week') {
+      from = selectedWeekStart;
+      to = new Date(selectedWeekStart);
+      to.setDate(to.getDate() + 6);
+    } else {
+      from = new Date(selectedYear, selectedMonth, 1);
+      to = new Date(selectedYear, selectedMonth + 1, 0); // last day of the month
+    }
+    onRangeChange(dateToKey(from), dateToKey(to));
+  }, [calendarView, selectedWeekStart, selectedDay, selectedYear, selectedMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // PR-Calendar-Native: on phone-day-only, force the Day view (Week/Month are hidden).
   useEffect(() => {
