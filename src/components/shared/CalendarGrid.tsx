@@ -22,6 +22,13 @@ export interface CalendarEvent {
    *  geometry is depart → depart+duration (NOT the naive stored end, which is a different
    *  zone → a 34h span). Null → an explicit flagged marker, never start→end. */
   durationMinutes?: number | null;
+  /** PR-tz-3a: the true UTC instant anchor (ISO string) + the airport IANA zones, plumbed
+   *  from calendar_events (snake→camel like durationMinutes). tz-3b renders the grid from
+   *  these via instantToZoned when present; null → the naive path. Carried, not yet consumed. */
+  startAt?: string | null;
+  endAt?: string | null;
+  startZone?: string | null;
+  endZone?: string | null;
   isRecurring?: boolean;
   location?: string | null;
   budgetAmount?: number;
