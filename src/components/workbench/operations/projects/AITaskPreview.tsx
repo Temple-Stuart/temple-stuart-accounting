@@ -143,29 +143,29 @@ export default function AITaskPreview({
   };
 
   const inputClass =
-    'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
-  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs font-mono';
+    'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
+  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
 
   return (
     <div className="space-y-3 border border-brand-purple rounded p-4 bg-purple-50/30">
       <div className="flex items-center justify-between">
-        <div className="text-xs font-mono font-bold text-text-primary">
+        <div className="text-xs font-bold text-text-primary">
           AI-generated tasks — {editable.length} {editable.length === 1 ? 'task' : 'tasks'} (review and edit before accepting)
         </div>
-        <div className="text-xs font-mono text-text-muted">
+        <div className="text-xs text-text-muted">
           source: ai_usage_id <span className="text-text-faint">{sourceAiUsageId.slice(0, 8)}…</span>
         </div>
       </div>
 
       {error && (
-        <div className="text-xs font-mono px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
+        <div className="text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
           {error}
         </div>
       )}
 
       <div className="space-y-3">
         {editable.map((t, i) => (
-          <div key={i} className="border border-border-light rounded p-3 bg-white space-y-2 text-xs font-mono">
+          <div key={i} className="border border-border-light rounded p-3 bg-white space-y-2 text-xs">
             <div className="flex items-center justify-between">
               <div className="text-text-faint">
                 #{i + 1} · suggested_order {t.suggested_order}
@@ -175,7 +175,7 @@ export default function AITaskPreview({
                 min={0}
                 value={t.suggested_order}
                 onChange={(e) => updateTask(i, { suggested_order: Number(e.target.value) || 0 })}
-                className="w-16 px-2 py-0.5 border border-border rounded text-xs font-mono"
+                className="w-16 px-2 py-0.5 border border-border rounded text-xs"
                 title="suggested order (0-indexed)"
               />
             </div>
@@ -234,7 +234,7 @@ export default function AITaskPreview({
           type="button"
           onClick={handleAcceptAll}
           disabled={submitting}
-          className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded text-xs font-mono hover:opacity-90 disabled:opacity-50"
+          className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded text-xs hover:opacity-90 disabled:opacity-50"
         >
           {submitting ? 'creating…' : `accept all ${editable.length} ${editable.length === 1 ? 'task' : 'tasks'}`}
         </button>
@@ -242,7 +242,7 @@ export default function AITaskPreview({
           type="button"
           onClick={onDiscarded}
           disabled={submitting}
-          className="px-3 py-1 border border-border rounded text-xs font-mono hover:bg-bg-row disabled:opacity-50"
+          className="px-3 py-1 border border-border rounded text-xs hover:bg-bg-row disabled:opacity-50"
         >
           discard
         </button>

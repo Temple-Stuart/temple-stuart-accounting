@@ -317,24 +317,24 @@ export default function ProjectCreateForm({ entities, defaultEntityId, onCreated
   };
 
   const inputClass =
-    'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
-  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs font-mono';
+    'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
+  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
 
   return (
-    <div className="mb-4 border border-brand-purple rounded p-3 bg-purple-50/30 text-xs font-mono space-y-3">
+    <div className="mb-4 border border-border rounded p-3 bg-white text-xs space-y-3">
       <div className="font-bold text-text-primary">new project · 5-step scoping required</div>
 
       {/* KICKOFF helper — copy to an AI chat with your vision; paste back the inputs +
           audit prompt. Same pattern/classes as the day-audit helper (ScriptGenerator). */}
       <div className="rounded border border-border-light bg-bg-row p-3 space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <span className="font-mono text-xs text-brand-purple font-medium uppercase tracking-wide">
+          <span className="text-xs text-brand-purple font-medium uppercase tracking-wide">
             kickoff — copy this to your AI chat first
           </span>
           <button
             type="button"
             onClick={copyPrompt}
-            className="px-2 py-0.5 font-mono text-xs border border-brand-purple rounded text-brand-purple hover:bg-purple-100/50"
+            className="px-2 py-0.5 text-xs border border-brand-purple rounded text-brand-purple hover:bg-purple-100/50"
           >
             {copied ? 'copied ✓' : 'copy prompt'}
           </button>
@@ -342,7 +342,7 @@ export default function ProjectCreateForm({ entities, defaultEntityId, onCreated
         <p className="text-text-muted">
           Turns your raw vision into the inputs below + an audit prompt for Claude Code.
         </p>
-        <pre className="font-mono text-[11px] leading-relaxed text-text-muted whitespace-pre-wrap break-words bg-white border border-border-light rounded p-2">
+        <pre className="text-[11px] leading-relaxed text-text-muted whitespace-pre-wrap break-words bg-white border border-border-light rounded p-2">
 {KICKOFF_PROMPT}
         </pre>
       </div>
@@ -431,7 +431,7 @@ export default function ProjectCreateForm({ entities, defaultEntityId, onCreated
           value={createForm.claude_code_audit_input}
           onChange={(e) => setCreateForm({ ...createForm, claude_code_audit_input: e.target.value })}
           rows={4}
-          className="w-full px-2 py-1 bg-white border border-brand-purple/40 rounded text-xs font-mono text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20"
+          className="w-full px-2 py-1 bg-white border border-brand-purple/40 rounded text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20"
           placeholder="Paste a codebase audit here so the plan reuses what already exists instead of proposing to rebuild it."
           disabled={createSaving}
         />
@@ -443,28 +443,28 @@ export default function ProjectCreateForm({ entities, defaultEntityId, onCreated
             type="button"
             onClick={handleGenerateCreateDesign}
             disabled={generatingCreateDesign}
-            className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs font-mono hover:bg-purple-50 disabled:opacity-50"
+            className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs hover:bg-purple-50 disabled:opacity-50"
             title="Generate institutional-rigor design field from your goal/problem/diagnosis items"
           >
             {generatingCreateDesign ? 'generating…' : '↑ generate plan'}
           </button>
         </div>
         {createForm.design.trim().length > 0 ? (
-          <div className="text-text-primary text-xs font-mono whitespace-pre-wrap p-3 bg-white border border-border-light rounded">
+          <div className="text-text-primary text-xs whitespace-pre-wrap p-3 bg-white border border-border-light rounded">
             {createForm.design}
           </div>
         ) : (
-          <div className="text-text-muted text-xs font-mono italic p-3 bg-bg-row border border-border-light rounded">
+          <div className="text-text-muted text-xs italic p-3 bg-bg-row border border-border-light rounded">
             (no design yet — fill in goal/problem/diagnosis items above, then click &quot;↑ generate plan&quot;)
           </div>
         )}
         {createDesignError && (
-          <div className="mt-2 px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs font-mono">
+          <div className="mt-2 px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs">
             {createDesignError}
           </div>
         )}
         {createDesignPreview && (
-          <div className="mt-2 border border-brand-purple rounded p-3 bg-purple-50/30 text-xs font-mono space-y-2">
+          <div className="mt-2 border border-border rounded p-3 bg-white text-xs space-y-2">
             <div className="font-bold text-text-primary flex items-center justify-between">
               <span>AI-generated design (review before saving)</span>
               {createDesignCost && (
@@ -573,7 +573,7 @@ export default function ProjectCreateForm({ entities, defaultEntityId, onCreated
       </div>
 
       {tasksError && (
-        <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs font-mono">
+        <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs">
           {tasksError}
         </div>
       )}
