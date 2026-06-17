@@ -4,6 +4,7 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { getCOACode } from '@/lib/travelCategories';
 import { TRAVEL_COA, isValidTravelCoaCode } from '@/lib/travelCOA';
 import { parseTimeOrNull } from '@/lib/operations/parseTime';
+import { zonedToInstant } from '@/lib/time';
 
 // Travel COA codes: P-9xxx (personal) / B-9xxx (business)
 // Maps vendor optionType to the 9xxx travel COA number
@@ -101,6 +102,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // has no airport zone → null (genuinely absent, not a substitute).
     const startZone = optionType === 'flight' && typeof originZoneInput === 'string' ? originZoneInput : null;
     const endZone = optionType === 'flight' && typeof destZoneInput === 'string' ? destZoneInput : null;
+    // PR-tz-2-fill: the true UTC instant = naive wall-clock + the airport IANA zone, via the
+    // canonical converter. Computed ONLY when both the zone (flight-only) AND the date+time are
+    // present → else null (no zone, no instant — an honest null, not a fallback). end_at uses
+    // arriveDate (the ARRIVAL date), not endDate (which is the roundtrip RETURN date). Inputs are
+    // sliced to zonedToInstant's strict 'YYYY-MM-DD'/'HH:MM' contract. NOT wrapped in try/catch:
+    // if inputs are present and conversion still throws, that's bad data we WANT to surface.
+    const startAt = startZone && startDate && startTime
+      ? zonedToInstant(String(startDate).slice(0, 10), String(startTime).slice(0, 5), startZone)
+      : null;
+    const endAt = endZone && arriveDate && endTime
+      ? zonedToInstant(String(arriveDate).slice(0, 10), String(endTime).slice(0, 5), endZone)
+      : null;
 
     // PR 3: validate the user-selected COA against the canonical travel account
     // list — NO free-text COA codes. Absent is fine (server derives, below);
@@ -281,10 +294,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             note: notes || null, location: activityLocation, vendorOptionId: optionId, vendorOptionType: optionType,
             // PR-Flight-Duration-1: the true elapsed minutes (Duffel) — render depart+duration (PR-2).
             duration_minutes: durationMinutes,
-            // PR-tz-1: persist the airport IANA zones (passthrough). start_at/end_at (the UTC
-            // instant) are STAGED null this PR — filled post-tz-2 by the canonical converter.
+            // PR-tz-1 zones + PR-tz-2-fill instants: the airport IANA zones (passthrough) and the
+            // true UTC instant anchor computed from naive+zone (null when no zone/time).
             start_zone: startZone,
             end_zone: endZone,
+            start_at: startAt,
+            end_at: endAt,
           },
         });
         itineraryEntries.push(entry);
@@ -364,13 +379,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       : (endDate ? new Date(endDate) : calStart);
     const calStartTime = isFlight ? (startTime || null) : null; // depart (wheels-up), "HH:MM"
     const calEndTime = isFlight ? (endTime || null) : null;     // arrive (wheels-down), "HH:MM"
-    // PR-tz-1: persist the airport IANA zones (passthrough; flight-only via startZone/endZone,
-    // which are already null for non-flights). start_at/end_at (the UTC instant) are STAGED
-    // null this PR — filled post-tz-2 by the canonical converter (no inline conversion here).
+    // PR-tz-1 zones + PR-tz-2-fill instants: the airport IANA zones (passthrough; flight-only via
+    // startZone/endZone) and the true UTC instant anchor (startAt/endAt, computed from naive+zone).
     try {
       await prisma.$queryRaw`
-        INSERT INTO calendar_events (user_id, source, source_id, title, category, icon, color, start_date, end_date, start_time, end_time, is_recurring, coa_code, budget_amount, duration_minutes, start_zone, end_zone)
-        VALUES (${user.id}, 'trip', ${calSourceId}, ${calTitle}, 'trip', ${calIcon}, 'cyan', ${calStart}, ${calEnd}, ${calStartTime}::time, ${calEndTime}::time, false, ${result.budgetItem.coaCode}, ${Math.round(result.details.amount)}, ${durationMinutes}, ${startZone}, ${endZone})
+        INSERT INTO calendar_events (user_id, source, source_id, title, category, icon, color, start_date, end_date, start_time, end_time, is_recurring, coa_code, budget_amount, duration_minutes, start_zone, end_zone, start_at, end_at)
+        VALUES (${user.id}, 'trip', ${calSourceId}, ${calTitle}, 'trip', ${calIcon}, 'cyan', ${calStart}, ${calEnd}, ${calStartTime}::time, ${calEndTime}::time, false, ${result.budgetItem.coaCode}, ${Math.round(result.details.amount)}, ${durationMinutes}, ${startZone}, ${endZone}, ${startAt}, ${endAt})
       `;
     } catch (calErr) {
       console.error('Calendar event insert failed (non-fatal):', calErr);
