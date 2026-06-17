@@ -117,19 +117,19 @@ export default function ListManager({
   };
 
   const inputClass =
-    'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
+    'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
 
   return (
     <div className="space-y-1">
       {items.length === 0 && draft.length === 0 && (
-        <div className="text-xs font-mono text-text-muted italic px-1">
+        <div className="text-xs text-text-muted italic px-1">
           (no items yet — click below to add)
         </div>
       )}
 
       {items.map((item, i) => (
         <div key={i} className="flex items-start gap-2 group">
-          <span className="text-text-faint text-xs font-mono mt-1 select-none">·</span>
+          <span className="text-text-faint text-xs mt-1 select-none">·</span>
           {editingIndex === i ? (
             <>
               <input
@@ -149,7 +149,7 @@ export default function ListManager({
                 type="button"
                 onClick={commitEdit}
                 disabled={disabled}
-                className="px-2 py-0.5 border border-brand-purple bg-brand-purple text-white rounded text-xs font-mono hover:opacity-90 disabled:opacity-50"
+                className="px-2 py-0.5 border border-brand-purple bg-brand-purple text-white rounded text-xs hover:opacity-90 disabled:opacity-50"
               >
                 save
               </button>
@@ -157,7 +157,7 @@ export default function ListManager({
                 type="button"
                 onClick={cancelEdit}
                 disabled={disabled}
-                className="px-2 py-0.5 border border-border rounded text-xs font-mono hover:bg-bg-row disabled:opacity-50"
+                className="px-2 py-0.5 border border-border rounded text-xs hover:bg-bg-row disabled:opacity-50"
               >
                 cancel
               </button>
@@ -165,7 +165,7 @@ export default function ListManager({
           ) : (
             <>
               <span
-                className="flex-1 text-xs font-mono text-text-primary cursor-pointer hover:bg-bg-row rounded px-1"
+                className="flex-1 text-xs text-text-primary cursor-pointer hover:bg-bg-row rounded px-1"
                 onClick={() => !disabled && startEdit(i)}
                 title="Click to edit"
               >
@@ -175,7 +175,7 @@ export default function ListManager({
                 type="button"
                 onClick={() => removeItem(i)}
                 disabled={disabled}
-                className="opacity-0 group-hover:opacity-100 px-1 text-text-faint hover:text-red-700 text-xs font-mono disabled:opacity-50"
+                className="opacity-0 group-hover:opacity-100 px-1 text-text-faint hover:text-red-700 text-xs disabled:opacity-50"
                 title="Remove item"
               >
                 ✕
@@ -187,7 +187,7 @@ export default function ListManager({
 
       {draft.length > 0 ? (
         <div className="flex items-start gap-2">
-          <span className="text-brand-purple text-xs font-mono mt-1 select-none">+</span>
+          <span className="text-brand-purple text-xs mt-1 select-none">+</span>
           <input
             type="text"
             value={draft}
@@ -206,7 +206,7 @@ export default function ListManager({
             type="button"
             onClick={commitAdd}
             disabled={disabled || draft.trim().length === 0}
-            className="px-2 py-0.5 border border-brand-purple bg-brand-purple text-white rounded text-xs font-mono hover:opacity-90 disabled:opacity-50"
+            className="px-2 py-0.5 border border-brand-purple bg-brand-purple text-white rounded text-xs hover:opacity-90 disabled:opacity-50"
           >
             add
           </button>
@@ -214,7 +214,7 @@ export default function ListManager({
             type="button"
             onClick={cancelAdd}
             disabled={disabled}
-            className="px-2 py-0.5 border border-border rounded text-xs font-mono hover:bg-bg-row disabled:opacity-50"
+            className="px-2 py-0.5 border border-border rounded text-xs hover:bg-bg-row disabled:opacity-50"
           >
             cancel
           </button>
@@ -225,7 +225,7 @@ export default function ListManager({
             type="button"
             onClick={() => startAdd(verbPrefix)}
             disabled={disabled || atLimit}
-            className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs font-mono hover:bg-purple-50 disabled:opacity-50"
+            className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs hover:bg-purple-50 disabled:opacity-50"
             title={atLimit ? `Maximum ${MAX_ITEMS} items reached` : `Add a "${verbPrefix.trim()}" item`}
           >
             + {verbPrefix.trim()}...
@@ -235,19 +235,19 @@ export default function ListManager({
               type="button"
               onClick={() => startAdd(altVerbPrefix)}
               disabled={disabled || atLimit}
-              className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs font-mono hover:bg-purple-50 disabled:opacity-50"
+              className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs hover:bg-purple-50 disabled:opacity-50"
               title={atLimit ? `Maximum ${MAX_ITEMS} items reached` : `Add a "${altVerbPrefix.trim()}" item`}
             >
               + {altVerbPrefix.trim()}...
             </button>
           )}
           {atLimit && (
-            <span className="text-xs font-mono text-text-muted italic">
+            <span className="text-xs text-text-muted italic">
               (max {MAX_ITEMS} items reached)
             </span>
           )}
           {!atLimit && items.length >= MAX_ITEMS - 5 && (
-            <span className="text-xs font-mono text-text-muted">
+            <span className="text-xs text-text-muted">
               ({MAX_ITEMS - items.length} slots left)
             </span>
           )}
