@@ -11,6 +11,7 @@ import AllTripsList, { type TripRow } from '@/components/trips/AllTripsList';
 import TripFormModal from '@/components/trips/TripFormModal';
 import TripBudgetActual from '@/components/trips/TripBudgetActual';
 import HubCalendar from '@/components/hub/HubCalendar';
+import HubBudgetSection from '@/components/hub/HubBudgetSection';
 import { demoCalendar } from '@/components/hub/showroom/demoCalendar';
 import PublicFlightSearch from '@/components/trips/PublicFlightSearch';
 import PublicHotelSearch from '@/components/trips/PublicHotelSearch';
@@ -366,6 +367,9 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         <section className={`w-full bg-white border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto">
             <HubCalendar />
+            {/* PR-HB-1: month-scoped budget section under the calendar (authed only, so the
+                logged-out demo below never renders it → no personal data, no fake numbers). */}
+            <HubBudgetSection />
           </div>
         </section>
       )}
