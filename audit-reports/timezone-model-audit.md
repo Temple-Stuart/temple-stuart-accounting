@@ -198,3 +198,43 @@ small `lib/time.ts`.
 **Migration flag:** only **PR-tz-1** needs Alex to run `ALTER` via psql (additive, nullable).
 
 *Do not implement — audit only.*
+
+---
+
+## tz-0a: Duffel zone verification (READ-ONLY probe — resolves the Part A "NOT VERIFIED")
+
+**DOES Duffel expose the airport IANA timezone? → YES. DEFINITIVELY.**
+
+**Evidence (the `@duffel/api` SDK types, installed via `@duffel/components`):**
+- `Airport.time_zone: string` — `node_modules/@duffel/api/dist/supportingResources/Airports/AirportsTypes.d.ts:54`, with the doc comment (`:52-53`): *"The time zone of the airport, specified by name from the tz database"* → an **IANA name** (e.g. `"America/Los_Angeles"`), declared **non-nullable `string`**.
+- It is reachable on every flight segment: `Offer.slices: OfferSlice[]`
+  (`booking/Offers/OfferTypes.d.ts:71`) → `OfferSlice.segments: OfferSliceSegment[]` (`:340`)
+  → **`OfferSliceSegment.origin: Airport`** (`:421`) and **`.destination: Airport`** (`:396`),
+  alongside `departing_at: string` (`:388`) / `arriving_at: string` (`:380`).
+
+**Exact path:** `offer.slices[i].segments[j].origin.time_zone` and
+`offer.slices[i].segments[j].destination.time_zone` — format: **IANA tz-database string**.
+(Note: the *slice*-level `origin`/`destination` are `Place` (`OfferTypes.d.ts:310,318`), but the
+*segment*-level ones are full `Airport` objects carrying `time_zone` — and our parse already
+operates at the segment level.)
+
+**It's one field away from what we already read.** `src/lib/duffel.ts:295` captures
+`firstSeg?.origin?.iata_code` — the **same `Airport` object** — but stops at `iata_code`/`name`
+and never reads `.time_zone`. Capturing the zone is adding
+`firstSeg?.origin?.time_zone` (departure) and `lastSeg?.destination?.time_zone` (arrival), plus
+per-segment `seg.origin.time_zone` / `seg.destination.time_zone`. **No IATA→IANA lookup table is
+needed** (so none in the repo is required — and indeed none exists).
+
+**Evidence basis (step 5):** I rely on the **`@duffel/api` SDK type declaration** quoted above —
+authoritative and version-pinned in `node_modules`. I did **not** make a live Duffel call (no
+safe authenticated dev path to log a raw offer without hitting the paid API; the typed SDK
+contract is sufficient and the mandate forbids adding a route or unauthenticated paid call).
+
+### Verdict → **tz-0b is SMALL.**
+The zone is present, typed, IANA-format, and reachable at the segment level we already parse.
+tz-0b (PR-tz-0-airport-zone-capture) is a **SMALL-FIX**: stop dropping it — read
+`segment.origin.time_zone` / `segment.destination.time_zone` in `parseOffer`
+(`duffel.ts:293-326`) and thread it through the commit payload. **No lookup table, no
+LARGE-path branch.** The PR sequence's tz-0 "(SMALL if Duffel gives `time_zone`, else LARGE)"
+collapses to the **SMALL** branch.
+
