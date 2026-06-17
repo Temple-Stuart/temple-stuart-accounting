@@ -333,6 +333,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // PR-TG1: the Travel ModuleDef, fed to renderBody from Travel's own dedicated block
   // (now that Travel is pulled out of MODULES.map). label/live/blurb are unchanged.
   const travelModule = MODULES.find((m) => m.key === 'travel')!;
+  const routinesModule = MODULES.find((m) => m.key === 'routines')!;
 
   return (
     <>
@@ -442,12 +443,23 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           </div>
         </div>
       </section>
+      {/* HB-4e-style: Routines renders in its own FLUSH block (mirrors Calendar/Travel) — out of
+          the MODULES.map purple-band card, so the real builder reads as the app, not a demo card.
+          renderBody handles the authed-builder / logged-out-teaser branch. */}
+      <section className={`w-full bg-white border-b border-border ${activeModule === 'routines' ? 'block' : 'hidden'}`}>
+        <div className="max-w-7xl mx-auto">
+          <div className="px-4 py-4 lg:px-8 space-y-6">
+            {renderBody(routinesModule)}
+          </div>
+        </div>
+      </section>
       {MODULES.map((m, i) => {
         // PR-TG1: Travel now renders in its own flush, edge-to-edge block above (out of
         // this map, no purple band). Skip it here so it never double-renders. Returning
-        // null keeps the index `i` stable for the other 5 modules, so their alternating
-        // bg (bg-row / white) is byte-identical to before.
-        if (m.key === 'travel') return null;
+        // null keeps the index `i` stable for the other modules, so their alternating
+        // bg (bg-row / white) is byte-identical to before. HB-4e-style: Routines is now
+        // ALSO flush (its own block above) → skip it here too.
+        if (m.key === 'travel' || m.key === 'routines') return null;
         return (
         <section key={m.key} className={`w-full py-10 ${i % 2 === 1 ? 'bg-bg-row' : 'bg-white'} border-b border-border ${activeModule === (MODULE_TO_TAB[m.key] ?? m.key) ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto px-4 lg:px-8 space-y-6">

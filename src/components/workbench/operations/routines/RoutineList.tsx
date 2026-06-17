@@ -136,7 +136,7 @@ export default function RoutineList({ entities, onCommitted }: Props) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 text-xs font-mono">
+        <div className="flex items-center gap-3 text-xs">
           <span className="text-text-muted">
             {routines.length} {routines.length === 1 ? 'routine' : 'routines'}
           </span>
@@ -154,7 +154,7 @@ export default function RoutineList({ entities, onCommitted }: Props) {
             type="button"
             onClick={startCreate}
             disabled={entities.length === 0}
-            className="px-2 py-1 border border-brand-purple bg-brand-purple text-white rounded text-xs font-mono hover:opacity-90 disabled:opacity-50"
+            className="px-3 py-1 rounded border border-brand-purple bg-brand-purple text-white text-xs font-medium hover:opacity-90 disabled:opacity-50"
           >
             + new routine
           </button>
@@ -162,7 +162,7 @@ export default function RoutineList({ entities, onCommitted }: Props) {
       </div>
 
       {error && (
-        <div className="text-xs font-mono px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
+        <div className="text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
           {error}
         </div>
       )}
@@ -180,9 +180,9 @@ export default function RoutineList({ entities, onCommitted }: Props) {
       )}
 
       {loading ? (
-        <div className="text-xs font-mono text-text-muted">loading routines…</div>
+        <div className="text-xs text-text-muted">loading routines…</div>
       ) : routines.length === 0 ? (
-        <div className="text-xs font-mono text-text-muted italic">
+        <div className="text-xs text-text-muted italic">
           no routines yet — click "+ new routine" to create your first one. Bridgewater's Principles operationalize through cadence; this is where you set yours.
         </div>
       ) : (
@@ -192,7 +192,7 @@ export default function RoutineList({ entities, onCommitted }: Props) {
             if (!items || items.length === 0) return null;
             return (
               <div key={g}>
-                <div className="text-xs font-mono text-text-muted uppercase tracking-wide mb-1">
+                <div className="text-xs text-text-faint uppercase tracking-wide mb-1">
                   {CADENCE_GROUP_LABELS[g]} ({items.length})
                 </div>
                 <div className="space-y-1.5">
