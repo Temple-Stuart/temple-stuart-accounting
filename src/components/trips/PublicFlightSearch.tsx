@@ -163,6 +163,11 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
       // PR-Flight-Duration-1: Duffel's TRUE elapsed minutes (already parsed) so the calendar
       // can draw depart+duration instead of a naive cross-zone span (PR-2 renders it).
       const durationMinutes = offer.outbound?.durationMinutes ?? undefined;
+      // PR-tz-0b: carry the departure/arrival airport IANA zones to the commit body. null
+      // (never a hardcoded zone) when absent. vendor-commit has no column yet → it ignores
+      // these until tz-1 adds storage. Staging only — nothing persists or renders them now.
+      const originZone = offer.outbound?.departure?.timeZone ?? null;
+      const destZone = offer.outbound?.arrival?.timeZone ?? null;
 
       const res = await fetch(`/api/trips/${currentTrip.id}/vendor-commit`, {
         method: 'POST',
@@ -178,6 +183,8 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
           endTime: arriveTime,
           arriveDate,
           durationMinutes,
+          originZone,
+          destZone,
         }),
       });
       if (!res.ok) {

@@ -24,8 +24,10 @@ export interface FlightOffer {
   price: number;
   currency: string;
   outbound: {
-    departure: { airport: string; airportName?: string; localTime: string; date: string };
-    arrival: { airport: string; airportName?: string; localTime: string; date: string };
+    // PR-tz-0b: timeZone = the airport's IANA zone (Duffel Airport.time_zone). Captured +
+    // carried to the commit payload; not yet stored (tz-1) or rendered (tz-3).
+    departure: { airport: string; airportName?: string; localTime: string; date: string; timeZone?: string | null };
+    arrival: { airport: string; airportName?: string; localTime: string; date: string; timeZone?: string | null };
     duration: string;
     durationMinutes?: number;
     stops: number;
@@ -33,8 +35,8 @@ export interface FlightOffer {
     segments?: any[];
   } | null;
   return: {
-    departure: { airport: string; airportName?: string; localTime: string; date: string };
-    arrival: { airport: string; airportName?: string; localTime: string; date: string };
+    departure: { airport: string; airportName?: string; localTime: string; date: string; timeZone?: string | null };
+    arrival: { airport: string; airportName?: string; localTime: string; date: string; timeZone?: string | null };
     duration: string;
     stops: number;
     carriers: string[];

@@ -250,6 +250,10 @@ export default function FlightPicker({
       // duffel.ts:307), mirroring PublicFlightSearch.tsx:165,180 so this in-trip path also
       // stores duration_minutes. undefined for manual offers → vendor-commit gate stores null.
       const durationMinutes = offer.outbound?.durationMinutes ?? undefined;
+      // PR-tz-0b: carry the departure/arrival airport IANA zones (mirrors PublicFlightSearch).
+      // null when absent — never a hardcoded zone. Not persisted until tz-1; not rendered yet.
+      const originZone = offer.outbound?.departure?.timeZone ?? null;
+      const destZone = offer.outbound?.arrival?.timeZone ?? null;
 
       const res = await fetch(`/api/trips/${tripId}/vendor-commit`, {
         method: 'POST',
@@ -265,6 +269,8 @@ export default function FlightPicker({
           endTime: arriveTime,
           arriveDate,
           durationMinutes,
+          originZone,
+          destZone,
         }),
       });
 
