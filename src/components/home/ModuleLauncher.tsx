@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Calendar, Plane, Repeat, FolderKanban, TrendingUp, BookOpen, Receipt, ShieldCheck,
+  Calendar, Plane, Repeat, FolderKanban, TrendingUp, BookOpen, Receipt, ShieldCheck, Clapperboard,
   type LucideIcon,
 } from 'lucide-react';
 import CreateTripForm from '@/components/trips/CreateTripForm';
@@ -28,6 +28,10 @@ import SectionE_Routines from '@/components/workbench/operations/SectionE_Routin
 // wrapped in the same self-fetching OperationsEntityProvider as SectionE_Routines; logged-out
 // keeps the rich OperationsPipelineShowroom (Option B).
 import SectionD_ProjectBacklog from '@/components/workbench/operations/SectionD_ProjectBacklog';
+// Content-mount: the real content pipeline (sources → scenify → grid → script). Authed users get
+// this verbatim, wrapped in the same self-fetching OperationsEntityProvider; logged-out reuses the
+// OperationsPipelineShowroom (which already renders the content Day + Script demo panels).
+import ContentPipeline from '@/components/workbench/operations/content/ContentPipeline';
 import HomeRoutineCreateForm from '@/components/home/RoutineCreateForm';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
 import { DEFAULT_FILTERS } from '@/lib/convergence/filter-types';
@@ -61,6 +65,10 @@ const MODULES: ModuleDef[] = [
   { key: 'bookkeeping', label: 'Bookkeeping', live: false, blurb: 'GAAP accounting engine, Plaid bank sync, period close.' },
   { key: 'tax',         label: 'Tax',         live: false, blurb: 'Form 1040, Schedule C/D/SE, Form 8949.' },
   { key: 'compliance',  label: 'Compliance',  live: false, blurb: 'Monitoring, attestations, audit trail.' },
+  // Content-mount: appended LAST so the existing modules keep their MODULES index (the MODULES.map
+  // alternating bg is index-driven). Tab-bar order is set by TABS below, not by this position;
+  // content renders in its own flush block (skipped from the band map).
+  { key: 'content',     label: 'Content',     live: false, blurb: 'Turn your day into a reel — sources → scenes → script.' },
 ];
 
 // PR-Mobile2 + PR-Edge-A: the phone tabs — ONE per module (no grouping). On mobile one
@@ -72,6 +80,7 @@ const TABS: { key: string; label: string; icon: LucideIcon }[] = [
   { key: 'travel',     label: 'Travel',     icon: Plane },
   { key: 'routines',   label: 'Routines',   icon: Repeat },
   { key: 'projects',   label: 'Projects',   icon: FolderKanban },
+  { key: 'content',    label: 'Content',    icon: Clapperboard },
   { key: 'trade',      label: 'Trade',      icon: TrendingUp },
   { key: 'books',      label: 'Books',      icon: BookOpen },
   { key: 'tax',        label: 'Tax',        icon: Receipt },
@@ -85,6 +94,7 @@ const MODULE_TO_TAB: Record<string, string> = {
   bookkeeping: 'books',
   projects: 'projects',
   routines: 'routines',
+  content: 'content',
   tax: 'tax',
   compliance: 'compliance',
 };
@@ -99,6 +109,7 @@ export const TAB_DESCRIPTORS: Record<string, string> = {
   trade: "Tell the scanner what you're hunting, and it pulls live prices from TastyTrade, company numbers from Finnhub, economy data from FRED, official filings from SEC EDGAR, and the mood online from Grok.",
   routines: 'Build your recurring routines and watch them land on your calendar — the rhythms that run your day.',
   projects: "Type the big messy goal that's rattling around your head — plain, rambly, however it actually lives up there.",
+  content: 'Turn what you actually did today into a reel — sources to scenes to a ready-to-record script.',
   books: 'Connect your bank through Plaid and every transaction flows in.',
   tax: 'Your books are already clean, so your taxes are half-done before you start.',
   compliance: "This one's for when things get serious.",
@@ -299,6 +310,25 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       }
       return null; // authed === null → resolving
     }
+    if (m.key === 'content') {
+      // Content-mount (mirrors Projects-mount, Option B): authed users get the REAL content
+      // pipeline — the workbench ContentPipeline (sources → scenify → grid → script, self-fetching
+      // the existing /api/operations/content/* routes) wrapped in OperationsEntityProvider. Reused
+      // VERBATIM — no rewrite, /operations/content untouched. Logged-out keeps the rich
+      // OperationsPipelineShowroom (which already renders the content Day + Script demo panels).
+      // Auth resolving → nothing. (Styling aligns in PR-Content-style — terminal for now.)
+      if (authed === true) {
+        return (
+          <OperationsEntityProvider>
+            <ContentPipeline />
+          </OperationsEntityProvider>
+        );
+      }
+      if (authed === false) {
+        return <OperationsPipelineShowroom onRequireAuth={onRequireAuth} />;
+      }
+      return null; // authed === null → resolving
+    }
     if (m.key === 'routines') {
       // HB-4e-mount: authed users get the REAL routine builder — the workbench SectionE_Routines
       // (create form w/ HB-4b COA picker + budget input, self-fetching routine list, edit) wrapped
@@ -353,6 +383,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   const travelModule = MODULES.find((m) => m.key === 'travel')!;
   const routinesModule = MODULES.find((m) => m.key === 'routines')!;
   const projectsModule = MODULES.find((m) => m.key === 'projects')!;
+  const contentModule = MODULES.find((m) => m.key === 'content')!;
 
   return (
     <>
@@ -482,13 +513,23 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           </div>
         </div>
       </section>
+      {/* Content-mount: Content renders in its own FLUSH block (mirrors Projects/Routines) — out of
+          the MODULES.map purple-band card. renderBody handles the authed-pipeline / logged-out-
+          showroom branch. */}
+      <section className={`w-full bg-white border-b border-border ${activeModule === 'content' ? 'block' : 'hidden'}`}>
+        <div className="max-w-7xl mx-auto">
+          <div className="px-4 py-4 lg:px-8 space-y-6">
+            {renderBody(contentModule)}
+          </div>
+        </div>
+      </section>
       {MODULES.map((m, i) => {
         // PR-TG1: Travel now renders in its own flush, edge-to-edge block above (out of
         // this map, no purple band). Skip it here so it never double-renders. Returning
         // null keeps the index `i` stable for the other modules, so their alternating
         // bg (bg-row / white) is byte-identical to before. HB-4e-style: Routines is now
         // ALSO flush (its own block above) → skip it here too.
-        if (m.key === 'travel' || m.key === 'routines' || m.key === 'projects') return null;
+        if (m.key === 'travel' || m.key === 'routines' || m.key === 'projects' || m.key === 'content') return null;
         return (
         <section key={m.key} className={`w-full py-10 ${i % 2 === 1 ? 'bg-bg-row' : 'bg-white'} border-b border-border ${activeModule === (MODULE_TO_TAB[m.key] ?? m.key) ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto px-4 lg:px-8 space-y-6">
