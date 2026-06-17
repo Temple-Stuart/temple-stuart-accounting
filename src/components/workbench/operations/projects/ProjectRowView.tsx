@@ -198,9 +198,9 @@ export default function ProjectRowView({
   onUnarchive,
 }: ProjectRowViewProps) {
   const inputClass =
-    'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
-  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs font-mono';
-  const pillClass = `inline-block px-2 py-0.5 border rounded text-xs font-mono ${STATUS_PILL_CLASSES[project.status]}`;
+    'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
+  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
+  const pillClass = `inline-block px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_PILL_CLASSES[project.status]}`;
 
   // Derive structured-list arrays from the project. JsonB columns may
   // come back as JsonValue at runtime; filter to strings defensively.
@@ -228,7 +228,7 @@ export default function ProjectRowView({
   ) => {
     if (items.length > 0) {
       return (
-        <ul className="list-disc list-inside text-text-primary text-xs font-mono space-y-0.5 ml-2">
+        <ul className="list-disc list-inside text-text-primary text-xs space-y-0.5 ml-2">
           {items.map((it, i) => (
             <li key={i} className="break-words">{it}</li>
           ))}
@@ -237,13 +237,13 @@ export default function ProjectRowView({
     }
     if (legacyText && legacyText.trim().length > 0) {
       return (
-        <div className="text-text-primary text-xs font-mono whitespace-pre-wrap">
+        <div className="text-text-primary text-xs whitespace-pre-wrap">
           {legacyText}
           <span className="text-text-faint italic ml-2">(legacy paragraph format)</span>
         </div>
       );
     }
-    return <div className="text-text-muted text-xs font-mono italic">(no content)</div>;
+    return <div className="text-text-muted text-xs italic">(no content)</div>;
   };
 
   return (
@@ -256,7 +256,7 @@ export default function ProjectRowView({
       }
     >
       <div
-        className="flex items-center justify-between px-4 py-2 cursor-pointer hover:bg-bg-row text-xs font-mono"
+        className="flex items-center justify-between px-4 py-2 cursor-pointer hover:bg-bg-row text-xs"
         onClick={() => !editing && onToggleExpanded()}
       >
         <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -271,7 +271,7 @@ export default function ProjectRowView({
       </div>
 
       {expanded && !editing && (
-        <div className="px-4 py-3 border-t border-border-light text-xs font-mono space-y-3">
+        <div className="px-4 py-3 border-t border-border-light text-xs space-y-3">
           <div>
             <div className={labelClass}>1 · goal</div>
             {renderStructuredField(goalItems, project.goal)}
@@ -291,7 +291,7 @@ export default function ProjectRowView({
                 <button
                   type="button"
                   onClick={onToggleDesignReasoning}
-                  className="px-2 py-0.5 border border-border rounded text-xs font-mono text-text-muted hover:bg-bg-row"
+                  className="px-2 py-0.5 border border-border rounded text-xs text-text-muted hover:bg-bg-row"
                 >
                   {showDesignReasoning ? 'hide AI design reasoning' : 'view AI design reasoning'}
                 </button>
@@ -299,12 +299,12 @@ export default function ProjectRowView({
             </div>
             {(project.design ?? '').trim().length > 0 ? (
               showDesignReasoning && (
-                <div className="text-text-primary text-xs font-mono whitespace-pre-wrap p-3 bg-white border border-border-light rounded">
+                <div className="text-text-primary text-xs whitespace-pre-wrap p-3 bg-white border border-border-light rounded">
                   {project.design}
                 </div>
               )
             ) : (
-              <div className="text-text-muted text-xs font-mono italic">(no design)</div>
+              <div className="text-text-muted text-xs italic">(no design)</div>
             )}
           </div>
           <div className="pt-2 border-t border-border-light">
@@ -320,7 +320,7 @@ export default function ProjectRowView({
                   onChange={(e) => onResearchInputChange(e.target.value)}
                   placeholder="Paste deep research output here…"
                   rows={4}
-                  className="w-full text-xs font-mono border border-border rounded px-2 py-1.5 bg-white text-text-primary"
+                  className="w-full text-xs border border-border rounded px-2 py-1.5 bg-white text-text-primary"
                 />
               </div>
               <div>
@@ -330,7 +330,7 @@ export default function ProjectRowView({
                   onChange={(e) => onAuditInputChange(e.target.value)}
                   placeholder="Paste Claude Code audit findings here…"
                   rows={4}
-                  className="w-full text-xs font-mono border border-border rounded px-2 py-1.5 bg-white text-text-primary"
+                  className="w-full text-xs border border-border rounded px-2 py-1.5 bg-white text-text-primary"
                 />
               </div>
             </div>
@@ -359,7 +359,7 @@ export default function ProjectRowView({
               <button
                 type="button"
                 onClick={onToggleEvolution}
-                className="px-2 py-0.5 border border-border rounded text-xs font-mono text-text-muted hover:bg-bg-row"
+                className="px-2 py-0.5 border border-border rounded text-xs text-text-muted hover:bg-bg-row"
               >
                 {showEvolution ? 'hide evolution' : 'view evolution'}
               </button>
@@ -420,7 +420,7 @@ export default function ProjectRowView({
       )}
 
       {editing && (
-        <div className="px-4 py-3 border-t border-border-light text-xs font-mono space-y-3">
+        <div className="px-4 py-3 border-t border-border-light text-xs space-y-3">
           {error && (
             <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
               {error}
@@ -507,28 +507,28 @@ export default function ProjectRowView({
                 type="button"
                 onClick={onGenerateDesign}
                 disabled={generatingDesign}
-                className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs font-mono hover:bg-purple-50 disabled:opacity-50"
+                className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs hover:bg-purple-50 disabled:opacity-50"
                 title="Generate institutional-rigor design field from your goal/problem/diagnosis items"
               >
                 {generatingDesign ? 'generating…' : '↑ generate plan'}
               </button>
             </div>
             {form.design.trim().length > 0 ? (
-              <div className="text-text-primary text-xs font-mono whitespace-pre-wrap p-3 bg-white border border-border-light rounded">
+              <div className="text-text-primary text-xs whitespace-pre-wrap p-3 bg-white border border-border-light rounded">
                 {form.design}
               </div>
             ) : (
-              <div className="text-text-muted text-xs font-mono italic p-3 bg-bg-row border border-border-light rounded">
+              <div className="text-text-muted text-xs italic p-3 bg-bg-row border border-border-light rounded">
                 (no design yet — fill in goal/problem/diagnosis items above, then click "↑ generate plan")
               </div>
             )}
             {generationError && (
-              <div className="mt-2 px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs font-mono">
+              <div className="mt-2 px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs">
                 {generationError}
               </div>
             )}
             {generatedDesignPreview && (
-              <div className="mt-2 border border-brand-purple rounded p-3 bg-purple-50/30 text-xs font-mono space-y-2">
+              <div className="mt-2 border border-brand-purple rounded p-3 bg-purple-50/30 text-xs space-y-2">
                 <div className="font-bold text-text-primary flex items-center justify-between">
                   <span>AI-generated design (review before saving)</span>
                   {generationCost && (
@@ -583,26 +583,26 @@ export default function ProjectRowView({
                 type="button"
                 onClick={onGenerateTasks}
                 disabled={generatingTasks}
-                className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs font-mono hover:bg-purple-50 disabled:opacity-50"
+                className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs hover:bg-purple-50 disabled:opacity-50"
                 title="Generate institutional-rigor task array (web-search verified URLs) from your goal/problem/diagnosis items"
               >
                 {generatingTasks ? 'generating…' : '↑ generate tasks'}
               </button>
             </div>
             {!tasksPreview && (
-              <div className="text-text-muted text-xs font-mono italic p-3 bg-bg-row border border-border-light rounded">
+              <div className="text-text-muted text-xs italic p-3 bg-bg-row border border-border-light rounded">
                 (tasks are saved directly to this project on accept — click "↑ generate tasks" to synthesize an atomic task array from the goal/problem/diagnosis items above)
               </div>
             )}
             {tasksGenError && (
-              <div className="mt-2 px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs font-mono">
+              <div className="mt-2 px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs">
                 {tasksGenError}
               </div>
             )}
             {tasksPreview && (
               <>
                 {tasksPreview.costSummary && (
-                  <div className="text-text-muted text-xs font-mono text-right mb-1">
+                  <div className="text-text-muted text-xs text-right mb-1">
                     ${tasksPreview.costSummary.cost_usd} · {tasksPreview.costSummary.input_tokens} in · {tasksPreview.costSummary.output_tokens} out
                   </div>
                 )}
