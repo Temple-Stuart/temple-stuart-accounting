@@ -203,12 +203,12 @@ export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
 };
 
 export const TASK_STATUS_PILL_CLASSES: Record<TaskStatus, string> = {
-  open: 'bg-gray-100 text-gray-700 border-gray-300',
-  in_progress: 'bg-blue-50 text-blue-800 border-blue-300',
-  blocked: 'bg-amber-50 text-amber-800 border-amber-300',
-  completed: 'bg-green-50 text-green-800 border-green-300',
-  cancelled: 'bg-gray-50 text-gray-500 border-gray-200',
-  archived: 'bg-gray-50 text-gray-500 border-gray-200',
+  open: 'bg-gray-100 text-gray-700',
+  in_progress: 'bg-blue-50 text-blue-800',
+  blocked: 'bg-amber-50 text-amber-800',
+  completed: 'bg-green-50 text-green-800',
+  cancelled: 'bg-gray-50 text-gray-500',
+  archived: 'bg-gray-50 text-gray-500',
 };
 
 /**
