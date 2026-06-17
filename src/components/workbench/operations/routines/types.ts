@@ -55,6 +55,11 @@ export interface Routine {
   created_at: string;
   updated_at: string;
   created_by: string | null;
+  // HB-4a/4b: the routine's per-occurrence budget + COA (returned by the API). budget_amount is a
+  // Decimal column → JSON-serialized as a string (e.g. "60.00"); null when unset. coa_code is the
+  // bare chart_of_accounts.code (e.g. "B-9200") or null.
+  budget_amount: string | null;
+  coa_code: string | null;
   steps: RoutineStep[];
   /**
    * The content scene this routine has been scenified into, if any.
