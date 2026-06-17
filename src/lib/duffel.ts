@@ -296,12 +296,18 @@ export function parseOffer(offer: any) {
         airportName: firstSeg?.origin?.name || '',
         localTime: firstSeg?.departing_at?.substring(11, 16) || '',
         date: firstSeg?.departing_at?.substring(0, 10) || '',
+        // PR-tz-0b: the departure airport's IANA zone (Duffel Airport.time_zone, e.g.
+        // "America/Los_Angeles"). Same Airport object we read iata_code/name from. null if
+        // genuinely absent — never defaulted. Captured + carried; stored in tz-1.
+        timeZone: firstSeg?.origin?.time_zone ?? null,
       },
       arrival: {
         airport: lastSeg?.destination?.iata_code || '',
         airportName: lastSeg?.destination?.name || '',
         localTime: lastSeg?.arriving_at?.substring(11, 16) || '',
         date: lastSeg?.arriving_at?.substring(0, 10) || '',
+        // PR-tz-0b: the arrival airport's IANA zone (e.g. "Asia/Makassar" for DPS/Bali).
+        timeZone: lastSeg?.destination?.time_zone ?? null,
       },
       duration: durationFormatted,
       durationMinutes: hours * 60 + mins,
