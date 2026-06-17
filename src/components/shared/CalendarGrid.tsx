@@ -33,6 +33,10 @@ export interface CalendarEvent {
   isRecurring?: boolean;
   location?: string | null;
   budgetAmount?: number;
+  /** PR-Hotel-Daily-Amortize: the event's COA code (e.g. 'P-9200'), plumbed from
+   *  calendar_events.coa_code (snake→camel like durationMinutes). Used in the per-day footer
+   *  to identify lodging (suffix '9200') for nightly amortization. Null on non-trip/old rows. */
+  coaCode?: string | null;
   details?: string[];        // compact detail lines (e.g. "PYPL | Iron Condor", "B-6210 · $250")
   /**
    * Internal navigation target. When set, clicking the event routes to
@@ -156,6 +160,34 @@ const HOME_ANCHOR = 'America/Los_Angeles';
 // honest zone. This is NOT a fallback that hides data — it's "no trip zone ⇒ show the anchor".
 function resolveDisplayZone(tzMode: TzMode, eventZone: string | null | undefined): string {
   return tzMode === 'home' ? HOME_ANCHOR : (eventZone ?? HOME_ANCHOR);
+}
+
+// PR-Hotel-Daily-Amortize: lodging is identified by its travel COA — '9200' is the lodging
+// account (VENDOR_TYPE_TO_COA.lodging, vendor-commit/route.ts:13); coa_code is stored as
+// '<prefix>-<number>' (e.g. 'P-9200'). Suffix-match is retroactive (every committed hotel carries
+// it) and uniquely lodging (flight 9100, vehicle 9300, activity 9400, transfer 9600). NO
+// icon/title sniffing in the money path — the COA is the accounting truth.
+const LODGING_COA_CODE = '9200';
+const isLodgingCoa = (c?: string | null): boolean => !!c && c.split('-').pop() === LODGING_COA_CODE;
+
+// PR-Hotel-Daily-Amortize: a multi-day lodging stay's per-day FOOTER contribution. A hotel is a
+// CONTINUOUS occupancy span (Span-Fill: a member of every day check-in→check-out inclusive), but
+// its cost is one whole-stay total — so the per-day footer shows the AMORTIZED nightly rate
+// (total ÷ nights) on each occupied night and $0 on the check-out day (= endDate), so the per-day
+// sum reconciles to the stored total exactly. Everything else (flights, single-day, non-lodging)
+// is unchanged. nights is the explicit date-diff (NO +1 — that would be days). NO FALLBACK:
+// nights <= 0 (bad dates) → full amount on the start day only, left visibly wrong, never
+// divide-by-zero or silently defaulted.
+function perDayBudget(e: CalendarEvent, dayKey: string): number {
+  const full = e.budgetAmount || 0;
+  const isLodgingSpannedAllDay =
+    isLodgingCoa(e.coaCode) && !e.startTime && !!e.endDate && e.endDate !== e.startDate;
+  if (!isLodgingSpannedAllDay) return full;
+  const startD = parseDate(e.startDate);
+  const endD = parseDate(e.endDate!);
+  const nights = Math.round((endD.getTime() - startD.getTime()) / 86_400_000);
+  if (nights <= 0) return dayKey === dateToKey(startD) ? full : 0;
+  return dayKey === dateToKey(endD) ? 0 : full / nights;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -813,7 +845,10 @@ export default function CalendarGrid({
                   <div className="w-14 flex-shrink-0" />
                   {gridDays.map((day, idx) => {
                     const dayEvents = getEventsForDate(day);
-                    const total = dayEvents.reduce((s, e) => s + (e.budgetAmount || 0), 0);
+                    // PR-Hotel-Daily-Amortize: per-day footer uses perDayBudget so a multi-day
+                    // lodging stay shows its nightly rate (total ÷ nights), $0 on checkout — not
+                    // the full stay total repeated on every spanned day.
+                    const total = dayEvents.reduce((s, e) => s + perDayBudget(e, dateToKey(day)), 0);
                     const totalKind = dayEvents.some(e => kindForSource(e.source) === 'pnl') ? 'pnl' : 'expense';
                     return (
                       <div key={idx} className="flex-1 border-l border-border-light px-1 py-1 text-center">
@@ -835,7 +870,8 @@ export default function CalendarGrid({
                   if (!day) return <div key={`empty-${idx}`} className="min-h-[90px]" />;
                   const date = new Date(selectedYear, selectedMonth, day);
                   const dayEvents = getEventsForDate(date);
-                  const dayTotal = dayEvents.reduce((sum, e) => sum + (e.budgetAmount || 0), 0);
+                  // PR-Hotel-Daily-Amortize: same nightly amortization as the week/day footer.
+                  const dayTotal = dayEvents.reduce((sum, e) => sum + perDayBudget(e, dateToKey(date)), 0);
                   const isToday = day === now.getDate() && selectedMonth === now.getMonth() && selectedYear === now.getFullYear();
                   const hl = isInHighlight(date);
                   const showDayTotal = showBudgetTotals && dayEvents.length > 0 && dayTotal !== 0;
