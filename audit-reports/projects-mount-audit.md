@@ -160,3 +160,109 @@ than HB-4e-style; split it. Net: same arc as Routines, but the style half is the
   `TaskListView`, `EvolutionTimelineView`.
 
 *Do not implement — audit only.*
+
+---
+
+# RESTYLE SPLIT PLAN (PR-Projects-style → 3 atomic sub-PRs) — READ-ONLY
+
+**Why split:** the Routines restyle (HB-4e-style) missed 3 *transitively-rendered* components
+(TodaysStrip, RoutineStepList, RRULEBuilder) because it was done as fewer/larger passes. Below is
+the COMPLETE Projects tree (traced import-by-import) so no component is forgotten, plus a balanced
+3-way split.
+
+## (a) The COMPLETE component tree (14 components, traced from SectionD)
+
+```
+SectionD_ProjectBacklog                         (5 mono)
+├── ProjectCreateForm                           (13)
+│   ├── AITaskPreview                            (9)
+│   └── ListManager                              (14)
+└── ProjectRow                                   (0 — thin wrapper)
+    ├── AITaskPreview                            (9, shared)
+    ├── DependencyList                           (0) → DependencyListView   (9)
+    ├── EvolutionTimeline                        (0) → EvolutionTimelineView (5)
+    ├── ProjectRowView                           (24)
+    │   ├── AITaskPreview                        (9, shared)
+    │   └── ListManager                          (14, shared)
+    └── TaskList                                 (0) → TaskListView (8) + TaskRow (0) → TaskRowView (16)
+```
+**9 files carry font-mono** (SectionD 5, ProjectCreateForm 13, ProjectRowView 24, AITaskPreview 9,
+ListManager 14, DependencyListView 9, EvolutionTimelineView 5, TaskListView 8, TaskRowView 16 =
+**103**). **5 thin wrappers carry 0** (ProjectRow, DependencyList, EvolutionTimeline, TaskList,
+TaskRow — they delegate rendering to their `*View`; no restyle needed). — EXISTS, complete tree.
+**Shared sub-components:** `AITaskPreview` + `ListManager` are rendered by BOTH the create form AND
+the row's expanded view — restyling them once fixes both surfaces. — RISK noted (assign them to one
+PR, don't double-touch).
+
+## (b) To-fix count (excluding legit code values)
+
+- **Legit code values to KEEP mono — 2:** `TaskRowView.tsx:360` `{match.code}` and `:370`
+  `{task.coa_code}` (COA codes — code literals, like the `RoutineRow:267` rrule precedent).
+- **NOT code values (→ sans):** every `inputClass`/`labelClass` const, all buttons/labels/counts,
+  the 3 status pills, AND the `font-mono whitespace-pre-wrap`/`<pre>` blocks — those render **prose**
+  (`legacyText` at `ProjectRowView:240`, `project.design` at `:302,517`,
+  `ProjectCreateForm:345,453`), NOT code; drop `font-mono`, **keep `whitespace-pre-wrap`** for line
+  breaks. (Per-block confirm during the PR, but they read as design/diagnosis prose, not JSON/code.)
+- **To-fix ≈ 101** of 103 (keep the 2 COA-code spans). — the real workload.
+
+## (c) Which Routines gap-classes apply
+
+| Gap class | Applies to Projects? | Cite |
+|---|---|---|
+| Terminal **cards** (`bg-white rounded … shadow-sm p-5`) | **YES** | `SectionD:86` + nested row/preview cards |
+| **Purple-band escape** (pull out of MODULES.map → flush section) | **YES** | `ModuleLauncher.tsx:451-475` (projects still in the band) |
+| **Header** vs Travel "Your trips" | **YES** | `SectionD:88` `font-mono … "D · PROJECT BACKLOG"` → `text-lg font-bold text-brand-purple` |
+| **Pills** vs Travel `rounded-full bg-X/10 font-medium` | **YES — 3 pills** | `ProjectRowView:203`, `TaskRowView:135`, `EvolutionTimelineView:66` (all `border rounded font-mono ${saturated}`) |
+| **ISO-vs-human dates** | **NO — already human** | `ProjectRowView:143` `formatTargetDate`/`:269`, `TaskRowView:45-47` `formatDate`/`:169` all use `toLocaleDateString` |
+
+So Projects needs **cards + band-escape + header + pills + the 103→101 font-mono**, but **NOT** the
+date-humanization Routines needed (Projects already formats dates human). — one less gap class.
+
+## (d) The 3 sub-PRs (balanced ~29/36/38, ordered shell-first for visible progress)
+
+**PR-Projects-style-1 — Shell + list + project row (SMALL-MED, ~29 mono).**
+Files: `SectionD_ProjectBacklog.tsx` (5), `projects/ProjectRowView.tsx` (24).
+Scope: pull Projects **out of the MODULES.map band into a flush section** (mirror Travel/Routines,
+`ModuleLauncher.tsx:389-444`); drop SectionD's `shadow-sm p-5` card → flush; header `:88` →
+`text-lg font-bold text-brand-purple`; SectionD/ProjectRowView labels/buttons → sans; the project
+**status pill** `ProjectRowView:203` → Travel pill; the prose blocks `:240,302,517` → sans (keep
+`whitespace-pre-wrap`). Verify: the tab skeleton + the project list/rows read like Travel; the tab
+is flush (no purple band); /operations/projects list still renders.
+*Known-staged:* the row's EXPANDED view still shows terminal AITaskPreview/ListManager/Tasks/Deps/
+Evolution until PR-2/3 — documented, not forgotten.
+
+**PR-Projects-style-2 — Create form + the shared scoping sub-builders (MED, ~36 mono).**
+Files: `projects/ProjectCreateForm.tsx` (13), `projects/AITaskPreview.tsx` (9),
+`projects/ListManager.tsx` (14).
+Scope: create-form input/label consts + the purple create box → sans/clean (mirror
+RoutineCreateForm); AITaskPreview + ListManager → sans (these are SHARED by the row's expanded view,
+so this PR also de-terminalizes that). The `<pre>`/preview blocks `ProjectCreateForm:345,453` →
+sans (keep `whitespace-pre-wrap`). Verify: creating/scoping a project reads like the app; the row's
+expanded preview (which reuses these two) is now clean too.
+
+**PR-Projects-style-3 — Tasks + dependencies + evolution (MED, ~38 mono).**
+Files: `projects/TaskListView.tsx` (8), `projects/TaskRowView.tsx` (16),
+`projects/DependencyListView.tsx` (9), `projects/EvolutionTimelineView.tsx` (5).
+Scope: task list/row labels/buttons → sans; the **task status pill** `TaskRowView:135` + the
+**evolution pill** `EvolutionTimelineView:66` → Travel pill; **KEEP mono** on the 2 COA-code spans
+`TaskRowView:360,370`; dependency + evolution views → sans. Verify: the expanded project detail
+(tasks/deps/evolution) reads like the app; COA codes stay monospace.
+
+**Coverage check:** PR-1 {SectionD, ProjectRowView} + PR-2 {ProjectCreateForm, AITaskPreview,
+ListManager} + PR-3 {TaskListView, TaskRowView, DependencyListView, EvolutionTimelineView} = **all 9
+mono files, no overlap, no omission** (the 5 zero-mono wrappers need nothing). Sum 29+36+38 = 103. ✓
+Order 1→2→3 so the tab visibly progresses (shell/de-band first). `/operations/projects` inherits the
+restyle (shared components — same "restyle both" decision as HB-4e-style).
+
+### Split citation index
+- Tree roots: `SectionD_ProjectBacklog.tsx:21-22` (ProjectRow, ProjectCreateForm);
+  `projects/ProjectRow.tsx` imports (AITaskPreview/DependencyList/EvolutionTimeline/ProjectRowView/
+  TaskList); `projects/ProjectRowView.tsx` imports (AITaskPreview/ListManager);
+  `projects/ProjectCreateForm.tsx` imports (AITaskPreview/ListManager);
+  `projects/TaskList.tsx` → TaskListView/TaskRow → TaskRowView.
+- Keeps: `TaskRowView.tsx:360,370`. Pills: `ProjectRowView:203`, `TaskRowView:135`,
+  `EvolutionTimelineView:66`. Header/card: `SectionD:86,88`. Dates already human:
+  `ProjectRowView:143`, `TaskRowView:45-47`.
+
+*Do not implement — planning only.*
+
