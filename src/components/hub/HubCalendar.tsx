@@ -41,6 +41,12 @@ interface CalendarEvent {
   // PR-Flight-Duration-Render: a flight's TRUE elapsed minutes (Duffel). Null for
   // non-flights / older rows. The grid draws depart+duration from this, not a naive span.
   duration_minutes: number | null;
+  // PR-tz-3a: the true UTC instant anchor (timestamptz → ISO string) + the airport IANA
+  // zones. Carried through to the grid; tz-3b renders from these. Null on non-flight/old rows.
+  start_at: string | null;
+  end_at: string | null;
+  start_zone: string | null;
+  end_zone: string | null;
   is_recurring: boolean;
   location: string | null;
   budget_amount: number;
@@ -175,6 +181,12 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
       startTime: toClock(e.start_time),
       endTime: toClock(e.end_time),
       durationMinutes: e.duration_minutes ?? null,
+      // PR-tz-3a: carry the instant + zones (snake→camel, mirroring durationMinutes). Pure
+      // passthrough — nothing consumes them yet (tz-3b renders from them).
+      startAt: e.start_at ?? null,
+      endAt: e.end_at ?? null,
+      startZone: e.start_zone ?? null,
+      endZone: e.end_zone ?? null,
       isRecurring: e.is_recurring,
       location: e.location,
       budgetAmount: e.budget_amount,
