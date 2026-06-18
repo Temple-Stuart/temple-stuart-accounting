@@ -31,8 +31,6 @@ import ScriptGenerator from './ScriptGenerator';
 import PieceGrid from './PieceGrid';
 import DailyLog from './DailyLog';
 import DayCalendar from './DayCalendar';
-import ProjectCreateForm from '../projects/ProjectCreateForm';
-import RoutineCreateForm from '../routines/RoutineCreateForm';
 
 interface RoutineLite {
   id: string;
@@ -86,9 +84,6 @@ export default function ContentPipeline() {
   );
   const [addingTaskId, setAddingTaskId] = useState<string | null>(null);
   const [removingTaskId, setRemovingTaskId] = useState<string | null>(null);
-  // Section 0 · CREATE — collapsed by default on every load (no persistence).
-  const [createOpen, setCreateOpen] = useState(false);
-  const [createMsg, setCreateMsg] = useState<string | null>(null);
 
   const loadCounts = useCallback(async () => {
     const res = await fetch('/api/operations/content/grid', { credentials: 'include' });
@@ -182,27 +177,6 @@ export default function ContentPipeline() {
     window.addEventListener(CONTENT_DAY_PLAN_CHANGED_EVENT, refresh);
     return () => window.removeEventListener(CONTENT_DAY_PLAN_CHANGED_EVENT, refresh);
   }, [load, loadDayItems, loadCounts]);
-
-  // Auto-clear the create success banner after a few seconds (mirrors the
-  // SectionB North Star success affordance).
-  useEffect(() => {
-    if (!createMsg) return;
-    const t = setTimeout(() => setCreateMsg(null), 3000);
-    return () => clearTimeout(t);
-  }, [createMsg]);
-
-  // After a successful create, collapse section 0 and re-run load() so the new
-  // project's tasks / new routine surface in the INPUTS queues without a reload.
-  const handleProjectCreated = useCallback(() => {
-    setCreateOpen(false);
-    setCreateMsg('project created');
-    void load();
-  }, [load]);
-  const handleRoutineCreated = useCallback(() => {
-    setCreateOpen(false);
-    setCreateMsg('routine created');
-    void load();
-  }, [load]);
 
   const entityNameById = useMemo(
     () => new Map(entities.map((e) => [e.id, e.name])),
@@ -340,63 +314,11 @@ export default function ContentPipeline() {
       )}
 
       {/* · DAY — the day's blocks as a stacked clock-order list (shares useDayFeed
-          with section 3's answer timeline). Collapsed by default; sits above 0·CREATE. */}
+          with section 3's answer timeline). Collapsed by default; sits above INPUTS. */}
       <DayCalendar date={date} onDateChange={setDate} />
 
-      {/* 0 · CREATE — collapsed by default; make a project · make a routine, mirroring
-          the homepage live-demo two-up layout. The forms are the SAME extracted
-          components the Projects/Routines tabs use (one source of truth each). */}
-      <section className="bg-white rounded border border-border p-4 space-y-3">
-        <button
-          type="button"
-          onClick={() => setCreateOpen((o) => !o)}
-          className="w-full flex items-center justify-between text-left"
-          aria-expanded={createOpen}
-        >
-          <h2 className={sectionHeader}>
-            0 · CREATE
-            <span className="ml-2 font-normal text-text-muted">make a project · make a routine</span>
-          </h2>
-          <span className="text-xs text-brand-purple" aria-hidden="true">
-            {createOpen ? '▾ hide' : '▸ show'}
-          </span>
-        </button>
-
-        {createMsg && (
-          <div className="text-xs px-3 py-2 rounded border bg-green-50 border-green-200 text-green-800">
-            {createMsg}
-          </div>
-        )}
-
-        {createOpen && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <h3 className="text-xs font-medium uppercase tracking-wide text-brand-purple">
-                Make a project
-              </h3>
-              <ProjectCreateForm
-                entities={entities}
-                defaultEntityId={selectedEntityId ?? ''}
-                onCreated={handleProjectCreated}
-                onCancel={() => setCreateOpen(false)}
-              />
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-xs font-medium uppercase tracking-wide text-brand-purple">
-                Make a routine
-              </h3>
-              <RoutineCreateForm
-                entities={entities}
-                defaultEntityId={selectedEntityId ?? ''}
-                onCreated={handleRoutineCreated}
-                onCancel={() => setCreateOpen(false)}
-              />
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* 1 · INPUTS */}
+      {/* 1 · INPUTS — projects/routines are CREATED in their own tabs; here you only
+          SELECT existing ones (PR-Content-2 removed the redundant in-tab create step). */}
       <section className="bg-white rounded border border-border p-4 space-y-3">
         <h2 className={sectionHeader}>
           1 · INPUTS
@@ -405,9 +327,9 @@ export default function ContentPipeline() {
         {loading ? (
           <p className="text-sm text-text-muted">Loading…</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            {/* Left: project tasks — SELECTABLE INPUTS (add to the selected day).
-                Column order mirrors section 0 (project left / routine right). */}
+          <div className="grid grid-cols-1 gap-4 text-xs">
+            {/* PR-Content-3: cues stack VERTICALLY (tasks above routines) with full data —
+                project tasks first, routines below. */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h3 className="text-brand-purple font-medium uppercase tracking-wide">Project tasks</h3>
@@ -424,23 +346,17 @@ export default function ContentPipeline() {
                       return (
                         <li
                           key={t.id}
-                          className="grid items-start gap-2 px-2 py-1.5 rounded border border-border-light grid-cols-[minmax(0,1fr)_11.5rem] lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)_minmax(0,1fr)_11.5rem]"
+                          className="flex flex-col gap-1 px-2 py-1.5 rounded border border-border-light"
                         >
-                          <span className="text-text-primary line-clamp-2" title={t.title}>
-                            {t.title}
-                          </span>
-                          <span
-                            className="hidden lg:block text-text-muted truncate"
-                            title={t.project?.title ?? ''}
-                          >
-                            {t.project?.title ?? ''}
-                          </span>
-                          <span
-                            className="hidden lg:block text-text-muted truncate"
-                            title={(t.project && entityNameById.get(t.project.entity_id)) || ''}
-                          >
-                            {(t.project && entityNameById.get(t.project.entity_id)) || ''}
-                          </span>
+                          <span className="text-text-primary">{t.title}</span>
+                          {t.project?.title && (
+                            <span className="text-text-muted break-words">{t.project.title}</span>
+                          )}
+                          {t.project && entityNameById.get(t.project.entity_id) && (
+                            <span className="text-text-muted break-words">
+                              {entityNameById.get(t.project.entity_id)}
+                            </span>
+                          )}
                           <div className="flex items-center justify-end gap-2">
                             <span
                               className={`shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide ${
