@@ -5,9 +5,9 @@
  * 5 API routes. All new AI features (PR-Ops-3.5 onward) use this client;
  * existing routes can incrementally migrate without behavior change.
  *
- * Model alias convention: callers pass the dated model ID directly (e.g.,
- * 'claude-sonnet-4-20250514') matching existing codebase usage. Future PR
- * may centralize model selection but v0 keeps the choice with the caller.
+ * Model convention: the Sonnet model ID lives in one place — the MODEL_SONNET_4
+ * constant below. /api/ai/* and /api/ops/* routes import it rather than hardcoding
+ * a dated string (which is how the retired ID lingered across 6 sites).
  */
 
 import Anthropic from '@anthropic-ai/sdk';
@@ -25,22 +25,27 @@ export function getAnthropicClient(): Anthropic {
 }
 
 /**
- * Sonnet 4 (dated 2025-05-14) — current production model in this codebase.
- * Matches the convention used by /api/ai/* and /api/ops/* routes.
+ * Sonnet 4.6 — current production Sonnet in this codebase. The single source of
+ * truth for the Sonnet model ID across /api/ai/* and /api/ops/* routes. (The prior
+ * dated Sonnet 4 ID was retired and started 404ing — see
+ * audit-reports/trade-model-404-audit.md.)
  */
-export const MODEL_SONNET_4 = 'claude-sonnet-4-20250514';
+export const MODEL_SONNET_4 = 'claude-sonnet-4-6';
 
 /**
  * Cost per million tokens for cost tracking. Source: Anthropic pricing page.
+ * Keyed by MODEL_SONNET_4 so computeCostUsd finds the rate (it throws on an
+ * unknown key). Values carried over from the prior Sonnet 4 entry ($3 / $15);
+ * verify against current Sonnet 4.6 pricing.
  * Update when pricing changes; future PR may move this to a per-model
  * config that auto-syncs.
  */
 export const COST_PER_MILLION_INPUT_USD: Record<string, number> = {
-  'claude-sonnet-4-20250514': 3.0,
+  'claude-sonnet-4-6': 3.0,
 };
 
 export const COST_PER_MILLION_OUTPUT_USD: Record<string, number> = {
-  'claude-sonnet-4-20250514': 15.0,
+  'claude-sonnet-4-6': 15.0,
 };
 
 /**
