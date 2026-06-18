@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   Calendar, Plane, Repeat, FolderKanban, TrendingUp, BookOpen, Receipt, ShieldCheck, Clapperboard,
   type LucideIcon,
@@ -19,6 +18,7 @@ import PublicActivitySearch from '@/components/trips/PublicActivitySearch';
 import PublicVisaCheck from '@/components/trips/PublicVisaCheck';
 import ComingSoonSection from '@/components/home/ComingSoonSection';
 import ScanFilterForm from '@/components/trading/ScanFilterForm';
+import ConvergenceIntelligence from '@/components/convergence/ConvergenceIntelligence';
 import OperationsPipelineShowroom from '@/components/workbench/operations/showroom/OperationsPipelineShowroom';
 // HB-4e-mount: the real routine builder (workbench CRUD) + its self-fetching entity provider, plus
 // the fetch-free logged-out teaser. Mounted verbatim on the homepage Routines tab — no restyle yet.
@@ -125,7 +125,6 @@ interface Props {
 }
 
 export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
-  const router = useRouter();
   // Auth state: null = unknown (initial), true/false once /api/auth/me resolves.
   const [authed, setAuthed] = useState<boolean | null>(null);
   // TRADING-PR-2: admin status (server-computed via /api/auth/me isAdmin). The
@@ -166,11 +165,10 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
     return () => { cancelled = true; };
   }, []);
 
-  // TRADING-PR-2: launcher-owned scan filter state (mirrors the dashboard's lifted
-  // state + the same localStorage 'scanner-filters' key the dashboard reads). The
-  // home form can't host the full ConvergenceIntelligence results view, so its
-  // Scan persists the filters and routes the admin to /trading (the full dashboard
-  // runs the scan there). No half-wired scan.
+  // TRADING-PR-2 / PR-Trade-inline: launcher-owned scan filter state (mirrors the
+  // dashboard's lifted state + the same localStorage 'scanner-filters' key). The Trade
+  // tab now mounts the full ConvergenceIntelligence INLINE (admin-gated), so the scan
+  // runs here on the tab — no redirect to /trading.
   const [scannerFilters, setScannerFilters] = useState<ScannerFilters>(() => {
     try {
       const saved = typeof window !== 'undefined' ? localStorage.getItem('scanner-filters') : null;
@@ -178,11 +176,11 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
     } catch { return DEFAULT_FILTERS; }
   });
   const [scannerUniverse, setScannerUniverse] = useState('sp500');
-  // The home Scan routes to the full dashboard, where the admin-gated scan runs.
-  // Filters carry over via the shared localStorage 'scanner-filters' key, which
-  // the dashboard reads on init (trading/page.tsx loads it into scannerFilters).
+  // PR-Trade-inline: ScanFilterForm's Scan reads scanTriggerRef.current, which the
+  // inline ConvergenceIntelligence registers as its scanMarket (mirrors trading/page.tsx
+  // :119-120, :867-868). scanningRef mirrors the component's scanning flag.
   const scanTriggerRef = useRef<(() => void) | null>(null);
-  scanTriggerRef.current = () => router.push('/trading');
+  const scanningRef = useRef(false);
 
   const handleFiltersChange = (next: ScannerFilters) => {
     setScannerFilters(next);
@@ -349,17 +347,32 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       return null; // authed === null → resolving
     }
     if (m.key === 'trading' && isAdmin) {
-      // TRADING-PR-2/3: admin sees the working ScanFilterForm (Scan routes to
-      // /trading, where the admin-gated scan runs). Non-admins fall to the stub.
+      // PR-Trade-inline: admin runs the convergence scanner INLINE on the Trade tab.
+      // ScanFilterForm is the filter bar; its Scan triggers scanTriggerRef, which the
+      // inline ConvergenceIntelligence registers (scanMarket) and renders results +
+      // streams here — mirroring /trading (page.tsx:750 form, :861 mount). The route
+      // (/api/trading/convergence) is itself requireAdmin-gated; non-admins fall to the
+      // stub below. /trading stays available standalone.
       return (
-        <ScanFilterForm
-          scannerUniverse={scannerUniverse}
-          setScannerUniverse={setScannerUniverse}
-          scannerFilters={scannerFilters}
-          onFiltersChange={handleFiltersChange}
-          scanTriggerRef={scanTriggerRef}
-          showHeader={false}
-        />
+        <div className="space-y-4">
+          <ScanFilterForm
+            scannerUniverse={scannerUniverse}
+            setScannerUniverse={setScannerUniverse}
+            scannerFilters={scannerFilters}
+            onFiltersChange={handleFiltersChange}
+            scanTriggerRef={scanTriggerRef}
+            showHeader={false}
+          />
+          <ConvergenceIntelligence
+            externalFilters={scannerFilters}
+            onFiltersChange={handleFiltersChange}
+            externalUniverse={scannerUniverse}
+            onUniverseChange={setScannerUniverse}
+            hideControls={true}
+            scanTriggerRef={scanTriggerRef}
+            scanningRef={scanningRef}
+          />
+        </div>
       );
     }
     // Paid stub (Trading non-admin + Bookkeeping/Tax/Operations/Compliance).
