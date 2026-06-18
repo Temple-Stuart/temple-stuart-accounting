@@ -64,45 +64,27 @@ export async function GET(request: Request) {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // BUDGET DATA - From budgets table (monthly columns jan–dec)
+    // BUDGET DATA — Personal planned. TWO sources with EXPLICIT per-(coa,month)
+    // PRECEDENCE (HB-5): the routine bridge is canonical and runs FIRST; the legacy
+    // flat `budgets` table is read SECOND but contributes ONLY where the routine did
+    // not cover that exact (coa, month). This kills the prior double-count (a COA with
+    // BOTH a routine and a `budgets` row showed routine+budgets stacked) while losing
+    // NO data (budgets-only COAs are still filled). The `budgets` rows are untouched.
     // ═══════════════════════════════════════════════════════════════════
     const homebaseCodes = Object.keys(COA_NAMES);
-    const budgetRows = await prisma.budgets.findMany({
-      where: {
-        userId: user.id,
-        year: year,
-        accountCode: { in: homebaseCodes.map(c => `P-${c}`) }
-      }
-    });
-
     const MONTH_COLS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'] as const;
     const budgetData: Record<string, Record<number, number>> = {};
     let budgetGrandTotal = 0;
 
-    for (const row of budgetRows) {
-      const coa = row.accountCode.replace(/^P-/, '');
-      if (!budgetData[coa]) budgetData[coa] = {};
-      for (let m = 0; m < 12; m++) {
-        const val = Number(row[MONTH_COLS[m]] || 0);
-        if (val !== 0) {
-          budgetData[coa][m] = (budgetData[coa][m] || 0) + val;
-          budgetGrandTotal += val;
-        }
-      }
-    }
-
-    // ═══════════════════════════════════════════════════════════════════
-    // HB-4d: bridge BUDGETED ROUTINES into the planned budget (aggregate-on-read).
+    // ── SOURCE 1 (CANONICAL): BUDGETED ROUTINES (HB-4d) ──────────────────
     // A Personal-entity routine with a per-occurrence budget + COA contributes
     // (occurrences-in-month × budget_amount) to its COA's monthly figure, computed via
     // routinesMonthlyByCoa (HB-4c → expandBetween, the same recurrence helper the calendar uses).
-    // ADDITIVE + no double-count: routines write to NEITHER `budgets` NOR budget_line_items (the
-    // `budgets` table is fed only by the category routes), so this is the sole routine path into
-    // budgetData. Gated on COA_NAMES so the contribution renders as a row AND budgetGrandTotal
-    // stays consistent with the visible accounts (a routine on an excluded/travel COA does not
-    // surface here — that belongs to nomad-budget). Only is_active + fully-budgeted routines count
-    // (the helper returns null otherwise — no guessed amounts).
-    // ═══════════════════════════════════════════════════════════════════
+    // Gated on COA_NAMES so the contribution renders as a row (a routine on an excluded/travel COA
+    // belongs to nomad-budget). Only is_active + fully-budgeted routines count (the helper returns
+    // null otherwise — no guessed amounts). Each (coa, month) it fills is recorded in
+    // `routineCovered` so the transitional budgets read below skips those cells (precedence).
+    const routineCovered = new Set<string>(); // `${coa}:${m}` cells the routine bridge owns
     if (personalEntity) {
       const budgetedRoutines = await prisma.operations_routines.findMany({
         where: {
@@ -124,15 +106,45 @@ export async function GET(request: Request) {
         for (let m = 0; m < 12; m++) {
           const byCoa = routinesMonthlyByCoa(routineInputs, year, m);
           for (const [rawCoa, amount] of Object.entries(byCoa)) {
-            const coa = rawCoa.replace(/^[PB]-/, ''); // bare code, mirroring the budgets read (:82)
+            const coa = rawCoa.replace(/^[PB]-/, ''); // bare code, mirroring the budgets read
             if (!COA_NAMES[coa]) continue; // not a homebase account → not this table's row
             if (!budgetData[coa]) budgetData[coa] = {};
             budgetData[coa][m] = (budgetData[coa][m] || 0) + amount;
             budgetGrandTotal += amount;
+            routineCovered.add(`${coa}:${m}`);
           }
         }
       }
     }
+
+    // ── SOURCE 2 (TRANSITIONAL): the flat `budgets` table (monthly columns jan–dec) ──
+    // HB-5 precedence: the routine bridge wins per (coa, month). We still READ the legacy
+    // `budgets` table — NON-DESTRUCTIVE, the rows are kept — but ADD a figure ONLY for cells
+    // the routine bridge did NOT cover (`routineCovered`). So a budgets-only COA is preserved,
+    // while a COA that has BOTH a budgets row and a routine shows the ROUTINE figure ALONE
+    // (no stacking). Option B later migrates these rows into routines, after which this read
+    // (and the `budgets` table) can retire entirely.
+    const budgetRows = await prisma.budgets.findMany({
+      where: {
+        userId: user.id,
+        year: year,
+        accountCode: { in: homebaseCodes.map(c => `P-${c}`) }
+      }
+    });
+
+    for (const row of budgetRows) {
+      const coa = row.accountCode.replace(/^P-/, '');
+      for (let m = 0; m < 12; m++) {
+        if (routineCovered.has(`${coa}:${m}`)) continue; // routine owns this cell → skip budgets (no double-count)
+        const val = Number(row[MONTH_COLS[m]] || 0);
+        if (val !== 0) {
+          if (!budgetData[coa]) budgetData[coa] = {};
+          budgetData[coa][m] = (budgetData[coa][m] || 0) + val;
+          budgetGrandTotal += val;
+        }
+      }
+    }
+
 
     // ═══════════════════════════════════════════════════════════════════
     // ACTUALS DATA - From ledger_entries (single source of truth)
