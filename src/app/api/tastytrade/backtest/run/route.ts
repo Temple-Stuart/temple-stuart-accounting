@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getTastytradeSessionToken } from '@/lib/tastytrade';
+import { requireAdmin } from '@/lib/require-admin';
 import { buildBacktestRequest, parseBacktestResponse, type BacktestConfig } from '@/lib/backtest-translator';
 
 const BACKTESTER_BASE = 'https://backtester.vast.tastyworks.com';
@@ -9,6 +10,12 @@ const MAX_POLL_ATTEMPTS = 60; // Max 60 seconds
 
 export async function POST(request: Request) {
   try {
+    // SECURITY (PR-Trade-SEC): this route hits the PAID TastyTrade backtester. Gate to the
+    // admin/owner BEFORE any session token / paid call, mirroring /api/trading/convergence
+    // (route.ts:51-52). requireAdmin → 401 (guest) / 403 (non-admin) before we proceed.
+    const adminResult = await requireAdmin();
+    if (adminResult instanceof NextResponse) return adminResult;
+
     const token = await getTastytradeSessionToken();
     console.log('[Backtest Run] Session token obtained, length:', token.length);
 

@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getTastytradeSessionToken } from '@/lib/tastytrade';
+import { requireAdmin } from '@/lib/require-admin';
 
 export async function GET(request: Request) {
   try {
+    // SECURITY (PR-Trade-SEC): PAID TastyTrade backtester — gate to admin/owner BEFORE any
+    // session token / paid call, mirroring /api/trading/convergence (route.ts:51-52).
+    const adminResult = await requireAdmin();
+    if (adminResult instanceof NextResponse) return adminResult;
+
     const token = await getTastytradeSessionToken();
 
     const resp = await fetch('https://backtester.vast.tastyworks.com/available-dates', {
