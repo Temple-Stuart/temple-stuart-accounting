@@ -84,6 +84,9 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   const [generatingTasks, setGeneratingTasks] = useState(false);
   const [tasksGenError, setTasksGenError] = useState<string | null>(null);
   const [tasksPreview, setTasksPreview] = useState<TasksPreview | null>(null);
+  // PR-Loop-1: the research agent populates deep_research_input for review.
+  const [runningResearch, setRunningResearch] = useState(false);
+  const [researchError, setResearchError] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
   const [showDesignReasoning, setShowDesignReasoning] = useState(false);
   // PR-Ops-Content-2: lazy-mount the read-only evolution timeline (the project's
@@ -212,6 +215,31 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
       setGenerationError(e instanceof Error ? e.message : 'failed to generate design');
     } finally {
       setGeneratingDesign(false);
+    }
+  };
+
+  // PR-Loop-1: PAID Anthropic AI (web_search) — POST research. Container-owned: never
+  // reachable from the pure <ProjectRowView/>. POPULATES deep_research_input for review;
+  // does NOT trigger fusion (generate-tasks) or insert tasks — the human checkpoint stays.
+  const handleRunResearch = async () => {
+    setRunningResearch(true);
+    setResearchError(null);
+    try {
+      const res = await fetch(`/api/operations/projects/${project.id}/research`, {
+        method: 'POST',
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setResearchError(body?.message ?? body?.error ?? 'failed to run research');
+        return;
+      }
+      // Populate the editable field for the user to REVIEW (they save/regenerate when ready).
+      setResearchInput(body.deep_research_input ?? '');
+      setInputsSaved(false);
+    } catch (e) {
+      setResearchError(e instanceof Error ? e.message : 'failed to run research');
+    } finally {
+      setRunningResearch(false);
     }
   };
 
@@ -391,11 +419,14 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
       auditInput={auditInput}
       savingInputs={savingInputs}
       inputsSaved={inputsSaved}
+      runningResearch={runningResearch}
+      researchError={researchError}
       onToggleExpanded={() => setExpanded((x) => !x)}
       onEnterEdit={enterEdit}
       onCancelEdit={cancelEdit}
       onFormChange={setForm}
       onSave={handleSave}
+      onRunResearch={handleRunResearch}
       onResearchInputChange={(value) => { setResearchInput(value); setInputsSaved(false); }}
       onAuditInputChange={(value) => { setAuditInput(value); setInputsSaved(false); }}
       onSaveInputs={handleSaveInputs}

@@ -267,6 +267,8 @@ export default function ProjectsPipelineShowroom({ onRequireAuth }: Props) {
       auditInput={demoProject.claude_code_audit_input ?? ''}
       savingInputs={false}
       inputsSaved={false}
+      runningResearch={false}
+      researchError={null}
       onToggleExpanded={lock}
       onEnterEdit={lock}
       onCancelEdit={lock}
@@ -275,6 +277,7 @@ export default function ProjectsPipelineShowroom({ onRequireAuth }: Props) {
       onResearchInputChange={lock}
       onAuditInputChange={lock}
       onSaveInputs={lock}
+      onRunResearch={lock}
       onToggleDesignReasoning={lock}
       onToggleEvolution={lock}
       // PAID Anthropic AI triggers — LOCKED, not fetched. Both route only to the

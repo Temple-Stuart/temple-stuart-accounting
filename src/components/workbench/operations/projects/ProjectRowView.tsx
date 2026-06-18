@@ -103,6 +103,9 @@ export interface ProjectRowViewProps {
   auditInput: string;
   savingInputs: boolean;
   inputsSaved: boolean;
+  /** PR-Loop-1: research agent running flag + last error. */
+  runningResearch: boolean;
+  researchError: string | null;
 
   // ── actions (owned by the container) ─────────────────────────────────────
   onToggleExpanded: () => void;
@@ -113,6 +116,8 @@ export interface ProjectRowViewProps {
   onResearchInputChange: (value: string) => void;
   onAuditInputChange: (value: string) => void;
   onSaveInputs: () => void;
+  /** PR-Loop-1: PAID Anthropic AI (web_search) — POST research (container-owned). */
+  onRunResearch: () => void;
   onToggleDesignReasoning: () => void;
   onToggleEvolution: () => void;
   /** PAID Anthropic AI — POST generate-design (container-owned). */
@@ -177,6 +182,8 @@ export default function ProjectRowView({
   auditInput,
   savingInputs,
   inputsSaved,
+  runningResearch,
+  researchError,
   onToggleExpanded,
   onEnterEdit,
   onCancelEdit,
@@ -185,6 +192,7 @@ export default function ProjectRowView({
   onResearchInputChange,
   onAuditInputChange,
   onSaveInputs,
+  onRunResearch,
   onToggleDesignReasoning,
   onToggleEvolution,
   onGenerateDesign,
@@ -314,14 +322,30 @@ export default function ProjectRowView({
                 design/plan it grounds. */}
             <div className="mb-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
               <div>
-                <div className={labelClass}>deep research input</div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className={labelClass}>deep research input</div>
+                  {/* PR-Loop-1: research agent — runs server-side web_search and POPULATES
+                      this field for review (does NOT generate tasks). Human checkpoint kept. */}
+                  <button
+                    type="button"
+                    onClick={onRunResearch}
+                    disabled={runningResearch}
+                    title="Run web research on this project's goals and fill this field for review"
+                    className="px-2 py-0.5 text-[11px] border border-brand-purple rounded text-brand-purple hover:bg-purple-100/50 disabled:opacity-50"
+                  >
+                    {runningResearch ? 'researching…' : '✨ run deep research'}
+                  </button>
+                </div>
                 <textarea
                   value={researchInput}
                   onChange={(e) => onResearchInputChange(e.target.value)}
-                  placeholder="Paste deep research output here…"
+                  placeholder="Paste deep research output here, or click “run deep research”…"
                   rows={4}
                   className="w-full text-xs border border-border rounded px-2 py-1.5 bg-white text-text-primary"
                 />
+                {researchError && (
+                  <div className="mt-1 text-[11px] text-red-700">{researchError}</div>
+                )}
               </div>
               <div>
                 <div className={labelClass}>claude code audit input</div>
