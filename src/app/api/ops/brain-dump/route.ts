@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import Anthropic from '@anthropic-ai/sdk';
+import { MODEL_SONNET_4 } from '@/lib/ai/client';
 
 function buildPrompt(bullets: string[]): string {
   const numbered = bullets.map((b, i) => `${i + 1}. ${b}`).join('\n');
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
     const client = new Anthropic({ apiKey });
 
     const msg = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: MODEL_SONNET_4,
       max_tokens: 2000,
       temperature: 0.4,
       system: buildPrompt(bullets),

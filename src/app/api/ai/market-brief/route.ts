@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTier } from '@/lib/auth-helpers';
 import Anthropic from '@anthropic-ai/sdk';
+import { MODEL_SONNET_4 } from '@/lib/ai/client';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 async function callWithRetry(client: Anthropic, params: any, maxRetries = 3): Promise<any> {
@@ -186,7 +187,7 @@ export async function POST(request: Request) {
     console.log('[Market Brief] Input tokens estimate:', Math.round(JSON.stringify(trimmedBody).length / 4));
 
     const msg = await callWithRetry(client, {
-      model: 'claude-sonnet-4-20250514',
+      model: MODEL_SONNET_4,
       max_tokens: 2500,
       temperature: 0.2,
       system: SYSTEM_PROMPT,

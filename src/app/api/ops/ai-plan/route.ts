@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import Anthropic from '@anthropic-ai/sdk';
+import { MODEL_SONNET_4 } from '@/lib/ai/client';
 
 interface Answers {
   energy: string;
@@ -107,7 +108,7 @@ export async function POST(request: Request) {
       }
 
       const msg = await client.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: MODEL_SONNET_4,
         max_tokens: 2000,
         temperature: 0.3,
         system: buildAdjustPrompt(adjustment, currentPlan),
@@ -127,7 +128,7 @@ export async function POST(request: Request) {
     const systemPrompt = buildSynthesisPrompt(date, dayNumber, answers);
 
     const msg = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: MODEL_SONNET_4,
       max_tokens: 2000,
       temperature: 0.5,
       system: systemPrompt,
