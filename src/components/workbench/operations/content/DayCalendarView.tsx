@@ -144,7 +144,8 @@ export default function DayCalendarView({
   error,
   entities,
 }: DayCalendarViewProps) {
-  const [open, setOpen] = useState(false);
+  // PR-Content-1: ·DAY time-blocks shown by default (still collapsible via the toggle).
+  const [open, setOpen] = useState(true);
 
   const entityNameById = useMemo(
     () => new Map(entities.map((e) => [e.id, e.name])),
