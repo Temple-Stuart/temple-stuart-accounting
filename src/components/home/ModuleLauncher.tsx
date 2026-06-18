@@ -76,7 +76,7 @@ const MODULES: ModuleDef[] = [
 // stays visible (md:block) and the bar is hidden (md:hidden). The bar horizontal-scrolls
 // so 7 tabs stay clean on a narrow phone.
 const TABS: { key: string; label: string; icon: LucideIcon }[] = [
-  { key: 'calendar',   label: 'Calendar',   icon: Calendar },
+  { key: 'calendar',   label: 'Runway',     icon: Calendar },
   { key: 'travel',     label: 'Travel',     icon: Plane },
   { key: 'routines',   label: 'Routines',   icon: Repeat },
   { key: 'projects',   label: 'Projects',   icon: FolderKanban },
@@ -104,7 +104,7 @@ const MODULE_TO_TAB: Record<string, string> = {
 // Keyed by TAB key (the activeModule values). Calendar + Travel are the lines we wrote;
 // the rest are the first sentence of each module's prior intro copy.
 export const TAB_DESCRIPTORS: Record<string, string> = {
-  calendar: 'Your whole life lands here — trips, projects, routines, trades, and every dollar you plan or spend.',
+  calendar: 'Runway — how long your money buys you. Your planned and actual spend, mapped to the day, so your runway is never a guess.',
   travel: 'Book your flights, hotels, things to do, and ground transportation — competitive prices, real times, real data.',
   trade: "Tell the scanner what you're hunting, and it pulls live prices from TastyTrade, company numbers from Finnhub, economy data from FRED, official filings from SEC EDGAR, and the mood online from Grok.",
   routines: 'Build your recurring routines and watch them land on your calendar — the rhythms that run your day.',
