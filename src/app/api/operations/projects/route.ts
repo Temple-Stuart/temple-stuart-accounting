@@ -143,7 +143,8 @@ export async function POST(request: NextRequest) {
     // ≤ 20 items per array.
     const validateItems = (
       value: unknown,
-      fieldName: string
+      fieldName: string,
+      allowEmpty = false
     ): { ok: true; items: string[] } | { ok: false; response: NextResponse } => {
       if (!Array.isArray(value)) {
         return {
@@ -154,7 +155,7 @@ export async function POST(request: NextRequest) {
           ),
         };
       }
-      if (value.length === 0) {
+      if (!allowEmpty && value.length === 0) {
         return {
           ok: false,
           response: NextResponse.json(
@@ -210,9 +211,11 @@ export async function POST(request: NextRequest) {
 
     const goalItemsResult = validateItems(body.goalItems, 'goalItems');
     if (!goalItemsResult.ok) return goalItemsResult.response;
-    const problemItemsResult = validateItems(body.problemItems, 'problemItems');
+    // PD-Clean: problem/diagnosis are OPTIONAL — title+goals is a valid project. Items are
+    // still type/length-validated; empty is accepted (the pipe degrades to "(none provided)").
+    const problemItemsResult = validateItems(body.problemItems, 'problemItems', true);
     if (!problemItemsResult.ok) return problemItemsResult.response;
-    const diagnosisItemsResult = validateItems(body.diagnosisItems, 'diagnosisItems');
+    const diagnosisItemsResult = validateItems(body.diagnosisItems, 'diagnosisItems', true);
     if (!diagnosisItemsResult.ok) return diagnosisItemsResult.response;
 
     // Legacy paragraph fields are optional/nullable post-PR-Ops-3.7. The

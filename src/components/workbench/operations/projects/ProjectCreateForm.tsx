@@ -27,23 +27,6 @@ import type { ProjectForm } from './types';
 import { DEFAULT_PROJECT_FORM } from './types';
 import InspectionDrawer, { type InspectionData } from '../ai/InspectionDrawer';
 
-// KICKOFF prompt — the user copies this into their AI chat with their vision and
-// gets back form-ready GOAL/PROBLEM/DIAGNOSIS + a Claude Code audit prompt. Stored
-// as an in-file constant, matching the day-audit helper precedent (ScriptGenerator).
-const KICKOFF_PROMPT = `I'm starting a new project in Temple Stuart and I need you to prep all my inputs.
-
-From my vision below, write:
-0 · TITLE — short, distinctive, unique within my projects
-1 · GOAL — "I WANT to..." items (what success looks like, 3-5 items)
-2 · PROBLEM — "I HAVE NOT..." / "I KEEP..." items (the gap, 2-4 items)
-3 · DIAGNOSIS — "Because..." / "The root cause is..." items (causes, not solutions — 2-3 items, the last one is THE root cause)
-
-Then write a READ-ONLY AUDIT PROMPT for Claude Code that investigates what already exists in my codebase relevant to this project. It must demand: file + line citations for every claim, what exists vs. what's missing vs. what's reusable, a deliverable filename in audit-reports/, and a full GIT block (branch, commit, push). Put the GIT block and deliverable name EARLY in the prompt, not at the end.
-
-I'll paste the audit report into the project's reality audit box, then generate the plan.
-
-MY VISION:
-[dump everything — messy is fine]`;
 
 interface Entity {
   id: string;
@@ -68,18 +51,6 @@ export default function ProjectCreateForm({ entities, defaultEntityId, onCreated
   const [entityTouched, setEntityTouched] = useState(false);
   const [createSaving, setCreateSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
-
-  // Copy-prompt affordance — mirrors the day-audit helper (ScriptGenerator).
-  const [copied, setCopied] = useState(false);
-  const copyPrompt = async () => {
-    try {
-      await navigator.clipboard.writeText(KICKOFF_PROMPT);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setCreateError('Could not copy — select the prompt and copy manually.');
-    }
-  };
 
   const [generatingCreateDesign, setGeneratingCreateDesign] = useState(false);
   const [createDesignPreview, setCreateDesignPreview] = useState<string | null>(null);
@@ -118,13 +89,8 @@ export default function ProjectCreateForm({ entities, defaultEntityId, onCreated
 
   const handleGenerateCreateDesign = async () => {
     const title = createForm.title?.trim() ?? '';
-    if (
-      title.length === 0 ||
-      createForm.goalItems.length === 0 ||
-      createForm.problemItems.length === 0 ||
-      createForm.diagnosisItems.length === 0
-    ) {
-      setCreateDesignError('Title, goal, problem, and diagnosis are all required (with at least one item each).');
+    if (title.length === 0 || createForm.goalItems.length === 0) {
+      setCreateDesignError('Title and at least one goal item are required.');
       return;
     }
 
@@ -176,12 +142,7 @@ export default function ProjectCreateForm({ entities, defaultEntityId, onCreated
 
   const isFormValidForAI = () => {
     const title = createForm.title?.trim() ?? '';
-    return (
-      title.length > 0 &&
-      createForm.goalItems.length > 0 &&
-      createForm.problemItems.length > 0 &&
-      createForm.diagnosisItems.length > 0
-    );
+    return title.length > 0 && createForm.goalItems.length > 0;
   };
 
   const handleGenerateTasksPreview = async () => {
@@ -330,29 +291,6 @@ export default function ProjectCreateForm({ entities, defaultEntityId, onCreated
         <div className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: '#6B46C1' }}>5-step scoping</div>
       </div>
 
-      {/* KICKOFF helper — copy to an AI chat with your vision; paste back the inputs +
-          audit prompt. Same pattern as the day-audit helper (ScriptGenerator). */}
-      <div className="rounded-md border border-gray-200 bg-gray-50/70 p-3 space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] uppercase tracking-wide font-semibold" style={{ color: '#6B46C1' }}>
-            kickoff — copy this to your AI chat first
-          </span>
-          <button
-            type="button"
-            onClick={copyPrompt}
-            className="px-2 py-0.5 text-[10px] border border-brand-purple rounded text-brand-purple hover:bg-purple-100/50"
-          >
-            {copied ? 'copied ✓' : 'copy prompt'}
-          </button>
-        </div>
-        <p className="text-gray-500 text-[11px]">
-          Turns your raw vision into the inputs below + an audit prompt for Claude Code.
-        </p>
-        <pre className="font-mono text-[11px] leading-relaxed text-gray-600 whitespace-pre-wrap break-words bg-white border border-gray-200 rounded p-2 max-h-48 overflow-y-auto">
-{KICKOFF_PROMPT}
-        </pre>
-      </div>
-
       {createError && (
         <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
           {createError}
@@ -406,28 +344,6 @@ export default function ProjectCreateForm({ entities, defaultEntityId, onCreated
           onChange={(next) => setCreateForm({ ...createForm, goalItems: next })}
           verbPrefix="I WANT to "
           placeholder="get loans approved"
-          disabled={createSaving}
-        />
-      </div>
-      <div>
-        <div className={labelClass}>2 · problem — gap between current and goal</div>
-        <ListManager
-          items={createForm.problemItems}
-          onChange={(next) => setCreateForm({ ...createForm, problemItems: next })}
-          verbPrefix="I HAVE NOT "
-          altVerbPrefix="I KEEP "
-          placeholder="created an FSA ID yet"
-          disabled={createSaving}
-        />
-      </div>
-      <div>
-        <div className={labelClass}>3 · diagnosis — root cause of the gap</div>
-        <ListManager
-          items={createForm.diagnosisItems}
-          onChange={(next) => setCreateForm({ ...createForm, diagnosisItems: next })}
-          verbPrefix="Because "
-          altVerbPrefix="The root cause is "
-          placeholder="I never blocked dedicated time for it"
           disabled={createSaving}
         />
       </div>

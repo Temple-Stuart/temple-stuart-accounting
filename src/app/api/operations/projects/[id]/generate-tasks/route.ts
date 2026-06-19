@@ -58,14 +58,16 @@ export async function POST(
     if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
 
     const goalItems = resolveItems(project.goal_items, project.goal);
-    const problemItems = resolveItems(project.problem_items, project.problem);
-    const diagnosisItems = resolveItems(project.diagnosis_items, project.diagnosis);
+    // PD-Clean: only GOAL is required. problem/diagnosis are optional — empty resolves to []
+    // and the pipe prompt degrades to "(none provided)" (no fabricated content).
+    const problemItems = resolveItems(project.problem_items, project.problem) ?? [];
+    const diagnosisItems = resolveItems(project.diagnosis_items, project.diagnosis) ?? [];
 
-    if (!goalItems || !problemItems || !diagnosisItems) {
+    if (!goalItems) {
       return NextResponse.json(
         {
           error: 'Validation',
-          message: 'project must have at least one goal item, one problem item, and one diagnosis item before generating tasks',
+          message: 'project must have at least one goal item before generating tasks',
         },
         { status: 400 }
       );
