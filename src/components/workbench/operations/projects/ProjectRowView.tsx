@@ -284,37 +284,40 @@ export default function ProjectRowView({
             <div className={labelClass}>1 · goal</div>
             {renderStructuredField(goalItems, project.goal)}
           </div>
-          <div>
-            <div className={labelClass}>2 · problem</div>
-            {renderStructuredField(problemItems, project.problem)}
-          </div>
-          <div>
-            <div className={labelClass}>3 · diagnosis</div>
-            {renderStructuredField(diagnosisItems, project.diagnosis)}
-          </div>
+          {/* COND-INPUTS-2: problem/diagnosis/design render ONLY when they have content. New
+              title+goals projects read clean (no "(no content)"/"(no design)" clutter); projects
+              with data still show them. Presentation-only; showroom demo carries data → unchanged. */}
+          {(problemItems.length > 0 || (project.problem ?? '').trim().length > 0) && (
+            <div>
+              <div className={labelClass}>2 · problem</div>
+              {renderStructuredField(problemItems, project.problem)}
+            </div>
+          )}
+          {(diagnosisItems.length > 0 || (project.diagnosis ?? '').trim().length > 0) && (
+            <div>
+              <div className={labelClass}>3 · diagnosis</div>
+              {renderStructuredField(diagnosisItems, project.diagnosis)}
+            </div>
+          )}
+          {(project.design ?? '').trim().length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-1">
               <div className={labelClass}>4 · design</div>
-              {(project.design ?? '').trim().length > 0 && (
-                <button
-                  type="button"
-                  onClick={onToggleDesignReasoning}
-                  className="px-2 py-0.5 border border-border rounded text-xs text-text-muted hover:bg-bg-row"
-                >
-                  {showDesignReasoning ? 'hide AI design reasoning' : 'view AI design reasoning'}
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={onToggleDesignReasoning}
+                className="px-2 py-0.5 border border-border rounded text-xs text-text-muted hover:bg-bg-row"
+              >
+                {showDesignReasoning ? 'hide AI design reasoning' : 'view AI design reasoning'}
+              </button>
             </div>
-            {(project.design ?? '').trim().length > 0 ? (
-              showDesignReasoning && (
-                <div className="text-text-primary text-xs whitespace-pre-wrap p-3 bg-white border border-border-light rounded">
-                  {project.design}
-                </div>
-              )
-            ) : (
-              <div className="text-text-muted text-xs italic">(no design)</div>
+            {showDesignReasoning && (
+              <div className="text-text-primary text-xs whitespace-pre-wrap p-3 bg-white border border-border-light rounded">
+                {project.design}
+              </div>
             )}
           </div>
+          )}
           <div className="pt-2 border-t border-border-light">
             <div className={labelClass}>reality inputs (ground AI regeneration)</div>
             {/* PR-Ops-Evolve-1: reality inputs — paste targets that ground task
