@@ -2699,6 +2699,7 @@ enum OperationsTaskStatus {
   cancelled
   superseded
   archived
+  pending_review
 }
 
 enum CalendarBlockStatus {

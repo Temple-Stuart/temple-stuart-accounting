@@ -26,6 +26,8 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 // Same status-priority ordering used by the tasks GET route, so a
 // version's task list reads in the same order the user sees elsewhere.
 const STATUS_ORDER: Record<OperationsTaskStatus, number> = {
+  // PHASE2-1: auto-fired tasks awaiting the user's accept sort FIRST (need attention).
+  pending_review: -1,
   open: 0,
   in_progress: 1,
   blocked: 2,
