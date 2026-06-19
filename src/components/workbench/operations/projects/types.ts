@@ -121,7 +121,8 @@ export type TaskStatus =
   | 'blocked'
   | 'completed'
   | 'cancelled'
-  | 'archived';
+  | 'archived'
+  | 'pending_review';
 
 export interface Task {
   id: string;
@@ -204,6 +205,8 @@ export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
   completed: 'done',
   cancelled: 'cancelled',
   archived: 'archived',
+  // PHASE2-1: auto-fired tasks land here awaiting the user's accept (→ open).
+  pending_review: 'pending review',
 };
 
 export const TASK_STATUS_PILL_CLASSES: Record<TaskStatus, string> = {
@@ -213,6 +216,8 @@ export const TASK_STATUS_PILL_CLASSES: Record<TaskStatus, string> = {
   completed: 'bg-green-50 text-green-800',
   cancelled: 'bg-gray-50 text-gray-500',
   archived: 'bg-gray-50 text-gray-500',
+  // PHASE2-1: amber-on-purple "awaiting your review" — distinct from open/in-process.
+  pending_review: 'bg-purple-50 text-purple-800',
 };
 
 /**

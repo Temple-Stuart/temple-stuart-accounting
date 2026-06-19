@@ -23,6 +23,8 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 
 const STATUS_ORDER: Record<OperationsTaskStatus, number> = {
+  // PHASE2-1: auto-fired tasks awaiting the user's accept sort FIRST (need attention).
+  pending_review: -1,
   open: 0,
   in_progress: 1,
   blocked: 2,
