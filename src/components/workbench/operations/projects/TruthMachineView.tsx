@@ -22,9 +22,17 @@
 
 'use client';
 
+import { useState } from 'react';
 import type { Project } from './types';
 import AITaskPreview, { type AIGeneratedTask } from './AITaskPreview';
 import { type InspectionData } from '../ai/InspectionDrawer';
+
+/** The three interpolated prompts from GET /projects/[id]/prompts (TM-2). */
+export interface PromptPreview {
+  research: { systemPrompt: string; userMessage: string };
+  audit: string;
+  fusion: { systemPrompt: string; userMessage: string };
+}
 
 export interface TruthMachineTasksPreview {
   tasks: AIGeneratedTask[];
@@ -37,6 +45,9 @@ export interface TruthMachineViewProps {
   project: Project;
   /** Back to the standard ProjectRowView render. */
   onExit: () => void;
+  /** TM-2: the live interpolated prompts (null while loading / unfetched). */
+  prompts: PromptPreview | null;
+  promptsLoading: boolean;
 
   // ── RESEARCH stage (Phase 1) ────────────────────────────────────────────
   researchInput: string;
@@ -84,16 +95,74 @@ function ItemList({ items, legacy }: { items: string[]; legacy: string | null })
   return <div className="text-text-muted italic">(none yet)</div>;
 }
 
-/** A labeled PROMPT panel. TM-1: describes what feeds the stage; TM-2 wires the live
- *  server-rendered interpolated prompt into the same slot. */
-function PromptPanel({ title, feeds }: { title: string; feeds: string }) {
+/** A PROMPT panel showing the REAL interpolated prompt text (TM-2). The `text` is the
+ *  exact prompt that would fire (built by the SAME server-side builder as the real call),
+ *  so what the user sees IS what runs. `systemPrompt` (optional, for research/fusion) is
+ *  shown behind a toggle; `copyAll` joins system + text for the copy button (used by the
+ *  audit panel, whose text the user pastes into Claude Code). */
+function PromptBox({
+  title,
+  text,
+  systemPrompt,
+  loading,
+}: {
+  title: string;
+  text: string | undefined;
+  systemPrompt?: string;
+  loading: boolean;
+}) {
+  const [showSystem, setShowSystem] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    const payload = systemPrompt ? `${systemPrompt}\n\n---\n\n${text ?? ''}` : (text ?? '');
+    try {
+      await navigator.clipboard.writeText(payload);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard unavailable — the text is selectable in the box */
+    }
+  };
   return (
-    <div className="rounded border border-dashed border-brand-purple/30 bg-brand-purple-wash/30 p-2">
-      <div className={subLabel}>{title} · prompt</div>
-      <div className="text-text-muted text-[11px] leading-relaxed">
-        Feeds: {feeds}.{' '}
-        <span className="text-text-faint">Full interpolated prompt preview — TM-2.</span>
+    <div className="rounded border border-brand-purple/30 bg-brand-purple-wash/30 p-2 space-y-1">
+      <div className="flex items-center justify-between gap-2">
+        <div className={subLabel}>{title} · prompt (the real text, with your goals in it)</div>
+        <div className="flex items-center gap-1.5">
+          {systemPrompt && (
+            <button
+              type="button"
+              onClick={() => setShowSystem((s) => !s)}
+              className="text-[10px] text-brand-purple hover:underline"
+            >
+              {showSystem ? 'hide system' : 'show system'}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={copy}
+            disabled={loading || !text}
+            className="text-[10px] px-1.5 py-0.5 border border-brand-purple rounded text-brand-purple hover:bg-purple-100/50 disabled:opacity-50"
+          >
+            {copied ? 'copied ✓' : 'copy'}
+          </button>
+        </div>
       </div>
+      {loading ? (
+        <div className="text-text-faint text-[11px] italic">building prompt…</div>
+      ) : text ? (
+        <>
+          {showSystem && systemPrompt && (
+            <pre className="font-mono text-[10px] leading-relaxed text-text-muted whitespace-pre-wrap break-words bg-white border border-border-light rounded p-2 max-h-48 overflow-y-auto">
+{systemPrompt}
+            </pre>
+          )}
+          <pre className="font-mono text-[10px] leading-relaxed text-text-primary whitespace-pre-wrap break-words bg-white border border-border-light rounded p-2 max-h-72 overflow-y-auto">
+{text}
+          </pre>
+        </>
+      ) : (
+        <div className="text-text-faint text-[11px] italic">prompt unavailable</div>
+      )}
     </div>
   );
 }
@@ -101,6 +170,8 @@ function PromptPanel({ title, feeds }: { title: string; feeds: string }) {
 export default function TruthMachineView({
   project,
   onExit,
+  prompts,
+  promptsLoading,
   researchInput,
   onResearchInputChange,
   runningResearch,
@@ -175,7 +246,12 @@ export default function TruthMachineView({
             {runningResearch ? 'researching…' : '✨ run deep research'}
           </button>
         </div>
-        <PromptPanel title="research" feeds="the goal / problem / diagnosis above + live web_search" />
+        <PromptBox
+          title="research"
+          text={prompts?.research.userMessage}
+          systemPrompt={prompts?.research.systemPrompt}
+          loading={promptsLoading}
+        />
         <div className="text-center text-brand-purple/40 text-xs leading-none">↓ output</div>
         <div>
           <div className={subLabel}>research output (deep_research_input — review &amp; edit)</div>
@@ -195,7 +271,8 @@ export default function TruthMachineView({
       {/* 3 · AUDIT — prompt → output (paste box now; Phase 3 auto-fills the same field) */}
       <div className={stageCard}>
         <div className={stageLabel}>3 · audit</div>
-        <PromptPanel title="audit" feeds="the goals above + a read-only codebase audit (Template B — authored in TM-2)" />
+        <div className="text-text-muted text-[11px]">Copy this prompt → run it in Claude Code (read-only) → paste the findings into the output below. (Phase 3 automates this.)</div>
+        <PromptBox title="audit" text={prompts?.audit} loading={promptsLoading} />
         <div className="text-center text-brand-purple/40 text-xs leading-none">↓ output</div>
         <div>
           <div className={subLabel}>audit output (claude_code_audit_input — paste; Phase 3 auto-fills here)</div>
@@ -238,7 +315,12 @@ export default function TruthMachineView({
             {generatingTasks ? 'generating…' : '↑ generate tasks'}
           </button>
         </div>
-        <PromptPanel title="fusion" feeds="goals + the research output + the audit output above, via web_search" />
+        <PromptBox
+          title="fusion"
+          text={prompts?.fusion.userMessage}
+          systemPrompt={prompts?.fusion.systemPrompt}
+          loading={promptsLoading}
+        />
         <div className="text-center text-brand-purple/40 text-xs leading-none">↓ output</div>
         {tasksGenError && (
           <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs">{tasksGenError}</div>

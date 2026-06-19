@@ -27,7 +27,7 @@ import { type AIGeneratedTask } from './AITaskPreview';
 import TaskList from './TaskList';
 import EvolutionTimeline from './EvolutionTimeline';
 import DependencyList from './DependencyList';
-import TruthMachineView from './TruthMachineView';
+import TruthMachineView, { type PromptPreview } from './TruthMachineView';
 import ProjectRowView, {
   type Entity,
   type GenerationCost,
@@ -102,6 +102,12 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   // PR-TM-1: render the project as the transparent Truth Machine pipeline instead of
   // the standard row. Pure UI toggle — same container state + handlers feed both views.
   const [pipelineMode, setPipelineMode] = useState(false);
+  // PR-TM-2: the live interpolated prompts (research / audit / fusion), fetched from the
+  // read-only preview endpoint (NO Anthropic call). promptsRefresh re-pulls them after a
+  // research run / save so the fusion preview never drifts from the DB state that fires.
+  const [prompts, setPrompts] = useState<PromptPreview | null>(null);
+  const [promptsLoading, setPromptsLoading] = useState(false);
+  const [promptsRefresh, setPromptsRefresh] = useState(0);
   const rowRef = useRef<HTMLDivElement>(null);
 
   // When SectionD sets isJumpTarget=true on this row, scroll into view,
@@ -122,6 +128,20 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
     // including it would re-trigger the effect on every parent render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isJumpTarget]);
+
+  // PR-TM-2: fetch the live interpolated prompts when the pipeline view is open (and on
+  // refresh after a research run / save). Read-only GET — NO Anthropic call, no cost.
+  useEffect(() => {
+    if (!pipelineMode) return;
+    let cancelled = false;
+    setPromptsLoading(true);
+    fetch(`/api/operations/projects/${project.id}/prompts`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (!cancelled) setPrompts(data as PromptPreview | null); })
+      .catch(() => { if (!cancelled) setPrompts(null); })
+      .finally(() => { if (!cancelled) setPromptsLoading(false); });
+    return () => { cancelled = true; };
+  }, [pipelineMode, project.id, promptsRefresh]);
 
   const enterEdit = () => {
     setForm(projectToForm(project));
@@ -174,6 +194,7 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
       });
       if (res.ok) {
         setInputsSaved(true);
+        setPromptsRefresh((n) => n + 1); // TM-2: refresh prompt preview after saving inputs
         onUpdate();
       }
     } finally {
@@ -240,6 +261,9 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
       // Populate the editable field for the user to REVIEW (they save/regenerate when ready).
       setResearchInput(body.deep_research_input ?? '');
       setInputsSaved(false);
+      // TM-2: the DB's deep_research_input changed → refresh the prompt preview so the
+      // fusion prompt shows the new research (no drift from what would fire).
+      setPromptsRefresh((n) => n + 1);
     } catch (e) {
       setResearchError(e instanceof Error ? e.message : 'failed to run research');
     } finally {
@@ -392,6 +416,8 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
         <TruthMachineView
           project={project}
           onExit={() => setPipelineMode(false)}
+          prompts={prompts}
+          promptsLoading={promptsLoading}
           researchInput={researchInput}
           onResearchInputChange={(value) => { setResearchInput(value); setInputsSaved(false); }}
           runningResearch={runningResearch}
