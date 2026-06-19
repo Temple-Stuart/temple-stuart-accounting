@@ -17,9 +17,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { toNorthStarContext } from '@/lib/ai/northStarContext';
-import { buildResearchPrompt } from '@/lib/ai/generateDeepResearch';
-import { buildTasksPrompt } from '@/lib/ai/generateProjectTasks';
-import { buildAuditPrompt } from '@/lib/ai/buildAuditPrompt';
+import { buildResearchPrompt, buildResearchSegments } from '@/lib/ai/generateDeepResearch';
+import { buildTasksPrompt, buildTasksSegments } from '@/lib/ai/generateProjectTasks';
+import { buildAuditPrompt, buildAuditSegments } from '@/lib/ai/buildAuditPrompt';
+import { verifyAgainst } from '@/lib/ai/promptSegments';
 
 function resolveItems(itemsJson: unknown, legacyText: string | null): string[] {
   if (Array.isArray(itemsJson)) {
@@ -60,22 +61,18 @@ export async function GET(
     const northStar = toNorthStarContext(nsRow);
 
     // SAME builders the real calls use → the preview cannot drift from what fires.
-    const research = buildResearchPrompt({
-      projectTitle: project.title,
-      goalItems,
-      problemItems,
-      diagnosisItems,
-      northStar,
-    });
+    // Each prompt ALSO carries `segments` (template vs user-input spans) for the red-input
+    // display, verified against the real string — verifyAgainst returns the spans ONLY if
+    // they rebuild the real prompt exactly, else one neutral segment (no red, never a lie).
+    const researchInput = { projectTitle: project.title, goalItems, problemItems, diagnosisItems, northStar };
+    const research = buildResearchPrompt(researchInput);
+    const researchSegments = verifyAgainst(buildResearchSegments(researchInput), research.userMessage);
 
-    const audit = buildAuditPrompt({
-      projectTitle: project.title,
-      goalItems,
-      problemItems,
-      diagnosisItems,
-    });
+    const auditInput = { projectTitle: project.title, goalItems, problemItems, diagnosisItems };
+    const audit = buildAuditPrompt(auditInput);
+    const auditSegments = verifyAgainst(buildAuditSegments(auditInput), audit);
 
-    const fusion = buildTasksPrompt({
+    const fusionInput = {
       projectTitle: project.title,
       goalItems,
       problemItems,
@@ -85,12 +82,14 @@ export async function GET(
       // shows exactly what would be fused if "generate tasks" fired right now.
       deepResearchInput: project.deep_research_input,
       claudeCodeAuditInput: project.claude_code_audit_input,
-    });
+    };
+    const fusion = buildTasksPrompt(fusionInput);
+    const fusionSegments = verifyAgainst(buildTasksSegments(fusionInput), fusion.userMessage);
 
     return NextResponse.json({
-      research, // { systemPrompt, userMessage }
-      audit,    // copy-ready string
-      fusion,   // { systemPrompt, userMessage }
+      research: { ...research, segments: researchSegments }, // { systemPrompt, userMessage, segments }
+      audit: { text: audit, segments: auditSegments },       // copy-ready string + segments
+      fusion: { ...fusion, segments: fusionSegments },       // { systemPrompt, userMessage, segments }
     });
   } catch (error) {
     console.error('[Project Prompts GET]', error);
