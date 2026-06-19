@@ -63,14 +63,16 @@ export async function POST(
     if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
 
     const goalItems = resolveItems(project.goal_items, project.goal);
-    const problemItems = resolveItems(project.problem_items, project.problem);
-    const diagnosisItems = resolveItems(project.diagnosis_items, project.diagnosis);
+    // PD-Clean parity: only GOAL is required. problem/diagnosis are optional — empty resolves to []
+    // and the research builder ignores them (references only title+goals), so no fabricated content.
+    const problemItems = resolveItems(project.problem_items, project.problem) ?? [];
+    const diagnosisItems = resolveItems(project.diagnosis_items, project.diagnosis) ?? [];
 
-    if (!goalItems || !problemItems || !diagnosisItems) {
+    if (!goalItems) {
       return NextResponse.json(
         {
           error: 'Validation',
-          message: 'project must have at least one goal item, one problem item, and one diagnosis item before running research',
+          message: 'project must have at least one goal item before running research',
         },
         { status: 400 }
       );
