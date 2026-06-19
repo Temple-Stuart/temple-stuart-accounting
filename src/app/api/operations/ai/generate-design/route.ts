@@ -38,11 +38,11 @@ interface RequestBody {
 const MAX_ITEMS_PER_ARRAY = 20;
 const MAX_CHARS_PER_ITEM = 500;
 
-function validateItems(value: unknown, fieldName: string): { ok: true; items: string[] } | { ok: false; message: string } {
+function validateItems(value: unknown, fieldName: string, allowEmpty = false): { ok: true; items: string[] } | { ok: false; message: string } {
   if (!Array.isArray(value)) {
     return { ok: false, message: `${fieldName} must be an array` };
   }
-  if (value.length === 0) {
+  if (!allowEmpty && value.length === 0) {
     return { ok: false, message: `${fieldName} must contain at least one item` };
   }
   if (value.length > MAX_ITEMS_PER_ARRAY) {
@@ -88,10 +88,11 @@ export async function POST(request: NextRequest) {
     const goalResult = validateItems(body.goalItems, 'goalItems');
     if (!goalResult.ok) return NextResponse.json({ error: 'Validation', message: goalResult.message }, { status: 400 });
 
-    const problemResult = validateItems(body.problemItems, 'problemItems');
+    // PD-Clean: problem/diagnosis OPTIONAL — title+goals generates (empty → "(none provided)").
+    const problemResult = validateItems(body.problemItems, 'problemItems', true);
     if (!problemResult.ok) return NextResponse.json({ error: 'Validation', message: problemResult.message }, { status: 400 });
 
-    const diagnosisResult = validateItems(body.diagnosisItems, 'diagnosisItems');
+    const diagnosisResult = validateItems(body.diagnosisItems, 'diagnosisItems', true);
     if (!diagnosisResult.ok) return NextResponse.json({ error: 'Validation', message: diagnosisResult.message }, { status: 400 });
 
     const nsRow = await prisma.operations_north_star.findUnique({
