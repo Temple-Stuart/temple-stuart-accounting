@@ -27,6 +27,7 @@ import { type AIGeneratedTask } from './AITaskPreview';
 import TaskList from './TaskList';
 import EvolutionTimeline from './EvolutionTimeline';
 import DependencyList from './DependencyList';
+import TruthMachineView from './TruthMachineView';
 import ProjectRowView, {
   type Entity,
   type GenerationCost,
@@ -98,6 +99,9 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   const [auditInput, setAuditInput] = useState(project.claude_code_audit_input ?? '');
   const [savingInputs, setSavingInputs] = useState(false);
   const [inputsSaved, setInputsSaved] = useState(false);
+  // PR-TM-1: render the project as the transparent Truth Machine pipeline instead of
+  // the standard row. Pure UI toggle — same container state + handlers feed both views.
+  const [pipelineMode, setPipelineMode] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
 
   // When SectionD sets isJumpTarget=true on this row, scroll into view,
@@ -378,11 +382,55 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
     setGenerationInspection(null);
   };
 
+  // PR-TM-1: the Truth Machine pipeline view — a transparent top-to-bottom render of
+  // the SAME project, fed by the SAME container handlers (research / fusion / accept
+  // gate). ProjectRowView + the public showroom are untouched; this is an alternate
+  // render the user opts into. rowRef stays on a wrapper so the jump-scroll still works.
+  if (pipelineMode) {
+    return (
+      <div ref={rowRef}>
+        <TruthMachineView
+          project={project}
+          onExit={() => setPipelineMode(false)}
+          researchInput={researchInput}
+          onResearchInputChange={(value) => { setResearchInput(value); setInputsSaved(false); }}
+          runningResearch={runningResearch}
+          researchError={researchError}
+          onRunResearch={handleRunResearch}
+          auditInput={auditInput}
+          onAuditInputChange={(value) => { setAuditInput(value); setInputsSaved(false); }}
+          savingInputs={savingInputs}
+          inputsSaved={inputsSaved}
+          onSaveInputs={handleSaveInputs}
+          generatingTasks={generatingTasks}
+          tasksGenError={tasksGenError}
+          tasksPreview={tasksPreview}
+          onGenerateTasks={handleGenerateTasks}
+          onTasksAccepted={() => { setTasksPreview(null); setTasksGenError(null); }}
+          onTasksDiscarded={() => { setTasksPreview(null); setTasksGenError(null); }}
+          taskSection={<TaskList projectId={project.id} entity_id={project.entity_id} />}
+        />
+      </div>
+    );
+  }
+
   return (
     <ProjectRowView
       project={project}
       entities={entities}
       rowRef={rowRef}
+      // PR-TM-1: entry point to the transparent pipeline view — rendered in the
+      // expanded read block via the existing optional readViewAiActions slot (so
+      // ProjectRowView + showroom stay unchanged; the showroom passes its own slot).
+      readViewAiActions={
+        <button
+          type="button"
+          onClick={() => setPipelineMode(true)}
+          className="px-2 py-0.5 text-xs border border-brand-purple rounded text-brand-purple hover:bg-purple-100/50"
+        >
+          ⊞ pipeline view (Truth Machine)
+        </button>
+      }
       // PR7a slots — the SAME live containers with the SAME props as before.
       // These are plain React elements; React mounts each only when the view
       // actually renders it (taskSection/dependencySection inside the expanded
