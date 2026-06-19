@@ -19,6 +19,7 @@
 import { useEffect, useState } from 'react';
 import { useOperationsEntity } from './EntitySelector';
 import ProjectRow from './projects/ProjectRow';
+import ProjectQueueCard from './projects/ProjectQueueCard';
 import ProjectCreateForm from './projects/ProjectCreateForm';
 import type { Project } from './projects/types';
 
@@ -142,17 +143,27 @@ export default function SectionD_ProjectBacklog() {
       ) : (
         <div className="space-y-2">
           {projects.map((p) => (
-            <ProjectRow
+            // PD-2: the queue is separated clean cards. The card opens the existing
+            // ProjectRow detail (defaultExpanded) — click→detail navigation preserved.
+            <ProjectQueueCard
               key={p.id}
               project={p}
-              entities={entities}
-              allProjects={projects}
-              onUpdate={fetchProjects}
-              onDelete={fetchProjects}
-              isJumpTarget={targetProjectId === p.id}
-              onClearTarget={() => setTargetProjectId(null)}
-              onJumpTo={setTargetProjectId}
-            />
+              taskCount={p.task_count ?? 0}
+              runCount={p.run_count ?? 0}
+              forceOpen={targetProjectId === p.id}
+            >
+              <ProjectRow
+                project={p}
+                entities={entities}
+                allProjects={projects}
+                onUpdate={fetchProjects}
+                onDelete={fetchProjects}
+                isJumpTarget={targetProjectId === p.id}
+                onClearTarget={() => setTargetProjectId(null)}
+                onJumpTo={setTargetProjectId}
+                defaultExpanded
+              />
+            </ProjectQueueCard>
           ))}
         </div>
       )}

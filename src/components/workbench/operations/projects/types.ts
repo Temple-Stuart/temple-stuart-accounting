@@ -43,6 +43,10 @@ export interface Project {
   created_at: string;
   updated_at: string;
   created_by: string | null;
+  // PD-2: present on the queue list response (/api/operations/projects GET). Optional
+  // because other fetches of a Project don't compute them.
+  task_count?: number;
+  run_count?: number;
 }
 
 /**
