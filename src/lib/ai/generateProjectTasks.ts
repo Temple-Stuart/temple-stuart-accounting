@@ -22,6 +22,7 @@ import { recordUsage } from './recordUsage';
 import { MODEL_SONNET_4 } from './client';
 import { PROJECT_DESIGN_EXEMPLAR } from './exemplars/projectDesign';
 import { formatNorthStarBlock, type NorthStarContext } from './northStarContext';
+import type { PromptSegment } from './promptSegments';
 
 interface GenerateInput {
   userId: string;
@@ -237,6 +238,42 @@ ${bulletList(input.diagnosisItems)}
 ${realityBlock}
 Web-search to verify vendor URLs (max 8 searches). Then call return_project_tasks with the structured task array.`;
   return { systemPrompt: SYSTEM_PROMPT, userMessage };
+}
+
+/**
+ * TM-redesign: the SAME fusion userMessage as buildTasksPrompt, as ordered segments so the
+ * UI can color the user-injected spans red (title / goal / problem / diagnosis + the
+ * research & audit reality text). joinSegments(...) equals buildTasksPrompt(input).userMessage
+ * byte-for-byte (the preview route verifies; on mismatch it falls back to the plain string).
+ */
+export function buildTasksSegments(input: TasksPromptInput): PromptSegment[] {
+  const research = input.deepResearchInput?.trim();
+  const audit = input.claudeCodeAuditInput?.trim();
+  const reality: PromptSegment[] = [];
+  if (research) {
+    reality.push({ kind: 'template', text: `\n## Deep Research Findings (external — what's true/best/current)\n` });
+    reality.push({ kind: 'input', text: research });
+    reality.push({ kind: 'template', text: `\n` });
+  }
+  if (audit) {
+    reality.push({ kind: 'template', text: `\n## Codebase Audit Findings (what's actually shipped / stale / missing)\n` });
+    reality.push({ kind: 'input', text: audit });
+    reality.push({ kind: 'template', text: `\n` });
+  }
+  return [
+    { kind: 'template', text: formatNorthStarBlock(input.northStar ?? null) },
+    { kind: 'template', text: `Project title: "` },
+    { kind: 'input', text: input.projectTitle },
+    { kind: 'template', text: `"\n\nGOAL items:\n` },
+    { kind: 'input', text: bulletList(input.goalItems) },
+    { kind: 'template', text: `\n\nPROBLEM items:\n` },
+    { kind: 'input', text: bulletList(input.problemItems) },
+    { kind: 'template', text: `\n\nDIAGNOSIS items:\n` },
+    { kind: 'input', text: bulletList(input.diagnosisItems) },
+    { kind: 'template', text: `\n` },
+    ...reality,
+    { kind: 'template', text: `\nWeb-search to verify vendor URLs (max 8 searches). Then call return_project_tasks with the structured task array.` },
+  ];
 }
 
 export async function generateProjectTasks(input: GenerateInput): Promise<GenerateOutput> {
