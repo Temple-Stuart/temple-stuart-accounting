@@ -89,6 +89,12 @@ export interface TaskRowViewProps {
   onDelete: (e: React.MouseEvent) => void;
   onArchive: (e: React.MouseEvent) => void;
   onUnarchive: (e: React.MouseEvent) => void;
+  // PHASE2-4: pending_review accept/reject (auto-fire checkpoint). Optional so the
+  // showroom + other callers are unaffected; the buttons only render for a
+  // pending_review task when both handlers are supplied.
+  reviewing?: boolean;
+  onAcceptPending?: (e: React.MouseEvent) => void;
+  onRejectPending?: (e: React.MouseEvent) => void;
 }
 
 export default function TaskRowView({
@@ -128,6 +134,9 @@ export default function TaskRowView({
   onDelete,
   onArchive,
   onUnarchive,
+  reviewing,
+  onAcceptPending,
+  onRejectPending,
 }: TaskRowViewProps) {
   const inputClass =
     'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
@@ -170,7 +179,30 @@ export default function TaskRowView({
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {task.status !== 'completed' && task.status !== 'cancelled' && (
+          {/* PHASE2-4: auto-fired task awaiting review → accept (→ open) / reject (→ cancelled). */}
+          {task.status === 'pending_review' && onAcceptPending && onRejectPending && (
+            <>
+              <button
+                type="button"
+                onClick={onAcceptPending}
+                disabled={reviewing}
+                className="px-2 py-0.5 border border-purple-300 text-purple-800 rounded hover:bg-purple-50 disabled:opacity-50 text-xs"
+                title="Accept this auto-generated task (becomes a live open task)"
+              >
+                {reviewing ? '…' : '✓ accept'}
+              </button>
+              <button
+                type="button"
+                onClick={onRejectPending}
+                disabled={reviewing}
+                className="px-2 py-0.5 border border-border text-text-muted rounded hover:bg-bg-row disabled:opacity-50 text-xs"
+                title="Reject this auto-generated task (marked cancelled)"
+              >
+                {reviewing ? '…' : '✕ reject'}
+              </button>
+            </>
+          )}
+          {task.status !== 'completed' && task.status !== 'cancelled' && task.status !== 'pending_review' && (
             <button
               type="button"
               onClick={onQuickComplete}

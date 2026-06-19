@@ -57,6 +57,7 @@ export default function TaskRow({ task, projectId, index, coaAccounts, onUpdate,
   const [completing, setCompleting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<TaskStatusHistoryRow[] | null>(null);
@@ -306,6 +307,41 @@ export default function TaskRow({ task, projectId, index, coaAccounts, onUpdate,
     }
   };
 
+  // PHASE2-4: accept/reject an auto-fired pending_review task. Reuses the existing
+  // PATCH status flow (status-history + audit). Accept → 'open' (becomes a live
+  // task); reject → 'cancelled'. No new endpoint, no new paid path.
+  const patchReviewStatus = async (
+    e: React.MouseEvent,
+    newStatus: 'open' | 'cancelled',
+    verb: string
+  ) => {
+    e.stopPropagation();
+    if (newStatus === 'cancelled' && !confirm(`Reject auto-generated task "${task.title}"? It is marked cancelled (history preserved).`)) {
+      return;
+    }
+    setReviewing(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/operations/projects/${projectId}/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setError(body?.message ?? body?.error ?? `failed to ${verb}`);
+        return;
+      }
+      onUpdate();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `failed to ${verb}`);
+    } finally {
+      setReviewing(false);
+    }
+  };
+  const handleAcceptPending = (e: React.MouseEvent) => patchReviewStatus(e, 'open', 'accept');
+  const handleRejectPending = (e: React.MouseEvent) => patchReviewStatus(e, 'cancelled', 'reject');
+
   return (
     <TaskRowView
       task={task}
@@ -344,6 +380,9 @@ export default function TaskRow({ task, projectId, index, coaAccounts, onUpdate,
       onDelete={handleDelete}
       onArchive={handleArchive}
       onUnarchive={handleUnarchive}
+      reviewing={reviewing}
+      onAcceptPending={handleAcceptPending}
+      onRejectPending={handleRejectPending}
     />
   );
 }
