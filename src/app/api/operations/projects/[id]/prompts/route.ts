@@ -68,7 +68,9 @@ export async function GET(
     const research = buildResearchPrompt(researchInput);
     const researchSegments = verifyAgainst(buildResearchSegments(researchInput), research.userMessage);
 
-    const auditInput = { projectTitle: project.title, goalItems, problemItems, diagnosisItems };
+    // PROMPT-2: the audit prompt imports the research findings (the standard it measures
+    // against) — mirrors how fusion embeds the research text below.
+    const auditInput = { projectTitle: project.title, goalItems, deepResearchInput: project.deep_research_input };
     const audit = buildAuditPrompt(auditInput);
     const auditSegments = verifyAgainst(buildAuditSegments(auditInput), audit);
 
