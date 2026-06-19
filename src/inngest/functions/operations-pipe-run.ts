@@ -30,7 +30,7 @@ import { NonRetriableError } from 'inngest';
 import { inngest } from '../client';
 import { prisma } from '@/lib/prisma';
 import { generateDeepResearch } from '@/lib/ai/generateDeepResearch';
-import { generateProjectTasks } from '@/lib/ai/generateProjectTasks';
+import { generateProjectTasks, TaskSynthesisError } from '@/lib/ai/generateProjectTasks';
 import { toNorthStarContext } from '@/lib/ai/northStarContext';
 import { requirePipeBudget, PipeBudgetError } from '@/lib/pipeBudget';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
@@ -127,19 +127,31 @@ export const operationsPipeRun = inngest.createFunction(
         where: { id: projectId },
         select: { deep_research_input: true, claude_code_audit_input: true },
       });
-      const result = await generateProjectTasks({
-        userId,
-        userEmail: ctx.email,
-        projectId,
-        projectTitle: ctx.title,
-        goalItems: ctx.goalItems,
-        problemItems: ctx.problemItems,
-        diagnosisItems: ctx.diagnosisItems,
-        northStar: ctx.northStar,
-        deepResearchInput: fresh?.deep_research_input ?? null,
-        // CC-audit SKIPPED in Phase 2 → empty → "(none provided)" (graceful).
-        claudeCodeAuditInput: fresh?.claude_code_audit_input ?? null,
-      });
+      let result;
+      try {
+        result = await generateProjectTasks({
+          userId,
+          userEmail: ctx.email,
+          projectId,
+          projectTitle: ctx.title,
+          goalItems: ctx.goalItems,
+          problemItems: ctx.problemItems,
+          diagnosisItems: ctx.diagnosisItems,
+          northStar: ctx.northStar,
+          deepResearchInput: fresh?.deep_research_input ?? null,
+          // CC-audit SKIPPED in Phase 2 → empty → "(none provided)" (graceful).
+          claudeCodeAuditInput: fresh?.claude_code_audit_input ?? null,
+        });
+      } catch (err) {
+        // FUSION-FIX-1: a synthesis/parse failure is DETERMINISTIC — re-running the
+        // same inputs fails identically. Mark it terminal so Inngest does NOT retry
+        // ~4× (the 12-min, 4× paid-call waste). Transient errors (network/API) stay a
+        // plain Error → retryable. Fail LOUD either way — no fake tasks.
+        if (err instanceof TaskSynthesisError) {
+          throw new NonRetriableError(err.message);
+        }
+        throw err;
+      }
       return { tasks: result.tasks, usageId: result.usageId };
     });
 

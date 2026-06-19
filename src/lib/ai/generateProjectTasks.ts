@@ -23,6 +23,21 @@ import { MODEL_SONNET_4 } from './client';
 import { type NorthStarContext } from './northStarContext';
 import type { PromptSegment } from './promptSegments';
 
+/**
+ * Thrown when the AI synthesis itself fails deterministically — the tool wasn't
+ * invoked, its output truncated/lacked a valid tasks array, or the array was empty.
+ * These are NOT transient: re-running the same inputs fails the same way. Callers in
+ * a durable job (the Inngest fusion step) should treat this as terminal (no retry),
+ * so a deterministic failure doesn't re-run the paid call ~4× (the 12-min waste).
+ * A genuine transient error (network/API) is a plain Error and stays retryable.
+ */
+export class TaskSynthesisError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TaskSynthesisError';
+  }
+}
+
 interface GenerateInput {
   userId: string;
   userEmail: string;
@@ -215,7 +230,11 @@ export async function generateProjectTasks(input: GenerateInput): Promise<Genera
     model: MODEL_SONNET_4,
     systemPrompt,
     userMessage,
-    maxTokens: 4000,
+    // FUSION-FIX-1: the forced return_project_tasks tool emits a structured array of
+    // up to 30 tasks (~700-900 tokens each). At 4000 the JSON truncated mid-array →
+    // stop_reason:max_tokens → no valid tasks array. claude-sonnet-4-6 supports up to
+    // 64k output; 16k comfortably fits a full task list + web_search overhead.
+    maxTokens: 16000,
     temperature: 0.3,
     purpose: isStateless
       ? 'project_tasks_generation_create_form'
@@ -244,12 +263,21 @@ export async function generateProjectTasks(input: GenerateInput): Promise<Genera
   // Extract the structured task array from the return_project_tasks tool use.
   const taskToolUse = (result.toolUses ?? []).find((t) => t.name === 'return_project_tasks');
   if (!taskToolUse) {
-    throw new Error('AI did not invoke return_project_tasks tool — synthesis failed');
+    throw new TaskSynthesisError('AI did not invoke return_project_tasks tool — synthesis failed');
   }
 
   const toolInput = taskToolUse.input as { tasks?: unknown };
   if (!toolInput || !Array.isArray(toolInput.tasks)) {
-    throw new Error('return_project_tasks tool input did not contain a tasks array');
+    // FUSION-FIX-1: name the real cause. A truncated structured-tool response
+    // (stop_reason === 'max_tokens') means the JSON was cut off mid-array — raise
+    // maxTokens or lower the task count, NOT a malformed-model bug. Fail loud either
+    // way (no fake tasks); the message tells which.
+    if (result.stopReason === 'max_tokens') {
+      throw new TaskSynthesisError(
+        'fusion output truncated at max_tokens — the return_project_tasks array did not complete; raise maxTokens or lower the task count'
+      );
+    }
+    throw new TaskSynthesisError('return_project_tasks tool input did not contain a tasks array');
   }
 
   const tasks: GeneratedTask[] = toolInput.tasks
@@ -267,7 +295,7 @@ export async function generateProjectTasks(input: GenerateInput): Promise<Genera
     }));
 
   if (tasks.length === 0) {
-    throw new Error('AI returned empty tasks array');
+    throw new TaskSynthesisError('AI returned empty tasks array');
   }
 
   return {

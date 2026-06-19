@@ -97,6 +97,13 @@ interface RecordUsageOutput {
    * structured outputs.
    */
   toolUses?: Array<{ id: string; name: string; input: unknown }>;
+  /**
+   * The API stop_reason ('end_turn' | 'max_tokens' | 'tool_use' | 'stop_sequence'
+   * | 'pause_turn' | null). Surfaced so callers can distinguish a TRUNCATED
+   * structured-tool response (stop_reason === 'max_tokens') from a genuine
+   * malformed output — the difference between "raise maxTokens" and a real bug.
+   */
+  stopReason: string | null;
 }
 
 export async function recordUsage(input: RecordUsageInput): Promise<RecordUsageOutput> {
@@ -208,5 +215,6 @@ export async function recordUsage(input: RecordUsageInput): Promise<RecordUsageO
       rawResponse: fullResponseForPersistence,
     },
     toolUses: toolUses.length > 0 ? toolUses : undefined,
+    stopReason: response.stop_reason ?? null,
   };
 }
