@@ -47,6 +47,9 @@ interface Props {
   onClearTarget: () => void;
   /** Called when the user clicks a dependency link inside this row. */
   onJumpTo: (projectId: string) => void;
+  /** PD-2: start expanded (the queue card opens straight into the detail). Default false
+   *  → existing behavior unchanged everywhere else. */
+  defaultExpanded?: boolean;
 }
 
 function projectToForm(p: Project): ProjectForm {
@@ -69,8 +72,8 @@ function projectToForm(p: Project): ProjectForm {
   };
 }
 
-export default function ProjectRow({ project, entities, allProjects, onUpdate, onDelete, isJumpTarget, onClearTarget, onJumpTo }: Props) {
-  const [expanded, setExpanded] = useState(false);
+export default function ProjectRow({ project, entities, allProjects, onUpdate, onDelete, isJumpTarget, onClearTarget, onJumpTo, defaultExpanded = false }: Props) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<ProjectForm>(() => projectToForm(project));
   const [saving, setSaving] = useState(false);

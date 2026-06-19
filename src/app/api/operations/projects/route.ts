@@ -74,6 +74,8 @@ export async function GET(request: NextRequest) {
 
     const projects = await prisma.operations_projects.findMany({
       where,
+      // PD-2: task_count via Prisma _count on the tasks relation (no migration).
+      include: { _count: { select: { tasks: true } } },
       orderBy: [
         // Prisma can't sort by computed status_order without raw SQL; we sort
         // server-side after fetch. Single-user backlogs are small (<200), so
@@ -84,6 +86,21 @@ export async function GET(request: NextRequest) {
       ],
     });
 
+    // PD-2: run_count = DISTINCT source_ai_usage_id across each project's tasks (the
+    // evolve-run markers). groupBy on (project_id, source_ai_usage_id) → one row per
+    // distinct run; count rows per project. Reads existing data — NO migration.
+    const projectIds = projects.map((p) => p.id);
+    const runGroups = projectIds.length
+      ? await prisma.operations_project_tasks.groupBy({
+          by: ['project_id', 'source_ai_usage_id'],
+          where: { project_id: { in: projectIds }, source_ai_usage_id: { not: null } },
+        })
+      : [];
+    const runCountByProject = new Map<string, number>();
+    for (const g of runGroups) {
+      runCountByProject.set(g.project_id, (runCountByProject.get(g.project_id) ?? 0) + 1);
+    }
+
     // Status-priority sort layered on top of priority_score order.
     const sorted = projects.slice().sort((a, b) => {
       const sa = STATUS_ORDER[a.status];
@@ -93,7 +110,14 @@ export async function GET(request: NextRequest) {
       return 0;
     });
 
-    return NextResponse.json({ projects: sorted });
+    // PD-2: surface the real counts on each row (and drop the internal _count shape).
+    const withCounts = sorted.map(({ _count, ...p }) => ({
+      ...p,
+      task_count: _count.tasks,
+      run_count: runCountByProject.get(p.id) ?? 0,
+    }));
+
+    return NextResponse.json({ projects: withCounts });
   } catch (error) {
     console.error('[Projects GET]', error);
     return NextResponse.json(
