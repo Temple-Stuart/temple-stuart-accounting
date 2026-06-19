@@ -201,7 +201,22 @@ REALITY INPUTS (when present): the user message may include "Deep Research Findi
 
 Now produce tasks for the user's project below at this exact rigor. Verify URLs via web_search. Then call return_project_tasks with the structured array.`;
 
-export async function generateProjectTasks(input: GenerateInput): Promise<GenerateOutput> {
+/**
+ * Shared prompt builder (TM-2) — the SINGLE source of the fusion prompt text, used by
+ * BOTH the real call (generateProjectTasks) AND the read-only preview endpoint, so the
+ * previewed prompt can never drift from what actually fires.
+ */
+export interface TasksPromptInput {
+  projectTitle: string;
+  goalItems: string[];
+  problemItems: string[];
+  diagnosisItems: string[];
+  northStar?: NorthStarContext | null;
+  deepResearchInput?: string | null;
+  claudeCodeAuditInput?: string | null;
+}
+
+export function buildTasksPrompt(input: TasksPromptInput): { systemPrompt: string; userMessage: string } {
   // PR-Ops-Evolve-1: only emit a reality block when a box is non-empty — no empty headers.
   const research = input.deepResearchInput?.trim();
   const audit = input.claudeCodeAuditInput?.trim();
@@ -221,6 +236,11 @@ DIAGNOSIS items:
 ${bulletList(input.diagnosisItems)}
 ${realityBlock}
 Web-search to verify vendor URLs (max 8 searches). Then call return_project_tasks with the structured task array.`;
+  return { systemPrompt: SYSTEM_PROMPT, userMessage };
+}
+
+export async function generateProjectTasks(input: GenerateInput): Promise<GenerateOutput> {
+  const { systemPrompt, userMessage } = buildTasksPrompt(input);
 
   const inputsSummary =
     `project_id=${input.projectId}; ` +
@@ -234,7 +254,7 @@ Web-search to verify vendor URLs (max 8 searches). Then call return_project_task
     userId: input.userId,
     userEmail: input.userEmail,
     model: MODEL_SONNET_4,
-    systemPrompt: SYSTEM_PROMPT,
+    systemPrompt,
     userMessage,
     maxTokens: 4000,
     temperature: 0.3,
