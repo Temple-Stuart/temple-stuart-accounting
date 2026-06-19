@@ -91,6 +91,10 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   // PR-Loop-1: the research agent populates deep_research_input for review.
   const [runningResearch, setRunningResearch] = useState(false);
   const [researchError, setResearchError] = useState<string | null>(null);
+  // PHASE2-4: auto-fire the whole pipe (POST run-pipe → Inngest job, async).
+  const [runningPipe, setRunningPipe] = useState(false);
+  const [pipeQueued, setPipeQueued] = useState(false);
+  const [pipeError, setPipeError] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
   const [showDesignReasoning, setShowDesignReasoning] = useState(false);
   // PR-Ops-Content-2: lazy-mount the read-only evolution timeline (the project's
@@ -277,6 +281,30 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
     }
   };
 
+  // PHASE2-4: fire the auto-pipe. POST [id]/run-pipe returns 202 (the Inngest job
+  // runs research→fusion→land-pending async). No paid call here — the cost guard is
+  // in the job. On 202 we show a "pipe running…" state; pending_review tasks appear
+  // in the task list when the job finishes (refresh to see progress).
+  const handleRunPipe = async () => {
+    setRunningPipe(true);
+    setPipeError(null);
+    try {
+      const res = await fetch(`/api/operations/projects/${project.id}/run-pipe`, {
+        method: 'POST',
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setPipeError(body?.message ?? body?.error ?? 'failed to queue pipe run');
+        return;
+      }
+      setPipeQueued(true);
+    } catch (e) {
+      setPipeError(e instanceof Error ? e.message : 'failed to queue pipe run');
+    } finally {
+      setRunningPipe(false);
+    }
+  };
+
   // PAID Anthropic AI — POST generate-tasks. Container-owned: never reachable
   // from the pure <ProjectRowView/>.
   const handleGenerateTasks = async () => {
@@ -441,6 +469,10 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
           onTasksAccepted={() => { setTasksPreview(null); setTasksGenError(null); }}
           onTasksDiscarded={() => { setTasksPreview(null); setTasksGenError(null); }}
           taskSection={<TaskList projectId={project.id} entity_id={project.entity_id} />}
+          onRunPipe={handleRunPipe}
+          runningPipe={runningPipe}
+          pipeQueued={pipeQueued}
+          pipeError={pipeError}
         />
       </div>
     );

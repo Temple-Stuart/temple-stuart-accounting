@@ -46,6 +46,14 @@ export interface TruthMachineViewProps {
   project: Project;
   /** Back to the standard ProjectRowView render. */
   onExit: () => void;
+
+  // ── PHASE2-4: auto-fire the WHOLE pipe (research→fusion→pending tasks) ─────
+  // Fires POST [id]/run-pipe (202, async). Optional so other render paths are
+  // unaffected; the button only shows when onRunPipe is supplied.
+  onRunPipe?: () => void;
+  runningPipe?: boolean;
+  pipeQueued?: boolean;
+  pipeError?: string | null;
   /** TM-2: the live interpolated prompts (null while loading / unfetched). */
   prompts: PromptPreview | null;
   promptsLoading: boolean;
@@ -251,6 +259,10 @@ export default function TruthMachineView({
   onTasksAccepted,
   onTasksDiscarded,
   taskSection,
+  onRunPipe,
+  runningPipe,
+  pipeQueued,
+  pipeError,
 }: TruthMachineViewProps) {
   const goalItems = asStringArray(project.goal_items);
   const problemItems = asStringArray(project.problem_items);
@@ -264,10 +276,33 @@ export default function TruthMachineView({
           <div className="text-sm font-bold text-gray-900">{project.title}</div>
           <div className="text-gray-500 text-[11px]">Truth Machine — the pipeline, end to end</div>
         </div>
-        <button type="button" onClick={onExit} className="px-2 py-0.5 border border-gray-300 rounded text-gray-600 hover:bg-white text-xs">
-          standard view
-        </button>
+        <div className="flex items-center gap-2">
+          {/* PHASE2-4: auto-fire the whole loop — research→fusion runs automatically,
+              tasks land as "pending review" for you to accept. The manual stage buttons
+              below remain for step-by-step control. */}
+          {onRunPipe && (
+            <button
+              type="button"
+              onClick={onRunPipe}
+              disabled={runningPipe || pipeQueued}
+              title="Run the whole pipe automatically: research → fusion → tasks land as pending review"
+              className="px-2 py-0.5 rounded text-white text-xs disabled:opacity-60"
+              style={{ backgroundColor: STRIPE.fusion }}
+            >
+              {pipeQueued ? 'pipe running…' : runningPipe ? 'queuing…' : '⚡ run pipe (auto)'}
+            </button>
+          )}
+          <button type="button" onClick={onExit} className="px-2 py-0.5 border border-gray-300 rounded text-gray-600 hover:bg-white text-xs">
+            standard view
+          </button>
+        </div>
       </div>
+      {pipeQueued && (
+        <div className="px-1 text-[11px] text-gray-500">
+          Running research → fusion automatically. New tasks will appear below as <span className="text-purple-800 font-medium">pending review</span> — accept or reject each when they land. Refresh to check progress.
+        </div>
+      )}
+      {pipeError && <div className="px-1 text-[11px] text-red-600">{pipeError}</div>}
 
       {/* 1 · INPUTS */}
       <Stage n={1} label="inputs" color={STRIPE.inputs}>
