@@ -104,7 +104,10 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   const [inputsSaved, setInputsSaved] = useState(false);
   // PR-TM-1: render the project as the transparent Truth Machine pipeline instead of
   // the standard row. Pure UI toggle — same container state + handlers feed both views.
-  const [pipelineMode, setPipelineMode] = useState(false);
+  // PR-TM-1 / PD-3a: the Truth Machine pipe is the DEFAULT project detail — opening a
+  // project shows the clean pipe-step layout (with the interpolated prompts surfaced for
+  // review). "standard view" (TruthMachineView onExit) returns to ProjectRowView read/edit.
+  const [pipelineMode, setPipelineMode] = useState(true);
   // PR-TM-2: the live interpolated prompts (research / audit / fusion), fetched from the
   // read-only preview endpoint (NO Anthropic call). promptsRefresh re-pulls them after a
   // research run / save so the fusion preview never drifts from the DB state that fires.
@@ -448,18 +451,6 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
       project={project}
       entities={entities}
       rowRef={rowRef}
-      // PR-TM-1: entry point to the transparent pipeline view — rendered in the
-      // expanded read block via the existing optional readViewAiActions slot (so
-      // ProjectRowView + showroom stay unchanged; the showroom passes its own slot).
-      readViewAiActions={
-        <button
-          type="button"
-          onClick={() => setPipelineMode(true)}
-          className="px-2 py-0.5 text-xs border border-brand-purple rounded text-brand-purple hover:bg-purple-100/50"
-        >
-          ⊞ pipeline view (Truth Machine)
-        </button>
-      }
       // PR7a slots — the SAME live containers with the SAME props as before.
       // These are plain React elements; React mounts each only when the view
       // actually renders it (taskSection/dependencySection inside the expanded
