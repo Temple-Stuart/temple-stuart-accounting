@@ -275,14 +275,20 @@ export default function TruthMachineView({
           <div className={sub}>goal</div>
           <ItemList items={goalItems} legacy={project.goal} />
         </div>
-        <div>
-          <div className={sub}>problem</div>
-          <ItemList items={problemItems} legacy={project.problem} />
-        </div>
-        <div>
-          <div className={sub}>diagnosis</div>
-          <ItemList items={diagnosisItems} legacy={project.diagnosis} />
-        </div>
+        {/* COND-INPUTS-1: problem/diagnosis render ONLY when they have content. New title+goals
+            projects read clean (no "(none yet)" clutter); old projects with data still show them. */}
+        {(problemItems.length > 0 || (project.problem ?? '').trim().length > 0) && (
+          <div>
+            <div className={sub}>problem</div>
+            <ItemList items={problemItems} legacy={project.problem} />
+          </div>
+        )}
+        {(diagnosisItems.length > 0 || (project.diagnosis ?? '').trim().length > 0) && (
+          <div>
+            <div className={sub}>diagnosis</div>
+            <ItemList items={diagnosisItems} legacy={project.diagnosis} />
+          </div>
+        )}
       </Stage>
 
       <Chevron />
