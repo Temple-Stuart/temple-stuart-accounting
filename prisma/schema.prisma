@@ -1141,6 +1141,22 @@ model travel_search_usage {
   @@unique([searchDate, provider])
 }
 
+// ─── Per-user daily cap counter for the AI pipe paid-calls (COST-GUARD-1) ─────
+// Mirrors travel_search_usage: a durable per-(UTC date + user) counter that
+// pipeBudget.ts increments before each paid pipe call (research / fusion / evolve
+// / design / stateless create-form) and fails LOUD (429) over the cap. This is the
+// prerequisite that stops an auto-firing loop running up the Anthropic bill.
+// Migration: operations_ai_pipe_usage table run by Alex via psql (additive).
+model operations_ai_pipe_usage {
+  id        String   @id @default(cuid())
+  usageDate String // "YYYY-MM-DD" (UTC)
+  userId    String
+  callCount Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([usageDate, userId])
+}
+
 // ─── Per-key request rate-limiter (durable, fixed-window) ────────────────────
 // Net-new: there is no app rate-limiter today. Mirrors the durable usage-counter
 // shape so it survives deploys AND holds across serverless instances (an in-memory

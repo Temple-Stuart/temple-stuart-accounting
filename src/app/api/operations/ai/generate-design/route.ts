@@ -24,6 +24,7 @@ import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { generateProjectDesign } from '@/lib/ai/generateProjectDesign';
 import { toNorthStarContext } from '@/lib/ai/northStarContext';
+import { requirePipeBudget, PipeBudgetError } from '@/lib/pipeBudget';
 
 interface RequestBody {
   title?: string;
@@ -95,6 +96,9 @@ export async function POST(request: NextRequest) {
     const diagnosisResult = validateItems(body.diagnosisItems, 'diagnosisItems', true);
     if (!diagnosisResult.ok) return NextResponse.json({ error: 'Validation', message: diagnosisResult.message }, { status: 400 });
 
+    // COST-GUARD-1: daily spend cap — AFTER auth, BEFORE the paid call. Over cap → 429.
+    await requirePipeBudget(user.id);
+
     const nsRow = await prisma.operations_north_star.findUnique({
       where: { user_id: user.id },
     });
@@ -121,6 +125,9 @@ export async function POST(request: NextRequest) {
       inspection: result.inspection,
     });
   } catch (error) {
+    if (error instanceof PipeBudgetError) {
+      return NextResponse.json({ error: 'Rate limit', message: error.message }, { status: 429 });
+    }
     console.error('[Stateless Generate Design POST]', error);
     return NextResponse.json(
       { error: 'Failed to generate design', message: error instanceof Error ? error.message : 'unknown' },

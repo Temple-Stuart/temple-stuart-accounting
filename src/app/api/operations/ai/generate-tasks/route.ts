@@ -23,6 +23,7 @@ import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { generateProjectTasks } from '@/lib/ai/generateProjectTasks';
 import { toNorthStarContext } from '@/lib/ai/northStarContext';
+import { requirePipeBudget, PipeBudgetError } from '@/lib/pipeBudget';
 
 interface RequestBody {
   projectTitle?: unknown;
@@ -119,6 +120,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: diagnosisResult.message }, { status: 400 });
     }
 
+    // COST-GUARD-1: daily spend cap — AFTER auth, BEFORE the paid call. Placed in the
+    // outer try so PipeBudgetError reaches the outer catch (→ 429), not the inner 500.
+    await requirePipeBudget(user.id);
+
     try {
       const nsRow = await prisma.operations_north_star.findUnique({
         where: { user_id: user.id },
@@ -153,6 +158,9 @@ export async function POST(request: NextRequest) {
       );
     }
   } catch (error) {
+    if (error instanceof PipeBudgetError) {
+      return NextResponse.json({ error: 'Rate limit', message: error.message }, { status: 429 });
+    }
     console.error('[Stateless Generate Tasks POST]', error);
     return NextResponse.json(
       {
