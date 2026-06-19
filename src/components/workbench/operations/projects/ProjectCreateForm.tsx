@@ -23,7 +23,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import ListManager from './ListManager';
 import type { ProjectForm } from './types';
 import { DEFAULT_PROJECT_FORM } from './types';
@@ -43,25 +43,40 @@ interface Props {
   onCancel: () => void;
 }
 
+// PD-Entity: projects are scoped to Business + Personal Finances only — Trading has no
+// projects. This is a UI filter on THIS form's dropdown only; the entity records and every
+// other surface that uses Trading are untouched (no rename, no delete, no data change).
+const isProjectEntity = (name: string) => name.trim().toLowerCase() !== 'trading';
+
 export default function ProjectCreateForm({ entities, defaultEntityId, onCreated, onCancel }: Props) {
+  // The options offered for project creation — Trading filtered out (display-only).
+  const selectableEntities = useMemo(
+    () => entities.filter((e) => isProjectEntity(e.name)),
+    [entities]
+  );
+  // Clamp an incoming entity id to a selectable (non-Trading) one — a Trading page-filter
+  // default must not pre-select / submit Trading. No selectable → '' (the required "— select —").
+  const resolveEntityId = (id: string) =>
+    selectableEntities.some((e) => e.id === id) ? id : (selectableEntities[0]?.id ?? '');
+
   const [createForm, setCreateForm] = useState<ProjectForm>({
     ...DEFAULT_PROJECT_FORM,
-    entity_id: defaultEntityId,
+    entity_id: resolveEntityId(defaultEntityId),
   });
   const [entityTouched, setEntityTouched] = useState(false);
   const [createSaving, setCreateSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  // While the entity field is untouched, track the parent's default (e.g. the
-  // page-level entity filter changing). Once the user picks an entity, never
-  // overwrite their choice.
+  // While the entity field is untouched, track the parent's default (e.g. the page-level
+  // entity filter changing) — clamped to a selectable (non-Trading) entity. Once the user
+  // picks an entity, never overwrite their choice.
   useEffect(() => {
-    if (!entityTouched) {
-      setCreateForm((f) =>
-        f.entity_id === defaultEntityId ? f : { ...f, entity_id: defaultEntityId }
-      );
-    }
-  }, [defaultEntityId, entityTouched]);
+    if (entityTouched) return;
+    const resolved = selectableEntities.some((e) => e.id === defaultEntityId)
+      ? defaultEntityId
+      : (selectableEntities[0]?.id ?? '');
+    setCreateForm((f) => (f.entity_id === resolved ? f : { ...f, entity_id: resolved }));
+  }, [defaultEntityId, entityTouched, selectableEntities]);
 
   // The create action. POSTs the full ProjectForm — design / claude_code_audit_input /
   // estimated_total_* ride along EMPTY (from DEFAULT_PROJECT_FORM) and are optional
@@ -134,7 +149,7 @@ export default function ProjectCreateForm({ entities, defaultEntityId, onCreated
             className={inputClass}
           >
             <option value="">— select —</option>
-            {entities.map((e) => (
+            {selectableEntities.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.name}
               </option>
