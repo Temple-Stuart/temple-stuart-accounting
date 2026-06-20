@@ -125,12 +125,13 @@ export default function LandingPage() {
                 <p className="text-white font-medium mb-2">How it works:</p>
                 <ol className="list-decimal list-inside space-y-2">
                   {[
-                    "You bring a problem. Open a project, type what you want to change or build, give it a name.",
+                    "You bring a problem. Open a project, type what you want to build or fix, name it.",
                     "Research finds the right way. It turns your messy goals into clear targets and looks up the correct rules and how the best already do it.",
-                    "Claude Code reads your real code. It opens your actual codebase and writes down what works, what's broken, and what's missing — and where.",
-                    "It waits for the truth. The pipeline pauses until the audit comes back. No skipping — if the check can't finish, nothing moves.",
-                    "It makes a smart plan. Your goals, the right way, and the real problems get combined into a to-do list — most important fixes first, risky ones flagged.",
-                    "You decide. The tasks wait for you. You accept what you want, reject the rest. Nothing gets built unless you say so.",
+                    "Claude Code reads your real code. It opens your actual codebase and writes down what works, what's broken, and what's missing.",
+                    "It waits for the truth. Nothing moves until the code check comes back. No skipping.",
+                    "It makes a smart plan. Your goals, the right way, and the real problems become a to-do list — biggest fixes first.",
+                    "You pick what to build. Accept a task and Claude Code builds it and opens a request on GitHub. You review and ship it.",
+                    "You evolve it. Add new goals and run it again — the loop never ends.",
                   ].map((step, i) => (
                     <li key={i}>{step}</li>
                   ))}
