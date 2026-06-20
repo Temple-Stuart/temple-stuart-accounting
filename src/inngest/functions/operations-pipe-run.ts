@@ -140,6 +140,21 @@ export const operationsPipeRun = inngest.createFunction(
       }
     });
 
+    // ── 1.75 · WAIT FOR THE AUDIT (PHASE3-5) — suspend (no compute billed) until the
+    //          Routine's audit-ingest callback emits operations/audit.ingested for THIS
+    //          project (match on data.projectId vs the triggering pipe.run event). Audit
+    //          is MANDATORY: a timeout means the audit never landed → the pipe FAILS LOUD
+    //          (NonRetriableError), NO proceed-with-empty. On resume, fusion's existing
+    //          fresh re-read (below) reads the now-populated claude_code_audit_input. ──
+    const auditEvent = await step.waitForEvent('await-audit', {
+      event: 'operations/audit.ingested',
+      match: 'data.projectId',
+      timeout: '10m',
+    });
+    if (!auditEvent) {
+      throw new NonRetriableError('audit did not complete within timeout — pipe failed (audit mandatory)');
+    }
+
     // ── 2 · FUSION (PAID) — reads fresh research + empty audit "(none provided)" ─
     const fusion = await step.run('fusion', async () => {
       await chargeBudget(userId);
