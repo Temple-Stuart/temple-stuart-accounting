@@ -98,6 +98,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // PHASE3-3: the audit-ingest callback is a dynamic path
+  // (/api/operations/projects/<id>/audit-ingest) the Claude Code Routine POSTs to
+  // with NO user cookie. It is NOT open — the route validates a shared-secret bearer
+  // (AUDIT_INGEST_SECRET) FIRST as its entire auth boundary. Let only this exact
+  // suffix bypass cookie-auth so the token-gated write is reachable.
+  if (pathname.startsWith('/api/operations/projects/') && pathname.endsWith('/audit-ingest')) {
+    return NextResponse.next();
+  }
+
   // Check cookie auth — verify HMAC signature (rejects forged cookies)
   const rawCookie = request.cookies.get('userEmail')?.value;
   const verifiedEmail = rawCookie ? await verifyCookieEdge(rawCookie) : null;
