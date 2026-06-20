@@ -21,6 +21,8 @@ import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { recordTaskStatusChange } from '@/lib/operations/recordTaskStatusChange';
+import { fireExecutionRoutine } from '@/lib/fireExecutionRoutine';
+import { ExecBudgetError } from '@/lib/execFireBudget';
 import { isValidUuid } from '@/lib/operations/parseUuid';
 
 const VALID_STATUSES: OperationsTaskStatus[] = [
@@ -389,6 +391,40 @@ export async function PATCH(
         },
       },
     });
+
+    // EXEC-2: accepting a pending_review task — the pending_review → open transition
+    // ONLY — fires the Execute-Task Routine to BUILD it + open a PR, and persists the
+    // returned correlationId for exec-ingest's stored-match. Gated to exactly this
+    // transition so a normal status edit (open→done, unarchive, re-open, etc.) never
+    // fires a paid build. The fire is cost-gated inside fireExecutionRoutine
+    // (requireExecBudget). Failure is SURFACED (exec_status='fire_failed' + 502) — the
+    // status change already committed, but the user SEES the build didn't start. No
+    // silent accept-without-fire, no fake success.
+    if (statusTransition && statusTransition.from === 'pending_review' && statusTransition.to === 'open') {
+      try {
+        const fired = await fireExecutionRoutine({ taskId, projectId, userId: user.id, userEmail });
+        await prisma.operations_project_tasks.update({
+          where: { id: taskId },
+          data: { exec_correlation_id: fired.correlationId, exec_status: 'building' },
+        });
+      } catch (err) {
+        await prisma.operations_project_tasks.update({
+          where: { id: taskId },
+          data: { exec_status: 'fire_failed' },
+        });
+        const message =
+          err instanceof ExecBudgetError
+            ? 'daily execution limit reached'
+            : err instanceof Error
+              ? err.message
+              : 'unknown';
+        console.error('[Task PATCH] exec fire failed', { taskId }); // never log the token/headers
+        return NextResponse.json(
+          { error: 'Execution did not start', message: `could not start execution — ${message}` },
+          { status: 502 }
+        );
+      }
+    }
 
     return NextResponse.json({ task });
   } catch (error) {

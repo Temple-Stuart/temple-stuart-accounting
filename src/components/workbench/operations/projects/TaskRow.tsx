@@ -58,6 +58,8 @@ export default function TaskRow({ task, projectId, index, coaAccounts, onUpdate,
   const [deleting, setDeleting] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [reviewing, setReviewing] = useState(false);
+  // EXEC-2: a positive note shown after accepting a pending task (the build fired).
+  const [reviewNotice, setReviewNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<TaskStatusHistoryRow[] | null>(null);
@@ -321,6 +323,7 @@ export default function TaskRow({ task, projectId, index, coaAccounts, onUpdate,
     }
     setReviewing(true);
     setError(null);
+    setReviewNotice(null);
     try {
       const res = await fetch(`/api/operations/projects/${projectId}/tasks/${task.id}`, {
         method: 'PATCH',
@@ -329,9 +332,13 @@ export default function TaskRow({ task, projectId, index, coaAccounts, onUpdate,
       });
       const body = await res.json();
       if (!res.ok) {
+        // EXEC-2: a 502 here is the build-fire failure (e.g. cap reached) — surfaced,
+        // not swallowed. The status change already committed; the build didn't start.
         setError(body?.message ?? body?.error ?? `failed to ${verb}`);
         return;
       }
+      // EXEC-2: accepting fired the Execute-Task Routine (build → PR, async).
+      if (newStatus === 'open') setReviewNotice('building… PR incoming');
       onUpdate();
     } catch (err) {
       setError(err instanceof Error ? err.message : `failed to ${verb}`);
@@ -381,6 +388,7 @@ export default function TaskRow({ task, projectId, index, coaAccounts, onUpdate,
       onArchive={handleArchive}
       onUnarchive={handleUnarchive}
       reviewing={reviewing}
+      reviewNotice={reviewNotice}
       onAcceptPending={handleAcceptPending}
       onRejectPending={handleRejectPending}
     />
