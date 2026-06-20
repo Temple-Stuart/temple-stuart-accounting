@@ -19,19 +19,10 @@
  * never see it. The existing /hub month-grid is untouched.
  */
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import BudgetDrillDown from '@/components/hub/BudgetDrillDown';
 import { formatMoney, moneyColorClass } from '@/lib/money';
-
-// Uniform response shape across the three budget routes (PR-HB-1 audit, all three identical):
-// budgetData/actualData keyed coa → month(0-indexed) → dollars; coaNames keyed coa → label.
-interface BudgetResponse {
-  budgetData: Record<string, Record<number, number>>;
-  actualData: Record<string, Record<number, number>>;
-  coaNames: Record<string, string>;
-}
-
-type ToggleKey = 'personal' | 'business' | 'travel' | 'trading';
+import { useRunwayData, EMPTY_BUDGET, type BudgetResponse, type ToggleKey } from './RunwayDataProvider';
 
 // route = null → no backend yet (Trading): an honest pending state, not fake rows.
 // entityType mirrors the existing /hub openDrill calls (hub/page.tsx:709/:862/:809).
@@ -49,34 +40,16 @@ const usd = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits
 
 export default function HubBudgetSection() {
   const now = new Date();
-  const [toggle, setToggle] = useState<ToggleKey>('personal');
-  const [year, setYear] = useState(now.getFullYear());
+  const { year, setYear, toggle, setToggle, data: routeMap, loading } = useRunwayData();
   const [monthIdx, setMonthIdx] = useState(now.getMonth()); // 0-indexed
-  const [data, setData] = useState<BudgetResponse>({ budgetData: {}, actualData: {}, coaNames: {} });
-  const [loading, setLoading] = useState(false);
   // The clicked ACTUAL cell → drives the reused BudgetDrillDown (same shape as hub/page.tsx).
   const [drillDown, setDrillDown] = useState<{
     coaCodes: string[]; month: number; year: number; categoryName: string; cellAmount: number; entityType: string;
   } | null>(null);
 
   const active = TOGGLES.find(t => t.key === toggle)!;
-
-  // Fetch when the toggle (route) or year changes — NOT month: the routes return all 12 months,
-  // so switching month is pure client-side filtering. Trading (route null) fetches nothing.
-  useEffect(() => {
-    if (!active.route) { setData({ budgetData: {}, actualData: {}, coaNames: {} }); return; }
-    let cancelled = false;
-    setLoading(true);
-    fetch(`${active.route}?year=${year}`)
-      .then(res => (res.ok ? res.json() : { budgetData: {}, actualData: {}, coaNames: {} }))
-      .then(d => {
-        if (cancelled) return;
-        setData({ budgetData: d.budgetData || {}, actualData: d.actualData || {}, coaNames: d.coaNames || {} });
-      })
-      .catch(() => { if (!cancelled) setData({ budgetData: {}, actualData: {}, coaNames: {} }); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [active.route, year]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Slice the provider's pre-fetched map for the active route; trading has no route → empty.
+  const data: BudgetResponse = toggle !== 'trading' ? routeMap[toggle] : EMPTY_BUDGET;
 
   // Rows for the selected month — one per COA the route returned (never invented).
   const allRows = Object.entries(data.coaNames).map(([code, name]) => {

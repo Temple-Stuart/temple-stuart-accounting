@@ -12,6 +12,7 @@ import TripBudgetActual from '@/components/trips/TripBudgetActual';
 import HubCalendar from '@/components/hub/HubCalendar';
 import HubBudgetSection from '@/components/hub/HubBudgetSection';
 import BudgetComparison from '@/components/hub/BudgetComparison';
+import { RunwayDataProvider } from '@/components/hub/RunwayDataProvider';
 import { demoCalendar } from '@/components/hub/showroom/demoCalendar';
 import PublicFlightSearch from '@/components/trips/PublicFlightSearch';
 import PublicHotelSearch from '@/components/trips/PublicHotelSearch';
@@ -443,13 +444,18 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         <section className={`w-full bg-white border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto">
             <HubCalendar />
-            {/* PR-HB-1: month-scoped budget section under the calendar (authed only, so the
-                logged-out demo below never renders it → no personal data, no fake numbers). */}
-            <HubBudgetSection />
-            {/* PR-Runway-Comparison: the Travel-vs-Personal comparison (Home/Travel Months,
-                Travel Savings, Effective Total), surfaced from /hub. Authed-only, same gate;
-                reads the HB-5-corrected year-calendar so Personal is de-inflated. */}
-            <BudgetComparison />
+            {/* RunwayDataProvider: shared year + toggle state and pre-fetched budget data for
+                HubBudgetSection (wired) and BudgetComparison (wired in the next task). Eliminates
+                duplicate fetches (Diagnosis §5 FM3) and year desync (FM2 / Root Cause A). */}
+            <RunwayDataProvider>
+              {/* PR-HB-1: month-scoped budget section under the calendar (authed only, so the
+                  logged-out demo below never renders it → no personal data, no fake numbers). */}
+              <HubBudgetSection />
+              {/* PR-Runway-Comparison: the Travel-vs-Personal comparison (Home/Travel Months,
+                  Travel Savings, Effective Total), surfaced from /hub. Authed-only, same gate;
+                  reads the HB-5-corrected year-calendar so Personal is de-inflated. */}
+              <BudgetComparison />
+            </RunwayDataProvider>
           </div>
         </section>
       )}
