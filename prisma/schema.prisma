@@ -2761,6 +2761,9 @@ model operations_projects {
   diagnosis_items          Json          @default("[]") @db.JsonB
   deep_research_input      String?       @db.Text
   claude_code_audit_input  String?       @db.Text
+  // PHASE3-4: the correlationId persisted when the audit Routine is fired, so the
+  // audit-ingest callback can bind incoming findings to the exact fire (stored-match).
+  audit_correlation_id     String?       @db.Text
   status                   ProjectStatus @default(not_started)
   target_completion_date   DateTime?     @db.Timestamptz(6)
   estimated_total_minutes  Int?

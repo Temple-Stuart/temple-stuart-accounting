@@ -72,6 +72,18 @@ export async function POST(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
+    // PHASE3-4 stored-match: the posted correlationId must equal the one the app
+    // persisted when it fired (audit_correlation_id). Binds findings to the real
+    // fire — a leaked token still can't write a forged/stale correlationId, and a
+    // callback with no recorded fire (null) is rejected. 403 on mismatch. (The token
+    // remains the primary boundary; this is defense-in-depth.)
+    if (!project.audit_correlation_id || project.audit_correlation_id !== correlationId) {
+      return NextResponse.json(
+        { error: 'Forbidden', message: 'correlationId does not match the recorded audit fire' },
+        { status: 403 }
+      );
+    }
+
     // ── 4 · Write the audit findings to the same column the manual PATCH writes ──
     await prisma.operations_projects.update({
       where: { id: projectId },

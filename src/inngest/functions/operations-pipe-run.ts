@@ -33,6 +33,7 @@ import { generateDeepResearch } from '@/lib/ai/generateDeepResearch';
 import { generateProjectTasks, TaskSynthesisError } from '@/lib/ai/generateProjectTasks';
 import { toNorthStarContext } from '@/lib/ai/northStarContext';
 import { requirePipeBudget, PipeBudgetError } from '@/lib/pipeBudget';
+import { fireAuditRoutine } from '@/lib/fireAuditRoutine';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 
 /** Resolve a field's items: prefer the JSONB array, fall back to the legacy
@@ -117,6 +118,26 @@ export const operationsPipeRun = inngest.createFunction(
         data: { deep_research_input: result.research },
       });
       return { usageId: result.usageId };
+    });
+
+    // ── 1.5 · FIRE-AUDIT (PAID, MANDATORY) — fire the Claude Code audit Routine and
+    //          persist its correlationId so the audit-ingest callback can bind the
+    //          incoming findings to THIS fire (stored-match). Audit is MANDATORY: any
+    //          failure — Routine down, env unset, or RoutineBudgetError over the cap —
+    //          fails the run TERMINAL (NonRetriableError, no retry-spin / no
+    //          re-increment). NO degrade, NO continue-with-empty-audit. ──
+    await step.run('fire-audit', async () => {
+      try {
+        const fired = await fireAuditRoutine({ projectId, userId, userEmail: ctx.email });
+        await prisma.operations_projects.update({
+          where: { id: projectId },
+          data: { audit_correlation_id: fired.correlationId },
+        });
+        return { correlationId: fired.correlationId, sessionId: fired.claudeCodeSessionId };
+      } catch (err) {
+        // Audit mandatory → a failed audit fails the pipe, terminal (incl. the cap).
+        throw new NonRetriableError(err instanceof Error ? err.message : 'fire-audit failed');
+      }
     });
 
     // ── 2 · FUSION (PAID) — reads fresh research + empty audit "(none provided)" ─
