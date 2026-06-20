@@ -10,9 +10,8 @@ import AllTripsList, { type TripRow } from '@/components/trips/AllTripsList';
 import TripFormModal from '@/components/trips/TripFormModal';
 import TripBudgetActual from '@/components/trips/TripBudgetActual';
 import HubCalendar from '@/components/hub/HubCalendar';
-import HubBudgetSection from '@/components/hub/HubBudgetSection';
-import BudgetComparison from '@/components/hub/BudgetComparison';
 import RunwayDataProvider from '@/components/hub/RunwayDataProvider';
+import RunwayBudgetPanel from '@/components/hub/RunwayBudgetPanel';
 import { demoCalendar } from '@/components/hub/showroom/demoCalendar';
 import PublicFlightSearch from '@/components/trips/PublicFlightSearch';
 import PublicHotelSearch from '@/components/trips/PublicHotelSearch';
@@ -447,23 +446,10 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
             {/* PR-HB-1: month-scoped budget section under the calendar (authed only, so the
                 logged-out demo below never renders it → no personal data, no fake numbers). */}
             <RunwayDataProvider>
-              {/* CONSOLIDATE-1: visually group the two budget panels under one shared
-                  header so they read as ONE "Runway Budget" section — the month-scoped
-                  budget-vs-actual view above, the full-year comparison below. Presentation
-                  only: neither component's logic / data / fetches / math is touched. */}
-              <div className="border-t border-border bg-white rounded-lg overflow-hidden">
-                <div className="px-4 py-3 lg:px-8 border-b border-border">
-                  <h2 className="text-base font-bold text-text-primary tracking-tight">Runway Budget</h2>
-                  <p className="text-xs text-text-muted mt-0.5">
-                    Month-by-month budget vs actual, and the full-year travel-vs-home comparison.
-                  </p>
-                </div>
-                <HubBudgetSection />
-                {/* PR-Runway-Comparison: the Travel-vs-Personal comparison (Home/Travel Months,
-                    Travel Savings, Effective Total), surfaced from /hub. Authed-only, same gate;
-                    reads the HB-5-corrected year-calendar so Personal is de-inflated. */}
-                <BudgetComparison />
-              </div>
+              {/* ONE-BUDGET-TOGGLE: one panel with a Month/Year toggle — shows
+                  HubBudgetSection (month) OR BudgetComparison (year) one at a time
+                  (RunwayBudgetPanel owns the toggle; neither component is modified). */}
+              <RunwayBudgetPanel />
             </RunwayDataProvider>
           </div>
         </section>
