@@ -33,6 +33,15 @@ interface BudgetResponse {
 
 type ToggleKey = 'personal' | 'business' | 'travel' | 'trading';
 
+interface BudgetRow {
+  code: string;
+  name: string;
+  budget: number;
+  actual: number;
+  variance: number;
+  variancePct: number | null;
+}
+
 // route = null → no backend yet (Trading): an honest pending state, not fake rows.
 // entityType mirrors the existing /hub openDrill calls (hub/page.tsx:709/:862/:809).
 const TOGGLES: { key: ToggleKey; label: string; route: string | null; entityType: string }[] = [
@@ -82,7 +91,10 @@ export default function HubBudgetSection() {
   const allRows = Object.entries(data.coaNames).map(([code, name]) => {
     const budget = data.budgetData[code]?.[monthIdx] ?? 0;
     const actual = data.actualData[code]?.[monthIdx] ?? 0;
-    return { code, name, budget, actual, variance: actual - budget };
+    // variancePct: guard zero-budget denominator — null instead of NaN/Infinity.
+    // Formula: Research §4 '((actual/budget)−1)×100'. Additive; not stored to DB.
+    const variancePct = budget !== 0 ? ((actual / budget) - 1) * 100 : null;
+    return { code, name, budget, actual, variance: actual - budget, variancePct };
   });
   // PR-HB-1b: hide fully-empty ($0 budget AND $0 actual) accounts for the month. Uses !== 0 (NOT
   // > 0) so a genuine NEGATIVE row — a Trading P&L loss or a refund/credit — still shows.
@@ -163,6 +175,7 @@ export default function HubBudgetSection() {
                 <th className="py-2 px-3 text-right font-medium">Budget</th>
                 <th className="py-2 px-3 text-right font-medium">Actual</th>
                 <th className="py-2 px-3 text-right font-medium">Variance</th>
+                <th className="py-2 px-3 text-right font-medium">Variance %</th>
               </tr>
             </thead>
             <tbody>
@@ -184,6 +197,12 @@ export default function HubBudgetSection() {
                   <td className={`${cellClass} ${moneyColorClass(r.budget - r.actual, 'pnl')}`}>
                     {formatMoney(r.variance, { kind: 'pnl' })}
                   </td>
+                  {/* Variance % = ((actual/budget)−1)×100; null when budget=0 (zero-denominator guard). */}
+                  <td className={`${cellClass} ${r.variancePct !== null ? moneyColorClass(-(r.variancePct), 'pnl') : 'text-text-faint'}`}>
+                    {r.variancePct !== null
+                      ? `${r.variancePct >= 0 ? '+' : ''}${r.variancePct.toFixed(1)}%`
+                      : '—'}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -195,6 +214,14 @@ export default function HubBudgetSection() {
                 <td className={`${cellClass} ${moneyColorClass(totalBudget - totalActual, 'pnl')}`}>
                   {formatMoney(totalActual - totalBudget, { kind: 'pnl' })}
                 </td>
+                {(() => {
+                  const pct = totalBudget !== 0 ? ((totalActual / totalBudget) - 1) * 100 : null;
+                  return (
+                    <td className={`${cellClass} ${pct !== null ? moneyColorClass(-pct, 'pnl') : 'text-text-faint'}`}>
+                      {pct !== null ? `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%` : '—'}
+                    </td>
+                  );
+                })()}
               </tr>
             </tfoot>
           </table>
