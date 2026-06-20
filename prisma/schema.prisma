@@ -1172,6 +1172,21 @@ model operations_routine_usage {
   @@unique([usageDate, userId])
 }
 
+// ─── Per-user daily cap counter for Execute-Task Routine fires (EXEC-1) ───────
+// Mirrors operations_routine_usage, but a SEPARATE meter for the execution pipe:
+// each Execute-Task Routine /fire (build + open a PR) hits Alex's Claude account,
+// distinct from the audit Routine meter. execFireBudget.ts increments this before
+// each /fire and fails LOUD over the cap. Migration run by Alex via psql (additive).
+model operations_exec_usage {
+  id        String   @id @default(cuid())
+  usageDate String // "YYYY-MM-DD" (UTC)
+  userId    String
+  callCount Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([usageDate, userId])
+}
+
 // ─── Per-key request rate-limiter (durable, fixed-window) ────────────────────
 // Net-new: there is no app rate-limiter today. Mirrors the durable usage-counter
 // shape so it survives deploys AND holds across serverless instances (an in-memory
@@ -2818,6 +2833,12 @@ model operations_project_tasks {
   created_at           DateTime             @default(now()) @db.Timestamptz(6)
   updated_at           DateTime             @updatedAt @db.Timestamptz(6)
   created_by           String?
+  // EXEC-1: execution pipe. exec_correlation_id binds the Execute-Task Routine fire to
+  // its exec-ingest callback (stored-match); pr_url + exec_status hold the Routine's
+  // reported result (the PR it opened + 'pr_opened'/'failed'). Migration run by Alex.
+  exec_correlation_id  String?              @db.Text
+  pr_url               String?              @db.Text
+  exec_status          String?              @db.Text
 
   project             operations_projects              @relation(fields: [project_id], references: [id], onDelete: Cascade)
   source_ai_usage     operations_ai_usage?             @relation("TaskSourceAiUsage", fields: [source_ai_usage_id], references: [id], onDelete: SetNull)
