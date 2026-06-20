@@ -447,11 +447,23 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
             {/* PR-HB-1: month-scoped budget section under the calendar (authed only, so the
                 logged-out demo below never renders it → no personal data, no fake numbers). */}
             <RunwayDataProvider>
-              <HubBudgetSection />
-              {/* PR-Runway-Comparison: the Travel-vs-Personal comparison (Home/Travel Months,
-                  Travel Savings, Effective Total), surfaced from /hub. Authed-only, same gate;
-                  reads the HB-5-corrected year-calendar so Personal is de-inflated. */}
-              <BudgetComparison />
+              {/* CONSOLIDATE-1: visually group the two budget panels under one shared
+                  header so they read as ONE "Runway Budget" section — the month-scoped
+                  budget-vs-actual view above, the full-year comparison below. Presentation
+                  only: neither component's logic / data / fetches / math is touched. */}
+              <div className="border-t border-border bg-white rounded-lg overflow-hidden">
+                <div className="px-4 py-3 lg:px-8 border-b border-border">
+                  <h2 className="text-base font-bold text-text-primary tracking-tight">Runway Budget</h2>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    Month-by-month budget vs actual, and the full-year travel-vs-home comparison.
+                  </p>
+                </div>
+                <HubBudgetSection />
+                {/* PR-Runway-Comparison: the Travel-vs-Personal comparison (Home/Travel Months,
+                    Travel Savings, Effective Total), surfaced from /hub. Authed-only, same gate;
+                    reads the HB-5-corrected year-calendar so Personal is de-inflated. */}
+                <BudgetComparison />
+              </div>
             </RunwayDataProvider>
           </div>
         </section>
