@@ -117,6 +117,26 @@ export default function LandingPage() {
             <p className="text-text-faint text-terminal-lg mb-8 max-w-xl min-h-[4rem]">
               {TAB_DESCRIPTORS[activeTab]}
             </p>
+            {/* How it works — the projects pipeline explainer, shown under the goal
+                line (only on the projects tab, where that descriptor renders). Reuses
+                the panel's text-white / text-text-faint tokens — no new colors. */}
+            {activeTab === 'projects' && (
+              <div className="text-text-faint text-sm mb-8 max-w-xl">
+                <p className="text-white font-medium mb-2">How it works:</p>
+                <ol className="list-decimal list-inside space-y-2">
+                  {[
+                    "You bring a problem. Open a project, type what you want to change or build, give it a name.",
+                    "Research finds the right way. It turns your messy goals into clear targets and looks up the correct rules and how the best already do it.",
+                    "Claude Code reads your real code. It opens your actual codebase and writes down what works, what's broken, and what's missing — and where.",
+                    "It waits for the truth. The pipeline pauses until the audit comes back. No skipping — if the check can't finish, nothing moves.",
+                    "It makes a smart plan. Your goals, the right way, and the real problems get combined into a to-do list — most important fixes first, risky ones flagged.",
+                    "You decide. The tasks wait for you. You accept what you want, reject the rest. Nothing gets built unless you say so.",
+                  ].map((step, i) => (
+                    <li key={i}>{step}</li>
+                  ))}
+                </ol>
+              </div>
+            )}
             <div className="flex items-center gap-4">
               <button onClick={() => { setLoginMode('register'); setShowLogin(true); }}
                 className="px-6 py-3 bg-white text-brand-purple font-medium hover:bg-bg-row text-sm">
