@@ -93,6 +93,7 @@ export interface TaskRowViewProps {
   // showroom + other callers are unaffected; the buttons only render for a
   // pending_review task when both handlers are supplied.
   reviewing?: boolean;
+  reviewNotice?: string | null;
   onAcceptPending?: (e: React.MouseEvent) => void;
   onRejectPending?: (e: React.MouseEvent) => void;
 }
@@ -135,6 +136,7 @@ export default function TaskRowView({
   onArchive,
   onUnarchive,
   reviewing,
+  reviewNotice,
   onAcceptPending,
   onRejectPending,
 }: TaskRowViewProps) {
@@ -313,6 +315,20 @@ export default function TaskRowView({
               ))}
             </ul>
           )}
+        </div>
+      )}
+
+      {/* EXEC-2: always-visible review feedback — the accept fired the build (green)
+          or it failed (red, shown here when collapsed so it's never hidden; the
+          expanded block below shows the same error when open). */}
+      {reviewNotice && (
+        <div className="px-4 pb-2">
+          <div className="px-3 py-1.5 rounded border bg-green-50 border-green-200 text-green-800 text-xs">{reviewNotice}</div>
+        </div>
+      )}
+      {error && !expanded && (
+        <div className="px-4 pb-2">
+          <div className="px-3 py-1.5 rounded border bg-red-50 border-red-200 text-red-800 text-xs">{error}</div>
         </div>
       )}
 
