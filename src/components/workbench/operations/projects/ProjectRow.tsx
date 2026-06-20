@@ -95,6 +95,8 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   const [runningPipe, setRunningPipe] = useState(false);
   const [pipeQueued, setPipeQueued] = useState(false);
   const [pipeError, setPipeError] = useState<string | null>(null);
+  // PHASE2-5: bump to force the live <TaskList/> to re-fetch (mirrors promptsRefresh).
+  const [taskRefresh, setTaskRefresh] = useState(0);
   const [flash, setFlash] = useState(false);
   const [showDesignReasoning, setShowDesignReasoning] = useState(false);
   // PR-Ops-Content-2: lazy-mount the read-only evolution timeline (the project's
@@ -152,6 +154,56 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
       .finally(() => { if (!cancelled) setPromptsLoading(false); });
     return () => { cancelled = true; };
   }, [pipelineMode, project.id, promptsRefresh]);
+
+  // PHASE2-5: while the auto-pipe is queued, poll the EXISTING task GET (no new
+  // endpoint) and surface landed pending_review tasks live. The first poll records
+  // the pending_review COUNT as a baseline; when it RISES, the job landed tasks →
+  // clear the badge + re-fetch the list. Bounded by a ~5-min timeout: on no-rise it
+  // clears the badge with an HONEST "no tasks landed" message (never an infinite spin,
+  // never a fake success). clearInterval on unmount AND when pipeQueued flips false.
+  useEffect(() => {
+    if (!pipeQueued) return;
+    let cancelled = false;
+    let baseline: number | null = null;
+    const startedAt = Date.now();
+    const TIMEOUT_MS = 5 * 60 * 1000;
+    const POLL_MS = 5000;
+
+    const countPending = async (): Promise<number | null> => {
+      try {
+        const res = await fetch(`/api/operations/projects/${project.id}/tasks`);
+        if (!res.ok) return null;
+        const body = await res.json();
+        const tasks = (body.tasks ?? []) as Array<{ status?: string }>;
+        return tasks.filter((t) => t.status === 'pending_review').length;
+      } catch {
+        return null; // transient — keep polling until the timeout
+      }
+    };
+
+    const tick = async () => {
+      if (cancelled) return;
+      const count = await countPending();
+      if (cancelled) return;
+      if (count !== null) {
+        if (baseline === null) {
+          baseline = count; // first successful poll = the at-fire baseline
+        } else if (count > baseline) {
+          setPipeQueued(false);            // clears the badge (cleanup stops the poll)
+          setTaskRefresh((n) => n + 1);    // TaskList re-fetches → shows the new tasks
+          return;
+        }
+      }
+      if (Date.now() - startedAt >= TIMEOUT_MS) {
+        setPipeQueued(false);
+        setPipeError('no tasks landed — check and retry');
+      }
+    };
+
+    tick(); // immediate baseline + check
+    const id = setInterval(tick, POLL_MS);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [pipeQueued, project.id]);
 
   const enterEdit = () => {
     setForm(projectToForm(project));
@@ -468,7 +520,7 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
           onGenerateTasks={handleGenerateTasks}
           onTasksAccepted={() => { setTasksPreview(null); setTasksGenError(null); }}
           onTasksDiscarded={() => { setTasksPreview(null); setTasksGenError(null); }}
-          taskSection={<TaskList projectId={project.id} entity_id={project.entity_id} />}
+          taskSection={<TaskList projectId={project.id} entity_id={project.entity_id} refreshKey={taskRefresh} />}
           onRunPipe={handleRunPipe}
           runningPipe={runningPipe}
           pipeQueued={pipeQueued}
@@ -488,7 +540,7 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
       // actually renders it (taskSection/dependencySection inside the expanded
       // block, evolutionSection only when showEvolution), so the lazy-fetch
       // behavior is byte-for-byte identical to the pre-slot inline renders.
-      taskSection={<TaskList projectId={project.id} entity_id={project.entity_id} />}
+      taskSection={<TaskList projectId={project.id} entity_id={project.entity_id} refreshKey={taskRefresh} />}
       evolutionSection={<EvolutionTimeline projectId={project.id} />}
       dependencySection={
         <DependencyList

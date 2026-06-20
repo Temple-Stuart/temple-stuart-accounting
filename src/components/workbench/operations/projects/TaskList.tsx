@@ -24,9 +24,13 @@ import { DEFAULT_TASK_FORM } from './types';
 interface Props {
   projectId: string;
   entity_id: string;
+  // PHASE2-5: optional external refresh trigger. Bumping this re-fetches the task
+  // list (the auto-pipe poll uses it to surface landed pending_review tasks live).
+  // Absent → unchanged behavior (showroom + other callers omit it).
+  refreshKey?: number;
 }
 
-export default function TaskList({ projectId, entity_id }: Props) {
+export default function TaskList({ projectId, entity_id, refreshKey }: Props) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +73,7 @@ export default function TaskList({ projectId, entity_id }: Props) {
   useEffect(() => {
     fetchTasks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, showArchived]);
+  }, [projectId, showArchived, refreshKey]);
 
   // Eager COA fetch — fires on mount as soon as entity_id is known, so
   // even brand-new projects with zero tasks have the dropdown populated
