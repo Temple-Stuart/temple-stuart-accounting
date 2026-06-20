@@ -107,6 +107,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // EXEC-1: the exec-ingest callback is a dynamic path
+  // (/api/operations/projects/<id>/exec-ingest) the Execute-Task Routine POSTs to with
+  // NO user cookie. Same trust model as audit-ingest — the route validates a
+  // shared-secret bearer (EXEC_INGEST_SECRET) FIRST as its entire auth boundary. Let
+  // only this exact suffix bypass cookie-auth so the token-gated write is reachable.
+  if (pathname.startsWith('/api/operations/projects/') && pathname.endsWith('/exec-ingest')) {
+    return NextResponse.next();
+  }
+
   // Check cookie auth — verify HMAC signature (rejects forged cookies)
   const rawCookie = request.cookies.get('userEmail')?.value;
   const verifiedEmail = rawCookie ? await verifyCookieEdge(rawCookie) : null;
