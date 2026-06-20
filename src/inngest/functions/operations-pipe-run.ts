@@ -149,7 +149,9 @@ export const operationsPipeRun = inngest.createFunction(
     const auditEvent = await step.waitForEvent('await-audit', {
       event: 'operations/audit.ingested',
       match: 'data.projectId',
-      timeout: '10m',
+      // The Routine audits the full repo — that takes longer than 10m, so the wait
+      // must outlast it (else the callback lands after we've already timed out).
+      timeout: '30m',
     });
     if (!auditEvent) {
       throw new NonRetriableError('audit did not complete within timeout — pipe failed (audit mandatory)');
