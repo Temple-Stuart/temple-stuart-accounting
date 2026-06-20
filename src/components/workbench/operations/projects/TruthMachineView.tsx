@@ -54,6 +54,17 @@ export interface TruthMachineViewProps {
   runningPipe?: boolean;
   pipeQueued?: boolean;
   pipeError?: string | null;
+
+  // ── EVOLVE-1: loop the pipe again with NEW goals (edit goals → re-run run-pipe,
+  // append-only). Optional so other render paths are unaffected. ──────────────
+  evolving?: boolean;
+  evolveGoalsText?: string;
+  evolveSaving?: boolean;
+  evolveError?: string | null;
+  onEvolveStart?: () => void;
+  onEvolveGoalsChange?: (value: string) => void;
+  onEvolveConfirm?: () => void;
+  onEvolveCancel?: () => void;
   /** TM-2: the live interpolated prompts (null while loading / unfetched). */
   prompts: PromptPreview | null;
   promptsLoading: boolean;
@@ -263,6 +274,14 @@ export default function TruthMachineView({
   runningPipe,
   pipeQueued,
   pipeError,
+  evolving,
+  evolveGoalsText,
+  evolveSaving,
+  evolveError,
+  onEvolveStart,
+  onEvolveGoalsChange,
+  onEvolveConfirm,
+  onEvolveCancel,
 }: TruthMachineViewProps) {
   const goalItems = asStringArray(project.goal_items);
   const problemItems = asStringArray(project.problem_items);
@@ -461,6 +480,81 @@ export default function TruthMachineView({
       <Stage n={5} label="plan" color={STRIPE.plan}>
         {taskSection}
       </Stage>
+
+      {/* EVOLVE-1: loop the pipe again with new goals. Edit the goals → re-run the
+          WHOLE pipe (research→audit→fusion) on the evolved state. Append-only — the
+          prior tasks stay in the evolution timeline; this adds a new version. Reuses
+          run-pipe (no new pipe logic). Shown only when the container wires onEvolveStart. */}
+      {onEvolveStart && (
+        <>
+          <Chevron />
+          <section
+            className="rounded-md border border-gray-200 bg-white p-3 sm:p-4 space-y-2.5 border-l-4 shadow-sm"
+            style={{ borderLeftColor: STRIPE.plan }}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-bold tracking-widest uppercase" style={{ color: STRIPE.plan }}>
+                ↻ evolve
+              </span>
+              {!evolving && (
+                <button
+                  type="button"
+                  onClick={onEvolveStart}
+                  disabled={pipeQueued || runningPipe}
+                  title="Edit your goals and re-run the whole pipe — appends a new version, prior tasks preserved"
+                  className="px-2 py-0.5 rounded text-white text-xs disabled:opacity-60"
+                  style={{ backgroundColor: STRIPE.plan }}
+                >
+                  ↻ evolve — new goals, loop again
+                </button>
+              )}
+            </div>
+
+            {!evolving ? (
+              <div className="text-gray-500 text-[11px]">
+                Finished a round? Evolve it — edit your goals and re-run research → audit → fusion on the new
+                state. This <span className="font-medium text-gray-700">appends a new version</span>; your prior
+                tasks stay in the timeline (nothing is deleted).
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className={sub}>new goals — one per line</div>
+                <textarea
+                  value={evolveGoalsText ?? ''}
+                  onChange={(e) => onEvolveGoalsChange?.(e.target.value)}
+                  rows={4}
+                  placeholder="Enter your evolved goals, one per line…"
+                  className="w-full rounded-md border border-gray-300 p-2 text-xs text-gray-900"
+                />
+                <div className="text-gray-500 text-[11px]">
+                  Running evolution appends a <span className="font-medium text-gray-700">new task version</span> —
+                  research → audit → fusion re-run on these goals; your prior tasks are preserved in the evolution timeline.
+                </div>
+                {evolveError && <div className="text-[11px] text-red-600">{evolveError}</div>}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={onEvolveConfirm}
+                    disabled={evolveSaving || pipeQueued || runningPipe}
+                    className="px-2 py-0.5 rounded text-white text-xs disabled:opacity-60"
+                    style={{ backgroundColor: STRIPE.fusion }}
+                  >
+                    {evolveSaving ? 'saving + queuing…' : '↻ run evolution'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onEvolveCancel}
+                    disabled={evolveSaving}
+                    className="px-2 py-0.5 border border-gray-300 rounded text-gray-600 hover:bg-white text-xs disabled:opacity-60"
+                  >
+                    cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+        </>
+      )}
     </div>
   );
 }
