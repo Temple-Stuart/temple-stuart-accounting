@@ -1157,6 +1157,21 @@ model operations_ai_pipe_usage {
   @@unique([usageDate, userId])
 }
 
+// ─── Per-user daily cap counter for Claude Code Routine fires (PHASE3-1) ──────
+// Mirrors operations_ai_pipe_usage, but a SEPARATE meter: Routine runs hit Alex's
+// Claude account (~15/day shared quota), distinct from the pipe's ANTHROPIC_API_KEY
+// calls. routineBudget.ts increments this before each /fire and fails LOUD over the
+// cap. Migration: operations_routine_usage table run by Alex via psql (additive).
+model operations_routine_usage {
+  id        String   @id @default(cuid())
+  usageDate String // "YYYY-MM-DD" (UTC)
+  userId    String
+  callCount Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([usageDate, userId])
+}
+
 // ─── Per-key request rate-limiter (durable, fixed-window) ────────────────────
 // Net-new: there is no app rate-limiter today. Mirrors the durable usage-counter
 // shape so it survives deploys AND holds across serverless instances (an in-memory
