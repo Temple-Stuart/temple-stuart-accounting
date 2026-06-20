@@ -97,6 +97,11 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   const [pipeError, setPipeError] = useState<string | null>(null);
   // PHASE2-5: bump to force the live <TaskList/> to re-fetch (mirrors promptsRefresh).
   const [taskRefresh, setTaskRefresh] = useState(0);
+  // EVOLVE-1: the "loop again with new goals" affordance (edit goals → re-run the pipe).
+  const [evolving, setEvolving] = useState(false);
+  const [evolveGoalsText, setEvolveGoalsText] = useState('');
+  const [evolveSaving, setEvolveSaving] = useState(false);
+  const [evolveError, setEvolveError] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
   const [showDesignReasoning, setShowDesignReasoning] = useState(false);
   // PR-Ops-Content-2: lazy-mount the read-only evolution timeline (the project's
@@ -357,6 +362,53 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
     }
   };
 
+  // EVOLVE-1: loop the pipe again with new goals on an existing project. Evolve =
+  // edit the goals → save them (project PATCH) → re-fire run-pipe, which re-runs
+  // research→audit→fusion on the NEW goals and APPENDS a new task batch (the existing
+  // append-only versioning via source_ai_usage_id — prior tasks are never deleted, the
+  // EvolutionTimeline shows every version). No new pipe logic — reuses run-pipe.
+  const handleEvolveStart = () => {
+    const current = Array.isArray(project.goal_items)
+      ? project.goal_items.filter((x): x is string => typeof x === 'string')
+      : [];
+    setEvolveGoalsText(current.join('\n'));
+    setEvolveError(null);
+    setEvolving(true);
+  };
+  const handleEvolveCancel = () => { setEvolving(false); setEvolveError(null); };
+  const handleEvolveConfirm = async () => {
+    const goalItems = evolveGoalsText.split('\n').map((s) => s.trim()).filter((s) => s.length > 0);
+    if (goalItems.length === 0) {
+      setEvolveError('enter at least one goal to evolve');
+      return;
+    }
+    setEvolveSaving(true);
+    setEvolveError(null);
+    try {
+      // 1 · Save the new goals (same project PATCH the edit form uses → goal_items).
+      const res = await fetch(`/api/operations/projects/${project.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ goalItems }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setEvolveError(body?.message ?? body?.error ?? 'failed to save evolved goals');
+        return;
+      }
+      // 2 · Goals saved → close the editor, refresh, then fire run-pipe on the new
+      //     goals (append-only — prior tasks stay in the evolution timeline).
+      setEvolving(false);
+      setPromptsRefresh((n) => n + 1);
+      onUpdate();
+      await handleRunPipe();
+    } catch (e) {
+      setEvolveError(e instanceof Error ? e.message : 'failed to evolve');
+    } finally {
+      setEvolveSaving(false);
+    }
+  };
+
   // PAID Anthropic AI — POST generate-tasks. Container-owned: never reachable
   // from the pure <ProjectRowView/>.
   const handleGenerateTasks = async () => {
@@ -525,6 +577,14 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
           runningPipe={runningPipe}
           pipeQueued={pipeQueued}
           pipeError={pipeError}
+          evolving={evolving}
+          evolveGoalsText={evolveGoalsText}
+          evolveSaving={evolveSaving}
+          evolveError={evolveError}
+          onEvolveStart={handleEvolveStart}
+          onEvolveGoalsChange={setEvolveGoalsText}
+          onEvolveConfirm={handleEvolveConfirm}
+          onEvolveCancel={handleEvolveCancel}
         />
       </div>
     );
