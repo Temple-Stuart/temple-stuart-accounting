@@ -1,0 +1,175 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
+
+/**
+ * GET /api/runway — compute-on-read runway engine (RUNWAY-2).
+ *
+ * Returns, for the authenticated user, a top-line cash-runway readout computed over
+ * TRAILING FULL CALENDAR MONTHS (never YTD — YTD income is garbage here: all-time
+ * income ≈ $176K but YTD ≈ ~$900 after Alex left his job, so a YTD net burn would be
+ * meaningless). Two windows: trailing 3mo and trailing 6mo.
+ *
+ * Inputs — ALL reuse the VERIFIED existing sources, user-scoped, no new table/migration:
+ *   • cash       = SUM(accounts.currentBalance) for the user  (same field /api/metrics:22-27
+ *                  uses — the Plaid-synced stored balance; this IS the cash source).
+ *   • expenses   = ledger_entries debits on expense COAs (account_type='expense',
+ *                  entry_type='D') — same identification as /api/metrics:30-41.
+ *   • income     = ledger_entries credits on revenue COAs (account_type='revenue',
+ *                  entry_type='C') — same identification as /api/income:40-59.
+ * Both burn legs are bounded to the trailing window via je.date (the @db.Date posting date),
+ * filtered to committed, non-reversed journal entries (is_reversal=false, reversed_by_entry_id
+ * IS NULL) — the same committed basis the budget actuals use.
+ *
+ * net_burn/mo = (expenses − income) over the window ÷ N months (positive = burning cash).
+ * runway_months = cash ÷ net_burn/mo ; zero_date = today + runway_months.
+ *
+ * NO FALLBACK / NO SILENT DEFAULTS. Each window declares its real state truthfully:
+ *   • 'no_cash'              — no bank account linked (numerator missing) → no runway.
+ *   • 'insufficient_history' — the ledger does not span the full N months → no runway.
+ *   • 'cashflow_positive'    — net burn ≤ 0 (income ≥ expenses) → no division, no fake number.
+ *   • 'ok'                   — real runway_months + zero_date.
+ * runway_months / zero_date are present ONLY in the 'ok' state; otherwise null.
+ *
+ * DB-only read — no paid external call → verifyCookie (getVerifiedEmail) + user lookup +
+ * user-scoping are the bar; requireTier is correctly absent (cf. ai/cart-plan/route.ts:77-88,
+ * which tiers ONLY because it calls OpenAI).
+ */
+
+const MS_PER_DAY = 86_400_000;
+const AVG_MONTH_DAYS = 30.436875; // mean Gregorian month — for projecting the zero date
+
+const round = (n: number, dp: number) => {
+  const f = 10 ** dp;
+  return Math.round(n * f) / f;
+};
+
+type WindowState = 'ok' | 'insufficient_history' | 'cashflow_positive' | 'no_cash';
+
+export async function GET() {
+  try {
+    const userEmail = await getVerifiedEmail();
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } },
+    });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    const userId = user.id;
+
+    // ── Trailing-window bounds: FULL calendar months, excluding the current partial month.
+    //    e.g. on 2026-06-21 → windowEnd = 2026-06-01 (exclusive); 3mo start = 2026-03-01;
+    //    6mo start = 2025-12-01. Date.UTC handles negative-month rollover. ──
+    const now = new Date();
+    const y = now.getUTCFullYear();
+    const m = now.getUTCMonth(); // 0-11
+    const fmt = (d: Date) => d.toISOString().slice(0, 10);
+    const firstOfMonth = (back: number) => new Date(Date.UTC(y, m - back, 1));
+    const windowEndStr = fmt(firstOfMonth(0));
+
+    // ── CASH = SUM(currentBalance), user-scoped. accountsLinked distinguishes a real $0
+    //    balance from "no bank linked" (COALESCE over zero rows is also 0 — we must NOT
+    //    present that ambiguous 0 as a runway numerator). ──
+    const cashRows: Array<{ n: number; total: string }> = await prisma.$queryRaw`
+      SELECT COUNT(*)::int AS n, COALESCE(SUM("currentBalance")::numeric, 0)::text AS total
+      FROM accounts
+      WHERE "userId" = ${userId}
+    `;
+    const accountsLinked = Number(cashRows[0]?.n ?? 0);
+    const cashDollars = round(Number(cashRows[0]?.total ?? 0), 2);
+    const cashAvailable = accountsLinked > 0;
+
+    // ── Earliest committed, non-reversed ledger date — the history-coverage signal.
+    //    A window is "sufficient" only if recorded history starts on/before its start. ──
+    const earliestRows: Array<{ earliest: string | null }> = await prisma.$queryRaw`
+      SELECT MIN(je.date)::text AS earliest
+      FROM journal_entries je
+      WHERE je."userId" = ${userId}
+        AND je.is_reversal = false
+        AND je.reversed_by_entry_id IS NULL
+    `;
+    const earliest = earliestRows[0]?.earliest ?? null;
+
+    // ── One burn query per window: expense debits − revenue credits over [start, windowEnd),
+    //    user-scoped, committed + non-reversed. Same COA/entry_type identification as the
+    //    verified metrics (expense) and income (revenue) queries. ──
+    const burn = async (startStr: string) => {
+      const rows: Array<{ exp_cents: string; rev_cents: string }> = await prisma.$queryRaw`
+        SELECT
+          COALESCE(SUM(CASE WHEN coa.account_type = 'expense' AND le.entry_type = 'D' THEN le.amount ELSE 0 END), 0)::text AS exp_cents,
+          COALESCE(SUM(CASE WHEN coa.account_type = 'revenue' AND le.entry_type = 'C' THEN le.amount ELSE 0 END), 0)::text AS rev_cents
+        FROM ledger_entries le
+        JOIN journal_entries je    ON le.journal_entry_id = je.id
+        JOIN chart_of_accounts coa ON le.account_id = coa.id
+        WHERE je."userId" = ${userId}
+          AND je.is_reversal = false
+          AND je.reversed_by_entry_id IS NULL
+          AND je.date >= ${startStr}::date
+          AND je.date <  ${windowEndStr}::date
+      `;
+      const exp = Number(rows[0]?.exp_cents ?? 0) / 100;
+      const rev = Number(rows[0]?.rev_cents ?? 0) / 100;
+      return { exp, rev };
+    };
+
+    const buildWindow = async (n: number) => {
+      const startStr = fmt(firstOfMonth(n));
+      const { exp, rev } = await burn(startStr);
+      const netBurnTotal = round(exp - rev, 2); // positive = burning cash over the window
+      const netBurnPerMonth = round(netBurnTotal / n, 2);
+      const sufficientHistory = earliest !== null && earliest <= startStr;
+
+      let state: WindowState;
+      let runwayMonths: number | null = null;
+      let zeroDate: string | null = null;
+
+      if (!cashAvailable) {
+        state = 'no_cash';
+      } else if (!sufficientHistory) {
+        state = 'insufficient_history';
+      } else if (netBurnPerMonth <= 0) {
+        state = 'cashflow_positive';
+      } else {
+        state = 'ok';
+        const exactMonths = cashDollars / netBurnPerMonth;
+        runwayMonths = round(exactMonths, 1);
+        zeroDate = fmt(new Date(now.getTime() + exactMonths * AVG_MONTH_DAYS * MS_PER_DAY));
+      }
+
+      return {
+        months: n,
+        rangeStart: startStr,
+        rangeEnd: windowEndStr,
+        expenses: exp,
+        income: rev,
+        netBurnTotal,
+        netBurnPerMonth,
+        sufficientHistory,
+        state,
+        runwayMonths,
+        zeroDate,
+      };
+    };
+
+    const windows = [await buildWindow(3), await buildWindow(6)];
+
+    return NextResponse.json({
+      asOf: fmt(now),
+      cash: {
+        dollars: cashDollars,
+        accountsLinked,
+        available: cashAvailable,
+        source: 'Plaid balance',
+      },
+      burnSource: 'trailing ledger actuals',
+      windows,
+    });
+  } catch (error) {
+    console.error('Runway API error:', error);
+    return NextResponse.json({ error: 'Failed to compute runway' }, { status: 500 });
+  }
+}
