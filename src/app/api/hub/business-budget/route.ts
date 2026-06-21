@@ -60,43 +60,23 @@ export async function GET(request: Request) {
       });
     }
 
-    // Label for items missing a COA code (must be after the empty check above)
-    COA_NAMES['UNCATEGORIZED'] = 'Uncategorized';
-
     // ═══════════════════════════════════════════════════════════════════
-    // BUDGET DATA - From budget_line_items (business source)
+    // BUDGET DATA — Business planned. SINGLE source: BUDGETED ROUTINES.
+    // Planned comes ONLY from operations_routines (the canonical bridge). A (coa, month)
+    // with no matching budgeted routine contributes NOTHING (empty / $0) — it is NOT
+    // backfilled from any other table. The legacy `budget_line_items` table is no longer
+    // read here (it produced ghost rows the user never set as routines); the path to
+    // surface a figure is to create a budgeted routine, not to fall back to the legacy table.
     // ═══════════════════════════════════════════════════════════════════
-    const items = await prisma.budget_line_items.findMany({
-      where: {
-        userId: user.id,
-        year: year,
-        source: 'business'
-      }
-    });
-
-    // Aggregate budget by COA and month
     const budgetData: Record<string, Record<number, number>> = {};
     let budgetGrandTotal = 0;
 
-    for (const item of items) {
-      const coa = item.coaCode || 'UNCATEGORIZED';
-      const month = item.month - 1; // 0-indexed
-      const amount = Number(item.amount || 0);
-
-      if (!budgetData[coa]) {
-        budgetData[coa] = {};
-      }
-      budgetData[coa][month] = (budgetData[coa][month] || 0) + amount;
-      budgetGrandTotal += amount;
-    }
-
     // ═══════════════════════════════════════════════════════════════════
-    // HB-4d: bridge BUDGETED ROUTINES into the planned budget (aggregate-on-read) — same shape as
+    // HB-4d: BUDGETED ROUTINES — the ONLY planned source (aggregate-on-read) — same shape as
     // year-calendar. A Business-entity routine with a per-occurrence budget + COA contributes
-    // (occurrences-in-month × budget_amount) via routinesMonthlyByCoa. ADDITIVE + no double-count:
-    // routines write to neither `budgets` nor budget_line_items, so this is the sole routine path
-    // in. Gated on COA_NAMES so it renders + keeps budgetGrandTotal consistent. Only is_active +
-    // fully-budgeted routines count.
+    // (occurrences-in-month × budget_amount) via routinesMonthlyByCoa. Gated on COA_NAMES so it
+    // renders + keeps budgetGrandTotal consistent. Only is_active + fully-budgeted routines count;
+    // a COA with no budgeted routine simply has no planned figure — nothing fills it.
     // ═══════════════════════════════════════════════════════════════════
     if (businessEntity) {
       const budgetedRoutines = await prisma.operations_routines.findMany({
@@ -133,7 +113,7 @@ export async function GET(request: Request) {
     // ACTUALS DATA - From ledger_entries (single source of truth)
     // Matches statements, metrics, and tax engine queries.
     // ═══════════════════════════════════════════════════════════════════
-    const businessCodes = Object.keys(COA_NAMES).filter(c => c !== 'UNCATEGORIZED');
+    const businessCodes = Object.keys(COA_NAMES);
 
     const ledgerRows: Array<{ code: string; month: number; debits: string }> = await prisma.$queryRaw`
       SELECT
