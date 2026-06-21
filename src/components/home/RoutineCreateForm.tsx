@@ -17,22 +17,36 @@
 
 import { useState } from 'react';
 import RRULEBuilder from '@/components/workbench/operations/routines/RRULEBuilder';
-import type { RoutineForm } from '@/components/workbench/operations/routines/types';
+import type { RoutineForm, CadenceMode, CadenceGroup } from '@/components/workbench/operations/routines/types';
 import {
   DEFAULT_ROUTINE_FORM,
   CADENCE_GROUP_LABELS,
   CADENCE_GROUP_ORDER,
+  CADENCE_MODE_LABELS,
 } from '@/components/workbench/operations/routines/types';
 
 interface Props {
   /** The existing home login-modal trigger (ModuleLauncher's onRequireAuth) — the
-   *  same one Travel/Trading gate their submit to. */
+   *  same one Travel/Trading gate their submit to. Left wired for PR-2's
+   *  "sign up to save" conversion; not used as the create action anymore. */
   onRequireAuth: () => void;
 }
+
+// A guest-built routine = the form shape + a client-only id (for list keys + delete). In-memory only.
+type GuestRoutine = RoutineForm & { id: string };
+
+// Map a form cadence mode to its display group (for the cadence-count chips). quarterly/yearly are
+// not reachable from the form's modes, so those chips simply stay at 0.
+const groupForMode = (m: CadenceMode): CadenceGroup =>
+  m === 'daily' ? 'daily' : m === 'weekly' ? 'weekly' : m === 'custom' ? 'custom' : 'monthly';
 
 export default function RoutineCreateForm({ onRequireAuth }: Props) {
   // Local form state only — same shape the real RoutineList uses. No fetch seeds it.
   const [form, setForm] = useState<RoutineForm>(DEFAULT_ROUTINE_FORM);
+  // GUEST BUILD-IN-MEMORY: routines a logged-out visitor creates live ONLY here, in React state —
+  // no DB, no fetch, no localStorage. They vanish on refresh (intended). Signing up (PR-2, via
+  // onRequireAuth) will be the only way to persist them.
+  const [routines, setRoutines] = useState<GuestRoutine[]>([]);
 
   // HOME-STYLE-PR-1: contrast pass (existing palette only). White field on the light-
   // gray panel (bg-bg-row) so edges show; darker muted-purple border (brand-purple/40,
@@ -43,11 +57,16 @@ export default function RoutineCreateForm({ onRequireAuth }: Props) {
   // Labels → dark brand-purple, weight 500 (scannable, not ghost-gray).
   const labelClass = 'text-brand-purple font-medium uppercase tracking-wide mb-1 text-xs font-mono';
 
-  // The gate: logged-out, "create routine" opens the login modal and returns —
-  // there is no fetch on this path (or anywhere in this file).
-  const handleCreate = () => {
-    onRequireAuth();
+  // GUEST BUILD: validate locally and APPEND to in-memory state — NO fetch, NO POST, NO DB.
+  // An empty name is rejected (mirrors the real form's required name); the form resets for the
+  // next entry. (onRequireAuth stays wired for PR-2's "sign up to save" conversion.)
+  const handleAdd = () => {
+    const name = form.name.trim();
+    if (!name) return;
+    setRoutines((prev) => [...prev, { ...form, name, id: crypto.randomUUID() }]);
+    setForm(DEFAULT_ROUTINE_FORM);
   };
+  const handleDelete = (id: string) => setRoutines((prev) => prev.filter((r) => r.id !== id));
 
   return (
     <div className="space-y-4">
@@ -133,41 +152,71 @@ export default function RoutineCreateForm({ onRequireAuth }: Props) {
         <div className="pt-2 border-t border-border-light">
           <button
             type="button"
-            onClick={handleCreate}
-            className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded text-xs font-mono hover:opacity-90"
+            onClick={handleAdd}
+            disabled={!form.name.trim()}
+            className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded text-xs font-mono hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Create routine <span aria-hidden>→</span> log in
+            Add routine <span aria-hidden>+</span>
           </button>
         </div>
       </div>
 
-      {/* ── REAL routines OUTPUT structure, EMPTY (mirrors RoutineList's cadence-
-          grouped list; RoutineRow shows name · streak · next due). No data, no fetch. ── */}
+      {/* ── routines OUTPUT — the guest's IN-MEMORY routines (no fetch, no DB). Cadence-count
+          chips + one row per built routine (name · cadence · time), each with delete. ── */}
       <div>
         <div className="flex items-center justify-between mb-1.5">
           <span className={labelClass}>your routines</span>
-          <span className="text-text-muted text-[10px] font-mono">0 routines</span>
+          <span className="text-text-muted text-[10px] font-mono">
+            {routines.length} routine{routines.length === 1 ? '' : 's'} · in your browser (not saved)
+          </span>
         </div>
-        {/* The real list groups rows by cadence (Daily / Weekly / Monthly / …). */}
+        {/* Cadence-count chips (Daily / Weekly / Monthly / …), counted from the built routines. */}
         <div className="flex flex-wrap gap-1 mb-2">
-          {CADENCE_GROUP_ORDER.map((g) => (
-            <span
-              key={g}
-              className="px-1.5 py-0.5 border border-gray-200 bg-gray-50 text-text-muted rounded text-[10px] font-mono"
-            >
-              {CADENCE_GROUP_LABELS[g]} (0)
-            </span>
-          ))}
+          {CADENCE_GROUP_ORDER.map((g) => {
+            const count = routines.filter((r) => groupForMode(r.cadence_mode) === g).length;
+            return (
+              <span
+                key={g}
+                className="px-1.5 py-0.5 border border-gray-200 bg-gray-50 text-text-muted rounded text-[10px] font-mono"
+              >
+                {CADENCE_GROUP_LABELS[g]} ({count})
+              </span>
+            );
+          })}
         </div>
         <div className="border border-gray-200 rounded overflow-hidden">
-          <div className="grid grid-cols-[2fr_1fr_1fr] gap-2 bg-gray-50 border-b border-gray-200 px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider text-text-muted">
+          <div className="grid grid-cols-[2fr_1fr_1fr_auto] gap-2 bg-gray-50 border-b border-gray-200 px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider text-text-muted">
             <span>Routine</span>
-            <span>Streak</span>
-            <span>Next due</span>
+            <span>Cadence</span>
+            <span>Time</span>
+            <span className="sr-only">Remove</span>
           </div>
-          <div className="px-3 py-6 text-center text-xs font-mono text-text-muted italic">
-            Your routines appear here once you log in and create one.
-          </div>
+          {routines.length === 0 ? (
+            <div className="px-3 py-6 text-center text-xs font-mono text-text-muted italic">
+              No routines yet — fill in the form above and click “Add routine”. Built routines live in your browser only.
+            </div>
+          ) : (
+            routines.map((r) => (
+              <div
+                key={r.id}
+                className="grid grid-cols-[2fr_1fr_1fr_auto] gap-2 items-center border-b border-gray-100 px-3 py-1.5 text-xs font-mono text-text-primary"
+              >
+                <span className="truncate">{r.name}</span>
+                <span className="text-text-muted">{CADENCE_MODE_LABELS[r.cadence_mode]}</span>
+                <span className="text-text-muted">
+                  {r.start_time ? (r.end_time ? `${r.start_time}–${r.end_time}` : r.start_time) : 'all-day'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(r.id)}
+                  aria-label={`Remove ${r.name}`}
+                  className="text-text-muted hover:text-rose-600 px-1"
+                >
+                  ×
+                </button>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>
