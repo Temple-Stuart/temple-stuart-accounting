@@ -255,21 +255,6 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
         flush={true}
       />
 
-      {isDemo && (
-        <div className="m-4 flex flex-col items-start gap-2 rounded-lg border border-border bg-bg-row p-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-text-secondary">
-            Like what you see? Make a free account and fill it with your own trips, routines, and plans.
-          </p>
-          <button
-            type="button"
-            onClick={() => onRequireAuth?.()}
-            className="shrink-0 rounded bg-brand-purple px-6 py-2 text-sm font-semibold text-white hover:bg-brand-purple-hover"
-          >
-            Make my free account
-          </button>
-        </div>
-      )}
-
       {cardSelection && (
         <HubEventCard
           item={cardSelection.item}
