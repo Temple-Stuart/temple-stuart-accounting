@@ -3,9 +3,19 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { v4 as uuidv4 } from 'uuid';
 import { signCookie } from '@/lib/cookie-auth';
+import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 
 export async function POST(request: Request) {
   try {
+    // Abuse defense — per-IP rate limit BEFORE the DB lookup / bcrypt hash, to stop mass
+    // account creation from one source. Reuses the durable limiter the travel routes use
+    // (flights/search:27). The generic 429 keeps the anti-enumeration posture intact.
+    const ip =
+      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      request.headers.get('x-real-ip') ||
+      'unknown';
+    await rateLimit(`auth-register:${ip}`, { limit: 5, windowSeconds: 3600 });
+
     const { email, password, name } = await request.json();
 
     if (!email || !password || !name) {
@@ -59,6 +69,12 @@ export async function POST(request: Request) {
 
     return response;
   } catch (error) {
+    if (error instanceof RateLimitError) {
+      return NextResponse.json(
+        { error: 'Too many attempts — please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(error.retryAfterSeconds) } }
+      );
+    }
     console.error('[REGISTER] Error:', error);
     return NextResponse.json(
       { error: 'Failed to create account' },
