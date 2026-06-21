@@ -91,13 +91,18 @@ export async function GET() {
     const firstOfMonth = (back: number) => new Date(Date.UTC(y, m - back, 1));
     const windowEndStr = fmt(firstOfMonth(0));
 
-    // ── CASH = SUM(currentBalance), user-scoped. accountsLinked distinguishes a real $0
-    //    balance from "no bank linked" (COALESCE over zero rows is also 0 — we must NOT
-    //    present that ambiguous 0 as a runway numerator). ──
+    // ── CASH = SUM(currentBalance), user-scoped, OPERATING ONLY (excl. Trading). accountsLinked
+    //    distinguishes a real $0 balance from "no bank linked" (COALESCE over zero rows is also 0 —
+    //    we must NOT present that ambiguous 0 as a runway numerator). Trading cash is at-risk
+    //    capital, not operating cash, and is excluded so the numerator matches the operating burn
+    //    basis (which already excludes Trading). Filtered by accounts.entityType — the entity_id FK
+    //    is NEVER populated on accounts (decision: audits/ENTITY-CASH.md). IS DISTINCT FROM keeps any
+    //    future NULL-entityType accounts in operating (no silent drop); only explicit 'trading' is cut.
     const cashRows: Array<{ n: number; total: string }> = await prisma.$queryRaw`
       SELECT COUNT(*)::int AS n, COALESCE(SUM("currentBalance")::numeric, 0)::text AS total
       FROM accounts
       WHERE "userId" = ${userId}
+        AND "entityType" IS DISTINCT FROM 'trading'
     `;
     const accountsLinked = Number(cashRows[0]?.n ?? 0);
     const cashDollars = round(Number(cashRows[0]?.total ?? 0), 2);
@@ -235,7 +240,7 @@ export async function GET() {
         dollars: cashDollars,
         accountsLinked,
         available: cashAvailable,
-        source: 'Plaid balance',
+        source: 'Plaid balance · operating (excl. trading)',
       },
       burnSource: 'trailing ledger actuals',
       windows,
