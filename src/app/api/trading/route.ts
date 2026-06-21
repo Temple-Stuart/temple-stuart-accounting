@@ -33,7 +33,7 @@ export async function GET() {
 
     // Get trading COA codes
     const tradingCodes = await prisma.chart_of_accounts.findMany({
-      where: { module: 'trading' },
+      where: { module: 'trading', userId: user.id },
       select: { code: true, name: true, account_type: true }
     });
 
