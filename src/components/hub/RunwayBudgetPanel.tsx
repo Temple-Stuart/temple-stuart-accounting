@@ -48,6 +48,18 @@ interface RunwayData {
   windows: RunwayWindow[];
 }
 
+// Trading panel (SEPARATE from runway — realized P&L, governed by different rules; never a runway).
+interface TradingData {
+  realizedPnl: number;
+  gains: number;
+  losses: number;
+  tradeCount: number;
+  period: string;
+  source: string;
+  capital: { tracked: boolean; reason: string };
+  drawdown: { tracked: boolean; reason: string };
+}
+
 const usd = (n: number) =>
   `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
@@ -140,6 +152,8 @@ export default function RunwayBudgetPanel() {
   const [runway, setRunway] = useState<RunwayData | null>(null);
   // Honest error/empty handling — on failure we DECLARE "unavailable", never show zeros.
   const [runwayError, setRunwayError] = useState(false);
+  const [trading, setTrading] = useState<TradingData | null>(null);
+  const [tradingError, setTradingError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -147,6 +161,15 @@ export default function RunwayBudgetPanel() {
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`status ${r.status}`))))
       .then((d: RunwayData) => { if (!cancelled) setRunway(d); })
       .catch(() => { if (!cancelled) setRunwayError(true); });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/trading/realized-pnl')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`status ${r.status}`))))
+      .then((d: TradingData) => { if (!cancelled) setTrading(d); })
+      .catch(() => { if (!cancelled) setTradingError(true); });
     return () => { cancelled = true; };
   }, []);
 
@@ -211,6 +234,46 @@ export default function RunwayBudgetPanel() {
             <p className="text-[10px] text-text-faint mt-1">
               Net burn = expenses − income over the trailing full calendar months ({runway.burnSource}); runway = cash ÷ net burn/mo.
             </p>
+          )}
+        </div>
+
+        {/* ── TRADING — a SEPARATE panel under DIFFERENT rules. Trading P&L is EXCLUDED from
+            operating runway; it is realized performance, NOT months of runway and NOT a zero date.
+            Capital/drawdown are declared "not tracked" (not derivable) — never fabricated. ── */}
+        <div className="mt-3 pt-3 border-t-2 border-border">
+          <div className="flex items-baseline justify-between gap-2">
+            <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Trading</h3>
+            <span className="text-[10px] text-text-faint">separate from operating runway</span>
+          </div>
+          {tradingError ? (
+            <p className="text-xs text-text-faint italic mt-1">Trading unavailable — could not load realized P&L.</p>
+          ) : !trading ? (
+            <p className="text-xs text-text-faint italic mt-1">Loading trading…</p>
+          ) : (
+            <div className="mt-2 flex flex-col sm:flex-row gap-2">
+              {/* Realized P&L — the one truthfully-derivable trading figure. */}
+              <div className="flex-1 min-w-[180px] rounded-lg border border-border bg-bg-row/40 px-3 py-2">
+                <div className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Realized P&amp;L</div>
+                <div className={`mt-1 font-mono text-lg tabular-nums ${trading.realizedPnl >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {trading.realizedPnl >= 0 ? '+' : '−'}{usd(Math.abs(trading.realizedPnl))}
+                </div>
+                <div className="text-[10px] text-text-faint mt-0.5">
+                  {trading.source} · {trading.period} · {trading.tradeCount} trade{trading.tradeCount === 1 ? '' : 's'}
+                </div>
+              </div>
+              {/* Capital — DECLARED not-tracked (not derivable); no invented number. */}
+              <div className="flex-1 min-w-[180px] rounded-lg border border-dashed border-border bg-bg-row/20 px-3 py-2">
+                <div className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Capital</div>
+                <div className="mt-1 font-mono text-sm text-text-faint italic tabular-nums">not tracked yet</div>
+                <div className="text-[10px] text-text-faint mt-0.5">{trading.capital.reason}</div>
+              </div>
+              {/* Drawdown — DECLARED not-tracked. */}
+              <div className="flex-1 min-w-[180px] rounded-lg border border-dashed border-border bg-bg-row/20 px-3 py-2">
+                <div className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Max drawdown</div>
+                <div className="mt-1 font-mono text-sm text-text-faint italic tabular-nums">not tracked yet</div>
+                <div className="text-[10px] text-text-faint mt-0.5">{trading.drawdown.reason}</div>
+              </div>
+            </div>
           )}
         </div>
       </div>
