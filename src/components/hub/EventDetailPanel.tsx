@@ -111,7 +111,7 @@ export default function EventDetailPanel({ event, onClose }: Props) {
     { label: 'End Time', value: val(event.endTime) },
     { label: 'Entity', value: NOT_SET },
     { label: 'Cadence', value: event.isRecurring ? 'Repeats' : NOT_SET },
-    { label: 'Category (COA)', value: NOT_SET },
+    { label: 'Category (COA)', value: val(event.coaCode) },
     { label: cfg.label, value: val(event.title) },
     ...(event.location ? [{ label: 'Location', value: event.location }] : []),
     { label: 'Task / Step', value: NOT_SET },
