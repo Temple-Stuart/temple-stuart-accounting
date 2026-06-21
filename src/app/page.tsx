@@ -6,6 +6,39 @@ import Link from 'next/link';
 import Image from 'next/image';
 import LoginBox from '@/components/LoginBox';
 import ModuleLauncher, { TAB_DESCRIPTORS } from '@/components/home/ModuleLauncher';
+import { ChevronDown } from 'lucide-react';
+
+// PR-Hero-Collapsible: the "How it works" steps per tab — ONE source of truth for the three
+// tab explainers (projects / calendar=Runway / routines). Copy preserved verbatim from the prior
+// inline blocks. Only a tab with a key here renders an explainer; others render none.
+const HOW_IT_WORKS: Record<string, string[]> = {
+  projects: [
+    "You bring a problem. Open a project, type what you want to build or fix, name it.",
+    "Research finds the right way. It turns your messy goals into clear targets and looks up the correct rules and how the best already do it.",
+    "Claude Code reads your real code. It opens your actual codebase and writes down what works, what's broken, and what's missing.",
+    "It waits for the truth. Nothing moves until the code check comes back. No skipping.",
+    "It makes a smart plan. Your goals, the right way, and the real problems become a to-do list — biggest fixes first.",
+    "You pick what to build. Accept a task and Claude Code builds it and opens a request on GitHub. You review and ship it.",
+    "You evolve it. Add new goals and run it again — the loop never ends.",
+  ],
+  calendar: [
+    "You set up your routines. Rent, coffee, the gym — each recurring expense carries a category and a dollar amount.",
+    "Your routines become your plan. Every routine's budget flows onto the calendar as what you plan to spend, by the day.",
+    "Your bookkeeping fills in what really happened. Actual spend comes straight from your ledger, not a guess.",
+    "Your bank shows your cash. Your real balance is pulled live, with trading money kept separate — that's at-risk, not spending money.",
+    "It does the math on your burn. It looks at the last 3 and 6 months of real money in and out, and finds your monthly burn.",
+    "It tells you the truth: how many months you've got, and the date your money runs out.",
+    "Trading stands on its own. Your trading wins and losses show in their own panel — never mixed into your runway.",
+  ],
+  routines: [
+    "You make a routine. Name a recurring thing — a workout, rent, your morning coffee — and put it on a schedule.",
+    "Give it a time of day, and it lands on your calendar as a block. Leave the time off, and it just repeats in the background.",
+    "Give it a dollar amount and a category, and it becomes money you plan to spend.",
+    "Every month, that planned spend flows onto your budget — automatically, by the day.",
+    "A routine can hold steps. Walk to the gym, lift, sauna, cold shower — the whole thing, in order.",
+    "Turn a routine into a video. Its steps become a scene and a script, ready to film.",
+  ],
+};
 
 export default function LandingPage() {
   const { data: session } = useSession();
@@ -14,6 +47,9 @@ export default function LandingPage() {
   // tabs and reports the active one via onTabChange; this mirror drives the hero copy.
   // Default 'calendar' matches ModuleLauncher's initial tab (no flash, no mismatch).
   const [activeTab, setActiveTab] = useState('calendar');
+  // PR-Hero-Collapsible: the "How it works" steps are HIDDEN by default; the headline button
+  // toggles them. One shared state — only the active tab's explainer is mounted at a time.
+  const [howOpen, setHowOpen] = useState(false);
   // PR-Auth-Home: login from the home page lands back on the home tabs (in logged-in
   // mode), not the old /hub cockpit. (Other /hub entry points are a separate retire PR.)
   const [loginRedirect] = useState('/');
@@ -114,69 +150,31 @@ export default function LandingPage() {
             {/* PR-Hero-PerTab: the subhead swaps to the active tab's descriptor. min-h
                 reserves space so the Get Started button never jumps as the line changes
                 length. The headline above + Get Started below are unchanged. */}
-            <p className="text-text-faint text-terminal-lg mb-8 max-w-xl min-h-[4rem]">
+            <p className="text-text-faint text-lg font-semibold mb-3 max-w-xl min-h-[2rem]">
               {TAB_DESCRIPTORS[activeTab]}
             </p>
-            {/* How it works — the projects pipeline explainer, shown under the goal
-                line (only on the projects tab, where that descriptor renders). Reuses
-                the panel's text-white / text-text-faint tokens — no new colors. */}
-            {activeTab === 'projects' && (
+            {/* How it works — ONE shared, collapsible explainer for the active tab (projects /
+                Runway=calendar / routines). Steps live in HOW_IT_WORKS and are HIDDEN by default;
+                the headline button toggles them. Same text-white / text-text-faint tokens — no new
+                colors. The shared Get Started button below is unchanged. */}
+            {HOW_IT_WORKS[activeTab] && (
               <div className="text-text-faint text-sm mb-8 max-w-xl">
-                <p className="text-white font-medium mb-2">How it works:</p>
-                <ol className="list-decimal list-inside space-y-2">
-                  {[
-                    "You bring a problem. Open a project, type what you want to build or fix, name it.",
-                    "Research finds the right way. It turns your messy goals into clear targets and looks up the correct rules and how the best already do it.",
-                    "Claude Code reads your real code. It opens your actual codebase and writes down what works, what's broken, and what's missing.",
-                    "It waits for the truth. Nothing moves until the code check comes back. No skipping.",
-                    "It makes a smart plan. Your goals, the right way, and the real problems become a to-do list — biggest fixes first.",
-                    "You pick what to build. Accept a task and Claude Code builds it and opens a request on GitHub. You review and ship it.",
-                    "You evolve it. Add new goals and run it again — the loop never ends.",
-                  ].map((step, i) => (
-                    <li key={i}>{step}</li>
-                  ))}
-                </ol>
-              </div>
-            )}
-            {/* How it works — the Runway explainer, shown only on the Runway (calendar) tab.
-                Mirrors the projects block byte-for-byte in structure/styling; only the step
-                copy differs. Reuses the shared Get Started button below — no new colors. */}
-            {activeTab === 'calendar' && (
-              <div className="text-text-faint text-sm mb-8 max-w-xl">
-                <p className="text-white font-medium mb-2">How it works:</p>
-                <ol className="list-decimal list-inside space-y-2">
-                  {[
-                    "You set up your routines. Rent, coffee, the gym — each recurring expense carries a category and a dollar amount.",
-                    "Your routines become your plan. Every routine's budget flows onto the calendar as what you plan to spend, by the day.",
-                    "Your bookkeeping fills in what really happened. Actual spend comes straight from your ledger, not a guess.",
-                    "Your bank shows your cash. Your real balance is pulled live, with trading money kept separate — that's at-risk, not spending money.",
-                    "It does the math on your burn. It looks at the last 3 and 6 months of real money in and out, and finds your monthly burn.",
-                    "It tells you the truth: how many months you've got, and the date your money runs out.",
-                    "Trading stands on its own. Your trading wins and losses show in their own panel — never mixed into your runway.",
-                  ].map((step, i) => (
-                    <li key={i}>{step}</li>
-                  ))}
-                </ol>
-              </div>
-            )}
-            {/* How it works — the Routines explainer, shown only on the Routines tab.
-                Mirrors the projects/Runway blocks byte-for-byte in structure/styling; only the
-                step copy differs. Reuses the shared Get Started button below — no new colors. */}
-            {activeTab === 'routines' && (
-              <div className="text-text-faint text-sm mb-8 max-w-xl">
-                <p className="text-white font-medium mb-2">How it works:</p>
-                <ol className="list-decimal list-inside space-y-2">
-                  {[
-                    "You make a routine. Name a recurring thing — a workout, rent, your morning coffee — and put it on a schedule.",
-                    "Give it a time of day, and it lands on your calendar as a block. Leave the time off, and it just repeats in the background.",
-                    "Give it a dollar amount and a category, and it becomes money you plan to spend.",
-                    "Every month, that planned spend flows onto your budget — automatically, by the day.",
-                    "A routine can hold steps. Walk to the gym, lift, sauna, cold shower — the whole thing, in order.",
-                    "Turn a routine into a video. Its steps become a scene and a script, ready to film.",
-                  ].map((step, i) => (
-                    <li key={i}>{step}</li>
-                  ))}
-                </ol>
+                <button
+                  type="button"
+                  onClick={() => setHowOpen((o) => !o)}
+                  aria-expanded={howOpen}
+                  className="flex items-center gap-1.5 text-white font-medium mb-2 cursor-pointer hover:text-text-faint transition-colors"
+                >
+                  How it works:
+                  <ChevronDown className={`h-4 w-4 transition-transform ${howOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {howOpen && (
+                  <ol className="list-decimal list-inside space-y-2">
+                    {HOW_IT_WORKS[activeTab].map((step, i) => (
+                      <li key={i}>{step}</li>
+                    ))}
+                  </ol>
+                )}
               </div>
             )}
             <div className="flex items-center gap-4">
