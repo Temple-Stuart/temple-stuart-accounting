@@ -105,10 +105,10 @@ export async function GET() {
 
     // Contributions/Withdrawals
     const contributions = transactions
-      .filter(t => t.accountCode === 'T-3200')
+      .filter(t => t.accountCode === '3200')
       .reduce((sum, t) => sum + Math.abs(t.amount), 0);
     const withdrawals = transactions
-      .filter(t => t.accountCode === 'T-3300')
+      .filter(t => t.accountCode === '3300')
       .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
     return NextResponse.json({
