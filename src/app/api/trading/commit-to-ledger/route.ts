@@ -39,24 +39,24 @@ export async function POST(request: NextRequest) {
     }
     const entityId = tradingEntity.id;
 
-    // Look up COA accounts: T-1010 (Trading Cash), T-4100 (Trading Gains), T-5100 (Trading Losses)
+    // Look up COA accounts: 1010 (Trading Cash), 4100 (Trading Gains), 5100 (Trading Losses)
     const [cashAccount, gainsAccount, lossesAccount] = await Promise.all([
       prisma.chart_of_accounts.findUnique({
-        where: { userId_entity_id_code: { userId: user.id, entity_id: entityId, code: 'T-1010' } },
+        where: { userId_entity_id_code: { userId: user.id, entity_id: entityId, code: '1010' } },
       }),
       prisma.chart_of_accounts.findUnique({
-        where: { userId_entity_id_code: { userId: user.id, entity_id: entityId, code: 'T-4100' } },
+        where: { userId_entity_id_code: { userId: user.id, entity_id: entityId, code: '4100' } },
       }),
       prisma.chart_of_accounts.findUnique({
-        where: { userId_entity_id_code: { userId: user.id, entity_id: entityId, code: 'T-5100' } },
+        where: { userId_entity_id_code: { userId: user.id, entity_id: entityId, code: '5100' } },
       }),
     ]);
 
     if (!cashAccount || !gainsAccount || !lossesAccount) {
       const missing = [];
-      if (!cashAccount) missing.push('T-1010');
-      if (!gainsAccount) missing.push('T-4100');
-      if (!lossesAccount) missing.push('T-5100');
+      if (!cashAccount) missing.push('1010');
+      if (!gainsAccount) missing.push('4100');
+      if (!lossesAccount) missing.push('5100');
       return NextResponse.json(
         { error: `Missing Trading COA accounts: ${missing.join(', ')}. Initialize bookkeeping first.` },
         { status: 400 }
