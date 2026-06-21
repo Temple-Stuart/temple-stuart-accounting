@@ -32,6 +32,14 @@ interface RunwayWindow {
   state: WindowState;
   runwayMonths: number | null;
   zeroDate: string | null;
+  // Additive per-entity breakdown — Personal + Business (+ Unattributed if any) === netBurnTotal.
+  entities: { personal: EntityBurn; business: EntityBurn; unattributed: EntityBurn | null };
+}
+interface EntityBurn {
+  expenses: number;
+  income: number;
+  netBurnTotal: number;
+  netBurnPerMonth: number;
 }
 interface RunwayData {
   asOf: string;
@@ -78,6 +86,16 @@ function RunwayWindowCard({ w }: { w: RunwayWindow }) {
       break;
   }
 
+  // Per-entity net burn/mo — same trailing-ledger basis as the combined line. Net burn is real in
+  // every state EXCEPT insufficient_history (the window lacks full data); no per-entity runway/zero
+  // date (cash is not entity-split this PR). Mirrors the combined burnLine sign convention.
+  const entityBurnLine = (e: EntityBurn) =>
+    w.state === 'insufficient_history'
+      ? '—'
+      : e.netBurnPerMonth > 0
+        ? `${usd(e.netBurnPerMonth)}/mo out`
+        : `${usd(Math.abs(e.netBurnPerMonth))}/mo in`;
+
   return (
     <div className="flex-1 min-w-[180px] rounded-lg border border-border bg-bg-row/40 px-3 py-2">
       <div className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
@@ -94,6 +112,24 @@ function RunwayWindowCard({ w }: { w: RunwayWindow }) {
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-xs text-text-muted">Zero date</span>
         <span className="font-mono text-sm text-text-primary tabular-nums">{zeroLine}</span>
+      </div>
+      {/* Per-entity operating breakdown (additive; Personal + Business reconcile to Net burn above). */}
+      <div className="mt-1.5 pt-1.5 border-t border-border-light space-y-0.5">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-[10px] text-text-faint uppercase tracking-wide">Personal</span>
+          <span className="font-mono text-xs text-text-secondary tabular-nums">{entityBurnLine(w.entities.personal)}</span>
+        </div>
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-[10px] text-text-faint uppercase tracking-wide">Business</span>
+          <span className="font-mono text-xs text-text-secondary tabular-nums">{entityBurnLine(w.entities.business)}</span>
+        </div>
+        {w.entities.unattributed && (
+          // A non-trading entity that is neither Personal nor Business — surfaced, never dropped.
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-[10px] text-amber-600 uppercase tracking-wide">Unattributed</span>
+            <span className="font-mono text-xs text-amber-600 tabular-nums">{entityBurnLine(w.entities.unattributed)}</span>
+          </div>
+        )}
       </div>
     </div>
   );
