@@ -219,6 +219,28 @@ export default function RoutineCreateForm({ onRequireAuth }: Props) {
           )}
         </div>
       </div>
+
+      {/* PR-2: "sign up to save" conversion — shown once the guest has built ≥1 routine (so the
+          message is truthful: there's something here, and it will NOT persist). The button reuses
+          the existing onRequireAuth register-modal trigger — no new handler, no fetch, no route.
+          Copy is HONEST: signing up lets them START saving routines; it does NOT claim the
+          in-memory ones auto-transfer — no such import path exists (verified: nothing reads guest
+          routines after signup). */}
+      {routines.length >= 1 && (
+        <div className="flex flex-col items-start gap-2 rounded-lg border border-brand-purple/40 bg-brand-purple/5 p-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-text-secondary">
+            These routines live in this browser only and are not saved. Make a free account to start
+            saving routines and watch them land on your calendar.
+          </p>
+          <button
+            type="button"
+            onClick={onRequireAuth}
+            className="shrink-0 rounded bg-brand-purple px-4 py-2 text-xs font-semibold text-white hover:opacity-90"
+          >
+            Make a free account
+          </button>
+        </div>
+      )}
     </div>
   );
 }
