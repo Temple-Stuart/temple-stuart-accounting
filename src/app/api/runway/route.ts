@@ -10,13 +10,17 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
  * income ≈ $176K but YTD ≈ ~$900 after Alex left his job, so a YTD net burn would be
  * meaningless). Two windows: trailing 3mo and trailing 6mo.
  *
+ * OPERATING scope = Personal + Business only. The Trading entity is EXCLUDED from burn/income
+ * (trading P&L is not operating burn — decision: audits/RUNWAY-ENTITY-MODEL.md; see TRADING_ENTITY_ID).
+ *
  * Inputs — ALL reuse the VERIFIED existing sources, user-scoped, no new table/migration:
  *   • cash       = SUM(accounts.currentBalance) for the user  (same field /api/metrics:22-27
- *                  uses — the Plaid-synced stored balance; this IS the cash source).
+ *                  uses — the Plaid-synced stored balance; this IS the cash source). NOTE: cash is
+ *                  still COMBINED (all accounts) this PR — entity-scoping cash is a follow-up.
  *   • expenses   = ledger_entries debits on expense COAs (account_type='expense',
- *                  entry_type='D') — same identification as /api/metrics:30-41.
+ *                  entry_type='D') — same identification as /api/metrics:30-41 — EXCL. Trading.
  *   • income     = ledger_entries credits on revenue COAs (account_type='revenue',
- *                  entry_type='C') — same identification as /api/income:40-59.
+ *                  entry_type='C') — same identification as /api/income:40-59 — EXCL. Trading.
  * Both burn legs are bounded to the trailing window via je.date (the @db.Date posting date),
  * filtered to committed, non-reversed journal entries (is_reversal=false, reversed_by_entry_id
  * IS NULL) — the same committed basis the budget actuals use.
@@ -43,6 +47,14 @@ const round = (n: number, dp: number) => {
   const f = 10 ** dp;
   return Math.round(n * f) / f;
 };
+
+// Trading entity excluded from OPERATING runway — trading P&L (WIN→4100 revenue, LOSS→5100
+// expense, posted by commit-to-ledger) is NOT operating burn (decision: audits/RUNWAY-ENTITY-MODEL.md).
+// Operating burn/income = Personal + Business only. Resolved by entity_id — the IMMUTABLE key — NOT
+// entity_type, which is inconsistent across seeds (seed-entities.ts:13 wrongly seeds Trading as
+// 'personal'; Alex's psql confirmed the live row is entity_type='trading' with THIS id). Single-tenant:
+// this is the authenticated user's Trading entity. (Multi-tenant would resolve this per-user by id.)
+const TRADING_ENTITY_ID = '972658cc-c1ca-4178-b77e-fad32a89a823';
 
 type WindowState = 'ok' | 'insufficient_history' | 'cashflow_positive' | 'no_cash';
 
@@ -91,6 +103,7 @@ export async function GET() {
       WHERE je."userId" = ${userId}
         AND je.is_reversal = false
         AND je.reversed_by_entry_id IS NULL
+        AND je.entity_id != ${TRADING_ENTITY_ID}
     `;
     const earliest = earliestRows[0]?.earliest ?? null;
 
@@ -110,6 +123,7 @@ export async function GET() {
           AND je.reversed_by_entry_id IS NULL
           AND je.date >= ${startStr}::date
           AND je.date <  ${windowEndStr}::date
+          AND coa.entity_id != ${TRADING_ENTITY_ID}
       `;
       const exp = Number(rows[0]?.exp_cents ?? 0) / 100;
       const rev = Number(rows[0]?.rev_cents ?? 0) / 100;
