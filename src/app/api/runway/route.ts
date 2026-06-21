@@ -56,6 +56,14 @@ const round = (n: number, dp: number) => {
 // this is the authenticated user's Trading entity. (Multi-tenant would resolve this per-user by id.)
 const TRADING_ENTITY_ID = '972658cc-c1ca-4178-b77e-fad32a89a823';
 
+// The two OPERATING entities, resolved by IMMUTABLE entity_id (psql-confirmed; entity_type is
+// inconsistent across seeds — same rationale as TRADING_ENTITY_ID). The per-entity breakdown
+// attributes each non-trading ledger row to one of these. Any non-trading row that is NEITHER
+// (a stray/legacy entity) is surfaced as `unattributed` — NEVER silently dropped — so the
+// invariant Personal + Business + Unattributed === Combined operating always holds. Single-tenant.
+const PERSONAL_ENTITY_ID = 'e83f5b3a-0b46-4c73-8b91-1b736ecdd3eb';
+const BUSINESS_ENTITY_ID = '9e8ee102-5b75-445b-a1ba-b7226a208b4a';
+
 type WindowState = 'ok' | 'insufficient_history' | 'cashflow_positive' | 'no_cash';
 
 export async function GET() {
@@ -130,11 +138,55 @@ export async function GET() {
       return { exp, rev };
     };
 
+    // ── ADDITIVE per-entity breakdown: the SAME filters as burn() (incl. the Trading exclusion),
+    //    but GROUP BY coa.entity_id. The combined burn() above is untouched — this is a separate
+    //    read whose grouped sums reconcile exactly to the combined total (identical WHERE). ──
+    const burnByEntity = async (startStr: string): Promise<Record<string, { exp: number; rev: number }>> => {
+      const rows: Array<{ entity_id: string; exp_cents: string; rev_cents: string }> = await prisma.$queryRaw`
+        SELECT
+          coa.entity_id,
+          COALESCE(SUM(CASE WHEN coa.account_type = 'expense' AND le.entry_type = 'D' THEN le.amount ELSE 0 END), 0)::text AS exp_cents,
+          COALESCE(SUM(CASE WHEN coa.account_type = 'revenue' AND le.entry_type = 'C' THEN le.amount ELSE 0 END), 0)::text AS rev_cents
+        FROM ledger_entries le
+        JOIN journal_entries je    ON le.journal_entry_id = je.id
+        JOIN chart_of_accounts coa ON le.account_id = coa.id
+        WHERE je."userId" = ${userId}
+          AND je.is_reversal = false
+          AND je.reversed_by_entry_id IS NULL
+          AND je.date >= ${startStr}::date
+          AND je.date <  ${windowEndStr}::date
+          AND coa.entity_id != ${TRADING_ENTITY_ID}
+        GROUP BY coa.entity_id
+      `;
+      const map: Record<string, { exp: number; rev: number }> = {};
+      for (const r of rows) {
+        map[r.entity_id] = { exp: Number(r.exp_cents ?? 0) / 100, rev: Number(r.rev_cents ?? 0) / 100 };
+      }
+      return map;
+    };
+
     const buildWindow = async (n: number) => {
       const startStr = fmt(firstOfMonth(n));
       const { exp, rev } = await burn(startStr);
       const netBurnTotal = round(exp - rev, 2); // positive = burning cash over the window
       const netBurnPerMonth = round(netBurnTotal / n, 2);
+
+      // Per-entity net burn (additive — the combined numbers above are unchanged). Attribute each
+      // non-trading entity_id to Personal / Business; anything else accumulates into `unattributed`
+      // (expected 0 — psql shows exactly 3 entities — but surfaced truthfully if non-zero).
+      const byEntity = await burnByEntity(startStr);
+      const entityFig = (e: { exp: number; rev: number }) => {
+        const total = round(e.exp - e.rev, 2);
+        return { expenses: e.exp, income: e.rev, netBurnTotal: total, netBurnPerMonth: round(total / n, 2) };
+      };
+      const personal = entityFig(byEntity[PERSONAL_ENTITY_ID] ?? { exp: 0, rev: 0 });
+      const business = entityFig(byEntity[BUSINESS_ENTITY_ID] ?? { exp: 0, rev: 0 });
+      let otherExp = 0;
+      let otherRev = 0;
+      for (const [id, e] of Object.entries(byEntity)) {
+        if (id !== PERSONAL_ENTITY_ID && id !== BUSINESS_ENTITY_ID) { otherExp += e.exp; otherRev += e.rev; }
+      }
+      const unattributed = entityFig({ exp: otherExp, rev: otherRev });
       const sufficientHistory = earliest !== null && earliest <= startStr;
 
       let state: WindowState;
@@ -166,6 +218,12 @@ export async function GET() {
         state,
         runwayMonths,
         zeroDate,
+        // Additive per-entity breakdown (Personal + Business + Unattributed === combined netBurnTotal).
+        entities: {
+          personal,
+          business,
+          unattributed: unattributed.netBurnTotal !== 0 ? unattributed : null,
+        },
       };
     };
 
