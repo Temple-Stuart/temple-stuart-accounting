@@ -41,7 +41,7 @@ interface CommittedTrip {
   startDate: string | null; endDate: string | null; totalBudget: number; destinationPhoto: string | null;
 }
 
-export default function BudgetComparison({ initialYear }: { initialYear?: number }) {
+export default function BudgetComparison({ initialYear, preview = false }: { initialYear?: number; preview?: boolean }) {
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(initialYear ?? now.getFullYear());
   const [travelMonths, setTravelMonths] = useState<number[]>([]);
@@ -53,6 +53,9 @@ export default function BudgetComparison({ initialYear }: { initialYear?: number
   // Self-fetch the same four routes /hub fetches, re-fetching when the year changes
   // (mirrors hub/page.tsx:351). Each loader mirrors the /hub loader's tolerant shape-mapping.
   useEffect(() => {
+    // PREVIEW (guest): skip all four authed budget fetches; the EMPTY_BUDGET initial state
+    // renders the comparison with no data (no 401).
+    if (preview) return;
     let cancelled = false;
     const loadCommittedTrips = async () => {
       try {
@@ -98,7 +101,7 @@ export default function BudgetComparison({ initialYear }: { initialYear?: number
     };
     loadCommittedTrips(); loadYearCalendar(); loadNomadBudget(); loadBusinessBudget();
     return () => { cancelled = true; };
-  }, [selectedYear]);
+  }, [selectedYear, preview]);
 
   const fmt = (n: number) => n ? `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : '—';
 
