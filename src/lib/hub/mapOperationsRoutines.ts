@@ -48,6 +48,8 @@ export interface RoutineWindowEntry {
   start_time: string | null;  // "1970-01-01THH:MM:SS.000Z" or null (cadence-only)
   end_time: string | null;
   occurrences: string[];      // ISO instants from expandBetween
+  coa_code: string | null;    // routine's COA (soft ref to chart_of_accounts.code) or null
+  budget_amount: number | null; // per-occurrence budget, or null if the routine has no budget
 }
 
 export interface RoutinesWindowResponse {
@@ -85,6 +87,12 @@ export function mapOperationsRoutines(response: RoutinesWindowResponse): Calenda
     // Matches DailyPlanRoutineRow.tsx:65-79 exactly.
     const startTime = routine.start_time ? routine.start_time.slice(11, 16) : null;
     const endTime = routine.end_time ? routine.end_time.slice(11, 16) : null;
+    // Carry the routine's COA + budget onto every occurrence tile so the detail panel can show
+    // them (snake→camel, mirroring the lodging feed at HubCalendar.tsx:201,204). Real values
+    // only — coaCode passes null truthfully; budgetAmount is number-or-absent (CalendarEvent's
+    // budgetAmount is `number?`, so a null budget maps to undefined = "no budget", never 0).
+    const coaCode = routine.coa_code;
+    const budgetAmount = routine.budget_amount ?? undefined;
 
     for (const occISO of routine.occurrences) {
       const startDate = formatDateInZone(occISO, routine.timezone);
@@ -100,6 +108,8 @@ export function mapOperationsRoutines(response: RoutinesWindowResponse): Calenda
           endTime: endTime ?? undefined,
           isRecurring: true,
           href: ROUTINES_HREF,
+          coaCode,
+          budgetAmount,
         });
       } else {
         // Time-less routine → all-day event at the top of the calendar.
@@ -117,6 +127,8 @@ export function mapOperationsRoutines(response: RoutinesWindowResponse): Calenda
           // startTime intentionally omitted → CalendarGrid renders all-day
           isRecurring: true,
           href: ROUTINES_HREF,
+          coaCode,
+          budgetAmount,
         });
       }
     }
