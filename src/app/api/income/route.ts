@@ -2,6 +2,24 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
+/**
+ * GET /api/income (RUNWAY-1)
+ *
+ * Income on the COMMITTED-LEDGER basis: SUM of ledger_entries credits
+ * (entry_type='C') on revenue COAs (account_type='revenue'), scoped to the
+ * authenticated user's posted, non-reversed journal entries — the SAME basis the
+ * expense actuals use (year-calendar/route.ts:154-170), so expenses − income is a
+ * TRUE single-basis net burn. Every income number traces to a real ledger revenue
+ * credit (commitPlaidTransaction posts it: journal-entry-service.ts:108).
+ *
+ * NOT the `transactions` table, and NOT the module='income' filter (counted: 0
+ * COAs have module='income'; the 9 real income COAs are account_type='revenue').
+ * NO FALLBACK: an empty period returns honest zero — never reads `transactions`.
+ *
+ * Entity-scoped: `byEntity` splits income by entity_type (Personal/Business/Trading)
+ * for per-entity net burn — additive; the existing shape (byCode/byMonth/summary/
+ * recentTransactions) is preserved for the one consumer (income/page.tsx).
+ */
 export async function GET() {
   try {
     const userEmail = await getVerifiedEmail();
@@ -14,89 +32,108 @@ export async function GET() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Get user's accounts
-    const userAccounts = await prisma.accounts.findMany({
-      where: { userId: user.id },
-      select: { id: true }
-    });
-    const accountIds = userAccounts.map(a => a.id);
+    // ── INCOME = ledger_entries revenue credits, committed + non-reversed, per
+    //    (coa, entity, year, month). Mirrors the expense actuals query, but
+    //    entry_type='C' + account_type='revenue'. le.amount is BigInt cents. ──
+    const rows: Array<{
+      code: string; name: string; entity_type: string; year: number; month: number; credits: string; cnt: number;
+    }> = await prisma.$queryRaw`
+      SELECT
+        coa.code,
+        coa.name,
+        e.entity_type,
+        EXTRACT(YEAR FROM je.date)::int  AS year,
+        EXTRACT(MONTH FROM je.date)::int AS month,
+        SUM(le.amount)::text             AS credits,
+        COUNT(*)::int                    AS cnt
+      FROM ledger_entries le
+      JOIN journal_entries je   ON le.journal_entry_id = je.id
+      JOIN chart_of_accounts coa ON le.account_id = coa.id
+      JOIN entities e            ON coa.entity_id = e.id
+      WHERE je."userId" = ${user.id}
+        AND je.is_reversal = false
+        AND je.reversed_by_entry_id IS NULL
+        AND coa.account_type = 'revenue'
+        AND le.entry_type = 'C'
+      GROUP BY coa.code, coa.name, e.entity_type, EXTRACT(YEAR FROM je.date), EXTRACT(MONTH FROM je.date)
+    `;
 
-    if (accountIds.length === 0) {
-      return NextResponse.json({
-        byCode: [],
-        byMonth: [],
-        summary: { ytdTotal: 0, allTimeTotal: 0, monthlyAvg: 0, transactionCount: 0 },
-        recentTransactions: []
-      });
-    }
+    const cents = (s: string) => Math.round(Number(s) / 100 * 100) / 100; // cents → dollars
 
-    const incomeCodes = await prisma.chart_of_accounts.findMany({
-      where: { userId: user.id, module: 'income' },
-      select: { code: true, name: true }
-    });
-
-    const codes = incomeCodes.map(c => c.code);
-
-    // Filter by user's accounts AND income codes
-    const transactions = await prisma.transactions.findMany({
-      where: { 
-        accountCode: { in: codes },
-        accountId: { in: accountIds }
-      },
-      orderBy: { date: 'desc' }
-    });
-
-    const byCode: Record<string, { name: string; total: number; count: number }> = {};
-    incomeCodes.forEach(c => {
-      byCode[c.code] = { name: c.name, total: 0, count: 0 };
-    });
-
-    const byMonth: Record<string, number> = {};
+    const byCodeMap: Record<string, { name: string; total: number; count: number }> = {};
+    const byMonthMap: Record<string, number> = {};
+    const byEntityMap: Record<string, number> = {};
     const currentYear = new Date().getFullYear();
     let ytdTotal = 0;
-    
-    transactions.forEach(t => {
-      const code = t.accountCode!;
-      const amount = Math.abs(t.amount);
-      
-      if (byCode[code]) {
-        byCode[code].total += amount;
-        byCode[code].count += 1;
-      }
+    let allTimeTotal = 0;
+    let transactionCount = 0;
 
-      const monthKey = t.date.toISOString().slice(0, 7);
-      byMonth[monthKey] = (byMonth[monthKey] || 0) + amount;
+    for (const r of rows) {
+      const dollars = cents(r.credits);
+      transactionCount += r.cnt;
+      allTimeTotal += dollars;
+      if (r.year === currentYear) ytdTotal += dollars;
 
-      if (t.date.getFullYear() === currentYear) {
-        ytdTotal += amount;
-      }
-    });
+      if (!byCodeMap[r.code]) byCodeMap[r.code] = { name: r.name, total: 0, count: 0 };
+      byCodeMap[r.code].total += dollars;
+      byCodeMap[r.code].count += r.cnt;
 
-    const allTimeTotal = transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
-    const monthCount = Object.keys(byMonth).length || 1;
+      const monthKey = `${r.year}-${String(r.month).padStart(2, '0')}`;
+      byMonthMap[monthKey] = (byMonthMap[monthKey] || 0) + dollars;
+
+      byEntityMap[r.entity_type] = (byEntityMap[r.entity_type] || 0) + dollars;
+    }
+
+    const monthCount = Object.keys(byMonthMap).length || 1;
+
+    // ── recentTransactions = the 20 most recent income journal entries (id, date,
+    //    description AS name, credit amount in dollars, COA code). ──
+    const recentRows: Array<{ id: string; date: Date; name: string | null; amount: string; accountcode: string }> =
+      await prisma.$queryRaw`
+        SELECT
+          je.id,
+          je.date,
+          je.description AS name,
+          le.amount::text AS amount,
+          coa.code AS accountcode
+        FROM ledger_entries le
+        JOIN journal_entries je   ON le.journal_entry_id = je.id
+        JOIN chart_of_accounts coa ON le.account_id = coa.id
+        WHERE je."userId" = ${user.id}
+          AND je.is_reversal = false
+          AND je.reversed_by_entry_id IS NULL
+          AND coa.account_type = 'revenue'
+          AND le.entry_type = 'C'
+        ORDER BY je.date DESC
+        LIMIT 20
+      `;
 
     return NextResponse.json({
-      byCode: Object.entries(byCode)
-        .filter(([_, data]) => data.total > 0)
-        .map(([code, data]) => ({ code, ...data }))
+      byCode: Object.entries(byCodeMap)
+        .filter(([, d]) => d.total > 0)
+        .map(([code, d]) => ({ code, ...d }))
         .sort((a, b) => b.total - a.total),
-      byMonth: Object.entries(byMonth)
+      byMonth: Object.entries(byMonthMap)
         .sort((a, b) => a[0].localeCompare(b[0]))
         .slice(-12)
-        .map(([month, total]) => ({ month, total })),
+        .map(([month, total]) => ({ month, total: Math.round(total * 100) / 100 })),
       summary: {
-        ytdTotal,
-        allTimeTotal,
-        monthlyAvg: allTimeTotal / monthCount,
-        transactionCount: transactions.length
+        ytdTotal: Math.round(ytdTotal * 100) / 100,
+        allTimeTotal: Math.round(allTimeTotal * 100) / 100,
+        monthlyAvg: Math.round((allTimeTotal / monthCount) * 100) / 100,
+        transactionCount,
       },
-      recentTransactions: transactions.slice(0, 20).map(t => ({
+      // RUNWAY-1: per-entity income (Personal/Business/Trading) for net burn. Additive.
+      byEntity: Object.entries(byEntityMap)
+        .map(([entityType, total]) => ({ entityType, total: Math.round(total * 100) / 100 }))
+        .sort((a, b) => b.total - a.total),
+      recentTransactions: recentRows.map((t) => ({
         id: t.id,
         date: t.date,
-        name: t.name,
-        amount: t.amount,
-        accountCode: t.accountCode
-      }))
+        name: t.name ?? '',
+        amount: cents(t.amount), // positive dollars (the revenue credit magnitude)
+        accountCode: t.accountcode,
+      })),
     });
   } catch (error) {
     console.error('Income API error:', error);
