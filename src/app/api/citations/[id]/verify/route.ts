@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { verifyCitation } from '@/lib/citations/verifyCitation';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
+import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 
 export async function POST(
   request: NextRequest,
@@ -11,6 +12,17 @@ export async function POST(
   try {
     const userEmail = await getVerifiedEmail();
     if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // COST/ABUSE GATE — verifyCitation() below makes outbound HTTP calls (HEAD+GET to the
+    // citation's URLs) AND overwrites shared verification state on a GLOBAL citations row.
+    // citations has no userId column (only relations to global regulatory_sources + self) →
+    // there is no per-user ownership to scope by; it is a shared regulatory library. Auth
+    // alone (above) left the external call unthrottled: any logged-in user could loop verify
+    // across every citation. Per-USER rate limit (keyed on the authed email — tighter than
+    // per-IP for an authed route), reusing the durable limiter the travel routes use
+    // (flights/search:27), BEFORE the call. Over limit → 429 (mapped in catch). Fail-closed:
+    // the guard throws before verifyCitation, so the external call never fires on reject.
+    await rateLimit(`citation-verify:${userEmail}`, { limit: 10, windowSeconds: 60 });
 
     const { id } = await params;
 
@@ -79,6 +91,12 @@ export async function POST(
 
     return NextResponse.json(result);
   } catch (error) {
+    if (error instanceof RateLimitError) {
+      return NextResponse.json(
+        { error: 'Too many verification requests — please slow down and try again shortly.' },
+        { status: 429, headers: { 'Retry-After': String(error.retryAfterSeconds) } }
+      );
+    }
     console.error('[Citation Verify]', error);
     return NextResponse.json({ error: 'Verification failed' }, { status: 500 });
   }
