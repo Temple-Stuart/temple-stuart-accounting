@@ -460,6 +460,14 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 is TRUTHY, so HubCalendar's demo guard stays active — zero authed fetches for a
                 guest (HubCalendar.tsx:173,180) — and the grid renders with no events. */}
             <HubCalendar demoEvents={[]} onRequireAuth={onRequireAuth} />
+            {/* PR-C: the SAME Runway Budget panel the authed user sees, in PREVIEW mode — renders the
+                real empty shells (cash "No bank linked", net burn "—", trading "not tracked", empty
+                budget table) and fires ZERO authed fetches (RunwayBudgetPanel guards every fetch on
+                `preview`, :187/:198 + budget children). Deliberately NOT wrapped in
+                <RunwayDataProvider>: that provider self-fetches the authed budget routes
+                (year-calendar/business-budget/nomad-budget) and would 401 for a guest — and it is
+                unconsumed (nothing calls useRunwayData), so omitting it is safe. */}
+            <RunwayBudgetPanel preview={true} />
           </div>
         </section>
       )}
