@@ -114,6 +114,11 @@ export async function GET(request: NextRequest) {
       start_time: string | null;
       end_time: string | null;
       occurrences: string[];
+      // HB-4a budget bridge: the routine's per-occurrence budget + its COA, carried through so a
+      // routine tile's detail panel can show them (the row already holds both — full fetch above).
+      // Real values only — null stays null (a routine with no budget/COA is truthfully empty).
+      coa_code: string | null;
+      budget_amount: number | null;
     };
 
     const out: RoutineWindowEntry[] = [];
@@ -179,6 +184,8 @@ export async function GET(request: NextRequest) {
         start_time: r.start_time ? r.start_time.toISOString() : null,
         end_time: r.end_time ? r.end_time.toISOString() : null,
         occurrences: taken.map((d) => d.toISOString()),
+        coa_code: r.coa_code,
+        budget_amount: r.budget_amount != null ? Number(r.budget_amount) : null,
       });
     }
 
