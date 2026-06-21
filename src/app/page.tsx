@@ -138,6 +138,27 @@ export default function LandingPage() {
                 </ol>
               </div>
             )}
+            {/* How it works — the Runway explainer, shown only on the Runway (calendar) tab.
+                Mirrors the projects block byte-for-byte in structure/styling; only the step
+                copy differs. Reuses the shared Get Started button below — no new colors. */}
+            {activeTab === 'calendar' && (
+              <div className="text-text-faint text-sm mb-8 max-w-xl">
+                <p className="text-white font-medium mb-2">How it works:</p>
+                <ol className="list-decimal list-inside space-y-2">
+                  {[
+                    "You set up your routines. Rent, coffee, the gym — each recurring expense carries a category and a dollar amount.",
+                    "Your routines become your plan. Every routine's budget flows onto the calendar as what you plan to spend, by the day.",
+                    "Your bookkeeping fills in what really happened. Actual spend comes straight from your ledger, not a guess.",
+                    "Your bank shows your cash. Your real balance is pulled live, with trading money kept separate — that's at-risk, not spending money.",
+                    "It does the math on your burn. It looks at the last 3 and 6 months of real money in and out, and finds your monthly burn.",
+                    "It tells you the truth: how many months you've got, and the date your money runs out.",
+                    "Trading stands on its own. Your trading wins and losses show in their own panel — never mixed into your runway.",
+                  ].map((step, i) => (
+                    <li key={i}>{step}</li>
+                  ))}
+                </ol>
+              </div>
+            )}
             <div className="flex items-center gap-4">
               <button onClick={() => { setLoginMode('register'); setShowLogin(true); }}
                 className="px-6 py-3 bg-white text-brand-purple font-medium hover:bg-bg-row text-sm">
