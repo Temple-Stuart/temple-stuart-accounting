@@ -64,27 +64,25 @@ export async function GET(request: Request) {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // BUDGET DATA — Personal planned. TWO sources with EXPLICIT per-(coa,month)
-    // PRECEDENCE (HB-5): the routine bridge is canonical and runs FIRST; the legacy
-    // flat `budgets` table is read SECOND but contributes ONLY where the routine did
-    // not cover that exact (coa, month). This kills the prior double-count (a COA with
-    // BOTH a routine and a `budgets` row showed routine+budgets stacked) while losing
-    // NO data (budgets-only COAs are still filled). The `budgets` rows are untouched.
+    // BUDGET DATA — Personal planned. SINGLE source: BUDGETED ROUTINES.
+    // Planned comes ONLY from operations_routines (the canonical bridge). A (coa, month)
+    // with no matching budgeted routine contributes NOTHING (empty / $0) — it is NOT
+    // backfilled from any other table. The legacy flat `budgets` table is no longer read
+    // here (it produced ghost rows the user never set as routines); the path to surface a
+    // figure is to create a budgeted routine, not to fall back to the legacy table.
     // ═══════════════════════════════════════════════════════════════════
     const homebaseCodes = Object.keys(COA_NAMES);
-    const MONTH_COLS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'] as const;
     const budgetData: Record<string, Record<number, number>> = {};
     let budgetGrandTotal = 0;
 
-    // ── SOURCE 1 (CANONICAL): BUDGETED ROUTINES (HB-4d) ──────────────────
+    // ── BUDGETED ROUTINES (HB-4d) — the ONLY planned source ──────────────
     // A Personal-entity routine with a per-occurrence budget + COA contributes
     // (occurrences-in-month × budget_amount) to its COA's monthly figure, computed via
     // routinesMonthlyByCoa (HB-4c → expandBetween, the same recurrence helper the calendar uses).
     // Gated on COA_NAMES so the contribution renders as a row (a routine on an excluded/travel COA
     // belongs to nomad-budget). Only is_active + fully-budgeted routines count (the helper returns
-    // null otherwise — no guessed amounts). Each (coa, month) it fills is recorded in
-    // `routineCovered` so the transitional budgets read below skips those cells (precedence).
-    const routineCovered = new Set<string>(); // `${coa}:${m}` cells the routine bridge owns
+    // null otherwise — no guessed amounts). A COA with no budgeted routine simply has no planned
+    // figure — nothing fills it.
     if (personalEntity) {
       const budgetedRoutines = await prisma.operations_routines.findMany({
         where: {
@@ -111,40 +109,10 @@ export async function GET(request: Request) {
             if (!budgetData[coa]) budgetData[coa] = {};
             budgetData[coa][m] = (budgetData[coa][m] || 0) + amount;
             budgetGrandTotal += amount;
-            routineCovered.add(`${coa}:${m}`);
           }
         }
       }
     }
-
-    // ── SOURCE 2 (TRANSITIONAL): the flat `budgets` table (monthly columns jan–dec) ──
-    // HB-5 precedence: the routine bridge wins per (coa, month). We still READ the legacy
-    // `budgets` table — NON-DESTRUCTIVE, the rows are kept — but ADD a figure ONLY for cells
-    // the routine bridge did NOT cover (`routineCovered`). So a budgets-only COA is preserved,
-    // while a COA that has BOTH a budgets row and a routine shows the ROUTINE figure ALONE
-    // (no stacking). Option B later migrates these rows into routines, after which this read
-    // (and the `budgets` table) can retire entirely.
-    const budgetRows = await prisma.budgets.findMany({
-      where: {
-        userId: user.id,
-        year: year,
-        accountCode: { in: homebaseCodes.map(c => `P-${c}`) }
-      }
-    });
-
-    for (const row of budgetRows) {
-      const coa = row.accountCode.replace(/^P-/, '');
-      for (let m = 0; m < 12; m++) {
-        if (routineCovered.has(`${coa}:${m}`)) continue; // routine owns this cell → skip budgets (no double-count)
-        const val = Number(row[MONTH_COLS[m]] || 0);
-        if (val !== 0) {
-          if (!budgetData[coa]) budgetData[coa] = {};
-          budgetData[coa][m] = (budgetData[coa][m] || 0) + val;
-          budgetGrandTotal += val;
-        }
-      }
-    }
-
 
     // ═══════════════════════════════════════════════════════════════════
     // ACTUALS DATA - From ledger_entries (single source of truth)
