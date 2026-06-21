@@ -147,7 +147,34 @@ function RunwayWindowCard({ w }: { w: RunwayWindow }) {
   );
 }
 
-export default function RunwayBudgetPanel() {
+// PREVIEW (guest) shells — the REAL "no data yet" states the panel already renders for a user with
+// nothing: cash unavailable → "No bank linked", windows show "—" (insufficient_history), trading
+// $0 / "not tracked". Every figure is ZERO/empty and every label is one the component (or its
+// routes) already emits — NO fabricated numbers, NO sample data. Used to render the panel for a
+// logged-out guest WITHOUT calling the authed /api/runway or /api/trading routes.
+const PREVIEW_EMPTY_ENTITY: EntityBurn = { expenses: 0, income: 0, netBurnTotal: 0, netBurnPerMonth: 0 };
+function previewRunway(): RunwayData {
+  const win = (months: number): RunwayWindow => ({
+    months, rangeStart: '', rangeEnd: '', expenses: 0, income: 0,
+    netBurnTotal: 0, netBurnPerMonth: 0, sufficientHistory: false,
+    state: 'insufficient_history', runwayMonths: null, zeroDate: null,
+    entities: { personal: PREVIEW_EMPTY_ENTITY, business: PREVIEW_EMPTY_ENTITY, unattributed: null },
+  });
+  return {
+    asOf: new Date().toISOString().slice(0, 10),
+    cash: { dollars: 0, accountsLinked: 0, available: false, source: 'Plaid balance · operating (excl. trading)' },
+    burnSource: 'trailing ledger actuals',
+    windows: [win(3), win(6)],
+  };
+}
+const PREVIEW_TRADING: TradingData = {
+  realizedPnl: 0, gains: 0, losses: 0, tradeCount: 0,
+  period: 'all-time', source: 'trading ledger, realized (4100 gains − 5100 losses)',
+  capital: { tracked: false, reason: 'no contributions/withdrawals posted to the trading ledger' },
+  drawdown: { tracked: false, reason: 'no peak/trough data tracked' },
+};
+
+export default function RunwayBudgetPanel({ preview = false }: { preview?: boolean } = {}) {
   const [view, setView] = useState<'month' | 'year'>('month');
   const [runway, setRunway] = useState<RunwayData | null>(null);
   // Honest error/empty handling — on failure we DECLARE "unavailable", never show zeros.
@@ -156,22 +183,26 @@ export default function RunwayBudgetPanel() {
   const [tradingError, setTradingError] = useState(false);
 
   useEffect(() => {
+    // PREVIEW (guest): render the real empty shell; never call the authed route (no 401).
+    if (preview) { setRunway(previewRunway()); return; }
     let cancelled = false;
     fetch('/api/runway')
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`status ${r.status}`))))
       .then((d: RunwayData) => { if (!cancelled) setRunway(d); })
       .catch(() => { if (!cancelled) setRunwayError(true); });
     return () => { cancelled = true; };
-  }, []);
+  }, [preview]);
 
   useEffect(() => {
+    // PREVIEW (guest): render the real empty shell; never call the authed route (no 401).
+    if (preview) { setTrading(PREVIEW_TRADING); return; }
     let cancelled = false;
     fetch('/api/trading/realized-pnl')
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`status ${r.status}`))))
       .then((d: TradingData) => { if (!cancelled) setTrading(d); })
       .catch(() => { if (!cancelled) setTradingError(true); });
     return () => { cancelled = true; };
-  }, []);
+  }, [preview]);
 
   return (
     <div className="border-t border-border bg-white rounded-lg overflow-hidden">
@@ -277,7 +308,7 @@ export default function RunwayBudgetPanel() {
           )}
         </div>
       </div>
-      {view === 'month' ? <HubBudgetSection /> : <BudgetComparison />}
+      {view === 'month' ? <HubBudgetSection preview={preview} /> : <BudgetComparison preview={preview} />}
     </div>
   );
 }
