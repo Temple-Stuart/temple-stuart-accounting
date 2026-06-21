@@ -159,6 +159,26 @@ export default function LandingPage() {
                 </ol>
               </div>
             )}
+            {/* How it works — the Routines explainer, shown only on the Routines tab.
+                Mirrors the projects/Runway blocks byte-for-byte in structure/styling; only the
+                step copy differs. Reuses the shared Get Started button below — no new colors. */}
+            {activeTab === 'routines' && (
+              <div className="text-text-faint text-sm mb-8 max-w-xl">
+                <p className="text-white font-medium mb-2">How it works:</p>
+                <ol className="list-decimal list-inside space-y-2">
+                  {[
+                    "You make a routine. Name a recurring thing — a workout, rent, your morning coffee — and put it on a schedule.",
+                    "Give it a time of day, and it lands on your calendar as a block. Leave the time off, and it just repeats in the background.",
+                    "Give it a dollar amount and a category, and it becomes money you plan to spend.",
+                    "Every month, that planned spend flows onto your budget — automatically, by the day.",
+                    "A routine can hold steps. Walk to the gym, lift, sauna, cold shower — the whole thing, in order.",
+                    "Turn a routine into a video. Its steps become a scene and a script, ready to film.",
+                  ].map((step, i) => (
+                    <li key={i}>{step}</li>
+                  ))}
+                </ol>
+              </div>
+            )}
             <div className="flex items-center gap-4">
               <button onClick={() => { setLoginMode('register'); setShowLogin(true); }}
                 className="px-6 py-3 bg-white text-brand-purple font-medium hover:bg-bg-row text-sm">
