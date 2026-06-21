@@ -12,7 +12,6 @@ import TripBudgetActual from '@/components/trips/TripBudgetActual';
 import HubCalendar from '@/components/hub/HubCalendar';
 import RunwayDataProvider from '@/components/hub/RunwayDataProvider';
 import RunwayBudgetPanel from '@/components/hub/RunwayBudgetPanel';
-import { demoCalendar } from '@/components/hub/showroom/demoCalendar';
 import PublicFlightSearch from '@/components/trips/PublicFlightSearch';
 import PublicHotelSearch from '@/components/trips/PublicHotelSearch';
 import PublicActivitySearch from '@/components/trips/PublicActivitySearch';
@@ -457,7 +456,10 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       {authed === false && (
         <section className={`w-full bg-white border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto">
-            <HubCalendar demoEvents={demoCalendar} onRequireAuth={onRequireAuth} />
+            {/* Guest Runway calendar: a REAL empty grid (no fake demo data). The empty array
+                is TRUTHY, so HubCalendar's demo guard stays active — zero authed fetches for a
+                guest (HubCalendar.tsx:173,180) — and the grid renders with no events. */}
+            <HubCalendar demoEvents={[]} onRequireAuth={onRequireAuth} />
           </div>
         </section>
       )}
