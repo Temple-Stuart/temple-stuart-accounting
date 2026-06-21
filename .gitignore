@@ -73,3 +73,8 @@ discover-schema.sh
 
 # tax export outputs (contain financial data — do not commit)
 /exports
+
+# Internal audit artifacts — NOT for the public repo (internal reasoning + file:line
+# codebase map + entity UUIDs). Untracked PR-2; local copies kept on disk.
+audits/
+audit-reports/
