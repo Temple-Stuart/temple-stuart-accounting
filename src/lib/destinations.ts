@@ -566,12 +566,21 @@ export const searchDestinations = (query: string, limit: number = 12) => {
  * still works; the static map is a fast path, not a hard dependency.
  */
 export function findViatorDestIdFor(cityName: string, _country?: string): number | null {
-  // Case-insensitive + trimmed match so "lisbon" / " Lisbon " resolve the same verified
-  // entry as "Lisbon" (the old `d.name === cityName` was exact + case-sensitive). This is a
-  // matching fix over the EXISTING verified ids only — no new/fabricated destIds are added
-  // here; expanding coverage requires ids verified against Viator's catalog (see the note above).
+  // Case-insensitive + trimmed, AND parenthetical-alias aware: a catalog city stored as
+  // "Bali (Canggu)" resolves whether the user types "Bali", "Canggu", or "Bali (Canggu)".
+  // Only the stored full name + its explicit parenthetical parts are matched — NO broad
+  // substring (which could mis-resolve to a different city). Over EXISTING verified ids only;
+  // no new/fabricated destIds (expanding coverage needs ids verified vs Viator's catalog).
   const q = cityName.trim().toLowerCase();
-  const match = ALL_DESTINATIONS.find(d => d.type === 'city' && d.name.trim().toLowerCase() === q);
+  if (!q) return null;
+  const match = ALL_DESTINATIONS.find(d => {
+    if (d.type !== 'city') return false;
+    const full = d.name.trim().toLowerCase();
+    if (full === q) return true;
+    // "bali (canggu)" also resolves "bali" (base) or "canggu" (parenthetical part).
+    const m = full.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+    return !!m && (m[1].trim() === q || m[2].trim() === q);
+  });
   return match?.viatorDestId ?? null;
 }
 

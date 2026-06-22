@@ -23,6 +23,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { findDestinationId } from '@/lib/viatorClient';
+import { findViatorDestIdFor } from '@/lib/destinations';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 
 const VIATOR_V2_BASE = 'https://api.viator.com/partner';
@@ -107,7 +108,9 @@ export async function GET(request: NextRequest) {
       .map((t) => ({ tagId: t.tagId ?? t.id ?? null, name: tagName(t) }));
 
     // ── B · resolve the destination → destId (reuse the app helper) ──
-    const destId = await findDestinationId(city);
+    // PR-3: static VERIFIED map first (skips the rate-limited /destinations for known cities,
+    // e.g. Bali/Canggu → 98), then the dynamic lookup for unknown cities.
+    const destId = findViatorDestIdFor(city) ?? await findDestinationId(city);
 
     // ── B-probe · RAW /destinations SHAPE (TEMPORARY diagnostic, no parse fix here). ──
     // findDestinationId returns null for Bali/Rome/Lisbon with a clean 200, which means
