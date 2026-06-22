@@ -32,6 +32,11 @@ interface TravelSectionShellProps {
   title: string;
   /** One plain-language line under the header. */
   explainer: string;
+  /** Optional pill/badge shown inline beside the title (e.g. ComingSoonSection's
+   *  "Coming soon" tag). When omitted the header is byte-identical to the live
+   *  search sections (plain title `<p>`); when present the title row matches
+   *  ComingSoonSection's existing flex layout. */
+  badge?: ReactNode;
   /** The section body (form / results), slotted below the header inside the same
    *  `space-y-4` wrapper — exactly where each section's form sits today. */
   children?: ReactNode;
@@ -43,13 +48,21 @@ interface TravelSectionShellProps {
  * `<div>` holding the title `<p>` (text-lg font-bold text-brand-purple mb-1) and the
  * explainer `<p>` (text-xs text-text-muted), then `children` as the next sibling so
  * the wrapper's `space-y-4` spaces the header from the body — identical to e.g.
- * PublicHotelSearch.tsx:174-180 / PublicActivitySearch.tsx:79-86.
+ * PublicHotelSearch.tsx:174-180 / PublicActivitySearch.tsx:79-86. With a `badge`, the
+ * title row matches ComingSoonSection's flex-with-pill layout instead.
  */
-export default function TravelSectionShell({ title, explainer, children }: TravelSectionShellProps) {
+export default function TravelSectionShell({ title, explainer, badge, children }: TravelSectionShellProps) {
   return (
     <div className="mt-10 pt-8 border-t border-border space-y-4">
       <div>
-        <p className="text-lg font-bold text-brand-purple mb-1">{title}</p>
+        {badge ? (
+          <div className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <p className="text-lg font-bold text-brand-purple">{title}</p>
+            {badge}
+          </div>
+        ) : (
+          <p className="text-lg font-bold text-brand-purple mb-1">{title}</p>
+        )}
         <p className="text-xs text-text-muted">{explainer}</p>
       </div>
       {children}
