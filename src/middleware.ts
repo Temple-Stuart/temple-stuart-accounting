@@ -72,6 +72,7 @@ const PUBLIC_PATHS = [
   '/api/travel/hotels/content',
   '/api/travel/hotels/reviews',
   '/api/travel/activities/search',
+  '/api/travel/transfers/search',
   '/api/travel/visa/check',
   '/api/travel/locations/countries',
   '/api/travel/locations/cities',

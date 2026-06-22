@@ -15,6 +15,7 @@ import RunwayBudgetPanel from '@/components/hub/RunwayBudgetPanel';
 import PublicFlightSearch from '@/components/trips/PublicFlightSearch';
 import PublicHotelSearch from '@/components/trips/PublicHotelSearch';
 import PublicActivitySearch from '@/components/trips/PublicActivitySearch';
+import PublicTransferSearch from '@/components/trips/PublicTransferSearch';
 import PublicVisaCheck from '@/components/trips/PublicVisaCheck';
 import ComingSoonSection from '@/components/home/ComingSoonSection';
 import ScanFilterForm from '@/components/trading/ScanFilterForm';
@@ -501,10 +502,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
               currentTrip={currentTrip}
               onCommitted={() => setTripsRefresh((n) => n + 1)}
             />
-            <ComingSoonSection
-              title="Getting around"
-              explainer="Airport rides and transfers, booked and budgeted with your trip."
-            />
+            <PublicTransferSearch onRequireAuth={onRequireAuth} />
             <PublicActivitySearch onRequireAuth={onRequireAuth} />
             <PublicVisaCheck />
             <ComingSoonSection

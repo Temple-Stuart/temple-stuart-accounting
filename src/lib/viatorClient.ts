@@ -570,6 +570,48 @@ export async function searchViatorProducts(
     .slice(0, maxResults);
 }
 
+/**
+ * Search Viator products filtered by TAG ids — the verified mechanism for category-specific
+ * inventory like ground transfers (tags 21745 "Transfers" + 12044 "Airport & Hotel Transfers").
+ * Resolves destId exactly like searchViatorProducts (static map via preResolvedDestId → dynamic
+ * findDestinationId), then queries EACH tag and MERGES + DEDUPES by productCode (some products
+ * carry both tags). Unlike searchViatorProducts (activities) it does NOT apply a rating>0 filter —
+ * transfers are bookable regardless of review count, so we surface every REAL product. Returns []
+ * HONESTLY when the city has no destId or no products — never fabricated/sample data.
+ */
+export async function searchViatorProductsByTags(
+  city: string,
+  country: string,
+  tagIds: number[],
+  maxResults: number = 12,
+  preResolvedDestId?: number | null,
+): Promise<ViatorProduct[]> {
+  if (tagIds.length === 0) return [];
+  const destId = preResolvedDestId ?? await findDestinationId(city, country);
+  if (!destId) {
+    console.warn(`[Viator] tag search: no destId for "${city}, ${country}" — returning empty (honest, no fabricated data).`);
+    return [];
+  }
+  const byCode = new Map<string, ViatorProduct>();
+  for (const tagId of tagIds) {
+    if (byCode.size >= maxResults) break;
+    try {
+      const page = await searchV2Products(destId, maxResults, [tagId]);
+      for (const p of page) {
+        const key = p.productCode || p.title;
+        if (key && !byCode.has(key)) byCode.set(key, p); // MERGE + DEDUPE by productCode
+      }
+    } catch (err) {
+      // Re-throw HARD failures (missing key, 4xx incl 429) so the route surfaces them as
+      // 429/5xx; swallow a transient 5xx for one tag so the other tag can still return.
+      if (err instanceof MissingViatorKeyError) throw err;
+      if (err instanceof ViatorApiError && err.status >= 400 && err.status < 500) throw err;
+      console.error(`[Viator] tag ${tagId} search transient error:`, err);
+    }
+  }
+  return [...byCode.values()].slice(0, maxResults);
+}
+
 // ─── Product → GrokRecommendation Mapping ────────────────────────────────────
 
 export function viatorProductToRecommendation(
