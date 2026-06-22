@@ -72,7 +72,7 @@ let destinationLoadPromise: Promise<ViatorDestination[]> | null = null;
 const DEST_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 async function loadDestinations(): Promise<ViatorDestination[]> {
-  if (cachedDestinations && Date.now() - destinationCacheTime < DEST_CACHE_TTL) {
+  if (cachedDestinations && cachedDestinations.length > 0 && Date.now() - destinationCacheTime < DEST_CACHE_TTL) {
     return cachedDestinations;
   }
   // In-flight de-dup: if another caller in this lambda already kicked off
@@ -84,6 +84,11 @@ async function loadDestinations(): Promise<ViatorDestination[]> {
       const res = await fetch(`${VIATOR_V2_BASE}/destinations`, {
         headers: v2Headers(),
       });
+      if (res.status === 429) {
+        // FAIL LOUD on rate-limit — never degrade to an empty list (that, plus caching the
+        // [], was the poisoned-cache bug). The route's try/catch maps this to an error response.
+        throw new ViatorApiError('V2 /destinations rate-limited (429)', 429, await res.text());
+      }
       if (!res.ok) {
         throw new ViatorApiError('V2 /destinations', res.status, await res.text());
       }
@@ -95,19 +100,38 @@ async function loadDestinations(): Promise<ViatorDestination[]> {
       // whole search with "Cannot read properties of undefined (reading
       // 'toLowerCase')". Drop the unusable rows here, log the count for
       // visibility, and never assume `destinationName` is a string downstream.
-      const raw: unknown[] = data.destinations || data.data || [];
+      // Read the documented keys, but accept ONLY an array — a truthy non-array would crash
+      // .filter below. When a 200 carries neither array, log the real shape LOUD (NO api key —
+      // just the response keys) so we capture it instead of silently returning [] (the actual
+      // parse fix lands once we observe a real 200 shape).
+      const arr: unknown[] | null =
+        Array.isArray(data?.destinations) ? data.destinations
+        : Array.isArray(data?.data) ? data.data
+        : null;
+      if (arr === null) {
+        console.warn(
+          '[VIATOR] unexpected /destinations shape (200, no array at .destinations/.data) — keys:',
+          data && typeof data === 'object' ? Object.keys(data) : typeof data,
+        );
+      }
+      const raw: unknown[] = arr ?? [];
       const usable = raw.filter((d): d is ViatorDestination =>
         typeof d === 'object' && d !== null &&
         typeof (d as { destinationName?: unknown }).destinationName === 'string'
       );
       const skipped = raw.length - usable.length;
-      cachedDestinations = usable;
-      destinationCacheTime = Date.now();
+      // Only cache a NON-EMPTY result — never poison the 24h cache with [] (an empty array is
+      // truthy, so a cached [] was being served for 24h with no live call). On empty, leave the
+      // cache untouched so the next call retries the live fetch.
+      if (usable.length > 0) {
+        cachedDestinations = usable;
+        destinationCacheTime = Date.now();
+      }
       console.log(
         `[Viator] Loaded ${usable.length} destinations (V2 /destinations)` +
         (skipped > 0 ? ` — skipped ${skipped} rows with missing destinationName` : '')
       );
-      return cachedDestinations!;
+      return usable;
     } catch (err) {
       if (err instanceof MissingViatorKeyError) throw err;
       // V1 fallback host has been retired (returns 503 globally). Fail loud — no
