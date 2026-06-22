@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchViatorProducts, viatorProductToRecommendation } from '@/lib/viatorClient';
+import { findViatorDestIdFor } from '@/lib/destinations';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
 
@@ -64,7 +65,12 @@ export async function GET(request: NextRequest) {
     // unified bucket; empty userInterests; small maxResults to bound the fan-out.
     console.log(`[Viator] Searching activities: ${city}, ${country}`);
 
-    const products = await searchViatorProducts(city, country, 'activities', [], ACTIVITY_MAX_RESULTS);
+    // PR-3: resolve the destId from the static VERIFIED map FIRST — skips the rate-limited
+    // /destinations call for the 17 known cities (incl Bali/Canggu → 98). null for unknown
+    // cities → searchViatorProducts falls to the dynamic findDestinationId (honest post-PR-1).
+    const preResolvedDestId = findViatorDestIdFor(city);
+
+    const products = await searchViatorProducts(city, country, 'activities', [], ACTIVITY_MAX_RESULTS, preResolvedDestId);
 
     // Map to the canonical recommendation shape, then STRIP the two affiliate-URL
     // fields (`bookingUrl` + `website`) so the live affiliate link never leaves
