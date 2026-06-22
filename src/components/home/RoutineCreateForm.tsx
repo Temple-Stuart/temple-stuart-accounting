@@ -17,6 +17,7 @@
 
 import { useState } from 'react';
 import RRULEBuilder from '@/components/workbench/operations/routines/RRULEBuilder';
+import { DEFAULT_COA } from '@/lib/coaDefaults';
 import type { RoutineForm, CadenceMode, CadenceGroup } from '@/components/workbench/operations/routines/types';
 import {
   DEFAULT_ROUTINE_FORM,
@@ -101,6 +102,47 @@ export default function RoutineCreateForm({ onRequireAuth }: Props) {
             <select className={inputClass} value="preview" disabled>
               <option value="preview">Your workspace · set after login</option>
             </select>
+          </div>
+        </div>
+
+        {/* GUEST COA + budget — mirrors the real form's per-occurrence money pair (workbench
+            RoutineCreateForm.tsx:148-172), but the COA list is the STATIC client-safe DEFAULT_COA
+            constant: NO /api/chart-of-accounts fetch, NO CoaSelect, NO real-user COA data. Both
+            optional; write to existing local state (form.budget_amount / form.coa_code, already on
+            RoutineForm). Captured into the in-memory routine on Add via the {...form} spread. */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <div className={labelClass}>budget / occurrence (optional)</div>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.budget_amount ?? ''}
+              onChange={(e) => setForm({ ...form, budget_amount: e.target.value })}
+              className={inputClass}
+              placeholder="e.g., 60"
+            />
+          </div>
+          <div>
+            <div className={labelClass}>COA (optional)</div>
+            <select
+              value={form.coa_code ?? ''}
+              onChange={(e) => setForm({ ...form, coa_code: e.target.value })}
+              className={inputClass}
+            >
+              <option value="">— None —</option>
+              {DEFAULT_COA.map((a) => (
+                <option key={a.code} value={a.code}>
+                  {a.code} — {a.name}
+                </option>
+              ))}
+            </select>
+            {/* Truth-in-labeling: these are the shared STARTER categories, not the guest's
+                personalized chart (real COAs are per-user + editable after login) — mirrors the
+                entity field's honest "set after login" placeholder above. */}
+            <div className="text-text-muted text-[10px] font-mono mt-1">
+              starter categories · your own chart after login
+            </div>
           </div>
         </div>
 
