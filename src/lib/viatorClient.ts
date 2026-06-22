@@ -100,26 +100,47 @@ async function loadDestinations(): Promise<ViatorDestination[]> {
       // whole search with "Cannot read properties of undefined (reading
       // 'toLowerCase')". Drop the unusable rows here, log the count for
       // visibility, and never assume `destinationName` is a string downstream.
-      // Read the documented keys, but accept ONLY an array — a truthy non-array would crash
-      // .filter below. When a 200 carries neither array, log the real shape LOUD (NO api key —
-      // just the response keys) so we capture it instead of silently returning [] (the actual
-      // parse fix lands once we observe a real 200 shape).
+      // VERIFIED /destinations 200 shape (captured via the live destProbe): { destinations: [ {
+      // destinationId:number, name:string, type:"CITY"|… }, … ], totalCount:number }. The array is
+      // at data.destinations (data.data kept as a harmless legacy secondary). Accept ONLY an array.
       const arr: unknown[] | null =
         Array.isArray(data?.destinations) ? data.destinations
         : Array.isArray(data?.data) ? data.data
         : null;
       if (arr === null) {
-        console.warn(
-          '[VIATOR] unexpected /destinations shape (200, no array at .destinations/.data) — keys:',
-          data && typeof data === 'object' ? Object.keys(data) : typeof data,
+        // The shape is now KNOWN — a 200 with no array at .destinations is a genuine regression.
+        // FAIL LOUD (the route maps it to an error); never silently return [] / poison the cache.
+        throw new ViatorApiError(
+          `V2 /destinations unexpected shape (200, no array at .destinations/.data) — keys: ${
+            data && typeof data === 'object' ? Object.keys(data).join(',') : typeof data
+          }`,
+          res.status,
         );
       }
-      const raw: unknown[] = arr ?? [];
-      const usable = raw.filter((d): d is ViatorDestination =>
-        typeof d === 'object' && d !== null &&
-        typeof (d as { destinationName?: unknown }).destinationName === 'string'
-      );
-      const skipped = raw.length - usable.length;
+      // DATA-COMPLETENESS: the verified response is a SINGLE page — totalCount === destinations.length
+      // (both 3389), so the full catalog loads in one call. If Viator ever paginates (totalCount >
+      // returned), DECLARE it loud rather than silently using a partial set (paging is a later PR).
+      const totalCount = typeof data?.totalCount === 'number' ? data.totalCount : null;
+      if (totalCount !== null && totalCount > arr.length) {
+        console.warn(`[VIATOR] /destinations PAGINATED: totalCount=${totalCount} > returned=${arr.length} — using a PARTIAL set (single-page parse).`);
+      }
+      // Map the VERIFIED API fields (destinationId / name / type) into our internal
+      // ViatorDestination shape (destinationId / destinationName / destinationType). The OLD code
+      // filtered on `d.destinationName` — a field the API does NOT return (it returns `name`) — so
+      // it dropped EVERY row → an empty list even on a valid 200. THIS was the original 0-match
+      // root cause (alongside the 429/poisoned-cache fixed in PR-1).
+      const usable: ViatorDestination[] = arr
+        .filter((d): d is { destinationId: number; name: string; type?: unknown } =>
+          typeof d === 'object' && d !== null &&
+          typeof (d as { name?: unknown }).name === 'string' &&
+          typeof (d as { destinationId?: unknown }).destinationId === 'number'
+        )
+        .map((d) => ({
+          destinationId: d.destinationId,
+          destinationName: d.name,
+          destinationType: typeof d.type === 'string' ? d.type : '',
+        }));
+      const skipped = arr.length - usable.length;
       // Only cache a NON-EMPTY result — never poison the 24h cache with [] (an empty array is
       // truthy, so a cached [] was being served for 24h with no live call). On empty, leave the
       // cache untouched so the next call retries the live fetch.
@@ -129,7 +150,7 @@ async function loadDestinations(): Promise<ViatorDestination[]> {
       }
       console.log(
         `[Viator] Loaded ${usable.length} destinations (V2 /destinations)` +
-        (skipped > 0 ? ` — skipped ${skipped} rows with missing destinationName` : '')
+        (skipped > 0 ? ` — skipped ${skipped} rows with missing name/destinationId` : '')
       );
       return usable;
     } catch (err) {
