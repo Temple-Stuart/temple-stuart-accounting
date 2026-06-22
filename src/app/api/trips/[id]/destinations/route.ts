@@ -387,8 +387,16 @@ export async function DELETE(
     }
 
     if (destinationId) {
-      // Delete by record ID (name-based destinations)
-      await prisma.trip_destinations.delete({ where: { id: destinationId } });
+      // Delete by record ID, SCOPED to the authed-owned trip (the [id] verified owned
+      // at line 377). deleteMany lets us filter by the non-unique tripId; a destinationId
+      // belonging to ANOTHER user's trip has a different tripId → 0 rows matched → 404
+      // (IDOR fix: no cross-user delete; defensive 404 doesn't confirm the row exists).
+      const { count } = await prisma.trip_destinations.deleteMany({
+        where: { id: destinationId, tripId: id },
+      });
+      if (count === 0) {
+        return NextResponse.json({ error: 'Destination not found' }, { status: 404 });
+      }
     } else {
       // Delete by compound key (resort-based destinations)
       await prisma.trip_destinations.delete({
