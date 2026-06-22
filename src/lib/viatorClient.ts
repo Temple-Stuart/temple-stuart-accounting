@@ -327,9 +327,36 @@ async function searchV2Freetext(searchTerm: string, destId: number | null, maxCo
   }
 
   const data = await res.json();
-  // Freetext response: products may be at data.products or nested in searchTypes
-  const products = data.products || data.data || [];
-  return products.map(normalizeV2Product);
+
+  // Freetext response shape varies: the products array may sit at a top-level key, inside a
+  // paginated wrapper (e.g. { results: [...] }), or nested under the searchTypes entry (the
+  // request asks for searchTypes:[{searchType:'PRODUCTS'}]). Resolve it DEFENSIVELY — try the
+  // plausible ARRAY locations in order and use the FIRST that is actually an array. NEVER call
+  // .map on a non-array: that was the production crash
+  // "(j.products || j.data || []).map is not a function" (data.products was a truthy non-array).
+  const firstSearchType = Array.isArray(data?.searchTypes) ? data.searchTypes[0] : undefined;
+  const candidates: unknown[] = [
+    data?.products,
+    data?.data,
+    data?.results,
+    data?.products?.results,
+    data?.data?.results,
+    data?.data?.products,
+    firstSearchType?.products,
+    firstSearchType?.products?.results,
+    firstSearchType?.results,
+  ];
+  const productsArr = candidates.find((c): c is any[] => Array.isArray(c));
+  if (!productsArr) {
+    // No array anywhere — return TRUE empty (never fabricated data) but LOG the real response
+    // shape (truncated, NO api key/headers — this is the response BODY, not v2Headers) so the
+    // correct path can be mapped next. Loud, not silent.
+    console.log('[VIATOR-FREETEXT-SHAPE]', JSON.stringify({
+      keys: data && typeof data === 'object' ? Object.keys(data) : typeof data,
+      body: JSON.stringify(data).slice(0, 500),
+    }));
+  }
+  return (productsArr ?? []).map(normalizeV2Product);
 }
 
 /** Search Viator products by destination + category terms */
