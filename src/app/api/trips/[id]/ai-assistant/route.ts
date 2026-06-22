@@ -193,6 +193,21 @@ export async function POST(
     const maxResults = rawMaxResults || 33;
     const { id: tripId } = await params;
 
+    // SECURITY (PR-5): verify the authed user OWNS this trip BEFORE any paid provider call.
+    // The LiteAPI/Viator/Google branches below each fire a paid search AND upsert
+    // trip_scanner_results keyed on tripId — none re-checks ownership (the LiteAPI branch even
+    // loads the trip by id alone). Without this gate a tier-holder could pass ANOTHER user's
+    // tripId and trigger paid work against, and write results onto, a trip they don't own.
+    // Defensive 404 (don't confirm existence). Same pattern as the merged IDOR fix
+    // (trips/[id]/destinations: trips.findFirst({ id, userId })). trips.userId: schema.prisma.
+    const ownedTrip = await prisma.trips.findFirst({
+      where: { id: tripId, userId: user.id },
+      select: { id: true },
+    });
+    if (!ownedTrip) {
+      return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
+    }
+
     // Activities passed explicitly with the request (used only to expand the
     // search queries — there is no traveler profile).
     const tripActivities: string[] = [
