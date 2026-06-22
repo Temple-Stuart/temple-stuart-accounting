@@ -18,6 +18,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import FlightPickerView, { type FlightLeg, type FlightOffer } from './FlightPickerView';
 import FlightCheckoutPanel from './FlightCheckoutPanel';
+import TravelSectionShell from './travelSection';
 
 interface Props {
   /** Opens the existing home register/login modal (saving requires sign-in). */
@@ -226,15 +227,10 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
   };
 
   return (
-    <div className="mt-10 pt-8 border-t border-border space-y-3">
-      <div>
-        <p className="text-lg font-bold text-brand-purple mb-1">Search real flights — free, no account needed.</p>
-        <p className="text-xs text-text-muted">
-          Type two airports and a date to see live fares — free, no account needed. To save a
-          flight to a trip, log in and pick a trip above. Hotels, activities, and rides are coming next.
-        </p>
-      </div>
-
+    <TravelSectionShell
+      title="Search real flights — free, no account needed."
+      explainer="Type two airports and a date to see live fares — free, no account needed. To save a flight to a trip, log in and pick a trip above. Hotels, activities, and rides are coming next."
+    >
       <FlightPickerView
         legs={legs}
         committing={committing}
@@ -260,6 +256,6 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
           onBooked={() => { /* confirmation shows in-panel; nothing to persist here */ }}
         />
       )}
-    </div>
+    </TravelSectionShell>
   );
 }
