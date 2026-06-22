@@ -16,6 +16,7 @@
 
 import { useState } from 'react';
 import ActivityResultsView, { type ActivityResult } from './ActivityResultsView';
+import TravelSectionShell, { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS } from './travelSection';
 
 interface Props {
   /** Opens the existing home register/login modal (booking requires sign-in). */
@@ -71,27 +72,18 @@ export default function PublicActivitySearch({ onRequireAuth }: Props) {
   // never an affiliate link. The view never books or links out — it calls back.
   const book = () => onRequireAuth();
 
-  const inputClass =
-    'bg-white border border-border rounded px-3 py-2 text-sm text-text-primary ' +
-    'focus:outline-none focus:ring-2 focus:ring-brand-purple/40';
-
   return (
-    <div className="mt-10 pt-8 border-t border-border space-y-4">
-      <div>
-        <p className="text-lg font-bold text-brand-purple mb-1">Find real things to do — free, no account needed.</p>
-        <p className="text-xs text-text-muted">
-          Type a city and country to see real tours and experiences with photos and prices.
-          Booking asks you to sign up.
-        </p>
-      </div>
-
+    <TravelSectionShell
+      title="Find real things to do — free, no account needed."
+      explainer="Type a city and country to see real tours and experiences with photos and prices. Booking asks you to sign up."
+    >
       <form onSubmit={search} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <input
           type="text"
           value={city}
           onChange={(e) => setCity(e.target.value)}
           placeholder="City (e.g. Lisbon)"
-          className={`${inputClass} lg:col-span-2`}
+          className={`${TRAVEL_INPUT_CLASS} lg:col-span-2`}
           aria-label="Destination city"
         />
         <input
@@ -99,16 +91,18 @@ export default function PublicActivitySearch({ onRequireAuth }: Props) {
           value={country}
           onChange={(e) => setCountry(e.target.value)}
           placeholder="Country (e.g. Portugal)"
-          className={inputClass}
+          className={TRAVEL_INPUT_CLASS}
           aria-label="Destination country"
         />
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded bg-brand-purple px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-purple-hover disabled:opacity-50"
-        >
-          {loading ? 'Searching…' : 'Search'}
-        </button>
+        <div className="flex items-end">
+          <button
+            type="submit"
+            disabled={loading}
+            className={`${TRAVEL_BUTTON_CLASS} w-full`}
+          >
+            {loading ? 'Searching…' : 'Search'}
+          </button>
+        </div>
       </form>
 
       {/* Results: only after the first search. Empty/loading/error live in the view. */}
@@ -118,6 +112,6 @@ export default function PublicActivitySearch({ onRequireAuth }: Props) {
       {!searched && error && (
         <div className="rounded-lg border border-border bg-white p-4 text-sm text-brand-red">{error}</div>
       )}
-    </div>
+    </TravelSectionShell>
   );
 }

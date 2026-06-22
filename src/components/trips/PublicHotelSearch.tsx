@@ -20,6 +20,7 @@ import { useState } from 'react';
 import HotelResultsView, { type HotelResult } from './HotelResultsView';
 import CheckoutPanel from './CheckoutPanel';
 import CountryCityPicker from './CountryCityPicker';
+import TravelSectionShell, { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS } from './travelSection';
 
 interface Props {
   /** Opens the existing home register/login modal (saving requires sign-in). */
@@ -166,21 +167,12 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
     }
   };
 
-  const inputClass =
-    'bg-white border border-border rounded px-3 py-2 text-sm text-text-primary ' +
-    'focus:outline-none focus:ring-2 focus:ring-brand-purple/40';
-
   return (
-    <div className="mt-10 pt-8 border-t border-border space-y-4">
-      <div>
-        <p className="text-lg font-bold text-brand-purple mb-1">Search real hotels — free, no account needed.</p>
-        <p className="text-xs text-text-muted">
-          Type a destination and your dates to see live stays with photos and nightly prices.
-          Book a room now, or save a stay to a trip to budget it (log in and pick a trip).
-        </p>
-      </div>
-
-      <form onSubmit={search} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
+    <TravelSectionShell
+      title="Search real hotels — free, no account needed."
+      explainer="Type a destination and your dates to see live stays with photos and nightly prices. Book a room now, or save a stay to a trip to budget it (log in and pick a trip)."
+    >
+      <form onSubmit={search} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {/* PR-loc-2: linked country→city picker (real LiteAPI cities only)
             replaces the free-text city + country inputs. */}
         <CountryCityPicker onChange={setPicked} />
@@ -188,31 +180,36 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
           type="date"
           value={checkin}
           onChange={(e) => setCheckin(e.target.value)}
-          className={inputClass}
+          className={TRAVEL_INPUT_CLASS}
           aria-label="Check-in date"
         />
         <input
           type="date"
           value={checkout}
           onChange={(e) => setCheckout(e.target.value)}
-          className={inputClass}
+          className={TRAVEL_INPUT_CLASS}
           aria-label="Check-out date"
         />
-        <div className="flex gap-2">
-          <select
-            value={adults}
-            onChange={(e) => setAdults(Number(e.target.value))}
-            className={`${inputClass} flex-1`}
-            aria-label="Guests"
-          >
-            {[1, 2, 3, 4, 5, 6].map((n) => (
-              <option key={n} value={n}>{n} guest{n === 1 ? '' : 's'}</option>
-            ))}
-          </select>
+        {/* PR-B: the guests select gets its OWN grid cell (it previously shared a
+            flex row with the Search button, which squeezed the button past the cell's
+            right edge — the reported cutoff). */}
+        <select
+          value={adults}
+          onChange={(e) => setAdults(Number(e.target.value))}
+          className={TRAVEL_INPUT_CLASS}
+          aria-label="Guests"
+        >
+          {[1, 2, 3, 4, 5, 6].map((n) => (
+            <option key={n} value={n}>{n} guest{n === 1 ? '' : 's'}</option>
+          ))}
+        </select>
+        {/* PR-B cutoff fix: Search button in its OWN final cell, full-width so it
+            fills the column and never overflows. */}
+        <div className="flex items-end">
           <button
             type="submit"
             disabled={loading || !picked}
-            className="rounded bg-brand-purple px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-purple-hover disabled:opacity-50"
+            className={`${TRAVEL_BUTTON_CLASS} w-full`}
           >
             {loading ? 'Searching…' : 'Search'}
           </button>
@@ -264,6 +261,6 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
           onBooked={() => { /* confirmation shows in-panel; nothing to persist here */ }}
         />
       )}
-    </div>
+    </TravelSectionShell>
   );
 }

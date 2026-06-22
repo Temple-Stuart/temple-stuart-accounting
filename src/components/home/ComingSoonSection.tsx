@@ -9,6 +9,8 @@
  * (live searches + these placeholders) reads as one matched set.
  */
 
+import TravelSectionShell from '@/components/trips/travelSection';
+
 interface Props {
   /** Feature name shown as the bold purple header (the "Coming soon" badge sits
    *  beside it — so the title itself stays a clean feature name, not "X — coming
@@ -20,14 +22,14 @@ interface Props {
 
 export default function ComingSoonSection({ title, explainer }: Props) {
   return (
-    <div className="mt-10 pt-8 border-t border-border">
-      <div className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-        <p className="text-lg font-bold text-brand-purple">{title}</p>
+    <TravelSectionShell
+      title={title}
+      explainer={explainer}
+      badge={
         <span className="inline-flex items-center rounded-full bg-bg-row px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
           Coming soon
         </span>
-      </div>
-      <p className="text-xs text-text-muted">{explainer}</p>
-    </div>
+      }
+    />
   );
 }
