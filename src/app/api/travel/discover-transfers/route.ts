@@ -109,6 +109,27 @@ export async function GET(request: NextRequest) {
     // ── B · resolve the destination → destId (reuse the app helper) ──
     const destId = await findDestinationId(city);
 
+    // ── B-probe · RAW /destinations SHAPE (TEMPORARY diagnostic, no parse fix here). ──
+    // findDestinationId returns null for Bali/Rome/Lisbon with a clean 200, which means
+    // loadDestinations did NOT throw → the app's parse `data.destinations || data.data || []`
+    // (viatorClient.ts:98) yielded []. This hits the SAME endpoint + headers the app uses
+    // (GET /partner/destinations, version=2.0) and reports ONLY the response SHAPE so one
+    // browser hit reveals where the array actually is (or that it's empty). NO api key in the
+    // output — `sample` is the DESTINATIONS RESPONSE BODY; the key only ever rides in the
+    // request header (v2Headers). We fix :98 from the revealed shape in a later PR.
+    const destRes = await fetch(`${VIATOR_V2_BASE}/destinations`, { headers: v2Headers(key) });
+    const destData: any = await destRes.json().catch(() => ({}));
+    const destProbe = {
+      status: destRes.status,
+      topLevelKeys: (destData && typeof destData === 'object' && !Array.isArray(destData)) ? Object.keys(destData) : typeof destData,
+      isArrayItself: Array.isArray(destData),
+      viaDestinations: Array.isArray(destData?.destinations) ? destData.destinations.length : typeof destData?.destinations,
+      viaData: Array.isArray(destData?.data) ? destData.data.length : typeof destData?.data,
+      viaDataDestinations: Array.isArray(destData?.data?.destinations) ? destData.data.destinations.length : typeof destData?.data?.destinations,
+      viaResults: Array.isArray(destData?.results) ? destData.results.length : typeof destData?.results,
+      sample: JSON.stringify(destData).slice(0, 400),
+    };
+
     // ── C · PROVE products per matched tag (the win condition) ──
     const proof: { tagId: unknown; name: string; status: number; productCount: number; sampleTitles: string[] }[] = [];
     if (destId) {
@@ -145,6 +166,7 @@ export async function GET(request: NextRequest) {
       tagCountTotal: allTags.length,
       matchedTags,
       proof,
+      destProbe,
     });
   } catch (error) {
     if (error instanceof RateLimitError) {
