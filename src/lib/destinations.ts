@@ -566,7 +566,12 @@ export const searchDestinations = (query: string, limit: number = 12) => {
  * still works; the static map is a fast path, not a hard dependency.
  */
 export function findViatorDestIdFor(cityName: string, _country?: string): number | null {
-  const match = ALL_DESTINATIONS.find(d => d.name === cityName && d.type === 'city');
+  // Case-insensitive + trimmed match so "lisbon" / " Lisbon " resolve the same verified
+  // entry as "Lisbon" (the old `d.name === cityName` was exact + case-sensitive). This is a
+  // matching fix over the EXISTING verified ids only — no new/fabricated destIds are added
+  // here; expanding coverage requires ids verified against Viator's catalog (see the note above).
+  const q = cityName.trim().toLowerCase();
+  const match = ALL_DESTINATIONS.find(d => d.type === 'city' && d.name.trim().toLowerCase() === q);
   return match?.viatorDestId ?? null;
 }
 
