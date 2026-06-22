@@ -259,6 +259,10 @@ async function searchV2Products(destId: number, maxCount: number, tagIds?: numbe
     body.filtering.tags = tagIds;
   }
 
+  // [VIATOR-DIAG] TEMPORARY — the exact request body (destId/sort/pagination/currency only;
+  // NO api key — the key lives in v2Headers(), which is NEVER logged). Remove after diagnosis.
+  console.log('[VIATOR-DIAG] products/search request', JSON.stringify(body));
+
   const res = await fetch(`${VIATOR_V2_BASE}/products/search`, {
     method: 'POST',
     headers: v2Headers(),
@@ -270,6 +274,25 @@ async function searchV2Products(destId: number, maxCount: number, tagIds?: numbe
   }
 
   const data = await res.json();
+
+  // [VIATOR-DIAG] TEMPORARY — response shape + the first product's review/price/rating fields,
+  // to confirm whether products come back and whether rating populates (the .filter(rating>0)
+  // suspect). NO secrets logged. Remove after diagnosis.
+  console.log('[VIATOR-DIAG] products/search response', JSON.stringify({
+    status: res.status,
+    dataKeys: Object.keys(data),
+    productsLen: data.products?.length ?? null,
+  }));
+  const diagFirst = (data.products || [])[0];
+  if (diagFirst) {
+    console.log('[VIATOR-DIAG] first product', JSON.stringify({
+      keys: Object.keys(diagFirst),
+      reviews: diagFirst.reviews,
+      fromPrice: diagFirst.pricing?.summary?.fromPrice,
+      rating: diagFirst.reviews?.combinedAverageRating,
+    }));
+  }
+
   return (data.products || []).map(normalizeV2Product);
 }
 
@@ -332,6 +355,9 @@ export async function searchViatorProducts(
   // isn't (long-tail destinations that haven't been added to the static
   // map yet).
   const destId = preResolvedDestId ?? await findDestinationId(city, country);
+
+  // [VIATOR-DIAG] TEMPORARY — what the city/country resolved to (or null). Remove after diagnosis.
+  console.log('[VIATOR-DIAG] resolve', JSON.stringify({ city, country, preResolvedDestId: preResolvedDestId ?? null, destId, coaCategory, maxResults }));
 
   const allProducts: ViatorProduct[] = [];
   const seenCodes = new Set<string>();
@@ -450,6 +476,16 @@ export async function searchViatorProducts(
   // has been retired and returns 503 globally.
 
   console.log(`[Viator] ${coaCategory}: ${allProducts.length} products found for ${city}`);
+
+  // [VIATOR-DIAG] TEMPORARY — count fetched vs how many survive the rating>0 filter, plus a
+  // sample of parsed ratings/reviewCounts, so we SEE whether the filter is what empties the
+  // results. The actual return below is unchanged. Remove after diagnosis.
+  console.log('[VIATOR-DIAG] before-rating-filter', JSON.stringify({
+    fetched: allProducts.length,
+    ratedNonZero: allProducts.filter(p => p.rating > 0).length,
+    sampleRatings: allProducts.slice(0, 5).map(p => p.rating),
+    sampleReviewCounts: allProducts.slice(0, 5).map(p => p.reviewCount),
+  }));
 
   // Sort by rating × log(reviewCount) and return top N
   return allProducts
