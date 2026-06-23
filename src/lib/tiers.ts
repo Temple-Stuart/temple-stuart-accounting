@@ -22,6 +22,7 @@ export interface TierConfig {
   tradingAnalytics: boolean;
   tripPlanning: boolean;
   tripAI: boolean;
+  placesSearch: boolean;
   maxLinkedAccounts: number;
 }
 
@@ -34,6 +35,7 @@ const TIER_MAP: Record<Tier, TierConfig> = {
     tradingAnalytics: false,
     tripPlanning: true,
     tripAI: false,
+    placesSearch: false,
     maxLinkedAccounts: 0,
   },
   pro: {
@@ -44,6 +46,7 @@ const TIER_MAP: Record<Tier, TierConfig> = {
     tradingAnalytics: true,
     tripPlanning: true,
     tripAI: false,
+    placesSearch: true,
     maxLinkedAccounts: 10,
   },
   pro_plus: {
@@ -54,6 +57,7 @@ const TIER_MAP: Record<Tier, TierConfig> = {
     tradingAnalytics: true,
     tripPlanning: true,
     tripAI: true,
+    placesSearch: true,
     maxLinkedAccounts: 25,
   },
 };
