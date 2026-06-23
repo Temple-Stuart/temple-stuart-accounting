@@ -19,6 +19,7 @@ import PublicCategorySearch from '@/components/trips/PublicCategorySearch';
 import PublicTransferSearch from '@/components/trips/PublicTransferSearch';
 import PublicVisaCheck from '@/components/trips/PublicVisaCheck';
 import ComingSoonSection from '@/components/home/ComingSoonSection';
+import { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS } from '@/components/trips/travelSection';
 import { HOMEPAGE_PAID_CATEGORIES } from '@/lib/categoryKeys';
 import ScanFilterForm from '@/components/trading/ScanFilterForm';
 import ConvergenceIntelligence from '@/components/convergence/ConvergenceIntelligence';
@@ -139,6 +140,13 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // 9 sections render locked. Loaded from the SAME auth/me effect below (no extra fetch).
   const [entitledCategories, setEntitledCategories] = useState<string[]>([]);
   const [currentUserId, setCurrentUserId] = useState('');
+  // PR-3: unified Travel-tab destination. The top "Search all" bar writes city/country here
+  // and bumps the nonce; each destination-based section (Transfers, Activities, the unlocked
+  // categories) reads them on a nonce change and runs ITS OWN search. Locked categories never
+  // mount their search child, so fan-out can't fire them (zero spend). Flights are excluded.
+  const [travelCity, setTravelCity] = useState('');
+  const [travelCountry, setTravelCountry] = useState('');
+  const [travelSearchNonce, setTravelSearchNonce] = useState(0);
   // PR-HCR-Trips1: bumped after a create so the All Trips list re-fetches in place.
   const [tripsRefresh, setTripsRefresh] = useState(0);
   // PR-HCR-Trips2: the selected trip, lifted out of AllTripsList so later budget
@@ -496,6 +504,52 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
             <div>
               {renderBody(travelModule)}
             </div>
+
+            {/* PR-3: unified destination bar — search once, fill every destination-based
+                section below (Transfers, Activities, the unlocked categories). On "Search all"
+                we bump a nonce; each section reads {travelCity, travelCountry} and runs its OWN
+                search. Flights stay independent (they need origin airport + dates). */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!travelCity.trim() || !travelCountry.trim()) return;
+                setTravelSearchNonce((n) => n + 1);
+              }}
+              className="rounded-lg border border-brand-purple/20 bg-brand-purple/5 p-4 space-y-3"
+            >
+              <div>
+                <p className="text-lg font-bold text-brand-purple">Search your destination</p>
+                <p className="text-sm text-text-muted">Search once — fill every section below for your destination.</p>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <input
+                  type="text"
+                  value={travelCountry}
+                  onChange={(e) => setTravelCountry(e.target.value)}
+                  placeholder="Country (e.g. Portugal)"
+                  className={TRAVEL_INPUT_CLASS}
+                  aria-label="Destination country"
+                />
+                <input
+                  type="text"
+                  value={travelCity}
+                  onChange={(e) => setTravelCity(e.target.value)}
+                  placeholder="City (e.g. Lisbon)"
+                  className={`${TRAVEL_INPUT_CLASS} lg:col-span-2`}
+                  aria-label="Destination city"
+                />
+                <div className="flex items-end">
+                  <button
+                    type="submit"
+                    disabled={!travelCity.trim() || !travelCountry.trim()}
+                    className={`${TRAVEL_BUTTON_CLASS} w-full`}
+                  >
+                    Search all
+                  </button>
+                </div>
+              </div>
+            </form>
+
             {/* 4·The search tools, stacked: flights → hotels → [Ground, coming soon] →
                 activities → visa (live) → [Insurance, eSIM, Events — coming soon]. The
                 live searches keep their own explainers + logic; the ComingSoonSection
@@ -512,8 +566,18 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
               currentTrip={currentTrip}
               onCommitted={() => setTripsRefresh((n) => n + 1)}
             />
-            <PublicTransferSearch onRequireAuth={onRequireAuth} />
-            <PublicActivitySearch onRequireAuth={onRequireAuth} />
+            <PublicTransferSearch
+              onRequireAuth={onRequireAuth}
+              sharedCity={travelCity}
+              sharedCountry={travelCountry}
+              searchNonce={travelSearchNonce}
+            />
+            <PublicActivitySearch
+              onRequireAuth={onRequireAuth}
+              sharedCity={travelCity}
+              sharedCountry={travelCountry}
+              searchNonce={travelSearchNonce}
+            />
             <PublicVisaCheck />
             <ComingSoonSection
               title="Travel insurance"
@@ -553,6 +617,9 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 entitledCategories={entitledCategories}
                 currentUserId={currentUserId}
                 onRequireAuth={onRequireAuth}
+                sharedCity={travelCity}
+                sharedCountry={travelCountry}
+                searchNonce={travelSearchNonce}
               />
             ))}
           </div>
