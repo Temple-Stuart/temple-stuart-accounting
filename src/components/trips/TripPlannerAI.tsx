@@ -7,21 +7,9 @@ import { Button } from '@/components/ui';
 import { ACTIVITY_LABELS } from '@/lib/activities';
 import { TRAVEL_COA, getActiveScanCategories } from '@/lib/travelCOA';
 import { getSource, type Source } from '@/lib/travelSourceRegistry';
-import { GOOGLE_CATEGORY_KEYS } from '@/lib/categoryKeys';
-import { ADMIN_USER_ID } from '@/lib/tiers';
+import { isCategoryLocked } from '@/lib/categoryLock';
 import { Waves, Wifi, Coffee, Dumbbell, Flower2, Car, type LucideIcon } from 'lucide-react';
 import HScrollRow from '@/components/trips/HScrollRow';
-
-// PR-B: per-category lock. A Google catKey is LOCKED unless the user is entitled to it.
-// Admin is never locked; commission catKeys (not in GOOGLE_CATEGORY_KEYS) are never locked.
-// Single source of truth used by BOTH the section render (TripApiSection) and the zero-spend
-// scan-dispatcher skip (autoScanCategoriesFor).
-const GOOGLE_CAT_SET = new Set<string>(GOOGLE_CATEGORY_KEYS);
-function isCategoryLocked(catKey: string, entitledCategories: string[], currentUserId: string): boolean {
-  if (currentUserId === ADMIN_USER_ID) return false;   // admin sees everything unlocked
-  if (!GOOGLE_CAT_SET.has(catKey)) return false;        // commission categories stay free
-  return !entitledCategories.includes(catKey);          // Google cat: locked unless entitled
-}
 
 // Grok response format with sentiment analysis
 interface GrokRecommendation {
