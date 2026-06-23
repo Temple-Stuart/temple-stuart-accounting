@@ -5,6 +5,8 @@ import { requireTier } from '@/lib/auth-helpers';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 import { searchPlaces } from '@/lib/placesSearch';
 import { isCacheFresh, getCachedPlaces, cachePlaces, type CachedPlace } from '@/lib/placesCache';
+import { getEntitledCategories } from '@/lib/entitlements';
+import { GOOGLE_CATEGORY_KEYS } from '@/lib/categoryKeys';
 
 // ─── PAID + CACHED category search (Google Places Text Search) ───────────────
 // legacy Text Search is fixed-cost; no field mask param. Minimal fields mapped for card only.
@@ -135,6 +137,19 @@ export async function POST(request: NextRequest) {
     }
     if (radius !== undefined && (typeof radius !== 'number' || !Number.isFinite(radius) || radius <= 0)) {
       return NextResponse.json({ error: 'radius must be a positive number' }, { status: 400 });
+    }
+
+    // ── 5b · PER-CATEGORY ENTITLEMENT GATE — the real per-category lock, AFTER category is
+    //        validated and BEFORE any paid Google / cache call. Mirrors the proven scan gate
+    //        (ai-assistant/route.ts). Admin passes (getEntitledCategories returns all 9 keys for
+    //        ADMIN_USER_ID). FAIL-CLOSED: if getEntitledCategories throws, it propagates to the
+    //        outer catch → 500, never an open scan. The requireTier('placesSearch') paid wall
+    //        above stays (defense in depth). ──
+    if ((GOOGLE_CATEGORY_KEYS as readonly string[]).includes(category)) {
+      const entitled = await getEntitledCategories(user.id);
+      if (!entitled.includes(category)) {
+        return NextResponse.json({ error: 'Category not unlocked', category }, { status: 403 });
+      }
     }
 
     // ── 6 · CACHE-FIRST — fresh (city, country, category) bucket → ZERO Google calls ──
