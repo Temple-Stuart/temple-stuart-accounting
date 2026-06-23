@@ -19,7 +19,7 @@ import PublicCategorySearch from '@/components/trips/PublicCategorySearch';
 import PublicTransferSearch from '@/components/trips/PublicTransferSearch';
 import PublicVisaCheck from '@/components/trips/PublicVisaCheck';
 import ComingSoonSection from '@/components/home/ComingSoonSection';
-import { GOOGLE_CATEGORY_KEYS } from '@/lib/categoryKeys';
+import { HOMEPAGE_PAID_CATEGORIES } from '@/lib/categoryKeys';
 import ScanFilterForm from '@/components/trading/ScanFilterForm';
 import ConvergenceIntelligence from '@/components/convergence/ConvergenceIntelligence';
 import OperationsPipelineShowroom from '@/components/workbench/operations/showroom/OperationsPipelineShowroom';
@@ -515,19 +515,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
             <PublicTransferSearch onRequireAuth={onRequireAuth} />
             <PublicActivitySearch onRequireAuth={onRequireAuth} />
             <PublicVisaCheck />
-            {/* PR-2b: the 9 Google category discovery sections — one PublicCategorySearch per
-                canonical key (no parallel list). Locked unless entitled (admin/entitled →
-                search form; otherwise a 🔒 card that mounts no fetch → zero Google spend). The
-                category-search route also gates per-category server-side (defense in depth). */}
-            {GOOGLE_CATEGORY_KEYS.map((catKey) => (
-              <PublicCategorySearch
-                key={catKey}
-                catKey={catKey}
-                entitledCategories={entitledCategories}
-                currentUserId={currentUserId}
-                onRequireAuth={onRequireAuth}
-              />
-            ))}
             <ComingSoonSection
               title="Travel insurance"
               explainer="Cover your trip — medical, delays, lost bags — priced into your budget."
@@ -540,6 +527,34 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
               title="Events"
               explainer="Concerts, shows, and live events wherever you're headed."
             />
+
+            {/* PR-2c: premium divider — a clear free→paid break. The sections above are free;
+                the categories below are subscription-gated local discovery. */}
+            <div className="mt-12 border-t-2 border-brand-purple/20 pt-8">
+              <div className="flex items-baseline gap-x-3">
+                <h3 className="text-lg font-bold text-brand-purple">Premium categories</h3>
+                <span className="rounded-full bg-brand-purple/10 px-2.5 py-0.5 text-xs font-semibold text-brand-purple">
+                  Subscription
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-text-muted">
+                Unlock local picks with ratings and prices — subscribe to access.
+              </p>
+            </div>
+
+            {/* PR-2c: the homepage paid Google categories (HOMEPAGE_PAID_CATEGORIES — a curated
+                subset of GOOGLE_CATEGORY_KEYS, gate still covers them). Locked unless entitled:
+                admin/entitled → search form; otherwise a 🔒 card that mounts no fetch → zero
+                Google spend. The category-search route also gates per-category server-side. */}
+            {HOMEPAGE_PAID_CATEGORIES.map((catKey) => (
+              <PublicCategorySearch
+                key={catKey}
+                catKey={catKey}
+                entitledCategories={entitledCategories}
+                currentUserId={currentUserId}
+                onRequireAuth={onRequireAuth}
+              />
+            ))}
           </div>
         </div>
       </section>
