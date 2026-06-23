@@ -135,6 +135,9 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const [userTier, setUserTier] = useState<string>('free');
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
+  // PR-B: per-category entitlements from /api/auth/me. Default [] (all Google locked) until it
+  // loads — the safe gate default, NOT a permissive fallback.
+  const [entitledCategories, setEntitledCategories] = useState<string[]>([]);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Inline date editing
@@ -155,7 +158,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
   // Vendor commitment state (legacy — commit now handled inside TripPlannerAI)
 
-  useEffect(() => { loadTrip(); loadParticipants(); loadDestinations(); loadBudgetItems(); loadVendorOptions(); loadScannerResults(); fetch("/api/auth/me").then(res => res.ok ? res.json() : null).then(data => { if (data?.user?.tier) setUserTier(data.user.tier); if (data?.user?.email) setCurrentUserEmail(data.user.email); if (data?.user?.id) setCurrentUserId(data.user.id); }); }, [id]);
+  useEffect(() => { loadTrip(); loadParticipants(); loadDestinations(); loadBudgetItems(); loadVendorOptions(); loadScannerResults(); fetch("/api/auth/me").then(res => res.ok ? res.json() : null).then(data => { if (data?.user?.tier) setUserTier(data.user.tier); if (data?.user?.email) setCurrentUserEmail(data.user.email); if (data?.user?.id) setCurrentUserId(data.user.id); if (Array.isArray(data?.user?.entitledCategories)) setEntitledCategories(data.user.entitledCategories); }); }, [id]);
 
   // Re-resolve budget item locations when scanner results or itinerary become available
   useEffect(() => {
@@ -862,6 +865,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     daysTravel: trip.daysTravel,
                     tripDates,
                     onCommitted: () => { loadTrip(); loadBudgetItems(); loadVendorOptions(); loadScannerResults(); },
+                    entitledCategories,
+                    currentUserId,
                   }}
                 >
                   <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
