@@ -17,6 +17,7 @@
  */
 
 import { useState } from 'react';
+import { Lock } from 'lucide-react';
 import { isCategoryLocked } from '@/lib/categoryLock';
 import { TRAVEL_COA } from '@/lib/travelCOA';
 import TravelSectionShell, { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS } from './travelSection';
@@ -68,9 +69,14 @@ export default function PublicCategorySearch({
         title={label}
         explainer="Unlock this category to see real local picks with ratings and prices."
       >
-        <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-border bg-bg-row p-8 text-center">
-          <div className="text-2xl" aria-hidden="true">🔒</div>
-          <p className="text-sm font-medium text-text-primary">{label} — subscribe to unlock</p>
+        <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-brand-purple/15 bg-bg-row px-6 py-10 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-purple/10 text-brand-purple">
+            <Lock className="h-6 w-6" strokeWidth={2} aria-hidden="true" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-base font-bold text-text-primary">{label}</p>
+            <p className="text-sm text-text-muted">Subscribe to see top-rated {label.toLowerCase()} with prices.</p>
+          </div>
           <button type="button" onClick={onRequestUnlock} className={TRAVEL_BUTTON_CLASS}>
             Subscribe to unlock
           </button>

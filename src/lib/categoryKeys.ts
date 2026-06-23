@@ -14,3 +14,17 @@ export const GOOGLE_CATEGORY_KEYS = [
   'shopping',
   'festivals',
 ] as const;
+
+// The paid Google categories surfaced on the homepage Travel tab. Subset of
+// GOOGLE_CATEGORY_KEYS (the full system key set). Nightlife/shopping/festivals intentionally
+// excluded. This is "what we sell on the homepage" — a separate concept from "every key the
+// system knows" — so it is NOT a parallel list. Every key here MUST exist in
+// GOOGLE_CATEGORY_KEYS so the per-category entitlement gate still covers them.
+export const HOMEPAGE_PAID_CATEGORIES = [
+  'brunch_coffee',
+  'dinner',
+  'gyms',
+  'coworking',
+  'sports',
+  'groceries',
+] as const;
