@@ -1,6 +1,8 @@
 import { requireTier } from '@/lib/auth-helpers';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getEntitledCategories } from '@/lib/entitlements';
+import { GOOGLE_CATEGORY_KEYS } from '@/lib/categoryKeys';
 import { searchPlacesMultiQuery, CATEGORY_SEARCHES, formatPriceLevel } from '@/lib/placesSearch';
 import { getCachedPlaces, cachePlaces, isCacheFresh } from '@/lib/placesCache';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -188,6 +190,20 @@ export async function POST(
     const isInterestCategory = !!category && !!ACTIVITY_SEARCH_EXPANSIONS[category];
     if (!category || (!isCOACategory && !isLegacyCategory && !isInterestCategory)) {
       return NextResponse.json({ error: 'Valid category required' }, { status: 400 });
+    }
+
+    // PR-C: server-side PER-CATEGORY entitlement gate — the REAL lock. The PR-B client lock (the
+    // 🔒 card + the dispatcher skip) is UI-only and a crafted direct POST can bypass it, so this
+    // enforces it server-side BEFORE any Google fetch. Only PAID Google categories are gated;
+    // commission categories (not in GOOGLE_CATEGORY_KEYS) skip this and stay free. Admin passes
+    // because getEntitledCategories returns ALL keys for ADMIN_USER_ID. FAIL-CLOSED: a DB error in
+    // getEntitledCategories propagates to the outer catch (500) — it NEVER opens a paid category.
+    // The baseline requireTier('tripAI') at the top stays as-is (defense in depth).
+    if ((GOOGLE_CATEGORY_KEYS as readonly string[]).includes(category)) {
+      const entitled = await getEntitledCategories(user.id);
+      if (!entitled.includes(category)) {
+        return NextResponse.json({ error: 'Category not unlocked', category }, { status: 403 });
+      }
     }
 
     const maxResults = rawMaxResults || 33;
