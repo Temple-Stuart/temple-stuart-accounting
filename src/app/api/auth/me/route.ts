@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { isAdminUser } from '@/lib/tiers';
+import { getEntitledCategories } from '@/lib/entitlements';
 
 export async function GET() {
   try {
@@ -39,7 +40,12 @@ export async function GET() {
     // isAdminUser/ADMIN_USER_ID check) so the home launcher can show the
     // admin-only Trading scan form without leaking ADMIN_USER_ID into the client
     // bundle or inventing client-side admin logic.
-    return NextResponse.json({ user: { ...user, isAdmin: isAdminUser(user.id) } });
+    // Per-category entitlements (PR-A): the Google category keys this user may unlock.
+    // Read-only here — no gate is applied; PR-B/PR-C consume this set. Fail-loud: a DB
+    // error in the helper propagates to the catch below (real 500), never a silent set.
+    const entitledCategories = await getEntitledCategories(user.id);
+
+    return NextResponse.json({ user: { ...user, isAdmin: isAdminUser(user.id), entitledCategories } });
   } catch (error) {
     console.error('Auth check error:', error);
     return NextResponse.json(
