@@ -7,8 +7,21 @@ import { Button } from '@/components/ui';
 import { ACTIVITY_LABELS } from '@/lib/activities';
 import { TRAVEL_COA, getActiveScanCategories } from '@/lib/travelCOA';
 import { getSource, type Source } from '@/lib/travelSourceRegistry';
+import { GOOGLE_CATEGORY_KEYS } from '@/lib/categoryKeys';
+import { ADMIN_USER_ID } from '@/lib/tiers';
 import { Waves, Wifi, Coffee, Dumbbell, Flower2, Car, type LucideIcon } from 'lucide-react';
 import HScrollRow from '@/components/trips/HScrollRow';
+
+// PR-B: per-category lock. A Google catKey is LOCKED unless the user is entitled to it.
+// Admin is never locked; commission catKeys (not in GOOGLE_CATEGORY_KEYS) are never locked.
+// Single source of truth used by BOTH the section render (TripApiSection) and the zero-spend
+// scan-dispatcher skip (autoScanCategoriesFor).
+const GOOGLE_CAT_SET = new Set<string>(GOOGLE_CATEGORY_KEYS);
+function isCategoryLocked(catKey: string, entitledCategories: string[], currentUserId: string): boolean {
+  if (currentUserId === ADMIN_USER_ID) return false;   // admin sees everything unlocked
+  if (!GOOGLE_CAT_SET.has(catKey)) return false;        // commission categories stay free
+  return !entitledCategories.includes(catKey);          // Google cat: locked unless entitled
+}
 
 // Grok response format with sentiment analysis
 interface GrokRecommendation {
@@ -79,6 +92,11 @@ interface Props {
   daysTravel: number;
   tripDates?: { departure: string; return: string } | null;
   onCommitted?: () => void;
+  // PR-B: per-category entitlements + the current user id, threaded so TripApiSection and the
+  // scan dispatcher can lock un-entitled Google categories. Optional → default empty (all Google
+  // locked) when /api/auth/me hasn't loaded yet — the safe gate default, NOT a permissive guess.
+  entitledCategories?: string[];
+  currentUserId?: string;
 }
 
 const CATEGORY_INFO: Record<string, { label: string; icon: string }> = {
@@ -188,7 +206,7 @@ const CATEGORY_TO_VENDOR_API: Record<string, string> = {
 // the VERBATIM former TripPlannerAI component body; the default export renders
 // the SAME JSX from context. No visual/behavior change.
 function useTripScanState(input: Props) {
-  const { tripId, city, country, activity, activities = [], month, year, daysTravel, tripDates, onCommitted } = input;
+  const { tripId, city, country, activity, activities = [], month, year, daysTravel, tripDates, onCommitted, entitledCategories = [], currentUserId = '' } = input;
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [loadingCategory, setLoadingCategory] = useState<string | null>(null);
@@ -336,10 +354,16 @@ function useTripScanState(input: Props) {
   // while missing ones load).
   const autoScanCategoriesFor = async (catKeys: string[]) => {
     if (!city || !country || catKeys.length === 0) return;
+    // ZERO-SPEND GUARD (PR-B): never scan a Google category the user isn't entitled to —
+    // a locked section shows the locked card and fires NO Google call / populates no byCategory.
+    // Re-derives the SAME lock as TripApiSection (isCategoryLocked) from the threaded
+    // entitledCategories + currentUserId. Commission cats + admin pass through unchanged.
+    const scannable = catKeys.filter(key => !isCategoryLocked(key, entitledCategories, currentUserId));
+    if (scannable.length === 0) return;
     setError(null);
 
     type ScanCategory = { key: string; label: string; maxResults: number };
-    const categoriesToScan: ScanCategory[] = catKeys.map(key => ({
+    const categoriesToScan: ScanCategory[] = scannable.map(key => ({
       key,
       label: TRAVEL_COA[key]?.label || key,
       // PR-28d: hotels fetch 50 (was 33). Google stays 33 (quota-limited — do NOT
@@ -715,7 +739,7 @@ function useTripScanState(input: Props) {
   const datesValid = !(checkinVal && checkoutVal) || checkoutVal > checkinVal;
 
   return {
-    router, loading, setLoading, loadingCategory, setLoadingCategory, completedCount, setCompletedCount, totalCategories, setTotalCategories, recommendations, setRecommendations, byCategory, setByCategory, error, setError, expandedCategory, setExpandedCategory, minRating, setMinRating, minReviews, setMinReviews, maxPriceLevel, setMaxPriceLevel, loadedPhotos, setLoadedPhotos, selections, setSelections, editingSelection, setEditingSelection, editForm, setEditForm, savingVendorOption, setSavingVendorOption, scannerMeta, setScannerMeta, commitCardKey, setCommitCardKey, committingCard, setCommittingCard, committedCards, setCommittedCards, cardPrices, setCardPrices, cardDates, setCardDates, cardFrequency, setCardFrequency, cardTimes, setCardTimes, reservingKey, setReservingKey, reservedKeys, setReservedKeys, checkoutTarget, setCheckoutTarget, loadingCategories, setLoadingCategories, categoryErrors, setCategoryErrors, perLocationDates, setPerLocationDates, showCustomModal, setShowCustomModal, customCategory, setCustomCategory, customForm, setCustomForm, customLoading, setCustomLoading, customPreview, setCustomPreview, tripDays, tripActivities, scanSingleCategory, autoScanCategoriesFor, rescanAll, handleSelectItem, buildVendorBody, confirmSelection, handleCommitCard, handleUncommitCard, handleLiteApiReserve, fetchUrlPreview, openCustomModal, handleAddCustomItem, activeCity, defaultCheckin, defaultCheckout, checkinVal, checkoutVal, datesValid, tripId, city, country, activity, activities, month, year, daysTravel, tripDates, onCommitted,
+    router, loading, setLoading, loadingCategory, setLoadingCategory, completedCount, setCompletedCount, totalCategories, setTotalCategories, recommendations, setRecommendations, byCategory, setByCategory, error, setError, expandedCategory, setExpandedCategory, minRating, setMinRating, minReviews, setMinReviews, maxPriceLevel, setMaxPriceLevel, loadedPhotos, setLoadedPhotos, selections, setSelections, editingSelection, setEditingSelection, editForm, setEditForm, savingVendorOption, setSavingVendorOption, scannerMeta, setScannerMeta, commitCardKey, setCommitCardKey, committingCard, setCommittingCard, committedCards, setCommittedCards, cardPrices, setCardPrices, cardDates, setCardDates, cardFrequency, setCardFrequency, cardTimes, setCardTimes, reservingKey, setReservingKey, reservedKeys, setReservedKeys, checkoutTarget, setCheckoutTarget, loadingCategories, setLoadingCategories, categoryErrors, setCategoryErrors, perLocationDates, setPerLocationDates, showCustomModal, setShowCustomModal, customCategory, setCustomCategory, customForm, setCustomForm, customLoading, setCustomLoading, customPreview, setCustomPreview, tripDays, tripActivities, scanSingleCategory, autoScanCategoriesFor, rescanAll, handleSelectItem, buildVendorBody, confirmSelection, handleCommitCard, handleUncommitCard, handleLiteApiReserve, fetchUrlPreview, openCustomModal, handleAddCustomItem, activeCity, defaultCheckin, defaultCheckout, checkinVal, checkoutVal, datesValid, tripId, city, country, activity, activities, month, year, daysTravel, tripDates, onCommitted, entitledCategories, currentUserId,
   };
 }
 
@@ -822,7 +846,7 @@ export function TripScanControls() {
  *  TravelCarousel (28b filters + 28d load-more + honest empty/error preserved).
  *  Reads byCategory[catKey] / loadingCategories / categoryErrors from context. */
 export function TripApiSection({ catKey, title }: { catKey: string; title?: string }) {
-  const { router, byCategory, loadingCategories, categoryErrors, tripId, city, country } = useTripScanCtx();
+  const { router, byCategory, loadingCategories, categoryErrors, tripId, city, country, entitledCategories, currentUserId } = useTripScanCtx();
   if (!ACTIVE_SCAN_SET.has(catKey)) return null;
   const isLoading = loadingCategories.has(catKey);
   const items = byCategory[catKey] || [];
@@ -833,6 +857,33 @@ export function TripApiSection({ catKey, title }: { catKey: string; title?: stri
   // complete source for all 9 Google catKeys; CATEGORY_INFO covers a subset).
   // Never "Places"/"Google" — a section is named for what it budgets, not its API.
   const label = info?.label || coa?.label || catKey;
+
+  // PR-B: per-category lock. The section header still renders (visible + labeled) — only the
+  // RESULTS are gated. Commission cats + admin never lock (isCategoryLocked). The matching
+  // zero-spend skip in autoScanCategoriesFor means a locked cat never fired a Google scan.
+  const locked = isCategoryLocked(catKey, entitledCategories, currentUserId);
+  if (locked) {
+    // Placeholder unlock handler — Stripe checkout is PR-D. For now: no-op + log.
+    const onRequestUnlock = (key: string) => {
+      console.log('[entitlements] unlock requested for', key);
+    };
+    return (
+      <SectionCard title={title ?? label}>
+        <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-border bg-bg-row p-8 text-center">
+          <div className="text-2xl" aria-hidden>🔒</div>
+          <p className="text-sm font-medium text-text-primary">{label} — subscribe to unlock</p>
+          <button
+            type="button"
+            onClick={() => onRequestUnlock(catKey)}
+            className="rounded bg-brand-purple px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-purple-hover"
+          >
+            Subscribe to unlock
+          </button>
+        </div>
+      </SectionCard>
+    );
+  }
+
   // PR-36: source is read PER CATEGORY from the registry — google today, but
   // swapping a category (e.g. gyms → a sellable API) is a SOURCE_BY_CATEGORY
   // edit with NO render change. This is the monetization-swap foundation.

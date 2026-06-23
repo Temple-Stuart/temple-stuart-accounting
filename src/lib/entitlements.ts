@@ -1,21 +1,11 @@
 import { prisma } from '@/lib/prisma';
 import { ADMIN_USER_ID } from '@/lib/tiers';
+import { GOOGLE_CATEGORY_KEYS } from '@/lib/categoryKeys';
 
-// Server-side single source of the 9 Google category keys eligible for per-category
-// entitlement. MUST stay in sync with getGooglePlaceCatKeys() in
-// src/components/trips/TripPlannerAI.tsx:1020-1037 — that list lives in a 'use client'
-// module and can't be imported server-side, so the admin-all case needs this server const.
-export const GOOGLE_CATEGORY_KEYS = [
-  'brunch_coffee',
-  'dinner',
-  'nightlife',
-  'coworking',
-  'gyms',
-  'sports',
-  'groceries',
-  'shopping',
-  'festivals',
-] as const;
+// The 9 Google category keys now live in the prisma-free src/lib/categoryKeys.ts so the
+// client can import them too (this module imports prisma → server-only). Re-exported here so
+// existing server importers of `GOOGLE_CATEGORY_KEYS` from '@/lib/entitlements' keep working.
+export { GOOGLE_CATEGORY_KEYS };
 
 /**
  * The Google category keys this user is CURRENTLY entitled to: rows with status 'active'
