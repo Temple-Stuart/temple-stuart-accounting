@@ -3,39 +3,36 @@ import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTier } from '@/lib/auth-helpers';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
-import { searchPlaces } from '@/lib/placesSearch';
+import { searchPlacesMultiQuery } from '@/lib/placesSearch';
 import { isCacheFresh, getCachedPlaces, cachePlaces, type CachedPlace } from '@/lib/placesCache';
 import { getEntitledCategories } from '@/lib/entitlements';
 import { GOOGLE_CATEGORY_KEYS } from '@/lib/categoryKeys';
+import { getCOAScanQueries } from '@/lib/travelCOA';
 
-// ─── PAID + CACHED category search (Google Places Text Search) ───────────────
-// legacy Text Search is fixed-cost; no field mask param. Minimal fields mapped for card only.
+// ─── PAID + CACHED category search (Google Places, trip-scan engine) ─────────
+// Fires N proven category queries via searchPlacesMultiQuery (the SAME engine + mappings the
+// trip-page scan uses, from TRAVEL_COA / getCOAScanQueries). No invented queries — mappings
+// come from TRAVEL_COA. Minimal fields mapped for card only.
 //
-// Cost control by construction:
+// Cost control by construction (bounds the N calls):
 //   - PAID WALL: requireTier(user.tier, 'placesSearch') — free tier → 403, no bypass.
+//   - PER-CATEGORY ENTITLEMENT GATE: a paying user only reaches Google for categories they've
+//     unlocked (admin → all 9). Sits BEFORE any Google/cache call.
 //   - CACHE-FIRST: a fresh (city, country, category) bucket in places_cache returns with
 //     ZERO Google calls (reuses the existing scan's cache table + helpers, no schema change).
-//   - ONE Text Search on miss via searchPlaces() — which routes through googleFetch and
-//     therefore inherits the durable monthly bill-cap (googlePlacesQuota.ts:45-66).
+//   - MONTHLY BILL-CAP: every searchPlaces under searchPlacesMultiQuery routes through
+//     googleFetch → durable monthly cap (googlePlacesQuota.ts:45-66).
+//   - RATE-LIMIT: per-IP burst defense (429 on exceed).
 //   - NO Place Details / Photos fan-out here — those are details-on-tap (a later PR). This
 //     route never calls getPlaceDetails/enrichPlaceDetails.
 //   - NO fallback: on any Google/cache error we surface the REAL error (fail-loud), never
 //     placeholder/empty data.
 
-type Category = 'gym_spa' | 'coworking' | 'brunch_cafe' | 'dinner' | 'sports';
-const ALLOWED_CATEGORIES: Category[] = ['gym_spa', 'coworking', 'brunch_cafe', 'dinner', 'sports'];
+// The 9 canonical category keys — SINGLE SOURCE OF TRUTH (categoryKeys.ts). No parallel list.
+const ALLOWED_CATEGORIES: readonly string[] = GOOGLE_CATEGORY_KEYS;
 
-// category → the only knobs the existing searchPlaces() exposes: a Text Search `query` and an
-// optional Google `type`. (No field mask: legacy Text Search returns a fixed result set.)
-const CATEGORY_QUERY: Record<Category, { query: string; type?: string }> = {
-  dinner:      { query: 'dinner restaurants', type: 'restaurant' },
-  brunch_cafe: { query: 'brunch cafe',        type: 'cafe' },
-  gym_spa:     { query: 'gym spa fitness',    type: 'gym' },
-  coworking:   { query: 'coworking space' },
-  sports:      { query: 'surf mma tennis gym sports' },
-};
-
-const MAX_RESULTS = 20;
+// Top-N after dedup/sort — same arg the trip scan passes to searchPlacesMultiQuery (ai-assistant:446).
+const MAX_RESULTS = 60;
 
 // Minimal card — name / place_id / location / rating / price_level / business_status only.
 // website/photos/hours are intentionally dropped (details-on-tap, a later PR).
@@ -158,10 +155,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ results: cached.map(cachedToCard), count: cached.length, cached: true });
     }
 
-    // ── 7 · MISS → exactly ONE Text Search via searchPlaces (googleFetch → monthly cap).
-    //        NO Place Details. Cache the result, then return minimal cards. ──
-    const { query, type } = CATEGORY_QUERY[category as Category];
-    const results = await searchPlaces(query, city, country, MAX_RESULTS, type);
+    // ── 7 · MISS → fire the proven category queries via searchPlacesMultiQuery — the exact
+    //        engine + mappings the trip-page scan uses (getCOAScanQueries / TRAVEL_COA). No
+    //        interests on a public destination search → []. Same args as the trip scan
+    //        (ai-assistant:446): 60 results, no type filter. Each underlying searchPlaces routes
+    //        through googleFetch → monthly cap. NO Place Details. Cache, then minimal cards. ──
+    const queries = getCOAScanQueries(category, []);
+    const results = await searchPlacesMultiQuery(queries, city, country, MAX_RESULTS, undefined);
     await cachePlaces(results, city, country, category);
     return NextResponse.json({ results: results.map(freshToCard), count: results.length, cached: false });
   } catch (error) {
