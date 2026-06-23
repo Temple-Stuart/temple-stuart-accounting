@@ -15,9 +15,11 @@ import RunwayBudgetPanel from '@/components/hub/RunwayBudgetPanel';
 import PublicFlightSearch from '@/components/trips/PublicFlightSearch';
 import PublicHotelSearch from '@/components/trips/PublicHotelSearch';
 import PublicActivitySearch from '@/components/trips/PublicActivitySearch';
+import PublicCategorySearch from '@/components/trips/PublicCategorySearch';
 import PublicTransferSearch from '@/components/trips/PublicTransferSearch';
 import PublicVisaCheck from '@/components/trips/PublicVisaCheck';
 import ComingSoonSection from '@/components/home/ComingSoonSection';
+import { GOOGLE_CATEGORY_KEYS } from '@/lib/categoryKeys';
 import ScanFilterForm from '@/components/trading/ScanFilterForm';
 import ConvergenceIntelligence from '@/components/convergence/ConvergenceIntelligence';
 import OperationsPipelineShowroom from '@/components/workbench/operations/showroom/OperationsPipelineShowroom';
@@ -132,6 +134,11 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // Trading scan is admin-gated (requireAdmin), so only the admin sees the working
   // ScanFilterForm; everyone else keeps the paid stub.
   const [isAdmin, setIsAdmin] = useState(false);
+  // PR-2b: per-category entitlements + user id (server-computed via /api/auth/me). Drive the
+  // homepage Travel-tab category-section locks (isCategoryLocked). Logged-out → [] / '' → all
+  // 9 sections render locked. Loaded from the SAME auth/me effect below (no extra fetch).
+  const [entitledCategories, setEntitledCategories] = useState<string[]>([]);
+  const [currentUserId, setCurrentUserId] = useState('');
   // PR-HCR-Trips1: bumped after a create so the All Trips list re-fetches in place.
   const [tripsRefresh, setTripsRefresh] = useState(0);
   // PR-HCR-Trips2: the selected trip, lifted out of AllTripsList so later budget
@@ -160,6 +167,9 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         if (res.ok) {
           const data = await res.json().catch(() => null);
           setIsAdmin(!!data?.user?.isAdmin);
+          // PR-2b: feed the homepage category-section locks (no extra fetch).
+          setEntitledCategories(Array.isArray(data?.user?.entitledCategories) ? data.user.entitledCategories : []);
+          setCurrentUserId(data?.user?.id || '');
         }
       })
       .catch(() => { if (!cancelled) setAuthed(false); });
@@ -505,6 +515,19 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
             <PublicTransferSearch onRequireAuth={onRequireAuth} />
             <PublicActivitySearch onRequireAuth={onRequireAuth} />
             <PublicVisaCheck />
+            {/* PR-2b: the 9 Google category discovery sections — one PublicCategorySearch per
+                canonical key (no parallel list). Locked unless entitled (admin/entitled →
+                search form; otherwise a 🔒 card that mounts no fetch → zero Google spend). The
+                category-search route also gates per-category server-side (defense in depth). */}
+            {GOOGLE_CATEGORY_KEYS.map((catKey) => (
+              <PublicCategorySearch
+                key={catKey}
+                catKey={catKey}
+                entitledCategories={entitledCategories}
+                currentUserId={currentUserId}
+                onRequireAuth={onRequireAuth}
+              />
+            ))}
             <ComingSoonSection
               title="Travel insurance"
               explainer="Cover your trip — medical, delays, lost bags — priced into your budget."
