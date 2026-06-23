@@ -1187,6 +1187,25 @@ model operations_exec_usage {
   @@unique([usageDate, userId])
 }
 
+// Per-category subscription entitlement (one row per user × Google category). Models the
+// EXISTING `user_category_entitlements` table created in Azure via psql — this PR emits NO
+// ALTER/CREATE, only the Prisma mapping. Mirrors operations_exec_usage conventions exactly
+// (cuid id, camelCase fields, no @map on fields, @updatedAt). The read helper is
+// src/lib/entitlements.ts; this PR exposes entitlements only — it gates nothing.
+model UserCategoryEntitlement {
+  id                   String    @id @default(cuid())
+  userId               String
+  categoryKey          String
+  status               String    @default("inactive")
+  stripeSubscriptionId String?
+  currentPeriodEnd     DateTime?
+  updatedAt            DateTime  @updatedAt
+
+  @@unique([userId, categoryKey], map: "user_cat_entitle_user_cat_key")
+  @@index([userId], map: "user_cat_entitle_user_idx")
+  @@map("user_category_entitlements")
+}
+
 // ─── Per-key request rate-limiter (durable, fixed-window) ────────────────────
 // Net-new: there is no app rate-limiter today. Mirrors the durable usage-counter
 // shape so it survives deploys AND holds across serverless instances (an in-memory
