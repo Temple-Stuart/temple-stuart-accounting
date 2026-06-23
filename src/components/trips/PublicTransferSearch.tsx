@@ -16,16 +16,21 @@
  * empty result shows an honest empty state (never sample data).
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ActivityResultsView, { type ActivityResult } from './ActivityResultsView';
 import TravelSectionShell, { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS } from './travelSection';
 
 interface Props {
   /** Opens the existing home register/login modal (booking requires sign-in). */
   onRequireAuth: () => void;
+  /** PR-3: unified-bar fan-out. When searchNonce increments, this section runs its OWN
+   *  search for {sharedCity, sharedCountry}. Manual per-section search still works. */
+  sharedCity?: string;
+  sharedCountry?: string;
+  searchNonce?: number;
 }
 
-export default function PublicTransferSearch({ onRequireAuth }: Props) {
+export default function PublicTransferSearch({ onRequireAuth, sharedCity, sharedCountry, searchNonce }: Props) {
   // Guest has no trip/destination props — start empty so they search by typing a
   // city + country. Transfer search is destination-based (no dates).
   const [city, setCity] = useState('');
@@ -36,11 +41,10 @@ export default function PublicTransferSearch({ onRequireAuth }: Props) {
   const [error, setError] = useState('');
   const [searched, setSearched] = useState(false);
 
-  // ── LIVE search against the PUBLIC /api/travel/transfers/search. ──
-  const search = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!city.trim() || !country.trim()) {
+  // ── LIVE search against the PUBLIC /api/travel/transfers/search. Reused by both the
+  //    form submit and the PR-3 unified-bar fan-out (same fetch, same route). ──
+  const runSearch = async (cityVal: string, countryVal: string) => {
+    if (!cityVal.trim() || !countryVal.trim()) {
       setError('Enter a city and country.');
       return;
     }
@@ -52,8 +56,8 @@ export default function PublicTransferSearch({ onRequireAuth }: Props) {
 
     try {
       const params = new URLSearchParams({
-        city: city.trim(),
-        country: country.trim(),
+        city: cityVal.trim(),
+        country: countryVal.trim(),
       });
 
       const res = await fetch(`/api/travel/transfers/search?${params}`);
@@ -69,6 +73,23 @@ export default function PublicTransferSearch({ onRequireAuth }: Props) {
       setLoading(false);
     }
   };
+
+  const search = (e: React.FormEvent) => {
+    e.preventDefault();
+    runSearch(city, country);
+  };
+
+  // PR-3: fan-out — when the unified bar's nonce changes, pre-fill this section's inputs
+  // and fire its own search for that destination. Keyed on the nonce only (one fire per
+  // "Search all"); manual per-section search is unaffected.
+  useEffect(() => {
+    if (!searchNonce) return;
+    if (!sharedCity?.trim() || !sharedCountry?.trim()) return;
+    setCity(sharedCity);
+    setCountry(sharedCountry);
+    runSearch(sharedCity, sharedCountry);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchNonce]);
 
   // BOOKING is gated: tapping "Book" routes to sign-up, never a booking fetch and
   // never an affiliate link. The view never books or links out — it calls back.

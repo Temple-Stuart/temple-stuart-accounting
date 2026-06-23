@@ -16,7 +16,7 @@
  * renders exactly what the route returns. Label comes from TRAVEL_COA[catKey].label.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Lock } from 'lucide-react';
 import { isCategoryLocked } from '@/lib/categoryLock';
 import { TRAVEL_COA } from '@/lib/travelCOA';
@@ -31,6 +31,11 @@ interface Props {
   currentUserId: string;
   /** Opens the existing home register/login modal (unlocking requires sign-in). */
   onRequireAuth: () => void;
+  /** PR-3: unified-bar fan-out. Only consumed when UNLOCKED — a locked section returns
+   *  before mounting the search child, so fan-out can never fire a Google call for it. */
+  sharedCity?: string;
+  sharedCountry?: string;
+  searchNonce?: number;
 }
 
 /** The minimal card the paid+cached route returns (category-search/route.ts CategoryCard). */
@@ -51,6 +56,9 @@ export default function PublicCategorySearch({
   entitledCategories,
   currentUserId,
   onRequireAuth,
+  sharedCity,
+  sharedCountry,
+  searchNonce,
 }: Props) {
   // Section title is the EXPENSE-CATEGORY label (TRAVEL_COA covers all 9 Google keys).
   const label = TRAVEL_COA[catKey]?.label || catKey;
@@ -86,12 +94,32 @@ export default function PublicCategorySearch({
   }
 
   // ── UNLOCKED: city+country form → POST category-search → discovery cards. ──
-  return <UnlockedCategorySearch catKey={catKey} label={label} />;
+  return (
+    <UnlockedCategorySearch
+      catKey={catKey}
+      label={label}
+      sharedCity={sharedCity}
+      sharedCountry={sharedCountry}
+      searchNonce={searchNonce}
+    />
+  );
 }
 
 /** The mounted search UI — only rendered when unlocked, so its fetch can never fire for a
  *  locked category. Split out so the form/state hooks don't mount on a locked section. */
-function UnlockedCategorySearch({ catKey, label }: { catKey: string; label: string }) {
+function UnlockedCategorySearch({
+  catKey,
+  label,
+  sharedCity,
+  sharedCountry,
+  searchNonce,
+}: {
+  catKey: string;
+  label: string;
+  sharedCity?: string;
+  sharedCountry?: string;
+  searchNonce?: number;
+}) {
   const [city, setCity] = useState('');
   const [country, setCountry] = useState('');
   const [results, setResults] = useState<CategoryCard[]>([]);
@@ -99,9 +127,10 @@ function UnlockedCategorySearch({ catKey, label }: { catKey: string; label: stri
   const [error, setError] = useState('');
   const [searched, setSearched] = useState(false);
 
-  const search = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!city.trim() || !country.trim()) {
+  // The paid POST to category-search. Reused by both the form submit and the PR-3
+  // unified-bar fan-out (same fetch, same route, same per-category server gate).
+  const runSearch = async (cityVal: string, countryVal: string) => {
+    if (!cityVal.trim() || !countryVal.trim()) {
       setError('Enter a city and country.');
       return;
     }
@@ -113,7 +142,7 @@ function UnlockedCategorySearch({ catKey, label }: { catKey: string; label: stri
       const res = await fetch('/api/places/category-search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ category: catKey, city: city.trim(), country: country.trim() }),
+        body: JSON.stringify({ category: catKey, city: cityVal.trim(), country: countryVal.trim() }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -132,6 +161,23 @@ function UnlockedCategorySearch({ catKey, label }: { catKey: string; label: stri
       setLoading(false);
     }
   };
+
+  const search = (e: React.FormEvent) => {
+    e.preventDefault();
+    runSearch(city, country);
+  };
+
+  // PR-3: fan-out — fire this (UNLOCKED) category for the unified bar's destination when its
+  // nonce changes. This effect lives in the unlocked child, so a LOCKED category (which never
+  // mounts this child) can NEVER be fired by fan-out → zero Google spend for locked.
+  useEffect(() => {
+    if (!searchNonce) return;
+    if (!sharedCity?.trim() || !sharedCountry?.trim()) return;
+    setCity(sharedCity);
+    setCountry(sharedCountry);
+    runSearch(sharedCity, sharedCountry);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchNonce]);
 
   return (
     <TravelSectionShell
