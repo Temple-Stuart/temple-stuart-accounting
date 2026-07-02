@@ -22,6 +22,10 @@ import ComingSoonSection from '@/components/home/ComingSoonSection';
 import { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS } from '@/components/trips/travelSection';
 import { HOMEPAGE_PAID_CATEGORIES } from '@/lib/categoryKeys';
 import ScanFilterForm from '@/components/trading/ScanFilterForm';
+// TRADE-1: the queue viewer + reconcile/link/grade surface. Mounted BELOW the scanner on
+// the homepage Trade tab so the scan → queue → RECONCILE loop is complete here (was only on
+// standalone /trading). Reused verbatim — no restyle (that is TRADE-2).
+import TradeLabPanel from '@/components/trading/TradeLabPanel';
 import ConvergenceIntelligence from '@/components/convergence/ConvergenceIntelligence';
 import OperationsPipelineShowroom from '@/components/workbench/operations/showroom/OperationsPipelineShowroom';
 // HB-4e-mount: the real routine builder (workbench CRUD) + its self-fetching entity provider, plus
@@ -365,35 +369,9 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       }
       return null; // authed === null → resolving
     }
-    if (m.key === 'trading' && isAdmin) {
-      // PR-Trade-inline: admin runs the convergence scanner INLINE on the Trade tab.
-      // ScanFilterForm is the filter bar; its Scan triggers scanTriggerRef, which the
-      // inline ConvergenceIntelligence registers (scanMarket) and renders results +
-      // streams here — mirroring /trading (page.tsx:750 form, :861 mount). The route
-      // (/api/trading/convergence) is itself requireAdmin-gated; non-admins fall to the
-      // stub below. /trading stays available standalone.
-      return (
-        <div className="space-y-4">
-          <ScanFilterForm
-            scannerUniverse={scannerUniverse}
-            setScannerUniverse={setScannerUniverse}
-            scannerFilters={scannerFilters}
-            onFiltersChange={handleFiltersChange}
-            scanTriggerRef={scanTriggerRef}
-            showHeader={false}
-          />
-          <ConvergenceIntelligence
-            externalFilters={scannerFilters}
-            onFiltersChange={handleFiltersChange}
-            externalUniverse={scannerUniverse}
-            onUniverseChange={setScannerUniverse}
-            hideControls={true}
-            scanTriggerRef={scanTriggerRef}
-            scanningRef={scanningRef}
-          />
-        </div>
-      );
-    }
+    // TRADE-1: the admin Trade scanner + reconcile surface now lives in its own flush
+    // <section> below (mirroring Travel), so it is no longer rendered from renderBody.
+    // renderBody('trading') for a non-admin still falls through to the shared paid stub.
     // Paid stub (Trading non-admin + Bookkeeping/Tax/Operations/Compliance).
     return (
       <div>
@@ -416,6 +394,10 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   const routinesModule = MODULES.find((m) => m.key === 'routines')!;
   const projectsModule = MODULES.find((m) => m.key === 'projects')!;
   const contentModule = MODULES.find((m) => m.key === 'content')!;
+  // TRADE-1: Trade gets its own flush block (below). Non-admins render the shared paid stub
+  // via renderBody(tradingModule) — the SAME stub bookkeeping/tax/compliance use — so there
+  // is one stub, not a duplicate.
+  const tradingModule = MODULES.find((m) => m.key === 'trading')!;
 
   return (
     <>
@@ -655,13 +637,56 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           </div>
         </div>
       </section>
+      {/* TRADE-1: Trade renders in its own FLUSH block (mirrors Travel/Content) — pulled OUT of
+          the MODULES.map purple-band card, so the real scanner + reconcile surface read as the
+          app, not a demo card. Active-module check uses the TAB key 'trade' (TABS :88; selectTab
+          sets activeModule to the tab key, :167) — same contract as Travel's 'travel'. STRUCTURE
+          only; the terminal styling of ScanFilterForm/ConvergenceIntelligence/TradeLabPanel is
+          UNCHANGED (that is TRADE-2). Admin gate preserved: only isAdmin sees the real surface;
+          everyone else falls through to renderBody(tradingModule) → the shared paid stub. */}
+      <section className={`w-full bg-white border-b border-border ${activeModule === 'trade' ? 'block' : 'hidden'}`}>
+        <div className="max-w-7xl mx-auto">
+          <div className="px-4 py-4 space-y-6">
+            {isAdmin ? (
+              <>
+                {/* Option A — scanner first, reconcile below. Same props the inline branch used. */}
+                <ScanFilterForm
+                  scannerUniverse={scannerUniverse}
+                  setScannerUniverse={setScannerUniverse}
+                  scannerFilters={scannerFilters}
+                  onFiltersChange={handleFiltersChange}
+                  scanTriggerRef={scanTriggerRef}
+                  showHeader={false}
+                />
+                <ConvergenceIntelligence
+                  externalFilters={scannerFilters}
+                  onFiltersChange={handleFiltersChange}
+                  externalUniverse={scannerUniverse}
+                  onUniverseChange={setScannerUniverse}
+                  hideControls={true}
+                  scanTriggerRef={scanTriggerRef}
+                  scanningRef={scanningRef}
+                />
+                {/* TRADE-1: closes the loop — queue viewer + link-to-reality + grade. Self-fetches
+                    /api/trade-cards + /api/trade-card-links (0 required props, TradeLabPanel.tsx:50). */}
+                <TradeLabPanel />
+              </>
+            ) : (
+              renderBody(tradingModule)
+            )}
+          </div>
+        </div>
+      </section>
       {MODULES.map((m, i) => {
         // PR-TG1: Travel now renders in its own flush, edge-to-edge block above (out of
         // this map, no purple band). Skip it here so it never double-renders. Returning
         // null keeps the index `i` stable for the other modules, so their alternating
         // bg (bg-row / white) is byte-identical to before. HB-4e-style: Routines is now
         // ALSO flush (its own block above) → skip it here too.
-        if (m.key === 'travel' || m.key === 'routines' || m.key === 'projects' || m.key === 'content') return null;
+        // TRADE-1: 'trading' now renders in its own flush block above → skip here (module key
+        // 'trading', not tab key 'trade'). Returning null keeps index `i` stable, so the
+        // bg-bg-row/bg-white parity of bookkeeping(i=4)/tax(i=5)/compliance(i=6) is unchanged.
+        if (m.key === 'travel' || m.key === 'routines' || m.key === 'projects' || m.key === 'content' || m.key === 'trading') return null;
         return (
         <section key={m.key} className={`w-full py-10 ${i % 2 === 1 ? 'bg-bg-row' : 'bg-white'} border-b border-border ${activeModule === (MODULE_TO_TAB[m.key] ?? m.key) ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto px-4 lg:px-8 space-y-6">
