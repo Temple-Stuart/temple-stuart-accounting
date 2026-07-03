@@ -4,6 +4,11 @@ import React, { useState, useCallback, useEffect, useMemo, createContext, useCon
 import ScannerResultsTable from './ScannerResultsTable';
 // LANG-1: persistent data-not-advice disclaimer, rendered above the card results.
 import TradingDataDisclaimer from '@/components/trading/TradingDataDisclaimer';
+// TEACH-1: tap-to-open plain-language explainers for every card metric (deterministic,
+// no fetch). MetricInfo wraps a metric label; each panel is individually dismissible.
+// (MetricExplainerProvider is available for one-at-a-time coordination but is not wrapped
+// here — it would require surgery on the whole card return; panels self-manage instead.)
+import MetricInfo from '@/components/trading/MetricExplainer';
 import FilterPanel from './FilterPanel';
 import { countActiveFilters } from './FilterPanel';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
@@ -533,7 +538,7 @@ export function TerminalTradeCard({ detail, sentiment, savedCards, savingCards, 
         )}
         {ks && (
           <div className="text-xs text-text-muted mt-0.5">
-            IV RANK {ks.iv_rank != null ? ks.iv_rank.toFixed(2) : '—'} · IV {ks.iv30 != null ? `${ks.iv30.toFixed(1)}%` : '—'} · HV30 {ks.hv30 != null ? `${ks.hv30.toFixed(1)}%` : '—'}{ks.iv_hv_spread != null ? ` · VRP ${ks.iv_hv_spread > 0 ? '+' : ''}${ks.iv_hv_spread.toFixed(1)}%` : ''}
+            <MetricInfo metricKey="iv_rank" values={{ iv_rank: ks.iv_rank ?? null }} hasValue={ks.iv_rank != null}>IV RANK</MetricInfo> {ks.iv_rank != null ? ks.iv_rank.toFixed(2) : '—'} · <MetricInfo metricKey="iv30" values={{ iv30: ks.iv30 ?? null }} hasValue={ks.iv30 != null}>IV</MetricInfo> {ks.iv30 != null ? `${ks.iv30.toFixed(1)}%` : '—'} · <MetricInfo metricKey="hv30" values={{ hv30: ks.hv30 ?? null }} hasValue={ks.hv30 != null}>HV30</MetricInfo> {ks.hv30 != null ? `${ks.hv30.toFixed(1)}%` : '—'}{ks.iv_hv_spread != null ? ` · VRP ${ks.iv_hv_spread > 0 ? '+' : ''}${ks.iv_hv_spread.toFixed(1)}%` : ''}
           </div>
         )}
         {ks?.vol_cone && (
@@ -739,24 +744,24 @@ export function TerminalTradeCard({ detail, sentiment, savedCards, savingCards, 
                 : card.setup.net_debit != null
                 ? <span className="text-text-primary font-bold">PAY ${(card.setup.net_debit * 100).toFixed(0)}</span>
                 : null}
-              <span className="text-text-muted"> · MAX LOSS </span>
+              <span className="text-text-muted"> · <MetricInfo metricKey="max_loss" values={{ max_loss: Number(card.setup.max_loss) }} hasValue={card.setup.max_loss != null}>MAX LOSS</MetricInfo> </span>
               <span className="text-brand-red">{fmtDollar(card.setup.max_loss)}</span>
               {/* RISK-1: max loss as % of user-entered account size (only when set). */}
               {accountSize > 0 && card.setup.max_loss != null && (
                 <span className="text-text-faint"> ({((Math.abs(card.setup.max_loss) / accountSize) * 100).toFixed(1)}% of acct)</span>
               )}
-              <span className="text-text-muted"> · POP </span>
+              <span className="text-text-muted"> · <MetricInfo metricKey="est_pop" values={{ pop: card.setup.probability_of_profit != null ? card.setup.probability_of_profit * 100 : null, pop_method: card.setup.pop_method === 'breakeven_d2' ? 'N(d2)' : 'delta' }} hasValue={card.setup.probability_of_profit != null}>POP</MetricInfo> </span>
               <span className="text-text-primary">{fmtPct(card.setup.probability_of_profit)}</span>
               <span className="text-text-faint"> ({card.setup.pop_method === 'breakeven_d2' ? 'N(d2)' : 'Δ approx'})</span>
-              <span className="text-text-muted"> · EV </span>
+              <span className="text-text-muted"> · <MetricInfo metricKey="ev" values={{ ev: Number(card.setup.ev) }} hasValue={card.setup.ev != null}>EV</MetricInfo> </span>
               <span className={card.setup.ev >= 0 ? 'text-brand-green' : 'text-brand-red'}>{card.setup.ev >= 0 ? '+' : ''}${Math.round(card.setup.ev)}</span>
-              <span className="text-text-muted"> · EV/RISK </span>
+              <span className="text-text-muted"> · <MetricInfo metricKey="ev_per_risk" values={{ ev_per_risk: Number(card.setup.ev_per_risk) }} hasValue={card.setup.ev_per_risk != null}>EV/RISK</MetricInfo> </span>
               <span className="text-text-primary">{card.setup.ev_per_risk.toFixed(3)}</span>
-              <span className="text-text-muted"> · R:R </span>
+              <span className="text-text-muted"> · <MetricInfo metricKey="risk_reward" values={{ risk_reward: Number(card.setup.risk_reward_ratio) }} hasValue={card.setup.risk_reward_ratio != null}>R:R</MetricInfo> </span>
               <span className="text-text-primary">{card.setup.risk_reward_ratio != null ? card.setup.risk_reward_ratio.toFixed(2) : '—'}</span>
             </div>
             <div className="text-xs text-text-muted mt-0.5">
-              B/E {(card.setup.breakevens?.length ?? 0) === 0 ? '—' : card.setup.breakevens.map(b => `$${b.toFixed(2)}`).join(' / ')} · HV POP {card.setup.hv_pop != null ? `${Math.round(card.setup.hv_pop * 100)}%` : '—'} · THETA <span className={thetaPerDay >= 0 ? 'text-brand-green' : 'text-brand-red'}>{thetaPerDay >= 0 ? '+' : ''}${thetaPerDay.toFixed(2)}/day</span> · VEGA/pt <span className={vegaPt >= 0 ? 'text-brand-green' : 'text-brand-red'}>{vegaPt >= 0 ? '+' : ''}${Math.abs(vegaPt).toFixed(2)}</span> · KELLY <span className={kellyPct >= 2 ? 'text-brand-green' : kellyPct >= 1 ? 'text-yellow-400' : 'text-text-muted'}>{kellyPct.toFixed(1)}%</span>
+              <MetricInfo metricKey="breakevens" values={{ breakevens: (card.setup.breakevens?.length ?? 0) === 0 ? null : card.setup.breakevens.map(b => `$${b.toFixed(2)}`).join(' / ') }} hasValue={(card.setup.breakevens?.length ?? 0) > 0}>B/E</MetricInfo> {(card.setup.breakevens?.length ?? 0) === 0 ? '—' : card.setup.breakevens.map(b => `$${b.toFixed(2)}`).join(' / ')} · <MetricInfo metricKey="hv_pop" values={{ hv_pop: card.setup.hv_pop != null ? card.setup.hv_pop * 100 : null }} hasValue={card.setup.hv_pop != null}>HV POP</MetricInfo> {card.setup.hv_pop != null ? `${Math.round(card.setup.hv_pop * 100)}%` : '—'} · <MetricInfo metricKey="theta" values={{ theta: thetaPerDay }}>THETA</MetricInfo> <span className={thetaPerDay >= 0 ? 'text-brand-green' : 'text-brand-red'}>{thetaPerDay >= 0 ? '+' : ''}${thetaPerDay.toFixed(2)}/day</span> · <MetricInfo metricKey="vega" values={{ vega: vegaPt }}>VEGA/pt</MetricInfo> <span className={vegaPt >= 0 ? 'text-brand-green' : 'text-brand-red'}>{vegaPt >= 0 ? '+' : ''}${Math.abs(vegaPt).toFixed(2)}</span> · <MetricInfo metricKey="kelly" values={{ kelly: kellyPct }}>KELLY</MetricInfo> <span className={kellyPct >= 2 ? 'text-brand-green' : kellyPct >= 1 ? 'text-yellow-400' : 'text-text-muted'}>{kellyPct.toFixed(1)}%</span>
             </div>
             {card.setup.has_wide_spread && (
               <div className="text-xs text-yellow-400 mt-0.5">&#x26A0; Wide bid-ask spread — prices estimated from theoretical model</div>
@@ -852,24 +857,24 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
       <div className="px-5 py-2 flex items-center justify-between flex-wrap gap-2 bg-brand-purple-hover">
         <div className="flex items-center gap-3">
           <span className="text-sm font-black font-mono text-white">{detail.symbol}</span>
-          <span className="text-sm font-black font-mono" style={{ color: gradeColorHex(comp.score) }} title="Convergence score 0–100. Combines Vol Edge, Quality, Regime, and Info Edge gates using z-score weighted averaging. Higher = stronger multi-signal agreement.">{comp.score.toFixed(1)}</span>
-          <span className="text-terminal-lg font-black" style={{ color: gradeColorHex(comp.score) }} title="Letter grade derived from composite score. A = 80+, B = 65+, C = 50+, D = 35+, F = below 35.">{letterGrade(comp.score)}</span>
+          <span className="text-sm font-black font-mono" style={{ color: gradeColorHex(comp.score) }}><MetricInfo metricKey="composite_score" values={{ score: comp.score }}>{comp.score.toFixed(1)}</MetricInfo></span>
+          <span className="text-terminal-lg font-black" style={{ color: gradeColorHex(comp.score) }}><MetricInfo metricKey="letter_grade" values={{ score: comp.score, grade: letterGrade(comp.score) }}>{letterGrade(comp.score)}</MetricInfo></span>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <span title="Scanner-computed direction based on dominant signal alignment across all four gates."><Badge variant={dirBadgeVariant(comp.direction)} size="sm">{comp.direction}</Badge></span>
+          <MetricInfo metricKey="direction" values={{ direction: comp.direction }}><Badge variant={dirBadgeVariant(comp.direction)} size="sm">{comp.direction}</Badge></MetricInfo>
           {ks?.sector && <span title="Stock sector from market data. Useful for concentration risk — avoid over-weighting one sector."><Badge variant="default" size="sm">{ks.sector}</Badge></span>}
-          <span title="Number of scoring gates above 50. All 4 gates above 50 = full position signal. Fewer gates = reduced conviction. 4/4 is the maximum signal strength."><Badge variant={gate.variant} size="sm">
+          <MetricInfo metricKey="gates" values={{ gates: comp.categories_above_50 }}><Badge variant={gate.variant} size="sm">
             {comp.categories_above_50}/4 {gate.text}
-          </Badge></span>
+          </Badge></MetricInfo>
         </div>
       </div>
 
       {/* B) SCORE BARS */}
       <div className="px-5 py-2 space-y-1.5 border-b border-border">
-        <div title="Volatility Edge (0–100): measures whether options are mispriced relative to realized vol. Combines VRP z-score, IV percentile, term structure shape, skew asymmetry, and dealer gamma exposure. Above 50 = options appear expensive = edge for premium sellers."><ScoreBar label="Vol Edge" score={comp.category_scores.vol_edge} /></div>
-        <div title="Quality Gate (0–100): measures the fundamental health of the underlying company. Combines Piotroski F-Score safety, profitability margins, earnings quality (accrual ratio + beat rate), and growth trajectory. Above 50 = high-quality underlying."><ScoreBar label="Quality" score={comp.category_scores.quality} /></div>
-        <div title="Macro Regime Gate (0–100): measures whether the current macro environment favors the trade direction. Scored from 14 FRED macro indicators including GDP, CPI, Fed Funds, yield curve, and credit spreads. Above 50 = favorable macro backdrop."><ScoreBar label="Regime" score={comp.category_scores.regime} /></div>
-        <div title="Information Edge Gate (0–100): measures signals of informed activity. Combines insider net purchase ratio (MSPR), institutional ownership changes, analyst upgrades/downgrades, SUE earnings surprise, and FinBERT news sentiment. Above 50 = positive information asymmetry."><ScoreBar label="Info Edge" score={comp.category_scores.info_edge} /></div>
+        <div title="Volatility Edge (0–100): measures whether options are mispriced relative to realized vol. Combines VRP z-score, IV percentile, term structure shape, skew asymmetry, and dealer gamma exposure. Above 50 = options appear expensive = edge for premium sellers."><MetricInfo metricKey="vol_edge" values={{ score: comp.category_scores.vol_edge }}><ScoreBar label="Vol Edge" score={comp.category_scores.vol_edge} /></MetricInfo></div>
+        <div title="Quality Gate (0–100): measures the fundamental health of the underlying company. Combines Piotroski F-Score safety, profitability margins, earnings quality (accrual ratio + beat rate), and growth trajectory. Above 50 = high-quality underlying."><MetricInfo metricKey="quality" values={{ score: comp.category_scores.quality }}><ScoreBar label="Quality" score={comp.category_scores.quality} /></MetricInfo></div>
+        <div title="Macro Regime Gate (0–100): measures whether the current macro environment favors the trade direction. Scored from 14 FRED macro indicators including GDP, CPI, Fed Funds, yield curve, and credit spreads. Above 50 = favorable macro backdrop."><MetricInfo metricKey="regime" values={{ score: comp.category_scores.regime }}><ScoreBar label="Regime" score={comp.category_scores.regime} /></MetricInfo></div>
+        <div title="Information Edge Gate (0–100): measures signals of informed activity. Combines insider net purchase ratio (MSPR), institutional ownership changes, analyst upgrades/downgrades, SUE earnings surprise, and FinBERT news sentiment. Above 50 = positive information asymmetry."><MetricInfo metricKey="info_edge" values={{ score: comp.category_scores.info_edge }}><ScoreBar label="Info Edge" score={comp.category_scores.info_edge} /></MetricInfo></div>
       </div>
 
       {/* B2) SOCIAL PULSE — promoted from Key Stats */}
@@ -958,11 +963,11 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
                 {/* Key numbers row */}
                 <div className="grid grid-cols-5 gap-3 mb-2">
                   <div className="text-center">
-                    <div className="text-[9px] text-text-muted uppercase">Max Profit</div>
+                    <div className="text-[9px] text-text-muted uppercase"><MetricInfo metricKey="max_profit" values={{ max_profit: Number(card.setup.max_profit) }} hasValue={card.setup.max_profit != null}>Max Profit</MetricInfo></div>
                     <div className="text-sm font-mono font-black text-brand-green">{fmtDollar(card.setup.max_profit)}</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-[9px] text-text-muted uppercase">Max Loss</div>
+                    <div className="text-[9px] text-text-muted uppercase"><MetricInfo metricKey="max_loss" values={{ max_loss: Number(card.setup.max_loss) }} hasValue={card.setup.max_loss != null}>Max Loss</MetricInfo></div>
                     <div className="text-sm font-mono font-black text-brand-red">{fmtDollar(card.setup.max_loss)}</div>
                     {/* RISK-1: max loss as % of user-entered account size (only when set). */}
                     {accountSize > 0 && card.setup.max_loss != null && (
@@ -972,20 +977,20 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
                     )}
                   </div>
                   <div className="text-center">
-                    <div className="text-[9px] text-text-muted uppercase" title={card.setup.pop_method === 'breakeven_d2' ? 'PoP via N(d2) at breakeven price — the standard Black-Scholes probability that the underlying closes beyond the breakeven price at expiration. More accurate than delta approx.' : 'PoP estimated from option deltas — quick approximation used when breakeven calculation is unavailable. Less precise than N(d2) method.'}>Est. PoP</div>
+                    <div className="text-[9px] text-text-muted uppercase" title={card.setup.pop_method === 'breakeven_d2' ? 'PoP via N(d2) at breakeven price — the standard Black-Scholes probability that the underlying closes beyond the breakeven price at expiration. More accurate than delta approx.' : 'PoP estimated from option deltas — quick approximation used when breakeven calculation is unavailable. Less precise than N(d2) method.'}><MetricInfo metricKey="est_pop" values={{ pop: card.setup.probability_of_profit != null ? card.setup.probability_of_profit * 100 : null, pop_method: card.setup.pop_method === 'breakeven_d2' ? 'N(d2)' : 'delta' }} hasValue={card.setup.probability_of_profit != null}>Est. PoP</MetricInfo></div>
                     <div className="text-sm font-mono font-black text-text-primary">{fmtPct(card.setup.probability_of_profit)}</div>
                     <div className={`text-[8px] font-mono mt-0.5 ${card.setup.pop_method === 'breakeven_d2' ? 'text-brand-green' : 'text-text-faint'}`}>
                       {card.setup.pop_method === 'breakeven_d2' ? 'N(d2)' : 'Δ approx'}
                     </div>
                   </div>
                   <div className="text-center">
-                    <div className="text-[9px] text-text-muted uppercase" title="Expected Value estimate using three-outcome model. Not a guarantee of returns.">Est. EV</div>
+                    <div className="text-[9px] text-text-muted uppercase" title="Expected Value estimate using three-outcome model. Not a guarantee of returns."><MetricInfo metricKey="ev" values={{ ev: Number(card.setup.ev) }} hasValue={card.setup.ev != null}>Est. EV</MetricInfo></div>
                     <div className={`text-sm font-mono font-black ${card.setup.ev > 0 ? 'text-brand-green' : card.setup.ev < 0 ? 'text-brand-red' : 'text-text-muted'}`}>
                       {card.setup.ev !== 0 ? `${card.setup.ev >= 0 ? '+' : ''}$${Math.round(card.setup.ev)}` : '—'}
                     </div>
                   </div>
                   <div className="text-center">
-                    <div className="text-[9px] text-text-muted uppercase">Risk/Reward</div>
+                    <div className="text-[9px] text-text-muted uppercase"><MetricInfo metricKey="risk_reward" values={{ risk_reward: Number(card.setup.risk_reward_ratio) }} hasValue={card.setup.risk_reward_ratio != null}>Risk/Reward</MetricInfo></div>
                     <div className="text-sm font-mono font-black text-text-primary">{card.setup.risk_reward_ratio != null ? card.setup.risk_reward_ratio.toFixed(2) : '—'}</div>
                   </div>
                 </div>
@@ -994,7 +999,7 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
                 <div className="border-t border-border mt-2 pt-2">
                   <div className="grid grid-cols-3 gap-3 mb-2">
                     <div className="text-center">
-                      <div className="text-[9px] text-text-muted uppercase" title="Dollar delta: how much this position gains or loses if the stock moves $1. Calculated as net delta × stock price × 100.">Δ Exposure</div>
+                      <div className="text-[9px] text-text-muted uppercase" title="Dollar delta: how much this position gains or loses if the stock moves $1. Calculated as net delta × stock price × 100."><MetricInfo metricKey="delta" values={{ dollar_delta: Math.round((card.setup.greeks?.delta ?? 0) * (card.key_stats?.current_price ?? 0) * 100) }} hasValue={card.setup.greeks?.delta != null}>Δ Exposure</MetricInfo></div>
                       <div className={`text-sm font-mono font-black ${(() => {
                         const cp = card.key_stats?.current_price;
                         if (cp == null) return 'text-text-muted';
@@ -1010,7 +1015,7 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
                       </div>
                     </div>
                     <div className="text-center">
-                      <div className="text-[9px] text-text-muted uppercase" title="Dollar theta: how much this position earns (credit) or loses (debit) per calendar day from time decay alone. Already in per-contract dollar terms.">Daily θ</div>
+                      <div className="text-[9px] text-text-muted uppercase" title="Dollar theta: how much this position earns (credit) or loses (debit) per calendar day from time decay alone. Already in per-contract dollar terms."><MetricInfo metricKey="theta" values={{ theta: card.setup.greeks?.theta_per_day != null ? Number(card.setup.greeks.theta_per_day) : null }} hasValue={card.setup.greeks?.theta_per_day != null}>Daily θ</MetricInfo></div>
                       {(() => {
                         const t = card.setup.greeks?.theta_per_day ?? 0;
                         return (
@@ -1021,7 +1026,7 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
                       })()}
                     </div>
                     <div className="text-center">
-                      <div className="text-[9px] text-text-muted uppercase" title="Dollar vega: how much this position gains or loses if implied volatility moves 1 percentage point. Per contract.">Vega/pt</div>
+                      <div className="text-[9px] text-text-muted uppercase" title="Dollar vega: how much this position gains or loses if implied volatility moves 1 percentage point. Per contract."><MetricInfo metricKey="vega" values={{ vega: card.setup.greeks?.vega != null ? Number(card.setup.greeks.vega) * 100 : null }} hasValue={card.setup.greeks?.vega != null}>Vega/pt</MetricInfo></div>
                       {(() => {
                         const v = (card.setup.greeks?.vega ?? 0) * 100;
                         return (
@@ -1063,11 +1068,8 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
                   const kellyPct = Math.round(quarterKelly * 1000) / 10;
                   return (
                     <div className="border-t border-border mt-2 pt-2 flex justify-between items-start px-1">
-                      <span
-                        className="text-[9px] uppercase tracking-wider text-text-muted cursor-help"
-                        title="Quarter-Kelly = 25% of full Kelly criterion. Formula: (win_rate × ratio − loss_rate) / ratio × 0.25, where ratio = max_profit / max_loss."
-                      >
-                        Kelly Size
+                      <span className="text-[9px] uppercase tracking-wider text-text-muted">
+                        <MetricInfo metricKey="kelly" values={{ kelly: kellyPct }}>Kelly Size</MetricInfo>
                       </span>
                       <div className="text-right">
                         <span className={`text-sm font-mono font-bold ${
