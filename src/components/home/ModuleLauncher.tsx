@@ -31,11 +31,11 @@ import ConvergenceIntelligence from '@/components/convergence/ConvergenceIntelli
 // BOOKS-1: cockpit bar + the 5 zero-prop, self-fetching Books surfaces (Option A — cockpit +
 // drop-ins only; the parent-fed engines are BOOKS-2). All reused verbatim, no restyle.
 import BookkeepingCockpitBar from '@/components/bookkeeping/BookkeepingCockpitBar';
-import TrialBalanceSection from '@/components/bookkeeping/TrialBalanceSection';
-import FinancialStatementsTab from '@/components/dashboard/FinancialStatementsTab';
-import AdjustingEntriesTab from '@/components/dashboard/AdjustingEntriesTab';
-import PositionReportTab from '@/components/dashboard/PositionReportTab';
-import WashSaleReportTab from '@/components/dashboard/WashSaleReportTab';
+// BOOKS-2: the full bookkeeping pipe (SRC → categorize → journal → ledger → TB → recon →
+// adjusting → statements → wash-sales → close → year-end → positions → CPA export), in the
+// dashboard's canonical order. It owns its own data layer; the 5 BOOKS-1 drop-ins now render
+// inside it at their dashboard positions (no longer standalone here).
+import BooksPipeline from '@/components/home/BooksPipeline';
 import OperationsPipelineShowroom from '@/components/workbench/operations/showroom/OperationsPipelineShowroom';
 // HB-4e-mount: the real routine builder (workbench CRUD) + its self-fetching entity provider, plus
 // the fetch-free logged-out teaser. Mounted verbatim on the homepage Routines tab — no restyle yet.
@@ -846,13 +846,12 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                     onLinkAccount={booksLinkAccount}
                   />
                 )}
-                {/* The 5 zero-prop, self-fetching drop-ins (each fetches its own auth-gated,
-                    user-scoped route; no restyle — BOOKS-2 handles styling parity). */}
-                <TrialBalanceSection />
-                <FinancialStatementsTab />
-                <AdjustingEntriesTab />
-                <PositionReportTab />
-                <WashSaleReportTab />
+                {/* BOOKS-2: the full pipe below the cockpit — import → categorize/COA →
+                    journal → ledger → trial balance → reconcile → adjusting → statements →
+                    wash-sales → close → year-end → positions → CPA export (dashboard order).
+                    The 5 BOOKS-1 drop-ins are interleaved inside BooksPipeline at their
+                    dashboard positions; the cockpit above keeps its own BOOKS-1 wiring. */}
+                <BooksPipeline />
               </>
             ) : (
               renderBody(bookkeepingModule)
