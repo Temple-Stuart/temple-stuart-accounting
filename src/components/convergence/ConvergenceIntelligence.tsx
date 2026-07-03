@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, createContext, useContext } from 'react';
 import ScannerResultsTable from './ScannerResultsTable';
 // LANG-1: persistent data-not-advice disclaimer, rendered above the card results.
 import TradingDataDisclaimer from '@/components/trading/TradingDataDisclaimer';
@@ -11,6 +11,11 @@ import { DEFAULT_FILTERS } from '@/lib/convergence/filter-types';
 import { applyFilters, describeActiveFilters } from '@/lib/convergence/filter-engine';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
+
+// RISK-1: user-entered account size (dollars), shared to the card renderers without
+// prop-threading. 0 = unset (no capital math is shown — never assume a default balance).
+// Value is USER-ENTERED and NOT synced from any broker; the input labels say so.
+const AccountSizeContext = createContext<number>(0);
 
 /* ===================================================================
    ConvergenceIntelligence — unified market intelligence dashboard
@@ -403,6 +408,8 @@ export function TerminalTradeCard({ detail, sentiment, savedCards, savingCards, 
   onSave: (detail: TickerDetail, card: TradeCardData, sentiment?: SocialSentimentData) => Promise<void>;
   onRemove: (cardKey: string, savedId: string) => Promise<void>;
 }) {
+  // RISK-1: user-entered account size for capital context (0 = unset → no dollar math).
+  const accountSize = useContext(AccountSizeContext);
   const comp = detail.scores.composite;
   const cards = detail.trade_cards ?? [];
   const headlines: Headline[] = detail.scores.info_edge?.breakdown?.news_sentiment?.news_detail?.headlines?.slice(0, 3) ?? [];
@@ -734,6 +741,10 @@ export function TerminalTradeCard({ detail, sentiment, savedCards, savingCards, 
                 : null}
               <span className="text-text-muted"> · MAX LOSS </span>
               <span className="text-brand-red">{fmtDollar(card.setup.max_loss)}</span>
+              {/* RISK-1: max loss as % of user-entered account size (only when set). */}
+              {accountSize > 0 && card.setup.max_loss != null && (
+                <span className="text-text-faint"> ({((Math.abs(card.setup.max_loss) / accountSize) * 100).toFixed(1)}% of acct)</span>
+              )}
               <span className="text-text-muted"> · POP </span>
               <span className="text-text-primary">{fmtPct(card.setup.probability_of_profit)}</span>
               <span className="text-text-faint"> ({card.setup.pop_method === 'breakeven_d2' ? 'N(d2)' : 'Δ approx'})</span>
@@ -825,6 +836,8 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
   onSave: (detail: TickerDetail, card: TradeCardData, sentiment?: SocialSentimentData) => Promise<void>;
   onRemove: (cardKey: string, savedId: string) => Promise<void>;
 }) {
+  // RISK-1: user-entered account size for capital context (0 = unset → no dollar math).
+  const accountSize = useContext(AccountSizeContext);
   const comp = detail.scores.composite;
   const cards = detail.trade_cards ?? [];
   const why = cards[0]?.why;
@@ -951,6 +964,12 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
                   <div className="text-center">
                     <div className="text-[9px] text-text-muted uppercase">Max Loss</div>
                     <div className="text-sm font-mono font-black text-brand-red">{fmtDollar(card.setup.max_loss)}</div>
+                    {/* RISK-1: max loss as % of user-entered account size (only when set). */}
+                    {accountSize > 0 && card.setup.max_loss != null && (
+                      <div className="text-[8px] font-mono text-text-faint mt-0.5">
+                        {((Math.abs(card.setup.max_loss) / accountSize) * 100).toFixed(1)}% of acct
+                      </div>
+                    )}
                   </div>
                   <div className="text-center">
                     <div className="text-[9px] text-text-muted uppercase" title={card.setup.pop_method === 'breakeven_d2' ? 'PoP via N(d2) at breakeven price — the standard Black-Scholes probability that the underlying closes beyond the breakeven price at expiration. More accurate than delta approx.' : 'PoP estimated from option deltas — quick approximation used when breakeven calculation is unavailable. Less precise than N(d2) method.'}>Est. PoP</div>
@@ -1059,6 +1078,12 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
                         }`}>
                           {kellyPct.toFixed(1)}% <span className="text-[9px] font-normal text-text-muted">of account</span>
                         </span>
+                        {/* RISK-1: Quarter-Kelly % as dollars of the user-entered account size. */}
+                        {accountSize > 0 && (
+                          <div className="text-[9px] font-mono text-text-faint">
+                            {kellyPct.toFixed(1)}% of ${accountSize.toLocaleString()} = ${Math.round((kellyPct / 100) * accountSize).toLocaleString()}
+                          </div>
+                        )}
                         <div className="text-[9px] text-text-faint mt-0.5">
                           {/* LANG-1: state the computed classification, drop the imperative. */}
                           {kellyPct >= 2.0
@@ -4417,6 +4442,26 @@ export default function ConvergenceIntelligence({
   // Batch scan state
   const [internalUniverse, setInternalUniverse] = useState('sp500');
   const universe = externalUniverse ?? internalUniverse;
+
+  // RISK-1: user-entered account size for capital context. Persisted to localStorage
+  // (same pattern as scanner-filters). USER-ENTERED, not synced from any broker — the
+  // input label says so. Empty/0 = unset → cards show no dollar math (no assumed default).
+  const [accountSize, setAccountSize] = useState<number>(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('trading-account-size') : null;
+      const n = saved ? Number(saved) : 0;
+      return Number.isFinite(n) && n > 0 ? n : 0;
+    } catch { return 0; }
+  });
+  const handleAccountSizeChange = (raw: string) => {
+    const n = Number(raw);
+    const next = Number.isFinite(n) && n > 0 ? n : 0;
+    setAccountSize(next);
+    try {
+      if (next > 0) localStorage.setItem('trading-account-size', String(next));
+      else localStorage.removeItem('trading-account-size');
+    } catch { /* localStorage unavailable — state still drives the UI this session */ }
+  };
   const setUniverse = onUniverseChange ?? setInternalUniverse;
 
   const [scanning, setScanning] = useState(false);
@@ -4727,7 +4772,24 @@ export default function ConvergenceIntelligence({
   }, [lookupTicker]);
 
   return (
+    <AccountSizeContext.Provider value={accountSize}>
     <div className="bg-white rounded border border-border shadow-sm overflow-hidden">
+
+      {/* RISK-1: user-entered account-size input for capital context (labeled not-synced). */}
+      <div className="border-b border-border bg-white px-4 py-2 flex flex-wrap items-center gap-2 text-xs">
+        <label htmlFor="ci-account-size" className="text-text-muted">Account size <span className="text-text-faint">(user-entered, not synced)</span>:</label>
+        <span className="text-text-faint">$</span>
+        <input
+          id="ci-account-size"
+          type="number"
+          min="0"
+          inputMode="numeric"
+          value={accountSize > 0 ? accountSize : ''}
+          onChange={(e) => handleAccountSizeChange(e.target.value)}
+          placeholder="Set account size for capital context"
+          className="w-64 rounded border border-border px-2 py-1 text-xs font-mono"
+        />
+      </div>
 
       {/* Header — show controls only when not hidden */}
       {!hideControls ? (
@@ -4884,5 +4946,6 @@ export default function ConvergenceIntelligence({
         )}
       </div>}
     </div>
+    </AccountSizeContext.Provider>
   );
 }
