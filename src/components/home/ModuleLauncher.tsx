@@ -23,6 +23,8 @@ import ComingSoonSection from '@/components/home/ComingSoonSection';
 import { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS } from '@/components/trips/travelSection';
 import { HOMEPAGE_PAID_CATEGORIES } from '@/lib/categoryKeys';
 import ScanFilterForm from '@/components/trading/ScanFilterForm';
+// LANG-1: persistent data-not-advice disclaimer, mounted at the top of the Trade tab.
+import TradingDataDisclaimer from '@/components/trading/TradingDataDisclaimer';
 // TRADE-1: the queue viewer + reconcile/link/grade surface. Mounted BELOW the scanner on
 // the homepage Trade tab so the scan → queue → RECONCILE loop is complete here (was only on
 // standalone /trading). Reused verbatim — no restyle (that is TRADE-2).
@@ -783,6 +785,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           <div className="px-4 py-4 space-y-6">
             {isAdmin ? (
               <>
+                {/* LANG-1: disclaimer at the top of the Trade tab (persistent, visible). */}
+                <TradingDataDisclaimer />
                 {/* Option A — scanner first, reconcile below. Same props the inline branch used. */}
                 <ScanFilterForm
                   scannerUniverse={scannerUniverse}
