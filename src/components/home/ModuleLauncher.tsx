@@ -39,6 +39,9 @@ import BooksPipeline from '@/components/home/BooksPipeline';
 // TAX-1: the closed-books handoff gate — shows the tax wizard only once a period is
 // closed, otherwise a "close your books first" screen that jumps to the Books tab.
 import TaxHandoffGate from '@/components/home/TaxHandoffGate';
+// COMP-1: the Compliance A–J institutional workbench (Section A → sub-page link row →
+// Sections B…J), bare (no AppLayout — the homepage tab supplies the shell).
+import ComplianceWorkbench from '@/components/home/ComplianceWorkbench';
 import OperationsPipelineShowroom from '@/components/workbench/operations/showroom/OperationsPipelineShowroom';
 // HB-4e-mount: the real routine builder (workbench CRUD) + its self-fetching entity provider, plus
 // the fetch-free logged-out teaser. Mounted verbatim on the homepage Routines tab — no restyle yet.
@@ -526,6 +529,9 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // TAX-1: Tax gets its own flush block (below). Non-admins render the shared paid stub
   // via renderBody(taxModule) — the SAME stub Trade/Books/Compliance use.
   const taxModule = MODULES.find((m) => m.key === 'tax')!;
+  // COMP-1: Compliance gets its own flush block (below). Non-admins render the shared
+  // paid stub via renderBody(complianceModule) — the SAME stub Trade/Books/Tax use.
+  const complianceModule = MODULES.find((m) => m.key === 'compliance')!;
 
   return (
     <>
@@ -882,6 +888,23 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           </div>
         </div>
       </section>
+      {/* COMP-1: Compliance renders in its own FLUSH block (mirrors Books/Tax). Active-module
+          check uses the TAB key 'compliance' (TABS :107; MODULE_TO_TAB compliance→'compliance'
+          :119 — module key and tab key both 'compliance'; selectTab sets activeModule to the tab
+          key). Gated exactly like Tax: isAdmin sees the A–J workbench (Section A → sub-page link
+          row → Sections B…J, bare — no AppLayout chrome inside the tab); everyone else falls
+          through to renderBody(complianceModule) → the shared paid stub. */}
+      <section className={`w-full bg-white border-b border-border ${activeModule === 'compliance' ? 'block' : 'hidden'}`}>
+        <div className="max-w-7xl mx-auto">
+          <div className="px-4 py-4 space-y-6">
+            {isAdmin ? (
+              <ComplianceWorkbench />
+            ) : (
+              renderBody(complianceModule)
+            )}
+          </div>
+        </div>
+      </section>
       {MODULES.map((m, i) => {
         // PR-TG1: Travel now renders in its own flush, edge-to-edge block above (out of
         // this map, no purple band). Skip it here so it never double-renders. Returning
@@ -897,7 +920,11 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         // TAX-1: 'tax' now renders in its own flush block above → skip here. Index `i` stays
         // stable, so the only remaining band-rendered module (compliance, i=6 → bg-white) is
         // unchanged.
-        if (m.key === 'travel' || m.key === 'routines' || m.key === 'projects' || m.key === 'content' || m.key === 'trading' || m.key === 'bookkeeping' || m.key === 'tax') return null;
+        // COMP-1: 'compliance' now renders in its own flush block above → skip here. With this,
+        // every module renders in its own flush block and the band map below renders NOTHING
+        // (no module remains → nothing to flip). The map code is left in place intentionally;
+        // removing it is a separate cleanup PR.
+        if (m.key === 'travel' || m.key === 'routines' || m.key === 'projects' || m.key === 'content' || m.key === 'trading' || m.key === 'bookkeeping' || m.key === 'tax' || m.key === 'compliance') return null;
         return (
         <section key={m.key} className={`w-full py-10 ${i % 2 === 1 ? 'bg-bg-row' : 'bg-white'} border-b border-border ${activeModule === (MODULE_TO_TAB[m.key] ?? m.key) ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto px-4 lg:px-8 space-y-6">
