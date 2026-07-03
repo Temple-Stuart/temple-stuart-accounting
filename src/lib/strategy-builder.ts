@@ -701,11 +701,24 @@ export function generateStrategies(params: GenerateParams): GenerateResult {
   const pct = ivRank * 100;
   const rejections: RejectionReason[] = [];
 
-  // Filter to strikes with at least some Greeks data
+  // Filter to strikes with at least some Greeks data AND a real two-sided quote on a leg.
+  // (EDGE-1: buildStrikeData already nulls both sides of any leg without a live bid+ask,
+  // so a strike with no live leg has all four price fields null and is excluded here.)
   const valid = strikes.filter(s =>
     (s.callDelta != null || s.putDelta != null) &&
     (s.callBid != null || s.callAsk != null || s.putBid != null || s.putAsk != null)
   );
+
+  // EDGE-1: declare, don't silently shrink. Count strikes that had greeks but no live
+  // two-sided quote on any leg (their prices were nulled at the quote layer). Surface it
+  // as a rejection so the scan stats show WHY fewer cards appear.
+  const droppedNoLiveQuote = strikes.filter(s =>
+    (s.callDelta != null || s.putDelta != null) &&
+    s.callBid == null && s.callAsk == null && s.putBid == null && s.putAsk == null
+  ).length;
+  if (droppedNoLiveQuote > 0) {
+    rejections.push({ strategy: 'all', reason: `${droppedNoLiveQuote} strikes skipped: no live bid+ask (missing_live_quote)`, gate: 'construction' });
+  }
 
   const noGreeks = strikes.filter(s => s.callDelta == null && s.putDelta == null).length;
   console.log(`[StrategyBuilder] ${sym}: ENTER — price=$${currentPrice}, ivRank=${ivRank.toFixed(3)} (${pct.toFixed(1)}%), dte=${dte}, exp=${expiration}`);
@@ -953,37 +966,24 @@ export function buildStrikeData(
     let putBid: number | null = pg.bid ?? null;
     let putAsk: number | null = pg.ask ?? null;
 
-    // Estimate missing bid/ask from the other side
-    if (callBid === 0 && callAsk != null && callAsk > 0) callBid = callAsk * 0.4;
-    if (callAsk === 0 && callBid != null && callBid > 0) callAsk = callBid * 2.5;
-    if (putBid === 0 && putAsk != null && putAsk > 0) putBid = putAsk * 0.4;
-    if (putAsk === 0 && putBid != null && putBid > 0) putAsk = putBid * 2.5;
+    // EDGE-1: a leg is VALID only with a real bid > 0 AND a real ask > 0 from the chain.
+    // No estimation from one side (removed the old 0.4/2.5 blocks), no exchange-theo
+    // substitution (removed the old theo × 0.85/1.15 blocks), no one-sided fill. A leg
+    // missing either live side is dead — BOTH its sides are nulled so nothing downstream
+    // can build, price, or score a strategy on a fabricated quote.
+    const callLive = callBid != null && callBid > 0 && callAsk != null && callAsk > 0;
+    const putLive = putBid != null && putBid > 0 && putAsk != null && putAsk > 0;
+    if (!callLive) { callBid = null; callAsk = null; }
+    if (!putLive) { putBid = null; putAsk = null; }
 
-    // Track price source for audit trail
-    const callHasLive = (callBid != null && callBid > 0) || (callAsk != null && callAsk > 0);
-    const putHasLive = (putBid != null && putBid > 0) || (putAsk != null && putAsk > 0);
-
-    // Exchange theo price — real Black-Scholes valuation from vol surface (industry standard: TOS, Schwab, IBKR)
+    // Exchange theo is retained as INFORMATIONAL context only (recorded in the row below);
+    // it is never substituted into bid/ask.
     const callTheo = cg.theoPrice > 0 ? cg.theoPrice : null;
     const putTheo = pg.theoPrice > 0 ? pg.theoPrice : null;
 
-    // When live quotes unavailable, use exchange theo with standard spread model
-    if (!callHasLive && callTheo != null) {
-      callBid = callTheo * 0.85;
-      callAsk = callTheo * 1.15;
-    }
-    if (!putHasLive && putTheo != null) {
-      putBid = putTheo * 0.85;
-      putAsk = putTheo * 1.15;
-    }
-
-    const callHasTheo = !callHasLive && callTheo != null;
-    const putHasTheo = !putHasLive && putTheo != null;
-
-    const priceSource: 'live' | 'theo' | 'mixed' | 'none' =
-      (callHasLive && putHasLive) ? 'live' :
-      (!callHasLive && !putHasLive && !callHasTheo && !putHasTheo) ? 'none' :
-      (!callHasLive && !putHasLive) ? 'theo' : 'mixed';
+    // Price source is now live-only: a strike is 'live' if it carries at least one leg with
+    // a real two-sided quote, else 'none'. 'theo'/'mixed' can no longer occur.
+    const priceSource: 'live' | 'theo' | 'mixed' | 'none' = (callLive || putLive) ? 'live' : 'none';
 
     // Inverted quotes — null out that side entirely
     if (callBid != null && callAsk != null && callBid > callAsk) {
