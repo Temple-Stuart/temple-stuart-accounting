@@ -64,6 +64,20 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
   // Grading in progress
   const [gradingCardId, setGradingCardId] = useState<string | null>(null);
 
+  // RISK-1: coverage stats (linked / closed / unlinked) from /api/trading/coverage.
+  // Self-fetched; null until loaded — the strip renders only on success (never fabricated).
+  const [coverage, setCoverage] = useState<
+    { linked_card_count: number; closed_position_count: number; unlinked_closed_count: number } | null
+  >(null);
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/trading/coverage');
+        if (res.ok) setCoverage(await res.json());
+      } catch { /* leave null — strip simply does not render, no fabricated numbers */ }
+    })();
+  }, []);
+
   // Scanner start date (per-user)
   const [scannerStartDate, setScannerStartDate] = useState<string | null>(null);
   const [editingStartDate, setEditingStartDate] = useState(false);
@@ -288,6 +302,16 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
           </button>
         </div>
       </div>
+
+      {/* RISK-1: coverage stats strip — denominator always visible (no win-rate without it).
+          Renders only when coverage loaded; never fabricated on failure. */}
+      {coverage && (
+        <div className="border-b border-border bg-white px-4 py-1.5 text-[11px] text-text-muted">
+          Linked cards: <span className="font-mono font-semibold text-text-primary">{coverage.linked_card_count}</span>
+          {' · '}Closed positions: <span className="font-mono font-semibold text-text-primary">{coverage.closed_position_count}</span>
+          {' · '}Unlinked: <span className="font-mono font-semibold text-text-primary">{coverage.unlinked_closed_count}</span>
+        </div>
+      )}
 
       {/* Legacy notice */}
       <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-800">

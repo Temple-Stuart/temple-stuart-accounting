@@ -25,6 +25,8 @@ import { HOMEPAGE_PAID_CATEGORIES } from '@/lib/categoryKeys';
 import ScanFilterForm from '@/components/trading/ScanFilterForm';
 // LANG-1: persistent data-not-advice disclaimer, mounted at the top of the Trade tab.
 import TradingDataDisclaimer from '@/components/trading/TradingDataDisclaimer';
+// RISK-1: coverage declaration — states what has actually synced (self-fetches /api/trading/coverage).
+import CoverageDeclaration from '@/components/trading/CoverageDeclaration';
 // TRADE-1: the queue viewer + reconcile/link/grade surface. Mounted BELOW the scanner on
 // the homepage Trade tab so the scan → queue → RECONCILE loop is complete here (was only on
 // standalone /trading). Reused verbatim — no restyle (that is TRADE-2).
@@ -787,6 +789,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
               <>
                 {/* LANG-1: disclaimer at the top of the Trade tab (persistent, visible). */}
                 <TradingDataDisclaimer />
+                {/* RISK-1: coverage declaration — what has actually synced (below the disclaimer). */}
+                <CoverageDeclaration />
                 {/* Option A — scanner first, reconcile below. Same props the inline branch used. */}
                 <ScanFilterForm
                   scannerUniverse={scannerUniverse}
