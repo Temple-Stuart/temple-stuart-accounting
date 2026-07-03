@@ -36,6 +36,9 @@ import BookkeepingCockpitBar from '@/components/bookkeeping/BookkeepingCockpitBa
 // dashboard's canonical order. It owns its own data layer; the 5 BOOKS-1 drop-ins now render
 // inside it at their dashboard positions (no longer standalone here).
 import BooksPipeline from '@/components/home/BooksPipeline';
+// TAX-1: the closed-books handoff gate — shows the tax wizard only once a period is
+// closed, otherwise a "close your books first" screen that jumps to the Books tab.
+import TaxHandoffGate from '@/components/home/TaxHandoffGate';
 import OperationsPipelineShowroom from '@/components/workbench/operations/showroom/OperationsPipelineShowroom';
 // HB-4e-mount: the real routine builder (workbench CRUD) + its self-fetching entity provider, plus
 // the fetch-free logged-out teaser. Mounted verbatim on the homepage Routines tab — no restyle yet.
@@ -520,6 +523,9 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // BOOKS-1: Books gets its own flush block (below). Non-admins render the shared paid
   // stub via renderBody(bookkeepingModule) — the SAME stub Trade/Tax/Compliance use.
   const bookkeepingModule = MODULES.find((m) => m.key === 'bookkeeping')!;
+  // TAX-1: Tax gets its own flush block (below). Non-admins render the shared paid stub
+  // via renderBody(taxModule) — the SAME stub Trade/Books/Compliance use.
+  const taxModule = MODULES.find((m) => m.key === 'tax')!;
 
   return (
     <>
@@ -859,6 +865,23 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           </div>
         </div>
       </section>
+      {/* TAX-1: Tax renders in its own FLUSH block (mirrors Books/Trade). Active-module check
+          uses the TAB key 'tax' (TABS :103; MODULE_TO_TAB tax→'tax' :115 — module key and tab
+          key both 'tax'; selectTab sets activeModule to the tab key). Gated exactly like
+          Books/Trade: isAdmin sees the closed-books handoff gate (wizard once a period is
+          closed, else a "close your books first" screen that jumps to the Books tab);
+          everyone else falls through to renderBody(taxModule) → the shared paid stub. */}
+      <section className={`w-full bg-white border-b border-border ${activeModule === 'tax' ? 'block' : 'hidden'}`}>
+        <div className="max-w-7xl mx-auto">
+          <div className="px-4 py-4 space-y-6">
+            {isAdmin ? (
+              <TaxHandoffGate onGoToBooks={() => selectTab('books')} />
+            ) : (
+              renderBody(taxModule)
+            )}
+          </div>
+        </div>
+      </section>
       {MODULES.map((m, i) => {
         // PR-TG1: Travel now renders in its own flush, edge-to-edge block above (out of
         // this map, no purple band). Skip it here so it never double-renders. Returning
@@ -871,7 +894,10 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         // BOOKS-1: 'bookkeeping' now renders in its own flush block above → skip here (module
         // key 'bookkeeping', not tab key 'books'). Index `i` stays stable, so the
         // bg-bg-row/bg-white parity of tax(i=5)/compliance(i=6)/content(i=7) is unchanged.
-        if (m.key === 'travel' || m.key === 'routines' || m.key === 'projects' || m.key === 'content' || m.key === 'trading' || m.key === 'bookkeeping') return null;
+        // TAX-1: 'tax' now renders in its own flush block above → skip here. Index `i` stays
+        // stable, so the only remaining band-rendered module (compliance, i=6 → bg-white) is
+        // unchanged.
+        if (m.key === 'travel' || m.key === 'routines' || m.key === 'projects' || m.key === 'content' || m.key === 'trading' || m.key === 'bookkeeping' || m.key === 'tax') return null;
         return (
         <section key={m.key} className={`w-full py-10 ${i % 2 === 1 ? 'bg-bg-row' : 'bg-white'} border-b border-border ${activeModule === (MODULE_TO_TAB[m.key] ?? m.key) ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto px-4 lg:px-8 space-y-6">
