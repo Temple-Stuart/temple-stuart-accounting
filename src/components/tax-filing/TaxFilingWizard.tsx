@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { AppLayout } from '@/components/ui';
+// TAX-1: AppLayout chrome moved OUT to the /dashboard/tax-filing page so this wizard is
+// bare and can also mount inside the homepage Tax tab (which supplies its own chrome).
 import LifeEventsStep from './steps/LifeEventsStep';
 import DocumentsStep from './steps/DocumentsStep';
 import IncomeReviewStep from './steps/IncomeReviewStep';
@@ -291,8 +292,7 @@ export default function TaxFilingWizard() {
   const StepComponent = step.Component;
 
   return (
-    <AppLayout>
-      <div className="px-4 py-6 max-w-5xl mx-auto">
+    <div className="px-4 py-6 max-w-5xl mx-auto">
         {/* Header */}
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
@@ -452,6 +452,5 @@ export default function TaxFilingWizard() {
           </div>
         </div>
       </div>
-    </AppLayout>
   );
 }
