@@ -3279,7 +3279,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                                     </tbody>
                                   </table>
                                 )}
-                                <p className="text-text-muted mt-1">Conf: {r.info_edge_detail ? (r.info_edge_detail.data_confidence * 100).toFixed(0) + '%' : '—'}</p>
+                                <p className="text-text-muted mt-1">Conf: {r.info_edge_detail ? (r.info_edge_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.info_edge_detail?.active_signal_count != null ? ` · computed from ${r.info_edge_detail.active_signal_count}/${r.info_edge_detail.total_signal_count} signals` : ''}</p>
                                 {r.info_edge_detail?.filing_recency && (
                                   <div className="mt-1 pt-1 border-t border-border/30">
                                     <p className="text-text-secondary font-bold">Filing Recency</p>

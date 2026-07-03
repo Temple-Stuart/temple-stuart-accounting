@@ -451,9 +451,14 @@ export interface ConvergenceInput {
 
 export interface DataConfidence {
   total_sub_scores: number;
-  imputed_sub_scores: number;
+  imputed_sub_scores: number;    // sub-scores not backed by full real data (imputed + excluded)
   confidence: number; // 1 - (imputed / total), range 0 to 1
   imputed_fields: string[];
+  // EDGE-2: signals whose data source was ABSENT are dropped and the remaining
+  // weights re-normalized — never imputed with a neutral value. These fields
+  // record that exclusion so the UI can show "computed from N/M signals".
+  excluded_fields?: string[];
+  active_signal_count?: number;  // sub-scores actually computed from real data
 }
 
 // ===== SCORING TRACES =====
@@ -971,8 +976,8 @@ export interface InfoEdgeResult {
     flow_signal: FlowSignalTrace;
     news_sentiment: NewsSentimentTrace | null;
     institutional_ownership: InstitutionalOwnershipTrace;
-    fund_ownership_flow?: SubScoreTrace;
-    material_event_flag?: SubScoreTrace;
+    fund_ownership_flow: SubScoreTrace | null;
+    material_event_flag: SubScoreTrace | null;
   };
 }
 

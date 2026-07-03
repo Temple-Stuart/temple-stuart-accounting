@@ -1274,11 +1274,14 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   const filingRecency = scoreFilingRecency(input);
 
   // Fund ownership flow sub-score (weight 0.05)
-  const fundOwnershipFlow: SubScoreTrace = (() => {
+  // EDGE-2: when the fund-ownership source is absent, this signal is EXCLUDED
+  // (returns null) and its weight drops out of the re-normalized denominator —
+  // never imputed as a neutral 50. Mirrors scoreNewsSentiment's null handling.
+  const fundOwnershipFlow: SubScoreTrace | null = (() => {
     const weight = 0.05;
     const funds = input.finnhubFundOwnership?.funds ?? [];
     if (funds.length === 0) {
-      return { score: 50, weight, inputs: { net_change: null }, formula: 'imputed(50)', notes: 'No fund ownership data' };
+      return null; // no fund ownership data — excluded, weights re-normalize
     }
     const netChange = funds.reduce((sum, f) => sum + (f.change ?? 0), 0);
     let s: number;
@@ -1291,10 +1294,13 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   })();
 
   // Material event flag sub-score (weight 0.05)
-  const materialEventFlag: SubScoreTrace = (() => {
+  // EDGE-2: when the 8-K scan is absent, this signal is EXCLUDED (returns null)
+  // and its weight drops out of the re-normalized denominator — never imputed
+  // as a neutral 50. Mirrors scoreNewsSentiment's null handling.
+  const materialEventFlag: SubScoreTrace | null = (() => {
     const weight = 0.05;
     if (!input.edgar8kScan) {
-      return { score: 50, weight, inputs: { filing_count: null }, formula: 'imputed(50)', notes: 'No 8-K data' };
+      return null; // no 8-K data — excluded, weights re-normalize
     }
     const count = input.edgar8kScan.totalHits ?? 0;
     let s: number;
@@ -1305,24 +1311,32 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
     return { score: s, weight, inputs: { filing_count: count }, formula: '8k_count_thresholds', notes: count === 0 ? 'no material events' : count <= 2 ? 'normal' : count <= 5 ? 'elevated activity' : 'high material event risk' };
   })();
 
-  // When newsSentiment is null (no data), exclude its weight and re-weight remaining components
-  const baseScore =
-    analystConsensus.weight * analystConsensus.score +
-    priceTargetSignal.weight * priceTargetSignal.score +
-    upgradeDowngradeSignal.weight * upgradeDowngradeSignal.score +
-    insiderActivity.weight * insiderActivity.score +
-    earningsMomentum.weight * earningsMomentum.score +
-    flowSignal.weight * flowSignal.score +
-    (newsSentiment != null ? newsSentiment.weight * newsSentiment.score : 0) +
-    institutionalOwnership.weight * institutionalOwnership.score +
-    fundOwnershipFlow.weight * fundOwnershipFlow.score +
-    materialEventFlag.weight * materialEventFlag.score;
+  // EDGE-2: exclude-and-renormalize. Every sub-score is either computed from
+  // real data or EXCLUDED entirely — missing signals are dropped (null) and the
+  // remaining weights re-normalize. No sub-score is ever imputed with a neutral
+  // value. Only sub-scores that already return null on absent data participate
+  // in exclusion (news_sentiment, fund_ownership_flow, material_event_flag); the
+  // rest always contribute a real trace here.
+  const TOTAL_SUB_SCORES = 10; // analyst, price_target, upgrade_downgrade, insider, earnings, flow, news, institutional, fund_ownership, material_event
+  const activeSubScores: SubScoreTrace[] = [
+    analystConsensus,
+    priceTargetSignal,
+    upgradeDowngradeSignal,
+    insiderActivity,
+    earningsMomentum,
+    flowSignal,
+    institutionalOwnership,
+  ];
+  if (newsSentiment != null) activeSubScores.push(newsSentiment);
+  if (fundOwnershipFlow != null) activeSubScores.push(fundOwnershipFlow);
+  if (materialEventFlag != null) activeSubScores.push(materialEventFlag);
 
-  const totalWeight = newsSentiment != null
-    ? 1.10
-    : 1.10 - 0.15; // news_sentiment weight is 0.15
+  const activeSignalCount = activeSubScores.length;
+  const activeWeight = activeSubScores.reduce((sum, s) => sum + s.weight, 0);
+  const baseScore = activeSubScores.reduce((sum, s) => sum + s.weight * s.score, 0);
 
-  let score = round(baseScore / totalWeight, 1);
+  // activeWeight is always > 0 (the seven non-nullable sub-scores are always present)
+  let score = round(baseScore / activeWeight, 1);
 
   // Filing recency: event-driven overlay (does NOT rebalance weights)
   // Positive surprise: up to +8 pts, Negative surprise: up to -12 pts (asymmetric)
@@ -1347,17 +1361,27 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
     if (input.optionsFlow.volume_bias == null) imputedFields.push('flow_signal.volume_bias');
     if (input.optionsFlow.unusual_activity_ratio == null) imputedFields.push('flow_signal.unusual_activity');
   }
-  if (!input.newsSentiment) imputedFields.push('news_sentiment');
   if (!input.finnhubInstitutionalOwnership) imputedFields.push('institutional_ownership');
-  if (!input.finnhubFundOwnership || input.finnhubFundOwnership.funds.length === 0) imputedFields.push('fund_ownership_flow');
-  if (!input.edgar8kScan) imputedFields.push('material_event_flag');
 
-  const totalSubScores = 10; // analyst, price_target, upgrade_downgrade, insider, earnings, flow, news, institutional, fund_ownership, material_event
+  // EDGE-2: excluded (dropped + re-normalized), NOT imputed. Derived from the
+  // sub-scores that actually returned null above, so tracking cannot drift from
+  // the score math.
+  const excludedFields: string[] = [];
+  if (newsSentiment == null) excludedFields.push('news_sentiment');
+  if (fundOwnershipFlow == null) excludedFields.push('fund_ownership_flow');
+  if (materialEventFlag == null) excludedFields.push('material_event_flag');
+
+  // A sub-score not backed by full real data is either imputed (a placeholder
+  // value still in the score) or excluded (dropped entirely). Confidence counts
+  // both as "missing" so the metric stays honest.
+  const missingCount = imputedFields.length + excludedFields.length;
   const dataConfidence: DataConfidence = {
-    total_sub_scores: totalSubScores,
-    imputed_sub_scores: imputedFields.length,
-    confidence: round(1 - imputedFields.length / totalSubScores, 4),
+    total_sub_scores: TOTAL_SUB_SCORES,
+    imputed_sub_scores: missingCount,
+    confidence: round(1 - missingCount / TOTAL_SUB_SCORES, 4),
     imputed_fields: imputedFields,
+    excluded_fields: excludedFields,
+    active_signal_count: activeSignalCount, // "computed from {active_signal_count}/{total_sub_scores} signals"
   };
 
   return {
