@@ -2,6 +2,8 @@
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import ScannerResultsTable from './ScannerResultsTable';
+// LANG-1: persistent data-not-advice disclaimer, rendered above the card results.
+import TradingDataDisclaimer from '@/components/trading/TradingDataDisclaimer';
 import FilterPanel from './FilterPanel';
 import { countActiveFilters } from './FilterPanel';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
@@ -799,7 +801,9 @@ export function TerminalTradeCard({ detail, sentiment, savedCards, savingCards, 
               </div>
             ) : (
               <div>
-                <Button variant="primary" size="md" onClick={() => onSave(detail, card, sentiment)} className="w-full mt-1">Enter Trade</Button>
+                {/* LANG-1: label states the true action — onSave = saveCard (:4478) POSTs
+                    /api/trade-cards status 'queued' (:4540); it places NO broker order. */}
+                <Button variant="primary" size="md" onClick={() => onSave(detail, card, sentiment)} className="w-full mt-1">Queue Card</Button>
                 {error && <div className="mt-1 px-2 py-1 rounded text-[10px] bg-red-900/50 text-brand-red">Failed: {error}</div>}
               </div>
             )}
@@ -839,9 +843,9 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
           <span className="text-terminal-lg font-black" style={{ color: gradeColorHex(comp.score) }} title="Letter grade derived from composite score. A = 80+, B = 65+, C = 50+, D = 35+, F = below 35.">{letterGrade(comp.score)}</span>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <span title="Scanner-recommended trade direction based on dominant signal alignment across all four gates."><Badge variant={dirBadgeVariant(comp.direction)} size="sm">{comp.direction}</Badge></span>
+          <span title="Scanner-computed direction based on dominant signal alignment across all four gates."><Badge variant={dirBadgeVariant(comp.direction)} size="sm">{comp.direction}</Badge></span>
           {ks?.sector && <span title="Stock sector from market data. Useful for concentration risk — avoid over-weighting one sector."><Badge variant="default" size="sm">{ks.sector}</Badge></span>}
-          <span title="Number of scoring gates above 50. All 4 gates above 50 = full position signal. Fewer gates = reduced conviction. 4/4 is required for a full position recommendation."><Badge variant={gate.variant} size="sm">
+          <span title="Number of scoring gates above 50. All 4 gates above 50 = full position signal. Fewer gates = reduced conviction. 4/4 is the maximum signal strength."><Badge variant={gate.variant} size="sm">
             {comp.categories_above_50}/4 {gate.text}
           </Badge></span>
         </div>
@@ -1056,13 +1060,14 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
                           {kellyPct.toFixed(1)}% <span className="text-[9px] font-normal text-text-muted">of account</span>
                         </span>
                         <div className="text-[9px] text-text-faint mt-0.5">
+                          {/* LANG-1: state the computed classification, drop the imperative. */}
                           {kellyPct >= 2.0
-                            ? 'Favorable edge — size with confidence'
+                            ? 'Edge: favorable'
                             : kellyPct >= 1.0
-                            ? 'Moderate edge — standard allocation'
+                            ? 'Edge: moderate'
                             : kellyPct > 0
-                            ? 'Thin edge — keep size small'
-                            : 'No edge detected — consider skipping'}
+                            ? 'Edge: thin'
+                            : 'Edge: none detected'}
                         </div>
                       </div>
                     </div>
@@ -1084,7 +1089,7 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
                   ) : null}
                 </div>
 
-                {/* Enter Trade / Queued button */}
+                {/* LANG-1: Queue Card / Queued button — onSave queues a card, places no order. */}
                 {(() => {
                   const cardKey = buildCardKey(detail.symbol, card.setup.strategy_name, card.setup.expiration_date, card.setup.legs);
                   const savedId = savedCards.get(cardKey);
@@ -1120,7 +1125,7 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
                         onClick={() => onSave(detail, card, sentiment)}
                         className="w-full mt-1"
                       >
-                        Enter Trade
+                        Queue Card
                       </Button>
                       {error && (
                         <div className="mt-1 px-2 py-1 rounded text-[10px] bg-red-50 text-brand-red">
@@ -1484,7 +1489,7 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
             <div>
               <span className="text-text-muted font-medium">Sentiment: </span>
               <span className="text-text-secondary font-mono">
-                <span title="Aggregated analyst recommendation from Finnhub. Ranges from Strong Buy to Strong Sell. Used as one input to the Info Edge gate.">Analysts: {ks.analyst_consensus ?? '—'}</span>
+                <span title="Aggregated analyst rating from Finnhub. Ranges from Strong Buy to Strong Sell. Used as one input to the Info Edge gate.">Analysts: {ks.analyst_consensus ?? '—'}</span>
                 {' | '}<span title="Social media activity ratio: recent mention volume vs baseline. From xAI/Grok real-time X/Twitter analysis. Elevated buzz can signal upcoming price movement.">Buzz {ks.buzz_ratio != null ? `${ks.buzz_ratio.toFixed(1)}x` : '—'}</span>
                 {ks.buzz_ratio != null && <span className="text-text-muted"> — {statExplain('buzz_ratio', ks.buzz_ratio)}</span>}
                 {' | '}<span title="Rate of change in social sentiment. Positive = sentiment improving recently. Negative = sentiment deteriorating. From xAI/Grok X/Twitter analysis.">Trend {ks.sentiment_momentum != null ? ks.sentiment_momentum.toFixed(0) : '—'}</span>
@@ -3052,7 +3057,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                       ['Regime gate', 'Step H FRED macro data', 'Step K scoring', 'Composite score — weight varies by regime', 'Does the macro environment support this trade right now? Detects Goldilocks, Reflation, Deflation, Stagflation, Crisis', 'Wrong regime = reduced composite score regardless of other gates'],
                       ['Info Edge gate', 'Step I Finnhub and SEC data', 'Step K scoring', 'Composite score — weight varies by regime', 'What are insiders, analysts, institutions, and news signaling?', 'Confirms or contradicts the vol signal with real-world intelligence'],
                       ['Regime classification', 'Step H FRED', 'Step K weight adjustment', 'Gate weight table', 'Current regime determines how much each gate contributes to the composite', 'Stagflation = Quality and Regime weighted higher. Goldilocks = Vol Edge and Info Edge weighted higher'],
-                      ['Convergence requirement', 'Computed', 'Step K output', 'Step M final selection', '3 of 4 gates must score above 50. One strong gate is not enough', 'Enforces multi-dimensional agreement before any trade is recommended'],
+                      ['Convergence requirement', 'Computed', 'Step K output', 'Step M final selection', '3 of 4 gates must score above 50. One strong gate is not enough', 'Enforces multi-dimensional agreement before any trade signal is produced'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
                         <td className="text-xs p-2 text-text-muted border border-border">{dp}</td>
@@ -3777,7 +3782,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           <div className="px-8 py-2 border-t border-border bg-bg-row">
             <div className="text-xs space-y-3 mb-4">
               <p className="text-text-muted italic text-xs">
-                With live Greeks in hand we build actual trade structures and run them through three quality gates. Every expiration is evaluated. The highest-scoring strategy that passes all three gates becomes the recommendation.
+                With live Greeks in hand we build actual trade structures and run them through three quality gates. Every expiration is evaluated. The highest-scoring strategy that passes all three gates becomes the selected strategy.
               </p>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse border border-border">
@@ -3796,7 +3801,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                       ['Expected Value (EV)', 'Step O Greeks + computed probabilities', 'Step P Gate A', 'Gate A — must be positive', 'A trade with negative expected value loses money on average regardless of short-term outcomes', 'Negative EV = eliminated'],
                       ['Probability of Profit', 'Step O Greeks, N(d2) method', 'Step P Gate B', 'Gate B — floor by strategy type', 'Iron Condor ≥50%, Put Credit Spread ≥55%, Short Strangle ≥60%', 'Below floor = eliminated'],
                       ['Net credit collected', 'Step O bid/ask', 'Step P Gate C', 'Gate C — must be ≥$0.10/share', 'Collecting less than $0.10 means the edge is too thin to survive friction costs', 'Below $0.10 = eliminated'],
-                      ['Strategy score', 'Computed: EV/Risk×50% + Theta Efficiency×30% + Edge Ratio×20%', 'Step P ranking', 'Winner selection per expiration', 'Ranks surviving strategies. Highest score = Strategy A on the trade card', 'Determines which strategy is recommended'],
+                      ['Strategy score', 'Computed: EV/Risk×50% + Theta Efficiency×30% + Edge Ratio×20%', 'Step P ranking', 'Winner selection per expiration', 'Ranks surviving strategies. Highest score = Strategy A on the trade card', 'Determines which strategy is selected'],
                       ['xAI social sentiment', 'xAI Grok API', 'Step P fetch (parallel)', 'Trade card For/Against section', 'Real-time social signal from Reddit Twitter and financial forums', 'Bullish sentiment adds to For column. Bearish adds to Against'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
@@ -4097,9 +4102,9 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   <tbody>
                     {[
                       ['Convergence gate (3/4 above 50)', 'Step R composite', 'Step S filter', 'Final eligibility check', 'Confirms multi-gate agreement held after live data re-score', 'Fewer than 3 gates above 50 = no trade card'],
-                      ['Quality floor (≥40)', 'Step R Quality gate', 'Step S filter', 'Final eligibility check', 'Protects against recommending trades on structurally weak companies', 'Below 40 = no trade card'],
+                      ['Quality floor (≥40)', 'Step R Quality gate', 'Step S filter', 'Final eligibility check', 'Protects against surfacing trades on structurally weak companies', 'Below 40 = no trade card'],
                       ['Sector cap (max 2)', 'Step A sector data', 'Step S filter', 'Final eligibility check', 'Enforces diversification in the final output', 'Third ticker in a sector receives no trade card'],
-                      ['Trade card assembly', 'All prior steps', 'Step S output', 'User-facing recommendation', 'Packages all signals scores strategy and risk flags into one structured card', 'Strategy legs strikes credit max loss PoP EV Greeks For/Against risk flags'],
+                      ['Trade card assembly', 'All prior steps', 'Step S output', 'User-facing card', 'Packages all signals scores strategy and risk flags into one structured card', 'Strategy legs strikes credit max loss PoP EV Greeks For/Against risk flags'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
                         <td className="text-xs p-2 text-text-muted border border-border">{dp}</td>
@@ -4230,7 +4235,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           <div className="px-8 py-2 border-t border-border bg-bg-row">
             <div className="text-xs space-y-3 mb-4">
               <p className="text-text-muted italic text-xs">
-                Step T writes the full scan to the database and returns the result. This closes the performance loop. Every scan is logged so outcomes can be matched against recommendations and used to validate the signals over time.
+                Step T writes the full scan to the database and returns the result. This closes the performance loop. Every scan is logged so outcomes can be matched against the computed signals over time.
               </p>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse border border-border">
@@ -4246,10 +4251,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   </thead>
                   <tbody>
                     {[
-                      ['Composite score per ticker', 'Step R', 'Step T save', 'Azure PostgreSQL scan snapshot', 'Permanent record of the score at time of recommendation', 'Used to backtest signal quality when trade outcomes are known'],
+                      ['Composite score per ticker', 'Step R', 'Step T save', 'Azure PostgreSQL scan snapshot', 'Permanent record of the score at time of scan', 'Used to backtest signal quality when trade outcomes are known'],
                       ['Gate scores (Vol Edge Quality Regime Info Edge)', 'Step R', 'Step T save', 'Azure PostgreSQL scan snapshot', 'Granular audit trail beyond just the composite', 'Identifies which gate was most predictive over time'],
                       ['Regime classification', 'Step H', 'Step T save', 'Azure PostgreSQL scan snapshot', 'Records macro environment at time of scan', 'Allows performance analysis segmented by regime'],
-                      ['Trade cards', 'Step S', 'Step T save', 'Azure PostgreSQL scan snapshot', 'Full strategy recommendation logged with timestamp', 'Outcome matching — did the recommended strategy profit or lose?'],
+                      ['Trade cards', 'Step S', 'Step T save', 'Azure PostgreSQL scan snapshot', 'Full strategy card logged with timestamp', 'Outcome matching — did the selected strategy profit or lose?'],
                       ['Pipeline runtime', 'Computed', 'Step T output', 'UI summary bar', 'Operational metric', 'Tracks scan performance over time'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
@@ -4809,6 +4814,13 @@ export default function ConvergenceIntelligence({
       {(pipelineResult || Object.keys(pipelineProgress).length > 0) && (
         <div className="px-5 py-3">
           <PipelineFlowPanel result={pipelineResult} progress={pipelineProgress} universe={universe} />
+        </div>
+      )}
+
+      {/* LANG-1: data-not-advice disclaimer above the card results (shown whenever cards render). */}
+      {enriched.length > 0 && (
+        <div className="px-5 pt-4">
+          <TradingDataDisclaimer />
         </div>
       )}
 
