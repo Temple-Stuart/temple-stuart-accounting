@@ -180,6 +180,12 @@ export interface StrategyLeg {
   theta: number;
   vega: number;
   wideSpread: boolean;
+  // Chain IV of this leg (dxfeed, decimal e.g. 0.42). EDGE-3: the HV10>IV gate
+  // compares realized vol against the IV actually being SOLD (short legs).
+  // null = feed provided no IV for this contract; the gate declares itself
+  // not-evaluated rather than inventing a value. Optional so the custom-card
+  // path (buildCustomCard) is unaffected.
+  iv?: number | null;
 }
 
 export interface StrategyCard {
@@ -219,6 +225,10 @@ export interface GenerateParams {
   symbol?: string;        // for debug logging
   iv30?: number;          // implied volatility decimal (e.g. 0.42 for 42%)
   hv30?: number;          // 30-day HV decimal (e.g. 0.25 for 25%)
+  // EDGE-3: 10-day realized vol, decimal (e.g. 0.55 for 55%). Required — the caller
+  // must decide; null = not computable from candle history, in which case the
+  // HV10>IV gate declares itself not-evaluated (never imputed, never silent).
+  hv10: number | null;
   // Risk-free rate from FRED FEDFUNDS series, converted to decimal. Required — no default.
   riskFreeRate: number;
 }
@@ -428,6 +438,7 @@ function makeLeg(
     theta: side === 'sell' ? -theta : theta,
     vega: side === 'sell' ? -vega : vega,
     wideSpread: type === 'call' ? strike.callWideSpread : strike.putWideSpread,
+    iv: (type === 'call' ? strike.callIv : strike.putIv) ?? null,
   };
 }
 
@@ -883,7 +894,72 @@ export function generateStrategies(params: GenerateParams): GenerateResult {
     'Long Straddle': 0.25, 'Long Strangle': 0.25,
   };
 
+  // EDGE-3: track whether the HV10>IV gate ever passed a premium-selling card
+  // without being evaluable — the non-evaluation is DECLARED below, never silent.
+  let hv10GateSkippedNoHv10 = 0;
+  const hv10GateSkippedNoLegIv: string[] = [];
+
   const filtered = cards.filter(card => {
+    // ─── EDGE-3 Sanity Gate 1: strike-price monotonicity ─────────────
+    // No-arbitrage ordering at the prices this card actually transacts at
+    // (sell legs @ bid, buy legs @ ask — see makeLeg): a put at a lower strike
+    // must not cost more than a put at a higher strike; a call at a higher
+    // strike must not cost more than a call at a lower strike. A violating
+    // chain is broken — the candidate is REJECTED and declared, never repaired.
+    for (const legType of ['put', 'call'] as const) {
+      const sameType = card.legs
+        .filter(l => l.type === legType)
+        .sort((a, b) => a.strike - b.strike);
+      for (let i = 0; i < sameType.length; i++) {
+        for (let j = i + 1; j < sameType.length; j++) {
+          const lo = sameType[i];
+          const hi = sameType[j];
+          if (lo.strike === hi.strike) continue;
+          const violated = legType === 'put' ? lo.price > hi.price : hi.price > lo.price;
+          if (violated) {
+            const detail = `${legType} ${lo.strike} @ $${lo.price.toFixed(2)} (${lo.side}) vs ${legType} ${hi.strike} @ $${hi.price.toFixed(2)} (${hi.side})`;
+            console.log(`[StrategyBuilder] ${sym}: MONOTONICITY GATE rejected "${card.name}" — ${detail}`);
+            rejections.push({
+              strategy: card.name,
+              reason: `monotonicity_violation: ${detail}`,
+              gate: 'construction',
+            });
+            return false;
+          }
+        }
+      }
+    }
+
+    // ─── EDGE-3 Sanity Gate 2: HV10 > sold IV disqualification ───────
+    // Premium-selling only: if 10-day realized vol exceeds the IV of the legs
+    // being SOLD, the premium is underpriced for current movement — REJECT.
+    // Unevaluable (hv10 null or no short-leg IV from the feed) → the candidate
+    // proceeds and the non-evaluation is DECLARED after the filter (no silent
+    // gap, no invented value, no waiver logic).
+    if (CREDIT_STRATEGIES.includes(card.name)) {
+      const shortIvs = card.legs
+        .filter(l => l.side === 'sell' && l.iv != null && l.iv > 0)
+        .map(l => l.iv as number);
+      if (params.hv10 == null) {
+        hv10GateSkippedNoHv10++;
+      } else if (shortIvs.length === 0) {
+        hv10GateSkippedNoLegIv.push(card.name);
+      } else {
+        const soldIv = shortIvs.reduce((a, b) => a + b, 0) / shortIvs.length;
+        if (params.hv10 > soldIv) {
+          const detail = `hv10=${(params.hv10 * 100).toFixed(1)}% iv=${(soldIv * 100).toFixed(1)}%`;
+          console.log(`[StrategyBuilder] ${sym}: HV10>IV GATE rejected "${card.name}" — ${detail} (short-leg IVs: [${shortIvs.map(v => (v * 100).toFixed(1)).join(', ')}])`);
+          rejections.push({
+            strategy: card.name,
+            reason: `hv10_exceeds_iv: ${detail}`,
+            gate: 'construction',
+            details: { value: params.hv10, threshold: soldIv },
+          });
+          return false;
+        }
+      }
+    }
+
     // Gate A: EV must be positive (uses hvPoP for credit, deltaPoP for debit)
     if (card.ev <= 0) {
       const effectiveML = card.isUnlimited ? hvProxyML : (card.maxLoss ?? 0);
@@ -926,6 +1002,27 @@ export function generateStrategies(params: GenerateParams): GenerateResult {
 
     return true;
   });
+
+  // EDGE-3: declare, don't silently pass. If the HV10>IV gate could not be
+  // evaluated for premium-selling candidates, say so on the same surface as
+  // missing_live_quote (EDGE-1 precedent) — these are declarations, not
+  // rejections; the candidates proceeded UNCHECKED.
+  if (hv10GateSkippedNoHv10 > 0) {
+    console.log(`[StrategyBuilder] ${sym}: HV10>IV gate NOT EVALUATED for ${hv10GateSkippedNoHv10} premium-selling candidate(s) — hv10 unavailable (insufficient candle history)`);
+    rejections.push({
+      strategy: 'all',
+      reason: `hv10 unavailable — HV10>IV gate not evaluated (${hv10GateSkippedNoHv10} premium-selling candidate(s) proceeded unchecked)`,
+      gate: 'construction',
+    });
+  }
+  if (hv10GateSkippedNoLegIv.length > 0) {
+    console.log(`[StrategyBuilder] ${sym}: HV10>IV gate NOT EVALUATED for [${hv10GateSkippedNoLegIv.join(', ')}] — no short-leg IV from the chain feed`);
+    rejections.push({
+      strategy: 'all',
+      reason: `no short-leg IV from chain feed — HV10>IV gate not evaluated (${hv10GateSkippedNoLegIv.join(', ')} proceeded unchecked)`,
+      gate: 'construction',
+    });
+  }
 
   // ─── Edge-Aware Composite Scoring ───────────────────────────────
   const edgeRatio = iv > 0 ? Math.max(0, (iv - hv)) / iv : 0;

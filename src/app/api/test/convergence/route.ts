@@ -7,7 +7,7 @@ import { fetchFredMacro, fetchFredDailySeries, fetchAnnualFinancials, fetchNewsS
 import { computeCrossAssetCorrelations } from '@/lib/convergence/cross-asset';
 import { fetchChainAndBuildCards } from '@/lib/convergence/chain-fetcher';
 import type { ChainTickerInput } from '@/lib/convergence/chain-fetcher';
-import { generateTradeCards } from '@/lib/convergence/trade-cards';
+import { generateTradeCards, computeCloseToCloseHV } from '@/lib/convergence/trade-cards';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import type {
   CandleData,
@@ -299,6 +299,10 @@ export async function GET(request: Request) {
           'Risk-free rate is required for Black-Scholes calculation.'
         );
       }
+      // EDGE-3: 10-day realized vol (same computation as the displayed vol cone,
+      // percent → decimal); null = HV10>IV gate declares itself not-evaluated.
+      const hv10Pct = computeCloseToCloseHV(ttCandleResult.candles, 10);
+
       const chainInput: ChainTickerInput[] = [{
         symbol,
         suggested_dte: scoringResult.strategy_suggestion.suggested_dte,
@@ -307,6 +311,7 @@ export async function GET(request: Request) {
         ivRank: ttScannerResult.data.ivRank,
         iv30: rawIv30 / 100,
         hv30: rawHv30 / 100,
+        hv10: hv10Pct != null ? hv10Pct / 100 : null,
         riskFreeRate: fredResult.data.fedFunds / 100,
       }];
 

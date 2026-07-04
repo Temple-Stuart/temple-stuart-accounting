@@ -15,7 +15,7 @@ import type { FullScoringResult } from './composite';
 import { computePreFilter } from './pre-filter';
 import type { PreFilterResult } from './pre-filter';
 import { logScanSnapshotBatch } from './snapshot-logger';
-import { generateTradeCards } from './trade-cards';
+import { generateTradeCards, computeCloseToCloseHV } from './trade-cards';
 import type {
   TTScannerData,
   ConvergenceInput,
@@ -1532,6 +1532,12 @@ export async function runPipeline(
       // Exclude ticker if IV_percentile is null — no fallback
       if (s.vol_edge.breakdown.mispricing.inputs.IV_percentile == null) return null;
 
+      // EDGE-3: 10-day realized vol for the HV10>IV sanity gate — same
+      // computation as the displayed vol cone (computeCloseToCloseHV, percent),
+      // converted to decimal. null when candle history is insufficient; the
+      // gate then declares itself not-evaluated (never imputed).
+      const hv10Pct = computeCloseToCloseHV(candleDataMap.get(row.symbol) ?? [], 10);
+
       return {
         symbol: row.symbol,
         suggested_dte: s.strategy_suggestion.suggested_dte,
@@ -1540,6 +1546,7 @@ export async function runPipeline(
         ivRank: (s.vol_edge.breakdown.mispricing.inputs.IV_percentile as number) / 100,
         iv30: (tt.iv30 ?? 30) / 100,
         hv30: (tt.hv30 ?? 25) / 100,
+        hv10: hv10Pct != null ? hv10Pct / 100 : null,
         riskFreeRate: fedFundsRate,
       };
     }).filter((input): input is NonNullable<typeof input> => input !== null);
