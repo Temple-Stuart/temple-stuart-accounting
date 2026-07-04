@@ -98,25 +98,25 @@ function formatPlainEnglish(scoring: FullScoringResult, input: ConvergenceInput)
     }
   }
 
-  // Insider activity
+  // Insider activity (trace is null when the signal was excluded — no data; skip)
   const insiderTrace = ie.breakdown.insider_activity;
-  const insiderDir = insiderTrace.insider_detail.net_direction;
-  if (insiderDir === 'BULLISH' && insiderTrace.insider_detail.latest_mspr !== null) {
+  const insiderDir = insiderTrace?.insider_detail.net_direction;
+  if (insiderDir === 'BULLISH' && insiderTrace?.insider_detail.latest_mspr != null) {
     signals.push('Insiders have been net buyers recently — they\'re putting their own money behind the stock.');
-  } else if (insiderDir === 'BEARISH' && insiderTrace.insider_detail.latest_mspr !== null) {
+  } else if (insiderDir === 'BEARISH' && insiderTrace?.insider_detail.latest_mspr != null) {
     signals.push('Insiders have been net sellers recently — worth noting, though routine selling is common.');
   }
 
-  // Earnings momentum
+  // Earnings momentum (trace is null when the signal was excluded — no data; skip)
   const emTrace = ie.breakdown.earnings_momentum;
-  const beats = emTrace.momentum_detail.consecutive_beats;
+  const beats = emTrace?.momentum_detail.consecutive_beats ?? 0;
   if (beats >= 3) {
     signals.push(`${beats}-quarter earnings beat streak — the company keeps surprising to the upside.`);
   }
 
-  // Flow signal
+  // Flow signal (trace is null when the signal was excluded — no data; skip)
   const flowTrace = ie.breakdown.flow_signal;
-  if (flowTrace.flow_detail.data_available) {
+  if (flowTrace != null && flowTrace.flow_detail.data_available) {
     const pcr = flowTrace.inputs.put_call_ratio as number | null;
     if (pcr !== null && pcr < 0.5) {
       signals.push('Options flow is call-heavy — traders are positioning for upside.');
@@ -202,9 +202,9 @@ function computeRiskFlags(
     flags.push(`HIGH BORROW COST (${borrowRate}%) — reduces premium-selling edge by ~${Math.round(borrowRate * 0.8)} points`);
   }
 
-  // Insider selling pressure
+  // Insider selling pressure (trace is null when the signal was excluded — flag skipped)
   const insiderTrace = scoring.info_edge.breakdown.insider_activity;
-  const avgMspr3m = insiderTrace.insider_detail.avg_mspr_3m;
+  const avgMspr3m = insiderTrace?.insider_detail.avg_mspr_3m ?? null;
   if (avgMspr3m !== null && avgMspr3m < -20) {
     flags.push(`INSIDER SELLING (MSPR ${avgMspr3m.toFixed(1)}) — insiders have been net sellers recently. 3-month trend is bearish.`);
   }

@@ -1369,33 +1369,35 @@ export async function runPipeline(
             score: scoring.info_edge.breakdown.analyst_consensus.score,
             weight: scoring.info_edge.breakdown.analyst_consensus.weight,
           },
+          // EDGE-2b: null score/weight = signal excluded (no data) and weights
+          // renormalized — never a number invented for display.
           price_target: {
-            score: scoring.info_edge.breakdown.price_target_signal.score,
-            weight: scoring.info_edge.breakdown.price_target_signal.weight,
+            score: scoring.info_edge.breakdown.price_target_signal?.score ?? null,
+            weight: scoring.info_edge.breakdown.price_target_signal?.weight ?? null,
           },
           upgrade_downgrade: {
-            score: scoring.info_edge.breakdown.upgrade_downgrade_signal.score,
-            weight: scoring.info_edge.breakdown.upgrade_downgrade_signal.weight,
+            score: scoring.info_edge.breakdown.upgrade_downgrade_signal?.score ?? null,
+            weight: scoring.info_edge.breakdown.upgrade_downgrade_signal?.weight ?? null,
           },
           insider_activity: {
-            score: scoring.info_edge.breakdown.insider_activity.score,
-            weight: scoring.info_edge.breakdown.insider_activity.weight,
+            score: scoring.info_edge.breakdown.insider_activity?.score ?? null,
+            weight: scoring.info_edge.breakdown.insider_activity?.weight ?? null,
           },
           earnings_momentum: {
-            score: scoring.info_edge.breakdown.earnings_momentum.score,
-            weight: scoring.info_edge.breakdown.earnings_momentum.weight,
+            score: scoring.info_edge.breakdown.earnings_momentum?.score ?? null,
+            weight: scoring.info_edge.breakdown.earnings_momentum?.weight ?? null,
           },
           flow_signal: {
-            score: scoring.info_edge.breakdown.flow_signal.score,
-            weight: scoring.info_edge.breakdown.flow_signal.weight,
+            score: scoring.info_edge.breakdown.flow_signal?.score ?? null,
+            weight: scoring.info_edge.breakdown.flow_signal?.weight ?? null,
           },
           news_sentiment: scoring.info_edge.breakdown.news_sentiment != null ? {
             score: scoring.info_edge.breakdown.news_sentiment.score,
             weight: scoring.info_edge.breakdown.news_sentiment.weight,
           } : null,
           institutional_ownership: {
-            score: scoring.info_edge.breakdown.institutional_ownership.score,
-            weight: scoring.info_edge.breakdown.institutional_ownership.weight,
+            score: scoring.info_edge.breakdown.institutional_ownership?.score ?? null,
+            weight: scoring.info_edge.breakdown.institutional_ownership?.weight ?? null,
           },
           fund_flow: {
             score: scoring.info_edge.breakdown.fund_ownership_flow?.score ?? null,
@@ -2191,8 +2193,8 @@ function buildRankedRows(
     // Extract hv_trend from vol_edge breakdown
     const hvTrend = s.vol_edge.breakdown.mispricing.hv_trend;
 
-    // Extract MSPR from info_edge breakdown
-    const mspr = s.info_edge.breakdown.insider_activity.insider_detail.latest_mspr;
+    // Extract MSPR from info_edge breakdown (null when insider signal excluded — no data)
+    const mspr = s.info_edge.breakdown.insider_activity?.insider_detail.latest_mspr ?? null;
 
     // Extract beat streak from quality breakdown
     const beatStreak = s.quality.breakdown.profitability.earnings_quality.earnings_detail.streak;

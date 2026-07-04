@@ -845,8 +845,9 @@ export interface UpgradeDowngradeSignalTrace extends SubScoreTrace {
 
 export interface InsiderActivityTrace extends SubScoreTrace {
   sub_scores: {
-    mspr_score: number;
-    trend_score: number;
+    // null when the MSPR feed is empty and the ensemble runs on Form 4 only
+    mspr_score: number | null;
+    trend_score: number | null;
   };
   insider_detail: {
     months_available: number;
@@ -856,14 +857,14 @@ export interface InsiderActivityTrace extends SubScoreTrace {
   };
   form4?: {
     form4_available: boolean;
-    insider_ensemble_mode: 'full' | 'mspr_only';
+    insider_ensemble_mode: 'full' | 'mspr_only' | 'form4_only';
     form4_buy_count: number;
     form4_sell_count: number;
     net_dollar_flow: number;
     officer_buys: number;
     opportunistic_score: number | null;
-    form4_flow_score: number;
-    form4_opportunistic_score_component: number;
+    form4_flow_score: number | null;
+    form4_opportunistic_score_component: number | null;
   };
 }
 
@@ -889,10 +890,12 @@ export interface FlowSignalTrace {
   formula: string;
   notes: string;
   sub_scores: {
-    put_call_ratio_score: number;
-    unusual_activity_score: number;
-    volume_bias_score: number;
-    option_stock_ratio_score: number;
+    // each component is null when its input is missing — excluded from the
+    // flow composite with the remaining component weights re-normalized
+    put_call_ratio_score: number | null;
+    unusual_activity_score: number | null;
+    volume_bias_score: number | null;
+    option_stock_ratio_score: number | null;
   };
   flow_detail: {
     data_available: boolean;
@@ -969,13 +972,15 @@ export interface InfoEdgeResult {
   filing_recency: FilingRecencyTrace;
   breakdown: {
     analyst_consensus: AnalystConsensusTrace;
-    price_target_signal: PriceTargetSignalTrace;
-    upgrade_downgrade_signal: UpgradeDowngradeSignalTrace;
-    insider_activity: InsiderActivityTrace;
-    earnings_momentum: EarningsMomentumTrace;
-    flow_signal: FlowSignalTrace;
+    // EDGE-2b: every sub-score below is null when its data source is absent —
+    // excluded from the composite and the remaining weights re-normalized.
+    price_target_signal: PriceTargetSignalTrace | null;
+    upgrade_downgrade_signal: UpgradeDowngradeSignalTrace | null;
+    insider_activity: InsiderActivityTrace | null;
+    earnings_momentum: EarningsMomentumTrace | null;
+    flow_signal: FlowSignalTrace | null;
     news_sentiment: NewsSentimentTrace | null;
-    institutional_ownership: InstitutionalOwnershipTrace;
+    institutional_ownership: InstitutionalOwnershipTrace | null;
     fund_ownership_flow: SubScoreTrace | null;
     material_event_flag: SubScoreTrace | null;
   };

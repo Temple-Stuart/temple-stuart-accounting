@@ -203,7 +203,7 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
 // Da & Schaumburg (2011): ΔTPER — sector-neutralized change in implied return.
 // Analysts average 22-28% optimism, so we score relative to peer group, not absolute.
 
-function scorePriceTargetSignal(input: ConvergenceInput): PriceTargetSignalTrace {
+function scorePriceTargetSignal(input: ConvergenceInput): PriceTargetSignalTrace | null {
   const estimates = input.finnhubEstimates;
   const pt = estimates?.priceTarget ?? null;
   const latestClose = input.candles.length > 0
@@ -248,40 +248,40 @@ function scorePriceTargetSignal(input: ConvergenceInput): PriceTargetSignalTrace
     deltaTper = round(rawImpliedReturn - peerMedianImpliedReturn, 2);
   }
 
-  // --- Score: use ΔTPER if available, else use raw implied return as fallback ---
-  let priceTargetScore = 40; // penalty default — no data
+  // EDGE-2b: no price target median or no close → the signal cannot be computed
+  // from real data. Return null — excluded, weights re-normalize. Never imputed.
+  if (rawImpliedReturn === null) {
+    return null;
+  }
+
+  let priceTargetScore: number;
   const numAnalysts = pt?.numberAnalysts ?? 0;
 
-  if (rawImpliedReturn !== null) {
-    // Use the effective signal: ΔTPER when we have peer data, raw otherwise
-    const signal = deltaTper ?? rawImpliedReturn;
+  // Continuous mapping via lerp:
+  // ΔTPER > +20 (or raw > +30): strongly above peers → 85
+  // ΔTPER ~ 0 (or raw ~ +15): neutral vs peers → 55 (slight upward bias to account for analyst optimism)
+  // ΔTPER < -20 (or raw < -5): well below peers → 20
+  if (deltaTper !== null) {
+    // Sector-neutralized: 0 = in line with peers
+    if (deltaTper > 15) priceTargetScore = lerp(deltaTper, 15, 30, 75, 90);
+    else if (deltaTper > 5) priceTargetScore = lerp(deltaTper, 5, 15, 60, 75);
+    else if (deltaTper > -5) priceTargetScore = lerp(deltaTper, -5, 5, 45, 60);
+    else if (deltaTper > -15) priceTargetScore = lerp(deltaTper, -15, -5, 30, 45);
+    else priceTargetScore = lerp(deltaTper, -30, -15, 15, 30);
+  } else {
+    // Raw implied return: discount for analyst optimism bias (22-28%)
+    if (rawImpliedReturn > 30) priceTargetScore = 80;
+    else if (rawImpliedReturn > 15) priceTargetScore = lerp(rawImpliedReturn, 15, 30, 60, 80);
+    else if (rawImpliedReturn > 5) priceTargetScore = lerp(rawImpliedReturn, 5, 15, 50, 60);
+    else if (rawImpliedReturn > -5) priceTargetScore = lerp(rawImpliedReturn, -5, 5, 40, 50);
+    else if (rawImpliedReturn > -15) priceTargetScore = lerp(rawImpliedReturn, -15, -5, 25, 40);
+    else priceTargetScore = 20;
+  }
+  priceTargetScore = round(clamp(priceTargetScore, 0, 100));
 
-    // Continuous mapping via lerp:
-    // ΔTPER > +20 (or raw > +30): strongly above peers → 85
-    // ΔTPER ~ 0 (or raw ~ +15): neutral vs peers → 55 (slight upward bias to account for analyst optimism)
-    // ΔTPER < -20 (or raw < -5): well below peers → 20
-    if (deltaTper !== null) {
-      // Sector-neutralized: 0 = in line with peers
-      if (deltaTper > 15) priceTargetScore = lerp(deltaTper, 15, 30, 75, 90);
-      else if (deltaTper > 5) priceTargetScore = lerp(deltaTper, 5, 15, 60, 75);
-      else if (deltaTper > -5) priceTargetScore = lerp(deltaTper, -5, 5, 45, 60);
-      else if (deltaTper > -15) priceTargetScore = lerp(deltaTper, -15, -5, 30, 45);
-      else priceTargetScore = lerp(deltaTper, -30, -15, 15, 30);
-    } else {
-      // Raw implied return: discount for analyst optimism bias (22-28%)
-      if (rawImpliedReturn > 30) priceTargetScore = 80;
-      else if (rawImpliedReturn > 15) priceTargetScore = lerp(rawImpliedReturn, 15, 30, 60, 80);
-      else if (rawImpliedReturn > 5) priceTargetScore = lerp(rawImpliedReturn, 5, 15, 50, 60);
-      else if (rawImpliedReturn > -5) priceTargetScore = lerp(rawImpliedReturn, -5, 5, 40, 50);
-      else if (rawImpliedReturn > -15) priceTargetScore = lerp(rawImpliedReturn, -15, -5, 25, 40);
-      else priceTargetScore = 20;
-    }
-    priceTargetScore = round(clamp(priceTargetScore, 0, 100));
-
-    // Confidence discount for low coverage
-    if (numAnalysts < 3) {
-      priceTargetScore = round(50 + (priceTargetScore - 50) * 0.5); // shrink toward neutral
-    }
+  // Confidence discount for low coverage (real data, low breadth — shrink, not impute)
+  if (numAnalysts < 3) {
+    priceTargetScore = round(50 + (priceTargetScore - 50) * 0.5); // shrink toward neutral
   }
 
   const usedDeltaTper = deltaTper !== null;
@@ -346,9 +346,18 @@ function timeDecay(daysAgo: number, halfLifeDays: number): number {
   return Math.pow(0.5, daysAgo / halfLifeDays);
 }
 
-function scoreUpgradeDowngradeSignal(input: ConvergenceInput): UpgradeDowngradeSignalTrace {
+function scoreUpgradeDowngradeSignal(input: ConvergenceInput): UpgradeDowngradeSignalTrace | null {
   const estimates = input.finnhubEstimates;
   const allUd = estimates?.upgradeDowngrade ?? [];
+
+  // EDGE-2b: the fetcher leaves upgradeDowngrade = [] on fetch/HTTP/parse failure
+  // (data-fetchers.ts), so an empty array is indistinguishable from "fetched, zero
+  // events ever" — provenance unknowable → treated as missing data. Return null,
+  // excluded, weights re-normalize. A NON-empty history with zero events in the
+  // 90d window is present data and scores below (netMomentum 0 → 50, legitimate).
+  if (allUd.length === 0) {
+    return null;
+  }
 
   const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
   const recentUd = allUd.filter(ud => ud.gradeTime * 1000 >= ninetyDaysAgo);
@@ -394,14 +403,11 @@ function scoreUpgradeDowngradeSignal(input: ConvergenceInput): UpgradeDowngradeS
   // Most stocks: net momentum in range [-5, +5]
   // Strong upgrade wave: +5 to +10
   // Heavy downgrade: -5 to -10
-  let udScore: number;
-  if (recentUd.length === 0) {
-    udScore = 50; // No events: neutral
-  } else {
-    // Sigmoid-like mapping: momentum → 0-100
-    // 0 → 50, +5 → 75, -5 → 25, ±10 → saturates at ~90/10
-    udScore = round(clamp(50 + netMomentum * 5, 5, 95));
-  }
+  // Sigmoid-like mapping: momentum → 0-100
+  // 0 → 50, +5 → 75, -5 → 25, ±10 → saturates at ~90/10
+  // (zero events in the 90d window with a non-empty history → netMomentum 0 → 50,
+  // computed from present data — the feed works and shows no recent rating actions)
+  const udScore = round(clamp(50 + netMomentum * 5, 5, 95));
 
   const formula = `netMomentum(${netMomentum}) → sigmoid → ${udScore} [${recentUd.length} events, ${upgradesCount}↑/${downgradesCount}↓]`;
 
@@ -451,9 +457,11 @@ function scoreMsprComponent(sentiment: ConvergenceInput['finnhubInsiderSentiment
   avgMspr3m: number | null;
   netDirection: string;
   monthsAvailable: number;
-} {
+} | null {
+  // EDGE-2b: no insider-sentiment months → the MSPR component cannot be computed
+  // from real data. Return null — excluded from the insider ensemble.
   if (sentiment.length === 0) {
-    return { msprScore: 40, trendScore: 40, latestMspr: null, avgMspr3m: null, netDirection: 'UNKNOWN', monthsAvailable: 0 };
+    return null;
   }
 
   const sorted = [...sentiment].sort((a, b) => {
@@ -503,20 +511,26 @@ function scoreMsprComponent(sentiment: ConvergenceInput['finnhubInsiderSentiment
   return { msprScore, trendScore, latestMspr, avgMspr3m, netDirection, monthsAvailable: sorted.length };
 }
 
-function scoreInsiderActivity(input: ConvergenceInput): InsiderActivityTrace {
+function scoreInsiderActivity(input: ConvergenceInput): InsiderActivityTrace | null {
   const mspr = scoreMsprComponent(input.finnhubInsiderSentiment);
   const form4 = input.secForm4Data;
-
-  // Base MSPR composite (existing logic)
-  const msprComposite = round(0.60 * mspr.msprScore + 0.40 * mspr.trendScore, 1);
 
   // Check if Form 4 data is available and has meaningful transactions
   const hasForm4 = form4 !== null && (form4.totalBuyCount + form4.totalSellCount) > 0;
 
-  let score: number;
-  let formula: string;
-  let form4FlowScore = 50;
-  let form4OpportunisticComponent = 50;
+  // EDGE-2b: no MSPR months AND no Form 4 transactions → nothing real to score.
+  // Return null — excluded, weights re-normalize. Never imputed.
+  if (mspr === null && !hasForm4) {
+    return null;
+  }
+
+  // Base MSPR composite (existing logic; null when MSPR feed empty)
+  const msprComposite = mspr !== null
+    ? round(0.60 * mspr.msprScore + 0.40 * mspr.trendScore, 1)
+    : null;
+
+  let form4FlowScore: number | null = null;
+  let form4OpportunisticComponent: number | null = null;
 
   if (hasForm4 && form4) {
     // Form 4 net dollar flow score (0-100)
@@ -532,74 +546,71 @@ function scoreInsiderActivity(input: ConvergenceInput): InsiderActivityTrace {
     if (form4.officerBuyCount >= 2) form4FlowScore = Math.min(100, form4FlowScore + 10);
     else if (form4.officerBuyCount === 1) form4FlowScore = Math.min(100, form4FlowScore + 5);
 
-    // Opportunistic score (already 0-100 from fetcher)
-    form4OpportunisticComponent = form4.opportunisticScore ?? 50;
-
-    // Full ensemble: MSPR 0.40 + Form 4 flow 0.30 + Opportunistic 0.30
-    score = round(0.40 * msprComposite + 0.30 * form4FlowScore + 0.30 * form4OpportunisticComponent, 1);
-    formula = `0.40×MSPR(${round(msprComposite)}) + 0.30×Form4Flow(${round(form4FlowScore)}) + 0.30×Opportunistic(${round(form4OpportunisticComponent)}) = ${score}`;
-  } else {
-    // MSPR-only mode (no degradation from existing behavior)
-    score = msprComposite;
-    formula = `0.60×MSPR(${round(mspr.msprScore)}) + 0.40×Trend(${round(mspr.trendScore)}) = ${score} [mspr_only]`;
+    // Opportunistic score (already 0-100 from fetcher); EDGE-2b: when the fetcher
+    // has no opportunistic read it stays null and is excluded — not imputed as 50.
+    form4OpportunisticComponent = form4.opportunisticScore ?? null;
   }
+
+  // EDGE-2b ensemble: MSPR 0.40 + Form 4 flow 0.30 + Opportunistic 0.30, but only
+  // over components computed from real data — missing components are excluded and
+  // the remaining weights re-normalize (same rule as the top-level combiner).
+  const components: Array<{ label: string; weight: number; value: number }> = [];
+  if (msprComposite !== null) components.push({ label: 'MSPR', weight: 0.40, value: msprComposite });
+  if (form4FlowScore !== null) components.push({ label: 'Form4Flow', weight: 0.30, value: form4FlowScore });
+  if (form4OpportunisticComponent !== null) components.push({ label: 'Opportunistic', weight: 0.30, value: form4OpportunisticComponent });
+
+  const componentWeight = components.reduce((s, c) => s + c.weight, 0);
+  const score = round(components.reduce((s, c) => s + c.weight * c.value, 0) / componentWeight, 1);
+
+  const ensembleMode = msprComposite !== null && hasForm4 ? 'full' : msprComposite !== null ? 'mspr_only' : 'form4_only';
+  const formula = msprComposite !== null && !hasForm4
+    ? `0.60×MSPR(${round(mspr!.msprScore)}) + 0.40×Trend(${round(mspr!.trendScore)}) = ${score} [mspr_only]`
+    : `${components.map(c => `${round(c.weight / componentWeight, 3)}×${c.label}(${round(c.value)})`).join(' + ')} = ${score} [${ensembleMode}${componentWeight < 1 ? ', renormalized' : ''}]`;
 
   return {
     score: round(score),
     weight: 0.15,
     inputs: {
-      months_available: mspr.monthsAvailable,
-      latest_mspr: mspr.latestMspr,
-      avg_mspr_3m: mspr.avgMspr3m,
+      months_available: mspr?.monthsAvailable ?? 0,
+      latest_mspr: mspr?.latestMspr ?? null,
+      avg_mspr_3m: mspr?.avgMspr3m ?? null,
       form4_available: hasForm4,
     },
     formula,
-    notes: `Latest MSPR: ${mspr.latestMspr}, 3mo avg: ${mspr.avgMspr3m ?? 'N/A'}, direction: ${mspr.netDirection}${hasForm4 ? `, Form4: ${form4!.totalBuyCount}B/${form4!.totalSellCount}S, net=$${form4!.netDollarFlow}` : ''}`,
+    notes: `Latest MSPR: ${mspr?.latestMspr ?? 'N/A (no insider-sentiment data — MSPR component excluded)'}, 3mo avg: ${mspr?.avgMspr3m ?? 'N/A'}, direction: ${mspr?.netDirection ?? 'UNKNOWN'}${hasForm4 ? `, Form4: ${form4!.totalBuyCount}B/${form4!.totalSellCount}S, net=$${form4!.netDollarFlow}` : ''}`,
     sub_scores: {
-      mspr_score: round(mspr.msprScore),
-      trend_score: round(mspr.trendScore),
+      mspr_score: mspr !== null ? round(mspr.msprScore) : null,
+      trend_score: mspr !== null ? round(mspr.trendScore) : null,
     },
     insider_detail: {
-      months_available: mspr.monthsAvailable,
-      latest_mspr: mspr.latestMspr,
-      avg_mspr_3m: mspr.avgMspr3m,
-      net_direction: mspr.netDirection,
+      months_available: mspr?.monthsAvailable ?? 0,
+      latest_mspr: mspr?.latestMspr ?? null,
+      avg_mspr_3m: mspr?.avgMspr3m ?? null,
+      net_direction: mspr?.netDirection ?? 'UNKNOWN',
     },
     form4: {
       form4_available: hasForm4,
-      insider_ensemble_mode: hasForm4 ? 'full' : 'mspr_only',
+      insider_ensemble_mode: ensembleMode,
       form4_buy_count: form4?.totalBuyCount ?? 0,
       form4_sell_count: form4?.totalSellCount ?? 0,
       net_dollar_flow: form4?.netDollarFlow ?? 0,
       officer_buys: form4?.officerBuyCount ?? 0,
       opportunistic_score: form4?.opportunisticScore ?? null,
-      form4_flow_score: round(form4FlowScore),
-      form4_opportunistic_score_component: round(form4OpportunisticComponent),
+      form4_flow_score: form4FlowScore !== null ? round(form4FlowScore) : null,
+      form4_opportunistic_score_component: form4OpportunisticComponent !== null ? round(form4OpportunisticComponent) : null,
     },
   };
 }
 
 // ===== EARNINGS MOMENTUM SUB-SCORE (20%) =====
 
-function scoreEarningsMomentum(input: ConvergenceInput): EarningsMomentumTrace {
+function scoreEarningsMomentum(input: ConvergenceInput): EarningsMomentumTrace | null {
   const earnings = input.finnhubEarnings;
 
+  // EDGE-2b: no earnings history → the signal cannot be computed from real data.
+  // Return null — excluded, weights re-normalize. Never imputed as a penalty 40.
   if (earnings.length === 0) {
-    return {
-      score: 40,
-      weight: 0.20,
-      inputs: { quarters_available: 0 },
-      formula: 'No earnings data → penalty default 40 (missing data)',
-      notes: 'No Finnhub earnings history available',
-      sub_scores: { beat_streak_score: 40, surprise_magnitude_score: 40, consistency_score: 40 },
-      momentum_detail: {
-        last_4_surprises: [],
-        consecutive_beats: 0,
-        consecutive_misses: 0,
-        avg_surprise_pct: null,
-        direction: 'UNKNOWN',
-      },
-    };
+    return null;
   }
 
   // Take last 4 quarters max
@@ -755,42 +766,28 @@ function scoreOptionStockRatio(osRatio: number): number {
   return lerp(osRatio, 0.5, 1.0, 45, 35);
 }
 
-function scoreFlowSignal(input: ConvergenceInput): FlowSignalTrace {
+function scoreFlowSignal(input: ConvergenceInput): FlowSignalTrace | null {
   const flow = input.optionsFlow;
 
+  // EDGE-2b: option chain fetch failed or returned nothing → the signal cannot
+  // be computed from real data. Return null — excluded, weights re-normalize.
   if (!flow) {
-    return {
-      score: 50,
-      weight: 0.10,
-      inputs: { data_available: false },
-      formula: 'No options flow data → neutral 50',
-      notes: 'Finnhub option chain fetch failed or returned no data.',
-      sub_scores: {
-        put_call_ratio_score: 50,
-        unusual_activity_score: 50,
-        volume_bias_score: 50,
-        option_stock_ratio_score: 50,
-      },
-      flow_detail: {
-        data_available: false,
-        option_stock_ratio: null,
-        note: 'Finnhub option chain fetch failed or returned no data.',
-      },
-    };
+    return null;
   }
 
-  // Score each sub-component
+  // Score each sub-component; EDGE-2b: a component whose input is missing stays
+  // null and is excluded — the remaining component weights re-normalize below.
   const pcrScore = flow.put_call_ratio !== null
     ? round(scorePutCallRatio(flow.put_call_ratio))
-    : 40; // penalty default — missing PCR data
+    : null;
 
   const biasScore = flow.volume_bias !== null
     ? round(scoreVolumeBias(flow.volume_bias))
-    : 40; // penalty default — missing volume bias
+    : null;
 
   const activityScore = flow.unusual_activity_ratio !== null
     ? round(scoreUnusualActivity(flow.unusual_activity_ratio))
-    : 40; // penalty default — missing activity data
+    : null;
 
   // O/S ratio: total option volume / avg daily stock volume (Johnson & So 2012, JFE)
   const candles = input.candles;
@@ -806,18 +803,31 @@ function scoreFlowSignal(input: ConvergenceInput): FlowSignalTrace {
     }
   }
 
-  // Weights depend on O/S availability
-  let score: number;
-  let formula: string;
-  if (osScore !== null) {
-    // Full weights: 0.25 PCR + 0.25 bias + 0.25 activity + 0.25 O/S
-    score = round(0.25 * pcrScore + 0.25 * biasScore + 0.25 * activityScore + 0.25 * osScore, 1);
-    formula = `0.25×PCR(${pcrScore}) + 0.25×Bias(${biasScore}) + 0.25×Activity(${activityScore}) + 0.25×O/S(${osScore}) = ${score}`;
-  } else {
-    // No candle data for O/S: 0.30 PCR + 0.35 bias + 0.35 activity
-    score = round(0.30 * pcrScore + 0.35 * biasScore + 0.35 * activityScore, 1);
-    formula = `0.30×PCR(${pcrScore}) + 0.35×Bias(${biasScore}) + 0.35×Activity(${activityScore}) = ${score} [no O/S — missing candle data]`;
+  // EDGE-2b: combine only the components computed from real data — missing
+  // components are excluded and the remaining weights re-normalize. Base weights
+  // preserve the historical shape: with O/S, PCR/bias/activity/O-S are equal
+  // (0.25 each); without O/S, the 0.30/0.35/0.35 split re-normalizes the same way.
+  const flowComponents: Array<{ label: string; weight: number; value: number }> = [];
+  if (pcrScore !== null) flowComponents.push({ label: 'PCR', weight: osScore !== null ? 0.25 : 0.30, value: pcrScore });
+  if (biasScore !== null) flowComponents.push({ label: 'Bias', weight: osScore !== null ? 0.25 : 0.35, value: biasScore });
+  if (activityScore !== null) flowComponents.push({ label: 'Activity', weight: osScore !== null ? 0.25 : 0.35, value: activityScore });
+  if (osScore !== null) flowComponents.push({ label: 'O/S', weight: 0.25, value: osScore });
+
+  // Chain fetched but no component computable (all inputs null) → nothing real
+  // to score. Return null — excluded. Never imputed.
+  if (flowComponents.length === 0) {
+    return null;
   }
+
+  const flowWeight = flowComponents.reduce((s, c) => s + c.weight, 0);
+  const score = round(flowComponents.reduce((s, c) => s + c.weight * c.value, 0) / flowWeight, 1);
+  const excludedComponents = [
+    pcrScore === null ? 'PCR' : null,
+    biasScore === null ? 'Bias' : null,
+    activityScore === null ? 'Activity' : null,
+    osScore === null ? 'O/S' : null,
+  ].filter(Boolean);
+  const formula = `${flowComponents.map(c => `${round(c.weight / flowWeight, 3)}×${c.label}(${c.value})`).join(' + ')} = ${score}${excludedComponents.length > 0 ? ` [no data — excluded: ${excludedComponents.join(', ')}; weights renormalized]` : ''}`;
 
   const notes = [
     `PCR=${flow.put_call_ratio ?? 'N/A'}`,
@@ -852,7 +862,7 @@ function scoreFlowSignal(input: ConvergenceInput): FlowSignalTrace {
       put_call_ratio_score: pcrScore,
       unusual_activity_score: activityScore,
       volume_bias_score: biasScore,
-      option_stock_ratio_score: osScore ?? 50,
+      option_stock_ratio_score: osScore,
     },
     flow_detail: {
       data_available: true,
@@ -1158,35 +1168,24 @@ function scoreFilingRecency(input: ConvergenceInput): FilingRecencyTrace {
 // Chen, Jegadeesh & Wermers (2000): ΔIO — institutional purchases outperform sales.
 // Score the CHANGE in ownership, not the level.
 
-function scoreInstitutionalOwnership(input: ConvergenceInput): InstitutionalOwnershipTrace {
+function scoreInstitutionalOwnership(input: ConvergenceInput): InstitutionalOwnershipTrace | null {
   const ownership = input.finnhubInstitutionalOwnership;
 
+  // EDGE-2b: ownership endpoints returned no data → the signal cannot be computed
+  // from real data. Return null — excluded, weights re-normalize. Never imputed.
   if (!ownership) {
-    return {
-      score: 50,
-      weight: 0.05,
-      inputs: { data_available: false },
-      formula: 'No institutional ownership data → neutral 50',
-      notes: 'Finnhub ownership endpoints returned no data',
-      sub_scores: { institutional_ownership_score: 50 },
-      indicators: {
-        net_buyer_ratio: null,
-        net_buyers: 0,
-        net_sellers: 0,
-        total_holders: 0,
-        total_change: 0,
-        filing_staleness_days: null,
-        staleness_discounted: false,
-      },
-    };
+    return null;
   }
 
   const { netBuyerCount, netSellerCount, latestFilingDate, totalInstitutionalChange, topHolderCount } = ownership;
   const totalActive = netBuyerCount + netSellerCount;
 
   // Net buyer ratio: what fraction of active holders are buying?
+  // ioScore starts at 50 for the PRESENT-data case totalActive === 0: holders
+  // exist and none changed position — zero net flow is genuinely neutral
+  // (legitimate-neutral, not imputation; ownership data was verified above).
   let netBuyerRatio: number | null = null;
-  let ioScore = 50; // neutral default
+  let ioScore = 50;
 
   if (totalActive > 0) {
     netBuyerRatio = round(netBuyerCount / totalActive, 4);
@@ -1311,23 +1310,20 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
     return { score: s, weight, inputs: { filing_count: count }, formula: '8k_count_thresholds', notes: count === 0 ? 'no material events' : count <= 2 ? 'normal' : count <= 5 ? 'elevated activity' : 'high material event risk' };
   })();
 
-  // EDGE-2: exclude-and-renormalize. Every sub-score is either computed from
-  // real data or EXCLUDED entirely — missing signals are dropped (null) and the
-  // remaining weights re-normalize. No sub-score is ever imputed with a neutral
-  // value. Only sub-scores that already return null on absent data participate
-  // in exclusion (news_sentiment, fund_ownership_flow, material_event_flag); the
-  // rest always contribute a real trace here.
+  // EDGE-2/EDGE-2b: exclude-and-renormalize. Every sub-score is either computed
+  // from real data or EXCLUDED entirely — missing signals are dropped (null) and
+  // the remaining weights re-normalize. No sub-score is ever imputed with a
+  // neutral value. All nine data-dependent sub-scores are nullable; only
+  // analyst_consensus always returns a trace, so activeWeight >= 0.15 > 0.
   const TOTAL_SUB_SCORES = 10; // analyst, price_target, upgrade_downgrade, insider, earnings, flow, news, institutional, fund_ownership, material_event
-  const activeSubScores: SubScoreTrace[] = [
-    analystConsensus,
-    priceTargetSignal,
-    upgradeDowngradeSignal,
-    insiderActivity,
-    earningsMomentum,
-    flowSignal,
-    institutionalOwnership,
-  ];
+  const activeSubScores: SubScoreTrace[] = [analystConsensus];
+  if (priceTargetSignal != null) activeSubScores.push(priceTargetSignal);
+  if (upgradeDowngradeSignal != null) activeSubScores.push(upgradeDowngradeSignal);
+  if (insiderActivity != null) activeSubScores.push(insiderActivity);
+  if (earningsMomentum != null) activeSubScores.push(earningsMomentum);
+  if (flowSignal != null) activeSubScores.push(flowSignal);
   if (newsSentiment != null) activeSubScores.push(newsSentiment);
+  if (institutionalOwnership != null) activeSubScores.push(institutionalOwnership);
   if (fundOwnershipFlow != null) activeSubScores.push(fundOwnershipFlow);
   if (materialEventFlag != null) activeSubScores.push(materialEventFlag);
 
@@ -1335,7 +1331,6 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   const activeWeight = activeSubScores.reduce((sum, s) => sum + s.weight, 0);
   const baseScore = activeSubScores.reduce((sum, s) => sum + s.weight * s.score, 0);
 
-  // activeWeight is always > 0 (the seven non-nullable sub-scores are always present)
   let score = round(baseScore / activeWeight, 1);
 
   // Filing recency: event-driven overlay (does NOT rebalance weights)
@@ -1345,36 +1340,43 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   }
 
   // Build DataConfidence
+  // EDGE-2b: imputedFields now covers ONLY analyst_consensus, the one sub-score
+  // that still blends component-level defaults internally when parts of its data
+  // are missing (out of this PR's mandate — documented for follow-up).
   const imputedFields: string[] = [];
   if (input.finnhubRecommendations.length === 0 && !input.finnhubEstimates) imputedFields.push('analyst_consensus');
   else if (!input.finnhubEstimates) imputedFields.push('analyst_consensus.estimates');
-  if (!input.finnhubEstimates?.priceTarget) imputedFields.push('price_target_signal');
-  if ((input.finnhubEstimates?.upgradeDowngrade ?? []).length === 0) imputedFields.push('upgrade_downgrade_signal');
-  if (input.finnhubInsiderSentiment.length === 0 && !input.secForm4Data) imputedFields.push('insider_activity');
-  else if (input.finnhubInsiderSentiment.length === 0) imputedFields.push('insider_activity.mspr');
-  else if (!input.secForm4Data) imputedFields.push('insider_activity.form4');
-  if (input.finnhubEarnings.length === 0) imputedFields.push('earnings_momentum');
-  if (!input.optionsFlow) {
-    imputedFields.push('flow_signal');
-  } else {
-    if (input.optionsFlow.put_call_ratio == null) imputedFields.push('flow_signal.pcr');
-    if (input.optionsFlow.volume_bias == null) imputedFields.push('flow_signal.volume_bias');
-    if (input.optionsFlow.unusual_activity_ratio == null) imputedFields.push('flow_signal.unusual_activity');
-  }
-  if (!input.finnhubInstitutionalOwnership) imputedFields.push('institutional_ownership');
 
-  // EDGE-2: excluded (dropped + re-normalized), NOT imputed. Derived from the
-  // sub-scores that actually returned null above, so tracking cannot drift from
-  // the score math.
+  // EDGE-2/EDGE-2b: excluded (dropped + re-normalized), NOT imputed. Derived from
+  // the sub-scores/components that actually returned null above, so tracking
+  // cannot drift from the score math. Dotted entries are components excluded and
+  // renormalized INSIDE a sub-score that still computed from its remaining data.
   const excludedFields: string[] = [];
+  if (priceTargetSignal == null) excludedFields.push('price_target_signal');
+  if (upgradeDowngradeSignal == null) excludedFields.push('upgrade_downgrade_signal');
+  if (insiderActivity == null) excludedFields.push('insider_activity');
+  else if (insiderActivity.sub_scores.mspr_score == null) excludedFields.push('insider_activity.mspr');
+  else if (insiderActivity.form4?.form4_flow_score == null) excludedFields.push('insider_activity.form4');
+  if (earningsMomentum == null) excludedFields.push('earnings_momentum');
+  if (flowSignal == null) {
+    excludedFields.push('flow_signal');
+  } else {
+    if (flowSignal.sub_scores.put_call_ratio_score == null) excludedFields.push('flow_signal.pcr');
+    if (flowSignal.sub_scores.volume_bias_score == null) excludedFields.push('flow_signal.volume_bias');
+    if (flowSignal.sub_scores.unusual_activity_score == null) excludedFields.push('flow_signal.unusual_activity');
+  }
   if (newsSentiment == null) excludedFields.push('news_sentiment');
+  if (institutionalOwnership == null) excludedFields.push('institutional_ownership');
   if (fundOwnershipFlow == null) excludedFields.push('fund_ownership_flow');
   if (materialEventFlag == null) excludedFields.push('material_event_flag');
 
   // A sub-score not backed by full real data is either imputed (a placeholder
   // value still in the score) or excluded (dropped entirely). Confidence counts
-  // both as "missing" so the metric stays honest.
-  const missingCount = imputedFields.length + excludedFields.length;
+  // both as "missing" so the metric stays honest. Only WHOLE sub-score misses
+  // (entries without a dot) count against the 10 — dotted entries are components
+  // excluded inside a sub-score that still computed from its remaining real data,
+  // and counting them too could push the ratio past 10/10 (negative confidence).
+  const missingCount = [...imputedFields, ...excludedFields].filter(f => !f.includes('.')).length;
   const dataConfidence: DataConfidence = {
     total_sub_scores: TOTAL_SUB_SCORES,
     imputed_sub_scores: missingCount,
