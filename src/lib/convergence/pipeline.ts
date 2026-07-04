@@ -1406,6 +1406,10 @@ export async function runPipeline(
             weight: scoring.info_edge.breakdown.material_event_flag?.weight ?? null,
           },
           data_confidence: scoring.info_edge.data_confidence.confidence,
+          // EDGE-2: how many of the 10 sub-scores were computed from real data
+          // (the rest were excluded and the weights re-normalized).
+          active_signal_count: scoring.info_edge.data_confidence.active_signal_count ?? null,
+          total_signal_count: scoring.info_edge.data_confidence.total_sub_scores,
           filing_recency: scoring.info_edge.filing_recency ?? null,
         } : null,
       };
