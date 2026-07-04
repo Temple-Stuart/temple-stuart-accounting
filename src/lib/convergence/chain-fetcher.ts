@@ -14,6 +14,10 @@ export interface ChainTickerInput {
   ivRank: number;        // 0-1 scale
   iv30: number;          // decimal e.g. 0.42
   hv30: number;          // decimal e.g. 0.25
+  // EDGE-3: 10-day realized vol, decimal (e.g. 0.55). Required — null means not
+  // computable from candle history; the HV10>IV gate then declares itself
+  // not-evaluated instead of running on an invented value.
+  hv10: number | null;
   // Risk-free rate from FRED FEDFUNDS series, converted to decimal. Required — no default.
   riskFreeRate: number;
 }
@@ -361,6 +365,7 @@ export async function fetchChainAndBuildCards(
             symbol: ticker.symbol,
             iv30: ticker.iv30,
             hv30: ticker.hv30,
+            hv10: ticker.hv10,
             riskFreeRate: ticker.riskFreeRate,
           });
 

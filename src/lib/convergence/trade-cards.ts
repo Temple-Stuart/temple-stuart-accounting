@@ -291,6 +291,25 @@ function computeForwardVol(termStructure: { date: string; iv: number }[]): Forwa
 
 // ===== REALIZED VOLATILITY CONE =====
 
+/**
+ * Close-to-close log-return HV, annualized ×√252, in PERCENT (e.g. 42.3).
+ * EDGE-3: exported so the strategy-builder's HV10>IV gate and the displayed
+ * vol cone use the SAME computation — what the UI shows == what fires.
+ */
+export function computeCloseToCloseHV(candles: CandleData[], windowDays: number): number | null {
+  if (!candles || candles.length < windowDays + 1) return null;
+  const slice = candles.slice(candles.length - windowDays - 1);
+  const logReturns: number[] = [];
+  for (let i = 1; i < slice.length; i++) {
+    if (slice[i - 1].close <= 0 || slice[i].close <= 0) continue;
+    logReturns.push(Math.log(slice[i].close / slice[i - 1].close));
+  }
+  if (logReturns.length < windowDays * 0.8) return null;
+  const mean = logReturns.reduce((a, b) => a + b, 0) / logReturns.length;
+  const variance = logReturns.reduce((s, r) => s + Math.pow(r - mean, 2), 0) / (logReturns.length - 1);
+  return Math.round(Math.sqrt(variance) * Math.sqrt(252) * 100 * 10) / 10;
+}
+
 function computeVolCone(candles: CandleData[], currentIv: number | null, ttHv60?: number | null, ttHv90?: number | null): RealizedVolCone {
   if (!candles || candles.length < 11) {
     return {
@@ -302,19 +321,7 @@ function computeVolCone(candles: CandleData[], currentIv: number | null, ttHv60?
     };
   }
 
-  function computeHV(windowDays: number): number | null {
-    if (candles.length < windowDays + 1) return null;
-    const slice = candles.slice(candles.length - windowDays - 1);
-    const logReturns: number[] = [];
-    for (let i = 1; i < slice.length; i++) {
-      if (slice[i - 1].close <= 0 || slice[i].close <= 0) continue;
-      logReturns.push(Math.log(slice[i].close / slice[i - 1].close));
-    }
-    if (logReturns.length < windowDays * 0.8) return null;
-    const mean = logReturns.reduce((a, b) => a + b, 0) / logReturns.length;
-    const variance = logReturns.reduce((s, r) => s + Math.pow(r - mean, 2), 0) / (logReturns.length - 1);
-    return Math.round(Math.sqrt(variance) * Math.sqrt(252) * 100 * 10) / 10;
-  }
+  const computeHV = (windowDays: number): number | null => computeCloseToCloseHV(candles, windowDays);
 
   return {
     hv10: computeHV(10),
