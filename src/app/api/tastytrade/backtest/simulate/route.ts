@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getTastytradeSessionToken } from '@/lib/tastytrade';
 import { requireAdmin } from '@/lib/require-admin';
+import { numOrNull } from '@/lib/parse-num';
 import type { BacktestManagement } from '@/lib/backtest-translator';
 
 const BACKTESTER_BASE = 'https://backtester.vast.tastyworks.com';
@@ -72,22 +73,45 @@ export async function POST(request: Request) {
     const data = await resp.json();
     console.log('[Backtest Simulate] Response body preview:', JSON.stringify(data).slice(0, 500));
 
+    // KILL-7: a backtest that reports $0 where the backtester sent nothing is
+    // a FAKE result. Missing fields are null and DECLARED in missing_fields;
+    // daily rows without a pnl are EXCLUDED and counted, never $0 rows.
+    const entryPrice = numOrNull(data['entry-price']);
+    const exitPrice = numOrNull(data['exit-price']);
+    const pnl = numOrNull(data['pnl']) ?? numOrNull(data['profit-loss']);
+    const pnlPercent = numOrNull(data['pnl-percent']) ?? numOrNull(data['return-percent']);
+    const holdingDaysRaw = numOrNull(data['holding-days']) ?? numOrNull(data['days-held']);
+    const holdingDays = holdingDaysRaw != null ? Math.trunc(holdingDaysRaw) : null;
+
+    const rawDaily: any[] = Array.isArray(data['daily-pnl']) ? data['daily-pnl'] : [];
+    const dailyPnl = rawDaily
+      .map((d: any) => ({ date: d['date'], pnl: numOrNull(d['pnl']), underlyingPrice: numOrNull(d['underlying-price']) }))
+      .filter((d: any) => d.date && d.pnl != null);
+    const dailyRowsExcluded = rawDaily.length - dailyPnl.length;
+
+    const missingFields = [
+      entryPrice == null ? 'entry_price' : null,
+      exitPrice == null ? 'exit_price' : null,
+      pnl == null ? 'pnl' : null,
+      pnlPercent == null ? 'pnl_percent' : null,
+      holdingDays == null ? 'holding_days' : null,
+    ].filter((f): f is string => f != null);
+
     return NextResponse.json({
       trade: {
         entryDate: data['entry-date'] || entryDate,
         exitDate: data['exit-date'] || '',
-        entryPrice: parseFloat(data['entry-price'] || 0),
-        exitPrice: parseFloat(data['exit-price'] || 0),
-        pnl: parseFloat(data['pnl'] || data['profit-loss'] || 0),
-        pnlPercent: parseFloat(data['pnl-percent'] || data['return-percent'] || 0),
-        holdingDays: parseInt(data['holding-days'] || data['days-held'] || 0, 10),
+        entryPrice,
+        exitPrice,
+        pnl,
+        pnlPercent,
+        holdingDays,
         exitReason: data['exit-reason'] || data['close-reason'] || 'expiration',
-        dailyPnl: (data['daily-pnl'] || []).map((d: any) => ({
-          date: d['date'],
-          pnl: parseFloat(d['pnl'] || 0),
-          underlyingPrice: parseFloat(d['underlying-price'] || 0),
-        })),
+        dailyPnl,
       },
+      // KILL-7 declaration: what the backtester did NOT deliver
+      missing_fields: missingFields,
+      daily_rows_excluded_missing_pnl: dailyRowsExcluded,
     });
 
   } catch (error: any) {

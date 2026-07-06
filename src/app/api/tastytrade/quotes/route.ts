@@ -4,6 +4,7 @@ import { getAuthenticatedClient } from '@/lib/tastytrade';
 import { MarketDataSubscriptionType } from '@tastytrade/api';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireAdmin } from '@/lib/require-admin';
+import { numOrNull, firstNumOrNull } from '@/lib/parse-num';
 
 export async function POST(request: Request) {
   try {
@@ -46,19 +47,24 @@ export async function POST(request: Request) {
         const sym = (evt['eventSymbol'] as string) || '';
         const type = (evt['eventType'] as string) || '';
         if (type === 'Quote' && expected.has(sym.toUpperCase())) {
+          // KILL-7: absent/unparseable → null, never 0 — and the mid exists
+          // only when BOTH sides are live (a one-sided quote used to silently
+          // halve the mid). A true source 0 stays 0.
+          const bid = numOrNull(evt['bidPrice']);
+          const ask = numOrNull(evt['askPrice']);
           quotes[sym] = {
-            bid: Number(evt['bidPrice'] || 0),
-            ask: Number(evt['askPrice'] || 0),
-            mid: (Number(evt['bidPrice'] || 0) + Number(evt['askPrice'] || 0)) / 2,
-            bidSize: Number(evt['bidSize'] || 0),
-            askSize: Number(evt['askSize'] || 0),
+            bid,
+            ask,
+            mid: bid != null && ask != null ? (bid + ask) / 2 : null,
+            bidSize: numOrNull(evt['bidSize']),
+            askSize: numOrNull(evt['askSize']),
           };
         } else if (type === 'Trade' && expected.has(sym.toUpperCase())) {
           if (!quotes[sym]) {
             quotes[sym] = {};
           }
-          quotes[sym].last = Number(evt['price'] || 0);
-          quotes[sym].volume = Number(evt['dayVolume'] || evt['volume'] || 0);
+          quotes[sym].last = numOrNull(evt['price']);
+          quotes[sym].volume = firstNumOrNull(evt['dayVolume'], evt['volume']);
         }
       }
     });

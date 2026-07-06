@@ -290,10 +290,17 @@ export async function fetchSentiment(symbol: string): Promise<SentimentResult> {
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`[Sentiment] ${symbol}: ${posts.length} posts, score=${scoreResult?.score ?? 'N/A'} in ${elapsed}s`);
 
+    // KILL-7: a stage-2 scoring failure is a DECLARED failure — the old
+    // score=0/magnitude=0 imputation was indistinguishable from a genuinely
+    // neutral reading on the persisted result.
+    if (scoreResult == null) {
+      return emptyResult(symbol, 'stage-2 scoring failed — posts found but no score computed (no imputed neutral)');
+    }
+
     return {
       symbol,
-      score: scoreResult?.score ?? 0,
-      magnitude: scoreResult?.magnitude ?? 0,
+      score: scoreResult.score,
+      magnitude: scoreResult.magnitude,
       postCount: posts.length,
       bullishCount,
       bearishCount,

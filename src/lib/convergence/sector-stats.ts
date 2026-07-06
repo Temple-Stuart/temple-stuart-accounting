@@ -18,6 +18,9 @@ export interface PeerStats {
     hv30: PeerMetricStats;
     hv60: PeerMetricStats;
     hv90: PeerMetricStats;
+    // KILL-7: the REAL peer distribution of hv30 − hv60 — the HV-acceleration
+    // z previously assumed mean=0 against the peers' hv30-LEVEL std.
+    hv_accel: PeerMetricStats;
     iv30: PeerMetricStats;
     pe_ratio: PeerMetricStats;
     market_cap: PeerMetricStats;
@@ -95,6 +98,7 @@ function buildPeerStats(
         hv30: { ...empty },
         hv60: { ...empty },
         hv90: { ...empty },
+        hv_accel: { ...empty },
         iv30: { ...empty },
         pe_ratio: { ...empty },
         market_cap: { ...empty },
@@ -119,6 +123,7 @@ function buildPeerStats(
       hv30: computeMetricStats(tickers.map(t => t.hv30)),
       hv60: computeMetricStats(tickers.map(t => t.hv60)),
       hv90: computeMetricStats(tickers.map(t => t.hv90)),
+      hv_accel: computeMetricStats(tickers.map(t => (t.hv30 != null && t.hv60 != null ? t.hv30 - t.hv60 : null))),
       iv30: computeMetricStats(tickers.map(t => t.iv30)),
       pe_ratio: computeMetricStats(tickers.map(t => t.peRatio)),
       market_cap: computeMetricStats(tickers.map(t => t.marketCap)),

@@ -59,6 +59,7 @@ export async function POST(request: Request) {
     now.setHours(0, 0, 0, 0);
     const expirations: any[] = [];
     const seen = new Set<string>();
+    let strikesSkippedNoPrice = 0; // KILL-7: declared in the response
 
     for (const chain of chainTypes) {
       const nestedExpirations = chain['expirations'] || [];
@@ -82,8 +83,15 @@ export async function POST(request: Request) {
         for (const s of (Array.isArray(strikeList) ? strikeList : [])) {
           const callOcc: string = s['call'] || '';
           const putOcc: string = s['put'] || '';
+          // KILL-7: a strike row without a parseable strike price is unusable —
+          // skipped + counted, never a fabricated $0 strike.
+          const strikePrice = s['strike-price'] != null && Number.isFinite(Number(s['strike-price'])) ? Number(s['strike-price']) : null;
+          if (strikePrice == null || strikePrice <= 0) {
+            strikesSkippedNoPrice++;
+            continue;
+          }
           strikes.push({
-            strike: Number(s['strike-price'] || 0),
+            strike: strikePrice,
             call: callOcc || null,
             put: putOcc || null,
             callStreamerSymbol: s['call-streamer-symbol'] || occToDxFeed(callOcc),
@@ -102,7 +110,7 @@ export async function POST(request: Request) {
     // Sort by DTE ascending
     expirations.sort((a, b) => a.dte - b.dte);
 
-    return NextResponse.json({ chain: { symbol, expirations } });
+    return NextResponse.json({ chain: { symbol, expirations }, strikes_skipped_no_price: strikesSkippedNoPrice });
   } catch (error: any) {
     console.error('[Tastytrade] Chains error:', error);
     return NextResponse.json({ error: 'Failed to fetch option chain' }, { status: 500 });
