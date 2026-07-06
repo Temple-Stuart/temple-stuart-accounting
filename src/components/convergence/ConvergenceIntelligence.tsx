@@ -1239,7 +1239,7 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
                       <div className="w-6 text-[10px] font-mono font-bold text-right shrink-0 text-text-secondary">{Math.round(score)}</div>
                       <div className="w-20 shrink-0">
                         {key === 'mispricing' && vrpZ != null && (
-                          <span className={`text-[10px] font-mono ${vrpZ > 0.5 ? 'text-brand-green' : vrpZ < -0.5 ? 'text-brand-red' : 'text-text-muted'}`} title="Variance Risk Premium z-score: how many standard deviations the current IV-HV spread is above its 12-month average. Above +1.5 = options historically expensive. Carr & Wu (2009, RFS).">
+                          <span className={`text-[10px] font-mono ${vrpZ > 0.5 ? 'text-brand-green' : vrpZ < -0.5 ? 'text-brand-red' : 'text-text-muted'}`} title={`Variance Risk Premium z-score: how many standard deviations the current VRP (IV30 − HV30) is above the ticker's own historical VRP distribution (365-day scan_snapshots history${bd.mispricing?.z_scores?.vrp_z_source ? ': ' + bd.mispricing.z_scores.vrp_z_source : ''}). Above +1.5 = options historically expensive. Carr & Wu (2009, RFS).`}>
                             VRP z: {vrpZ >= 0 ? '+' : ''}{vrpZ.toFixed(1)}
                           </span>
                         )}
@@ -3190,7 +3190,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                                     </tbody>
                                   </table>
                                 )}
-                                <p className="text-text-muted mt-1">Conf: {r.vol_edge_detail ? (r.vol_edge_detail.data_confidence * 100).toFixed(0) + '%' : '—'}</p>
+                                <p className="text-text-muted mt-1">Conf: {r.vol_edge_detail ? (r.vol_edge_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.vol_edge_detail?.active_signal_count != null ? ` · computed from ${r.vol_edge_detail.active_signal_count}/${r.vol_edge_detail.total_signal_count} signals` : ''}</p>
                               </div>
                               {/* QUALITY */}
                               <div>
