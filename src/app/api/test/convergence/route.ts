@@ -291,15 +291,18 @@ export async function GET(request: Request) {
   // KILL-2: a missing IV rank is null at the parse boundary now — it cannot
   // select the vol-regime strategy menu, so the chain section is skipped and
   // declared (never an imputed rank).
-  if (currentPrice > 0 && ttScannerResult.data && ttScannerResult.data.ivRank == null) {
-    chainRejections = [{ strategy: 'all', reason: 'IV rank unavailable from market-metrics — chain/trade-card build skipped (no imputed rank)', gate: 'construction' }];
+  if (currentPrice > 0 && ttScannerResult.data && (ttScannerResult.data.ivRank == null || ttScannerResult.data.iv30 == null)) {
+    chainRejections = [{ strategy: 'all', reason: `${ttScannerResult.data.ivRank == null ? 'IV rank' : 'IV30'} unavailable from market-metrics — chain/trade-card build skipped (no imputed value)`, gate: 'construction' }];
   }
-  if (currentPrice > 0 && ttScannerResult.data && ttScannerResult.data.ivRank != null) {
+  if (currentPrice > 0 && ttScannerResult.data && ttScannerResult.data.ivRank != null && ttScannerResult.data.iv30 != null) {
     try {
       // TT scanner returns iv30/hv30 as percentages (e.g. 27.16 for 27.16%)
       // Chain fetcher / strategy builder expects decimals (e.g. 0.2716)
-      const rawIv30 = ttScannerResult.data.iv30 ?? 30;
-      const rawHv30 = ttScannerResult.data.hv30 ?? 25;
+      // KILL-5: no fabricated vols — iv30 missing skips the chain section
+      // (declared below); hv30/dividendYield pass through as null.
+      const rawIv30 = ttScannerResult.data.iv30;
+      const rawHv30 = ttScannerResult.data.hv30;
+      const rawDivYield = ttScannerResult.data.dividendYield;
       if (fredResult.data.fedFunds == null) {
         throw new Error(
           'FRED FEDFUNDS rate is null — cannot compute PoP. ' +
@@ -317,7 +320,8 @@ export async function GET(request: Request) {
         currentPrice,
         ivRank: ttScannerResult.data.ivRank,
         iv30: rawIv30 / 100,
-        hv30: rawHv30 / 100,
+        hv30: rawHv30 != null ? rawHv30 / 100 : null,
+        dividendYield: rawDivYield != null && Number.isFinite(rawDivYield) ? rawDivYield / 100 : null,
         hv10: hv10Pct != null ? hv10Pct / 100 : null,
         riskFreeRate: fredResult.data.fedFunds / 100,
       }];

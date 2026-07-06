@@ -84,6 +84,7 @@ function calculateBreakevenPoP(
   dte: number,
   isCredit: boolean,
   riskFreeRate: number,
+  dividendYield: number,
 ): { pop: number; method: 'breakeven_d2' } | null {
   if (breakevens.length === 0 || spotPrice <= 0 || iv <= 0 || dte <= 0) return null;
 
@@ -98,11 +99,11 @@ function calculateBreakevenPoP(
       // Put credit spread: breakeven is below spot → profit if price ABOVE breakeven
       // Call credit spread: breakeven is above spot → profit if price BELOW breakeven
       if (be < spotPrice) {
-        const p = probAbove(spotPrice, be, iv, dteYears, riskFreeRate);
+        const p = probAbove(spotPrice, be, iv, dteYears, riskFreeRate, dividendYield);
         if (p === null) return null;
         return { pop: Math.max(0, Math.min(1, p)), method: 'breakeven_d2' };
       } else {
-        const p = probAbove(spotPrice, be, iv, dteYears, riskFreeRate);
+        const p = probAbove(spotPrice, be, iv, dteYears, riskFreeRate, dividendYield);
         if (p === null) return null;
         // Price needs to stay below breakeven
         return { pop: Math.max(0, Math.min(1, 1 - p)), method: 'breakeven_d2' };
@@ -112,11 +113,11 @@ function calculateBreakevenPoP(
       // Bull call spread: breakeven above spot → profit if price ABOVE breakeven
       // Bear put spread: breakeven below spot → profit if price BELOW breakeven
       if (be > spotPrice) {
-        const p = probAbove(spotPrice, be, iv, dteYears, riskFreeRate);
+        const p = probAbove(spotPrice, be, iv, dteYears, riskFreeRate, dividendYield);
         if (p === null) return null;
         return { pop: Math.max(0, Math.min(1, p)), method: 'breakeven_d2' };
       } else {
-        const p = probAbove(spotPrice, be, iv, dteYears, riskFreeRate);
+        const p = probAbove(spotPrice, be, iv, dteYears, riskFreeRate, dividendYield);
         if (p === null) return null;
         return { pop: Math.max(0, Math.min(1, 1 - p)), method: 'breakeven_d2' };
       }
@@ -127,12 +128,12 @@ function calculateBreakevenPoP(
     const [lowerBE, upperBE] = sorted;
     if (isCredit) {
       // Iron condor, short strangle, short straddle: profit if price stays BETWEEN breakevens
-      const p = probBetween(spotPrice, lowerBE, upperBE, iv, dteYears, riskFreeRate);
+      const p = probBetween(spotPrice, lowerBE, upperBE, iv, dteYears, riskFreeRate, dividendYield);
       if (p === null) return null;
       return { pop: Math.max(0, Math.min(1, p)), method: 'breakeven_d2' };
     } else {
       // Long straddle, long strangle: profit if price goes OUTSIDE breakevens
-      const p = probBetween(spotPrice, lowerBE, upperBE, iv, dteYears, riskFreeRate);
+      const p = probBetween(spotPrice, lowerBE, upperBE, iv, dteYears, riskFreeRate, dividendYield);
       if (p === null) return null;
       return { pop: Math.max(0, Math.min(1, 1 - p)), method: 'breakeven_d2' };
     }
@@ -224,8 +225,16 @@ export interface GenerateParams {
   expiration: string;
   dte: number;
   symbol?: string;        // for debug logging
-  iv30?: number;          // implied volatility decimal (e.g. 0.42 for 42%)
-  hv30?: number;          // 30-day HV decimal (e.g. 0.25 for 25%)
+  // KILL-5: REQUIRED and real — no `?? 0.30` fabrication. Callers skip the
+  // ticker (declared) when iv30 is missing; σ drives every breakeven_d2 PoP.
+  iv30: number;
+  // KILL-5: null = HV30 not delivered by the source. HV-adjusted PoP and the
+  // unlimited-risk HV proxy are then NOT computable — declared, never `?? iv`.
+  hv30: number | null;
+  // KILL-5: continuous dividend yield q, decimal. A true 0 IS data (non-payer).
+  // null = source did not deliver the field — the breakeven_d2 PoP upgrade is
+  // SKIPPED (PoP stays delta_approx, labeled) rather than assuming q=0.
+  dividendYield: number | null;
   // EDGE-3: 10-day realized vol, decimal (e.g. 0.55 for 55%). Required — the caller
   // must decide; null = not computable from candle history, in which case the
   // HV10>IV gate declares itself not-evaluated (never imputed, never silent).
@@ -852,38 +861,68 @@ export function generateStrategies(params: GenerateParams): GenerateResult {
   console.log(`[StrategyBuilder] ${sym}: pre-filter cards=${cards.length} [${cards.map(c => c.name).join(', ')}]`);
 
   // ─── Upgrade PoP: delta approximation → N(d2) at breakeven ────
-  const iv = params.iv30 ?? 0.30;
+  // KILL-5: iv30 is required-real (no `?? 0.30`); q is required for the d2
+  // drift (r − q − σ²/2). When q is UNKNOWN the upgrade is SKIPPED — PoP
+  // stays the delta approximation (a real, labeled statistic) rather than
+  // pricing every dividend payer with an assumed q=0.
+  const iv = params.iv30;
+  const q = params.dividendYield;
 
-  for (const card of cards) {
-    if (card.breakevens.length === 0 || card.pop == null) continue;
-    const isCredit = CREDIT_STRATEGIES.includes(card.name) || (card.netCredit != null && card.netCredit > 0);
-    const bePoP = calculateBreakevenPoP(card.breakevens, currentPrice, iv, dte, isCredit, params.riskFreeRate);
-    if (bePoP) {
-      const deltaPop = card.pop;
-      card.pop = Math.round(bePoP.pop * 100) / 100;
-      card.popMethod = bePoP.method;
-      console.log(`[StrategyBuilder] ${sym}: PoP upgrade "${card.name}" — delta=${(deltaPop * 100).toFixed(1)}% → N(d2)=${(bePoP.pop * 100).toFixed(1)}% (IV=${(iv * 100).toFixed(1)}%, DTE=${dte}, BEs=[${card.breakevens.join(', ')}])`);
+  if (q == null) {
+    rejections.push({
+      strategy: 'all',
+      reason: 'dividend yield unavailable — breakeven N(d2) PoP not computed (needs q; never assumed 0); PoP stays delta_approx',
+      gate: 'construction',
+    });
+  } else {
+    for (const card of cards) {
+      if (card.breakevens.length === 0 || card.pop == null) continue;
+      const isCredit = CREDIT_STRATEGIES.includes(card.name) || (card.netCredit != null && card.netCredit > 0);
+      const bePoP = calculateBreakevenPoP(card.breakevens, currentPrice, iv, dte, isCredit, params.riskFreeRate, q);
+      if (bePoP) {
+        const deltaPop = card.pop;
+        card.pop = Math.round(bePoP.pop * 100) / 100;
+        card.popMethod = bePoP.method;
+        console.log(`[StrategyBuilder] ${sym}: PoP upgrade "${card.name}" — delta=${(deltaPop * 100).toFixed(1)}% → N(d2)=${(bePoP.pop * 100).toFixed(1)}% (IV=${(iv * 100).toFixed(1)}%, q=${(q * 100).toFixed(2)}%, DTE=${dte}, BEs=[${card.breakevens.join(', ')}])`);
+      }
     }
   }
 
   // ─── Compute HV-Adjusted EV for each card ──────────────────────
-  const hv = params.hv30 ?? iv;
+  // KILL-5: hv30 is null when the source did not deliver it — never `?? iv`.
+  // With hv null: no HV-adjusted PoP (EV uses the card's own PoP, declared),
+  // and no HV proxy for unlimited risk (those candidates are REJECTED below).
+  const hv = params.hv30;
   // Safety cap: if IV/HV ratio > 4, cap at 4 to prevent unrealistic adjustments
-  const cappedHv = iv > 0 && hv > 0 && iv / hv > 4 ? iv / 4 : hv;
-  const hvProxyML = currentPrice * cappedHv * Math.sqrt(dte / 365) * 2.5 * 100;
+  const cappedHv = hv != null ? (iv > 0 && hv > 0 && iv / hv > 4 ? iv / 4 : hv) : null;
+  const hvProxyML = cappedHv != null ? currentPrice * cappedHv * Math.sqrt(dte / 365) * 2.5 * 100 : null;
+
+  if (hv == null) {
+    rejections.push({
+      strategy: 'all',
+      reason: 'hv30 unavailable — HV-adjusted PoP not computed (EV uses un-adjusted PoP, hvPop=null); unlimited-risk sizing not computable (those candidates rejected, never proxied)',
+      gate: 'construction',
+    });
+  }
 
   for (const card of cards) {
     if (card.pop == null) continue;
     const mp = card.maxProfit ?? 0;
     const isCredit = CREDIT_STRATEGIES.includes(card.name);
 
-    // HV-adjusted PoP for credit strategies; delta PoP for debit
-    const hvPop = isCredit ? computeHvAdjustedPoP(card, currentPrice, cappedHv, dte) : card.pop;
-    card.hvPop = isCredit ? Math.round(hvPop * 1000) / 1000 : null;
+    // HV-adjusted PoP for credit strategies; delta PoP for debit.
+    // hv missing → hvPop stays null (declared) and EV falls through to the
+    // card's own computed PoP — a real statistic, not a substitute value.
+    const hvPop = isCredit && cappedHv != null ? computeHvAdjustedPoP(card, currentPrice, cappedHv, dte) : null;
+    card.hvPop = hvPop != null ? Math.round(hvPop * 1000) / 1000 : null;
+
+    // KILL-5: unlimited-risk sizing needs the HV proxy — without hv30 the EV
+    // is not computable; the candidate is rejected (with reason) in the gate.
+    if (card.isUnlimited && hvProxyML == null) continue;
 
     // Use HV-based proxy for unlimited risk (actual expected movement, not inflated IV)
-    const effectiveML = card.isUnlimited ? hvProxyML : (card.maxLoss ?? 0);
-    const evPop = isCredit ? hvPop : card.pop;
+    const effectiveML = card.isUnlimited ? (hvProxyML as number) : (card.maxLoss ?? 0);
+    const evPop = isCredit ? (hvPop ?? card.pop) : card.pop;
 
     if (mp > 0 && effectiveML > 0) {
       // Extract short/long deltas for three-outcome model
@@ -982,9 +1021,20 @@ export function generateStrategies(params: GenerateParams): GenerateResult {
       }
     }
 
+    // KILL-5: unlimited-risk candidate without hv30 — the HV sizing proxy is
+    // not computable; REJECTED with the true reason, never proxied.
+    if (card.isUnlimited && hvProxyML == null) {
+      rejections.push({
+        strategy: card.name,
+        reason: 'hv30 unavailable — unlimited-risk sizing (HV proxy) not computable; rejected, never proxied',
+        gate: 'construction',
+      });
+      return false;
+    }
+
     // Gate A: EV must be positive (uses hvPoP for credit, deltaPoP for debit)
     if (card.ev <= 0) {
-      const effectiveML = card.isUnlimited ? hvProxyML : (card.maxLoss ?? 0);
+      const effectiveML = card.isUnlimited ? (hvProxyML as number) : (card.maxLoss ?? 0);
       console.log(`[StrategyBuilder] ${sym}: EV GATE rejected "${card.name}" — EV=$${card.ev.toFixed(0)} (hvPoP=${card.hvPop?.toFixed(3) ?? 'n/a'}, deltaPoP=${card.pop?.toFixed(3)}, mp=$${card.maxProfit}, ml=$${effectiveML.toFixed(0)})`);
       const strikes = card.legs.map(l => l.strike).sort((a, b) => a - b);
       const sw = strikes.length >= 2 ? strikes[1] - strikes[0] : 0;
@@ -1047,7 +1097,9 @@ export function generateStrategies(params: GenerateParams): GenerateResult {
   }
 
   // ─── Edge-Aware Composite Scoring ───────────────────────────────
-  const edgeRatio = iv > 0 ? Math.max(0, (iv - hv)) / iv : 0;
+  // KILL-5: the IV-HV edge ratio needs a real hv30 — when missing, the term
+  // is EXCLUDED and the remaining composite weights renormalize (50/30 of 80).
+  const edgeRatio = hv != null && iv > 0 ? Math.max(0, (iv - hv)) / iv : null;
   filtered.sort((a, b) => {
     const scoreA = computeCompositeScore(a);
     const scoreB = computeCompositeScore(b);
@@ -1055,9 +1107,12 @@ export function generateStrategies(params: GenerateParams): GenerateResult {
   });
 
   function computeCompositeScore(card: StrategyCard): number {
-    const effectiveML = card.isUnlimited ? hvProxyML : (card.maxLoss ?? 0);
+    // hvProxyML is non-null for every surviving unlimited-risk card (rejected above)
+    const effectiveML = card.isUnlimited ? (hvProxyML as number) : (card.maxLoss ?? 0);
     const thetaEff = effectiveML > 0 ? Math.abs(card.thetaPerDay) / effectiveML * 100 : 0;
-    return (card.evPerRisk * 50) + (thetaEff * 30) + (edgeRatio * 20);
+    const base = (card.evPerRisk * 50) + (thetaEff * 30);
+    // edgeRatio excluded (hv30 missing) → renormalize the 50/30 weights to 100
+    return edgeRatio != null ? base + (edgeRatio * 20) : base * (100 / 80);
   }
 
   // Persist composite scores on each card

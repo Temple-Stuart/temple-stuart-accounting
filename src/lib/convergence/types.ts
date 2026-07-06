@@ -836,11 +836,12 @@ export interface RegimeResult {
 // -- Info Edge --
 
 export interface AnalystConsensusTrace extends SubScoreTrace {
+  // KILL-5: null = component's source data missing → excluded + renormalized
   sub_scores: {
-    estimate_level_score: number;
-    estimate_dispersion_score: number;
-    revenue_eps_alignment_score: number;
-    consensus_breadth_score: number;
+    estimate_level_score: number | null;
+    estimate_dispersion_score: number | null;
+    revenue_eps_alignment_score: number | null;
+    consensus_breadth_score: number | null;
   };
   indicators: {
     forward_eps: number | null;
@@ -1020,7 +1021,8 @@ export interface InfoEdgeResult {
   data_confidence: DataConfidence;
   filing_recency: FilingRecencyTrace;
   breakdown: {
-    analyst_consensus: AnalystConsensusTrace;
+    // KILL-5: null = no analyst/estimate data at all — excluded + renormalized
+    analyst_consensus: AnalystConsensusTrace | null;
     // EDGE-2b: every sub-score below is null when its data source is absent —
     // excluded from the composite and the remaining weights re-normalized.
     price_target_signal: PriceTargetSignalTrace | null;
