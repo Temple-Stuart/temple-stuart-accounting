@@ -3221,7 +3221,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                                     </tbody>
                                   </table>
                                 )}
-                                <p className="text-text-muted mt-1">Conf: {r.quality_detail ? (r.quality_detail.data_confidence * 100).toFixed(0) + '%' : '—'}</p>
+                                <p className="text-text-muted mt-1">Conf: {r.quality_detail ? (r.quality_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.quality_detail?.active_signal_count != null ? ` · computed from ${r.quality_detail.active_signal_count}/${r.quality_detail.total_signal_count} signals` : ''}</p>
                               </div>
                               {/* REGIME */}
                               <div>
@@ -3248,7 +3248,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                                     </tbody>
                                   </table>
                                 )}
-                                <p className="text-text-muted mt-1">Conf: {r.regime_detail ? (r.regime_detail.data_confidence * 100).toFixed(0) + '%' : '—'}</p>
+                                <p className="text-text-muted mt-1">Conf: {r.regime_detail ? (r.regime_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.regime_detail?.active_signal_count != null ? ` · computed from ${r.regime_detail.active_signal_count}/${r.regime_detail.total_signal_count} signals` : ''}</p>
                               </div>
                               {/* INFO EDGE */}
                               <div>

@@ -1,3 +1,4 @@
+import { combineWeighted } from './weighted-combiner';
 import type {
   ConvergenceInput,
   QualityGateResult,
@@ -39,7 +40,7 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
 
   // --- Liquidity rating (15%) ---
   const liqRating = tt?.liquidityRating ?? null;
-  let liquidityRatingScore = 40; // penalty default — missing data
+  let liquidityRatingScore: number | null = null; // KILL-3: missing → excluded + renormalized
   if (liqRating !== null) {
     // TT uses ~1-5 scale. Map: 5->95, 4->80, 3->60, 2->40, 1->20
     liquidityRatingScore = clamp(liqRating * 20 - 5, 0, 100);
@@ -47,7 +48,7 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
 
   // --- Market cap (15%) ---
   const marketCap = tt?.marketCap ?? null;
-  let marketCapScore = 40; // penalty default — missing data
+  let marketCapScore: number | null = null; // KILL-3: missing → excluded + renormalized
   if (marketCap !== null) {
     if (marketCap > 200_000_000_000) marketCapScore = 90;
     else if (marketCap > 10_000_000_000) marketCapScore = 75;
@@ -57,7 +58,7 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
   }
 
   // --- Volume (15%) ---
-  let volumeScore = 40; // penalty default — missing data
+  let volumeScore: number | null = null; // KILL-3: missing → excluded + renormalized
   let avgVol20d: number | null = null;
   if (candles.length >= 20) {
     const vols = candles.slice(-20).map(c => c.volume);
@@ -71,7 +72,11 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
 
   // --- Lendability (10%) ---
   const lendability = tt?.lendability ?? null;
-  let lendabilityScore = 60; // Default: assume easy to borrow
+  // KILL-3: missing lendability is EXCLUDED — it was silently imputed as a
+  // FAVORABLE 60 ("assume easy to borrow") and never tracked. The 55 for a
+  // present-but-unrecognized lendability string is a legitimate middle band
+  // computed from present data and stays.
+  let lendabilityScore: number | null = null;
   if (lendability !== null) {
     const lend = lendability.toLowerCase();
     if (lend === 'easy to borrow' || lend === 'easy') lendabilityScore = 80;
@@ -81,7 +86,7 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
 
   // --- Beta (20%) ---
   const beta = tt?.beta ?? (typeof metric['beta'] === 'number' ? metric['beta'] as number : null);
-  let betaScore = 40; // penalty default — missing data
+  let betaScore: number | null = null; // KILL-3: missing → excluded + renormalized
   if (beta !== null) {
     if (beta < 0.8) betaScore = 90;
     else if (beta <= 1.0) betaScore = 80;
@@ -93,7 +98,7 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
   // --- Debt-to-Equity (25%) ---
   const debtToEquity = typeof metric['totalDebt/totalEquityQuarterly'] === 'number'
     ? metric['totalDebt/totalEquityQuarterly'] as number : null;
-  let debtToEquityScore = 40; // penalty default — missing data
+  let debtToEquityScore: number | null = null; // KILL-3: missing → excluded + renormalized
   if (debtToEquity !== null) {
     if (debtToEquity < 0.3) debtToEquityScore = 95;
     else if (debtToEquity <= 0.5) debtToEquityScore = 80;
@@ -361,37 +366,28 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
     altmanScore = round(z, 2);
   }
 
-  // --- Weighted sum ---
-  const hasCandles = candles.length >= 20;
-  let score: number;
-  let formula: string;
-
+  // --- Weighted sum (KILL-3 / EDGE-2 combiner) ---
   // Christoffersen, Goyenko, Jacobs & Karoui (2018, RFS): options illiquidity
   // premium is ~3.4%/day for ATM calls — liquidity dominates beta for spread traders.
   // Cao & Han (2013, JFE): idiosyncratic vol, not beta, predicts option returns.
   // Weights: 0.25 liq + 0.15 mktcap + 0.15 vol + 0.10 lend + 0.10 beta + 0.25 D/E = 1.0
-  if (hasCandles) {
-    score = round(
-      0.25 * liquidityRatingScore + 0.15 * marketCapScore + 0.15 * volumeScore +
-      0.10 * lendabilityScore + 0.10 * betaScore + 0.25 * debtToEquityScore,
-      1,
-    );
-    formula = `0.25*LiqRating(${round(liquidityRatingScore)}) + 0.15*MktCap(${round(marketCapScore)}) + 0.15*Vol(${round(volumeScore)}) + 0.10*Lend(${round(lendabilityScore)}) + 0.10*Beta(${round(betaScore)}) + 0.25*D/E(${round(debtToEquityScore)}) = ${score}`;
-  } else {
-    // No candle data: exclude volume (15%), renormalize remaining 85% to 100%
-    volumeScore = 0;
-    avgVol20d = null;
-    const w = 0.85;
-    score = round(
-      (0.25 / w) * liquidityRatingScore + (0.15 / w) * marketCapScore +
-      (0.10 / w) * lendabilityScore + (0.10 / w) * betaScore + (0.25 / w) * debtToEquityScore,
-      1,
-    );
-    formula = `Volume EXCLUDED (no candles). Renorm: LiqRating(${round(liquidityRatingScore)}) + MktCap(${round(marketCapScore)}) + Lend(${round(lendabilityScore)}) + Beta(${round(betaScore)}) + D/E(${round(debtToEquityScore)}) = ${score}`;
-  }
+  // A missing component is EXCLUDED and the remaining weights renormalize —
+  // never imputed. (The old volume-exclusion branch generalized to all six.)
+  const safetyComponents = [
+    { key: 'liquidity_rating', weight: 0.25, score: liquidityRatingScore },
+    { key: 'market_cap', weight: 0.15, score: marketCapScore },
+    { key: 'volume', weight: 0.15, score: volumeScore },
+    { key: 'lendability', weight: 0.10, score: lendabilityScore },
+    { key: 'beta', weight: 0.10, score: betaScore },
+    { key: 'debt_to_equity', weight: 0.25, score: debtToEquityScore },
+  ];
+  const safetyCombined = combineWeighted(safetyComponents);
+  let score = safetyCombined.score; // null = NO safety component had data
+  const fmtC = (v: number | null) => (v !== null ? String(round(v)) : 'EXCLUDED');
+  let formula = `0.25*LiqRating(${fmtC(liquidityRatingScore)}) + 0.15*MktCap(${fmtC(marketCapScore)}) + 0.15*Vol(${fmtC(volumeScore)}) + 0.10*Lend(${fmtC(lendabilityScore)}) + 0.10*Beta(${fmtC(betaScore)}) + 0.25*D/E(${fmtC(debtToEquityScore)})${safetyCombined.excludedKeys.length > 0 && score !== null ? ` [missing excluded, weights renormalized ÷${round(safetyCombined.activeWeight, 2)}]` : ''} = ${score ?? 'EXCLUDED (no component data)'}`;
 
   // Altman Z hard gate: if computable and Z < 1.8, cap safety at 40
-  if (altmanScore !== null && altmanScore < 1.8) {
+  if (score !== null && altmanScore !== null && altmanScore < 1.8) {
     score = Math.min(score, 40);
     altmanCapped = true;
   }
@@ -402,7 +398,7 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
   const borrowRate = tt?.borrowRate ?? null;
   const borrowRatePenalty = round(Math.min(20, (borrowRate ?? 0) * 0.8), 1);
   const safetyScorePreBorrowPenalty = score;
-  if (borrowRatePenalty > 0) {
+  if (score !== null && borrowRatePenalty > 0) {
     score = Math.max(0, round(score - borrowRatePenalty, 1));
     formula += ` → -${borrowRatePenalty} borrow rate penalty (${borrowRate}% × 0.8) = ${score}`;
   }
@@ -430,15 +426,21 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
     else if (hhi < 0.30) concentrationModifier = 0.01;    // Moderately diversified
     // 0.30-0.70: no modifier
 
-    if (concentrationModifier !== 0) {
+    if (score !== null && concentrationModifier !== 0) {
       score = clamp(round(score * (1 + concentrationModifier), 1), 0, 100);
       formula += ` → ×${round(1 + concentrationModifier, 2)} HHI(${hhi}) = ${score}`;
     }
   }
 
+  const rOrNull = (v: number | null) => (v !== null ? round(v) : null);
   return {
-    score: round(score),
+    // KILL-3: score 0 + weight set to 0 by scoreQualityGate when EXCLUDED
+    // (no component data) — vol-edge exclusion precedent; never an imputed value.
+    score: score !== null ? round(score) : 0,
     weight: 0.40,
+    active_signal_count: safetyCombined.activeCount,
+    total_signal_count: safetyCombined.totalCount,
+    excluded_components: safetyCombined.excludedKeys.map(k => `safety.${k}`),
     inputs: {
       liquidity_rating: liqRating,
       market_cap: marketCap,
@@ -449,14 +451,14 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
       debt_to_equity: debtToEquity,
     },
     formula,
-    notes: `Liquidity: ${liqRating ?? 'N/A'}, MktCap: ${marketCap ? '$' + (marketCap / 1e9).toFixed(1) + 'B' : 'N/A'}, Beta: ${beta ?? 'N/A'}, D/E: ${debtToEquity ?? 'N/A'}${altmanCapped ? '. ALTMAN Z CAPPED: Z=' + altmanScore + ' < 1.8' : ''}${!hasCandles ? '. Volume excluded (no candle data)' : ''}${revBreakdown ? `. HHI=${hhi}, ${segmentCount} segments, largest=${largestSegmentPct}%` : ''}`,
+    notes: `Liquidity: ${liqRating ?? 'N/A'}, MktCap: ${marketCap ? '$' + (marketCap / 1e9).toFixed(1) + 'B' : 'N/A'}, Beta: ${beta ?? 'N/A'}, D/E: ${debtToEquity ?? 'N/A'}${altmanCapped ? '. ALTMAN Z CAPPED: Z=' + altmanScore + ' < 1.8' : ''}. Computed from ${safetyCombined.activeCount}/${safetyCombined.totalCount} signals${safetyCombined.excludedKeys.length > 0 ? ` (excluded: ${safetyCombined.excludedKeys.join(', ')})` : ''}${revBreakdown ? `. HHI=${hhi}, ${segmentCount} segments, largest=${largestSegmentPct}%` : ''}`,
     sub_scores: {
-      liquidity_rating_score: round(liquidityRatingScore),
-      market_cap_score: round(marketCapScore),
-      volume_score: round(volumeScore),
-      lendability_score: round(lendabilityScore),
-      beta_score: round(betaScore),
-      debt_to_equity_score: round(debtToEquityScore),
+      liquidity_rating_score: rOrNull(liquidityRatingScore),
+      market_cap_score: rOrNull(marketCapScore),
+      volume_score: rOrNull(volumeScore),
+      lendability_score: rOrNull(lendabilityScore),
+      beta_score: rOrNull(betaScore),
+      debt_to_equity_score: rOrNull(debtToEquityScore),
     },
     piotroski_source: piotroskiSource,
     piotroski: {
@@ -506,7 +508,7 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
 
   // --- Gross margin (15%) ---
   const grossMargin = typeof metric['grossMarginTTM'] === 'number' ? metric['grossMarginTTM'] as number : null;
-  let grossMarginScore = 40; // penalty default — missing data
+  let grossMarginScore: number | null = null; // KILL-3: missing → excluded + renormalized
   if (grossMargin !== null) {
     if (grossMargin > 60) grossMarginScore = 85;
     else if (grossMargin > 40) grossMarginScore = 70;
@@ -517,7 +519,7 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
 
   // --- ROE (15%) ---
   const roe = typeof metric['roeTTM'] === 'number' ? metric['roeTTM'] as number : null;
-  let roeScore = 40; // penalty default — missing data
+  let roeScore: number | null = null; // KILL-3: missing → excluded + renormalized
   if (roe !== null) {
     if (roe > 25) roeScore = 90;
     else if (roe > 15) roeScore = 75;
@@ -529,7 +531,7 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
 
   // --- ROA (10%) ---
   const roa = typeof metric['roaTTM'] === 'number' ? metric['roaTTM'] as number : null;
-  let roaScore = 40; // penalty default — missing data
+  let roaScore: number | null = null; // KILL-3: missing → excluded + renormalized
   if (roa !== null) {
     if (roa > 15) roaScore = 90;
     else if (roa > 10) roaScore = 75;
@@ -564,7 +566,7 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
       }
     }
   }
-  let roicScore = 50; // neutral default — missing data
+  let roicScore: number | null = null; // KILL-3: missing → excluded + renormalized (was imputed neutral 50)
   if (roic !== null) {
     if (roic > 25) roicScore = 90;
     else if (roic > 15) roicScore = 80;
@@ -576,7 +578,7 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
 
   // --- P/E ratio (10%) ---
   const pe = tt?.peRatio ?? (typeof metric['peNormalizedAnnual'] === 'number' ? metric['peNormalizedAnnual'] : null);
-  let peScore = 40; // penalty default — missing data
+  let peScore: number | null = null; // KILL-3: missing → excluded + renormalized
   if (pe !== null && typeof pe === 'number') {
     if (pe < 0) peScore = 20;           // Negative earnings
     else if (pe < 5) peScore = 35;      // Suspiciously cheap
@@ -592,7 +594,7 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
   const psAnnual = typeof metric['psAnnual'] === 'number' ? metric['psAnnual'] as number : null;
   const ps = psTTM ?? psAnnual;
   const psSource = psTTM !== null ? 'TTM' : psAnnual !== null ? 'Annual' : 'N/A';
-  let psScore = 50; // neutral default — missing data
+  let psScore: number | null = null; // KILL-3: missing → excluded + renormalized (was imputed neutral 50)
   if (ps !== null) {
     if (ps < 0) psScore = 20;           // Negative revenue
     else if (ps < 1) psScore = 70;       // Very low — possible distress, don't reward maximally
@@ -608,7 +610,7 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
   const evEbitdaAnnual = typeof metric['evEbitdaAnnual'] === 'number' ? metric['evEbitdaAnnual'] as number : null;
   const evEbitda = evEbitdaTTM ?? evEbitdaAnnual;
   const evEbitdaSource = evEbitdaTTM !== null ? 'TTM' : evEbitdaAnnual !== null ? 'Annual' : 'N/A';
-  let evEbitdaScore = 50; // neutral default — missing data
+  let evEbitdaScore: number | null = null; // KILL-3: missing → excluded + renormalized (was imputed neutral 50)
   if (evEbitda !== null) {
     if (evEbitda < 0) evEbitdaScore = 20;       // Negative EBITDA
     else if (evEbitda < 4) evEbitdaScore = 50;   // Suspiciously cheap — possible distress
@@ -635,7 +637,7 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
   const currentPrice = typeof metric['marketCapitalization'] === 'number' && typeof metric['shareOutstanding'] === 'number' && (metric['shareOutstanding'] as number) > 0
     ? (metric['marketCapitalization'] as number) * 1e6 / ((metric['shareOutstanding'] as number) * 1e6)
     : null;
-  let fcfScore = 40; // penalty default — missing data
+  let fcfScore: number | null = null; // KILL-3: missing → excluded + renormalized
   if (fcfShareTTM !== null && currentPrice !== null && currentPrice > 0) {
     const fcfYield = (fcfShareTTM / currentPrice) * 100;
     if (fcfYield > 8) fcfScore = 85;
@@ -646,9 +648,12 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
   }
 
   // --- Earnings quality (25%) — full scoreEarningsQuality logic inlined ---
-  let surpriseConsistency = 40; // penalty default — missing earnings data
-  let dteScore = 40; // penalty default — missing earnings date
-  let beatRate = 0;
+  // KILL-3: EQ internals are null when their source is missing — excluded and
+  // renormalized inside the EQ composite (beatRate was fabricated as worst-case
+  // 0 on absent history; surpriseConsistency/dteScore were penalty 40s).
+  let surpriseConsistency: number | null = null;
+  let dteScore: number | null = null;
+  let beatRate: number | null = null;
   let totalQ = 0;
   let beats = 0;
   let misses = 0;
@@ -715,11 +720,15 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
   }
 
   // Earnings quality composite: consistency 50%, DTE 30%, beat_rate 20%
-  const beatRateScore = clamp(beatRate, 0, 100);
-  let earningsQualityScore = round(
-    0.50 * surpriseConsistency + 0.30 * dteScore + 0.20 * beatRateScore,
-    1,
-  );
+  // KILL-3 / EDGE-2 combiner: missing internals excluded + renormalized;
+  // EQ itself is null (excluded from profitability) when all three are missing.
+  const beatRateScore = beatRate !== null ? clamp(beatRate, 0, 100) : null;
+  const eqCombined = combineWeighted([
+    { key: 'earnings_consistency', weight: 0.50, score: surpriseConsistency },
+    { key: 'earnings_dte', weight: 0.30, score: dteScore },
+    { key: 'beat_rate', weight: 0.20, score: beatRateScore },
+  ]);
+  let earningsQualityScore = eqCombined.score;
 
   // --- SUE + Finnhub ML Ensemble ---
   // Cross-validate our SUE-based score against Finnhub's ML earnings quality score.
@@ -730,15 +739,15 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
   let finnhubEqScore: number | null = null;
   let finnhubEqLetter: string | null = null;
 
-  if (finnhubEQ) {
+  if (finnhubEQ && earningsQualityScore !== null) {
     finnhubEqScore = finnhubEQ.score;
     finnhubEqLetter = finnhubEQ.letterScore;
 
     // Both scores on 0-100 scale. Determine if they agree on quality level.
     // SUE score is earningsQualityScore (0-100), Finnhub score is 0-100.
     // "High quality" = both > 60, "Low quality" = both < 40
-    const sueHigh = earningsQualityScore > 60;
-    const sueLow = earningsQualityScore < 40;
+    const sueHigh = earningsQualityScore! > 60;
+    const sueLow = earningsQualityScore! < 40;
     const mlHigh = finnhubEqScore > 60;
     const mlLow = finnhubEqScore < 40;
 
@@ -758,28 +767,49 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
 
     // Apply modifier: scale distance from neutral (50)
     if (eqConfidenceModifier !== 0) {
-      const distFromNeutral = earningsQualityScore - 50;
+      const distFromNeutral = earningsQualityScore! - 50;
       earningsQualityScore = round(clamp(50 + distFromNeutral * (1 + eqConfidenceModifier), 0, 100), 1);
     }
   }
 
-  // --- Weighted sum (9 components, sum=1.00) ---
+  // --- Weighted sum (9 components, sum=1.00) — KILL-3 / EDGE-2 combiner ---
   // 0.10+0.10+0.07+0.08+0.10+0.07+0.07+0.18+0.23 = 1.00
-  const score = round(
-    0.10 * grossMarginScore + 0.10 * roeScore + 0.07 * roaScore +
-    0.08 * roicScore + 0.10 * peScore + 0.07 * psScore +
-    0.07 * evEbitdaScore + 0.18 * fcfScore + 0.23 * earningsQualityScore,
-    1,
-  );
+  // Missing components are EXCLUDED and the remaining weights renormalize.
+  const profitabilityComponents = [
+    { key: 'gross_margin', weight: 0.10, score: grossMarginScore },
+    { key: 'roe', weight: 0.10, score: roeScore },
+    { key: 'roa', weight: 0.07, score: roaScore },
+    { key: 'roic', weight: 0.08, score: roicScore },
+    { key: 'pe_ratio', weight: 0.10, score: peScore },
+    { key: 'ps', weight: 0.07, score: psScore },
+    { key: 'ev_ebitda', weight: 0.07, score: evEbitdaScore },
+    { key: 'fcf', weight: 0.18, score: fcfScore },
+    { key: 'earnings_quality', weight: 0.23, score: earningsQualityScore },
+  ];
+  const profCombined = combineWeighted(profitabilityComponents);
+  const score = profCombined.score; // null = NO component had data
+  // EQ internals count toward the N/M declaration individually (3), replacing
+  // the aggregate earnings_quality entry.
+  const profExcluded = [
+    ...profCombined.excludedKeys.filter(k => k !== 'earnings_quality'),
+    ...eqCombined.excludedKeys,
+  ].map(k => `profitability.${k}`);
+  const profActiveCount = profCombined.activeCount - (earningsQualityScore !== null ? 1 : 0) + eqCombined.activeCount;
+  const profTotalCount = profCombined.totalCount - 1 + eqCombined.totalCount; // 8 + 3 = 11
 
-  const ensembleTag = finnhubEQ
+  const ensembleTag = finnhubEQ && earningsQualityScore !== null
     ? ` [EQ_ensemble=${eqEnsembleAgreement}, mod=${eqConfidenceModifier > 0 ? '+' : ''}${round(eqConfidenceModifier * 100)}%]`
     : '';
-  const formula = `0.10*Margin(${round(grossMarginScore)}) + 0.10*ROE(${round(roeScore)}) + 0.07*ROA(${round(roaScore)}) + 0.08*ROIC(${round(roicScore)}) + 0.10*PE(${round(peScore)}) + 0.07*PS(${round(psScore)}) + 0.07*EV/EBITDA(${round(evEbitdaScore)}) + 0.18*FCF(${round(fcfScore)}) + 0.23*EQ(${round(earningsQualityScore)})${ensembleTag} = ${score}`;
+  const fmtP = (v: number | null) => (v !== null ? String(round(v)) : 'EXCLUDED');
+  const formula = `0.10*Margin(${fmtP(grossMarginScore)}) + 0.10*ROE(${fmtP(roeScore)}) + 0.07*ROA(${fmtP(roaScore)}) + 0.08*ROIC(${fmtP(roicScore)}) + 0.10*PE(${fmtP(peScore)}) + 0.07*PS(${fmtP(psScore)}) + 0.07*EV/EBITDA(${fmtP(evEbitdaScore)}) + 0.18*FCF(${fmtP(fcfScore)}) + 0.23*EQ(${fmtP(earningsQualityScore)})${ensembleTag}${profCombined.excludedKeys.length > 0 && score !== null ? ` [missing excluded, weights renormalized ÷${round(profCombined.activeWeight, 2)}]` : ''} = ${score ?? 'EXCLUDED (no component data)'}`;
 
+  const rOrNullP = (v: number | null) => (v !== null ? round(v) : null);
   return {
-    score: round(score),
+    score: score !== null ? round(score) : 0,
     weight: 0.30,
+    active_signal_count: profActiveCount,
+    total_signal_count: profTotalCount,
+    excluded_components: profExcluded,
     inputs: {
       gross_margin_ttm: grossMargin,
       roe_ttm: roe,
@@ -799,18 +829,18 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
     formula,
     notes: `Margin=${grossMargin ?? 'N/A'}%, ROE=${roe ?? 'N/A'}%, ROA=${roa ?? 'N/A'}%, ROIC=${roic ?? 'N/A'}%(${roicSource}), PE=${pe ?? 'N/A'}, P/S=${ps ?? 'N/A'}(${psSource}), EV/EBITDA=${evEbitda ?? 'N/A'}(${evEbitdaSource}), FCF/sh=${fcfShareTTM ?? 'N/A'}(${fcfSource}). ${beats} beats, ${misses} misses, ${inLine} in-line out of ${totalQ}Q${finnhubEQ ? `. EQ_ML=${finnhubEqLetter}(${finnhubEqScore}), ensemble=${eqEnsembleAgreement}` : ''}`,
     sub_scores: {
-      gross_margin_score: round(grossMarginScore),
-      roe_score: round(roeScore),
-      roa_score: round(roaScore),
-      roic_score: round(roicScore),
-      pe_score: round(peScore),
-      ps_score: round(psScore),
-      ev_ebitda_score: round(evEbitdaScore),
-      fcf_score: round(fcfScore),
+      gross_margin_score: rOrNullP(grossMarginScore),
+      roe_score: rOrNullP(roeScore),
+      roa_score: rOrNullP(roaScore),
+      roic_score: rOrNullP(roicScore),
+      pe_score: rOrNullP(peScore),
+      ps_score: rOrNullP(psScore),
+      ev_ebitda_score: rOrNullP(evEbitdaScore),
+      fcf_score: rOrNullP(fcfScore),
     },
     earnings_quality: {
-      surprise_consistency: round(surpriseConsistency),
-      dte_score: round(dteScore),
+      surprise_consistency: rOrNullP(surpriseConsistency),
+      dte_score: rOrNullP(dteScore),
       beat_rate: beatRate,
       earnings_detail: {
         total_quarters: totalQ,
@@ -823,7 +853,7 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
       earnings_quality_ensemble: {
         finnhub_eq_score: finnhubEqScore,
         finnhub_eq_letter: finnhubEqLetter,
-        sue_score: round(0.50 * round(surpriseConsistency) + 0.30 * round(dteScore) + 0.20 * beatRateScore, 1), // pre-ensemble SUE score
+        sue_score: eqCombined.score, // pre-ensemble SUE composite (null = EQ not computable)
         ensemble_agreement: eqEnsembleAgreement,
         confidence_modifier: eqConfidenceModifier,
       },
@@ -838,7 +868,7 @@ function scoreGrowth(input: ConvergenceInput): GrowthTrace {
 
   // --- Revenue growth (40%) ---
   const revGrowth = typeof metric['revenueGrowthTTMYoy'] === 'number' ? metric['revenueGrowthTTMYoy'] as number : null;
-  let revenueGrowthScore = 40; // penalty default — missing data
+  let revenueGrowthScore: number | null = null; // KILL-3: missing → excluded + renormalized
   if (revGrowth !== null) {
     if (revGrowth > 20) revenueGrowthScore = 90;
     else if (revGrowth > 10) revenueGrowthScore = 75;
@@ -849,7 +879,7 @@ function scoreGrowth(input: ConvergenceInput): GrowthTrace {
 
   // --- EPS growth (40%) ---
   const epsGrowth = typeof metric['epsGrowthTTMYoy'] === 'number' ? metric['epsGrowthTTMYoy'] as number : null;
-  let epsGrowthScore = 40; // penalty default — missing data
+  let epsGrowthScore: number | null = null; // KILL-3: missing → excluded + renormalized
   if (epsGrowth !== null) {
     if (epsGrowth > 25) epsGrowthScore = 90;
     else if (epsGrowth > 15) epsGrowthScore = 75;
@@ -860,7 +890,10 @@ function scoreGrowth(input: ConvergenceInput): GrowthTrace {
 
   // --- Dividend growth (20%) ---
   const divGrowth = typeof metric['dividendGrowthRate5Y'] === 'number' ? metric['dividendGrowthRate5Y'] as number : null;
-  let dividendGrowthScore = 40; // penalty default — missing data
+  // KILL-3: missing → excluded + renormalized. Note: non-dividend payers
+  // structurally lack dividendGrowthRate5Y and were systematically penalized
+  // 40 — now the growth score simply renormalizes over rev+EPS growth.
+  let dividendGrowthScore: number | null = null;
   if (divGrowth !== null) {
     if (divGrowth > 10) dividendGrowthScore = 85;
     else if (divGrowth > 5) dividendGrowthScore = 70;
@@ -868,16 +901,23 @@ function scoreGrowth(input: ConvergenceInput): GrowthTrace {
     else dividendGrowthScore = 35;
   }
 
-  const score = round(
-    0.40 * revenueGrowthScore + 0.40 * epsGrowthScore + 0.20 * dividendGrowthScore,
-    1,
-  );
+  // KILL-3 / EDGE-2 combiner: missing components excluded + renormalized
+  const growthCombined = combineWeighted([
+    { key: 'revenue', weight: 0.40, score: revenueGrowthScore },
+    { key: 'eps', weight: 0.40, score: epsGrowthScore },
+    { key: 'dividend', weight: 0.20, score: dividendGrowthScore },
+  ]);
+  const score = growthCombined.score;
 
-  const formula = `0.40*RevGrowth(${round(revenueGrowthScore)}) + 0.40*EPSGrowth(${round(epsGrowthScore)}) + 0.20*DivGrowth(${round(dividendGrowthScore)}) = ${score}`;
+  const fmtG = (v: number | null) => (v !== null ? String(round(v)) : 'EXCLUDED');
+  const formula = `0.40*RevGrowth(${fmtG(revenueGrowthScore)}) + 0.40*EPSGrowth(${fmtG(epsGrowthScore)}) + 0.20*DivGrowth(${fmtG(dividendGrowthScore)})${growthCombined.excludedKeys.length > 0 && score !== null ? ` [missing excluded, weights renormalized ÷${round(growthCombined.activeWeight, 2)}]` : ''} = ${score ?? 'EXCLUDED (no component data)'}`;
 
   return {
-    score: round(score),
+    score: score !== null ? round(score) : 0,
     weight: 0.15,
+    active_signal_count: growthCombined.activeCount,
+    total_signal_count: growthCombined.totalCount,
+    excluded_components: growthCombined.excludedKeys.map(k => `growth.${k}`),
     inputs: {
       revenue_growth_yoy: revGrowth,
       eps_growth_yoy: epsGrowth,
@@ -886,9 +926,9 @@ function scoreGrowth(input: ConvergenceInput): GrowthTrace {
     formula,
     notes: `RevGrowth=${revGrowth ?? 'N/A'}%, EPSGrowth=${epsGrowth ?? 'N/A'}%, DivGrowth=${divGrowth ?? 'N/A'}%`,
     sub_scores: {
-      revenue_growth_score: round(revenueGrowthScore),
-      eps_growth_score: round(epsGrowthScore),
-      dividend_growth_score: round(dividendGrowthScore),
+      revenue_growth_score: revenueGrowthScore !== null ? round(revenueGrowthScore) : null,
+      eps_growth_score: epsGrowthScore !== null ? round(epsGrowthScore) : null,
+      dividend_growth_score: dividendGrowthScore !== null ? round(dividendGrowthScore) : null,
     },
   };
 }
@@ -905,7 +945,7 @@ function scoreFundamentalRisk(input: ConvergenceInput): FundamentalRiskTrace {
 
   // --- Cash flow stability (40%) ---
   // Prefer quarterly financials (up to 40 quarters), then annual, then TTM sign check
-  let cashFlowStabilityScore = 40; // penalty default — missing data
+  let cashFlowStabilityScore: number | null = null; // KILL-3: missing → excluded + renormalized
   let cfSource = 'missing';
   let cfQuartersUsed = 0;
   let cfCoV: number | null = null;
@@ -981,7 +1021,7 @@ function scoreFundamentalRisk(input: ConvergenceInput): FundamentalRiskTrace {
 
   // --- Earnings predictability (35%) ---
   // StdDev of surprise percentages — same computation as computeSurpriseThreshold
-  let earningsPredictabilityScore = 40; // penalty default — missing or insufficient data
+  let earningsPredictabilityScore: number | null = null; // KILL-3: missing/insufficient → excluded + renormalized
   let epSource = 'missing';
 
   if (earnings.length >= 2) {
@@ -1000,7 +1040,7 @@ function scoreFundamentalRisk(input: ConvergenceInput): FundamentalRiskTrace {
 
   // --- Asset turnover (25%) — retained from original efficiency score ---
   const assetTurnover = typeof metric['assetTurnoverTTM'] === 'number' ? metric['assetTurnoverTTM'] as number : null;
-  let assetTurnoverScore = 40; // penalty default — missing data
+  let assetTurnoverScore: number | null = null; // KILL-3: missing → excluded + renormalized
   if (assetTurnover !== null) {
     if (assetTurnover > 1.5) assetTurnoverScore = 90;
     else if (assetTurnover > 1.0) assetTurnoverScore = 75;
@@ -1009,16 +1049,23 @@ function scoreFundamentalRisk(input: ConvergenceInput): FundamentalRiskTrace {
     else assetTurnoverScore = 30;
   }
 
-  const score = round(
-    0.40 * cashFlowStabilityScore + 0.35 * earningsPredictabilityScore + 0.25 * assetTurnoverScore,
-    1,
-  );
+  // KILL-3 / EDGE-2 combiner: missing components excluded + renormalized
+  const frCombined = combineWeighted([
+    { key: 'cash_flow_stability', weight: 0.40, score: cashFlowStabilityScore },
+    { key: 'earnings_predictability', weight: 0.35, score: earningsPredictabilityScore },
+    { key: 'asset_turnover', weight: 0.25, score: assetTurnoverScore },
+  ]);
+  const score = frCombined.score;
 
-  const formula = `0.40*CFStability(${round(cashFlowStabilityScore)}) + 0.35*EarnPredict(${round(earningsPredictabilityScore)}) + 0.25*AssetTurn(${round(assetTurnoverScore)}) = ${score}`;
+  const fmtF = (v: number | null) => (v !== null ? String(round(v)) : 'EXCLUDED');
+  const formula = `0.40*CFStability(${fmtF(cashFlowStabilityScore)}) + 0.35*EarnPredict(${fmtF(earningsPredictabilityScore)}) + 0.25*AssetTurn(${fmtF(assetTurnoverScore)})${frCombined.excludedKeys.length > 0 && score !== null ? ` [missing excluded, weights renormalized ÷${round(frCombined.activeWeight, 2)}]` : ''} = ${score ?? 'EXCLUDED (no component data)'}`;
 
   return {
-    score: round(score),
+    score: score !== null ? round(score) : 0,
     weight: 0.15,
+    active_signal_count: frCombined.activeCount,
+    total_signal_count: frCombined.totalCount,
+    excluded_components: frCombined.excludedKeys.map(k => `fundamentalRisk.${k}`),
     inputs: {
       cash_flow_stability: cfSource,
       earnings_predictability: epSource,
@@ -1027,9 +1074,9 @@ function scoreFundamentalRisk(input: ConvergenceInput): FundamentalRiskTrace {
     formula,
     notes: `CF: ${cfSource}, Earnings: ${epSource}, AssetTurn=${assetTurnover ?? 'N/A'}`,
     sub_scores: {
-      cash_flow_stability_score: round(cashFlowStabilityScore),
-      earnings_predictability_score: round(earningsPredictabilityScore),
-      asset_turnover_score: round(assetTurnoverScore),
+      cash_flow_stability_score: cashFlowStabilityScore !== null ? round(cashFlowStabilityScore) : null,
+      earnings_predictability_score: earningsPredictabilityScore !== null ? round(earningsPredictabilityScore) : null,
+      asset_turnover_score: assetTurnoverScore !== null ? round(assetTurnoverScore) : null,
     },
     cash_flow_detail: {
       cf_stability_source: cfSource.split(' ')[0], // "quarterly_financials" | "annual_financials" | "proxy_imputed" | "missing"
@@ -1048,21 +1095,47 @@ export function scoreQualityGate(input: ConvergenceInput): QualityGateResult {
   const growth = scoreGrowth(input);
   const fundamentalRisk = scoreFundamentalRisk(input);
 
+  // KILL-3: a section with ZERO computable components is EXCLUDED from the
+  // gate (weight → 0) and the remaining section weights renormalize —
+  // vol-edge exclusion precedent, never an imputed section score.
+  const sectionActive = (t: { active_signal_count?: number }) => (t.active_signal_count ?? 0) > 0;
+
   // Piotroski change-signal modifier on profitability (Schwartz & Hanauer 2024)
   // Level signals (1-4) already captured by ROE/ROA/FCF; change signals (5-9) are unique.
+  // Applied only when profitability actually computed from real data.
   const fScoreModifier = safety.piotroski.change_signals.modifier;
-  profitability.score = clamp(round(profitability.score + fScoreModifier, 1), 0, 100);
-  if (fScoreModifier !== 0) {
-    profitability.formula += ` → ${fScoreModifier > 0 ? '+' : ''}${fScoreModifier} (F-Score change signals) = ${profitability.score}`;
+  if (sectionActive(profitability)) {
+    profitability.score = clamp(round(profitability.score + fScoreModifier, 1), 0, 100);
+    if (fScoreModifier !== 0) {
+      profitability.formula += ` → ${fScoreModifier > 0 ? '+' : ''}${fScoreModifier} (F-Score change signals) = ${profitability.score}`;
+    }
   }
 
-  let score = round(
-    safety.weight * safety.score +
-    profitability.weight * profitability.score +
-    growth.weight * growth.score +
-    fundamentalRisk.weight * fundamentalRisk.score,
-    1,
-  );
+  const gateCombined = combineWeighted([
+    { key: 'safety', weight: 0.40, score: sectionActive(safety) ? safety.score : null },
+    { key: 'profitability', weight: 0.30, score: sectionActive(profitability) ? profitability.score : null },
+    { key: 'growth', weight: 0.15, score: sectionActive(growth) ? growth.score : null },
+    { key: 'fundamentalRisk', weight: 0.15, score: sectionActive(fundamentalRisk) ? fundamentalRisk.score : null },
+  ]);
+
+  // KILL-3 fail-loud: with zero real data across all four sections there is
+  // nothing honest to score. No imputation — throw; the pipeline's per-ticker
+  // catch declares the failure in errors[]. (Excluding the whole gate from the
+  // composite would need scan_snapshots.qualityScore nullable — a migration,
+  // flagged for Alex.)
+  if (gateCombined.score == null) {
+    throw new Error('Quality gate cannot compute: all four sections lack source data — no imputation (KILL-3)');
+  }
+
+  // Renormalized section weights written back onto the traces (vol-edge
+  // precedent): excluded sections show weight 0 + an EXCLUDED formula.
+  const renorm = (w: number, active: boolean) => (active ? round(w / gateCombined.activeWeight, 4) : 0);
+  safety.weight = renorm(0.40, sectionActive(safety));
+  profitability.weight = renorm(0.30, sectionActive(profitability));
+  growth.weight = renorm(0.15, sectionActive(growth));
+  fundamentalRisk.weight = renorm(0.15, sectionActive(fundamentalRisk));
+
+  let score = gateCombined.score;
 
   // MSPR bonus: latest insider sentiment month
   let msprAdjustment = 0;
@@ -1080,46 +1153,29 @@ export function scoreQualityGate(input: ConvergenceInput): QualityGateResult {
   }
   score = clamp(round(score + msprAdjustment, 1), 0, 100);
 
-  // Build DataConfidence
-  const tt = input.ttScanner;
-  const metric = input.finnhubFundamentals?.metric ?? {};
-  const imputedFields: string[] = [];
-  // Safety sub-scores
-  if (tt?.liquidityRating == null) imputedFields.push('safety.liquidity_rating');
-  if (tt?.marketCap == null) imputedFields.push('safety.market_cap');
-  if (input.candles.length < 20) imputedFields.push('safety.volume');
-  if (tt?.beta == null && typeof metric['beta'] !== 'number') imputedFields.push('safety.beta');
-  if (typeof metric['totalDebt/totalEquityQuarterly'] !== 'number') imputedFields.push('safety.debt_to_equity');
-  // Profitability sub-scores
-  if (typeof metric['grossMarginTTM'] !== 'number') imputedFields.push('profitability.gross_margin');
-  if (typeof metric['roeTTM'] !== 'number') imputedFields.push('profitability.roe');
-  if (typeof metric['roaTTM'] !== 'number') imputedFields.push('profitability.roa');
-  if (tt?.peRatio == null && typeof metric['peNormalizedAnnual'] !== 'number') imputedFields.push('profitability.pe_ratio');
-  if (profitability.inputs.fcf_source === 'N/A') imputedFields.push('profitability.fcf');
-  if (profitability.inputs.roic_source === 'N/A') imputedFields.push('profitability.roic');
-  if (typeof metric['psTTM'] !== 'number' && typeof metric['psAnnual'] !== 'number') imputedFields.push('profitability.ps');
-  if (typeof metric['evEbitdaTTM'] !== 'number' && typeof metric['evEbitdaAnnual'] !== 'number') imputedFields.push('profitability.ev_ebitda');
-  if (input.finnhubEarnings.length === 0) imputedFields.push('profitability.earnings_consistency');
-  if (tt?.daysTillEarnings == null) imputedFields.push('profitability.earnings_dte');
-  if (safety.piotroski.change_signals.computable_count === 0) imputedFields.push('profitability.fscore_change_signals');
-  // Growth sub-scores
-  if (typeof metric['revenueGrowthTTMYoy'] !== 'number') imputedFields.push('growth.revenue');
-  if (typeof metric['epsGrowthTTMYoy'] !== 'number') imputedFields.push('growth.eps');
-  if (typeof metric['dividendGrowthRate5Y'] !== 'number') imputedFields.push('growth.dividend');
-  // Fundamental risk sub-scores
-  const af = input.annualFinancials;
-  const hasCfData = af?.currentYear?.operatingCashFlow != null && af?.priorYear?.operatingCashFlow != null;
-  const hasFcfTTM = typeof metric['freeCashFlowPerShareTTM'] === 'number';
-  if (!hasCfData && !hasFcfTTM) imputedFields.push('fundamentalRisk.cash_flow_stability');
-  if (input.finnhubEarnings.length < 2) imputedFields.push('fundamentalRisk.earnings_predictability');
-  if (typeof metric['assetTurnoverTTM'] !== 'number') imputedFields.push('fundamentalRisk.asset_turnover');
+  // Build DataConfidence — KILL-3: derived from the traces' actual exclusions
+  // (no drift). Nothing is imputed anymore: a missing component is EXCLUDED
+  // and the weights renormalized, so imputed_fields is empty and
+  // excluded_fields carries the full missing list.
+  const excludedFields: string[] = [
+    ...(safety.excluded_components ?? []),
+    ...(profitability.excluded_components ?? []),
+    ...(growth.excluded_components ?? []),
+    ...(fundamentalRisk.excluded_components ?? []),
+  ];
 
-  const totalSubScores = 5 + 10 + 3 + 3; // safety(5 main) + profitability(10: 6 margin/return/valuation + 1 fcf + 3 earnings) + growth(3) + fundamentalRisk(3)
+  // safety(6) + profitability(11: 8 components + 3 EQ internals) + growth(3)
+  // + fundamentalRisk(3). Was 21 with lendability untracked — the favorable
+  // 60 imputation was invisible to confidence; now counted.
+  const totalSubScores = 6 + 11 + 3 + 3;
   const dataConfidence: DataConfidence = {
     total_sub_scores: totalSubScores,
-    imputed_sub_scores: imputedFields.length,
-    confidence: round(1 - imputedFields.length / totalSubScores, 4),
-    imputed_fields: imputedFields,
+    imputed_sub_scores: excludedFields.length,
+    confidence: round(1 - excludedFields.length / totalSubScores, 4),
+    imputed_fields: [],
+    excluded_fields: excludedFields,
+    // "computed from N/M signals"
+    active_signal_count: totalSubScores - excludedFields.length,
   };
 
   return {
