@@ -14,11 +14,11 @@
 
 ## FINAL CENSUS RECONCILIATION — the violations column
 
-**145 total census violations → 111 closed by KILL-1..5 (69 pattern + all 42 silent catches) → 34 REMAIN**, each below (none silently dropped):
+**145 total census violations → 123 closed by KILL-1..6 (81 pattern + all 42 silent catches) → 22 REMAIN** (updated by KILL-6), each below (none silently dropped):
 
 | Remaining cluster | Sites | What it is |
 |---|---|---|
-| vol-edge.ts (12) | :270, :276, :282, :452, :610, :703, :768, :784, :875, :930, :940, :1024 | the penalty-40s on missing IVP / IV-HV / HV-accel / term-structure / sanitized-candles / 52-week data; skew+GEX neutral-50s when the chain is present but unusable; the `treasury10y ?? 4.5` risk-free rate in GEX. Needs a KILL-3-style component conversion of vol-edge (its own PR — same size as KILL-3) |
+| ~~vol-edge.ts (12)~~ **CLOSED by KILL-6** | :270, :276, :282, :452, :610, :703, :768, :784, :875, :930, :940, :1024 | all 12 converted to null → excluded → renormalized (see audit-reports/KILL-6-vol-edge-audit.md); the GEX rate now consumes the real fetched DGS10 or excludes |
 | backtest/simulate route (7) | :79-:83, :87, :88 | missing backtester fields become $0 prices/P&L presented as results — backtest surface rework, own PR |
 | data-fetchers.ts (7) | :1011, :1382, :2060, :2181, :2190, :2191, :2193 | insider `transactionDate ?? 'unknown'` corrupting date-max; missing headline imputed neutral into sentiment; candle `time \|\| 0` (1970 candle), high/low imputed as open, volume imputed 0 |
 | quotes route (4) | :50, :51, :52, :60 | `\|\| 0` quote parse; one-sided quotes silently halve the mid |

@@ -524,7 +524,7 @@ export interface MispricingTrace extends SubScoreTrace {
   iv_composite: {
     iv_rank: number | null;
     iv_percentile: number | null;
-    iv_composite_score: number;
+    iv_composite_score: number | null; // KILL-6: null = IVP and IVR both missing
     iv_composite_method: string;
     high_conviction_iv: boolean;
     vol_regime: 'POST_SPIKE' | 'SPIKE_BUILDING' | 'NORMAL';
@@ -542,12 +542,13 @@ export interface TermStructureTrace extends SubScoreTrace {
 }
 
 export interface TechnicalsTrace extends SubScoreTrace {
+  // KILL-6: null = component/section source data missing → excluded + renormalized
   sub_scores: {
-    rsi_score: number;
-    trend_score: number;
-    bollinger_score: number;
-    volume_score: number;
-    high52w_score: number;
+    rsi_score: number | null;
+    trend_score: number | null;
+    bollinger_score: number | null;
+    volume_score: number | null;
+    high52w_score: number | null;
   };
   indicators: {
     rsi_14: number | null;
