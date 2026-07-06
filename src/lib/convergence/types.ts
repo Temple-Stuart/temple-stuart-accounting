@@ -12,9 +12,11 @@ export interface CandleData {
 
 export interface TTScannerData {
   symbol: string;
-  ivRank: number;
-  ivPercentile: number;
-  impliedVolatility: number;
+  // KILL-2: null = the source did not deliver the field (absent/unparseable).
+  // Never imputed as 0 — a true source 0 is preserved as 0.
+  ivRank: number | null;
+  ivPercentile: number | null;
+  impliedVolatility: number | null;
   liquidityRating: number | null;
   earningsDate: string | null;
   daysTillEarnings: number | null;
@@ -218,10 +220,12 @@ export interface OptionsChainStrike {
   strike: number;
   callIV: number | null;
   putIV: number | null;
-  callOI: number;
-  putOI: number;
-  callVolume: number;
-  putVolume: number;
+  // KILL-2: null = the feed delivered no volume/OI for this contract —
+  // never counted as a real 0 in flow totals (a true source 0 stays 0).
+  callOI: number | null;
+  putOI: number | null;
+  callVolume: number | null;
+  putVolume: number | null;
 }
 
 export interface OptionsChainExpiration {
@@ -241,6 +245,10 @@ export interface OptionsFlowData {
   strikes_analyzed: number;
   high_activity_strikes: number;
   expirations_analyzed: number;
+  // KILL-2 coverage declaration: how many per-contract volume/OI fields the
+  // feed did NOT deliver (those are excluded from the totals above, never 0).
+  volume_fields_missing: number;
+  oi_fields_missing: number;
   underlyingPrice: number | null;
   chainDetail: OptionsChainExpiration[];
 }

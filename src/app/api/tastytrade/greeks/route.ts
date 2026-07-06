@@ -4,6 +4,7 @@ import { getAuthenticatedClient } from '@/lib/tastytrade';
 import { MarketDataSubscriptionType } from '@tastytrade/api';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireAdmin } from '@/lib/require-admin';
+import { numOrNull, firstNumOrNull } from '@/lib/parse-num';
 
 export async function POST(request: Request) {
   try {
@@ -51,28 +52,30 @@ export async function POST(request: Request) {
 
         if (!data[sym]) data[sym] = {};
 
+        // KILL-2: absent/unparseable (incl. DXFeed "NaN") → null, never 0.
+        // A true source 0 stays 0.
         if (type === 'Greeks') {
           greeksReceived++;
           Object.assign(data[sym], {
-            iv: Number(evt['volatility'] || 0),
-            delta: Number(evt['delta'] || 0),
-            gamma: Number(evt['gamma'] || 0),
-            theta: Number(evt['theta'] || 0),
-            vega: Number(evt['vega'] || 0),
-            rho: Number(evt['rho'] || 0),
-            theoPrice: Number(evt['price'] || 0),
+            iv: numOrNull(evt['volatility']),
+            delta: numOrNull(evt['delta']),
+            gamma: numOrNull(evt['gamma']),
+            theta: numOrNull(evt['theta']),
+            vega: numOrNull(evt['vega']),
+            rho: numOrNull(evt['rho']),
+            theoPrice: numOrNull(evt['price']),
           });
         } else if (type === 'Quote') {
           Object.assign(data[sym], {
-            bid: Number(evt['bidPrice'] || 0),
-            ask: Number(evt['askPrice'] || 0),
-            bidSize: Number(evt['bidSize'] || 0),
-            askSize: Number(evt['askSize'] || 0),
+            bid: numOrNull(evt['bidPrice']),
+            ask: numOrNull(evt['askPrice']),
+            bidSize: numOrNull(evt['bidSize']),
+            askSize: numOrNull(evt['askSize']),
           });
         } else if (type === 'Trade') {
-          data[sym].volume = Number(evt['dayVolume'] || evt['volume'] || 0);
+          data[sym].volume = firstNumOrNull(evt['dayVolume'], evt['volume']);
         } else if (type === 'Summary') {
-          data[sym].openInterest = Number(evt['openInterest'] || 0);
+          data[sym].openInterest = numOrNull(evt['openInterest']);
         }
       }
     });

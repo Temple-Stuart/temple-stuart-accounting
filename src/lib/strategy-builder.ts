@@ -2,6 +2,7 @@
 // No API calls; purely computes from chain + Greeks data
 
 import { probAbove, probBetween } from './convergence/probability';
+import { numOrNull } from './parse-num';
 
 // ─── Math Utilities ─────────────────────────────────────────────────
 
@@ -423,10 +424,16 @@ function makeLeg(
   const ask = type === 'call' ? strike.callAsk : strike.putAsk;
   const price = side === 'sell' ? bid : ask;
   if (price == null || price <= 0) return null;
-  const delta = (type === 'call' ? strike.callDelta : strike.putDelta) ?? 0;
-  const gamma = (type === 'call' ? strike.callGamma : strike.putGamma) ?? 0;
-  const theta = (type === 'call' ? strike.callTheta : strike.putTheta) ?? 0;
-  const vega = (type === 'call' ? strike.callVega : strike.putVega) ?? 0;
+  // KILL-2: a leg without complete greeks from the feed cannot be built —
+  // greeks feed delta strike-selection, delta PoP (Gate B), the three-outcome
+  // EV deltas, and thetaEff in composite ranking. They are NEVER imputed as 0
+  // (an imputed 0 delta inflated credit PoP and could even win low-delta
+  // strike selection). Missing → leg dead, declared in generateStrategies.
+  const delta = type === 'call' ? strike.callDelta : strike.putDelta;
+  const gamma = type === 'call' ? strike.callGamma : strike.putGamma;
+  const theta = type === 'call' ? strike.callTheta : strike.putTheta;
+  const vega = type === 'call' ? strike.callVega : strike.putVega;
+  if (delta == null || gamma == null || theta == null || vega == null) return null;
 
   return {
     type,
@@ -729,6 +736,21 @@ export function generateStrategies(params: GenerateParams): GenerateResult {
   ).length;
   if (droppedNoLiveQuote > 0) {
     rejections.push({ strategy: 'all', reason: `${droppedNoLiveQuote} strikes skipped: no live bid+ask (missing_live_quote)`, gate: 'construction' });
+  }
+
+  // KILL-2: declare, don't silently shrink (same surface as missing_live_quote).
+  // A live-quoted side whose greeks are incomplete has its legs excluded by
+  // makeLeg — missing greeks are never imputed as 0.
+  const sideGreeksIncomplete = (s: StrikeData, side: 'call' | 'put') =>
+    side === 'call'
+      ? (s.callDelta == null || s.callGamma == null || s.callTheta == null || s.callVega == null)
+      : (s.putDelta == null || s.putGamma == null || s.putTheta == null || s.putVega == null);
+  const droppedIncompleteGreeks = strikes.filter(s =>
+    (s.callBid != null && s.callAsk != null && sideGreeksIncomplete(s, 'call')) ||
+    (s.putBid != null && s.putAsk != null && sideGreeksIncomplete(s, 'put'))
+  ).length;
+  if (droppedIncompleteGreeks > 0) {
+    rejections.push({ strategy: 'all', reason: `${droppedIncompleteGreeks} live-quoted strike(s) lacked complete greeks from the feed — those legs excluded from construction (missing_greeks, never imputed as 0)`, gate: 'construction' });
   }
 
   const noGreeks = strikes.filter(s => s.callDelta == null && s.putDelta == null).length;
@@ -1206,15 +1228,22 @@ export function buildCustomCard(
     if (price == null || price <= 0) continue;
     const midVal = bid != null && ask != null ? (ask + bid) / 2 : 0;
     const wide = midVal > 0 ? (ask! - bid!) / midVal > 0.50 : false;
+    // KILL-2: same rule as makeLeg — a leg without complete greeks cannot be
+    // built; the whole custom card fails rather than carrying imputed-0 greeks.
+    const delta = numOrNull(g.delta);
+    const gamma = numOrNull(g.gamma);
+    const theta = numOrNull(g.theta);
+    const vega = numOrNull(g.vega);
+    if (delta == null || gamma == null || theta == null || vega == null) return null;
     legs.push({
       type: cl.type,
       side: cl.side,
       strike: cl.strike,
       price,
-      delta: cl.side === 'sell' ? -(g.delta ?? 0) : (g.delta ?? 0),
-      gamma: cl.side === 'sell' ? -(g.gamma ?? 0) : (g.gamma ?? 0),
-      theta: cl.side === 'sell' ? -(g.theta ?? 0) : (g.theta ?? 0),
-      vega: cl.side === 'sell' ? -(g.vega ?? 0) : (g.vega ?? 0),
+      delta: cl.side === 'sell' ? -delta : delta,
+      gamma: cl.side === 'sell' ? -gamma : gamma,
+      theta: cl.side === 'sell' ? -theta : theta,
+      vega: cl.side === 'sell' ? -vega : vega,
       wideSpread: wide,
     });
   }

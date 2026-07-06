@@ -287,7 +287,13 @@ export async function GET(request: Request) {
     : null;
   const currentPrice = latestCandle?.close ?? 0;
 
-  if (currentPrice > 0 && ttScannerResult.data) {
+  // KILL-2: a missing IV rank is null at the parse boundary now — it cannot
+  // select the vol-regime strategy menu, so the chain section is skipped and
+  // declared (never an imputed rank).
+  if (currentPrice > 0 && ttScannerResult.data && ttScannerResult.data.ivRank == null) {
+    chainRejections = [{ strategy: 'all', reason: 'IV rank unavailable from market-metrics — chain/trade-card build skipped (no imputed rank)', gate: 'construction' }];
+  }
+  if (currentPrice > 0 && ttScannerResult.data && ttScannerResult.data.ivRank != null) {
     try {
       // TT scanner returns iv30/hv30 as percentages (e.g. 27.16 for 27.16%)
       // Chain fetcher / strategy builder expects decimals (e.g. 0.2716)
