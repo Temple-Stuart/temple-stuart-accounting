@@ -32,6 +32,7 @@ export async function GET() {
     const accountNumbers = connection?.accountNumbers || [];
 
     const balances: any[] = [];
+    const failedAccounts: { account: string; error: string }[] = [];
 
     for (const acct of accountNumbers) {
       try {
@@ -46,10 +47,13 @@ export async function GET() {
         });
       } catch (err: any) {
         console.error(`[Tastytrade] Failed to fetch balances for ${acct}:`, err?.message);
+        // KILL-4: the failed account is DECLARED in the response — a missing
+        // account must not silently vanish from a 200.
+        failedAccounts.push({ account: acct, error: err?.message ?? 'unknown error' });
       }
     }
 
-    return NextResponse.json({ balances });
+    return NextResponse.json({ balances, failed_accounts: failedAccounts });
   } catch (error: any) {
     console.error('[Tastytrade] Balances error:', error);
     return NextResponse.json({ error: 'Failed to fetch balances' }, { status: 500 });

@@ -115,6 +115,9 @@ export interface FinnhubEstimateData {
   revenueEstimates: FinnhubRevenueEstimate[];
   priceTarget: FinnhubPriceTarget | null;
   upgradeDowngrade: FinnhubUpgradeDowngrade[];
+  // KILL-4 failure channel: sub-feed fetch/HTTP/parse failures — an empty
+  // array with an entry here means "feed unavailable", not "no estimates".
+  feedErrors?: string[];
 }
 
 export interface FredMacroData {

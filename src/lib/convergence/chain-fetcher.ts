@@ -63,6 +63,10 @@ export interface ChainFetchResult {
   marketOpen: boolean;
   marketNote?: string;
   optionsFlowMap: Map<string, OptionsFlowData>;
+  // KILL-4: a fatal chain-fetch failure (auth, streamer, chain API) is a
+  // TYPED failure — an empty result with this set means "fetch FAILED",
+  // never "no strategies passed". Callers must declare it.
+  fatal_error: string | null;
 }
 
 // ===== HELPERS =====
@@ -127,7 +131,7 @@ export async function fetchChainAndBuildCards(
 
   if (tickers.length === 0) {
     stats.elapsed_ms = Date.now() - start;
-    return { cards, rejections, stats, perTickerStats, marketOpen, marketNote, optionsFlowMap };
+    return { cards, rejections, stats, perTickerStats, marketOpen, marketNote, optionsFlowMap, fatal_error: null };
   }
 
   try {
@@ -249,7 +253,7 @@ export async function fetchChainAndBuildCards(
     if (allStreamerSymbols.length === 0) {
       console.warn('[ChainFetcher] No streamer symbols to subscribe to');
       stats.elapsed_ms = Date.now() - start;
-      return { cards, rejections, stats, perTickerStats, marketOpen, marketNote, optionsFlowMap };
+      return { cards, rejections, stats, perTickerStats, marketOpen, marketNote, optionsFlowMap, fatal_error: null };
     }
 
     stats.streamer_symbols_subscribed = allStreamerSymbols.length;
@@ -451,7 +455,17 @@ export async function fetchChainAndBuildCards(
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         console.error(`[ChainFetcher] ${ticker.symbol}: Strategy generation failed:`, msg);
+        // KILL-4: the empty card list must carry a failure marker — an
+        // exception is not "no strategies passed". Declared on the existing
+        // rejections surface.
         cards.set(ticker.symbol, []);
+        const existing = rejections.get(ticker.symbol) ?? [];
+        existing.push({
+          strategy: 'all',
+          reason: `strategy generation FAILED: ${msg} — empty card list is a failure, not "no strategies passed"`,
+          gate: 'construction',
+        });
+        rejections.set(ticker.symbol, existing);
       }
     }
 
@@ -545,12 +559,14 @@ export async function fetchChainAndBuildCards(
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error('[ChainFetcher] Fatal error:', msg);
-    // Return empty map — pipeline continues without trade cards
+    // KILL-4: the pipeline still continues without trade cards, but the
+    // result is no longer success-shaped — fatal_error is set and the
+    // caller DECLARES it (errors[] + data_gaps).
     stats.elapsed_ms = Date.now() - start;
-    return { cards, rejections, stats, perTickerStats, marketOpen, marketNote, optionsFlowMap };
+    return { cards, rejections, stats, perTickerStats, marketOpen, marketNote, optionsFlowMap, fatal_error: msg };
   }
 
   stats.elapsed_ms = Date.now() - start;
   console.log(`[ChainFetcher] Complete in ${stats.elapsed_ms}ms: ${stats.chain_symbols_fetched} chains, ${stats.total_trade_cards} cards`);
-  return { cards, rejections, stats, perTickerStats, marketOpen, marketNote, optionsFlowMap };
+  return { cards, rejections, stats, perTickerStats, marketOpen, marketNote, optionsFlowMap, fatal_error: null };
 }
