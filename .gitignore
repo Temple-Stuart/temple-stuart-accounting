@@ -77,4 +77,5 @@ discover-schema.sh
 # Internal audit artifacts — NOT for the public repo (internal reasoning + file:line
 # codebase map + entity UUIDs). Untracked PR-2; local copies kept on disk.
 audits/
-audit-reports/
+# audit-reports/ is TRACKED: CLAUDE.md mandates committing read-only audits there
+# as the SOC 2 paper trail (unignored in KILL-1; was silently blocking the audits).

@@ -66,6 +66,9 @@ export async function POST(request: NextRequest) {
     let committed = 0;
     let skipped = 0;
     const errors: string[] = [];
+    // KILL-1: trades skipped because a CLOSED leg has no close_date — declared,
+    // never committed on a substitute date.
+    const skippedMissingCloseDate: { trade_num: number; symbol: string }[] = [];
 
     for (const tradeNum of tradeNums) {
       try {
@@ -109,12 +112,28 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Get close date (latest across legs)
-        const closeDate = positions.reduce<Date | null>((latest, p) => {
-          if (!p.close_date) return latest;
-          if (!latest || p.close_date > latest) return p.close_date;
-          return latest;
-        }, null) || new Date();
+        // KILL-1: the journal entry date is the trade's REAL close date (latest
+        // close_date across legs) — the same convention as every other ledger
+        // writer (stock-lots/commit dates JEs with the real sale date). If any
+        // CLOSED leg has no close_date, the trade's close date is unknowable:
+        // SKIP and DECLARE. Never date a ledger entry with "now", the open
+        // date, or any other substitute — a fabricated date also corrupts the
+        // assertPeriodOpen check below.
+        const legsMissingCloseDate = positions.filter(p => p.close_date == null);
+        if (legsMissingCloseDate.length > 0) {
+          skipped++;
+          skippedMissingCloseDate.push({ trade_num: tradeNum, symbol: positions[0].symbol });
+          errors.push(
+            `Trade #${tradeNum} (${positions[0].symbol}): skipped — ${legsMissingCloseDate.length} CLOSED leg(s) missing close_date; not committed (no date is fabricated)`,
+          );
+          continue;
+        }
+
+        // Latest real close_date across legs (all non-null past the guard,
+        // and positions.length > 0 is guaranteed above)
+        const closeDate = positions
+          .map(p => p.close_date as Date)
+          .reduce((latest, d) => (d > latest ? d : latest));
 
         // Build description from first position
         const symbol = positions[0].symbol;
@@ -206,7 +225,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ committed, skipped, errors });
+    return NextResponse.json({ committed, skipped, skipped_missing_close_date: skippedMissingCloseDate, errors });
   } catch (error) {
     console.error('Trade commit API error:', error);
     const message = error instanceof Error ? error.message : 'Internal server error';
