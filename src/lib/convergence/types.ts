@@ -492,6 +492,11 @@ export interface SubScoreTrace {
   inputs: Record<string, number | string | boolean | null>;
   formula: string;
   notes: string;
+  // KILL-3: N/M declaration — components actually computed from real data vs
+  // total, and which were EXCLUDED (missing source → dropped + renormalized).
+  active_signal_count?: number;
+  total_signal_count?: number;
+  excluded_components?: string[];
 }
 
 // -- Vol Edge --
@@ -591,13 +596,14 @@ export interface VolEdgeResult {
 // -- Quality Gate --
 
 export interface SafetyTrace extends SubScoreTrace {
+  // KILL-3: null = source data missing → component EXCLUDED + renormalized
   sub_scores: {
-    liquidity_rating_score: number;
-    market_cap_score: number;
-    volume_score: number;
-    lendability_score: number;
-    beta_score: number;
-    debt_to_equity_score: number;
+    liquidity_rating_score: number | null;
+    market_cap_score: number | null;
+    volume_score: number | null;
+    lendability_score: number | null;
+    beta_score: number | null;
+    debt_to_equity_score: number | null;
   };
   piotroski: {
     available_signals: number;
@@ -624,7 +630,8 @@ export interface SafetyTrace extends SubScoreTrace {
   borrow_rate_adjustment: {
     borrow_rate: number | null;
     penalty: number;
-    score_before_penalty: number;
+    // KILL-3: null when the whole safety section had no component data
+    score_before_penalty: number | null;
   };
   revenue_concentration?: {
     hhi: number | null;
@@ -635,20 +642,21 @@ export interface SafetyTrace extends SubScoreTrace {
 }
 
 export interface ProfitabilityTrace extends SubScoreTrace {
+  // KILL-3: null = source data missing → component EXCLUDED + renormalized
   sub_scores: {
-    gross_margin_score: number;
-    roe_score: number;
-    roa_score: number;
-    roic_score: number;
-    pe_score: number;
-    ps_score: number;
-    ev_ebitda_score: number;
-    fcf_score: number;
+    gross_margin_score: number | null;
+    roe_score: number | null;
+    roa_score: number | null;
+    roic_score: number | null;
+    pe_score: number | null;
+    ps_score: number | null;
+    ev_ebitda_score: number | null;
+    fcf_score: number | null;
   };
   earnings_quality: {
-    surprise_consistency: number;
-    dte_score: number;
-    beat_rate: number;
+    surprise_consistency: number | null;
+    dte_score: number | null;
+    beat_rate: number | null;
     earnings_detail: {
       total_quarters: number;
       beats: number;
@@ -660,7 +668,7 @@ export interface ProfitabilityTrace extends SubScoreTrace {
     earnings_quality_ensemble?: {
       finnhub_eq_score: number | null;
       finnhub_eq_letter: string | null;
-      sue_score: number;
+      sue_score: number | null;
       ensemble_agreement: 'agree' | 'disagree' | 'unavailable';
       confidence_modifier: number;
     };
@@ -684,18 +692,20 @@ export interface EarningsQualityTrace extends SubScoreTrace {
 }
 
 export interface GrowthTrace extends SubScoreTrace {
+  // KILL-3: null = source data missing → component EXCLUDED + renormalized
   sub_scores: {
-    revenue_growth_score: number;
-    eps_growth_score: number;
-    dividend_growth_score: number;
+    revenue_growth_score: number | null;
+    eps_growth_score: number | null;
+    dividend_growth_score: number | null;
   };
 }
 
 export interface FundamentalRiskTrace extends SubScoreTrace {
+  // KILL-3: null = source data missing → component EXCLUDED + renormalized
   sub_scores: {
-    cash_flow_stability_score: number;
-    earnings_predictability_score: number;
-    asset_turnover_score: number;
+    cash_flow_stability_score: number | null;
+    earnings_predictability_score: number | null;
+    asset_turnover_score: number | null;
   };
   cash_flow_detail?: {
     cf_stability_source: string;
@@ -735,13 +745,16 @@ export interface RegimeResult {
   breakdown: {
     growth_signal: {
       score: number;
+      // KILL-3: N/M declaration; null sub-score = series missing → excluded
+      active_signal_count?: number;
+      total_signal_count?: number;
       sub_scores: {
-        gdp_score: number;
-        unemployment_score: number;
-        nfp_score: number;
-        consumer_confidence_score: number;
-        icsa_score: number;
-        nfci_score: number;
+        gdp_score: number | null;
+        unemployment_score: number | null;
+        nfp_score: number | null;
+        consumer_confidence_score: number | null;
+        icsa_score: number | null;
+        nfci_score: number | null;
       };
       raw_values: {
         gdp: number | null;
@@ -755,12 +768,15 @@ export interface RegimeResult {
     };
     inflation_signal: {
       score: number;
+      // KILL-3: N/M declaration; null sub-score = series missing → excluded
+      active_signal_count?: number;
+      total_signal_count?: number;
       sub_scores: {
-        cpi_yoy_score: number;
-        cpi_mom_score: number;
-        fed_funds_score: number;
-        treasury_10y_score: number;
-        breakeven_5y_score: number;
+        cpi_yoy_score: number | null;
+        cpi_mom_score: number | null;
+        fed_funds_score: number | null;
+        treasury_10y_score: number | null;
+        breakeven_5y_score: number | null;
       };
       raw_values: {
         cpi_yoy: number | null;

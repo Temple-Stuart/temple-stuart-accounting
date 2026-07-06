@@ -1301,7 +1301,13 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
     if (!input.edgar8kScan) {
       return null; // no 8-K data — excluded, weights re-normalize
     }
-    const count = input.edgar8kScan.totalHits ?? 0;
+    // KILL-3: an unparseable hit count (fetcher sets totalHits null) is NOT
+    // "0 material events" — that imputation scored the MOST bullish tier (65).
+    // Missing → excluded + renormalized like the absent-scan case above.
+    const count = input.edgar8kScan.totalHits;
+    if (count == null) {
+      return null; // hit count unparseable — excluded, weights re-normalize
+    }
     let s: number;
     if (count === 0) s = 65;
     else if (count <= 2) s = 50;

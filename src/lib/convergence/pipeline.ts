@@ -1368,6 +1368,10 @@ export async function runPipeline(
           },
           mspr_adjustment: scoring.quality.mspr_adjustment,
           data_confidence: scoring.quality.data_confidence.confidence,
+          // KILL-3: how many quality sub-scores were computed from real data
+          // (the rest were excluded and the weights re-normalized).
+          active_signal_count: scoring.quality.data_confidence.active_signal_count ?? null,
+          total_signal_count: scoring.quality.data_confidence.total_sub_scores,
         } : null,
         regime_detail: scoring ? {
           dominant_regime: scoring.regime.breakdown.dominant_regime,
@@ -1386,6 +1390,10 @@ export async function runPipeline(
             vix: scoring.regime.breakdown.vix_overlay.vix,
           },
           data_confidence: scoring.regime.data_confidence.confidence,
+          // KILL-3: how many regime signals were computed from real data
+          // (the rest were excluded and the weights re-normalized).
+          active_signal_count: scoring.regime.data_confidence.active_signal_count ?? null,
+          total_signal_count: scoring.regime.data_confidence.total_sub_scores,
           yield_curve_spread: scoring.regime.breakdown.regime_signals.yield_curve_spread ?? null,
           hy_spread: scoring.regime.breakdown.regime_signals.hy_spread ?? null,
           cross_asset_available: scoring.regime.breakdown.cross_asset_correlations != null,
