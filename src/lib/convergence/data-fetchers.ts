@@ -1,3 +1,4 @@
+import { numOrNull } from '@/lib/parse-num';
 import type {
   CandleData,
   FinnhubFundamentals,
@@ -1053,17 +1054,28 @@ export async function fetchInsiderTransactions(
 
     // Map Finnhub transactions to SECForm4Transaction[]
     const transactions: SECForm4Transaction[] = [];
+    let txSkippedNoDate = 0; // KILL-7: declared on the result
     for (const tx of rawTxs) {
       const code = (tx.transactionCode ?? '').toUpperCase();
       const change = tx.change ?? 0;
       if (change === 0) continue;
+
+      // KILL-7: a transaction with NO date (neither transaction nor filing
+      // date) cannot be temporally aggregated — the old 'unknown' string
+      // corrupted the latestTransactionDate max ('u' sorts above every ISO
+      // date). Excluded + declared, never a placeholder.
+      const txDate = tx.transactionDate ?? tx.filingDate ?? null;
+      if (txDate == null) {
+        txSkippedNoDate++;
+        continue;
+      }
 
       const price = tx.transactionPrice != null && tx.transactionPrice > 0 ? tx.transactionPrice : null;
       const shares = Math.abs(change);
 
       transactions.push({
         filerName: tx.name ?? 'Unknown',
-        transactionDate: tx.transactionDate ?? tx.filingDate ?? 'unknown',
+        transactionDate: txDate,
         transactionType: code,
         sharesTraded: shares,
         pricePerShare: price,
@@ -1162,7 +1174,13 @@ export async function fetchInsiderTransactions(
     };
 
     insiderTxCache.set(symbol, { data: result, fetchedAt: Date.now() });
-    return { data: result, error: null };
+    return {
+      data: result,
+      // KILL-7: dateless transactions are excluded from aggregation — declared
+      error: txSkippedNoDate > 0
+        ? `insider-transactions PARTIAL: ${txSkippedNoDate} transaction(s) excluded — no transaction/filing date (never placeholder-dated)`
+        : null,
+    };
   } catch (e: unknown) {
     return { data: null, error: `insider-transactions: ${e instanceof Error ? e.message : String(e)}` };
   }
@@ -1442,9 +1460,12 @@ function parseForm4Xml(xml: string): SECForm4Transaction[] {
     // but include all types in the data for completeness
     const txType = codeStr.toUpperCase();
 
+    // KILL-7: no date → transaction excluded (the 'unknown' string corrupted
+    // date-max aggregation); this deprecated path has no in-repo callers.
+    if (transactionDate == null) continue;
     transactions.push({
       filerName,
-      transactionDate: transactionDate ?? 'unknown',
+      transactionDate,
       transactionType: txType,
       sharesTraded: Math.abs(shares),
       pricePerShare: price !== null && !isNaN(price) ? price : null,
@@ -2146,8 +2167,16 @@ export async function fetchNewsSentiment(
     const allHeadlines: NewsHeadlineEntry[] = [];
     const sourceDistribution: Record<string, number> = {};
 
-    function classifyArticle(article: RawArticle): NewsHeadlineEntry {
+    // KILL-7: an article with NO headline cannot be classified — it was
+    // imputed as 'neutral' with confidence 1.0, diluting the sentiment score.
+    // Skipped + counted, never classified from nothing.
+    let articlesSkippedNoHeadline = 0;
+    function classifyArticle(article: RawArticle): NewsHeadlineEntry | null {
       const headline = article.headline || '';
+      if (headline.trim() === '') {
+        articlesSkippedNoHeadline++;
+        return null;
+      }
       const source = article.source || '';
       const datetime = article.datetime || 0;
       const url = article.url || '';
@@ -2157,6 +2186,7 @@ export async function fetchNewsSentiment(
 
     for (const article of articles7dRaw) {
       const entry = classifyArticle(article);
+      if (!entry) continue;
       headlines7d.push(entry);
       allHeadlines.push(entry);
       sourceDistribution[entry.source] = (sourceDistribution[entry.source] || 0) + 1;
@@ -2164,6 +2194,7 @@ export async function fetchNewsSentiment(
 
     for (const article of articles8_30dRaw) {
       const entry = classifyArticle(article);
+      if (!entry) continue;
       headlines8_30d.push(entry);
       allHeadlines.push(entry);
       sourceDistribution[entry.source] = (sourceDistribution[entry.source] || 0) + 1;
@@ -2216,6 +2247,7 @@ export async function fetchNewsSentiment(
       tier1_ratio: tier1Ratio,
       headlines: allHeadlines,
       classification_method: 'finnhub-native',
+      articles_skipped_no_headline: articlesSkippedNoHeadline,
     };
 
     return { data: result, error: null };
@@ -2231,6 +2263,9 @@ export interface CandleBatchStats {
   symbols_with_data: number;
   symbols_failed: string[];
   elapsed_ms: number;
+  // KILL-7: bars the feed sent without time/high/low/volume — skipped, never
+  // patched with fabricated fields (declared, was silently imputed before)
+  malformed_candles: number;
 }
 
 export async function fetchTTCandlesBatch(
@@ -2239,7 +2274,7 @@ export async function fetchTTCandlesBatch(
 ): Promise<{ data: Map<string, CandleData[]>; stats: CandleBatchStats }> {
   const start = Date.now();
   const data = new Map<string, CandleData[]>();
-  const stats: CandleBatchStats = { total_candles: 0, symbols_with_data: 0, symbols_failed: [], elapsed_ms: 0 };
+  const stats: CandleBatchStats = { total_candles: 0, symbols_with_data: 0, symbols_failed: [], elapsed_ms: 0, malformed_candles: 0 };
 
   if (symbols.length === 0) {
     stats.elapsed_ms = Date.now() - start;
@@ -2268,19 +2303,29 @@ export async function fetchTTCandlesBatch(
         const sym = eventSymbol.replace(/\{.*\}$/, '');
         if (!sym || !data.has(sym)) continue;
 
-        const time = Number(evt['time'] || 0);
-        const open = evt['open'] != null ? Number(evt['open']) : 0;
-        const close = evt['close'] != null ? Number(evt['close']) : 0;
-        if (open <= 0 || close <= 0) continue;
+        // KILL-7: a bar missing time/high/low/volume is MALFORMED — it was
+        // fabricated before (time||0 → a 1970 candle; high/low imputed as the
+        // open; volume imputed 0). Skipped + counted, never patched.
+        const time = numOrNull(evt['time']);
+        const open = numOrNull(evt['open']);
+        const close = numOrNull(evt['close']);
+        const high = numOrNull(evt['high']);
+        const low = numOrNull(evt['low']);
+        const volume = numOrNull(evt['volume']);
+        if (time == null || time <= 0 || open == null || open <= 0 || close == null || close <= 0 ||
+            high == null || low == null || volume == null) {
+          stats.malformed_candles++;
+          continue;
+        }
 
         data.get(sym)!.push({
           time,
           date: new Date(time).toISOString().slice(0, 10),
           open,
-          high: evt['high'] != null ? Number(evt['high']) : open,
-          low: evt['low'] != null ? Number(evt['low']) : open,
+          high,
+          low,
           close,
-          volume: evt['volume'] != null ? Number(evt['volume']) : 0,
+          volume,
         });
       }
     });

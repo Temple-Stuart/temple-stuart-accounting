@@ -1209,7 +1209,7 @@ export async function runPipeline(
 
   // ===== STEP F2: Fetch candle data and re-score with real technicals =====
   console.log('[Pipeline] Step F2: Fetching candle data for scored tickers...');
-  let candleStats: CandleBatchStats = { total_candles: 0, symbols_with_data: 0, symbols_failed: [], elapsed_ms: 0 };
+  let candleStats: CandleBatchStats = { total_candles: 0, symbols_with_data: 0, symbols_failed: [], elapsed_ms: 0, malformed_candles: 0 };
   const scoredSymbols = scoredTickers.map(t => t.symbol);
   // Hoist candle data so G2.5 re-scoring can access it
   const candleDataMap = new Map<string, CandleData[]>();

@@ -286,6 +286,9 @@ export interface NewsSentimentData {
   source_distribution: Record<string, number>;
   tier1_ratio: number;
   headlines: NewsHeadlineEntry[];
+  // KILL-7: articles the feed sent without a headline — skipped, never
+  // classified as an imputed 'neutral' (declared count)
+  articles_skipped_no_headline?: number;
   classification_method: string; // 'finnhub-native'
 }
 

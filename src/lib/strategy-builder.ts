@@ -1280,7 +1280,10 @@ export function buildCustomCard(
     const bid: number | null = g.bid ?? null;
     const ask: number | null = g.ask ?? null;
     const price = cl.side === 'sell' ? bid : ask;
-    if (price == null || price <= 0) continue;
+    // KILL-7: a custom leg without a live price fails the WHOLE card — the
+    // old `continue` silently dropped the leg while still naming and pricing
+    // the card as the full strategy the user built.
+    if (price == null || price <= 0) return null;
     const midVal = bid != null && ask != null ? (ask + bid) / 2 : 0;
     const wide = midVal > 0 ? (ask! - bid!) / midVal > 0.50 : false;
     // KILL-2: same rule as makeLeg — a leg without complete greeks cannot be

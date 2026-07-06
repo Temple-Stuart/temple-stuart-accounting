@@ -180,7 +180,6 @@ function computeZScores(
   const m = stats.metrics;
   const rawIvpStats = m['iv_percentile'];
   const ivHvStats = m['iv_hv_spread'];
-  const hv30Stats = m['hv30'];
 
   // Peer stats for IVP are computed from raw scanner data (0-1 scale),
   // but the scorer normalizes IVP to 0-100. Align scales before z-score.
@@ -192,9 +191,13 @@ function computeZScores(
   const ivpZ = ivpStats ? zScore(ivp, ivpStats.mean, ivpStats.std) : null;
   const ivHvZ = ivHvStats ? zScore(ivHvSpread, ivHvStats.mean, ivHvStats.std) : null;
 
-  // HV acceleration z-score: how unusual is HV30-HV60 spread vs peers' HV30 spread
+  // KILL-7 gray ruling (b): the HV-acceleration z uses the REAL peer
+  // distribution of hv30 − hv60 (sector-stats now computes it) — never the
+  // old assumed mean=0 against the peers' hv30-LEVEL std. No distribution →
+  // no z (the component keeps its raw own-data tier score).
   const hvAccel = (hv30 !== null && hv60 !== null) ? hv30 - hv60 : null;
-  const hvAccelZ = hv30Stats ? zScore(hvAccel, 0, hv30Stats.std) : null;
+  const hvAccelStats = m['hv_accel'];
+  const hvAccelZ = hvAccelStats ? zScore(hvAccel, hvAccelStats.mean, hvAccelStats.std) : null;
 
   // Determine transform type based on peer count
   const peerCount = stats.ticker_count ?? 0;
@@ -320,8 +323,8 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
     // Percentile ranking: value's rank within sorted peer values → 0-100 score
     const rawIvpSorted = peerMetrics['iv_percentile']?.sortedValues;
     const ivHvSorted = peerMetrics['iv_hv_spread']?.sortedValues;
-    // HV accel uses hv30 peers
-    const hv30Sorted = peerMetrics['hv30']?.sortedValues;
+    // KILL-7: HV accel ranks against the REAL peer hv_accel distribution
+    const hvAccelSorted = peerMetrics['hv_accel']?.sortedValues;
 
     if (ivp !== null && rawIvpSorted?.length) {
       // Align scale: sorted values may be 0-1, ivp is 0-100
@@ -333,9 +336,9 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
     if (ivHvSpread !== null && ivHvSorted?.length) {
       ivHvSpreadScore = round(percentileRank(ivHvSpread, ivHvSorted), 1);
     }
-    if (hv30 !== null && hv60 !== null && hv30Sorted?.length) {
+    if (hv30 !== null && hv60 !== null && hvAccelSorted?.length) {
       const hvAccelVal = hv30 - hv60;
-      hvAccelScore = round(percentileRank(hvAccelVal, hv30Sorted), 1);
+      hvAccelScore = round(percentileRank(hvAccelVal, hvAccelSorted), 1);
     }
   } else if (hasPeerZScores && zScores.transform === 'z-score-fallback') {
     // 3-4 peers: z-score with reduced multiplier (10) and extended clip (±5 SD)
@@ -707,7 +710,11 @@ function scoreTechnicals(input: ConvergenceInput): TechnicalsTrace {
   const vol20d = candles.length >= 20 ? round(mean(candles.slice(-20).map(c => c.volume))) : null;
   const volumeRatio = vol5d !== null && vol20d !== null && vol20d > 0 ? round(vol5d / vol20d, 4) : null;
 
-  let volumeScore = 50;
+  // KILL-7 gray ruling (a): volumeRatio is null only when vol20d === 0 — the
+  // ratio vol5d/0 is mathematically UNDEFINED, so the component is EXCLUDED
+  // (renormalized by the technicals combiner), never a neutral 50. A true
+  // vol5d=0 over a positive vol20d IS data and scores the low-volume tier.
+  let volumeScore: number | null = null;
   if (volumeRatio !== null) {
     if (volumeRatio > 1.5) volumeScore = 70;      // Elevated volume → more liquid
     else if (volumeRatio > 1.2) volumeScore = 62;
@@ -754,7 +761,8 @@ function scoreTechnicals(input: ConvergenceInput): TechnicalsTrace {
   const score = techCombined.score as number; // >= 4 components always present
 
   const fmtT = (v: number | null) => (v !== null ? String(round(v)) : 'EXCLUDED');
-  const formula = `0.25×RSI(${round(rsiScore)}) + 0.25×Trend(${round(trendScore)}) + 0.20×BB(${round(bollingerScore)}) + 0.15×Vol(${round(volumeScore)}) + 0.15×52WkHigh(${fmtT(high52wScore)})${high52wScore === null ? ` [missing excluded, weights renormalized ÷0.85]` : ''} = ${score}`;
+  const excludedTech = [volumeScore === null ? 'volume' : null, high52wScore === null ? 'high52w' : null].filter(Boolean);
+  const formula = `0.25×RSI(${round(rsiScore)}) + 0.25×Trend(${round(trendScore)}) + 0.20×BB(${round(bollingerScore)}) + 0.15×Vol(${fmtT(volumeScore)}) + 0.15×52WkHigh(${fmtT(high52wScore)})${excludedTech.length > 0 ? ` [${excludedTech.join('+')} excluded, weights renormalized ÷${round(techCombined.activeWeight, 2)}]` : ''} = ${score}`;
 
   return {
     score: round(score),
@@ -772,7 +780,7 @@ function scoreTechnicals(input: ConvergenceInput): TechnicalsTrace {
       rsi_score: round(rsiScore),
       trend_score: round(trendScore),
       bollinger_score: round(bollingerScore),
-      volume_score: round(volumeScore),
+      volume_score: volumeScore !== null ? round(volumeScore) : null,
       high52w_score: high52wScore !== null ? round(high52wScore) : null,
     },
     indicators: {

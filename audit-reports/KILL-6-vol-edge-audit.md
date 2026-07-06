@@ -37,4 +37,4 @@ Executed traces: many-feeds-missing ticker → vol-edge = 75 from the one presen
 
 ## Updated reconciliation
 
-**145 census violations → 123 closed by KILL-1..6 (81 pattern + 42 catches) → 22 remain:** backtest/simulate (7), data-fetchers candle/insider/headline imputation (7), quotes route (4), sentiment persisted 0/0 (2), chains route (1), custom-card missing-price leg-drop (1). None are in the live scan-scoring path — remaining clusters are backtest, display/quote routes, and secondary fetch surfaces.
+**145 census violations → 123 closed by KILL-1..6 → 22 remained, ALL CLOSED by KILL-7** (see audit-reports/KILL-7-peripheral-census-audit.md). **Final: 145/145 closed, 0 remain.**
