@@ -32,6 +32,7 @@ export async function GET() {
     const accountNumbers = connection?.accountNumbers || [];
 
     const allPositions: any[] = [];
+    const failedAccounts: { account: string; error: string }[] = [];
 
     for (const acct of accountNumbers) {
       try {
@@ -50,10 +51,13 @@ export async function GET() {
         allPositions.push(...mapped);
       } catch (err: any) {
         console.error(`[Tastytrade] Failed to fetch positions for ${acct}:`, err?.message);
+        // KILL-4: the failed account is DECLARED — its positions must not
+        // silently vanish from a 200 that still lists the account.
+        failedAccounts.push({ account: acct, error: err?.message ?? 'unknown error' });
       }
     }
 
-    return NextResponse.json({ positions: allPositions, accounts: accountNumbers });
+    return NextResponse.json({ positions: allPositions, accounts: accountNumbers, failed_accounts: failedAccounts });
   } catch (error: any) {
     console.error('[Tastytrade] Positions error:', error);
     return NextResponse.json({ error: 'Failed to fetch positions' }, { status: 500 });

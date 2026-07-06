@@ -190,6 +190,10 @@ export async function GET(request: Request) {
       batches.push(symbols.slice(i, i + BATCH_SIZE));
     }
 
+    // KILL-4: a failed batch of up to 50 symbols must not silently vanish
+    // while totalScanned still reports the full universe — declared below.
+    const batchErrors: string[] = [];
+    let symbolsFailedCount = 0;
     const batchResults = await Promise.all(
       batches.map(async (batch) => {
         try {
@@ -199,6 +203,8 @@ export async function GET(request: Request) {
           return Array.isArray(raw) ? raw : [];
         } catch (err) {
           console.error('[Scanner] Batch error:', err);
+          batchErrors.push(`batch of ${batch.length} symbols FAILED: ${err instanceof Error ? err.message : String(err)}`);
+          symbolsFailedCount += batch.length;
           return [];
         }
       })
@@ -277,6 +283,10 @@ export async function GET(request: Request) {
       metrics: ranked,
       excluded_missing_iv_rank: { count: excludedSymbols.length, symbols: excludedSymbols },
       totalScanned: totalSymbols,
+      // KILL-4: fetch failures declared — totalScanned is the REQUESTED count,
+      // batch_errors/symbols_failed_count say how much of it actually failed.
+      batch_errors: batchErrors,
+      symbols_failed_count: symbolsFailedCount,
       universe,
       fetchedAt: new Date().toISOString(),
     });

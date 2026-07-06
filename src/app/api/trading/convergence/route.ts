@@ -67,11 +67,14 @@ export async function GET(request: Request) {
     if (stream) {
       // Resolve userId for snapshot logging
       let userId: string | undefined;
+      let snapshotLookupError: string | null = null;
       try {
         const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
         userId = user?.id;
-      } catch {
-        // Non-critical
+      } catch (e: unknown) {
+        // KILL-4: still non-fatal (pipeline runs without snapshots), but the
+        // skipped audit trail is DECLARED on the result below.
+        snapshotLookupError = e instanceof Error ? e.message : String(e);
       }
 
       const encoder = new TextEncoder();
@@ -82,6 +85,9 @@ export async function GET(request: Request) {
           };
           try {
             const result = await runPipeline(limit, userId, universe, (event) => send(event));
+            if (snapshotLookupError) {
+              result.data_gaps.push(`snapshot_logging: SKIPPED — user lookup failed (${snapshotLookupError}); this run left no scan_snapshots audit trail`);
+            }
             // Cache the final result so the follow-up fetch is instant
             setCache(limit, result, universe);
             send({ step: 'done', label: 'Complete', data: {} });
@@ -123,15 +129,21 @@ export async function GET(request: Request) {
 
     // Resolve userId for snapshot logging (non-blocking — pipeline runs even if lookup fails)
     let userId: string | undefined;
+    let snapshotLookupError: string | null = null;
     try {
       const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
       userId = user?.id;
-    } catch {
-      // Non-critical — snapshot logging will be skipped
+    } catch (e: unknown) {
+      // KILL-4: still non-fatal, but the skipped snapshot audit trail is
+      // DECLARED on the result below.
+      snapshotLookupError = e instanceof Error ? e.message : String(e);
     }
 
     const start = Date.now();
     const result = await runPipeline(limit, userId, universe);
+    if (snapshotLookupError) {
+      result.data_gaps.push(`snapshot_logging: SKIPPED — user lookup failed (${snapshotLookupError}); this run left no scan_snapshots audit trail`);
+    }
     const elapsed = Date.now() - start;
     console.log(`[Convergence Route] Pipeline completed in ${elapsed}ms`);
 

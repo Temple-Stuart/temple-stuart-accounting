@@ -198,7 +198,8 @@ export async function GET(request: Request) {
     }),
     fetchFinnhubTicker(symbol, finnhubKey || undefined).catch((e): FinnhubData => {
       fetchErrors.finnhub = e instanceof Error ? e.message : String(e);
-      return { fundamentals: null, recommendations: [], insiderSentiment: [], earnings: [], estimateData: null };
+      // KILL-4: typed failure — all feeds unavailable, declared
+      return { fundamentals: null, recommendations: [], insiderSentiment: [], earnings: [], estimateData: null, feedErrors: [`all: ${e instanceof Error ? e.message : String(e)}`] };
     }),
     fredKey
       ? fetchFredMacro(fredKey).catch(e => ({
@@ -324,6 +325,10 @@ export async function GET(request: Request) {
       const chainResult = await fetchChainAndBuildCards(chainInput);
       const strategyCards = chainResult.cards.get(symbol) || [];
       chainRejections = chainResult.rejections.get(symbol) || [];
+      // KILL-4: a fatal chain failure is DECLARED on the rejections surface
+      if (chainResult.fatal_error) {
+        chainRejections = [...chainRejections, { strategy: 'all', reason: `chain fetch FAILED: ${chainResult.fatal_error} — empty cards are a feed failure, not "no strategies passed"`, gate: 'construction' }];
+      }
 
       chainStats = {
         chain_symbols_fetched: chainResult.stats.chain_symbols_fetched,

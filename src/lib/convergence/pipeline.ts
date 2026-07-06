@@ -555,8 +555,10 @@ export async function runPipeline(
       if (result.data && result.data.length > 0) {
         finnhubPeersMap[item.symbol] = result.data;
       }
-    } catch {
-      // Non-critical — fall through to GICS grouping
+    } catch (e: unknown) {
+      // KILL-4: still falls through to GICS grouping, but the failure is
+      // DECLARED — a degraded peer tier must not be silent.
+      errors.push(`Step E11a (finnhub-peers ${item.symbol}) FAILED: ${e instanceof Error ? e.message : String(e)} — peer grouping degraded to GICS tier`);
     }
   });
   // Hard 10-second cap on entire peers fetch step
@@ -762,6 +764,16 @@ export async function runPipeline(
   const finnhubMs = Date.now() - finnhubStart;
   console.log(`[Pipeline] Step E: Finnhub fetched in ${finnhubMs}ms`);
 
+  // KILL-4: per-endpoint Finnhub failures are DECLARED — a failed feed is
+  // "feed unavailable", never "fetched, empty". Affected signals are already
+  // excluded + renormalized by the gates; this surfaces the CAUSE.
+  if (finnhubResult.stats.error_messages.length > 0) {
+    const msgs = finnhubResult.stats.error_messages;
+    dataGaps.push(`finnhub: ${msgs.length} feed failure(s) — affected signals excluded per gate (feed unavailable). First ${Math.min(5, msgs.length)}: ${msgs.slice(0, 5).join(' | ')}`);
+    errors.push(...msgs.slice(0, 50).map(m => `Step E (finnhub feed) FAILED: ${m}`));
+    if (msgs.length > 50) errors.push(`Step E (finnhub feed): ${msgs.length - 50} further feed failure(s) truncated — see server logs`);
+  }
+
   // Fetch annual financials per symbol (for Piotroski YoY signals)
   const annualFinancialsMap = new Map<string, AnnualFinancials | null>();
   for (const symbol of topSymbols) {
@@ -770,7 +782,10 @@ export async function runPipeline(
       annualFinancialsMap.set(symbol, result.data);
       if (result.error) errors.push(`Step E (annual-financials ${symbol}): ${result.error}`);
     } catch (e: unknown) {
+      // KILL-4: a thrown fetch is DECLARED like the result.error path above —
+      // null still flows to exclusion, the cause reaches errors[].
       annualFinancialsMap.set(symbol, null);
+      errors.push(`Step E (annual-financials ${symbol}) FAILED: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 
@@ -808,7 +823,9 @@ export async function runPipeline(
           newsSentimentMap.set(symbol, result.data);
           if (result.error) errors.push(`Step E3 (news-sentiment ${symbol}): ${result.error}`);
         } catch (e: unknown) {
+          // KILL-4: a thrown fetch is DECLARED like the result.error path above
           newsSentimentMap.set(symbol, null);
+          errors.push(`Step E3 (news-sentiment ${symbol}) FAILED: ${e instanceof Error ? e.message : String(e)}`);
         }
         await new Promise(r => setTimeout(r, 800)); // Finnhub rate limit
       }
@@ -823,7 +840,9 @@ export async function runPipeline(
           finbertMap.set(symbol, result.data);
           if (result.error) errors.push(`Step E4 (finbert ${symbol}): ${result.error}`);
         } catch (e: unknown) {
+          // KILL-4: a thrown fetch is DECLARED like the result.error path above
           finbertMap.set(symbol, null);
+          errors.push(`Step E4 (finbert ${symbol}) FAILED: ${e instanceof Error ? e.message : String(e)}`);
         }
         await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
       }
@@ -838,7 +857,9 @@ export async function runPipeline(
           earningsQualityMap.set(symbol, result.data);
           if (result.error) errors.push(`Step E5 (earnings-quality ${symbol}): ${result.error}`);
         } catch (e: unknown) {
+          // KILL-4: a thrown fetch is DECLARED like the result.error path above
           earningsQualityMap.set(symbol, null);
+          errors.push(`Step E5 (earnings-quality ${symbol}) FAILED: ${e instanceof Error ? e.message : String(e)}`);
         }
         await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
       }
@@ -853,7 +874,9 @@ export async function runPipeline(
           institutionalOwnershipMap.set(symbol, result.data);
           if (result.error) errors.push(`Step E6 (institutional-ownership ${symbol}): ${result.error}`);
         } catch (e: unknown) {
+          // KILL-4: a thrown fetch is DECLARED like the result.error path above
           institutionalOwnershipMap.set(symbol, null);
+          errors.push(`Step E6 (institutional-ownership ${symbol}) FAILED: ${e instanceof Error ? e.message : String(e)}`);
         }
         await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
       }
@@ -868,7 +891,9 @@ export async function runPipeline(
           revenueBreakdownMap.set(symbol, result.data);
           if (result.error) errors.push(`Step E7 (revenue-breakdown ${symbol}): ${result.error}`);
         } catch (e: unknown) {
+          // KILL-4: a thrown fetch is DECLARED like the result.error path above
           revenueBreakdownMap.set(symbol, null);
+          errors.push(`Step E7 (revenue-breakdown ${symbol}) FAILED: ${e instanceof Error ? e.message : String(e)}`);
         }
         await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
       }
@@ -883,7 +908,9 @@ export async function runPipeline(
           quarterlyFinancialsMap.set(symbol, result.data);
           if (result.error) errors.push(`Step E8 (quarterly-financials ${symbol}): ${result.error}`);
         } catch (e: unknown) {
+          // KILL-4: a thrown fetch is DECLARED like the result.error path above
           quarterlyFinancialsMap.set(symbol, null);
+          errors.push(`Step E8 (quarterly-financials ${symbol}) FAILED: ${e instanceof Error ? e.message : String(e)}`);
         }
         await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit (3 calls per symbol already batched)
       }
@@ -898,7 +925,9 @@ export async function runPipeline(
           secFilingMap.set(symbol, result.data);
           if (result.error) errors.push(`Step E9 (sec-edgar ${symbol}): ${result.error}`);
         } catch (e: unknown) {
+          // KILL-4: a thrown fetch is DECLARED like the result.error path above
           secFilingMap.set(symbol, null);
+          errors.push(`Step E9 (sec-edgar ${symbol}) FAILED: ${e instanceof Error ? e.message : String(e)}`);
         }
         await new Promise(r => setTimeout(r, 150)); // SEC rate limit: 10 req/sec → 150ms between
       }
@@ -913,7 +942,9 @@ export async function runPipeline(
           secForm4Map.set(symbol, result.data);
           if (result.error) errors.push(`Step E10 (insider-tx ${symbol}): ${result.error}`);
         } catch (e: unknown) {
+          // KILL-4: a thrown fetch is DECLARED like the result.error path above
           secForm4Map.set(symbol, null);
+          errors.push(`Step E10 (insider-tx ${symbol}) FAILED: ${e instanceof Error ? e.message : String(e)}`);
         }
         await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
       }
@@ -930,7 +961,9 @@ export async function runPipeline(
           }
           if (result.error) errors.push(`Step E11 (10k-text ${symbol}): ${result.error}`);
         } catch (e: unknown) {
-          // Non-fatal: text peer classification is an enhancement, not required
+          // KILL-4: non-fatal (text peers are an enhancement) but DECLARED —
+          // the symbol silently missing from textProfiles hid the cause.
+          errors.push(`Step E11 (10k-text ${symbol}) FAILED: ${e instanceof Error ? e.message : String(e)}`);
         }
         await new Promise(r => setTimeout(r, 150)); // SEC rate limit: 10 req/sec → 150ms between
       }
@@ -1130,6 +1163,7 @@ export async function runPipeline(
       insiderSentiment: [],
       earnings: [],
       estimateData: null,
+      feedErrors: [],
     };
 
     // Assemble ConvergenceInput (same structure as single-ticker route)
@@ -1606,6 +1640,12 @@ export async function runPipeline(
 
     if (chainInputs.length > 0) {
       const chainResult = await fetchChainAndBuildCards(chainInputs);
+      // KILL-4: a fatal chain failure is DECLARED — the empty card set is a
+      // failure, not a quiet no-strategies day.
+      if (chainResult.fatal_error) {
+        errors.push(`Step G2 (chain fetch) FAILED: ${chainResult.fatal_error}`);
+        dataGaps.push(`trade_cards: chain fetch FAILED (${chainResult.fatal_error}) — no trade cards this run is a feed failure, not "no strategies passed"`);
+      }
       chainStats = chainResult.stats;
       chainRejections = chainResult.rejections;
       perTickerStats = chainResult.perTickerStats;
@@ -1894,7 +1934,11 @@ export async function runPipeline(
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error(`[Pipeline] generateTradeCards failed for ${row.symbol}:`, msg);
+      // KILL-4: an exception-emptied card list must be distinguishable from a
+      // legitimate "no strategies passed" — declare on both surfaces.
       fullTradeCardsPerTicker[row.symbol] = [];
+      errors.push(`Step H (trade-cards ${row.symbol}) FAILED: ${msg}`);
+      dataGaps.push(`trade_cards: ${row.symbol} card generation FAILED (${msg}) — empty card list is a failure, not "no strategies passed"`);
     }
   }
 

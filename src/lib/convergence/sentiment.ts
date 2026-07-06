@@ -106,7 +106,11 @@ function parseJSON<T>(text: string): T | null {
 
   try {
     return JSON.parse(candidate) as T;
-  } catch {
+  } catch (e: unknown) {
+    // KILL-4 (c)-justified: the null IS handled loudly by both callers
+    // (console.warn + declared failure result upstream); only the parse
+    // detail was lost — now logged here.
+    console.warn('[Sentiment] JSON parse failed:', e instanceof Error ? e.message : String(e));
     return null;
   }
 }
@@ -162,7 +166,10 @@ Respond with JSON only, no other text:
   });
 
   if (!response.ok) {
-    const errorText = await response.text().catch(() => '');
+    // KILL-4 (c)-justified: this swallows only the failure to READ the error
+  // response body for the log line below — the HTTP failure itself is
+  // declared via console.error with status and the null return.
+  const errorText = await response.text().catch(() => '');
     console.error(`[Sentiment] Stage 1 API error ${response.status} for ${symbol}:`, errorText.substring(0, 500));
     return null;
   }
