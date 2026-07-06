@@ -151,13 +151,27 @@ function computeZScores(
 ): MispricingTrace['z_scores'] {
   const { peerEntry: stats, peerGroupKey } = lookupPeerStats(input);
 
+  // EDGE-4: vrp_z is scored against the ticker's OWN historical VRP
+  // distribution (scan_snapshots, 365d, >= 20 distinct scan days) — never a
+  // peer proxy, never a fabricated mean=0 / scaled std. No distribution ⇒ null.
+  const vrpHist = input.vrpHistory;
+  let vrpZ: number | null = null;
+  let vrpZSource: string | null = null;
+  if (vrp !== null && vrpHist && vrpHist.values.length >= 2) {
+    vrpZ = zScore(vrp, mean(vrpHist.values), stddev(vrpHist.values));
+    if (vrpZ !== null) {
+      vrpZSource = `own ${vrpHist.distinct_days}-obs VRP history, ${vrpHist.window_days}d, source: ${vrpHist.source}`;
+    }
+  }
+
   if (!stats?.metrics) {
     return {
-      vrp_z: null,
+      vrp_z: vrpZ,
+      vrp_z_source: vrpZSource,
       ivp_z: null,
       iv_hv_z: null,
       hv_accel_z: null,
-      note: 'peer_z: null (no peer group data available)',
+      note: `peer_z: null (no peer group data available); vrp_z: ${vrpZSource ?? 'null (no own-history VRP distribution)'}`,
       transform: 'raw' as const,
     };
   }
@@ -181,9 +195,6 @@ function computeZScores(
   const hvAccel = (hv30 !== null && hv60 !== null) ? hv30 - hv60 : null;
   const hvAccelZ = hv30Stats ? zScore(hvAccel, 0, hv30Stats.std) : null;
 
-  // VRP z-score: use iv_hv_spread stats as proxy for VRP distribution
-  const vrpZ = ivHvStats && ivHvStats.std > 0.001 ? zScore(vrp, 0, ivHvStats.std * 100) : null;
-
   // Determine transform type based on peer count
   const peerCount = stats.ticker_count ?? 0;
   const peerGroupName = stats.peer_group_name ?? peerGroupKey;
@@ -192,10 +203,11 @@ function computeZScores(
 
   return {
     vrp_z: vrpZ,
+    vrp_z_source: vrpZSource,
     ivp_z: ivpZ,
     iv_hv_z: ivHvZ,
     hv_accel_z: hvAccelZ,
-    note: `peer z-scores vs ${peerGroupName} peers (n=${peerCount}, transform=${transform})`,
+    note: `peer z-scores vs ${peerGroupName} peers (n=${peerCount}, transform=${transform}); vrp_z: ${vrpZSource ?? 'null (no own-history VRP distribution)'}`,
     transform,
   };
 }
@@ -228,21 +240,31 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
   // Compute z-scores for sector-relative comparison
   const zScores = computeZScores(input, ivp, ivHvSpread, vrp, hv30, hv60);
   const { peerEntry, peerGroupKey } = lookupPeerStats(input);
-  const hasZScores = zScores.vrp_z !== null || zScores.ivp_z !== null ||
+  // Peer-relative transforms apply to IVP / IV_HV / HV_accel only — VRP is
+  // own-history-based (EDGE-4) and never enters a peer transform.
+  const hasPeerZScores = zScores.ivp_z !== null ||
                      zScores.iv_hv_z !== null || zScores.hv_accel_z !== null;
   const peerCount = peerEntry?.ticker_count ?? 0;
 
-  // --- Raw scores (baseline, always computed) ---
-
-  // VRP component (0.30): simple difference (Goyal & Saretto 2009)
-  // iv30 - hv30: positive = IV overpriced vs realized = good for selling premium
-  // Scale: 20-point diff → score 100, 0-point diff → score 50, -20 → score 0
-  // Raw score used as fallback for < 3 peers; percentile ranking overrides otherwise
-  let vrpScoreRaw = 40; // penalty default — missing IV30/HV30 data
-  if (iv30 !== null && hv30 !== null) {
-    const vrpDiff = iv30 - hv30;
-    vrpScoreRaw = clamp(50 + (vrpDiff / 20) * 50, 0, 100);
+  // --- VRP component (0.30) — EDGE-4: own-history distribution ONLY ---
+  // Percentile of today's VRP within the ticker's own 365d VRP series from
+  // scan_snapshots (>= 20 distinct scan days). No peer proxy, no fixed linear
+  // map, no fabricated mean/std. If the distribution cannot be computed the
+  // signal is null → EXCLUDED from the composite → weights renormalize.
+  const vrpHist = input.vrpHistory;
+  let vrpScore: number | null = null;
+  let vrpSourceLabel: string;
+  if (vrp !== null && vrpHist && vrpHist.values.length >= 20) {
+    const sortedHist = [...vrpHist.values].sort((a, b) => a - b);
+    vrpScore = round(percentileRank(vrp, sortedHist), 1);
+    vrpSourceLabel = `calculated: percentile of VRP vs own ${vrpHist.distinct_days}-obs history, ${vrpHist.window_days}d, source: ${vrpHist.source}`;
+  } else if (vrp === null) {
+    vrpSourceLabel = 'EXCLUDED — VRP not computable (missing IV30 or HV30)';
+  } else {
+    vrpSourceLabel = 'EXCLUDED — no own-history VRP distribution (< 20 distinct scan days in 365d of scan_snapshots)';
   }
+
+  // --- Raw scores (baseline, always computed) ---
 
   // IVP component (0.30): IVP directly maps 0-100
   const ivpScoreRaw = ivp !== null ? clamp(ivp, 0, 100) : 40; // penalty default — missing IVP
@@ -283,23 +305,22 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
   // ≥5 peers → percentile ranking (nonparametric, immune to distributional assumptions)
   // 3-4 peers → z-score fallback (multiplier=10, clip=±5 SD — less aggressive)
   // <3 peers → raw scores (no normalization)
-  let vrpScore = vrpScoreRaw;
+  // EDGE-4: VRP is NOT in these branches — it is scored only against its own
+  // history above (the old peer iv_hv_spread proxy percentile and the
+  // zScore(vrp, 0, …) fallback are removed).
   let ivpScore = ivpScoreRaw;
   let ivHvSpreadScore = ivHvSpreadScoreRaw;
   let hvAccelScore = hvAccelScoreRaw;
 
   const peerMetrics = peerEntry?.metrics;
 
-  if (hasZScores && zScores.transform === 'percentile' && peerMetrics) {
+  if (hasPeerZScores && zScores.transform === 'percentile' && peerMetrics) {
     // Percentile ranking: value's rank within sorted peer values → 0-100 score
     const rawIvpSorted = peerMetrics['iv_percentile']?.sortedValues;
     const ivHvSorted = peerMetrics['iv_hv_spread']?.sortedValues;
-    // VRP uses iv_hv_spread peers as proxy; HV accel uses hv30 peers
+    // HV accel uses hv30 peers
     const hv30Sorted = peerMetrics['hv30']?.sortedValues;
 
-    if (vrp !== null && ivHvSorted?.length) {
-      vrpScore = round(percentileRank(vrp, ivHvSorted), 1);
-    }
     if (ivp !== null && rawIvpSorted?.length) {
       // Align scale: sorted values may be 0-1, ivp is 0-100
       const ivpSorted = rawIvpSorted[0] <= 1.0 && rawIvpSorted.length > 0
@@ -314,11 +335,8 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
       const hvAccelVal = hv30 - hv60;
       hvAccelScore = round(percentileRank(hvAccelVal, hv30Sorted), 1);
     }
-  } else if (hasZScores && zScores.transform === 'z-score-fallback') {
+  } else if (hasPeerZScores && zScores.transform === 'z-score-fallback') {
     // 3-4 peers: z-score with reduced multiplier (10) and extended clip (±5 SD)
-    if (zScores.vrp_z !== null) {
-      vrpScore = round(50 + clamp(zScores.vrp_z * 10, -50, 50), 1);
-    }
     if (zScores.ivp_z !== null) {
       ivpScore = round(50 + clamp(zScores.ivp_z * 10, -50, 50), 1);
     }
@@ -345,7 +363,16 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
   }
 
   // Weights: 0.30×VRP + 0.30×IVComposite + 0.25×IV_HV_spread + 0.15×HV_accel
-  let score = round(0.30 * vrpScore + 0.30 * ivCompositeScore + 0.25 * ivHvSpreadScore + 0.15 * hvAccelScore, 1);
+  // EDGE-4 / EDGE-2 combiner: sum weight×score over the PRESENT components
+  // only and divide by their summed weight — a null VRP is excluded and the
+  // remaining weights renormalize (never imputed, never proxied).
+  const components: { w: number; s: number }[] = [];
+  if (vrpScore !== null) components.push({ w: 0.30, s: vrpScore });
+  components.push({ w: 0.30, s: ivCompositeScore });
+  components.push({ w: 0.25, s: ivHvSpreadScore });
+  components.push({ w: 0.15, s: hvAccelScore });
+  const activeWeight = components.reduce((sum, c) => sum + c.w, 0);
+  let score = round(components.reduce((sum, c) => sum + c.w * c.s, 0) / activeWeight, 1);
 
   // High Conviction Bonus: when IVP and IVR both > 50 and within 15 points, add +5
   const highConvictionIv = ivp !== null && ivr !== null &&
@@ -368,11 +395,20 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
   }
 
   const peerGroupName = peerEntry?.peer_group_name ?? peerGroupKey;
-  const mode = hasZScores
+  const mode = hasPeerZScores
     ? `${zScores.transform} mode (peers: ${peerGroupName}, n=${peerCount})`
     : 'raw mode (single ticker, no peer group)';
-  const formula = `0.30×VRP(${round(vrpScore, 1)}) + 0.30×IVComposite(${round(ivCompositeScore, 1)} [${ivCompositeMethod}]) + 0.25×IV_HV(${round(ivHvSpreadScore, 1)}) + 0.15×HV_accel(${round(hvAccelScore, 1)}) = ${round(score)}${highConvictionIv ? ' +5 high conviction' : ''} [${mode}]`;
+  // EDGE-4: the formula string the UI shows carries the VRP source label —
+  // own-history percentile when present, or the explicit exclusion +
+  // renormalization when absent. What the UI shows == what fires.
+  const vrpTerm = vrpScore !== null
+    ? `0.30×VRP(${round(vrpScore, 1)} [${vrpSourceLabel}])`
+    : `VRP ${vrpSourceLabel} — remaining weights renormalized ÷${round(activeWeight, 2)}`;
+  const formula = `${vrpTerm} + 0.30×IVComposite(${round(ivCompositeScore, 1)} [${ivCompositeMethod}]) + 0.25×IV_HV(${round(ivHvSpreadScore, 1)}) + 0.15×HV_accel(${round(hvAccelScore, 1)}) = ${round(score)}${highConvictionIv ? ' +5 high conviction' : ''} [${mode}]`;
 
+  const vrpNote = vrpScore !== null
+    ? `VRP=${round(vrpScore)}(own-history percentile,z=${zScores.vrp_z ?? 'null'})`
+    : 'VRP=EXCLUDED(no own-history distribution)';
   return {
     score: round(score),
     weight: 0.50,
@@ -386,11 +422,12 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
       IV_HV_spread: ivHvSpread,
       VRP: vrpStr,
     },
+    vrp_score: vrpScore,
     z_scores: zScores,
     formula,
-    notes: hasZScores
-      ? `VRP=${round(vrpScore)}(raw=${round(vrpScoreRaw)},z=${zScores.vrp_z}), IVComposite=${round(ivCompositeScore)}(IVP=${round(ivpScore)},IVR=${ivrScore !== null ? round(ivrScore) : 'N/A'}), IV_HV=${round(ivHvSpreadScore)}(raw=${round(ivHvSpreadScoreRaw)},z=${zScores.iv_hv_z}), HV_accel=${round(hvAccelScore)}(raw=${round(hvAccelScoreRaw)},z=${zScores.hv_accel_z})`
-      : `VRP=${round(vrpScore)}, IVComposite=${round(ivCompositeScore)}(IVP=${round(ivpScore)},IVR=${ivrScore !== null ? round(ivrScore) : 'N/A'}), IV_HV=${round(ivHvSpreadScore)}, HV_accel=${round(hvAccelScore)}`,
+    notes: hasPeerZScores
+      ? `${vrpNote}, IVComposite=${round(ivCompositeScore)}(IVP=${round(ivpScore)},IVR=${ivrScore !== null ? round(ivrScore) : 'N/A'}), IV_HV=${round(ivHvSpreadScore)}(raw=${round(ivHvSpreadScoreRaw)},z=${zScores.iv_hv_z}), HV_accel=${round(hvAccelScore)}(raw=${round(hvAccelScoreRaw)},z=${zScores.hv_accel_z})`
+      : `${vrpNote}, IVComposite=${round(ivCompositeScore)}(IVP=${round(ivpScore)},IVR=${ivrScore !== null ? round(ivrScore) : 'N/A'}), IV_HV=${round(ivHvSpreadScore)}, HV_accel=${round(hvAccelScore)}`,
     hv_trend: hvTrend,
     iv_composite: {
       iv_rank: ivr,
@@ -1118,34 +1155,47 @@ export function scoreVolEdge(input: ConvergenceInput): VolEdgeResult {
   }
 
   // Build DataConfidence
+  // imputed = a placeholder value is still in the score (penalty defaults);
+  // excluded = the signal was dropped and the weights renormalized (EDGE-2
+  // pattern). Confidence counts both as "missing" — a sub-score is either
+  // computed from full real data or it isn't.
   const tt = input.ttScanner;
   const imputedFields: string[] = [];
+  const excludedFields: string[] = [];
   // Mispricing sub-scores
-  if (tt?.iv30 == null || tt?.hv30 == null) imputedFields.push('mispricing.vrp');
+  // EDGE-4: VRP is excluded+renormalized (never imputed) when its own-history
+  // distribution is unavailable — derived from the actual null trace so
+  // tracking cannot drift from the score math.
+  if (mispricing.vrp_score === null) excludedFields.push('mispricing.vrp');
   if (tt?.ivPercentile == null) imputedFields.push('mispricing.ivp');
   if (tt?.ivHvSpread == null) imputedFields.push('mispricing.iv_hv_spread');
   if (tt?.hv30 == null || tt?.hv60 == null || tt?.hv90 == null) imputedFields.push('mispricing.hv_accel');
   // Term structure
   const tsLen = tt?.termStructure?.length ?? 0;
   if (tsLen < 2) imputedFields.push('term_structure');
-  // Technicals
+  // Technicals (excluded + renormalized when no candles — see scoring above)
   if (!hasCandles) {
-    imputedFields.push('technicals');
+    excludedFields.push('technicals');
   } else {
     if (!input.finnhubFundamentals?.metric?.['52WeekHigh']) imputedFields.push('technicals.high52w');
   }
-  // Skew + GEX
+  // Skew + GEX (excluded + renormalized when no chain data — see scoring above)
   if (!hasChainData) {
-    imputedFields.push('skew');
-    imputedFields.push('gex');
+    excludedFields.push('skew');
+    excludedFields.push('gex');
   }
   // mispricing(4) + term(1) + technicals(5 or 1) + skew(1) + gex(1)
   const totalSubScores = 4 + 1 + (hasCandles ? 5 : 1) + 1 + 1;
+  const missingCount = imputedFields.length + excludedFields.length;
   const dataConfidence: DataConfidence = {
     total_sub_scores: totalSubScores,
-    imputed_sub_scores: imputedFields.length,
-    confidence: round(1 - imputedFields.length / totalSubScores, 4),
+    imputed_sub_scores: missingCount,
+    confidence: round(1 - missingCount / totalSubScores, 4),
     imputed_fields: imputedFields,
+    excluded_fields: excludedFields,
+    // "computed from N/M signals" — every excluded entry above corresponds to
+    // exactly one counted sub-score (technicals counts as 1 when !hasCandles)
+    active_signal_count: totalSubScores - excludedFields.length,
   };
 
   return {

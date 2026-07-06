@@ -14,7 +14,7 @@ import { scoreAll } from './composite';
 import type { FullScoringResult } from './composite';
 import { computePreFilter } from './pre-filter';
 import type { PreFilterResult } from './pre-filter';
-import { logScanSnapshotBatch } from './snapshot-logger';
+import { logScanSnapshotBatch, fetchVrpHistoryBatch } from './snapshot-logger';
 import { generateTradeCards, computeCloseToCloseHV } from './trade-cards';
 import type {
   TTScannerData,
@@ -42,6 +42,7 @@ import type {
   FinnhubFundOwnership,
   SECEdgar8KScan,
   FinnhubEarningsCalendar,
+  VrpHistoryData,
 } from './types';
 
 // ===== TYPES =====
@@ -1084,6 +1085,29 @@ export async function runPipeline(
     peerGroupAssignment = enhanced.assignment;
   }
 
+  // ===== STEP E12: Fetch own-history VRP distributions (EDGE-4) =====
+  // Each ticker's VRP series (iv30 − hv30, one obs per distinct scan day,
+  // 365d, >= 20 days) from its own scan_snapshots. Tickers without enough
+  // history get NO entry → vrp_z null → VRP excluded → weights renormalized.
+  // No proxy distribution is ever substituted.
+  let vrpHistoryMap = new Map<string, VrpHistoryData>();
+  if (userId) {
+    try {
+      vrpHistoryMap = await fetchVrpHistoryBatch(userId, topSymbols);
+      console.log(`[Pipeline] Step E12: VRP own-history available for ${vrpHistoryMap.size}/${topSymbols.length} tickers (>= 20 distinct scan days, 365d)`);
+      if (vrpHistoryMap.size < topSymbols.length) {
+        dataGaps.push(`vrp_history: ${topSymbols.length - vrpHistoryMap.size}/${topSymbols.length} tickers lack >= 20 distinct scan days in 365d of scan_snapshots — their VRP sub-score is excluded and mispricing weights renormalized (no proxy distribution)`);
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      errors.push(`Step E12 (VRP history fetch): ${msg}`);
+      dataGaps.push('vrp_history: scan_snapshots query FAILED — VRP sub-score excluded for ALL tickers this run and mispricing weights renormalized (no proxy distribution)');
+      console.error('[Pipeline] Step E12 failed:', msg);
+    }
+  } else {
+    dataGaps.push('vrp_history: no userId — scan_snapshots history unavailable, VRP sub-score excluded for all tickers and mispricing weights renormalized');
+  }
+
   // ===== STEP F: Score All 4 Categories =====
   console.log('[Pipeline] Step F: Scoring all categories...');
   const scoredTickers: {
@@ -1132,6 +1156,7 @@ export async function runPipeline(
       peerStats,
       peerGroupAssignment,
       textPeerGroups: Object.keys(textPeerGroups).length > 0 ? textPeerGroups : undefined,
+      vrpHistory: vrpHistoryMap.get(symbol) ?? null,
     };
 
     try {
@@ -1193,6 +1218,7 @@ export async function runPipeline(
         peerStats,
         peerGroupAssignment,
         textPeerGroups: Object.keys(textPeerGroups).length > 0 ? textPeerGroups : undefined,
+        vrpHistory: vrpHistoryMap.get(ticker.symbol) ?? null,
       };
 
       try {
@@ -1310,6 +1336,11 @@ export async function runPipeline(
             formula: scoring.vol_edge.breakdown.gex.formula,
           },
           data_confidence: scoring.vol_edge.data_confidence.confidence,
+          // EDGE-4: how many vol-edge sub-scores were computed from real data
+          // (excluded signals — e.g. VRP without an own-history distribution —
+          // are dropped and the weights re-normalized).
+          active_signal_count: scoring.vol_edge.data_confidence.active_signal_count ?? null,
+          total_signal_count: scoring.vol_edge.data_confidence.total_sub_scores,
         } : null,
         quality_detail: scoring ? {
           safety: {
@@ -1668,6 +1699,7 @@ export async function runPipeline(
             peerStats,
             peerGroupAssignment,
             textPeerGroups: Object.keys(textPeerGroups).length > 0 ? textPeerGroups : undefined,
+            vrpHistory: vrpHistoryMap.get(ticker.symbol) ?? null,
           };
 
           try {
@@ -1831,6 +1863,7 @@ export async function runPipeline(
       peerStats,
       peerGroupAssignment,
       textPeerGroups: Object.keys(textPeerGroups).length > 0 ? textPeerGroups : undefined,
+      vrpHistory: vrpHistoryMap.get(row.symbol) ?? null,
     };
 
     try {

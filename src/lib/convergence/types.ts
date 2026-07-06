@@ -417,6 +417,19 @@ export interface CrossAssetCorrelations {
   note: string;
 }
 
+// ===== VRP OWN-HISTORY DISTRIBUTION (EDGE-4) =====
+// The ticker's own historical VRP (iv30 − hv30) series, one observation per
+// distinct scan day, from scan_snapshots. This is the ONLY honest distribution
+// for vrp_z / the VRP percentile — never a peer proxy, never a fabricated
+// mean/std. Absent (null) ⇒ the VRP signal is excluded and weights renormalize.
+
+export interface VrpHistoryData {
+  values: number[];       // one VRP observation per distinct scan day
+  distinct_days: number;  // === values.length
+  window_days: number;    // lookback window (365)
+  source: 'scan_snapshots';
+}
+
 // ===== COMBINED RAW INPUT =====
 
 export interface ConvergenceInput {
@@ -445,6 +458,8 @@ export interface ConvergenceInput {
   peerStats?: Record<string, { ticker_count?: number; peer_group_type?: string; peer_group_name?: string; metrics: Record<string, { mean: number; std: number; sortedValues?: number[] }> }>;
   peerGroupAssignment?: Record<string, string>;
   textPeerGroups?: Record<string, TextBasedPeerGroup>;
+  // EDGE-4: ticker's own historical VRP distribution — null/absent ⇒ VRP excluded
+  vrpHistory?: VrpHistoryData | null;
 }
 
 // ===== DATA CONFIDENCE =====
@@ -474,8 +489,15 @@ export interface SubScoreTrace {
 // -- Vol Edge --
 
 export interface MispricingTrace extends SubScoreTrace {
+  // EDGE-4: VRP component score (percentile of VRP vs the ticker's OWN 365d
+  // history). null = no own-history distribution ⇒ excluded + renormalized.
+  // DataConfidence tracking derives from this field so it cannot drift.
+  vrp_score: number | null;
   z_scores: {
     vrp_z: number | null;
+    // EDGE-4: labels the distribution vrp_z was computed against
+    // (e.g. "own 41-obs VRP history, 365d, source: scan_snapshots")
+    vrp_z_source: string | null;
     ivp_z: number | null;
     iv_hv_z: number | null;
     hv_accel_z: number | null;
