@@ -86,10 +86,10 @@ function formatPlainEnglish(scoring: FullScoringResult, input: ConvergenceInput)
   // --- Info Edge signals ---
   const ie = scoring.info_edge;
 
-  // Analyst consensus
+  // Analyst consensus (KILL-5: trace is null when no analyst data — skip)
   const analystTrace = ie.breakdown.analyst_consensus;
-  const totalAnalysts = analystTrace.raw_counts.total;
-  if (totalAnalysts > 0) {
+  const totalAnalysts = analystTrace?.raw_counts.total ?? 0;
+  if (analystTrace && totalAnalysts > 0) {
     const buyPct = Math.round(((analystTrace.raw_counts.strongBuy + analystTrace.raw_counts.buy) / totalAnalysts) * 100);
     if (buyPct >= 70) {
       signals.push(`Wall Street is bullish — ${buyPct}% of ${totalAnalysts} analysts rate this a Buy or Strong Buy.`);
@@ -238,8 +238,9 @@ function regimeContext(scoring: FullScoringResult): string {
 // ===== ANALYST CONSENSUS LABEL =====
 
 function analystConsensusLabel(scoring: FullScoringResult): string | null {
-  const counts = scoring.info_edge.breakdown.analyst_consensus.raw_counts;
-  if (counts.total === 0) return null;
+  // KILL-5: null trace = no analyst data — no label, never a placeholder
+  const counts = scoring.info_edge.breakdown.analyst_consensus?.raw_counts;
+  if (!counts || counts.total === 0) return null;
   const buyPct = (counts.strongBuy + counts.buy) / counts.total;
   const sellPct = (counts.strongSell + counts.sell) / counts.total;
   if (buyPct >= 0.7) return 'Strong Buy';

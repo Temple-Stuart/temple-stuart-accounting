@@ -1441,9 +1441,10 @@ export async function runPipeline(
           fed_net_liquidity_raw: scoring.regime.breakdown.fed_net_liquidity_signal.raw_value ?? null,
         } : null,
         info_edge_detail: scoring ? {
+          // KILL-5: null score/weight = analyst signal excluded (no data)
           analyst_consensus: {
-            score: scoring.info_edge.breakdown.analyst_consensus.score,
-            weight: scoring.info_edge.breakdown.analyst_consensus.weight,
+            score: scoring.info_edge.breakdown.analyst_consensus?.score ?? null,
+            weight: scoring.info_edge.breakdown.analyst_consensus?.weight ?? null,
           },
           // EDGE-2b: null score/weight = signal excluded (no data) and weights
           // renormalized — never a number invented for display.
@@ -1586,6 +1587,7 @@ export async function runPipeline(
   try {
     // Build input for chain fetcher from top 9 tickers
     const chainSkippedNoIvp: string[] = [];
+    const chainSkippedNoIv30: string[] = [];
     const chainInputs = top9.map(row => {
       const ticker = scoredTickers.find(t => t.symbol === row.symbol);
       if (!ticker) return null;
@@ -1615,6 +1617,14 @@ export async function runPipeline(
         return null;
       }
 
+      // KILL-5: iv30 drives σ in every breakeven_d2 PoP — without it nothing
+      // can be priced honestly. Skip + declare (hard Filter 3 makes this
+      // near-unreachable, but the old path fabricated a 30-vol here).
+      if (tt.iv30 == null) {
+        chainSkippedNoIv30.push(row.symbol);
+        return null;
+      }
+
       // EDGE-3: 10-day realized vol for the HV10>IV sanity gate — same
       // computation as the displayed vol cone (computeCloseToCloseHV, percent),
       // converted to decimal. null when candle history is insufficient; the
@@ -1627,8 +1637,16 @@ export async function runPipeline(
         direction: s.strategy_suggestion.direction,
         currentPrice: latestClose,
         ivRank: (s.vol_edge.breakdown.mispricing.inputs.IV_percentile as number) / 100,
-        iv30: (tt.iv30 ?? 30) / 100,
-        hv30: (tt.hv30 ?? 25) / 100,
+        // KILL-5: no fabricated vols. iv30 is guaranteed non-null by hard
+        // Filter 3 for pipeline tickers, but verified — a null skips the
+        // ticker with a declaration, never a fabricated 30-vol. hv30 and
+        // dividendYield pass through as null when the source did not deliver
+        // them; the strategy builder declares and excludes per consumer.
+        iv30: tt.iv30 / 100,
+        hv30: tt.hv30 != null ? tt.hv30 / 100 : null,
+        // TT delivers dividend-yield in percentage points (UI renders it with
+        // toFixed(2) + '%'); q wants a decimal. A true 0 stays 0 (non-payer).
+        dividendYield: tt.dividendYield != null && Number.isFinite(tt.dividendYield) ? tt.dividendYield / 100 : null,
         hv10: hv10Pct != null ? hv10Pct / 100 : null,
         riskFreeRate: fedFundsRate,
       };
@@ -1636,6 +1654,9 @@ export async function runPipeline(
 
     if (chainSkippedNoIvp.length > 0) {
       dataGaps.push(`trade_cards: ${chainSkippedNoIvp.length} ticker(s) skipped — IV percentile unavailable, cannot select the vol-regime strategy menu (no imputed rank): ${chainSkippedNoIvp.join(', ')}`);
+    }
+    if (chainSkippedNoIv30.length > 0) {
+      dataGaps.push(`trade_cards: ${chainSkippedNoIv30.length} ticker(s) skipped — IV30 unavailable, cannot price strategies (no fabricated vol): ${chainSkippedNoIv30.join(', ')}`);
     }
 
     if (chainInputs.length > 0) {
@@ -2312,7 +2333,10 @@ function buildRankedRows(
     const signals: string[] = [];
     if (ivp != null) signals.push(`IVP=${round(ivp, 0)}%`);
     if (tt.iv30 != null && tt.hv30 != null) {
-      const vrp = round(tt.iv30 ** 2 - tt.hv30 ** 2, 0);
+      // KILL-5 no-drift: ONE VRP definition everywhere — the simple difference
+      // iv30 − hv30 the scorer uses (Goyal & Saretto 2009; vol-edge). The old
+      // display showed the variance form iv30² − hv30² with no stated rationale.
+      const vrp = round(tt.iv30 - tt.hv30, 1);
       signals.push(`VRP=${vrp}`);
     }
     if (hvTrend && !hvTrend.startsWith('UNKNOWN')) {

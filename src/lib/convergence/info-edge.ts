@@ -1,3 +1,4 @@
+import { combineWeighted } from './weighted-combiner';
 import type {
   ConvergenceInput,
   InfoEdgeResult,
@@ -40,7 +41,7 @@ function computeSurpriseThreshold(surprises: number[]): number {
 // Estimate revision momentum: EPS level, dispersion, revenue-EPS alignment, consensus breadth
 // (Chan, Jegadeesh & Lakonishok 1996). Price targets and U/D events now scored independently.
 
-function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
+function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace | null {
   const recs = input.finnhubRecommendations;
   const estimates = input.finnhubEstimates;
   const earnings = input.finnhubEarnings;
@@ -71,7 +72,9 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
 
   // ===== SUB-SCORE 1: Estimate Level (25%) =====
   // Chan, Jegadeesh & Lakonishok 1996: forward-vs-trailing EPS growth proxy
-  let estimateLevelScore = 40; // penalty default
+  // KILL-5: missing estimate/earnings data → null → EXCLUDED + renormalized
+  // (was a penalty 40 that entered the score whenever the feed was absent).
+  let estimateLevelScore: number | null = null;
   let epsGrowthDirection: string | null = null;
   if (forwardEps !== null && trailingActualEps !== null && Math.abs(trailingActualEps) > 0.01) {
     const growth = (forwardEps - trailingActualEps) / Math.abs(trailingActualEps);
@@ -85,7 +88,7 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
 
   // ===== SUB-SCORE 2: Estimate Dispersion (25%) =====
   // Diether, Malloy & Scherbina 2002: high disagreement predicts low returns
-  let estimateDispersionScore = 40; // penalty default
+  let estimateDispersionScore: number | null = null; // KILL-5: missing → excluded
   let epsDispersionPct: number | null = null;
   if (nextQEps && Math.abs(nextQEps.epsAvg) > 0.01) {
     epsDispersionPct = round(((nextQEps.epsHigh - nextQEps.epsLow) / Math.abs(nextQEps.epsAvg)) * 100, 2);
@@ -99,7 +102,10 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
 
   // ===== SUB-SCORE 3: Revenue-EPS Alignment (15%) =====
   // Cross-validates earnings quality: both up = organic growth, mixed = fragile
-  let revenueEpsAlignmentScore = 50; // neutral default
+  // KILL-5: null when the alignment is not computable (missing revenue
+  // estimates or unknown directions). The 50 for a KNOWN mixed direction
+  // (one up, one down — line below) is a genuine neutral band and stays.
+  let revenueEpsAlignmentScore: number | null = null;
   let revenueGrowthDirection: string | null = null;
   if (nextQRev && nextQRev.revenueAvg > 0) {
     const pastRev = estimates?.revenueEstimates
@@ -120,7 +126,7 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
 
   // ===== SUB-SCORE 4: Consensus Breadth (35%) =====
   // Buy/sell ratio (60%) + coverage depth (40%)
-  let consensusBreadthScore = 40; // penalty default
+  let consensusBreadthScore: number | null = null; // KILL-5: no recs → excluded
   if (latest && total > 0) {
     const bullish = latest.strongBuy + latest.buy;
     const bullishPct = bullish / total;
@@ -141,17 +147,23 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
     consensusBreadthScore = round(0.60 * ratioScore + 0.40 * coverageScore, 1);
   }
 
-  // ===== Weighted combination =====
+  // ===== Weighted combination (KILL-5 / EDGE-2 combiner) =====
   // 0.25 EstLevel + 0.25 Dispersion + 0.15 RevEpsAlign + 0.35 ConsensusBreadth
-  const score = round(
-    0.25 * estimateLevelScore +
-    0.25 * estimateDispersionScore +
-    0.15 * revenueEpsAlignmentScore +
-    0.35 * consensusBreadthScore,
-    1,
-  );
+  // Missing components are EXCLUDED and the remaining weights renormalize;
+  // ALL four missing → the whole sub-score is null (excluded from info-edge).
+  const acCombined = combineWeighted([
+    { key: 'estimate_level', weight: 0.25, score: estimateLevelScore },
+    { key: 'estimate_dispersion', weight: 0.25, score: estimateDispersionScore },
+    { key: 'revenue_eps_alignment', weight: 0.15, score: revenueEpsAlignmentScore },
+    { key: 'consensus_breadth', weight: 0.35, score: consensusBreadthScore },
+  ]);
+  if (acCombined.score == null) {
+    return null; // no analyst/estimate data at all — excluded, weights re-normalize
+  }
+  const score = acCombined.score;
 
-  const formula = `0.25×EstLevel(${round(estimateLevelScore)}) + 0.25×Dispersion(${round(estimateDispersionScore)}) + 0.15×RevEpsAlign(${round(revenueEpsAlignmentScore)}) + 0.35×Breadth(${round(consensusBreadthScore)}) = ${score}`;
+  const fmtA = (v: number | null) => (v !== null ? String(round(v)) : 'EXCLUDED');
+  const formula = `0.25×EstLevel(${fmtA(estimateLevelScore)}) + 0.25×Dispersion(${fmtA(estimateDispersionScore)}) + 0.15×RevEpsAlign(${fmtA(revenueEpsAlignmentScore)}) + 0.35×Breadth(${fmtA(consensusBreadthScore)})${acCombined.excludedKeys.length > 0 ? ` [missing excluded, weights renormalized ÷${Math.round(acCombined.activeWeight * 100) / 100}]` : ''} = ${score}`;
 
   const notes = [
     `fwdEPS=${forwardEps ?? 'N/A'}`,
@@ -160,9 +172,13 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
     latest ? `${latest.strongBuy}SB/${latest.buy}B/${latest.hold}H/${latest.sell}S/${latest.strongSell}SS` : 'no recs',
   ].join(', ');
 
+  const rA = (v: number | null) => (v !== null ? round(v) : null);
   return {
     score: round(score),
     weight: 0.15,
+    active_signal_count: acCombined.activeCount,
+    total_signal_count: acCombined.totalCount,
+    excluded_components: acCombined.excludedKeys.map(k => `analyst_consensus.${k}`),
     inputs: {
       periods_available: sorted.length,
       latest_period: latest?.period ?? null,
@@ -174,10 +190,10 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
     formula,
     notes,
     sub_scores: {
-      estimate_level_score: round(estimateLevelScore),
-      estimate_dispersion_score: round(estimateDispersionScore),
-      revenue_eps_alignment_score: round(revenueEpsAlignmentScore),
-      consensus_breadth_score: round(consensusBreadthScore),
+      estimate_level_score: rA(estimateLevelScore),
+      estimate_dispersion_score: rA(estimateDispersionScore),
+      revenue_eps_alignment_score: rA(revenueEpsAlignmentScore),
+      consensus_breadth_score: rA(consensusBreadthScore),
     },
     indicators: {
       forward_eps: forwardEps,
@@ -1322,7 +1338,11 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   // neutral value. All nine data-dependent sub-scores are nullable; only
   // analyst_consensus always returns a trace, so activeWeight >= 0.15 > 0.
   const TOTAL_SUB_SCORES = 10; // analyst, price_target, upgrade_downgrade, insider, earnings, flow, news, institutional, fund_ownership, material_event
-  const activeSubScores: SubScoreTrace[] = [analystConsensus];
+  // KILL-5: analyst_consensus is nullable like every other sub-score — its
+  // internal components no longer impute 40/50 on missing data, so a ticker
+  // with zero analyst/estimate coverage EXCLUDES the signal entirely.
+  const activeSubScores: SubScoreTrace[] = [];
+  if (analystConsensus != null) activeSubScores.push(analystConsensus);
   if (priceTargetSignal != null) activeSubScores.push(priceTargetSignal);
   if (upgradeDowngradeSignal != null) activeSubScores.push(upgradeDowngradeSignal);
   if (insiderActivity != null) activeSubScores.push(insiderActivity);
@@ -1337,6 +1357,13 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   const activeWeight = activeSubScores.reduce((sum, s) => sum + s.weight, 0);
   const baseScore = activeSubScores.reduce((sum, s) => sum + s.weight * s.score, 0);
 
+  // KILL-3/KILL-5 fail-loud: with zero real data across all ten signals there
+  // is nothing honest to score (scan_snapshots.infoEdgeScore is non-nullable —
+  // gate-level exclusion is a migration, flagged for Alex).
+  if (activeSubScores.length === 0 || activeWeight <= 0) {
+    throw new Error('Info-edge gate cannot compute: all ten signals lack source data — no imputation (KILL-5)');
+  }
+
   let score = round(baseScore / activeWeight, 1);
 
   // Filing recency: event-driven overlay (does NOT rebalance weights)
@@ -1346,18 +1373,15 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   }
 
   // Build DataConfidence
-  // EDGE-2b: imputedFields now covers ONLY analyst_consensus, the one sub-score
-  // that still blends component-level defaults internally when parts of its data
-  // are missing (out of this PR's mandate — documented for follow-up).
+  // KILL-5: nothing is imputed anywhere in info-edge anymore — the
+  // analyst_consensus internals now exclude + renormalize like everything
+  // else, so imputed_fields is empty and all tracking is exclusion-based,
+  // derived from the actual null traces (cannot drift).
   const imputedFields: string[] = [];
-  if (input.finnhubRecommendations.length === 0 && !input.finnhubEstimates) imputedFields.push('analyst_consensus');
-  else if (!input.finnhubEstimates) imputedFields.push('analyst_consensus.estimates');
 
-  // EDGE-2/EDGE-2b: excluded (dropped + re-normalized), NOT imputed. Derived from
-  // the sub-scores/components that actually returned null above, so tracking
-  // cannot drift from the score math. Dotted entries are components excluded and
-  // renormalized INSIDE a sub-score that still computed from its remaining data.
   const excludedFields: string[] = [];
+  if (analystConsensus == null) excludedFields.push('analyst_consensus');
+  else excludedFields.push(...(analystConsensus.excluded_components ?? []));
   if (priceTargetSignal == null) excludedFields.push('price_target_signal');
   if (upgradeDowngradeSignal == null) excludedFields.push('upgrade_downgrade_signal');
   if (insiderActivity == null) excludedFields.push('insider_activity');

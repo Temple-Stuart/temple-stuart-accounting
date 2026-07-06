@@ -13,8 +13,12 @@ export interface ChainTickerInput {
   direction: string;
   currentPrice: number;
   ivRank: number;        // 0-1 scale
+  // KILL-5: iv30 required-real (callers skip + declare when the source did not
+  // deliver it — never a fabricated 30-vol). hv30/dividendYield null = source
+  // did not deliver; downstream declares and excludes, never substitutes.
   iv30: number;          // decimal e.g. 0.42
-  hv30: number;          // decimal e.g. 0.25
+  hv30: number | null;   // decimal e.g. 0.25, null = unavailable
+  dividendYield: number | null; // decimal e.g. 0.02, true 0 = real non-payer
   // EDGE-3: 10-day realized vol, decimal (e.g. 0.55). Required — null means not
   // computable from candle history; the HV10>IV gate then declares itself
   // not-evaluated instead of running on an invented value.
@@ -374,6 +378,7 @@ export async function fetchChainAndBuildCards(
             symbol: ticker.symbol,
             iv30: ticker.iv30,
             hv30: ticker.hv30,
+            dividendYield: ticker.dividendYield,
             hv10: ticker.hv10,
             riskFreeRate: ticker.riskFreeRate,
           });
