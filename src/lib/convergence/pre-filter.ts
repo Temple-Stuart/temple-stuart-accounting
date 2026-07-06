@@ -30,8 +30,11 @@ export function computePreFilter(scannerData: TTScannerData[]): PreFilterResult[
   const results: PreFilterResult[] = [];
 
   for (const t of scannerData) {
-    const ivRank = t.ivRank > 0 ? t.ivRank : null;
-    const ivPercentile = t.ivPercentile > 0 ? t.ivPercentile : null;
+    // KILL-2: missing arrives as null from the parse boundary now (it used to
+    // arrive imputed as 0, which forced the old `> 0` workaround here). A true
+    // source 0 is DATA (standing ruling) and scores as a real 0-rank.
+    const ivRank = t.ivRank;
+    const ivPercentile = t.ivPercentile;
     const liquidityRating = t.liquidityRating;
 
     // All three components required — null inputs score 0.

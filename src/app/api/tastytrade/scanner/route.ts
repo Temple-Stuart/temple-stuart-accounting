@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getAuthenticatedClient } from '@/lib/tastytrade';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireAdmin } from '@/lib/require-admin';
+import { numOrNull, firstNumOrNull } from '@/lib/parse-num';
 
 export const maxDuration = 300;
 
@@ -218,9 +219,11 @@ export async function GET(request: Request) {
       return {
         // Existing
         symbol: m['symbol'] || '',
-        ivRank: Number(m['implied-volatility-index-rank'] || m['tos-implied-volatility-index-rank'] || m['tw-implied-volatility-index-rank'] || 0),
-        ivPercentile: Number(m['implied-volatility-percentile'] || 0),
-        impliedVolatility: Number(m['implied-volatility-index'] || 0),
+        // KILL-2: absent/unparseable → null, never 0 (a missing IV rank used to
+        // sort the whole universe at rank 0). A true source 0 stays 0.
+        ivRank: firstNumOrNull(m['implied-volatility-index-rank'], m['tos-implied-volatility-index-rank'], m['tw-implied-volatility-index-rank']),
+        ivPercentile: numOrNull(m['implied-volatility-percentile']),
+        impliedVolatility: numOrNull(m['implied-volatility-index']),
         liquidityRating: m['liquidity-rating'] != null ? Number(m['liquidity-rating']) : null,
         earningsDate,
         daysTillEarnings,
@@ -261,11 +264,18 @@ export async function GET(request: Request) {
       };
     }).filter((m: any) => m.symbol);
 
+    // KILL-2: a ticker with no IV rank cannot honestly hold a place in an
+    // IV-rank-sorted list — EXCLUDED from the ranking and DECLARED, never
+    // ranked at an imputed 0.
+    const ranked = metrics.filter((m): m is typeof m & { ivRank: number } => m.ivRank != null);
+    const excludedSymbols = metrics.filter(m => m.ivRank == null).map(m => m.symbol);
+
     // Sort by IV Rank descending
-    metrics.sort((a, b) => b.ivRank - a.ivRank);
+    ranked.sort((a, b) => b.ivRank - a.ivRank);
 
     return NextResponse.json({
-      metrics,
+      metrics: ranked,
+      excluded_missing_iv_rank: { count: excludedSymbols.length, symbols: excludedSymbols },
       totalScanned: totalSymbols,
       universe,
       fetchedAt: new Date().toISOString(),

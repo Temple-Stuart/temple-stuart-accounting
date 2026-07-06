@@ -952,11 +952,11 @@ function scoreGammaExposure(input: ConvergenceInput): GEXTrace {
     for (const s of exp.strikes) {
       let strikeGex = 0;
 
-      if (s.callIV !== null && s.callIV > 0 && s.callOI > 0) {
+      if (s.callIV !== null && s.callIV > 0 && s.callOI != null && s.callOI > 0) {
         const gamma = bsGamma(spot, s.strike, s.callIV, exp.dte, rfr);
         strikeGex += s.callOI * gamma * 100 * spot;
       }
-      if (s.putIV !== null && s.putIV > 0 && s.putOI > 0) {
+      if (s.putIV !== null && s.putIV > 0 && s.putOI != null && s.putOI > 0) {
         const gamma = bsGamma(spot, s.strike, s.putIV, exp.dte, rfr);
         strikeGex += -1 * s.putOI * gamma * 100 * spot;
       }

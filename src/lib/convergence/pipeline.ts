@@ -15,6 +15,7 @@ import type { FullScoringResult } from './composite';
 import { computePreFilter } from './pre-filter';
 import type { PreFilterResult } from './pre-filter';
 import { logScanSnapshotBatch, fetchVrpHistoryBatch } from './snapshot-logger';
+import { numOrNull, firstNumOrNull } from '@/lib/parse-num';
 import { generateTradeCards, computeCloseToCloseHV } from './trade-cards';
 import type {
   TTScannerData,
@@ -269,14 +270,16 @@ function parseMarketMetrics(items: Record<string, unknown>[]): TTScannerData[] {
 
       return {
         symbol,
-        ivRank: Number(
-          m['implied-volatility-index-rank'] ||
-          m['tos-implied-volatility-index-rank'] ||
-          m['tw-implied-volatility-index-rank'] ||
-          0,
+        // KILL-2: absent/unparseable → null, never 0 — these reach scoring
+        // (vol-edge IVR/IVP), peer stats, chain pricing, and scan_snapshots.
+        // A true source 0 stays 0.
+        ivRank: firstNumOrNull(
+          m['implied-volatility-index-rank'],
+          m['tos-implied-volatility-index-rank'],
+          m['tw-implied-volatility-index-rank'],
         ),
-        ivPercentile: Number(m['implied-volatility-percentile'] || 0),
-        impliedVolatility: Number(m['implied-volatility-index'] || 0),
+        ivPercentile: numOrNull(m['implied-volatility-percentile']),
+        impliedVolatility: numOrNull(m['implied-volatility-index']),
         liquidityRating: m['liquidity-rating'] != null ? Number(m['liquidity-rating']) : null,
         earningsDate,
         daysTillEarnings,
@@ -1540,6 +1543,7 @@ export async function runPipeline(
   }
   try {
     // Build input for chain fetcher from top 9 tickers
+    const chainSkippedNoIvp: string[] = [];
     const chainInputs = top9.map(row => {
       const ticker = scoredTickers.find(t => t.symbol === row.symbol);
       if (!ticker) return null;
@@ -1560,8 +1564,14 @@ export async function runPipeline(
       }
       const fedFundsRate = fredResult.data.fedFunds / 100;
 
-      // Exclude ticker if IV_percentile is null — no fallback
-      if (s.vol_edge.breakdown.mispricing.inputs.IV_percentile == null) return null;
+      // Exclude ticker if IV_percentile is null — no fallback. KILL-2: with
+      // honest nulls at the parse boundary this path is now reachable
+      // (missing IVP used to arrive imputed as 0 and slip through as rank 0);
+      // the exclusion is declared in data_gaps after the filter below.
+      if (s.vol_edge.breakdown.mispricing.inputs.IV_percentile == null) {
+        chainSkippedNoIvp.push(row.symbol);
+        return null;
+      }
 
       // EDGE-3: 10-day realized vol for the HV10>IV sanity gate — same
       // computation as the displayed vol cone (computeCloseToCloseHV, percent),
@@ -1581,6 +1591,10 @@ export async function runPipeline(
         riskFreeRate: fedFundsRate,
       };
     }).filter((input): input is NonNullable<typeof input> => input !== null);
+
+    if (chainSkippedNoIvp.length > 0) {
+      dataGaps.push(`trade_cards: ${chainSkippedNoIvp.length} ticker(s) skipped — IV percentile unavailable, cannot select the vol-regime strategy menu (no imputed rank): ${chainSkippedNoIvp.join(', ')}`);
+    }
 
     if (chainInputs.length > 0) {
       const chainResult = await fetchChainAndBuildCards(chainInputs);

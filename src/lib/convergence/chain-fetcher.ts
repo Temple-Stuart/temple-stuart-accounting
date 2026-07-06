@@ -3,6 +3,7 @@ import { MarketDataSubscriptionType } from '@tastytrade/api';
 import { buildStrikeData, generateStrategies } from '@/lib/strategy-builder';
 import type { StrategyCard, RejectionReason, StrikeData } from '@/lib/strategy-builder';
 import type { OptionsFlowData, OptionsChainExpiration, OptionsChainStrike } from './types';
+import { numOrNull, firstNumOrNull } from '@/lib/parse-num';
 
 // ===== TYPES =====
 
@@ -267,28 +268,32 @@ export async function fetchChainAndBuildCards(
 
         if (!greeksData[sym]) greeksData[sym] = {};
 
+        // KILL-2: absent/unparseable (incl. DXFeed "NaN") → null, never 0.
+        // These reach strategy pricing (makeLeg), PoP/EV, GEX, and flow
+        // ratios — an imputed 0 delta could even WIN low-delta strike
+        // selection. A true source 0 stays 0.
         if (type === 'Greeks') {
           greeksReceived++;
           Object.assign(greeksData[sym], {
-            iv: Number(evtObj['volatility'] || 0),
-            delta: Number(evtObj['delta'] || 0),
-            gamma: Number(evtObj['gamma'] || 0),
-            theta: Number(evtObj['theta'] || 0),
-            vega: Number(evtObj['vega'] || 0),
-            rho: Number(evtObj['rho'] || 0),
-            theoPrice: Number(evtObj['price'] || 0),
+            iv: numOrNull(evtObj['volatility']),
+            delta: numOrNull(evtObj['delta']),
+            gamma: numOrNull(evtObj['gamma']),
+            theta: numOrNull(evtObj['theta']),
+            vega: numOrNull(evtObj['vega']),
+            rho: numOrNull(evtObj['rho']),
+            theoPrice: numOrNull(evtObj['price']),
           });
         } else if (type === 'Quote') {
           Object.assign(greeksData[sym], {
-            bid: Number(evtObj['bidPrice'] || 0),
-            ask: Number(evtObj['askPrice'] || 0),
-            bidSize: Number(evtObj['bidSize'] || 0),
-            askSize: Number(evtObj['askSize'] || 0),
+            bid: numOrNull(evtObj['bidPrice']),
+            ask: numOrNull(evtObj['askPrice']),
+            bidSize: numOrNull(evtObj['bidSize']),
+            askSize: numOrNull(evtObj['askSize']),
           });
         } else if (type === 'Trade') {
-          greeksData[sym].volume = Number(evtObj['dayVolume'] || evtObj['volume'] || 0);
+          greeksData[sym].volume = firstNumOrNull(evtObj['dayVolume'], evtObj['volume']);
         } else if (type === 'Summary') {
-          greeksData[sym].openInterest = Number(evtObj['openInterest'] || 0);
+          greeksData[sym].openInterest = numOrNull(evtObj['openInterest']);
         }
       }
     });
@@ -462,6 +467,9 @@ export async function fetchChainAndBuildCards(
       let totalPutOI = 0;
       let strikesAnalyzed = 0;
       let highActivityStrikes = 0;
+      // KILL-2 coverage: per-contract volume/OI fields the feed did not deliver
+      let volumeFieldsMissing = 0;
+      let oiFieldsMissing = 0;
 
       for (const exp of expirations) {
         const strikes: OptionsChainStrike[] = [];
@@ -472,10 +480,12 @@ export async function fetchChainAndBuildCards(
 
           const callIV = callData.iv != null && Number(callData.iv) > 0 ? Number(callData.iv) : null;
           const putIV = putData.iv != null && Number(putData.iv) > 0 ? Number(putData.iv) : null;
-          const callVolume = Number(callData.volume || 0);
-          const putVolume = Number(putData.volume || 0);
-          const callOI = Number(callData.openInterest || 0);
-          const putOI = Number(putData.openInterest || 0);
+          // KILL-2: missing volume/OI is null — EXCLUDED from the totals and
+          // counted in the coverage declaration, never summed as a real 0.
+          const callVolume = numOrNull(callData.volume);
+          const putVolume = numOrNull(putData.volume);
+          const callOI = numOrNull(callData.openInterest);
+          const putOI = numOrNull(putData.openInterest);
 
           strikes.push({
             strike: s.strike,
@@ -487,14 +497,16 @@ export async function fetchChainAndBuildCards(
             putVolume,
           });
 
-          totalCallVolume += callVolume;
-          totalPutVolume += putVolume;
-          totalCallOI += callOI;
-          totalPutOI += putOI;
+          if (callVolume != null) totalCallVolume += callVolume; else volumeFieldsMissing++;
+          if (putVolume != null) totalPutVolume += putVolume; else volumeFieldsMissing++;
+          if (callOI != null) totalCallOI += callOI; else oiFieldsMissing++;
+          if (putOI != null) totalPutOI += putOI; else oiFieldsMissing++;
           strikesAnalyzed++;
 
-          // High activity: volume exceeds open interest (unusual activity signal)
-          if ((callVolume + putVolume) > (callOI + putOI) && (callOI + putOI) > 0) {
+          // High activity: volume exceeds open interest (unusual activity signal).
+          // Evaluated only when the feed delivered all four fields for the strike.
+          if (callVolume != null && putVolume != null && callOI != null && putOI != null &&
+              (callVolume + putVolume) > (callOI + putOI) && (callOI + putOI) > 0) {
             highActivityStrikes++;
           }
         }
@@ -520,6 +532,8 @@ export async function fetchChainAndBuildCards(
         strikes_analyzed: strikesAnalyzed,
         high_activity_strikes: highActivityStrikes,
         expirations_analyzed: expirations.length,
+        volume_fields_missing: volumeFieldsMissing,
+        oi_fields_missing: oiFieldsMissing,
         underlyingPrice: ticker.currentPrice,
         chainDetail,
       };
