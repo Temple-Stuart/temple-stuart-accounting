@@ -1182,12 +1182,10 @@ export function scoreVolEdge(input: ConvergenceInput): VolEdgeResult {
     { key: 'gex', weight: 0.10, score: sectionActive(gex) ? gex.score : null },
   ]);
 
-  // KILL-6 fail-loud: with zero real data across all five sections there is
-  // nothing honest to score (scan_snapshots.volEdgeScore is non-nullable —
-  // gate-level exclusion is a migration, flagged for Alex).
-  if (gateCombined.score == null) {
-    throw new Error('Vol-edge gate cannot compute: all five sections lack source data — no imputation (KILL-6)');
-  }
+  // MIG-1: with zero real data across all five sections the gate records an
+  // HONEST NULL (scan_snapshots.volEdgeScore is nullable now) — excluded from
+  // the composite, which renormalizes over the present gates. Declared via
+  // active_signal_count 0 + excluded_fields + a composite data_gaps entry.
   const score = gateCombined.score;
 
   // Renormalized section weights written back onto the traces; excluded

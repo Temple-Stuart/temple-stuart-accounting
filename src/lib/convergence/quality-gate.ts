@@ -1118,14 +1118,9 @@ export function scoreQualityGate(input: ConvergenceInput): QualityGateResult {
     { key: 'fundamentalRisk', weight: 0.15, score: sectionActive(fundamentalRisk) ? fundamentalRisk.score : null },
   ]);
 
-  // KILL-3 fail-loud: with zero real data across all four sections there is
-  // nothing honest to score. No imputation — throw; the pipeline's per-ticker
-  // catch declares the failure in errors[]. (Excluding the whole gate from the
-  // composite would need scan_snapshots.qualityScore nullable — a migration,
-  // flagged for Alex.)
-  if (gateCombined.score == null) {
-    throw new Error('Quality gate cannot compute: all four sections lack source data — no imputation (KILL-3)');
-  }
+  // MIG-1: with zero real data across all four sections the gate records an
+  // HONEST NULL (qualityScore column is nullable now) — excluded from the
+  // composite, which renormalizes over the present gates.
 
   // Renormalized section weights written back onto the traces (vol-edge
   // precedent): excluded sections show weight 0 + an EXCLUDED formula.
@@ -1135,7 +1130,7 @@ export function scoreQualityGate(input: ConvergenceInput): QualityGateResult {
   growth.weight = renorm(0.15, sectionActive(growth));
   fundamentalRisk.weight = renorm(0.15, sectionActive(fundamentalRisk));
 
-  let score = gateCombined.score;
+  let score = gateCombined.score; // null = gate excluded (MIG-1)
 
   // MSPR bonus: latest insider sentiment month
   let msprAdjustment = 0;
@@ -1151,7 +1146,7 @@ export function scoreQualityGate(input: ConvergenceInput): QualityGateResult {
     if (latest.mspr > 50) msprAdjustment = 5;
     else if (latest.mspr < -50) msprAdjustment = -5;
   }
-  score = clamp(round(score + msprAdjustment, 1), 0, 100);
+  if (score !== null) score = clamp(round(score + msprAdjustment, 1), 0, 100);
 
   // Build DataConfidence — KILL-3: derived from the traces' actual exclusions
   // (no drift). Nothing is imputed anymore: a missing component is EXCLUDED

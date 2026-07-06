@@ -87,11 +87,12 @@ interface PreScoreRow {
 interface RankedRow {
   rank: number;
   symbol: string;
-  composite: number;
-  vol_edge: number;
-  quality: number;
-  regime: number;
-  info_edge: number;
+  // MIG-1: null = gate EXCLUDED (zero computable signals) — rendered '—', never 0
+  composite: number | null;
+  vol_edge: number | null;
+  quality: number | null;
+  regime: number | null;
+  info_edge: number | null;
   convergence: string;
   direction: string;
   strategy: string;
@@ -1343,7 +1344,7 @@ export async function runPipeline(
     rankings: rankedRows.map(r => {
       const scoring = scoringMap.get(r.symbol);
       return {
-        symbol: r.symbol, composite: r.composite, vol_edge: r.vol_edge, quality: r.quality, regime: r.regime, info_edge: r.info_edge, sector: r.sector, convergence: r.convergence, selection_status: r.composite >= 50 ? 'eligible' : 'below_threshold',
+        symbol: r.symbol, composite: r.composite, vol_edge: r.vol_edge, quality: r.quality, regime: r.regime, info_edge: r.info_edge, sector: r.sector, convergence: r.convergence, selection_status: r.composite === null ? 'not_scored — all gates excluded' : r.composite >= 50 ? 'eligible' : 'below_threshold',
         data_confidence: scoring?.composite.data_confidence.confidence ?? null,
         position_size_pct: scoring?.composite.position_size_pct ?? null,
         vol_edge_detail: scoring ? {
@@ -1526,6 +1527,8 @@ export async function runPipeline(
         const catAbove50 = parseInt(r.convergence.split('/')[0], 10);
         const reason = catAbove50 < 3
           ? `convergence ${r.convergence} — below 3/4 minimum`
+          : r.quality === null
+          ? `quality gate EXCLUDED (zero computable signals) — 40-floor not evaluable, missing is not treated as passing`
           : r.quality < 40
           ? `quality ${r.quality} — below floor of 40`
           : `sector cap or rank`;
@@ -2304,10 +2307,16 @@ function buildRankedRows(
     scoring: FullScoringResult;
   }[],
 ): RankedRow[] {
-  // Sort by composite score descending
-  const sorted = [...scoredTickers].sort(
-    (a, b) => b.scoring.composite.score - a.scoring.composite.score,
-  );
+  // Sort by composite score descending. MIG-1: a null composite (all gates
+  // excluded) sorts LAST — it has no score, it is not a low score.
+  const sorted = [...scoredTickers].sort((a, b) => {
+    const as = a.scoring.composite.score;
+    const bs = b.scoring.composite.score;
+    if (as === null && bs === null) return 0;
+    if (as === null) return 1;
+    if (bs === null) return -1;
+    return bs - as;
+  });
 
   return sorted.map((t, idx) => {
     const s = t.scoring;
@@ -2393,6 +2402,14 @@ function rankAndDiversify(rankedRows: RankedRow[]): {
     if (catAbove50 < 3) {
       adjustments.push(
         `Excluded ${row.symbol} (rank ${row.rank}, composite=${row.composite}) — convergence ${row.convergence}, below 3/4 minimum.`,
+      );
+      continue;
+    }
+    if (row.quality === null) {
+      // MIG-1: quality gate excluded — the 40-floor cannot be evaluated.
+      // Missing is NOT treated as passing (that would impute "fine").
+      adjustments.push(
+        `Excluded ${row.symbol} (rank ${row.rank}) — quality gate EXCLUDED (zero computable signals); 40-quality floor not evaluable, missing is not treated as passing.`,
       );
       continue;
     }

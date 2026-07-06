@@ -1357,18 +1357,16 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   const activeWeight = activeSubScores.reduce((sum, s) => sum + s.weight, 0);
   const baseScore = activeSubScores.reduce((sum, s) => sum + s.weight * s.score, 0);
 
-  // KILL-3/KILL-5 fail-loud: with zero real data across all ten signals there
-  // is nothing honest to score (scan_snapshots.infoEdgeScore is non-nullable —
-  // gate-level exclusion is a migration, flagged for Alex).
-  if (activeSubScores.length === 0 || activeWeight <= 0) {
-    throw new Error('Info-edge gate cannot compute: all ten signals lack source data — no imputation (KILL-5)');
-  }
-
-  let score = round(baseScore / activeWeight, 1);
+  // MIG-1: with zero real data across all ten signals the gate records an
+  // HONEST NULL (infoEdgeScore column is nullable now) — excluded from the
+  // composite, which renormalizes over the present gates.
+  let score: number | null = activeSubScores.length > 0 && activeWeight > 0
+    ? round(baseScore / activeWeight, 1)
+    : null;
 
   // Filing recency: event-driven overlay (does NOT rebalance weights)
   // Positive surprise: up to +8 pts, Negative surprise: up to -12 pts (asymmetric)
-  if (filingRecency.filing_signal_active && filingRecency.filing_modifier !== 0) {
+  if (score !== null && filingRecency.filing_signal_active && filingRecency.filing_modifier !== 0) {
     score = clamp(round(score + filingRecency.filing_modifier, 1), 0, 100);
   }
 
