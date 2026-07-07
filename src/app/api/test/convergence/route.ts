@@ -9,6 +9,7 @@ import { fetchChainAndBuildCards } from '@/lib/convergence/chain-fetcher';
 import type { ChainTickerInput } from '@/lib/convergence/chain-fetcher';
 import { generateTradeCards, computeCloseToCloseHV } from '@/lib/convergence/trade-cards';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireAdmin } from '@/lib/require-admin';
 import type {
   CandleData,
   TTScannerData,
@@ -153,6 +154,15 @@ async function fetchTTCandles(symbol: string, days: number): Promise<{ candles: 
 // ===== MAIN ROUTE =====
 
 export async function GET(request: Request) {
+  // SEC-3: this route fires the SHARED FIRM TastyTrade account (getTastytradeClient
+  // — env creds, not per-user OAuth) and returns internal debug dumps. Any authed
+  // user hitting it spends/reads ALEX'S brokerage. Admin-gate BEFORE any TT/paid
+  // call — 403 (non-admin) / 401 (guest). Same requireAdmin pattern as the sibling
+  // /api/trading/convergence this component's main scan already uses. (Kept, not
+  // deleted: ConvergenceIntelligence.tsx:4768 single-ticker lookup depends on it.)
+  const adminGate = await requireAdmin();
+  if (adminGate instanceof NextResponse) return adminGate;
+
   const userEmail = await getVerifiedEmail();
   if (!userEmail) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
