@@ -3,6 +3,21 @@ import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 /**
+ * SEC-2: the user's investment_transaction ids — the ownership handle for
+ * trading_positions, which has no userId. Positions are the user's only when
+ * their open_investment_txn_id is in this set (open_investment_txn_id →
+ * investment_transactions.accounts.userId). Same two-step scope as
+ * trading/coverage/route.ts:38-50.
+ */
+async function getUserTxnIds(userId: string): Promise<string[]> {
+  const txns = await prisma.investment_transactions.findMany({
+    where: { accounts: { userId } },
+    select: { id: true },
+  });
+  return txns.map((t) => t.id);
+}
+
+/**
  * POST /api/trade-card-links — Link a trade card to a trading position
  */
 export async function POST(request: NextRequest) {
@@ -34,30 +49,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find the position and compute actual entry price
+    // SEC-2: only ever read the user's OWN positions. Scope the trade_num
+    // lookup through the ownership chain — a cross-user (or unknown) trade_num
+    // resolves to zero owned positions → defensive 404, no link created, and
+    // no other user's cost_basis/realized_pl is ever read.
+    const userTxnIds = await getUserTxnIds(user.id);
     const positions = await prisma.trading_positions.findMany({
-      where: { trade_num },
+      where: { trade_num, open_investment_txn_id: { in: userTxnIds } },
     });
+    if (positions.length === 0) {
+      return NextResponse.json({ error: 'No matching position found' }, { status: 404 });
+    }
 
-    let actualEntryPrice: number | null = null;
+    // Compute entry as average open_price across the user's own position legs
+    const totalCost = positions.reduce((sum, p) => sum + Math.abs(p.cost_basis), 0);
+    let actualEntryPrice: number | null = totalCost / positions.length;
     let actualExitPrice: number | null = null;
     let actualPl: number | null = null;
     let grade: string | null = null;
 
-    if (positions.length > 0) {
-      // Compute entry as average open_price across position legs
-      const totalCost = positions.reduce((sum, p) => sum + Math.abs(p.cost_basis), 0);
-      actualEntryPrice = totalCost / positions.length;
-
-      // Check if position is closed — if so, compute grade
-      const allClosed = positions.every(p => p.status === 'CLOSED');
-      if (allClosed) {
-        const totalPl = positions.reduce((sum, p) => sum + (p.realized_pl ?? 0), 0);
-        actualPl = totalPl;
-        const totalProceeds = positions.reduce((sum, p) => sum + (p.proceeds ?? 0), 0);
-        actualExitPrice = totalProceeds / positions.length;
-        grade = computeGrade(actualPl, Number(card.max_profit), Number(card.max_loss));
-      }
+    // Check if position is closed — if so, compute grade
+    const allClosed = positions.every(p => p.status === 'CLOSED');
+    if (allClosed) {
+      const totalPl = positions.reduce((sum, p) => sum + (p.realized_pl ?? 0), 0);
+      actualPl = totalPl;
+      const totalProceeds = positions.reduce((sum, p) => sum + (p.proceeds ?? 0), 0);
+      actualExitPrice = totalProceeds / positions.length;
+      grade = computeGrade(actualPl, Number(card.max_profit), Number(card.max_loss));
     }
 
     // Create the link in a transaction
@@ -153,16 +171,22 @@ export async function GET(request: NextRequest) {
     if (positionsFor) {
       const afterDate = params.get('after');
 
-      // Get all trade_nums already linked
+      // SEC-2: scope both reads to the user. Links are the user's via their
+      // trade_cards; positions are the user's via the txn-id ownership chain.
+      const userTxnIds = await getUserTxnIds(user.id);
+
+      // Get the user's own already-linked trade_nums (was: ALL users' links)
       const existingLinks = await prisma.trade_card_links.findMany({
+        where: { trade_card: { userId: user.id } },
         select: { trade_num: true },
       });
       const linkedTradeNums = new Set(existingLinks.map(l => l.trade_num));
 
-      // Find positions matching symbol, opened after card generation date
+      // Find the USER'S positions matching symbol, opened after card generation
       const where: Record<string, unknown> = {
         symbol: { contains: positionsFor.toUpperCase(), mode: 'insensitive' },
         trade_num: { not: null },
+        open_investment_txn_id: { in: userTxnIds },
       };
       if (afterDate) {
         where.open_date = { gte: new Date(afterDate) };
@@ -202,8 +226,11 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Linked card not found' }, { status: 404 });
       }
 
+      // SEC-2: scope to the user's own legs so a trade_num collision cannot
+      // sum another user's realized_pl/proceeds into this user's grade.
+      const userTxnIds = await getUserTxnIds(user.id);
       const positions = await prisma.trading_positions.findMany({
-        where: { trade_num: card.link.trade_num },
+        where: { trade_num: card.link.trade_num, open_investment_txn_id: { in: userTxnIds } },
       });
 
       const allClosed = positions.length > 0 && positions.every(p => p.status === 'CLOSED');

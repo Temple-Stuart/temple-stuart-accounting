@@ -184,9 +184,12 @@ export async function DELETE(
       return NextResponse.json({ error: 'Missing participantId' }, { status: 400 });
     }
 
-    // Don't allow deleting the owner
-    const participant = await prisma.trip_participants.findUnique({
-      where: { id: participantId }
+    // SEC-2: scope the participant to THIS (owned) trip. Previously the lookup
+    // was by id alone, so an authed user owning any trip could delete a
+    // participant from another user's trip. findFirst with tripId → defensive
+    // 404 when the participant is not in the owned trip.
+    const participant = await prisma.trip_participants.findFirst({
+      where: { id: participantId, tripId: id }
     });
 
     if (!participant) {
