@@ -1,4 +1,5 @@
 import { requireTier } from '@/lib/auth-helpers';
+import { requireAiRateLimit } from '@/lib/ai-rate-limit';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import OpenAI from 'openai';
@@ -53,6 +54,10 @@ export async function POST(request: NextRequest) {
 
     const tierGate = requireTier(user.tier, 'ai', user.id);
     if (tierGate) return tierGate;
+
+    // SEC-5: per-user LLM volume cap (before the paid call).
+    const aiLimit = await requireAiRateLimit(user.id);
+    if (aiLimit) return aiLimit;
 
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,

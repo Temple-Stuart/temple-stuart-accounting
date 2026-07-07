@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTier } from '@/lib/auth-helpers';
+import { requireAiRateLimit } from '@/lib/ai-rate-limit';
 import Anthropic from '@anthropic-ai/sdk';
 import { MODEL_SONNET_4 } from '@/lib/ai/client';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -115,6 +116,10 @@ export async function POST(request: Request) {
     }
     const tierGate = requireTier(user.tier, 'ai', user.id);
     if (tierGate) return tierGate;
+
+    // SEC-5: per-user LLM volume cap (before the paid call).
+    const aiLimit = await requireAiRateLimit(user.id);
+    if (aiLimit) return aiLimit;
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
