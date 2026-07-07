@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { assertPublicHttpUrl } from '@/lib/url-guard';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,9 +17,17 @@ export async function POST(request: NextRequest) {
     }
 
     const { url } = await request.json();
-    
+
     if (!url) {
       return NextResponse.json({ error: 'URL required' }, { status: 400 });
+    }
+
+    // SEC-5: SSRF guard — reject non-http(s) schemes and any host that resolves
+    // to a private/loopback/link-local/metadata address BEFORE the server-side
+    // fetch. Public listing URLs (the feature's real input) pass unchanged.
+    const blockReason = await assertPublicHttpUrl(url);
+    if (blockReason) {
+      return NextResponse.json({ error: blockReason }, { status: 400 });
     }
 
     const res = await fetch(url, {

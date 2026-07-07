@@ -3,9 +3,20 @@ import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { signCookie } from '@/lib/cookie-auth';
+import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 
 export async function POST(request: Request) {
   try {
+    // SEC-5: signup is the PRIMARY, live registration endpoint (LoginBox,
+    // ClientPortalSection, developer page) and was the only auth route with no
+    // rate limit. Mirror register/route.ts:13-17 — per-IP cap BEFORE the DB
+    // lookup / bcrypt hash to stop mass account creation from one source.
+    const ip =
+      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      request.headers.get('x-real-ip') ||
+      'unknown';
+    await rateLimit(`auth-signup:${ip}`, { limit: 5, windowSeconds: 3600 });
+
     let { email, password, name } = await request.json();
 
     if (!email || !password || !name) {
@@ -53,6 +64,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ message: genericMessage });
   } catch (error) {
+    if (error instanceof RateLimitError) {
+      return NextResponse.json(
+        { error: 'Too many attempts — please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(error.retryAfterSeconds) } }
+      );
+    }
     console.error('Signup error:', error);
     return NextResponse.json(
       { error: 'Failed to create account' },
