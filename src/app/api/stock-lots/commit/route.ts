@@ -45,6 +45,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Entity not found or not owned by user' }, { status: 404 });
     }
 
+    // SEC-1: verify the sale investment transaction belongs to the user BEFORE
+    // any write. saleTxnId is client-supplied and later drives an
+    // investment_transactions.update + is stored as the JE source_id — an
+    // unowned id would let a caller mutate another user's transaction row.
+    // Ownership is via the accounts relation (accountId → accounts.userId),
+    // the same scope the investment-transactions commit route uses.
+    if (saleTxnId) {
+      const ownedSaleTxn = await prisma.investment_transactions.findFirst({
+        where: { id: saleTxnId, accounts: { userId: user.id } },
+        select: { id: true },
+      });
+      if (!ownedSaleTxn) {
+        // Defensive 404 — do not confirm the row exists for another user.
+        return NextResponse.json({ error: 'Sale transaction not found' }, { status: 404 });
+      }
+    }
+
     const saleDateObj = new Date(saleDate);
     const totalProceeds = (saleQuantity * salePrice) - saleFees;
 
