@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireAdmin } from '@/lib/require-admin';
 import { prisma } from '@/lib/prisma';
 import { getTastytradeClient } from '@/lib/tastytrade';
 
@@ -926,6 +927,13 @@ async function checkFinnhubEarningsQualityScore(symbol: string, finnhubKey: stri
 
 export async function GET(request: NextRequest) {
   // ── Auth (non-negotiable first lines) ──
+  // SEC-3: this route fires the SHARED FIRM TastyTrade account at 5 sites
+  // (getTastytradeClient — env creds, not per-user OAuth), so any authed user
+  // spends/reads ALEX'S brokerage. Admin-gate BEFORE any TT/paid call — 403
+  // (non-admin) / 401 (guest). Mirror the tastytrade/* requireAdmin precedent.
+  const adminGate = await requireAdmin();
+  if (adminGate instanceof NextResponse) return adminGate;
+
   const userEmail = await getVerifiedEmail();
   if (!userEmail) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
