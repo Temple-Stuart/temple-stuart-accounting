@@ -589,7 +589,10 @@ export interface GEXTrace extends SubScoreTrace {
 }
 
 export interface VolEdgeResult {
-  score: number;
+  // MIG-1: null = the gate had ZERO computable signals — excluded from the
+  // composite (weights renormalize over present gates) and recorded as an
+  // honest null in scan_snapshots, never a number.
+  score: number | null;
   data_confidence: DataConfidence;
   breakdown: {
     mispricing: MispricingTrace;
@@ -726,7 +729,10 @@ export interface FundamentalRiskTrace extends SubScoreTrace {
 export type EfficiencyTrace = FundamentalRiskTrace;
 
 export interface QualityGateResult {
-  score: number;
+  // MIG-1: null = the gate had ZERO computable signals — excluded from the
+  // composite (weights renormalize over present gates) and recorded as an
+  // honest null in scan_snapshots, never a number.
+  score: number | null;
   mspr_adjustment: number;
   data_confidence: DataConfidence;
   breakdown: {
@@ -747,7 +753,10 @@ export interface StrategyRegimeScore {
 }
 
 export interface RegimeResult {
-  score: number;
+  // MIG-1: null = the gate had ZERO computable signals — excluded from the
+  // composite (weights renormalize over present gates) and recorded as an
+  // honest null in scan_snapshots, never a number.
+  score: number | null;
   data_confidence: DataConfidence;
   breakdown: {
     growth_signal: {
@@ -793,13 +802,15 @@ export interface RegimeResult {
         breakeven_5y: number | null;
       };
     };
+    // MIG-1: null when the regime could not be classified (all growth or all
+    // inflation series missing) — never fabricated equal probabilities.
     regime_scores: {
       goldilocks: number;
       reflation: number;
       stagflation: number;
       deflation: number;
-    };
-    dominant_regime: string;
+    } | null;
+    dominant_regime: string | null;
     regime_signals: {
       yield_curve_spread: number | null;
       yield_curve_inverted: boolean;
@@ -1021,7 +1032,10 @@ export interface FilingRecencyTrace {
 }
 
 export interface InfoEdgeResult {
-  score: number;
+  // MIG-1: null = the gate had ZERO computable signals — excluded from the
+  // composite (weights renormalize over present gates) and recorded as an
+  // honest null in scan_snapshots, never a number.
+  score: number | null;
   data_confidence: DataConfidence;
   filing_recency: FilingRecencyTrace;
   breakdown: {
@@ -1059,16 +1073,19 @@ export interface GateWeightTrace {
 }
 
 export interface CompositeResult {
-  score: number;
+  // MIG-1: null = the gate had ZERO computable signals — excluded from the
+  // composite (weights renormalize over present gates) and recorded as an
+  // honest null in scan_snapshots, never a number.
+  score: number | null;
   rank_method: string;
   note: string;
   convergence_gate: string;
   direction: string;
   category_scores: {
-    vol_edge: number;
-    quality: number;
-    regime: number;
-    info_edge: number;
+    vol_edge: number | null;
+    quality: number | null;
+    regime: number | null;
+    info_edge: number | null;
   };
   categories_above_50: number;
   position_size_pct: number;
@@ -1143,15 +1160,16 @@ export interface TradeCardSetup {
 }
 
 export interface TradeCardWhy {
-  composite_score: number;
+  // MIG-1: null = every gate excluded — no composite exists (rendered '—')
+  composite_score: number | null;
   letter_grade: string;
   direction: string;
   convergence_gate: string;
   category_scores: {
-    vol_edge: number;
-    quality: number;
-    regime: number;
-    info_edge: number;
+    vol_edge: number | null;
+    quality: number | null;
+    regime: number | null;
+    info_edge: number | null;
   };
   plain_english_signals: string[];
   regime_context: string;

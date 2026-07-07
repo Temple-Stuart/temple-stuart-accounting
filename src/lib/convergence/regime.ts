@@ -566,18 +566,78 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
   const growth = computeGrowthSignal(input);
   const inflation = computeInflationSignal(input);
 
-  // KILL-3 fail-loud: with ZERO real macro series on a side there is nothing
-  // honest to classify a regime from. No imputation — throw; the pipeline's
-  // per-ticker catch declares the failure in errors[]. (Excluding the whole
-  // gate from the composite instead would need scan_snapshots.regimeScore to
-  // become nullable — a migration, flagged for Alex — so all-missing fails
-  // loud rather than fabricating.)
+  // MIG-1: with ZERO real macro series on a side the regime cannot be
+  // classified — the gate returns an HONEST NULL score (regimeScore column is
+  // nullable now): no fabricated probabilities, no dominant regime, excluded
+  // from the composite (which renormalizes over the present gates). The
+  // exclusion is declared via the DataConfidence and a composite data_gaps
+  // entry.
   if (growth.score == null || inflation.score == null) {
     const missing = [
       growth.score == null ? 'ALL 6 growth series' : null,
       inflation.score == null ? 'ALL 5 inflation series' : null,
     ].filter(Boolean).join(' and ');
-    throw new Error(`Regime gate cannot compute: ${missing} missing from FRED — no imputation (KILL-3)`);
+    const excludedFields = [...growth.excluded, ...inflation.excluded];
+    if (macro.yieldCurveSpread === null) excludedFields.push('regime.yield_curve_spread');
+    if (macro.hySpread === null) excludedFields.push('regime.hy_spread');
+    if (!input.crossAssetCorrelations) excludedFields.push('regime.cross_asset_correlations');
+    const totalSubScores = 14;
+    return {
+      score: null,
+      data_confidence: {
+        total_sub_scores: totalSubScores,
+        imputed_sub_scores: excludedFields.length,
+        confidence: round(1 - excludedFields.length / totalSubScores, 4),
+        imputed_fields: [],
+        excluded_fields: excludedFields,
+        active_signal_count: totalSubScores - excludedFields.length,
+      },
+      breakdown: {
+        growth_signal: {
+          score: growth.score ?? 0,
+          active_signal_count: growth.active_signal_count,
+          total_signal_count: growth.total_signal_count,
+          sub_scores: growth.sub_scores as RegimeResult['breakdown']['growth_signal']['sub_scores'],
+          raw_values: {
+            gdp: macro.gdp, unemployment: macro.unemployment, nfp: macro.nonfarmPayrolls,
+            consumer_confidence: macro.consumerConfidence, initial_claims: macro.initialClaims, nfci: macro.nfci,
+          },
+        },
+        inflation_signal: {
+          score: inflation.score ?? 0,
+          active_signal_count: inflation.active_signal_count,
+          total_signal_count: inflation.total_signal_count,
+          sub_scores: inflation.sub_scores as RegimeResult['breakdown']['inflation_signal']['sub_scores'],
+          raw_values: {
+            cpi_yoy: macro.cpi, cpi_mom: macro.cpiMom, fed_funds: macro.fedFunds,
+            treasury_10y: macro.treasury10y, breakeven_5y: macro.breakeven5y,
+          },
+        },
+        regime_scores: null,
+        dominant_regime: null,
+        regime_signals: {
+          yield_curve_spread: macro.yieldCurveSpread,
+          yield_curve_inverted: macro.yieldCurveSpread !== null && macro.yieldCurveSpread < 0,
+          hy_spread: macro.hySpread,
+          hy_stress_level: macro.hySpread === null ? null : macro.hySpread > 8.0 ? 'crisis' : macro.hySpread > 5.0 ? 'elevated' : 'normal',
+        },
+        vix_overlay: { vix: macro.vix, adjustment_type: 'NOT_EVALUATED' },
+        strategy_scores: [],
+        best_strategy: `NOT COMPUTABLE — ${missing} missing from FRED (regime gate excluded, no imputation)`,
+        spy_correlation_modifier: {
+          corr_spy: input.ttScanner?.corrSpy ?? null,
+          multiplier: 1.0,
+          base_regime_score: 0,
+          adjusted_regime_score: 0,
+          formula: 'not applied — regime gate excluded',
+          note: `regime EXCLUDED: ${missing} missing from FRED — no imputation`,
+        },
+        bbb_spread_signal: ancillary.bbb_spread_signal,
+        t10y3m_signal: ancillary.t10y3m_signal,
+        dollar_index_signal: ancillary.dollar_index_signal,
+        fed_net_liquidity_signal: ancillary.fed_net_liquidity_signal,
+      },
+    };
   }
   const growthScore = growth.score;
   const inflationScore = inflation.score;

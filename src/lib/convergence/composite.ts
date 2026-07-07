@@ -11,6 +11,7 @@ import type {
   GateWeightTrace,
 } from './types';
 import { scoreVolEdge } from './vol-edge';
+import { combineWeighted } from './weighted-combiner';
 import { scoreQualityGate } from './quality-gate';
 import { scoreRegime } from './regime';
 import { scoreInfoEdge } from './info-edge';
@@ -43,19 +44,20 @@ const REGIME_WEIGHT_TABLE: Record<string, GateWeights> = {
 };
 
 function computeDynamicGateWeights(regime: RegimeResult | null): GateWeightTrace {
-  if (!regime) {
-    return {
-      gate_weights: { ...STATIC_WEIGHTS },
-      weight_mode: 'static_fallback',
-      regime_used: 'UNKNOWN',
-      regime_confidence: 0,
-      blend_factor: 0,
-    };
-  }
-
+  // MIG-1: an EXCLUDED regime gate (score null — no classification computed)
+  // falls back to static weights, same as no regime at all.
+  const staticFallback: GateWeightTrace = {
+    gate_weights: { ...STATIC_WEIGHTS },
+    weight_mode: 'static_fallback',
+    regime_used: 'UNKNOWN',
+    regime_confidence: 0,
+    blend_factor: 0,
+  };
+  if (!regime || regime.score == null) return staticFallback;
   const breakdown = regime.breakdown;
   const probs = breakdown.regime_scores;
-  let dominantRegime = breakdown.dominant_regime;
+  if (probs == null || breakdown.dominant_regime == null) return staticFallback;
+  let dominantRegime: string = breakdown.dominant_regime;
 
   // Crisis override: if HY spread is at crisis levels, override to CRISIS
   if (breakdown.regime_signals.hy_stress_level === 'crisis') {
@@ -123,17 +125,24 @@ export function scoreAll(input: ConvergenceInput): FullScoringResult {
   const gateWeightTrace = computeDynamicGateWeights(regime);
   const w = gateWeightTrace.gate_weights;
 
-  const compositeScore = round(
-    w.vol_edge * volEdge.score +
-    w.quality * quality.score +
-    w.regime * regime.score +
-    w.info_edge * infoEdge.score,
-    1,
-  );
+  // MIG-1: an excluded gate (score null) is dropped and the remaining gate
+  // weights renormalize — the composite is computed only from present gates.
+  // All four gates null (a ticker with literally zero data) → composite null,
+  // recorded as an honest null in scan_snapshots.
+  const gateCombined = combineWeighted([
+    { key: 'vol_edge', weight: w.vol_edge, score: volEdge.score },
+    { key: 'quality', weight: w.quality, score: quality.score },
+    { key: 'regime', weight: w.regime, score: regime.score },
+    { key: 'info_edge', weight: w.info_edge, score: infoEdge.score },
+  ]);
+  const compositeScore = gateCombined.score;
+  const excludedGates = gateCombined.excludedKeys;
 
-  // Convergence gate: how many categories above 50
+  // Convergence gate: how many categories above 50 (an excluded gate cannot
+  // be "above 50" — it counts against convergence, which is honest: less
+  // evidence, smaller size)
   const scores = [volEdge.score, quality.score, regime.score, infoEdge.score];
-  const above50 = scores.filter(s => s > 50).length;
+  const above50 = scores.filter((s): s is number => s !== null && s > 50).length;
 
   // Continuous position sizing (Kelly 1956, Grinold & Kahn 1999)
   // Gate qualification preserved as circuit-breaker; sizing is continuous for 3+ gates.
@@ -146,37 +155,58 @@ export function scoreAll(input: ConvergenceInput): FullScoringResult {
     positionSizePct = 20;
     convergenceGate = `2/4 above 50 → 20% position size (marginal signal)`;
   } else {
-    // 3+ gates: continuous sizing from composite score
+    // 3+ gates: continuous sizing from composite score (composite is non-null
+    // here — at least 3 gates scored above 50)
     // composite=50 → 30%, composite=75 → 65%, composite=100 → 100%
-    const clampedComposite = Math.max(50, Math.min(100, compositeScore));
+    const clampedComposite = Math.max(50, Math.min(100, compositeScore as number));
     positionSizePct = 30 + ((clampedComposite - 50) / 50) * 70;
     positionSizePct = Math.round(positionSizePct / 5) * 5; // Round to nearest 5%
     convergenceGate = `${above50}/4 above 50 → ${positionSizePct}% position size (continuous)`;
   }
 
-  // Direction signal from Info Edge
+  // Direction signal from Info Edge. MIG-1: an excluded info-edge gate gives
+  // no direction evidence — labeled UNKNOWN, never imputed as neutral.
   let direction: string;
-  if (infoEdge.score > 65) direction = 'BULLISH';
+  if (infoEdge.score == null) direction = 'UNKNOWN (info-edge excluded — no signal data)';
+  else if (infoEdge.score > 65) direction = 'BULLISH';
   else if (infoEdge.score < 35) direction = 'BEARISH';
   else direction = 'NEUTRAL';
 
-  // Aggregate DataConfidence from all 4 gates
+  // Aggregate DataConfidence from all 4 gates. MIG-1: exclusions count too —
+  // post-KILL-3 the gates stopped imputing, so aggregating only imputed_fields
+  // silently pinned the snapshot's dataConfidence/imputedCount at full.
   const allImputed = [
     ...volEdge.data_confidence.imputed_fields.map(f => `vol_edge.${f}`),
     ...quality.data_confidence.imputed_fields.map(f => `quality.${f}`),
     ...regime.data_confidence.imputed_fields.map(f => `regime.${f}`),
     ...infoEdge.data_confidence.imputed_fields.map(f => `info_edge.${f}`),
   ];
+  const allExcluded = [
+    ...(volEdge.data_confidence.excluded_fields ?? []).map(f => `vol_edge.${f}`),
+    ...(quality.data_confidence.excluded_fields ?? []).map(f => `quality.${f}`),
+    ...(regime.data_confidence.excluded_fields ?? []).map(f => `regime.${f}`),
+    ...(infoEdge.data_confidence.excluded_fields ?? []).map(f => `info_edge.${f}`),
+  ];
   const totalSub =
     volEdge.data_confidence.total_sub_scores +
     quality.data_confidence.total_sub_scores +
     regime.data_confidence.total_sub_scores +
     infoEdge.data_confidence.total_sub_scores;
+  const activeTotal =
+    (volEdge.data_confidence.active_signal_count ?? volEdge.data_confidence.total_sub_scores) +
+    (quality.data_confidence.active_signal_count ?? quality.data_confidence.total_sub_scores) +
+    (regime.data_confidence.active_signal_count ?? regime.data_confidence.total_sub_scores) +
+    (infoEdge.data_confidence.active_signal_count ?? infoEdge.data_confidence.total_sub_scores);
+  // Same convention as each gate: confidence = active/total sub-signals.
+  // A zero-data ticker reads 0, matching its per-gate confidences — never a
+  // dot-depth-filtered count that flatters missing data.
   const compositeConfidence: DataConfidence = {
     total_sub_scores: totalSub,
-    imputed_sub_scores: allImputed.length,
-    confidence: round(1 - allImputed.length / totalSub, 4),
+    imputed_sub_scores: totalSub - activeTotal,
+    confidence: round(activeTotal / totalSub, 4),
     imputed_fields: allImputed,
+    excluded_fields: allExcluded,
+    active_signal_count: activeTotal,
   };
 
   const composite: CompositeResult = {
@@ -203,6 +233,10 @@ export function scoreAll(input: ConvergenceInput): FullScoringResult {
 
   // Data gaps
   const dataGaps = computeDataGaps(input, volEdge, quality);
+  // MIG-1: a fully-excluded gate is DECLARED on the existing surface
+  for (const g of excludedGates) {
+    dataGaps.push(`gate_excluded: ${g} — zero computable signals; recorded as null in scan_snapshots, composite renormalized over the present gates`);
+  }
 
   return {
     vol_edge: volEdge,
@@ -230,8 +264,11 @@ function deriveStrategy(
   const termShape = volEdge.breakdown.term_structure.shape;
 
   // Regime-based preference
+  // MIG-1: an excluded regime gate (score null) is DECLARED, never scored.
   let regimePreferred: string;
-  if (regimeScore >= 75) {
+  if (regimeScore === null) {
+    regimePreferred = 'Regime gate EXCLUDED (zero computable signals) — defined risk preferred by default, not scored';
+  } else if (regimeScore >= 75) {
     regimePreferred = `Short premium favored (regime_score=${round(regimeScore)})`;
   } else if (regimeScore >= 55) {
     regimePreferred = `Neutral strategies favored (regime_score=${round(regimeScore)})`;
@@ -253,8 +290,12 @@ function deriveStrategy(
   let suggestedStrategy: string;
   let suggestedDte = 45; // Default
 
-  if (direction === 'NEUTRAL') {
-    if (volScore >= 65 && regimeScore >= 60) {
+  if (volScore === null) {
+    // MIG-1: vol-edge gate excluded — no premium/vol read exists; suggesting a
+    // vol strategy would be an imputation. Declared, never defaulted.
+    suggestedStrategy = 'NOT COMPUTABLE — vol-edge gate excluded (zero computable signals); no strategy suggested without a vol read';
+  } else if (direction === 'NEUTRAL') {
+    if (volScore >= 65 && regimeScore !== null && regimeScore >= 60) {
       suggestedStrategy = 'Iron Condor';
       suggestedDte = 45;
     } else if (volScore >= 55) {
@@ -272,8 +313,7 @@ function deriveStrategy(
       suggestedStrategy = 'Call Debit Spread or Bull Put Spread';
       suggestedDte = 30;
     }
-  } else {
-    // BEARISH
+  } else if (direction === 'BEARISH') {
     if (volScore >= 65) {
       suggestedStrategy = 'Call Credit Spread or Short Call';
       suggestedDte = 45;
@@ -281,6 +321,10 @@ function deriveStrategy(
       suggestedStrategy = 'Put Debit Spread or Bear Call Spread';
       suggestedDte = 30;
     }
+  } else {
+    // MIG-1: direction UNKNOWN (info-edge excluded) — a directional strategy
+    // would be fabricated. Declared, never defaulted to BEARISH.
+    suggestedStrategy = 'NOT COMPUTABLE — direction unknown (info-edge gate excluded); no directional strategy suggested';
   }
 
   // Adjust DTE based on term structure

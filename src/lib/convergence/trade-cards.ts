@@ -17,7 +17,9 @@ import type { StrategyCard } from '@/lib/strategy-builder';
 
 // ===== LETTER GRADE =====
 
-function letterGrade(score: number): string {
+function letterGrade(score: number | null): string {
+  // MIG-1: no composite (all gates excluded) → no grade, never an 'F' for missing data
+  if (score === null) return '— (not scored — all gates excluded)';
   if (score >= 90) return 'A+';
   if (score >= 80) return 'A';
   if (score >= 70) return 'B+';
@@ -71,7 +73,10 @@ function formatPlainEnglish(scoring: FullScoringResult, input: ConvergenceInput)
 
   // --- Quality signals ---
   const q = scoring.quality;
-  if (q.score >= 70) {
+  if (q.score === null) {
+    // MIG-1: quality gate excluded — declared, not silently skipped
+    signals.push('Quality gate EXCLUDED — zero computable fundamental signals for this ticker (no quality read exists).');
+  } else if (q.score >= 70) {
     signals.push(`Strong fundamentals — quality score of ${q.score.toFixed(0)}/100. This company passes key safety and profitability checks.`);
   } else if (q.score < 40) {
     signals.push(`Weaker fundamentals — quality score of ${q.score.toFixed(0)}/100. Extra caution warranted on position sizing.`);
@@ -217,9 +222,17 @@ function computeRiskFlags(
 function regimeContext(scoring: FullScoringResult): string {
   const r = scoring.regime.breakdown;
   const dom = r.dominant_regime;
-  const prob = r.regime_scores[dom as keyof typeof r.regime_scores] ?? 0;
   const vix = r.vix_overlay.vix;
   const best = r.best_strategy;
+
+  // MIG-1: regime gate excluded → no classification exists; say so plainly.
+  if (dom === null || r.regime_scores === null) {
+    let exCtx = 'Macro regime NOT COMPUTABLE — regime gate excluded (zero computable macro signals).';
+    if (vix !== null) exCtx += ` VIX at ${vix.toFixed(1)}.`;
+    return exCtx;
+  }
+
+  const prob = r.regime_scores[dom as keyof typeof r.regime_scores] ?? 0;
 
   let ctx = `Dominant macro regime: ${dom} (${(prob * 100).toFixed(0)}% score).`;
   if (vix !== null) {

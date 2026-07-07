@@ -1773,12 +1773,13 @@ model scan_snapshots {
   hv30         Float?
   ivPercentile Float?
 
-  // Gate scores (0-100)
-  volEdgeScore   Float
-  qualityScore   Float
-  regimeScore    Float
-  infoEdgeScore  Float
-  compositeScore Float
+  // Gate scores (0-100). MIG-1: nullable — a gate with ZERO computable
+  // signals records an honest null (excluded + declared), never a number.
+  volEdgeScore   Float?
+  qualityScore   Float?
+  regimeScore    Float?
+  infoEdgeScore  Float?
+  compositeScore Float?
 
   // Position sizing
   gatesAbove50    Int

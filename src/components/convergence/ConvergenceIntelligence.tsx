@@ -1310,7 +1310,7 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
                   })}
                 </div>
                 <div className="text-xs text-text-secondary italic px-1 mt-2">
-                  {domExplain[dom] ?? why.regime_context}
+                  {(dom !== null ? domExplain[dom] : undefined) ?? why.regime_context}
                 </div>
               </div>
             );
@@ -4172,12 +4172,12 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   <th className="text-right py-1 px-1">AGE</th>
                 </tr></thead>
                 <tbody>
-                  {(fData?.rankings ?? []).map((r: { symbol: string; composite: number; vol_edge: number; quality: number; regime: number; info_edge: number; sector?: string | null; convergence?: string; selection_status?: string }, idx: number) => {
+                  {(fData?.rankings ?? []).map((r: { symbol: string; composite: number | null; vol_edge: number | null; quality: number | null; regime: number | null; info_edge: number | null; sector?: string | null; convergence?: string; selection_status?: string }, idx: number) => {
                     const top9Set = new Set(gData?.top_9 ?? []);
                     const inTop9 = top9Set.has(r.symbol);
                     const rej = gData?.rejections?.[r.symbol];
                     const hasRejection = rej?.length > 0;
-                    const gatesAbove50 = [r.vol_edge, r.quality, r.regime, r.info_edge].filter(s => s >= 50).length;
+                    const gatesAbove50 = [r.vol_edge, r.quality, r.regime, r.info_edge].filter(s => s !== null && s >= 50).length;
 
                     // Determine sector counts among already-selected tickers above this rank
                     const sectorCounts: Record<string, number> = {};
@@ -4192,9 +4192,11 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                       status = { text: '✓ Final 9 — trade card built', color: 'text-brand-green' };
                     } else if (inTop9 && hasRejection) {
                       status = { text: '⚠ Selected — strategy pending', color: 'text-brand-gold' };
+                    } else if (r.composite === null) {
+                      status = { text: '✗ Not scored — all gates excluded (no computable signals)', color: 'text-brand-red' };
                     } else if (r.selection_status === 'below_threshold' || gatesAbove50 < 3) {
                       status = { text: '✗ Needs 3/4 gates above 50', color: 'text-brand-red' };
-                    } else if (r.quality < 40) {
+                    } else if (r.quality !== null && r.quality < 40) {
                       status = { text: '✗ Quality floor — score below 40', color: 'text-brand-red' };
                     } else if (r.sector && (sectorCounts[r.sector] ?? 0) >= 2) {
                       status = { text: `✗ Sector cap — 2 ${r.sector} already selected`, color: 'text-brand-red' };
@@ -4206,12 +4208,12 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                       <tr key={r.symbol} className={`border-b border-border/50 hover:bg-bg-card ${inTop9 ? 'bg-white/50' : ''}`}>
                         <td className="py-0.5 px-1 text-text-muted font-mono">{idx + 1}</td>
                         <td className="py-0.5 px-1 font-bold text-text-primary">{r.symbol}</td>
-                        <td className="py-0.5 px-1 text-right font-mono font-bold text-text-primary">{r.composite.toFixed(1)}</td>
+                        <td className="py-0.5 px-1 text-right font-mono font-bold text-text-primary">{r.composite !== null ? r.composite.toFixed(1) : '—'}</td>
                         <td className="py-0.5 px-1 text-center font-mono">{r.convergence ?? `${gatesAbove50}/4`}</td>
-                        <td className={`py-0.5 px-1 text-right font-mono ${r.vol_edge >= 50 ? 'text-brand-green' : 'text-text-muted'}`}>{r.vol_edge.toFixed(0)}</td>
-                        <td className={`py-0.5 px-1 text-right font-mono ${r.quality >= 50 ? 'text-brand-green' : r.quality < 40 ? 'text-brand-red' : 'text-text-muted'}`}>{r.quality.toFixed(0)}</td>
-                        <td className={`py-0.5 px-1 text-right font-mono ${r.regime >= 50 ? 'text-brand-green' : 'text-text-muted'}`}>{r.regime.toFixed(0)}</td>
-                        <td className={`py-0.5 px-1 text-right font-mono ${r.info_edge >= 50 ? 'text-brand-green' : 'text-text-muted'}`}>{r.info_edge.toFixed(0)}</td>
+                        <td className={`py-0.5 px-1 text-right font-mono ${r.vol_edge !== null && r.vol_edge >= 50 ? 'text-brand-green' : 'text-text-muted'}`} title={r.vol_edge === null ? 'Gate excluded — zero computable signals' : undefined}>{r.vol_edge !== null ? r.vol_edge.toFixed(0) : '—'}</td>
+                        <td className={`py-0.5 px-1 text-right font-mono ${r.quality !== null && r.quality >= 50 ? 'text-brand-green' : r.quality !== null && r.quality < 40 ? 'text-brand-red' : 'text-text-muted'}`} title={r.quality === null ? 'Gate excluded — zero computable signals' : undefined}>{r.quality !== null ? r.quality.toFixed(0) : '—'}</td>
+                        <td className={`py-0.5 px-1 text-right font-mono ${r.regime !== null && r.regime >= 50 ? 'text-brand-green' : 'text-text-muted'}`} title={r.regime === null ? 'Gate excluded — zero computable signals' : undefined}>{r.regime !== null ? r.regime.toFixed(0) : '—'}</td>
+                        <td className={`py-0.5 px-1 text-right font-mono ${r.info_edge !== null && r.info_edge >= 50 ? 'text-brand-green' : 'text-text-muted'}`} title={r.info_edge === null ? 'Gate excluded — zero computable signals' : undefined}>{r.info_edge !== null ? r.info_edge.toFixed(0) : '—'}</td>
                         <td className="py-0.5 px-1 text-text-secondary">{r.sector ?? '—'}</td>
                         <td className={`py-0.5 px-1 ${status.color}`}>{status.text}</td>
                         <td className="py-0.5 px-1 font-mono text-text-secondary">All prior steps</td>
