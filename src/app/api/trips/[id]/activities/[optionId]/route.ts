@@ -14,6 +14,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const trip = await prisma.trips.findFirst({ where: { id, userId: user.id } });
     if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
 
+    // SEC-2: the option must belong to THIS trip — trip ownership alone is not
+    // enough (optionId could reference another trip's row). Scope by trip_id.
+    const option = await prisma.trip_activity_expenses.findFirst({ where: { id: optionId, trip_id: id }, select: { id: true } });
+    if (!option) return NextResponse.json({ error: 'Option not found' }, { status: 404 });
+
     const body = await request.json();
 
     if (body.action === 'vote_up') {
@@ -62,6 +67,10 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
     const trip = await prisma.trips.findFirst({ where: { id, userId: user.id } });
     if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
+
+    // SEC-2: option must belong to THIS trip before deleting.
+    const option = await prisma.trip_activity_expenses.findFirst({ where: { id: optionId, trip_id: id }, select: { id: true } });
+    if (!option) return NextResponse.json({ error: 'Option not found' }, { status: 404 });
     await prisma.trip_activity_expenses.delete({ where: { id: optionId } });
     return NextResponse.json({ success: true });
   } catch (error) {

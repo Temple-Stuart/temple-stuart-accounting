@@ -86,6 +86,30 @@ async function setOptionStatus(
   }
 }
 
+// SEC-2: existence+ownership check for the uncommit (DELETE) path. setOptionStatus
+// updates by { id: optionId } alone; DELETE — unlike POST, which scopes via
+// getOptionDetails first — had no prior trip-scoped check, so a user could flip
+// another trip's option back to proposed/deselected. Returns true only when the
+// option row belongs to THIS trip (scoped by trip_id, the getOptionDetails scope).
+async function optionBelongsToTrip(
+  optionType: OptionType,
+  optionId: string,
+  tripId: string,
+): Promise<boolean> {
+  switch (optionType) {
+    case 'lodging':
+      return !!(await prisma.trip_lodging_options.findFirst({ where: { id: optionId, trip_id: tripId }, select: { id: true } }));
+    case 'transfer':
+      return !!(await prisma.trip_transfer_options.findFirst({ where: { id: optionId, trip_id: tripId }, select: { id: true } }));
+    case 'vehicle':
+      return !!(await prisma.trip_vehicle_options.findFirst({ where: { id: optionId, trip_id: tripId }, select: { id: true } }));
+    case 'activity':
+      return !!(await prisma.trip_activity_expenses.findFirst({ where: { id: optionId, trip_id: tripId }, select: { id: true } }));
+    default:
+      return false;
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // POST — Commit a vendor option (creates budget + itinerary atomically)
 // ═══════════════════════════════════════════════════════════════
@@ -446,6 +470,14 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     // two synthetic optionId constructors in the codebase. NON-synthetic optionIds
     // are untouched, so a genuinely malformed UUID still surfaces its error below.
     const isSynthetic = optionId.startsWith('place-') || optionId.startsWith('hotel-');
+
+    // SEC-2: for a real option row, verify it belongs to THIS trip before the
+    // uncommit mutates it (flights/synthetic have no option row — skip, same as
+    // the setOptionStatus guard below). Defensive 404 for a foreign option.
+    if (optionType !== 'flight' && !isSynthetic) {
+      const owned = await optionBelongsToTrip(optionType, optionId, id);
+      if (!owned) return NextResponse.json({ error: 'Option not found' }, { status: 404 });
+    }
 
     await prisma.$transaction(async (tx) => {
       // A. Reset vendor option status to proposed (real option rows only —

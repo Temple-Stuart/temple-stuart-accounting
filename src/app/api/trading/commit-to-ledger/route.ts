@@ -92,14 +92,20 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Verify ownership: check that open_investment_txn_id belongs to user
+        // SEC-2: EVERY leg must belong to the user. The prior guard passed when
+        // AT LEAST ONE leg was owned (ownedTxns.length === 0), then netPL was
+        // summed across ALL fetched legs (line below) — a trade_num collision
+        // would post another user's realized_pl into this user's ledger. Require
+        // the full distinct owned set, mirroring
+        // investment-transactions/commit-to-ledger/route.ts:66-73.
         const txnIds = positions.map(p => p.open_investment_txn_id);
+        const uniqueTxnIds = [...new Set(txnIds)];
         const ownedTxns = await prisma.investment_transactions.findMany({
-          where: { id: { in: txnIds }, accounts: { userId: user.id } },
+          where: { id: { in: uniqueTxnIds }, accounts: { userId: user.id } },
           select: { id: true },
         });
-        if (ownedTxns.length === 0) {
-          errors.push(`Trade #${tradeNum}: positions do not belong to this user`);
+        if (ownedTxns.length !== uniqueTxnIds.length) {
+          errors.push(`Trade #${tradeNum}: one or more legs do not belong to this user — not committed`);
           continue;
         }
 
