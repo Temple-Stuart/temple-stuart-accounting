@@ -63,6 +63,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Entity not found' }, { status: 404 });
     }
 
+    // SEC-1: verify every target account belongs to the authenticated user
+    // BEFORE writing any ledger entry. Previously each line's client-supplied
+    // accountId went straight into ledger_entries.create — an authed user could
+    // post debits/credits onto another user's chart_of_accounts rows. Mirror the
+    // manual sibling's ownership scope (accounts by userId + entity_id).
+    const accountIds: string[] = lines.map((l: any) => l.accountId);
+    if (accountIds.some((id) => !id || typeof id !== 'string')) {
+      return NextResponse.json({ error: 'Each line requires an accountId' }, { status: 400 });
+    }
+    const uniqueAccountIds = [...new Set(accountIds)];
+    const ownedAccounts = await prisma.chart_of_accounts.findMany({
+      where: { id: { in: uniqueAccountIds }, userId: user.id, entity_id: entityId },
+      select: { id: true },
+    });
+    if (ownedAccounts.length !== uniqueAccountIds.length) {
+      // Defensive 404 — do not confirm which accounts exist for another user.
+      return NextResponse.json({ error: 'Account not found' }, { status: 404 });
+    }
+
     // Period close enforcement
     await assertPeriodOpen(prisma, user.id, entityId, new Date(date));
 

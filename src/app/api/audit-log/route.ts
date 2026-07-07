@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma, AuditActionType } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { getCurrentUser } from '@/lib/auth-helpers';
 
 /**
  * Subsystem prefix → enum value list. Maintained explicitly because Prisma's
@@ -53,11 +53,10 @@ const SUBSYSTEM_ACTION_TYPES: Record<string, AuditActionType[]> = {
 
 export async function GET(request: NextRequest) {
   try {
-    const userEmail = await getVerifiedEmail();
-    if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { searchParams } = new URL(request.url);
-    const actorUserId = searchParams.get('actor_user_id');
     const actionType = searchParams.get('action_type');
     const prefix = searchParams.get('prefix');
     const targetTable = searchParams.get('target_table');
@@ -72,9 +71,12 @@ export async function GET(request: NextRequest) {
     // the previous Record<string, unknown> typing accepted a startsWith filter on
     // an enum column at compile time, which Prisma rejected at runtime once
     // operations_* rows existed and the filter was actually evaluated.
-    const where: Prisma.audit_logWhereInput = {};
-
-    if (actorUserId) where.actor_user_id = actorUserId;
+    // SEC-1: hard user-scope. The audit trail is per-user — a caller may only
+    // ever see rows where THEY are the actor. The previously-accepted
+    // ?actor_user_id= param is removed: it let any authed user read another
+    // user's audit rows (incl. payload before/after snapshots). No caller
+    // param may widen beyond the authenticated user's own rows.
+    const where: Prisma.audit_logWhereInput = { actor_user_id: user.id };
 
     // action_type exact match wins over prefix; only one filter applies.
     // Prefix lookups resolve to a static `in` list of enum values — see
