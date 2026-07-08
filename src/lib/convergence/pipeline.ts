@@ -686,7 +686,9 @@ export async function runPipeline(
     series: [
       { name: 'VIX', key: 'vix', value: fredResult.data.vix,
         source: 'FRED', series_id: 'VIXCLS', null_reason: fredResult.data.vix == null ? 'FRED returned null' : null },
-      { name: 'VIX Short-Term (9d)', key: 'vxvShortTerm', value: fredResult.data.vxvShortTerm,
+      // Label fix (EDGE-6): VXVCLS is the CBOE 3-MONTH VIX (VIX3M, formerly
+      // VXV) — the prior "Short-Term (9d)" label was factually wrong.
+      { name: 'VIX 3-Month (VIX3M)', key: 'vxvShortTerm', value: fredResult.data.vxvShortTerm,
         source: 'FRED', series_id: 'VXVCLS', null_reason: fredResult.data.vxvShortTerm == null ? 'FRED returned null' : null },
       { name: 'VVIX', key: 'vvix', value: fredResult.data.vvix,
         source: 'FRED', series_id: 'VVIXCLS', null_reason: fredResult.data.vvix == null ? 'FRED returned null' : null },
@@ -1440,6 +1442,13 @@ export async function runPipeline(
           dollar_index_raw: scoring.regime.breakdown.dollar_index_signal.raw_value ?? null,
           fed_net_liquidity: scoring.regime.breakdown.fed_net_liquidity_signal.score ?? null,
           fed_net_liquidity_raw: scoring.regime.breakdown.fed_net_liquidity_signal.raw_value ?? null,
+          // EDGE-6: wired vol-regime conditioners + survival brake (declared)
+          vix_term_structure: scoring.regime.breakdown.vol_conditioners.vix_term_structure.score ?? null,
+          vix_term_structure_raw: scoring.regime.breakdown.vol_conditioners.vix_term_structure.raw_value ?? null,
+          vvix: scoring.regime.breakdown.vol_conditioners.vvix.score ?? null,
+          vvix_raw: scoring.regime.breakdown.vol_conditioners.vvix.raw_value ?? null,
+          survival_brake: scoring.regime.breakdown.survival_brake.state,
+          survival_brake_declaration: scoring.regime.breakdown.survival_brake.declaration,
         } : null,
         info_edge_detail: scoring ? {
           // KILL-5: null score/weight = analyst signal excluded (no data)

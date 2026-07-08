@@ -196,6 +196,14 @@ function computeRiskFlags(
     flags.push(`ELEVATED VIX (${vixOverlay.vix.toFixed(1)}) — market stress is above normal. Position size accordingly.`);
   }
 
+  // EDGE-6 (STRATEGY-EVIDENCE §6): survival brake — flag every short-premium
+  // card (net credit received) when the brake is ON or UNVERIFIED. Debit
+  // (long-vol) structures are not short-vol exposure and are not flagged.
+  const brake = scoring.regime.breakdown.survival_brake;
+  if (brake.state !== 'OFF' && card.netCredit !== null && card.netCredit > 0) {
+    flags.push(brake.declaration);
+  }
+
   const above50 = scoring.composite.categories_above_50;
   if (above50 < 3) {
     flags.push(`WEAK CONVERGENCE (${above50}/4 categories above 50) — signals are not well-aligned.`);
@@ -226,9 +234,11 @@ function regimeContext(scoring: FullScoringResult): string {
   const best = r.best_strategy;
 
   // MIG-1: regime gate excluded → no classification exists; say so plainly.
+  // EDGE-6: the survival brake is still computable in this state — declare it.
   if (dom === null || r.regime_scores === null) {
     let exCtx = 'Macro regime NOT COMPUTABLE — regime gate excluded (zero computable macro signals).';
     if (vix !== null) exCtx += ` VIX at ${vix.toFixed(1)}.`;
+    if (r.survival_brake.state !== 'OFF') exCtx += ` ${r.survival_brake.declaration}.`;
     return exCtx;
   }
 
@@ -243,6 +253,12 @@ function regimeContext(scoring: FullScoringResult): string {
   const spy = r.spy_correlation_modifier;
   if (spy.corr_spy !== null) {
     ctx += ` SPY correlation: ${spy.corr_spy.toFixed(2)} (modifier: ${spy.multiplier.toFixed(2)}x).`;
+  }
+
+  // EDGE-6 (STRATEGY-EVIDENCE §6): a non-OFF brake is always declared in the
+  // regime context the user reads — never a silent score change.
+  if (r.survival_brake.state !== 'OFF') {
+    ctx += ` ${r.survival_brake.declaration}.`;
   }
 
   return ctx;
