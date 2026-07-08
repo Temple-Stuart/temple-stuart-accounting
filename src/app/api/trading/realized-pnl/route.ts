@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireTier } from '@/lib/auth-helpers';
 
 /**
  * GET /api/trading/realized-pnl — the SEPARATE Trading panel's data (NOT a runway).
@@ -21,8 +22,10 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
  *     account is tagged to the Trading entity_id. So capital is reported `tracked: false`.
  *   • Drawdown — no peak/trough data exists. `tracked: false`.
  *
- * DB-only read → verifyCookie (getVerifiedEmail) + user lookup + user-scoping is the bar; requireTier
- * is correctly absent (cf. ai/cart-plan/route.ts:77-88, which tiers ONLY because it calls OpenAI).
+ * PAYWALL ruling (supersedes the earlier "requireTier is correctly absent" note): this route IS
+ * the "Trading P&L analytics" feature sold on the Pro tier (tiers.ts tradingAnalytics), so it is
+ * tier-gated even though it spends no external money — the gate here is the PAYWALL, not a
+ * cost control. Free tier → 403 (tradingAnalytics: false); Pro/Pro+ → allowed; admin bypasses.
  */
 
 // Trading entity — IMMUTABLE entity_id (psql-confirmed; entity_type is inconsistent across seeds —
@@ -42,6 +45,12 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+
+    // PAYWALL: Trading P&L analytics is a paid (Pro) feature — same requireTier
+    // pattern as ai/cart-plan/route.ts:89-90.
+    const tierGate = requireTier(user.tier, 'tradingAnalytics', user.id);
+    if (tierGate) return tierGate;
+
     const userId = user.id;
 
     // Realized P&L = trading gains (4100 credits) − trading losses (5100 debits), Trading entity,
