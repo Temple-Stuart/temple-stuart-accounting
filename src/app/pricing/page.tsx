@@ -53,24 +53,10 @@ const TIERS = [
     cta: 'Coming Soon',
     highlight: false,
   },
-  {
-    name: 'Trader Pro',
-    price: '$60',
-    period: '/mo',
-    tier: 'trader_pro',
-    features: [
-      'Everything in Pro+, plus:',
-      'Real-time market data (stocks, options, crypto, futures)',
-      'AI strategy builder — natural language algo creation',
-      'IV-HV spread analysis & options scanner',
-      'Live signal alerts',
-      'Wash sale & tax impact warnings before you trade',
-      'Portfolio Greeks across all accounts',
-      'Budget-aware position sizing',
-    ],
-    cta: 'Coming Soon',
-    highlight: false,
-  },
+  // PRICING-PAGE: the former 'Trader Pro' ($60) tier is REMOVED — it had no
+  // TierConfig, no Stripe price ID, was absent from the Tier union, and would
+  // 400 at checkout (PRICING-AUDIT.md §3 "phantom tier"). Only tiers that
+  // exist in src/lib/tiers.ts are shown.
 ];
 
 function PricingContent() {
@@ -172,7 +158,7 @@ function PricingContent() {
         </div>
       )}
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         {TIERS.map((t) => (
           <div
             key={t.tier}
