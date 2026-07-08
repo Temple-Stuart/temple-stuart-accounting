@@ -1,4 +1,4 @@
-import type { ConvergenceInput, RegimeResult, DataConfidence, CrossAssetCorrelations, FredMacroData } from './types';
+import type { ConvergenceInput, RegimeResult, DataConfidence, CrossAssetCorrelations, FredMacroData, SurvivalBrake } from './types';
 import { combineWeighted } from './weighted-combiner';
 
 function clamp(v: number, min: number, max: number): number {
@@ -36,6 +36,95 @@ const MACRO_BASELINES = {
   yield_curve:        { median: 1.0,   spread: 1.5 },    // T10Y2Y: positive = normal, negative = inverted
   hy_spread:          { median: 4.0,   spread: 2.0 },    // BAMLH0A0HYM2: HY credit spread %
 };
+
+// ===== EDGE-6 — VOL-REGIME CONDITIONER BASELINES (STRATEGY-EVIDENCE §2-§3) =====
+// Both series arrive as a single latest observation from FRED (no historical
+// storage yet — see the rate-of-change note above), so the transform is the
+// gate's established baselineScore sigmoid (median/spread), NOT a z-score vs
+// own history. Both are INVERTED: higher raw value = worse for premium selling.
+//
+// vix_term_structure = VIXCLS / VXVCLS (VIX ÷ VIX3M). < 1 = contango (the
+//   normal, favorable state for selling premium); > 1 = backwardation (stress).
+//   The ratio spends ~80-85% of its history in contango with a long-run median
+//   ≈ 0.93 (CBOE VIX/VXV daily history, 2011-2024). spread 0.07 places the
+//   contango/backwardation boundary (1.00) one sigmoid unit above the median →
+//   ratio 0.93 scores 50, 1.00 scores ≈27, deep backwardation 1.07 scores ≈12.
+//   Evidence: Simon & Campasano 2014 (JoD) — the VIX futures basis predicts
+//   short-vol trade returns; Johnson 2017 (JFQA) — the term-structure slope
+//   carries priced variance-risk-premium information.
+// vvix = VVIXCLS level. Long-run median ≈ 90 (CBOE VVIX history 2007-2024;
+//   post-2018 plateau runs ~95). spread 15 → VVIX 90 scores 50, 105 ≈ 27,
+//   120 ≈ 12. Evidence: Park 2015 (Fed/JEF) — VVIX predicts tail-risk-hedge
+//   returns; elevated VVIX marks expensive, binding tails.
+// Review annually alongside MACRO_BASELINES.
+const VOL_REGIME_BASELINES = {
+  vix_term_structure: { median: 0.93, spread: 0.07 },
+  vvix:               { median: 90,   spread: 15 },
+};
+
+// EDGE-6 survival-brake thresholds (STRATEGY-EVIDENCE §6).
+// backwardation_ratio 1.0 is definitional, not tuned: VIX above VIX3M IS
+// backwardation. vvix_elevated 110 ≈ +1.3σ above the long-run median 90
+// (≈85-90th percentile of 2007-2024 history) — the "elevated VVIX" zone where
+// Park 2015's tail-risk premium binds. This is the state where the measured
+// premium looks richest and the tail is largest (Feb 5 2018: VIX +115%,
+// XIV −96%) — the brake cuts short-vol exposure exactly there.
+const BRAKE_BACKWARDATION_RATIO = 1.0;
+const BRAKE_VVIX_ELEVATED = 110;
+
+// EDGE-6: VIX/VIX3M ratio — < 1 contango (favorable) so INVERTED scoring.
+function normalizeVixTermStructure(ratio: number | null): number | null {
+  if (ratio === null) return null;
+  const b = VOL_REGIME_BASELINES.vix_term_structure;
+  return baselineScore(ratio, b.median, b.spread, true);
+}
+
+// EDGE-6: VVIX level — higher = tail risk more expensive/binding so INVERTED.
+function normalizeVvix(v: number | null): number | null {
+  if (v === null) return null;
+  const b = VOL_REGIME_BASELINES.vvix;
+  return baselineScore(v, b.median, b.spread, true);
+}
+
+// EDGE-6 (STRATEGY-EVIDENCE §6): the anti-wipeout rule. If VVIX is elevated
+// OR VIX/VIX3M is in backwardation, short-vol exposure is CUT regardless of
+// how attractive the VRP looks. FAIL-SAFE: a missing input means the brake
+// cannot confirm safety — it declares UNVERIFIED (treated like ON downstream)
+// rather than silently allowing full exposure. No default, no neutral pass.
+function computeSurvivalBrake(ratio: number | null, vvix: number | null): SurvivalBrake {
+  const reasons: string[] = [];
+  if (ratio !== null && ratio > BRAKE_BACKWARDATION_RATIO) {
+    reasons.push(`VIX/VIX3M = ${round(ratio, 3)} > ${BRAKE_BACKWARDATION_RATIO} — backwardation`);
+  }
+  if (vvix !== null && vvix >= BRAKE_VVIX_ELEVATED) {
+    reasons.push(`VVIX = ${round(vvix, 1)} ≥ ${BRAKE_VVIX_ELEVATED} — elevated vol-of-vol`);
+  }
+  const missing: string[] = [];
+  if (ratio === null) missing.push('VIX/VIX3M term structure');
+  if (vvix === null) missing.push('VVIX');
+
+  let state: SurvivalBrake['state'];
+  let declaration: string;
+  if (reasons.length > 0) {
+    state = 'ON';
+    declaration = `REGIME BRAKE: ${reasons.join('; ')} — short-vol exposure cut`
+      + (missing.length > 0 ? ` (${missing.join(', ')} unavailable)` : '');
+  } else if (missing.length > 0) {
+    state = 'UNVERIFIED';
+    declaration = `REGIME BRAKE UNVERIFIED: brake inputs unavailable (${missing.join(', ')}) — regime unverified, short-vol exposure not confirmed safe`;
+  } else {
+    state = 'OFF';
+    declaration = `Regime brake off — VIX/VIX3M = ${round(ratio as number, 3)} (contango) and VVIX = ${round(vvix as number, 1)} (calm)`;
+  }
+  return {
+    state,
+    reasons,
+    vix_term_structure_ratio: ratio,
+    vvix,
+    thresholds: { backwardation_ratio: BRAKE_BACKWARDATION_RATIO, vvix_elevated: BRAKE_VVIX_ELEVATED },
+    declaration,
+  };
+}
 
 // ===== STALENESS DETECTION =====
 const STALE_THRESHOLD_DAYS = 14;
@@ -562,6 +651,42 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
   // Ancillary signals (audit-only breakdown, not wired into composite score)
   const ancillary = computeAncillarySignals(macro);
 
+  // EDGE-6: vol-regime conditioners (STRATEGY-EVIDENCE §2). Same guard as the
+  // pipeline's display ratio (pipeline step_h): both legs present and VIX3M > 0.
+  // `?? null` / `!= null`: legacy FredMacroData casts can carry undefined for
+  // these keys — undefined IS a missing input and must hit the same
+  // excluded/UNVERIFIED path as null, never read as "present".
+  const vvixRaw = macro.vvix ?? null;
+  const vixTermStructureRatio = (
+    macro.vix != null &&
+    macro.vxvShortTerm != null &&
+    macro.vxvShortTerm > 0
+  )
+    ? round(macro.vix / macro.vxvShortTerm, 4)
+    : null;
+  const vixTermStructureScore = normalizeVixTermStructure(vixTermStructureRatio);
+  const vvixScore = normalizeVvix(vvixRaw);
+  // The brake is market-level and computable even when the macro classification
+  // is not — it is attached on BOTH return paths below.
+  const survivalBrake = computeSurvivalBrake(vixTermStructureRatio, vvixRaw);
+  const volConditionerBreakdown = {
+    vix_term_structure: {
+      score: vixTermStructureScore,
+      raw_value: vixTermStructureRatio,
+      formula: 'VIXCLS / VXVCLS (VIX ÷ VIX3M) — < 1 = contango = favorable for vol selling',
+    },
+    vvix: {
+      score: vvixScore,
+      raw_value: vvixRaw,
+      source: 'FRED VVIXCLS',
+    },
+    combine_formula: 'regime_base = renormalized(0.70 × strategy_regime + 0.20 × vix_term_structure(VIXCLS/VXVCLS) + 0.10 × vvix(VVIXCLS))',
+    excluded: [
+      ...(vixTermStructureScore === null ? ['vix_term_structure'] : []),
+      ...(vvixScore === null ? ['vvix'] : []),
+    ],
+  };
+
   // Step A: Growth & Inflation signals
   const growth = computeGrowthSignal(input);
   const inflation = computeInflationSignal(input);
@@ -581,7 +706,10 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
     if (macro.yieldCurveSpread === null) excludedFields.push('regime.yield_curve_spread');
     if (macro.hySpread === null) excludedFields.push('regime.hy_spread');
     if (!input.crossAssetCorrelations) excludedFields.push('regime.cross_asset_correlations');
-    const totalSubScores = 14;
+    // EDGE-6: the two vol conditioners join the N/M declaration
+    if (vixTermStructureScore === null) excludedFields.push('regime.vix_term_structure');
+    if (vvixScore === null) excludedFields.push('regime.vvix');
+    const totalSubScores = 16;
     return {
       score: null,
       data_confidence: {
@@ -636,6 +764,12 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
         t10y3m_signal: ancillary.t10y3m_signal,
         dollar_index_signal: ancillary.dollar_index_signal,
         fed_net_liquidity_signal: ancillary.fed_net_liquidity_signal,
+        // EDGE-6: conditioners + brake are macro-level and still computable
+        // (and DECLARED) when the regime classification is not. The gate score
+        // stays null per MIG-1 — the conditioners never substitute for a
+        // missing macro classification.
+        vol_conditioners: volConditionerBreakdown,
+        survival_brake: survivalBrake,
       },
     };
   }
@@ -682,9 +816,29 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
   // Steps C + D: Strategy scoring with VIX overlay (uses adjusted regime scores)
   const { scores: strategyScores, adjustmentType } = scoreStrategies(adjustedScores, macro.vix);
 
-  // Step E: Best strategy's final_score is the base regime score
+  // Step E: Best strategy's final_score is the strategy-regime score
   const best = strategyScores[0];
   const baseScore = best.final_score;
+
+  // Step E2 (EDGE-6, STRATEGY-EVIDENCE §2): vol-regime conditioners join the
+  // MARKET-LEVEL base through the KILL-3 renormalizing combiner, BEFORE the
+  // per-ticker SPY-correlation modifier (they are market-wide conditions, so
+  // they scale with regime influence the same way the macro composite does;
+  // the SURVIVAL BRAKE below is deliberately NOT scaled by correlation).
+  // Weights: 0.70 incumbent strategy-regime composite / 0.20 term structure /
+  // 0.10 VVIX. Rationale: STRATEGY-EVIDENCE §2 ranks term structure #1 and
+  // VVIX #2 among vol-regime conditioners (2:1), and the newly wired pair is
+  // capped at 0.30 total so the measured incumbent stays dominant until
+  // EDGE-5 grades the new signals (measure-before-weight, §5/§9 Stage 3).
+  // A missing conditioner is EXCLUDED and weights renormalize — never a
+  // neutral default (baseScore is always present on this path, so the
+  // combined score is non-null).
+  const volConditioned = combineWeighted([
+    { key: 'strategy_regime', weight: 0.70, score: baseScore },
+    { key: 'vix_term_structure', weight: 0.20, score: vixTermStructureScore },
+    { key: 'vvix', weight: 0.10, score: vvixScore },
+  ]);
+  const conditionedBase = volConditioned.score as number;
 
   // Step F: SPY correlation modifier — scales regime influence per-ticker
   // Longin & Solnik 2001: correlations rise in bear markets, but we use a static
@@ -702,12 +856,12 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
 
   if (corrSpy != null) {
     multiplier = round(0.1 + 0.9 * Math.max(0, corrSpy), 4);
-    score = round(baseScore * multiplier, 1);
-    modifierNote = `corrSpy=${corrSpy} → multiplier=${multiplier} → ${baseScore} * ${multiplier} = ${score}`;
+    score = round(conditionedBase * multiplier, 1);
+    modifierNote = `corrSpy=${corrSpy} → multiplier=${multiplier} → ${conditionedBase} * ${multiplier} = ${score} (base = strategy_regime ${baseScore} conditioned by term structure/VVIX → ${conditionedBase})`;
   } else {
     multiplier = 1.0;
-    score = baseScore;
-    modifierNote = 'spy_correlation: not_available — using base regime score unmodified';
+    score = conditionedBase;
+    modifierNote = `spy_correlation: not_available — using conditioned base regime score unmodified (strategy_regime ${baseScore} → conditioned ${conditionedBase})`;
   }
 
   // Build DataConfidence — KILL-3: missing macro series are EXCLUDED and the
@@ -719,7 +873,10 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
   if (macro.yieldCurveSpread === null) excludedFields.push('regime.yield_curve_spread');
   if (macro.hySpread === null) excludedFields.push('regime.hy_spread');
   if (!input.crossAssetCorrelations) excludedFields.push('regime.cross_asset_correlations');
-  const totalSubScores = 14; // 6 growth + 5 inflation + 2 regime signals + 1 cross-asset
+  // EDGE-6: the two vol conditioners join the N/M declaration
+  if (vixTermStructureScore === null) excludedFields.push('regime.vix_term_structure');
+  if (vvixScore === null) excludedFields.push('regime.vvix');
+  const totalSubScores = 16; // 6 growth + 5 inflation + 2 regime signals + 1 cross-asset + 2 vol conditioners (EDGE-6)
   const dataConfidence: DataConfidence = {
     total_sub_scores: totalSubScores,
     imputed_sub_scores: excludedFields.length,
@@ -797,9 +954,9 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
       spy_correlation_modifier: {
         corr_spy: corrSpy,
         multiplier,
-        base_regime_score: baseScore,
+        base_regime_score: conditionedBase,
         adjusted_regime_score: score,
-        formula: 'adjusted_regime = base_regime * (0.1 + 0.9 * max(0, corrSpy))',
+        formula: 'adjusted_regime = conditioned_base * (0.1 + 0.9 * max(0, corrSpy)); conditioned_base = renormalized(0.70 × strategy_regime + 0.20 × vix_term_structure(VIXCLS/VXVCLS) + 0.10 × vvix(VVIXCLS))',
         note: modifierNote,
       },
       cross_asset_correlations: input.crossAssetCorrelations ? {
@@ -816,6 +973,8 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
       t10y3m_signal: ancillary.t10y3m_signal,
       dollar_index_signal: ancillary.dollar_index_signal,
       fed_net_liquidity_signal: ancillary.fed_net_liquidity_signal,
+      vol_conditioners: volConditionerBreakdown,
+      survival_brake: survivalBrake,
     },
   };
 }

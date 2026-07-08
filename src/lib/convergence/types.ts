@@ -140,7 +140,11 @@ export interface FredMacroData {
   initialClaimsDate: string | null;    // Observation date of ICSA
   nfciDate: string | null;             // Observation date of NFCI
   // Vol regime series
-  vxvShortTerm: number | null;         // VXVCLS: VIX short-term (9-day)
+  // NOTE: key name is historical — VXVCLS is the CBOE S&P 500 3-MONTH
+  // Volatility Index (VXV, renamed VIX3M in 2017), NOT a short-term/9-day
+  // series. VIX/VIX3M < 1 = contango (favorable to premium selling),
+  // > 1 = backwardation (stress). See STRATEGY-EVIDENCE.md §2.
+  vxvShortTerm: number | null;         // VXVCLS: CBOE 3-month VIX (VIX3M, formerly VXV)
   vvix: number | null;                 // VVIXCLS: Volatility of VIX
   // Fed net liquidity series
   fedBalanceSheet: number | null;      // WALCL: Fed total assets (weekly, billions)
@@ -752,6 +756,22 @@ export interface StrategyRegimeScore {
   final_score: number;
 }
 
+// EDGE-6 (STRATEGY-EVIDENCE §6): the anti-wipeout survival brake.
+// ON         = backwardation (VIX/VIX3M > 1) OR elevated VVIX — short-vol
+//              exposure is cut regardless of how attractive the VRP looks.
+// UNVERIFIED = one or both brake inputs missing — the brake cannot confirm
+//              safety, so short-vol exposure is NOT confirmed safe (fail-safe:
+//              treated like ON downstream, with its own declared reason).
+// OFF        = both inputs present, neither triggered.
+export interface SurvivalBrake {
+  state: 'OFF' | 'ON' | 'UNVERIFIED';
+  reasons: string[];
+  vix_term_structure_ratio: number | null; // VIXCLS / VXVCLS
+  vvix: number | null;                     // VVIXCLS
+  thresholds: { backwardation_ratio: number; vvix_elevated: number };
+  declaration: string; // user-facing declared state — never a silent score change
+}
+
 export interface RegimeResult {
   // MIG-1: null = the gate had ZERO computable signals — excluded from the
   // composite (weights renormalize over present gates) and recorded as an
@@ -845,6 +865,16 @@ export interface RegimeResult {
     t10y3m_signal: { score: number | null; raw_value: number | null };
     dollar_index_signal: { score: number | null; raw_value: number | null };
     fed_net_liquidity_signal: { score: number | null; raw_value: number | null; formula: string };
+    // EDGE-6 (STRATEGY-EVIDENCE §2): vol-regime conditioners WIRED into the
+    // regime score (unlike the ancillary signals above). null score = series
+    // missing → excluded + renormalized via combineWeighted, never defaulted.
+    vol_conditioners: {
+      vix_term_structure: { score: number | null; raw_value: number | null; formula: string };
+      vvix: { score: number | null; raw_value: number | null; source: string };
+      combine_formula: string;
+      excluded: string[];
+    };
+    survival_brake: SurvivalBrake;
   };
 }
 
@@ -1092,6 +1122,9 @@ export interface CompositeResult {
   sizing_method: string;
   data_confidence: DataConfidence;
   gate_weight_trace: GateWeightTrace;
+  // EDGE-6 (STRATEGY-EVIDENCE §6): survival brake state copied from the
+  // regime gate so every composite consumer (snapshot, cards, UI) sees it.
+  regime_brake: { state: 'OFF' | 'ON' | 'UNVERIFIED'; declaration: string };
 }
 
 // -- Strategy Suggestion --

@@ -1312,6 +1312,17 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
                 <div className="text-xs text-text-secondary italic px-1 mt-2">
                   {(dom !== null ? domExplain[dom] : undefined) ?? why.regime_context}
                 </div>
+                {/* EDGE-6 (STRATEGY-EVIDENCE §6): survival brake — declared state, never a silent score change */}
+                {(() => {
+                  const brake = detail.scores?.regime?.breakdown?.survival_brake;
+                  if (!brake || brake.state === 'OFF') return null;
+                  return (
+                    <div className={`flex items-start gap-2 rounded px-3 py-1.5 mt-2 text-[10px] font-bold leading-relaxed ${brake.state === 'ON' ? 'bg-red-50 text-brand-red' : 'bg-amber-50 text-brand-amber'}`} title="Anti-wipeout rule: backwardation or elevated VVIX cuts short-vol exposure regardless of how attractive the premium looks. UNVERIFIED = brake inputs missing — safety not confirmed.">
+                      <span className="shrink-0 mt-0.5">⛔</span>
+                      <span>{brake.declaration}</span>
+                    </div>
+                  );
+                })()}
               </div>
             );
           })()}
@@ -1320,7 +1331,7 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
           {why.risk_flags.length > 0 && (
             <div className="space-y-1">
               {why.risk_flags.map((flag, i) => {
-                const isRed = flag.startsWith('UNLIMITED') || flag.startsWith('INSIDER');
+                const isRed = flag.startsWith('UNLIMITED') || flag.startsWith('INSIDER') || flag.startsWith('REGIME BRAKE');
                 return (
                   <div key={i} className={`flex items-start gap-2 rounded px-3 py-1.5 text-[10px] font-medium leading-relaxed ${isRed ? 'bg-red-50 text-brand-red' : 'bg-amber-50 text-brand-amber'}`} title="Risk flag: a condition that reduces confidence in this trade. Review before entering.">
                     <span className="shrink-0 mt-0.5">{isRed ? '\u26D4' : '\u26A0'}</span>
@@ -2594,8 +2605,8 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   </thead>
                   <tbody>
                     {[
-                      ['VIX / VIX3M', 'FRED VIXCLS / VXVCLS', 'Step H fetch', 'Step K Regime gate, Vol Edge gate', 'VIX measures market fear. Term structure slope tells us whether vol is in contango or backwardation', 'Slope <1 = contango = favorable for vol selling. Slope >1 = caution'],
-                      ['VVIX', 'FRED VVIXCLS', 'Step H fetch', 'Step K Vol Edge gate', 'Volatility of volatility. Elevated VVIX means the vol surface is unstable — bad for premium selling', 'High VVIX reduces Vol Edge scores'],
+                      ['VIX / VIX3M', 'FRED VIXCLS / VXVCLS', 'Step H fetch', 'Step K Regime gate (EDGE-6 conditioner + survival brake)', 'VIX measures market fear. Term structure slope tells us whether vol is in contango or backwardation', 'Slope <1 = contango = favorable for vol selling. Slope >1 = backwardation → survival brake cuts short-vol'],
+                      ['VVIX', 'FRED VVIXCLS', 'Step H fetch', 'Step K Regime gate (EDGE-6 conditioner + survival brake)', 'Volatility of volatility. Elevated VVIX means the vol surface is unstable — bad for premium selling', 'High VVIX reduces the Regime score; VVIX ≥ 110 trips the survival brake'],
                       ['Fed Funds Rate', 'FRED FEDFUNDS', 'Step H fetch', 'Step K Regime gate, Black-Scholes PoP', 'Risk-free rate used in options pricing. Also signals monetary policy stance', 'Used as risk-free rate in N(d2) PoP calculation on the trade card'],
                       ['Yield Curve (10Y-2Y, 10Y-3M)', 'FRED T10Y2Y / T10Y3M', 'Step H fetch', 'Step K Regime gate', 'Inverted yield curve signals recession risk. Affects regime classification', 'Inversion detected = regime shifts toward Deflation or Stagflation'],
                       ['CPI / Inflation', 'FRED CPIAUCSL', 'Step H fetch', 'Step K Regime gate', 'Inflation level determines whether we are in Goldilocks, Reflation, or Stagflation', 'High CPI + low growth = Stagflation weights applied'],
@@ -3245,6 +3256,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                                       <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">T10Y3M</td><td className="py-0.5 text-right">{r.regime_detail.t10y3m_raw != null ? `${r.regime_detail.t10y3m_raw}%` : '—'} → score {r.regime_detail.t10y3m ?? '—'}</td></tr>
                                       <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Dollar Index</td><td className="py-0.5 text-right">{r.regime_detail.dollar_index_raw ?? '—'} → score {r.regime_detail.dollar_index ?? '—'}</td></tr>
                                       <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Fed Net Liquidity</td><td className="py-0.5 text-right">{r.regime_detail.fed_net_liquidity_raw != null ? `$${r.regime_detail.fed_net_liquidity_raw}B` : '—'} → score {r.regime_detail.fed_net_liquidity ?? '—'}</td></tr>
+                                      {/* EDGE-6: wired vol-regime conditioners + survival brake */}
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">VIX/VIX3M (wired)</td><td className="py-0.5 text-right">{r.regime_detail.vix_term_structure_raw ?? '—'} → score {r.regime_detail.vix_term_structure ?? '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">VVIX (wired)</td><td className="py-0.5 text-right">{r.regime_detail.vvix_raw ?? '—'} → score {r.regime_detail.vvix ?? '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Survival Brake</td><td className={`py-0.5 text-right font-bold ${r.regime_detail.survival_brake === 'OFF' ? 'text-brand-green' : 'text-brand-red'}`} title={r.regime_detail.survival_brake_declaration ?? ''}>{r.regime_detail.survival_brake ?? '—'}</td></tr>
                                     </tbody>
                                   </table>
                                 )}

@@ -144,6 +144,12 @@ export function scoreAll(input: ConvergenceInput): FullScoringResult {
   const scores = [volEdge.score, quality.score, regime.score, infoEdge.score];
   const above50 = scores.filter((s): s is number => s !== null && s > 50).length;
 
+  // EDGE-6 (STRATEGY-EVIDENCE §6): the survival brake is market-level state
+  // from the regime gate. ON or UNVERIFIED → short-premium suggestions are
+  // suppressed in deriveStrategy and the state is DECLARED on the convergence
+  // gate string and on CompositeResult.regime_brake — never a silent change.
+  const survivalBrake = regime.breakdown.survival_brake;
+
   // Continuous position sizing (Kelly 1956, Grinold & Kahn 1999)
   // Gate qualification preserved as circuit-breaker; sizing is continuous for 3+ gates.
   let positionSizePct: number;
@@ -162,6 +168,9 @@ export function scoreAll(input: ConvergenceInput): FullScoringResult {
     positionSizePct = 30 + ((clampedComposite - 50) / 50) * 70;
     positionSizePct = Math.round(positionSizePct / 5) * 5; // Round to nearest 5%
     convergenceGate = `${above50}/4 above 50 → ${positionSizePct}% position size (continuous)`;
+  }
+  if (survivalBrake.state !== 'OFF') {
+    convergenceGate += ` | ${survivalBrake.declaration}`;
   }
 
   // Direction signal from Info Edge. MIG-1: an excluded info-edge gate gives
@@ -226,6 +235,7 @@ export function scoreAll(input: ConvergenceInput): FullScoringResult {
     sizing_method: 'continuous_v1',
     data_confidence: compositeConfidence,
     gate_weight_trace: gateWeightTrace,
+    regime_brake: { state: survivalBrake.state, declaration: survivalBrake.declaration },
   };
 
   // Strategy suggestion
@@ -263,10 +273,20 @@ function deriveStrategy(
   if (ivp !== null && ivp <= 1.0) ivp = Math.round(ivp * 1000) / 10;
   const termShape = volEdge.breakdown.term_structure.shape;
 
+  // EDGE-6 (STRATEGY-EVIDENCE §6): survival brake — ON or UNVERIFIED means
+  // short-premium suggestions are suppressed below regardless of how
+  // attractive the regime/vol scores look. UNVERIFIED (missing brake inputs)
+  // fails SAFE: exposure is not confirmed safe, so it is treated like ON,
+  // with its own declared reason — never a silent pass.
+  const brake = regime.breakdown.survival_brake;
+  const brakeActive = brake.state !== 'OFF';
+
   // Regime-based preference
   // MIG-1: an excluded regime gate (score null) is DECLARED, never scored.
   let regimePreferred: string;
-  if (regimeScore === null) {
+  if (brakeActive) {
+    regimePreferred = `${brake.declaration}${regimeScore !== null ? ` (regime_score=${round(regimeScore)})` : ''}`;
+  } else if (regimeScore === null) {
     regimePreferred = 'Regime gate EXCLUDED (zero computable signals) — defined risk preferred by default, not scored';
   } else if (regimeScore >= 75) {
     regimePreferred = `Short premium favored (regime_score=${round(regimeScore)})`;
@@ -294,6 +314,17 @@ function deriveStrategy(
     // MIG-1: vol-edge gate excluded — no premium/vol read exists; suggesting a
     // vol strategy would be an imputation. Declared, never defaulted.
     suggestedStrategy = 'NOT COMPUTABLE — vol-edge gate excluded (zero computable signals); no strategy suggested without a vol read';
+  } else if (brakeActive && direction === 'NEUTRAL') {
+    // EDGE-6: every neutral-income structure here is short premium — under
+    // the brake none is suggested, and the reason is declared.
+    suggestedStrategy = `${brake.declaration} — no neutral premium-selling strategy suggested`;
+    suggestedDte = 30;
+  } else if (brakeActive && direction === 'BULLISH') {
+    suggestedStrategy = `Call Debit Spread (defined-risk debit only — ${brake.declaration})`;
+    suggestedDte = 30;
+  } else if (brakeActive && direction === 'BEARISH') {
+    suggestedStrategy = `Put Debit Spread (defined-risk debit only — ${brake.declaration})`;
+    suggestedDte = 30;
   } else if (direction === 'NEUTRAL') {
     if (volScore >= 65 && regimeScore !== null && regimeScore >= 60) {
       suggestedStrategy = 'Iron Condor';
