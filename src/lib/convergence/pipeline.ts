@@ -1494,8 +1494,13 @@ export async function runPipeline(
             score: scoring.info_edge.breakdown.material_event_flag?.score ?? null,
             weight: scoring.info_edge.breakdown.material_event_flag?.weight ?? null,
           },
+          // EDGE-7b: null score/weight = < 2 usable months — excluded + renormalized
+          recommendation_revision: {
+            score: scoring.info_edge.breakdown.recommendation_revision?.score ?? null,
+            weight: scoring.info_edge.breakdown.recommendation_revision?.weight ?? null,
+          },
           data_confidence: scoring.info_edge.data_confidence.confidence,
-          // EDGE-2: how many of the 10 sub-scores were computed from real data
+          // EDGE-2: how many of the 11 sub-scores were computed from real data (EDGE-7b added recommendation_revision)
           // (the rest were excluded and the weights re-normalized).
           active_signal_count: scoring.info_edge.data_confidence.active_signal_count ?? null,
           total_signal_count: scoring.info_edge.data_confidence.total_sub_scores,

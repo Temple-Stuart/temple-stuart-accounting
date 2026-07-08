@@ -3283,6 +3283,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                                         ['Inst. Own.', r.info_edge_detail.institutional_ownership],
                                         ['Fund Flow', r.info_edge_detail.fund_flow],
                                         ['Material Event', r.info_edge_detail.material_event],
+                                        ['Rec. Revision', r.info_edge_detail.recommendation_revision],
                                       ].map(([name, d]: any) => (
                                         <tr key={name} className="border-b border-border/30">
                                           <td className="py-0.5 text-text-secondary">{name}</td>

@@ -1082,6 +1082,11 @@ export interface InfoEdgeResult {
     institutional_ownership: InstitutionalOwnershipTrace | null;
     fund_ownership_flow: SubScoreTrace | null;
     material_event_flag: SubScoreTrace | null;
+    // EDGE-7b: month-over-month revision of the analyst consensus mix
+    // (/stock/recommendation monthly series). null = fewer than 2 usable
+    // months (or a non-monthly gap) — excluded + renormalized, no baseline
+    // fabricated.
+    recommendation_revision: SubScoreTrace | null;
   };
 }
 
