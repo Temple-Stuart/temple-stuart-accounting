@@ -857,7 +857,10 @@ function scoreFlowSignal(input: ConvergenceInput): FlowSignalTrace | null {
 
   return {
     score: round(score),
-    weight: 0.10,
+    // EDGE-7b (Round 3): 0.10 → 0.05 — funds the recommendation-revision
+    // signal, following the Round-2F precedent of drawing from the weakest
+    // signal; put/call is "WEAK — noise until proven" per STRATEGY-EVIDENCE §3.
+    weight: 0.05,
     inputs: {
       data_available: true,
       put_call_ratio: flow.put_call_ratio,
@@ -1264,18 +1267,104 @@ function scoreInstitutionalOwnership(input: ConvergenceInput): InstitutionalOwne
   };
 }
 
+// ===== RECOMMENDATION REVISION SUB-SCORE (EDGE-7b) =====
+// The licensed analyst-REVISION signal (STRATEGY-EVIDENCE §4 "analyst-revision
+// momentum"; EDGE-7-AUDIT §3 ranked it the one honest revision in-contract).
+// /stock/recommendation is fetched as a MONTHLY TIME SERIES and kept in full
+// (data-fetchers.ts fetchFinnhubTicker), but the consensus-breadth signal above
+// reads only the latest month — a LEVEL. This scores the CHANGE:
+//   net-consensus ratio n = (strongBuy + buy − sell − strongSell) / total
+//   revision Δ = n(latest month) − n(prior month)
+// Improving consensus (upgrades outpacing downgrades) → higher score — the
+// revision-momentum result of Chan, Jegadeesh & Lakonishok 1996 (same authority
+// the consensus block cites). Normalizing by total makes Δ robust to coverage
+// changes; holds dilute the ratio (correct — a hold-heavy book is a weaker
+// stance). KEPT alongside the latest-month level signal — level and change are
+// distinct information, not redundant.
+// Tripwire: fewer than 2 months with real coverage, or a non-monthly gap
+// between them → null → EXCLUDED + renormalized. No fabricated baseline,
+// never neutral-50 for MISSING data (the 50 below is a KNOWN flat revision —
+// a genuine neutral, mirroring revenue-EPS alignment's known-mixed 50).
+
+// Two monthly observations more than ~2 cycles apart are not a month-over-month
+// revision — declared unusable rather than silently scoring a long-window change.
+const REC_REVISION_MAX_GAP_DAYS = 62;
+
+function scoreRecommendationRevision(input: ConvergenceInput): SubScoreTrace | null {
+  const weight = 0.05;
+  // Usable observation = a month with actual analyst coverage (total > 0).
+  const usable = input.finnhubRecommendations
+    .map(r => ({ ...r, total: r.strongBuy + r.buy + r.hold + r.sell + r.strongSell }))
+    .filter(r => r.total > 0)
+    .sort((a, b) => b.period.localeCompare(a.period));
+  if (usable.length < 2) {
+    return null; // < 2 real observations — no prior to diff, excluded
+  }
+
+  const latest = usable[0];
+  const prior = usable[1];
+  const gapDays = (new Date(latest.period).getTime() - new Date(prior.period).getTime()) / 86400000;
+  if (!(gapDays > 0 && gapDays <= REC_REVISION_MAX_GAP_DAYS)) {
+    return null; // window is not monthly — excluded, not silently rescaled
+  }
+
+  const netRatio = (r: { strongBuy: number; buy: number; sell: number; strongSell: number; total: number }) =>
+    (r.strongBuy + r.buy - r.sell - r.strongSell) / r.total;
+  const netLatest = round(netRatio(latest), 4);
+  const netPrior = round(netRatio(prior), 4);
+  const delta = round(netLatest - netPrior, 4);
+
+  // Threshold bands (file convention — documented ladders like the estimate
+  // blocks above). ±0.03 ≈ one analyst flipping direction in a ~30-analyst
+  // pool: the noise floor. ±0.10 ≈ several same-direction rating changes in a
+  // single month: a strong revision.
+  let s: number;
+  if (delta > 0.10) s = 80;
+  else if (delta > 0.03) s = 65;
+  else if (delta >= -0.03) s = 50;
+  else if (delta >= -0.10) s = 35;
+  else s = 20;
+
+  return {
+    score: s,
+    weight,
+    inputs: {
+      net_consensus_latest: netLatest,
+      net_consensus_prior: netPrior,
+      delta,
+      latest_period: latest.period,
+      prior_period: prior.period,
+      latest_analyst_total: latest.total,
+      prior_analyst_total: prior.total,
+    },
+    formula: 'Δ net-consensus MoM = (SB+B−S−SS)/total, latest − prior (source: Finnhub /stock/recommendation monthly series)',
+    notes: delta > 0.03 ? 'consensus improving — upgrades outpacing downgrades'
+      : delta < -0.03 ? 'consensus deteriorating — downgrades outpacing upgrades'
+      : 'consensus flat month-over-month',
+  };
+}
+
 // ===== MAIN INFO EDGE SCORER =====
 // Weight rebalance history:
-//   Round 1 (2A/2B):                    Round 2 (2F):
-//   analyst_consensus:  0.15             0.15  (unchanged)
-//   price_target:       0.10             0.10  (unchanged)
-//   upgrade_downgrade:  0.10             0.10  (unchanged)
-//   insider_activity:   0.15             0.15  (unchanged)
-//   earnings_momentum:  0.20             0.20  (unchanged)
-//   flow_signal:        0.15          →  0.10  (reduced — weakest academic signal)
-//   news_sentiment:     0.15             0.15  (unchanged)
+//   Round 1 (2A/2B):                    Round 2 (2F):        Round 3 (EDGE-7b):
+//   analyst_consensus:  0.15             0.15  (unchanged)    0.15  (unchanged)
+//   price_target:       0.10             0.10  (unchanged)    0.10  (unchanged)
+//   upgrade_downgrade:  0.10             0.10  (unchanged)    0.10  (unchanged)
+//   insider_activity:   0.15             0.15  (unchanged)    0.15  (unchanged)
+//   earnings_momentum:  0.20             0.20  (unchanged)    0.20  (unchanged)
+//   flow_signal:        0.15          →  0.10  (reduced)   →  0.05  (reduced again — put/call is
+//                                                             "WEAK — noise until proven" per
+//                                                             STRATEGY-EVIDENCE §3; funds the revision)
+//   news_sentiment:     0.15             0.15  (unchanged)    0.15  (unchanged)
 //   institutional_own:  (new)            0.05  (Chen, Jegadeesh & Wermers 2000)
-//   Total:              1.00             1.00
+//                                                             0.05  (unchanged)
+//   rec_revision:       —                —                    0.05  (new — EDGE-7b; modest until
+//                                                             EDGE-5 grades it, mirroring EDGE-6)
+// NOTE: fund_ownership_flow (0.05) and material_event_flag (0.05) are not in
+// this table (defined inline below), so the raw sum of all signal weights is
+// 1.10, not 1.00 — it always was 1.10 post-Round-2F. That is fine: the
+// combiner divides by the ACTIVE weight sum, so relative weights are what
+// matter, and EDGE-7b keeps the raw sum unchanged (flow −0.05, revision +0.05).
 
 export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   const analystConsensus = scoreAnalystConsensus(input);
@@ -1286,6 +1375,7 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   const flowSignal = scoreFlowSignal(input);
   const newsSentiment = scoreNewsSentiment(input);
   const institutionalOwnership = scoreInstitutionalOwnership(input);
+  const recommendationRevision = scoreRecommendationRevision(input);
   const filingRecency = scoreFilingRecency(input);
 
   // Fund ownership flow sub-score (weight 0.05)
@@ -1335,9 +1425,10 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   // EDGE-2/EDGE-2b: exclude-and-renormalize. Every sub-score is either computed
   // from real data or EXCLUDED entirely — missing signals are dropped (null) and
   // the remaining weights re-normalize. No sub-score is ever imputed with a
-  // neutral value. All nine data-dependent sub-scores are nullable; only
-  // analyst_consensus always returns a trace, so activeWeight >= 0.15 > 0.
-  const TOTAL_SUB_SCORES = 10; // analyst, price_target, upgrade_downgrade, insider, earnings, flow, news, institutional, fund_ownership, material_event
+  // neutral value. All eleven sub-scores are nullable (KILL-5 made
+  // analyst_consensus nullable too) — zero data across all of them is the
+  // MIG-1 honest-null case below.
+  const TOTAL_SUB_SCORES = 11; // analyst, price_target, upgrade_downgrade, insider, earnings, flow, news, institutional, fund_ownership, material_event, recommendation_revision (EDGE-7b)
   // KILL-5: analyst_consensus is nullable like every other sub-score — its
   // internal components no longer impute 40/50 on missing data, so a ticker
   // with zero analyst/estimate coverage EXCLUDES the signal entirely.
@@ -1352,12 +1443,13 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   if (institutionalOwnership != null) activeSubScores.push(institutionalOwnership);
   if (fundOwnershipFlow != null) activeSubScores.push(fundOwnershipFlow);
   if (materialEventFlag != null) activeSubScores.push(materialEventFlag);
+  if (recommendationRevision != null) activeSubScores.push(recommendationRevision);
 
   const activeSignalCount = activeSubScores.length;
   const activeWeight = activeSubScores.reduce((sum, s) => sum + s.weight, 0);
   const baseScore = activeSubScores.reduce((sum, s) => sum + s.weight * s.score, 0);
 
-  // MIG-1: with zero real data across all ten signals the gate records an
+  // MIG-1: with zero real data across all eleven signals the gate records an
   // HONEST NULL (infoEdgeScore column is nullable now) — excluded from the
   // composite, which renormalizes over the present gates.
   let score: number | null = activeSubScores.length > 0 && activeWeight > 0
@@ -1397,6 +1489,7 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   if (institutionalOwnership == null) excludedFields.push('institutional_ownership');
   if (fundOwnershipFlow == null) excludedFields.push('fund_ownership_flow');
   if (materialEventFlag == null) excludedFields.push('material_event_flag');
+  if (recommendationRevision == null) excludedFields.push('recommendation_revision');
 
   // A sub-score not backed by full real data is either imputed (a placeholder
   // value still in the score) or excluded (dropped entirely). Confidence counts
@@ -1429,6 +1522,7 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
       institutional_ownership: institutionalOwnership,
       fund_ownership_flow: fundOwnershipFlow,
       material_event_flag: materialEventFlag,
+      recommendation_revision: recommendationRevision,
     },
   };
 }
