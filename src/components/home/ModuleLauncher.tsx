@@ -63,6 +63,10 @@ import SectionD_ProjectBacklog from '@/components/workbench/operations/SectionD_
 // OperationsPipelineShowroom (which already renders the content Day + Script demo panels).
 import ContentPipeline from '@/components/workbench/operations/content/ContentPipeline';
 import HomeRoutineCreateForm from '@/components/home/RoutineCreateForm';
+// TAB-SHOW-AND-GATE: the SHOW surfaces + locked CTAs for the four paid tabs, and the
+// client-side per-tab lock (bundle-aware twin of hasTabAccess; admin bypass inside).
+import { TradeShowcase, BooksShowcase, TaxShowcase, ComplianceShowcase } from '@/components/home/TabShowcases';
+import { isTabLocked } from '@/lib/categoryLock';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
 import { DEFAULT_FILTERS } from '@/lib/convergence/filter-types';
 
@@ -157,10 +161,6 @@ interface Props {
 export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // Auth state: null = unknown (initial), true/false once /api/auth/me resolves.
   const [authed, setAuthed] = useState<boolean | null>(null);
-  // TRADING-PR-2: admin status (server-computed via /api/auth/me isAdmin). The
-  // Trading scan is admin-gated (requireAdmin), so only the admin sees the working
-  // ScanFilterForm; everyone else keeps the paid stub.
-  const [isAdmin, setIsAdmin] = useState(false);
   // PR-2b: per-category entitlements + user id (server-computed via /api/auth/me). Drive the
   // homepage Travel-tab category-section locks (isCategoryLocked). Logged-out → [] / '' → all
   // 9 sections render locked. Loaded from the SAME auth/me effect below (no extra fetch).
@@ -200,8 +200,10 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         setAuthed(res.ok);
         if (res.ok) {
           const data = await res.json().catch(() => null);
-          setIsAdmin(!!data?.user?.isAdmin);
           // PR-2b: feed the homepage category-section locks (no extra fetch).
+          // TAB-SHOW-AND-GATE: the same payload carries tab:/bundle: entitlement
+          // keys (getEntitledCategories returns every active key unfiltered), so
+          // the per-tab locks below need no extra endpoint.
           setEntitledCategories(Array.isArray(data?.user?.entitledCategories) ? data.user.entitledCategories : []);
           setCurrentUserId(data?.user?.id || '');
         }
@@ -209,6 +211,16 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       .catch(() => { if (!cancelled) setAuthed(false); });
     return () => { cancelled = true; };
   }, []);
+
+  // TAB-SHOW-AND-GATE: the four paid-tab locks. isTabLocked is the client twin
+  // of hasTabAccess — specific tab key OR bundle:all unlocks; admin (by user id,
+  // the same comparison the server's isAdmin used) is never locked. Logged out
+  // (entitledCategories=[] and currentUserId='') → locked. FALLBACK TRIPWIRE:
+  // there is no default-unlock — no key match means the SHOW surface, always.
+  const tradeLocked = isTabLocked('tab:trade', entitledCategories, currentUserId);
+  const booksLocked = isTabLocked('tab:books', entitledCategories, currentUserId);
+  const taxLocked = isTabLocked('tab:tax', entitledCategories, currentUserId);
+  const complianceLocked = isTabLocked('tab:compliance', entitledCategories, currentUserId);
 
   // TRADING-PR-2 / PR-Trade-inline: launcher-owned scan filter state (mirrors the
   // dashboard's lifted state + the same localStorage 'scanner-filters' key). The Trade
@@ -293,16 +305,17 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
     }
   }, [booksYear]);
 
-  // Load the cockpit (and a Plaid Link token) only for the admin who actually sees the
-  // Books surface — guests/non-admins get the stub and fire zero Books fetches.
+  // Load the cockpit (and a Plaid Link token) only for a viewer who actually sees the
+  // Books surface (tab entitled, or admin via the lock helper) — locked viewers get the
+  // SHOW surface and fire zero Books fetches.
   useEffect(() => {
-    if (!isAdmin) return;
+    if (booksLocked) return;
     loadBooksCockpit();
     fetch('/api/plaid/link-token', { method: 'POST' })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (d?.link_token) setBooksLinkToken(d.link_token); })
       .catch(() => { /* no token → onLinkAccount guards on it, fail-loud (button no-ops until ready) */ });
-  }, [isAdmin, loadBooksCockpit]);
+  }, [booksLocked, loadBooksCockpit]);
 
   // onSync — faithful to dashboard/page.tsx:348 (syncAccounts): POST the auth-gated
   // /api/transactions/sync-complete, then re-read the cockpit. No auth weakened.
@@ -319,8 +332,11 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // onLinkAccount — faithful to dashboard/page.tsx:334 (openPlaidLink): open Plaid Link
   // with the auth-gated link token; on success POST the auth-gated /api/plaid/exchange-token
   // then re-read the cockpit. The dashboard's free-tier upgrade-modal branch is intentionally
-  // omitted: this surface is admin-only (isAdmin gate below), so that branch is unreachable
-  // here. Guards on token + window.Plaid exactly like the dashboard (no fallback).
+  // omitted: TAB-SHOW-AND-GATE made this surface tab-entitlement-gated, and Plaid itself
+  // stays TIER-gated server-side (/api/plaid/link-token requireTier('plaid')) — a
+  // tab-entitled free-tier user gets no link token, so this button no-ops until the
+  // tier/entitlement seam is ruled in the server-gate PR (item 4). Guards on token +
+  // window.Plaid exactly like the dashboard (no fallback).
   const booksLinkAccount = () => {
     if (!booksLinkToken || !(window as any).Plaid) return; // eslint-disable-line @typescript-eslint/no-explicit-any
     (window as any).Plaid.create({ // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -501,23 +517,12 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       }
       return null; // authed === null → resolving
     }
-    // TRADE-1: the admin Trade scanner + reconcile surface now lives in its own flush
-    // <section> below (mirroring Travel), so it is no longer rendered from renderBody.
-    // renderBody('trading') for a non-admin still falls through to the shared paid stub.
-    // Paid stub (Trading non-admin + Bookkeeping/Tax/Operations/Compliance).
-    return (
-      <div>
-        <p className="text-sm text-text-primary mb-1">{m.label} — coming soon.</p>
-        <p className="text-xs text-text-muted mb-4">{m.blurb} Requires an account.</p>
-        <button
-          type="button"
-          onClick={onRequireAuth}
-          className="px-6 py-2 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm rounded"
-        >
-          Launch {m.label} Module
-        </button>
-      </div>
-    );
+    // TAB-SHOW-AND-GATE: the old "coming soon" paid stub is GONE — it mislabeled
+    // live software as unbuilt (FRONTEND-PAYWALL-AUDIT lie #1). Trade/Books/Tax/
+    // Compliance now render showcase-or-real in their own flush blocks below;
+    // renderBody handles only travel/projects/content/routines, so this is
+    // unreachable and returns nothing rather than a false label.
+    return null;
   };
 
   // PR-TG1: the Travel ModuleDef, fed to renderBody from Travel's own dedicated block
@@ -526,19 +531,10 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   const routinesModule = MODULES.find((m) => m.key === 'routines')!;
   const projectsModule = MODULES.find((m) => m.key === 'projects')!;
   const contentModule = MODULES.find((m) => m.key === 'content')!;
-  // TRADE-1: Trade gets its own flush block (below). Non-admins render the shared paid stub
-  // via renderBody(tradingModule) — the SAME stub bookkeeping/tax/compliance use — so there
-  // is one stub, not a duplicate.
-  const tradingModule = MODULES.find((m) => m.key === 'trading')!;
-  // BOOKS-1: Books gets its own flush block (below). Non-admins render the shared paid
-  // stub via renderBody(bookkeepingModule) — the SAME stub Trade/Tax/Compliance use.
-  const bookkeepingModule = MODULES.find((m) => m.key === 'bookkeeping')!;
-  // TAX-1: Tax gets its own flush block (below). Non-admins render the shared paid stub
-  // via renderBody(taxModule) — the SAME stub Trade/Books/Compliance use.
-  const taxModule = MODULES.find((m) => m.key === 'tax')!;
-  // COMP-1: Compliance gets its own flush block (below). Non-admins render the shared
-  // paid stub via renderBody(complianceModule) — the SAME stub Trade/Books/Tax use.
-  const complianceModule = MODULES.find((m) => m.key === 'compliance')!;
+  // TAB-SHOW-AND-GATE: Trade/Books/Tax/Compliance render in their own flush blocks
+  // below — entitled (or admin) → the real module; locked → the SHOW surface + the
+  // per-tab "Subscribe to unlock" CTA (TabShowcases). The old per-module stub consts
+  // are gone with the stub itself.
 
   return (
     <>
@@ -783,12 +779,15 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           app, not a demo card. Active-module check uses the TAB key 'trade' (TABS :88; selectTab
           sets activeModule to the tab key, :167) — same contract as Travel's 'travel'. STRUCTURE
           only; the terminal styling of ScanFilterForm/ConvergenceIntelligence/TradeLabPanel is
-          UNCHANGED (that is TRADE-2). Admin gate preserved: only isAdmin sees the real surface;
-          everyone else falls through to renderBody(tradingModule) → the shared paid stub. */}
+          UNCHANGED (that is TRADE-2). TAB-SHOW-AND-GATE: the gate is the tab:trade
+          entitlement (isTabLocked — admin bypass inside); locked viewers get the
+          TradeShowcase (honest example data) + the unlock CTA. NOTE: the scan API stays
+          requireAdmin server-side until item 4 (the server-gate PR) re-rules it, so an
+          entitled non-admin sees the real UI but a scan returns the server's 403. */}
       <section className={`w-full bg-white border-b border-border ${activeModule === 'trade' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
-            {isAdmin ? (
+            {!tradeLocked ? (
               <>
                 {/* LANG-1: disclaimer at the top of the Trade tab (persistent, visible). */}
                 <TradingDataDisclaimer />
@@ -819,7 +818,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 <TradeLabPanel />
               </>
             ) : (
-              renderBody(tradingModule)
+              <TradeShowcase currentUserId={currentUserId} onRequireAuth={onRequireAuth} />
             )}
           </div>
         </div>
@@ -827,16 +826,16 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       {/* BOOKS-1: Books renders in its own FLUSH block (mirrors Travel/Trade) — pulled OUT of
           the MODULES.map purple-band card. Active-module check uses the TAB key 'books'
           (TABS :93; MODULE_TO_TAB bookkeeping→'books' :102; selectTab sets activeModule to the
-          tab key). Gated exactly like Trade: isAdmin sees the real surface, everyone else falls
-          through to renderBody(bookkeepingModule) → the shared paid stub. STRUCTURE + cockpit +
-          drop-ins only; the parent-fed engines are BOOKS-2. */}
+          tab key). TAB-SHOW-AND-GATE: gate is the tab:books entitlement (isTabLocked —
+          admin bypass inside); locked viewers get the BooksShowcase + unlock CTA.
+          STRUCTURE + cockpit + drop-ins only; the parent-fed engines are BOOKS-2. */}
       <section className={`w-full bg-white border-b border-border ${activeModule === 'books' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
-            {isAdmin ? (
+            {!booksLocked ? (
               <>
-                {/* Plaid Link script — loaded only for the admin who sees this surface (guests
-                    never pull Plaid). Mirrors dashboard/page.tsx:454. */}
+                {/* Plaid Link script — loaded only for a viewer who sees this surface (locked
+                    viewers never pull Plaid). Mirrors dashboard/page.tsx:454. */}
                 <Script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js" strategy="lazyOnload" />
                 {/* Cockpit — TRUTH-FIRST: loading / explicit-error / real-data only. Never a
                     fake "Balanced" or zeros. */}
@@ -879,24 +878,24 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 <BooksPipeline />
               </>
             ) : (
-              renderBody(bookkeepingModule)
+              <BooksShowcase currentUserId={currentUserId} onRequireAuth={onRequireAuth} />
             )}
           </div>
         </div>
       </section>
       {/* TAX-1: Tax renders in its own FLUSH block (mirrors Books/Trade). Active-module check
           uses the TAB key 'tax' (TABS :103; MODULE_TO_TAB tax→'tax' :115 — module key and tab
-          key both 'tax'; selectTab sets activeModule to the tab key). Gated exactly like
-          Books/Trade: isAdmin sees the closed-books handoff gate (wizard once a period is
-          closed, else a "close your books first" screen that jumps to the Books tab);
-          everyone else falls through to renderBody(taxModule) → the shared paid stub. */}
+          key both 'tax'; selectTab sets activeModule to the tab key). TAB-SHOW-AND-GATE:
+          gate is the tab:tax entitlement (isTabLocked — admin bypass inside). Entitled →
+          the closed-books handoff gate (wizard once a period is closed, else a "close your
+          books first" screen that jumps to the Books tab); locked → TaxShowcase + CTA. */}
       <section className={`w-full bg-white border-b border-border ${activeModule === 'tax' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
-            {isAdmin ? (
+            {!taxLocked ? (
               <TaxHandoffGate onGoToBooks={() => selectTab('books')} />
             ) : (
-              renderBody(taxModule)
+              <TaxShowcase currentUserId={currentUserId} onRequireAuth={onRequireAuth} />
             )}
           </div>
         </div>
@@ -904,16 +903,17 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       {/* COMP-1: Compliance renders in its own FLUSH block (mirrors Books/Tax). Active-module
           check uses the TAB key 'compliance' (TABS :107; MODULE_TO_TAB compliance→'compliance'
           :119 — module key and tab key both 'compliance'; selectTab sets activeModule to the tab
-          key). Gated exactly like Tax: isAdmin sees the A–J workbench (Section A → sub-page link
-          row → Sections B…J, bare — no AppLayout chrome inside the tab); everyone else falls
-          through to renderBody(complianceModule) → the shared paid stub. */}
+          key). TAB-SHOW-AND-GATE: gate is the tab:compliance entitlement (isTabLocked —
+          admin bypass inside). Entitled → the A–J workbench (Section A → sub-page link
+          row → Sections B…J, bare — no AppLayout chrome inside the tab); locked →
+          ComplianceShowcase + unlock CTA. */}
       <section className={`w-full bg-white border-b border-border ${activeModule === 'compliance' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
-            {isAdmin ? (
+            {!complianceLocked ? (
               <ComplianceWorkbench />
             ) : (
-              renderBody(complianceModule)
+              <ComplianceShowcase currentUserId={currentUserId} onRequireAuth={onRequireAuth} />
             )}
           </div>
         </div>
