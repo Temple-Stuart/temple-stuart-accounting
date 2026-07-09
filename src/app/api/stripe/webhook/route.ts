@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
-import { getStripe, getTierFromPriceId } from '@/lib/stripe';
+import { getStripe, getTierFromPriceId, getEntitlementKeyFromPriceId } from '@/lib/stripe';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 
 const OWNER_EMAIL = process.env.OWNER_EMAIL;
@@ -32,6 +33,93 @@ async function auditTierChange(opts: {
     },
     request_id: `${opts.eventId}:${opts.userId}`,
   });
+}
+
+// ENTITLEMENT-WRITER: every entitlement grant/revoke lands in the same
+// tamper-evident audit log. request_id includes the key so one Stripe event
+// touching multiple rows cannot collide, and retries dedupe.
+async function auditEntitlementChange(opts: {
+  eventId: string;
+  eventType: string;
+  userId: string;
+  email: string | null;
+  key: string;
+  granted: boolean;
+  subscriptionId: string | null;
+  rowId: string;
+}) {
+  await writeAuditLog({
+    actor: { type: 'external_integration', email: 'stripe-webhook' },
+    action: {
+      type: opts.granted ? 'permission_granted' : 'permission_revoked',
+      description: `Stripe ${opts.eventType}: entitlement ${opts.key} ${opts.granted ? 'granted to' : 'revoked from'} ${opts.email ?? opts.userId}`,
+    },
+    target: { table: 'user_category_entitlements', id: opts.rowId },
+    payload: {
+      after: { key: opts.key, status: opts.granted ? 'active' : 'inactive' },
+      metadata: { stripe_event: opts.eventType, subscription_id: opts.subscriptionId },
+    },
+    request_id: `${opts.eventId}:${opts.userId}:${opts.key}`,
+  });
+}
+
+// The paid period end, read from the subscription item (this API version keeps
+// current_period_end on the item). Missing → null: the row's lifecycle is then
+// purely status-driven (revoked by the deleted/updated events) — the schema's
+// existing semantic for a null currentPeriodEnd. Never a fabricated date.
+function entitlementPeriodEnd(subscription: Stripe.Subscription): Date | null {
+  const unix = subscription.items.data[0]?.current_period_end;
+  return typeof unix === 'number' && unix > 0 ? new Date(unix * 1000) : null;
+}
+
+// ENTITLEMENT-WRITER: the ONE place an entitlement row is written from a paid
+// event. Caller must have (a) verified the webhook signature and (b) derived
+// `key` from the RECOGNIZED price ID — never from metadata alone.
+async function grantEntitlement(opts: {
+  eventId: string;
+  eventType: string;
+  userId: string;
+  email: string | null;
+  key: string;
+  active: boolean;
+  subscriptionId: string;
+  currentPeriodEnd: Date | null;
+}) {
+  const status = opts.active ? 'active' : 'inactive';
+  // Audit on state TRANSITIONS only — a renewal that refreshes the period end
+  // without changing status updates the row silently (the row itself is the
+  // record); a grant or revoke always lands in the audit log.
+  const previous = await prisma.userCategoryEntitlement.findUnique({
+    where: { userId_categoryKey: { userId: opts.userId, categoryKey: opts.key } },
+    select: { status: true },
+  });
+  const row = await prisma.userCategoryEntitlement.upsert({
+    where: { userId_categoryKey: { userId: opts.userId, categoryKey: opts.key } },
+    create: {
+      userId: opts.userId,
+      categoryKey: opts.key,
+      status,
+      stripeSubscriptionId: opts.subscriptionId,
+      currentPeriodEnd: opts.currentPeriodEnd,
+    },
+    update: {
+      status,
+      stripeSubscriptionId: opts.subscriptionId,
+      currentPeriodEnd: opts.currentPeriodEnd,
+    },
+  });
+  if (previous?.status !== status) {
+    await auditEntitlementChange({
+      eventId: opts.eventId,
+      eventType: opts.eventType,
+      userId: opts.userId,
+      email: opts.email,
+      key: opts.key,
+      granted: opts.active,
+      subscriptionId: opts.subscriptionId,
+      rowId: row.id,
+    });
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -67,14 +155,43 @@ export async function POST(request: NextRequest) {
           // for a checkout user, never an escalation.
           if (!priceId) {
             console.error(
-              `Stripe webhook: checkout.session.completed ${event.id} has no price ID on subscription ${subscriptionId} — NO tier granted (fail-safe)`,
+              `Stripe webhook: checkout.session.completed ${event.id} has no price ID on subscription ${subscriptionId} — NO grant (fail-safe)`,
             );
             break;
           }
-          const tier = getTierFromPriceId(priceId);
+
+          // ENTITLEMENT-WRITER: route by what the PAID PRICE actually is.
+          // An entitlement price grants an entitlement row (never touches
+          // user.tier); a tier price grants a tier (never an entitlement);
+          // an unrecognized price grants NOTHING, loudly.
+          const entitlementKey = getEntitlementKeyFromPriceId(priceId);
+          const tier = getTierFromPriceId(priceId); // 'free' when not a tier price
 
           const checkoutUser = await prisma.users.findUnique({ where: { id: userId } });
-          if (checkoutUser && checkoutUser.email !== OWNER_EMAIL) {
+          if (!checkoutUser || checkoutUser.email === OWNER_EMAIL) break;
+
+          if (entitlementKey) {
+            // Cross-check: our checkout-entitlement route always stamps the key
+            // in session metadata. A mismatch means this session is not ours —
+            // NO write (the price is the truth, the metadata is the check).
+            const metaKey = session.metadata?.entitlementKey;
+            if (metaKey !== entitlementKey) {
+              console.error(
+                `Stripe webhook: ${event.id} price maps to entitlement '${entitlementKey}' but session metadata says '${metaKey ?? 'none'}' — NO grant (fail-safe)`,
+              );
+              break;
+            }
+            await grantEntitlement({
+              eventId: event.id,
+              eventType: event.type,
+              userId,
+              email: checkoutUser.email,
+              key: entitlementKey,
+              active: true,
+              subscriptionId,
+              currentPeriodEnd: entitlementPeriodEnd(subscription),
+            });
+          } else if (tier !== 'free') {
             await prisma.users.update({
               where: { id: userId },
               data: {
@@ -92,6 +209,11 @@ export async function POST(request: NextRequest) {
               toTier: tier,
               subscriptionId,
             });
+          } else {
+            // FALLBACK TRIPWIRE: recognized by neither map — nothing granted.
+            console.error(
+              `Stripe webhook: checkout.session.completed ${event.id} price ${priceId} matches no tier and no entitlement key — NO grant (fail-safe)`,
+            );
           }
         }
         break;
@@ -100,37 +222,69 @@ export async function POST(request: NextRequest) {
       case 'customer.subscription.updated': {
         const subscription = event.data.object;
         const priceId = subscription.items.data[0]?.price.id;
-        const tier = priceId ? getTierFromPriceId(priceId) : 'free';
         const customerId = subscription.customer as string;
 
         // Find user by Stripe customer ID
         const user = await prisma.users.findFirst({
           where: { stripeCustomerId: customerId },
         });
+        if (!user || user.email === OWNER_EMAIL) break;
 
-        if (user && user.email !== OWNER_EMAIL) {
-          // Fail-safe by construction: unknown price → 'free' (getTierFromPriceId),
-          // missing price → 'free', non-active subscription → 'free'. A paid tier
-          // is only ever set from a recognized price on an ACTIVE subscription.
-          const effectiveTier = subscription.status === 'active' ? tier : 'free';
-          await prisma.users.update({
-            where: { id: user.id },
-            data: {
-              tier: effectiveTier,
-              stripeSubscriptionId: subscription.id,
-            },
+        // ENTITLEMENT-WRITER: route by subscription type (a user can hold a
+        // tier subscription AND entitlement subscriptions — an update to one
+        // must never touch the other).
+        const entitlementKey = priceId ? getEntitlementKeyFromPriceId(priceId) : null;
+
+        if (entitlementKey) {
+          // Entitlement subscription: active → row active; any other status
+          // (past_due, canceled, unpaid…) → row inactive. Upsert covers the
+          // renewal case and a race where 'updated' lands before 'completed'
+          // — the key still comes ONLY from the recognized paid price.
+          await grantEntitlement({
+            eventId: event.id,
+            eventType: event.type,
+            userId: user.id,
+            email: user.email,
+            key: entitlementKey,
+            active: subscription.status === 'active',
+            subscriptionId: subscription.id,
+            currentPeriodEnd: entitlementPeriodEnd(subscription),
           });
-          if (effectiveTier !== user.tier) {
-            await auditTierChange({
-              eventId: event.id,
-              eventType: event.type,
-              userId: user.id,
-              email: user.email,
-              fromTier: user.tier,
-              toTier: effectiveTier,
-              subscriptionId: subscription.id,
-            });
-          }
+          break;
+        }
+
+        const tier = priceId ? getTierFromPriceId(priceId) : 'free';
+        // Mixed-subscription guard: only treat this as the user's TIER
+        // subscription if the price maps to a tier OR this subscription is the
+        // one recorded as their tier subscription. An unrecognized price on
+        // some other subscription must never downgrade the tier.
+        if (tier === 'free' && user.stripeSubscriptionId !== subscription.id) {
+          console.error(
+            `Stripe webhook: subscription.updated ${event.id} price ${priceId ?? 'none'} is neither tier nor entitlement and not the user's tier subscription — NO change (fail-safe)`,
+          );
+          break;
+        }
+        // Fail-safe by construction: unknown price → 'free', missing price →
+        // 'free', non-active subscription → 'free'. A paid tier is only ever
+        // set from a recognized price on an ACTIVE subscription.
+        const effectiveTier = subscription.status === 'active' ? tier : 'free';
+        await prisma.users.update({
+          where: { id: user.id },
+          data: {
+            tier: effectiveTier,
+            stripeSubscriptionId: subscription.id,
+          },
+        });
+        if (effectiveTier !== user.tier) {
+          await auditTierChange({
+            eventId: event.id,
+            eventType: event.type,
+            userId: user.id,
+            email: user.email,
+            fromTier: user.tier,
+            toTier: effectiveTier,
+            subscriptionId: subscription.id,
+          });
         }
         break;
       }
@@ -142,26 +296,61 @@ export async function POST(request: NextRequest) {
         const user = await prisma.users.findFirst({
           where: { stripeCustomerId: customerId },
         });
+        if (!user || user.email === OWNER_EMAIL) break;
 
-        if (user && user.email !== OWNER_EMAIL) {
-          await prisma.users.update({
-            where: { id: user.id },
-            data: {
-              tier: 'free',
-              stripeSubscriptionId: null,
-            },
-          });
-          if (user.tier !== 'free') {
-            await auditTierChange({
+        // ENTITLEMENT-WRITER: if this subscription backs entitlement rows,
+        // revoke exactly those rows (status → inactive, audit-logged) and do
+        // NOT touch the user's tier.
+        const entitlementRows = await prisma.userCategoryEntitlement.findMany({
+          where: { userId: user.id, stripeSubscriptionId: subscription.id },
+        });
+        if (entitlementRows.length > 0) {
+          for (const row of entitlementRows) {
+            await prisma.userCategoryEntitlement.update({
+              where: { id: row.id },
+              data: { status: 'inactive' },
+            });
+            await auditEntitlementChange({
               eventId: event.id,
               eventType: event.type,
               userId: user.id,
               email: user.email,
-              fromTier: user.tier,
-              toTier: 'free',
+              key: row.categoryKey,
+              granted: false,
               subscriptionId: subscription.id,
+              rowId: row.id,
             });
           }
+          break;
+        }
+
+        // Mixed-subscription guard: only reset the TIER when the deleted
+        // subscription is the user's recorded tier subscription. Deleting some
+        // other (unrecognized) subscription must never downgrade the tier.
+        if (user.stripeSubscriptionId !== subscription.id) {
+          console.error(
+            `Stripe webhook: subscription.deleted ${event.id} (${subscription.id}) backs no entitlement rows and is not the user's tier subscription — NO change (fail-safe)`,
+          );
+          break;
+        }
+
+        await prisma.users.update({
+          where: { id: user.id },
+          data: {
+            tier: 'free',
+            stripeSubscriptionId: null,
+          },
+        });
+        if (user.tier !== 'free') {
+          await auditTierChange({
+            eventId: event.id,
+            eventType: event.type,
+            userId: user.id,
+            email: user.email,
+            fromTier: user.tier,
+            toTier: 'free',
+            subscriptionId: subscription.id,
+          });
         }
         break;
       }

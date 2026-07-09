@@ -66,30 +66,13 @@ export default function PublicCategorySearch({
 
   // ── LOCKED: no form, no fetch (zero Google spend). 🔒 card + subscribe CTA. ──
   if (locked) {
-    // Placeholder unlock handler — Stripe checkout is a later PR. For now: log + route to
-    // sign-up so a logged-out visitor can create an account first.
-    const onRequestUnlock = () => {
-      console.log('unlock', catKey);
-      onRequireAuth();
-    };
     return (
-      <TravelSectionShell
-        title={label}
-        explainer="Unlock this category to see real local picks with ratings and prices."
-      >
-        <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-brand-purple/15 bg-bg-row px-6 py-10 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-purple/10 text-brand-purple">
-            <Lock className="h-6 w-6" strokeWidth={2} aria-hidden="true" />
-          </div>
-          <div className="space-y-1">
-            <p className="text-base font-bold text-text-primary">{label}</p>
-            <p className="text-sm text-text-muted">Subscribe to see top-rated {label.toLowerCase()} with prices.</p>
-          </div>
-          <button type="button" onClick={onRequestUnlock} className={TRAVEL_BUTTON_CLASS}>
-            Subscribe to unlock
-          </button>
-        </div>
-      </TravelSectionShell>
+      <LockedCategoryCard
+        catKey={catKey}
+        label={label}
+        currentUserId={currentUserId}
+        onRequireAuth={onRequireAuth}
+      />
     );
   }
 
@@ -102,6 +85,72 @@ export default function PublicCategorySearch({
       sharedCountry={sharedCountry}
       searchNonce={searchNonce}
     />
+  );
+}
+
+/** ENTITLEMENT-WRITER: the locked 🔒 card. "Subscribe to unlock" now starts a REAL
+ *  Stripe Checkout for this category key (POST /api/stripe/checkout-entitlement — the
+ *  webhook writes the entitlement row after signature verification). Logged-out →
+ *  the sign-up modal first (checkout is auth-gated). Fail-loud: a checkout error
+ *  renders under the button — never a silent unlock, never fake success. */
+function LockedCategoryCard({
+  catKey,
+  label,
+  currentUserId,
+  onRequireAuth,
+}: {
+  catKey: string;
+  label: string;
+  currentUserId: string;
+  onRequireAuth: () => void;
+}) {
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState('');
+
+  const onRequestUnlock = async () => {
+    // Logged out (no user id from /api/auth/me) → create an account first.
+    if (!currentUserId) {
+      onRequireAuth();
+      return;
+    }
+    setError('');
+    setStarting(true);
+    try {
+      const res = await fetch('/api/stripe/checkout-entitlement', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: catKey }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.url) {
+        throw new Error(data.error || 'Could not start checkout');
+      }
+      window.location.href = data.url;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not start checkout');
+      setStarting(false);
+    }
+  };
+
+  return (
+    <TravelSectionShell
+      title={label}
+      explainer="Unlock this category to see real local picks with ratings and prices."
+    >
+      <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-brand-purple/15 bg-bg-row px-6 py-10 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-purple/10 text-brand-purple">
+          <Lock className="h-6 w-6" strokeWidth={2} aria-hidden="true" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-base font-bold text-text-primary">{label}</p>
+          <p className="text-sm text-text-muted">Subscribe to see top-rated {label.toLowerCase()} with prices.</p>
+        </div>
+        <button type="button" onClick={onRequestUnlock} disabled={starting} className={TRAVEL_BUTTON_CLASS}>
+          {starting ? 'Starting checkout…' : 'Subscribe to unlock'}
+        </button>
+        {error && <p className="text-sm text-brand-red">{error}</p>}
+      </div>
+    </TravelSectionShell>
   );
 }
 
