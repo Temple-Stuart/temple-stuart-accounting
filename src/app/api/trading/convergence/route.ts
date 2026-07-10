@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { runPipeline } from '@/lib/convergence/pipeline';
 import type { PipelineResult } from '@/lib/convergence/pipeline';
-import { requireAdmin } from '@/lib/require-admin';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireTabAccess } from '@/lib/auth-helpers';
 import { prisma } from '@/lib/prisma';
 
 export const maxDuration = 300;
@@ -41,16 +42,28 @@ function setCache(limit: number, data: PipelineResult, universe?: string): void 
 
 export async function GET(request: Request) {
   try {
-    // TRADING-PR-SEC: this scan runs the convergence pipeline, which hits PAID
-    // data feeds (TastyTrade / Finnhub / FRED / xAI). Gate it to the admin/owner
-    // (OWNER_EMAIL — Alex, the sole admin today) using the existing requireAdmin
-    // helper. requireAdmin returns 401 for guests and 403 for non-admins BEFORE
-    // any param parsing, cache read, SSE stream, or runPipeline — so no paid call
-    // fires for unauthorized users. Hard gate, no fallback. (Same pattern as the
-    // src/app/api/admin/* routes.)
-    const adminResult = await requireAdmin();
-    if (adminResult instanceof NextResponse) return adminResult;
-    const userEmail = adminResult; // the verified admin email
+    // TAB-SERVER-GATE (supersedes TRADING-PR-SEC's admin-only ruling): the scan
+    // hits PAID data feeds (TastyTrade market data / Finnhub / FRED / xAI), so it
+    // is gated to the tab:trade entitlement (or bundle:all; admin bypass inside
+    // requireTabAccess) — pay for the Trade tab and scans run. 401/403 BEFORE any
+    // param parsing, cache read, SSE stream, or runPipeline — no paid call fires
+    // for an unentitled user. NOTE: the pipeline reads MARKET data only via the
+    // shared TT session (chains/quotes/candles), never account state — the
+    // account-reading tastytrade/* routes stay requireAdmin (SEC4). Known gap,
+    // flagged not fixed here: no per-user scan spend quota beyond the 15-min cache.
+    const userEmail = await getVerifiedEmail();
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const gateUser = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } },
+      select: { id: true },
+    });
+    if (!gateUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    const tabGate = await requireTabAccess(gateUser.id, 'tab:trade');
+    if (tabGate) return tabGate;
 
     const { searchParams } = new URL(request.url);
 

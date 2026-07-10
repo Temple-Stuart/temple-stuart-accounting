@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireTabAccess } from '@/lib/auth-helpers';
 
 type FilingStatus = 'single' | 'married_joint' | 'married_separate' | 'head_of_household';
 
@@ -93,6 +94,9 @@ export async function POST(request: Request) {
       where: { email: { equals: userEmail, mode: 'insensitive' } },
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:tax entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:tax');
+    if (tabGate) return tabGate;
 
     const userId = user.id;
 

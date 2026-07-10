@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { runDiscovery } from '@/lib/discovery/runDiscovery';
+import { requireTabAccess } from '@/lib/auth-helpers';
 
 export async function GET(_request: NextRequest) {
   try {
@@ -10,6 +11,9 @@ export async function GET(_request: NextRequest) {
 
     const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:compliance entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:compliance');
+    if (tabGate) return tabGate;
 
     const runs = await prisma.discovery_runs.findMany({
       where: { user_id: user.id },
@@ -36,6 +40,9 @@ export async function POST(_request: NextRequest) {
 
     const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:compliance entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:compliance');
+    if (tabGate) return tabGate;
 
     // Load user's profile
     const profile = await prisma.user_profiles.findUnique({ where: { user_id: user.id } });

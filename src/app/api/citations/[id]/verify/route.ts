@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireTabAccess } from '@/lib/auth-helpers';
 import { verifyCitation } from '@/lib/citations/verifyCitation';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
@@ -12,6 +13,19 @@ export async function POST(
   try {
     const userEmail = await getVerifiedEmail();
     if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // TAB-SERVER-GATE: tab:compliance entitlement (bundle:all included; admin
+    // bypass inside). This shared regulatory library had auth-only access; use
+    // now requires the Compliance tab.
+    const gateUser = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } },
+      select: { id: true },
+    });
+    if (!gateUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    const tabGate = await requireTabAccess(gateUser.id, 'tab:compliance');
+    if (tabGate) return tabGate;
 
     // COST/ABUSE GATE — verifyCitation() below makes outbound HTTP calls (HEAD+GET to the
     // citation's URLs) AND overwrites shared verification state on a GLOBAL citations row.

@@ -1,4 +1,4 @@
-import { requireTier } from '@/lib/auth-helpers';
+import { requireTabAccess } from '@/lib/auth-helpers';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -19,7 +19,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const tierGate = requireTier(user.tier, 'plaid', user.id);
+    // TAB-SERVER-GATE: tab:books entitlement replaces the 'plaid' tier gate
+    const tierGate = await requireTabAccess(user.id, 'tab:books');
     if (tierGate) return tierGate;
 
     const items = await prisma.plaid_items.findMany({

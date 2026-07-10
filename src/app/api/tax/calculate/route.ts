@@ -4,6 +4,7 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { generateScheduleC, generateScheduleSE } from '@/lib/schedule-c-service';
 import { generateForm8949, generateScheduleD } from '@/lib/tax-report-service';
 import { generateForm1040 } from '@/lib/form-1040-service';
+import { requireTabAccess } from '@/lib/auth-helpers';
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -50,6 +51,9 @@ export async function GET(request: Request) {
       where: { email: { equals: userEmail, mode: 'insensitive' } }
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:tax entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:tax');
+    if (tabGate) return tabGate;
 
     const { searchParams } = new URL(request.url);
     const yearParam = searchParams.get('year') || '2025';

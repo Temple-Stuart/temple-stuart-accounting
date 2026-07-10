@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireTier } from '@/lib/auth-helpers';
+import { requireTabAccess } from '@/lib/auth-helpers';
 import { requireAiRateLimit } from '@/lib/ai-rate-limit';
 import Anthropic from '@anthropic-ai/sdk';
 import { MODEL_SONNET_4 } from '@/lib/ai/client';
@@ -114,7 +114,8 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-    const tierGate = requireTier(user.tier, 'ai', user.id);
+    // TAB-SERVER-GATE: tab:trade entitlement replaces the 'ai' tier gate
+    const tierGate = await requireTabAccess(user.id, 'tab:trade');
     if (tierGate) return tierGate;
 
     // SEC-5: per-user LLM volume cap (before the paid call).
