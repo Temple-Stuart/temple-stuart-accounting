@@ -42,6 +42,10 @@ export interface TabShowcaseTemplateProps {
   headline: string;
   /** Teaching subcopy: the real data sources + what the pipe does. */
   subcopy: string;
+  /** Optional section(s) rendered BETWEEN the hero and the pipe rail — for
+   *  content that precedes the pipe in the real product flow (e.g. Trade's
+   *  filter panel: you set filters and hit Scan, THEN the pipe runs). */
+  preSteps?: ReactNode;
   /** Title over the pipe rail (e.g. "The pipe — 20 steps, A to T"). */
   stepsTitle: string;
   /** Rail-level honesty tag (e.g. "Example scan — real steps, sample counts"). */
@@ -73,6 +77,7 @@ export default function TabShowcaseTemplate({
   heroBadge,
   headline,
   subcopy,
+  preSteps,
   stepsTitle,
   stepsTag,
   steps,
@@ -96,6 +101,9 @@ export default function TabShowcaseTemplate({
         <h3 className="mt-3 text-3xl font-light tracking-tight sm:text-4xl">{headline}</h3>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/75">{subcopy}</p>
       </div>
+
+      {/* ── Pre-pipe section(s) — the real flow's first act (optional) ── */}
+      {preSteps}
 
       {/* ── The real pipe, as a compact rail ── */}
       <div className="rounded-lg border border-border bg-white">
