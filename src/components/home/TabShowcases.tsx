@@ -30,6 +30,9 @@ import { Lock } from 'lucide-react';
 // SHOWROOM-TRUTH-FIX: engine-computed demo rows (real scoreAll on declared
 // fictional inputs) — see tradeShowcaseRows.ts for the declared fixture.
 import { TRADE_SHOWCASE_ROWS, TRADE_SHOWCASE_BRAKE } from '@/components/home/tradeShowcaseRows';
+// TRADE-SHOWCASE-BUILD: the reusable Plaid-style showcase template (hero band +
+// real pipe rail + concept cards + honest sample + CTA) — tabs 2–9 reuse it.
+import TabShowcaseTemplate, { type ShowcaseStep, type ShowcaseConceptCard } from '@/components/home/TabShowcaseTemplate';
 
 // ── shared chrome ────────────────────────────────────────────────────────────
 
@@ -120,19 +123,115 @@ interface ShowcaseProps {
 }
 
 // ── TRADE ────────────────────────────────────────────────────────────────────
-// SHOWROOM-TRUTH-FIX: the rows below are NOT typed here — TRADE_SHOWCASE_ROWS
-// is computed by the real scoreAll() on the declared fictional inputs in
-// tradeShowcaseRows.ts. The gate caption is the engine's own convergence_gate
-// string verbatim (composite.ts:159-170), so the gate count, the NO-TRADE /
-// position-size outcome, and the composite always match the engine.
+// TRADE-SHOWCASE-BUILD: Plaid-style showcase of the REAL pipe, composed on the
+// reusable TabShowcaseTemplate (the pattern tabs 2–9 follow). Every element
+// traces to the real product:
+//   • the 20 steps are the pipeline's own step_a…step_t labels, in the same
+//     A→T order the live pipeline-flow display presents them
+//     (src/lib/convergence/pipeline.ts onProgress emissions;
+//     ConvergenceIntelligence.tsx step panels);
+//   • 475 = the real default S&P 500 universe size (pipeline.ts SP500 const);
+//     40 = the real 2×-scan-size enrichment cut (pipeline.ts:521,626 at the
+//     default scan size 20); 9 = the real top9 final selection (:1515-1523),
+//     sector-capped max 2 (CI:4149). Counts that are merely illustrative
+//     ("128 Finnhub calls", "2,208 Greeks events") say "(example)" inline and
+//     mirror the live display's own summary formats (CI:2749, :3716);
+//   • the four gate cards are drawn from the gates' real explainers
+//     (ConvergenceIntelligence.tsx:874-877);
+//   • the sample rows are computed by the real scoreAll() on declared
+//     fictional inputs (tradeShowcaseRows.ts — SHOWROOM-TRUTH-FIX), with the
+//     engine's convergence_gate caption verbatim (composite.ts:159-170).
+// Static, zero fetches — no scan fires for a logged-out visitor.
+
+const TRADE_PIPE_STEPS: ShowcaseStep[] = [
+  { code: 'A', label: 'TT Scanner', summary: '475 symbols fetched — the full S&P 500 universe' },
+  { code: 'B', label: 'Pre-Filter', summary: 'ranked by IV rank, IV–HV spread, liquidity' },
+  { code: 'C', label: 'Hard Exclusions', summary: 'no premium (IV–HV ≤ 0) or illiquid → eliminated' },
+  { code: 'D', label: 'Top-N Selection', summary: 'top 40 carried forward (scan size 20 × 2)' },
+  { code: 'E', label: 'Hard Filters', summary: 'market cap >$2B, liquidity ≥2/5, IV present, earnings >7 days out, Reg SHO check' },
+  { code: 'F', label: 'Peer Grouping', summary: 'Finnhub peers → industry → sector' },
+  { code: 'G', label: 'Pre-Score', summary: '40 selected for full data enrichment' },
+  { code: 'H', label: 'Macro & Regime Data', summary: 'FRED: VIX, VIX3M, VVIX, yield curve, credit spreads' },
+  { code: 'I', label: 'Data Enrichment', summary: '128 Finnhub calls (example)' },
+  { code: 'J', label: 'Candle Data & Cross-Asset Correlations' },
+  { code: 'K', label: '4-Gate Scoring', summary: 'vol edge · quality · regime · info edge' },
+  { code: 'L', label: 'Re-Score With Technicals' },
+  { code: 'M', label: 'Final Selection', summary: '9 selected, sector-capped (max 2 per sector)' },
+  { code: 'N', label: 'Chain Fetch', summary: 'live TastyTrade option chains' },
+  { code: 'O', label: 'Live Greeks Subscription', summary: '2,208 Greeks events across 9 symbols (example)' },
+  { code: 'P', label: 'Strategy Scoring', summary: 'credit spreads, condors, calendars — built and scored per ticker' },
+  { code: 'Q', label: 'Live Options Flow & GEX' },
+  { code: 'R', label: 'Re-Score With Live Data', summary: 'gates re-checked on live numbers' },
+  { code: 'S', label: 'Trade Cards', summary: 'sized suggestions — or NO TRADE' },
+  { code: 'T', label: 'Save & Return', summary: 'snapshot saved for the self-graded record' },
+];
+
+// Drawn from the gates' real explainer copy (ConvergenceIntelligence.tsx:874-877).
+const TRADE_GATE_CARDS: ShowcaseConceptCard[] = [
+  {
+    name: 'Vol Edge',
+    asks: 'Are these options priced rich against how the stock actually moves?',
+    measures: 'VRP z-score, IV percentile, term-structure shape, skew asymmetry, dealer gamma exposure. Above 50 = options look expensive = edge for premium sellers.',
+  },
+  {
+    name: 'Quality',
+    asks: 'Is the company underneath actually healthy?',
+    measures: 'Piotroski F-Score safety, profitability margins, earnings quality (accruals + beat rate), growth trajectory. Above 50 = high-quality underlying.',
+  },
+  {
+    name: 'Regime',
+    asks: 'Does today’s macro backdrop favor this trade at all?',
+    measures: 'Scored from 14 FRED macro indicators — GDP, CPI, Fed Funds, yield curve, credit spreads. Above 50 = favorable macro backdrop.',
+  },
+  {
+    name: 'Info Edge',
+    asks: 'Do the people with better information seem to know something?',
+    measures: 'Insider net purchases (MSPR), institutional ownership changes, analyst upgrades/downgrades, earnings surprise (SUE), news sentiment. Above 50 = positive information asymmetry.',
+  },
+];
 
 export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
+  // Drift-proof teaching line: derived from the engine rows themselves — it
+  // names the NO-TRADE case only if the engine actually produced one.
+  const noTradeRow = TRADE_SHOWCASE_ROWS.find((r) => r.positionSizePct === 0);
   return (
-    <div className="space-y-5">
-      <ShowcaseHeader
-        title="The scanner, end to end"
-        line="Live prices from TastyTrade, company numbers from Finnhub, macro from FRED, filings from SEC EDGAR, the mood from Grok — scored through four gates into a suggested trade. Below is what a finished scan looks like, on example tickers."
-      />
+    <TabShowcaseTemplate
+      heroBadge="The Trade tab"
+      headline="475 stocks in. One decision out."
+      subcopy="Live prices from TastyTrade. Company numbers from Finnhub. Macro from FRED. Filings from SEC EDGAR. The mood from Grok. Twenty steps and four gates later you get a sized suggestion — or an honest NO TRADE."
+      stepsTitle="The pipe — 20 steps, A to T"
+      stepsTag="Example scan — real steps, sample counts"
+      steps={TRADE_PIPE_STEPS}
+      cardsTitle="The four gates — every ticker answers all four"
+      cards={TRADE_GATE_CARDS}
+      teachingLine={
+        noTradeRow
+          ? `In this example scan ${noTradeRow.ticker} came out "${noTradeRow.gate}". The engine will not manufacture a trade just to have something to sell — when convergence fails, the honest output is no trade.`
+          : undefined
+      }
+      cta={
+        <LockedTabCard
+          tabKey="tab:trade"
+          label="Trading"
+          valueLine="Run live scans on real market data, with the reconcile queue and the self-graded record."
+          currentUserId={currentUserId}
+          onRequireAuth={onRequireAuth}
+        />
+      }
+      sample={<TradeSampleResult />}
+    />
+  );
+}
+
+/** The honest sample result: rows computed by the real scoreAll() on declared
+ *  fictional inputs (tradeShowcaseRows.ts) — gate captions verbatim. */
+function TradeSampleResult() {
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">A finished scan — scored by the real engine</p>
+        <DemoTag />
+      </div>
       <div className="overflow-x-auto rounded-lg border border-border bg-white">
         <table className="w-full min-w-[640px] text-sm">
           <thead>
@@ -183,13 +282,6 @@ export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
         </div>
       </div>
       <p className="text-xs text-text-faint">Data, not directives — analytics you act on independently. Fictional tickers with declared example inputs — but every score above was computed by the real scoring engine on those inputs; nothing is a live price or a recommendation.</p>
-      <LockedTabCard
-        tabKey="tab:trade"
-        label="Trading"
-        valueLine="Run live scans on real market data, with the reconcile queue and the self-graded record."
-        currentUserId={currentUserId}
-        onRequireAuth={onRequireAuth}
-      />
     </div>
   );
 }
