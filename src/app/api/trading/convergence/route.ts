@@ -3,6 +3,7 @@ import { runPipeline } from '@/lib/convergence/pipeline';
 import type { PipelineResult } from '@/lib/convergence/pipeline';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
+import { requireScanRateLimit } from '@/lib/scan-rate-limit';
 import { prisma } from '@/lib/prisma';
 
 export const maxDuration = 300;
@@ -49,8 +50,10 @@ export async function GET(request: Request) {
     // param parsing, cache read, SSE stream, or runPipeline — no paid call fires
     // for an unentitled user. NOTE: the pipeline reads MARKET data only via the
     // shared TT session (chains/quotes/candles), never account state — the
-    // account-reading tastytrade/* routes stay requireAdmin (SEC4). Known gap,
-    // flagged not fixed here: no per-user scan spend quota beyond the 15-min cache.
+    // account-reading tastytrade/* routes stay requireAdmin (SEC4).
+    // SCAN-SPEND-QUOTA closes the gap previously flagged here: a per-user run
+    // quota (requireScanRateLimit) sits at BOTH pipeline-fire points below —
+    // after this tab gate, before runPipeline. Cache hits stay free.
     const userEmail = await getVerifiedEmail();
     if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -78,6 +81,13 @@ export async function GET(request: Request) {
 
     // ===== SSE STREAMING PATH =====
     if (stream) {
+      // SCAN-SPEND-QUOTA: the stream path NEVER reads the cache — every stream
+      // request runs the full paid pipeline — so the per-user run quota is
+      // checked BEFORE the stream (and any paid call) starts. Over-quota → a
+      // plain 429 + Retry-After instead of an SSE response.
+      const scanQuota = await requireScanRateLimit(gateUser.id);
+      if (scanQuota) return scanQuota;
+
       // Resolve userId for snapshot logging
       let userId: string | undefined;
       let snapshotLookupError: string | null = null;
@@ -138,6 +148,13 @@ export async function GET(request: Request) {
     }
 
     // Cache miss or refresh — run full pipeline
+    // SCAN-SPEND-QUOTA: quota is checked AFTER the cache read (a cache hit above
+    // returned without consuming quota — it fires no paid call) and BEFORE
+    // runPipeline. refresh=true skipped the cache, so it lands here and pays
+    // quota like any other full run.
+    const scanQuota = await requireScanRateLimit(gateUser.id);
+    if (scanQuota) return scanQuota;
+
     console.log(`[Convergence Route] Cache MISS (limit=${limit}, refresh=${refresh}, universe=${universe ?? 'all'})`);
 
     // Resolve userId for snapshot logging (non-blocking — pipeline runs even if lookup fails)
