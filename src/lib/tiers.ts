@@ -10,9 +10,11 @@
  * The MODULES (Trade/Books/Tax/Compliance incl. Plaid sync, trading analytics,
  * wash sales, reconciliation, spending insights) are NOT tier features anymore —
  * they are per-tab entitlements (hasTabAccess, src/lib/entitlements.ts).
- * The 'plaid' and 'tradingAnalytics' flags below have ZERO requireTier callers
- * left; kept only for canAccess compatibility until a cleanup PR retires them.
- * maxLinkedAccounts is defined but ENFORCED NOWHERE (standing flagged follow-up).
+ * The orphaned 'plaid' and 'tradingAnalytics' flags were RETIRED by
+ * TIER-FLAG-CLEANUP (zero live gate readers after TAB-SERVER-GATE).
+ * maxLinkedAccounts is defined but not enforced — DEFERRED BY RULING
+ * (audit-reports/MAXLINKED-RULING.md): no cap on tab:books buyers now;
+ * usage-tiered pricing is a future feature.
  *
  * NOTE: All paid tiers are currently gated as "Coming Soon" for public users.
  * Only the admin user (ADMIN_USER_ID) has full access to all features.
@@ -25,10 +27,8 @@ export type Tier = 'free' | 'pro' | 'pro_plus';
 
 export interface TierConfig {
   label: string;
-  plaid: boolean;
   ai: boolean;
   manualEntry: boolean;
-  tradingAnalytics: boolean;
   tripPlanning: boolean;
   tripAI: boolean;
   placesSearch: boolean;
@@ -38,10 +38,8 @@ export interface TierConfig {
 const TIER_MAP: Record<Tier, TierConfig> = {
   free: {
     label: 'Free',
-    plaid: false,
     ai: false,
     manualEntry: true,
-    tradingAnalytics: false,
     tripPlanning: true,
     tripAI: false,
     placesSearch: false,
@@ -49,10 +47,8 @@ const TIER_MAP: Record<Tier, TierConfig> = {
   },
   pro: {
     label: 'Pro',
-    plaid: true,
     ai: false,
     manualEntry: true,
-    tradingAnalytics: true,
     tripPlanning: true,
     tripAI: false,
     placesSearch: true,
@@ -60,10 +56,8 @@ const TIER_MAP: Record<Tier, TierConfig> = {
   },
   pro_plus: {
     label: 'Pro+',
-    plaid: true,
     ai: true,
     manualEntry: true,
-    tradingAnalytics: true,
     tripPlanning: true,
     tripAI: true,
     placesSearch: true,
