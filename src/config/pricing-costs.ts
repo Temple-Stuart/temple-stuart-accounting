@@ -324,6 +324,53 @@ export const PRODUCTS: ProductEntry[] = [
   },
 ];
 
+// ═══ PRICING-PAGE-SELL: the sellable tabs + bundle, as shown on /pricing ═══
+// `monthlyPrice` is the Alex-entered DISPLAY price (what the page shows) —
+// null renders the explicit "price not set — shown at checkout" state, never
+// a fabricated number. What checkout CHARGES is the Stripe price behind the
+// STRIPE_*_PRICE_ID env var for the same key (server-only; the page learns
+// only a boolean "purchasable right now" from the server component).
+export interface SellableTab {
+  key: string; // must be a PURCHASABLE_ENTITLEMENT_KEYS member (stripe.ts)
+  label: string;
+  /** Honest one-line description of what the entitlement actually unlocks. */
+  unlocks: string;
+  monthlyPrice: number | null;
+}
+
+export const TAB_PRICING: SellableTab[] = [
+  {
+    key: 'tab:trade',
+    label: 'Trading',
+    unlocks: 'the convergence scanner on live market data, trade cards + reconcile queue, trading journal, realized P&L',
+    monthlyPrice: null,
+  },
+  {
+    key: 'tab:books',
+    label: 'Bookkeeping',
+    unlocks: 'Plaid bank sync, double-entry journal & ledger, statements, reconciliation, period close, spending insights',
+    monthlyPrice: null,
+  },
+  {
+    key: 'tab:tax',
+    label: 'Tax',
+    unlocks: '1040 estimate from your closed books, Schedule C/D/SE, wash sales, Form 8949 + CPA export',
+    monthlyPrice: null,
+  },
+  {
+    key: 'tab:compliance',
+    label: 'Compliance',
+    unlocks: 'regulatory corpus search, citation verification, missions & tasks, the tamper-evident audit registry',
+    monthlyPrice: null,
+  },
+  {
+    key: 'bundle:all',
+    label: 'All-modules bundle',
+    unlocks: 'every module above with one subscription (resolved at read time — one purchase unlocks all tabs)',
+    monthlyPrice: null,
+  },
+];
+
 /** Vendors the audit found declared or referenced but NOT connected — zero cost, listed for completeness. */
 export const NOT_CONNECTED = [
   'Airalo (eSIM — declared, not connected)',
