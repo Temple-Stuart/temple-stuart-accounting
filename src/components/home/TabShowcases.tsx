@@ -180,7 +180,10 @@ export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
       heroBadge="The Trade tab"
       headline="475 stocks in. One decision out."
       subcopy="Live prices from TastyTrade. Company numbers from Finnhub. Macro from FRED. Filings from SEC EDGAR. The mood from Grok. Twenty steps and four gates later you get a sized suggestion — or an honest NO TRADE."
-      stepsTitle="The pipe — 20 steps, A to T"
+      // TRADE-SHOWCASE-ORDER: the scanner renders BEFORE the pipe (preSteps) —
+      // in the real product you set filters and hit Scan, THEN the pipe runs.
+      preSteps={<ScannerPanelDemo currentUserId={currentUserId} onRequireAuth={onRequireAuth} />}
+      stepsTitle="Hit Scan, and this runs — 20 steps, A to T"
       stepsTag="Example scan — real steps, sample counts"
       steps={TRADE_PIPE_STEPS}
       stepsFooter={
@@ -192,7 +195,6 @@ export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
       }
       sample={
         <>
-          <ScannerPanelDemo currentUserId={currentUserId} onRequireAuth={onRequireAuth} />
           <TrackRecordMirror />
           <GradedCardMirror />
           <DeepDiveMirror />
