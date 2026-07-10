@@ -47,9 +47,12 @@ export interface TabShowcaseTemplateProps {
   /** Rail-level honesty tag (e.g. "Example scan — real steps, sample counts"). */
   stepsTag: string;
   steps: ShowcaseStep[];
-  /** Title over the concept cards (e.g. "The four gates"). */
-  cardsTitle: string;
-  cards: ShowcaseConceptCard[];
+  /** Optional footer inside the pipe card (e.g. the funnel/runtime line). */
+  stepsFooter?: ReactNode;
+  /** Title over the concept cards (e.g. "The four gates"). Optional — a tab
+   *  may teach its concepts inside richer sections instead. */
+  cardsTitle?: string;
+  cards?: ShowcaseConceptCard[];
   /** The honest sample block (tab-specific; engine-derived where possible). */
   sample: ReactNode;
   /** One teaching line under the sample (e.g. the no-manufactured-trades line). */
@@ -58,7 +61,7 @@ export interface TabShowcaseTemplateProps {
   cta: ReactNode;
 }
 
-function ExampleTag({ text }: { text: string }) {
+export function ExampleTag({ text }: { text: string }) {
   return (
     <span className="inline-block rounded border border-brand-amber/40 bg-brand-amber/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-amber">
       {text}
@@ -73,6 +76,7 @@ export default function TabShowcaseTemplate({
   stepsTitle,
   stepsTag,
   steps,
+  stepsFooter,
   cardsTitle,
   cards,
   sample,
@@ -110,21 +114,24 @@ export default function TabShowcaseTemplate({
             </li>
           ))}
         </ol>
+        {stepsFooter && <div className="border-t border-border px-4 py-2.5">{stepsFooter}</div>}
       </div>
 
-      {/* ── Concept cards (the four gates, for Trade) ── */}
-      <div>
-        <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-text-muted">{cardsTitle}</p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {cards.map((c) => (
-            <div key={c.name} className="rounded-lg border border-border bg-white p-4">
-              <p className="font-semibold text-brand-purple">{c.name}</p>
-              <p className="mt-1 text-sm text-text-primary">{c.asks}</p>
-              <p className="mt-2 text-xs leading-relaxed text-text-muted">{c.measures}</p>
-            </div>
-          ))}
+      {/* ── Concept cards (optional — a tab may teach inside richer sections) ── */}
+      {cards && cards.length > 0 && (
+        <div>
+          {cardsTitle && <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-text-muted">{cardsTitle}</p>}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {cards.map((c) => (
+              <div key={c.name} className="rounded-lg border border-border bg-white p-4">
+                <p className="font-semibold text-brand-purple">{c.name}</p>
+                <p className="mt-1 text-sm text-text-primary">{c.asks}</p>
+                <p className="mt-2 text-xs leading-relaxed text-text-muted">{c.measures}</p>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── The honest sample ── */}
       {sample}
