@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { canAccess, TierConfig } from '@/lib/tiers';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { hasTabAccess } from '@/lib/entitlements';
 
 /**
  * Get current authenticated user from HMAC-verified cookie.
@@ -46,4 +47,29 @@ export function requireTier(tier: string | null | undefined, feature: keyof Tier
     );
   }
   return null;
+}
+
+/**
+ * TAB-SERVER-GATE: gate a route by per-tab entitlement — the server-side twin
+ * of the homepage's isTabLocked. Allowed when the user holds an ACTIVE,
+ * non-expired entitlement for the specific tab key OR bundle:all (resolved by
+ * hasTabAccess, which also carries the admin bypass). Returns null if allowed,
+ * or a 403 NextResponse. FALLBACK TRIPWIRE: no entitlement row → 403, always —
+ * there is no default-allow path, and a DB error propagates (fail-loud) rather
+ * than granting.
+ *
+ * Usage (FIRST lines after user resolution, BEFORE any paid external call):
+ *   const tabGate = await requireTabAccess(user.id, 'tab:books');
+ *   if (tabGate) return tabGate;
+ */
+export async function requireTabAccess(userId: string, tabKey: string): Promise<NextResponse | null> {
+  if (await hasTabAccess(userId, tabKey)) return null;
+  return NextResponse.json(
+    {
+      error: 'Tab not unlocked',
+      tab: tabKey,
+      message: `This requires the ${tabKey.replace('tab:', '')} module — subscribe to unlock it.`,
+    },
+    { status: 403 }
+  );
 }
