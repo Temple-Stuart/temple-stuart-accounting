@@ -11,12 +11,18 @@ const TIERS = [
     price: '$0',
     period: 'forever',
     tier: 'free',
+    // TRUTH-LABELS: bullets list only what each tier's gates ACTUALLY grant in
+    // code today (requireTier call sites). The Trade/Books/Tax/Compliance
+    // modules are NOT tier features anymore — they are sold per-module
+    // (tab entitlements, unlocked from each tab). Bullets that advertised
+    // per-module features (Plaid sync, trading analytics, wash sales,
+    // reconciliation, spending insights) or the unenforced 10/25 account
+    // limits are GONE.
     features: [
       'Manual transaction entry',
       'Budgeting across all modules',
       'Trip planning & flight search',
-      'Double-entry bookkeeping',
-      'Hub command center',
+      'Runway calendar & hub',
     ],
     cta: 'Get Started Free',
     highlight: false,
@@ -28,11 +34,7 @@ const TIERS = [
     tier: 'pro',
     features: [
       'Everything in Free, plus:',
-      'Plaid bank sync (10 accounts)',
-      'Trading P&L analytics',
-      'Auto-categorization',
-      'Wash sale tracking',
-      'Bank reconciliation',
+      'Premium travel discovery (category search, with category subscriptions)',
     ],
     cta: 'Coming Soon',
     highlight: true,
@@ -44,10 +46,9 @@ const TIERS = [
     tier: 'pro_plus',
     features: [
       'Everything in Pro, plus:',
-      'AI spending insights',
-      'AI meal planning',
+      'AI meal & cart planning',
       'Trip AI recommendations',
-      'Up to 25 linked accounts',
+      'AI content tools (reel scripts, routine scenes)',
       'Priority support',
     ],
     cta: 'Coming Soon',
@@ -150,6 +151,13 @@ function PricingContent() {
       <div className="mb-8">
         <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Plans</div>
         <h2 className="text-sm font-light text-text-primary">Start free. Upgrade when you need more.</h2>
+        {/* TRUTH-LABELS: the modules are sold per-module, not by tier — say so here
+            so the tier cards can't imply they include module access. */}
+        <p className="mt-2 text-xs text-text-muted max-w-2xl">
+          The Trading, Bookkeeping, Tax, and Compliance modules are sold separately — open each
+          module&apos;s tab on the home page and subscribe to unlock it (individually, or all at once
+          with the bundle). The plans below cover the lifestyle AI and travel-discovery features.
+        </p>
       </div>
 
       {cancelled && (

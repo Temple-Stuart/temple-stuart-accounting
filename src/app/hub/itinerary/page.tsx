@@ -132,7 +132,7 @@ export default function ItineraryBuilderPage() {
           />
         )}
 
-        {/* Calendar Coming Soon - Now Active! */}
+        {/* Calendar view card (shipped — the old "Coming Soon" note was stale) */}
         <Card className="p-8 mt-8 text-center bg-gradient-to-br from-brand-accent/10 to-brand-accent/5">
           <div className="text-4xl mb-4">📅</div>
           <h3 className="text-sm font-semibold text-text-primary mb-2">Calendar View Available</h3>
