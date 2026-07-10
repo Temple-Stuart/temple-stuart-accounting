@@ -1,255 +1,31 @@
-'use client';
+import { Suspense } from 'react';
+import PricingClient, { type CatalogItem } from './PricingClient';
+import { TAB_PRICING } from '@/config/pricing-costs';
+import { getPriceIdFromEntitlementKey } from '@/lib/stripe';
 
-import { useState, Suspense, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { AppLayout } from '@/components/ui';
-import LoginBox from '@/components/LoginBox';
-
-const TIERS = [
-  {
-    name: 'Free',
-    price: '$0',
-    period: 'forever',
-    tier: 'free',
-    // TRUTH-LABELS: bullets list only what each tier's gates ACTUALLY grant in
-    // code today (requireTier call sites). The Trade/Books/Tax/Compliance
-    // modules are NOT tier features anymore — they are sold per-module
-    // (tab entitlements, unlocked from each tab). Bullets that advertised
-    // per-module features (Plaid sync, trading analytics, wash sales,
-    // reconciliation, spending insights) or the unenforced 10/25 account
-    // limits are GONE.
-    features: [
-      'Manual transaction entry',
-      'Budgeting across all modules',
-      'Trip planning & flight search',
-      'Runway calendar & hub',
-    ],
-    cta: 'Get Started Free',
-    highlight: false,
-  },
-  {
-    name: 'Pro',
-    price: '$20',
-    period: '/mo',
-    tier: 'pro',
-    features: [
-      'Everything in Free, plus:',
-      'Premium travel discovery (category search, with category subscriptions)',
-    ],
-    cta: 'Coming Soon',
-    highlight: true,
-  },
-  {
-    name: 'Pro+',
-    price: '$40',
-    period: '/mo',
-    tier: 'pro_plus',
-    features: [
-      'Everything in Pro, plus:',
-      'AI meal & cart planning',
-      'Trip AI recommendations',
-      'AI content tools (reel scripts, routine scenes)',
-      'Priority support',
-    ],
-    cta: 'Coming Soon',
-    highlight: false,
-  },
-  // PRICING-PAGE: the former 'Trader Pro' ($60) tier is REMOVED — it had no
-  // TierConfig, no Stripe price ID, was absent from the Tier union, and would
-  // 400 at checkout (PRICING-AUDIT.md §3 "phantom tier"). Only tiers that
-  // exist in src/lib/tiers.ts are shown.
-];
-
-function PricingContent() {
-  const [loading, setLoading] = useState<string | null>(null);
-  const [showLogin, setShowLogin] = useState(false);
-  const [pendingTier, setPendingTier] = useState<string | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const cancelled = searchParams.get('cancelled');
-
-  useEffect(() => {
-    // Check if user is logged in
-    fetch('/api/auth/me')
-      .then(res => {
-        setIsLoggedIn(res.ok);
-      })
-      .catch(() => setIsLoggedIn(false));
-  }, []);
-
-  const proceedToCheckout = async (tier: string) => {
-    setLoading(tier);
-    try {
-      const res = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tier }),
-      });
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        alert(data.error || 'Something went wrong');
-      }
-    } catch (err) {
-      alert('Failed to start checkout');
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  const handleUpgrade = async (tier: string) => {
-    if (tier === 'free') {
-      if (isLoggedIn) {
-        router.push('/hub');
-      } else {
-        setShowLogin(true);
-      }
-      return;
-    }
-
-    if (!isLoggedIn) {
-      setPendingTier(tier);
-      setShowLogin(true);
-      return;
-    }
-
-    proceedToCheckout(tier);
-  };
-
-  const handleLoginSuccess = () => {
-    setShowLogin(false);
-    setIsLoggedIn(true);
-    if (pendingTier) {
-      proceedToCheckout(pendingTier);
-      setPendingTier(null);
-    }
-  };
-
-  const handleManage = async () => {
-    if (!isLoggedIn) {
-      setShowLogin(true);
-      return;
-    }
-    setLoading('manage');
-    try {
-      const res = await fetch('/api/stripe/portal', { method: 'POST' });
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch (err) {
-      alert('Failed to open billing portal');
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  return (
-    <AppLayout>
-      <div className="mb-8">
-        <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Plans</div>
-        <h2 className="text-sm font-light text-text-primary">Start free. Upgrade when you need more.</h2>
-        {/* TRUTH-LABELS: the modules are sold per-module, not by tier — say so here
-            so the tier cards can't imply they include module access. */}
-        <p className="mt-2 text-xs text-text-muted max-w-2xl">
-          The Trading, Bookkeeping, Tax, and Compliance modules are sold separately — open each
-          module&apos;s tab on the home page and subscribe to unlock it (individually, or all at once
-          with the bundle). The plans below cover the lifestyle AI and travel-discovery features.
-        </p>
-      </div>
-
-      {cancelled && (
-        <div className="mb-6 p-3 bg-yellow-50 border border-yellow-200 text-yellow-800 text-xs">
-          Checkout cancelled. No charges were made.
-        </div>
-      )}
-
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-        {TIERS.map((t) => (
-          <div
-            key={t.tier}
-            className={`p-6 relative ${
-              t.highlight
-                ? 'border-2 border-brand-purple'
-                : 'border border-border'
-            }`}
-          >
-            {t.highlight && (
-              <div className="absolute -top-2.5 left-4 bg-brand-purple text-white text-[9px] px-2 py-0.5 uppercase tracking-wider">
-                Popular
-              </div>
-            )}
-            {t.tier !== 'free' && (
-              <div className="absolute -top-2.5 left-4 bg-emerald-500 text-white text-[9px] px-2 py-0.5 uppercase tracking-wider">
-                Coming Soon
-              </div>
-            )}
-            <div className="text-xs font-medium text-text-primary mb-1">{t.name}</div>
-            <div className="text-sm font-bold font-mono text-brand-purple mb-1">
-              {t.price}
-              {t.period !== 'forever' && (
-                <span className="text-sm font-normal text-text-muted">{t.period}</span>
-              )}
-            </div>
-            <div className="text-[10px] text-text-muted mb-4">
-              {t.period === 'forever' ? 'Forever' : 'Billed monthly'}
-            </div>
-
-            <div className="space-y-2 text-xs text-text-secondary mb-6">
-              {t.features.map((f, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <div className="w-1 h-1 bg-emerald-500 rounded-full flex-shrink-0"></div>
-                  <span>{f}</span>
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={() => t.tier === 'free' && handleUpgrade(t.tier)}
-              disabled={loading !== null || t.tier !== 'free'}
-              className={`w-full px-4 py-2 text-xs font-medium ${
-                t.tier !== 'free'
-                  ? 'bg-border text-text-muted cursor-not-allowed'
-                  : 'border border-border text-text-secondary hover:bg-bg-row'
-              }`}
-            >
-              {loading === t.tier ? 'Loading...' : t.cta}
-            </button>
-          </div>
-        ))}
-      </div>
-
-      <div className="text-center">
-        <button
-          onClick={handleManage}
-          className="text-xs text-text-muted hover:text-text-secondary underline"
-        >
-          {loading === 'manage' ? 'Loading...' : 'Manage existing subscription'}
-        </button>
-      </div>
-
-      {/* Login Modal */}
-      {showLogin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setShowLogin(false); setPendingTier(null); }} />
-          <div className="relative z-10">
-            <LoginBox 
-              onClose={() => { setShowLogin(false); setPendingTier(null); }}
-              onSuccess={handleLoginSuccess}
-            />
-          </div>
-        </div>
-      )}
-    </AppLayout>
-  );
-}
+/**
+ * PRICING-PAGE-SELL: server component — the ONLY place the page touches the
+ * STRIPE_*_PRICE_ID env vars. It computes, per sellable key, a single boolean
+ * `available` (is a Stripe price ID configured RIGHT NOW) and passes it with
+ * the Alex-entered display price to the client. The price-ID VALUES never
+ * cross to the client — no secret leak, no extra API route, no PUBLIC_PATHS
+ * change. force-dynamic: availability is read per-request, so Alex can add a
+ * price ID in Vercel env and the buy-button lights up without a redeploy.
+ */
+export const dynamic = 'force-dynamic';
 
 export default function PricingPage() {
+  const catalog: CatalogItem[] = TAB_PRICING.map((t) => ({
+    key: t.key,
+    label: t.label,
+    unlocks: t.unlocks,
+    monthlyPrice: t.monthlyPrice,
+    available: getPriceIdFromEntitlementKey(t.key) !== null,
+  }));
+
   return (
     <Suspense>
-      <PricingContent />
+      <PricingClient catalog={catalog} />
     </Suspense>
   );
 }
