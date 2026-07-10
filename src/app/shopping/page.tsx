@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/ui';
-import { ADMIN_USER_ID } from '@/lib/tiers';
+import { canAccess } from '@/lib/tiers';
 import MealPlannerForm, { MealPlan, Ingredient } from '@/components/shopping/MealPlannerForm';
 import MealPlanDashboard from '@/components/shopping/MealPlanDashboard';
 import CartPlannerForm, { CartPlan, CartItem, CartCategory } from '@/components/shopping/CartPlannerForm';
@@ -247,7 +247,10 @@ export default function ShoppingPage() {
                     onCommit={commitLoading ? undefined : () => handleCommit('meals')}
                   />
                 ) : (
-                  userTier === 'free' && currentUserId !== ADMIN_USER_ID ? (
+                  /* DASHBOARD-GATE-ALIGN: mirror the server rule exactly — these AI routes gate
+                     on requireTier('ai') (Pro+ only), so the client checks canAccess, not === 'free'
+                     (the old check let a Pro user through to a guaranteed 403). */
+                  !canAccess(userTier, 'ai', currentUserId) ? (
                     <div className="text-center py-8">
                       <div className="text-sm font-medium text-text-primary mb-2">AI Shopping Planner requires Pro+</div>
                       <div className="text-xs text-text-muted mb-4">Upgrade to Pro+ ($40/mo) to unlock AI-powered planning.</div>
@@ -272,7 +275,10 @@ export default function ShoppingPage() {
                     onCommit={commitLoading ? undefined : () => handleCommit(cat)}
                   />
                 ) : (
-                  userTier === 'free' && currentUserId !== ADMIN_USER_ID ? (
+                  /* DASHBOARD-GATE-ALIGN: mirror the server rule exactly — these AI routes gate
+                     on requireTier('ai') (Pro+ only), so the client checks canAccess, not === 'free'
+                     (the old check let a Pro user through to a guaranteed 403). */
+                  !canAccess(userTier, 'ai', currentUserId) ? (
                     <div className="text-center py-8">
                       <div className="text-sm font-medium text-text-primary mb-2">AI Shopping Planner requires Pro+</div>
                       <div className="text-xs text-text-muted mb-4">Upgrade to Pro+ ($40/mo) to unlock AI-powered planning.</div>
