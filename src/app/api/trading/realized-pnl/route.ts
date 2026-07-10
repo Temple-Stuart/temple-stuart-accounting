@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { requireTier } from '@/lib/auth-helpers';
+import { requireTabAccess } from '@/lib/auth-helpers';
 
 /**
  * GET /api/trading/realized-pnl — the SEPARATE Trading panel's data (NOT a runway).
@@ -48,7 +48,8 @@ export async function GET() {
 
     // PAYWALL: Trading P&L analytics is a paid (Pro) feature — same requireTier
     // pattern as ai/cart-plan/route.ts:89-90.
-    const tierGate = requireTier(user.tier, 'tradingAnalytics', user.id);
+    // TAB-SERVER-GATE: tab:trade entitlement replaces the 'tradingAnalytics' tier gate
+    const tierGate = await requireTabAccess(user.id, 'tab:trade');
     if (tierGate) return tierGate;
 
     const userId = user.id;

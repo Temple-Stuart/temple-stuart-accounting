@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
+import { requireTabAccess } from '@/lib/auth-helpers';
 
 export async function GET(
   _request: NextRequest,
@@ -14,6 +15,9 @@ export async function GET(
 
     const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:compliance entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:compliance');
+    if (tabGate) return tabGate;
 
     const mission = await prisma.missions.findUnique({
       where: { id },
@@ -61,6 +65,9 @@ export async function PATCH(
 
     const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:compliance entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:compliance');
+    if (tabGate) return tabGate;
 
     const existing = await prisma.missions.findUnique({ where: { id } });
     if (!existing || existing.user_id !== user.id) {
@@ -129,6 +136,9 @@ export async function DELETE(
 
     const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:compliance entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:compliance');
+    if (tabGate) return tabGate;
 
     const existing = await prisma.missions.findUnique({ where: { id } });
     if (!existing || existing.user_id !== user.id) {

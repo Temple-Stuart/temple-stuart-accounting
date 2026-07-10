@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { assertPeriodOpen, PeriodClosedError } from '@/lib/period-close-guard';
+import { requireTabAccess } from '@/lib/auth-helpers';
 
 function dollarsToCents(amount: number): bigint {
   return BigInt(Math.round(amount * 100));
@@ -24,6 +25,9 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    // TAB-SERVER-GATE: tab:trade entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:trade');
+    if (tabGate) return tabGate;
 
     const { tradeNums } = await request.json();
     if (!tradeNums || !Array.isArray(tradeNums) || tradeNums.length === 0) {

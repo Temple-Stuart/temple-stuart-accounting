@@ -2,7 +2,7 @@
 // This route is kept for backwards compatibility but should not be called
 // All sync operations should go through the canonical pipeline
 
-import { requireTier } from '@/lib/auth-helpers';
+import { requireTabAccess } from '@/lib/auth-helpers';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
@@ -37,7 +37,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const tierGate = requireTier(user.tier, 'plaid', user.id);
+    // TAB-SERVER-GATE: tab:books entitlement replaces the 'plaid' tier gate
+    const tierGate = await requireTabAccess(user.id, 'tab:books');
     if (tierGate) return tierGate;
 
     const { itemId } = await request.json();

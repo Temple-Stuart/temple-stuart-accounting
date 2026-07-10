@@ -1,4 +1,4 @@
-import { requireTier } from '@/lib/auth-helpers';
+import { requireTabAccess } from '@/lib/auth-helpers';
 import { requireAiRateLimit } from '@/lib/ai-rate-limit';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
@@ -19,7 +19,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const tierGate = requireTier(user.tier, 'ai', user.id);
+    // TAB-SERVER-GATE: tab:books entitlement replaces the 'ai' tier gate
+    const tierGate = await requireTabAccess(user.id, 'tab:books');
     if (tierGate) return tierGate;
 
     // SEC-5: per-user LLM volume cap (before the paid call).

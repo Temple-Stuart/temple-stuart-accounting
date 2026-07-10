@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireTabAccess } from '@/lib/auth-helpers';
 
 const ALLOWED_FIELD_KEYS = [
   'w2_gross_wages',
@@ -27,6 +28,9 @@ export async function GET(request: NextRequest) {
       where: { email: { equals: userEmail, mode: 'insensitive' } },
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:tax entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:tax');
+    if (tabGate) return tabGate;
 
     const yearParam = request.nextUrl.searchParams.get('year');
     const taxYear = yearParam ? parseInt(yearParam, 10) : new Date().getFullYear();
@@ -66,6 +70,9 @@ export async function POST(request: NextRequest) {
       where: { email: { equals: userEmail, mode: 'insensitive' } },
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:tax entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:tax');
+    if (tabGate) return tabGate;
 
     const body = await request.json();
     const { year, overrides } = body as { year: number; overrides: Record<string, string> };

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { prisma } from '@/lib/prisma';
-import { requireTier } from '@/lib/auth-helpers';
+import { requireTabAccess } from '@/lib/auth-helpers';
 import { fetchSentimentBatch } from '@/lib/convergence/sentiment';
 
 export const maxDuration = 60;
@@ -18,7 +18,8 @@ export async function POST(req: Request) {
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const tierGate = requireTier(user.tier, 'ai', user.id);
+  // TAB-SERVER-GATE: tab:trade entitlement replaces the 'ai' tier gate
+  const tierGate = await requireTabAccess(user.id, 'tab:trade');
   if (tierGate) return tierGate;
 
   let body: { symbols?: unknown };
