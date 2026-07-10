@@ -27,12 +27,20 @@
 
 import { useState } from 'react';
 import { Lock } from 'lucide-react';
-// SHOWROOM-TRUTH-FIX: engine-computed demo rows (real scoreAll on declared
-// fictional inputs) — see tradeShowcaseRows.ts for the declared fixture.
-import { TRADE_SHOWCASE_ROWS, TRADE_SHOWCASE_BRAKE } from '@/components/home/tradeShowcaseRows';
 // TRADE-SHOWCASE-BUILD: the reusable Plaid-style showcase template (hero band +
-// real pipe rail + concept cards + honest sample + CTA) — tabs 2–9 reuse it.
-import TabShowcaseTemplate, { type ShowcaseStep, type ShowcaseConceptCard } from '@/components/home/TabShowcaseTemplate';
+// real pipe rail + optional concept cards + sample/CTA slots) — tabs 2–9 reuse it.
+import TabShowcaseTemplate, { type ShowcaseStep } from '@/components/home/TabShowcaseTemplate';
+// TRADE-SHOWCASE-FULL: the full-product sections (real interactive filter
+// panel + track-record / graded-card / deep-dive mirrors per the
+// TRADE-FULL-INVENTORY rulings). Engine-real values come from the scoreAll
+// fixture inside these sections.
+import {
+  ScannerPanelDemo,
+  TrackRecordMirror,
+  GradedCardMirror,
+  DeepDiveMirror,
+  TRADE_UNLOCK_CTA_ID,
+} from '@/components/home/TradeShowcaseSections';
 
 // ── shared chrome ────────────────────────────────────────────────────────────
 
@@ -166,34 +174,7 @@ const TRADE_PIPE_STEPS: ShowcaseStep[] = [
   { code: 'T', label: 'Save & Return', summary: 'snapshot saved for the self-graded record' },
 ];
 
-// Drawn from the gates' real explainer copy (ConvergenceIntelligence.tsx:874-877).
-const TRADE_GATE_CARDS: ShowcaseConceptCard[] = [
-  {
-    name: 'Vol Edge',
-    asks: 'Are these options priced rich against how the stock actually moves?',
-    measures: 'VRP z-score, IV percentile, term-structure shape, skew asymmetry, dealer gamma exposure. Above 50 = options look expensive = edge for premium sellers.',
-  },
-  {
-    name: 'Quality',
-    asks: 'Is the company underneath actually healthy?',
-    measures: 'Piotroski F-Score safety, profitability margins, earnings quality (accruals + beat rate), growth trajectory. Above 50 = high-quality underlying.',
-  },
-  {
-    name: 'Regime',
-    asks: 'Does today’s macro backdrop favor this trade at all?',
-    measures: 'Scored from 14 FRED macro indicators — GDP, CPI, Fed Funds, yield curve, credit spreads. Above 50 = favorable macro backdrop.',
-  },
-  {
-    name: 'Info Edge',
-    asks: 'Do the people with better information seem to know something?',
-    measures: 'Insider net purchases (MSPR), institutional ownership changes, analyst upgrades/downgrades, earnings surprise (SUE), news sentiment. Above 50 = positive information asymmetry.',
-  },
-];
-
 export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
-  // Drift-proof teaching line: derived from the engine rows themselves — it
-  // names the NO-TRADE case only if the engine actually produced one.
-  const noTradeRow = TRADE_SHOWCASE_ROWS.find((r) => r.positionSizePct === 0);
   return (
     <TabShowcaseTemplate
       heroBadge="The Trade tab"
@@ -202,87 +183,33 @@ export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
       stepsTitle="The pipe — 20 steps, A to T"
       stepsTag="Example scan — real steps, sample counts"
       steps={TRADE_PIPE_STEPS}
-      cardsTitle="The four gates — every ticker answers all four"
-      cards={TRADE_GATE_CARDS}
-      teachingLine={
-        noTradeRow
-          ? `In this example scan ${noTradeRow.ticker} came out "${noTradeRow.gate}". The engine will not manufacture a trade just to have something to sell — when convergence fails, the honest output is no trade.`
-          : undefined
+      stepsFooter={
+        <p className="text-xs text-text-muted">
+          Example funnel: <span className="font-mono text-text-primary">475 → 52 → 40 → 20 → 9</span>{' '}
+          (universe → hard filters → enriched → scored → selected) · 128 Finnhub calls · ~94s runtime.
+          475, 40, 20 and 9 are the real defaults; the rest are sample counts.
+        </p>
+      }
+      sample={
+        <>
+          <ScannerPanelDemo currentUserId={currentUserId} onRequireAuth={onRequireAuth} />
+          <TrackRecordMirror />
+          <GradedCardMirror />
+          <DeepDiveMirror />
+        </>
       }
       cta={
-        <LockedTabCard
-          tabKey="tab:trade"
-          label="Trading"
-          valueLine="Run live scans on real market data, with the reconcile queue and the self-graded record."
-          currentUserId={currentUserId}
-          onRequireAuth={onRequireAuth}
-        />
+        <div id={TRADE_UNLOCK_CTA_ID}>
+          <LockedTabCard
+            tabKey="tab:trade"
+            label="Trading"
+            valueLine="Run live scans on real market data, with the reconcile queue and the self-graded record."
+            currentUserId={currentUserId}
+            onRequireAuth={onRequireAuth}
+          />
+        </div>
       }
-      sample={<TradeSampleResult />}
     />
-  );
-}
-
-/** The honest sample result: rows computed by the real scoreAll() on declared
- *  fictional inputs (tradeShowcaseRows.ts) — gate captions verbatim. */
-function TradeSampleResult() {
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">A finished scan — scored by the real engine</p>
-        <DemoTag />
-      </div>
-      <div className="overflow-x-auto rounded-lg border border-border bg-white">
-        <table className="w-full min-w-[640px] text-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-text-muted">
-              <th className="px-3 py-2 font-medium">Ticker</th>
-              <th className="px-3 py-2 font-medium text-right">Vol edge</th>
-              <th className="px-3 py-2 font-medium text-right">Quality</th>
-              <th className="px-3 py-2 font-medium text-right">Regime</th>
-              <th className="px-3 py-2 font-medium text-right">Info edge</th>
-              <th className="px-3 py-2 font-medium text-right">Composite</th>
-              <th className="px-3 py-2 font-medium">Suggestion</th>
-            </tr>
-          </thead>
-          <tbody>
-            {TRADE_SHOWCASE_ROWS.map((r) => (
-              <tr key={r.ticker} className="border-b border-border-light last:border-0">
-                <td className="px-3 py-2 font-mono font-semibold text-text-primary">{r.ticker}</td>
-                <td className="px-3 py-2 text-right">{r.volEdge ?? '—'}</td>
-                <td className="px-3 py-2 text-right">{r.quality ?? '—'}</td>
-                <td className="px-3 py-2 text-right">{r.regime ?? '—'}</td>
-                <td className="px-3 py-2 text-right">{r.infoEdge ?? '—'}</td>
-                <td className="px-3 py-2 text-right font-semibold">{r.composite ?? '—'}</td>
-                {/* The engine's own gate caption, verbatim; the strategy renders
-                    only when the engine actually sized the trade above zero. */}
-                <td className="px-3 py-2 text-xs text-text-secondary">
-                  {r.gate}
-                  {r.positionSizePct > 0 && ` · ${r.strategy} · ${r.suggestedDte} DTE`}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-3 text-xs text-text-secondary">
-        <div className="rounded-lg border border-border bg-white p-3">
-          <p className="font-semibold text-text-primary">Honest by construction</p>
-          <p className="mt-1">Every score declares its inputs — &quot;computed from 14/16 signals&quot; — and missing data is excluded, never faked.</p>
-        </div>
-        <div className="rounded-lg border border-border bg-white p-3">
-          <p className="font-semibold text-text-primary">The survival brake</p>
-          {/* The engine's own brake declaration for the declared demo macro —
-              rendered verbatim, never asserted by hand. */}
-          <p className="mt-1">Backwardation or elevated VVIX cuts short-vol suggestions automatically — declared on every run, e.g. <span className="font-mono">{TRADE_SHOWCASE_BRAKE.declaration}</span>.</p>
-        </div>
-        <div className="rounded-lg border border-border bg-white p-3">
-          <p className="font-semibold text-text-primary">Graded against reality</p>
-          <p className="mt-1">Every scan is snapshotted and later scored against what actually happened — a public, self-graded track record.</p>
-        </div>
-      </div>
-      <p className="text-xs text-text-faint">Data, not directives — analytics you act on independently. Fictional tickers with declared example inputs — but every score above was computed by the real scoring engine on those inputs; nothing is a live price or a recommendation.</p>
-    </div>
   );
 }
 
