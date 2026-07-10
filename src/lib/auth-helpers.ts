@@ -36,7 +36,7 @@ export async function requireUser() {
  * Returns null if allowed, or a NextResponse 403 if blocked.
  *
  * Usage in any API route:
- *   const gate = requireTier(user.tier, 'plaid');
+ *   const gate = requireTier(user.tier, 'ai');
  *   if (gate) return gate;
  */
 export function requireTier(tier: string | null | undefined, feature: keyof TierConfig, userId?: string | null): NextResponse | null {

@@ -23,9 +23,11 @@ import { requireTabAccess } from '@/lib/auth-helpers';
  *   • Drawdown — no peak/trough data exists. `tracked: false`.
  *
  * PAYWALL ruling (supersedes the earlier "requireTier is correctly absent" note): this route IS
- * the "Trading P&L analytics" feature sold on the Pro tier (tiers.ts tradingAnalytics), so it is
- * tier-gated even though it spends no external money — the gate here is the PAYWALL, not a
- * cost control. Free tier → 403 (tradingAnalytics: false); Pro/Pro+ → allowed; admin bypasses.
+ * the Trading P&L analytics feature — a paid module surface, so it is gated even though it
+ * spends no external money; the gate here is the PAYWALL, not a cost control. Since
+ * TAB-SERVER-GATE that gate is the tab:trade entitlement (requireTabAccess below):
+ * unentitled → 403; tab:trade or bundle:all → allowed; admin bypasses. (The old
+ * tier-based 'tradingAnalytics' flag was retired by TIER-FLAG-CLEANUP.)
  */
 
 // Trading entity — IMMUTABLE entity_id (psql-confirmed; entity_type is inconsistent across seeds —

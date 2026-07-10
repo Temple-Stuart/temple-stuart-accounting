@@ -332,11 +332,11 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // onLinkAccount — faithful to dashboard/page.tsx:334 (openPlaidLink): open Plaid Link
   // with the auth-gated link token; on success POST the auth-gated /api/plaid/exchange-token
   // then re-read the cockpit. The dashboard's free-tier upgrade-modal branch is intentionally
-  // omitted: TAB-SHOW-AND-GATE made this surface tab-entitlement-gated, and Plaid itself
-  // stays TIER-gated server-side (/api/plaid/link-token requireTier('plaid')) — a
-  // tab-entitled free-tier user gets no link token, so this button no-ops until the
-  // tier/entitlement seam is ruled in the server-gate PR (item 4). Guards on token +
-  // window.Plaid exactly like the dashboard (no fallback).
+  // omitted: this surface and the server routes it calls are both tab:books-gated
+  // (TAB-SHOW-AND-GATE client-side; TAB-SERVER-GATE flipped /api/plaid/link-token +
+  // exchange-token to requireTabAccess('tab:books')) — an unentitled user gets no link
+  // token, so this button no-ops. Guards on token + window.Plaid exactly like the
+  // dashboard (no fallback).
   const booksLinkAccount = () => {
     if (!booksLinkToken || !(window as any).Plaid) return; // eslint-disable-line @typescript-eslint/no-explicit-any
     (window as any).Plaid.create({ // eslint-disable-line @typescript-eslint/no-explicit-any
