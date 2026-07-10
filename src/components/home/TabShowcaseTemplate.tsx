@@ -1,0 +1,137 @@
+'use client';
+
+/**
+ * TRADE-SHOWCASE-BUILD: the reusable, Plaid-style logged-out tab showcase —
+ * the TEMPLATE the paid tabs share. Trade composes it first; tabs 2–9 drop in
+ * their own hero line, pipe steps, concept cards, honest sample, and CTA.
+ *
+ * SHOW discipline (unchanged from TabShowcases.tsx): this component is
+ * STATIC — zero fetches, zero paid calls, nothing personal, no auth/gate
+ * logic. Everything it renders arrives via props from the composing showcase;
+ * illustrative values must arrive ALREADY labeled (the template renders the
+ * EXAMPLE tags it is given and adds a rail-level tag of its own).
+ *
+ * Styling: the app's real brand tokens only (bg-brand-purple hero band like
+ * the homepage hero, bg-white cards, border-border, text-text-* scale,
+ * brand-amber example tags) — no invented colors.
+ */
+
+import type { ReactNode } from 'react';
+
+export interface ShowcaseStep {
+  /** The real step code as the product names it (e.g. "A", "B" … "T"). */
+  code: string;
+  /** The real step label, verbatim from the pipe. */
+  label: string;
+  /** Short summary line; illustrative counts must say so (e.g. "(example)"). */
+  summary?: string;
+}
+
+export interface ShowcaseConceptCard {
+  name: string;
+  /** Plain-language "what it asks" line. */
+  asks: string;
+  /** What it really measures — drawn from the real component, not invented. */
+  measures: string;
+}
+
+export interface TabShowcaseTemplateProps {
+  /** Small uppercase chip above the headline (e.g. "The Trade tab"). */
+  heroBadge: string;
+  /** Post-ready headline. Keep it honest — real numbers only. */
+  headline: string;
+  /** Teaching subcopy: the real data sources + what the pipe does. */
+  subcopy: string;
+  /** Title over the pipe rail (e.g. "The pipe — 20 steps, A to T"). */
+  stepsTitle: string;
+  /** Rail-level honesty tag (e.g. "Example scan — real steps, sample counts"). */
+  stepsTag: string;
+  steps: ShowcaseStep[];
+  /** Title over the concept cards (e.g. "The four gates"). */
+  cardsTitle: string;
+  cards: ShowcaseConceptCard[];
+  /** The honest sample block (tab-specific; engine-derived where possible). */
+  sample: ReactNode;
+  /** One teaching line under the sample (e.g. the no-manufactured-trades line). */
+  teachingLine?: string;
+  /** The unlock/signup CTA block (LockedTabCard — the existing checkout path). */
+  cta: ReactNode;
+}
+
+function ExampleTag({ text }: { text: string }) {
+  return (
+    <span className="inline-block rounded border border-brand-amber/40 bg-brand-amber/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-amber">
+      {text}
+    </span>
+  );
+}
+
+export default function TabShowcaseTemplate({
+  heroBadge,
+  headline,
+  subcopy,
+  stepsTitle,
+  stepsTag,
+  steps,
+  cardsTitle,
+  cards,
+  sample,
+  teachingLine,
+  cta,
+}: TabShowcaseTemplateProps) {
+  return (
+    <div className="space-y-6">
+      {/* ── Hero band — the homepage hero's own tokens (purple band, light type) ── */}
+      <div className="rounded-lg bg-brand-purple px-6 py-8 text-white sm:px-8">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded border border-white/25 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/80">
+            {heroBadge}
+          </span>
+          <ExampleTag text="Example data" />
+        </div>
+        <h3 className="mt-3 text-3xl font-light tracking-tight sm:text-4xl">{headline}</h3>
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/75">{subcopy}</p>
+      </div>
+
+      {/* ── The real pipe, as a compact rail ── */}
+      <div className="rounded-lg border border-border bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2.5">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">{stepsTitle}</p>
+          <ExampleTag text={stepsTag} />
+        </div>
+        <ol className="grid gap-x-6 px-4 py-3 sm:grid-cols-2">
+          {steps.map((s) => (
+            <li key={s.code} className="flex gap-3 border-b border-border-light py-1.5 last:border-0 sm:[&:nth-last-child(2)]:border-0">
+              <span className="w-5 shrink-0 pt-px text-right font-mono text-xs font-bold text-brand-purple">{s.code}</span>
+              <span className="min-w-0 text-sm">
+                <span className="font-medium text-text-primary">{s.label}</span>
+                {s.summary && <span className="text-text-muted"> — {s.summary}</span>}
+              </span>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      {/* ── Concept cards (the four gates, for Trade) ── */}
+      <div>
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-text-muted">{cardsTitle}</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {cards.map((c) => (
+            <div key={c.name} className="rounded-lg border border-border bg-white p-4">
+              <p className="font-semibold text-brand-purple">{c.name}</p>
+              <p className="mt-1 text-sm text-text-primary">{c.asks}</p>
+              <p className="mt-2 text-xs leading-relaxed text-text-muted">{c.measures}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── The honest sample ── */}
+      {sample}
+      {teachingLine && <p className="text-sm text-text-secondary">{teachingLine}</p>}
+
+      {/* ── CTA ── */}
+      {cta}
+    </div>
+  );
+}
