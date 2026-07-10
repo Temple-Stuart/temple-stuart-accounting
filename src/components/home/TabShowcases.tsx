@@ -5,10 +5,17 @@
  * Tax, Compliance) + the shared per-tab locked CTA.
  *
  * SHOW discipline (mirrors OperationsPipelineShowroom): every panel renders
- * STATIC seed data — zero fetches, zero paid calls, nothing personal — and is
- * labeled EXAMPLE DATA so a demo can never read as a live number. The demo
+ * STATIC declared data — zero fetches, zero paid calls, nothing personal — and
+ * is labeled EXAMPLE DATA so a demo can never read as a live number. The demo
  * entities are fictional (Maria's food truck — the same persona the Projects/
  * Content showroom uses — and fictional tickers).
+ *
+ * SHOWROOM-TRUTH-FIX: the Trade rows are no longer hand-typed — they are
+ * COMPUTED by the real pure scorer on declared fictional inputs
+ * (tradeShowcaseRows.ts), so scores, gate captions, position sizes, and the
+ * brake state are engine output and cannot drift from the engine. Books uses
+ * the real seeded chart-of-account codes; Tax figures are derived with the
+ * real tax-engine formulas; Compliance shows the real audit actor enum value.
  *
  * LOCK discipline (mirrors Travel's LockedCategoryCard): "Subscribe to unlock"
  * POSTs /api/stripe/checkout-entitlement with this tab's key; the signature-
@@ -20,6 +27,9 @@
 
 import { useState } from 'react';
 import { Lock } from 'lucide-react';
+// SHOWROOM-TRUTH-FIX: engine-computed demo rows (real scoreAll on declared
+// fictional inputs) — see tradeShowcaseRows.ts for the declared fixture.
+import { TRADE_SHOWCASE_ROWS, TRADE_SHOWCASE_BRAKE } from '@/components/home/tradeShowcaseRows';
 
 // ── shared chrome ────────────────────────────────────────────────────────────
 
@@ -110,12 +120,11 @@ interface ShowcaseProps {
 }
 
 // ── TRADE ────────────────────────────────────────────────────────────────────
-
-const DEMO_SCAN_ROWS = [
-  { t: 'ACME', ve: 72, q: 61, r: 58, ie: 66, comp: 65, strat: 'Iron Condor · 45 DTE' },
-  { t: 'GLOBEX', ve: 58, q: 45, r: 58, ie: 52, comp: 54, strat: 'Short Put Spread · 45 DTE' },
-  { t: 'INITECH', ve: 41, q: 68, r: 58, ie: 38, comp: null, strat: 'NO TRADE — 1/4 gates above 50' },
-];
+// SHOWROOM-TRUTH-FIX: the rows below are NOT typed here — TRADE_SHOWCASE_ROWS
+// is computed by the real scoreAll() on the declared fictional inputs in
+// tradeShowcaseRows.ts. The gate caption is the engine's own convergence_gate
+// string verbatim (composite.ts:159-170), so the gate count, the NO-TRADE /
+// position-size outcome, and the composite always match the engine.
 
 export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
   return (
@@ -138,15 +147,20 @@ export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
             </tr>
           </thead>
           <tbody>
-            {DEMO_SCAN_ROWS.map((r) => (
-              <tr key={r.t} className="border-b border-border-light last:border-0">
-                <td className="px-3 py-2 font-mono font-semibold text-text-primary">{r.t}</td>
-                <td className="px-3 py-2 text-right">{r.ve}</td>
-                <td className="px-3 py-2 text-right">{r.q}</td>
-                <td className="px-3 py-2 text-right">{r.r}</td>
-                <td className="px-3 py-2 text-right">{r.ie}</td>
-                <td className="px-3 py-2 text-right font-semibold">{r.comp ?? '—'}</td>
-                <td className="px-3 py-2 text-xs text-text-secondary">{r.strat}</td>
+            {TRADE_SHOWCASE_ROWS.map((r) => (
+              <tr key={r.ticker} className="border-b border-border-light last:border-0">
+                <td className="px-3 py-2 font-mono font-semibold text-text-primary">{r.ticker}</td>
+                <td className="px-3 py-2 text-right">{r.volEdge ?? '—'}</td>
+                <td className="px-3 py-2 text-right">{r.quality ?? '—'}</td>
+                <td className="px-3 py-2 text-right">{r.regime ?? '—'}</td>
+                <td className="px-3 py-2 text-right">{r.infoEdge ?? '—'}</td>
+                <td className="px-3 py-2 text-right font-semibold">{r.composite ?? '—'}</td>
+                {/* The engine's own gate caption, verbatim; the strategy renders
+                    only when the engine actually sized the trade above zero. */}
+                <td className="px-3 py-2 text-xs text-text-secondary">
+                  {r.gate}
+                  {r.positionSizePct > 0 && ` · ${r.strategy} · ${r.suggestedDte} DTE`}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -159,14 +173,16 @@ export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
         </div>
         <div className="rounded-lg border border-border bg-white p-3">
           <p className="font-semibold text-text-primary">The survival brake</p>
-          <p className="mt-1">Backwardation or elevated VVIX cuts short-vol suggestions automatically — declared on every card, e.g. <span className="font-mono">REGIME BRAKE: OFF</span>.</p>
+          {/* The engine's own brake declaration for the declared demo macro —
+              rendered verbatim, never asserted by hand. */}
+          <p className="mt-1">Backwardation or elevated VVIX cuts short-vol suggestions automatically — declared on every run, e.g. <span className="font-mono">{TRADE_SHOWCASE_BRAKE.declaration}</span>.</p>
         </div>
         <div className="rounded-lg border border-border bg-white p-3">
           <p className="font-semibold text-text-primary">Graded against reality</p>
           <p className="mt-1">Every scan is snapshotted and later scored against what actually happened — a public, self-graded track record.</p>
         </div>
       </div>
-      <p className="text-xs text-text-faint">Data, not directives — analytics you act on independently. Example tickers; nothing above is a live price or a recommendation.</p>
+      <p className="text-xs text-text-faint">Data, not directives — analytics you act on independently. Fictional tickers with declared example inputs — but every score above was computed by the real scoring engine on those inputs; nothing is a live price or a recommendation.</p>
       <LockedTabCard
         tabKey="tab:trade"
         label="Trading"
@@ -180,10 +196,15 @@ export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
 
 // ── BOOKS ────────────────────────────────────────────────────────────────────
 
+// SHOWROOM-TRUTH-FIX: account codes/names below are the REAL seeded sole-prop
+// chart of accounts (src/lib/seed-coa-templates.ts:89-121 — 1010 Business
+// Checking, 4100 Product Revenue, 6120 Supplies, 6010 Car & Truck Expenses,
+// 2020 Credit Card (Business)), not invented codes. Dates/memos/amounts are
+// the labeled fictional example.
 const DEMO_JOURNAL = [
-  { d: 'Jun 03', memo: 'Coffee beans — Riverside Roasters', dr: '5010 Supplies', cr: '1010 Cash', amt: '$84.12' },
-  { d: 'Jun 05', memo: 'Farmers market sales', dr: '1010 Cash', cr: '4010 Sales', amt: '$412.00' },
-  { d: 'Jun 09', memo: 'Truck fuel', dr: '5040 Vehicle', cr: '2010 Card', amt: '$61.35' },
+  { d: 'Jun 03', memo: 'Coffee beans — Riverside Roasters', dr: '6120 Supplies', cr: '1010 Business Checking', amt: '$84.12' },
+  { d: 'Jun 05', memo: 'Farmers market sales', dr: '1010 Business Checking', cr: '4100 Product Revenue', amt: '$412.00' },
+  { d: 'Jun 09', memo: 'Truck fuel', dr: '6010 Car & Truck Expenses', cr: '2020 Credit Card (Business)', amt: '$61.35' },
 ];
 
 export function BooksShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
@@ -193,15 +214,24 @@ export function BooksShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
         title="Double-entry books, from bank feed to closed period"
         line="Connect your bank through Plaid and every transaction flows in, gets categorized, and lands as a real journal entry — through to a trial balance that must balance, statements, and a period close. Below: Maria's food-truck books, as an example."
       />
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[['Assets', '$12,400'], ['Liabilities', '$3,100'], ['Equity', '$9,300'], ['Trial balance', 'BALANCED ✓']].map(([k, v]) => (
-          <div key={k} className="rounded-lg border border-border bg-white p-3">
-            <p className="text-[10px] uppercase tracking-wider text-text-muted">{k}</p>
-            <p className={`text-base font-bold ${v === 'BALANCED ✓' ? 'text-brand-green' : 'text-text-primary'}`}>{v}</p>
-          </div>
-        ))}
+      {/* SHOWROOM-TRUTH-FIX: per-panel EXAMPLE label — a screenshot of just the
+          tiles (or just the table below) still declares itself illustrative.
+          "BALANCED ✓" is the real product string (CPAExport.tsx). */}
+      <div className="rounded-lg border border-border-light bg-bg-row p-3 space-y-3">
+        <DemoTag />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[['Assets', '$12,400'], ['Liabilities', '$3,100'], ['Equity', '$9,300'], ['Trial balance', 'BALANCED ✓']].map(([k, v]) => (
+            <div key={k} className="rounded-lg border border-border bg-white p-3">
+              <p className="text-[10px] uppercase tracking-wider text-text-muted">{k}</p>
+              <p className={`text-base font-bold ${v === 'BALANCED ✓' ? 'text-brand-green' : 'text-text-primary'}`}>{v}</p>
+            </div>
+          ))}
+        </div>
       </div>
       <div className="overflow-x-auto rounded-lg border border-border bg-white">
+        <div className="px-3 pt-3">
+          <DemoTag />
+        </div>
         <table className="w-full min-w-[560px] text-sm">
           <thead>
             <tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-text-muted">
@@ -248,11 +278,21 @@ export function TaxShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
         title="Taxes that start from closed books"
         line="Because the books are already clean, the tax estimate is derived — not re-typed. Below: an example year for Maria's food truck."
       />
+      {/* SHOWROOM-TRUTH-FIX: every dollar figure below is computed with the
+          REAL tax-engine formulas (api/tax-estimate/route.ts:200-221) for the
+          DECLARED example inputs: single filer, standard deduction ($15,000,
+          route.ts:24), self-employed, Schedule C net profit $23,400, no other
+          income. SE tax = round(2,340,000¢ × 0.9235) × 0.153 = 330,631¢ →
+          $3,306. Federal income tax: AGI = 2,340,000 − 165,316 (½ SE) =
+          2,174,684¢; taxable = 674,684¢ after the standard deduction; all in
+          the 10% bracket (route.ts:10) → 67,468¢ → $675. The old "$5,120" was
+          invented and matched no formula — replaced with the engine's number.
+          "12 exported" is a labeled example count (no formula exists for it). */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           ['Schedule C net profit', '$23,400'],
           ['Self-employment tax', '$3,306'],
-          ['Estimated federal tax', '$5,120'],
+          ['Federal income tax', '$675'],
           ['Form 8949 lots', '12 exported'],
         ].map(([k, v]) => (
           <div key={k} className="rounded-lg border border-border bg-white p-3">
@@ -265,7 +305,7 @@ export function TaxShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
         The pipe: closed period → account-to-tax-line mapping → Form 1040 estimate with Schedule C/D/SE → wash-sale detection → Form 8949 + CPA export package (PDF).
       </p>
       <p className="text-xs text-text-faint">
-        Estimates for informational purposes only — verified by a qualified tax professional before filing, always. Example numbers above.
+        Estimates for informational purposes only — verified by a qualified tax professional before filing, always. Example numbers above, for a declared scenario (single filer, standard deduction, self-employed) — the SE and federal figures are computed with the same formulas the tax engine runs.
       </p>
       <LockedTabCard
         tabKey="tab:tax"
@@ -298,8 +338,12 @@ export function ComplianceShowcase({ currentUserId, onRequireAuth }: ShowcasePro
         <p className="mt-2 text-[11px] text-text-muted">Pinned to the ingested US Code corpus · re-verified on ingest updates (example row)</p>
       </div>
       <div className="rounded-lg border border-border bg-white p-4">
+        {/* SHOWROOM-TRUTH-FIX: actor shows the REAL AuditActorType enum value
+            (schema.prisma: human_user | ai_agent | system_automation |
+            external_integration) — the Stripe webhook writes
+            external_integration; "stripe-webhook" was not a storable value. */}
         <p className="font-mono text-xs text-text-secondary">
-          audit_log #4812 · permission_granted · hash-chained to #4811 · actor: stripe-webhook (example row)
+          audit_log #4812 · permission_granted · hash-chained to #4811 · actor: external_integration (Stripe webhook) (example row)
         </p>
         <p className="mt-1 text-[11px] text-text-muted">Every grant, edit, and attestation lands in a hash-linked chain — tampering breaks the chain visibly.</p>
       </div>

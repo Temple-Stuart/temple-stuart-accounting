@@ -781,9 +781,10 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           only; the terminal styling of ScanFilterForm/ConvergenceIntelligence/TradeLabPanel is
           UNCHANGED (that is TRADE-2). TAB-SHOW-AND-GATE: the gate is the tab:trade
           entitlement (isTabLocked — admin bypass inside); locked viewers get the
-          TradeShowcase (honest example data) + the unlock CTA. NOTE: the scan API stays
-          requireAdmin server-side until item 4 (the server-gate PR) re-rules it, so an
-          entitled non-admin sees the real UI but a scan returns the server's 403. */}
+          TradeShowcase (engine-computed example data) + the unlock CTA. Server-side the
+          scan API is tab:trade-gated too (TAB-SERVER-GATE flipped it off requireAdmin,
+          api/trading/convergence/route.ts) — an entitled non-admin's scan runs, with the
+          per-user run quota from SCAN-SPEND-QUOTA on top. */}
       <section className={`w-full bg-white border-b border-border ${activeModule === 'trade' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
