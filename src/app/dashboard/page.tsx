@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import Script from 'next/script';
 import { AppLayout } from '@/components/ui';
-import { ADMIN_USER_ID } from '@/lib/tiers';
+import { isTabLocked } from '@/lib/categoryLock';
 import SpendingTab from '@/components/dashboard/SpendingTab';
 import InvestmentsTab from '@/components/dashboard/InvestmentsTab';
 import GeneralLedger from '@/components/dashboard/GeneralLedger';
@@ -114,6 +114,10 @@ export default function Dashboard() {
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [userTier, setUserTier] = useState<string>('free');
   const [currentUserId, setCurrentUserId] = useState<string>('');
+  // DASHBOARD-GATE-ALIGN: bank sync is gated server-side by the tab:books
+  // entitlement (TAB-SERVER-GATE), not by tier — the client gate mirrors that
+  // via isTabLocked (bundle-aware, admin bypass inside). Default [] = locked.
+  const [entitledKeys, setEntitledKeys] = useState<string[]>([]);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [mappingTab, setMappingTab] = useState<'spending' | 'investments'>('spending');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -167,7 +171,7 @@ export default function Dashboard() {
       const linkRes = await fetch("/api/plaid/link-token", { method: "POST", headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entityId: 'personal' }) });
       if (linkRes.ok) { const linkData = await linkRes.json(); setLinkToken(linkData.link_token); }
       const meRes = await fetch('/api/auth/me');
-      if (meRes.ok) { const meData = await meRes.json(); setUserTier(meData.user?.tier || 'free'); if (meData.user?.id) setCurrentUserId(meData.user.id); }
+      if (meRes.ok) { const meData = await meRes.json(); setUserTier(meData.user?.tier || 'free'); if (meData.user?.id) setCurrentUserId(meData.user.id); setEntitledKeys(Array.isArray(meData.user?.entitledCategories) ? meData.user.entitledCategories : []); }
     } catch (err) { console.error('Load error:', err); }
     finally { setLoading(false); }
   }, []);
@@ -322,8 +326,14 @@ export default function Dashboard() {
     return g;
   }, [coaOptions]);
 
+  // DASHBOARD-GATE-ALIGN: mirrors the SERVER rule exactly — plaid/link-token +
+  // exchange-token require the tab:books entitlement (requireTabAccess,
+  // TAB-SERVER-GATE), so the client shows locked/unlocked on the same key.
+  // The old `userTier === 'free'` check contradicted the server both ways
+  // (a Pro user passed here then 403'd; an entitled free user was blocked).
+  const booksLocked = isTabLocked('tab:books', entitledKeys, currentUserId);
   const handleAddAccount = () => {
-    if (userTier === 'free' && currentUserId !== ADMIN_USER_ID) {
+    if (booksLocked) {
       setShowUpgradeModal(true);
       return;
     }
@@ -436,10 +446,10 @@ export default function Dashboard() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowUpgradeModal(false)} />
           <div className="relative z-10 bg-white border border-border p-6 max-w-md">
-            <div className="text-sm font-medium text-text-primary mb-2">Bank Sync requires Pro</div>
-            <div className="text-xs text-text-muted mb-4">Upgrade to Pro ($20/mo) to connect your bank accounts via Plaid.</div>
+            <div className="text-sm font-medium text-text-primary mb-2">Bank Sync is part of the Bookkeeping module</div>
+            <div className="text-xs text-text-muted mb-4">Subscribe to the Books module (or the all-tabs bundle) to connect your bank accounts via Plaid — open the Books tab on the home page to unlock it.</div>
             <div className="flex gap-2">
-              <button onClick={() => window.location.href = "/pricing"} className="flex-1 px-4 py-2 text-xs bg-brand-purple-deep text-white font-medium hover:bg-brand-purple-hover">View Plans</button>
+              <button onClick={() => window.location.href = "/"} className="flex-1 px-4 py-2 text-xs bg-brand-purple-deep text-white font-medium hover:bg-brand-purple-hover">Open Books Tab</button>
               <button onClick={() => setShowUpgradeModal(false)} className="flex-1 px-4 py-2 text-xs border border-border text-text-secondary font-medium hover:bg-bg-row">Not Now</button>
             </div>
           </div>
@@ -556,7 +566,7 @@ export default function Dashboard() {
                     </table>
                   </div>
                   <div className="px-3 py-2 border-t border-border flex gap-2">
-                    <button onClick={handleAddAccount} disabled={userTier !== "free" && !linkToken}
+                    <button onClick={handleAddAccount} disabled={!booksLocked && !linkToken}
                       className="px-2 py-0.5 text-terminal-sm font-mono bg-brand-purple-wash text-brand-purple hover:bg-brand-purple hover:text-white transition-colors">
                       + Account
                     </button>
@@ -840,10 +850,10 @@ export default function Dashboard() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowUpgradeModal(false)} />
           <div className="relative z-10 bg-white border border-border p-6 max-w-md">
-            <div className="text-sm font-medium text-text-primary mb-2">Bank Sync requires Pro</div>
-            <div className="text-xs text-text-muted mb-4">Upgrade to Pro ($20/mo) to connect your bank accounts via Plaid.</div>
+            <div className="text-sm font-medium text-text-primary mb-2">Bank Sync is part of the Bookkeeping module</div>
+            <div className="text-xs text-text-muted mb-4">Subscribe to the Books module (or the all-tabs bundle) to connect your bank accounts via Plaid — open the Books tab on the home page to unlock it.</div>
             <div className="flex gap-2">
-              <button onClick={() => window.location.href = "/pricing"} className="flex-1 px-4 py-2 text-xs bg-brand-purple-deep text-white font-medium hover:bg-brand-purple-hover">View Plans</button>
+              <button onClick={() => window.location.href = "/"} className="flex-1 px-4 py-2 text-xs bg-brand-purple-deep text-white font-medium hover:bg-brand-purple-hover">Open Books Tab</button>
               <button onClick={() => setShowUpgradeModal(false)} className="flex-1 px-4 py-2 text-xs border border-border text-text-secondary font-medium hover:bg-bg-row">Not Now</button>
             </div>
           </div>

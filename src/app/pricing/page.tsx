@@ -173,8 +173,6 @@ function PricingContent() {
             className={`p-6 relative ${
               t.highlight
                 ? 'border-2 border-brand-purple'
-                : t.tier === 'trader_pro'
-                ? 'border-2 border-emerald-400 bg-gradient-to-b from-white to-emerald-50/30'
                 : 'border border-border'
             }`}
           >
