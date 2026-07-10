@@ -181,6 +181,9 @@ export default function RunwayBudgetPanel({ preview = false }: { preview?: boole
   const [runwayError, setRunwayError] = useState(false);
   const [trading, setTrading] = useState<TradingData | null>(null);
   const [tradingError, setTradingError] = useState(false);
+  // TRUTH-LABELS: a 403 (Trade module not unlocked) is a distinct, honest state —
+  // previously lumped into tradingError and mislabeled as an outage.
+  const [tradingLocked, setTradingLocked] = useState(false);
 
   useEffect(() => {
     // PREVIEW (guest): render the real empty shell; never call the authed route (no 401).
@@ -198,8 +201,17 @@ export default function RunwayBudgetPanel({ preview = false }: { preview?: boole
     if (preview) { setTrading(PREVIEW_TRADING); return; }
     let cancelled = false;
     fetch('/api/trading/realized-pnl')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`status ${r.status}`))))
-      .then((d: TradingData) => { if (!cancelled) setTrading(d); })
+      .then((r) => {
+        // TRUTH-LABELS: a 403 here is the tab:trade PAYWALL (requireTabAccess),
+        // not an outage — rendered as an honest "locked" state below, never as
+        // "unavailable". Any other failure stays a declared error.
+        if (r.status === 403) {
+          if (!cancelled) setTradingLocked(true);
+          return null;
+        }
+        return r.ok ? r.json() : Promise.reject(new Error(`status ${r.status}`));
+      })
+      .then((d: TradingData | null) => { if (!cancelled && d) setTrading(d); })
       .catch(() => { if (!cancelled) setTradingError(true); });
     return () => { cancelled = true; };
   }, [preview]);
@@ -276,7 +288,11 @@ export default function RunwayBudgetPanel({ preview = false }: { preview?: boole
             <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Trading</h3>
             <span className="text-[10px] text-text-faint">separate from operating runway</span>
           </div>
-          {tradingError ? (
+          {tradingLocked ? (
+            <p className="text-xs text-text-muted italic mt-1">
+              Trade module locked — subscribe on the Trade tab to see realized P&L here.
+            </p>
+          ) : tradingError ? (
             <p className="text-xs text-text-faint italic mt-1">Trading unavailable — could not load realized P&L.</p>
           ) : !trading ? (
             <p className="text-xs text-text-faint italic mt-1">Loading trading…</p>

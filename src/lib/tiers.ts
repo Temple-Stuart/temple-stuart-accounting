@@ -1,9 +1,18 @@
 /**
  * Temple Stuart — Tier definitions & feature gating
  *
- * Free:  Manual entry only. No Plaid, no AI.
- * Pro:   Plaid sync + all bookkeeping features.
- * Pro+:  Everything in Pro + AI insights + trip AI + trading analytics.
+ * TRUTH-LABELS: what tiers ACTUALLY gate today (post TAB-SERVER-GATE):
+ *   'ai'           → lifestyle/ops AI: meal-plan, cart-plan, meal-planner,
+ *                    operations content (enrich-routine, generate-script)
+ *   'placesSearch' → travel premium category search (dual-gated with
+ *                    per-category entitlements)
+ *   'tripAI'       → trip AI recommendations
+ * The MODULES (Trade/Books/Tax/Compliance incl. Plaid sync, trading analytics,
+ * wash sales, reconciliation, spending insights) are NOT tier features anymore —
+ * they are per-tab entitlements (hasTabAccess, src/lib/entitlements.ts).
+ * The 'plaid' and 'tradingAnalytics' flags below have ZERO requireTier callers
+ * left; kept only for canAccess compatibility until a cleanup PR retires them.
+ * maxLinkedAccounts is defined but ENFORCED NOWHERE (standing flagged follow-up).
  *
  * NOTE: All paid tiers are currently gated as "Coming Soon" for public users.
  * Only the admin user (ADMIN_USER_ID) has full access to all features.
