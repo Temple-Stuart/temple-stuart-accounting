@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { prisma } from '@/lib/prisma';
 import { requireTabAccess } from '@/lib/auth-helpers';
+import { requireAiRateLimit } from '@/lib/ai-rate-limit';
 import { fetchSentimentBatch } from '@/lib/convergence/sentiment';
 
 export const maxDuration = 60;
@@ -21,6 +22,13 @@ export async function POST(req: Request) {
   // TAB-SERVER-GATE: tab:trade entitlement replaces the 'ai' tier gate
   const tierGate = await requireTabAccess(user.id, 'tab:trade');
   if (tierGate) return tierGate;
+
+  // SEC-5: per-user LLM volume cap (before the paid call) — the same shared
+  // ai:${userId} bucket every other paid-LLM route uses (this was the one
+  // route missing it, flagged in TAB-SERVER-GATE). Exceeded → 429, and the
+  // paid xAI call below never fires.
+  const aiLimit = await requireAiRateLimit(user.id);
+  if (aiLimit) return aiLimit;
 
   let body: { symbols?: unknown };
   try {
