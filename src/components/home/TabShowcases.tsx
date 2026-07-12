@@ -43,8 +43,13 @@ import {
   HeroTerminalPanel,
   PipelinePanelDark,
   RecordPanelDark,
+  ScannerPanelDark,
+  ResultsTablePanelDark,
+  DeepDivePanelDark,
+  TradeCardPanelDark,
+  GradedPanelDark,
+  BrakePanelDark,
   TRADE_UNLOCK_CTA_ID,
-  TRADE_SECTION_IDS,
 } from '@/components/home/TradeShowcaseSections';
 
 // ── shared chrome ────────────────────────────────────────────────────────────
@@ -194,6 +199,9 @@ export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
         panel: <HeroTerminalPanel />,
       }}
       editorialTitle="Go further with the Trade tab"
+      // TRADE-SHOWCASE-SLIDES: the full top-down slide sequence — one
+      // self-contained dark panel per product piece, sides alternating,
+      // every value from the payload / real constants / the graded replica.
       editorialRows={[
         {
           title: 'Watch every step run.',
@@ -209,16 +217,62 @@ export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
           panel: <RecordPanelDark />,
           panelSide: 'right',
         },
-      ]}
-      productTiles={[
-        { title: 'The scanner', line: '18 real controls, 16 strategies — the live filter panel, interactive below.', anchorId: TRADE_SECTION_IDS.scanner },
-        { title: 'The deep dive', line: 'Why this ticker — and why NOT everything else, gate by gate.', anchorId: TRADE_SECTION_IDS.deepDive },
-        { title: 'Trade cards', line: 'Priced, sized, then graded against what actually happened.', anchorId: TRADE_SECTION_IDS.gradedCard },
-        { title: 'The survival brake', line: 'Backwardation or a VVIX spike cuts short-vol suggestions automatically.', anchorId: TRADE_SECTION_IDS.deepDive },
+        {
+          title: 'Eighteen real controls. Sixteen strategies.',
+          copy:
+            'Universe, direction, premium, defined risk, DTE and width, four liquidity gates, six edge metrics, sixteen strategy chips — the live panel is below. Set your filters, hit Scan.',
+          panel: <ScannerPanelDark />,
+          panelSide: 'left',
+        },
+        {
+          title: 'Every ticker scored. Strategies only where the gates pass.',
+          copy:
+            'The table shows all of it: the composite, the built strategy with its price and odds — and, just as loudly, the tickers where no strategy survived and exactly which gate stopped them.',
+          panel: <ResultsTablePanelDark />,
+          panelSide: 'right',
+        },
+        {
+          title: 'Why — and why not.',
+          copy:
+            'Each selected ticker gets a deep dive: the four gate scores, the convergence verdict in the engine’s own words, and the rejection reasons for everything that did not make it. No black box.',
+          panel: <DeepDivePanelDark />,
+          panelSide: 'left',
+        },
+        {
+          title: 'The whole trade, written down.',
+          copy:
+            'Legs at live prices, what you collect, the most you can lose, the odds two ways, expected value, breakevens, the Greeks, and how big Kelly says to size it. A priced claim you can hold it to.',
+          panel: <TradeCardPanelDark />,
+          panelSide: 'right',
+        },
+        {
+          title: 'Linked to the real position. Graded after the outcome.',
+          copy:
+            'Predicted sits next to actual, forever. Each thesis point is checked true or false after the trade closes — a wrong call stays ✗ on the record. That is the grade you keep.',
+          panel: <GradedPanelDark />,
+          panelSide: 'left',
+        },
+        {
+          title: 'The brake that says no for you.',
+          copy:
+            'Backwardation or a VVIX spike cuts short-vol suggestions automatically — and if the brake’s inputs are missing, it reads UNVERIFIED and acts as if it were on. It never assumes safety.',
+          panel: <BrakePanelDark />,
+          panelSide: 'right',
+        },
       ]}
       // TRADE-SHOWCASE-ORDER: the scanner renders BEFORE the pipe (preSteps) —
       // in the real product you set filters and hit Scan, THEN the pipe runs.
-      preSteps={<ScannerPanelDemo currentUserId={currentUserId} onRequireAuth={onRequireAuth} />}
+      // TRADE-SHOWCASE-SLIDES: one connective line bridges the slides above
+      // into the live cockpit below.
+      preSteps={
+        <>
+          <p className="text-center text-sm text-text-secondary">
+            Everything you just saw in the slides is live below — the real components, rendered
+            from the same declared example scan. Try the controls.
+          </p>
+          <ScannerPanelDemo currentUserId={currentUserId} onRequireAuth={onRequireAuth} />
+        </>
+      }
       stepsTitle="Hit Scan, and this runs — 20 steps, A to T"
       stepsTag="Example scan — real steps, sample counts"
       steps={TRADE_PIPE_STEPS}

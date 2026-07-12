@@ -35,7 +35,7 @@ import ScanFilterForm from '@/components/trading/ScanFilterForm';
 import ScannerResultsTable from '@/components/convergence/ScannerResultsTable';
 import { TickerChapter } from '@/components/convergence/ConvergenceIntelligence';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
-import { DEFAULT_FILTERS } from '@/lib/convergence/filter-types';
+import { DEFAULT_FILTERS, AVAILABLE_STRATEGIES } from '@/lib/convergence/filter-types';
 import { ExampleTag } from '@/components/home/TabShowcaseTemplate';
 import {
   SHOWCASE_RESULTS,
@@ -451,5 +451,178 @@ export function GradedCardMirror() {
         </p>
       </div>
     </div>
+  );
+}
+
+// ── TRADE-SHOWCASE-SLIDES: the six product-piece slide panels ────────────────
+// Each is a dark, self-contained "slide" panel (screengrab-ready). Values come
+// ONLY from the existing payload (tradeShowcasePayload.ts), the real constants
+// (DEFAULT_FILTERS / AVAILABLE_STRATEGIES, filter-types.ts), the graded
+// REPLICA above, and the engine's own strings — nothing newly invented.
+
+function SlideShell({ title, tag, children }: { title: string; tag?: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-panel-border bg-panel p-4 font-mono text-[11px] leading-relaxed">
+      <div className="flex items-center justify-between gap-2 border-b border-panel-border pb-2">
+        <span className="font-bold uppercase tracking-wider text-white/60">{title}</span>
+        {tag && <ExampleTag text={tag} />}
+      </div>
+      <div className="mt-2">{children}</div>
+    </div>
+  );
+}
+
+/** Slide a — the scanner's real controls, from DEFAULT_FILTERS (filter-types.ts:53-78)
+ *  and AVAILABLE_STRATEGIES (:85-102). The interactive real panel lives below. */
+export function ScannerPanelDark() {
+  const f = DEFAULT_FILTERS;
+  return (
+    <SlideShell title="Scan filters — the real defaults">
+      <div className="space-y-1 text-white/70">
+        <p>Universe <span className="text-white">S&amp;P 500 | Nasdaq 100</span> · Direction <span className="text-white">All/Bull/Bear/Ntrl</span> · Premium <span className="text-white">Sell/Buy/Both</span> · Risk <span className="text-white">Defined/Unlimited</span></p>
+        <p>DTE <span className="text-white">{f.risk.minDte}–{f.risk.maxDte}</span> · Width <span className="text-white">${f.risk.minSpreadWidth}–${f.risk.maxSpreadWidth}</span></p>
+        <p className="text-white/50">Liquidity gates: min OI <span className="text-white/80">{f.liquidity.minOpenInterest}</span> · max spread <span className="text-white/80">{f.liquidity.maxBidAskSpreadPct}%</span> · min volume <span className="text-white/80">500K</span> · min rating <span className="text-white/80">{f.liquidity.minLiquidityRating}★</span></p>
+        <p className="text-white/50">Edge metrics: min PoP <span className="text-white/80">{f.edge.minPop}%</span> · min EV <span className="text-white/80">${f.edge.minEv}</span> · min EV/Risk <span className="text-white/80">{f.edge.minEvPerRisk}</span> · vol edge <span className="text-white/80">Any</span> · min IV rank <span className="text-white/80">{f.edge.minIvRank}</span> · sentiment <span className="text-white/80">{(f.edge.minSentiment / 100).toFixed(1)}</span></p>
+        <p className="mt-1.5 flex flex-wrap gap-1">
+          {AVAILABLE_STRATEGIES.map((s) => (
+            <span key={s} className="rounded border border-panel-border bg-panel-hover px-1.5 py-0.5 text-[10px] text-white/70">{s}</span>
+          ))}
+        </p>
+      </div>
+    </SlideShell>
+  );
+}
+
+/** Slide b — the results table, from the payload rows (engine composites,
+ *  the condor card values, the rejection gates, the engine NO-TRADE caption). */
+export function ResultsTablePanelDark() {
+  const globex = SHOWCASE_RESULTS[0];
+  const condor = globex.trade_cards![0].setup;
+  const acme = SHOWCASE_RESULTS[1];
+  const initech = SHOWCASE_RESULTS[2];
+  return (
+    <SlideShell title="Results — every ticker scored" tag="Example scan">
+      <div className="space-y-1.5">
+        <p>
+          <span className="font-bold text-white">GLOBEX</span> <span className="text-white/50">score</span> <span className="text-white">{globex.scores.composite.score}</span>{' '}
+          <span className="text-white/70">{condor.strategy_name}</span>
+          <br />
+          <span className="text-brand-green">COLLECT ${((condor.net_credit ?? 0) * 100).toFixed(0)}</span>
+          <span className="text-white/50"> · MAX L </span><span className="text-brand-red">${condor.max_loss}</span>
+          <span className="text-white/50"> · POP </span><span className="text-white/90">{Math.round((condor.probability_of_profit ?? 0) * 100)}%</span>
+          <span className="text-white/50"> · EV </span><span className="text-brand-green">+${condor.ev}</span>
+        </p>
+        <p>
+          <span className="font-bold text-white">ACME</span> <span className="text-white/50">score</span> <span className="text-white">{acme.scores.composite.score}</span>{' '}
+          <span className="text-white/50">No strategies — {SHOWCASE_REJECTIONS.ACME[0].gate}</span>
+        </p>
+        <p>
+          <span className="font-bold text-white">INITECH</span> <span className="text-white/50">score</span> <span className="text-white">{initech.scores.composite.score}</span>{' '}
+          <span className="text-brand-red">{SHOWCASE_REJECTIONS.INITECH[0].reason}</span>
+        </p>
+      </div>
+    </SlideShell>
+  );
+}
+
+/** Slide c — the deep dive, from the payload's engine-real GLOBEX gate scores
+ *  + the engine's convergence-gate string + the rejection reasons. */
+export function DeepDivePanelDark() {
+  const c = SHOWCASE_DEEP_DIVE.scores.composite;
+  const g = c.category_scores;
+  return (
+    <SlideShell title="Deep dive — GLOBEX" tag="Example data">
+      <div className="space-y-1 text-white/70">
+        <p className="text-white/50">WHY THIS TICKER</p>
+        <p>Gates: <span className="text-brand-green">{g.vol_edge}</span> Vol Edge · <span className="text-brand-green">{g.quality}</span> Quality · <span className="text-brand-green">{g.regime}</span> Regime · <span className="text-brand-green">{g.info_edge}</span> Info Edge</p>
+        <p>Composite <span className="text-white">{c.score}</span> — <span className="text-white/90">&ldquo;{c.convergence_gate}&rdquo;</span></p>
+        <p className="mt-1.5 text-white/50">AND WHY NOT THE OTHERS</p>
+        <p><span className="text-white">ACME</span> — {SHOWCASE_REJECTIONS.ACME[0].strategy}: {SHOWCASE_REJECTIONS.ACME[0].reason} ({SHOWCASE_REJECTIONS.ACME[0].gate})</p>
+        <p><span className="text-white">INITECH</span> — <span className="text-brand-red">{SHOWCASE_REJECTIONS.INITECH[0].reason}</span></p>
+      </div>
+    </SlideShell>
+  );
+}
+
+/** Slide d — the full priced trade card, from the payload condor setup.
+ *  KELLY is computed here with the SAME quarter-Kelly formula the live card
+ *  uses (ConvergenceIntelligence.tsx:704-708): winRate = hv_pop, ratio =
+ *  max_profit/max_loss → max(0, (w·r − (1−w))/r × 0.25). */
+export function TradeCardPanelDark() {
+  const s = SHOWCASE_DEEP_DIVE.trade_cards![0].setup;
+  const w = s.hv_pop ?? s.probability_of_profit ?? 0;
+  const ratio = s.max_profit != null && s.max_loss ? s.max_profit / s.max_loss : 0;
+  const kellyPct = ratio > 0 ? Math.round(Math.max(0, ((w * ratio - (1 - w)) / ratio) * 0.25) * 1000) / 10 : 0;
+  return (
+    <SlideShell title="The trade card — GLOBEX Iron Condor" tag="Example data">
+      <div className="space-y-0.5">
+        {s.legs.map((leg) => (
+          <p key={`${leg.side}-${leg.type}-${leg.strike}`}>
+            <span className={leg.side === 'sell' ? 'font-bold text-brand-red' : 'font-bold text-brand-green'}>{leg.side.toUpperCase().padEnd(4)}</span>
+            <span className="text-white/50"> {leg.type.toUpperCase().padEnd(4)} </span>
+            <span className="text-white">${leg.strike}</span>
+            <span className="text-white/40">  ${leg.price.toFixed(2)}</span>
+          </p>
+        ))}
+        <p className="pt-1.5">
+          <span className="font-bold text-brand-green">COLLECT ${((s.net_credit ?? 0) * 100).toFixed(0)}</span>
+          <span className="text-white/50"> · MAX LOSS </span><span className="text-brand-red">${s.max_loss}</span>
+          <span className="text-white/50"> · POP </span><span className="text-white/90">{Math.round((s.probability_of_profit ?? 0) * 100)}%</span><span className="text-white/40"> (N(d2))</span>
+          <span className="text-white/50"> · EV </span><span className="text-brand-green">+${s.ev}</span>
+          <span className="text-white/50"> · EV/RISK </span><span className="text-white/90">{s.ev_per_risk.toFixed(3)}</span>
+          <span className="text-white/50"> · R:R </span><span className="text-white/90">{s.risk_reward_ratio?.toFixed(2)}</span>
+        </p>
+        <p className="text-white/50">
+          B/E <span className="text-white/80">{s.breakevens.map((b) => `$${b.toFixed(2)}`).join(' / ')}</span> · HV POP <span className="text-white/80">{Math.round((s.hv_pop ?? 0) * 100)}%</span> · THETA <span className="text-brand-green">+${s.greeks.theta_per_day.toFixed(2)}/day</span> · VEGA/pt <span className="text-brand-red">-${Math.abs(s.greeks.vega * 100).toFixed(2)}</span> · KELLY <span className="text-white/80">{kellyPct.toFixed(1)}%</span>
+        </p>
+      </div>
+    </SlideShell>
+  );
+}
+
+/** Slide e — graded against reality, from the REPLICA values (the same
+ *  condor: entry 1.20, exit 0.35 → +$85, grade B, thesis 2✓ 1✗). */
+export function GradedPanelDark() {
+  return (
+    <SlideShell title="Graded against reality — GLOBEX" tag="Example data">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-0.5">
+          <p className="text-white/50">PREDICTED</p>
+          <p className="text-white/70">Max Profit <span className="text-brand-green">{REPLICA.predicted.maxProfit}</span></p>
+          <p className="text-white/70">Max Loss <span className="text-brand-red">{REPLICA.predicted.maxLoss}</span></p>
+          <p className="text-white/70">Est. PoP <span className="text-white">{REPLICA.predicted.pop}</span></p>
+          <p className="text-white/70">Entry <span className="text-white">{REPLICA.predicted.entry}</span></p>
+        </div>
+        <div className="space-y-0.5">
+          <p className="text-white/50">ACTUAL</p>
+          <p className="text-white/70">P&amp;L <span className="font-bold text-brand-green">{REPLICA.actual.pl}</span></p>
+          <p className="text-white/70">Exit <span className="text-white">{REPLICA.actual.exit}</span></p>
+          <p className="text-white/70">Grade <span className="rounded px-1.5 py-0.5 font-black" style={{ background: '#2563EB', color: '#EFF6FF' }}>{REPLICA.actual.grade}</span></p>
+        </div>
+      </div>
+      <div className="mt-2 space-y-0.5 border-t border-panel-border pt-2">
+        {REPLICA.thesis.map((t) => (
+          <p key={t.point}>
+            {t.result ? <span className="text-brand-green">✓</span> : <span className="text-brand-red">✗</span>}{' '}
+            <span className="text-white/70">{t.point}</span>
+          </p>
+        ))}
+      </div>
+    </SlideShell>
+  );
+}
+
+/** Slide f — the survival brake: the engine's own declaration (payload) and
+ *  the real rule constants (regime.ts:72-73; fail-safe UNVERIFIED :104-115). */
+export function BrakePanelDark() {
+  const brake = SHOWCASE_DEEP_DIVE.scores.regime.breakdown.survival_brake;
+  return (
+    <SlideShell title="The survival brake" tag="Example data">
+      <div className="space-y-1.5 text-white/70">
+        <p>Rule: <span className="text-white">VIX/VIX3M &gt; 1.0</span> (backwardation) <span className="text-white/50">or</span> <span className="text-white">VVIX ≥ 110</span> → short-vol suggestions cut automatically.</p>
+        <p className="text-white/50">Missing inputs → <span className="text-brand-amber">UNVERIFIED</span> — treated like ON. It never assumes safety.</p>
+        <p className="border-t border-panel-border pt-1.5 text-brand-green">{brake.declaration}</p>
+      </div>
+    </SlideShell>
   );
 }
