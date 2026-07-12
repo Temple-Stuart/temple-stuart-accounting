@@ -24,6 +24,7 @@
  */
 
 import { scoreAll } from '@/lib/convergence/composite';
+import type { FullScoringResult } from '@/lib/convergence/composite';
 import type { ConvergenceInput, FredMacroData, TTScannerData, CandleData } from '@/lib/convergence/types';
 
 // ── declared synthetic inputs ────────────────────────────────────────────────
@@ -334,7 +335,17 @@ function toRow(input: ConvergenceInput): TradeShowcaseRow {
 /** The three demo rows — computed by the real engine on the declared inputs. */
 export const TRADE_SHOWCASE_ROWS: TradeShowcaseRow[] = [ACME, GLOBEX, INITECH].map(toRow);
 
+/** TRADE-SHOWCASE-REAL-COMPONENTS: the COMPLETE engine results (full gate
+ *  result objects with every breakdown/trace), keyed by ticker — so the real
+ *  cockpit components (ScannerResultsTable / TickerChapter) can mount on
+ *  engine-real TickerDetail.scores. Same pure scoreAll, same declared inputs. */
+export const TRADE_SHOWCASE_FULL: Record<string, FullScoringResult> = {
+  ACME: scoreAll(ACME),
+  GLOBEX: scoreAll(GLOBEX),
+  INITECH: scoreAll(INITECH),
+};
+
 /** The engine's survival-brake declaration for the shared demo macro (all rows
  *  see the same market state, like a real scan) — rendered verbatim. */
 export const TRADE_SHOWCASE_BRAKE: { state: 'OFF' | 'ON' | 'UNVERIFIED'; declaration: string } =
-  scoreAll(ACME).composite.regime_brake;
+  TRADE_SHOWCASE_FULL.ACME.composite.regime_brake;
