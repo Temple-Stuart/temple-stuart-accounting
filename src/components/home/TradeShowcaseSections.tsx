@@ -47,6 +47,134 @@ import {
 /** id the Scan button scrolls to for logged-in-but-locked viewers. */
 export const TRADE_UNLOCK_CTA_ID = 'trade-unlock-cta';
 
+/** TRADE-SHOWCASE-BLOOMBERG: anchor ids the dark product tiles scroll to. */
+export const TRADE_SECTION_IDS = {
+  scanner: 'trade-scanner',
+  cockpit: 'trade-cockpit',
+  deepDive: 'trade-deep-dive',
+  gradedCard: 'trade-graded-card',
+} as const;
+
+// ── BLOOMBERG-STYLE DARK PIECES ──────────────────────────────────────────────
+// Styling/framing only: every number below comes from the existing payload
+// (tradeShowcasePayload.ts) or the constants already on the pipe rail — no
+// new figures. Dark surfaces use the config's panel token family
+// (tailwind.config.ts:34-40) + the brand purple family for the hero glow.
+
+/** The hero CTA — routes to the existing signup/checkout flow (same recipe as
+ *  the Scan button: logged-out → signup modal; locked → the Unlock CTA). */
+export function UnlockTradeButton({
+  currentUserId,
+  onRequireAuth,
+}: {
+  currentUserId: string;
+  onRequireAuth: () => void;
+}) {
+  const go = () => {
+    if (!currentUserId) {
+      onRequireAuth();
+    } else {
+      document.getElementById(TRADE_UNLOCK_CTA_ID)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={go}
+      className="rounded-lg bg-brand-purple px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-purple-hover"
+    >
+      Unlock Trade
+    </button>
+  );
+}
+
+/** The hero's dark terminal panel — REAL rows from the existing payload:
+ *  the GLOBEX condor card values, ACME's no-strategies rejection, INITECH's
+ *  engine NO-TRADE caption, and the funnel line already on the pipe rail. */
+export function HeroTerminalPanel() {
+  const condor = SHOWCASE_DEEP_DIVE.trade_cards![0].setup;
+  const initechReason = SHOWCASE_REJECTIONS.INITECH[0].reason; // the engine's own caption
+  return (
+    <div className="rounded-lg border border-panel-border bg-panel/90 p-4 font-mono text-[11px] leading-relaxed shadow-2xl">
+      <div className="flex items-center justify-between border-b border-panel-border pb-2">
+        <span className="font-bold uppercase tracking-wider text-white/60">Scan · S&amp;P 500</span>
+        <ExampleTag text="Example scan" />
+      </div>
+      <p className="mt-2 text-white/50">475 → 52 → 40 → 20 → 9 · 128 Finnhub calls · ~94s</p>
+      <div className="mt-2 space-y-1.5">
+        <p>
+          <span className="font-bold text-white">GLOBEX</span>{' '}
+          <span className="text-white/60">{condor.strategy_name} · {condor.dte} DTE</span>
+          <br />
+          <span className="text-brand-green">COLLECT ${((condor.net_credit ?? 0) * 100).toFixed(0)}</span>
+          <span className="text-white/50"> · MAX L </span><span className="text-brand-red">${condor.max_loss}</span>
+          <span className="text-white/50"> · POP </span><span className="text-white/90">{Math.round((condor.probability_of_profit ?? 0) * 100)}%</span>
+        </p>
+        <p>
+          <span className="font-bold text-white">ACME</span>{' '}
+          <span className="text-white/50">No strategies passed — {SHOWCASE_REJECTIONS.ACME[0].gate}</span>
+        </p>
+        <p>
+          <span className="font-bold text-white">INITECH</span>{' '}
+          <span className="text-brand-red">{initechReason}</span>
+        </p>
+      </div>
+      <p className="mt-2 border-t border-panel-border pt-2 text-white/40">
+        The engine says no more often than yes — and shows its work either way.
+      </p>
+    </div>
+  );
+}
+
+/** Editorial row A panel: the pipe, dark — the same step highlights and
+ *  counts the full rail below carries (475/9 real; 128/2,208 example). */
+export function PipelinePanelDark() {
+  const lines: [string, string][] = [
+    ['A', 'TT Scanner — 475 symbols fetched'],
+    ['I', 'Data Enrichment — 128 Finnhub calls (example)'],
+    ['M', 'Final Selection — 9 selected, sector-capped'],
+    ['O', 'Live Greeks — 2,208 events across 9 symbols (example)'],
+    ['T', 'Save & Return — snapshot saved for the self-graded record'],
+  ];
+  return (
+    <div className="rounded-lg border border-panel-border bg-panel p-4 font-mono text-[11px] leading-relaxed">
+      <div className="flex items-center justify-between border-b border-panel-border pb-2">
+        <span className="font-bold uppercase tracking-wider text-white/60">Pipeline — 20 steps, A to T</span>
+        <ExampleTag text="Example scan" />
+      </div>
+      <div className="mt-2 space-y-1">
+        {lines.map(([code, text]) => (
+          <p key={code}>
+            <span className="font-bold text-brand-amber">{code}</span>{' '}
+            <span className="text-white/70">{text}</span>
+          </p>
+        ))}
+        <p className="text-white/40">… all 20, in full, below ↓</p>
+      </div>
+    </div>
+  );
+}
+
+/** Editorial row B panel: the record, dark — the same values the
+ *  track-record mirror below carries. */
+export function RecordPanelDark() {
+  return (
+    <div className="rounded-lg border border-panel-border bg-panel p-4 font-mono text-[11px] leading-relaxed">
+      <div className="flex items-center justify-between border-b border-panel-border pb-2">
+        <span className="font-bold uppercase tracking-wider text-white/60">Track record</span>
+        <ExampleTag text="Example data" />
+      </div>
+      <div className="mt-2 space-y-1 text-white/70">
+        <p><span className="text-white">7</span> linked · <span className="text-white">3</span> unlinked (excluded) · <span className="text-white">2</span> queued</p>
+        <p><span className="font-bold text-brand-green">7W – 0L – 0BE</span> of <span className="text-white">7</span> decided</p>
+        <p>Net P&amp;L <span className="font-bold text-brand-green">$1,284</span> <span className="text-white/40">(linked only)</span></p>
+        <p>Max-loss model: <span className="text-white">7 of 7</span> stayed within the claim</p>
+        <p>Grades A <span className="text-white">3</span> · B <span className="text-white">3</span> · C <span className="text-white">1</span> · D <span className="text-white">0</span> · F <span className="text-white">0</span></p>
+      </div>
+    </div>
+  );
+}
+
 function SectionTitle({ title, tag }: { title: string; tag?: string }) {
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5">
@@ -79,7 +207,7 @@ export function ScannerPanelDemo({
   };
 
   return (
-    <div className="rounded-lg border border-border bg-white">
+    <div id={TRADE_SECTION_IDS.scanner} className="scroll-mt-4 rounded-lg border border-border bg-white">
       <SectionTitle title="The scanner — every control is real. Set your filters, hit Scan." />
       <div className="p-4">
         <ScanFilterForm
@@ -121,7 +249,7 @@ export function RealCockpitDemo({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-border bg-white">
+      <div id={TRADE_SECTION_IDS.cockpit} className="scroll-mt-4 rounded-lg border border-border bg-white">
         <SectionTitle
           title="The results — the real table, the real deep dive"
           tag="Example scan — engine-real gate scores, declared example chain/card values"
@@ -142,7 +270,7 @@ export function RealCockpitDemo({
           />
         </div>
       </div>
-      <div className="rounded-lg border border-border bg-white">
+      <div id={TRADE_SECTION_IDS.deepDive} className="scroll-mt-4 rounded-lg border border-border bg-white">
         <SectionTitle
           title="Every selected ticker gets this — the full deep dive"
           tag="Example data"
@@ -247,7 +375,7 @@ const REPLICA = {
 
 export function GradedCardMirror() {
   return (
-    <div className="rounded-lg border border-border bg-white">
+    <div id={TRADE_SECTION_IDS.gradedCard} className="scroll-mt-4 rounded-lg border border-border bg-white">
       <SectionTitle title="After the trade — the card grades itself against reality" tag="Example data" />
       {/* Row container: graded + positive P&L → green tint (TradeLabPanel.tsx:394-398). */}
       <div className="bg-green-50 px-4 py-3">
