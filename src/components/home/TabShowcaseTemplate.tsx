@@ -83,11 +83,13 @@ export interface TabShowcaseTemplateProps {
    *  content that precedes the pipe in the real product flow (e.g. Trade's
    *  filter panel: you set filters and hit Scan, THEN the pipe runs). */
   preSteps?: ReactNode;
-  /** Title over the pipe rail (e.g. "The pipe — 20 steps, A to T"). */
-  stepsTitle: string;
+  /** Title over the pipe rail (e.g. "The pipe — 20 steps, A to T").
+   *  The rail block is OPTIONAL — a tab may render its pipe inside an
+   *  editorial slide instead (TRADE-SHOWCASE-FINAL) and pass no steps. */
+  stepsTitle?: string;
   /** Rail-level honesty tag (e.g. "Example scan — real steps, sample counts"). */
-  stepsTag: string;
-  steps: ShowcaseStep[];
+  stepsTag?: string;
+  steps?: ShowcaseStep[];
   /** Optional footer inside the pipe card (e.g. the funnel/runtime line). */
   stepsFooter?: ReactNode;
   /** Title over the concept cards (e.g. "The four gates"). Optional — a tab
@@ -210,25 +212,27 @@ export default function TabShowcaseTemplate({
       {/* ── Pre-pipe section(s) — the real flow's first act (optional) ── */}
       {preSteps}
 
-      {/* ── The real pipe, as a compact rail ── */}
-      <div className="rounded-lg border border-border bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2.5">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">{stepsTitle}</p>
-          <ExampleTag text={stepsTag} />
+      {/* ── The real pipe, as a compact rail (optional) ── */}
+      {steps && steps.length > 0 && (
+        <div className="rounded-lg border border-border bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2.5">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">{stepsTitle}</p>
+            {stepsTag && <ExampleTag text={stepsTag} />}
+          </div>
+          <ol className="grid gap-x-6 px-4 py-3 sm:grid-cols-2">
+            {steps.map((s) => (
+              <li key={s.code} className="flex gap-3 border-b border-border-light py-1.5 last:border-0 sm:[&:nth-last-child(2)]:border-0">
+                <span className="w-5 shrink-0 pt-px text-right font-mono text-xs font-bold text-brand-purple">{s.code}</span>
+                <span className="min-w-0 text-sm">
+                  <span className="font-medium text-text-primary">{s.label}</span>
+                  {s.summary && <span className="text-text-muted"> — {s.summary}</span>}
+                </span>
+              </li>
+            ))}
+          </ol>
+          {stepsFooter && <div className="border-t border-border px-4 py-2.5">{stepsFooter}</div>}
         </div>
-        <ol className="grid gap-x-6 px-4 py-3 sm:grid-cols-2">
-          {steps.map((s) => (
-            <li key={s.code} className="flex gap-3 border-b border-border-light py-1.5 last:border-0 sm:[&:nth-last-child(2)]:border-0">
-              <span className="w-5 shrink-0 pt-px text-right font-mono text-xs font-bold text-brand-purple">{s.code}</span>
-              <span className="min-w-0 text-sm">
-                <span className="font-medium text-text-primary">{s.label}</span>
-                {s.summary && <span className="text-text-muted"> — {s.summary}</span>}
-              </span>
-            </li>
-          ))}
-        </ol>
-        {stepsFooter && <div className="border-t border-border px-4 py-2.5">{stepsFooter}</div>}
-      </div>
+      )}
 
       {/* ── Concept cards (optional — a tab may teach inside richer sections) ── */}
       {cards && cards.length > 0 && (
