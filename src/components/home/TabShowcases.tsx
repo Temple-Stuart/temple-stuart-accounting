@@ -29,7 +29,7 @@ import { useState } from 'react';
 import { Lock } from 'lucide-react';
 // TRADE-SHOWCASE-BUILD: the reusable Plaid-style showcase template (hero band +
 // real pipe rail + optional concept cards + sample/CTA slots) — tabs 2–9 reuse it.
-import TabShowcaseTemplate, { type ShowcaseStep } from '@/components/home/TabShowcaseTemplate';
+import TabShowcaseTemplate from '@/components/home/TabShowcaseTemplate';
 // TRADE-SHOWCASE-FULL: the full-product sections (real interactive filter
 // panel + track-record / graded-card / deep-dive mirrors per the
 // TRADE-FULL-INVENTORY rulings). Engine-real values come from the scoreAll
@@ -161,28 +161,10 @@ interface ShowcaseProps {
 //     engine's convergence_gate caption verbatim (composite.ts:159-170).
 // Static, zero fetches — no scan fires for a logged-out visitor.
 
-const TRADE_PIPE_STEPS: ShowcaseStep[] = [
-  { code: 'A', label: 'TT Scanner', summary: '475 symbols fetched (S&P 500 example run; Nasdaq 100 = 101)' },
-  { code: 'B', label: 'Pre-Filter', summary: 'ranked by IV rank, IV–HV spread, liquidity' },
-  { code: 'C', label: 'Hard Exclusions', summary: 'no premium (IV–HV ≤ 0) or illiquid → eliminated' },
-  { code: 'D', label: 'Top-N Selection', summary: 'top 40 carried forward (scan size 20 × 2)' },
-  { code: 'E', label: 'Hard Filters', summary: 'market cap >$2B, liquidity ≥2/5, IV present, earnings >7 days out, Reg SHO check' },
-  { code: 'F', label: 'Peer Grouping', summary: 'Finnhub peers → industry → sector' },
-  { code: 'G', label: 'Pre-Score', summary: '40 selected for full data enrichment' },
-  { code: 'H', label: 'Macro & Regime Data', summary: 'FRED: VIX, VIX3M, VVIX, yield curve, credit spreads' },
-  { code: 'I', label: 'Data Enrichment', summary: '128 Finnhub calls (example)' },
-  { code: 'J', label: 'Candle Data & Cross-Asset Correlations' },
-  { code: 'K', label: '4-Gate Scoring', summary: 'vol edge · quality · regime · info edge' },
-  { code: 'L', label: 'Re-Score With Technicals' },
-  { code: 'M', label: 'Final Selection', summary: '9 selected, sector-capped (max 2 per sector)' },
-  { code: 'N', label: 'Chain Fetch', summary: 'live TastyTrade option chains' },
-  { code: 'O', label: 'Live Greeks Subscription', summary: '2,208 Greeks events across 9 symbols (example)' },
-  { code: 'P', label: 'Strategy Scoring', summary: 'credit spreads, condors, calendars — built and scored per ticker' },
-  { code: 'Q', label: 'Live Options Flow & GEX' },
-  { code: 'R', label: 'Re-Score With Live Data', summary: 'gates re-checked on live numbers' },
-  { code: 'S', label: 'Trade Cards', summary: 'sized suggestions — or NO TRADE' },
-  { code: 'T', label: 'Save & Return', summary: 'snapshot saved for the self-graded record' },
-];
+// TRADE-SHOWCASE-FINAL: the 20-step data moved into PipelinePanelDark
+// (TradeShowcaseSections.tsx PIPE_STEPS_FULL) — the standalone rail below the
+// slides was redundant and is gone; the template's steps slot is now optional
+// and Trade passes no steps.
 
 export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
   return (
@@ -199,57 +181,58 @@ export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
         panel: <HeroTerminalPanel />,
       }}
       editorialTitle="Go further with the Trade tab"
-      // TRADE-SHOWCASE-SLIDES: the full top-down slide sequence — one
-      // self-contained dark panel per product piece, sides alternating,
-      // every value from the payload / real constants / the graded replica.
+      // TRADE-SHOWCASE-FINAL: the slides run in the REAL causal order — the
+      // scanner drives the pipeline, the pipeline produces results, results
+      // become cards, cards get graded, grades accumulate into the record,
+      // and the brake guards all of it. Panel sides alternate 1-8.
       editorialRows={[
-        {
-          title: 'Watch every step run.',
-          copy:
-            'A scan is not a spinner — it is 20 named steps you watch happen: what was fetched, what was excluded and why, what survived. Nothing happens off-screen, and the full rail below shows all of it.',
-          panel: <PipelinePanelDark />,
-          panelSide: 'left',
-        },
-        {
-          title: 'A track record that grades itself.',
-          copy:
-            'Denominators first: unlinked positions are counted and declared, a win rate never appears without its n, and any trade that breaks its claimed max loss is named. Example numbers — your record starts at zero and only ever shows what actually happened.',
-          panel: <RecordPanelDark />,
-          panelSide: 'right',
-        },
         {
           title: 'Eighteen real controls. Sixteen strategies.',
           copy:
-            'Universe, direction, premium, defined risk, DTE and width, four liquidity gates, six edge metrics, sixteen strategy chips — the live panel is below. Set your filters, hit Scan.',
+            'It starts here: universe, direction, premium, defined risk, DTE and width, four liquidity gates, six edge metrics, sixteen strategy chips. Set your filters, hit Scan — and the pipeline below runs.',
           panel: <ScannerPanelDark />,
           panelSide: 'left',
         },
         {
+          title: 'Hit Scan, and this runs.',
+          copy:
+            'A scan is not a spinner — it is 20 named steps you watch happen: what was fetched, what was excluded and why, what survived. Nothing happens off-screen.',
+          panel: <PipelinePanelDark />,
+          panelSide: 'right',
+        },
+        {
           title: 'Every ticker scored. Strategies only where the gates pass.',
           copy:
-            'The table shows all of it: the composite, the built strategy with its price and odds — and, just as loudly, the tickers where no strategy survived and exactly which gate stopped them.',
+            'The pipe ends in a table that shows all of it: the composite, the built strategy with its price and odds — and, just as loudly, the tickers where no strategy survived and exactly which gate stopped them.',
           panel: <ResultsTablePanelDark />,
-          panelSide: 'right',
+          panelSide: 'left',
         },
         {
           title: 'Why — and why not.',
           copy:
             'Each selected ticker gets a deep dive: the four gate scores, the convergence verdict in the engine’s own words, and the rejection reasons for everything that did not make it. No black box.',
           panel: <DeepDivePanelDark />,
-          panelSide: 'left',
+          panelSide: 'right',
         },
         {
           title: 'The whole trade, written down.',
           copy:
             'Legs at live prices, what you collect, the most you can lose, the odds two ways, expected value, breakevens, the Greeks, and how big Kelly says to size it. A priced claim you can hold it to.',
           panel: <TradeCardPanelDark />,
-          panelSide: 'right',
+          panelSide: 'left',
         },
         {
           title: 'Linked to the real position. Graded after the outcome.',
           copy:
             'Predicted sits next to actual, forever. Each thesis point is checked true or false after the trade closes — a wrong call stays ✗ on the record. That is the grade you keep.',
           panel: <GradedPanelDark />,
+          panelSide: 'right',
+        },
+        {
+          title: 'The grades accumulate. Denominators first.',
+          copy:
+            'Every graded card lands in a record that leads with what it excludes: unlinked positions are counted and declared, a win rate never appears without its n, and any trade that breaks its claimed max loss is named. Your record starts at zero.',
+          panel: <RecordPanelDark />,
           panelSide: 'left',
         },
         {
@@ -273,16 +256,8 @@ export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
           <ScannerPanelDemo currentUserId={currentUserId} onRequireAuth={onRequireAuth} />
         </>
       }
-      stepsTitle="Hit Scan, and this runs — 20 steps, A to T"
-      stepsTag="Example scan — real steps, sample counts"
-      steps={TRADE_PIPE_STEPS}
-      stepsFooter={
-        <p className="text-xs text-text-muted">
-          Example funnel (S&P 500 run): <span className="font-mono text-text-primary">475 → 52 → 40 → 20 → 9</span>{' '}
-          (universe → hard filters → enriched → scored → selected) · 128 Finnhub calls · ~94s runtime.
-          475 is the S&P 500 list size; 40, 20 and 9 are the real defaults; the rest are sample counts.
-        </p>
-      }
+      // TRADE-SHOWCASE-FINAL: no steps rail — the full 20-step pipe lives in
+      // the pipeline slide above (PipelinePanelDark).
       sample={
         <>
           <TrackRecordMirror />

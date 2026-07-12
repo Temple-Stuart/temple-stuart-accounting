@@ -126,31 +126,53 @@ export function HeroTerminalPanel() {
   );
 }
 
-/** Editorial row A panel: the pipe, dark — the same step highlights and
- *  counts the full rail below carries (475/9 real; 128/2,208 example). */
+/** Editorial pipeline panel — ALL 20 real steps A–T (the pipeline's own
+ *  step_a…step_t labels; TRADE-SHOWCASE-FINAL moved the full list here and
+ *  the standalone rail was removed). Real defaults stated as real (475
+ *  universe, 40 = 2× scan size, 20 scored, 9 selected); illustrative counts
+ *  say "(example)". */
+const PIPE_STEPS_FULL: [string, string, string?][] = [
+  ['A', 'TT Scanner', '475 symbols fetched (S&P 500 example run)'],
+  ['B', 'Pre-Filter', 'ranked by IV rank, IV–HV spread, liquidity'],
+  ['C', 'Hard Exclusions', 'no premium or illiquid → out'],
+  ['D', 'Top-N Selection', 'top 40 carried forward (20 × 2)'],
+  ['E', 'Hard Filters', '>$2B cap, ≥2/5 liquidity, IV present, earnings >7d, Reg SHO'],
+  ['F', 'Peer Grouping', 'Finnhub peers → industry → sector'],
+  ['G', 'Pre-Score', '40 selected for full enrichment'],
+  ['H', 'Macro & Regime Data', 'FRED: VIX, VIX3M, VVIX, yield curve, credit'],
+  ['I', 'Data Enrichment', '128 Finnhub calls (example)'],
+  ['J', 'Candles & Cross-Asset Correlations'],
+  ['K', '4-Gate Scoring', 'vol edge · quality · regime · info edge'],
+  ['L', 'Re-Score With Technicals'],
+  ['M', 'Final Selection', '9 selected, sector-capped (max 2)'],
+  ['N', 'Chain Fetch', 'live TastyTrade option chains'],
+  ['O', 'Live Greeks Subscription', '2,208 events across 9 symbols (example)'],
+  ['P', 'Strategy Scoring', 'spreads, condors, calendars — scored'],
+  ['Q', 'Live Options Flow & GEX'],
+  ['R', 'Re-Score With Live Data'],
+  ['S', 'Trade Cards', 'sized suggestions — or NO TRADE'],
+  ['T', 'Save & Return', 'snapshot saved for the self-graded record'],
+];
+
 export function PipelinePanelDark() {
-  const lines: [string, string][] = [
-    ['A', 'TT Scanner — 475 symbols fetched'],
-    ['I', 'Data Enrichment — 128 Finnhub calls (example)'],
-    ['M', 'Final Selection — 9 selected, sector-capped'],
-    ['O', 'Live Greeks — 2,208 events across 9 symbols (example)'],
-    ['T', 'Save & Return — snapshot saved for the self-graded record'],
-  ];
   return (
     <div className="rounded-lg border border-panel-border bg-panel p-4 font-mono text-[11px] leading-relaxed">
       <div className="flex items-center justify-between border-b border-panel-border pb-2">
-        <span className="font-bold uppercase tracking-wider text-white/60">Pipeline — 20 steps, A to T</span>
+        <span className="font-bold uppercase tracking-wider text-white/60">Hit Scan, and this runs — 20 steps, A to T</span>
         <ExampleTag text="Example scan" />
       </div>
-      <div className="mt-2 space-y-1">
-        {lines.map(([code, text]) => (
+      <div className="mt-2 grid gap-x-5 gap-y-1 sm:grid-cols-2">
+        {PIPE_STEPS_FULL.map(([code, label, summary]) => (
           <p key={code}>
             <span className="font-bold text-brand-amber">{code}</span>{' '}
-            <span className="text-white/70">{text}</span>
+            <span className="text-white/90">{label}</span>
+            {summary && <span className="text-white/50"> — {summary}</span>}
           </p>
         ))}
-        <p className="text-white/40">… all 20, in full, below ↓</p>
       </div>
+      <p className="mt-2 border-t border-panel-border pt-2 text-white/50">
+        Funnel (S&amp;P 500 run): <span className="text-white/90">475 → 52 → 40 → 20 → 9</span> · 128 Finnhub calls · ~94s. 475, 40, 20 and 9 are the real defaults; the rest are sample counts.
+      </p>
     </div>
   );
 }
@@ -479,10 +501,10 @@ export function ScannerPanelDark() {
   return (
     <SlideShell title="Scan filters — the real defaults">
       <div className="space-y-1 text-white/70">
-        <p>Universe <span className="text-white">S&amp;P 500 | Nasdaq 100</span> · Direction <span className="text-white">All/Bull/Bear/Ntrl</span> · Premium <span className="text-white">Sell/Buy/Both</span> · Risk <span className="text-white">Defined/Unlimited</span></p>
+        <p>Universe <span className="text-white">S&amp;P 500 | Nasdaq 100</span> · Direction <span className="text-white">All</span><span className="text-white/40">/Bull/Bear/Ntrl</span> · Premium <span className="text-white">Both</span><span className="text-white/40">/Sell/Buy</span> · Risk <span className="text-white">Defined</span><span className="text-white/40">/Unlimited</span></p>
         <p>DTE <span className="text-white">{f.risk.minDte}–{f.risk.maxDte}</span> · Width <span className="text-white">${f.risk.minSpreadWidth}–${f.risk.maxSpreadWidth}</span></p>
-        <p className="text-white/50">Liquidity gates: min OI <span className="text-white/80">{f.liquidity.minOpenInterest}</span> · max spread <span className="text-white/80">{f.liquidity.maxBidAskSpreadPct}%</span> · min volume <span className="text-white/80">500K</span> · min rating <span className="text-white/80">{f.liquidity.minLiquidityRating}★</span></p>
-        <p className="text-white/50">Edge metrics: min PoP <span className="text-white/80">{f.edge.minPop}%</span> · min EV <span className="text-white/80">${f.edge.minEv}</span> · min EV/Risk <span className="text-white/80">{f.edge.minEvPerRisk}</span> · vol edge <span className="text-white/80">Any</span> · min IV rank <span className="text-white/80">{f.edge.minIvRank}</span> · sentiment <span className="text-white/80">{(f.edge.minSentiment / 100).toFixed(1)}</span></p>
+        <p className="text-white/50">Liquidity gates (4): min OI <span className="text-white/80">{f.liquidity.minOpenInterest}</span> · max bid-ask spread <span className="text-white/80">{f.liquidity.maxBidAskSpreadPct}%</span> · min volume <span className="text-white/80">{(f.liquidity.minUnderlyingVolume / 1000).toFixed(0)}K</span> · min TT rating <span className="text-white/80">{f.liquidity.minLiquidityRating}★</span></p>
+        <p className="text-white/50">Edge metrics (6): min PoP <span className="text-white/80">{f.edge.minPop}%</span> · min EV <span className="text-white/80">${f.edge.minEv}</span> · min EV/Risk <span className="text-white/80">{f.edge.minEvPerRisk.toFixed(2)}</span> · vol edge <span className="text-white/80">Any</span> · min IV rank <span className="text-white/80">{f.edge.minIvRank}%</span> · min sentiment <span className="text-white/80">{(f.edge.minSentiment / 100).toFixed(1)}</span></p>
         <p className="mt-1.5 flex flex-wrap gap-1">
           {AVAILABLE_STRATEGIES.map((s) => (
             <span key={s} className="rounded border border-panel-border bg-panel-hover px-1.5 py-0.5 text-[10px] text-white/70">{s}</span>
@@ -502,22 +524,37 @@ export function ResultsTablePanelDark() {
   const initech = SHOWCASE_RESULTS[2];
   return (
     <SlideShell title="Results — every ticker scored" tag="Example scan">
-      <div className="space-y-1.5">
+      <div className="space-y-2">
+        <div>
+          <p>
+            <span className="font-bold text-white">GLOBEX</span> <span className="text-white/50">score</span> <span className="text-white">{globex.scores.composite.score}</span>
+            <span className="text-white/50"> · </span><span className="text-white/80">{globex.scores.composite.direction}</span>
+            <span className="text-white/50"> · </span><span className="text-white/90">{condor.strategy_name}</span>
+            <span className="text-white/50"> · {condor.dte} DTE</span>
+          </p>
+          <p className="text-white/60">
+            {condor.legs.map((l) => `${l.side.toUpperCase()} ${l.type.toUpperCase()} $${l.strike}`).join(' / ')}
+          </p>
+          <p>
+            <span className="text-brand-green">COLLECT ${((condor.net_credit ?? 0) * 100).toFixed(0)}</span>
+            <span className="text-white/50"> · MAX P </span><span className="text-brand-green">${condor.max_profit}</span>
+            <span className="text-white/50"> · MAX L </span><span className="text-brand-red">${condor.max_loss}</span>
+            <span className="text-white/50"> · POP </span><span className="text-white/90">{Math.round((condor.probability_of_profit ?? 0) * 100)}%</span>
+            <span className="text-white/50"> · EV </span><span className="text-brand-green">+${condor.ev}</span>
+            <span className="text-white/50"> · EV/RISK </span><span className="text-white/90">{condor.ev_per_risk.toFixed(3)}</span>
+            <span className="text-white/50"> · R:R </span><span className="text-white/90">{condor.risk_reward_ratio?.toFixed(2)}</span>
+          </p>
+        </div>
         <p>
-          <span className="font-bold text-white">GLOBEX</span> <span className="text-white/50">score</span> <span className="text-white">{globex.scores.composite.score}</span>{' '}
-          <span className="text-white/70">{condor.strategy_name}</span>
+          <span className="font-bold text-white">ACME</span> <span className="text-white/50">score</span> <span className="text-white">{acme.scores.composite.score}</span>
+          <span className="text-white/50"> · </span><span className="text-white/80">{acme.scores.composite.direction}</span>
           <br />
-          <span className="text-brand-green">COLLECT ${((condor.net_credit ?? 0) * 100).toFixed(0)}</span>
-          <span className="text-white/50"> · MAX L </span><span className="text-brand-red">${condor.max_loss}</span>
-          <span className="text-white/50"> · POP </span><span className="text-white/90">{Math.round((condor.probability_of_profit ?? 0) * 100)}%</span>
-          <span className="text-white/50"> · EV </span><span className="text-brand-green">+${condor.ev}</span>
+          <span className="text-white/50">No strategies — {SHOWCASE_REJECTIONS.ACME[0].strategy}: {SHOWCASE_REJECTIONS.ACME[0].gate}; {SHOWCASE_REJECTIONS.ACME[1].strategy}: {SHOWCASE_REJECTIONS.ACME[1].gate}</span>
         </p>
         <p>
-          <span className="font-bold text-white">ACME</span> <span className="text-white/50">score</span> <span className="text-white">{acme.scores.composite.score}</span>{' '}
-          <span className="text-white/50">No strategies — {SHOWCASE_REJECTIONS.ACME[0].gate}</span>
-        </p>
-        <p>
-          <span className="font-bold text-white">INITECH</span> <span className="text-white/50">score</span> <span className="text-white">{initech.scores.composite.score}</span>{' '}
+          <span className="font-bold text-white">INITECH</span> <span className="text-white/50">score</span> <span className="text-white">{initech.scores.composite.score}</span>
+          <span className="text-white/50"> · </span><span className="text-white/80">{initech.scores.composite.direction}</span>
+          <br />
           <span className="text-brand-red">{SHOWCASE_REJECTIONS.INITECH[0].reason}</span>
         </p>
       </div>
@@ -530,12 +567,48 @@ export function ResultsTablePanelDark() {
 export function DeepDivePanelDark() {
   const c = SHOWCASE_DEEP_DIVE.scores.composite;
   const g = c.category_scores;
+  // The rank/sector the deep dive really shows (SHOWCASE_PROGRESS step_k —
+  // the same rankings the mounted TickerChapter below reads).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rankings: any[] = SHOWCASE_PROGRESS.step_k.data.rankings;
+  const rankIdx = rankings.findIndex((r) => r.symbol === 'GLOBEX');
+  const rankRow = rankings[rankIdx];
+  // The real terminal card's 10-char bar (termBar, ConvergenceIntelligence.tsx:394-395).
+  const bar = (score: number) => '█'.repeat(Math.round((score / 100) * 10)).padEnd(10, '░');
+  const gates: [string, number][] = [
+    ['Vol Edge', g.vol_edge],
+    ['Quality', g.quality],
+    ['Regime', g.regime],
+    ['Info Edge', g.info_edge],
+  ];
+  const forGates = gates.filter(([, s]) => s > 50);
+  const againstGates = gates.filter(([, s]) => s <= 50);
   return (
     <SlideShell title="Deep dive — GLOBEX" tag="Example data">
       <div className="space-y-1 text-white/70">
         <p className="text-white/50">WHY THIS TICKER</p>
-        <p>Gates: <span className="text-brand-green">{g.vol_edge}</span> Vol Edge · <span className="text-brand-green">{g.quality}</span> Quality · <span className="text-brand-green">{g.regime}</span> Regime · <span className="text-brand-green">{g.info_edge}</span> Info Edge</p>
-        <p>Composite <span className="text-white">{c.score}</span> — <span className="text-white/90">&ldquo;{c.convergence_gate}&rdquo;</span></p>
+        <p>Composite <span className="text-white">{c.score}</span> — ranked <span className="text-white">#{rankIdx + 1}</span> of all scored · Sector <span className="text-white/90">{rankRow.sector}</span> · Direction <span className="text-white/90">{c.direction}</span></p>
+        <div className="space-y-0.5">
+          {gates.map(([name, score]) => (
+            <p key={name}>
+              <span className={score > 50 ? 'text-brand-green' : 'text-brand-red'}>{bar(score)}</span>{' '}
+              <span className="text-white/90">{score}</span> <span className="text-white/60">{name}</span>
+            </p>
+          ))}
+        </div>
+        <p><span className="text-white/90">&ldquo;{c.convergence_gate}&rdquo;</span></p>
+        <p className="mt-1.5 text-white/50">FOR</p>
+        {forGates.map(([name, score]) => (
+          <p key={name}>• <span className="text-brand-green">{name} {score}</span> — above 50: the gate found edge.</p>
+        ))}
+        <p className="mt-1.5 text-white/50">AGAINST</p>
+        {againstGates.length > 0 ? (
+          againstGates.map(([name, score]) => (
+            <p key={name}>• <span className="text-brand-red">{name} {score}</span> — at or below 50: no edge claimed.</p>
+          ))
+        ) : (
+          <p className="text-white/50">• None — all four gates cleared 50 in this example (a marginal but unanimous 4/4).</p>
+        )}
         <p className="mt-1.5 text-white/50">AND WHY NOT THE OTHERS</p>
         <p><span className="text-white">ACME</span> — {SHOWCASE_REJECTIONS.ACME[0].strategy}: {SHOWCASE_REJECTIONS.ACME[0].reason} ({SHOWCASE_REJECTIONS.ACME[0].gate})</p>
         <p><span className="text-white">INITECH</span> — <span className="text-brand-red">{SHOWCASE_REJECTIONS.INITECH[0].reason}</span></p>
@@ -556,6 +629,7 @@ export function TradeCardPanelDark() {
   return (
     <SlideShell title="The trade card — GLOBEX Iron Condor" tag="Example data">
       <div className="space-y-0.5">
+        <p className="text-white/50">Exp <span className="text-white/80">{s.expiration_date}</span> · <span className="text-white/80">{s.dte} DTE</span></p>
         {s.legs.map((leg) => (
           <p key={`${leg.side}-${leg.type}-${leg.strike}`}>
             <span className={leg.side === 'sell' ? 'font-bold text-brand-red' : 'font-bold text-brand-green'}>{leg.side.toUpperCase().padEnd(4)}</span>
@@ -591,11 +665,13 @@ export function GradedPanelDark() {
           <p className="text-white/70">Max Profit <span className="text-brand-green">{REPLICA.predicted.maxProfit}</span></p>
           <p className="text-white/70">Max Loss <span className="text-brand-red">{REPLICA.predicted.maxLoss}</span></p>
           <p className="text-white/70">Est. PoP <span className="text-white">{REPLICA.predicted.pop}</span></p>
+          <p className="text-white/70">R:R <span className="text-white">{REPLICA.predicted.rr}</span></p>
           <p className="text-white/70">Entry <span className="text-white">{REPLICA.predicted.entry}</span></p>
         </div>
         <div className="space-y-0.5">
           <p className="text-white/50">ACTUAL</p>
           <p className="text-white/70">P&amp;L <span className="font-bold text-brand-green">{REPLICA.actual.pl}</span></p>
+          <p className="text-white/70">Entry <span className="text-white">{REPLICA.actual.entry}</span></p>
           <p className="text-white/70">Exit <span className="text-white">{REPLICA.actual.exit}</span></p>
           <p className="text-white/70">Grade <span className="rounded px-1.5 py-0.5 font-black" style={{ background: '#2563EB', color: '#EFF6FF' }}>{REPLICA.actual.grade}</span></p>
         </div>
@@ -608,6 +684,10 @@ export function GradedPanelDark() {
           </p>
         ))}
       </div>
+      {/* Regime — the engine's own brake declaration (payload), as on the real card. */}
+      <p className="mt-2 border-t border-panel-border pt-2 text-white/50">
+        Regime: <span className="text-brand-green">{SHOWCASE_DEEP_DIVE.scores.regime.breakdown.survival_brake.declaration}</span>
+      </p>
     </SlideShell>
   );
 }
