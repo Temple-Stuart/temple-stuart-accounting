@@ -37,6 +37,7 @@ import TabShowcaseTemplate, { type ShowcaseStep } from '@/components/home/TabSho
 import {
   ScannerPanelDemo,
   TrackRecordMirror,
+  TradeCardMirror,
   GradedCardMirror,
   DeepDiveMirror,
   TRADE_UNLOCK_CTA_ID,
@@ -152,7 +153,7 @@ interface ShowcaseProps {
 // Static, zero fetches — no scan fires for a logged-out visitor.
 
 const TRADE_PIPE_STEPS: ShowcaseStep[] = [
-  { code: 'A', label: 'TT Scanner', summary: '475 symbols fetched — the full S&P 500 universe' },
+  { code: 'A', label: 'TT Scanner', summary: '475 symbols fetched (S&P 500 example run; Nasdaq 100 = 101)' },
   { code: 'B', label: 'Pre-Filter', summary: 'ranked by IV rank, IV–HV spread, liquidity' },
   { code: 'C', label: 'Hard Exclusions', summary: 'no premium (IV–HV ≤ 0) or illiquid → eliminated' },
   { code: 'D', label: 'Top-N Selection', summary: 'top 40 carried forward (scan size 20 × 2)' },
@@ -178,8 +179,8 @@ export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
   return (
     <TabShowcaseTemplate
       heroBadge="The Trade tab"
-      headline="475 stocks in. One decision out."
-      subcopy="Live prices from TastyTrade. Company numbers from Finnhub. Macro from FRED. Filings from SEC EDGAR. The mood from Grok. Twenty steps and four gates later you get a sized suggestion — or an honest NO TRADE."
+      headline="An entire index in. One decision out."
+      subcopy="Pick your universe — the S&P 500 (475 stocks) or the Nasdaq 100 (101), with more indexes already wired into the engine. Live prices from TastyTrade. Company numbers from Finnhub. Macro from FRED. Filings from SEC EDGAR. The mood from Grok. Twenty steps and four gates later you get a sized suggestion — or an honest NO TRADE."
       // TRADE-SHOWCASE-ORDER: the scanner renders BEFORE the pipe (preSteps) —
       // in the real product you set filters and hit Scan, THEN the pipe runs.
       preSteps={<ScannerPanelDemo currentUserId={currentUserId} onRequireAuth={onRequireAuth} />}
@@ -188,14 +189,22 @@ export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
       steps={TRADE_PIPE_STEPS}
       stepsFooter={
         <p className="text-xs text-text-muted">
-          Example funnel: <span className="font-mono text-text-primary">475 → 52 → 40 → 20 → 9</span>{' '}
+          Example funnel (S&P 500 run): <span className="font-mono text-text-primary">475 → 52 → 40 → 20 → 9</span>{' '}
           (universe → hard filters → enriched → scored → selected) · 128 Finnhub calls · ~94s runtime.
-          475, 40, 20 and 9 are the real defaults; the rest are sample counts.
+          475 is the S&P 500 list size; 40, 20 and 9 are the real defaults; the rest are sample counts.
         </p>
       }
       sample={
         <>
           <TrackRecordMirror />
+          {/* The generate→link→grade story, one trade end to end: the scanner
+              generates the card, you link it to the real position, it grades
+              itself predicted-vs-actual. */}
+          <TradeCardMirror />
+          <p className="text-sm text-text-secondary">
+            Link that card to the real position when you take the trade — and after it closes, it
+            grades itself against what actually happened:
+          </p>
           <GradedCardMirror />
           <DeepDiveMirror />
         </>
