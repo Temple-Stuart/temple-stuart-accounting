@@ -137,6 +137,72 @@ export function TrackRecordMirror() {
   );
 }
 
+// ── 4b. THE TRADE CARD — faithful mirror of the scanner's generated card ────
+// Mirrors the deep-dive "Trade Setup" card (ConvergenceIntelligence.tsx:729-764):
+// legs, then COLLECT · MAX LOSS · POP (method) · EV · EV/RISK · R:R, then
+// B/E · HV POP · THETA/day · VEGA/pt · KELLY — exactly the metrics the real
+// card carries (plus DTE/Exp from the Trade Lab queued row, TradeLabPanel.tsx:432-435).
+//
+// EXAMPLE NUMBER RECONCILIATION (same ACME trade the graded card below shows,
+// so the generate→link→grade story is one trade end to end):
+//   COLLECT $185   = (4.20 − 2.35) × 100
+//   MAX LOSS $315  = ($5 width − $1.85 credit) × 100
+//   R:R 0.59       = 185 / 315
+//   B/E $173.15    = 175 short strike − 1.85 credit
+//   EV +$40        = 0.71×185 − 0.29×315 (two-outcome sanity math; the real
+//                    card's EV comes from the engine's three-outcome model)
+//   EV/RISK 0.127  = 40 / 315
+//   KELLY 3.4%     = computed with the REAL quarter-Kelly formula the live
+//                    card uses (CI:704-708): winRate = HV POP 0.68, ratio =
+//                    185/315 → (0.68×0.587 − 0.32)/0.587 × 0.25 = 0.0338
+//   POP 71% (N(d2)), HV POP 68%, THETA +$3.10/day, VEGA/pt −$9.00 are labeled
+//   example model outputs (signs correct for a credit spread: +theta, −vega).
+
+export function TradeCardMirror() {
+  return (
+    <div className="rounded-lg border border-border bg-white">
+      <SectionTitle title="The trade card — every selected ticker becomes one: the full trade, priced and sized" tag="Example data" />
+      <div className="p-4">
+        {/* Header — mirrors the queued Trade Lab row meta (TradeLabPanel.tsx:404-435). */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-mono text-base font-bold text-text-primary">ACME</span>
+          <span className="text-xs font-medium text-text-secondary">Bull Put Spread</span>
+          <span className="rounded bg-brand-green/10 px-1.5 py-0.5 text-[9px] font-bold text-brand-green">BULLISH</span>
+          <span className="rounded bg-brand-amber px-1.5 py-0.5 text-[9px] font-bold text-white">Queued</span>
+          <span className="text-[10px] text-text-faint">21 DTE · Exp Jul 31</span>
+        </div>
+        {/* Trade Setup — mirrors CI:729-740. */}
+        <div className="mt-3">
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-text-muted">Trade Setup</p>
+          <div className="font-mono text-xs">
+            <div><span className="font-bold text-brand-red">SELL</span><span className="text-text-muted"> PUT </span><span className="text-text-primary">$175</span><span className="text-text-faint">  $4.20</span></div>
+            <div><span className="font-bold text-brand-green">BUY </span><span className="text-text-muted"> PUT </span><span className="text-text-primary">$170</span><span className="text-text-faint">  $2.35</span></div>
+          </div>
+          {/* Metrics line 1 — mirrors CI:741-761. */}
+          <p className="mt-2 text-xs">
+            <span className="font-bold text-brand-green">COLLECT $185</span>
+            <span className="text-text-muted"> · MAX LOSS </span><span className="text-brand-red">-$315</span>
+            <span className="text-text-muted"> · POP </span><span className="text-text-primary">71%</span><span className="text-text-faint"> (N(d2))</span>
+            <span className="text-text-muted"> · EV </span><span className="text-brand-green">+$40</span>
+            <span className="text-text-muted"> · EV/RISK </span><span className="text-text-primary">0.127</span>
+            <span className="text-text-muted"> · R:R </span><span className="text-text-primary">0.59</span>
+          </p>
+          {/* Metrics line 2 — mirrors CI:762-764. */}
+          <p className="mt-0.5 text-xs text-text-muted">
+            B/E <span className="text-text-primary">$173.15</span> · HV POP <span className="text-text-primary">68%</span> · THETA <span className="text-brand-green">+$3.10/day</span> · VEGA/pt <span className="text-brand-red">-$9.00</span> · KELLY <span className="text-text-primary">3.4%</span>
+          </p>
+        </div>
+        <p className="mt-3 text-xs text-text-muted">
+          The scanner writes the whole trade down: the exact legs at live prices, what you collect,
+          the most you can lose, the odds two ways (option-implied and history-implied), the
+          expected value, and how big Kelly says to size it. No vibes — a priced claim you can
+          hold it to.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ── 5. GRADED TRADE CARD — faithful mirror of the Trade Lab scorecard ───────
 
 // Internally coherent example (labeled): a $5-wide bull put spread sold for a
