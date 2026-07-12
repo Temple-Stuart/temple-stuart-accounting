@@ -39,7 +39,12 @@ import {
   RealCockpitDemo,
   TrackRecordMirror,
   GradedCardMirror,
+  UnlockTradeButton,
+  HeroTerminalPanel,
+  PipelinePanelDark,
+  RecordPanelDark,
   TRADE_UNLOCK_CTA_ID,
+  TRADE_SECTION_IDS,
 } from '@/components/home/TradeShowcaseSections';
 
 // ── shared chrome ────────────────────────────────────────────────────────────
@@ -177,9 +182,40 @@ const TRADE_PIPE_STEPS: ShowcaseStep[] = [
 export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
   return (
     <TabShowcaseTemplate
-      heroBadge="The Trade tab"
-      headline="An entire index in. One decision out."
-      subcopy="Pick your universe — the S&P 500 (475 stocks) or the Nasdaq 100 (101), with more indexes already wired into the engine. Live prices from TastyTrade. Company numbers from Finnhub. Macro from FRED. Filings from SEC EDGAR. The mood from Grok. Twenty steps and four gates later you get a sized suggestion — or an honest NO TRADE."
+      // TRADE-SHOWCASE-BLOOMBERG: dark cinematic hero replaces the purple band;
+      // the terminal panel renders REAL payload rows (condor / no-strategies /
+      // engine NO-TRADE caption / funnel).
+      darkHero={{
+        eyebrow: 'Trade — the scanner',
+        headline: 'An entire index in full focus. One decision out.',
+        subcopy:
+          'Pick your universe — the S&P 500 (475 stocks) or the Nasdaq 100 (101), with more indexes already wired into the engine. Live prices from TastyTrade. Company numbers from Finnhub. Macro from FRED. Filings from SEC EDGAR. The mood from Grok. Twenty steps and four gates later you get a sized suggestion — or an honest NO TRADE.',
+        cta: <UnlockTradeButton currentUserId={currentUserId} onRequireAuth={onRequireAuth} />,
+        panel: <HeroTerminalPanel />,
+      }}
+      editorialTitle="Go further with the Trade tab"
+      editorialRows={[
+        {
+          title: 'Watch every step run.',
+          copy:
+            'A scan is not a spinner — it is 20 named steps you watch happen: what was fetched, what was excluded and why, what survived. Nothing happens off-screen, and the full rail below shows all of it.',
+          panel: <PipelinePanelDark />,
+          panelSide: 'left',
+        },
+        {
+          title: 'A track record that grades itself.',
+          copy:
+            'Denominators first: unlinked positions are counted and declared, a win rate never appears without its n, and any trade that breaks its claimed max loss is named. Example numbers — your record starts at zero and only ever shows what actually happened.',
+          panel: <RecordPanelDark />,
+          panelSide: 'right',
+        },
+      ]}
+      productTiles={[
+        { title: 'The scanner', line: '18 real controls, 16 strategies — the live filter panel, interactive below.', anchorId: TRADE_SECTION_IDS.scanner },
+        { title: 'The deep dive', line: 'Why this ticker — and why NOT everything else, gate by gate.', anchorId: TRADE_SECTION_IDS.deepDive },
+        { title: 'Trade cards', line: 'Priced, sized, then graded against what actually happened.', anchorId: TRADE_SECTION_IDS.gradedCard },
+        { title: 'The survival brake', line: 'Backwardation or a VVIX spike cuts short-vol suggestions automatically.', anchorId: TRADE_SECTION_IDS.deepDive },
+      ]}
       // TRADE-SHOWCASE-ORDER: the scanner renders BEFORE the pipe (preSteps) —
       // in the real product you set filters and hit Scan, THEN the pipe runs.
       preSteps={<ScannerPanelDemo currentUserId={currentUserId} onRequireAuth={onRequireAuth} />}
