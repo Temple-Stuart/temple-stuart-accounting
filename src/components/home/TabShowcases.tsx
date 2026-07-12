@@ -36,10 +36,9 @@ import TabShowcaseTemplate, { type ShowcaseStep } from '@/components/home/TabSho
 // fixture inside these sections.
 import {
   ScannerPanelDemo,
+  RealCockpitDemo,
   TrackRecordMirror,
-  TradeCardMirror,
   GradedCardMirror,
-  DeepDiveMirror,
   TRADE_UNLOCK_CTA_ID,
 } from '@/components/home/TradeShowcaseSections';
 
@@ -197,16 +196,17 @@ export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
       sample={
         <>
           <TrackRecordMirror />
-          {/* The generate→link→grade story, one trade end to end: the scanner
-              generates the card, you link it to the real position, it grades
-              itself predicted-vs-actual. */}
-          <TradeCardMirror />
+          {/* TRADE-SHOWCASE-REAL-COMPONENTS: the REAL cockpit — the live
+              ScannerResultsTable + TickerChapter deep dive mounted on the
+              declared example payload. The generate→link→grade story is one
+              GLOBEX Iron Condor end to end: the cockpit generates it, the
+              replica below shows it linked and graded. */}
+          <RealCockpitDemo currentUserId={currentUserId} onRequireAuth={onRequireAuth} />
           <p className="text-sm text-text-secondary">
-            Link that card to the real position when you take the trade — and after it closes, it
-            grades itself against what actually happened:
+            Queue that card, link it to the real position when you take the trade — and after it
+            closes, it grades itself against what actually happened:
           </p>
           <GradedCardMirror />
-          <DeepDiveMirror />
         </>
       }
       cta={
