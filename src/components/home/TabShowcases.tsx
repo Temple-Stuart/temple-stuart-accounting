@@ -51,6 +51,24 @@ import {
   BrakePanelDark,
   TRADE_UNLOCK_CTA_ID,
 } from '@/components/home/TradeShowcaseSections';
+// BOOKS-SHOWCASE-BLOOMBERG: the Books slide deck sections — hero terminal,
+// 8 causal slide panels, and the LIVE section mounting the real CockpitBar /
+// JournalEntryEngine / BankReconciliation / PeriodClose on example books
+// (per the BOOKS-FULL-INVENTORY mountability rulings).
+import {
+  UnlockBooksButton,
+  BooksHeroTerminal,
+  SourceAccountsPanel,
+  CategorizePanel,
+  JournalPanel,
+  TrialBalancePanel,
+  ReconcilePanel,
+  StatementsPanel,
+  ClosePanel,
+  CpaExportPanel,
+  LiveBooksSection,
+  BOOKS_UNLOCK_CTA_ID,
+} from '@/components/home/BooksShowcaseSections';
 
 // ── shared chrome ────────────────────────────────────────────────────────────
 
@@ -290,77 +308,104 @@ export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
 }
 
 // ── BOOKS ────────────────────────────────────────────────────────────────────
-
-// SHOWROOM-TRUTH-FIX: account codes/names below are the REAL seeded sole-prop
-// chart of accounts (src/lib/seed-coa-templates.ts:89-121 — 1010 Business
-// Checking, 4100 Product Revenue, 6120 Supplies, 6010 Car & Truck Expenses,
-// 2020 Credit Card (Business)), not invented codes. Dates/memos/amounts are
-// the labeled fictional example.
-const DEMO_JOURNAL = [
-  { d: 'Jun 03', memo: 'Coffee beans — Riverside Roasters', dr: '6120 Supplies', cr: '1010 Business Checking', amt: '$84.12' },
-  { d: 'Jun 05', memo: 'Farmers market sales', dr: '1010 Business Checking', cr: '4100 Product Revenue', amt: '$412.00' },
-  { d: 'Jun 09', memo: 'Truck fuel', dr: '6010 Car & Truck Expenses', cr: '2020 Credit Card (Business)', amt: '$61.35' },
-];
+// BOOKS-SHOWCASE-BLOOMBERG: the Books slide deck on the proven Trade template
+// (dark hero -> 8 causal slides -> connective line -> LIVE mounted real
+// components -> Unlock CTA), grounded in BOOKS-FULL-INVENTORY. The slides run
+// the inventory's causal flow: link banks -> categorize (the queue that
+// LEARNS, pure DB — no AI claim; the OpenAI insights route is dead UI per the
+// inventory) -> commit = double entry -> trial balance -> reconcile ->
+// statements -> period close -> CPA export. All example values are ONE
+// coherent set of books (reconciliation math in BooksShowcaseSections.tsx).
 
 export function BooksShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
   return (
-    <div className="space-y-5">
-      <ShowcaseHeader
-        title="Double-entry books, from bank feed to closed period"
-        line="Connect your bank through Plaid and every transaction flows in, gets categorized, and lands as a real journal entry — through to a trial balance that must balance, statements, and a period close. Below: Maria's food-truck books, as an example."
-      />
-      {/* SHOWROOM-TRUTH-FIX: per-panel EXAMPLE label — a screenshot of just the
-          tiles (or just the table below) still declares itself illustrative.
-          "BALANCED ✓" is the real product string (CPAExport.tsx). */}
-      <div className="rounded-lg border border-border-light bg-bg-row p-3 space-y-3">
-        <DemoTag />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[['Assets', '$12,400'], ['Liabilities', '$3,100'], ['Equity', '$9,300'], ['Trial balance', 'BALANCED ✓']].map(([k, v]) => (
-            <div key={k} className="rounded-lg border border-border bg-white p-3">
-              <p className="text-[10px] uppercase tracking-wider text-text-muted">{k}</p>
-              <p className={`text-base font-bold ${v === 'BALANCED ✓' ? 'text-brand-green' : 'text-text-primary'}`}>{v}</p>
-            </div>
-          ))}
+    <TabShowcaseTemplate
+      darkHero={{
+        eyebrow: 'Books — double-entry bookkeeping',
+        headline: 'Every transaction becomes a journal entry. Every period must balance.',
+        subcopy:
+          'Your banks flow in through Plaid. Every transaction gets categorized by a queue that learns from your commits, then lands as real double-entry — through a trial balance that must balance, reconciliation against the bank, statements, and a period close that locks the month. Fail-loud at every step: the books error before they ever lie.',
+        cta: <UnlockBooksButton currentUserId={currentUserId} onRequireAuth={onRequireAuth} />,
+        panel: <BooksHeroTerminal />,
+      }}
+      editorialTitle="Go further with the Books tab"
+      editorialRows={[
+        {
+          title: 'Link your banks. Assign every account.',
+          copy:
+            'Plaid brings the accounts in, every transaction flows automatically, and each account gets an entity — personal, business, or trading — so the books know whose money is whose.',
+          panel: <SourceAccountsPanel />,
+          panelSide: 'left',
+        },
+        {
+          title: 'The queue that learns.',
+          copy:
+            'Every synced transaction arrives with a predicted account preselected. Correct it once and commit — the prediction table retrains on your own ledger. No AI, no black box: your books learning your business.',
+          panel: <CategorizePanel />,
+          panelSide: 'right',
+        },
+        {
+          title: 'Commit is double-entry. Unbalanced refuses to save.',
+          copy:
+            'A commit writes the journal entry and its ledger lines in one stroke — debits equal credits, every time, or the engine throws instead of saving. That is the whole discipline, enforced by code.',
+          panel: <JournalPanel />,
+          panelSide: 'left',
+        },
+        {
+          title: 'The trial balance must balance.',
+          copy:
+            'Every account, every total, debits against credits. The cockpit never silently claims balanced — the verdict is computed from the real trial balance or the page shows an error.',
+          panel: <TrialBalancePanel />,
+          panelSide: 'right',
+        },
+        {
+          title: 'Reconcile against the bank\u2019s truth.',
+          copy:
+            'Statement balance on one side, your books on the other, cleared item by cleared item — down to a difference of exactly zero.',
+          panel: <ReconcilePanel />,
+          panelSide: 'left',
+        },
+        {
+          title: 'Statements from real entries. Never re-typed.',
+          copy:
+            'The income statement and balance sheet are derived from committed journal entries — the same numbers as the cockpit, because they are the same books.',
+          panel: <StatementsPanel />,
+          panelSide: 'right',
+        },
+        {
+          title: 'Closed means closed.',
+          copy:
+            'A closed period locks the month. Reopening one demands a typed reason that lands on the audit trail permanently — no quiet edits to history.',
+          panel: <ClosePanel />,
+          panelSide: 'left',
+        },
+        {
+          title: 'Hand your CPA a package, not a shoebox.',
+          copy:
+            'Trial balance, statements, the full ledger and journal, closed periods — one export, already balanced, already reconciled.',
+          panel: <CpaExportPanel />,
+          panelSide: 'right',
+        },
+      ]}
+      preSteps={
+        <p className="text-center text-sm text-text-secondary">
+          Everything you just saw is live below — the real components, rendered from the same
+          declared example books. Try them.
+        </p>
+      }
+      sample={<LiveBooksSection currentUserId={currentUserId} onRequireAuth={onRequireAuth} />}
+      cta={
+        <div id={BOOKS_UNLOCK_CTA_ID}>
+          <LockedTabCard
+            tabKey="tab:books"
+            label="Bookkeeping"
+            valueLine="Your real accounts, synced and closed month after month — GAAP double-entry, not a spreadsheet."
+            currentUserId={currentUserId}
+            onRequireAuth={onRequireAuth}
+          />
         </div>
-      </div>
-      <div className="overflow-x-auto rounded-lg border border-border bg-white">
-        <div className="px-3 pt-3">
-          <DemoTag />
-        </div>
-        <table className="w-full min-w-[560px] text-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-text-muted">
-              <th className="px-3 py-2 font-medium">Date</th>
-              <th className="px-3 py-2 font-medium">Memo</th>
-              <th className="px-3 py-2 font-medium">Debit</th>
-              <th className="px-3 py-2 font-medium">Credit</th>
-              <th className="px-3 py-2 font-medium text-right">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {DEMO_JOURNAL.map((j) => (
-              <tr key={j.memo} className="border-b border-border-light last:border-0">
-                <td className="px-3 py-2 text-text-muted">{j.d}</td>
-                <td className="px-3 py-2 text-text-primary">{j.memo}</td>
-                <td className="px-3 py-2 font-mono text-xs">{j.dr}</td>
-                <td className="px-3 py-2 font-mono text-xs">{j.cr}</td>
-                <td className="px-3 py-2 text-right">{j.amt}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p className="text-xs text-text-secondary">
-        The full pipe: import → categorize → journal → ledger → trial balance → reconcile → adjusting entries → statements → period close → year-end → CPA export.
-      </p>
-      <LockedTabCard
-        tabKey="tab:books"
-        label="Bookkeeping"
-        valueLine="Your real accounts, synced and closed month after month — GAAP double-entry, not a spreadsheet."
-        currentUserId={currentUserId}
-        onRequireAuth={onRequireAuth}
-      />
-    </div>
+      }
+    />
   );
 }
 
