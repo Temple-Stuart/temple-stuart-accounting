@@ -72,6 +72,26 @@ import {
   LiveBooksSection,
   BOOKS_UNLOCK_CTA_ID,
 } from '@/components/home/BooksShowcaseSections';
+// TAX-SHOWCASE-BLOOMBERG: the Tax slide deck sections — hero terminal, 8
+// causal slides (the TAX-FULL-INVENTORY flow: handoff gate → life events →
+// documents → income → deductions → trading → 1040 review → file), and the
+// LIVE section where the ONLY real mount is LifeEventsStep (the inventory's
+// sole zero-fetch seam) and every other step is a labeled faithful mirror.
+// All figures are the engine-executed 2025 set; disclaimers verbatim.
+import {
+  UnlockTaxButton,
+  TaxHeroTerminal,
+  HandoffGatePanel,
+  LifeEventsPanel,
+  DocumentsPanel,
+  IncomePanel,
+  DeductionsPanel,
+  TradingPanel,
+  Form1040Panel,
+  FileReadyPanel,
+  LiveTaxSection,
+  TAX_UNLOCK_CTA_ID,
+} from '@/components/home/TaxShowcaseSections';
 
 // ── shared chrome ────────────────────────────────────────────────────────────
 
@@ -422,51 +442,118 @@ export function BooksShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
 }
 
 // ── TAX ──────────────────────────────────────────────────────────────────────
+// TAX-SHOWCASE-BLOOMBERG: the Tax slide deck on the proven Trade/Books
+// template (dark hero -> 8 causal slides -> connective line -> LIVE section
+// -> Unlock CTA), grounded in TAX-FULL-INVENTORY. The slides run the
+// inventory's causal flow: the closed-books handoff gate -> life events
+// auto-detected -> documents (half already filled from the ledger) -> income
+// source-traced -> Schedule C deductions with the entry-level drill-down ->
+// Form 8949 with box reasoning + wash sales -> the 1040 line by line (DRAFT)
+// -> the file-ready package. THE SCENARIO: Maria's COMPLETED 2025 year — the
+// wizard's real default filing year — reconciling with the Books deck's
+// running 2026 books. Every figure is the engine-executed set (derivation in
+// TaxShowcaseSections.tsx); disclaimers verbatim per the inventory; the
+// not-live list (1099-INT/DIV, QBI, Schedule E, in-app e-filing) is
+// advertised nowhere. (This replaces the old 4-tile static panel — its
+// $23,400 scenario is retained and extended, engine-true.)
 
 export function TaxShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
   return (
-    <div className="space-y-5">
-      <ShowcaseHeader
-        title="Taxes that start from closed books"
-        line="Because the books are already clean, the tax estimate is derived — not re-typed. Below: an example year for Maria's food truck."
-      />
-      {/* SHOWROOM-TRUTH-FIX: every dollar figure below is computed with the
-          REAL tax-engine formulas (api/tax-estimate/route.ts:200-221) for the
-          DECLARED example inputs: single filer, standard deduction ($15,000,
-          route.ts:24), self-employed, Schedule C net profit $23,400, no other
-          income. SE tax = round(2,340,000¢ × 0.9235) × 0.153 = 330,631¢ →
-          $3,306. Federal income tax: AGI = 2,340,000 − 165,316 (½ SE) =
-          2,174,684¢; taxable = 674,684¢ after the standard deduction; all in
-          the 10% bracket (route.ts:10) → 67,468¢ → $675. The old "$5,120" was
-          invented and matched no formula — replaced with the engine's number.
-          "12 exported" is a labeled example count (no formula exists for it). */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[
-          ['Schedule C net profit', '$23,400'],
-          ['Self-employment tax', '$3,306'],
-          ['Federal income tax', '$675'],
-          ['Form 8949 lots', '12 exported'],
-        ].map(([k, v]) => (
-          <div key={k} className="rounded-lg border border-border bg-white p-3">
-            <p className="text-[10px] uppercase tracking-wider text-text-muted">{k}</p>
-            <p className="text-base font-bold text-text-primary">{v}</p>
-          </div>
-        ))}
-      </div>
-      <p className="text-xs text-text-secondary">
-        The pipe: closed period → account-to-tax-line mapping → Form 1040 estimate with Schedule C/D/SE → wash-sale detection → Form 8949 + CPA export package (PDF).
-      </p>
-      <p className="text-xs text-text-faint">
-        Estimates for informational purposes only — verified by a qualified tax professional before filing, always. Example numbers above, for a declared scenario (single filer, standard deduction, self-employed) — the SE and federal figures are computed with the same formulas the tax engine runs.
-      </p>
-      <LockedTabCard
-        tabKey="tab:tax"
-        label="Tax"
-        valueLine="Your 1040 estimate and schedules, derived from your actual closed books — plus the CPA-ready export."
-        currentUserId={currentUserId}
-        onRequireAuth={onRequireAuth}
-      />
-    </div>
+    <TabShowcaseTemplate
+      darkHero={{
+        eyebrow: 'Tax — from closed books to a filed return',
+        headline: 'Your books are already clean. Your taxes are half-done before you start.',
+        subcopy:
+          'The filing wizard opens only once your books have closed periods — because tax figures are only trustworthy when the ledger under them is. Then income, deductions, and trading derive from your actual ledger, line by line, into a Form 1040 estimate you hand your CPA. Derived, not re-typed — and disclaimed at every step.',
+        cta: <UnlockTaxButton currentUserId={currentUserId} onRequireAuth={onRequireAuth} />,
+        panel: <TaxHeroTerminal />,
+      }}
+      editorialTitle="Go further with the Tax tab"
+      editorialRows={[
+        {
+          title: 'Tax begins at completed books.',
+          copy:
+            'No closed period, no wizard — the numbers must be real first. The gate checks your closing periods, and if it can’t confirm them it stays locked rather than guess. Books closes INTO Tax; that’s the whole design.',
+          panel: <HandoffGatePanel />,
+          panelSide: 'left',
+        },
+        {
+          title: 'It reads your books and knows your year.',
+          copy:
+            'A sole-prop entity checks "I ran a business." Investment activity checks "I bought or sold investments." The wizard pre-fills your year from data you already have — badged, never locked, yours to correct.',
+          panel: <LifeEventsPanel />,
+          panelSide: 'right',
+        },
+        {
+          title: 'What others type in, your ledger already knows.',
+          copy:
+            'Schedule C and your broker activity arrive as already-captured cards, auto-populated from the ledger and your lot dispositions. Structured, box-labeled intake appears only for the documents your year actually needs.',
+          panel: <DocumentsPanel />,
+          panelSide: 'left',
+        },
+        {
+          title: 'Every income line traces to its source.',
+          copy:
+            'Business income carries a badge naming the ledger it came from; capital gains name the positions and dispositions behind them. The cards roll up to AGI the same way Form 1040 does — because it is Form 1040.',
+          panel: <IncomePanel />,
+          panelSide: 'right',
+        },
+        {
+          title: 'Every deduction drills to the entry behind it.',
+          copy:
+            'Tax line to account to individual ledger entries, with the sum checked on screen. The mapper assigns each expense account to its Schedule C line — and anything unmapped is flagged to Line 27a instead of silently placed. The SE tax preview shows the 15.3% math before you ever see the 1040.',
+          panel: <DeductionsPanel />,
+          panelSide: 'left',
+        },
+        {
+          title: 'Every lot boxed. Every box explained.',
+          copy:
+            'Each disposition lands in its IRS Form 8949 box with the reasoning written down — and the wash-sale scan runs the 30-day window from IRS Pub 550, telling you exactly what loss is disallowed and what it might cost.',
+          panel: <TradingPanel />,
+          panelSide: 'right',
+        },
+        {
+          title: 'The whole return, derived — not typed.',
+          copy:
+            'The 1040 line by line, with the bracket-by-bracket tax math open for inspection. And it’s watermarked DRAFT because the product means it: a licensed CPA or tax professional verifies before anything is filed.',
+          panel: <Form1040Panel />,
+          panelSide: 'left',
+        },
+        {
+          title: 'Hand your CPA a package, not a shoebox.',
+          copy:
+            'Form 8949 CSV for import, Schedule C exports, a plain-text summary with every number, the DRAFT PDF set, and the ledger-verified CPA package — plus a TaxAct walkthrough filled with your figures and a ±$50 sanity check against the estimate.',
+          panel: <FileReadyPanel />,
+          panelSide: 'right',
+        },
+      ]}
+      // TAX-SHOWCASE-BLOOMBERG: the connective line states EXACTLY what the
+      // live section is. The claim may not exceed the composition (1 real
+      // mount: LifeEventsStep — the inventory's sole zero-fetch seam; the
+      // gate + shell chrome + steps 2-7 are labeled mirrors; zero fetches;
+      // actions route to sign-up).
+      preSteps={
+        <p className="text-center text-sm text-text-secondary">
+          Below the slides: the handoff gate and the wizard&rsquo;s seven steps, in order, on the
+          declared 2025 example return. Signed in, every step fetches your real ledger — so on this
+          page exactly one piece is the real component mounted live: the Life events step, the one
+          step that fetches nothing. Everything else is a faithful static mirror of the real screen,
+          labeled on its face. Nothing on this page fetches; every action takes you to sign-up.
+        </p>
+      }
+      sample={<LiveTaxSection currentUserId={currentUserId} onRequireAuth={onRequireAuth} />}
+      cta={
+        <div id={TAX_UNLOCK_CTA_ID}>
+          <LockedTabCard
+            tabKey="tab:tax"
+            label="Tax"
+            valueLine="Your 1040 estimate and schedules, derived from your actual closed books — plus the CPA-ready export."
+            currentUserId={currentUserId}
+            onRequireAuth={onRequireAuth}
+          />
+        </div>
+      }
+    />
   );
 }
 
