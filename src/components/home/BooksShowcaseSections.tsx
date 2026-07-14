@@ -5,20 +5,35 @@
  * Bloomberg slide deck on the proven Trade template, grounded in
  * BOOKS-FULL-INVENTORY (audit-reports/BOOKS-FULL-INVENTORY.md).
  *
+ * BOOKS-LIVE-PIPE-COMPLETE: the live section under the slides is the FULL
+ * 13-stage pipe in the dashboard's canonical order (BooksPipeline.tsx:180-181):
+ * SRC → CAT → JE → LDG → TB → REC → ADJ → STMT → TAX-LOT → CLOSE → CLOSE-YE →
+ * POS → EXP, headed by the cockpit bar exactly as the real tab mounts it
+ * (ModuleLauncher Books branch → BookkeepingCockpitBar → BooksPipeline).
+ *
  * MOUNTABILITY RULINGS APPLIED (inventory Phase 2):
  *  • BookkeepingCockpitBar — DIRECT REUSE: pure props, zero fetches
  *    (BookkeepingCockpitBar.tsx:3-17); mounted with the example totals below;
  *    Sync / + Account route to signup/CTA.
+ *  • BookkeepingSection — DIRECT REUSE: pure props + local collapse state,
+ *    zero fetches (BookkeepingSection.tsx:1-58); every stage below sits in the
+ *    REAL section chrome with the real pipelineKey/subtitle/status props.
  *  • JournalEntryEngine / BankReconciliation / PeriodClose — EXAMPLE-FED:
  *    zero fetches each (typed props seams at JournalEntryEngine.tsx:46-51,
  *    BankReconciliation.tsx:44-50, PeriodClose.tsx:27-35); mounted on the
  *    example books; every action callback routes to signup/CTA.
- *  • SpendingTab — RULED OUT of the live section: its 4 fetches are internal
+ *  • SpendingTab — RULED OUT of live mount: its 4 fetches are internal
  *    ACTION handlers (commit :1185/:1218, uncommit :1246, create-COA :366),
- *    not routable props — a click would fire a real POST. The categorize
- *    mechanic is shown in slide 2 as a faithful static panel instead.
- *  • Everything that fetches on mount (ledger, TB, statements, wash sales,
- *    year-end, positions, CPA export) appears as slide panels only.
+ *    not routable props — a click would fire a real POST. The CAT stage is a
+ *    faithful static mirror of its pending table instead.
+ *  • Every stage that fetches on mount — GeneralLedger (:126,:138-156),
+ *    TrialBalanceSection (:46-49), AdjustingEntriesTab (:28-34),
+ *    FinancialStatementsTab (:22-29), WashSaleReportTab (:60-67),
+ *    CloseBooksTab (:26,:37), PositionReportTab (:107-114), CPAExport
+ *    (:316,:329) — is NOT mounted; it appears as a faithful STATIC MIRROR of
+ *    the real screen (per-block JSX correspondence cites in comments, the
+ *    Trade graded-card discipline), rendering the same coherent books.
+ *  • Each stage section is labeled REAL or MIRROR on its face + example-tagged.
  *
  * ONE COHERENT SET OF EXAMPLE BOOKS (a CPA must find zero errors):
  *   Balance sheet   ASSETS $12,400 = LIABILITIES $3,100 + EQUITY $9,300 ✓
@@ -45,7 +60,9 @@
  * auth/gate logic. All example values labeled.
  */
 
+import { Fragment } from 'react';
 import BookkeepingCockpitBar from '@/components/bookkeeping/BookkeepingCockpitBar';
+import BookkeepingSection from '@/components/bookkeeping/BookkeepingSection';
 import JournalEntryEngine from '@/components/dashboard/JournalEntryEngine';
 import BankReconciliation from '@/components/dashboard/BankReconciliation';
 import PeriodClose from '@/components/dashboard/PeriodClose';
@@ -162,6 +179,50 @@ const EX_PERIOD_CLOSES = Array.from({ length: 6 }, (_, i) => ({
   closedAt: `2026-0${i + 2 > 7 ? i + 2 : i + 2}-02T09:00:00Z`.replace('010', '10'),
   closedBy: 'you',
 }));
+
+// ── the pipe extension of the SAME books (BOOKS-LIVE-PIPE-COMPLETE) ─────────
+// The entity persona is the repo's established demo persona (Maria's food
+// truck — TabShowcases.tsx header). All values below are the SAME set as the
+// header-comment math: nothing new is asserted, only re-presented per stage.
+const ENTITY_NAME = "Maria's Food Truck";
+
+// The 9 ledger accounts at their June-close normal balances — identical to
+// the TrialBalancePanel slide rows. Reconciliation: debits 9,400 + 2,500 +
+// 500 + 900 + 2,400 + 1,800 = 17,500 = credits 3,100 + 6,000 + 8,400 ✓.
+// `side` = the account's normal balance side (balanceType), which is both
+// the TB displaySide and the GL summary's sign convention.
+const EX_LEDGER: { code: string; name: string; type: string; side: 'D' | 'C'; balance: number }[] = [
+  { code: '1010', name: 'Business Checking', type: 'Asset', side: 'D', balance: EX.checking },
+  { code: '1020', name: 'Business Savings', type: 'Asset', side: 'D', balance: EX.savings },
+  { code: '1400', name: 'Equipment', type: 'Asset', side: 'D', balance: EX.equipment },
+  { code: '2020', name: 'Credit Card (Business)', type: 'Liability', side: 'C', balance: EX.liabilities },
+  { code: '3000', name: "Owner's Equity", type: 'Equity', side: 'C', balance: EX.contributed },
+  { code: '4100', name: 'Product Revenue', type: 'Revenue', side: 'C', balance: EX.revenue },
+  { code: '6010', name: 'Car & Truck Expenses', type: 'Expense', side: 'D', balance: EX.expenses.carTruck },
+  { code: '6100', name: 'Rent (Business)', type: 'Expense', side: 'D', balance: EX.expenses.rent },
+  { code: '6120', name: 'Supplies', type: 'Expense', side: 'D', balance: EX.expenses.supplies },
+];
+const EX_TB_DEBITS = EX_LEDGER.filter((a) => a.side === 'D').reduce((s, a) => s + a.balance, 0);
+const EX_TB_CREDITS = EX_LEDGER.filter((a) => a.side === 'C').reduce((s, a) => s + a.balance, 0);
+
+// The categorize queue — the SAME three June transactions as EX_JOURNAL /
+// EX_REC_TXNS, shown at the moment they arrived (pending, prediction
+// preselected). The live section walks these three through the pipe: pending
+// here, posted from the JE stage onward — the same framing the hero terminal
+// uses ("categorize queue: 3 pending" next to posted DR/CR lines).
+// SpendingTab's default sort is date desc, so newest first.
+// Amount sign follows SpendingTab.tsx:901-905 (Plaid convention: positive =
+// outflow → red "-", negative = inflow → green "+").
+const EX_CAT_ROWS = [
+  { id: 'cat-1', date: '06/09/2026', merchant: 'Shell Oil #4471', desc: 'Truck fuel', amount: '-$61.35', inflow: false, account: 'Business Card', inst: 'Meridian Card Services', predicted: '6010 - Car & Truck Expenses' },
+  { id: 'cat-2', date: '06/05/2026', merchant: 'Farmers Market POS', desc: 'Farmers market sales', amount: '+$412.00', inflow: true, account: 'Business Checking', inst: 'First Harbor Bank', predicted: '4100 - Product Revenue' },
+  { id: 'cat-3', date: '06/03/2026', merchant: 'Riverside Roasters', desc: 'Coffee beans — Riverside Roasters', amount: '-$84.12', inflow: false, account: 'Business Checking', inst: 'First Harbor Bank', predicted: '6120 - Supplies' },
+];
+
+// $ with 2 decimals + thousands separators (GeneralLedger.tsx fmtMoney
+// :67-74 / TrialBalanceSection.tsx fmtCents :34-39 render this shape).
+const usd2 = (n: number) =>
+  '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 // ── dark slide shell (panel token family, same look as the Trade deck) ───────
 
@@ -393,22 +454,692 @@ export function CpaExportPanel() {
   );
 }
 
-// ── THE LIVE SECTION — real components on the example books ──────────────────
+// ── THE LIVE SECTION — the FULL 13-stage pipe (BOOKS-LIVE-PIPE-COMPLETE) ─────
+//
+// Canonical order = the real dashboard order (BooksPipeline.tsx:180-181):
+// SRC → CAT → JE → LDG → TB → REC → ADJ → STMT → TAX-LOT → CLOSE → CLOSE-YE →
+// POS → EXP, with the cockpit bar heading the section as the real tab has it.
+// Every stage sits in the REAL BookkeepingSection chrome (zero fetches,
+// BookkeepingSection.tsx:1-58) with the real pipe's pipelineKey / subtitle /
+// status props, resolved for the example books. Stages whose real component
+// self-fetches are faithful STATIC MIRRORS (per-block correspondence cites);
+// the truth strip on each section says which is which.
+
+/** Showcase chrome (not part of the real screen): declares on each stage's
+ *  face whether what follows is the real component mounted live or a faithful
+ *  static mirror — the same honesty labeling the slides use. */
+function StageTruthStrip({ real }: { real: boolean }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-b border-border bg-bg-row/60 px-3 py-1.5">
+      <span className={`text-[10px] font-bold uppercase tracking-wider ${real ? 'text-brand-green' : 'text-text-muted'}`}>
+        {real ? 'Real component — mounted live' : 'Faithful mirror of the real screen'}
+      </span>
+      <ExampleTag text="Example books" />
+    </div>
+  );
+}
+
+/** Kills the native control and routes the click to signup/CTA — mirrors stay
+ *  visually faithful while every action leaves for sign-up. */
+const interceptTo = (away: () => void) => (e: React.SyntheticEvent) => {
+  e.preventDefault();
+  away();
+};
+
+// 1. SRC — mirror of the pipe's inline source-accounts table
+// (BooksPipeline.tsx:184-242). It can't mount live: that JSX is owned by the
+// self-fetching BooksPipeline, and the entity select POSTs
+// /api/accounts/update-entity (:137-149) — here it routes away instead.
+function SourceAccountsStage({ away }: { away: () => void }) {
+  const block = interceptTo(away);
+  // Feed total mirrors the pipe's footer sum over account.balance (:156,:233-238):
+  // 9,400 + 2,500 + 3,100 = 15,000. The books' ASSETS stay 12,400 = 9,400 +
+  // 2,500 + 500 (1400 Equipment is book-only, no bank feed — the slide-1 note),
+  // and the card's 3,100 is the LIABILITY side of the same set.
+  const feedTotal = EX_ACCOUNTS.reduce((s, a) => s + a.balance, 0);
+  const fmt0 = (n: number) => '$' + Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
+  return (
+    <div className="overflow-x-auto">
+      {/* Table shell + columns — mirrors :190-199. */}
+      <table className="w-full text-xs">
+        <thead className="bg-gray-50 text-text-secondary">
+          <tr>
+            <th className="px-3 py-2 text-left font-medium">Institution</th>
+            <th className="px-3 py-2 text-left font-medium">Account</th>
+            <th className="px-3 py-2 text-left font-medium">Type</th>
+            <th className="px-3 py-2 text-left font-medium">Entity</th>
+            <th className="px-3 py-2 text-right font-medium">Balance</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {/* Rows — mirrors :202-228: institution / ••••mask / type chip /
+              entity select (business = the purple pill, :204-207) / balance. */}
+          {EX_ACCOUNTS.map((acc) => (
+            <tr key={acc.id} className="hover:bg-bg-row">
+              <td className="px-3 py-2 font-medium text-text-primary">{acc.institutionName}</td>
+              <td className="px-3 py-2 text-text-secondary font-mono">{'••••'} {acc.mask}</td>
+              <td className="px-3 py-2"><span className="px-2 py-0.5 bg-bg-row text-text-secondary text-[10px] uppercase">{acc.type}</span></td>
+              <td className="px-3 py-2">
+                <select
+                  value="business"
+                  onMouseDown={block}
+                  onChange={away}
+                  className="px-2 py-0.5 rounded text-[10px] font-semibold uppercase border-0 cursor-pointer bg-purple-100 text-purple-700"
+                >
+                  <option value="personal">Personal</option>
+                  <option value="business">Business</option>
+                  <option value="trading">Trading</option>
+                </select>
+              </td>
+              <td className="px-3 py-2 text-right font-mono font-semibold">{fmt0(acc.balance)}</td>
+            </tr>
+          ))}
+        </tbody>
+        {/* Total footer — mirrors :233-238. */}
+        <tfoot className="bg-bg-row border-t border-border">
+          <tr>
+            <td colSpan={4} className="px-3 py-2 font-semibold text-text-primary">Total</td>
+            <td className="px-3 py-2 text-right font-mono font-bold text-text-primary">{fmt0(feedTotal)}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  );
+}
+
+// 2. CAT — mirror of the categorize stage: the pipe's Spending|Investments
+// strip (BooksPipeline.tsx:249-263) + SpendingTab's pending table
+// (SpendingTab.tsx:833-925). SpendingTab is RULED OUT of live mount (its
+// commit/uncommit/create-COA fetches are internal handlers, inventory Phase
+// 2) — mirrored instead. Investments 0 is coherent: the example set has no
+// trading accounts.
+function CategorizeStage({ away }: { away: () => void }) {
+  const block = interceptTo(away);
+  return (
+    <div>
+      {/* Queue strip — mirrors BooksPipeline.tsx:249-263 (active tab wash +
+          gold pending counts). */}
+      <div className="flex items-center gap-3 px-3 py-1.5 border-b border-border">
+        <div className="flex items-center border border-border bg-white">
+          <button onClick={away} className="px-2 py-0.5 text-[10px] font-mono font-medium bg-brand-purple-wash text-brand-purple">
+            Spending <span className="font-bold text-brand-gold">3</span>
+          </button>
+          <button onClick={away} className="px-2 py-0.5 text-[10px] font-mono font-medium border-l border-border text-text-muted">
+            Investments <span className="font-bold text-brand-gold">0</span>
+          </button>
+        </div>
+      </div>
+      <div className="p-4">
+        <div className="overflow-x-auto">
+          {/* Pending table headers — mirrors SpendingTab.tsx:836-847 (checkbox,
+              Date, Merchant, Desc, Amount, Account, Inst, COA). */}
+          <table className="w-full text-xs border-collapse min-w-[900px]">
+            <thead className="bg-gray-50 text-text-secondary">
+              <tr>
+                <th className="px-2 py-1 w-10"><input type="checkbox" onMouseDown={block} onChange={away} className="w-3 h-3 rounded" /></th>
+                <th className="px-2 py-1 text-left text-terminal-xs font-semibold font-mono uppercase tracking-widest w-24">Date</th>
+                <th className="px-2 py-1 text-left text-terminal-xs font-semibold font-mono uppercase tracking-widest min-w-[130px]">Merchant</th>
+                <th className="px-2 py-1 text-left text-terminal-xs font-semibold font-mono uppercase tracking-widest min-w-[200px]">Desc</th>
+                <th className="px-2 py-1 text-terminal-xs font-semibold font-mono uppercase tracking-widest w-24 text-right">Amount</th>
+                <th className="px-2 py-1 text-left text-terminal-xs font-semibold font-mono uppercase tracking-widest w-28">Account</th>
+                <th className="px-2 py-1 text-left text-terminal-xs font-semibold font-mono uppercase tracking-widest w-28">Inst</th>
+                <th className="px-2 py-1 text-left text-terminal-xs font-semibold font-mono uppercase tracking-widest min-w-[180px]">COA</th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* Rows — mirror SpendingTab.tsx:878-938: zebra rows; amount
+                  colored by direction (:901-905); the COA select PRESELECTS
+                  the predicted code as "code - name" (:918) — the mechanic
+                  slide 2 teaches. Selects route away (real change would arm a
+                  commit POST). */}
+              {EX_CAT_ROWS.map((r, idx) => (
+                <tr key={r.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-bg-row'} border-b border-border-light`}>
+                  <td className="py-1 px-2"><input type="checkbox" onMouseDown={block} onChange={away} className="w-3 h-3 rounded" /></td>
+                  <td className="py-1 px-2 text-text-muted whitespace-nowrap font-mono text-terminal-base">{r.date}</td>
+                  <td className="py-1 px-2"><span className="truncate font-medium text-terminal-base">{r.merchant}</span></td>
+                  <td className="py-1 px-2 text-text-secondary text-terminal-sm truncate">{r.desc}</td>
+                  <td className="py-1 px-2 text-right font-mono font-semibold whitespace-nowrap text-terminal-base">
+                    <span className={r.inflow ? 'text-brand-green' : 'text-brand-red'}>{r.amount}</span>
+                  </td>
+                  <td className="py-1 px-2 font-mono text-terminal-sm text-text-muted truncate">{r.account}</td>
+                  <td className="py-1 px-2 font-mono text-terminal-sm text-text-muted truncate">{r.inst}</td>
+                  <td className="py-1 px-2">
+                    <select
+                      value=""
+                      onMouseDown={block}
+                      onChange={away}
+                      className="w-full text-terminal-sm font-mono border border-border rounded px-1 py-0.5 bg-white"
+                    >
+                      <option value="">{r.predicted}</option>
+                      <option value="__NEW__">+ Add Category</option>
+                    </select>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {/* Commit affordance — mirrors SpendingTab.tsx:1308-1309 ("Commit N
+            Rows"); here it routes to signup. */}
+        <div className="mt-2 flex justify-end">
+          <button onClick={away} className="rounded-lg bg-brand-gold px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-gold-bright">
+            Commit 3 Rows
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 4. LDG — mirror of GeneralLedger's mount-time view (self-fetches
+// /api/ledger + /api/entities on mount, GeneralLedger.tsx:126,:138-156 → not
+// mountable): entity tabs (:370-394), controls bar (:397-510), and the
+// no-account-selected summary grid (:526-590). Closing balances are the SAME
+// nine TB balances — June activity is the three committed entries plus the
+// ADJ reclass; balances include the opening carried from the closed Jan–May
+// periods (the component's openingBalance/closingBalance model, :44-46).
+function GeneralLedgerStage({ away }: { away: () => void }) {
+  const block = interceptTo(away);
+  return (
+    <div className="bg-white overflow-hidden">
+      {/* Entity tabs — mirrors :370-394 ("All" active + one entity). */}
+      <div className="flex border-b border-border">
+        <button onClick={away} className="px-3 py-1.5 text-terminal-base font-mono font-medium border-b-2 border-brand-purple text-brand-purple">All</button>
+        <button onClick={away} className="px-3 py-1.5 text-terminal-base font-mono font-medium border-b-2 border-transparent text-text-muted">{ENTITY_NAME}</button>
+      </div>
+      {/* Controls bar — mirrors :397-510 (account search, date range, keyword,
+          Reload). Inert: interaction routes away. */}
+      <div className="p-2 border-b bg-bg-row flex flex-wrap gap-2 items-center">
+        <input type="text" readOnly onMouseDown={block} placeholder="Search accounts..." className="min-w-[260px] h-7 px-2 border border-border rounded text-terminal-base font-mono" />
+        <input type="date" readOnly onMouseDown={block} className="h-7 px-2 border border-border rounded text-terminal-base font-mono" />
+        <input type="date" readOnly onMouseDown={block} className="h-7 px-2 border border-border rounded text-terminal-base font-mono" />
+        <input type="text" readOnly onMouseDown={block} placeholder="Search descriptions..." className="flex-1 min-w-[150px] h-7 px-2 border border-border rounded text-terminal-base font-mono" />
+        <button onClick={away} className="h-7 px-2 text-terminal-base font-mono border border-border rounded hover:bg-bg-row">Reload</button>
+      </div>
+      {/* Summary grid — mirrors :526-590: entity header row (:540-548), type
+          header rows (:552-559), zebra account rows with 2-dp balances
+          (fmtMoney :67-74). */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-terminal-base min-w-[700px]">
+          <thead>
+            <tr className="bg-gray-50 text-text-secondary">
+              <th className="text-terminal-xs uppercase tracking-widest font-mono py-1 px-2 text-left">Account Code</th>
+              <th className="text-terminal-xs uppercase tracking-widest font-mono py-1 px-2 text-left">Account Name</th>
+              <th className="text-terminal-xs uppercase tracking-widest font-mono py-1 px-2 text-left">Type</th>
+              <th className="text-terminal-xs uppercase tracking-widest font-mono py-1 px-2 text-right">Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td colSpan={4} className="py-2 px-2 text-xs uppercase text-text-muted font-semibold tracking-wider border-b border-border-light bg-bg-row">{ENTITY_NAME}</td>
+            </tr>
+            {(['Asset', 'Liability', 'Equity', 'Revenue', 'Expense'] as const).map((type) => (
+              <Fragment key={type}>
+                <tr>
+                  <td colSpan={4} className="py-1 px-2 text-terminal-xs font-bold text-text-muted bg-bg-row/60 uppercase tracking-wider pl-4">{type}</td>
+                </tr>
+                {EX_LEDGER.filter((a) => a.type === type).map((a, idx) => (
+                  <tr key={a.code} className={`cursor-pointer hover:bg-brand-purple/[.07] ${idx % 2 === 0 ? 'bg-white' : 'bg-bg-row'}`} onClick={away}>
+                    <td className="py-1 px-2 font-medium">{a.code}</td>
+                    <td className="py-1 px-2 text-text-secondary">{a.name}</td>
+                    <td className="py-1 px-2 text-text-muted">{a.type}</td>
+                    <td className="py-1 px-2 text-right font-mono tabular-nums">{usd2(a.balance)}</td>
+                  </tr>
+                ))}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// 5. TB — mirror of TrialBalanceSection (self-fetches /api/trial-balance on
+// mount, TrialBalanceSection.tsx:46-49 → not mountable): the "✓ Balanced"
+// pill is the component's REAL verdict string (:87-89), fed by the same
+// totals.isBalanced field the cockpit guard requires. Totals: debits
+// $17,500.00 = credits $17,500.00 (EX_TB_DEBITS/EX_TB_CREDITS, computed).
+function TrialBalanceStage() {
+  return (
+    <div>
+      {/* Status pill row — mirrors :84-96. */}
+      <div className="px-4 py-2 border-b border-border flex items-center gap-2">
+        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{'✓'} Balanced</span>
+        <span className="text-terminal-sm text-text-muted font-mono">{EX_LEDGER.length} accounts</span>
+      </div>
+      {/* Table — mirrors :98-137: Code / Name / Type / Entity / Debit /
+          Credit, one side filled per displaySide (:120-125), zebra rows,
+          Totals footer (:130-135). */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-3 py-2 text-left font-medium text-text-secondary">Account Code</th>
+              <th className="px-3 py-2 text-left font-medium text-text-secondary">Account Name</th>
+              <th className="px-3 py-2 text-left font-medium text-text-secondary">Type</th>
+              <th className="px-3 py-2 text-left font-medium text-text-secondary">Entity</th>
+              <th className="px-3 py-2 text-right font-medium text-text-secondary">Debit</th>
+              <th className="px-3 py-2 text-right font-medium text-text-secondary">Credit</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {EX_LEDGER.map((a, idx) => (
+              <tr key={a.code} className={idx % 2 === 1 ? 'bg-bg-row' : ''}>
+                <td className="px-3 py-2 font-mono text-text-secondary">{a.code}</td>
+                <td className="px-3 py-2 text-text-primary">{a.name}</td>
+                <td className="px-3 py-2 text-text-muted capitalize">{a.type.toLowerCase()}</td>
+                <td className="px-3 py-2 text-text-muted">{ENTITY_NAME}</td>
+                <td className="px-3 py-2 text-right font-mono text-text-primary">{a.side === 'D' ? usd2(a.balance) : ''}</td>
+                <td className="px-3 py-2 text-right font-mono text-text-primary">{a.side === 'C' ? usd2(a.balance) : ''}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot className="bg-gray-50 border-t-2 border-border">
+            <tr className="font-semibold">
+              <td colSpan={4} className="px-3 py-2 text-text-primary">Totals</td>
+              <td className="px-3 py-2 text-right font-mono text-text-primary">{usd2(EX_TB_DEBITS)}</td>
+              <td className="px-3 py-2 text-right font-mono text-text-primary">{usd2(EX_TB_CREDITS)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// 7. ADJ — mirror of AdjustingEntriesTab (fetches the COA on mount,
+// AdjustingEntriesTab.tsx:28-34 → not mountable): the New Adjusting Entry
+// form (:143-276) filled with an example that is INSIDE the established set —
+// a Jun 30 reclass moving $150 of truck fuel misfiled as supplies:
+//   DR 6010 Car & Truck 150.00 / CR 6120 Supplies 150.00
+// Before the reclass 6120 ran 1,950 and 6010 ran 750; after: 1,800 / 900 —
+// the exact TB/GL balances above. A debit-to-debit reclass leaves the TB
+// debit total unchanged (17,500 = 17,500 ✓) and net income unchanged
+// (expenses still total 5,100 → NI 3,300 ✓). Dated Jun 30, entered BEFORE
+// June closed on Jul 02 (EX_PERIOD_CLOSES closedAt) — no locked-month edit.
+function AdjustingEntriesStage({ away }: { away: () => void }) {
+  const block = interceptTo(away);
+  return (
+    <div className="p-4">
+      <div className="bg-white">
+        {/* Header + date/description — mirrors :146-169. */}
+        <h3 className="text-terminal-lg font-semibold mb-4">New Adjusting Entry</h3>
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Date</label>
+            <input type="date" value="2026-06-30" readOnly onMouseDown={block} className="w-full px-3 py-2 border rounded" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Description</label>
+            <input type="text" value="Reclass — truck fuel misfiled as supplies" readOnly onMouseDown={block} className="w-full px-3 py-2 border rounded" />
+          </div>
+        </div>
+        {/* Entry lines — mirrors :171-235 (account select / D-C select /
+            amount, "+ Add Line"). */}
+        <div className="mb-4">
+          <div className="flex justify-between items-center mb-2">
+            <label className="block text-sm font-medium text-text-secondary">Journal Entry Lines</label>
+            <button onClick={away} className="px-3 py-1 bg-brand-purple text-white rounded text-sm">+ Add Line</button>
+          </div>
+          <div className="space-y-2">
+            {[
+              { account: '6010 - Car & Truck Expenses', side: 'Debit' },
+              { account: '6120 - Supplies', side: 'Credit' },
+            ].map((line) => (
+              <div key={line.account} className="flex gap-2 items-center">
+                <div className="flex-1">
+                  <select value={line.account} onMouseDown={block} onChange={away} className="w-full px-3 py-2 border rounded text-sm">
+                    <option value={line.account}>{line.account}</option>
+                  </select>
+                </div>
+                <div className="w-32">
+                  <select value={line.side} onMouseDown={block} onChange={away} className="w-full px-3 py-2 border rounded text-sm">
+                    <option value="Debit">Debit</option>
+                    <option value="Credit">Credit</option>
+                  </select>
+                </div>
+                <div className="w-40">
+                  <input type="number" value="150.00" readOnly onMouseDown={block} className="w-full px-3 py-2 border rounded text-sm" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Totals + balanced verdict — mirrors :237-260; "✓ Entry is
+            balanced" is the component's real string (:257). 150.00 = 150.00,
+            difference 0.00. */}
+        <div className="border-t pt-4 mb-4">
+          <div className="flex justify-end gap-8 text-sm">
+            <div><span className="text-text-secondary">Total Debits:</span><span className="ml-2 font-semibold text-brand-purple">$150.00</span></div>
+            <div><span className="text-text-secondary">Total Credits:</span><span className="ml-2 font-semibold text-brand-green">$150.00</span></div>
+            <div><span className="text-text-secondary">Difference:</span><span className="ml-2 font-semibold text-brand-green">$0.00</span></div>
+          </div>
+          <div className="text-right mt-2">
+            <span className="text-sm text-brand-green font-medium">✓ Entry is balanced</span>
+          </div>
+        </div>
+        {/* Submit — mirrors :262-275; routes away. */}
+        <div className="flex justify-end">
+          <button onClick={away} className="px-6 py-2 rounded text-sm font-medium bg-brand-purple text-white hover:bg-brand-accent-dark">
+            Create Adjusting Entry
+          </button>
+        </div>
+      </div>
+      {/* Help box — mirrors :278-286 (the component's real copy). */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
+        <h3 className="text-sm font-semibold text-yellow-900 mb-2">About Adjusting Entries</h3>
+        <p className="text-sm text-yellow-800">
+          Adjusting entries are manual journal entries used to record accruals, deferrals, corrections, and other
+          adjustments that aren&apos;t captured by automatic transaction imports. Common examples include depreciation,
+          prepaid expenses, accrued revenues, and error corrections.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// 8. STMT — mirror of FinancialStatementsTab (self-fetches /api/statements on
+// mount, FinancialStatementsTab.tsx:22-29 → not mountable). Values are
+// COMPUTED here with the component's own formulas so they cannot drift:
+// revenue 8,400 − expenses 5,100 = NI 3,300; assets 12,400 = liabilities
+// 3,100 + equity 9,300; profit margin (3,300/8,400)·100 → 39.3% (:152-155);
+// current ratio 12,400/3,100 → 4.00 (:162-164); ROE (3,300/9,300)·100 →
+// 35.5% (:172-174). The real component renders toFixed(2) dollars — no
+// thousands separators ("$8400.00") — mirrored exactly (:82,:114).
+function StatementsStage() {
+  const netIncome = EX.revenue - EX.expenses.total;
+  const liabPlusEquity = EX.liabilities + EX.equity;
+  const profitMargin = ((netIncome / EX.revenue) * 100).toFixed(1);
+  const currentRatio = (EX.assets / EX.liabilities).toFixed(2);
+  const roe = ((netIncome / EX.equity) * 100).toFixed(1);
+  const fx = (n: number) => '$' + n.toFixed(2);
+  return (
+    <div className="p-4 space-y-6">
+      <div className="grid grid-cols-2 gap-6">
+        {/* Income statement card — mirrors :74-104. */}
+        <div className="bg-white border rounded p-6">
+          <h3 className="text-sm font-semibold mb-6">Income Statement</h3>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-text-secondary">Revenue</span>
+              <span className="text-terminal-lg font-semibold text-brand-green">{fx(EX.revenue)}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-text-secondary">Expenses</span>
+              <span className="text-terminal-lg font-semibold text-brand-red">{fx(EX.expenses.total)}</span>
+            </div>
+            <div className="border-t pt-4 mt-4">
+              <div className="flex justify-between items-center">
+                <span className="text-terminal-lg font-bold">Net Income</span>
+                <span className="text-sm font-bold text-brand-green">{fx(netIncome)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Balance sheet card — mirrors :106-142; "✓ Books balanced" is the
+            real verdict string (:137). */}
+        <div className="bg-white border rounded p-6">
+          <h3 className="text-sm font-semibold mb-6">Balance Sheet</h3>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-text-secondary">Assets</span>
+              <span className="text-terminal-lg font-semibold">{fx(EX.assets)}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-text-secondary">Liabilities</span>
+              <span className="text-terminal-lg font-semibold">{fx(EX.liabilities)}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-text-secondary">Equity</span>
+              <span className="text-terminal-lg font-semibold">{fx(EX.equity)}</span>
+            </div>
+            <div className="border-t pt-4 mt-4">
+              <div className="text-sm text-text-secondary space-y-1">
+                <div>Balance Check: Assets = {fx(EX.assets)}</div>
+                <div>Liabilities + Equity = {fx(liabPlusEquity)}</div>
+                <div className="font-semibold text-brand-green">✓ Books balanced</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* Quick ratios — mirrors :145-178, same formulas. */}
+      <div className="bg-white border rounded p-6">
+        <h3 className="text-terminal-lg font-semibold mb-4">Quick Ratios</h3>
+        <div className="grid grid-cols-3 gap-4">
+          <div className="border rounded p-4 text-center">
+            <div className="text-sm text-text-secondary mb-1">Profit Margin</div>
+            <div className="text-sm font-bold">{profitMargin}%</div>
+          </div>
+          <div className="border rounded p-4 text-center">
+            <div className="text-sm text-text-secondary mb-1">Current Ratio</div>
+            <div className="text-sm font-bold">{currentRatio}</div>
+          </div>
+          <div className="border rounded p-4 text-center">
+            <div className="text-sm text-text-secondary mb-1">ROE</div>
+            <div className="text-sm font-bold">{roe}%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 9. TAX-LOT — mirror of WashSaleReportTab (self-fetches /api/tax/wash-sales
+// on mount, WashSaleReportTab.tsx:60-67 → not mountable). The coherent
+// example books hold ONLY the three business feeds — no brokerage account, no
+// securities dispositions — so the truthful render is the component's REAL
+// zero-state (:136-142): a populated violation row would require trading
+// history the declared A = L + E set does not contain. "Apply Adjustments"
+// is correctly absent (it renders only when violations > 0, :122).
+function WashSalesStage({ away }: { away: () => void }) {
+  return (
+    <div>
+      {/* Actions row — mirrors :115-132 (IRS Publication 550 + Re-scan). */}
+      <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+        <span className="text-terminal-sm text-text-muted font-mono">IRS Publication 550</span>
+        <button onClick={away} className="px-3 py-1 text-xs border border-border text-text-secondary rounded-lg hover:bg-bg-row transition-colors">Re-scan</button>
+      </div>
+      {/* Zero-state — mirrors :136-142 (the real strings). */}
+      <div className="p-3">
+        <div className="text-center py-8">
+          <div className="text-terminal-lg mb-2">No wash sale violations detected</div>
+          <div className="text-terminal-sm text-text-muted">
+            All losing dispositions have been scanned against the 30-day replacement window.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 11. CLOSE-YE — mirror of CloseBooksTab (self-fetches /api/year-end-close on
+// mount, CloseBooksTab.tsx:26,:37 → not mountable) in its not-closed state
+// (:127-154): coherent because only Jan–Jun of the required 12 months are
+// period-closed (EX_PERIOD_CLOSES). At close, the net income to transfer to
+// Retained Earnings (3900) would be the same 3,300 the statements show.
+function YearEndCloseStage({ away }: { away: () => void }) {
+  return (
+    <div className="p-4 space-y-6">
+      {/* Header row — mirrors :96-105. */}
+      <div className="flex items-center justify-between">
+        <span className="text-terminal-sm text-text-muted font-mono">GAAP year-end closing entries for 2026</span>
+        <button onClick={away} className="px-3 py-1 text-xs border border-border text-text-secondary rounded-lg hover:bg-bg-row transition-colors">Refresh</button>
+      </div>
+      {/* Not-closed card — mirrors :127-154 (checklist strings verbatim). */}
+      <div className="bg-white border rounded p-6">
+        <h3 className="text-terminal-lg font-semibold mb-4">Close Year 2026</h3>
+        <div className="space-y-4">
+          <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
+            <h4 className="text-sm font-semibold text-yellow-900 mb-2">Pre-Closing Checklist</h4>
+            <ul className="text-sm text-yellow-800 space-y-1">
+              <li>All 12 months must be period-closed</li>
+              <li>All transactions for the year have been recorded</li>
+              <li>Bank accounts have been reconciled</li>
+              <li>All adjusting entries have been made</li>
+              <li>Financial statements have been reviewed</li>
+            </ul>
+          </div>
+          <button onClick={away} className="w-full py-3 rounded text-sm font-medium bg-red-600 text-white hover:bg-red-700">
+            Close Books for 2026
+          </button>
+        </div>
+      </div>
+      {/* Info box — mirrors :158-165 (the component's real copy). */}
+      <div className="bg-brand-purple-wash border border-blue-200 rounded p-4">
+        <h3 className="text-sm font-semibold text-blue-900 mb-2">About Year-End Close</h3>
+        <p className="text-sm text-blue-800">
+          Year-end close is the final step in the annual accounting cycle. It creates closing journal entries that
+          zero out all revenue and expense accounts, transferring the net income (or loss) to Retained Earnings (3900).
+          This ensures clean income statement balances for the next fiscal year while preserving the cumulative
+          equity position on the balance sheet.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// 12. POS — mirror of PositionReportTab (self-fetches /api/positions/summary
+// on mount, PositionReportTab.tsx:107-114 → not mountable) in its P&L
+// Summary view (the mount default, :105). Zero-state throughout: the example
+// set has no trading accounts, so every P&L renders the component's own
+// fmt(0) = '-' (:124-131), win rate 0%, Open (0) / Closed (0), and the
+// By Strategy table is absent (renders only when byStrategy.length > 0,
+// :232). Nothing here exceeds the declared books.
+function PositionReportStage({ away }: { away: () => void }) {
+  return (
+    <div>
+      {/* Sub-tabs + Refresh — mirrors :152-174. */}
+      <div className="flex items-center border-b border-border">
+        <button onClick={away} className="px-3 py-1.5 text-terminal-base font-mono font-medium border-b-2 border-brand-purple text-brand-purple">P&amp;L Summary</button>
+        <button onClick={away} className="px-3 py-1.5 text-terminal-base font-mono font-medium border-b-2 border-transparent text-text-muted">Open (0)</button>
+        <button onClick={away} className="px-3 py-1.5 text-terminal-base font-mono font-medium border-b-2 border-transparent text-text-muted">Closed (0)</button>
+        <button onClick={away} className="ml-auto mr-2 px-3 py-1 text-xs border border-border text-text-secondary rounded-lg hover:bg-bg-row transition-colors">Refresh</button>
+      </div>
+      <div className="p-3 space-y-3">
+        {/* Top metric tiles — mirrors :180-209; fmt(0) = '-' and
+            plColor(0) = green (:124-133). */}
+        <div className="grid grid-cols-5 gap-2">
+          {[
+            ['Total Realized P&L', '-', 'text-brand-green'],
+            ['Short-Term P&L', '-', 'text-brand-green'],
+            ['Long-Term P&L', '-', 'text-brand-green'],
+            ['Win Rate', '0%', ''],
+            ['Profit Factor', '0.00', ''],
+          ].map(([label, value, tone]) => (
+            <div key={label} className="border border-border rounded p-2">
+              <div className="text-terminal-xs text-text-muted uppercase tracking-widest">{label}</div>
+              <div className={`text-terminal-lg font-bold font-mono ${tone}`}>{value}</div>
+            </div>
+          ))}
+        </div>
+        {/* Options vs stocks — mirrors :212-229. */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="border border-border rounded p-3">
+            <h4 className="text-terminal-lg font-semibold mb-2">Options P&amp;L</h4>
+            <div className="text-sm font-bold font-mono text-brand-green">-</div>
+          </div>
+          <div className="border border-border rounded p-3">
+            <h4 className="text-terminal-lg font-semibold mb-2">Stocks P&amp;L</h4>
+            <div className="text-sm font-bold font-mono text-brand-green">-</div>
+            <div className="flex gap-4 mt-2 text-terminal-sm text-text-muted">
+              <span>ST: <span className="font-mono text-brand-green">-</span></span>
+              <span>LT: <span className="font-mono text-brand-green">-</span></span>
+            </div>
+          </div>
+        </div>
+        {/* Avg win/loss — mirrors :267-276. */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="border border-border rounded p-2">
+            <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Avg Win</div>
+            <div className="text-base font-bold font-mono text-brand-green">-</div>
+          </div>
+          <div className="border border-border rounded p-2">
+            <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Avg Loss</div>
+            <div className="text-base font-bold font-mono text-brand-red">-</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 13. EXP — mirror of CPAExport (self-fetches /api/cpa-export on mount,
+// CPAExport.tsx:316,:329 → not mountable): header + status bar + the four
+// export cards. Derivable stats tie to the set: Accounts 9 (the TB rows),
+// Trial Balance ✓ / Balance Sheet ✓ (17,500 = 17,500; 12,400 = 3,100 +
+// 9,300), Net Income $3300.00 — the real bar renders toFixed(2) with NO
+// thousands separator (fmtMoney :103-105, :434), mirrored exactly. "Ledger
+// lines: 96" is a DECLARED example count, labeled by the section's example
+// tag (the Tax showcase's "12 exported" precedent — no formula exists for a
+// year's posting count from balances alone); even, because postings land in
+// DR/CR pairs.
+function CpaExportStage({ away }: { away: () => void }) {
+  const cards = [
+    // Card copy verbatim from :445-448, :463-466, :481-484, :499-502.
+    { title: '📊 Trial Balance', desc: 'Per-account debit/credit balances from the ledger. Debits must equal credits.' },
+    { title: '📈 Income Statement', desc: 'Revenue minus expenses. Revenue nets credits − debits; expenses net debits − credits.' },
+    { title: '📋 Balance Sheet', desc: 'Assets = Liabilities + Equity. Retained earnings rolls net income into equity.' },
+    { title: '📒 General Ledger', desc: 'Every posted ledger entry in chronological order. Full audit trail.' },
+  ];
+  return (
+    <div className="bg-white overflow-hidden">
+      {/* Header — mirrors :386-397 (Export All is the gold button). */}
+      <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+        <span className="text-terminal-sm text-text-muted font-mono">Export accountant-ready reports (sourced from the general ledger)</span>
+        <button onClick={away} className="px-4 py-2 text-sm bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold rounded-lg transition-colors">Export All</button>
+      </div>
+      {/* Status bar — mirrors :400-438 ("Trial Balance ✓" / "Balance Sheet ✓"
+          are the real verdict spans, :424,:431). */}
+      <div className="px-4 py-2 border-b border-border bg-bg-row flex items-center gap-6 text-sm">
+        <span className="text-text-secondary">Year: <strong>2026</strong></span>
+        <span className="text-text-secondary">Accounts: <strong>{EX_LEDGER.length}</strong></span>
+        <span className="text-text-secondary">Ledger lines: <strong>96</strong></span>
+        <span className="text-brand-green">Trial Balance ✓</span>
+        <span className="text-brand-green">Balance Sheet ✓</span>
+        <span className="text-text-secondary">Net Income: <strong>${(EX.revenue - EX.expenses.total).toFixed(2)}</strong></span>
+      </div>
+      {/* Export cards — mirrors :441-513. */}
+      <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        {cards.map((c) => (
+          <div key={c.title} className="border rounded p-4 hover:bg-bg-row">
+            <div className="flex items-start justify-between">
+              <div>
+                <h4 className="font-medium">{c.title}</h4>
+                <p className="text-xs text-text-muted mt-1">{c.desc}</p>
+              </div>
+              <button onClick={away} className="px-3 py-1.5 border rounded text-sm hover:bg-bg-row">Export CSV</button>
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Footer — mirrors :516-518 (the component's real copy). */}
+      <div className="px-4 py-3 border-t bg-bg-row text-xs text-text-muted">
+        💡 Sourced from journal_entries + ledger_entries (reversals excluded). Open CSV files in Excel or Google Sheets.
+      </div>
+    </div>
+  );
+}
 
 export function LiveBooksSection({ currentUserId, onRequireAuth }: { currentUserId: string; onRequireAuth: () => void }) {
   const away = routeAway(currentUserId, onRequireAuth);
   const awayAsync = async () => { away(); };
   const noop = () => {};
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
+      {/* THE COCKPIT — heads the pipe exactly as the real tab mounts it
+          (ModuleLauncher Books branch: BookkeepingCockpitBar above
+          BooksPipeline, inventory §"Entry point"). DIRECT REUSE: pure props,
+          zero fetches (BookkeepingCockpitBar.tsx:3-17). Cents in (fmtDollars
+          divides by 100, :19-20). Totals reconcile: 1,240,000 = 310,000 +
+          930,000. Sync / + Account route to signup/CTA. */}
       <div className="rounded-lg border border-border bg-white p-4">
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">The real cockpit bar — A = L + E, live component</p>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-brand-green">Real component — mounted live</span>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">The cockpit bar — heads the Books tab, A = L + E</span>
           <ExampleTag text="Example books" />
         </div>
-        {/* DIRECT REUSE: pure props, zero fetches (BookkeepingCockpitBar.tsx:3-17).
-            Cents in (fmtDollars divides by 100, :19-20). Totals reconcile:
-            1,240,000 = 310,000 + 930,000. Sync / + Account route to signup/CTA. */}
         <BookkeepingCockpitBar
           totalAssets={1_240_000}
           totalLiabilities={310_000}
@@ -422,53 +1153,133 @@ export function LiveBooksSection({ currentUserId, onRequireAuth }: { currentUser
           onLinkAccount={away}
         />
       </div>
-      <div className="rounded-lg border border-border bg-white p-4">
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">The real journal engine — the three example entries, live component</p>
-          <ExampleTag text="Example books" />
+
+      {/* Section wrappers below are the REAL BookkeepingSection chrome with
+          the real pipe's props, resolved for the example books:
+          SRC :185-188 ("3 connected", complete, collapsible), CAT :245-247
+          ("3 pending", action-needed), JE :273-275 ("3 entries", complete),
+          LDG :282-284 (committedCount×2 = 3×2 = "6 entries" — the formula
+          counts committed FEED transactions, so the ADJ manual entry is not
+          in it, exactly as the real subtitle behaves), TB :291 → EXP :382
+          (status "pending", hardcoded in the real pipe). */}
+
+      {/* 1. SRC — mirrors BooksPipeline.tsx:184-242. */}
+      <BookkeepingSection title="Source Accounts" pipelineKey="SRC" subtitle="3 connected" status="complete" collapsible defaultCollapsed={false}>
+        <StageTruthStrip real={false} />
+        <SourceAccountsStage away={away} />
+      </BookkeepingSection>
+
+      {/* 2. CAT — mirrors BooksPipeline.tsx:244-270 + SpendingTab's pending
+          table (see CategorizeStage cites). */}
+      <BookkeepingSection title="Categorize Transactions" pipelineKey="CAT" subtitle="3 pending" status="action-needed">
+        <StageTruthStrip real={false} />
+        <CategorizeStage away={away} />
+      </BookkeepingSection>
+
+      {/* 3. JE — REAL MOUNT (BooksPipeline.tsx:272-279): zero fetches,
+          props-driven (JournalEntryEngine.tsx:46-51); save routes away. The
+          same three transactions from CAT, now posted. */}
+      <BookkeepingSection title="Journal Entries" pipelineKey="JE" subtitle="3 entries" status="complete">
+        <StageTruthStrip real={true} />
+        <div className="p-4">
+          <JournalEntryEngine journalTransactions={EX_JOURNAL} coaOptions={COA} onSave={awayAsync} onReload={noop} />
         </div>
-        {/* EXAMPLE-FED: zero fetches (JournalEntryEngine.tsx:46-51); save routes away. */}
-        <JournalEntryEngine
-          journalTransactions={EX_JOURNAL}
-          coaOptions={COA}
-          onSave={awayAsync}
-          onReload={noop}
-        />
-      </div>
-      <div className="rounded-lg border border-border bg-white p-4">
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">The real reconciliation engine — live component</p>
-          <ExampleTag text="Example books" />
+      </BookkeepingSection>
+
+      {/* 4. LDG — mirrors BooksPipeline.tsx:281-288 wrapping GeneralLedger. */}
+      <BookkeepingSection title="General Ledger" pipelineKey="LDG" subtitle="6 entries" status="complete">
+        <StageTruthStrip real={false} />
+        <div className="p-4">
+          <GeneralLedgerStage away={away} />
         </div>
-        {/* EXAMPLE-FED: zero fetches (BankReconciliation.tsx:44-50); save routes away. */}
-        <BankReconciliation
-          accounts={EX_ACCOUNTS}
-          transactions={EX_REC_TXNS}
-          reconciliations={EX_RECONCILIATION}
-          onSave={awayAsync}
-          onReload={noop}
-        />
-      </div>
-      <div className="rounded-lg border border-border bg-white p-4">
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">The real period-close engine — live component</p>
-          <ExampleTag text="Example books" />
+      </BookkeepingSection>
+
+      {/* 5. TB — mirrors BooksPipeline.tsx:290-293 wrapping TrialBalanceSection. */}
+      <BookkeepingSection title="Trial Balance" pipelineKey="TB" status="pending">
+        <StageTruthStrip real={false} />
+        <TrialBalanceStage />
+      </BookkeepingSection>
+
+      {/* 6. REC — REAL MOUNT (BooksPipeline.tsx:295-314): zero fetches,
+          props-driven (BankReconciliation.tsx:44-50); save routes away. */}
+      <BookkeepingSection title="Bank Reconciliation" pipelineKey="REC" status="pending">
+        <StageTruthStrip real={true} />
+        <div className="p-2">
+          <BankReconciliation
+            accounts={EX_ACCOUNTS}
+            transactions={EX_REC_TXNS}
+            reconciliations={EX_RECONCILIATION}
+            onSave={awayAsync}
+            onReload={noop}
+          />
         </div>
-        {/* EXAMPLE-FED: zero fetches (PeriodClose.tsx:27-35); close/reopen route away. */}
-        <PeriodClose
-          transactions={EX_JOURNAL.map((j) => ({ id: j.id, date: j.date, accountCode: j.account_code }))}
-          reconciliations={EX_RECONCILIATION.map((r) => ({ id: r.id, accountId: r.accountId, periodEnd: r.periodEnd, status: r.status }))}
-          periodCloses={EX_PERIOD_CLOSES}
-          selectedYear={2026}
-          onClose={awayAsync}
-          onReopen={awayAsync}
-          onReload={noop}
-        />
-      </div>
+      </BookkeepingSection>
+
+      {/* 7. ADJ — mirrors BooksPipeline.tsx:316-319 wrapping AdjustingEntriesTab. */}
+      <BookkeepingSection title="Adjusting Entries" pipelineKey="ADJ" status="pending">
+        <StageTruthStrip real={false} />
+        <AdjustingEntriesStage away={away} />
+      </BookkeepingSection>
+
+      {/* 8. STMT — mirrors BooksPipeline.tsx:321-324 wrapping FinancialStatementsTab. */}
+      <BookkeepingSection title="Financial Statements" pipelineKey="STMT" status="pending">
+        <StageTruthStrip real={false} />
+        <StatementsStage />
+      </BookkeepingSection>
+
+      {/* 9. TAX-LOT — mirrors BooksPipeline.tsx:326-329 wrapping WashSaleReportTab. */}
+      <BookkeepingSection title="Tax Lot Accounting & Wash Sales" pipelineKey="TAX-LOT" status="pending">
+        <StageTruthStrip real={false} />
+        <WashSalesStage away={away} />
+      </BookkeepingSection>
+
+      {/* 10. CLOSE — REAL MOUNT (BooksPipeline.tsx:331-366): zero fetches,
+          props-driven (PeriodClose.tsx:27-35); close/reopen route away. */}
+      <BookkeepingSection title="Period Close" pipelineKey="CLOSE" status="pending">
+        <StageTruthStrip real={true} />
+        <div className="p-2">
+          <PeriodClose
+            transactions={EX_JOURNAL.map((j) => ({ id: j.id, date: j.date, accountCode: j.account_code }))}
+            reconciliations={EX_RECONCILIATION.map((r) => ({ id: r.id, accountId: r.accountId, periodEnd: r.periodEnd, status: r.status }))}
+            periodCloses={EX_PERIOD_CLOSES}
+            selectedYear={2026}
+            onClose={awayAsync}
+            onReopen={awayAsync}
+            onReload={noop}
+          />
+        </div>
+      </BookkeepingSection>
+
+      {/* 11. CLOSE-YE — mirrors BooksPipeline.tsx:368-373 wrapping CloseBooksTab. */}
+      <BookkeepingSection title="Year-End Close" pipelineKey="CLOSE-YE" status="pending">
+        <StageTruthStrip real={false} />
+        <div className="p-2">
+          <YearEndCloseStage away={away} />
+        </div>
+      </BookkeepingSection>
+
+      {/* 12. POS — mirrors BooksPipeline.tsx:375-378 wrapping PositionReportTab. */}
+      <BookkeepingSection title="Position Report" pipelineKey="POS" status="pending">
+        <StageTruthStrip real={false} />
+        <PositionReportStage away={away} />
+      </BookkeepingSection>
+
+      {/* 13. EXP — mirrors BooksPipeline.tsx:380-386 wrapping CPAExport. */}
+      <BookkeepingSection title="CPA Export" pipelineKey="EXP" status="pending">
+        <StageTruthStrip real={false} />
+        <div className="p-4">
+          <CpaExportStage away={away} />
+        </div>
+      </BookkeepingSection>
+
       <p className="text-xs text-text-muted">
-        Everything above is the real product UI on a declared set of example books — the same
-        reconciling numbers the slides show. A logged-out page fetches nothing; every action takes
-        you to sign-up.
+        The thirteen stages above are the dashboard&rsquo;s pipe in its real order (SRC → CAT → JE →
+        LDG → TB → REC → ADJ → STMT → TAX-LOT → CLOSE → CLOSE-YE → POS → EXP). The cockpit bar and
+        three of the stages — journal entries, bank reconciliation, and period close — are the real
+        components mounted live on the declared example books; the other ten stages are faithful
+        static mirrors of the real screens, each labeled on its section. Same reconciling numbers
+        everywhere: assets $12,400 = liabilities $3,100 + equity $9,300; trial balance $17,500 =
+        $17,500. A logged-out page fetches nothing; every action takes you to sign-up.
       </p>
     </div>
   );

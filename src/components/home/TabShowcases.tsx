@@ -52,8 +52,11 @@ import {
   TRADE_UNLOCK_CTA_ID,
 } from '@/components/home/TradeShowcaseSections';
 // BOOKS-SHOWCASE-BLOOMBERG: the Books slide deck sections — hero terminal,
-// 8 causal slide panels, and the LIVE section mounting the real CockpitBar /
-// JournalEntryEngine / BankReconciliation / PeriodClose on example books
+// 8 causal slide panels, and the LIVE section. BOOKS-LIVE-PIPE-COMPLETE: the
+// live section is the FULL 13-stage pipe in the dashboard's canonical order
+// (BooksPipeline.tsx:180-181) — the real CockpitBar / JournalEntryEngine /
+// BankReconciliation / PeriodClose mounted live on the example books, and a
+// faithful static mirror for every stage whose real component self-fetches
 // (per the BOOKS-FULL-INVENTORY mountability rulings).
 import {
   UnlockBooksButton,
@@ -387,10 +390,19 @@ export function BooksShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
           panelSide: 'right',
         },
       ]}
+      // BOOKS-LIVE-PIPE-COMPLETE: the connective line states EXACTLY what the
+      // live section is — which pieces are the real components mounted live
+      // and which stages are static mirrors. The claim may not exceed the
+      // composition (4 real mounts: cockpit + JE + REC + CLOSE; 10 mirrored
+      // stages; zero fetches; actions route to sign-up).
       preSteps={
         <p className="text-center text-sm text-text-secondary">
-          Everything you just saw is live below — the real components, rendered from the same
-          declared example books. Try them.
+          Below the slides: the real pipe — all thirteen stages, in the dashboard&rsquo;s exact
+          order. The cockpit bar and three of the stages (journal entries, bank reconciliation,
+          period close) are the real components mounted live on the declared example books; the
+          other ten stages fetch your data when you&rsquo;re signed in, so here they are faithful
+          static mirrors of the real screens — each section is labeled real or mirror. Nothing on
+          this page fetches; every action takes you to sign-up.
         </p>
       }
       sample={<LiveBooksSection currentUserId={currentUserId} onRequireAuth={onRequireAuth} />}
