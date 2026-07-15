@@ -49,18 +49,23 @@ import TaxHandoffGate from '@/components/home/TaxHandoffGate';
 // COMP-1: the Compliance A–J institutional workbench (Section A → sub-page link row →
 // Sections B…J), bare (no AppLayout — the homepage tab supplies the shell).
 import ComplianceWorkbench from '@/components/home/ComplianceWorkbench';
-import OperationsPipelineShowroom from '@/components/workbench/operations/showroom/OperationsPipelineShowroom';
+// PROJECTS-CONTENT-SHOWCASE: the logged-out Projects/Content surfaces are the
+// Bloomberg slide decks (grounded in PROJECTS-CONTENT-FULL-INVENTORY) — they
+// SUPERSEDE OperationsPipelineShowroom here, its only consumer. The showroom
+// file and its seeds remain in-tree (the decks reuse the content seed).
+import ProjectsShowcase from '@/components/home/ProjectsShowcaseSections';
+import ContentShowcase from '@/components/home/ContentShowcaseSections';
 // HB-4e-mount: the real routine builder (workbench CRUD) + its self-fetching entity provider, plus
 // the fetch-free logged-out teaser. Mounted verbatim on the homepage Routines tab — no restyle yet.
 import { OperationsEntityProvider } from '@/components/workbench/operations/EntitySelector';
 import SectionE_Routines from '@/components/workbench/operations/SectionE_Routines';
 // Projects-mount: the real Projects CRUD (Bridgewater backlog). Authed users get this verbatim,
 // wrapped in the same self-fetching OperationsEntityProvider as SectionE_Routines; logged-out
-// keeps the rich OperationsPipelineShowroom (Option B).
+// gets the ProjectsShowcase deck (PROJECTS-CONTENT-SHOWCASE).
 import SectionD_ProjectBacklog from '@/components/workbench/operations/SectionD_ProjectBacklog';
 // Content-mount: the real content pipeline (sources → scenify → grid → script). Authed users get
-// this verbatim, wrapped in the same self-fetching OperationsEntityProvider; logged-out reuses the
-// OperationsPipelineShowroom (which already renders the content Day + Script demo panels).
+// this verbatim, wrapped in the same self-fetching OperationsEntityProvider; logged-out gets the
+// ContentShowcase deck (PROJECTS-CONTENT-SHOWCASE).
 import ContentPipeline from '@/components/workbench/operations/content/ContentPipeline';
 import HomeRoutineCreateForm from '@/components/home/RoutineCreateForm';
 // TAB-SHOW-AND-GATE: the SHOW surfaces + locked CTAs for the four paid tabs, and the
@@ -464,8 +469,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       // SectionD_ProjectBacklog (self-fetching project list + create form + edit) wrapped in its
       // OperationsEntityProvider (self-fetches /api/entities). Reused VERBATIM — no CRUD rewrite,
       // /operations/projects untouched. This kills the "logged-in kick to login/operations": authed
-      // users now author projects inline instead of every click → onRequireAuth. Logged-out KEEPS
-      // the rich fetch-free showroom (the marketing demo, unchanged). Auth resolving → nothing.
+      // users now author projects inline instead of every click → onRequireAuth. Logged-out gets
+      // the fetch-free ProjectsShowcase deck (PROJECTS-CONTENT-SHOWCASE). Auth resolving → nothing.
       // (Styling aligns to the homepage tab contract in PR-Projects-style — terminal for now.)
       if (authed === true) {
         return (
@@ -475,7 +480,10 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         );
       }
       if (authed === false) {
-        return <OperationsPipelineShowroom onRequireAuth={onRequireAuth} />;
+        // PROJECTS-CONTENT-SHOWCASE: the Projects slide deck (dark hero → 7
+        // causal slides → the live Truth Machine mount → free-account CTA)
+        // supersedes the old OperationsPipelineShowroom here.
+        return <ProjectsShowcase onRequireAuth={onRequireAuth} />;
       }
       return null; // authed === null → resolving
     }
@@ -483,8 +491,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       // Content-mount (mirrors Projects-mount, Option B): authed users get the REAL content
       // pipeline — the workbench ContentPipeline (sources → scenify → grid → script, self-fetching
       // the existing /api/operations/content/* routes) wrapped in OperationsEntityProvider. Reused
-      // VERBATIM — no rewrite, /operations/content untouched. Logged-out keeps the rich
-      // OperationsPipelineShowroom (which already renders the content Day + Script demo panels).
+      // VERBATIM — no rewrite, /operations/content untouched. Logged-out gets the
+      // ContentShowcase deck (PROJECTS-CONTENT-SHOWCASE — supersedes the showroom here).
       // Auth resolving → nothing. (Styling aligns in PR-Content-style — terminal for now.)
       if (authed === true) {
         return (
@@ -494,7 +502,10 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         );
       }
       if (authed === false) {
-        return <OperationsPipelineShowroom onRequireAuth={onRequireAuth} />;
+        // PROJECTS-CONTENT-SHOWCASE: the Content slide deck (dark hero → 5
+        // causal slides → the live Day/Script mounts → free-account CTA)
+        // supersedes the old OperationsPipelineShowroom here.
+        return <ContentShowcase onRequireAuth={onRequireAuth} />;
       }
       return null; // authed === null → resolving
     }
