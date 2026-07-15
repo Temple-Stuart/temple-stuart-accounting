@@ -227,10 +227,16 @@ export default function RoutineCreateForm({ onRequireAuth }: Props) {
           })}
         </div>
         <div className="border border-gray-200 rounded overflow-hidden">
-          <div className="grid grid-cols-[2fr_1fr_1fr_auto] gap-2 bg-gray-50 border-b border-gray-200 px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider text-text-muted">
+          {/* ROUTINES-SHOWCASE-BLOOMBERG (inventory §10's optional extension): a Budget
+              column showing ONLY what the guest typed (budget_amount + coa_code, already
+              captured on the in-memory routine via the {...form} spread above). No
+              computation, no occurrence math (the UI never expands RRULE — types.ts:20-23),
+              no fetch — '—' when unset. */}
+          <div className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-2 bg-gray-50 border-b border-gray-200 px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider text-text-muted">
             <span>Routine</span>
             <span>Cadence</span>
             <span>Time</span>
+            <span>Budget / occ</span>
             <span className="sr-only">Remove</span>
           </div>
           {routines.length === 0 ? (
@@ -241,12 +247,15 @@ export default function RoutineCreateForm({ onRequireAuth }: Props) {
             routines.map((r) => (
               <div
                 key={r.id}
-                className="grid grid-cols-[2fr_1fr_1fr_auto] gap-2 items-center border-b border-gray-100 px-3 py-1.5 text-xs font-mono text-text-primary"
+                className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-2 items-center border-b border-gray-100 px-3 py-1.5 text-xs font-mono text-text-primary"
               >
                 <span className="truncate">{r.name}</span>
                 <span className="text-text-muted">{CADENCE_MODE_LABELS[r.cadence_mode]}</span>
                 <span className="text-text-muted">
                   {r.start_time ? (r.end_time ? `${r.start_time}–${r.end_time}` : r.start_time) : 'all-day'}
+                </span>
+                <span className="text-text-muted truncate">
+                  {r.budget_amount ? `$${r.budget_amount}${r.coa_code ? ` · ${r.coa_code}` : ''}` : '—'}
                 </span>
                 <button
                   type="button"
