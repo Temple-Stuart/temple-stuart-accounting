@@ -56,8 +56,10 @@ import ComplianceWorkbench from '@/components/home/ComplianceWorkbench';
 import ProjectsShowcase from '@/components/home/ProjectsShowcaseSections';
 import ContentShowcase from '@/components/home/ContentShowcaseSections';
 import RunwayShowcase from '@/components/home/RunwayShowcaseSections';
-// HB-4e-mount: the real routine builder (workbench CRUD) + its self-fetching entity provider, plus
-// the fetch-free logged-out teaser. Mounted verbatim on the homepage Routines tab — no restyle yet.
+import RoutinesShowcase from '@/components/home/RoutinesShowcaseSections';
+// HB-4e-mount: the real routine builder (workbench CRUD) + its self-fetching entity provider.
+// Logged-out gets the RoutinesShowcase deck (ROUTINES-SHOWCASE-BLOOMBERG), which mounts the
+// fetch-free teaser builder inside its own live section.
 import { OperationsEntityProvider } from '@/components/workbench/operations/EntitySelector';
 import SectionE_Routines from '@/components/workbench/operations/SectionE_Routines';
 // Projects-mount: the real Projects CRUD (Bridgewater backlog). Authed users get this verbatim,
@@ -68,7 +70,6 @@ import SectionD_ProjectBacklog from '@/components/workbench/operations/SectionD_
 // this verbatim, wrapped in the same self-fetching OperationsEntityProvider; logged-out gets the
 // ContentShowcase deck (PROJECTS-CONTENT-SHOWCASE).
 import ContentPipeline from '@/components/workbench/operations/content/ContentPipeline';
-import HomeRoutineCreateForm from '@/components/home/RoutineCreateForm';
 // TAB-SHOW-AND-GATE: the SHOW surfaces + locked CTAs for the four paid tabs, and the
 // client-side per-tab lock (bundle-aware twin of hasTabAccess; admin bypass inside).
 import { TradeShowcase, BooksShowcase, TaxShowcase, ComplianceShowcase } from '@/components/home/TabShowcases';
@@ -514,9 +515,9 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       // HB-4e-mount: authed users get the REAL routine builder — the workbench SectionE_Routines
       // (create form w/ HB-4b COA picker + budget input, self-fetching routine list, edit) wrapped
       // in its OperationsEntityProvider (which self-fetches /api/entities). Reused VERBATIM — no
-      // CRUD rewrite, /operations/routines untouched. Logged-out keeps the fetch-free teaser
-      // ("create" → login modal). Auth resolving → nothing. (Styling aligns to the homepage tab
-      // contract in HB-4e-style — it reads workbench/terminal for now, intentionally.)
+      // CRUD rewrite, /operations/routines untouched. Logged-out gets the RoutinesShowcase deck
+      // (which mounts the fetch-free teaser builder in its live section). Auth resolving →
+      // nothing. (Authed styling reads workbench/terminal for now, intentionally.)
       if (authed === true) {
         return (
           <OperationsEntityProvider>
@@ -525,7 +526,11 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         );
       }
       if (authed === false) {
-        return <HomeRoutineCreateForm onRequireAuth={onRequireAuth} />;
+        // ROUTINES-SHOWCASE-BLOOMBERG: the Routines slide deck (dark hero → 7
+        // causal slides → the REAL in-browser builder mounted live → free-account
+        // CTA) supersedes the bare teaser here; the deck mounts that same teaser
+        // inside its live section. Zero fetches by construction.
+        return <RoutinesShowcase onRequireAuth={onRequireAuth} />;
       }
       return null; // authed === null → resolving
     }
@@ -755,7 +760,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       </section>
       {/* HB-4e-style: Routines renders in its own FLUSH block (mirrors Calendar/Travel) — out of
           the MODULES.map purple-band card, so the real builder reads as the app, not a demo card.
-          renderBody handles the authed-builder / logged-out-teaser branch. */}
+          renderBody handles the authed-builder / logged-out RoutinesShowcase-deck branch. */}
       <section className={`w-full bg-white border-b border-border ${activeModule === 'routines' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 lg:px-8 space-y-6">
