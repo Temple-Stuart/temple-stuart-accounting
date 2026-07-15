@@ -55,6 +55,7 @@ import ComplianceWorkbench from '@/components/home/ComplianceWorkbench';
 // file and its seeds remain in-tree (the decks reuse the content seed).
 import ProjectsShowcase from '@/components/home/ProjectsShowcaseSections';
 import ContentShowcase from '@/components/home/ContentShowcaseSections';
+import RunwayShowcase from '@/components/home/RunwayShowcaseSections';
 // HB-4e-mount: the real routine builder (workbench CRUD) + its self-fetching entity provider, plus
 // the fetch-free logged-out teaser. Mounted verbatim on the homepage Routines tab — no restyle yet.
 import { OperationsEntityProvider } from '@/components/workbench/operations/EntitySelector';
@@ -605,18 +606,15 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       {authed === false && (
         <section className={`w-full bg-white border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto">
-            {/* Guest Runway calendar: a REAL empty grid (no fake demo data). The empty array
-                is TRUTHY, so HubCalendar's demo guard stays active — zero authed fetches for a
-                guest (HubCalendar.tsx:173,180) — and the grid renders with no events. */}
-            <HubCalendar demoEvents={[]} onRequireAuth={onRequireAuth} />
-            {/* PR-C: the SAME Runway Budget panel the authed user sees, in PREVIEW mode — renders the
-                real empty shells (cash "No bank linked", net burn "—", trading "not tracked", empty
-                budget table) and fires ZERO authed fetches (RunwayBudgetPanel guards every fetch on
-                `preview`, :187/:198 + budget children). Deliberately NOT wrapped in
-                <RunwayDataProvider>: that provider self-fetches the authed budget routes
-                (year-calendar/business-budget/nomad-budget) and would 401 for a guest — and it is
-                unconsumed (nothing calls useRunwayData), so omitting it is safe. */}
-            <RunwayBudgetPanel preview={true} />
+            <div className="px-4 py-4">
+              {/* RUNWAY-SHOWCASE-BLOOMBERG: the Runway thesis deck (dark hero → 8 causal
+                  slides → the REAL HubCalendar mounted live on a declared example day + three
+                  labeled static mirrors → free-account CTA) supersedes the old empty-grid +
+                  preview-shell pair here. Zero fetches by construction: the deck imports no
+                  data provider, and the live calendar rides HubCalendar's demoEvents
+                  truthy-guard (HubCalendar.tsx:173,180). Every action routes to sign-up. */}
+              <RunwayShowcase onRequireAuth={onRequireAuth} />
+            </div>
           </div>
         </section>
       )}
