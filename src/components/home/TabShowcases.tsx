@@ -30,6 +30,10 @@ import { Lock } from 'lucide-react';
 // TRADE-SHOWCASE-BUILD: the reusable Plaid-style showcase template (hero band +
 // real pipe rail + optional concept cards + sample/CTA slots) — tabs 2–9 reuse it.
 import TabShowcaseTemplate from '@/components/home/TabShowcaseTemplate';
+// COMPLIANCE-SHOWCASE-BLOOMBERG: the ninth deck (all mirrors — the tab has no
+// public seam). Rendered by ComplianceShowcase below with the real LockedTabCard
+// injected as its cta.
+import ComplianceReceiptsDeck from '@/components/home/ComplianceShowcaseSections';
 // TRADE-SHOWCASE-FULL: the full-product sections (real interactive filter
 // panel + track-record / graded-card / deep-dive mirrors per the
 // TRADE-FULL-INVENTORY rulings). Engine-real values come from the scoreAll
@@ -95,23 +99,8 @@ import {
 
 // ── shared chrome ────────────────────────────────────────────────────────────
 
-function DemoTag() {
-  return (
-    <span className="inline-block rounded border border-brand-amber/40 bg-brand-amber/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-amber">
-      Example data
-    </span>
-  );
-}
-
-function ShowcaseHeader({ title, line }: { title: string; line: string }) {
-  return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-      <h3 className="text-lg font-bold text-brand-purple">{title}</h3>
-      <DemoTag />
-      <p className="w-full text-sm text-text-muted">{line}</p>
-    </div>
-  );
-}
+// (DemoTag + ShowcaseHeader removed — their last consumer was the old
+// ComplianceShowcase body, superseded by the ComplianceReceiptsDeck.)
 
 /** The per-tab locked CTA — Travel's LockedCategoryCard pattern, keyed tab:X. */
 export function LockedTabCard({
@@ -559,43 +548,26 @@ export function TaxShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
 
 // ── COMPLIANCE ───────────────────────────────────────────────────────────────
 
+/** COMPLIANCE-SHOWCASE-BLOOMBERG: the ninth deck (the receipts deck,
+ *  ComplianceShowcaseSections) SUPERSEDES the old header + two example cards +
+ *  A–J line here. Two of the old lines were overclaims the inventory killed
+ *  (no pinning field exists; no re-verification-on-ingest exists) — the deck
+ *  carries the corrected version-locking language. The REAL unlock CTA
+ *  (LockedTabCard, tab:compliance) is passed in as the deck's cta so the deck
+ *  file never imports this module (no cycle). */
 export function ComplianceShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
   return (
-    <div className="space-y-5">
-      <ShowcaseHeader
-        title="A regulatory workbench with receipts"
-        line="Real regulation text (eCFR, US Code, Federal Register, IRS) ingested and searchable, citations verified and pinned, and every action in a tamper-evident audit chain. Below: what a verified citation and an audit row look like."
-      />
-      <div className="rounded-lg border border-border bg-white p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-sm font-semibold text-text-primary">26 U.S.C. §162(a)</span>
-          <span className="rounded-full bg-brand-green/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-brand-green">Verified</span>
-        </div>
-        <p className="mt-1 text-sm text-text-secondary">
-          &quot;There shall be allowed as a deduction all the ordinary and necessary expenses paid or incurred during the taxable year in carrying on any trade or business…&quot;
-        </p>
-        <p className="mt-2 text-[11px] text-text-muted">Pinned to the ingested US Code corpus · re-verified on ingest updates (example row)</p>
-      </div>
-      <div className="rounded-lg border border-border bg-white p-4">
-        {/* SHOWROOM-TRUTH-FIX: actor shows the REAL AuditActorType enum value
-            (schema.prisma: human_user | ai_agent | system_automation |
-            external_integration) — the Stripe webhook writes
-            external_integration; "stripe-webhook" was not a storable value. */}
-        <p className="font-mono text-xs text-text-secondary">
-          audit_log #4812 · permission_granted · hash-chained to #4811 · actor: external_integration (Stripe webhook) (example row)
-        </p>
-        <p className="mt-1 text-[11px] text-text-muted">Every grant, edit, and attestation lands in a hash-linked chain — tampering breaks the chain visibly.</p>
-      </div>
-      <p className="text-xs text-text-secondary">
-        Sections A–J: identity → registry → citations → discovery → missions → tasks → attestations → evidence → audit chain → SOC 2 view.
-      </p>
-      <LockedTabCard
-        tabKey="tab:compliance"
-        label="Compliance"
-        valueLine="The live workbench: corpus search, citation verification, missions, and the audit registry."
-        currentUserId={currentUserId}
-        onRequireAuth={onRequireAuth}
-      />
-    </div>
+    <ComplianceReceiptsDeck
+      onRequireAuth={onRequireAuth}
+      cta={
+        <LockedTabCard
+          tabKey="tab:compliance"
+          label="Compliance"
+          valueLine="The live workbench: corpus search, citation verification, missions, and the audit registry."
+          currentUserId={currentUserId}
+          onRequireAuth={onRequireAuth}
+        />
+      }
+    />
   );
 }
