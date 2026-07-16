@@ -102,7 +102,7 @@ export default function LandingPage() {
               </div>
               <div>
                 <div className="text-sm font-semibold tracking-tight">Temple Stuart</div>
-                <div className="text-[10px] text-text-faint">Personal Back Office</div>
+                <div className="text-[10px] text-text-faint">Founder&apos;s Back Office</div>
               </div>
             </div>
             <div className="flex items-center gap-3">

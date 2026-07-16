@@ -19,12 +19,21 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+// FOUNDERS-POSITIONING-AND-OG-TRUTH: the link-preview metadata previously served
+// stale copy ("Plan your trips. Find your people.") contradicting the live hero
+// (page.tsx: "Track your money. Plan your life. Act smarter."). Description now
+// mirrors the real hero + the founder positioning; claims are only what is true
+// (nine modules — the nine TABS — and Plaid bank sync; no "IRS compliant", no
+// "AI powered" headline). "Founder's Back Office" is BRAND COPY only — the
+// Personal/Business/Trading ENTITY vocabulary (data model) is untouched.
 export const metadata: Metadata = {
-  title: "Temple Stuart | Personal Back Office",
-  description: "Track your money. Plan your trips. Find your people.",
+  title: "Temple Stuart | Founder's Back Office",
+  description:
+    "Track your money. Plan your life. Act smarter. Nine modules — books, tax, trading, travel, runway, and more — every claim receipted.",
   openGraph: {
-    title: "Temple Stuart | Personal Back Office",
-    description: "Track your money. Plan your trips. Find your people.",
+    title: "Temple Stuart — Founder's Back Office",
+    description:
+      "Track your money. Plan your life. Act smarter. Nine modules — books, tax, trading, travel, runway, and more — every claim receipted.",
     url: "https://templestuart.com",
     siteName: "Temple Stuart",
     images: [
@@ -32,7 +41,7 @@ export const metadata: Metadata = {
         url: "https://templestuart.com/opengraph-image",
         width: 1200,
         height: 630,
-        alt: "Temple Stuart - Personal Back Office",
+        alt: "Temple Stuart - Founder's Back Office",
       },
     ],
     locale: "en_US",
@@ -40,8 +49,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Temple Stuart | Personal Back Office",
-    description: "Track your money. Plan your trips. Find your people.",
+    title: "Temple Stuart — Founder's Back Office",
+    description:
+      "Track your money. Plan your life. Act smarter. Nine modules — books, tax, trading, travel, runway, and more — every claim receipted.",
     images: ["https://templestuart.com/opengraph-image"],
   },
 };

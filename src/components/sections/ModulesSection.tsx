@@ -12,7 +12,7 @@ export default function ModulesSection() {
             What's Inside
           </h2>
           <p className="mt-4 text-terminal-lg text-text-muted max-w-2xl mx-auto">
-            Temple Stuart is a personal back office. It's for people with money moving in a lot of directions — business, personal, investing, trading, travel — who are tired of juggling five apps and spreadsheets.
+            Temple Stuart is a founder&apos;s back office. It&apos;s for people with money moving in a lot of directions — business, personal, investing, trading, travel — who are tired of juggling five apps and spreadsheets.
           </p>
         </div>
 
