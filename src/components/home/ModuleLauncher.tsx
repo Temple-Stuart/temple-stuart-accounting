@@ -57,6 +57,10 @@ import ProjectsShowcase from '@/components/home/ProjectsShowcaseSections';
 import ContentShowcase from '@/components/home/ContentShowcaseSections';
 import RunwayShowcase from '@/components/home/RunwayShowcaseSections';
 import RoutinesShowcase from '@/components/home/RoutinesShowcaseSections';
+// TRAVEL-SHOWCASE-BLOOMBERG: the INVERTED deck — hero + slides render ABOVE the
+// existing live guest search stack (which stays mounted, untouched: the guest
+// surface is ToS-obligated + revenue-bearing per the deck's header guard).
+import TravelShowcase from '@/components/home/TravelShowcaseSections';
 // HB-4e-mount: the real routine builder (workbench CRUD) + its self-fetching entity provider.
 // Logged-out gets the RoutinesShowcase deck (ROUTINES-SHOWCASE-BLOOMBERG), which mounts the
 // fetch-free teaser builder inside its own live section.
@@ -632,6 +636,14 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       <section className={`w-full bg-white border-b border-border ${activeModule === 'travel' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
+            {/* TRAVEL-SHOWCASE-BLOOMBERG (logged-out only): the INVERTED deck — dark hero +
+                6 calibrated slides + the inverted connective line, rendered ABOVE the live
+                guest stack. Unlike every other tab's deck it REPLACES NOTHING: the real
+                searches below already work logged-out through PUBLIC_PATHS + the quota
+                guards, and per the deck's header guard (ToS-obligated + revenue-bearing)
+                they must never be walled behind login without a vendor-terms review. The
+                deck itself adds zero fetch paths. Auth resolving (null) → no deck. */}
+            {authed === false && <TravelShowcase onRequireAuth={onRequireAuth} />}
             {/* 1·Create-a-trip → 2·Your trips → 3·Budgeted+Actual (renderBody, order
                 unchanged). */}
             <div>
