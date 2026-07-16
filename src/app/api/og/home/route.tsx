@@ -33,7 +33,7 @@ export async function GET() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={{ fontSize: '32px', fontWeight: 'bold', color: '#111827' }}>Temple Stuart</span>
-            <span style={{ fontSize: '18px', color: '#6b7280' }}>Financial OS</span>
+            <span style={{ fontSize: '18px', color: '#6b7280' }}>Founder&apos;s Back Office</span>
           </div>
         </div>
 
@@ -80,7 +80,7 @@ export async function GET() {
         {/* Tagline */}
         <div style={{ marginTop: '40px', textAlign: 'center', display: 'flex', justifyContent: 'center' }}>
           <span style={{ fontSize: '24px', color: '#6b7280' }}>
-            Track your money. Plan your trips. Find your people.
+            Track your money. Plan your life. Act smarter.
           </span>
         </div>
       </div>

@@ -83,7 +83,7 @@ export default function HowPricingWorksPage() {
               </div>
               <div>
                 <div className="text-sm font-semibold tracking-tight">Temple Stuart</div>
-                <div className="text-[10px] text-text-faint">Personal Back Office</div>
+                <div className="text-[10px] text-text-faint">Founder&apos;s Back Office</div>
               </div>
             </Link>
             <Link href="/" className="text-xs text-text-faint hover:text-white">← Back to home</Link>
