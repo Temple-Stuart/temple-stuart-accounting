@@ -500,9 +500,8 @@ export function liteApiHotelToRecommendation(
   category: string,
 ): HotelRecommendation {
   const h = hotel.hotel || {};
-  // `price` stays the WHOLE-STAY total (unchanged meaning — the booking charge
-  // fallback in ReserveHotelButton depends on it). Sourced from extractStayTotal
-  // exactly as before the PR-15 rename.
+  // `price` stays the WHOLE-STAY total (unchanged meaning). Sourced from
+  // extractStayTotal exactly as before the PR-15 rename.
   const stayTotal = extractStayTotal(hotel);
   // PR-13 richness pass-through (UI renders these in PR-14/15).
   const { total: priceTotal, currency } = extractRateMeta(hotel);
