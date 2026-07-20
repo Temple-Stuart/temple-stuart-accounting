@@ -5,7 +5,6 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { TRAVEL_COA } from '@/lib/travelCOA';
 import { getSource, type Source } from '@/lib/travelSourceRegistry';
 import { AppLayout } from '@/components/ui';
-import { ReserveHotelButton } from './ReserveHotelButton';
 import { AddToTripButton } from './AddToTripButton';
 import { PlaceCommitForm } from './PlaceCommitForm';
 import HotelGallery from '@/components/trips/HotelGallery';
@@ -220,8 +219,7 @@ export default async function DiscoverDetailPage({
 
   // For LiteAPI hotels: PR-15 reads the per-night price directly (no recompute).
   // `stayTotal` is the whole-stay total (rec.price) — it is NOT pricePerNight ×
-  // nights (that was the double-count bug). stayTotal also stays the charge
-  // fallback handed to ReserveHotelButton, unchanged.
+  // nights (that was the double-count bug).
   // PR-21: nights MUST be the real search-window nights the card uses
   // (`rec.nights`, the PR-13/15 field) — NOT `trip.daysTravel` (the whole-trip
   // 185-night span). Reading daysTravel made the label say "× 185 nights" while
@@ -230,12 +228,12 @@ export default async function DiscoverDetailPage({
   const perNight = rec.pricePerNight ?? null;
   const stayTotal = rec.price ?? null;
 
-  // PR-33: the Reserve + "Add to trip" dates MUST be the exact search window the
+  // PR-33: the "Add to trip" dates MUST be the exact search window the
   // rates were quoted for — `rec.checkinDate`/`rec.checkoutDate`, threaded from
   // the LiteAPI mapper (liteapiClient.ts). NEVER trip.startDate/endDate (the
   // whole-trip span) — that wrote a 184-night itinerary against a 29-night stay.
   // NO fallback to trip dates: if the rec lacks these (an older cached scan),
-  // commit/Reserve are disabled with an honest message rather than committing a
+  // commit is disabled with an honest message rather than committing a
   // wrong window. checkout − checkin === nights by construction (asserted at
   // commit in AddToTripButton).
   const checkin = rec.checkinDate ?? null;
@@ -429,28 +427,14 @@ export default async function DiscoverDetailPage({
 
         {/* Honest, source-aware action buttons */}
         <div className="flex items-center gap-2 flex-wrap">
-          {source === 'liteapi' && rec.liteapiOfferId && checkin && checkout ? (
-            <ReserveHotelButton
-              tripId={tripId}
-              offerId={rec.liteapiOfferId}
-              hotelName={rec.name}
-              checkinDate={checkin}
-              checkoutDate={checkout}
-              nightly={stayTotal}
-              currency="USD"
-            />
-          ) : source === 'liteapi' && (!checkin || !checkout) ? (
+          {source === 'liteapi' && (!checkin || !checkout) && (
             <span className="text-xs text-orange-600 px-3 py-2 border border-orange-200 bg-orange-50 rounded">
               {/* PR-33: missing search-window dates on the rec (an older cached
-                  scan) — re-scan this hotel to enable Reserve. NO trip-date
+                  scan) — re-scan this hotel to refresh its dates. NO trip-date
                   fallback (that committed the wrong 184-night window). */}
-              Re-scan this hotel to refresh its dates, then Reserve.
+              Re-scan this hotel to refresh its dates.
             </span>
-          ) : source === 'liteapi' ? (
-            <span className="text-xs text-text-muted px-3 py-2 border border-border rounded">
-              No bookable offer for this hotel — try another.
-            </span>
-          ) : null}
+          )}
 
           {source === 'mozio' && (
             <span className="text-xs text-text-muted px-3 py-2 border border-border rounded">
