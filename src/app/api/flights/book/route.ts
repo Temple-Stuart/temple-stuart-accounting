@@ -43,8 +43,9 @@ export async function POST(request: NextRequest) {
       windowSeconds: Number(process.env.BOOK_RATE_WINDOW) || 60,
     });
 
-    // Auth is OPTIONAL — booking is guest-ok (mirrors liteapi/book). A logged-in user is
-    // resolved for later trip-linking (PR-2); a guest books standalone. NO 401 here.
+    // Auth is OPTIONAL — booking is guest-ok (mirrors liteapi/book). A logged-in user
+    // owns the persisted reservation row (bookingType 'account'); a guest books
+    // standalone (bookingType 'guest'). NO 401 here.
     const userEmail = await getVerifiedEmail();
     const user = userEmail
       ? await prisma.users.findFirst({
@@ -52,7 +53,6 @@ export async function POST(request: NextRequest) {
           select: { id: true },
         })
       : null;
-    void user; // resolved for forward-compat (trip-linking lands with the UI in PR-2)
 
     const body = await request.json();
     // paymentIntentId is present on the PR-2 panel/component flow (the Duffel Card
@@ -154,6 +154,53 @@ export async function POST(request: NextRequest) {
       idempotencyKey,
     );
 
+    // ─── Persist the order (PR-Duffel-Pay-4) ─────────────────────────────────
+    // Mirrors liteapi/book: account → userId + bookingType 'account'; guest →
+    // userId null + first passenger's email as the contact (nullable column —
+    // passenger emails are validated in the checkout panel, not re-parsed here).
+    // Flight rows carry no stay window: checkin/checkout/hotelName null (D3).
+    // status is the literal 'confirmed': createOrder is type:'instant' and runs
+    // ONLY after the payment intent was verified 'succeeded' server-side above,
+    // so a returned order is a paid, ticketed order (Duffel's order payload has
+    // no reservations-vocabulary status field to source instead).
+    let reservationRow;
+    try {
+      reservationRow = await prisma.reservations.create({
+        data: {
+          userId: user?.id ?? null,
+          tripId: null,
+          bookingType: user ? 'account' : 'guest',
+          guestEmail: user ? null : (passengers[0]?.email ?? null),
+          provider: 'duffel',
+          providerBookingId: order.id,
+          providerConfirmationCode: order.booking_reference ?? null,
+          status: 'confirmed',
+          hotelName: null,
+          checkinDate: null,
+          checkoutDate: null,
+          guestCount: passengers.length,
+          finalPriceCents: Math.round(Number(order.total_amount) * 100),
+          currency: order.total_currency,
+        },
+      });
+    } catch (dbErr) {
+      // Duffel ticketed the order but we failed to persist — THE ORDER EXISTS
+      // AND MONEY MOVED. Surface loudly for manual reconciliation (mirrors the
+      // liteapi/book DB-fail-after-book convention, same 500).
+      console.error('[Duffel book] DB persist failed AFTER successful order:', {
+        orderId: order.id, bookingReference: order.booking_reference, error: dbErr,
+      });
+      return NextResponse.json(
+        {
+          error:
+            'Your flight is booked and paid — the order exists at the airline — but we could not save it locally. Contact support with your order id.',
+          orderId: order.id,
+          bookingReference: order.booking_reference,
+        },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({
       success: true,
       mode,
@@ -165,6 +212,16 @@ export async function POST(request: NextRequest) {
         totalCurrency: order.total_currency,
         passengers: order.passengers,
         slices: order.slices,
+      },
+      reservation: {
+        id: reservationRow.id,
+        provider: 'duffel',
+        bookingId: order.id,
+        confirmationCode: reservationRow.providerConfirmationCode,
+        status: reservationRow.status,
+        finalPriceCents: reservationRow.finalPriceCents,
+        currency: reservationRow.currency,
+        bookingType: reservationRow.bookingType,
       },
     });
   } catch (error) {
