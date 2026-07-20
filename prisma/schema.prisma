@@ -1241,8 +1241,8 @@ model reservations {
   providerConfirmationCode String?  @db.VarChar(120) // human confirmation code
   status                   String   @db.VarChar(20) // 'pending' | 'confirmed' | 'cancelled' | 'failed'
   hotelName                String?  @db.VarChar(255)
-  checkinDate              DateTime @db.Date
-  checkoutDate             DateTime @db.Date
+  checkinDate              DateTime? @db.Date // null for non-stay orders (flights) — D3
+  checkoutDate             DateTime? @db.Date // null for non-stay orders (flights) — D3
   guestCount               Int      @default(1)
   finalPriceCents          Int // integer cents to avoid float math
   currency                 String   @default("USD") @db.VarChar(3)
