@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOffer, createPaymentIntent, applyMarkup, duffelMode } from '@/lib/duffel';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
+import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
 
 // ─── FLIGHT PAYMENT INTENT (PR-Duffel-Pay-2) ─────────────────────────────────────
 // Step 1 of the flight checkout: create a Duffel Payment Intent for the selected
 // offer and return its client_token so the frontend Card component (@duffel/components)
 // can collect the card + confirm the payment — the card NEVER touches our server (PCI).
-// The order itself (the airline spend + the daily cap) happens at /api/flights/book
-// AFTER the component confirms. This route is PUBLIC + guest-ok (booking is never
-// locked) and bounded by a per-IP rate limit. Markup is a CONFIG POINT (applyMarkup),
+// The order itself (the airline spend) happens at /api/flights/book AFTER the
+// component confirms. This route is PUBLIC + guest-ok (booking is never locked) and
+// bounded by a per-IP rate limit + the same durable 'flightbooking' daily cap as
+// /book — it makes two paid Duffel calls (getOffer + createPaymentIntent), so it is
+// capped BEFORE either fires. Markup is a CONFIG POINT (applyMarkup),
 // 0 for now. TEST MODE only — live is blocked unless the explicit live flag is set.
 export async function POST(request: NextRequest) {
   const ip =
@@ -28,12 +31,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing offerId' }, { status: 400 });
     }
 
-    // SAFETY — TEST mode only this PR. Live charges real cards; block it unless the
-    // live token AND the explicit flag are both set (the separate deliberate switch).
-    // Read from the token prefix — the token itself is never exposed.
+    // GUARD 2 — durable daily cap, BEFORE the first Duffel call. Same 'flightbooking'
+    // reservation /api/flights/book uses (book/route.ts GUARD 2): one shared money cap
+    // across the whole checkout, so this route's two paid calls (getOffer +
+    // createPaymentIntent) can never spend uncapped.
+    await reserveTravelSearch('flightbooking');
+
+    // SAFETY — fail-closed mode gate. Only explicitly recognized modes proceed:
+    // 'test' always; 'live' only with the deliberate DUFFEL_ALLOW_LIVE_BOOKING flag.
+    // 'unknown' (missing/malformed token) is BLOCKED, never assumed safe. Mode is
+    // read from the token prefix — the token itself is never exposed.
     const mode = duffelMode();
-    if (mode === 'live' && process.env.DUFFEL_ALLOW_LIVE_BOOKING !== 'true') {
-      console.error('[Duffel] Live payment blocked — DUFFEL_ALLOW_LIVE_BOOKING not set');
+    const liveAllowed = process.env.DUFFEL_ALLOW_LIVE_BOOKING === 'true';
+    if (!(mode === 'test' || (mode === 'live' && liveAllowed))) {
+      console.error(`[Duffel] Payment blocked — mode '${mode}' not permitted`);
       return NextResponse.json(
         { error: 'Flight booking is not available right now.' },
         { status: 503 }
@@ -69,6 +80,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Too many attempts — please wait a moment and try again.' },
         { status: 429, headers: { 'Retry-After': String(error.retryAfterSeconds) } }
+      );
+    }
+    if (error instanceof TravelSearchQuotaError) {
+      // Same exhausted-cap response shape as /api/flights/book (no spend happened).
+      return NextResponse.json(
+        { error: 'Flight booking is temporarily paused. Please try again later.' },
+        { status: 503 }
       );
     }
     // PCI-safe: log a short message only — never card data, secrets, or client tokens.

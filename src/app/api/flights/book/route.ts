@@ -67,13 +67,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // SAFETY GUARD — this backend is validated on Duffel TEST only. Live charges real
-    // cards, so live is blocked unless BOTH the live token AND an explicit flag are set
-    // together (the separate, deliberate switch). Mode is read from the token prefix —
-    // the token itself is never exposed.
+    // GUARD 2 — durable daily booking cap, BEFORE ANY Duffel call (real money, public
+    // route — same protection hotels' booking has). Reserved ahead of getOffer too, so
+    // even the offer re-fetch below can never run uncapped.
+    await reserveTravelSearch('flightbooking');
+
+    // SAFETY GUARD — fail-closed mode gate. Only explicitly recognized modes proceed:
+    // 'test' always; 'live' only when BOTH the live token AND the explicit
+    // DUFFEL_ALLOW_LIVE_BOOKING flag are set together (the separate, deliberate
+    // switch). 'unknown' (missing/malformed token) is BLOCKED, never assumed safe.
+    // Mode is read from the token prefix — the token itself is never exposed.
     const mode = duffelMode();
-    if (mode === 'live' && process.env.DUFFEL_ALLOW_LIVE_BOOKING !== 'true') {
-      console.error('[Duffel] Live booking blocked — DUFFEL_ALLOW_LIVE_BOOKING not set');
+    const liveAllowed = process.env.DUFFEL_ALLOW_LIVE_BOOKING === 'true';
+    if (!(mode === 'test' || (mode === 'live' && liveAllowed))) {
+      console.error(`[Duffel] Booking blocked — mode '${mode}' not permitted`);
       return NextResponse.json(
         { error: 'Flight booking is not available right now.' },
         { status: 503 }
@@ -91,10 +98,6 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       );
     }
-
-    // GUARD 2 — durable daily booking cap, immediately before any spend (real money,
-    // public route — same protection hotels' booking has).
-    await reserveTravelSearch('flightbooking');
 
     // Map submitted passengers onto the OFFER's passenger ids.
     const mappedPassengers: PassengerDetails[] = offer.passengers.map((offerPax: any, idx: number) => {
