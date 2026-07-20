@@ -5,6 +5,8 @@ import { bookRate, type BookGuest, type BookHolder } from '@/lib/liteapiClient';
 import { MissingLiteApiKeyError, LiteApiError } from '@/lib/travelErrors';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
+import { sendTransactionalEmail } from '@/lib/email';
+import { bookingConfirmation } from '@/lib/emailTemplates/bookingConfirmation';
 
 // POST /api/travel/liteapi/book  — PUBLIC (PR-G2: guest booking).
 // Body: {
@@ -203,6 +205,43 @@ export async function POST(request: NextRequest) {
         return reservation;
       });
 
+      // ─── Booking confirmation email (PR-3, D5) ─────────────────────────────
+      // Sent ONLY after both the provider booking AND the DB persist succeeded.
+      // Recipient is holder.email — the universally validated contact (the
+      // reservations.guestEmail column is null for ACCOUNT bookings by design,
+      // and account bookings must receive confirmations too). Failure handling
+      // is declared, never hidden: any throw is caught, logged loudly with the
+      // bookingId, and reported in the response as email.sent=false — no retry,
+      // no alternate transport, and the booking response itself never fails
+      // because email failed (D5).
+      let emailStatus: { sent: true; id: string } | { sent: false; error: string };
+      try {
+        const rendered = bookingConfirmation({
+          guestName: `${holder.firstName} ${holder.lastName}`,
+          hotelName: result.hotelName,
+          checkinDate,
+          checkoutDate,
+          confirmationCode: result.providerConfirmationCode,
+          bookingId: booked.bookingId,
+          totalAmountCents: result.finalPriceCents,
+          currency: result.currency,
+        });
+        const { id } = await sendTransactionalEmail({
+          to: holder.email,
+          subject: rendered.subject,
+          html: rendered.html,
+          text: rendered.text,
+        });
+        emailStatus = { sent: true, id };
+      } catch (emailErr) {
+        const errorClass = emailErr instanceof Error ? emailErr.name : 'UnknownError';
+        const message = emailErr instanceof Error ? emailErr.message : String(emailErr);
+        console.error('[LiteAPI book] confirmation email FAILED (booking itself succeeded):', {
+          bookingId: booked.bookingId, errorClass, message,
+        });
+        emailStatus = { sent: false, error: errorClass };
+      }
+
       return NextResponse.json({
         reservation: {
           id: result.id,
@@ -217,6 +256,7 @@ export async function POST(request: NextRequest) {
           currency: result.currency,
           bookingType: result.bookingType,
         },
+        email: emailStatus,
       });
     } catch (dbErr) {
       // LiteAPI booked the hotel but we failed to persist — surface loudly so ops
