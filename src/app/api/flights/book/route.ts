@@ -13,6 +13,8 @@ import {
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
+import { sendTransactionalEmail } from '@/lib/email';
+import { flightConfirmation } from '@/lib/emailTemplates/flightConfirmation';
 
 // ─── FLIGHT BOOK via DUFFEL PAYMENTS (PR-Duffel-Pay-1, backend) ──────────────────
 // Booking is PUBLIC + guest-ok — booking is never locked, mirroring hotels
@@ -201,6 +203,80 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ─── Flight confirmation email (PR-6b, D5) ───────────────────────────────
+    // Sent ONLY after both the Duffel order AND the reservations persist
+    // succeeded (the DB-fail 500 above returns before this and sends nothing).
+    // Mirrors the hotel hook: failure is caught, logged loudly with the order
+    // id, and DECLARED in the response — no retry, no alternate transport, and
+    // the booking response itself never fails because email failed. The two
+    // declared skips (NoRecipient / MissingCurrency) send NOTHING and execute
+    // nothing alternate — the reason is visible in the log and the payload.
+    let emailStatus: { sent: true; id: string } | { sent: false; error: string };
+    const recipient = passengers[0]?.email;
+    if (typeof recipient !== 'string' || recipient.length === 0) {
+      // Pre-ruling 1: no recipient in scope → declared skip, never a guess.
+      console.error('[Duffel book] confirmation email skipped (booking itself succeeded):', {
+        orderId: order.id, reason: 'NoRecipient',
+      });
+      emailStatus = { sent: false, error: 'NoRecipient' };
+    } else if (typeof order.total_currency !== 'string') {
+      // Pre-ruling 3: never email an invented currency → declared skip.
+      console.error('[Duffel book] confirmation email skipped (booking itself succeeded):', {
+        orderId: order.id, reason: 'MissingCurrency',
+      });
+      emailStatus = { sent: false, error: 'MissingCurrency' };
+    } else {
+      try {
+        // Strict itinerary extraction (pre-ruling 2): fields pass ONLY under
+        // exact shape checks; anything else renders as declared absence — the
+        // untyped order return is never trusted beyond these checks. slices[0]
+        // is the outbound leg — truthful for one-way and round-trip alike.
+        const slice0 = Array.isArray(order.slices) ? order.slices[0] : undefined;
+        const rawOrigin = slice0?.origin?.iata_code;
+        const rawDest = slice0?.destination?.iata_code;
+        const originIata =
+          typeof rawOrigin === 'string' && /^[A-Z]{3}$/.test(rawOrigin) ? rawOrigin : null;
+        const destinationIata =
+          typeof rawDest === 'string' && /^[A-Z]{3}$/.test(rawDest) ? rawDest : null;
+        // departing_at is already LOCAL time — pure string ops only, no Date
+        // parsing, no timezone math: "YYYY-MM-DDTHH:MM..." → "YYYY-MM-DD HH:MM".
+        const rawDeparting = slice0?.segments?.[0]?.departing_at;
+        const departureDateTime =
+          typeof rawDeparting === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(rawDeparting)
+            ? `${rawDeparting.slice(0, 16).replace('T', ' ')}${originIata ? ` (${originIata} local)` : ''}`
+            : null;
+
+        // Passenger names are proven present: Duffel rejects orders missing
+        // them (createOrder throws on non-2xx), so a succeeded order implies
+        // mappedPassengers[0] carried real given/family names.
+        const rendered = flightConfirmation({
+          passengerName: `${mappedPassengers[0].given_name} ${mappedPassengers[0].family_name}`,
+          passengerCount: passengers.length,
+          orderId: order.id,
+          bookingReference: order.booking_reference ?? null,
+          originIata,
+          destinationIata,
+          departureDateTime,
+          totalAmountCents: reservationRow.finalPriceCents,
+          currency: order.total_currency,
+        });
+        const { id } = await sendTransactionalEmail({
+          to: recipient,
+          subject: rendered.subject,
+          html: rendered.html,
+          text: rendered.text,
+        });
+        emailStatus = { sent: true, id };
+      } catch (emailErr) {
+        const errorClass = emailErr instanceof Error ? emailErr.name : 'UnknownError';
+        const message = emailErr instanceof Error ? emailErr.message : String(emailErr);
+        console.error('[Duffel book] confirmation email FAILED (booking itself succeeded):', {
+          orderId: order.id, errorClass, message,
+        });
+        emailStatus = { sent: false, error: errorClass };
+      }
+    }
+
     return NextResponse.json({
       success: true,
       mode,
@@ -223,6 +299,7 @@ export async function POST(request: NextRequest) {
         currency: reservationRow.currency,
         bookingType: reservationRow.bookingType,
       },
+      email: emailStatus,
     });
   } catch (error) {
     // Guard rejections map to their own statuses first (no spend happened on these).
