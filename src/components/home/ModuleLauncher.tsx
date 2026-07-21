@@ -460,6 +460,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
               <CreateTripForm
                 onUnauthenticated={gateGuestCreate}
                 showHeader={false}
+                stacked
                 onCreated={() => {
                   setTripsRefresh((n) => n + 1);
                   setShowCreate(false);
