@@ -249,9 +249,18 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
 
       {/* PR-Duffel-Pay-3: Book opens the flight checkout (PR-2) for the selected offer —
           pay now via Duffel Payments (TEST mode). Standalone + guest-ok, like the hotel
-          Book; the confirmation shows in-panel and its "Done" button closes it. */}
+          Book; the confirmation shows in-panel and its "Done" button closes it.
+          T2b: for a logged-in user with a trip selected above, the trip's id threads
+          into the panel → the /api/flights/book ownership gate → the booking is born
+          attached. GUEST SAFETY: flights/book 401s a guest-with-tripId by design, so
+          tripId passes ONLY under authed === true && currentTrip — provable from this
+          component's own props (currentTrip is also only settable from the authed-gated
+          trips list). A guest always books standalone, unchanged. */}
       {booking && (
         <FlightCheckoutPanel
+          tripId={authed === true && currentTrip ? currentTrip.id : undefined}
+          tripName={authed === true && currentTrip ? currentTrip.name : undefined}
+          authed={authed}
           offer={{ id: booking.offer.id, price: booking.offer.price, currency: booking.offer.currency }}
           passengerCount={1}
           onClose={() => setBooking(null)}

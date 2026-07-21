@@ -17,7 +17,7 @@
  * panel shows a "test mode" note. Nothing card-related is ever logged here.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import TripFormModal from './TripFormModal';
 
@@ -51,6 +51,15 @@ interface Passenger {
 }
 
 interface Props {
+  /** T2b: optional. Present → account booking born attached to this trip; absent →
+   *  standalone/guest, unchanged. Mirrors the hotel CheckoutPanel (T2c). */
+  tripId?: string;
+  /** T2b: login state from the mount. Gates the case-(b) trips fetch — a guest
+   *  NEVER fetches trips and never sees attach UI (case c). */
+  authed?: boolean | null;
+  /** T2b: display name for the already-selected trip (case a) — shown in the
+   *  visible "Attaching to:" line so attachment is never silent. */
+  tripName?: string;
   /** The selected offer (id drives the server re-fetch; price/currency for display). */
   offer: OfferLite;
   /** How many passengers the offer is for (adults). */
@@ -86,7 +95,7 @@ const fieldClass =
   'w-full rounded border border-brand-purple/40 bg-white px-3 py-2 text-sm focus:border-brand-purple focus:outline-none focus:ring-2 focus:ring-brand-purple/20';
 const labelClass = 'text-[11px] font-medium text-brand-purple';
 
-export default function FlightCheckoutPanel({ offer, passengerCount, onClose, onBooked, onOfferExpired }: Props) {
+export default function FlightCheckoutPanel({ tripId, authed, tripName, offer, passengerCount, onClose, onBooked, onOfferExpired }: Props) {
   const [phase, setPhase] = useState<'form' | 'payment' | 'booking' | 'booked'>('form');
   // The server declared this offer dead (410 offer_expired) — retrying the SAME
   // offer id can never succeed, so the retry button is replaced by Refresh.
@@ -107,6 +116,51 @@ export default function FlightCheckoutPanel({ offer, passengerCount, onClose, on
   // it the alarming banner is gated on chargedNoOrder alone, with no proof a charge happened.
   const [paymentAttempted, setPaymentAttempted] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  // ── T2b: attachment is VISIBLE and CHOSEN — never silent (mirrors T2c) ──────
+  // (a) tripId prop present → "Attaching to: <name>" line, no choice needed.
+  // (b) authed, no tripId → fetch the user's trips; ≥1 → ASK (chooser) and HOLD
+  //     payment until an explicit pick or "Don't attach". No default-guessing.
+  // (c) guest / zero trips → no attach UI, checkout exactly as before.
+  // chosenTripId: undefined = not yet chosen (payment held in case b);
+  // null = explicit "Don't attach"; string = the chosen trip.
+  const [myTrips, setMyTrips] = useState<{ id: string; name: string }[] | null>(null);
+  const [tripsFetch, setTripsFetch] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle');
+  const [chosenTripId, setChosenTripId] = useState<string | null | undefined>(undefined);
+
+  // Case-(b) fetch: fires ONLY for an authed mount that arrived unattached.
+  useEffect(() => {
+    if (tripId || authed !== true) return;
+    let cancelled = false;
+    setTripsFetch('loading');
+    fetch('/api/trips')
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (cancelled) return;
+        const rows = Array.isArray(data.trips) ? data.trips : [];
+        setMyTrips(rows.map((t: { id: string; name: string }) => ({ id: t.id, name: t.name })));
+        setTripsFetch('ok');
+      })
+      .catch(() => { if (!cancelled) setTripsFetch('error'); });
+    return () => { cancelled = true; };
+  }, [tripId, authed]);
+
+  // Payment holds ONLY while case (b) is genuinely unresolved: the trips are
+  // loading, or ≥1 trip exists and no explicit choice has been made yet. A
+  // fetch error does NOT hold payment — it renders its own visible line below.
+  // The hotel panel holds its SDK-init effect; THIS panel's payment entry point
+  // is the "Continue to payment" button, so the hold disables that button —
+  // same semantic (no payment until the choice exists), different entry point.
+  const attachChoicePending =
+    !tripId &&
+    authed === true &&
+    (tripsFetch === 'loading' ||
+      (tripsFetch === 'ok' && (myTrips?.length ?? 0) > 0 && chosenTripId === undefined));
+
+  // The tripId that actually rides the book POST: the prop (case a) or the
+  // explicit choice (case b). "Don't attach" (null) and case (c) yield none.
+  const resolvedTripId = tripId ?? (typeof chosenTripId === 'string' ? chosenTripId : undefined);
 
   const setPax = (i: number, patch: Partial<Passenger>) =>
     setPassengers((prev) => prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
@@ -187,12 +241,25 @@ export default function FlightCheckoutPanel({ offer, passengerCount, onClose, on
           offerId: offer.id,
           paymentIntentId,
           passengers: passengerPayload(),
+          // T2b: present ONLY on an explicit attach (prop or chooser pick) — the
+          // server's ownership gate proves it before any Duffel call.
+          ...(resolvedTripId ? { tripId: resolvedTripId } : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         // Honest real-money case: card charged but order failed (PR-1 fail-loud state).
         if (data.paymentConfirmedNoOrder) setChargedNoOrder(true);
+        // T2b: a gate rejection (401 sign-in / 404 trip-not-found) on an
+        // attach-requested finalize is ALSO post-charge — finalizeOrder only runs
+        // after the card component confirmed the intent, and the server's ownership
+        // gate returns BEFORE it verifies the intent, so paymentConfirmedNoOrder can
+        // never be set on this path. Unlike the hotel lane (liteapi/book charges
+        // inside the book request, so its gate is genuinely pre-charge), the Duffel
+        // charge happened one request earlier. Without this, the 401 copy would
+        // invite sign-in + a NEW intent = a second charge. Tell the truth instead:
+        // charged, not booked, do not pay again.
+        if (resolvedTripId && (res.status === 401 || res.status === 404)) setChargedNoOrder(true);
         throw new Error(data.error || 'Booking failed.');
       }
       setBookingRef(data.order?.bookingReference ?? null);
@@ -231,6 +298,60 @@ export default function FlightCheckoutPanel({ offer, passengerCount, onClose, on
         <p className="mb-3 rounded border border-brand-red/40 bg-bg-row px-3 py-2 text-sm text-brand-red">
           {error}
         </p>
+      )}
+
+      {/* ── T2b: the attach state, ALWAYS visible before + during payment ────────
+          (a) prop tripId → attached line. (b) chooser until an explicit choice;
+          "Continue to payment" stays disabled until then. (c) guest / zero trips
+          → nothing. Fetch failure → its own honest line (no hold, no guess). */}
+      {(phase === 'form' || phase === 'payment') && (
+        tripId ? (
+          <div className="mb-3 rounded border border-brand-purple/40 bg-brand-purple/10 px-3 py-2 text-sm text-brand-purple">
+            Attaching to: <span className="font-semibold">{tripName || 'your selected trip'}</span>
+          </div>
+        ) : authed === true && tripsFetch === 'loading' ? (
+          <p className="mb-3 text-xs text-text-muted">Checking your trips…</p>
+        ) : authed === true && tripsFetch === 'error' ? (
+          <div className="mb-3 rounded border border-border bg-bg-row px-3 py-2 text-xs text-text-muted">
+            Couldn&apos;t load your trips — this booking won&apos;t attach to a trip.
+          </div>
+        ) : authed === true && tripsFetch === 'ok' && (myTrips?.length ?? 0) > 0 ? (
+          chosenTripId === undefined ? (
+            <div className="mb-3 rounded border border-brand-purple/40 p-3">
+              <p className="text-sm font-medium text-text-primary">Save this booking to a trip?</p>
+              <p className="mt-0.5 text-xs text-text-muted">
+                Pick a trip or book without one — payment opens after you choose.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {myTrips!.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setChosenTripId(t.id)}
+                    className="rounded border border-brand-purple/40 px-3 py-1.5 text-sm text-brand-purple hover:bg-brand-purple/10"
+                  >
+                    {t.name}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setChosenTripId(null)}
+                  className="rounded border border-border px-3 py-1.5 text-sm text-text-muted hover:bg-bg-row"
+                >
+                  Don&apos;t attach
+                </button>
+              </div>
+            </div>
+          ) : chosenTripId ? (
+            <div className="mb-3 rounded border border-brand-purple/40 bg-brand-purple/10 px-3 py-2 text-sm text-brand-purple">
+              Attaching to: <span className="font-semibold">{myTrips!.find((t) => t.id === chosenTripId)?.name}</span>
+            </div>
+          ) : (
+            <div className="mb-3 rounded border border-border bg-bg-row px-3 py-2 text-sm text-text-muted">
+              Not attaching to a trip.
+            </div>
+          )
+        ) : null
       )}
 
       {/* ── PHASE: passenger form ──────────────────────────────────────────────── */}
@@ -313,7 +434,7 @@ export default function FlightCheckoutPanel({ offer, passengerCount, onClose, on
             <button
               type="button"
               onClick={startPayment}
-              disabled={!allValid || busy}
+              disabled={!allValid || busy || attachChoicePending}
               className="w-full rounded bg-brand-purple px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-purple/90 disabled:opacity-50"
             >
               {busy ? 'Starting payment…' : 'Continue to payment'}

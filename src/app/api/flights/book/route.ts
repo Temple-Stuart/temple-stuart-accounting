@@ -60,13 +60,39 @@ export async function POST(request: NextRequest) {
     // paymentIntentId is present on the PR-2 panel/component flow (the Duffel Card
     // component already collected the card + confirmed the intent client-side). When
     // absent, the PR-1 server-side test path creates + confirms the intent here.
-    const { offerId, passengers, idempotencyKey, paymentIntentId } = body;
+    // tripId is the T2b save-to-trip linkage — optional, account bookings only.
+    const { offerId, passengers, idempotencyKey, paymentIntentId, tripId } = body;
 
     if (!offerId || !passengers || passengers.length === 0) {
       return NextResponse.json(
         { error: 'Missing offerId or passengers' },
         { status: 400 }
       );
+    }
+
+    // ─── T2b: optional trip attachment — liteapi/book's ownership gate, mirrored ──
+    // tripId is OPTIONAL. When PRESENT it links the booking to a trip — the
+    // save-to-trip/budget value-add — which requires an authed OWNER. When ABSENT
+    // behavior is unchanged: guest or account books standalone (tripId null). The
+    // gate runs BEFORE the daily cap and BEFORE ANY Duffel call, so no paid token
+    // is ever spent on an unauthorized attach request. Attachment is explicit or
+    // absent — never assumed.
+    let resolvedTripId: string | null = null;
+    if (tripId) {
+      if (!user) {
+        return NextResponse.json(
+          { error: 'Sign in to save a booking to a trip.' },
+          { status: 401 }
+        );
+      }
+      const trip = await prisma.trips.findFirst({
+        where: { id: tripId, userId: user.id },
+        select: { id: true },
+      });
+      if (!trip) {
+        return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
+      }
+      resolvedTripId = tripId;
     }
 
     // GUARD 2 — durable daily booking cap, BEFORE ANY Duffel call (real money, public
@@ -160,6 +186,8 @@ export async function POST(request: NextRequest) {
     // Mirrors liteapi/book: account → userId + bookingType 'account'; guest →
     // userId null + first passenger's email as the contact (nullable column —
     // passenger emails are validated in the checkout panel, not re-parsed here).
+    // tripId (T2b) is the gate-proven resolvedTripId: non-null ONLY for an authed
+    // owner's explicit attach; null for guests and unattached account bookings.
     // Flight rows carry no stay window: checkin/checkout/hotelName null (D3).
     // status is the literal 'confirmed': createOrder is type:'instant' and runs
     // ONLY after the payment intent was verified 'succeeded' server-side above,
@@ -170,7 +198,7 @@ export async function POST(request: NextRequest) {
       reservationRow = await prisma.reservations.create({
         data: {
           userId: user?.id ?? null,
-          tripId: null,
+          tripId: resolvedTripId,
           bookingType: user ? 'account' : 'guest',
           guestEmail: user ? null : (passengers[0]?.email ?? null),
           provider: 'duffel',

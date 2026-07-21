@@ -427,7 +427,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
               {currentTrip && (
                 <p className="text-sm text-text-secondary">
                   Selected: <span className="font-semibold text-brand-purple">{currentTrip.name}</span>
-                  <span className="text-text-muted"> — hotel bookings attach to this trip, and saved flights budget into it (flight-booking attach coming next).</span>
+                  <span className="text-text-muted"> — hotel and flight bookings attach to this trip, and saved flights budget into it.</span>
                 </p>
               )}
               {/* T3: the selected trip's REAL bookings (reservations read-back) —
