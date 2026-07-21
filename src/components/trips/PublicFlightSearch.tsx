@@ -264,7 +264,16 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
           offer={{ id: booking.offer.id, price: booking.offer.price, currency: booking.offer.currency }}
           passengerCount={1}
           onClose={() => setBooking(null)}
-          onBooked={() => { /* confirmation shows in-panel; nothing to persist here */ }}
+          onBooked={() => {
+            // F1: booking success rides the SAME refresh the commit path already
+            // uses — onCommitted is ModuleLauncher's setTripsRefresh bump, which
+            // re-keys TripBookings / UnattachedBookings / TripBudgetActual so the
+            // new reservation shows without a manual page refresh. The panel fires
+            // onBooked exactly once, only after the order succeeded (never on
+            // error, never on charged-but-no-order). Confirmation still shows
+            // in-panel; for a guest the bump re-keys nothing mounted — harmless.
+            onCommitted?.();
+          }}
           onOfferExpired={() => {
             // Offer-expired recovery: close the panel, drop the dead selection so it
             // cannot be re-booked, and re-run the leg's ORIGINAL search — the user
