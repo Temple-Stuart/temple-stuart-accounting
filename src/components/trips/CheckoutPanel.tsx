@@ -49,6 +49,12 @@ interface Props {
    *  standalone/guest. Carried through the redirect so /booking/confirm finalizes
    *  the right kind of reservation. */
   tripId?: string;
+  /** T2c: login state from the mount. Gates the case-(b) trips fetch — a guest
+   *  NEVER fetches trips and never sees attach UI (case c). */
+  authed?: boolean | null;
+  /** T2c: display name for the already-selected trip (case a) — shown in the
+   *  visible "Attaching to:" line so attachment is never silent. */
+  tripName?: string;
   offerId: string;
   /** PR-RC2: LiteAPI hotelId — fetches rich content (photos/details/T&C) + reviews
    *  from the public RC1 routes. Optional: when absent those sections are skipped
@@ -113,13 +119,55 @@ interface CancellationData {
   cancelPolicyInfos?: unknown[];
 }
 
-export default function CheckoutPanel({ tripId, offerId, hotelId, images, hotelName, checkin, checkout, onClose }: Props) {
+export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotelId, images, hotelName, checkin, checkout, onClose }: Props) {
   const [phase, setPhase] = useState<'prebooking' | 'pay'>('prebooking');
   const [error, setError] = useState('');
   const [prebook, setPrebook] = useState<Prebook | null>(null);
   const [paymentEnv, setPaymentEnv] = useState<'live' | 'sandbox' | null>(null);
   const [sdkReady, setSdkReady] = useState(false);
   const [started, setStarted] = useState(false); // guard: init the SDK once
+
+  // ── T2c: attachment is VISIBLE and CHOSEN — never silent ──────────────────
+  // (a) tripId prop present → "Attaching to: <name>" line, no choice needed.
+  // (b) authed, no tripId → fetch the user's trips; ≥1 → ASK (chooser) and HOLD
+  //     payment until an explicit pick or "Don't attach". No default-guessing.
+  // (c) guest / zero trips → no attach UI, checkout exactly as before.
+  // chosenTripId: undefined = not yet chosen (payment held in case b);
+  // null = explicit "Don't attach"; string = the chosen trip.
+  const [myTrips, setMyTrips] = useState<{ id: string; name: string }[] | null>(null);
+  const [tripsFetch, setTripsFetch] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle');
+  const [chosenTripId, setChosenTripId] = useState<string | null | undefined>(undefined);
+
+  // Case-(b) fetch: fires ONLY for an authed mount that arrived unattached.
+  useEffect(() => {
+    if (tripId || authed !== true) return;
+    let cancelled = false;
+    setTripsFetch('loading');
+    fetch('/api/trips')
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (cancelled) return;
+        const rows = Array.isArray(data.trips) ? data.trips : [];
+        setMyTrips(rows.map((t: { id: string; name: string }) => ({ id: t.id, name: t.name })));
+        setTripsFetch('ok');
+      })
+      .catch(() => { if (!cancelled) setTripsFetch('error'); });
+    return () => { cancelled = true; };
+  }, [tripId, authed]);
+
+  // Payment holds ONLY while case (b) is genuinely unresolved: the trips are
+  // loading, or ≥1 trip exists and no explicit choice has been made yet. A
+  // fetch error does NOT hold payment — it renders its own visible line below.
+  const attachChoicePending =
+    !tripId &&
+    authed === true &&
+    (tripsFetch === 'loading' ||
+      (tripsFetch === 'ok' && (myTrips?.length ?? 0) > 0 && chosenTripId === undefined));
+
+  // The tripId that actually rides the returnUrl: the prop (case a) or the
+  // explicit choice (case b). "Don't attach" (null) and case (c) yield none.
+  const resolvedTripId = tripId ?? (typeof chosenTripId === 'string' ? chosenTripId : undefined);
 
   // PR-RC2: rich content + reviews (fetched once on open by hotelId, in parallel).
   // These are DISPLAY ONLY — a fetch failure sets its own error and NEVER blocks
@@ -191,7 +239,10 @@ export default function CheckoutPanel({ tripId, offerId, hotelId, images, hotelN
   // render the card form. handlePayment() collects the card and, on success,
   // REDIRECTS to our returnUrl (/booking/confirm) which finalizes the booking.
   useEffect(() => {
-    if (started || phase !== 'pay' || !prebook || !paymentEnv || !sdkReady) return;
+    // T2c: attachChoicePending holds the SDK init until the user's explicit
+    // attach choice exists — the returnUrl is built ONCE, so it must carry the
+    // decided tripId, never a guess.
+    if (started || phase !== 'pay' || !prebook || !paymentEnv || !sdkReady || attachChoicePending) return;
     if (typeof window === 'undefined' || typeof window.LiteAPIPayment !== 'function') return;
     if (!document.getElementById(PAYMENT_TARGET_ID)) return;
 
@@ -204,7 +255,7 @@ export default function CheckoutPanel({ tripId, offerId, hotelId, images, hotelN
       currency: prebook.currency,
       price: String(prebook.price),
       commission: String(prebook.commission),
-      ...(tripId ? { tripId } : {}),
+      ...(resolvedTripId ? { tripId: resolvedTripId } : {}),
     });
     const returnUrl = `${window.location.origin}/booking/confirm?${q.toString()}`;
 
@@ -221,7 +272,7 @@ export default function CheckoutPanel({ tripId, offerId, hotelId, images, hotelN
     } catch {
       setError('Could not start the payment form. Please close and try again.');
     }
-  }, [started, phase, prebook, paymentEnv, sdkReady, tripId, hotelName, checkin, checkout]);
+  }, [started, phase, prebook, paymentEnv, sdkReady, attachChoicePending, resolvedTripId, hotelName, checkin, checkout]);
 
   const isSandbox = paymentEnv !== 'live';
 
@@ -371,6 +422,59 @@ export default function CheckoutPanel({ tripId, offerId, hotelId, images, hotelN
 
         {phase === 'pay' && prebook && (
           <div className="space-y-4">
+            {/* ── T2c: the attach state, ALWAYS visible before payment ──────────
+                (a) prop tripId → attached line. (b) chooser until an explicit
+                choice; then the chosen state renders and payment appears.
+                (c) guest / zero trips → nothing. Fetch failure → its own honest
+                line (no hold, no guess). */}
+            {tripId ? (
+              <div className="rounded border border-brand-purple/40 bg-brand-purple/10 px-3 py-2 text-sm text-brand-purple">
+                Attaching to: <span className="font-semibold">{tripName || 'your selected trip'}</span>
+              </div>
+            ) : authed === true && tripsFetch === 'loading' ? (
+              <p className="text-xs text-text-muted">Checking your trips…</p>
+            ) : authed === true && tripsFetch === 'error' ? (
+              <div className="rounded border border-border bg-bg-row px-3 py-2 text-xs text-text-muted">
+                Couldn&apos;t load your trips — this booking won&apos;t attach to a trip.
+              </div>
+            ) : authed === true && tripsFetch === 'ok' && (myTrips?.length ?? 0) > 0 ? (
+              chosenTripId === undefined ? (
+                <div className="rounded border border-brand-purple/40 p-3">
+                  <p className="text-sm font-medium text-text-primary">Save this booking to a trip?</p>
+                  <p className="mt-0.5 text-xs text-text-muted">
+                    Pick a trip or book without one — payment opens after you choose.
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {myTrips!.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setChosenTripId(t.id)}
+                        className="rounded border border-brand-purple/40 px-3 py-1.5 text-sm text-brand-purple hover:bg-brand-purple/10"
+                      >
+                        {t.name}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setChosenTripId(null)}
+                      className="rounded border border-border px-3 py-1.5 text-sm text-text-muted hover:bg-bg-row"
+                    >
+                      Don&apos;t attach
+                    </button>
+                  </div>
+                </div>
+              ) : chosenTripId ? (
+                <div className="rounded border border-brand-purple/40 bg-brand-purple/10 px-3 py-2 text-sm text-brand-purple">
+                  Attaching to: <span className="font-semibold">{myTrips!.find((t) => t.id === chosenTripId)?.name}</span>
+                </div>
+              ) : (
+                <div className="rounded border border-border bg-bg-row px-3 py-2 text-sm text-text-muted">
+                  Not attaching to a trip.
+                </div>
+              )
+            ) : null}
+
             <div className="rounded border border-border bg-bg-row p-3 text-sm">
               <div className="flex items-baseline justify-between">
                 <span className="text-text-muted">Total</span>
