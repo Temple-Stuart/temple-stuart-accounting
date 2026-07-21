@@ -19,8 +19,11 @@ prose. **Reuse over rebuild** — search for what exists before writing anything
 - One push, one branch. Don't push to a branch other than the one assigned without permission.
 
 ## Audit before action
-- Do a **read-only audit with `file:line` citations BEFORE any implementation.** Commit the
-  audit to **`audit-reports/`** — it is the SOC 2 paper trail.
+- Do a **read-only audit with `file:line` citations BEFORE any implementation.** Audit
+  reports are delivered **IN FULL in the session report** and reviewed by Alex in the chat
+  workflow — **that thread is the review trail.** `audit-reports/` is gitignored; **never
+  commit audit reports to the repository** (the repo is public). Local archival outside
+  the repo is permitted.
 - **Never state a fact about the codebase without reading the file first.** If you haven't
   read it, say **"not verified."** No assumptions presented as facts.
 
