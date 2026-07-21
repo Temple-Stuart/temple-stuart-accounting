@@ -78,6 +78,13 @@ const PUBLIC_PATHS = [
   '/api/travel/locations/cities',
   '/api/travel/liteapi/prebook',
   '/api/travel/liteapi/book',
+  // Payment-SDK return page — renders the guest checkout UI only; NO paid API
+  // calls on load. Its only money call is the user-submitted POST to
+  // /api/travel/liteapi/book, which is public + rate-limited + daily-capped
+  // (guest checkout posture, D2). Without this entry, a logged-out guest
+  // returning from the hosted payment was 307-bounced to '/' and never
+  // finalized the booking.
+  '/booking/confirm',
   // PR-Duffel-Pay-1: flight BOOKING is public too — booking is never locked (mirrors
   // the hotel book routes above). Guarded by a per-IP rate limit + a tight durable
   // daily cap, and pinned to Duffel TEST mode this PR.
