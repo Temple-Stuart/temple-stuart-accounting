@@ -1,6 +1,46 @@
 const DUFFEL_API_URL = 'https://api.duffel.com';
 const DUFFEL_TOKEN = process.env.DUFFEL_API_TOKEN;
 
+// ─── Typed Duffel API error (PR-Duffel-Err-1) ────────────────────────────────
+// Duffel error bodies carry structured identity — errors[]{code,type,title,
+// message} + meta.request_id (what Duffel support asks for) — which the old
+// `throw new Error(message)` sites discarded, leaving offer_expired vs
+// offer_no_longer_available vs anything else indistinguishable. This class
+// preserves those fields. MESSAGE INVARIANT: `message` is byte-identical to
+// the previous throws (errors[0].message || the site's fallback text), so
+// every existing substring consumer (book route classifier, payment-intent
+// secondary classifier) keeps working unmodified. Absent fields are null —
+// never invented.
+export class DuffelApiError extends Error {
+  readonly source = 'duffel' as const;
+  readonly kind = 'api_error' as const;
+  constructor(
+    message: string,
+    public httpStatus: number,
+    public code: string | null,
+    public type: string | null,
+    public title: string | null,
+    public requestId: string | null,
+  ) {
+    super(message);
+    this.name = 'DuffelApiError';
+  }
+}
+
+/** Build a DuffelApiError from a non-2xx response's parsed body (or {} when the
+ *  body wasn't JSON). Field extraction per Duffel's error schema. */
+function duffelApiError(fallback: string, httpStatus: number, body: any): DuffelApiError {
+  const first = body?.errors?.[0];
+  return new DuffelApiError(
+    first?.message || fallback,
+    httpStatus,
+    first?.code ?? null,
+    first?.type ?? null,
+    first?.title ?? null,
+    body?.meta?.request_id ?? null,
+  );
+}
+
 function getHeaders(): Record<string, string> {
   if (!DUFFEL_TOKEN) {
     throw new Error('DUFFEL_API_TOKEN not configured');
@@ -66,7 +106,7 @@ export async function searchFlights(params: SearchParams) {
   if (!response.ok) {
     const error = await response.json();
     console.error('Duffel search error:', error);
-    throw new Error(error.errors?.[0]?.message || 'Flight search failed');
+    throw duffelApiError('Flight search failed', response.status, error);
   }
 
   const data = await response.json();
@@ -84,7 +124,7 @@ export async function getOffers(offerRequestId: string) {
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.errors?.[0]?.message || 'Failed to get offers');
+    throw duffelApiError('Failed to get offers', response.status, error);
   }
 
   const data = await response.json();
@@ -102,7 +142,7 @@ export async function getOffer(offerId: string) {
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.errors?.[0]?.message || 'Failed to get offer');
+    throw duffelApiError('Failed to get offer', response.status, error);
   }
 
   const data = await response.json();
@@ -174,7 +214,7 @@ export async function createOrder(
     // PCI: log the Duffel error CODE only — never the full body (it can echo the
     // submitted passenger fields) and never card / payment-secret / token data.
     console.error('Duffel order error:', error?.errors?.[0]?.code || 'unknown');
-    throw new Error(error.errors?.[0]?.message || 'Booking failed');
+    throw duffelApiError('Booking failed', response.status, error);
   }
 
   const data = await response.json();
@@ -225,7 +265,7 @@ export async function createPaymentIntent(
     const error = await response.json().catch(() => ({}));
     // PCI-safe: error CODE only — never the client_token / payment secret or full body.
     console.error('Duffel payment intent error:', error?.errors?.[0]?.code || 'unknown');
-    throw new Error(error.errors?.[0]?.message || 'Payment setup failed');
+    throw duffelApiError('Payment setup failed', response.status, error);
   }
 
   const data = await response.json();
@@ -241,7 +281,7 @@ export async function confirmPaymentIntent(intentId: string): Promise<PaymentInt
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
     console.error('Duffel payment confirm error:', error?.errors?.[0]?.code || 'unknown');
-    throw new Error(error.errors?.[0]?.message || 'Payment confirmation failed');
+    throw duffelApiError('Payment confirmation failed', response.status, error);
   }
 
   const data = await response.json();
@@ -260,7 +300,7 @@ export async function getPaymentIntent(intentId: string): Promise<PaymentIntent>
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
     console.error('Duffel payment intent fetch error:', error?.errors?.[0]?.code || 'unknown');
-    throw new Error(error.errors?.[0]?.message || 'Payment lookup failed');
+    throw duffelApiError('Payment lookup failed', response.status, error);
   }
 
   const data = await response.json();
