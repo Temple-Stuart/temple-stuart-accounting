@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getOffer, createPaymentIntent, applyMarkup, duffelMode } from '@/lib/duffel';
+import { getOffer, createPaymentIntent, applyMarkup, duffelMode, DuffelApiError } from '@/lib/duffel';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
 
@@ -122,19 +122,29 @@ export async function POST(request: NextRequest) {
     // secrets, or client tokens flow through them (this route sends no
     // passenger fields), so untruncated logging stays PCI-safe.
     const msg = error instanceof Error ? error.message : '';
+    const duffelErr = error instanceof DuffelApiError ? error : null;
     console.error('[Duffel] Payment intent error:', JSON.stringify({
       offerId: offerId ?? null,
       rawDuffelMessage: msg,
+      httpStatus: duffelErr?.httpStatus ?? null,
+      code: duffelErr?.code ?? null,
+      type: duffelErr?.type ?? null,
+      title: duffelErr?.title ?? null,
+      requestId: duffelErr?.requestId ?? null,
       serverNow: new Date().toISOString(),
     }));
-    // Stale/expired-offer rejection from Duffel. Only the MESSAGE string survives
-    // the duffel.ts throw sites (getOffer :106 / createPaymentIntent :229 discard
-    // the structured errors[0].code), so classification matches Duffel's known
-    // wording — production log 2026-07-20: "Please select another offer, or create
-    // a new offer request to get the latest availability." Same substring-classifier
-    // convention as the book route's expired matcher. 410 Gone + a typed code so
-    // the panel can offer an honest refresh instead of a dead same-offer retry.
-    if (/select another offer|create a new offer request|expired|no longer available/i.test(msg)) {
+    // Stale/expired-offer rejection from Duffel — two tiers:
+    // PRIMARY: Duffel's own structured error code, preserved by DuffelApiError
+    //   (offer_expired / offer_no_longer_available are the documented dead-offer
+    //   codes). Authoritative — no prose matching involved.
+    // SECONDARY (kept): the message-substring match shipped in the expiry PR, for
+    //   any response where Duffel omits a structured code. Message text is
+    //   byte-identical to before (DuffelApiError's message invariant), so this
+    //   tier behaves exactly as it always did.
+    const expiredByCode =
+      duffelErr !== null &&
+      (duffelErr.code === 'offer_expired' || duffelErr.code === 'offer_no_longer_available');
+    if (expiredByCode || /select another offer|create a new offer request|expired|no longer available/i.test(msg)) {
       return NextResponse.json(
         {
           error:
