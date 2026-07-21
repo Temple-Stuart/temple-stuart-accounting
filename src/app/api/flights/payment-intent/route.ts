@@ -54,8 +54,15 @@ export async function POST(request: NextRequest) {
     // Authoritative price + expiry from a fresh offer fetch — never trust the client.
     const offer = await getOffer(offerId);
     if (offer.expires_at && new Date(offer.expires_at).getTime() <= Date.now()) {
+      // Same dead-offer concept as the 410 classifier below — carries the typed
+      // code so the panel swaps its futile same-offer retry for Refresh. 409
+      // status kept (semantically fine; the client keys on `code`, not status).
       return NextResponse.json(
-        { error: 'This fare expired. Please search again for current prices.' },
+        {
+          error:
+            'This fare quote expired — airlines only hold prices for a few minutes. Refresh to see current flights and prices.',
+          code: 'offer_expired',
+        },
         { status: 409 }
       );
     }
