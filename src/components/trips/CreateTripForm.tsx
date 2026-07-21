@@ -26,13 +26,20 @@ interface Props {
    *  the new trip refreshes the All Trips list in place. Omit it (trips index) →
    *  the existing navigation is unchanged. */
   onCreated?: (tripId: string) => void;
+  /** T1: stack the fields vertically for narrow containers (TripFormModal's
+   *  max-w-lg card) — the form's lg: breakpoints key off the VIEWPORT, so the
+   *  wide one-row layout otherwise activates inside the 512px modal and the six
+   *  controls overlap. Default false: the full-width trips-index mount keeps its
+   *  original row layout with byte-identical classNames. Layout classes only —
+   *  no logic/validation/API difference between the two modes. */
+  stacked?: boolean;
 }
 
 // HOME-PR-1: shared create-trip card, extracted VERBATIM from
 // budgets/trips/page.tsx (PR-37a/b) so the trips index and the home module
 // launcher render ONE component. Behavior on the trips index is unchanged
 // (onUnauthenticated omitted → direct POST). POST /api/trips is unchanged.
-export default function CreateTripForm({ onUnauthenticated, showHeader = true, onCreated }: Props) {
+export default function CreateTripForm({ onUnauthenticated, showHeader = true, onCreated, stacked = false }: Props) {
   const router = useRouter();
 
   const [name, setName] = useState('');
@@ -139,9 +146,9 @@ export default function CreateTripForm({ onUnauthenticated, showHeader = true, o
 
   const formBody = (
     <>
-        <div className="flex flex-col lg:flex-row lg:items-end gap-3">
+        <div className={stacked ? 'flex flex-col gap-3' : 'flex flex-col lg:flex-row lg:items-end gap-3'}>
           {/* Trip name */}
-          <label className="flex flex-col gap-1 lg:flex-[3] min-w-0">
+          <label className={stacked ? 'flex flex-col gap-1 min-w-0' : 'flex flex-col gap-1 lg:flex-[3] min-w-0'}>
             <span className="text-[11px] text-brand-purple font-medium">Trip name *</span>
             <input
               type="text"
@@ -153,7 +160,7 @@ export default function CreateTripForm({ onUnauthenticated, showHeader = true, o
           </label>
 
           {/* Destinations with autocomplete */}
-          <div className="flex flex-col gap-1 lg:flex-[3] min-w-0 relative" ref={dropdownRef}>
+          <div className={stacked ? 'flex flex-col gap-1 min-w-0 relative' : 'flex flex-col gap-1 lg:flex-[3] min-w-0 relative'} ref={dropdownRef}>
             <span className="text-[11px] text-brand-purple font-medium">Destination(s)</span>
             <div className="flex flex-wrap items-center gap-1 border border-brand-purple/40 rounded px-2 py-1.5 bg-white min-h-[38px] focus-within:border-brand-purple focus-within:ring-2 focus-within:ring-brand-purple/20">
               {selectedDestinations.map(n => (
@@ -230,7 +237,7 @@ export default function CreateTripForm({ onUnauthenticated, showHeader = true, o
             type="button"
             onClick={handleCreate}
             disabled={!canCreate}
-            className="px-6 py-2 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm rounded disabled:opacity-50 whitespace-nowrap"
+            className={stacked ? 'w-full px-6 py-2 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm rounded disabled:opacity-50 whitespace-nowrap' : 'px-6 py-2 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm rounded disabled:opacity-50 whitespace-nowrap'}
           >
             {creating ? 'Creating…' : 'Create trip'}
           </button>
