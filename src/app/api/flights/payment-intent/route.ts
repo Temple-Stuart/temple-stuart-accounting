@@ -54,8 +54,15 @@ export async function POST(request: NextRequest) {
     // Authoritative price + expiry from a fresh offer fetch — never trust the client.
     const offer = await getOffer(offerId);
     if (offer.expires_at && new Date(offer.expires_at).getTime() <= Date.now()) {
+      // Same dead-offer concept as the 410 classifier below — carries the typed
+      // code so the panel swaps its futile same-offer retry for Refresh. 409
+      // status kept (semantically fine; the client keys on `code`, not status).
       return NextResponse.json(
-        { error: 'This fare expired. Please search again for current prices.' },
+        {
+          error:
+            'This fare quote expired — airlines only hold prices for a few minutes. Refresh to see current flights and prices.',
+          code: 'offer_expired',
+        },
         { status: 409 }
       );
     }
@@ -92,6 +99,23 @@ export async function POST(request: NextRequest) {
     // PCI-safe: log a short message only — never card data, secrets, or client tokens.
     const msg = error instanceof Error ? error.message : '';
     console.error('[Duffel] Payment intent error:', msg.slice(0, 200));
+    // Stale/expired-offer rejection from Duffel. Only the MESSAGE string survives
+    // the duffel.ts throw sites (getOffer :106 / createPaymentIntent :229 discard
+    // the structured errors[0].code), so classification matches Duffel's known
+    // wording — production log 2026-07-20: "Please select another offer, or create
+    // a new offer request to get the latest availability." Same substring-classifier
+    // convention as the book route's expired matcher. 410 Gone + a typed code so
+    // the panel can offer an honest refresh instead of a dead same-offer retry.
+    if (/select another offer|create a new offer request|expired|no longer available/i.test(msg)) {
+      return NextResponse.json(
+        {
+          error:
+            'This fare quote expired — airlines only hold prices for a few minutes. Refresh to see current flights and prices.',
+          code: 'offer_expired',
+        },
+        { status: 410 }
+      );
+    }
     return NextResponse.json(
       { error: 'Could not start payment. Please try again.' },
       { status: 502 }

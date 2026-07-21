@@ -58,6 +58,10 @@ interface Props {
   onClose: () => void;
   /** Called with the booking reference after a successful order. */
   onBooked?: (bookingReference: string) => void;
+  /** Offer-expired recovery: close the panel and re-run the ORIGINAL search so the
+   *  user re-picks from fresh offers (prices may differ — that is visible truth).
+   *  When absent (dev harness), the expired state offers Close instead. */
+  onOfferExpired?: () => void;
 }
 
 const TITLES = ['mr', 'ms', 'mrs', 'miss', 'dr'];
@@ -82,8 +86,11 @@ const fieldClass =
   'w-full rounded border border-brand-purple/40 bg-white px-3 py-2 text-sm focus:border-brand-purple focus:outline-none focus:ring-2 focus:ring-brand-purple/20';
 const labelClass = 'text-[11px] font-medium text-brand-purple';
 
-export default function FlightCheckoutPanel({ offer, passengerCount, onClose, onBooked }: Props) {
+export default function FlightCheckoutPanel({ offer, passengerCount, onClose, onBooked, onOfferExpired }: Props) {
   const [phase, setPhase] = useState<'form' | 'payment' | 'booking' | 'booked'>('form');
+  // The server declared this offer dead (410 offer_expired) — retrying the SAME
+  // offer id can never succeed, so the retry button is replaced by Refresh.
+  const [offerExpired, setOfferExpired] = useState(false);
   const [passengers, setPassengers] = useState<Passenger[]>(() =>
     Array.from({ length: Math.max(1, passengerCount) }, emptyPassenger),
   );
@@ -147,6 +154,13 @@ export default function FlightCheckoutPanel({ offer, passengerCount, onClose, on
         body: JSON.stringify({ offerId: offer.id }),
       });
       const data = await res.json().catch(() => ({}));
+      if (data.code === 'offer_expired') {
+        // Typed dead-offer signal (410): show the honest copy and swap the
+        // same-offer retry for a Refresh action — retrying this id is futile.
+        setOfferExpired(true);
+        setError(data.error || 'This fare quote expired. Refresh to see current flights and prices.');
+        return;
+      }
       if (!res.ok || !data.clientToken) throw new Error(data.error || 'Could not start payment.');
       setClientToken(data.clientToken);
       setPaymentIntentId(data.paymentIntentId);
@@ -287,14 +301,24 @@ export default function FlightCheckoutPanel({ offer, passengerCount, onClose, on
               </details>
             </div>
           ))}
-          <button
-            type="button"
-            onClick={startPayment}
-            disabled={!allValid || busy}
-            className="w-full rounded bg-brand-purple px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-purple/90 disabled:opacity-50"
-          >
-            {busy ? 'Starting payment…' : 'Continue to payment'}
-          </button>
+          {offerExpired ? (
+            <button
+              type="button"
+              onClick={() => (onOfferExpired ? onOfferExpired() : onClose())}
+              className="w-full rounded bg-brand-purple px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-purple/90"
+            >
+              {onOfferExpired ? 'Refresh flights' : 'Close'}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={startPayment}
+              disabled={!allValid || busy}
+              className="w-full rounded bg-brand-purple px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-purple/90 disabled:opacity-50"
+            >
+              {busy ? 'Starting payment…' : 'Continue to payment'}
+            </button>
+          )}
         </div>
       )}
 
