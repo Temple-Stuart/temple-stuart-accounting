@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import CreateTripForm from '@/components/trips/CreateTripForm';
 import TripBookings from '@/components/trips/TripBookings';
+import UnattachedBookings from '@/components/trips/UnattachedBookings';
 import AllTripsList, { type TripRow } from '@/components/trips/AllTripsList';
 import TripFormModal from '@/components/trips/TripFormModal';
 import TripBudgetActual from '@/components/trips/TripBudgetActual';
@@ -434,12 +435,28 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                   it first. Same gate (authed + currentTrip) and the same
                   tripsRefresh key so in-tab commits refetch it; returning from
                   /booking/confirm is a fresh mount (fetch-on-mount covers it). */}
-              {currentTrip && <TripBookings key={`bk-${tripsRefresh}`} tripId={currentTrip.id} />}
+              {currentTrip && (
+                <TripBookings
+                  key={`bk-${tripsRefresh}`}
+                  tripId={currentTrip.id}
+                  onChanged={() => setTripsRefresh((n) => n + 1)}
+                />
+              )}
               {/* PR-Trips5: the selected trip's Budgeted + Actual rows. Only mounted
                   when a trip is picked, so it never fetches with no trip / no login. */}
               {/* Keyed by tripsRefresh so a flight commit (which bumps it via
                   onCommitted) remounts this and re-fetches the budget + actual rows. */}
               {currentTrip && <TripBudgetActual key={tripsRefresh} trip={currentTrip} />}
+              {/* T4: the user's adoptable orphans — NOT gated on currentTrip (they
+                  exist independently of any selection; the block itself explains
+                  how to attach when no trip is picked). Hidden when zero rows.
+                  Same tripsRefresh key + bump so attach moves rows into the
+                  Booked block above in one refresh. */}
+              <UnattachedBookings
+                key={`ub-${tripsRefresh}`}
+                selectedTrip={currentTrip}
+                onChanged={() => setTripsRefresh((n) => n + 1)}
+              />
             </>
           ) : (
             // Guest (or auth still resolving): no personal table to fetch, but the
