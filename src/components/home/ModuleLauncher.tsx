@@ -201,9 +201,35 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // not touch any existing state (authed/currentTrip/tripsRefresh/scanner). Default the
   // master calendar.
   const [activeModule, setActiveModule] = useState('calendar');
+  // F2: the active tab lives in the URL (?tab=<id>) so reload and deep links restore
+  // it. Written with NATIVE history.replaceState — a shallow URL update: no Next.js
+  // navigation, no RSC refetch, no scroll jump, no remount (tab panels are CSS
+  // block/hidden anyway). Only the 'tab' key is touched; other params + hash survive.
+  // Normalize rule: the 'calendar' default OMITS the param (clean root URL).
+  const writeTabParam = (key: string) => {
+    const params = new URLSearchParams(window.location.search);
+    if (key === 'calendar') params.delete('tab');
+    else params.set('tab', key);
+    const qs = params.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`);
+  };
   // PR-Hero-PerTab: switch the active tab AND tell the parent, so the hero subhead up top
   // (page.tsx) reflects the same tab. Both tab bars (desktop + mobile) route through this.
-  const selectTab = (key: string) => { setActiveModule(key); onTabChange?.(key); };
+  // F2: the same funnel also writes the URL, so state and URL can never drift.
+  const selectTab = (key: string) => { setActiveModule(key); onTabChange?.(key); writeTabParam(key); };
+
+  // F2: on mount the URL is the source of truth. A valid ?tab= restores that tab
+  // through the SAME funnel a click uses (state + hero sync + URL normalize — so
+  // ?tab=calendar re-lands on the clean root). An invalid value is STRIPPED (never
+  // a lying URL) and the 'calendar' default stands. Absent → default, untouched.
+  // Effect-only read keeps hydration safe: first paint is 'calendar' on server and
+  // client alike; the restore runs client-side immediately after mount.
+  useEffect(() => {
+    const raw = new URLSearchParams(window.location.search).get('tab');
+    if (raw === null) return;
+    if (TABS.some((t) => t.key === raw)) selectTab(raw);
+    else writeTabParam('calendar');
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let cancelled = false;
