@@ -1,23 +1,14 @@
 'use client';
 
 /**
- * TripBookings (T3) — the selected trip's ATTACHED, REAL bookings, rendered from
- * GET /api/trips/[id]/reservations (the read-back that previously had zero UI
- * consumers). The twin display of TripBudgetActual: that card shows PLANNED
- * budget lines; this one shows BOOKED, PAID reservations (hotels attach live;
- * flights when T2b lands). Read-only — no writes, no new routes.
- *
- * Refresh truth (why these three triggers, nothing else):
- *  1. fetch on mount + tripId change — hotel bookings finalize on
- *     /booking/confirm (a different route), so coming back to the Travel tab is
- *     always a fresh mount; this covers the primary flow.
- *  2. the parent keys this component by tripsRefresh (same as TripBudgetActual)
- *     so in-tab commits remount + refetch it.
- *  3. a manual Refresh button for anything else (e.g. a booking finished in
- *     another tab) — an honest affordance instead of a fake live feed.
- * Every state is visible: loading, error (with retry), empty, rows. Guest
- * bookings (userId null) are invisible here BY DESIGN — the route never returns
- * them to an account user (reservations/route.ts:12-13).
+ * UnattachedBookings (T4) — the authed user's ACCOUNT bookings with no trip:
+ * the adoptable orphans, finally visible. Reads GET /api/reservations/unattached;
+ * "Add to <trip>" PATCHes /api/reservations/[id] { tripId } (dual-ownership
+ * gates server-side). Hidden entirely when the user has zero unattached rows —
+ * no empty-state noise for users who never orphan. When rows exist but no trip
+ * is selected, the rows still show with an honest one-line notice instead of
+ * dead buttons. Every failure declares itself inline. Guest bookings (userId
+ * null) never appear here by design — ownership is unprovable (T0 §5).
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -25,32 +16,22 @@ import { useCallback, useEffect, useState } from 'react';
 interface BookingRow {
   id: string;
   name: string;
-  provider: string;
-  type: string; // 'hotel' | 'flight' | 'activity' | raw provider
+  type: string;
   amountUsd: number;
-  currency: string;
   checkIn: string | null;
   checkOut: string | null;
   status: string;
-  bookingType: string;
   confirmationCode: string | null;
 }
 
 interface Props {
-  tripId: string;
-  /** T4: after a detach succeeds, bump the shared tripsRefresh so this block,
-   *  UnattachedBookings, and the budget ledger all remount together. */
+  /** The trip selected in the list above — the attach target. */
+  selectedTrip: { id: string; name?: string } | null;
+  /** Bumps the shared tripsRefresh so TripBookings/TripBudgetActual remount. */
   onChanged?: () => void;
 }
 
-/** Exact-cents sum: per-row dollars → integer cents → sum → dollars. No float
- *  drift, no rounding games. */
-function sumUsd(rows: BookingRow[]): string {
-  const cents = rows.reduce((s, r) => s + Math.round(r.amountUsd * 100), 0);
-  return `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, '0')}`;
-}
-
-export default function TripBookings({ tripId, onChanged }: Props) {
+export default function UnattachedBookings({ selectedTrip, onChanged }: Props) {
   const [state, setState] = useState<'loading' | 'error' | 'ok'>('loading');
   const [rows, setRows] = useState<BookingRow[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -59,7 +40,7 @@ export default function TripBookings({ tripId, onChanged }: Props) {
   const load = useCallback(() => {
     let cancelled = false;
     setState('loading');
-    fetch(`/api/trips/${tripId}/reservations`)
+    fetch('/api/reservations/unattached')
       .then(async (res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -69,37 +50,42 @@ export default function TripBookings({ tripId, onChanged }: Props) {
       })
       .catch(() => { if (!cancelled) setState('error'); });
     return () => { cancelled = true; };
-  }, [tripId]);
+  }, []);
 
   useEffect(() => load(), [load]);
 
-  // T4: detach — tripId → null via the dual-ownership PATCH. The booking is
-  // KEPT (it moves to Unattached bookings); only the trip link clears.
-  const detach = async (reservationId: string) => {
-    if (!window.confirm('Remove this booking from the trip? The booking itself is kept.')) return;
+  const attach = async (reservationId: string) => {
+    if (!selectedTrip) return;
     setBusyId(reservationId);
     setActionError(null);
     try {
       const res = await fetch(`/api/reservations/${reservationId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tripId: null }),
+        body: JSON.stringify({ tripId: selectedTrip.id }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Could not remove the booking from the trip.');
+      if (!res.ok) throw new Error(data.error || 'Could not attach the booking.');
+      // Success: this row now belongs to the trip — refresh everything that
+      // shows it (shared tripsRefresh remounts this block + TripBookings).
       if (onChanged) onChanged(); else load();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Could not remove the booking from the trip.');
+      setActionError(err instanceof Error ? err.message : 'Could not attach the booking.');
     } finally {
       setBusyId(null);
     }
   };
 
+  // Hidden entirely when there is genuinely nothing to adopt (and while the
+  // brief initial load resolves — the block appears only when data proves it).
+  if (state === 'loading') return null;
+  if (state === 'ok' && rows.length === 0) return null;
+
   return (
     <div className="mt-4 rounded-lg border border-border bg-bg-row p-4">
       <div className="mb-2 flex items-center justify-between">
         <p className="text-sm font-semibold text-text-primary">
-          Booked{state === 'ok' ? ` (${rows.length})` : ''}
+          Unattached bookings{state === 'ok' ? ` (${rows.length})` : ''}
         </p>
         <button
           type="button"
@@ -110,22 +96,21 @@ export default function TripBookings({ tripId, onChanged }: Props) {
         </button>
       </div>
 
-      {state === 'loading' && <p className="text-sm text-text-muted">Loading bookings…</p>}
       {state === 'error' && (
         <p className="text-sm text-brand-red">
-          Couldn&apos;t load this trip&apos;s bookings.{' '}
+          Couldn&apos;t load your unattached bookings.{' '}
           <button type="button" onClick={() => load()} className="font-medium underline">Retry</button>
         </p>
-      )}
-      {state === 'ok' && rows.length === 0 && (
-        <p className="text-sm text-text-muted">No bookings attached yet.</p>
-      )}
-      {actionError && (
-        <p className="mb-2 rounded border border-border bg-white p-2 text-sm text-brand-red">{actionError}</p>
       )}
 
       {state === 'ok' && rows.length > 0 && (
         <>
+          {!selectedTrip && (
+            <p className="mb-2 text-xs text-text-muted">Select a trip above to attach these.</p>
+          )}
+          {actionError && (
+            <p className="mb-2 rounded border border-border bg-white p-2 text-sm text-brand-red">{actionError}</p>
+          )}
           <div className="overflow-x-auto rounded-lg border border-border bg-white">
             <table className="w-full text-sm">
               <thead>
@@ -135,7 +120,6 @@ export default function TripBookings({ tripId, onChanged }: Props) {
                   <th className="px-3 py-2 text-left font-medium text-text-muted">Dates</th>
                   <th className="px-3 py-2 text-right font-medium text-text-muted">Amount</th>
                   <th className="px-3 py-2 text-left font-medium text-text-muted">Status</th>
-                  <th className="px-3 py-2 text-left font-medium text-text-muted">Confirmation</th>
                   <th className="px-3 py-2 text-left font-medium text-text-muted"></th>
                 </tr>
               </thead>
@@ -153,27 +137,23 @@ export default function TripBookings({ tripId, onChanged }: Props) {
                       ${r.amountUsd.toFixed(2)}
                     </td>
                     <td className="px-3 py-2 text-text-secondary">{r.status}</td>
-                    <td className="px-3 py-2 font-mono text-xs text-text-secondary">
-                      {r.confirmationCode ?? ''}
-                    </td>
                     <td className="px-3 py-2 text-right">
-                      <button
-                        type="button"
-                        disabled={busyId === r.id}
-                        onClick={() => detach(r.id)}
-                        className="rounded border border-border px-2 py-1 text-xs font-medium text-text-muted hover:bg-bg-row disabled:opacity-50"
-                      >
-                        {busyId === r.id ? 'Removing…' : 'Remove from trip'}
-                      </button>
+                      {selectedTrip ? (
+                        <button
+                          type="button"
+                          disabled={busyId === r.id}
+                          onClick={() => attach(r.id)}
+                          className="rounded border border-brand-purple/40 px-2 py-1 text-xs font-medium text-brand-purple hover:bg-brand-purple/10 disabled:opacity-50"
+                        >
+                          {busyId === r.id ? 'Attaching…' : `Add to ${selectedTrip.name || 'selected trip'}`}
+                        </button>
+                      ) : null}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <p className="mt-2 text-right text-sm font-semibold text-text-primary">
-            Total booked: <span className="text-brand-green">${sumUsd(rows)}</span>
-          </p>
         </>
       )}
     </div>
