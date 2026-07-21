@@ -425,7 +425,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
               {currentTrip && (
                 <p className="text-sm text-text-secondary">
                   Selected: <span className="font-semibold text-brand-purple">{currentTrip.name}</span>
-                  <span className="text-text-muted"> — pick a trip to budget flights, hotels, and more into it (coming next).</span>
+                  <span className="text-text-muted"> — hotel bookings attach to this trip, and saved flights budget into it (flight-booking attach coming next).</span>
                 </p>
               )}
               {/* PR-Trips5: the selected trip's Budgeted + Actual rows. Only mounted

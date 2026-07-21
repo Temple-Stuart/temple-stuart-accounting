@@ -247,10 +247,17 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
         <div className="rounded-lg border border-border bg-white p-4 text-sm text-brand-red">{error}</div>
       )}
 
-      {/* PR-G3: guest checkout — opens directly on Book, NO tripId (standalone
-          guest reservation), NO login. Real prebook → guest form → book → confirm. */}
+      {/* PR-G3 + T2a: checkout opens directly on Book, guest-ok. For an AUTHED
+          user with a trip selected above, the trip's id threads through the
+          already-complete chain (returnUrl → /booking/confirm → liteapi/book
+          ownership gate) so the booking is born attached. GUEST SAFETY: the
+          liteapi/book route 401s a guest-with-tripId by design, so tripId passes
+          ONLY under authed === true && currentTrip — provable from this
+          component's own props (currentTrip is also only settable from the
+          authed-gated trips list). A guest always books standalone, unchanged. */}
       {checkoutHotel && checkoutHotel.liteapiOfferId && (
         <CheckoutPanel
+          tripId={authed === true && currentTrip ? currentTrip.id : undefined}
           offerId={checkoutHotel.liteapiOfferId}
           hotelId={checkoutHotel.liteapiHotelId}
           images={checkoutHotel.images}
