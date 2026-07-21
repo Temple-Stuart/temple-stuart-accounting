@@ -63,6 +63,17 @@ export async function GET(request: NextRequest) {
     // Parse offers for UI
     const offers = (result.offers || []).map(parseOffer);
 
+    // EXPIRY INSTRUMENTATION (behavior-preserving): what Duffel says these
+    // offers' lifetimes are AT SEARCH TIME, against our server clock — hard
+    // numbers for the sub-60s expiry investigation. Stamps + count only.
+    const expiryStamps = offers.map((o: any) => o.expiresAt).filter(Boolean).sort();
+    console.log('[Duffel] Search parsed:', JSON.stringify({
+      offersCount: offers.length,
+      earliestExpiresAt: expiryStamps[0] ?? null,
+      latestExpiresAt: expiryStamps[expiryStamps.length - 1] ?? null,
+      serverNow: new Date().toISOString(),
+    }));
+
     // Sort by price, then by duration
     offers.sort((a: any, b: any) => {
       if (a.price !== b.price) return a.price - b.price;

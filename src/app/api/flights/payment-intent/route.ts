@@ -19,6 +19,10 @@ export async function POST(request: NextRequest) {
     request.headers.get('x-real-ip') ||
     'unknown';
 
+  // Hoisted for the catch's instrumentation — the expiry investigation needs the
+  // offer id on every error line (assigned after body parse; null before it).
+  let offerId: string | undefined;
+
   try {
     await rateLimit(`flight-intent:${ip}`, {
       limit: Number(process.env.BOOK_RATE_LIMIT) || 5,
@@ -26,7 +30,8 @@ export async function POST(request: NextRequest) {
     });
 
     const body = await request.json();
-    const { offerId, idempotencyKey } = body;
+    offerId = body.offerId;
+    const { idempotencyKey } = body;
     if (!offerId) {
       return NextResponse.json({ error: 'Missing offerId' }, { status: 400 });
     }
@@ -53,7 +58,22 @@ export async function POST(request: NextRequest) {
 
     // Authoritative price + expiry from a fresh offer fetch — never trust the client.
     const offer = await getOffer(offerId);
+    // EXPIRY INSTRUMENTATION (behavior-preserving): what Duffel says about this
+    // offer AT INTENT TIME, against our server clock. Stamps + id only.
+    console.log('[Duffel] Offer at intent time:', JSON.stringify({
+      offerId,
+      expiresAt: offer.expires_at ?? null,
+      serverNow: new Date().toISOString(),
+    }));
     if (offer.expires_at && new Date(offer.expires_at).getTime() <= Date.now()) {
+      // EXPIRY INSTRUMENTATION: exactly why the pre-check rejected — raw stamp,
+      // server clock, and the signed delta (positive = past per our clock).
+      console.error('[Duffel] Offer expiry pre-check REJECTED:', JSON.stringify({
+        offerId,
+        rawExpiresAt: offer.expires_at,
+        serverNow: new Date().toISOString(),
+        deltaMs: Date.now() - new Date(offer.expires_at).getTime(),
+      }));
       // Same dead-offer concept as the 410 classifier below — carries the typed
       // code so the panel swaps its futile same-offer retry for Refresh. 409
       // status kept (semantically fine; the client keys on `code`, not status).
@@ -96,9 +116,17 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     }
-    // PCI-safe: log a short message only — never card data, secrets, or client tokens.
+    // EXPIRY INSTRUMENTATION: the RAW Duffel message VERBATIM (no truncation) +
+    // the offer id, so a misclassified or genuinely-stale offer is provable from
+    // one log line. Duffel error messages are provider prose — no card data,
+    // secrets, or client tokens flow through them (this route sends no
+    // passenger fields), so untruncated logging stays PCI-safe.
     const msg = error instanceof Error ? error.message : '';
-    console.error('[Duffel] Payment intent error:', msg.slice(0, 200));
+    console.error('[Duffel] Payment intent error:', JSON.stringify({
+      offerId: offerId ?? null,
+      rawDuffelMessage: msg,
+      serverNow: new Date().toISOString(),
+    }));
     // Stale/expired-offer rejection from Duffel. Only the MESSAGE string survives
     // the duffel.ts throw sites (getOffer :106 / createPaymentIntent :229 discard
     // the structured errors[0].code), so classification matches Duffel's known
