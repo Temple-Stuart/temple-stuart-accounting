@@ -67,12 +67,14 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
   const [committing, setCommitting] = useState<string | null>(null);
   // PR-Duffel-Pay-3: the offer being booked (pay now). Set when a card's "Book" is tapped;
   // mounts the FlightCheckoutPanel. Guest-ok — NO auth gate (booking is never locked, like
-  // hotels); the panel + backend run the Duffel Payments flow (TEST mode).
-  const [bookingOffer, setBookingOffer] = useState<FlightOffer | null>(null);
+  // hotels); the panel + backend run the Duffel Payments flow (TEST mode). The leg id is
+  // tracked alongside the offer so the offer-expired recovery can re-run the ORIGINAL
+  // search for that leg (fresh offer_request), never silently re-quote.
+  const [booking, setBooking] = useState<{ legId: string; offer: FlightOffer } | null>(null);
 
   const bookLeg = (legId: string) => {
     const leg = legs.find((l) => l.id === legId);
-    if (leg?.selectedOffer) setBookingOffer(leg.selectedOffer);
+    if (leg?.selectedOffer) setBooking({ legId, offer: leg.selectedOffer });
   };
 
   // One empty leg on mount. No authed itinerary load (guest has no trip).
@@ -248,12 +250,21 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
       {/* PR-Duffel-Pay-3: Book opens the flight checkout (PR-2) for the selected offer —
           pay now via Duffel Payments (TEST mode). Standalone + guest-ok, like the hotel
           Book; the confirmation shows in-panel and its "Done" button closes it. */}
-      {bookingOffer && (
+      {booking && (
         <FlightCheckoutPanel
-          offer={{ id: bookingOffer.id, price: bookingOffer.price, currency: bookingOffer.currency }}
+          offer={{ id: booking.offer.id, price: booking.offer.price, currency: booking.offer.currency }}
           passengerCount={1}
-          onClose={() => setBookingOffer(null)}
+          onClose={() => setBooking(null)}
           onBooked={() => { /* confirmation shows in-panel; nothing to persist here */ }}
+          onOfferExpired={() => {
+            // Offer-expired recovery: close the panel, drop the dead selection so it
+            // cannot be re-booked, and re-run the leg's ORIGINAL search — the user
+            // re-picks from fresh offers at current (possibly different) prices.
+            const legId = booking.legId;
+            setBooking(null);
+            updateLeg(legId, { selectedOffer: null });
+            void searchLeg(legId);
+          }}
         />
       )}
     </TravelSectionShell>
