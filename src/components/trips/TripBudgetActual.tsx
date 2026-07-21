@@ -282,7 +282,7 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
       {actionError && <p className="mb-2 rounded border border-border bg-white p-2 text-sm text-brand-red">{actionError}</p>}
       {state === 'loading' && <p className="text-sm text-text-muted">Loading your budget…</p>}
       {state === 'error' && <p className="text-sm text-brand-red">Couldn&apos;t load your budget.</p>}
-      {state === 'ok' && items.length === 0 && <p className="text-sm text-text-muted">Nothing planned yet.</p>}
+      {state === 'ok' && items.length === 0 && <p className="text-sm text-text-muted">No planned budget yet.</p>}
 
       {state === 'ok' && items.length > 0 && (
         // Wide statement table: on a narrow screen the whole table scrolls horizontally as

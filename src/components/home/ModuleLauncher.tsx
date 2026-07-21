@@ -7,6 +7,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import CreateTripForm from '@/components/trips/CreateTripForm';
+import TripBookings from '@/components/trips/TripBookings';
 import AllTripsList, { type TripRow } from '@/components/trips/AllTripsList';
 import TripFormModal from '@/components/trips/TripFormModal';
 import TripBudgetActual from '@/components/trips/TripBudgetActual';
@@ -428,6 +429,12 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                   <span className="text-text-muted"> — hotel bookings attach to this trip, and saved flights budget into it (flight-booking attach coming next).</span>
                 </p>
               )}
+              {/* T3: the selected trip's REAL bookings (reservations read-back) —
+                  above the planned ledger so a user returning from a booking sees
+                  it first. Same gate (authed + currentTrip) and the same
+                  tripsRefresh key so in-tab commits refetch it; returning from
+                  /booking/confirm is a fresh mount (fetch-on-mount covers it). */}
+              {currentTrip && <TripBookings key={`bk-${tripsRefresh}`} tripId={currentTrip.id} />}
               {/* PR-Trips5: the selected trip's Budgeted + Actual rows. Only mounted
                   when a trip is picked, so it never fetches with no trip / no login. */}
               {/* Keyed by tripsRefresh so a flight commit (which bumps it via
