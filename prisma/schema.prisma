@@ -1251,7 +1251,7 @@ model reservations {
   updatedAt                DateTime @updatedAt
 
   user              users?              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  trip              trips?              @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  trip              trips?              @relation(fields: [tripId], references: [id], onDelete: SetNull) // T-D7: trip deletion orphans bookings, never erases them
   commission_ledger commission_ledger[]
 
   @@index([userId])
