@@ -258,6 +258,8 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
       {checkoutHotel && checkoutHotel.liteapiOfferId && (
         <CheckoutPanel
           tripId={authed === true && currentTrip ? currentTrip.id : undefined}
+          tripName={authed === true && currentTrip ? currentTrip.name : undefined}
+          authed={authed}
           offerId={checkoutHotel.liteapiOfferId}
           hotelId={checkoutHotel.liteapiHotelId}
           images={checkoutHotel.images}
