@@ -26,9 +26,24 @@
  */
 
 import Link from 'next/link';
+import { Fragment } from 'react';
 import { TAB_PRICING } from '@/config/pricing-costs';
-import { TRANSPARENCY_ROWS } from '@/config/transparencyLedger';
+import {
+  SCHEDULE_ROWS, NO_COST_STRIP, FOOTNOTES,
+  ENTITY_DIM, ACCOUNT_DIM, SUB_DIM, OBJECT_DIM, VENDOR_DIM,
+  type ScheduleRow,
+} from '@/config/transparencyLedger';
 import { TAB_DESCRIPTORS } from '@/lib/tabDescriptors';
+
+/** FD-1f v3: a stacked CODE + MEANING cell — the schedule teaches the taxonomy. */
+function DimCell({ code, label }: { code: string; label: string }) {
+  return (
+    <div>
+      <div className="font-mono text-xs text-white whitespace-nowrap">{code}</div>
+      <div className="text-[10px] leading-tight text-white/50">{label}</div>
+    </div>
+  );
+}
 import LandingHeader from './LandingHeader';
 import LandingFooter from './LandingFooter';
 
@@ -356,31 +371,98 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
             Costs are entered from real invoices; a cell that hasn&apos;t been filled yet says so
             instead of showing a made-up number.
           </p>
-          <div className="mt-5 overflow-x-auto rounded-lg border border-panel-border bg-panel-surface">
-            <table className="w-full min-w-[760px] text-sm">
+          {/* FD-1f v3: the legend — the schedule teaches the coding standard. */}
+          <p className="mt-4 font-mono text-[11px] text-white/60">
+            Codes read ENTITY-ACCOUNT-SUB-OBJECT — e.g. B-5100-10-API.
+          </p>
+          <div className="mt-2 overflow-x-auto rounded-lg border border-panel-border bg-panel-surface">
+            <table className="w-full min-w-[1080px] text-sm">
               <thead>
                 <tr className="border-b border-panel-border text-left font-mono text-[10px] uppercase tracking-wider text-white/40">
-                  <th className="px-4 py-2 font-semibold">What happened</th>
-                  <th className="px-4 py-2 font-semibold">Code</th>
-                  <th className="px-4 py-2 font-semibold">Vendor</th>
-                  <th className="px-4 py-2 font-semibold">Links</th>
-                  <th className="px-4 py-2 font-semibold text-right">Amount</th>
+                  <th className="px-3 py-2 font-semibold">Entity</th>
+                  <th className="px-3 py-2 font-semibold">Account</th>
+                  <th className="px-3 py-2 font-semibold">Sub</th>
+                  <th className="px-3 py-2 font-semibold">Object</th>
+                  <th className="px-3 py-2 font-semibold">Vendor</th>
+                  <th className="px-3 py-2 font-semibold">Description</th>
+                  <th className="px-3 py-2 font-semibold">Basis</th>
+                  <th className="px-3 py-2 font-semibold">Cadence</th>
+                  <th className="px-3 py-2 font-semibold">Links</th>
+                  <th className="px-3 py-2 font-semibold">Split</th>
+                  <th className="px-3 py-2 font-semibold text-right">Amount (USD/mo)</th>
                 </tr>
               </thead>
               <tbody>
-                {TRANSPARENCY_ROWS.map((r) => (
-                  <tr key={`${r.vendor}-${r.code}`} className="border-b border-panel-border last:border-0">
-                    <td className="px-4 py-2.5 text-xs leading-relaxed text-white/70">{r.whatHappened}</td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-white whitespace-nowrap">{r.code}</td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-white/70 whitespace-nowrap">{r.vendor}</td>
-                    <td className="px-4 py-2.5 text-xs text-white/60 whitespace-nowrap">{r.links}</td>
-                    <td className="px-4 py-2.5 text-right font-mono text-xs font-semibold text-white whitespace-nowrap">
-                      {r.amount}
-                    </td>
-                  </tr>
-                ))}
+                {(['5100', '6210'] as const).map((account) => {
+                  const rows = SCHEDULE_ROWS.filter((r) => r.account === account);
+                  const entered = rows.filter((r) => r.amountUsd !== null);
+                  const subtotal = entered.reduce((s, r) => s + (r.amountUsd as number), 0);
+                  return (
+                    <Fragment key={account}>
+                      {rows.map((r: ScheduleRow) => (
+                        <tr key={`${r.account}-${r.sub}-${r.vendor}`} className="border-b border-panel-border">
+                          <td className="px-3 py-2 align-top"><DimCell code={r.entity} label={ENTITY_DIM[r.entity]} /></td>
+                          <td className="px-3 py-2 align-top"><DimCell code={r.account} label={ACCOUNT_DIM[r.account]} /></td>
+                          <td className="px-3 py-2 align-top"><DimCell code={r.sub} label={SUB_DIM[r.account]?.[r.sub] ?? ''} /></td>
+                          <td className="px-3 py-2 align-top"><DimCell code={r.object} label={OBJECT_DIM[r.object]} /></td>
+                          <td className="px-3 py-2 align-top"><DimCell code={r.vendor} label={VENDOR_DIM[r.vendor]} /></td>
+                          <td className="px-3 py-2 align-top text-xs leading-relaxed text-white/70">{r.description}</td>
+                          <td className="px-3 py-2 align-top font-mono text-[10px] uppercase tracking-wider text-white/60 whitespace-nowrap">{r.basis}</td>
+                          <td className="px-3 py-2 align-top text-xs text-white/60 whitespace-nowrap">{r.cadence}</td>
+                          <td className="px-3 py-2 align-top text-xs text-white/60">{r.links.join(' · ')}</td>
+                          <td className="px-3 py-2 align-top font-mono text-xs text-white/70 whitespace-nowrap">{r.split}</td>
+                          <td className="px-3 py-2 align-top text-right font-mono text-xs font-semibold text-white whitespace-nowrap">
+                            {r.amountUsd !== null ? `$${r.amountUsd}` : `—${r.footnotes.join('')}`}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="border-b border-panel-border bg-panel">
+                        <td colSpan={10} className="px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-white/40">
+                          Subtotal B-{account} · {ACCOUNT_DIM[account]} — entered {entered.length} of {rows.length}
+                        </td>
+                        <td className="px-3 py-1.5 text-right font-mono text-xs font-bold text-white whitespace-nowrap">
+                          ${subtotal}
+                        </td>
+                      </tr>
+                    </Fragment>
+                  );
+                })}
+                <tr className="bg-panel">
+                  <td colSpan={10} className="px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-white/60">
+                    Total entered
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono text-sm font-bold text-white whitespace-nowrap">
+                    ${SCHEDULE_ROWS.reduce((s, r) => s + (r.amountUsd ?? 0), 0)}/mo
+                  </td>
+                </tr>
               </tbody>
             </table>
+          </div>
+          <p className="mt-2 font-mono text-[11px] text-white/50">
+            {SCHEDULE_ROWS.filter((r) => r.amountUsd !== null).length} of {SCHEDULE_ROWS.length} monthly
+            amounts entered from invoices — an un-entered amount renders a dash and its footnote, never a guess.
+          </p>
+          {/* The footnote registry — every mark used above, defined once. */}
+          <div className="mt-2 space-y-0.5">
+            {Object.entries(FOOTNOTES).map(([mark, text]) => (
+              <p key={mark} className="text-[10px] leading-relaxed text-white/40">
+                <span className="font-mono">{mark}</span> {text}
+              </p>
+            ))}
+          </div>
+          {/* The $0 strip — real facts; nothing posts, nothing codes. */}
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {NO_COST_STRIP.map((f) => (
+              <div key={f.vendor} className="rounded-lg border border-panel-border bg-panel-surface p-3">
+                <div className="flex items-baseline gap-2">
+                  <span className="font-mono text-xs text-white">{f.vendor}</span>
+                  <span className="text-[10px] text-white/50">{f.vendorLabel}</span>
+                  <span className="ml-auto font-mono text-xs font-bold text-white">$0</span>
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-white/60">{f.description}</p>
+                <p className="mt-0.5 text-[10px] text-white/40">{f.links.join(' · ')}</p>
+              </div>
+            ))}
           </div>
           <Link
             href="/how-pricing-works"
