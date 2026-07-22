@@ -91,8 +91,13 @@ export interface ScheduleRow {
   description: string;         // the entry's own usedFor line
   basis: string;               // the entry's costType, page-legend vocabulary
   cadence: string;             // the entry's cadence, verbatim
-  links: string[];             // module attribution verbatim
-  split: string;               // order-aligned to links (100 | even ᵉ | ÷ all)
+  // FD-1g: ALLOCATED TO — the allocation dimension by its accounting name.
+  // type drives the RENDER: 'module' targets render bare; project/routine/
+  // trip targets render with a PROJECT:/ROUTINE:/TRIP: prefix (none exist in
+  // the current declared rows — the shape is ready for the ledger-derived
+  // version). Sharers (Personal, Platform) render bare like modules.
+  allocatedTo: { type: 'module' | 'project' | 'routine' | 'trip'; name: string }[];
+  split: string;               // order-aligned to allocatedTo (100 | even ᵉ | ÷ all)
   amountUsd: number | null;    // monthlyCost VERBATIM; null → dash + footnote
   footnotes: string[];         // marks into FOOTNOTES
 }
@@ -106,7 +111,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '5100', sub: '10', object: 'API', vendor: 'ANTH',
     description: 'Trading briefs/synthesis · operations planning, design, tasks, content · compliance discovery',
     basis: 'PER-USE', cadence: 'per token',
-    links: ['Operations', 'Trading', 'Compliance'], split: '33.3 / 33.3 / 33.3ᵉ',
+    allocatedTo: [{ type: 'module', name: 'Operations' }, { type: 'module', name: 'Trading' }, { type: 'module', name: 'Compliance' }], split: '33.3 / 33.3 / 33.3ᵉ',
     amountUsd: null, footnotes: ['ᵃ'],
   },
   // OpenAI — pricing-costs.ts:131-139 (PER_USE per-token, null, ['bookkeeping','personal'])
@@ -114,7 +119,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '5100', sub: '10', object: 'API', vendor: 'OAI',
     description: 'Spending insights (bookkeeping) · meal & cart planning (personal)',
     basis: 'PER-USE', cadence: 'per token',
-    links: ['Bookkeeping', 'Personal'], split: '50 / 50ᵉ',
+    allocatedTo: [{ type: 'module', name: 'Bookkeeping' }, { type: 'module', name: 'Personal' }], split: '50 / 50ᵉ',
     amountUsd: null, footnotes: ['ᵃ'],
   },
   // xAI (Grok) — pricing-costs.ts:102-110 (PER_USE per-token, null, ['trading'])
@@ -122,7 +127,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '5100', sub: '10', object: 'API', vendor: 'XAI',
     description: 'Social/X sentiment on scanned tickers',
     basis: 'PER-USE', cadence: 'per token',
-    links: ['Trading'], split: '100',
+    allocatedTo: [{ type: 'module', name: 'Trading' }], split: '100',
     amountUsd: null, footnotes: ['ᵃ'],
   },
   // Voyage AI — pricing-costs.ts:214-222 (PER_USE per-token, null, ['compliance'])
@@ -130,7 +135,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '5100', sub: '10', object: 'API', vendor: 'VOYG',
     description: 'Embeddings + rerank for the regulatory corpus search',
     basis: 'PER-USE', cadence: 'per token',
-    links: ['Compliance'], split: '100',
+    allocatedTo: [{ type: 'module', name: 'Compliance' }], split: '100',
     amountUsd: null, footnotes: ['ᵃ'],
   },
 
@@ -140,7 +145,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '5100', sub: '30', object: 'API', vendor: 'DUFL',
     description: 'Flight search, offers, orders, payments',
     basis: 'PER-USE', cadence: 'per booking',
-    links: ['Travel'], split: '100',
+    allocatedTo: [{ type: 'module', name: 'Travel' }], split: '100',
     amountUsd: null, footnotes: ['ᵃ'],
   },
   // Google Places — pricing-costs.ts:182-191 (PER_USE per-call, null,
@@ -149,7 +154,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '5100', sub: '30', object: 'API', vendor: 'GOOG',
     description: 'Trip discovery — POI search, geocode, details, photos (5,000 calls/mo cap in code)',
     basis: 'PER-USE', cadence: 'per call',
-    links: ['Travel'], split: '100',
+    allocatedTo: [{ type: 'module', name: 'Travel' }], split: '100',
     amountUsd: null, footnotes: ['ᵃ'],
   },
 
@@ -159,7 +164,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '5100', sub: '40', object: 'API', vendor: 'PLD',
     description: 'Bank/card transaction sync · investment holdings for cost basis',
     basis: 'PER-USE', cadence: 'per item',
-    links: ['Bookkeeping', 'Trading'], split: '50 / 50ᵉ',
+    allocatedTo: [{ type: 'module', name: 'Bookkeeping' }, { type: 'module', name: 'Trading' }], split: '50 / 50ᵉ',
     amountUsd: null, footnotes: ['ᵃ'],
   },
 
@@ -170,7 +175,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '5100', sub: '50', object: 'API', vendor: 'INNG',
     description: 'Background jobs — operations AI pipeline, routine evaluator, compliance corpus ingest',
     basis: 'UNKNOWN', cadence: 'unconfirmed',
-    links: ['Operations', 'Compliance'], split: '50 / 50ᵉ',
+    allocatedTo: [{ type: 'module', name: 'Operations' }, { type: 'module', name: 'Compliance' }], split: '50 / 50ᵉ',
     amountUsd: null, footnotes: ['ᶜ'],
   },
 
@@ -181,7 +186,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '5100', sub: '60', object: 'API', vendor: 'STRP',
     description: 'Payment processing for subscriptions (% + fee per transaction)',
     basis: 'PER-USE', cadence: 'per transaction',
-    links: ['Platform'], split: '÷ all',
+    allocatedTo: [{ type: 'module', name: 'Platform' }], split: '÷ all',
     amountUsd: null, footnotes: ['ᵃ'],
   },
 
@@ -192,7 +197,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '6210', sub: '10', object: 'SUB', vendor: 'FINN',
     description: 'Market data — fundamentals, estimates, news, insider, earnings quality',
     basis: 'FIXED', cadence: 'monthly',
-    links: ['Trading'], split: '100',
+    allocatedTo: [{ type: 'module', name: 'Trading' }], split: '100',
     amountUsd: 550, footnotes: [],
   },
 
@@ -202,7 +207,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '6210', sub: '20', object: 'SUB', vendor: 'VRCL',
     description: 'Hosting',
     basis: 'FIXED', cadence: 'monthly',
-    links: ['Platform'], split: '÷ all',
+    allocatedTo: [{ type: 'module', name: 'Platform' }], split: '÷ all',
     amountUsd: null, footnotes: ['ᵇ'],
   },
   // Azure PostgreSQL — pricing-costs.ts:238 (FIXED, null, platform)
@@ -210,7 +215,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '6210', sub: '20', object: 'SUB', vendor: 'AZUR',
     description: 'Database',
     basis: 'FIXED', cadence: 'monthly',
-    links: ['Platform'], split: '÷ all',
+    allocatedTo: [{ type: 'module', name: 'Platform' }], split: '÷ all',
     amountUsd: null, footnotes: ['ᵇ'],
   },
   // GitHub — pricing-costs.ts:240 (FIXED, null, platform)
@@ -218,7 +223,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '6210', sub: '20', object: 'SUB', vendor: 'GHUB',
     description: 'Repo / CI',
     basis: 'FIXED', cadence: 'monthly',
-    links: ['Platform'], split: '÷ all',
+    allocatedTo: [{ type: 'module', name: 'Platform' }], split: '÷ all',
     amountUsd: null, footnotes: ['ᵇ'],
   },
 
@@ -228,7 +233,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '6210', sub: '30', object: 'SUB', vendor: 'DOM',
     description: 'DNS / domain',
     basis: 'FIXED', cadence: 'yearly',
-    links: ['Platform'], split: '÷ all',
+    allocatedTo: [{ type: 'module', name: 'Platform' }], split: '÷ all',
     amountUsd: null, footnotes: ['ᵇ', 'ᵈ'],
   },
 ];
@@ -239,7 +244,7 @@ export interface NoCostFact {
   vendor: string;       // display short-code (not in VENDOR_DIM — nothing codes)
   vendorLabel: string;
   description: string;
-  links: string[];
+  allocatedTo: { type: 'module' | 'project' | 'routine' | 'trip'; name: string }[];
 }
 
 export const NO_COST_STRIP: NoCostFact[] = [
@@ -248,12 +253,12 @@ export const NO_COST_STRIP: NoCostFact[] = [
   {
     vendor: 'TT', vendorLabel: 'TastyTrade',
     description: 'Option chains, quotes, greeks, positions — users connect their own TastyTrade account; the platform pays nothing',
-    links: ['Trading'],
+    allocatedTo: [{ type: 'module', name: 'Trading' }],
   },
   // Gov data — pricing-costs.ts:223-232 (FREE, 0, ['compliance'], "free government APIs")
   {
     vendor: 'GOV', vendorLabel: 'Gov data',
     description: 'Regulation text ingest (eCFR · US Code · Federal Register · IRS) — free government APIs',
-    links: ['Compliance'],
+    allocatedTo: [{ type: 'module', name: 'Compliance' }],
   },
 ];

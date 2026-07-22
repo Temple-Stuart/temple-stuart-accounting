@@ -367,7 +367,7 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
           </h2>
           <p className="mt-2 max-w-2xl text-xs text-white/60">
             Our actual operating bills, coded in the Temple Stuart dimensional standard
-            (Entity-Account-Sub-Object · Vendor · Links) — every amount traced to a real invoice.
+            (Entity-Account-Sub-Object · Vendor · Allocated to) — every amount traced to a real invoice.
             Costs are entered from real invoices; a cell that hasn&apos;t been filled yet says so
             instead of showing a made-up number.
           </p>
@@ -387,7 +387,14 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
                   <th className="px-3 py-2 font-semibold">Description</th>
                   <th className="px-3 py-2 font-semibold">Basis</th>
                   <th className="px-3 py-2 font-semibold">Cadence</th>
-                  <th className="px-3 py-2 font-semibold">Links</th>
+                  <th className="px-3 py-2 font-semibold">
+                    <div>Allocated to</div>
+                    {/* FD-1g: the one accounting term worth glossing — the
+                        teaching sub-label, matching the stacked-cell style. */}
+                    <div className="font-sans text-[10px] font-normal normal-case tracking-normal text-white/40">
+                      what this cost powers
+                    </div>
+                  </th>
                   <th className="px-3 py-2 font-semibold">Split</th>
                   <th className="px-3 py-2 font-semibold text-right">Amount (USD/mo)</th>
                 </tr>
@@ -409,7 +416,22 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
                           <td className="px-3 py-2 align-top text-xs leading-relaxed text-white/70">{r.description}</td>
                           <td className="px-3 py-2 align-top font-mono text-[10px] uppercase tracking-wider text-white/60 whitespace-nowrap">{r.basis}</td>
                           <td className="px-3 py-2 align-top text-xs text-white/60 whitespace-nowrap">{r.cadence}</td>
-                          <td className="px-3 py-2 align-top text-xs text-white/60">{r.links.join(' · ')}</td>
+                          <td className="px-3 py-2 align-top text-xs text-white/60">
+                            {/* FD-1g render rule: module targets bare;
+                                project/routine/trip targets typed with a
+                                mono-micro prefix. */}
+                            {r.allocatedTo.map((t, i) => (
+                              <Fragment key={`${t.type}-${t.name}`}>
+                                {i > 0 && ' · '}
+                                {t.type !== 'module' && (
+                                  <span className="font-mono text-[10px] uppercase tracking-wider text-white/40">
+                                    {t.type}:{' '}
+                                  </span>
+                                )}
+                                {t.name}
+                              </Fragment>
+                            ))}
+                          </td>
                           <td className="px-3 py-2 align-top font-mono text-xs text-white/70 whitespace-nowrap">{r.split}</td>
                           <td className="px-3 py-2 align-top text-right font-mono text-xs font-semibold text-white whitespace-nowrap">
                             {r.amountUsd !== null ? `$${r.amountUsd}` : `—${r.footnotes.join('')}`}
@@ -460,7 +482,7 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
                   <span className="ml-auto font-mono text-xs font-bold text-white">$0</span>
                 </div>
                 <p className="mt-1 text-xs leading-relaxed text-white/60">{f.description}</p>
-                <p className="mt-0.5 text-[10px] text-white/40">{f.links.join(' · ')}</p>
+                <p className="mt-0.5 text-[10px] text-white/40">{f.allocatedTo.map((t) => t.name).join(' · ')}</p>
               </div>
             ))}
           </div>
