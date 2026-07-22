@@ -1,18 +1,26 @@
-// FD-1e → FD-1f v3: the landing transparency SCHEDULE — the company's real
-// operating bills coded in ALEX'S DECLARED TAXONOMY (the D-TEMPLATE slice):
-// every dimension is CODE + MEANING, and SUB is a CATEGORY slice (what kind of
-// spend), never a per-vendor serial — multiple vendors share a sub; VENDOR
-// answers who.
+// FD-1e → FD-1f v3 → FD-1j: the landing transparency SCHEDULE — the company's
+// real operating bills coded in ALEX'S DECLARED TAXONOMY (the D-TEMPLATE
+// slice): every dimension is CODE + MEANING, and SUB is a CATEGORY slice (what
+// kind of spend), never a per-vendor serial — multiple vendors share a sub;
+// VENDOR answers who.
+//
+// FD-1j (1NF): the RENDERED table is FIRST NORMAL FORM — one allocation per
+// row (Alex's verdict: three targets crammed into one cell is not how data
+// works). The authorable source stays one record per BILL (SCHEDULE_BILLS,
+// provenance comment per bill); ALLOCATION_ROWS below derives the per-
+// allocation records the table renders.
 //
 // PHASE-1 HONESTY CONTRACT (unchanged from FD-1e):
 //   • every row is one entry from src/config/pricing-costs.ts (the Alex-edited
 //     invoice truth) — provenance cited per row; NOTHING renders outside it;
 //   • the codes are the company's DECLARED coding of real bills, NOT ledger
 //     derivation (that upgrade is the DIM arc's phase-2);
-//   • amounts are monthlyCost VERBATIM or a dash + footnote — zero invented
-//     numbers; splits show 100 (dedicated), the equal-split percentages with
+//   • amounts are monthlyCost VERBATIM (allocated ÷ target count per 1NF row)
+//     or a dash + footnote — zero invented numbers; SPLIT is each row's even
+//     share of its bill: 100 (dedicated) or the equal-split percentage with
 //     the ᵉ footnote (the allocatedShare methodology, /how-pricing-works
-//     :53-56), or '÷ all' (platform rows) — no other figures exist to show.
+//     :53-56) — platform bills explode to one row per module at 11.1ᵉ (the
+//     former '÷ all' cell) — no other figures exist to show.
 //
 // ROW-SELECTION RULE (FD-1e, unchanged): FIXED + PER_USE + UNKNOWN entries
 // render; COMMISSION entries are excluded ("not a bill we pay",
@@ -80,30 +88,44 @@ export const FOOTNOTES: Record<string, string> = {
   'ᵉ': 'even split across the modules that fire it (the equal-split allocation, /how-pricing-works allocatedShare :53-56)',
 };
 
-// ─── The schedule rows ───────────────────────────────────────────────────────
+// ─── The schedule source — one record per BILL ───────────────────────────────
+// The readable, provenance-commented source of truth: one entry per real
+// pricing-costs.ts bill. The table does NOT render these directly — FD-1j's
+// ALLOCATION_ROWS below explodes each bill × target into 1NF records.
 
-export interface ScheduleRow {
+export interface ScheduleBill {
   entity: string;   // ENTITY_DIM key
   account: string;  // ACCOUNT_DIM key
   sub: string;      // SUB_DIM[account] key
   object: string;   // OBJECT_DIM key
-  vendor: string;   // VENDOR_DIM key
+  vendor: string;   // VENDOR_DIM key — unique per bill (the bill identity)
   description: string;         // the entry's own usedFor line
   basis: string;               // the entry's costType, page-legend vocabulary
   cadence: string;             // the entry's cadence, verbatim
-  // FD-1g: ALLOCATED TO — the allocation dimension by its accounting name.
-  // type drives the RENDER: 'module' targets render bare; project/routine/
-  // trip targets render with a PROJECT:/ROUTINE:/TRIP: prefix (none exist in
-  // the current declared rows — the shape is ready for the ledger-derived
-  // version). Sharers (Personal, Platform) render bare like modules.
+  // FD-1g/FD-1j: ALLOCATED TO — the allocation targets. A bill divides EVENLY
+  // across its targets (the equal-split allocation, /how-pricing-works
+  // allocatedShare :53-56); each target's split % and allocated $ are DERIVED
+  // in the 1NF explosion below, never stored twice. type drives the RENDER:
+  // 'module' targets render bare; project/routine/trip targets render with a
+  // PROJECT:/ROUTINE:/TRIP: prefix (none exist in the current declared rows —
+  // the shape is ready for the ledger-derived version).
   allocatedTo: { type: 'module' | 'project' | 'routine' | 'trip'; name: string }[];
-  split: string;               // order-aligned to allocatedTo (100 | even ᵉ | ÷ all)
-  amountUsd: number | null;    // monthlyCost VERBATIM; null → dash + footnote
+  amountUsd: number | null;    // the BILL's monthlyCost VERBATIM; null → dash + footnote
   footnotes: string[];         // marks into FOOTNOTES
 }
 
-// Sort: ENTITY → ACCOUNT → SUB, vendors grouped within a sub.
-export const SCHEDULE_ROWS: ScheduleRow[] = [
+// FD-1j: the former '÷ all' platform cell explodes to one row PER MODULE
+// (Alex's ruling). The module vocabulary is the landing's own nine pillars —
+// the module sheet / TAB_DESCRIPTORS / DIM-3 module_key vocabulary, NOT the
+// seven-product legacy PRODUCTS list in pricing-costs.ts (tension flagged in
+// the FD-1j report; /how-pricing-works :225 still divides by 7).
+export const ALL_MODULES: ScheduleBill['allocatedTo'] = [
+  'Travel', 'Runway', 'Books', 'Trade', 'Tax', 'Compliance', 'Routines', 'Projects', 'Content',
+].map((name) => ({ type: 'module' as const, name }));
+
+// Source order: ENTITY → ACCOUNT → SUB, vendors grouped within a sub (the 1NF
+// derivation re-sorts ENTITY → ACCOUNT → SUB → VENDOR → target name).
+export const SCHEDULE_BILLS: ScheduleBill[] = [
   // ── B-5100-10 · AI inference ──────────────────────────────────────────────
   // Anthropic — pricing-costs.ts:113-121 (PER_USE per-token, null,
   // modules ['operations','trading','compliance'])
@@ -111,7 +133,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '5100', sub: '10', object: 'API', vendor: 'ANTH',
     description: 'Trading briefs/synthesis · operations planning, design, tasks, content · compliance discovery',
     basis: 'PER-USE', cadence: 'per token',
-    allocatedTo: [{ type: 'module', name: 'Operations' }, { type: 'module', name: 'Trading' }, { type: 'module', name: 'Compliance' }], split: '33.3 / 33.3 / 33.3ᵉ',
+    allocatedTo: [{ type: 'module', name: 'Operations' }, { type: 'module', name: 'Trading' }, { type: 'module', name: 'Compliance' }],
     amountUsd: null, footnotes: ['ᵃ'],
   },
   // OpenAI — pricing-costs.ts:131-139 (PER_USE per-token, null, ['bookkeeping','personal'])
@@ -119,7 +141,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '5100', sub: '10', object: 'API', vendor: 'OAI',
     description: 'Spending insights (bookkeeping) · meal & cart planning (personal)',
     basis: 'PER-USE', cadence: 'per token',
-    allocatedTo: [{ type: 'module', name: 'Bookkeeping' }, { type: 'module', name: 'Personal' }], split: '50 / 50ᵉ',
+    allocatedTo: [{ type: 'module', name: 'Bookkeeping' }, { type: 'module', name: 'Personal' }],
     amountUsd: null, footnotes: ['ᵃ'],
   },
   // xAI (Grok) — pricing-costs.ts:102-110 (PER_USE per-token, null, ['trading'])
@@ -127,7 +149,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '5100', sub: '10', object: 'API', vendor: 'XAI',
     description: 'Social/X sentiment on scanned tickers',
     basis: 'PER-USE', cadence: 'per token',
-    allocatedTo: [{ type: 'module', name: 'Trading' }], split: '100',
+    allocatedTo: [{ type: 'module', name: 'Trading' }],
     amountUsd: null, footnotes: ['ᵃ'],
   },
   // Voyage AI — pricing-costs.ts:214-222 (PER_USE per-token, null, ['compliance'])
@@ -135,7 +157,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '5100', sub: '10', object: 'API', vendor: 'VOYG',
     description: 'Embeddings + rerank for the regulatory corpus search',
     basis: 'PER-USE', cadence: 'per token',
-    allocatedTo: [{ type: 'module', name: 'Compliance' }], split: '100',
+    allocatedTo: [{ type: 'module', name: 'Compliance' }],
     amountUsd: null, footnotes: ['ᵃ'],
   },
 
@@ -145,7 +167,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '5100', sub: '30', object: 'API', vendor: 'DUFL',
     description: 'Flight search, offers, orders, payments',
     basis: 'PER-USE', cadence: 'per booking',
-    allocatedTo: [{ type: 'module', name: 'Travel' }], split: '100',
+    allocatedTo: [{ type: 'module', name: 'Travel' }],
     amountUsd: null, footnotes: ['ᵃ'],
   },
   // Google Places — pricing-costs.ts:182-191 (PER_USE per-call, null,
@@ -154,7 +176,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '5100', sub: '30', object: 'API', vendor: 'GOOG',
     description: 'Trip discovery — POI search, geocode, details, photos (5,000 calls/mo cap in code)',
     basis: 'PER-USE', cadence: 'per call',
-    allocatedTo: [{ type: 'module', name: 'Travel' }], split: '100',
+    allocatedTo: [{ type: 'module', name: 'Travel' }],
     amountUsd: null, footnotes: ['ᵃ'],
   },
 
@@ -164,7 +186,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '5100', sub: '40', object: 'API', vendor: 'PLD',
     description: 'Bank/card transaction sync · investment holdings for cost basis',
     basis: 'PER-USE', cadence: 'per item',
-    allocatedTo: [{ type: 'module', name: 'Bookkeeping' }, { type: 'module', name: 'Trading' }], split: '50 / 50ᵉ',
+    allocatedTo: [{ type: 'module', name: 'Bookkeeping' }, { type: 'module', name: 'Trading' }],
     amountUsd: null, footnotes: ['ᵃ'],
   },
 
@@ -175,7 +197,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '5100', sub: '50', object: 'API', vendor: 'INNG',
     description: 'Background jobs — operations AI pipeline, routine evaluator, compliance corpus ingest',
     basis: 'UNKNOWN', cadence: 'unconfirmed',
-    allocatedTo: [{ type: 'module', name: 'Operations' }, { type: 'module', name: 'Compliance' }], split: '50 / 50ᵉ',
+    allocatedTo: [{ type: 'module', name: 'Operations' }, { type: 'module', name: 'Compliance' }],
     amountUsd: null, footnotes: ['ᶜ'],
   },
 
@@ -186,7 +208,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '5100', sub: '60', object: 'API', vendor: 'STRP',
     description: 'Payment processing for subscriptions (% + fee per transaction)',
     basis: 'PER-USE', cadence: 'per transaction',
-    allocatedTo: [{ type: 'module', name: 'Platform' }], split: '÷ all',
+    allocatedTo: ALL_MODULES,
     amountUsd: null, footnotes: ['ᵃ'],
   },
 
@@ -197,7 +219,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '6210', sub: '10', object: 'SUB', vendor: 'FINN',
     description: 'Market data — fundamentals, estimates, news, insider, earnings quality',
     basis: 'FIXED', cadence: 'monthly',
-    allocatedTo: [{ type: 'module', name: 'Trading' }], split: '100',
+    allocatedTo: [{ type: 'module', name: 'Trading' }],
     amountUsd: 550, footnotes: [],
   },
 
@@ -207,7 +229,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '6210', sub: '20', object: 'SUB', vendor: 'VRCL',
     description: 'Hosting',
     basis: 'FIXED', cadence: 'monthly',
-    allocatedTo: [{ type: 'module', name: 'Platform' }], split: '÷ all',
+    allocatedTo: ALL_MODULES,
     amountUsd: null, footnotes: ['ᵇ'],
   },
   // Azure PostgreSQL — pricing-costs.ts:238 (FIXED, null, platform)
@@ -215,7 +237,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '6210', sub: '20', object: 'SUB', vendor: 'AZUR',
     description: 'Database',
     basis: 'FIXED', cadence: 'monthly',
-    allocatedTo: [{ type: 'module', name: 'Platform' }], split: '÷ all',
+    allocatedTo: ALL_MODULES,
     amountUsd: null, footnotes: ['ᵇ'],
   },
   // GitHub — pricing-costs.ts:240 (FIXED, null, platform)
@@ -223,7 +245,7 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '6210', sub: '20', object: 'SUB', vendor: 'GHUB',
     description: 'Repo / CI',
     basis: 'FIXED', cadence: 'monthly',
-    allocatedTo: [{ type: 'module', name: 'Platform' }], split: '÷ all',
+    allocatedTo: ALL_MODULES,
     amountUsd: null, footnotes: ['ᵇ'],
   },
 
@@ -233,10 +255,71 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
     entity: 'B', account: '6210', sub: '30', object: 'SUB', vendor: 'DOM',
     description: 'DNS / domain',
     basis: 'FIXED', cadence: 'yearly',
-    allocatedTo: [{ type: 'module', name: 'Platform' }], split: '÷ all',
+    allocatedTo: ALL_MODULES,
     amountUsd: null, footnotes: ['ᵇ', 'ᵈ'],
   },
 ];
+
+// ─── FD-1j: the 1NF derivation — one allocation per row ──────────────────────
+// Row = one bill × one target. The identity columns repeat on every row (the
+// render dims them on continuation rows — a styling choice only; the DATA is
+// complete per row). SPLIT is THIS row's percent — the bill's even division:
+// an integer share renders bare of decimals ('100', '50ᵉ'), otherwise one
+// decimal ('33.3ᵉ', '11.1ᵉ'); multi-target rows carry the ᵉ mark. AMOUNT is
+// THIS row's allocated dollars (bill amount ÷ target count) when the bill's
+// amount is entered, else null → the dash + the bill's footnotes.
+
+export interface ScheduleAllocationRow {
+  entity: string;
+  account: string;
+  sub: string;
+  object: string;
+  vendor: string;
+  description: string;
+  basis: string;
+  cadence: string;
+  target: { type: 'module' | 'project' | 'routine' | 'trip'; name: string };
+  splitPct: string;            // THIS row's share of its bill
+  amountUsd: number | null;    // THIS row's allocated dollars
+  footnotes: string[];
+  /** Same bill as the previous row in sort order — the render dims the
+   *  repeated identity cells (the row's data is still complete). */
+  isContinuation: boolean;
+}
+
+function evenSplitPct(targetCount: number): string {
+  const pct = 100 / targetCount;
+  const shown = Number.isInteger(pct) ? String(pct) : pct.toFixed(1);
+  return targetCount === 1 ? shown : `${shown}ᵉ`;
+}
+
+// Sort: ENTITY → ACCOUNT → SUB → VENDOR → target name (Alex's ruled order).
+// isContinuation is stamped AFTER the sort; vendor codes are unique per bill,
+// so vendor equality identifies a continuation row.
+export const ALLOCATION_ROWS: ScheduleAllocationRow[] = SCHEDULE_BILLS
+  .flatMap((bill) =>
+    bill.allocatedTo.map((target) => ({
+      entity: bill.entity, account: bill.account, sub: bill.sub,
+      object: bill.object, vendor: bill.vendor,
+      description: bill.description, basis: bill.basis, cadence: bill.cadence,
+      target,
+      splitPct: evenSplitPct(bill.allocatedTo.length),
+      amountUsd: bill.amountUsd === null ? null : bill.amountUsd / bill.allocatedTo.length,
+      footnotes: bill.footnotes,
+      isContinuation: false,
+    })),
+  )
+  .sort((a, b) =>
+    a.entity.localeCompare(b.entity) ||
+    a.account.localeCompare(b.account) ||
+    a.sub.localeCompare(b.sub) ||
+    a.vendor.localeCompare(b.vendor) ||
+    a.target.name.localeCompare(b.target.name),
+  )
+  .map((row, i, rows) => ({
+    ...row,
+    isContinuation: i > 0 && rows[i - 1].vendor === row.vendor,
+  }));
 
 // ─── The $0 strip — real facts worth stating; nothing posts, nothing codes ───
 
