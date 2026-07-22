@@ -46,6 +46,9 @@ export async function GET() {
       status: r.status,
       bookingType: r.bookingType,
       confirmationCode: r.providerConfirmationCode,
+      // PR-Cancel-1: the STORED policy (written at book time) — the pre-cancel
+      // dialog renders exactly this, never a fabricated policy.
+      cancellationPolicyJson: r.cancellationPolicyJson ?? null,
     }));
 
     return NextResponse.json({ reservations });
