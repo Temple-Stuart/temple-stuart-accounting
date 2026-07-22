@@ -1604,11 +1604,11 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
               onClick={() => { void loadLinkTargets(); setBatchLinks(prev => [...prev, { targetType: 'module', targetId: '', percent: prev.length === 0 ? '100' : '' }]); }}
               className="rounded border border-white/40 px-2 py-1 text-[11px] font-mono text-white hover:bg-white/10"
             >
-              + Link
+              + Allocate to
             </button>
             {batchLinks.length > 0 && (
               <span className={`text-[11px] font-mono ${linksSumOk ? 'text-green-300' : 'text-amber-300'}`}>
-                Links must total 100% — currently {(linksCentiSum / 100).toFixed(2)}%
+                Allocations must total 100% — currently {(linksCentiSum / 100).toFixed(2)}%
               </span>
             )}
           </div>

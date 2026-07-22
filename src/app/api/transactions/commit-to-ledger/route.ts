@@ -84,21 +84,21 @@ export async function POST(request: NextRequest) {
         const t = raw?.targetType;
         if (t !== 'project' && t !== 'routine' && t !== 'trip' && t !== 'module') {
           return NextResponse.json(
-            { error: `link targetType must be project | routine | trip | module` },
+            { error: `allocation targetType must be project | routine | trip | module` },
             { status: 400 }
           );
         }
         const p = raw?.percent;
         if (typeof p !== 'number' || !Number.isFinite(p) || p <= 0 || p > 100) {
           return NextResponse.json(
-            { error: 'each link percent must be a number in (0, 100]' },
+            { error: 'each allocation percent must be a number in (0, 100]' },
             { status: 400 }
           );
         }
         const centi = Math.round(p * 100);
         if (Math.abs(p * 100 - centi) > 1e-9) {
           return NextResponse.json(
-            { error: `link percent ${p} has more than 2 decimal places` },
+            { error: `allocation percent ${p} has more than 2 decimal places` },
             { status: 400 }
           );
         }
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
           }
           const dupKey = `module:${key}`;
           if (seenTargets.has(dupKey)) {
-            return NextResponse.json({ error: `duplicate link target ${dupKey}` }, { status: 400 });
+            return NextResponse.json({ error: `duplicate allocation target ${dupKey}` }, { status: 400 });
           }
           seenTargets.add(dupKey);
           out.push({ module_key: key, percent: centi / 100 });
@@ -124,13 +124,13 @@ export async function POST(request: NextRequest) {
         const targetId = raw?.targetId;
         if (typeof targetId !== 'string' || targetId.length === 0) {
           return NextResponse.json(
-            { error: `link targetId required for targetType ${t}` },
+            { error: `allocation targetId required for targetType ${t}` },
             { status: 400 }
           );
         }
         const dupKey = `${t}:${targetId}`;
         if (seenTargets.has(dupKey)) {
-          return NextResponse.json({ error: `duplicate link target ${dupKey}` }, { status: 400 });
+          return NextResponse.json({ error: `duplicate allocation target ${dupKey}` }, { status: 400 });
         }
         seenTargets.add(dupKey);
 
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
       }
       if (centiSum !== 10000) {
         return NextResponse.json(
-          { error: `Links must total exactly 100% — got ${(centiSum / 100).toFixed(2)}%` },
+          { error: `Allocations must total exactly 100% — got ${(centiSum / 100).toFixed(2)}%` },
           { status: 400 }
         );
       }
