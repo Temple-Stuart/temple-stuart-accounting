@@ -20,7 +20,8 @@
  * them to an account user (reservations/route.ts:12-13).
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
+import CancelBookingDialog from './CancelBookingDialog';
 
 interface BookingRow {
   id: string;
@@ -34,6 +35,19 @@ interface BookingRow {
   status: string;
   bookingType: string;
   confirmationCode: string | null;
+  /** PR-Cancel-1: the stored policy from book time — the pre-cancel dialog
+   *  renders exactly this. */
+  cancellationPolicyJson?: unknown;
+}
+
+/** PR-Cancel-1: the per-row cancellation outcome — the provider's verbatim
+ *  numbers on success (null = not stated by provider), or the failure message. */
+type CancelOutcome =
+  | { ok: true; providerStatus: string | null; refundAmount: number | null; cancellationFee: number | null; currency: string | null }
+  | { ok: false; message: string };
+
+function moneyOrUnstated(v: number | null, cur: string | null): string {
+  return v === null ? 'not stated by provider' : `${cur ? `${cur} ` : ''}${v.toFixed(2)}`;
 }
 
 interface Props {
@@ -55,6 +69,14 @@ export default function TripBookings({ tripId, onChanged }: Props) {
   const [rows, setRows] = useState<BookingRow[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  // PR-Cancel-1: the row whose pre-cancel dialog is open, and per-row outcomes.
+  // Outcomes render INLINE under the row, which REMAINS after cancellation
+  // (record-keeping) — so a cancel updates rows LOCALLY instead of bumping the
+  // shared tripsRefresh (a remount would erase the inline outcome; the flip is
+  // already persisted server-side, so any later refetch agrees).
+  const [cancelTarget, setCancelTarget] = useState<BookingRow | null>(null);
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [cancelOutcomes, setCancelOutcomes] = useState<Record<string, CancelOutcome>>({});
 
   const load = useCallback(() => {
     let cancelled = false;
@@ -92,6 +114,38 @@ export default function TripBookings({ tripId, onChanged }: Props) {
       setActionError(err instanceof Error ? err.message : 'Could not remove the booking from the trip.');
     } finally {
       setBusyId(null);
+    }
+  };
+
+  // PR-Cancel-1: the confirmed cancel — POST the authed cancel route; on
+  // success flip THIS row's status locally + show the provider's verbatim
+  // outcome inline; on failure show the provider's message inline. Either way
+  // the dialog closes and the row remains.
+  const doCancel = async (row: BookingRow) => {
+    setCancelBusy(true);
+    try {
+      const res = await fetch(`/api/reservations/${row.id}/cancel`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Could not cancel the booking.');
+      setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, status: data.reservation?.status ?? 'cancelled' } : r)));
+      setCancelOutcomes((prev) => ({
+        ...prev,
+        [row.id]: {
+          ok: true,
+          providerStatus: data.cancellation?.providerStatus ?? null,
+          refundAmount: data.cancellation?.refundAmount ?? null,
+          cancellationFee: data.cancellation?.cancellationFee ?? null,
+          currency: data.cancellation?.currency ?? null,
+        },
+      }));
+    } catch (err) {
+      setCancelOutcomes((prev) => ({
+        ...prev,
+        [row.id]: { ok: false, message: err instanceof Error ? err.message : 'Could not cancel the booking.' },
+      }));
+    } finally {
+      setCancelBusy(false);
+      setCancelTarget(null);
     }
   };
 
@@ -140,8 +194,11 @@ export default function TripBookings({ tripId, onChanged }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
-                  <tr key={r.id} className="border-b border-border last:border-0">
+                {rows.map((r) => {
+                  const outcome = cancelOutcomes[r.id];
+                  return (
+                  <Fragment key={r.id}>
+                  <tr className="border-b border-border last:border-0">
                     <td className="px-3 py-2 capitalize text-text-secondary">{r.type}</td>
                     <td className="px-3 py-2 font-medium text-text-primary">{r.name}</td>
                     <td className="px-3 py-2 text-text-secondary">
@@ -157,6 +214,19 @@ export default function TripBookings({ tripId, onChanged }: Props) {
                       {r.confirmationCode ?? ''}
                     </td>
                     <td className="px-3 py-2 text-right">
+                      {/* PR-Cancel-1: hotel-only v1 (liteapi rows), and ONLY while
+                          confirmed — after the flip the action disappears, the
+                          row stays (record-keeping). */}
+                      {r.provider === 'liteapi' && r.status === 'confirmed' && (
+                        <button
+                          type="button"
+                          disabled={busyId === r.id || cancelBusy}
+                          onClick={() => setCancelTarget(r)}
+                          className="mr-2 rounded border border-brand-red/40 px-2 py-1 text-xs font-medium text-brand-red hover:bg-brand-red/10 disabled:opacity-50"
+                        >
+                          Cancel booking
+                        </button>
+                      )}
                       <button
                         type="button"
                         disabled={busyId === r.id}
@@ -167,7 +237,30 @@ export default function TripBookings({ tripId, onChanged }: Props) {
                       </button>
                     </td>
                   </tr>
-                ))}
+                  {/* PR-Cancel-1: the provider's actual outcome, inline under the
+                      row — verbatim numbers on success, the provider's message on
+                      failure. Absent fields say so; nothing is invented. */}
+                  {outcome && (
+                    <tr className="border-b border-border last:border-0">
+                      <td colSpan={7} className="px-3 py-2">
+                        {outcome.ok ? (
+                          <p className="text-xs text-text-secondary">
+                            <span className="font-semibold text-brand-green">Cancelled</span>
+                            {outcome.providerStatus ? ` (provider status: ${outcome.providerStatus})` : ''}
+                            {' — refund: '}
+                            <span className="font-medium">{moneyOrUnstated(outcome.refundAmount, outcome.currency)}</span>
+                            {' · cancellation fee: '}
+                            <span className="font-medium">{moneyOrUnstated(outcome.cancellationFee, outcome.currency)}</span>
+                          </p>
+                        ) : (
+                          <p className="text-xs text-brand-red">{outcome.message}</p>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -175,6 +268,18 @@ export default function TripBookings({ tripId, onChanged }: Props) {
             Total booked: <span className="text-brand-green">${sumUsd(rows)}</span>
           </p>
         </>
+      )}
+
+      {cancelTarget && (
+        <CancelBookingDialog
+          bookingName={cancelTarget.name}
+          checkIn={cancelTarget.checkIn}
+          checkOut={cancelTarget.checkOut}
+          policy={cancelTarget.cancellationPolicyJson ?? null}
+          busy={cancelBusy}
+          onConfirm={() => doCancel(cancelTarget)}
+          onClose={() => { if (!cancelBusy) setCancelTarget(null); }}
+        />
       )}
     </div>
   );

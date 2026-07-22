@@ -908,3 +908,84 @@ export async function getCities(countryCode: string): Promise<LiteApiCity[]> {
   const json = await res.json();
   return Array.isArray(json?.data) ? json.data : [];
 }
+
+// ─── Booking management (PR-Cancel-1) ────────────────────────────────────────
+// Contract discovered from LiteAPI's OFFICIAL nodejs-sdk v4.3.2 (github.com/
+// liteapi-travel/nodejs-sdk, index.js — the v3.0-generation SDK; the npm
+// `liteapi-travel` latest is a stale v2.0 SDK and was NOT mirrored):
+//   index.js:5    bookServiceURL = "https://book.liteapi.travel/v3.0"
+//   index.js:206  retrieveBooking → GET  {book}/bookings/{bookingId}
+//   index.js:244  cancelBooking   → PUT  {book}/bookings/{bookingId} (NO body)
+// Both authenticate with the same X-API-Key header this client already uses.
+// Cancel response (README "Booking cancel" return type): bookingId, status,
+// cancellation_fee, refund_amount, currency. The provider's response is the
+// ONLY money truth — absent fields map to null, NEVER defaulted or invented.
+
+export interface BookingStatus {
+  bookingId: string | null;
+  status: string | null;
+  hotelConfirmationCode: string | null;
+  checkin: string | null;
+  checkout: string | null;
+  price: number | null;
+  currency: string | null;
+  cancellationPolicies: unknown;
+}
+
+/** Hit `GET /v3.0/bookings/{bookingId}` on the BOOK host. Throws
+ *  MissingLiteApiKeyError on no key, LiteApiError on non-2xx. */
+export async function getBookingStatus(bookingId: string): Promise<BookingStatus> {
+  const res = await fetch(`${LITEAPI_BOOK_BASE}/bookings/${encodeURIComponent(bookingId)}`, {
+    method: 'GET',
+    headers: headers(),
+  });
+  if (!res.ok) {
+    throw new LiteApiError('/v3.0/bookings/{id}', res.status, await res.text());
+  }
+  const json = await res.json();
+  const d = json.data ?? json;
+  return {
+    bookingId: typeof d.bookingId === 'string' ? d.bookingId : null,
+    status: typeof d.status === 'string' ? d.status : null,
+    hotelConfirmationCode: typeof d.hotelConfirmationCode === 'string' ? d.hotelConfirmationCode : null,
+    checkin: typeof d.checkin === 'string' ? d.checkin : null,
+    checkout: typeof d.checkout === 'string' ? d.checkout : null,
+    price: typeof d.price === 'number' ? d.price : null,
+    currency: typeof d.currency === 'string' ? d.currency : null,
+    cancellationPolicies: d.cancellationPolicies ?? null,
+  };
+}
+
+export interface CancelBookingResult {
+  bookingId: string | null;
+  /** Provider's post-cancel booking status, verbatim. */
+  status: string | null;
+  /** Provider `cancellation_fee`, verbatim — null when not stated. */
+  cancellationFee: number | null;
+  /** Provider `refund_amount`, verbatim — null when not stated. */
+  refundAmount: number | null;
+  currency: string | null;
+}
+
+/** Hit `PUT /v3.0/bookings/{bookingId}` (the cancel call — no body) on the BOOK
+ *  host. Throws MissingLiteApiKeyError on no key, LiteApiError on non-2xx (a
+ *  policy-rejected cancellation — e.g. NRFN or past the deadline — comes back
+ *  non-2xx and therefore THROWS; the caller surfaces the provider's message). */
+export async function cancelBooking(bookingId: string): Promise<CancelBookingResult> {
+  const res = await fetch(`${LITEAPI_BOOK_BASE}/bookings/${encodeURIComponent(bookingId)}`, {
+    method: 'PUT',
+    headers: headers(),
+  });
+  if (!res.ok) {
+    throw new LiteApiError('/v3.0/bookings/{id} (cancel)', res.status, await res.text());
+  }
+  const json = await res.json();
+  const d = json.data ?? json;
+  return {
+    bookingId: typeof d.bookingId === 'string' ? d.bookingId : null,
+    status: typeof d.status === 'string' ? d.status : null,
+    cancellationFee: typeof d.cancellation_fee === 'number' ? d.cancellation_fee : null,
+    refundAmount: typeof d.refund_amount === 'number' ? d.refund_amount : null,
+    currency: typeof d.currency === 'string' ? d.currency : null,
+  };
+}
