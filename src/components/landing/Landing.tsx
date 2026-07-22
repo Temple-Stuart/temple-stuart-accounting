@@ -29,9 +29,9 @@ import Link from 'next/link';
 import { Fragment } from 'react';
 import { TAB_PRICING } from '@/config/pricing-costs';
 import {
-  SCHEDULE_ROWS, NO_COST_STRIP, FOOTNOTES,
+  SCHEDULE_BILLS, ALLOCATION_ROWS, NO_COST_STRIP, FOOTNOTES,
   ENTITY_DIM, ACCOUNT_DIM, SUB_DIM, OBJECT_DIM, VENDOR_DIM,
-  type ScheduleRow,
+  type ScheduleAllocationRow,
 } from '@/config/transparencyLedger';
 import { TAB_DESCRIPTORS } from '@/lib/tabDescriptors';
 
@@ -362,10 +362,11 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
 
       {/* ── FD-1e: THE DIMENSIONAL TABLE — the company's real operating bills
             coded in the Temple Stuart standard. Every row/amount/attribution
-            renders from src/config/transparencyLedger.ts, whose rows each cite
+            renders from src/config/transparencyLedger.ts, whose bills each cite
             their pricing-costs.ts provenance (phase-1: declared coding of real
             invoices — NOT ledger derivation; that's the DIM arc). Caption
-            honesty basis: /how-pricing-works :98-103. ─────────────────────── */}
+            honesty basis: /how-pricing-works :98-103. FD-1j: the table is 1NF —
+            ALLOCATION_ROWS (one allocation per row); coverage counts bills. ── */}
       <section className="w-full border-b border-panel-border bg-panel">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
           <p className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
@@ -410,49 +411,55 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
               </thead>
               <tbody>
                 {(['5100', '6210'] as const).map((account) => {
-                  const rows = SCHEDULE_ROWS.filter((r) => r.account === account);
-                  const entered = rows.filter((r) => r.amountUsd !== null);
-                  const subtotal = entered.reduce((s, r) => s + (r.amountUsd as number), 0);
+                  // FD-1j: the table renders the 1NF rows (one allocation per
+                  // row); coverage counts BILLS, not rows — the subtotal is
+                  // the sum of the rows' ALLOCATED dollars, which reconciles
+                  // to the entered bills' totals exactly (even division).
+                  const rows = ALLOCATION_ROWS.filter((r) => r.account === account);
+                  const bills = SCHEDULE_BILLS.filter((b) => b.account === account);
+                  const enteredBills = bills.filter((b) => b.amountUsd !== null);
+                  const subtotal = rows.reduce((s, r) => s + (r.amountUsd ?? 0), 0);
                   return (
                     <Fragment key={account}>
-                      {rows.map((r: ScheduleRow) => (
-                        <tr key={`${r.account}-${r.sub}-${r.vendor}`} className="border-b border-panel-border">
-                          <td className="px-3 py-2 align-top"><DimCell code={r.entity} label={ENTITY_DIM[r.entity]} /></td>
-                          <td className="px-3 py-2 align-top"><DimCell code={r.account} label={ACCOUNT_DIM[r.account]} /></td>
-                          <td className="px-3 py-2 align-top"><DimCell code={r.sub} label={SUB_DIM[r.account]?.[r.sub] ?? ''} /></td>
-                          <td className="px-3 py-2 align-top"><DimCell code={r.object} label={OBJECT_DIM[r.object]} /></td>
-                          <td className="px-3 py-2 align-top"><DimCell code={r.vendor} label={VENDOR_DIM[r.vendor]} /></td>
-                          <td className="px-3 py-2 align-top text-xs leading-relaxed text-white/70">{r.description}</td>
-                          <td className="px-3 py-2 align-top font-mono text-[10px] uppercase tracking-wider text-white/60 whitespace-nowrap">{r.basis}</td>
-                          <td className="px-3 py-2 align-top text-xs text-white/60 whitespace-nowrap">{r.cadence}</td>
-                          <td className="px-3 py-2 align-top text-xs text-white/60">
-                            {/* FD-1g render rule: module targets bare;
-                                project/routine/trip targets typed with a
-                                mono-micro prefix. */}
-                            {r.allocatedTo.map((t, i) => (
-                              <Fragment key={`${t.type}-${t.name}`}>
-                                {i > 0 && ' · '}
-                                {t.type !== 'module' && (
-                                  <span className="font-mono text-[10px] uppercase tracking-wider text-white/40">
-                                    {t.type}:{' '}
-                                  </span>
-                                )}
-                                {t.name}
-                              </Fragment>
-                            ))}
-                          </td>
-                          <td className="px-3 py-2 align-top font-mono text-xs text-white/70 whitespace-nowrap">{r.split}</td>
-                          <td className="px-3 py-2 align-top text-right font-mono text-xs font-semibold text-white whitespace-nowrap">
-                            {r.amountUsd !== null ? `$${r.amountUsd}` : `—${r.footnotes.join('')}`}
-                          </td>
-                        </tr>
-                      ))}
+                      {rows.map((r: ScheduleAllocationRow) => {
+                        // Continuation rows repeat the bill-identity cells
+                        // DIMMED — visual grouping only; every row's data is
+                        // complete (the FD-1j ruling: data over compactness).
+                        const idCell = `px-3 py-2 align-top${r.isContinuation ? ' opacity-30' : ''}`;
+                        return (
+                          <tr key={`${r.vendor}-${r.target.type}-${r.target.name}`} className="border-b border-panel-border">
+                            <td className={idCell}><DimCell code={r.entity} label={ENTITY_DIM[r.entity]} /></td>
+                            <td className={idCell}><DimCell code={r.account} label={ACCOUNT_DIM[r.account]} /></td>
+                            <td className={idCell}><DimCell code={r.sub} label={SUB_DIM[r.account]?.[r.sub] ?? ''} /></td>
+                            <td className={idCell}><DimCell code={r.object} label={OBJECT_DIM[r.object]} /></td>
+                            <td className={idCell}><DimCell code={r.vendor} label={VENDOR_DIM[r.vendor]} /></td>
+                            <td className={`${idCell} text-xs leading-relaxed text-white/70`}>{r.description}</td>
+                            <td className={`${idCell} font-mono text-[10px] uppercase tracking-wider text-white/60 whitespace-nowrap`}>{r.basis}</td>
+                            <td className={`${idCell} text-xs text-white/60 whitespace-nowrap`}>{r.cadence}</td>
+                            <td className="px-3 py-2 align-top text-xs text-white/60">
+                              {/* FD-1g render rule (one target per row since
+                                  FD-1j): module targets bare; project/routine/
+                                  trip targets typed with a mono-micro prefix. */}
+                              {r.target.type !== 'module' && (
+                                <span className="font-mono text-[10px] uppercase tracking-wider text-white/40">
+                                  {r.target.type}:{' '}
+                                </span>
+                              )}
+                              {r.target.name}
+                            </td>
+                            <td className="px-3 py-2 align-top font-mono text-xs text-white/70 whitespace-nowrap">{r.splitPct}</td>
+                            <td className="px-3 py-2 align-top text-right font-mono text-xs font-semibold text-white whitespace-nowrap">
+                              {r.amountUsd !== null ? `$${r.amountUsd.toFixed(2)}` : `—${r.footnotes.join('')}`}
+                            </td>
+                          </tr>
+                        );
+                      })}
                       <tr className="border-b border-panel-border bg-panel">
                         <td colSpan={10} className="px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-white/40">
-                          Subtotal B-{account} · {ACCOUNT_DIM[account]} — entered {entered.length} of {rows.length}
+                          Subtotal B-{account} · {ACCOUNT_DIM[account]} — entered {enteredBills.length} of {bills.length} bills
                         </td>
                         <td className="px-3 py-1.5 text-right font-mono text-xs font-bold text-white whitespace-nowrap">
-                          ${subtotal}
+                          ${subtotal.toFixed(2)}
                         </td>
                       </tr>
                     </Fragment>
@@ -463,15 +470,17 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
                     Total entered
                   </td>
                   <td className="px-3 py-2 text-right font-mono text-sm font-bold text-white whitespace-nowrap">
-                    ${SCHEDULE_ROWS.reduce((s, r) => s + (r.amountUsd ?? 0), 0)}/mo
+                    ${ALLOCATION_ROWS.reduce((s, r) => s + (r.amountUsd ?? 0), 0).toFixed(2)}/mo
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
           <p className="mt-2 font-mono text-[11px] text-white/50">
-            {SCHEDULE_ROWS.filter((r) => r.amountUsd !== null).length} of {SCHEDULE_ROWS.length} monthly
-            amounts entered from invoices — an un-entered amount renders a dash and its footnote, never a guess.
+            {/* FD-1j: coverage counts PARENT BILLS, not rows — both stated. */}
+            {SCHEDULE_BILLS.filter((b) => b.amountUsd !== null).length} of {SCHEDULE_BILLS.length} bills
+            entered · {ALLOCATION_ROWS.length} allocation rows — an un-entered amount renders a dash and
+            its footnote, never a guess.
           </p>
           {/* The footnote registry — every mark used above, defined once. */}
           <div className="mt-2 space-y-0.5">
