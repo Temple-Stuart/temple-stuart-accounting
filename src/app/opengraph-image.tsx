@@ -40,7 +40,7 @@ export default async function Image() {
         </div>
 
         {/* Main Content — the REAL live hero copy (page.tsx: "Track your money. /
-            Plan your life. / Act smarter."), replacing the stale "Plan your trips.
+            Plan your time. / Live smarter."), replacing the stale "Plan your trips.
             Find your people." (FOUNDERS-POSITIONING-AND-OG-TRUTH). */}
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -48,10 +48,10 @@ export default async function Image() {
               Track your money.
             </span>
             <span style={{ color: 'white', fontSize: '52px', fontWeight: '300' }}>
-              Plan your life.
+              Plan your time.
             </span>
             <span style={{ color: '#9ca3af', fontSize: '52px', fontWeight: '300' }}>
-              Act smarter.
+              Live smarter.
             </span>
           </div>
         </div>

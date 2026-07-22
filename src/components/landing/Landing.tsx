@@ -195,8 +195,8 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
           <div className="max-w-3xl">
             <h1 className="text-4xl lg:text-5xl font-light tracking-tight mb-6">
               Track your money.<br />
-              Plan your life.<br />
-              <span className="text-white/50">Act smarter.</span>
+              Plan your time.<br />
+              <span className="text-white/50">Live smarter.</span>
             </h1>
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <Link

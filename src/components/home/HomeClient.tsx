@@ -144,8 +144,8 @@ export default function HomeClient() {
           <div className="max-w-3xl">
             <h1 className="text-4xl lg:text-5xl font-light tracking-tight mb-4">
               Track your money.<br />
-              Plan your life.<br />
-              <span className="text-text-faint">Act smarter.</span>
+              Plan your time.<br />
+              <span className="text-text-faint">Live smarter.</span>
             </h1>
             {/* PR-Hero-PerTab: the subhead swaps to the active tab's descriptor. min-h
                 reserves space so the Get Started button never jumps as the line changes
