@@ -308,6 +308,102 @@ export async function getPaymentIntent(intentId: string): Promise<PaymentIntent>
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// ORDER CANCELLATIONS — quote-first cancel (PR-Cancel-2)
+// ═══════════════════════════════════════════════════════════════════
+// Contract discovered from Duffel's OFFICIAL JS SDK, @duffel/api v4.28.0
+// (dist/booking/OrderCancellations — mirrored here, NOT added as a dependency):
+//   create : POST  air/order_cancellations                      data { order_id }
+//   get    : GET   air/order_cancellations/{id}
+//   confirm: POST  air/order_cancellations/{id}/actions/confirm  (no body)
+// Response type (OrderCancellationsTypes.d.ts `OrderCancellation`): id,
+// order_id, refund_amount (string|null), refund_currency (string|null),
+// refund_to ('arc_bsp_cash'|'balance'|'card'|'voucher'|'awaiting_payment'|
+// 'airline_credits'), expires_at, confirmed_at, created_at, live_mode,
+// airline_credits[]. Two-step BY DESIGN: create returns the provider's ACTUAL
+// refund quote with nothing committed; only the newest pending quote confirms
+// (Duffel rejects stale ones). Absent fields → null, never invented.
+//
+// MODE GATE — deliberately NONE on this path: DUFFEL_ALLOW_LIVE_BOOKING gates
+// NEW bookings only (flights/book). A paused booking pipeline must never trap
+// a customer inside a booking they can't cancel, so cancellation rides the
+// token's own mode (getHeaders/duffelMode) with no extra flag.
+
+export interface OrderCancellationQuote {
+  id: string | null;
+  orderId: string | null;
+  refundAmount: string | null;
+  refundCurrency: string | null;
+  refundTo: string | null;
+  expiresAt: string | null;
+  confirmedAt: string | null;
+  liveMode: boolean | null;
+}
+
+function mapOrderCancellation(d: any): OrderCancellationQuote {
+  return {
+    id: typeof d?.id === 'string' ? d.id : null,
+    orderId: typeof d?.order_id === 'string' ? d.order_id : null,
+    refundAmount: typeof d?.refund_amount === 'string' ? d.refund_amount : null,
+    refundCurrency: typeof d?.refund_currency === 'string' ? d.refund_currency : null,
+    refundTo: typeof d?.refund_to === 'string' ? d.refund_to : null,
+    expiresAt: typeof d?.expires_at === 'string' ? d.expires_at : null,
+    confirmedAt: typeof d?.confirmed_at === 'string' ? d.confirmed_at : null,
+    liveMode: typeof d?.live_mode === 'boolean' ? d.live_mode : null,
+  };
+}
+
+/** STEP 1 — create the PENDING cancellation. Returns the provider's actual
+ *  refund quote (refund_amount/refund_to/expires_at); NOTHING is committed. */
+export async function createOrderCancellation(orderId: string): Promise<OrderCancellationQuote> {
+  const response = await fetch(`${DUFFEL_API_URL}/air/order_cancellations`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ data: { order_id: orderId } }),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    console.error('Duffel order-cancellation create error:', error?.errors?.[0]?.code || 'unknown');
+    throw duffelApiError('Cancellation quote failed', response.status, error);
+  }
+  const data = await response.json();
+  return mapOrderCancellation(data.data);
+}
+
+/** Read one order cancellation. Used by the cancel route as the pre-confirm
+ *  OWNERSHIP check: the quote's order_id must match the reservation's order
+ *  BEFORE the irreversible confirm fires (never after). */
+export async function getOrderCancellation(cancellationId: string): Promise<OrderCancellationQuote> {
+  const response = await fetch(
+    `${DUFFEL_API_URL}/air/order_cancellations/${encodeURIComponent(cancellationId)}`,
+    { method: 'GET', headers: getHeaders() },
+  );
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    console.error('Duffel order-cancellation fetch error:', error?.errors?.[0]?.code || 'unknown');
+    throw duffelApiError('Cancellation lookup failed', response.status, error);
+  }
+  const data = await response.json();
+  return mapOrderCancellation(data.data);
+}
+
+/** STEP 2 — confirm the pending cancellation (COMMITS it — irreversible).
+ *  Only the newest pending quote confirms; Duffel rejects a stale one
+ *  (error code `order_cancellation_stale`, carried on DuffelApiError.code). */
+export async function confirmOrderCancellation(cancellationId: string): Promise<OrderCancellationQuote> {
+  const response = await fetch(
+    `${DUFFEL_API_URL}/air/order_cancellations/${encodeURIComponent(cancellationId)}/actions/confirm`,
+    { method: 'POST', headers: getHeaders() },
+  );
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    console.error('Duffel order-cancellation confirm error:', error?.errors?.[0]?.code || 'unknown');
+    throw duffelApiError('Cancellation confirm failed', response.status, error);
+  }
+  const data = await response.json();
+  return mapOrderCancellation(data.data);
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // HELPERS - Parse Duffel data for UI
 // ═══════════════════════════════════════════════════════════════════
 export function parseOffer(offer: any) {
