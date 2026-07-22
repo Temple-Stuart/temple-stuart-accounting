@@ -1,185 +1,259 @@
-// FD-1e: the landing transparency table — the company's REAL operating bills,
-// coded in the Temple Stuart dimensional standard (ENTITY-ACCOUNT-SUB-OBJECT ·
-// Vendor · Links).
+// FD-1e → FD-1f v3: the landing transparency SCHEDULE — the company's real
+// operating bills coded in ALEX'S DECLARED TAXONOMY (the D-TEMPLATE slice):
+// every dimension is CODE + MEANING, and SUB is a CATEGORY slice (what kind of
+// spend), never a per-vendor serial — multiple vendors share a sub; VENDOR
+// answers who.
 //
-// PHASE-1 HONESTY CONTRACT:
+// PHASE-1 HONESTY CONTRACT (unchanged from FD-1e):
 //   • every row is one entry from src/config/pricing-costs.ts (the Alex-edited
-//     invoice truth) — provenance cited per row; NOTHING renders that isn't in
-//     that inventory;
-//   • the codes are the company's DECLARED coding of those real bills — a
-//     coding scheme applied to real invoices, NOT yet derived from a ledger
-//     (that upgrade is the DIM arc). Per Alex's standard: B (business entity),
-//     FIXED subscriptions → B-6210-xx-SUB, metered/per-use → B-5100-xx-API;
-//     the xx sub-segments are declared here, sequentially per family;
-//   • amounts are monthlyCost VERBATIM ($550, $0) or the entry's own truthful
-//     state ("— not yet entered" for null-FIXED, the metered cadence for
-//     null-PER_USE, the unconfirmed note for UNKNOWN) — zero invented numbers;
-//   • Links render module attributions VERBATIM with /how-pricing-works' own
-//     split vocabulary — "shared ÷ N" (equal split, allocatedShare, page
-//     :53-56) or "dedicated" (:176). NO percentage figures exist anywhere in
-//     the source, so none render.
+//     invoice truth) — provenance cited per row; NOTHING renders outside it;
+//   • the codes are the company's DECLARED coding of real bills, NOT ledger
+//     derivation (that upgrade is the DIM arc's phase-2);
+//   • amounts are monthlyCost VERBATIM or a dash + footnote — zero invented
+//     numbers; splits show 100 (dedicated), the equal-split percentages with
+//     the ᵉ footnote (the allocatedShare methodology, /how-pricing-works
+//     :53-56), or '÷ all' (platform rows) — no other figures exist to show.
 //
-// ROW-SELECTION RULE: every FIXED + PER_USE + UNKNOWN entry renders (real
-// bills or real metered commitments). COMMISSION entries (LiteAPI, Viator) are
-// EXCLUDED — the page's own legend says "vendor takes a cut of bookings — not
-// a bill we pay" (how-pricing-works :113). FREE entries render ONLY where the
-// $0 is a company-differentiating fact (TastyTrade's connect-your-own-account
-// model :80; the free-government-data corpus :231) — free-tier plumbing (FRED,
-// SEC EDGAR, RapidAPI visa free tier, fetch-og, OAuth) is excluded as clutter.
-// FREE rows carry code '—': a $0 fact posts nothing, so there is nothing to
-// code — never a decorative account string.
+// ROW-SELECTION RULE (FD-1e, unchanged): FIXED + PER_USE + UNKNOWN entries
+// render; COMMISSION entries are excluded ("not a bill we pay",
+// how-pricing-works :113); FREE rows render only in the $0 strip where the
+// zero is a company-differentiating fact (TastyTrade :80, gov data :231).
+// 5100-20 (Market data per-call) is RESERVED in the taxonomy — no bill is
+// entered under it, so it renders NO row.
 
-export interface TransparencyRow {
-  /** ENTITY-ACCOUNT-SUB-OBJECT, or '—' for $0 facts (nothing posts). */
-  code: string;
-  /** Declared vendor short-code (config-declared, never render-derived). */
-  vendor: string;
-  /** The entry's own usedFor line — what the money actually was. */
-  whatHappened: string;
-  /** Display amount — monthlyCost verbatim or the entry's truthful state. */
-  amount: string;
-  /** Module attribution verbatim + the page's split vocabulary. */
-  links: string;
+// ─── The taxonomy — Alex's declared dimension vocabulary ─────────────────────
+
+export const ENTITY_DIM: Record<string, string> = {
+  B: 'Business',
+};
+
+export const ACCOUNT_DIM: Record<string, string> = {
+  '5100': 'API & Data (COGS)',
+  '6210': 'Fixed Subscriptions',
+};
+
+export const SUB_DIM: Record<string, Record<string, string>> = {
+  '5100': {
+    '10': 'AI inference',
+    // '20': Market data per-call — RESERVED (no bill entered; renders no row).
+    '30': 'Travel APIs',
+    '40': 'Banking & financial data',
+    '50': 'Background compute',
+    '60': 'Payment processing',
+  },
+  '6210': {
+    '10': 'Data subscriptions',
+    '20': 'Infrastructure',
+    '30': 'Domains',
+  },
+};
+
+export const OBJECT_DIM: Record<string, string> = {
+  API: 'usage-billed',
+  SUB: 'subscription',
+};
+
+export const VENDOR_DIM: Record<string, string> = {
+  ANTH: 'Anthropic',
+  OAI: 'OpenAI',
+  XAI: 'xAI',
+  VOYG: 'Voyage AI',
+  DUFL: 'Duffel',
+  GOOG: 'Google',
+  PLD: 'Plaid',
+  INNG: 'Inngest',
+  STRP: 'Stripe',
+  FINN: 'Finnhub',
+  VRCL: 'Vercel',
+  AZUR: 'Azure',
+  GHUB: 'GitHub',
+  DOM: 'registrar',
+};
+
+// ─── Footnote registry (unicode marks live in the data strings) ──────────────
+
+export const FOOTNOTES: Record<string, string> = {
+  'ᵃ': 'metered — billed per use; no fixed monthly bill exists',
+  'ᵇ': 'not yet entered from an invoice — never estimated',
+  'ᶜ': 'billing model unconfirmed — fills from the invoice',
+  'ᵈ': 'billed yearly',
+  'ᵉ': 'even split across the modules that fire it (the equal-split allocation, /how-pricing-works allocatedShare :53-56)',
+};
+
+// ─── The schedule rows ───────────────────────────────────────────────────────
+
+export interface ScheduleRow {
+  entity: string;   // ENTITY_DIM key
+  account: string;  // ACCOUNT_DIM key
+  sub: string;      // SUB_DIM[account] key
+  object: string;   // OBJECT_DIM key
+  vendor: string;   // VENDOR_DIM key
+  description: string;         // the entry's own usedFor line
+  basis: string;               // the entry's costType, page-legend vocabulary
+  cadence: string;             // the entry's cadence, verbatim
+  links: string[];             // module attribution verbatim
+  split: string;               // order-aligned to links (100 | even ᵉ | ÷ all)
+  amountUsd: number | null;    // monthlyCost VERBATIM; null → dash + footnote
+  footnotes: string[];         // marks into FOOTNOTES
 }
 
-export const TRANSPARENCY_ROWS: TransparencyRow[] = [
-  // ── FIXED subscriptions → B-6210-xx-SUB ────────────────────────────────────
-  // Finnhub — pricing-costs.ts:63-71 (monthlyCost 550, "known true — the one
-  // seeded number"; modules ['trading'])
+// Sort: ENTITY → ACCOUNT → SUB, vendors grouped within a sub.
+export const SCHEDULE_ROWS: ScheduleRow[] = [
+  // ── B-5100-10 · AI inference ──────────────────────────────────────────────
+  // Anthropic — pricing-costs.ts:113-121 (PER_USE per-token, null,
+  // modules ['operations','trading','compliance'])
   {
-    code: 'B-6210-10-SUB',
-    vendor: 'FINN',
-    whatHappened: 'Market data — fundamentals, estimates, news, insider, earnings quality',
-    amount: '$550/mo',
-    links: 'Trading — dedicated',
-  },
-  // Vercel Pro — pricing-costs.ts:237 (FIXED, monthlyCost null, platform)
-  {
-    code: 'B-6210-20-SUB',
-    vendor: 'VRCL',
-    whatHappened: 'Hosting',
-    amount: '— not yet entered',
-    links: 'Platform — shared ÷ all modules',
-  },
-  // Azure PostgreSQL — pricing-costs.ts:238 (FIXED, null, platform)
-  {
-    code: 'B-6210-30-SUB',
-    vendor: 'AZUR',
-    whatHappened: 'Database',
-    amount: '— not yet entered',
-    links: 'Platform — shared ÷ all modules',
-  },
-  // GitHub — pricing-costs.ts:240 (FIXED, null, platform)
-  {
-    code: 'B-6210-40-SUB',
-    vendor: 'GHUB',
-    whatHappened: 'Repo / CI',
-    amount: '— not yet entered',
-    links: 'Platform — shared ÷ all modules',
-  },
-  // Domain — pricing-costs.ts:239 (FIXED, yearly cadence, null, platform)
-  {
-    code: 'B-6210-50-SUB',
-    vendor: 'DOM',
-    whatHappened: 'DNS / domain',
-    amount: '— not yet entered (billed yearly)',
-    links: 'Platform — shared ÷ all modules',
-  },
-
-  // ── Metered / per-use → B-5100-xx-API ──────────────────────────────────────
-  // Anthropic — pricing-costs.ts:113-121 (PER_USE per-token, null, modules
-  // ['operations','trading','compliance'])
-  {
-    code: 'B-5100-10-API',
-    vendor: 'ANTH',
-    whatHappened: 'Trading briefs/synthesis · operations planning, design, tasks, content · compliance discovery',
-    amount: 'metered · per token',
-    links: 'Operations · Trading · Compliance — shared ÷ 3',
+    entity: 'B', account: '5100', sub: '10', object: 'API', vendor: 'ANTH',
+    description: 'Trading briefs/synthesis · operations planning, design, tasks, content · compliance discovery',
+    basis: 'PER-USE', cadence: 'per token',
+    links: ['Operations', 'Trading', 'Compliance'], split: '33.3 / 33.3 / 33.3ᵉ',
+    amountUsd: null, footnotes: ['ᵃ'],
   },
   // OpenAI — pricing-costs.ts:131-139 (PER_USE per-token, null, ['bookkeeping','personal'])
   {
-    code: 'B-5100-20-API',
-    vendor: 'OAI',
-    whatHappened: 'Spending insights (bookkeeping) · meal & cart planning (personal)',
-    amount: 'metered · per token',
-    links: 'Bookkeeping · Personal — shared ÷ 2',
+    entity: 'B', account: '5100', sub: '10', object: 'API', vendor: 'OAI',
+    description: 'Spending insights (bookkeeping) · meal & cart planning (personal)',
+    basis: 'PER-USE', cadence: 'per token',
+    links: ['Bookkeeping', 'Personal'], split: '50 / 50ᵉ',
+    amountUsd: null, footnotes: ['ᵃ'],
   },
   // xAI (Grok) — pricing-costs.ts:102-110 (PER_USE per-token, null, ['trading'])
   {
-    code: 'B-5100-30-API',
-    vendor: 'XAI',
-    whatHappened: 'Social/X sentiment on scanned tickers',
-    amount: 'metered · per token',
-    links: 'Trading — dedicated',
-  },
-  // Plaid — pricing-costs.ts:122-130 (PER_USE per-item, null, ['bookkeeping','trading'])
-  {
-    code: 'B-5100-40-API',
-    vendor: 'PLD',
-    whatHappened: 'Bank/card transaction sync · investment holdings for cost basis',
-    amount: 'metered · per item',
-    links: 'Bookkeeping · Trading — shared ÷ 2',
-  },
-  // Google Places — pricing-costs.ts:182-191 (PER_USE per-call, null,
-  // ['travel'], note "hard cap: 5,000 calls/month enforced in code")
-  {
-    code: 'B-5100-50-API',
-    vendor: 'GOOG',
-    whatHappened: 'Trip discovery — POI search, geocode, details, photos (5,000 calls/mo cap in code)',
-    amount: 'metered · per call',
-    links: 'Travel — dedicated',
+    entity: 'B', account: '5100', sub: '10', object: 'API', vendor: 'XAI',
+    description: 'Social/X sentiment on scanned tickers',
+    basis: 'PER-USE', cadence: 'per token',
+    links: ['Trading'], split: '100',
+    amountUsd: null, footnotes: ['ᵃ'],
   },
   // Voyage AI — pricing-costs.ts:214-222 (PER_USE per-token, null, ['compliance'])
   {
-    code: 'B-5100-60-API',
-    vendor: 'VOYG',
-    whatHappened: 'Embeddings + rerank for the regulatory corpus search',
-    amount: 'metered · per token',
-    links: 'Compliance — dedicated',
-  },
-  // Inngest — pricing-costs.ts:140-149 (UNKNOWN, null, ['operations','compliance'],
-  // note "jobs SaaS with a free tier — cadence unknown, fill from invoice")
-  {
-    code: 'B-5100-70-API',
-    vendor: 'INNG',
-    whatHappened: 'Background jobs — operations AI pipeline, routine evaluator, compliance corpus ingest',
-    amount: 'billing model unconfirmed — fills from the invoice',
-    links: 'Operations · Compliance — shared ÷ 2',
-  },
-  // Duffel — pricing-costs.ts:152-161 (PER_USE per-booking, null, ['travel'])
-  {
-    code: 'B-5100-80-API',
-    vendor: 'DUFL',
-    whatHappened: 'Flight search, offers, orders, payments',
-    amount: 'metered · per booking',
-    links: 'Travel — dedicated',
-  },
-  // Stripe — pricing-costs.ts:241-250 (PER_USE per-transaction, null, platform,
-  // note "% + fee per transaction — scales with revenue, not usage")
-  {
-    code: 'B-5100-90-API',
-    vendor: 'STRP',
-    whatHappened: 'Payment processing for subscriptions (% + fee per transaction)',
-    amount: 'metered · per transaction',
-    links: 'Platform — shared ÷ all modules',
+    entity: 'B', account: '5100', sub: '10', object: 'API', vendor: 'VOYG',
+    description: 'Embeddings + rerank for the regulatory corpus search',
+    basis: 'PER-USE', cadence: 'per token',
+    links: ['Compliance'], split: '100',
+    amountUsd: null, footnotes: ['ᵃ'],
   },
 
-  // ── $0 facts worth stating (code '—': nothing posts, nothing to code) ──────
-  // TastyTrade — pricing-costs.ts:72-81 (FREE, monthlyCost 0, note "users
-  // connect their OWN TastyTrade account — the platform pays nothing")
+  // ── B-5100-30 · Travel APIs ───────────────────────────────────────────────
+  // Duffel — pricing-costs.ts:152-161 (PER_USE per-booking, null, ['travel'])
   {
-    code: '—',
-    vendor: 'TT',
-    whatHappened: 'Option chains, quotes, greeks, positions — users connect their own TastyTrade account; the platform pays nothing',
-    amount: '$0',
-    links: 'Trading — dedicated',
+    entity: 'B', account: '5100', sub: '30', object: 'API', vendor: 'DUFL',
+    description: 'Flight search, offers, orders, payments',
+    basis: 'PER-USE', cadence: 'per booking',
+    links: ['Travel'], split: '100',
+    amountUsd: null, footnotes: ['ᵃ'],
+  },
+  // Google Places — pricing-costs.ts:182-191 (PER_USE per-call, null,
+  // ['travel'], "hard cap: 5,000 calls/month enforced in code")
+  {
+    entity: 'B', account: '5100', sub: '30', object: 'API', vendor: 'GOOG',
+    description: 'Trip discovery — POI search, geocode, details, photos (5,000 calls/mo cap in code)',
+    basis: 'PER-USE', cadence: 'per call',
+    links: ['Travel'], split: '100',
+    amountUsd: null, footnotes: ['ᵃ'],
+  },
+
+  // ── B-5100-40 · Banking & financial data ──────────────────────────────────
+  // Plaid — pricing-costs.ts:122-130 (PER_USE per-item, null, ['bookkeeping','trading'])
+  {
+    entity: 'B', account: '5100', sub: '40', object: 'API', vendor: 'PLD',
+    description: 'Bank/card transaction sync · investment holdings for cost basis',
+    basis: 'PER-USE', cadence: 'per item',
+    links: ['Bookkeeping', 'Trading'], split: '50 / 50ᵉ',
+    amountUsd: null, footnotes: ['ᵃ'],
+  },
+
+  // ── B-5100-50 · Background compute ────────────────────────────────────────
+  // Inngest — pricing-costs.ts:140-149 (UNKNOWN, null, ['operations','compliance'],
+  // "jobs SaaS with a free tier — cadence unknown, fill from invoice")
+  {
+    entity: 'B', account: '5100', sub: '50', object: 'API', vendor: 'INNG',
+    description: 'Background jobs — operations AI pipeline, routine evaluator, compliance corpus ingest',
+    basis: 'UNKNOWN', cadence: 'unconfirmed',
+    links: ['Operations', 'Compliance'], split: '50 / 50ᵉ',
+    amountUsd: null, footnotes: ['ᶜ'],
+  },
+
+  // ── B-5100-60 · Payment processing ────────────────────────────────────────
+  // Stripe — pricing-costs.ts:241-250 (PER_USE per-transaction, null, platform,
+  // "% + fee per transaction — scales with revenue, not usage")
+  {
+    entity: 'B', account: '5100', sub: '60', object: 'API', vendor: 'STRP',
+    description: 'Payment processing for subscriptions (% + fee per transaction)',
+    basis: 'PER-USE', cadence: 'per transaction',
+    links: ['Platform'], split: '÷ all',
+    amountUsd: null, footnotes: ['ᵃ'],
+  },
+
+  // ── B-6210-10 · Data subscriptions ────────────────────────────────────────
+  // Finnhub — pricing-costs.ts:63-71 (FIXED, monthlyCost 550 — "known true —
+  // the one seeded number"; modules ['trading'])
+  {
+    entity: 'B', account: '6210', sub: '10', object: 'SUB', vendor: 'FINN',
+    description: 'Market data — fundamentals, estimates, news, insider, earnings quality',
+    basis: 'FIXED', cadence: 'monthly',
+    links: ['Trading'], split: '100',
+    amountUsd: 550, footnotes: [],
+  },
+
+  // ── B-6210-20 · Infrastructure ────────────────────────────────────────────
+  // Vercel Pro — pricing-costs.ts:237 (FIXED, monthlyCost null, platform)
+  {
+    entity: 'B', account: '6210', sub: '20', object: 'SUB', vendor: 'VRCL',
+    description: 'Hosting',
+    basis: 'FIXED', cadence: 'monthly',
+    links: ['Platform'], split: '÷ all',
+    amountUsd: null, footnotes: ['ᵇ'],
+  },
+  // Azure PostgreSQL — pricing-costs.ts:238 (FIXED, null, platform)
+  {
+    entity: 'B', account: '6210', sub: '20', object: 'SUB', vendor: 'AZUR',
+    description: 'Database',
+    basis: 'FIXED', cadence: 'monthly',
+    links: ['Platform'], split: '÷ all',
+    amountUsd: null, footnotes: ['ᵇ'],
+  },
+  // GitHub — pricing-costs.ts:240 (FIXED, null, platform)
+  {
+    entity: 'B', account: '6210', sub: '20', object: 'SUB', vendor: 'GHUB',
+    description: 'Repo / CI',
+    basis: 'FIXED', cadence: 'monthly',
+    links: ['Platform'], split: '÷ all',
+    amountUsd: null, footnotes: ['ᵇ'],
+  },
+
+  // ── B-6210-30 · Domains ───────────────────────────────────────────────────
+  // Domain — pricing-costs.ts:239 (FIXED, yearly cadence, null, platform)
+  {
+    entity: 'B', account: '6210', sub: '30', object: 'SUB', vendor: 'DOM',
+    description: 'DNS / domain',
+    basis: 'FIXED', cadence: 'yearly',
+    links: ['Platform'], split: '÷ all',
+    amountUsd: null, footnotes: ['ᵇ', 'ᵈ'],
+  },
+];
+
+// ─── The $0 strip — real facts worth stating; nothing posts, nothing codes ───
+
+export interface NoCostFact {
+  vendor: string;       // display short-code (not in VENDOR_DIM — nothing codes)
+  vendorLabel: string;
+  description: string;
+  links: string[];
+}
+
+export const NO_COST_STRIP: NoCostFact[] = [
+  // TastyTrade — pricing-costs.ts:72-81 (FREE, monthlyCost 0, "users connect
+  // their OWN TastyTrade account — the platform pays nothing")
+  {
+    vendor: 'TT', vendorLabel: 'TastyTrade',
+    description: 'Option chains, quotes, greeks, positions — users connect their own TastyTrade account; the platform pays nothing',
+    links: ['Trading'],
   },
   // Gov data — pricing-costs.ts:223-232 (FREE, 0, ['compliance'], "free government APIs")
   {
-    code: '—',
-    vendor: 'GOV',
-    whatHappened: 'Regulation text ingest (eCFR · US Code · Federal Register · IRS) — free government APIs',
-    amount: '$0',
-    links: 'Compliance — dedicated',
+    vendor: 'GOV', vendorLabel: 'Gov data',
+    description: 'Regulation text ingest (eCFR · US Code · Federal Register · IRS) — free government APIs',
+    links: ['Compliance'],
   },
 ];
