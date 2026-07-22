@@ -62,6 +62,17 @@ const PUBLIC_PATHS = [
   // src/config/pricing-costs.ts; audited in full). Without this entry the
   // landing's own Pricing link 307-bounced guests back to '/'.
   '/how-pricing-works',
+  // FD-1d: the nine /modules/<pillar> info pages — static marketing surfaces
+  // (Bloomberg header → the pillar's showcase deck → access block → footer).
+  // Safety proof, audited per deck: all nine decks + the TabShowcases wrappers
+  // contain ZERO on-load fetches, ZERO paid calls, ZERO authed reads (the
+  // Jul-16 showcase discipline, TabShowcases.tsx:7-9; the decks' live mounts —
+  // HubCalendar demoEvents guard, the Books/Tax mounted components — are
+  // fetch-free by the same rulings; the one fetch in the system is
+  // LockedTabCard's CLICK-initiated checkout POST, whose route 401s guests).
+  // Prefix-matching makes every /modules/* segment public — acceptable ONLY
+  // because the [pillar] route 404s unknown ids and renders static marketing.
+  '/modules',
   '/api/stripe/webhook',
   '/api/inngest',
   '/opengraph-image',
