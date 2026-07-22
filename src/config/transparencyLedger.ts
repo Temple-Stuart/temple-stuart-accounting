@@ -10,12 +10,14 @@
 // provenance comment per bill); ALLOCATION_ROWS below derives the per-
 // allocation records the table renders.
 //
-// FD-1l (D-VOCAB): target names are the CANONICAL PILLAR VOCABULARY + Personal
-// — the nine pillar names (Travel, Runway, Books, Trade, Tax, Compliance,
-// Routines, Projects, Content) plus Personal, nothing else. Alex's ruled
-// mapping killed the pricing-costs synonyms on this surface: Trading→Trade,
-// Bookkeeping→Books, Operations→Projects. The bill descriptions keep their
-// verbatim pricing-costs usedFor prose (provenance, not vocabulary).
+// FD-1l → FD-1m (D-VOCAB): target names are the CANONICAL PILLAR VOCABULARY —
+// the nine pillar names (Travel, Runway, Books, Trade, Tax, Compliance,
+// Routines, Projects, Content), period. Alex's ruled mapping killed the
+// pricing-costs synonyms on this surface (Trading→Trade, Bookkeeping→Books,
+// Operations→Projects), and FD-1m killed Personal: chips must map to real
+// platform pillars, and no Personal tab exists — OAI allocates wholly to
+// Books. The bill descriptions keep their verbatim pricing-costs usedFor
+// prose (provenance, not vocabulary).
 //
 // PHASE-1 HONESTY CONTRACT (unchanged from FD-1e):
 //   • every row is one entry from src/config/pricing-costs.ts (the Alex-edited
@@ -148,7 +150,7 @@ export const SCHEDULE_BILLS: ScheduleBill[] = [
     entity: 'B', account: '5100', sub: '10', object: 'API', vendor: 'OAI',
     description: 'Spending insights (bookkeeping) · meal & cart planning (personal)',
     basis: 'PER-USE', cadence: 'per token',
-    allocatedTo: [{ type: 'module', name: 'Books' }, { type: 'module', name: 'Personal' }],
+    allocatedTo: [{ type: 'module', name: 'Books' }],
     amountUsd: null, footnotes: ['ᵃ'],
   },
   // xAI (Grok) — pricing-costs.ts:102-110 (PER_USE per-token, null, ['trading'])
