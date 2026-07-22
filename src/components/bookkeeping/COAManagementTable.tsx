@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { deriveAccountString } from '@/lib/accountString';
 
 interface COAManagementTableProps {
   entityId: string;
@@ -14,6 +15,8 @@ interface COAAccount {
   name: string;
   accountType: string;
   balanceType: string;
+  /** DIM-2: the dimensional S segment (chart_of_accounts.sub_type, nullable). */
+  subType: string | null;
   settledBalance: string;
   pendingBalance: string;
   entityId: string;
@@ -65,13 +68,16 @@ export default function COAManagementTable({ entityId, entityName, entityType }:
 
   // Inline edit state
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ code: '', name: '' });
+  const [editForm, setEditForm] = useState({ code: '', name: '', subType: '' });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  // DIM-2: archive action state — every failure surfaces inline, never swallowed.
+  const [archiving, setArchiving] = useState<string | null>(null);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
 
   // Add new account state
   const [showAddForm, setShowAddForm] = useState(false);
-  const [addForm, setAddForm] = useState({ code: '', name: '', accountType: 'expense' });
+  const [addForm, setAddForm] = useState({ code: '', name: '', accountType: 'expense', subType: '' });
   const [addSaving, setAddSaving] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
 
@@ -120,7 +126,7 @@ export default function COAManagementTable({ entityId, entityName, entityType }:
 
   const startEdit = (account: COAAccount) => {
     setEditingId(account.id);
-    setEditForm({ code: account.code, name: account.name });
+    setEditForm({ code: account.code, name: account.name, subType: account.subType ?? '' });
     setEditError(null);
   };
 
@@ -136,7 +142,11 @@ export default function COAManagementTable({ entityId, entityName, entityType }:
       const res = await fetch(`/api/chart-of-accounts/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: editForm.code, name: editForm.name }),
+        body: JSON.stringify({
+          code: editForm.code,
+          name: editForm.name,
+          subType: editForm.subType.trim() ? editForm.subType.trim() : null,
+        }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -163,6 +173,7 @@ export default function COAManagementTable({ entityId, entityName, entityType }:
           code: addForm.code,
           name: addForm.name,
           accountType: addForm.accountType,
+          ...(addForm.subType.trim() ? { subType: addForm.subType.trim() } : {}),
           entityId,
         }),
       });
@@ -171,13 +182,37 @@ export default function COAManagementTable({ entityId, entityName, entityType }:
         throw new Error(data.error || 'Failed to create account');
       }
       setShowAddForm(false);
-      setAddForm({ code: '', name: '', accountType: 'expense' });
+      setAddForm({ code: '', name: '', accountType: 'expense', subType: '' });
       await fetchAccounts();
       await fetchAllCoa();
     } catch (err: any) {
       setAddError(err.message);
     } finally {
       setAddSaving(false);
+    }
+  };
+
+  // DIM-2: archive-only removal — accounts are NEVER deleted (posted history is
+  // a permanent financial record; the server PATCH enforces ownership + gate).
+  const archiveAccount = async (id: string) => {
+    setArchiving(id);
+    setArchiveError(null);
+    try {
+      const res = await fetch(`/api/chart-of-accounts/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archived: true }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to archive account');
+      }
+      await fetchAccounts();
+      await fetchAllCoa();
+    } catch (err: any) {
+      setArchiveError(err.message);
+    } finally {
+      setArchiving(null);
     }
   };
 
@@ -260,6 +295,7 @@ export default function COAManagementTable({ entityId, entityName, entityType }:
                   <GroupedRow
                     key={account.id}
                     account={account}
+                    entityType={entityType}
                     isFirst={isFirst}
                     type={type}
                     isEditing={isEditing}
@@ -273,12 +309,14 @@ export default function COAManagementTable({ entityId, entityName, entityType }:
                     drilldownTxns={drilldownTxns}
                     allCoaOptions={allCoaOptions}
                     reassigning={reassigning}
+                    archiving={archiving}
                     onEditFormChange={setEditForm}
                     onStartEdit={startEdit}
                     onCancelEdit={cancelEdit}
                     onSaveEdit={saveEdit}
                     onToggleDrilldown={toggleDrilldown}
                     onReassign={reassignTransaction}
+                    onArchive={archiveAccount}
                   />
                 );
               })
@@ -306,11 +344,14 @@ export default function COAManagementTable({ entityId, entityName, entityType }:
         </button>
       )}
 
+      {/* DIM-2: archive failures surface inline, never swallowed. */}
+      {archiveError && <div className="text-xs text-red-500">{archiveError}</div>}
+
       {/* Add Account Form */}
       {showAddForm ? (
         <form onSubmit={addAccount} className="border border-gray-200/50 rounded-lg p-3 bg-white space-y-3">
           <div className="text-xs font-semibold text-text-primary mb-1">New Account</div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-2">
             <div>
               <label className="text-[10px] text-text-muted uppercase tracking-wider block mb-1">Code</label>
               <input
@@ -344,6 +385,16 @@ export default function COAManagementTable({ entityId, entityName, entityType }:
                   <option key={t} value={t}>{ACCOUNT_TYPE_LABELS[t]} ({BALANCE_TYPE_MAP[t] === 'D' ? 'Debit' : 'Credit'})</option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label className="text-[10px] text-text-muted uppercase tracking-wider block mb-1">Sub (optional)</label>
+              <input
+                type="text"
+                value={addForm.subType}
+                onChange={e => setAddForm(f => ({ ...f, subType: e.target.value }))}
+                className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-purple-deep font-mono"
+                placeholder="e.g. 10"
+              />
             </div>
           </div>
           {addError && <div className="text-xs text-red-500">{addError}</div>}
@@ -379,6 +430,7 @@ export default function COAManagementTable({ entityId, entityName, entityType }:
 // Individual row with optional group header and drill-down
 function GroupedRow({
   account,
+  entityType,
   isFirst,
   type,
   isEditing,
@@ -392,19 +444,23 @@ function GroupedRow({
   drilldownTxns,
   allCoaOptions,
   reassigning,
+  archiving,
   onEditFormChange,
   onStartEdit,
   onCancelEdit,
   onSaveEdit,
   onToggleDrilldown,
   onReassign,
+  onArchive,
 }: {
   account: COAAccount;
+  /** DIM-2: the entity's type (from the parent prop — drives the E segment). */
+  entityType: string;
   isFirst: boolean;
   type: string;
   isEditing: boolean;
   isExpanded: boolean;
-  editForm: { code: string; name: string };
+  editForm: { code: string; name: string; subType: string };
   editSaving: boolean;
   editError: string | null;
   balanceColor: (type: string) => string;
@@ -413,12 +469,14 @@ function GroupedRow({
   drilldownTxns: DrilldownTxn[];
   allCoaOptions: COAAccount[];
   reassigning: string | null;
-  onEditFormChange: (f: { code: string; name: string }) => void;
+  archiving: string | null;
+  onEditFormChange: (f: { code: string; name: string; subType: string }) => void;
   onStartEdit: (account: COAAccount) => void;
   onCancelEdit: () => void;
   onSaveEdit: (id: string) => void;
   onToggleDrilldown: (code: string) => void;
   onReassign: (txnId: string, newCode: string) => void;
+  onArchive: (id: string) => void;
 }) {
   return (
     <>
@@ -446,17 +504,30 @@ function GroupedRow({
               <div className="text-[9px] text-amber-600 mt-0.5">Changing codes affects categorization mappings</div>
             </div>
           ) : (
-            account.code
+            /* DIM-2: the DERIVED dimensional string (E-A-S, from structured
+               parts — never stored). Title shows the raw code for clarity. */
+            <span title={`code ${account.code}`}>
+              {deriveAccountString({ entityType, code: account.code, subType: account.subType })}
+            </span>
           )}
         </td>
         <td className="px-3 py-2 text-xs text-text-primary">
           {isEditing ? (
-            <input
-              type="text"
-              value={editForm.name}
-              onChange={e => onEditFormChange({ ...editForm, name: e.target.value })}
-              className="w-full px-1.5 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-purple-deep"
-            />
+            <div className="space-y-1">
+              <input
+                type="text"
+                value={editForm.name}
+                onChange={e => onEditFormChange({ ...editForm, name: e.target.value })}
+                className="w-full px-1.5 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-purple-deep"
+              />
+              <input
+                type="text"
+                value={editForm.subType}
+                onChange={e => onEditFormChange({ ...editForm, subType: e.target.value })}
+                placeholder="sub (optional, e.g. 10)"
+                className="w-full px-1.5 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-purple-deep font-mono"
+              />
+            </div>
           ) : (
             account.name
           )}
@@ -489,12 +560,23 @@ function GroupedRow({
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => onStartEdit(account)}
-              className="px-2 py-1 text-[10px] font-medium border border-gray-200 text-text-secondary rounded hover:bg-bg-row"
-            >
-              Edit
-            </button>
+            <div className="flex items-center justify-end gap-1.5">
+              <button
+                onClick={() => onStartEdit(account)}
+                className="px-2 py-1 text-[10px] font-medium border border-gray-200 text-text-secondary rounded hover:bg-bg-row"
+              >
+                Edit
+              </button>
+              {/* DIM-2: archive-only removal — never delete. */}
+              <button
+                onClick={() => onArchive(account.id)}
+                disabled={archiving === account.id}
+                className="px-2 py-1 text-[10px] font-medium border border-gray-200 text-text-muted rounded hover:bg-bg-row disabled:opacity-50"
+                title="Archive this account (it is never deleted; posted history remains)"
+              >
+                {archiving === account.id ? '...' : 'Archive'}
+              </button>
+            </div>
           )}
         </td>
       </tr>
