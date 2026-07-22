@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import Anthropic from '@anthropic-ai/sdk';
 import { MODEL_SONNET_4 } from '@/lib/ai/client';
+import { requirePipeBudget, PipeBudgetError } from '@/lib/pipeBudget';
 
 function buildPrompt(bullets: string[]): string {
   const numbered = bullets.map((b, i) => `${i + 1}. ${b}`).join('\n');
@@ -58,6 +59,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'bullets array required' }, { status: 400 });
     }
 
+    // COST-GUARD-1 (AI-FIX-1): daily spend cap — AFTER auth + validation, BEFORE the
+    // paid call. Over cap → 429, no token spent. Same per-user pipe pool the
+    // generate-design/generate-tasks siblings ride (pipeBudget.ts).
+    await requirePipeBudget(user.id);
+
     const client = new Anthropic({ apiKey });
 
     const msg = await client.messages.create({
@@ -83,6 +89,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ structured });
   } catch (error) {
+    if (error instanceof PipeBudgetError) {
+      return NextResponse.json({ error: 'Rate limit', message: error.message }, { status: 429 });
+    }
     console.error('[Brain Dump]', error);
     const msg = error instanceof Error ? error.message : 'Brain dump processing failed';
     return NextResponse.json({ error: msg }, { status: 500 });

@@ -6,6 +6,9 @@
  *   - getVerifiedEmail + prisma.users.findFirst auth (NO tier check —
  *     operations AI surface is single-user cookie-gated; confirmed by
  *     grep of src/app/api/operations/ai/ and src/lib/ai/ → no tier refs)
+ *   - requirePipeBudget (AI-FIX-1): the SAME per-user daily pipe budget the
+ *     generate-design/generate-tasks siblings ride — after auth + validation,
+ *     BEFORE the paid call; over cap → 429, no token spent
  *   - generateNorthStarSectionOptimization → recordUsage wrapper
  *     (handles cost log + audit row + inspection block)
  *   - Inspection block forwarded to client for live transparency
@@ -39,6 +42,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requirePipeBudget, PipeBudgetError } from '@/lib/pipeBudget';
 import {
   generateNorthStarSectionOptimization,
   type ProjectContext,
@@ -273,6 +277,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // COST-GUARD-1 (AI-FIX-1): daily spend cap — AFTER auth + validation (incl. the
+    // 413 size guard above), BEFORE the paid call. Over cap → 429, no token spent.
+    // Placed OUTSIDE the try below so PipeBudgetError reaches the outer catch.
+    await requirePipeBudget(user.id);
+
     let result;
     try {
       result = await generateNorthStarSectionOptimization({
@@ -313,6 +322,9 @@ export async function POST(request: NextRequest) {
       inspection: result.inspection,
     });
   } catch (error) {
+    if (error instanceof PipeBudgetError) {
+      return NextResponse.json({ error: 'Rate limit', message: error.message }, { status: 429 });
+    }
     console.error('[Optimize North Star Section POST]', error);
     return NextResponse.json(
       {
