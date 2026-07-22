@@ -13,7 +13,11 @@
  */
 
 import { notFound } from 'next/navigation';
-import ModulePageClient, { PILLARS } from './ModulePageClient';
+import ModulePageClient from './ModulePageClient';
+// MOD-1: PILLARS from the server-safe leaf — importing it from the 'use
+// client' file made it a client reference here, and .find() threw at request
+// time (every /modules URL 500ed; the MOD-0 diagnosis).
+import { PILLARS } from '@/lib/modulePillars';
 import { TAB_PRICING } from '@/config/pricing-costs';
 import { getPriceIdFromEntitlementKey } from '@/lib/stripe';
 
