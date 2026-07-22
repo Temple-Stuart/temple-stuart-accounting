@@ -96,8 +96,9 @@ export interface TabShowcaseTemplateProps {
    *  may teach its concepts inside richer sections instead. */
   cardsTitle?: string;
   cards?: ShowcaseConceptCard[];
-  /** The honest sample block (tab-specific; engine-derived where possible). */
-  sample: ReactNode;
+  /** The honest sample block (tab-specific; engine-derived where possible).
+   *  SLIDES-1: optional — a slides-only deck may end at the slides + CTA. */
+  sample?: ReactNode;
   /** One teaching line under the sample (e.g. the no-manufactured-trades line). */
   teachingLine?: string;
   /** The unlock/signup CTA block (LockedTabCard — the existing checkout path). */

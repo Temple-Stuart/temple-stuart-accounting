@@ -45,7 +45,6 @@
  *   the five cadence modes                 types.ts:206-212, RRULEBuilder.tsx:27-33
  *   custom placeholder FREQ=YEARLY;BYMONTH=3,6,9,12;BYMONTHDAY=15
  *                                          RRULEBuilder.tsx:150
- *   teaser: "in your browser (not saved)"  home/RoutineCreateForm.tsx:212
  *
  * ── CTA RULING (inventory §12, pre-verified) ────────────────────────────────
  * No tab:routines entitlement exists (categoryKeys.ts:23-28); tab:operations is
@@ -53,13 +52,12 @@
  * (ModuleLauncher.tsx:513-531). Auth-only tab → honest "Make my free account".
  * NO subscribe card.
  *
- * ── MOUNTABILITY (inventory §9-10) ───────────────────────────────────────────
- * LIVE: home/RoutineCreateForm (the teaser) — DIRECT REUSE, zero fetch code by
- * construction, verified non-drifted; builds in browser state labeled "not
- * saved"; carries its own free-account conversion. Everything else is a labeled
- * STATIC MIRROR with per-block correspondence cites. This file contains NO
- * fetch calls and imports NO data provider (OperationsEntityProvider is
- * deliberately NOT imported — it self-fetches /api/entities).
+ * ── SLIDES-1 (Alex's ruling, overrides the Jul-16 faithful-mirror design) ───
+ * The deck is SLIDES ONLY. The former live mount (home/RoutineCreateForm, the
+ * real logged-out builder) is REMOVED — no deck mounts real app components
+ * anymore. What remains is the narrative: hero terminal + the seven slide
+ * panels + the worked-example static mirror + the free-account CTA. This file
+ * contains NO fetch calls and imports NO data provider.
  *
  * ── BANNED (inventory §8 — zero rendered hits) ──────────────────────────────
  * "3 patterns" · any next-N-occurrences preview (the /upcoming route has zero
@@ -71,7 +69,6 @@
  * one-click quarterly (custom escape hatch only).
  */
 
-import HomeRoutineCreateForm from '@/components/home/RoutineCreateForm';
 import TabShowcaseTemplate, { ExampleTag } from '@/components/home/TabShowcaseTemplate';
 
 interface Props {
@@ -369,29 +366,7 @@ function WorkedExampleRoutines() {
         ))}
         <p className="px-3 py-2 text-[10px] italic text-text-muted">
           These three feed the budget table in slide 6 — value-for-value the rows the Runway deck showed.
-          They use business chart-of-accounts codes, so you can&rsquo;t rebuild them in the guest builder below
-          (it carries the shared starter categories); after login your own chart takes over.
         </p>
-      </div>
-    </div>
-  );
-}
-
-function LiveRoutinesSection({ onRequireAuth }: Props) {
-  return (
-    <div className="space-y-4">
-      <WorkedExampleRoutines />
-      <div>
-        <TruthStrip kind="real">
-          Real component · live — build routines in your browser (not saved; no account, no server)
-        </TruthStrip>
-        <div className="rounded-b-lg border border-t-0 border-border bg-white p-3">
-          {/* The inventory's headline ruling (§10): the REAL logged-out builder,
-              mounted as-is — zero fetch code by construction
-              (home/RoutineCreateForm.tsx:3-16), guest routines in React state
-              only (:44-50), its own honest free-account conversion (:271-284). */}
-          <HomeRoutineCreateForm onRequireAuth={onRequireAuth} />
-        </div>
       </div>
     </div>
   );
@@ -493,19 +468,17 @@ export default function RoutinesShowcase({ onRequireAuth }: Props) {
           panelSide: 'left',
         },
       ]}
-      // The connective line — claim = composition exactly (1 real live mount:
-      // the in-browser builder; 1 labeled static mirror: the worked-example
-      // rows; zero fetches; save-paths route to sign-up).
+      // SLIDES-1: the connective line — claim = composition exactly (1
+      // labeled static mirror: the worked-example rows; zero fetches; no
+      // real components mounted).
       preSteps={
         <p className="text-center text-sm text-text-secondary">
-          Below, the builder is the real logged-out builder — the same form component, with zero fetch
-          code by construction; routines you add live in your browser only and are labeled that way.
-          Above it, the three worked-example routines are a labeled static mirror carrying the exact
-          budget lines you saw on the Runway deck. Nothing on this page fetches; saving for real routes
-          to sign-up.
+          Below, the three worked-example routines are a labeled static mirror carrying the exact
+          budget lines you saw on the Runway deck. Nothing on this page fetches; saving for real
+          routes to sign-up.
         </p>
       }
-      sample={<LiveRoutinesSection onRequireAuth={onRequireAuth} />}
+      sample={<WorkedExampleRoutines />}
       cta={<FreeAccountCta onRequireAuth={onRequireAuth} />}
     />
   );
