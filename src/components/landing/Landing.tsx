@@ -1,72 +1,52 @@
 'use client';
 
 /**
- * Landing (FD-1 → FD-1b → FD-1c) — "the doctor's office", now the SALES FLOOR:
- * same content skeleton as FD-1b (hero → pillar cards → MODULE SHEET → pricing-
- * transparency band → footer), redressed in the house institutional aesthetic
- * and carrying the truthful module-select sheet.
+ * Landing (FD-1 → FD-1b → FD-1c → FD-1d) — the sales floor: hero → pillar
+ * cards → the NINE-ROW module sheet → pricing-transparency band → footer, in
+ * the house Bloomberg aesthetic (see FD-1c notes; zero new hex).
  *
- * VISUAL REGRADE (FD-1c) — the house terminal look, ZERO new hex:
- *   • dark surfaces ride the EXISTING panel token family (tailwind.config.ts
- *     :34-39 → --ts-panel vars) + brand-purple-deep (:21);
- *   • the hero mirrors the TRADE-SHOWCASE-BLOOMBERG dark hero
- *     (TabShowcaseTemplate.tsx:140-144 — near-black base, brand-purple radial
- *     glows, "No new palette — the brand family, deepened"), rebuilt here on
- *     rgb(var(--ts-*)) references so no hex literal exists in this file;
- *   • micro-labels mirror the template's eyebrow chip (TabShowcaseTemplate.tsx
- *     :150 — text-[10px] font-semibold uppercase tracking-wider + hairline
- *     border-white/20) and the dark data panels (TradeShowcaseSections.tsx:98,
- *     :159 — border-panel-border bg-panel font-mono) — IBM Plex Mono is
- *     already loaded app-wide (layout.tsx:2-10).
+ * FD-1d:
+ *   • header/footer extracted to LandingHeader/LandingFooter (shared with the
+ *     /modules pages); the CPA disclaimer now rides the shared footer;
+ *   • descriptors import from the ONE source (src/lib/tabDescriptors.ts) —
+ *     the FD-1 lockstep copy is dead;
+ *   • pillar cards' "Explore →" targets the pillar's shareable info page
+ *     (/modules/<id> — deck + honest access block), not the tab deep link;
+ *   • the sheet lists ALL NINE pillars honestly: the four entitlement modules
+ *     (TAB_PRICING data, availability-honest Select → /pricing?module=<key>)
+ *     PLUS the five free pillars as explicit Free rows — travel is free with
+ *     NO account (its search/booking routes are public, middleware.ts:70-94);
+ *     runway/routines/projects/content are free WITH a free account (their
+ *     builders are auth-gated but carry no entitlement gate — isTabLocked
+ *     wraps only the four, ML :259-262 — and no tier gate, tiers.ts
+ *     TRUTH-LABELS :4-17). Free rows link Learn more → /modules/<id>.
  *
- * MODULE SHEET (FD-1c) — "select what you wanna buy", truth-bound:
- *   • exactly the 4 live modules (tab:trade/books/tax/compliance) + bundle:all
- *     — no tier cards (dormant lane stays on /pricing), no tab:travel/
- *     tab:operations (they gate nothing — selling them sells nothing);
- *   • every rendered field comes VERBATIM from TAB_PRICING
- *     (src/config/pricing-costs.ts:341-372, the same source /pricing renders);
- *     monthlyPrice null → the exact honest fallback /pricing shows
- *     ("price shown at checkout", PricingClient.tsx:241-243);
- *   • availability is the SERVER-computed boolean per key (client code cannot
- *     read env) — passed in via the entitlementAvailability prop by the mount
- *     route (landing-preview/page.tsx mirrors /pricing/page.tsx:15-24; FD-2's
- *     arrival branch supplies the same map). Unavailable → disabled
- *     "Not yet available" (PricingClient.tsx:256-266's honesty, mirrored);
- *   • Select is a LINK to /pricing?module=<key> — no checkout calls from the
- *     landing; PricingClient scroll-highlights the matching card.
- *
- * Hero copy + both CTAs are RULED and stay verbatim from FD-1b. Descriptors
- * remain the TAB_DESCRIPTORS lockstep copies (ModuleLauncher.tsx:153-163 —
- * see FD-1's bundling rationale). Card bullets remain the FD-1b verbatim
- * deck-heading lifts (provenance in the PILLAR_CARDS comment).
+ * Hero copy + both CTAs remain RULED-verbatim. Card bullets remain the FD-1b
+ * verbatim deck-heading lifts (provenance in the PILLAR_CARDS comment).
  */
 
 import Link from 'next/link';
 import { TAB_PRICING } from '@/config/pricing-costs';
-
-// COPIED VERBATIM from ModuleLauncher.tsx TAB_DESCRIPTORS (:153-163) — keep in
-// lockstep until the constant is extracted to a shared leaf module (FD-1 note).
-const DESCRIPTORS: Record<string, string> = {
-  travel: 'Book your flights, hotels, things to do, and ground transportation — competitive prices, real times, real data.',
-  runway: 'Runway — how long your money buys you. Your planned and actual spend, mapped to the day, so your runway is never a guess.',
-  books: 'Connect your bank through Plaid and every transaction flows in.',
-  trade: "Tell the scanner what you're hunting, and it pulls live prices from TastyTrade, company numbers from Finnhub, economy data from FRED, official filings from SEC EDGAR, and the mood online from Grok.",
-  tax: 'Your books are already clean, so your taxes are half-done before you start.',
-  compliance: "This one's for when things get serious.",
-  routines: 'Build your recurring routines and watch them land on your calendar — the rhythms that run your day.',
-  projects: "Type the big messy goal that's rattling around your head — plain, rambly, however it actually lives up there.",
-  content: 'Turn what you actually did today into a reel — sources to scenes to a ready-to-record script.',
-};
+import { TAB_DESCRIPTORS } from '@/lib/tabDescriptors';
+import LandingHeader from './LandingHeader';
+import LandingFooter from './LandingFooter';
 
 interface PillarCard {
   id: string;
   label: string;
-  /** The ?tab= id the Explore link targets — differs from `id` only for
-   *  Runway, whose tab key is 'calendar' (ModuleLauncher.tsx TABS :126). */
+  /** TAB_DESCRIPTORS key — differs from `id` only for Runway, whose tab key
+   *  is 'calendar' (ModuleLauncher.tsx TABS :126). */
   tab: string;
+  /** TAB_PRICING key for the four entitlement modules; absent = free pillar. */
+  entitlementKey?: string;
+  /** The free pillar's truthful access label (audit-cited in the header note). */
+  freeLabel?: string;
   /** LIFTED VERBATIM from the deck's own headings — provenance per string: */
   bullets: string[];
 }
+
+const FREE_WITH_ACCOUNT = 'Free with a free account';
+const FREE_NO_ACCOUNT = 'Free — search works with no account';
 
 // Funnel order — Alex's ruling. Bullet provenance (all verbatim):
 //   Travel:     TravelShowcaseSections.tsx :325, :342, :349
@@ -80,7 +60,7 @@ interface PillarCard {
 //   Content:    ContentShowcaseSections.tsx :461, :492, :506
 const PILLAR_CARDS: PillarCard[] = [
   {
-    id: 'travel', label: 'Travel', tab: 'travel',
+    id: 'travel', label: 'Travel', tab: 'travel', freeLabel: FREE_NO_ACCOUNT,
     bullets: [
       'Search it. Price it. Book it. No account required to look.',
       'Real searches, free by design.',
@@ -88,13 +68,13 @@ const PILLAR_CARDS: PillarCard[] = [
     ],
   },
   {
-    id: 'runway', label: 'Runway', tab: 'calendar',
+    id: 'runway', label: 'Runway', tab: 'calendar', freeLabel: FREE_WITH_ACCOUNT,
     bullets: [
       'Every system you’re juggling. One question answered: how long can you keep going?',
     ],
   },
   {
-    id: 'books', label: 'Books', tab: 'books',
+    id: 'books', label: 'Books', tab: 'books', entitlementKey: 'tab:books',
     bullets: [
       'Every transaction becomes a journal entry. Every period must balance.',
       'Commit is double-entry. Unbalanced refuses to save.',
@@ -102,7 +82,7 @@ const PILLAR_CARDS: PillarCard[] = [
     ],
   },
   {
-    id: 'trade', label: 'Trade', tab: 'trade',
+    id: 'trade', label: 'Trade', tab: 'trade', entitlementKey: 'tab:trade',
     bullets: [
       'An entire index in full focus. One decision out.',
       'Eighteen real controls. Sixteen strategies.',
@@ -110,7 +90,7 @@ const PILLAR_CARDS: PillarCard[] = [
     ],
   },
   {
-    id: 'tax', label: 'Tax', tab: 'tax',
+    id: 'tax', label: 'Tax', tab: 'tax', entitlementKey: 'tab:tax',
     bullets: [
       'Your books are already clean. Your taxes are half-done before you start.',
       'Tax begins at completed books.',
@@ -118,7 +98,7 @@ const PILLAR_CARDS: PillarCard[] = [
     ],
   },
   {
-    id: 'compliance', label: 'Compliance', tab: 'compliance',
+    id: 'compliance', label: 'Compliance', tab: 'compliance', entitlementKey: 'tab:compliance',
     bullets: [
       'Don’t trust us. Verify us.',
       'Citations that verify — and a checker that declares its limits.',
@@ -126,7 +106,7 @@ const PILLAR_CARDS: PillarCard[] = [
     ],
   },
   {
-    id: 'routines', label: 'Routines', tab: 'routines',
+    id: 'routines', label: 'Routines', tab: 'routines', freeLabel: FREE_WITH_ACCOUNT,
     bullets: [
       'Build it once. It shows up everywhere.',
       'A routine is executable — steps you actually run.',
@@ -134,13 +114,13 @@ const PILLAR_CARDS: PillarCard[] = [
     ],
   },
   {
-    id: 'projects', label: 'Projects', tab: 'projects',
+    id: 'projects', label: 'Projects', tab: 'projects', freeLabel: FREE_WITH_ACCOUNT,
     bullets: [
       'Goals in. Audited tasks out.',
     ],
   },
   {
-    id: 'content', label: 'Content', tab: 'content',
+    id: 'content', label: 'Content', tab: 'content', freeLabel: FREE_WITH_ACCOUNT,
     bullets: [
       'Your day becomes the script.',
       'Every step gets a shot, a question, a purpose.',
@@ -149,66 +129,27 @@ const PILLAR_CARDS: PillarCard[] = [
   },
 ];
 
-// The sheet's contents — RULED: the 4 live modules + the bundle, in TAB_PRICING
-// order. tab:travel/tab:operations are deliberately absent (they gate nothing).
-const SHEET_KEYS = ['tab:trade', 'tab:books', 'tab:tax', 'tab:compliance', 'bundle:all'] as const;
-
 interface Props {
-  /** The ONE account-ask funnel — header/hero secondary CTA. FD-2 supplies the
-   *  real register-modal opener; the preview wrapper supplies a stub. */
+  /** The ONE account-ask funnel — hero secondary CTA + header. FD-2 supplies
+   *  the real register-modal opener; the preview wrapper supplies a stub. */
   onRequireAuth: () => void;
   /** Per-entitlement-key availability, SERVER-computed by the mount route
-   *  (a Stripe price ID is configured right now) — mirrors /pricing/page.tsx
-   *  :15-24. Missing key → treated as unavailable, never assumed sellable. */
+   *  (mirrors /pricing/page.tsx:15-24). Missing key → unavailable. */
   entitlementAvailability: Record<string, boolean>;
 }
 
 // The house dark-hero background — TabShowcaseTemplate.tsx:140-144's pattern
-// rebuilt on token vars (no hex): brand-purple + brand-purple-deep glows over
-// the panel base.
+// on token vars (no hex).
 const HERO_BG =
   'radial-gradient(ellipse 80% 90% at 85% 10%, rgb(var(--ts-purple) / 0.65), transparent 60%), radial-gradient(ellipse 60% 70% at 100% 80%, rgb(var(--ts-purple-deep) / 0.5), transparent 55%), var(--ts-panel)';
 
 export default function Landing({ onRequireAuth, entitlementAvailability }: Props) {
-  const sheet = SHEET_KEYS
-    .map((k) => TAB_PRICING.find((t) => t.key === k))
-    .filter((t): t is (typeof TAB_PRICING)[number] => t != null);
-  const modules = sheet.filter((t) => t.key !== 'bundle:all');
-  const bundle = sheet.find((t) => t.key === 'bundle:all');
+  const pricingByKey = new Map(TAB_PRICING.map((t) => [t.key, t]));
+  const bundle = pricingByKey.get('bundle:all');
 
   return (
     <div className="min-h-screen bg-panel text-white">
-      {/* ── Header — institutional dark: panel base, hairline border ───────── */}
-      <header className="border-b border-panel-border bg-panel">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white flex items-center justify-center">
-                <span className="text-brand-purple font-bold text-terminal-lg">TS</span>
-              </div>
-              <div>
-                <div className="text-sm font-semibold tracking-tight">Temple Stuart</div>
-                <div className="font-mono text-[10px] uppercase tracking-wider text-white/50">Founder&apos;s Back Office</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <Link href="/how-pricing-works" className="text-xs text-white/60 hover:text-white hidden sm:block">
-                Pricing
-              </Link>
-              <a href="mailto:astuart@templestuart.com" className="text-xs text-white/60 hover:text-white hidden sm:block">
-                Contact
-              </a>
-              <button
-                type="button"
-                onClick={onRequireAuth}
-                className="px-4 py-2 text-xs bg-white text-brand-purple font-medium hover:bg-bg-row"
-              >
-                Create free account
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <LandingHeader onRequireAuth={onRequireAuth} />
 
       {/* ── Hero — the house Bloomberg treatment; copy + CTAs verbatim ─────── */}
       <section className="text-white pb-14 pt-12" style={{ background: HERO_BG }}>
@@ -238,7 +179,7 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
         </div>
       </section>
 
-      {/* ── The nine pillars — table-density dark cards ────────────────────── */}
+      {/* ── The nine pillars — Explore lands on the shareable module page ──── */}
       <section className="w-full border-b border-panel-border bg-panel">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
           <p className="mb-4 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
@@ -250,7 +191,7 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
                 <span className="self-start rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
                   {p.label}
                 </span>
-                <p className="mt-2 text-xs leading-relaxed text-white/60">{DESCRIPTORS[p.id]}</p>
+                <p className="mt-2 text-xs leading-relaxed text-white/60">{TAB_DESCRIPTORS[p.tab]}</p>
                 <ul className="mt-3 space-y-1">
                   {p.bullets.map((b, i) => (
                     <li key={i} className={`text-xs leading-relaxed ${i === 0 ? 'font-medium text-white' : 'text-white/60'}`}>
@@ -259,7 +200,7 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
                   ))}
                 </ul>
                 <Link
-                  href={`/?tab=${p.tab}`}
+                  href={`/modules/${p.id}`}
                   className="mt-auto pt-3 font-mono text-xs font-medium text-white hover:text-white/70"
                 >
                   Explore {p.label} →
@@ -270,10 +211,11 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
         </div>
       </section>
 
-      {/* ── MODULE SHEET — select what you need; every field from TAB_PRICING
-            (pricing-costs.ts:341-371); sheet heading + sub-line + price
-            fallback + billing line + disabled copy LIFTED from /pricing
-            (PricingClient.tsx :210-213, :241-246, :264). ─────────────────── */}
+      {/* ── MODULE SHEET — ALL NINE, honestly: entitlement modules render
+            TAB_PRICING (pricing-costs.ts:341-371) + availability-honest
+            Select; the free five state their true access + Learn more.
+            Heading/sub-line/price-fallback/billing/disabled copy lifted from
+            /pricing (PricingClient.tsx :210-213, :241-246, :264). ──────────── */}
       <section className="w-full border-b border-panel-border bg-panel-surface">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
           <p className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
@@ -285,49 +227,76 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
           <p className="mt-2 max-w-2xl text-xs text-white/60">
             Each module is a separate subscription — pay for a module and the whole module works.
           </p>
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {modules.map((m) => {
-              const available = entitlementAvailability[m.key] === true;
-              return (
-                <div key={m.key} className="flex flex-col rounded-lg border border-panel-border bg-panel p-4">
-                  <span className="self-start rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
-                    {m.label}
-                  </span>
-                  <div className="mt-3 font-mono text-lg font-bold text-white">
-                    {m.monthlyPrice !== null ? (
-                      <>${m.monthlyPrice}<span className="text-xs font-normal text-white/50">/mo</span></>
-                    ) : (
-                      <span className="text-xs font-normal italic text-white/50" title="Display price not entered yet — Stripe shows the real price at checkout">
-                        price shown at checkout
-                      </span>
-                    )}
-                  </div>
-                  <div className="font-mono text-[10px] uppercase tracking-wider text-white/40">
-                    Billed monthly · cancel anytime
-                  </div>
-                  <p className="mt-3 mb-4 text-xs leading-relaxed text-white/60">Unlocks {m.unlocks}.</p>
-                  {available ? (
-                    <Link
-                      href={`/pricing?module=${encodeURIComponent(m.key)}`}
-                      className="mt-auto block w-full bg-white px-4 py-2 text-center text-xs font-medium text-brand-purple hover:bg-bg-row"
-                    >
-                      Select {m.label} →
-                    </Link>
-                  ) : (
-                    // Honest partial-Stripe state, mirrored from PricingClient
-                    // :256-266: no configured price → no functional action.
-                    <button
-                      type="button"
-                      disabled
-                      title="This module's Stripe price isn't configured yet"
-                      className="mt-auto w-full cursor-not-allowed border border-panel-border px-4 py-2 text-xs font-medium text-white/40"
-                    >
-                      Not yet available
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+          <div className="mt-6 overflow-x-auto rounded-lg border border-panel-border bg-panel">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead>
+                <tr className="border-b border-panel-border text-left font-mono text-[10px] uppercase tracking-wider text-white/40">
+                  <th className="px-4 py-2 font-semibold">Module</th>
+                  <th className="px-4 py-2 font-semibold">What you get</th>
+                  <th className="px-4 py-2 font-semibold text-right">Monthly</th>
+                  <th className="px-4 py-2 font-semibold text-right"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {PILLAR_CARDS.map((p) => {
+                  const pricing = p.entitlementKey ? pricingByKey.get(p.entitlementKey) : undefined;
+                  const available = p.entitlementKey ? entitlementAvailability[p.entitlementKey] === true : false;
+                  return (
+                    <tr key={p.id} className="border-b border-panel-border last:border-0">
+                      <td className="px-4 py-3 align-top">
+                        <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70 whitespace-nowrap">
+                          {p.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 align-top text-xs leading-relaxed text-white/60">
+                        {pricing ? <>Unlocks {pricing.unlocks}.</> : p.freeLabel}
+                      </td>
+                      <td className="px-4 py-3 align-top text-right font-mono text-sm font-bold text-white whitespace-nowrap">
+                        {pricing ? (
+                          pricing.monthlyPrice !== null ? (
+                            <>${pricing.monthlyPrice}<span className="text-xs font-normal text-white/50">/mo</span></>
+                          ) : (
+                            <span className="text-xs font-normal italic text-white/50" title="Display price not entered yet — Stripe shows the real price at checkout">
+                              price shown at checkout
+                            </span>
+                          )
+                        ) : (
+                          <>Free</>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 align-top text-right whitespace-nowrap">
+                        {pricing ? (
+                          available ? (
+                            <Link
+                              href={`/pricing?module=${encodeURIComponent(pricing.key)}`}
+                              className="inline-block bg-white px-4 py-1.5 text-xs font-medium text-brand-purple hover:bg-bg-row"
+                            >
+                              Select →
+                            </Link>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled
+                              title="This module's Stripe price isn't configured yet"
+                              className="cursor-not-allowed border border-panel-border px-4 py-1.5 text-xs font-medium text-white/40"
+                            >
+                              Not yet available
+                            </button>
+                          )
+                        ) : (
+                          <Link
+                            href={`/modules/${p.id}`}
+                            className="inline-block border border-white/30 px-4 py-1.5 text-xs font-medium text-white hover:bg-white/10"
+                          >
+                            Learn more →
+                          </Link>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
           {bundle && (
             <div className="mt-3 flex flex-col gap-4 rounded-lg border border-white/30 bg-panel p-4 sm:flex-row sm:items-center">
@@ -368,7 +337,7 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
 
       {/* ── Transparent pricing — audited facts only (pricing-costs.ts:70,
             :80, :308/:315; heading + honesty line from /how-pricing-works
-            :98, :101-103) — dark regrade, mono numerals. ──────────────────── */}
+            :98, :101-103). ───────────────────────────────────────────────── */}
       <section className="w-full border-b border-panel-border bg-panel">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
           <p className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
@@ -411,36 +380,7 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
         </div>
       </section>
 
-      {/* ── CPA disclaimer — copy carried verbatim from page.tsx :202-207 ──── */}
-      <section className="bg-brand-purple-deep py-8">
-        <div className="max-w-3xl mx-auto px-4 lg:px-8 text-center">
-          <p className="text-xs text-white/50 leading-relaxed">
-            Temple Stuart is not a CPA firm, tax preparer, or licensed financial advisor.
-            All tax figures generated by this platform are estimates for informational purposes only
-            and must be verified by a qualified tax professional before filing.
-            Use of this software does not constitute tax advice.
-          </p>
-        </div>
-      </section>
-
-      {/* ── Footer — legal + Pricing carry over; dark regrade ──────────────── */}
-      <footer className="border-t border-panel-border bg-brand-purple-deep text-white py-8">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-white flex items-center justify-center">
-                <span className="text-brand-purple font-bold text-sm">TS</span>
-              </div>
-              <div className="font-mono text-[10px] uppercase tracking-wider text-white/50">© 2026 Temple Stuart, LLC</div>
-            </div>
-            <div className="flex items-center gap-4">
-              <Link href="/how-pricing-works" className="text-xs text-white/50 hover:text-white/80">Pricing</Link>
-              <a href="/terms" className="text-xs text-white/50 hover:text-white/80">Terms of Service</a>
-              <a href="/privacy" className="text-xs text-white/50 hover:text-white/80">Privacy Policy</a>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <LandingFooter />
     </div>
   );
 }
