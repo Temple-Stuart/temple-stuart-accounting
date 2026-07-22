@@ -1,20 +1,15 @@
 'use client';
 
 /**
- * TRADE-SHOWCASE-FULL / TRADE-SHOWCASE-REAL-COMPONENTS: the full-product
- * sections of the logged-out Trade showcase, per the TRADE-FULL-INVENTORY
- * rulings and the Phase-1 mountability audit:
+ * TRADE-SHOWCASE-FULL: the slide sections of the logged-out Trade showcase,
+ * per the TRADE-FULL-INVENTORY rulings.
  *
- *  • ScannerPanelDemo — REAL ScanFilterForm mounted (props+callbacks only,
- *    zero fetches — ScanFilterForm.tsx:10-12). Scan NEVER fires a scan.
- *  • RealCockpitDemo — the REAL ScannerResultsTable (zero fetches/effects,
- *    fully props-driven — ScannerResultsTable.tsx:58-69) and the REAL
- *    TickerChapter deep dive (exported, ConvergenceIntelligence.tsx:212;
- *    AccountSizeContext defaults to 0 = the honest "no dollar math" state,
- *    CI:23) mounted on the declared example payload
- *    (tradeShowcasePayload.ts). Gate results are ENGINE-REAL (scoreAll
- *    fixture); chain/card values are declared examples, tagged. The
- *    Queue-Card / save callbacks route to signup — nothing persists.
+ * SLIDES-1 (Alex's ruling, overrides the Jul-16 faithful-mirror design): the
+ * deck is SLIDES ONLY. The former real-component demos (ScannerPanelDemo's
+ * ScanFilterForm; RealCockpitDemo's ScannerResultsTable + TickerChapter) are
+ * REMOVED — no deck mounts real app components anymore. What remains:
+ *  • the dark hero terminal + the eight slide panels (engine-real values
+ *    from the declared example payload, tradeShowcasePayload.ts);
  *  • TrackRecordMirror — STATIC MIRROR ruling: TradeRecord self-fetches
  *    (TradeRecord.tsx:47-50); mirrors its exact section order (:131-181).
  *  • GradedCardMirror — STATIC REPLICA ruling: TradeLabPanel self-fetches
@@ -23,18 +18,13 @@
  *    — row header (:404-419), legs line (:421-429), meta row (:432-438),
  *    right-rail numbers (:442-462), expanded scorecard PREDICTED vs ACTUAL
  *    (:565-639), thesis ✓/✗ (:641-661), regime (:663-669), notes (:671-677)
- *    — on the SAME GLOBEX Iron Condor the cockpit above generates, so the
+ *    — on the SAME GLOBEX Iron Condor the slides above price, so the
  *    generate→link→grade story is one trade end to end.
  *
  * SHOW discipline: ZERO fetches, zero paid calls, nothing personal, no
  * auth/gate logic. All example values labeled.
  */
 
-import { useRef, useState } from 'react';
-import ScanFilterForm from '@/components/trading/ScanFilterForm';
-import ScannerResultsTable from '@/components/convergence/ScannerResultsTable';
-import { TickerChapter } from '@/components/convergence/ConvergenceIntelligence';
-import type { ScannerFilters } from '@/lib/convergence/filter-types';
 import { DEFAULT_FILTERS, AVAILABLE_STRATEGIES } from '@/lib/convergence/filter-types';
 import { ExampleTag } from '@/components/home/TabShowcaseTemplate';
 import {
@@ -47,11 +37,9 @@ import {
 /** id the Scan button scrolls to for logged-in-but-locked viewers. */
 export const TRADE_UNLOCK_CTA_ID = 'trade-unlock-cta';
 
-/** TRADE-SHOWCASE-BLOOMBERG: anchor ids the dark product tiles scroll to. */
+/** SLIDES-1: the scanner/cockpit/deep-dive anchors died with the removed
+ *  real-component demos; the graded-card mirror keeps its id. */
 export const TRADE_SECTION_IDS = {
-  scanner: 'trade-scanner',
-  cockpit: 'trade-cockpit',
-  deepDive: 'trade-deep-dive',
   gradedCard: 'trade-graded-card',
 } as const;
 
@@ -202,124 +190,6 @@ function SectionTitle({ title, tag }: { title: string; tag?: string }) {
     <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5">
       <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">{title}</p>
       {tag && <ExampleTag text={tag} />}
-    </div>
-  );
-}
-
-// ── THE SCANNER — the REAL filter panel, interactive ────────────────────────
-
-export function ScannerPanelDemo({
-  currentUserId,
-  onRequireAuth,
-}: {
-  currentUserId: string;
-  onRequireAuth: () => void;
-}) {
-  const [universe, setUniverse] = useState('sp500');
-  const [filters, setFilters] = useState<ScannerFilters>(DEFAULT_FILTERS);
-  // The real form calls scanTriggerRef.current() on Scan. Here that NEVER
-  // fires a scan: logged-out → signup modal; logged-in (locked) → the CTA.
-  const scanRef = useRef<(() => void) | null>(null);
-  scanRef.current = () => {
-    if (!currentUserId) {
-      onRequireAuth();
-    } else {
-      document.getElementById(TRADE_UNLOCK_CTA_ID)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  };
-
-  return (
-    <div id={TRADE_SECTION_IDS.scanner} className="scroll-mt-4 rounded-lg border border-border bg-white">
-      <SectionTitle title="The scanner — every control is real. Set your filters, hit Scan." />
-      <div className="p-4">
-        <ScanFilterForm
-          scannerUniverse={universe}
-          setScannerUniverse={setUniverse}
-          scannerFilters={filters}
-          onFiltersChange={setFilters}
-          scanTriggerRef={scanRef}
-          showHeader={false}
-        />
-      </div>
-      <p className="border-t border-border px-4 py-2 text-xs text-text-muted">
-        This is the live tab&rsquo;s actual filter panel — 4 liquidity gates, 6 edge metrics, 16
-        strategies, DTE and width — not a mockup. Scan here takes you to sign-up; no scan runs
-        until you&rsquo;re in.
-      </p>
-    </div>
-  );
-}
-
-// ── THE COCKPIT — the REAL results table + REAL deep dive, example payload ──
-
-export function RealCockpitDemo({
-  currentUserId,
-  onRequireAuth,
-}: {
-  currentUserId: string;
-  onRequireAuth: () => void;
-}) {
-  // Queue-Card / save actions route to signup (logged-out) or the CTA
-  // (logged-in but locked) — nothing is persisted from the showcase.
-  const routeAway = async () => {
-    if (!currentUserId) {
-      onRequireAuth();
-    } else {
-      document.getElementById(TRADE_UNLOCK_CTA_ID)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      <div id={TRADE_SECTION_IDS.cockpit} className="scroll-mt-4 rounded-lg border border-border bg-white">
-        <SectionTitle
-          title="The results — the real table, the real deep dive"
-          tag="Example scan — engine-real gate scores, declared example chain/card values"
-        />
-        <div className="p-3">
-          {/* The REAL power table (13 sortable columns, expandable rows).
-              GLOBEX carries the full Iron Condor card; ACME and INITECH show
-              the honest no-card cases with their rejection reasons. */}
-          <ScannerResultsTable
-            results={SHOWCASE_RESULTS}
-            rejectionMap={SHOWCASE_REJECTIONS}
-            savedCards={new Map()}
-            savingCards={new Set()}
-            saveErrors={new Map()}
-            onSaveCard={routeAway}
-            onRemoveCard={routeAway}
-            pipelineProgress={SHOWCASE_PROGRESS}
-          />
-        </div>
-      </div>
-      <div id={TRADE_SECTION_IDS.deepDive} className="scroll-mt-4 rounded-lg border border-border bg-white">
-        <SectionTitle
-          title="Every selected ticker gets this — the full deep dive"
-          tag="Example data"
-        />
-        <div className="p-3">
-          {/* The REAL TickerChapter: WHY THIS TICKER / CHAIN FETCH / STRATEGY
-              SCORING / THE TRADE card with COLLECT · MAX LOSS · POP · EV ·
-              EV/RISK · R:R · B/E · HV POP · THETA · VEGA · KELLY, then gate
-              bars, vol detail, company & macro, info signals — rendered by
-              the live component from the payload. */}
-          <TickerChapter
-            detail={SHOWCASE_DEEP_DIVE}
-            savedCards={new Map()}
-            savingCards={new Set()}
-            saveErrors={new Map()}
-            onSave={routeAway}
-            onRemove={routeAway}
-            pipelineProgress={SHOWCASE_PROGRESS}
-          />
-        </div>
-      </div>
-      <p className="text-xs text-text-muted">
-        Everything above is the real cockpit UI, rendered from a declared example scan: the four
-        gate scores were computed by the real scoring engine on the declared inputs; option-chain
-        and card values are internally-coherent examples (a logged-out page fetches nothing). When
-        convergence fails, the row says so — no trade is manufactured to fill the table.
-      </p>
     </div>
   );
 }
@@ -568,7 +438,7 @@ export function DeepDivePanelDark() {
   const c = SHOWCASE_DEEP_DIVE.scores.composite;
   const g = c.category_scores;
   // The rank/sector the deep dive really shows (SHOWCASE_PROGRESS step_k —
-  // the same rankings the mounted TickerChapter below reads).
+  // the same rankings the real deep dive reads).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rankings: any[] = SHOWCASE_PROGRESS.step_k.data.rankings;
   const rankIdx = rankings.findIndex((r) => r.symbol === 'GLOBEX');

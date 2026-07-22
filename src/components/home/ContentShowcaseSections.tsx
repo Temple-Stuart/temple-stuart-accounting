@@ -24,44 +24,23 @@
  *    FREE account gets the real Content tab (ModuleLauncher.tsx:489-494) —
  *    the CTA is the free-account signup, not a subscription card.
  *
- * MOUNTABILITY (inventory §B4):
- *  • MOUNTED LIVE (the two DIRECT-REUSE pure views, showroom-proven):
- *    DayCalendarView (props :128-137, "owns NO data … no fetch") and
- *    ScriptGeneratorView (props :27-53, "NEVER names the paid generate
- *    route") — fed by the EXISTING type-checked content seed
- *    (content/showroom/demoData.ts, `_check` proofs :215-223). Every
- *    callback — including the paid onGenerate — is one inert lock → signup.
- *  • MIRRORED (self-fetching containers): the INPUTS pickers
- *    (ContentPipeline.tsx:322-448), ScenifyDraft (ruled never-mountable — its
- *    paid enrich is an INTERNAL handler, :236-293), DailyLog, PieceGrid.
+ * SLIDES-1 (Alex's ruling, overrides the Jul-16 faithful-mirror design): the
+ * deck is SLIDES ONLY. The former live mounts (DayCalendarView +
+ * ScriptGeneratorView on the demoData seed) are REMOVED — no deck mounts
+ * real app components anymore. What remains is the narrative: hero terminal
+ * + the five slide panels + the three labeled static mirrors + the
+ * free-account CTA.
  *
  * EXAMPLE DATA — one day's story end-to-end: the seed day 2026-06-09 (Maria's
- * food truck) from content/showroom/demoData.ts, reused verbatim so the live
- * mounts and the slide panels tell the SAME day.
+ * food truck), the same day the slide panels tell.
  */
 
-import DayCalendarView from '@/components/workbench/operations/content/DayCalendarView';
-import ScriptGeneratorView from '@/components/workbench/operations/content/ScriptGeneratorView';
-import {
-  demoDay,
-  demoDayEntities,
-  demoDayDate,
-  demoScript,
-  demoExecNotes,
-} from '@/components/workbench/operations/content/showroom/demoData';
 import TabShowcaseTemplate, { ExampleTag } from '@/components/home/TabShowcaseTemplate';
 
 interface Props {
   /** Opens the existing home register/login modal. Never fetches. */
   onRequireAuth: () => void;
 }
-
-// The plain-language day-audit helper the script panel requires (a view prop;
-// the same 5th-grade voice the old showroom used for it).
-const DAY_AUDIT_PROMPT =
-  'At the end of the day, write down what you actually got done — the real ' +
-  'receipts. The app turns these notes into your script, so it only talks about ' +
-  'stuff that really happened.';
 
 // ── dark slide shell (panel token family, same look as the other decks) ──────
 
@@ -351,26 +330,12 @@ function AnswerRecordMirror({ lock }: { lock: () => void }) {
   );
 }
 
-function LiveContentSection({ onRequireAuth }: Props) {
+// SLIDES-1: mirrors only — the former live DayCalendarView /
+// ScriptGeneratorView mounts are removed.
+function ContentMirrorsSection({ onRequireAuth }: Props) {
   const lock = () => onRequireAuth();
   return (
     <div className="space-y-4">
-      {/* DAY — the REAL DayCalendarView (pure props :128-137) on the seed day.
-          Showroom-proven mount; date nav routes to signup. */}
-      <div className="rounded-lg border border-border bg-white overflow-hidden">
-        <TruthStrip real={true} label="· DAY — time blocks" />
-        <div className="p-3">
-          <DayCalendarView
-            date={demoDayDate}
-            onDateChange={lock}
-            timeline={demoDay}
-            loading={false}
-            error={null}
-            entities={demoDayEntities}
-          />
-        </div>
-      </div>
-
       {/* 1 · INPUTS — mirror (the container self-fetches routines + tasks). */}
       <div className="rounded-lg border border-border bg-white overflow-hidden">
         <TruthStrip real={false} label="1 · INPUTS — pick routines · add tasks to the day" />
@@ -390,38 +355,9 @@ function LiveContentSection({ onRequireAuth }: Props) {
         <AnswerRecordMirror lock={lock} />
       </div>
 
-      {/* 4 · SCRIPT — the REAL ScriptGeneratorView (pure props :27-53) on the
-          seed script + notes. The PAID generate trigger is a locked prop —
-          it routes to signup, never the paid POST (showroom-proven). */}
-      <div className="rounded-lg border border-border bg-white overflow-hidden">
-        <TruthStrip real={true} label="4 · SCRIPT — the reel voiceover" />
-        <div className="p-3">
-          <ScriptGeneratorView
-            dayAuditPrompt={DAY_AUDIT_PROMPT}
-            hasPiece={true}
-            disabledReason={null}
-            draft={demoScript}
-            execNotes={demoExecNotes}
-            generating={false}
-            saving={false}
-            execSaving={false}
-            error={null}
-            notice={null}
-            copied={false}
-            onGenerate={lock}
-            onSave={lock}
-            onSaveNotes={lock}
-            onCopyPrompt={lock}
-            onDraftChange={lock}
-            onExecNotesChange={lock}
-          />
-        </div>
-      </div>
-
       <p className="text-xs text-text-muted">
-        The day calendar and the script generator above are the real components mounted live on the
-        declared example day — they fetch nothing; every action routes to sign-up. The three
-        sections between them are labeled mirrors of screens that fetch your data when signed in.
+        The three sections above are labeled static mirrors of screens that fetch your data when
+        signed in. Nothing on this page fetches; every action routes to sign-up.
       </p>
     </div>
   );
@@ -510,19 +446,16 @@ export default function ContentShowcase({ onRequireAuth }: Props) {
           panelSide: 'left',
         },
       ]}
-      // The connective line — claim = composition exactly (2 real mounts:
-      // DayCalendarView + ScriptGeneratorView; 3 labeled mirrors between;
-      // zero fetches).
+      // SLIDES-1: the connective line — claim = composition exactly (3
+      // labeled static mirrors; zero fetches; no real components mounted).
       preSteps={
         <p className="text-center text-sm text-text-secondary">
-          Below, the day calendar and the script generator are the real components mounted live on
-          the declared example day — they fetch nothing; every action routes to sign-up. The
-          sections between them (inputs, the AI script map, answer + record) fetch your data when
-          you&rsquo;re signed in, so here they are faithful static mirrors of the real screens,
-          labeled on their faces. Nothing on this page fetches.
+          Below, the inputs, the AI script map, and answer + record are faithful static mirrors of
+          the real screens on the declared example day, labeled on their faces. Nothing on this
+          page fetches; every action routes to sign-up.
         </p>
       }
-      sample={<LiveContentSection onRequireAuth={onRequireAuth} />}
+      sample={<ContentMirrorsSection onRequireAuth={onRequireAuth} />}
       cta={<FreeAccountCta onRequireAuth={onRequireAuth} />}
     />
   );

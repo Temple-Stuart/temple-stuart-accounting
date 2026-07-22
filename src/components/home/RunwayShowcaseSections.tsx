@@ -51,15 +51,11 @@
  * card would advertise a paywall that doesn't exist → the CTA is the honest
  * "Make my free account".
  *
- * MOUNTABILITY (inventory §Phase-2):
- *   • HubCalendar — MOUNTED LIVE on a declared demoEvents seed: the
- *     production-proven truthy-guard (HubCalendar.tsx:173,:180) fires ZERO
- *     fetches and renders the seed; clicking any event opens the REAL
- *     EventDetailPanel (pure props, zero fetch) — the component's own demo
- *     behavior (:224-232). The seed is one coherent example day: Projects
- *     blocks, Routines, a Travel trip — and one block added from Content's
- *     "+ add to day" (both write the same daily-plan tables). NO trade
- *     events (the trade layer is fed by nothing on the live path — banned).
+ * SLIDES-1 (Alex's ruling, overrides the Jul-16 faithful-mirror design): the
+ * deck is SLIDES ONLY. The former live HubCalendar mount (demoEvents seed)
+ * is REMOVED — no deck mounts real app components anymore. What remains is
+ * the narrative: hero terminal + the eight slide panels + the three labeled
+ * static mirrors + the free-account CTA.
  *   • The populated runway/budget panels have NO data seam (preview yields
  *     only empty shells) → faithful STATIC MIRRORS with per-block
  *     correspondence cites below.
@@ -74,8 +70,6 @@
  * SHOW discipline: ZERO fetches in this file; all mirror actions → signup.
  */
 
-import HubCalendar from '@/components/hub/HubCalendar';
-import type { CalendarEvent as GridEvent } from '@/components/shared/CalendarGrid';
 import TabShowcaseTemplate, { ExampleTag } from '@/components/home/TabShowcaseTemplate';
 
 interface Props {
@@ -111,38 +105,6 @@ const FORMULA_LINE =
 
 const usd0 = (n: number) => `$${Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 const usd2 = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-// ── the declared example day for the LIVE calendar mount ─────────────────────
-// Dated relative to TODAY so the grid's default day view (which opens on
-// today) shows the demo immediately. Local-date formatting mirrors
-// HubCalendar's own range seeding (:113-116).
-const pad = (n: number) => String(n).padStart(2, '0');
-function ymd(offsetDays: number): string {
-  const t = new Date();
-  t.setDate(t.getDate() + offsetDays);
-  return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`;
-}
-
-/** One coherent example day (the Books/Content demo world): Projects blocks
- *  (indigo 🎯 — incl. one added from Content's "+ add to day"; both paths
- *  write the same daily-plan tables), Routines (teal 🔁), and a Travel trip
- *  (cyan ✈️). Shapes follow the real mappers: project events carry the
- *  mapper's "<coa> · $<cost>" detail line (mapOperationsBlocks), routine
- *  events carry isRecurring (mapOperationsRoutines). NO trade events — that
- *  layer has no live source (inventory §NOT-LIVE 4). */
-function buildDemoDay(): GridEvent[] {
-  const today = ymd(0);
-  return [
-    { id: 'demo-routine-morning', source: 'routines', title: 'Morning coffee and plan the day', startDate: today, startTime: '07:00', endTime: '07:30', isRecurring: true },
-    { id: 'demo-proj-receipts', source: 'project', title: 'Sort the receipts into one folder', startDate: today, startTime: '08:00', endTime: '08:30', details: ['5000 · $0'] },
-    { id: 'demo-proj-sales', source: 'project', title: "Type last week's sales into the app", startDate: today, startTime: '09:00', endTime: '10:00', details: ['4000 · $0'] },
-    { id: 'demo-routine-truck', source: 'routines', title: 'Prep the truck for the lunch rush', startDate: today, startTime: '10:30', endTime: '11:30', isRecurring: true },
-    { id: 'demo-proj-costs', source: 'project', title: 'Add up the food and gas costs', startDate: today, startTime: '14:00', endTime: '14:45', details: ['5000 · $0'] },
-    // Added from the Content tab's "+ add to day" — same daily-plan tables.
-    { id: 'demo-proj-bank', source: 'project', title: 'Call the bank about the business account', startDate: today, startTime: '16:00', endTime: '16:15', details: ['5000 · $0'] },
-    { id: 'demo-trip-festival', source: 'trip', title: 'Portland food-truck festival', startDate: ymd(3), endDate: ymd(5), budgetAmount: 450, location: 'Portland, OR' },
-  ];
-}
 
 // ── dark slide shell (panel token family, same look as the five prior decks) ─
 
@@ -354,13 +316,9 @@ function TradingWallPanel() {
   );
 }
 
-// ── THE LIVE/MIRROR SECTION ──────────────────────────────────────────────────
+// ── THE MIRRORS SECTION (SLIDES-1: mirrors only) ─────────────────────────────
 //
 // Composition (the connective line's claim must equal exactly this):
-//   • HubCalendar — REAL, mounted live on the declared example day (the
-//     truthy demoEvents guard = zero fetches, HubCalendar.tsx:173,:180);
-//     clicking an event opens the REAL EventDetailPanel (pure props, zero
-//     fetch) — the component's own demo behavior.
 //   • The runway readout, the trading strip, and the budget table + drill —
 //     STATIC MIRRORS (the populated panels have no data seam; preview
 //     renders only empty shells) with per-block correspondence cites.
@@ -518,18 +476,11 @@ function BudgetMirror({ lock }: { lock: () => void }) {
   );
 }
 
-function LiveRunwaySection({ onRequireAuth }: Props) {
+// SLIDES-1: mirrors only — the former live HubCalendar mount is removed.
+function RunwayMirrorsSection({ onRequireAuth }: Props) {
   const lock = () => onRequireAuth();
   return (
     <div className="space-y-4">
-      {/* THE CALENDAR — REAL, live on the declared example day. The truthy
-          demoEvents guard fires ZERO fetches (HubCalendar.tsx:173,:180);
-          clicking any event opens the REAL EventDetailPanel (pure props). */}
-      <div className="rounded-lg border border-border bg-white overflow-hidden">
-        <TruthStrip real={true} label="The whole platform, one calendar — click any event" />
-        <HubCalendar demoEvents={buildDemoDay()} onRequireAuth={onRequireAuth} />
-      </div>
-
       <div className="rounded-lg border border-border bg-white overflow-hidden">
         <TruthStrip real={false} label="The runway readout — cash · two windows · entity split" />
         <RunwayReadoutMirror />
@@ -546,11 +497,9 @@ function LiveRunwaySection({ onRequireAuth }: Props) {
       </div>
 
       <p className="text-xs text-text-muted">
-        The calendar above is the real component mounted live on a declared example day — its
-        zero-fetch demo guard is the same one production uses, and clicking an event opens the real
-        read-only detail panel. The runway readout, the trading strip, and the budget table are
-        faithful static mirrors of the real screens rendering the same computed example set, labeled
-        on their faces. Nothing on this page fetches; the mirrors&rsquo; actions route to sign-up.
+        The runway readout, the trading strip, and the budget table are faithful static mirrors of
+        the real screens rendering the same computed example set, labeled on their faces. Nothing on
+        this page fetches; the mirrors&rsquo; actions route to sign-up.
       </p>
     </div>
   );
@@ -658,20 +607,16 @@ export default function RunwayShowcase({ onRequireAuth }: Props) {
           panelSide: 'right',
         },
       ]}
-      // The connective line — claim = composition exactly (1 real live mount:
-      // HubCalendar + its real detail panel on click; 3 labeled mirrors;
-      // zero fetches).
+      // SLIDES-1: the connective line — claim = composition exactly (3
+      // labeled static mirrors; zero fetches; no real components mounted).
       preSteps={
         <p className="text-center text-sm text-text-secondary">
-          Below, the calendar is the real component mounted live on a declared example day — its
-          zero-fetch demo guard is the same one production uses, and clicking any event opens the
-          real read-only detail panel. The runway readout, the trading strip, and the budget table
-          are faithful static mirrors of the real screens rendering the same computed example set,
-          labeled on their faces. Nothing on this page fetches; the mirrors&rsquo; actions route to
-          sign-up.
+          Below, the runway readout, the trading strip, and the budget table are faithful static
+          mirrors of the real screens rendering the same computed example set, labeled on their
+          faces. Nothing on this page fetches; the mirrors&rsquo; actions route to sign-up.
         </p>
       }
-      sample={<LiveRunwaySection onRequireAuth={onRequireAuth} />}
+      sample={<RunwayMirrorsSection onRequireAuth={onRequireAuth} />}
       cta={<FreeAccountCta onRequireAuth={onRequireAuth} />}
     />
   );

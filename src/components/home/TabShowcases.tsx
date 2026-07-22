@@ -34,13 +34,11 @@ import TabShowcaseTemplate from '@/components/home/TabShowcaseTemplate';
 // public seam). Rendered by ComplianceShowcase below with the real LockedTabCard
 // injected as its cta.
 import ComplianceReceiptsDeck from '@/components/home/ComplianceShowcaseSections';
-// TRADE-SHOWCASE-FULL: the full-product sections (real interactive filter
-// panel + track-record / graded-card / deep-dive mirrors per the
-// TRADE-FULL-INVENTORY rulings). Engine-real values come from the scoreAll
-// fixture inside these sections.
+// TRADE-SHOWCASE-FULL / SLIDES-1: the slide sections (track-record /
+// graded-card mirrors per the TRADE-FULL-INVENTORY rulings; the former
+// real-component demos are removed — decks are slides only). Engine-real
+// values come from the scoreAll fixture inside these sections.
 import {
-  ScannerPanelDemo,
-  RealCockpitDemo,
   TrackRecordMirror,
   GradedCardMirror,
   UnlockTradeButton,
@@ -55,13 +53,9 @@ import {
   BrakePanelDark,
   TRADE_UNLOCK_CTA_ID,
 } from '@/components/home/TradeShowcaseSections';
-// BOOKS-SHOWCASE-BLOOMBERG: the Books slide deck sections — hero terminal,
-// 8 causal slide panels, and the LIVE section. BOOKS-LIVE-PIPE-COMPLETE: the
-// live section is the FULL 13-stage pipe in the dashboard's canonical order
-// (BooksPipeline.tsx:180-181) — the real CockpitBar / JournalEntryEngine /
-// BankReconciliation / PeriodClose mounted live on the example books, and a
-// faithful static mirror for every stage whose real component self-fetches
-// (per the BOOKS-FULL-INVENTORY mountability rulings).
+// BOOKS-SHOWCASE-BLOOMBERG / SLIDES-1: the Books slide deck sections — hero
+// terminal + 8 causal slide panels (the former 13-stage live section is
+// removed — decks are slides only).
 import {
   UnlockBooksButton,
   BooksHeroTerminal,
@@ -73,15 +67,13 @@ import {
   StatementsPanel,
   ClosePanel,
   CpaExportPanel,
-  LiveBooksSection,
   BOOKS_UNLOCK_CTA_ID,
 } from '@/components/home/BooksShowcaseSections';
-// TAX-SHOWCASE-BLOOMBERG: the Tax slide deck sections — hero terminal, 8
-// causal slides (the TAX-FULL-INVENTORY flow: handoff gate → life events →
-// documents → income → deductions → trading → 1040 review → file), and the
-// LIVE section where the ONLY real mount is LifeEventsStep (the inventory's
-// sole zero-fetch seam) and every other step is a labeled faithful mirror.
-// All figures are the engine-executed 2025 set; disclaimers verbatim.
+// TAX-SHOWCASE-BLOOMBERG / SLIDES-1: the Tax slide deck sections — hero
+// terminal + 8 causal slides (the TAX-FULL-INVENTORY flow: handoff gate →
+// life events → documents → income → deductions → trading → 1040 review →
+// file; the former live section is removed — decks are slides only). All
+// figures are the engine-executed 2025 set; disclaimers verbatim.
 import {
   UnlockTaxButton,
   TaxHeroTerminal,
@@ -93,7 +85,6 @@ import {
   TradingPanel,
   Form1040Panel,
   FileReadyPanel,
-  LiveTaxSection,
   TAX_UNLOCK_CTA_ID,
 } from '@/components/home/TaxShowcaseSections';
 
@@ -273,32 +264,16 @@ export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
           panelSide: 'right',
         },
       ]}
-      // TRADE-SHOWCASE-ORDER: the scanner renders BEFORE the pipe (preSteps) —
-      // in the real product you set filters and hit Scan, THEN the pipe runs.
-      // TRADE-SHOWCASE-SLIDES: one connective line bridges the slides above
-      // into the live cockpit below.
-      preSteps={
-        <>
-          <p className="text-center text-sm text-text-secondary">
-            Everything you just saw in the slides is live below — the real components, rendered
-            from the same declared example scan. Try the controls.
-          </p>
-          <ScannerPanelDemo currentUserId={currentUserId} onRequireAuth={onRequireAuth} />
-        </>
-      }
       // TRADE-SHOWCASE-FINAL: no steps rail — the full 20-step pipe lives in
       // the pipeline slide above (PipelinePanelDark).
+      // SLIDES-1: the former real-component demos (scanner panel + live
+      // cockpit) are removed — what follows the slides is the two labeled
+      // static mirrors, telling the same GLOBEX Iron Condor story.
       sample={
         <>
           <TrackRecordMirror />
-          {/* TRADE-SHOWCASE-REAL-COMPONENTS: the REAL cockpit — the live
-              ScannerResultsTable + TickerChapter deep dive mounted on the
-              declared example payload. The generate→link→grade story is one
-              GLOBEX Iron Condor end to end: the cockpit generates it, the
-              replica below shows it linked and graded. */}
-          <RealCockpitDemo currentUserId={currentUserId} onRequireAuth={onRequireAuth} />
           <p className="text-sm text-text-secondary">
-            Queue that card, link it to the real position when you take the trade — and after it
+            Take the trade card the slides priced, link it to the real position — and after it
             closes, it grades itself against what actually happened:
           </p>
           <GradedCardMirror />
@@ -320,9 +295,9 @@ export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
 }
 
 // ── BOOKS ────────────────────────────────────────────────────────────────────
-// BOOKS-SHOWCASE-BLOOMBERG: the Books slide deck on the proven Trade template
-// (dark hero -> 8 causal slides -> connective line -> LIVE mounted real
-// components -> Unlock CTA), grounded in BOOKS-FULL-INVENTORY. The slides run
+// BOOKS-SHOWCASE-BLOOMBERG / SLIDES-1: the Books slide deck on the proven
+// Trade template (dark hero -> 8 causal slides -> Unlock CTA), grounded in
+// BOOKS-FULL-INVENTORY. The slides run
 // the inventory's causal flow: link banks -> categorize (the queue that
 // LEARNS, pure DB — no AI claim; the OpenAI insights route is dead UI per the
 // inventory) -> commit = double entry -> trial balance -> reconcile ->
@@ -399,22 +374,8 @@ export function BooksShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
           panelSide: 'right',
         },
       ]}
-      // BOOKS-LIVE-PIPE-COMPLETE: the connective line states EXACTLY what the
-      // live section is — which pieces are the real components mounted live
-      // and which stages are static mirrors. The claim may not exceed the
-      // composition (4 real mounts: cockpit + JE + REC + CLOSE; 10 mirrored
-      // stages; zero fetches; actions route to sign-up).
-      preSteps={
-        <p className="text-center text-sm text-text-secondary">
-          Below the slides: the real pipe — all thirteen stages, in the dashboard&rsquo;s exact
-          order. The cockpit bar and three of the stages (journal entries, bank reconciliation,
-          period close) are the real components mounted live on the declared example books; the
-          other ten stages fetch your data when you&rsquo;re signed in, so here they are faithful
-          static mirrors of the real screens — each section is labeled real or mirror. Nothing on
-          this page fetches; every action takes you to sign-up.
-        </p>
-      }
-      sample={<LiveBooksSection currentUserId={currentUserId} onRequireAuth={onRequireAuth} />}
+      // SLIDES-1: slides only — the former 13-stage live section is removed;
+      // the deck ends at the slides and the unlock CTA.
       cta={
         <div id={BOOKS_UNLOCK_CTA_ID}>
           <LockedTabCard
@@ -431,9 +392,9 @@ export function BooksShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
 }
 
 // ── TAX ──────────────────────────────────────────────────────────────────────
-// TAX-SHOWCASE-BLOOMBERG: the Tax slide deck on the proven Trade/Books
-// template (dark hero -> 8 causal slides -> connective line -> LIVE section
-// -> Unlock CTA), grounded in TAX-FULL-INVENTORY. The slides run the
+// TAX-SHOWCASE-BLOOMBERG / SLIDES-1: the Tax slide deck on the proven
+// Trade/Books template (dark hero -> 8 causal slides -> Unlock CTA),
+// grounded in TAX-FULL-INVENTORY. The slides run the
 // inventory's causal flow: the closed-books handoff gate -> life events
 // auto-detected -> documents (half already filled from the ledger) -> income
 // source-traced -> Schedule C deductions with the entry-level drill-down ->
@@ -516,21 +477,8 @@ export function TaxShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
           panelSide: 'right',
         },
       ]}
-      // TAX-SHOWCASE-BLOOMBERG: the connective line states EXACTLY what the
-      // live section is. The claim may not exceed the composition (1 real
-      // mount: LifeEventsStep — the inventory's sole zero-fetch seam; the
-      // gate + shell chrome + steps 2-7 are labeled mirrors; zero fetches;
-      // actions route to sign-up).
-      preSteps={
-        <p className="text-center text-sm text-text-secondary">
-          Below the slides: the handoff gate and the wizard&rsquo;s seven steps, in order, on the
-          declared 2025 example return. Signed in, every step fetches your real ledger — so on this
-          page exactly one piece is the real component mounted live: the Life events step, the one
-          step that fetches nothing. Everything else is a faithful static mirror of the real screen,
-          labeled on its face. Nothing on this page fetches; every action takes you to sign-up.
-        </p>
-      }
-      sample={<LiveTaxSection currentUserId={currentUserId} onRequireAuth={onRequireAuth} />}
+      // SLIDES-1: slides only — the former gate + wizard live section is
+      // removed; the deck ends at the slides and the unlock CTA.
       cta={
         <div id={TAX_UNLOCK_CTA_ID}>
           <LockedTabCard
