@@ -193,16 +193,23 @@ model journal_entries {
   request_id           String?
   created_at           DateTime @default(now())
   created_by           String?
+  // DIM-1: the VENDOR dimension — one payee per bill, at entry level. Nullable +
+  // additive: rows posted before DIM-1 keep NULL (the legacy epoch — never
+  // backfilled). SetNull per the T-D7 doctrine (financial records never die by
+  // reference; cf. reservations.trip :1254).
+  vendor_id            String?  @db.Uuid
 
   user              users            @relation(fields: [userId], references: [id])
   entity            entities         @relation(fields: [entity_id], references: [id])
   reverses_entry    journal_entries? @relation("reversal", fields: [reverses_entry_id], references: [id])
   reversed_by_entry journal_entries? @relation("reversal")
   ledger_entries    ledger_entries[]
+  vendor            operations_vendor_directory? @relation(fields: [vendor_id], references: [id], onDelete: SetNull)
 
   @@index([userId, date])
   @@index([source_type, source_id])
   @@index([entity_id, date])
+  @@index([vendor_id])
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -221,8 +228,55 @@ model ledger_entries {
   journal_entry journal_entries   @relation(fields: [journal_entry_id], references: [id], onDelete: Restrict)
   account       chart_of_accounts @relation(fields: [account_id], references: [id], onDelete: Restrict)
 
+  ledger_line_links ledger_line_links[]
+
   @@index([journal_entry_id])
   @@index([account_id, created_at])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DIM-1: LEDGER LINE LINKS — the LINKS dimension (WHY a cost exists)
+// ═══════════════════════════════════════════════════════════════════
+
+/// This table carries SQL-side constraints Prisma cannot model (the
+/// chart_of_accounts precedent, :146) — see the DIM-1 migration:
+///   • ledger_line_links_exactly_one_target CHECK — exactly one of
+///     project_id / routine_id / trip_id / module_key is set per row;
+///   • four PARTIAL unique indexes — at most one link per (line, specific
+///     target); a plain composite unique cannot express this (NULLs distinct).
+/// SUM-TO-100 DIVISION: percents across a line's links must total 100.00 — a
+/// CROSS-ROW invariant no per-row CHECK can express. DIM-1 documents it here;
+/// DIM-3's write path enforces it (and percent range) FAIL-LOUD at coding
+/// time. Nothing in between guesses.
+/// LEGACY EPOCH: lines posted before DIM-1 carry no links BY DESIGN — no
+/// backfill, no rewrites. Every allocation report must DECLARE coverage
+/// (N of M lines linked), never impute.
+/// onDelete: line Cascade (an allocation cannot outlive the line it
+/// allocates); targets Restrict — financial attribution never vanishes because
+/// a target was deleted (SetNull would violate the exactly-one CHECK; Cascade
+/// would silently erase financial rows; Restrict = fail-loud, mirroring
+/// ledger_entries' own Restrict doctrine :221-222).
+model ledger_line_links {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ledger_entry_id String
+  project_id      String?  @db.Uuid
+  routine_id      String?  @db.Uuid
+  trip_id         String?
+  module_key      String?  @db.VarChar(20)
+  percent         Decimal  @db.Decimal(5, 2)
+  created_at      DateTime @default(now())
+  created_by      String?
+
+  ledger_entry ledger_entries       @relation(fields: [ledger_entry_id], references: [id], onDelete: Cascade)
+  project      operations_projects? @relation(fields: [project_id], references: [id], onDelete: Restrict)
+  routine      operations_routines? @relation(fields: [routine_id], references: [id], onDelete: Restrict)
+  trip         trips?               @relation(fields: [trip_id], references: [id], onDelete: Restrict)
+
+  @@index([ledger_entry_id])
+  @@index([project_id])
+  @@index([routine_id])
+  @@index([trip_id])
+  @@index([module_key])
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -557,6 +611,7 @@ model trips {
   scannerResults      trip_scanner_results[]
   reservations        reservations[]
   hub_scheduled_items hub_scheduled_items[]
+  ledger_line_links   ledger_line_links[]
 
   @@index([userId])
   @@index([year, month])
@@ -2817,6 +2872,7 @@ model operations_projects {
   linked_issues         operations_issue_log_entries[]
   content_pieces        operations_content_pieces[]       @relation("ProjectContentPieces")
   hub_scheduled_items   hub_scheduled_items[]
+  ledger_line_links     ledger_line_links[]
 
   @@unique([user_id, title])
   @@index([user_id, entity_id, status])
@@ -2995,6 +3051,7 @@ model operations_routines {
   steps               operations_routine_steps[]
   content_scene_group operations_content_scene_groups?
   hub_scheduled_items hub_scheduled_items[]
+  ledger_line_links   ledger_line_links[]
 
   @@unique([user_id, name])
   @@index([user_id, is_active, next_due_at])
@@ -3363,6 +3420,9 @@ model operations_vendor_directory {
   created_at           DateTime  @default(now()) @db.Timestamptz(6)
   updated_at           DateTime  @updatedAt @db.Timestamptz(6)
   created_by           String?
+
+  // DIM-1: this directory is THE vendor table — journal entries reference it.
+  journal_entries journal_entries[]
 
   @@unique([user_id, entity_id, vendor_name])
   @@index([user_id, is_active])
