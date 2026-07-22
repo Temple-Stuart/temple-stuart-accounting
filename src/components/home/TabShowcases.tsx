@@ -34,13 +34,10 @@ import TabShowcaseTemplate from '@/components/home/TabShowcaseTemplate';
 // public seam). Rendered by ComplianceShowcase below with the real LockedTabCard
 // injected as its cta.
 import ComplianceReceiptsDeck from '@/components/home/ComplianceShowcaseSections';
-// TRADE-SHOWCASE-FULL / SLIDES-1: the slide sections (track-record /
-// graded-card mirrors per the TRADE-FULL-INVENTORY rulings; the former
-// real-component demos are removed — decks are slides only). Engine-real
-// values come from the scoreAll fixture inside these sections.
+// TRADE-SHOWCASE-FULL / SLIDES-2: the slide sections (narrative slides only;
+// the real-component demos died in SLIDES-1, the static mirrors in SLIDES-2).
+// Engine-real values come from the scoreAll fixture inside these sections.
 import {
-  TrackRecordMirror,
-  GradedCardMirror,
   UnlockTradeButton,
   HeroTerminalPanel,
   PipelinePanelDark,
@@ -266,19 +263,8 @@ export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
       ]}
       // TRADE-SHOWCASE-FINAL: no steps rail — the full 20-step pipe lives in
       // the pipeline slide above (PipelinePanelDark).
-      // SLIDES-1: the former real-component demos (scanner panel + live
-      // cockpit) are removed — what follows the slides is the two labeled
-      // static mirrors, telling the same GLOBEX Iron Condor story.
-      sample={
-        <>
-          <TrackRecordMirror />
-          <p className="text-sm text-text-secondary">
-            Take the trade card the slides priced, link it to the real position — and after it
-            closes, it grades itself against what actually happened:
-          </p>
-          <GradedCardMirror />
-        </>
-      }
+      // SLIDES-2: narrative slides only — the demos died in SLIDES-1, the
+      // static mirrors here; the deck ends at the slides and the unlock CTA.
       cta={
         <div id={TRADE_UNLOCK_CTA_ID}>
           <LockedTabCard
