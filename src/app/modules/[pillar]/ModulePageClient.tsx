@@ -36,6 +36,10 @@ import dynamic from 'next/dynamic';
 import type { ComponentType } from 'react';
 import { TAB_PRICING } from '@/config/pricing-costs';
 import { TAB_DESCRIPTORS } from '@/lib/tabDescriptors';
+// MOD-1: the pillar registry lives in a server-safe leaf now — defining it
+// here ('use client') made the server page's PILLARS.find() a client-reference
+// call that 500ed every /modules page (MOD-0).
+import type { PillarDef } from '@/lib/modulePillars';
 import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
 
@@ -59,28 +63,6 @@ const ComplianceShowcase = dynamic(() => import('@/components/home/TabShowcases'
 
 type PlainDeck = ComponentType<{ onRequireAuth: () => void }>;
 type WrappedDeck = ComponentType<{ currentUserId: string; onRequireAuth: () => void }>;
-
-export interface PillarDef {
-  id: string;
-  label: string;
-  /** TAB_DESCRIPTORS key (differs from id only for runway → 'calendar'). */
-  tab: string;
-  /** TAB_PRICING entitlement key — the four paid pillars only. */
-  entitlementKey?: string;
-}
-
-// The nine pillars — ids are the /modules/<id> route segments (funnel order).
-export const PILLARS: PillarDef[] = [
-  { id: 'travel', label: 'Travel', tab: 'travel' },
-  { id: 'runway', label: 'Runway', tab: 'calendar' },
-  { id: 'books', label: 'Books', tab: 'books', entitlementKey: 'tab:books' },
-  { id: 'trade', label: 'Trade', tab: 'trade', entitlementKey: 'tab:trade' },
-  { id: 'tax', label: 'Tax', tab: 'tax', entitlementKey: 'tab:tax' },
-  { id: 'compliance', label: 'Compliance', tab: 'compliance', entitlementKey: 'tab:compliance' },
-  { id: 'routines', label: 'Routines', tab: 'routines' },
-  { id: 'projects', label: 'Projects', tab: 'projects' },
-  { id: 'content', label: 'Content', tab: 'content' },
-];
 
 const PLAIN_DECKS: Record<string, PlainDeck> = {
   travel: TravelShowcase,
