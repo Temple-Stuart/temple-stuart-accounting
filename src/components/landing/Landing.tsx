@@ -57,16 +57,24 @@ interface PillarCard {
   entitlementKey?: string;
   /** The free pillar's truthful access label (audit-cited in the header note). */
   freeLabel?: string;
-  /** LIFTED VERBATIM from the deck's own headings — provenance per string: */
+  /** LIFTED VERBATIM from the deck's own headings — except where the provenance
+   *  block below marks a bullet as an FD-1h audit-cleared claim instead. */
   bullets: string[];
 }
 
 const FREE_WITH_ACCOUNT = 'Free with a free account';
 const FREE_NO_ACCOUNT = 'Free — search works with no account';
 
-// Funnel order — Alex's ruling. Bullet provenance (all verbatim):
-//   Travel:     TravelShowcaseSections.tsx :325, :342, :349
-//   Runway:     RunwayShowcaseSections.tsx :588
+// Funnel order — Alex's ruling. Bullet provenance (deck lifts verbatim, except
+// the FD-1h bullets — ruled copy cleared by the NOTE-0 booking→runway audit):
+//   Travel:     TravelShowcaseSections.tsx :325 (bullet 1); bullets 2-3 are
+//               FD-1h audit-cleared claims (bookings attach to the trip —
+//               flights/book/route.ts :201; trip budget planned-vs-actual —
+//               TripBudgetActual.tsx), NOT deck lifts
+//   Runway:     RunwayShowcaseSections.tsx :588 (bullet 1); bullet 2 is an
+//               FD-1h audit-cleared claim (per-entity BURN only — runway/route.ts
+//               :146-171, RunwayBudgetPanel.tsx :128-142; cash is combined, so
+//               per-entity runway months must NOT be claimed)
 //   Books:      TabShowcases.tsx :337, :360, :395
 //   Trade:      TabShowcases.tsx :207, :220, :269
 //   Tax:        TabShowcases.tsx :454, :463, :505
@@ -79,14 +87,15 @@ const PILLAR_CARDS: PillarCard[] = [
     id: 'travel', label: 'Travel', tab: 'travel', freeLabel: FREE_NO_ACCOUNT,
     bullets: [
       'Search it. Price it. Book it. No account required to look.',
-      'Real searches, free by design.',
-      'Hotels: book as a guest — the one complete flow.',
+      'Book a flight or hotel and it’s saved to your trip.',
+      'Budget the trip line by line — planned vs. actual from your real ledger.',
     ],
   },
   {
     id: 'runway', label: 'Runway', tab: 'calendar', freeLabel: FREE_WITH_ACCOUNT,
     bullets: [
       'Every system you’re juggling. One question answered: how long can you keep going?',
+      'Burn broken out by Personal vs. Business — strays surfaced, never dropped.',
     ],
   },
   {
