@@ -56,6 +56,12 @@ const PUBLIC_PATHS = [
   '/_next',
   '/favicon.ico',
   '/pricing',
+  // FD-0: the cost-transparency page the landing header links (page.tsx:109) —
+  // a static server component: zero authed calls, zero paid external calls
+  // (its only imports are next/link + the pure constants in
+  // src/config/pricing-costs.ts; audited in full). Without this entry the
+  // landing's own Pricing link 307-bounced guests back to '/'.
+  '/how-pricing-works',
   '/api/stripe/webhook',
   '/api/inngest',
   '/opengraph-image',
