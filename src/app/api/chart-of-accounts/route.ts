@@ -47,6 +47,9 @@ export async function GET(request: Request) {
       name: acc.name,
       accountType: acc.account_type,
       balanceType: acc.balance_type,
+      // DIM-2: the S segment of the derived dimensional string (client renders
+      // via deriveAccountString — the string is a render, never stored).
+      subType: acc.sub_type,
       settledBalance: Number(acc.settled_balance),
       pendingBalance: Number(acc.pending_balance),
       version: Number(acc.version),
@@ -89,10 +92,15 @@ export async function POST(request: Request) {
     const tabGate = await requireTabAccess(user.id, 'tab:books');
     if (tabGate) return tabGate;
 
-    const { code, name, accountType, entityId } = await request.json();
+    // DIM-2: subType is optional — the S segment of the dimensional string,
+    // stored in the existing sub_type column (VarChar(50)).
+    const { code, name, accountType, entityId, subType } = await request.json();
 
     if (!code || !name || !accountType || !entityId) {
       return NextResponse.json({ error: 'code, name, accountType, and entityId are required' }, { status: 400 });
+    }
+    if (subType !== undefined && subType !== null && typeof subType !== 'string') {
+      return NextResponse.json({ error: 'subType must be a string' }, { status: 400 });
     }
 
     const balanceType = BALANCE_TYPE_MAP[accountType.toLowerCase()];
@@ -123,6 +131,7 @@ export async function POST(request: Request) {
         name,
         account_type: accountType.toLowerCase(),
         balance_type: balanceType,
+        sub_type: typeof subType === 'string' && subType.trim() ? subType.trim() : null,
         entity_id: entityId,
         entity_type: entity.entity_type,
         userId: user.id,
@@ -137,6 +146,7 @@ export async function POST(request: Request) {
         name: account.name,
         accountType: account.account_type,
         balanceType: account.balance_type,
+        subType: account.sub_type,
         entity_id: account.entity_id,
         entity_type: account.entity_type,
         settledBalance: 0,
