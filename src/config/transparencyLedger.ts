@@ -10,6 +10,13 @@
 // provenance comment per bill); ALLOCATION_ROWS below derives the per-
 // allocation records the table renders.
 //
+// FD-1l (D-VOCAB): target names are the CANONICAL PILLAR VOCABULARY + Personal
+// — the nine pillar names (Travel, Runway, Books, Trade, Tax, Compliance,
+// Routines, Projects, Content) plus Personal, nothing else. Alex's ruled
+// mapping killed the pricing-costs synonyms on this surface: Trading→Trade,
+// Bookkeeping→Books, Operations→Projects. The bill descriptions keep their
+// verbatim pricing-costs usedFor prose (provenance, not vocabulary).
+//
 // PHASE-1 HONESTY CONTRACT (unchanged from FD-1e):
 //   • every row is one entry from src/config/pricing-costs.ts (the Alex-edited
 //     invoice truth) — provenance cited per row; NOTHING renders outside it;
@@ -133,7 +140,7 @@ export const SCHEDULE_BILLS: ScheduleBill[] = [
     entity: 'B', account: '5100', sub: '10', object: 'API', vendor: 'ANTH',
     description: 'Trading briefs/synthesis · operations planning, design, tasks, content · compliance discovery',
     basis: 'PER-USE', cadence: 'per token',
-    allocatedTo: [{ type: 'module', name: 'Operations' }, { type: 'module', name: 'Trading' }, { type: 'module', name: 'Compliance' }],
+    allocatedTo: [{ type: 'module', name: 'Projects' }, { type: 'module', name: 'Trade' }, { type: 'module', name: 'Compliance' }],
     amountUsd: null, footnotes: ['ᵃ'],
   },
   // OpenAI — pricing-costs.ts:131-139 (PER_USE per-token, null, ['bookkeeping','personal'])
@@ -141,7 +148,7 @@ export const SCHEDULE_BILLS: ScheduleBill[] = [
     entity: 'B', account: '5100', sub: '10', object: 'API', vendor: 'OAI',
     description: 'Spending insights (bookkeeping) · meal & cart planning (personal)',
     basis: 'PER-USE', cadence: 'per token',
-    allocatedTo: [{ type: 'module', name: 'Bookkeeping' }, { type: 'module', name: 'Personal' }],
+    allocatedTo: [{ type: 'module', name: 'Books' }, { type: 'module', name: 'Personal' }],
     amountUsd: null, footnotes: ['ᵃ'],
   },
   // xAI (Grok) — pricing-costs.ts:102-110 (PER_USE per-token, null, ['trading'])
@@ -149,7 +156,7 @@ export const SCHEDULE_BILLS: ScheduleBill[] = [
     entity: 'B', account: '5100', sub: '10', object: 'API', vendor: 'XAI',
     description: 'Social/X sentiment on scanned tickers',
     basis: 'PER-USE', cadence: 'per token',
-    allocatedTo: [{ type: 'module', name: 'Trading' }],
+    allocatedTo: [{ type: 'module', name: 'Trade' }],
     amountUsd: null, footnotes: ['ᵃ'],
   },
   // Voyage AI — pricing-costs.ts:214-222 (PER_USE per-token, null, ['compliance'])
@@ -186,7 +193,7 @@ export const SCHEDULE_BILLS: ScheduleBill[] = [
     entity: 'B', account: '5100', sub: '40', object: 'API', vendor: 'PLD',
     description: 'Bank/card transaction sync · investment holdings for cost basis',
     basis: 'PER-USE', cadence: 'per item',
-    allocatedTo: [{ type: 'module', name: 'Bookkeeping' }, { type: 'module', name: 'Trading' }],
+    allocatedTo: [{ type: 'module', name: 'Books' }, { type: 'module', name: 'Trade' }],
     amountUsd: null, footnotes: ['ᵃ'],
   },
 
@@ -197,7 +204,7 @@ export const SCHEDULE_BILLS: ScheduleBill[] = [
     entity: 'B', account: '5100', sub: '50', object: 'API', vendor: 'INNG',
     description: 'Background jobs — operations AI pipeline, routine evaluator, compliance corpus ingest',
     basis: 'UNKNOWN', cadence: 'unconfirmed',
-    allocatedTo: [{ type: 'module', name: 'Operations' }, { type: 'module', name: 'Compliance' }],
+    allocatedTo: [{ type: 'module', name: 'Projects' }, { type: 'module', name: 'Compliance' }],
     amountUsd: null, footnotes: ['ᶜ'],
   },
 
@@ -219,7 +226,7 @@ export const SCHEDULE_BILLS: ScheduleBill[] = [
     entity: 'B', account: '6210', sub: '10', object: 'SUB', vendor: 'FINN',
     description: 'Market data — fundamentals, estimates, news, insider, earnings quality',
     basis: 'FIXED', cadence: 'monthly',
-    allocatedTo: [{ type: 'module', name: 'Trading' }],
+    allocatedTo: [{ type: 'module', name: 'Trade' }],
     amountUsd: 550, footnotes: [],
   },
 
@@ -336,7 +343,7 @@ export const NO_COST_STRIP: NoCostFact[] = [
   {
     vendor: 'TT', vendorLabel: 'TastyTrade',
     description: 'Option chains, quotes, greeks, positions — users connect their own TastyTrade account; the platform pays nothing',
-    allocatedTo: [{ type: 'module', name: 'Trading' }],
+    allocatedTo: [{ type: 'module', name: 'Trade' }],
   },
   // Gov data — pricing-costs.ts:223-232 (FREE, 0, ['compliance'], "free government APIs")
   {
