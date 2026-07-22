@@ -5,6 +5,16 @@ type Tx = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction'
 
 export type CommitResult = journal_entries & { alreadyExisted?: boolean };
 
+/** DIM-3: one PRE-VALIDATED allocation link (the route owns validation —
+ *  exactly-one target, owned by the user, 2-decimal percent, sum === 100). */
+export interface CommitLink {
+  project_id?: string;
+  routine_id?: string;
+  trip_id?: string;
+  module_key?: string;
+  percent: number;
+}
+
 interface CommitPlaidTransactionParams {
   userId: string;
   entityId: string;
@@ -18,6 +28,10 @@ interface CommitPlaidTransactionParams {
   merchantName?: string;
   requestId?: string;
   createdBy?: string;
+  /** DIM-3: journal_entries.vendor_id — validated user-owned by the caller. */
+  vendorId?: string;
+  /** DIM-3: allocation links for the EXPENSE-SIDE line — pre-validated. */
+  links?: CommitLink[];
 }
 
 interface ReversePlaidTransactionParams {
@@ -53,6 +67,8 @@ export async function commitPlaidTransaction(
     description,
     requestId,
     createdBy,
+    vendorId,
+    links,
   } = params;
 
   return prisma.$transaction(async (tx: Tx) => {
@@ -110,6 +126,8 @@ export async function commitPlaidTransaction(
     const creditBalanceType = isExpense ? bankAccount.balance_type : expenseOrIncomeAccount.balance_type;
 
     // Create journal entry
+    // DIM-3: vendor_id is born WITH the entry (null = dimensionless, the
+    // legacy-epoch semantic — never backfilled, never imputed).
     const journalEntry = await tx.journal_entries.create({
       data: {
         userId,
@@ -121,11 +139,12 @@ export async function commitPlaidTransaction(
         status: 'posted',
         request_id: requestId,
         created_by: createdBy || null,
+        vendor_id: vendorId || null,
       },
     });
 
     // Create debit ledger entry
-    await tx.ledger_entries.create({
+    const debitEntry = await tx.ledger_entries.create({
       data: {
         journal_entry_id: journalEntry.id,
         account_id: debitAccountId,
@@ -136,7 +155,7 @@ export async function commitPlaidTransaction(
     });
 
     // Create credit ledger entry
-    await tx.ledger_entries.create({
+    const creditEntry = await tx.ledger_entries.create({
       data: {
         journal_entry_id: journalEntry.id,
         account_id: creditAccountId,
@@ -145,6 +164,29 @@ export async function commitPlaidTransaction(
         created_by: createdBy || null,
       },
     });
+
+    // ─── DIM-3: allocation links on the EXPENSE-SIDE line ────────────────────
+    // This service builds exactly ONE D + ONE C line; the categorized
+    // (expense/income) account rides the DEBIT when the Plaid amount is
+    // positive (expense) and the CREDIT when negative (income) — so the
+    // links' line is always unambiguously identifiable. Created INSIDE this
+    // $transaction: a link-write failure (including the DIM-1 CHECK/partial-
+    // unique constraints) rolls back the WHOLE entry, loudly — the entry's
+    // atomicity is sacred; dimensions are born with it or not at all.
+    if (links && links.length > 0) {
+      const expenseSideEntryId = isExpense ? debitEntry.id : creditEntry.id;
+      await tx.ledger_line_links.createMany({
+        data: links.map((l) => ({
+          ledger_entry_id: expenseSideEntryId,
+          project_id: l.project_id ?? null,
+          routine_id: l.routine_id ?? null,
+          trip_id: l.trip_id ?? null,
+          module_key: l.module_key ?? null,
+          percent: l.percent,
+          created_by: createdBy || null,
+        })),
+      });
+    }
 
     // Update settled_balance on debit account
     await tx.chart_of_accounts.update({
