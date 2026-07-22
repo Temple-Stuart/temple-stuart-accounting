@@ -74,6 +74,12 @@ const TIERS = [
   },
 ];
 
+/** FD-1c: the DOM id a landing ?module=<key> link scrolls to (':' is not
+ *  queryable-safe in ids — sanitized to '-'). */
+function moduleCardId(key: string): string {
+  return `module-${key.replace(':', '-')}`;
+}
+
 export default function PricingClient({ catalog }: { catalog: CatalogItem[] }) {
   const [loading, setLoading] = useState<string | null>(null);
   const [showLogin, setShowLogin] = useState(false);
@@ -85,6 +91,20 @@ export default function PricingClient({ catalog }: { catalog: CatalogItem[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const cancelled = searchParams.get('cancelled');
+  // FD-1c: ?module=<key> from the landing sheet → scroll that card into view
+  // with a brief highlight. Reads the SAME useSearchParams binding above (this
+  // component already mounts under <Suspense>, page.tsx:27-29) — fewer lines
+  // than the window.location house pattern, and this file's own convention.
+  // PRESENTATION ONLY: no commerce logic (checkout/resume/portal) is touched.
+  const [highlightKey, setHighlightKey] = useState<string | null>(null);
+  useEffect(() => {
+    const moduleKey = searchParams.get('module');
+    if (!moduleKey || !catalog.some((c) => c.key === moduleKey)) return;
+    setHighlightKey(moduleKey);
+    document.getElementById(moduleCardId(moduleKey))?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const timer = setTimeout(() => setHighlightKey(null), 2500);
+    return () => clearTimeout(timer);
+  }, [searchParams, catalog]);
 
   useEffect(() => {
     // Check if user is logged in
@@ -229,7 +249,7 @@ export default function PricingClient({ catalog }: { catalog: CatalogItem[] }) {
       {/* MODULES — the per-tab sell */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         {tabs.map((c) => (
-          <div key={c.key} className="p-6 border border-border relative">
+          <div key={c.key} id={moduleCardId(c.key)} className={`p-6 border relative ${highlightKey === c.key ? 'border-brand-purple ring-2 ring-brand-purple/40' : 'border-border'}`}>
             <div className="text-xs font-medium text-text-primary mb-1">{c.label}</div>
             <div className="text-sm font-bold font-mono text-brand-purple mb-1">
               {c.monthlyPrice !== null ? (
@@ -270,7 +290,7 @@ export default function PricingClient({ catalog }: { catalog: CatalogItem[] }) {
 
       {/* THE BUNDLE */}
       {bundle && (
-        <div className="p-6 border-2 border-brand-purple mb-10 flex flex-col sm:flex-row sm:items-center gap-4">
+        <div id={moduleCardId(bundle.key)} className={`p-6 border-2 border-brand-purple mb-10 flex flex-col sm:flex-row sm:items-center gap-4 ${highlightKey === bundle.key ? 'ring-2 ring-brand-purple/40' : ''}`}>
           <div className="flex-1">
             <div className="text-xs font-medium text-text-primary mb-1">{bundle.label}</div>
             <p className="text-xs text-text-secondary">Unlocks {bundle.unlocks}.</p>
