@@ -27,6 +27,7 @@
 
 import Link from 'next/link';
 import { TAB_PRICING } from '@/config/pricing-costs';
+import { TRANSPARENCY_ROWS } from '@/config/transparencyLedger';
 import { TAB_DESCRIPTORS } from '@/lib/tabDescriptors';
 import LandingHeader from './LandingHeader';
 import LandingFooter from './LandingFooter';
@@ -335,9 +336,12 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
         </div>
       </section>
 
-      {/* ── Transparent pricing — audited facts only (pricing-costs.ts:70,
-            :80, :308/:315; heading + honesty line from /how-pricing-works
-            :98, :101-103). ───────────────────────────────────────────────── */}
+      {/* ── FD-1e: THE DIMENSIONAL TABLE — the company's real operating bills
+            coded in the Temple Stuart standard. Every row/amount/attribution
+            renders from src/config/transparencyLedger.ts, whose rows each cite
+            their pricing-costs.ts provenance (phase-1: declared coding of real
+            invoices — NOT ledger derivation; that's the DIM arc). Caption
+            honesty basis: /how-pricing-works :98-103. ─────────────────────── */}
       <section className="w-full border-b border-panel-border bg-panel">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
           <p className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
@@ -347,29 +351,36 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
             Every price, traced to a real bill.
           </h2>
           <p className="mt-2 max-w-2xl text-xs text-white/60">
+            Our actual operating bills, coded in the Temple Stuart dimensional standard
+            (Entity-Account-Sub-Object · Vendor · Links) — every amount traced to a real invoice.
             Costs are entered from real invoices; a cell that hasn&apos;t been filled yet says so
             instead of showing a made-up number.
           </p>
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-lg border border-panel-border bg-panel-surface p-4">
-              <p className="font-mono text-lg font-bold text-white">$550/mo</p>
-              <p className="mt-1 text-xs leading-relaxed text-white/60">
-                Finnhub — the market-data subscription behind Trade. Entered from the real invoice.
-              </p>
-            </div>
-            <div className="rounded-lg border border-panel-border bg-panel-surface p-4">
-              <p className="font-mono text-lg font-bold text-white">$0</p>
-              <p className="mt-1 text-xs leading-relaxed text-white/60">
-                TastyTrade — users connect their own TastyTrade account; the platform pays nothing.
-              </p>
-            </div>
-            <div className="rounded-lg border border-panel-border bg-panel-surface p-4">
-              <p className="font-mono text-lg font-bold text-white">Zero external APIs</p>
-              <p className="mt-1 text-xs leading-relaxed text-white/60">
-                Tax and the Hub Calendar run entirely on our own database and code — verified in the
-                cost audit.
-              </p>
-            </div>
+          <div className="mt-5 overflow-x-auto rounded-lg border border-panel-border bg-panel-surface">
+            <table className="w-full min-w-[760px] text-sm">
+              <thead>
+                <tr className="border-b border-panel-border text-left font-mono text-[10px] uppercase tracking-wider text-white/40">
+                  <th className="px-4 py-2 font-semibold">What happened</th>
+                  <th className="px-4 py-2 font-semibold">Code</th>
+                  <th className="px-4 py-2 font-semibold">Vendor</th>
+                  <th className="px-4 py-2 font-semibold">Links</th>
+                  <th className="px-4 py-2 font-semibold text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {TRANSPARENCY_ROWS.map((r) => (
+                  <tr key={`${r.vendor}-${r.code}`} className="border-b border-panel-border last:border-0">
+                    <td className="px-4 py-2.5 text-xs leading-relaxed text-white/70">{r.whatHappened}</td>
+                    <td className="px-4 py-2.5 font-mono text-xs text-white whitespace-nowrap">{r.code}</td>
+                    <td className="px-4 py-2.5 font-mono text-xs text-white/70 whitespace-nowrap">{r.vendor}</td>
+                    <td className="px-4 py-2.5 text-xs text-white/60 whitespace-nowrap">{r.links}</td>
+                    <td className="px-4 py-2.5 text-right font-mono text-xs font-semibold text-white whitespace-nowrap">
+                      {r.amount}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
           <Link
             href="/how-pricing-works"
