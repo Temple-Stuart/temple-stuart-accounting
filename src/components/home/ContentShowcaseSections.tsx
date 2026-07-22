@@ -24,12 +24,12 @@
  *    FREE account gets the real Content tab (ModuleLauncher.tsx:489-494) —
  *    the CTA is the free-account signup, not a subscription card.
  *
- * SLIDES-1 (Alex's ruling, overrides the Jul-16 faithful-mirror design): the
- * deck is SLIDES ONLY. The former live mounts (DayCalendarView +
- * ScriptGeneratorView on the demoData seed) are REMOVED — no deck mounts
- * real app components anymore. What remains is the narrative: hero terminal
- * + the five slide panels + the three labeled static mirrors + the
- * free-account CTA.
+ * SLIDES-1 → SLIDES-2 (Alex's rulings, override the Jul-16 faithful-mirror
+ * design): the deck is NARRATIVE SLIDES ONLY. SLIDES-1 removed the live
+ * mounts (DayCalendarView + ScriptGeneratorView); SLIDES-2 removed the three
+ * static mirrors (inputs / script map / answer + record) — anything that
+ * visually replicates product UI is a pipe regardless of being static JSX.
+ * What remains: hero terminal + the five slide panels + the free-account CTA.
  *
  * EXAMPLE DATA — one day's story end-to-end: the seed day 2026-06-09 (Maria's
  * food truck), the same day the slide panels tell.
@@ -194,174 +194,6 @@ function ScriptPanel() {
   );
 }
 
-// ── THE LIVE/MIRROR SECTION — pipeline order: DAY (real) → INPUTS (mirror) →
-//    SCRIPT MAP (mirror) → ANSWER + RECORD (mirror) → SCRIPT (real) ───────────
-
-function TruthStrip({ real, label }: { real: boolean; label: string }) {
-  return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-border bg-bg-row/60 px-3 py-1.5">
-      <span className={`text-[10px] font-bold uppercase tracking-wider ${real ? 'text-brand-green' : 'text-text-muted'}`}>
-        {real ? 'Real component — mounted live' : 'Faithful mirror of the real screen'}
-      </span>
-      <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">{label}</span>
-      <ExampleTag text="Example day" />
-    </div>
-  );
-}
-
-// INPUTS mirror — ContentPipeline.tsx:322-448 (routine picker :407-448, task
-// list with + add to day / ✓ on day :333-404; strings verbatim).
-function InputsMirror({ lock }: { lock: () => void }) {
-  return (
-    <div className="p-3 grid gap-3 md:grid-cols-2 text-xs">
-      <div className="rounded border border-border p-2">
-        <div className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1">Project tasks</div>
-        <div className="flex items-center justify-between py-1 border-b border-border-light">
-          <span>Call the bank about the business account <span className="text-text-muted">· Maria&rsquo;s Food Truck</span> <span className="rounded bg-bg-row px-1 text-[10px] uppercase text-text-secondary">open</span></span>
-          <button type="button" onClick={lock} className="rounded border border-brand-purple px-2 py-0.5 text-[11px] text-brand-purple hover:bg-purple-50">+ add to day</button>
-        </div>
-        <div className="flex items-center justify-between py-1">
-          <span>Add up the food and gas costs <span className="text-text-muted">· Maria&rsquo;s Food Truck</span> <span className="rounded bg-bg-row px-1 text-[10px] uppercase text-text-secondary">open</span></span>
-          <button type="button" onClick={lock} className="rounded border border-emerald-300 px-2 py-0.5 text-[11px] text-emerald-700 hover:bg-emerald-50">✓ on day</button>
-        </div>
-        <p className="mt-1 text-[11px] text-text-muted">Adds the task to the day (commit times on the Daily Plan tab).</p>
-      </div>
-      <div className="rounded border border-border p-2">
-        <div className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1">Routines — click to select, in order</div>
-        {[
-          ['1', 'Morning routine', 'Maria (home) · 1 step(s)'],
-          ['2', 'Truck routine', "Maria's Food Truck · 1 step(s)"],
-        ].map(([n, name, meta]) => (
-          <button key={name} type="button" onClick={lock} className="flex w-full items-center gap-2 py-1 text-left hover:bg-bg-row">
-            <span className="rounded bg-brand-purple px-1.5 text-[10px] font-bold text-white">{n}</span>
-            <span className="text-text-primary">{name}</span>
-            <span className="text-text-muted">{meta}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// SCRIPT MAP mirror — ScenifyDraft (mirror-only ruling: internal paid enrich,
-// :236-293). Scene rows :417-500 with the question badges :479-488; the amber
-// task band; the AI-suggest control :546-553; the footer :610.
-function ScriptMapMirror({ lock }: { lock: () => void }) {
-  return (
-    <div className="p-3 space-y-2 text-xs">
-      <div className="flex items-center gap-2">
-        <span className="text-[10px] uppercase tracking-wider text-text-muted">cameras available</span>
-        <input value="iPhone" readOnly onMouseDown={(e) => { e.preventDefault(); lock(); }} className="w-28 rounded border border-border px-2 py-0.5 font-mono text-[11px]" />
-        <button type="button" onClick={lock} className="rounded border border-brand-purple px-2 py-0.5 text-[11px] text-brand-purple hover:bg-purple-50">✨ AI suggest</button>
-      </div>
-      <div className="rounded border border-border p-2">
-        <div className="flex items-center justify-between">
-          <span className="font-semibold text-text-primary">07:00 · Morning coffee and plan the day</span>
-          <span className="rounded bg-purple-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-purple-700">from library</span>
-        </div>
-        <p className="mt-1 text-text-secondary">Q: What is the one thing that has to get done today?</p>
-        <p className="text-text-muted">b-roll: coffee on the counter, notebook open · camera: iPhone</p>
-      </div>
-      <div className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-amber-800">
-        08:00 · task — Sort the receipts into one folder <span className="text-amber-600">(read-only, in clock order)</span>
-      </div>
-      <div className="rounded border border-border p-2">
-        <div className="flex items-center justify-between">
-          <span className="font-semibold text-text-primary">10:30 · Prep the truck for the lunch rush</span>
-          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-700">proposed new</span>
-        </div>
-        <p className="mt-1 text-text-secondary">Q: What did you cook first?</p>
-        <p className="text-text-muted">b-roll: onions on the flat top, order tickets · camera: iPhone</p>
-      </div>
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] text-text-muted">saved scenes appear in the confirmed grid below · task rows are read-only</span>
-        <button type="button" onClick={lock} className="rounded bg-brand-purple px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-brand-purple/90">save scenes</button>
-      </div>
-    </div>
-  );
-}
-
-// ANSWER + RECORD mirror — DailyLog :133-205 (the ✓ badge + inline answer +
-// Save answer) and PieceGrid :290-455 (scenes × days cells, + answer, + day).
-function AnswerRecordMirror({ lock }: { lock: () => void }) {
-  return (
-    <div className="p-3 space-y-3 text-xs">
-      <div>
-        <div className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1">Answer — the day, top to bottom · 2 of 2 answered</div>
-        <div className="rounded border border-border p-2 space-y-1">
-          <p><span className="text-emerald-600">✓</span> <span className="font-semibold">07:00 · Morning coffee and plan the day</span></p>
-          <p className="pl-4 text-text-secondary">&ldquo;Fix my food truck money. Every receipt in one folder.&rdquo;</p>
-          <div className="pl-4 flex items-center gap-2">
-            <input readOnly value="answer the question in your own words…" onMouseDown={(e) => { e.preventDefault(); lock(); }} className="flex-1 rounded border border-border px-2 py-0.5 text-[11px] text-text-muted" />
-            <button type="button" onClick={lock} className="rounded border border-brand-purple px-2 py-0.5 text-[11px] text-brand-purple hover:bg-purple-50">Save answer</button>
-          </div>
-        </div>
-      </div>
-      <div>
-        <div className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1">Day-to-day record — scenes × days</div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-[11px]">
-            <thead>
-              <tr className="bg-gray-50 text-text-secondary">
-                <th className="px-2 py-1 text-left font-medium">scene</th>
-                <th className="px-2 py-1 text-left font-medium">Jun 08</th>
-                <th className="px-2 py-1 text-left font-medium">Jun 09</th>
-                <th className="px-2 py-1 text-left font-medium"><button type="button" onClick={lock} className="text-brand-purple hover:underline">+ day</button></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              <tr>
-                <td className="px-2 py-1 text-text-primary">Morning coffee and plan the day</td>
-                <td className="px-2 py-1 text-emerald-700">&ldquo;Get the permit paperwork out the door.&rdquo;</td>
-                <td className="px-2 py-1 text-emerald-700">&ldquo;Fix my food truck money…&rdquo;</td>
-                <td className="px-2 py-1" />
-              </tr>
-              <tr>
-                <td className="px-2 py-1 text-text-primary">Prep the truck for the lunch rush</td>
-                <td className="px-2 py-1"><button type="button" onClick={lock} className="text-brand-purple hover:underline">+ answer</button></td>
-                <td className="px-2 py-1 text-emerald-700">&ldquo;Onions, then tacos — lunch rush prep.&rdquo;</td>
-                <td className="px-2 py-1" />
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// SLIDES-1: mirrors only — the former live DayCalendarView /
-// ScriptGeneratorView mounts are removed.
-function ContentMirrorsSection({ onRequireAuth }: Props) {
-  const lock = () => onRequireAuth();
-  return (
-    <div className="space-y-4">
-      {/* 1 · INPUTS — mirror (the container self-fetches routines + tasks). */}
-      <div className="rounded-lg border border-border bg-white overflow-hidden">
-        <TruthStrip real={false} label="1 · INPUTS — pick routines · add tasks to the day" />
-        <InputsMirror lock={lock} />
-      </div>
-
-      {/* 2 · AI SCRIPT MAP — mirror (ScenifyDraft is never mountable: its paid
-          enrich is an internal handler, inventory ruling). */}
-      <div className="rounded-lg border border-border bg-white overflow-hidden">
-        <TruthStrip real={false} label="2 · AI SCRIPT MAP — the day in order" />
-        <ScriptMapMirror lock={lock} />
-      </div>
-
-      {/* 3 · ANSWER + RECORD — mirror (DailyLog + PieceGrid self-fetch). */}
-      <div className="rounded-lg border border-border bg-white overflow-hidden">
-        <TruthStrip real={false} label="3 · ANSWER + RECORD — answer the day → the record" />
-        <AnswerRecordMirror lock={lock} />
-      </div>
-
-      <p className="text-xs text-text-muted">
-        The three sections above are labeled static mirrors of screens that fetch your data when
-        signed in. Nothing on this page fetches; every action routes to sign-up.
-      </p>
-    </div>
-  );
-}
 
 // ── CTA — the HONEST unlock: a free account (no tab:content entitlement
 //    exists; the tab is auth-gated only — header comment). ───────────────────
@@ -446,16 +278,8 @@ export default function ContentShowcase({ onRequireAuth }: Props) {
           panelSide: 'left',
         },
       ]}
-      // SLIDES-1: the connective line — claim = composition exactly (3
-      // labeled static mirrors; zero fetches; no real components mounted).
-      preSteps={
-        <p className="text-center text-sm text-text-secondary">
-          Below, the inputs, the AI script map, and answer + record are faithful static mirrors of
-          the real screens on the declared example day, labeled on their faces. Nothing on this
-          page fetches; every action routes to sign-up.
-        </p>
-      }
-      sample={<ContentMirrorsSection onRequireAuth={onRequireAuth} />}
+      // SLIDES-2: narrative slides only — the mirrors died with the ruling;
+      // the deck ends at the slides and the free-account CTA.
       cta={<FreeAccountCta onRequireAuth={onRequireAuth} />}
     />
   );

@@ -52,12 +52,13 @@
  * (ModuleLauncher.tsx:513-531). Auth-only tab → honest "Make my free account".
  * NO subscribe card.
  *
- * ── SLIDES-1 (Alex's ruling, overrides the Jul-16 faithful-mirror design) ───
- * The deck is SLIDES ONLY. The former live mount (home/RoutineCreateForm, the
- * real logged-out builder) is REMOVED — no deck mounts real app components
- * anymore. What remains is the narrative: hero terminal + the seven slide
- * panels + the worked-example static mirror + the free-account CTA. This file
- * contains NO fetch calls and imports NO data provider.
+ * ── SLIDES-1 → SLIDES-2 (Alex's rulings, override the Jul-16 design) ────────
+ * The deck is NARRATIVE SLIDES ONLY. SLIDES-1 removed the live mount
+ * (home/RoutineCreateForm, the real logged-out builder); SLIDES-2 removed the
+ * worked-example static mirror — anything that visually replicates product UI
+ * is a pipe regardless of being static JSX. What remains: hero terminal + the
+ * seven slide panels + the free-account CTA. This file contains NO fetch
+ * calls and imports NO data provider.
  *
  * ── BANNED (inventory §8 — zero rendered hits) ──────────────────────────────
  * "3 patterns" · any next-N-occurrences preview (the /upcoming route has zero
@@ -332,45 +333,6 @@ function ContentDayPanel() {
   );
 }
 
-// ── THE LIVE SECTION — the worked-example mirror + the REAL builder ──────────
-
-/** Truth strip: the same real/mirror labeling idiom the prior decks use. */
-function TruthStrip({ kind, children }: { kind: 'real' | 'mirror'; children: React.ReactNode }) {
-  return (
-    <div className={`flex flex-wrap items-center gap-2 rounded-t-lg border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider ${kind === 'real' ? 'border-brand-purple/40 bg-brand-purple/10 text-brand-purple' : 'border-brand-amber/40 bg-brand-amber/10 text-brand-amber'}`}>
-      {children}
-    </div>
-  );
-}
-
-/** The three carried routines as PRE-BUILT example rows — a labeled static
- *  mirror. Not buildable below: the guest starter chart (DEFAULT_COA) lacks
- *  6120/6010 and names 6100 differently (inventory §11). */
-function WorkedExampleRoutines() {
-  return (
-    <div>
-      <TruthStrip kind="mirror">
-        Static mirror · the worked example — the Runway deck&rsquo;s three budget lines as routines
-      </TruthStrip>
-      <div className="rounded-b-lg border border-t-0 border-border bg-white">
-        <div className="grid grid-cols-[2fr_1.4fr_1fr_1.2fr] gap-2 border-b border-border bg-gray-50 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-text-muted">
-          <span>Routine</span><span>Cadence</span><span>Budget / occ</span><span>COA</span>
-        </div>
-        {EX.monthly.map((r) => (
-          <div key={r.coa} className="grid grid-cols-[2fr_1.4fr_1fr_1.2fr] gap-2 border-b border-gray-100 px-3 py-1.5 font-mono text-xs text-text-primary last:border-0">
-            <span className="truncate">{r.routine}</span>
-            <span className="text-text-muted">monthly</span>
-            <span>{usd0(r.budget)}</span>
-            <span className="text-text-muted">{r.coa} · {r.coaName}</span>
-          </div>
-        ))}
-        <p className="px-3 py-2 text-[10px] italic text-text-muted">
-          These three feed the budget table in slide 6 — value-for-value the rows the Runway deck showed.
-        </p>
-      </div>
-    </div>
-  );
-}
 
 // ── CTA (per the pre-verified ruling: honest free account, no subscribe card) ─
 
@@ -468,17 +430,8 @@ export default function RoutinesShowcase({ onRequireAuth }: Props) {
           panelSide: 'left',
         },
       ]}
-      // SLIDES-1: the connective line — claim = composition exactly (1
-      // labeled static mirror: the worked-example rows; zero fetches; no
-      // real components mounted).
-      preSteps={
-        <p className="text-center text-sm text-text-secondary">
-          Below, the three worked-example routines are a labeled static mirror carrying the exact
-          budget lines you saw on the Runway deck. Nothing on this page fetches; saving for real
-          routes to sign-up.
-        </p>
-      }
-      sample={<WorkedExampleRoutines />}
+      // SLIDES-2: narrative slides only — the worked-example mirror died with
+      // the ruling; the deck ends at the slides and the free-account CTA.
       cta={<FreeAccountCta onRequireAuth={onRequireAuth} />}
     />
   );

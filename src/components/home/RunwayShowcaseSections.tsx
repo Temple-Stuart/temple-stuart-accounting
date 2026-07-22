@@ -51,14 +51,12 @@
  * card would advertise a paywall that doesn't exist → the CTA is the honest
  * "Make my free account".
  *
- * SLIDES-1 (Alex's ruling, overrides the Jul-16 faithful-mirror design): the
- * deck is SLIDES ONLY. The former live HubCalendar mount (demoEvents seed)
- * is REMOVED — no deck mounts real app components anymore. What remains is
- * the narrative: hero terminal + the eight slide panels + the three labeled
- * static mirrors + the free-account CTA.
- *   • The populated runway/budget panels have NO data seam (preview yields
- *     only empty shells) → faithful STATIC MIRRORS with per-block
- *     correspondence cites below.
+ * SLIDES-1 → SLIDES-2 (Alex's rulings, override the Jul-16 faithful-mirror
+ * design): the deck is NARRATIVE SLIDES ONLY. SLIDES-1 removed the live
+ * HubCalendar mount; SLIDES-2 removed the three static mirrors (readout /
+ * trading strip / budget table) — anything that visually replicates product
+ * UI is a pipe regardless of being static JSX. What remains: hero terminal +
+ * the eight slide panels + the free-account CTA.
  *   • RunwayDataProvider is dead-but-firing (context unconsumed) — NOT
  *     imported here, deliberately.
  *
@@ -67,7 +65,7 @@
  * Trade calendar layer, the inert BUDGET-cell drill (only ACTUAL cells read
  * as clickable here).
  *
- * SHOW discipline: ZERO fetches in this file; all mirror actions → signup.
+ * SHOW discipline: ZERO fetches in this file; all actions → signup.
  */
 
 import TabShowcaseTemplate, { ExampleTag } from '@/components/home/TabShowcaseTemplate';
@@ -315,196 +313,6 @@ function TradingWallPanel() {
     </DarkSlide>
   );
 }
-
-// ── THE MIRRORS SECTION (SLIDES-1: mirrors only) ─────────────────────────────
-//
-// Composition (the connective line's claim must equal exactly this):
-//   • The runway readout, the trading strip, and the budget table + drill —
-//     STATIC MIRRORS (the populated panels have no data seam; preview
-//     renders only empty shells) with per-block correspondence cites.
-
-function TruthStrip({ real, label }: { real: boolean; label: string }) {
-  return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-border bg-bg-row/60 px-3 py-1.5">
-      <span className={`text-[10px] font-bold uppercase tracking-wider ${real ? 'text-brand-green' : 'text-text-muted'}`}>
-        {real ? 'Real component — mounted live' : 'Faithful mirror of the real screen'}
-      </span>
-      <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">{label}</span>
-      <ExampleTag text={real ? 'Example day' : 'Example set'} />
-    </div>
-  );
-}
-
-// THE RUNWAY READOUT mirror — RunwayBudgetPanel.tsx:251-281 (cash card
-// :262-270, window cards via RunwayWindowCard :111-147, the formula line
-// :276-280), populated with the computed set.
-function RunwayReadoutMirror() {
-  return (
-    <div className="px-4 py-3">
-      <div className="flex flex-col sm:flex-row gap-2">
-        {/* Cash card — mirrors :262-270 (source label verbatim). */}
-        <div className="flex-1 min-w-[180px] rounded-lg border border-border bg-bg-row/40 px-3 py-2">
-          <div className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Cash</div>
-          <div className="mt-1 font-mono text-lg text-text-primary tabular-nums">{usd0(EX.cash)}</div>
-          <div className="text-[10px] text-text-faint mt-0.5">Plaid balance · operating (excl. trading) · as of Jul 15, 2026</div>
-        </div>
-        {/* Trailing 3mo — mirrors RunwayWindowCard :111-147, state 'ok'
-            (:83-85): runway + zero date render. Entity split :128-145. */}
-        <div className="flex-1 min-w-[180px] rounded-lg border border-border bg-bg-row/40 px-3 py-2">
-          <div className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Trailing 3mo</div>
-          <div className="mt-1 flex items-baseline justify-between gap-2"><span className="text-xs text-text-muted">Net burn</span><span className="font-mono text-sm text-text-primary tabular-nums">$600/mo out</span></div>
-          <div className="flex items-baseline justify-between gap-2"><span className="text-xs text-text-muted">Runway</span><span className="font-mono text-sm text-text-primary tabular-nums">25.0 mo</span></div>
-          <div className="flex items-baseline justify-between gap-2"><span className="text-xs text-text-muted">Zero date</span><span className="font-mono text-sm text-text-primary tabular-nums">{EX.window3.zeroDate}</span></div>
-          <div className="mt-1.5 pt-1.5 border-t border-border-light space-y-0.5">
-            <div className="flex items-baseline justify-between gap-2"><span className="text-[10px] text-text-faint uppercase tracking-wide">Personal</span><span className="font-mono text-xs text-text-secondary tabular-nums">$0/mo in</span></div>
-            <div className="flex items-baseline justify-between gap-2"><span className="text-[10px] text-text-faint uppercase tracking-wide">Business</span><span className="font-mono text-xs text-text-secondary tabular-nums">$600/mo out</span></div>
-          </div>
-        </div>
-        {/* Trailing 6mo — state 'cashflow_positive' (:87-89): the real
-            strings "Cash-flow positive" / "no burn"; burn shows "/mo in". */}
-        <div className="flex-1 min-w-[180px] rounded-lg border border-border bg-bg-row/40 px-3 py-2">
-          <div className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Trailing 6mo</div>
-          <div className="mt-1 flex items-baseline justify-between gap-2"><span className="text-xs text-text-muted">Net burn</span><span className="font-mono text-sm text-text-primary tabular-nums">$550/mo in</span></div>
-          <div className="flex items-baseline justify-between gap-2"><span className="text-xs text-text-muted">Runway</span><span className="font-mono text-sm text-text-primary tabular-nums">Cash-flow positive</span></div>
-          <div className="flex items-baseline justify-between gap-2"><span className="text-xs text-text-muted">Zero date</span><span className="font-mono text-sm text-text-primary tabular-nums">no burn</span></div>
-          <div className="mt-1.5 pt-1.5 border-t border-border-light space-y-0.5">
-            <div className="flex items-baseline justify-between gap-2"><span className="text-[10px] text-text-faint uppercase tracking-wide">Personal</span><span className="font-mono text-xs text-text-secondary tabular-nums">$0/mo in</span></div>
-            <div className="flex items-baseline justify-between gap-2"><span className="text-[10px] text-text-faint uppercase tracking-wide">Business</span><span className="font-mono text-xs text-text-secondary tabular-nums">$550/mo in</span></div>
-          </div>
-        </div>
-      </div>
-      {/* The formula line — verbatim (:276-280). */}
-      <p className="text-[10px] text-text-faint mt-1">{FORMULA_LINE}</p>
-    </div>
-  );
-}
-
-// THE TRADING STRIP mirror — RunwayBudgetPanel.tsx:283-294: the header +
-// "separate from operating runway" + the REAL locked cross-sell string (a
-// logged-out viewer's truthful analog; the zero-state alternative is noted
-// in the inventory).
-function TradingStripMirror() {
-  return (
-    <div className="px-4 py-3">
-      <div className="flex items-baseline justify-between gap-2">
-        <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Trading</h3>
-        <span className="text-[10px] text-text-faint">separate from operating runway</span>
-      </div>
-      <p className="text-xs text-text-muted italic mt-1">
-        Trade module locked — subscribe on the Trade tab to see realized P&amp;L here.
-      </p>
-    </div>
-  );
-}
-
-// THE BUDGET TABLE + DRILL mirror — HubBudgetSection.tsx:117-231 (toggles
-// :142-157, table :171-230, variance coloring :197-206) + BudgetDrillDown
-// (the ledger rows with merchant names, drill-down/route.ts:50-76).
-function BudgetMirror({ lock }: { lock: () => void }) {
-  return (
-    <div className="px-4 py-3 space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-semibold text-text-primary tracking-tight">Budget</h2>
-          <p className="text-xs text-text-muted mt-0.5">Jun 2026 · Budget vs Actual · USD</p>
-        </div>
-        {/* 4-toggle — mirrors :142-157; Business active. */}
-        <div className="flex flex-wrap gap-1.5">
-          {['Personal', 'Business', 'Travel', 'Trading'].map((label) => (
-            <button key={label} type="button" onClick={lock} className={`text-xs px-3 py-1 rounded border transition-colors font-medium ${label === 'Business' ? 'bg-brand-purple text-white border-brand-purple' : 'text-text-secondary border-border hover:bg-bg-row'}`}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-      {/* Table — mirrors :171-230. Only ACTUAL cells read clickable (:190-196
-          — the BUDGET drill is inert in the real product, banned to imply). */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="border-b border-border text-xs text-text-faint">
-              <th className="py-2 px-3 text-left font-medium">Category</th>
-              <th className="py-2 px-3 text-left font-medium">COA</th>
-              <th className="py-2 px-3 text-right font-medium">Budget</th>
-              <th className="py-2 px-3 text-right font-medium">Actual</th>
-              <th className="py-2 px-3 text-right font-medium">Variance %</th>
-            </tr>
-          </thead>
-          <tbody>
-            {EX.budget.rows.map((r) => (
-              <tr key={r.code} className="border-b border-border-light">
-                <td className="py-1.5 px-3 text-text-primary">{r.name}</td>
-                <td className="py-1.5 px-3 font-mono text-xs text-text-muted">{r.code}</td>
-                <td className="py-1.5 px-3 text-right font-mono tabular-nums text-text-secondary">{usd2(r.budget)}</td>
-                <td className="py-1.5 px-3 text-right font-mono tabular-nums cursor-pointer hover:underline text-text-primary" onClick={lock}>{usd2(r.actual)}</td>
-                <td className={`py-1.5 px-3 text-right font-mono tabular-nums ${r.variance > 0 ? 'text-rose-600' : r.variance < 0 ? 'text-emerald-600' : 'text-text-secondary'}`}>{r.pct}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="border-t-2 border-border font-semibold">
-              <td className="py-2 px-3 text-text-primary" colSpan={2}>Total</td>
-              <td className="py-2 px-3 text-right font-mono tabular-nums text-text-primary">{usd2(EX.budget.totalBudget)}</td>
-              <td className="py-2 px-3 text-right font-mono tabular-nums text-text-primary">{usd2(EX.budget.totalActual)}</td>
-              <td className="py-2 px-3 text-right font-mono tabular-nums text-rose-600">+0.1%</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-      {/* The drill — mirrors BudgetDrillDown's transaction list (merchant
-          from the Plaid transaction joined via je.source_id). Supplies · Jun:
-          84.12 + 145.90 + 82.43 = 312.45 ✓ (84.12 = the Books deck's exact
-          June coffee-beans entry). */}
-      <div className="rounded-lg border border-border bg-bg-row/30 p-3">
-        <div className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1">Supplies · Jun 2026 — the transactions behind the actual</div>
-        {EX.drill.map((d) => (
-          <div key={`${d.date}-${d.amount}`} className="flex items-center justify-between py-0.5 text-xs">
-            <span><span className="font-mono text-text-muted">{d.date}</span> <span className="text-text-primary">{d.merchant}</span> <span className="text-text-muted">· {d.desc}</span></span>
-            <span className="font-mono text-text-primary">{usd2(d.amount)}</span>
-          </div>
-        ))}
-        <div className="mt-1 border-t border-border pt-1 flex items-center justify-between text-xs font-semibold">
-          <span className="text-text-secondary">3 transactions</span>
-          <span className="font-mono text-text-primary">{usd2(312.45)}</span>
-        </div>
-      </div>
-      <p className="text-xs text-text-muted">
-        Planned figures come from your budgeted routines (amount × occurrences each month); actuals
-        come from the committed ledger; the drill shows the bank-fed merchants behind every number.
-      </p>
-    </div>
-  );
-}
-
-// SLIDES-1: mirrors only — the former live HubCalendar mount is removed.
-function RunwayMirrorsSection({ onRequireAuth }: Props) {
-  const lock = () => onRequireAuth();
-  return (
-    <div className="space-y-4">
-      <div className="rounded-lg border border-border bg-white overflow-hidden">
-        <TruthStrip real={false} label="The runway readout — cash · two windows · entity split" />
-        <RunwayReadoutMirror />
-      </div>
-
-      <div className="rounded-lg border border-border bg-white overflow-hidden">
-        <TruthStrip real={false} label="Trading — separate, by design" />
-        <TradingStripMirror />
-      </div>
-
-      <div className="rounded-lg border border-border bg-white overflow-hidden">
-        <TruthStrip real={false} label="Budget vs actual — with the receipts" />
-        <BudgetMirror lock={lock} />
-      </div>
-
-      <p className="text-xs text-text-muted">
-        The runway readout, the trading strip, and the budget table are faithful static mirrors of
-        the real screens rendering the same computed example set, labeled on their faces. Nothing on
-        this page fetches; the mirrors&rsquo; actions route to sign-up.
-      </p>
-    </div>
-  );
-}
-
 // ── CTA — the HONEST unlock (ruling in the header comment): free account. ───
 
 function FreeAccountCta({ onRequireAuth }: Props) {
@@ -607,16 +415,8 @@ export default function RunwayShowcase({ onRequireAuth }: Props) {
           panelSide: 'right',
         },
       ]}
-      // SLIDES-1: the connective line — claim = composition exactly (3
-      // labeled static mirrors; zero fetches; no real components mounted).
-      preSteps={
-        <p className="text-center text-sm text-text-secondary">
-          Below, the runway readout, the trading strip, and the budget table are faithful static
-          mirrors of the real screens rendering the same computed example set, labeled on their
-          faces. Nothing on this page fetches; the mirrors&rsquo; actions route to sign-up.
-        </p>
-      }
-      sample={<RunwayMirrorsSection onRequireAuth={onRequireAuth} />}
+      // SLIDES-2: narrative slides only — the mirrors died with the ruling;
+      // the deck ends at the slides and the free-account CTA.
       cta={<FreeAccountCta onRequireAuth={onRequireAuth} />}
     />
   );
