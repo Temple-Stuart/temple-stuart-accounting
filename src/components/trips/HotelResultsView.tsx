@@ -114,7 +114,7 @@ function RatingPill({ hotel }: { hotel: HotelResult }) {
   const label = has10 ? hotel.reviewScore!.toFixed(1) : hotel.googleRating.toFixed(1);
   const scale = has10 ? '/10' : '/5';
   return (
-    <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-xs font-semibold text-white shadow-sm backdrop-blur">
+    <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/20 bg-panel/90 px-2 py-1 text-xs font-semibold text-white shadow-sm backdrop-blur">
       <span className="text-brand-amber" aria-hidden="true">★</span>
       {label}
       <span className="font-normal text-white/40">{scale}</span>

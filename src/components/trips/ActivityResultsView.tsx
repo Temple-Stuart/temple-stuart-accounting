@@ -78,7 +78,7 @@ function ActivityCardImage({ photoUrl, name }: { photoUrl: string | null; name: 
   const showPhoto = !!photoUrl && !failed;
 
   return (
-    <div className="relative aspect-[4/3] w-full overflow-hidden bg-bg-row">
+    <div className="relative aspect-[4/3] w-full overflow-hidden bg-white/5">
       {showPhoto ? (
         <img
           src={photoUrl as string}
@@ -89,7 +89,7 @@ function ActivityCardImage({ photoUrl, name }: { photoUrl: string | null; name: 
         />
       ) : (
         // Neutral placeholder — not a broken image icon.
-        <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-text-faint">
+        <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-white/40">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="9" />
@@ -105,11 +105,11 @@ function ActivityCardImage({ photoUrl, name }: { photoUrl: string | null; name: 
 function RatingPill({ activity }: { activity: ActivityResult }) {
   if (activity.googleRating <= 0) return null;
   return (
-    <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-xs font-semibold text-text-primary shadow-sm backdrop-blur">
+    <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/20 bg-panel/90 px-2 py-1 text-xs font-semibold text-white shadow-sm backdrop-blur">
       <span className="text-brand-amber" aria-hidden="true">★</span>
       {activity.googleRating.toFixed(1)}
       {activity.reviewCount > 0 && (
-        <span className="font-normal text-text-faint">({activity.reviewCount.toLocaleString()})</span>
+        <span className="font-normal text-white/40">({activity.reviewCount.toLocaleString()})</span>
       )}
     </span>
   );
@@ -124,12 +124,12 @@ export default function ActivityResultsView({ results, loading, error, onBook }:
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="overflow-hidden rounded-lg border border-border bg-white">
-            <div className="aspect-[4/3] w-full animate-pulse bg-bg-row" />
+          <div key={i} className="overflow-hidden rounded-lg border border-panel-border bg-panel-surface">
+            <div className="aspect-[4/3] w-full animate-pulse bg-white/10" />
             <div className="space-y-2 p-4">
-              <div className="h-4 w-3/4 animate-pulse rounded bg-bg-row" />
-              <div className="h-3 w-1/2 animate-pulse rounded bg-bg-row" />
-              <div className="h-8 w-full animate-pulse rounded bg-bg-row" />
+              <div className="h-4 w-3/4 animate-pulse rounded bg-white/10" />
+              <div className="h-3 w-1/2 animate-pulse rounded bg-white/10" />
+              <div className="h-8 w-full animate-pulse rounded bg-white/10" />
             </div>
           </div>
         ))}
@@ -139,7 +139,7 @@ export default function ActivityResultsView({ results, loading, error, onBook }:
 
   if (error) {
     return (
-      <div className="rounded-lg border border-border bg-white p-6 text-sm text-brand-red">
+      <div className="rounded-lg border border-panel-border bg-panel-surface p-6 text-sm text-brand-red">
         {error}
       </div>
     );
@@ -147,9 +147,9 @@ export default function ActivityResultsView({ results, loading, error, onBook }:
 
   if (results.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-border bg-white p-8 text-center">
-        <p className="text-sm font-medium text-text-primary">No activities yet</p>
-        <p className="mt-1 text-sm text-text-muted">
+      <div className="rounded-lg border border-dashed border-panel-border bg-panel-surface p-8 text-center">
+        <p className="text-sm font-medium text-white">No activities yet</p>
+        <p className="mt-1 text-sm text-white/50">
           Enter a city and country to see real tours and experiences with photos and prices.
         </p>
       </div>
@@ -178,7 +178,7 @@ export default function ActivityResultsView({ results, loading, error, onBook }:
         totalCount={results.length}
       />
       {displayed.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-white p-6 text-center text-sm text-text-muted">
+        <div className="rounded-lg border border-dashed border-panel-border bg-panel-surface p-6 text-center text-sm text-white/50">
           No results match these filters.
         </div>
       ) : (
@@ -190,7 +190,7 @@ export default function ActivityResultsView({ results, loading, error, onBook }:
         return (
           <article
             key={`${activity.viatorProductCode || activity.name}-${idx}`}
-            className="group flex flex-col overflow-hidden rounded-lg border border-border bg-white shadow-sm transition-shadow hover:shadow-md"
+            className="group flex flex-col overflow-hidden rounded-lg border border-panel-border bg-panel-surface transition-colors hover:bg-panel-hover"
           >
             <div className="relative">
               <ActivityCardImage photoUrl={activity.photoUrl} name={activity.name} />
@@ -198,15 +198,15 @@ export default function ActivityResultsView({ results, loading, error, onBook }:
             </div>
 
             <div className="flex flex-1 flex-col p-4">
-              <h3 className="line-clamp-2 font-medium text-text-primary" title={activity.name}>
+              <h3 className="line-clamp-2 font-medium text-white" title={activity.name}>
                 {activity.name}
               </h3>
 
               {/* Meta row: place + duration chip. */}
-              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-text-muted">
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-white/50">
                 {place && <span className="line-clamp-1">{place}</span>}
                 {duration && (
-                  <span className="inline-flex items-center rounded-full bg-bg-row px-2 py-0.5 text-xs text-text-secondary">
+                  <span className="inline-flex items-center rounded-full bg-white/10 px-2 py-0.5 text-xs text-white/70">
                     {duration}
                   </span>
                 )}
@@ -216,11 +216,11 @@ export default function ActivityResultsView({ results, loading, error, onBook }:
               <div className="mt-3">
                 {typeof activity.price === 'number' ? (
                   <div className="flex items-baseline gap-1">
-                    <span className="text-xs text-text-muted">From</span>
+                    <span className="text-xs text-white/50">From</span>
                     <span className="text-lg font-bold text-brand-green">{money(activity.price)}</span>
                   </div>
                 ) : (
-                  <div className="text-sm text-text-faint">Price on request</div>
+                  <div className="text-sm text-white/40">Price on request</div>
                 )}
               </div>
 
