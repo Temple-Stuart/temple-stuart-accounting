@@ -24,6 +24,9 @@ import PublicVisaCheck from '@/components/trips/PublicVisaCheck';
 import ComingSoonSection from '@/components/home/ComingSoonSection';
 import { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS } from '@/components/trips/travelSection';
 import { HOMEPAGE_PAID_CATEGORIES } from '@/lib/categoryKeys';
+// DS-1: the travel tab is rebuilt from the design system — the SAME ToggleStrip
+// primitive the landing consumes (one strip, chip-selected panels, all mounted).
+import ToggleStrip, { type ToggleMode } from '@/components/ui/ToggleStrip';
 import ScanFilterForm from '@/components/trading/ScanFilterForm';
 // LANG-1: persistent data-not-advice disclaimer, mounted at the top of the Trade tab.
 import TradingDataDisclaimer from '@/components/trading/TradingDataDisclaimer';
@@ -683,16 +686,20 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 they must never be walled behind login without a vendor-terms
                 review. Auth resolving (null) → no card. */}
             {authed === false && <ModulePointerCard pillarId="travel" />}
-            {/* 1·Create-a-trip → 2·Your trips → 3·Budgeted+Actual (renderBody, order
-                unchanged). */}
-            <div>
+
+            {/* DS-1: TRIP CONTEXT — the app-only trip management (create → Your
+                trips → bookings → budget; renderBody, order + logic unchanged)
+                in a DS card ABOVE the toggle strip. */}
+            <div className="rounded-lg border border-panel-border bg-panel-surface p-4">
               {renderBody(travelModule)}
             </div>
 
             {/* PR-3: unified destination bar — search once, fill every destination-based
-                section below (Transfers, Activities, the unlocked categories). On "Search all"
-                we bump a nonce; each section reads {travelCity, travelCountry} and runs its OWN
-                search. Flights stay independent (they need origin airport + dates). */}
+                panel in the strip below (Transfers, Activities, the unlocked categories). On
+                "Search all" we bump a nonce; each panel reads {travelCity, travelCountry} and
+                runs its OWN search (they stay mounted in the ToggleStrip, so the fan-out still
+                reaches them). Flights stay independent (origin airport + dates). Logic
+                unchanged — this bar keeps its own state + handler. */}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -734,35 +741,77 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
               </div>
             </form>
 
-            {/* 4·The search tools, stacked: flights → hotels → [Ground, coming soon] →
-                activities → visa (live) → [Insurance, eSIM, Events — coming soon]. The
-                live searches keep their own explainers + logic; the ComingSoonSection
-                rows are STATIC promises (no fetch/state). */}
-            <PublicFlightSearch
-              onRequireAuth={onRequireAuth}
-              authed={authed}
-              currentTrip={currentTrip}
-              onCommitted={() => setTripsRefresh((n) => n + 1)}
+            {/* DS-1: the consolidated toggle — the SAME <ToggleStrip> the landing
+                consumes (LandingBookingSection). One surface visible at a time, all
+                panels mounted (results survive toggling). Five live searches +
+                Premium as a sixth chip. Every panel keeps its exact props/handlers
+                from the old stacked layout — composition-only, zero logic change. */}
+            <ToggleStrip
+              modes={([
+                { key: 'flights', label: 'Flights', panel: (
+                  <PublicFlightSearch
+                    onRequireAuth={onRequireAuth}
+                    authed={authed}
+                    currentTrip={currentTrip}
+                    onCommitted={() => setTripsRefresh((n) => n + 1)}
+                  />
+                ) },
+                { key: 'hotels', label: 'Hotels', panel: (
+                  <PublicHotelSearch
+                    onRequireAuth={onRequireAuth}
+                    authed={authed}
+                    currentTrip={currentTrip}
+                    onCommitted={() => setTripsRefresh((n) => n + 1)}
+                  />
+                ) },
+                { key: 'transit', label: 'Getting around', panel: (
+                  <PublicTransferSearch
+                    onRequireAuth={onRequireAuth}
+                    sharedCity={travelCity}
+                    sharedCountry={travelCountry}
+                    searchNonce={travelSearchNonce}
+                  />
+                ) },
+                { key: 'activities', label: 'Things to do', panel: (
+                  <PublicActivitySearch
+                    onRequireAuth={onRequireAuth}
+                    sharedCity={travelCity}
+                    sharedCountry={travelCountry}
+                    searchNonce={travelSearchNonce}
+                  />
+                ) },
+                { key: 'visa', label: 'Visa', panel: <PublicVisaCheck /> },
+                // PREMIUM (honest label): the paid Google-Places categories. Gate =
+                // isCategoryLocked(catKey, entitledCategories, currentUserId)
+                // (PublicCategorySearch.tsx:65). Locked → each card renders the
+                // EXISTING upgrade path (LockedCategoryCard "Subscribe to unlock" →
+                // the real checkout-entitlement flow); entitled/admin → the live
+                // search. Copy is the existing PR-2c divider copy, not invented.
+                { key: 'premium', label: 'Premium', panel: (
+                  <div className="space-y-3">
+                    <p className="text-sm text-white/60">
+                      Subscription — unlock local picks with ratings and prices to access.
+                    </p>
+                    {HOMEPAGE_PAID_CATEGORIES.map((catKey) => (
+                      <PublicCategorySearch
+                        key={catKey}
+                        catKey={catKey}
+                        entitledCategories={entitledCategories}
+                        currentUserId={currentUserId}
+                        onRequireAuth={onRequireAuth}
+                        sharedCity={travelCity}
+                        sharedCountry={travelCountry}
+                        searchNonce={travelSearchNonce}
+                      />
+                    ))}
+                  </div>
+                ) },
+              ]) as ToggleMode[]}
             />
-            <PublicHotelSearch
-              onRequireAuth={onRequireAuth}
-              authed={authed}
-              currentTrip={currentTrip}
-              onCommitted={() => setTripsRefresh((n) => n + 1)}
-            />
-            <PublicTransferSearch
-              onRequireAuth={onRequireAuth}
-              sharedCity={travelCity}
-              sharedCountry={travelCountry}
-              searchNonce={travelSearchNonce}
-            />
-            <PublicActivitySearch
-              onRequireAuth={onRequireAuth}
-              sharedCity={travelCity}
-              sharedCountry={travelCountry}
-              searchNonce={travelSearchNonce}
-            />
-            <PublicVisaCheck />
+
+            {/* DS-1: the STATIC "coming soon" promises stay reachable as a compact
+                group below the strip (no fetch/state; not toggle panels since they
+                have no search). Kept verbatim. */}
             <ComingSoonSection
               title="Travel insurance"
               explainer="Cover your trip — medical, delays, lost bags — priced into your budget."
@@ -775,37 +824,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
               title="Events"
               explainer="Concerts, shows, and live events wherever you're headed."
             />
-
-            {/* PR-2c: premium divider — a clear free→paid break. The sections above are free;
-                the categories below are subscription-gated local discovery. */}
-            <div className="mt-12 border-t-2 border-brand-purple/40 pt-8">
-              <div className="flex items-baseline gap-x-3">
-                <h3 className="text-lg font-bold text-white">Premium categories</h3>
-                <span className="rounded-full border border-brand-purple/40 bg-brand-purple/10 px-2.5 py-0.5 text-xs font-semibold text-white">
-                  Subscription
-                </span>
-              </div>
-              <p className="mt-1 text-sm text-white/60">
-                Unlock local picks with ratings and prices — subscribe to access.
-              </p>
-            </div>
-
-            {/* PR-2c: the homepage paid Google categories (HOMEPAGE_PAID_CATEGORIES — a curated
-                subset of GOOGLE_CATEGORY_KEYS, gate still covers them). Locked unless entitled:
-                admin/entitled → search form; otherwise a 🔒 card that mounts no fetch → zero
-                Google spend. The category-search route also gates per-category server-side. */}
-            {HOMEPAGE_PAID_CATEGORIES.map((catKey) => (
-              <PublicCategorySearch
-                key={catKey}
-                catKey={catKey}
-                entitledCategories={entitledCategories}
-                currentUserId={currentUserId}
-                onRequireAuth={onRequireAuth}
-                sharedCity={travelCity}
-                sharedCountry={travelCountry}
-                searchNonce={travelSearchNonce}
-              />
-            ))}
           </div>
         </div>
       </section>
