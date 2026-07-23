@@ -20,7 +20,7 @@ import { useState } from 'react';
 import HotelResultsView, { type HotelResult } from './HotelResultsView';
 import CheckoutPanel from './CheckoutPanel';
 import CountryCityPicker from './CountryCityPicker';
-import TravelSectionShell, { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS } from './travelSection';
+import TravelSectionShell, { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS, TRAVEL_LABEL_CLASS } from './travelSection';
 
 interface Props {
   /** Opens the existing home register/login modal (saving requires sign-in). */
@@ -170,40 +170,49 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
 
   return (
     <TravelSectionShell
-      title="Search real hotels — free, no account needed."
-      explainer="Type a destination and your dates to see live stays with photos and nightly prices. Book a room now — signed in, you can attach the stay to a trip at checkout; create a free account to budget it."
+      title="Hotels"
+      explainer="Live stays with nightly prices — book a room now; a free account budgets it."
     >
-      <form onSubmit={search} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <form onSubmit={search} className="grid grid-cols-2 gap-2 lg:grid-cols-5">
         {/* PR-loc-2: linked country→city picker (real LiteAPI cities only)
             replaces the free-text city + country inputs. */}
         <CountryCityPicker onChange={setPicked} />
-        <input
-          type="date"
-          value={checkin}
-          onChange={(e) => setCheckin(e.target.value)}
-          className={TRAVEL_INPUT_CLASS}
-          aria-label="Check-in date"
-        />
-        <input
-          type="date"
-          value={checkout}
-          onChange={(e) => setCheckout(e.target.value)}
-          className={TRAVEL_INPUT_CLASS}
-          aria-label="Check-out date"
-        />
+        <label className="flex flex-col gap-1">
+          <span className={TRAVEL_LABEL_CLASS}>Check-in</span>
+          <input
+            type="date"
+            value={checkin}
+            onChange={(e) => setCheckin(e.target.value)}
+            className={TRAVEL_INPUT_CLASS}
+            aria-label="Check-in date"
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className={TRAVEL_LABEL_CLASS}>Check-out</span>
+          <input
+            type="date"
+            value={checkout}
+            onChange={(e) => setCheckout(e.target.value)}
+            className={TRAVEL_INPUT_CLASS}
+            aria-label="Check-out date"
+          />
+        </label>
         {/* PR-B: the guests select gets its OWN grid cell (it previously shared a
             flex row with the Search button, which squeezed the button past the cell's
             right edge — the reported cutoff). */}
-        <select
-          value={adults}
-          onChange={(e) => setAdults(Number(e.target.value))}
-          className={TRAVEL_INPUT_CLASS}
-          aria-label="Guests"
-        >
-          {[1, 2, 3, 4, 5, 6].map((n) => (
-            <option key={n} value={n}>{n} guest{n === 1 ? '' : 's'}</option>
-          ))}
-        </select>
+        <label className="flex flex-col gap-1">
+          <span className={TRAVEL_LABEL_CLASS}>Guests</span>
+          <select
+            value={adults}
+            onChange={(e) => setAdults(Number(e.target.value))}
+            className={TRAVEL_INPUT_CLASS}
+            aria-label="Guests"
+          >
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <option key={n} value={n}>{n} guest{n === 1 ? '' : 's'}</option>
+            ))}
+          </select>
+        </label>
         {/* PR-B cutoff fix: Search button in its OWN final cell, full-width so it
             fills the column and never overflows. */}
         <div className="flex items-end">

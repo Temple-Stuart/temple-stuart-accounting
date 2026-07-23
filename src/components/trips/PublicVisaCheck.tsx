@@ -17,7 +17,7 @@
 import { useState } from 'react';
 import VisaResultView from './VisaResultView';
 import type { VisaRequirement } from '@/lib/travelBuddyClient';
-import TravelSectionShell, { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS } from './travelSection';
+import TravelSectionShell, { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS, TRAVEL_LABEL_CLASS } from './travelSection';
 
 // Static {name, iso2} country list — carries ISO-2 directly (the dropdown value),
 // so no name→code lookup and no live /passports or /destinations call. Curated to
@@ -90,12 +90,12 @@ export default function PublicVisaCheck() {
 
   return (
     <TravelSectionShell
-      title="Check if you need a visa — free, no account needed."
-      explainer="Pick your passport and where you're going to see the rule, how long you can stay, and the official place to apply."
+      title="Visa check"
+      explainer="The rule, how long you can stay, and the official place to apply."
     >
-      <form onSubmit={check} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <form onSubmit={check} className="grid grid-cols-2 gap-2 lg:grid-cols-3">
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-white/50">Passport</span>
+          <span className={TRAVEL_LABEL_CLASS}>Passport</span>
           <select value={passport} onChange={(e) => setPassport(e.target.value)} className={TRAVEL_INPUT_CLASS} aria-label="Passport country">
             {COUNTRIES.map((c) => (
               <option key={c.iso2} value={c.iso2}>{c.name}</option>
@@ -104,7 +104,7 @@ export default function PublicVisaCheck() {
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-white/50">Going to</span>
+          <span className={TRAVEL_LABEL_CLASS}>Going to</span>
           <select value={destination} onChange={(e) => setDestination(e.target.value)} className={TRAVEL_INPUT_CLASS} aria-label="Destination country">
             <option value="">Select a country…</option>
             {COUNTRIES.map((c) => (
@@ -113,7 +113,7 @@ export default function PublicVisaCheck() {
           </select>
         </label>
 
-        <div className="flex items-end">
+        <div className="col-span-2 flex items-end lg:col-span-1">
           <button
             type="submit"
             disabled={!canCheck}

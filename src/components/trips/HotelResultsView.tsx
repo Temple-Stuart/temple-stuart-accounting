@@ -1,7 +1,8 @@
 'use client';
 
 /**
- * HotelResultsView — PURE, image-capable hotel results grid (PR-H2).
+ * HotelResultsView — PURE, image-capable hotel results list (PR-H2; COMPACT-1
+ * converted the photo-card scroller to dense list rows).
  *
  * Renders the image-rich results returned by the PUBLIC hotel search route
  * (PR-H1, /api/travel/hotels/search → { results, count }). Each result is the
@@ -22,7 +23,6 @@
  */
 
 import { useState } from 'react';
-import HorizontalScroller from './HorizontalScroller';
 import ResultsFilterBar from './ResultsFilterBar';
 import { sortAndFilterResults, type SortKey } from '@/lib/resultsSortFilter';
 
@@ -74,32 +74,32 @@ function money(amount: number, currency?: string): string {
   }
 }
 
-/** Per-card image: shows the photo when present + loadable, else a neutral
+/** Per-row thumbnail: shows the photo when present + loadable, else a neutral
  *  placeholder block. NEVER a broken <img> — a present-but-404 URL flips to the
- *  same placeholder via onError (local UI state, not data loading). */
+ *  same placeholder via onError (local UI state, not data loading). COMPACT-1:
+ *  fills its parent (the row's fixed h-14 w-20 cell) instead of a 4/3 card face. */
 function HotelCardImage({ photoUrl, name }: { photoUrl: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
   const showPhoto = !!photoUrl && !failed;
 
   return (
-    <div className="relative aspect-[4/3] w-full overflow-hidden bg-white/5">
+    <div className="relative h-full w-full overflow-hidden bg-white/5">
       {showPhoto ? (
         <img
           src={photoUrl as string}
           alt={name}
           loading="lazy"
           onError={() => setFailed(true)}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+          className="h-full w-full object-cover"
         />
       ) : (
         // Neutral placeholder — not a broken image icon.
-        <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-white/40">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        <div className="flex h-full w-full items-center justify-center text-white/40">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-2" />
             <path d="M9 9v.01M9 12v.01M9 15v.01M9 18v.01" />
           </svg>
-          <span className="text-[11px]">No photo</span>
         </div>
       )}
     </div>
@@ -108,13 +108,14 @@ function HotelCardImage({ photoUrl, name }: { photoUrl: string | null; name: str
 
 function RatingPill({ hotel }: { hotel: HotelResult }) {
   // Prefer the 0–10 guest score; else the 0–5 star/rating. Nothing if neither.
+  // COMPACT-1: an inline chip in the row (no photo to overlay anymore).
   const has10 = typeof hotel.reviewScore === 'number' && hotel.reviewScore > 0;
   const has5 = hotel.googleRating > 0;
   if (!has10 && !has5) return null;
   const label = has10 ? hotel.reviewScore!.toFixed(1) : hotel.googleRating.toFixed(1);
   const scale = has10 ? '/10' : '/5';
   return (
-    <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/20 bg-panel/90 px-2 py-1 text-xs font-semibold text-white shadow-sm backdrop-blur">
+    <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-white">
       <span className="text-brand-amber" aria-hidden="true">★</span>
       {label}
       <span className="font-normal text-white/40">{scale}</span>
@@ -128,16 +129,17 @@ export default function HotelResultsView({ results, loading, error, onBook, onSa
   const [minRating, setMinRating] = useState(0);
 
   if (loading) {
+    // COMPACT-1: skeleton rows, matching the dense list-row result layout.
     return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="overflow-hidden rounded-lg border border-panel-border bg-panel-surface">
-            <div className="aspect-[4/3] w-full animate-pulse bg-white/10" />
-            <div className="space-y-2 p-4">
-              <div className="h-4 w-3/4 animate-pulse rounded bg-white/10" />
+      <div className="divide-y divide-panel-border rounded-lg border border-panel-border bg-panel-surface" aria-busy="true">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 p-2">
+            <div className="h-14 w-20 shrink-0 animate-pulse rounded bg-white/10" />
+            <div className="flex-1 space-y-2">
               <div className="h-3 w-1/2 animate-pulse rounded bg-white/10" />
-              <div className="h-8 w-full animate-pulse rounded bg-white/10" />
+              <div className="h-3 w-1/3 animate-pulse rounded bg-white/10" />
             </div>
+            <div className="h-7 w-16 shrink-0 animate-pulse rounded bg-white/10" />
           </div>
         ))}
       </div>
@@ -146,7 +148,7 @@ export default function HotelResultsView({ results, loading, error, onBook, onSa
 
   if (error) {
     return (
-      <div className="rounded-lg border border-panel-border bg-panel-surface p-6 text-sm text-brand-red">
+      <div className="rounded-lg border border-panel-border bg-panel-surface p-3 text-sm text-brand-red">
         {error}
       </div>
     );
@@ -154,9 +156,9 @@ export default function HotelResultsView({ results, loading, error, onBook, onSa
 
   if (results.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-panel-border bg-panel-surface p-8 text-center">
+      <div className="rounded-lg border border-dashed border-panel-border bg-panel-surface p-4 text-center">
         <p className="text-sm font-medium text-white">No hotels yet</p>
-        <p className="mt-1 text-sm text-white/50">
+        <p className="mt-1 text-xs text-white/50">
           Enter a city, country, and your dates to see real stays with photos and nightly prices.
         </p>
       </div>
@@ -185,11 +187,16 @@ export default function HotelResultsView({ results, loading, error, onBook, onSa
         totalCount={results.length}
       />
       {displayed.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-panel-border bg-panel-surface p-6 text-center text-sm text-white/50">
+        <div className="rounded-lg border border-dashed border-panel-border bg-panel-surface p-4 text-center text-sm text-white/50">
           No results match these filters.
         </div>
       ) : (
-        <HorizontalScroller ariaLabel="Hotel results">
+        // COMPACT-1: dense list rows (thumbnail · name/place · price · actions),
+        // replacing the horizontal photo-card scroller.
+        <div
+          aria-label="Hotel results"
+          className="divide-y divide-panel-border rounded-lg border border-panel-border bg-panel-surface"
+        >
           {displayed.map((hotel, idx) => {
         // Per-night first (the number travelers compare on); total as support.
         const perNight = hotel.pricePerNight;
@@ -198,51 +205,55 @@ export default function HotelResultsView({ results, loading, error, onBook, onSa
         const place = hotel.city || hotel.address;
 
         return (
-          <article
+          <div
             key={`${hotel.liteapiHotelId}-${idx}`}
-            className="group flex flex-col overflow-hidden rounded-lg border border-panel-border bg-panel-surface transition-colors hover:bg-panel-hover"
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 p-2 transition-colors hover:bg-panel-hover sm:flex-nowrap"
           >
-            <div className="relative">
+            <div className="h-14 w-20 shrink-0 overflow-hidden rounded">
               <HotelCardImage photoUrl={hotel.photoUrl} name={hotel.name} />
-              <RatingPill hotel={hotel} />
             </div>
 
-            <div className="flex flex-1 flex-col p-4">
-              <h3 className="line-clamp-1 font-medium text-white" title={hotel.name}>
-                {hotel.name}
-              </h3>
-              {place && (
-                <p className="mt-0.5 line-clamp-1 text-sm text-white/50">{place}</p>
-              )}
-
-              {/* Price block — per-night prominent, total + nights as support. */}
-              <div className="mt-3">
-                {typeof perNight === 'number' ? (
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-lg font-bold text-brand-green">
-                      {money(perNight, hotel.currency)}
-                    </span>
-                    <span className="text-xs text-white/50">/ night</span>
-                  </div>
-                ) : total != null ? (
-                  <div className="text-lg font-bold text-brand-green">
-                    {money(total, hotel.currency)}
-                  </div>
-                ) : (
-                  <div className="text-sm text-white/40">Price on request</div>
-                )}
-                {total != null && (
-                  <div className="text-xs text-white/40">
-                    {money(total, hotel.currency)} total
-                    {typeof nights === 'number' && nights > 0 ? ` · ${nights} night${nights === 1 ? '' : 's'}` : ''}
-                  </div>
-                )}
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <h3 className="truncate text-sm font-medium text-white" title={hotel.name}>
+                  {hotel.name}
+                </h3>
+                <RatingPill hotel={hotel} />
               </div>
+              {place && (
+                <p className="mt-0.5 truncate text-xs text-white/50">{place}</p>
+              )}
+            </div>
 
+            {/* Price block — per-night prominent, total + nights as support. */}
+            <div className="shrink-0 text-right">
+              {typeof perNight === 'number' ? (
+                <div className="flex items-baseline justify-end gap-1">
+                  <span className="text-sm font-bold text-brand-green">
+                    {money(perNight, hotel.currency)}
+                  </span>
+                  <span className="text-[10px] text-white/50">/ night</span>
+                </div>
+              ) : total != null ? (
+                <div className="text-sm font-bold text-brand-green">
+                  {money(total, hotel.currency)}
+                </div>
+              ) : (
+                <div className="text-xs text-white/40">Price on request</div>
+              )}
+              {total != null && (
+                <div className="text-[10px] text-white/40">
+                  {money(total, hotel.currency)} total
+                  {typeof nights === 'number' && nights > 0 ? ` · ${nights} night${nights === 1 ? '' : 's'}` : ''}
+                </div>
+              )}
+            </div>
+
+            <div className="flex shrink-0 items-center gap-2">
               <button
                 type="button"
                 onClick={() => onBook(hotel)}
-                className="mt-4 w-full rounded bg-brand-purple px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-purple-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+                className="rounded bg-brand-purple px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-purple-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
               >
                 Book
               </button>
@@ -254,16 +265,16 @@ export default function HotelResultsView({ results, loading, error, onBook, onSa
                   type="button"
                   onClick={() => onSave(hotel)}
                   disabled={savingId === hotel.liteapiHotelId}
-                  className="mt-2 w-full rounded border border-brand-purple bg-white px-4 py-2 text-sm font-semibold text-brand-purple transition-colors hover:bg-bg-row disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+                  className="rounded border border-brand-purple bg-white px-3 py-1.5 text-xs font-semibold text-brand-purple transition-colors hover:bg-bg-row disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
                 >
                   {savingId === hotel.liteapiHotelId ? 'Saving…' : 'Save to trip'}
                 </button>
               )}
             </div>
-          </article>
+          </div>
         );
           })}
-        </HorizontalScroller>
+        </div>
       )}
     </div>
   );
