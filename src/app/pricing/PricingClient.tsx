@@ -95,14 +95,21 @@ export default function PricingClient({ catalog }: { catalog: CatalogItem[] }) {
   // with a brief highlight. Reads the SAME useSearchParams binding above (this
   // component already mounts under <Suspense>, page.tsx:27-29) — fewer lines
   // than the window.location house pattern, and this file's own convention.
+  // FD-1i: ?modules=<key,key,...> (the landing calculator's multi-select
+  // Continue) rides the SAME pattern — every valid listed card highlights,
+  // the first scrolls into view. Multi-PURCHASE stays N clicks through the
+  // per-module buttons below; nothing about checkout changes here.
   // PRESENTATION ONLY: no commerce logic (checkout/resume/portal) is touched.
-  const [highlightKey, setHighlightKey] = useState<string | null>(null);
+  const [highlightKeys, setHighlightKeys] = useState<Set<string>>(new Set());
   useEffect(() => {
-    const moduleKey = searchParams.get('module');
-    if (!moduleKey || !catalog.some((c) => c.key === moduleKey)) return;
-    setHighlightKey(moduleKey);
-    document.getElementById(moduleCardId(moduleKey))?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    const timer = setTimeout(() => setHighlightKey(null), 2500);
+    const single = searchParams.get('module');
+    const multi = searchParams.get('modules');
+    const keys = (multi ? multi.split(',') : single ? [single] : [])
+      .filter((k) => catalog.some((c) => c.key === k));
+    if (keys.length === 0) return;
+    setHighlightKeys(new Set(keys));
+    document.getElementById(moduleCardId(keys[0]))?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const timer = setTimeout(() => setHighlightKeys(new Set()), 2500);
     return () => clearTimeout(timer);
   }, [searchParams, catalog]);
 
@@ -249,7 +256,7 @@ export default function PricingClient({ catalog }: { catalog: CatalogItem[] }) {
       {/* MODULES — the per-tab sell */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         {tabs.map((c) => (
-          <div key={c.key} id={moduleCardId(c.key)} className={`p-6 border relative ${highlightKey === c.key ? 'border-brand-purple ring-2 ring-brand-purple/40' : 'border-border'}`}>
+          <div key={c.key} id={moduleCardId(c.key)} className={`p-6 border relative ${highlightKeys.has(c.key) ? 'border-brand-purple ring-2 ring-brand-purple/40' : 'border-border'}`}>
             <div className="text-xs font-medium text-text-primary mb-1">{c.label}</div>
             <div className="text-sm font-bold font-mono text-brand-purple mb-1">
               {c.monthlyPrice !== null ? (
@@ -290,7 +297,7 @@ export default function PricingClient({ catalog }: { catalog: CatalogItem[] }) {
 
       {/* THE BUNDLE */}
       {bundle && (
-        <div id={moduleCardId(bundle.key)} className={`p-6 border-2 border-brand-purple mb-10 flex flex-col sm:flex-row sm:items-center gap-4 ${highlightKey === bundle.key ? 'ring-2 ring-brand-purple/40' : ''}`}>
+        <div id={moduleCardId(bundle.key)} className={`p-6 border-2 border-brand-purple mb-10 flex flex-col sm:flex-row sm:items-center gap-4 ${highlightKeys.has(bundle.key) ? 'ring-2 ring-brand-purple/40' : ''}`}>
           <div className="flex-1">
             <div className="text-xs font-medium text-text-primary mb-1">{bundle.label}</div>
             <p className="text-xs text-text-secondary">Unlocks {bundle.unlocks}.</p>
