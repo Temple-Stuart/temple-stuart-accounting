@@ -25,8 +25,10 @@
  * surfaces render ONLY for locked viewers.
  */
 
-import { useState } from 'react';
-import { Lock } from 'lucide-react';
+// MOD-3: LockedTabCard lives in its own leaf now (the app imports it there
+// without touching this file's slide-section graph); the four wrappers below
+// keep using it unchanged.
+import { LockedTabCard } from '@/components/home/LockedTabCard';
 // TRADE-SHOWCASE-BUILD: the reusable Plaid-style showcase template (hero band +
 // real pipe rail + optional concept cards + sample/CTA slots) — tabs 2–9 reuse it.
 import TabShowcaseTemplate from '@/components/home/TabShowcaseTemplate';
@@ -88,70 +90,8 @@ import {
 // ── shared chrome ────────────────────────────────────────────────────────────
 
 // (DemoTag + ShowcaseHeader removed — their last consumer was the old
-// ComplianceShowcase body, superseded by the ComplianceReceiptsDeck.)
-
-/** The per-tab locked CTA — Travel's LockedCategoryCard pattern, keyed tab:X. */
-export function LockedTabCard({
-  tabKey,
-  label,
-  valueLine,
-  currentUserId,
-  onRequireAuth,
-}: {
-  tabKey: string;
-  label: string;
-  valueLine: string;
-  currentUserId: string;
-  onRequireAuth: () => void;
-}) {
-  const [starting, setStarting] = useState(false);
-  const [error, setError] = useState('');
-
-  const onRequestUnlock = async () => {
-    if (!currentUserId) {
-      onRequireAuth(); // logged out → create an account first (checkout is auth-gated)
-      return;
-    }
-    setError('');
-    setStarting(true);
-    try {
-      const res = await fetch('/api/stripe/checkout-entitlement', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: tabKey }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.url) {
-        throw new Error(data.error || 'Could not start checkout');
-      }
-      window.location.href = data.url;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not start checkout');
-      setStarting(false);
-    }
-  };
-
-  return (
-    <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-brand-purple/15 bg-bg-row px-6 py-8 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-purple/10 text-brand-purple">
-        <Lock className="h-6 w-6" strokeWidth={2} aria-hidden="true" />
-      </div>
-      <div className="space-y-1">
-        <p className="text-base font-bold text-text-primary">{label} — built and running</p>
-        <p className="text-sm text-text-muted">{valueLine}</p>
-      </div>
-      <button
-        type="button"
-        onClick={onRequestUnlock}
-        disabled={starting}
-        className="rounded-lg bg-brand-purple px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-purple/90 disabled:opacity-60"
-      >
-        {starting ? 'Starting checkout…' : `Subscribe to unlock ${label}`}
-      </button>
-      {error && <p className="text-sm text-brand-red">{error}</p>}
-    </div>
-  );
-}
+// ComplianceShowcase body, superseded by the ComplianceReceiptsDeck.
+// LockedTabCard moved to its own leaf in MOD-3 — imported above.)
 
 interface ShowcaseProps {
   currentUserId: string;
