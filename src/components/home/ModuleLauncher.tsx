@@ -435,9 +435,9 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 headerAction={createTripButton}
               />
               {currentTrip && (
-                <p className="text-sm text-text-secondary">
-                  Selected: <span className="font-semibold text-brand-purple">{currentTrip.name}</span>
-                  <span className="text-text-muted"> — hotel and flight bookings attach to this trip, and saved flights budget into it.</span>
+                <p className="text-sm text-white/70">
+                  Selected: <span className="font-semibold text-white">{currentTrip.name}</span>
+                  <span className="text-white/50"> — hotel and flight bookings attach to this trip, and saved flights budget into it.</span>
                 </p>
               )}
               {/* T3: the selected trip's REAL bookings (reservations read-back) —
@@ -474,10 +474,10 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
             // create attempt then nudges to sign up (gateGuestCreate), unchanged.
             <div>
               <div className="mb-2 flex items-center justify-between gap-3">
-                <p className="text-lg font-bold text-brand-purple">Your trips</p>
+                <p className="text-lg font-bold text-white">Your trips</p>
                 {createTripButton}
               </div>
-              <p className="rounded-lg border border-border bg-bg-row p-4 text-sm text-text-muted">
+              <p className="rounded-lg border border-panel-border bg-panel-surface p-4 text-sm text-white/60">
                 Sign up free to save trips here — tap &ldquo;+ Create a trip&rdquo; to start one.
               </p>
             </div>
@@ -656,7 +656,17 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           full width, same as the calendar (centered max-w only on huge desktop). The
           1-2-3-4 body order (renderBody) is unchanged; the search stack follows. The other
           5 modules stay in MODULES.map with their bands. */}
-      <section className={`w-full bg-white border-b border-border ${activeModule === 'travel' ? 'block' : 'hidden'}`}>
+      {/* LOBBY-FIX-1 (readability P0): the travel tab hosts the now-DARK shared
+          search strips (PublicFlightSearch/… render bg-white/5 panels with white
+          text — BOOK-1b/COMPACT-1). On the old bg-white surface those were
+          white-on-white ("can't see shit"). The section surface + the ML-owned
+          wrappers/text below flip to the dark panel family (the lobby's own
+          classes); the mounted components are NOT restyled — they're correct.
+          The trip-management components (AllTripsList/TripBookings/
+          TripBudgetActual/UnattachedBookings) are their own light cards and stay
+          readable islands (untouched — a separate ruling if full dark parity is
+          wanted). */}
+      <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'travel' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
             {/* MOD-2 (TRAVEL EXCEPTION): only the deck mount is replaced by the
@@ -683,11 +693,11 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 if (!travelCity.trim() || !travelCountry.trim()) return;
                 setTravelSearchNonce((n) => n + 1);
               }}
-              className="rounded-lg border border-brand-purple/20 bg-brand-purple/5 p-4 space-y-3"
+              className="rounded-lg border border-panel-border bg-panel-surface p-4 space-y-3"
             >
               <div>
-                <p className="text-lg font-bold text-brand-purple">Search your destination</p>
-                <p className="text-sm text-text-muted">Search once — fill every section below for your destination.</p>
+                <p className="text-lg font-bold text-white">Search your destination</p>
+                <p className="text-sm text-white/60">Search once — fill every section below for your destination.</p>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <input
@@ -762,14 +772,14 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
 
             {/* PR-2c: premium divider — a clear free→paid break. The sections above are free;
                 the categories below are subscription-gated local discovery. */}
-            <div className="mt-12 border-t-2 border-brand-purple/20 pt-8">
+            <div className="mt-12 border-t-2 border-brand-purple/40 pt-8">
               <div className="flex items-baseline gap-x-3">
-                <h3 className="text-lg font-bold text-brand-purple">Premium categories</h3>
-                <span className="rounded-full bg-brand-purple/10 px-2.5 py-0.5 text-xs font-semibold text-brand-purple">
+                <h3 className="text-lg font-bold text-white">Premium categories</h3>
+                <span className="rounded-full border border-brand-purple/40 bg-brand-purple/10 px-2.5 py-0.5 text-xs font-semibold text-white">
                   Subscription
                 </span>
               </div>
-              <p className="mt-1 text-sm text-text-muted">
+              <p className="mt-1 text-sm text-white/60">
                 Unlock local picks with ratings and prices — subscribe to access.
               </p>
             </div>
