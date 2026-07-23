@@ -571,6 +571,23 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
                 Clone it on GitHub ↗
               </a>
             </div>
+
+            {/* ── LOBBY-FIX-1: the source-availability line moved here, directly
+                  beneath the hero CTA row (from under the selection deck). Every
+                  claim is LICENSE-true: LICENSE:1 "Business Source License 1.1";
+                  Additional Use Grant (LICENSE:13-16) = personal, non-commercial
+                  use only, commercial use requires a separate license; Change
+                  License Apache 2.0 on Change Date 2028-01-01 (LICENSE:18-21).
+                  Address = the house contact, LandingHeader.tsx:36
+                  (astuart@templestuart.com — also LICENSE:16). NO "open source"
+                  framing. ───────────────────────────────────────────────────── */}
+            <p className="mt-4 font-mono text-xs text-white/50">
+              Source-available under BSL 1.1 — free to self-host for personal use. Commercial use or a
+              done-for-you setup →{' '}
+              <a href="mailto:astuart@templestuart.com" className="text-white/70 underline hover:text-white">
+                astuart@templestuart.com
+              </a>
+            </p>
           </div>
 
           {/* ── TOGGLE-1: the lobby books — the five-way toggle strip, mounted
@@ -858,23 +875,6 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
           >
             Every price, traced to a real bill → see the full breakdown
           </Link>
-
-          {/* ── HERO-REPO-1b: the source-availability line (re-ruled after the
-                HERO-REPO-1 STOP — the repo is NOT AGPL/open-source). Every
-                claim is LICENSE-true: LICENSE:1 "Business Source License 1.1";
-                Additional Use Grant (LICENSE:13-16) = personal, non-commercial
-                use only, commercial use requires a separate license; Change
-                License Apache 2.0 on Change Date 2028-01-01 (LICENSE:18-21).
-                Address = the house contact, LandingHeader.tsx:36
-                (astuart@templestuart.com — also LICENSE:16). NO "open source"
-                framing. ─────────────────────────────────────────────────────── */}
-          <p className="mt-2 font-mono text-xs text-white/50">
-            Source-available under BSL 1.1 — free to self-host for personal use. Commercial use or a
-            done-for-you setup →{' '}
-            <a href="mailto:astuart@templestuart.com" className="text-white/70 underline hover:text-white">
-              astuart@templestuart.com
-            </a>
-          </p>
         </div>
       </section>
 
