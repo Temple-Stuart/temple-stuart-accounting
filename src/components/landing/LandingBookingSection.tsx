@@ -63,6 +63,16 @@ export default function LandingBookingSection({ onRequireAuth }: { onRequireAuth
     // The teaser's container, verbatim minus its max-w-3xl (five full booking
     // surfaces + result rows need the hero's content width).
     <div className="mt-8 rounded-lg border border-white/20 bg-white/5 p-4">
+      {/* LOBBY-POLISH-1: the value blurb — first child of the strip container,
+          ABOVE the chip row. Claims verified: booking = flights & hotels
+          (the two in-house checkout flows); the session trip strip renders
+          below after any booking (GuestTripStrip). The old "LIVE SEARCHES ·
+          NO ACCOUNT NEEDED" micro-line FOLDED into this line (its two claims
+          — live searches, no account — both survive here). */}
+      <p className="mb-2 font-mono text-[11px] leading-relaxed text-white/70">
+        Live searches — book real flights &amp; hotels right here, no account needed.
+        Your bookings show up below as your trip.
+      </p>
       <div className="flex flex-wrap items-center gap-1.5">
         {MODES.map((m) => (
           <button
@@ -74,9 +84,6 @@ export default function LandingBookingSection({ onRequireAuth }: { onRequireAuth
             {m.label}
           </button>
         ))}
-        <span className="ml-1 font-mono text-[10px] uppercase tracking-wider text-white/40">
-          Live searches · no account needed
-        </span>
       </div>
 
       <div className={panelClass('flights')}>

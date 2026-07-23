@@ -661,7 +661,7 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
                 // Explore secondary. "Learn more" is gone.
                 <article
                   key={p.id}
-                  className="flex min-h-[22rem] w-[92%] shrink-0 snap-start flex-col overflow-hidden rounded-lg p-6 text-white sm:w-[80%] sm:p-8 lg:w-[55%]"
+                  className="flex min-h-[18rem] w-[85%] shrink-0 snap-start flex-col overflow-hidden rounded-lg p-5 text-white sm:w-[60%] sm:p-6 lg:w-[38%]"
                   style={{ background: HERO_BG }}
                 >
                   <div className="flex flex-wrap items-center gap-2">
@@ -669,11 +669,11 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
                       Module
                     </span>
                   </div>
-                  <h3 className="mt-4 text-2xl font-light tracking-tight sm:text-3xl">{p.label}</h3>
-                  <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/65">{TAB_DESCRIPTORS[p.tab]}</p>
+                  <h3 className="mt-4 text-xl font-light tracking-tight sm:text-2xl">{p.label}</h3>
+                  <p className="mt-3 max-w-xl text-xs leading-relaxed text-white/65">{TAB_DESCRIPTORS[p.tab]}</p>
                   <ul className="mt-3 max-w-xl space-y-1">
                     {p.bullets.map((b, i) => (
-                      <li key={i} className={`text-sm leading-relaxed ${i === 0 ? 'font-medium text-white' : 'text-white/70'}`}>
+                      <li key={i} className={`text-xs leading-relaxed ${i === 0 ? 'font-medium text-white' : 'text-white/70'}`}>
                         {b}
                       </li>
                     ))}
