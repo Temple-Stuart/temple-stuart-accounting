@@ -29,78 +29,42 @@
 // route carries its own per-IP rateLimit + reserveTravelSearch daily cap
 // server-side (e.g. flights/search/route.ts:26-49).
 
-import { useState } from 'react';
+// DS-1: the toggle mechanism moved to the shared <ToggleStrip> (src/components/
+// ui/ToggleStrip.tsx) — the SAME primitive the app travel tab now consumes.
+// This wrapper just supplies the landing's five guest panels + the value blurb;
+// container class (mt-8 + DS.STRIP), chip idiom, default (first = flights), and
+// the mount-all/CSS-hide behavior are byte-identical to the pre-extraction
+// TOGGLE-1 output.
+import ToggleStrip, { type ToggleMode } from '@/components/ui/ToggleStrip';
+import { DS } from '@/lib/ds';
 import PublicFlightSearch from '@/components/trips/PublicFlightSearch';
 import PublicHotelSearch from '@/components/trips/PublicHotelSearch';
 import PublicActivitySearch from '@/components/trips/PublicActivitySearch';
 import PublicTransferSearch from '@/components/trips/PublicTransferSearch';
 import PublicVisaCheck from '@/components/trips/PublicVisaCheck';
 
-type LobbyMode = 'flights' | 'hotels' | 'transit' | 'activities' | 'visa';
-
-const MODES: { key: LobbyMode; label: string }[] = [
-  { key: 'flights', label: 'Flights' },
-  { key: 'hotels', label: 'Hotels' },
-  { key: 'transit', label: 'Getting around' },
-  { key: 'activities', label: 'Things to do' },
-  { key: 'visa', label: 'Visa' },
-];
-
 export default function LandingBookingSection({ onRequireAuth }: { onRequireAuth: () => void }) {
-  // TOGGLE-1: the wrapper's ONLY logic — which pillar's panel is visible.
-  const [mode, setMode] = useState<LobbyMode>('flights');
-
-  // The teaser's toggle idiom, verbatim (LandingSearchTeaser.tsx@840a053b).
-  const toggleClass = (active: boolean) =>
-    `px-3 py-1.5 font-mono text-xs font-medium ${
-      active ? 'bg-white text-brand-purple' : 'border border-white/30 text-white/70 hover:bg-white/10'
-    }`;
-
-  // CSS show/hide — never unmount (in-flight results survive the toggle).
-  const panelClass = (key: LobbyMode) => (mode === key ? 'block' : 'hidden');
+  const modes: ToggleMode[] = [
+    { key: 'flights', label: 'Flights', panel: <PublicFlightSearch onRequireAuth={onRequireAuth} authed={false} /> },
+    { key: 'hotels', label: 'Hotels', panel: <PublicHotelSearch onRequireAuth={onRequireAuth} authed={false} /> },
+    { key: 'transit', label: 'Getting around', panel: <PublicTransferSearch onRequireAuth={onRequireAuth} /> },
+    { key: 'activities', label: 'Things to do', panel: <PublicActivitySearch onRequireAuth={onRequireAuth} /> },
+    { key: 'visa', label: 'Visa', panel: <PublicVisaCheck /> },
+  ];
 
   return (
-    // The teaser's container, verbatim minus its max-w-3xl (five full booking
-    // surfaces + result rows need the hero's content width).
-    <div className="mt-8 rounded-lg border border-white/20 bg-white/5 p-4">
-      {/* LOBBY-POLISH-1: the value blurb — first child of the strip container,
-          ABOVE the chip row. Claims verified: booking = flights & hotels
-          (the two in-house checkout flows); the session trip strip renders
-          below after any booking (GuestTripStrip). The old "LIVE SEARCHES ·
-          NO ACCOUNT NEEDED" micro-line FOLDED into this line (its two claims
-          — live searches, no account — both survive here). */}
-      <p className="mb-2 font-mono text-[11px] leading-relaxed text-white/70">
-        Live searches — book real flights &amp; hotels right here, no account needed.
-        Your bookings show up below as your trip.
-      </p>
-      <div className="flex flex-wrap items-center gap-1.5">
-        {MODES.map((m) => (
-          <button
-            key={m.key}
-            type="button"
-            onClick={() => setMode(m.key)}
-            className={toggleClass(mode === m.key)}
-          >
-            {m.label}
-          </button>
-        ))}
-      </div>
-
-      <div className={panelClass('flights')}>
-        <PublicFlightSearch onRequireAuth={onRequireAuth} authed={false} />
-      </div>
-      <div className={panelClass('hotels')}>
-        <PublicHotelSearch onRequireAuth={onRequireAuth} authed={false} />
-      </div>
-      <div className={panelClass('transit')}>
-        <PublicTransferSearch onRequireAuth={onRequireAuth} />
-      </div>
-      <div className={panelClass('activities')}>
-        <PublicActivitySearch onRequireAuth={onRequireAuth} />
-      </div>
-      <div className={panelClass('visa')}>
-        <PublicVisaCheck />
-      </div>
-    </div>
+    <ToggleStrip
+      className={`mt-8 ${DS.STRIP}`}
+      modes={modes}
+      header={
+        /* LOBBY-POLISH-1: the value blurb — first child of the strip, above the
+           chip row. Claims verified: booking = flights & hotels; the session trip
+           strip renders below (GuestTripStrip). */
+        <p className="mb-2 font-mono text-[11px] leading-relaxed text-white/70">
+          Live searches — book real flights &amp; hotels right here, no account needed.
+          Your bookings show up below as your trip.
+        </p>
+      }
+    />
   );
 }
