@@ -222,7 +222,7 @@ export default function FlightPickerView({
                   </div>
 
                   {leg.error && (
-                    <div className="p-2 bg-red-50 border border-red-200 rounded text-red-600 text-xs">{leg.error}</div>
+                    <div className="p-2 bg-panel-surface border border-panel-border rounded text-brand-red text-xs">{leg.error}</div>
                   )}
 
                   {/* Manual entry (booked elsewhere) — PR-Travel-Cleanup: the Google
@@ -333,7 +333,7 @@ export default function FlightPickerView({
 
                   {/* Selected offer → Save button */}
                   {leg.selectedOffer && !leg.committed && (
-                    <div className="flex items-center justify-between p-3 bg-purple-50 border border-purple-200 rounded">
+                    <div className="flex items-center justify-between p-3 bg-white/10 border border-white/20 rounded">
                       <div className="text-sm">
                         <span className="font-medium">{leg.selectedOffer.outbound?.carriers[0] || 'Flight'}</span>
                         <span className="text-white/50 ml-2">{leg.origin} → {leg.destination}</span>
