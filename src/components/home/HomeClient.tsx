@@ -91,7 +91,11 @@ export default function HomeClient() {
   };
 
   return (
-    <div className="min-h-screen bg-bg-terminal">
+    // FD-3 (installment 1): the app page background joins the panel family
+    // (bg-bg-terminal → bg-panel), so the shell reads dark like the lobby. Each
+    // tab body sets its OWN surface (bg-white for the still-light tabs, bg-panel
+    // for travel), so nothing naked inherits this and inverts.
+    <div className="min-h-screen bg-panel">
       {/* Header */}
       <header className="bg-brand-purple text-white">
         <div className="max-w-7xl mx-auto px-4 lg:px-8">
@@ -138,11 +142,16 @@ export default function HomeClient() {
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="bg-brand-purple text-white pb-12 pt-8">
+      {/* Hero — FD-3 (installment 1): the purple marketing band → the lobby's
+          compact hero language (bg-panel flat, chosen over the HERO_BG radial
+          glow — the app is utility density, not a marketing splash). The
+          tagline shrinks (text-4xl/5xl → text-2xl/3xl); the descriptor + Get
+          Started stay but tighten. A panel-border hairline seats it against the
+          dark tab bar below. */}
+      <section className="bg-panel text-white border-b border-panel-border pb-8 pt-6">
         <div className="max-w-7xl mx-auto px-4 lg:px-8">
           <div className="max-w-3xl">
-            <h1 className="text-4xl lg:text-5xl font-light tracking-tight mb-4">
+            <h1 className="text-2xl lg:text-3xl font-light tracking-tight mb-3">
               Track your money.<br />
               Plan your time.<br />
               <span className="text-text-faint">Live smarter.</span>
@@ -150,7 +159,7 @@ export default function HomeClient() {
             {/* PR-Hero-PerTab: the subhead swaps to the active tab's descriptor. min-h
                 reserves space so the Get Started button never jumps as the line changes
                 length. The headline above + Get Started below are unchanged. */}
-            <p className="text-text-faint text-lg font-semibold mb-3 max-w-xl min-h-[2rem]">
+            <p className="text-text-faint text-sm font-medium mb-3 max-w-xl min-h-[1.5rem]">
               {TAB_DESCRIPTORS[activeTab]}
             </p>
             {/* How it works — ONE shared, collapsible explainer for the active tab (projects /
