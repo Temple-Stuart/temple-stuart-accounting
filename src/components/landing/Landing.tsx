@@ -157,15 +157,84 @@ const PILLAR_CARDS: PillarCard[] = [
   },
 ];
 
-// FD-1k: the distinct projects present in the schedule data — DERIVED from the
-// 1NF rows, never hardcoded (new targets appear here automatically). Sorted
-// alphabetically; the report renders one group per project in this order.
-// (User-facing, the allocation dimension is named PROJECT — Alex's ruling.
-// Internal identifiers — the allocatedTo field, ledger_line_links — keep
-// their spec names.)
-const PROJECT_NAMES: string[] = [...new Set(ALLOCATION_ROWS.map((r) => r.target.name))].sort(
-  (a, b) => a.localeCompare(b),
-);
+// FD-1n: the footnote marks ACTUALLY referenced by the allocation rows
+// (amount footnotes + the ᵉ riding split percentages) — the merged registry
+// renders only these, derived, never hardcoded.
+const REFERENCED_MARKS: Set<string> = (() => {
+  const s = new Set<string>();
+  for (const r of ALLOCATION_ROWS) {
+    r.footnotes.forEach((m) => s.add(m));
+    if (r.splitPct.includes('ᵉ')) s.add('ᵉ');
+  }
+  return s;
+})();
+
+// FD-1n: the $0-strip fold-ins — the strip died as a section; its two facts
+// render inside the ruled expansions (TT → Trade, GOV → Compliance). Mapped
+// by VENDOR KEY per Alex's ruling, NOT by the strip's internal allocatedTo
+// (whose 'Trading' name is legacy vocabulary FD-1l never touched — data is
+// 0 lines this PR; flagged in the FD-1n report).
+const ZERO_COST_BY_MODULE: Record<string, string> = { trade: 'TT', compliance: 'GOV' };
+
+/** FD-1n: one module's cost receipt — the FD-1k per-project grouping scoped
+ *  to a single project name, inline under the module's sheet row. Same ten
+ *  columns, same DimCell renders, its own overflow-x wrapper. */
+function ModuleCostBreakdown({ projectName, zeroCostVendor }: { projectName: string; zeroCostVendor?: string }) {
+  const rows = ALLOCATION_ROWS.filter((r) => r.target.name === projectName);
+  const entered = rows.filter((r) => r.amountUsd !== null);
+  const total = entered.reduce((s, r) => s + (r.amountUsd as number), 0);
+  const zeroFact = zeroCostVendor ? NO_COST_STRIP.find((f) => f.vendor === zeroCostVendor) : undefined;
+  return (
+    <div className="px-4 pb-4">
+      <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
+        Entered ${total.toFixed(2)} · {entered.length} of {rows.length} amounts
+      </p>
+      <div className="mt-2 overflow-x-auto rounded-lg border border-panel-border bg-panel-surface">
+        <table className="w-full min-w-[1080px] text-sm">
+          <thead>
+            <tr className="border-b border-panel-border text-left font-mono text-[10px] uppercase tracking-wider text-white/40">
+              <th className="px-3 py-2 font-semibold">Entity</th>
+              <th className="px-3 py-2 font-semibold">Account</th>
+              <th className="px-3 py-2 font-semibold">Sub</th>
+              <th className="px-3 py-2 font-semibold">Object</th>
+              <th className="px-3 py-2 font-semibold">Vendor</th>
+              <th className="px-3 py-2 font-semibold">Description</th>
+              <th className="px-3 py-2 font-semibold">Basis</th>
+              <th className="px-3 py-2 font-semibold">Cadence</th>
+              <th className="px-3 py-2 font-semibold">Split</th>
+              <th className="px-3 py-2 font-semibold text-right">Amount (USD/mo)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r: ScheduleAllocationRow) => (
+              <tr key={`${r.vendor}-${r.target.type}-${r.target.name}`} className="border-b border-panel-border last:border-0">
+                <td className="px-3 py-2 align-top"><DimCell code={r.entity} label={ENTITY_DIM[r.entity]} /></td>
+                <td className="px-3 py-2 align-top"><DimCell code={r.account} label={ACCOUNT_DIM[r.account]} /></td>
+                <td className="px-3 py-2 align-top"><DimCell code={r.sub} label={SUB_DIM[r.account]?.[r.sub] ?? ''} /></td>
+                <td className="px-3 py-2 align-top"><DimCell code={r.object} label={OBJECT_DIM[r.object]} /></td>
+                <td className="px-3 py-2 align-top"><DimCell code={r.vendor} label={VENDOR_DIM[r.vendor]} /></td>
+                <td className="px-3 py-2 align-top text-xs leading-relaxed text-white/70">{r.description}</td>
+                <td className="px-3 py-2 align-top font-mono text-[10px] uppercase tracking-wider text-white/60 whitespace-nowrap">{r.basis}</td>
+                <td className="px-3 py-2 align-top text-xs text-white/60 whitespace-nowrap">{r.cadence}</td>
+                <td className="px-3 py-2 align-top font-mono text-xs text-white/70 whitespace-nowrap">{r.splitPct}</td>
+                <td className="px-3 py-2 align-top text-right font-mono text-xs font-semibold text-white whitespace-nowrap">
+                  {r.amountUsd !== null ? `$${r.amountUsd.toFixed(2)}` : `—${r.footnotes.join('')}`}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {zeroFact && (
+        <p className="mt-2 text-[11px] leading-relaxed text-white/50">
+          <span className="font-mono text-white">{zeroFact.vendor}</span>{' '}
+          <span className="text-white/60">{zeroFact.vendorLabel}</span> ·{' '}
+          <span className="font-mono font-bold text-white">$0</span> — {zeroFact.description}
+        </p>
+      )}
+    </div>
+  );
+}
 
 interface Props {
   /** The ONE account-ask funnel — hero secondary CTA + header. FD-2 supplies
@@ -184,9 +253,17 @@ const HERO_BG =
 export default function Landing({ onRequireAuth, entitlementAvailability }: Props) {
   const pricingByKey = new Map(TAB_PRICING.map((t) => [t.key, t]));
   const bundle = pricingByKey.get('bundle:all');
-  // FD-1k: the project filter — null = ALL (every group). View-state only;
-  // the grand total + bill coverage below the groups stay GLOBAL truths.
-  const [projectFilter, setProjectFilter] = useState<string | null>(null);
+  // FD-1n: the per-module "costs ▾" expansions — independent toggles,
+  // collapsed by default, client-side state only (the module rows ARE the
+  // filter now; the FD-1k chip row died with the standalone section).
+  const [openCosts, setOpenCosts] = useState<Set<string>>(new Set());
+  const toggleCosts = (id: string) =>
+    setOpenCosts((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   return (
     <div className="min-h-screen bg-panel text-white">
@@ -260,7 +337,12 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
             TAB_PRICING (pricing-costs.ts:341-371) + availability-honest
             Select; the free five state their true access + Learn more.
             Heading/sub-line/price-fallback/billing/disabled copy lifted from
-            /pricing (PricingClient.tsx :210-213, :241-246, :264). ──────────── */}
+            /pricing (PricingClient.tsx :210-213, :241-246, :264).
+            FD-1n: this section ABSORBED the standalone cost-transparency
+            schedule — each module row carries a "costs ▾" toggle expanding to
+            its project's allocation rows (the FD-1k grouping, scoped); the
+            legend / global total / coverage / footnote registry render ONCE
+            below the bundle closer. Data + commerce wiring untouched. ─────── */}
       <section className="w-full border-b border-panel-border bg-panel-surface">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
           <p className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
@@ -271,6 +353,8 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
           </h2>
           <p className="mt-2 max-w-2xl text-xs text-white/60">
             Each module is a separate subscription — pay for a module and the whole module works.
+            Every price, traced to a real bill. Costs are entered from real invoices; a cell that
+            hasn&apos;t been filled yet says so instead of showing a made-up number.
           </p>
           <div className="mt-6 overflow-x-auto rounded-lg border border-panel-border bg-panel">
             <table className="w-full min-w-[640px] text-sm">
@@ -286,12 +370,24 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
                 {PILLAR_CARDS.map((p) => {
                   const pricing = p.entitlementKey ? pricingByKey.get(p.entitlementKey) : undefined;
                   const available = p.entitlementKey ? entitlementAvailability[p.entitlementKey] === true : false;
+                  const costsOpen = openCosts.has(p.id);
                   return (
-                    <tr key={p.id} className="border-b border-panel-border last:border-0">
+                    <Fragment key={p.id}>
+                    <tr className="border-b border-panel-border last:border-0">
                       <td className="px-4 py-3 align-top">
                         <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70 whitespace-nowrap">
                           {p.label}
                         </span>
+                        {/* FD-1n: the receipt behind the price — expands this
+                            module's allocation rows inline. */}
+                        <button
+                          type="button"
+                          onClick={() => toggleCosts(p.id)}
+                          aria-expanded={costsOpen}
+                          className="mt-1.5 block font-mono text-[10px] font-medium text-white/50 hover:text-white"
+                        >
+                          costs {costsOpen ? '▴' : '▾'}
+                        </button>
                       </td>
                       <td className="px-4 py-3 align-top text-xs leading-relaxed text-white/60">
                         {pricing ? <>Unlocks {pricing.unlocks}.</> : p.freeLabel}
@@ -338,6 +434,20 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
                         )}
                       </td>
                     </tr>
+                    {costsOpen && (
+                      <tr className="border-b border-panel-border last:border-0">
+                        <td colSpan={4} className="p-0">
+                          {/* p.label === the canonical project name (verified:
+                              the sheet labels and the FD-1l/1m data vocabulary
+                              are the same nine pillar names). */}
+                          <ModuleCostBreakdown
+                            projectName={p.label}
+                            zeroCostVendor={ZERO_COST_BY_MODULE[p.id]}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
               </tbody>
@@ -377,162 +487,28 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
               )}
             </div>
           )}
-        </div>
-      </section>
-
-      {/* ── FD-1e: THE DIMENSIONAL TABLE — the company's real operating bills
-            coded in the Temple Stuart standard. Every row/amount/attribution
-            renders from src/config/transparencyLedger.ts, whose bills each cite
-            their pricing-costs.ts provenance (phase-1: declared coding of real
-            invoices — NOT ledger derivation; that's the DIM arc). Caption
-            honesty basis: /how-pricing-works :98-103. FD-1j: the table is 1NF —
-            ALLOCATION_ROWS (one allocation per row); coverage counts bills.
-            FD-1k: PROJECT-grouped report — the allocation dimension is named
-            PROJECT and leads as the group header (column #1 by structure);
-            one section per project with its own total + coverage; a chip row
-            filters to one project at a time. ─────────────────────────────── */}
-      <section className="w-full border-b border-panel-border bg-panel">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-          <p className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
-            Cost transparency
-          </p>
-          <h2 className="text-2xl font-light tracking-tight text-white">
-            Every price, traced to a real bill.
-          </h2>
-          <p className="mt-2 max-w-2xl text-xs text-white/60">
-            Our actual operating bills, coded in the Temple Stuart dimensional standard
-            (Entity-Account-Sub-Object · Vendor · Project) — every amount traced to a real invoice.
-            Costs are entered from real invoices; a cell that hasn&apos;t been filled yet says so
-            instead of showing a made-up number.
-          </p>
-          {/* FD-1f v3: the legend — the schedule teaches the coding standard. */}
-          <p className="mt-4 font-mono text-[11px] text-white/60">
+          {/* ── FD-1n: the receipt lines, rendered ONCE below the bundle
+                closer — legend, the GLOBAL total + bill coverage (math
+                unchanged; filter-immune — there is no filter anymore), and
+                the footnote registry (only marks actually referenced). ────── */}
+          <p className="mt-5 font-mono text-[11px] text-white/60">
             Codes read ENTITY-ACCOUNT-SUB-OBJECT — e.g. B-5100-10-API.
           </p>
-          {/* FD-1k: the project filter — ALL + one chip per project PRESENT in
-              the data (derived, never hardcoded). View-state only. */}
-          <div className="mt-4 flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              onClick={() => setProjectFilter(null)}
-              className={`px-2 py-1 font-mono text-[11px] font-medium ${
-                projectFilter === null
-                  ? 'bg-white text-brand-purple'
-                  : 'border border-white/30 text-white/70 hover:bg-white/10'
-              }`}
-            >
-              All
-            </button>
-            {PROJECT_NAMES.map((name) => (
-              <button
-                key={name}
-                type="button"
-                onClick={() => setProjectFilter(name)}
-                className={`px-2 py-1 font-mono text-[11px] font-medium ${
-                  projectFilter === name
-                    ? 'bg-white text-brand-purple'
-                    : 'border border-white/30 text-white/70 hover:bg-white/10'
-                }`}
-              >
-                {name}
-              </button>
-            ))}
-          </div>
-          <div className="mt-2 overflow-x-auto rounded-lg border border-panel-border bg-panel-surface">
-            <table className="w-full min-w-[1080px] text-sm">
-              <thead>
-                <tr className="border-b border-panel-border text-left font-mono text-[10px] uppercase tracking-wider text-white/40">
-                  <th className="px-3 py-2 font-semibold">Entity</th>
-                  <th className="px-3 py-2 font-semibold">Account</th>
-                  <th className="px-3 py-2 font-semibold">Sub</th>
-                  <th className="px-3 py-2 font-semibold">Object</th>
-                  <th className="px-3 py-2 font-semibold">Vendor</th>
-                  <th className="px-3 py-2 font-semibold">Description</th>
-                  <th className="px-3 py-2 font-semibold">Basis</th>
-                  <th className="px-3 py-2 font-semibold">Cadence</th>
-                  <th className="px-3 py-2 font-semibold">Split</th>
-                  <th className="px-3 py-2 font-semibold text-right">Amount (USD/mo)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* FD-1k: one section per PROJECT (alphabetical; the filter
-                    narrows to one). PROJECT is column #1 by structure — the
-                    group header row carries it for every row beneath. Rows
-                    within a group keep the 1NF sort (ACCOUNT → SUB → VENDOR;
-                    entity is uniform). Full brightness — the dimmed-
-                    continuation treatment died with the grouping. */}
-                {PROJECT_NAMES.filter((name) => projectFilter === null || name === projectFilter).map(
-                  (name) => {
-                    const rows = ALLOCATION_ROWS.filter((r) => r.target.name === name);
-                    const entered = rows.filter((r) => r.amountUsd !== null);
-                    const total = entered.reduce((s, r) => s + (r.amountUsd as number), 0);
-                    return (
-                      <Fragment key={name}>
-                        <tr className="border-b border-panel-border bg-panel">
-                          <td colSpan={10} className="px-3 py-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
-                            Project: {name} — entered ${total.toFixed(2)} · {entered.length} of {rows.length} amounts
-                          </td>
-                        </tr>
-                        {rows.map((r: ScheduleAllocationRow) => (
-                          <tr key={`${r.vendor}-${r.target.type}-${r.target.name}`} className="border-b border-panel-border">
-                            <td className="px-3 py-2 align-top"><DimCell code={r.entity} label={ENTITY_DIM[r.entity]} /></td>
-                            <td className="px-3 py-2 align-top"><DimCell code={r.account} label={ACCOUNT_DIM[r.account]} /></td>
-                            <td className="px-3 py-2 align-top"><DimCell code={r.sub} label={SUB_DIM[r.account]?.[r.sub] ?? ''} /></td>
-                            <td className="px-3 py-2 align-top"><DimCell code={r.object} label={OBJECT_DIM[r.object]} /></td>
-                            <td className="px-3 py-2 align-top"><DimCell code={r.vendor} label={VENDOR_DIM[r.vendor]} /></td>
-                            <td className="px-3 py-2 align-top text-xs leading-relaxed text-white/70">{r.description}</td>
-                            <td className="px-3 py-2 align-top font-mono text-[10px] uppercase tracking-wider text-white/60 whitespace-nowrap">{r.basis}</td>
-                            <td className="px-3 py-2 align-top text-xs text-white/60 whitespace-nowrap">{r.cadence}</td>
-                            <td className="px-3 py-2 align-top font-mono text-xs text-white/70 whitespace-nowrap">{r.splitPct}</td>
-                            <td className="px-3 py-2 align-top text-right font-mono text-xs font-semibold text-white whitespace-nowrap">
-                              {r.amountUsd !== null ? `$${r.amountUsd.toFixed(2)}` : `—${r.footnotes.join('')}`}
-                            </td>
-                          </tr>
-                        ))}
-                      </Fragment>
-                    );
-                  },
-                )}
-                {/* FD-1k: the grand total stays GLOBAL — the schedule's truth,
-                    independent of the view filter (math unchanged). */}
-                <tr className="bg-panel">
-                  <td colSpan={9} className="px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-white/60">
-                    Total entered
-                  </td>
-                  <td className="px-3 py-2 text-right font-mono text-sm font-bold text-white whitespace-nowrap">
-                    ${ALLOCATION_ROWS.reduce((s, r) => s + (r.amountUsd ?? 0), 0).toFixed(2)}/mo
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <p className="mt-2 font-mono text-[11px] text-white/50">
-            {/* FD-1j: coverage counts PARENT BILLS, not rows — both stated. */}
+          <p className="mt-1 font-mono text-[11px] text-white/60">
+            Total entered ${ALLOCATION_ROWS.reduce((s, r) => s + (r.amountUsd ?? 0), 0).toFixed(2)}/mo
+            {' · '}
             {SCHEDULE_BILLS.filter((b) => b.amountUsd !== null).length} of {SCHEDULE_BILLS.length} bills
             entered · {ALLOCATION_ROWS.length} allocation rows — an un-entered amount renders a dash and
             its footnote, never a guess.
           </p>
-          {/* The footnote registry — every mark used above, defined once. */}
           <div className="mt-2 space-y-0.5">
-            {Object.entries(FOOTNOTES).map(([mark, text]) => (
-              <p key={mark} className="text-[10px] leading-relaxed text-white/40">
-                <span className="font-mono">{mark}</span> {text}
-              </p>
-            ))}
-          </div>
-          {/* The $0 strip — real facts; nothing posts, nothing codes. */}
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {NO_COST_STRIP.map((f) => (
-              <div key={f.vendor} className="rounded-lg border border-panel-border bg-panel-surface p-3">
-                <div className="flex items-baseline gap-2">
-                  <span className="font-mono text-xs text-white">{f.vendor}</span>
-                  <span className="text-[10px] text-white/50">{f.vendorLabel}</span>
-                  <span className="ml-auto font-mono text-xs font-bold text-white">$0</span>
-                </div>
-                <p className="mt-1 text-xs leading-relaxed text-white/60">{f.description}</p>
-                <p className="mt-0.5 text-[10px] text-white/40">{f.allocatedTo.map((t) => t.name).join(' · ')}</p>
-              </div>
-            ))}
+            {Object.entries(FOOTNOTES)
+              .filter(([mark]) => REFERENCED_MARKS.has(mark))
+              .map(([mark, text]) => (
+                <p key={mark} className="text-[10px] leading-relaxed text-white/40">
+                  <span className="font-mono">{mark}</span> {text}
+                </p>
+              ))}
           </div>
           <Link
             href="/how-pricing-works"
