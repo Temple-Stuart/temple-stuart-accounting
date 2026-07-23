@@ -95,7 +95,7 @@ export default function PublicVisaCheck() {
     >
       <form onSubmit={check} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-text-muted">Passport</span>
+          <span className="text-[11px] text-white/50">Passport</span>
           <select value={passport} onChange={(e) => setPassport(e.target.value)} className={TRAVEL_INPUT_CLASS} aria-label="Passport country">
             {COUNTRIES.map((c) => (
               <option key={c.iso2} value={c.iso2}>{c.name}</option>
@@ -104,7 +104,7 @@ export default function PublicVisaCheck() {
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-text-muted">Going to</span>
+          <span className="text-[11px] text-white/50">Going to</span>
           <select value={destination} onChange={(e) => setDestination(e.target.value)} className={TRAVEL_INPUT_CLASS} aria-label="Destination country">
             <option value="">Select a country…</option>
             {COUNTRIES.map((c) => (

@@ -133,7 +133,7 @@ export default function PublicTransferSearch({ onRequireAuth, sharedCity, shared
         <ActivityResultsView results={results} loading={loading} error={error} onBook={book} />
       )}
       {!searched && error && (
-        <div className="rounded-lg border border-border bg-white p-4 text-sm text-brand-red">{error}</div>
+        <div className="rounded-lg border border-panel-border bg-panel-surface p-4 text-sm text-brand-red">{error}</div>
       )}
     </TravelSectionShell>
   );
