@@ -255,15 +255,15 @@ export default function UnattachedBookings({ selectedTrip, onChanged }: Props) {
   if (state === 'ok' && rows.length === 0) return null;
 
   return (
-    <div className="mt-4 rounded-lg border border-border bg-bg-row p-4">
+    <div className="mt-4 rounded-lg border border-panel-border bg-panel-surface p-4">
       <div className="mb-2 flex items-center justify-between">
-        <p className="text-sm font-semibold text-text-primary">
+        <p className="text-sm font-semibold text-white">
           Unattached bookings{state === 'ok' ? ` (${rows.length})` : ''}
         </p>
         <button
           type="button"
           onClick={() => load()}
-          className="text-xs font-medium text-brand-purple underline hover:text-brand-purple/80"
+          className="text-xs font-medium text-white underline hover:text-white/80"
         >
           Refresh
         </button>
@@ -279,21 +279,21 @@ export default function UnattachedBookings({ selectedTrip, onChanged }: Props) {
       {state === 'ok' && rows.length > 0 && (
         <>
           {!selectedTrip && (
-            <p className="mb-2 text-xs text-text-muted">Select a trip above to attach these.</p>
+            <p className="mb-2 text-xs text-white/50">Select a trip above to attach these.</p>
           )}
           {actionError && (
-            <p className="mb-2 rounded border border-border bg-white p-2 text-sm text-brand-red">{actionError}</p>
+            <p className="mb-2 rounded border border-panel-border bg-panel-surface p-2 text-sm text-brand-red">{actionError}</p>
           )}
-          <div className="overflow-x-auto rounded-lg border border-border bg-white">
+          <div className="overflow-x-auto rounded-lg border border-panel-border bg-panel-surface">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border bg-bg-row text-xs uppercase tracking-wide">
-                  <th className="px-3 py-2 text-left font-medium text-text-muted">Type</th>
-                  <th className="px-3 py-2 text-left font-medium text-text-muted">Name</th>
-                  <th className="px-3 py-2 text-left font-medium text-text-muted">Dates</th>
-                  <th className="px-3 py-2 text-right font-medium text-text-muted">Amount</th>
-                  <th className="px-3 py-2 text-left font-medium text-text-muted">Status</th>
-                  <th className="px-3 py-2 text-left font-medium text-text-muted"></th>
+                <tr className="border-b border-panel-border bg-panel-surface font-mono text-[10px] uppercase tracking-wider">
+                  <th className="px-3 py-2 text-left font-medium text-white/50">Type</th>
+                  <th className="px-3 py-2 text-left font-medium text-white/50">Name</th>
+                  <th className="px-3 py-2 text-left font-medium text-white/50">Dates</th>
+                  <th className="px-3 py-2 text-right font-medium text-white/50">Amount</th>
+                  <th className="px-3 py-2 text-left font-medium text-white/50">Status</th>
+                  <th className="px-3 py-2 text-left font-medium text-white/50"></th>
                 </tr>
               </thead>
               <tbody>
@@ -301,18 +301,18 @@ export default function UnattachedBookings({ selectedTrip, onChanged }: Props) {
                   const outcome = cancelOutcomes[r.id];
                   return (
                   <Fragment key={r.id}>
-                  <tr className="border-b border-border last:border-0">
-                    <td className="px-3 py-2 capitalize text-text-secondary">{r.type}</td>
-                    <td className="px-3 py-2 font-medium text-text-primary">{r.name}</td>
-                    <td className="px-3 py-2 text-text-secondary">
+                  <tr className="border-b border-panel-border last:border-0">
+                    <td className="px-3 py-2 capitalize text-white/60">{r.type}</td>
+                    <td className="px-3 py-2 font-medium text-white">{r.name}</td>
+                    <td className="px-3 py-2 text-white/60">
                       {r.checkIn && r.checkOut
                         ? `${String(r.checkIn).slice(0, 10)} → ${String(r.checkOut).slice(0, 10)}`
                         : ''}
                     </td>
-                    <td className="px-3 py-2 text-right font-semibold text-brand-green">
+                    <td className="px-3 py-2 text-right font-mono font-semibold text-brand-green">
                       ${r.amountUsd.toFixed(2)}
                     </td>
-                    <td className="px-3 py-2 text-text-secondary">{r.status}</td>
+                    <td className="px-3 py-2 text-white/60">{r.status}</td>
                     <td className="px-3 py-2 text-right">
                       {/* PR-Cancel-1/2: liteapi (hotel) + duffel (flight) rows,
                           only while confirmed — after the flip the action
@@ -334,7 +334,7 @@ export default function UnattachedBookings({ selectedTrip, onChanged }: Props) {
                           type="button"
                           disabled={busyId === r.id}
                           onClick={() => attach(r.id)}
-                          className="rounded border border-brand-purple/40 px-2 py-1 text-xs font-medium text-brand-purple hover:bg-brand-purple/10 disabled:opacity-50"
+                          className="rounded border border-brand-purple/40 px-2 py-1 text-xs font-medium text-white hover:bg-brand-purple/10 disabled:opacity-50"
                         >
                           {busyId === r.id ? 'Attaching…' : `Add to ${selectedTrip.name || 'selected trip'}`}
                         </button>
@@ -344,12 +344,12 @@ export default function UnattachedBookings({ selectedTrip, onChanged }: Props) {
                   {/* PR-Cancel-1: the provider's actual outcome, inline — verbatim
                       numbers on success, the provider's message on failure. */}
                   {outcome && (
-                    <tr className="border-b border-border last:border-0">
+                    <tr className="border-b border-panel-border last:border-0">
                       <td colSpan={6} className="px-3 py-2">
                         {!outcome.ok ? (
                           <p className="text-xs text-brand-red">{outcome.message}</p>
                         ) : 'flight' in outcome ? (
-                          <p className="text-xs text-text-secondary">
+                          <p className="text-xs text-white/60">
                             <span className="font-semibold text-brand-green">Cancelled</span>
                             {' — Duffel refunds '}
                             <span className="font-medium">
@@ -360,7 +360,7 @@ export default function UnattachedBookings({ selectedTrip, onChanged }: Props) {
                             {' to the platform balance. Card refunds are processed separately.'}
                           </p>
                         ) : (
-                          <p className="text-xs text-text-secondary">
+                          <p className="text-xs text-white/60">
                             <span className="font-semibold text-brand-green">Cancelled</span>
                             {outcome.providerStatus ? ` (provider status: ${outcome.providerStatus})` : ''}
                             {' — refund: '}

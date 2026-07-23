@@ -118,7 +118,7 @@ function EditableCell({
   const display = kind === 'date' ? fmtDate(value) : fmtTime(value);
   const inputVal = kind === 'date' ? toDateInput(value) : toTimeInput(value);
 
-  if (!editable) return <span className="text-text-faint">{display}</span>;
+  if (!editable) return <span className="text-white/40">{display}</span>;
 
   if (!editing) {
     return (
@@ -126,9 +126,9 @@ function EditableCell({
         type="button"
         onClick={() => { cancelled.current = false; setEditing(true); }}
         title="Click to edit"
-        className="rounded px-1 text-left text-text-secondary transition-colors hover:bg-bg-row hover:text-brand-purple"
+        className="rounded px-1 text-left text-white/60 transition-colors hover:bg-panel-hover hover:text-white"
       >
-        {value ? display : <span className="text-brand-purple underline decoration-dotted">Set</span>}
+        {value ? display : <span className="text-white underline decoration-dotted">Set</span>}
       </button>
     );
   }
@@ -159,7 +159,7 @@ function EditableCell({
         if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
         if (e.key === 'Escape') { cancelled.current = true; (e.target as HTMLInputElement).blur(); }
       }}
-      className="w-32 rounded border border-brand-purple/50 bg-white px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-purple disabled:opacity-50"
+      className="w-32 rounded border border-brand-purple/50 bg-panel-surface px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-purple disabled:opacity-50"
     />
   );
 }
@@ -265,33 +265,33 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
 
   const total = items.reduce((s, it) => s + Number(it.amount || 0), 0);
 
-  const th = 'px-3 py-2 text-left font-medium text-text-faint whitespace-nowrap';
+  const th = 'px-3 py-2 text-left font-medium text-white/40 whitespace-nowrap';
   const td = 'px-3 py-2 whitespace-nowrap';
 
   return (
-    <div className="mt-4 rounded-lg border border-border bg-bg-row p-4">
+    <div className="mt-4 rounded-lg border border-panel-border bg-panel-surface p-4">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <p className="text-sm font-bold text-brand-purple">Budget ledger</p>
+        <p className="text-sm font-bold text-white">Budget ledger</p>
         {state === 'ok' && items.length > 0 && (
-          <p className="text-sm text-text-secondary">
-            Total <span className={`font-bold ${moneyColorClass(total, 'expense')}`}>{formatMoney(total, { kind: 'expense' })}</span>
+          <p className="text-sm text-white/60">
+            Total <span className={`font-mono font-bold ${moneyColorClass(total, 'expense')}`}>{formatMoney(total, { kind: 'expense' })}</span>
           </p>
         )}
       </div>
 
-      {actionError && <p className="mb-2 rounded border border-border bg-white p-2 text-sm text-brand-red">{actionError}</p>}
-      {state === 'loading' && <p className="text-sm text-text-muted">Loading your budget…</p>}
+      {actionError && <p className="mb-2 rounded border border-panel-border bg-panel-surface p-2 text-sm text-brand-red">{actionError}</p>}
+      {state === 'loading' && <p className="text-sm text-white/50">Loading your budget…</p>}
       {state === 'error' && <p className="text-sm text-brand-red">Couldn&apos;t load your budget.</p>}
-      {state === 'ok' && items.length === 0 && <p className="text-sm text-text-muted">No planned budget yet.</p>}
+      {state === 'ok' && items.length === 0 && <p className="text-sm text-white/50">No planned budget yet.</p>}
 
       {state === 'ok' && items.length > 0 && (
         // Wide statement table: on a narrow screen the whole table scrolls horizontally as
         // ONE unit (11 columns won't fit a phone). Every column stays on the surface — no
         // per-card scroll, no hidden drawers.
-        <div className="overflow-x-auto rounded-lg border border-border bg-white">
+        <div className="overflow-x-auto rounded-lg border border-panel-border bg-panel-surface">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-bg-row text-xs uppercase tracking-wide">
+              <tr className="border-b border-panel-border bg-panel-surface font-mono text-[10px] uppercase tracking-wider">
                 <th className={th}>Saved / Booked</th>
                 <th className={th}>Start date</th>
                 <th className={th}>Start time</th>
@@ -308,33 +308,33 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
             </thead>
             <tbody>
               {items.map((it) => (
-                <tr key={it.id} className="border-b border-border last:border-0">
+                <tr key={it.id} className="border-b border-panel-border last:border-0">
                   {/* Every budget line is Saved (planned). Booked (paid) is not derivable
                       from budget_line_items yet — see the file header. */}
                   <td className={td}>
-                    <span className="rounded-full bg-brand-purple/10 px-2 py-0.5 text-xs font-medium text-brand-purple">Saved</span>
+                    <span className="rounded-full bg-brand-purple/10 px-2 py-0.5 text-xs font-medium text-white">Saved</span>
                   </td>
                   <td className={td}><EditableCell kind="date" value={it.startDate} editable={!!it.itineraryId} onSave={(v) => saveCell(it, 'startDate', v)} /></td>
                   <td className={td}><EditableCell kind="time" value={it.startTime} editable={!!it.itineraryId} onSave={(v) => saveCell(it, 'startTime', v)} /></td>
                   <td className={td}><EditableCell kind="date" value={it.endDate} editable={!!it.itineraryId} onSave={(v) => saveCell(it, 'endDate', v)} /></td>
                   <td className={td}><EditableCell kind="time" value={it.endTime} editable={!!it.itineraryId} onSave={(v) => saveCell(it, 'endTime', v)} /></td>
-                  <td className={`${td} text-text-secondary`}>{fmtCadence(it.cadence)}</td>
-                  <td className={`${td} text-text-secondary`}>{txt(it.coaCode)}</td>
-                  <td className={`${td} text-text-secondary`}>{txt(it.vendor)}</td>
-                  <td className={`${td} font-medium text-text-primary`}>
+                  <td className={`${td} text-white/60`}>{fmtCadence(it.cadence)}</td>
+                  <td className={`${td} text-white/60`}>{txt(it.coaCode)}</td>
+                  <td className={`${td} text-white/60`}>{txt(it.vendor)}</td>
+                  <td className={`${td} font-medium text-white`}>
                     {it.description?.trim() ? it.description : txt(it.coaCode)}
                   </td>
                   {/* PR-Money-Convention: trip lines are EXPENSES → red, negative-signed. */}
-                  <td className={`${td} text-right font-bold ${moneyColorClass(Number(it.amount || 0), 'expense')}`}>{formatMoney(Number(it.amount || 0), { kind: 'expense' })}</td>
+                  <td className={`${td} text-right font-mono font-bold ${moneyColorClass(Number(it.amount || 0), 'expense')}`}>{formatMoney(Number(it.amount || 0), { kind: 'expense' })}</td>
                   {/* Project: no linkage yet (the FK is a later migration PR) → honest "—". */}
-                  <td className={`${td} text-text-faint`}>{DASH}</td>
+                  <td className={`${td} text-white/40`}>{DASH}</td>
                   <td className={`${td} text-right`}>
                     {it.vendorOptionId ? (
                       <button
                         type="button"
                         onClick={() => handleUncommit(it)}
                         disabled={uncommittingId === it.id}
-                        className="rounded border border-border px-2 py-1 text-xs text-text-muted transition-colors hover:bg-bg-row hover:text-brand-red disabled:opacity-50"
+                        className="rounded border border-panel-border px-2 py-1 text-xs text-white/50 transition-colors hover:bg-panel-hover hover:text-brand-red disabled:opacity-50"
                       >
                         {uncommittingId === it.id ? 'Removing…' : 'Remove'}
                       </button>
@@ -343,7 +343,7 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
                         type="button"
                         onClick={() => handleDeleteLine(it)}
                         disabled={deletingId === it.id}
-                        className="rounded border border-border px-2 py-1 text-xs text-text-muted transition-colors hover:bg-bg-row hover:text-brand-red disabled:opacity-50"
+                        className="rounded border border-panel-border px-2 py-1 text-xs text-white/50 transition-colors hover:bg-panel-hover hover:text-brand-red disabled:opacity-50"
                       >
                         {deletingId === it.id ? 'Deleting…' : 'Delete'}
                       </button>
