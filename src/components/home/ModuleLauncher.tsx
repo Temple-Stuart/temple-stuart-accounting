@@ -593,7 +593,13 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           the mobile bottom bar (same TABS, same setActiveModule) so desktop also shows
           one module panel at a time. Sticky so it stays while a panel scrolls. The
           phone uses the bottom bar instead (md:hidden). */}
-      <nav className="sticky top-0 z-30 hidden border-b border-border bg-white md:block">
+      {/* FD-3 (installment 1): the desktop tab bar joins the dark shell —
+          bg-panel + panel-border hairline, mono uppercase labels. Active =
+          white text + brand-purple underline (the house active idiom: the
+          lobby's toggle chips read white-on-purple / bordered-ghost; a tab
+          bar's underline variant of that is white text + purple accent line).
+          Inactive = white/50 → white on hover. */}
+      <nav className="sticky top-0 z-30 hidden border-b border-panel-border bg-panel md:block">
         <div className="max-w-7xl mx-auto flex px-4 lg:px-8">
           {TABS.map((t) => (
             <button
@@ -601,7 +607,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
               type="button"
               onClick={() => selectTab(t.key)}
               aria-current={activeModule === t.key ? 'page' : undefined}
-              className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${activeModule === t.key ? 'border-brand-purple text-brand-purple' : 'border-transparent text-text-muted hover:text-text-primary'}`}
+              className={`flex items-center gap-2 border-b-2 px-4 py-3 font-mono text-xs uppercase tracking-wider transition-colors ${activeModule === t.key ? 'border-brand-purple text-white' : 'border-transparent text-white/50 hover:text-white'}`}
             >
               <t.icon className="h-4 w-4" aria-hidden="true" />
               {t.label}
@@ -1074,14 +1080,18 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           hidden scrollbar) so the 7 tabs stay clean and tappable on a narrow phone —
           each tab is a fixed min-w-[64px], never crushed. Desktop uses the top tab row
           instead (PR-Edge-B). Safe-area padding lifts it above the iOS home indicator. */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto border-t border-border bg-white pb-[env(safe-area-inset-bottom)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:hidden">
+      {/* FD-3 (installment 1): the mobile bottom bar joins the dark shell —
+          bg-panel + panel-border hairline; active = white, inactive = white/50
+          (brand-purple is too dark to read on the panel, so the active state
+          is carried by white contrast, mirroring the desktop bar). */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto border-t border-panel-border bg-panel pb-[env(safe-area-inset-bottom)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:hidden">
         {TABS.map((t) => (
           <button
             key={t.key}
             type="button"
             onClick={() => selectTab(t.key)}
             aria-current={activeModule === t.key ? 'page' : undefined}
-            className={`flex min-h-[44px] min-w-[64px] flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] font-medium transition-colors ${activeModule === t.key ? 'text-brand-purple' : 'text-text-muted'}`}
+            className={`flex min-h-[44px] min-w-[64px] flex-1 flex-col items-center justify-center gap-0.5 py-1.5 font-mono text-[10px] uppercase tracking-wider transition-colors ${activeModule === t.key ? 'text-white' : 'text-white/50'}`}
           >
             <t.icon className="h-5 w-5" aria-hidden="true" />
             {t.label}
