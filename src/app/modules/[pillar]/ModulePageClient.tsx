@@ -151,14 +151,18 @@ export default function ModulePageClient({ pillar, availability }: {
               )}
             </div>
           ) : pillar.id === 'travel' ? (
+            // DECKS-3 (ruling 3): paid framing — the ONE surviving free claim
+            // is the home-page search itself (its routes are public,
+            // middleware.ts:81-100; guest booking is real). Capability copy
+            // unchanged; only the free module framing died.
             <div className="flex flex-col gap-4 rounded-lg border border-panel-border bg-panel p-4 sm:flex-row sm:items-center">
               <div className="flex-1">
                 <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
-                  Free
+                  Paid module
                 </span>
                 <p className="mt-2 text-xs leading-relaxed text-white/60">
-                  Search works with no account — the live flight and hotel searches are public, and
-                  booking works as a guest.
+                  The full Travel module is paid. The live flight and hotel searches on the home
+                  page stay free — search works with no account, and booking works as a guest.
                 </p>
               </div>
               <Link
@@ -169,13 +173,19 @@ export default function ModulePageClient({ pillar, availability }: {
               </Link>
             </div>
           ) : (
+            // DECKS-3 (ruling 3): paid framing for the remaining former-free
+            // pillars. Honest about availability: none of these has a live
+            // subscription yet (runway/routines/content have no entitlement
+            // key; travel/operations keys await Stripe prices) — pricing
+            // appears when it goes on sale.
             <div className="flex flex-col gap-4 rounded-lg border border-panel-border bg-panel p-4 sm:flex-row sm:items-center">
               <div className="flex-1">
                 <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
-                  Free
+                  Paid module
                 </span>
                 <p className="mt-2 text-xs leading-relaxed text-white/60">
-                  Free with a free account — no module subscription applies to {pillar.label}.
+                  {pillar.label} is a paid module. Its subscription isn&apos;t on sale yet — pricing
+                  appears here when it is.
                 </p>
               </div>
               <Link

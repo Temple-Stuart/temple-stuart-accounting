@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { decode } from 'next-auth/jwt';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { TAB_PRICING } from '@/config/pricing-costs';
+import { TAB_ENTITLEMENT_KEYS, BUNDLE_ALL_KEY } from '@/lib/categoryKeys';
 import { getPriceIdFromEntitlementKey } from '@/lib/stripe';
 import HomeClient from '@/components/home/HomeClient';
 import GuestLanding from '@/components/landing/GuestLanding';
@@ -61,8 +61,12 @@ export default async function Page({ searchParams }: {
 
   if (await isVerifiedAuthed()) return <HomeClient />;
 
+  // DECKS-3: availability computes over the FULL purchasable tab vocabulary
+  // (categoryKeys.ts:22-29 + bundle:all) — tab:travel / tab:operations now
+  // back landing Select buttons, so a Stripe price Alex configures for them
+  // must surface without a code change. Same env-presence-only read.
   const entitlementAvailability = Object.fromEntries(
-    TAB_PRICING.map((t) => [t.key, getPriceIdFromEntitlementKey(t.key) !== null]),
+    [...TAB_ENTITLEMENT_KEYS, BUNDLE_ALL_KEY].map((k) => [k, getPriceIdFromEntitlementKey(k) !== null]),
   );
   return <GuestLanding entitlementAvailability={entitlementAvailability} />;
 }
