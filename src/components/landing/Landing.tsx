@@ -48,24 +48,26 @@ import dynamic from 'next/dynamic';
 import LandingHeader from './LandingHeader';
 import LandingFooter from './LandingFooter';
 // BOOK-1: the live booking section (the REAL PublicFlightSearch +
-// PublicHotelSearch), lazy-mounted below the hero (the FD-1 next/dynamic
-// precedent) so the guest first paint stays light — the search stack's chunk
-// loads after, and CountryCityPicker's mount fetch fires only then. This
-// REPLACES the LAND-SEARCH-1 teaser: the mounted components' own controls
-// ARE the landing's search controls (zero duplicated search UIs — the ruled
+// PublicHotelSearch), lazy-mounted (the FD-1 next/dynamic precedent) so the
+// guest first paint stays light — the search stack's chunk loads after, and
+// CountryCityPicker's mount fetch fires only then. This REPLACES the
+// LAND-SEARCH-1 teaser: the mounted components' own controls ARE the
+// landing's search controls (zero duplicated search UIs — the ruled
 // conversion shape), so the teaser and its ls* prefill handoff died.
+// TOGGLE-1 mounts it INSIDE the hero, where the teaser sat.
 // BOOK-3: the session-trip strip (guest-only by construction — Landing renders
 // only on the FD-2 verified-guest branch).
 import GuestTripStrip from './GuestTripStrip';
 
+// TOGGLE-1: the section is now ONE toggle strip mounted INSIDE the hero
+// (where the LAND-SEARCH-1 teaser sat, pre-BOOK-1 Landing.tsx:325-328), so
+// the loading fallback is the same strip shape in the same spot.
 const LandingBookingSection = dynamic(() => import('./LandingBookingSection'), {
   ssr: false,
   loading: () => (
-    <section className="w-full border-b border-panel-border bg-panel">
-      <p className="max-w-7xl mx-auto px-4 lg:px-8 py-10 text-sm text-white/50">
-        Loading live flight &amp; hotel search…
-      </p>
-    </section>
+    <div className="mt-8 rounded-lg border border-white/20 bg-white/5 p-4 text-sm text-white/50">
+      Loading live searches…
+    </div>
   ),
 });
 
@@ -342,11 +344,14 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
               </button>
             </div>
           </div>
+
+          {/* ── TOGGLE-1: the lobby books — the five-way toggle strip, mounted
+                where the teaser sat (directly under the CTA row; pre-BOOK-1
+                Landing.tsx:325-328). Full content width — the strip holds
+                whole booking surfaces + result rows, not just a form. ─────── */}
+          <LandingBookingSection onRequireAuth={onRequireAuth} />
         </div>
       </section>
-
-      {/* ── BOOK-1: the lobby books — the real search + booking stack, live ── */}
-      <LandingBookingSection onRequireAuth={onRequireAuth} />
 
       {/* ── BOOK-3: the guest's session trip — renders only when records
             exist (fail-honest empty state = nothing). ─────────────────────── */}

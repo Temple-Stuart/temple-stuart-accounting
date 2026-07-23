@@ -5,19 +5,22 @@
 // ruling). Guests type, search, see results, and complete flight + hotel
 // bookings here without entering the app:
 //   • flights book fully in-panel (FlightCheckoutPanel — Duffel Payments);
-//   • hotels ride the existing hosted-payment → /booking/confirm flow (the
-//     guest briefly visits the provider's card form + the confirm page —
-//     the proven flow, unchanged);
-//   • the hotel destination is chosen from the live country/city picker
-//     inside PublicHotelSearch (the no-free-text invariant stands);
-//   • BOOK-2: activities + ground transit (real Viator search; their Book
-//     buttons route to sign-up — no in-house booking exists, the FD-1o STOP
-//     finding, and their own explainers say so) and the visa check (official
+//   • hotels ride the existing hosted-payment → /booking/confirm flow;
+//   • BOOK-2: activities + ground transit (real Viator search; Book routes
+//     to sign-up — no in-house booking exists) and the visa check (official
 //     government link only — the never-affiliate rule, VisaResultView.tsx
-//     :10-12; capped ~5/day route-side) complete the five pillars. The
-//     Viator lanes search by their own city/country inputs — their native
-//     app behavior (the picker invariant is hotel-lane-only). All five ride
-//     this section's single lazy chunk (the BOOK-1 dynamic pattern).
+//     :10-12) complete the five pillars. All five ride this section's single
+//     lazy chunk (the BOOK-1 dynamic pattern).
+// TOGGLE-1: the five stacked sections become ONE strip with a five-way
+// toggle — the deleted teaser's form factor complete (container + toggle
+// classes recovered verbatim from LandingSearchTeaser.tsx@840a053b, exactly
+// as COMPACT-1 recovered its field vocabulary). One pillar's form is visible
+// at a time; the rest are CSS-hidden but stay MOUNTED (the ModuleLauncher
+// tab-panel precedent, ModuleLauncher.tsx:659 `'block' : 'hidden'`) so
+// in-flight searches, results, and open checkouts SURVIVE toggling. The
+// wrapper owns the ONLY toggle logic (one useState); the five components are
+// untouched. The strip mounts where the teaser mounted — inside the hero,
+// directly under the CTA row (Landing.tsx).
 // Guest posture is passed EXPLICITLY: this section renders only on the
 // verified-guest landing (FD-2 arrival branch), so authed={false} — save
 // flows nudge sign-up (onRequireAuth = GuestLanding's real LoginBox opener,
@@ -26,34 +29,71 @@
 // route carries its own per-IP rateLimit + reserveTravelSearch daily cap
 // server-side (e.g. flights/search/route.ts:26-49).
 
+import { useState } from 'react';
 import PublicFlightSearch from '@/components/trips/PublicFlightSearch';
 import PublicHotelSearch from '@/components/trips/PublicHotelSearch';
 import PublicActivitySearch from '@/components/trips/PublicActivitySearch';
 import PublicTransferSearch from '@/components/trips/PublicTransferSearch';
 import PublicVisaCheck from '@/components/trips/PublicVisaCheck';
 
+type LobbyMode = 'flights' | 'hotels' | 'transit' | 'activities' | 'visa';
+
+const MODES: { key: LobbyMode; label: string }[] = [
+  { key: 'flights', label: 'Flights' },
+  { key: 'hotels', label: 'Hotels' },
+  { key: 'transit', label: 'Getting around' },
+  { key: 'activities', label: 'Things to do' },
+  { key: 'visa', label: 'Visa' },
+];
+
 export default function LandingBookingSection({ onRequireAuth }: { onRequireAuth: () => void }) {
+  // TOGGLE-1: the wrapper's ONLY logic — which pillar's panel is visible.
+  const [mode, setMode] = useState<LobbyMode>('flights');
+
+  // The teaser's toggle idiom, verbatim (LandingSearchTeaser.tsx@840a053b).
+  const toggleClass = (active: boolean) =>
+    `px-3 py-1.5 font-mono text-xs font-medium ${
+      active ? 'bg-white text-brand-purple' : 'border border-white/30 text-white/70 hover:bg-white/10'
+    }`;
+
+  // CSS show/hide — never unmount (in-flight results survive the toggle).
+  const panelClass = (key: LobbyMode) => (mode === key ? 'block' : 'hidden');
+
   return (
-    // COMPACT-1: compressed section chrome — the five surfaces are now dense
-    // bordered strips (TravelSectionShell), so the section header + spacing
-    // tighten to match (py-8/space-y-4, text-lg headline; same ruled copy).
-    <section className="w-full border-b border-panel-border bg-panel">
-      <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8 space-y-4">
-        <div>
-          <p className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
-            Live searches · no account needed
-          </p>
-          <h2 className="text-lg font-light tracking-tight text-white">
-            Flights, hotels, activities, ground transit &amp; visa rules — search them all here.
-            Book flights &amp; hotels right now.
-          </h2>
-        </div>
+    // The teaser's container, verbatim minus its max-w-3xl (five full booking
+    // surfaces + result rows need the hero's content width).
+    <div className="mt-8 rounded-lg border border-white/20 bg-white/5 p-4">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {MODES.map((m) => (
+          <button
+            key={m.key}
+            type="button"
+            onClick={() => setMode(m.key)}
+            className={toggleClass(mode === m.key)}
+          >
+            {m.label}
+          </button>
+        ))}
+        <span className="ml-1 font-mono text-[10px] uppercase tracking-wider text-white/40">
+          Live searches · no account needed
+        </span>
+      </div>
+
+      <div className={panelClass('flights')}>
         <PublicFlightSearch onRequireAuth={onRequireAuth} authed={false} />
+      </div>
+      <div className={panelClass('hotels')}>
         <PublicHotelSearch onRequireAuth={onRequireAuth} authed={false} />
+      </div>
+      <div className={panelClass('transit')}>
         <PublicTransferSearch onRequireAuth={onRequireAuth} />
+      </div>
+      <div className={panelClass('activities')}>
         <PublicActivitySearch onRequireAuth={onRequireAuth} />
+      </div>
+      <div className={panelClass('visa')}>
         <PublicVisaCheck />
       </div>
-    </section>
+    </div>
   );
 }
