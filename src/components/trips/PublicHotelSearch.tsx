@@ -16,7 +16,7 @@
  * with no trip picked is told to pick or create one. No fake results.
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import HotelResultsView, { type HotelResult } from './HotelResultsView';
 import CheckoutPanel from './CheckoutPanel';
 import CountryCityPicker from './CountryCityPicker';
@@ -47,28 +47,6 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
   const [checkout, setCheckout] = useState(defaultDate(33));
   const [adults, setAdults] = useState(2);
 
-  // LAND-SEARCH-1: scroll target for the landing-teaser handoff.
-  const sectionRef = useRef<HTMLDivElement>(null);
-
-  // LAND-SEARCH-1: the landing teaser hands off DATES only
-  // (?ls=hotels&lsCheckin/lsCheckout — validated here). The destination stays
-  // with the LIST-CONFIRMED picker above (PR-loc-2's invariant; the picker
-  // has no prefill seam by design — the audit's honest boundary). PREFILL
-  // ONLY — the user picks a city and presses the real Search button. Absent
-  // or invalid params → byte-identical defaults.
-  useEffect(() => {
-    const p = new URLSearchParams(window.location.search);
-    if (p.get('ls') !== 'hotels') return;
-    const date = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '');
-    const ci = date(p.get('lsCheckin'));
-    const co = date(p.get('lsCheckout'));
-    if (ci) setCheckin(ci);
-    if (co) setCheckout(co);
-    // Deferred: ModuleLauncher's own mount effect flips the travel tab visible
-    // AFTER child effects run (parent effects fire last) — scroll once it has.
-    const t = setTimeout(() => sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
-    return () => clearTimeout(t);
-  }, []);
 
   const [results, setResults] = useState<HotelResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -191,7 +169,6 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
   };
 
   return (
-    <div ref={sectionRef}>
     <TravelSectionShell
       title="Search real hotels — free, no account needed."
       explainer="Type a destination and your dates to see live stays with photos and nightly prices. Book a room now, or save a stay to a trip to budget it (log in and pick a trip)."
@@ -295,6 +272,5 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
         />
       )}
     </TravelSectionShell>
-    </div>
   );
 }

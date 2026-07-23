@@ -44,11 +44,26 @@ function DimCell({ code, label }: { code: string; label: string }) {
     </div>
   );
 }
+import dynamic from 'next/dynamic';
 import LandingHeader from './LandingHeader';
 import LandingFooter from './LandingFooter';
-// LAND-SEARCH-1: the hero search teaser — builds a prefill handoff URL into
-// the live travel tools; zero fetches, zero search-stack imports.
-import LandingSearchTeaser from './LandingSearchTeaser';
+// BOOK-1: the live booking section (the REAL PublicFlightSearch +
+// PublicHotelSearch), lazy-mounted below the hero (the FD-1 next/dynamic
+// precedent) so the guest first paint stays light — the search stack's chunk
+// loads after, and CountryCityPicker's mount fetch fires only then. This
+// REPLACES the LAND-SEARCH-1 teaser: the mounted components' own controls
+// ARE the landing's search controls (zero duplicated search UIs — the ruled
+// conversion shape), so the teaser and its ls* prefill handoff died.
+const LandingBookingSection = dynamic(() => import('./LandingBookingSection'), {
+  ssr: false,
+  loading: () => (
+    <section className="w-full border-b border-panel-border bg-white">
+      <p className="max-w-7xl mx-auto px-4 lg:px-8 py-10 text-sm text-text-muted">
+        Loading live flight &amp; hotel search…
+      </p>
+    </section>
+  ),
+});
 
 interface PillarCard {
   id: string;
@@ -322,13 +337,12 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
                 Create free account
               </button>
             </div>
-            {/* LAND-SEARCH-1: the booking-style teaser, below the RULED CTAs
-                (both stay verbatim — redundancy with "Try it live" is flagged
-                in the report for Alex's visual gate, not resolved here). */}
-            <LandingSearchTeaser />
           </div>
         </div>
       </section>
+
+      {/* ── BOOK-1: the lobby books — the real search + booking stack, live ── */}
+      <LandingBookingSection onRequireAuth={onRequireAuth} />
 
       {/* ── The nine pillars — Explore lands on the shareable module page ──── */}
       <section className="w-full border-b border-panel-border bg-panel">

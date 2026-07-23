@@ -46,6 +46,10 @@ export interface FlightOffer {
     changeable: boolean;
   };
   isManual?: boolean;
+  /** BOOK-1: Duffel's offer TTL (parseOffer sends it; duffel.ts:478) — the
+   *  Book pre-check routes already-dead offers to re-search, never a doomed
+   *  checkout. Optional: absent on manual offers. */
+  expiresAt?: string | null;
 }
 
 export interface FlightLeg {
