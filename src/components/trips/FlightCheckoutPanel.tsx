@@ -20,6 +20,9 @@
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import TripFormModal from './TripFormModal';
+// BOOK-3: guest bookings append a session-only trip record (the landing's
+// "YOUR TRIP SO FAR" strip). Guests only — authed bookings live server-side.
+import { addGuestTripRecord } from '@/lib/guestTrip';
 
 // DuffelPayments renders Stripe Elements (browser-only) — load it client-side only.
 const DuffelPayments = dynamic(
@@ -263,6 +266,28 @@ export default function FlightCheckoutPanel({ tripId, authed, tripName, offer, p
         throw new Error(data.error || 'Booking failed.');
       }
       setBookingRef(data.order?.bookingReference ?? null);
+      // BOOK-3: guest success → the session trip record, from the booking
+      // RESPONSE only (route from order.slices[0] under strict shape checks —
+      // the book route's own extraction discipline; amount from the server's
+      // reservation.finalPriceCents, null when absent — never a guess).
+      if (authed !== true) {
+        const slice0 = Array.isArray(data.order?.slices) ? data.order.slices[0] : undefined;
+        const o = slice0?.origin?.iata_code;
+        const d = slice0?.destination?.iata_code;
+        const route =
+          typeof o === 'string' && /^[A-Z]{3}$/.test(o) && typeof d === 'string' && /^[A-Z]{3}$/.test(d)
+            ? `${o} → ${d}`
+            : 'Flight';
+        const cents = data.reservation?.finalPriceCents;
+        addGuestTripRecord({
+          type: 'flight',
+          name: route,
+          confirmationCode: typeof data.order?.bookingReference === 'string' ? data.order.bookingReference : null,
+          amountUsd: typeof cents === 'number' && Number.isFinite(cents) ? cents / 100 : null,
+          currency: typeof data.reservation?.currency === 'string' ? data.reservation.currency : offer.currency,
+          ts: Date.now(),
+        });
+      }
       setPhase('booked');
       onBooked?.(data.order?.bookingReference ?? '');
     } catch (e) {

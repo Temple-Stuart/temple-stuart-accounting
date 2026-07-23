@@ -15,6 +15,9 @@
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+// BOOK-3: guest bookings append a session-only trip record (the landing's
+// "YOUR TRIP SO FAR" strip). Guest branch only — account bookings carry tripId.
+import { addGuestTripRecord } from '@/lib/guestTrip';
 
 interface Confirmation {
   bookingId: string;
@@ -94,6 +97,23 @@ function BookingConfirm() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `Booking failed (HTTP ${res.status})`);
+      // BOOK-3: GUEST bookings (no tripId — the account branch carries one,
+      // header comment :11-12) append the session trip record before the user
+      // returns to '/'. Amount = the charged price this page displays; code
+      // from the booking response.
+      if (!tripId) {
+        addGuestTripRecord({
+          type: 'hotel',
+          name: hotelName,
+          confirmationCode:
+            typeof (data.reservation as Confirmation | undefined)?.confirmationCode === 'string'
+              ? (data.reservation as Confirmation).confirmationCode
+              : null,
+          amountUsd: Number.isFinite(price) && price > 0 ? price : null,
+          currency,
+          ts: Date.now(),
+        });
+      }
       setConfirmation(data.reservation as Confirmation);
       setPhase('done');
     } catch (err) {
