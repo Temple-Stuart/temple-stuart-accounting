@@ -82,7 +82,7 @@ function HotelCardImage({ photoUrl, name }: { photoUrl: string | null; name: str
   const showPhoto = !!photoUrl && !failed;
 
   return (
-    <div className="relative aspect-[4/3] w-full overflow-hidden bg-bg-row">
+    <div className="relative aspect-[4/3] w-full overflow-hidden bg-white/5">
       {showPhoto ? (
         <img
           src={photoUrl as string}
@@ -93,7 +93,7 @@ function HotelCardImage({ photoUrl, name }: { photoUrl: string | null; name: str
         />
       ) : (
         // Neutral placeholder — not a broken image icon.
-        <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-text-faint">
+        <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-white/40">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-2" />
@@ -114,10 +114,10 @@ function RatingPill({ hotel }: { hotel: HotelResult }) {
   const label = has10 ? hotel.reviewScore!.toFixed(1) : hotel.googleRating.toFixed(1);
   const scale = has10 ? '/10' : '/5';
   return (
-    <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-xs font-semibold text-text-primary shadow-sm backdrop-blur">
+    <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-xs font-semibold text-white shadow-sm backdrop-blur">
       <span className="text-brand-amber" aria-hidden="true">★</span>
       {label}
-      <span className="font-normal text-text-faint">{scale}</span>
+      <span className="font-normal text-white/40">{scale}</span>
     </span>
   );
 }
@@ -131,12 +131,12 @@ export default function HotelResultsView({ results, loading, error, onBook, onSa
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="overflow-hidden rounded-lg border border-border bg-white">
-            <div className="aspect-[4/3] w-full animate-pulse bg-bg-row" />
+          <div key={i} className="overflow-hidden rounded-lg border border-panel-border bg-panel-surface">
+            <div className="aspect-[4/3] w-full animate-pulse bg-white/10" />
             <div className="space-y-2 p-4">
-              <div className="h-4 w-3/4 animate-pulse rounded bg-bg-row" />
-              <div className="h-3 w-1/2 animate-pulse rounded bg-bg-row" />
-              <div className="h-8 w-full animate-pulse rounded bg-bg-row" />
+              <div className="h-4 w-3/4 animate-pulse rounded bg-white/10" />
+              <div className="h-3 w-1/2 animate-pulse rounded bg-white/10" />
+              <div className="h-8 w-full animate-pulse rounded bg-white/10" />
             </div>
           </div>
         ))}
@@ -146,7 +146,7 @@ export default function HotelResultsView({ results, loading, error, onBook, onSa
 
   if (error) {
     return (
-      <div className="rounded-lg border border-border bg-white p-6 text-sm text-brand-red">
+      <div className="rounded-lg border border-panel-border bg-panel-surface p-6 text-sm text-brand-red">
         {error}
       </div>
     );
@@ -154,9 +154,9 @@ export default function HotelResultsView({ results, loading, error, onBook, onSa
 
   if (results.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-border bg-white p-8 text-center">
-        <p className="text-sm font-medium text-text-primary">No hotels yet</p>
-        <p className="mt-1 text-sm text-text-muted">
+      <div className="rounded-lg border border-dashed border-panel-border bg-panel-surface p-8 text-center">
+        <p className="text-sm font-medium text-white">No hotels yet</p>
+        <p className="mt-1 text-sm text-white/50">
           Enter a city, country, and your dates to see real stays with photos and nightly prices.
         </p>
       </div>
@@ -185,7 +185,7 @@ export default function HotelResultsView({ results, loading, error, onBook, onSa
         totalCount={results.length}
       />
       {displayed.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-white p-6 text-center text-sm text-text-muted">
+        <div className="rounded-lg border border-dashed border-panel-border bg-panel-surface p-6 text-center text-sm text-white/50">
           No results match these filters.
         </div>
       ) : (
@@ -200,7 +200,7 @@ export default function HotelResultsView({ results, loading, error, onBook, onSa
         return (
           <article
             key={`${hotel.liteapiHotelId}-${idx}`}
-            className="group flex flex-col overflow-hidden rounded-lg border border-border bg-white shadow-sm transition-shadow hover:shadow-md"
+            className="group flex flex-col overflow-hidden rounded-lg border border-panel-border bg-panel-surface transition-colors hover:bg-panel-hover"
           >
             <div className="relative">
               <HotelCardImage photoUrl={hotel.photoUrl} name={hotel.name} />
@@ -208,11 +208,11 @@ export default function HotelResultsView({ results, loading, error, onBook, onSa
             </div>
 
             <div className="flex flex-1 flex-col p-4">
-              <h3 className="line-clamp-1 font-medium text-text-primary" title={hotel.name}>
+              <h3 className="line-clamp-1 font-medium text-white" title={hotel.name}>
                 {hotel.name}
               </h3>
               {place && (
-                <p className="mt-0.5 line-clamp-1 text-sm text-text-muted">{place}</p>
+                <p className="mt-0.5 line-clamp-1 text-sm text-white/50">{place}</p>
               )}
 
               {/* Price block — per-night prominent, total + nights as support. */}
@@ -222,17 +222,17 @@ export default function HotelResultsView({ results, loading, error, onBook, onSa
                     <span className="text-lg font-bold text-brand-green">
                       {money(perNight, hotel.currency)}
                     </span>
-                    <span className="text-xs text-text-muted">/ night</span>
+                    <span className="text-xs text-white/50">/ night</span>
                   </div>
                 ) : total != null ? (
                   <div className="text-lg font-bold text-brand-green">
                     {money(total, hotel.currency)}
                   </div>
                 ) : (
-                  <div className="text-sm text-text-faint">Price on request</div>
+                  <div className="text-sm text-white/40">Price on request</div>
                 )}
                 {total != null && (
-                  <div className="text-xs text-text-faint">
+                  <div className="text-xs text-white/40">
                     {money(total, hotel.currency)} total
                     {typeof nights === 'number' && nights > 0 ? ` · ${nights} night${nights === 1 ? '' : 's'}` : ''}
                   </div>
@@ -254,7 +254,7 @@ export default function HotelResultsView({ results, loading, error, onBook, onSa
                   type="button"
                   onClick={() => onSave(hotel)}
                   disabled={savingId === hotel.liteapiHotelId}
-                  className="mt-2 w-full rounded border border-brand-purple bg-white px-4 py-2 text-sm font-semibold text-brand-purple transition-colors hover:bg-brand-purple-wash disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+                  className="mt-2 w-full rounded border border-brand-purple bg-white px-4 py-2 text-sm font-semibold text-brand-purple transition-colors hover:bg-bg-row disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
                 >
                   {savingId === hotel.liteapiHotelId ? 'Saving…' : 'Save to trip'}
                 </button>

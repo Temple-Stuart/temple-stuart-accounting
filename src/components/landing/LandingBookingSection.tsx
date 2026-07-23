@@ -23,13 +23,13 @@ import PublicHotelSearch from '@/components/trips/PublicHotelSearch';
 
 export default function LandingBookingSection({ onRequireAuth }: { onRequireAuth: () => void }) {
   return (
-    <section className="w-full border-b border-panel-border bg-white">
+    <section className="w-full border-b border-panel-border bg-panel">
       <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10 space-y-6">
         <div>
-          <p className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-muted">
+          <p className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
             Book now — no account needed
           </p>
-          <h2 className="text-2xl font-light tracking-tight text-text-primary">
+          <h2 className="text-2xl font-light tracking-tight text-white">
             Search real flights &amp; hotels. Book right here.
           </h2>
         </div>

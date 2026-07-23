@@ -61,8 +61,8 @@ import GuestTripStrip from './GuestTripStrip';
 const LandingBookingSection = dynamic(() => import('./LandingBookingSection'), {
   ssr: false,
   loading: () => (
-    <section className="w-full border-b border-panel-border bg-white">
-      <p className="max-w-7xl mx-auto px-4 lg:px-8 py-10 text-sm text-text-muted">
+    <section className="w-full border-b border-panel-border bg-panel">
+      <p className="max-w-7xl mx-auto px-4 lg:px-8 py-10 text-sm text-white/50">
         Loading live flight &amp; hotel search…
       </p>
     </section>

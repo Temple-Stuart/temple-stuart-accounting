@@ -29,7 +29,7 @@ const DuffelPayments = dynamic(
   () => import('@duffel/components').then((m) => m.DuffelPayments),
   {
     ssr: false,
-    loading: () => <p className="text-sm text-text-muted">Loading secure payment…</p>,
+    loading: () => <p className="text-sm text-white/50">Loading secure payment…</p>,
   },
 );
 
@@ -95,8 +95,8 @@ function emptyPassenger(): Passenger {
 }
 
 const fieldClass =
-  'w-full rounded border border-brand-purple/40 bg-white px-3 py-2 text-sm focus:border-brand-purple focus:outline-none focus:ring-2 focus:ring-brand-purple/20';
-const labelClass = 'text-[11px] font-medium text-brand-purple';
+  'w-full rounded border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/40';
+const labelClass = 'font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50';
 
 export default function FlightCheckoutPanel({ tripId, authed, tripName, offer, passengerCount, onClose, onBooked, onOfferExpired }: Props) {
   const [phase, setPhase] = useState<'form' | 'payment' | 'booking' | 'booked'>('form');
@@ -308,19 +308,19 @@ export default function FlightCheckoutPanel({ tripId, authed, tripName, offer, p
     >
       {/* Test-mode note — makes it obvious no real charge happens. */}
       {phase !== 'booked' && (mode === null || isTest) && (
-        <p className="mb-3 rounded border border-brand-purple/30 bg-brand-purple-wash px-3 py-2 text-xs text-brand-purple">
+        <p className="mb-3 rounded border border-white/20 bg-white/10 px-3 py-2 text-xs text-white/70">
           Test mode — no real charge. Use a Duffel test card.
         </p>
       )}
 
       {paymentAttempted && chargedNoOrder && (
-        <p className="mb-3 rounded border border-brand-red/40 bg-bg-row px-3 py-2 text-sm text-brand-red">
+        <p className="mb-3 rounded border border-brand-red/40 bg-white/5 px-3 py-2 text-sm text-brand-red">
           Your card was charged but the booking did not finalize. Please contact support —
           we will refund or complete it. Do not pay again.
         </p>
       )}
       {error && !chargedNoOrder && (
-        <p className="mb-3 rounded border border-brand-red/40 bg-bg-row px-3 py-2 text-sm text-brand-red">
+        <p className="mb-3 rounded border border-brand-red/40 bg-white/5 px-3 py-2 text-sm text-brand-red">
           {error}
         </p>
       )}
@@ -335,16 +335,16 @@ export default function FlightCheckoutPanel({ tripId, authed, tripName, offer, p
             Attaching to: <span className="font-semibold">{tripName || 'your selected trip'}</span>
           </div>
         ) : authed === true && tripsFetch === 'loading' ? (
-          <p className="mb-3 text-xs text-text-muted">Checking your trips…</p>
+          <p className="mb-3 text-xs text-white/50">Checking your trips…</p>
         ) : authed === true && tripsFetch === 'error' ? (
-          <div className="mb-3 rounded border border-border bg-bg-row px-3 py-2 text-xs text-text-muted">
+          <div className="mb-3 rounded border border-panel-border bg-white/5 px-3 py-2 text-xs text-white/50">
             Couldn&apos;t load your trips — this booking won&apos;t attach to a trip.
           </div>
         ) : authed === true && tripsFetch === 'ok' && (myTrips?.length ?? 0) > 0 ? (
           chosenTripId === undefined ? (
             <div className="mb-3 rounded border border-brand-purple/40 p-3">
-              <p className="text-sm font-medium text-text-primary">Save this booking to a trip?</p>
-              <p className="mt-0.5 text-xs text-text-muted">
+              <p className="text-sm font-medium text-white">Save this booking to a trip?</p>
+              <p className="mt-0.5 text-xs text-white/50">
                 Pick a trip or book without one — payment opens after you choose.
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -361,7 +361,7 @@ export default function FlightCheckoutPanel({ tripId, authed, tripName, offer, p
                 <button
                   type="button"
                   onClick={() => setChosenTripId(null)}
-                  className="rounded border border-border px-3 py-1.5 text-sm text-text-muted hover:bg-bg-row"
+                  className="rounded border border-white/30 px-3 py-1.5 text-sm text-white/70 hover:bg-white/10"
                 >
                   Don&apos;t attach
                 </button>
@@ -372,7 +372,7 @@ export default function FlightCheckoutPanel({ tripId, authed, tripName, offer, p
               Attaching to: <span className="font-semibold">{myTrips!.find((t) => t.id === chosenTripId)?.name}</span>
             </div>
           ) : (
-            <div className="mb-3 rounded border border-border bg-bg-row px-3 py-2 text-sm text-text-muted">
+            <div className="mb-3 rounded border border-panel-border bg-white/5 px-3 py-2 text-sm text-white/50">
               Not attaching to a trip.
             </div>
           )
@@ -383,9 +383,9 @@ export default function FlightCheckoutPanel({ tripId, authed, tripName, offer, p
       {phase === 'form' && (
         <div className="space-y-5">
           {passengers.map((p, i) => (
-            <div key={i} className="space-y-2 rounded-lg border border-border p-3">
+            <div key={i} className="space-y-2 rounded-lg border border-panel-border p-3">
               {passengers.length > 1 && (
-                <p className="text-xs font-semibold text-text-secondary">Passenger {i + 1}</p>
+                <p className="text-xs font-semibold text-white/70">Passenger {i + 1}</p>
               )}
               <div className="flex gap-2">
                 <label className="flex w-24 flex-col gap-1">
@@ -429,7 +429,7 @@ export default function FlightCheckoutPanel({ tripId, authed, tripName, offer, p
                 </label>
               </div>
               <details className="text-xs">
-                <summary className="cursor-pointer text-text-muted">Passport — required for international flights</summary>
+                <summary className="cursor-pointer text-white/50">Passport — required for international flights</summary>
                 <div className="mt-2 flex gap-2">
                   <label className="flex flex-1 flex-col gap-1">
                     <span className={labelClass}>Passport no.</span>
@@ -483,7 +483,7 @@ export default function FlightCheckoutPanel({ tripId, authed, tripName, offer, p
 
       {/* ── PHASE: creating the order ──────────────────────────────────────────── */}
       {phase === 'booking' && (
-        <p className="py-6 text-center text-sm text-text-muted">Completing your booking…</p>
+        <p className="py-6 text-center text-sm text-white/50">Completing your booking…</p>
       )}
 
       {/* ── PHASE: booked ──────────────────────────────────────────────────────── */}
@@ -491,11 +491,11 @@ export default function FlightCheckoutPanel({ tripId, authed, tripName, offer, p
         <div className="space-y-3 py-2 text-center">
           <p className="text-sm font-semibold text-brand-green">Booked!</p>
           {bookingRef ? (
-            <p className="text-sm text-text-secondary">
-              Booking reference: <span className="font-mono font-semibold text-text-primary">{bookingRef}</span>
+            <p className="text-sm text-white/70">
+              Booking reference: <span className="font-mono font-semibold text-white">{bookingRef}</span>
             </p>
           ) : (
-            <p className="text-sm text-text-secondary">Your flight is confirmed.</p>
+            <p className="text-sm text-white/70">Your flight is confirmed.</p>
           )}
           <button
             type="button"
