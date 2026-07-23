@@ -47,6 +47,15 @@ import {
   type ScheduleAllocationRow,
 } from '@/config/transparencyLedger';
 import { TAB_DESCRIPTORS } from '@/lib/tabDescriptors';
+import { DEMO_VIDEO_URL } from '@/config/demoVideo';
+
+/** LOBBY-DECK-1b: a YouTube watch/short URL → its /embed/ form for the modal
+ *  iframe. Anything else (e.g. a plain file URL) returns null and plays via a
+ *  native <video> tag instead — both URL kinds Alex may set are covered. */
+function youTubeEmbedUrl(url: string): string | null {
+  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{6,})/);
+  return m ? `https://www.youtube.com/embed/${m[1]}` : null;
+}
 
 /** FD-1f v3: a stacked CODE + MEANING cell — the schedule teaches the taxonomy. */
 function DimCell({ code, label }: { code: string; label: string }) {
@@ -340,6 +349,10 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
     el.scrollBy({ left: dir * Math.round(el.clientWidth * 0.9), behavior: 'smooth' });
   };
 
+  // LOBBY-DECK-1b: the demo modal — only reachable when DEMO_VIDEO_URL is set
+  // (the hero button that opens it renders only then).
+  const [showDemo, setShowDemo] = useState(false);
+
   return (
     <div className="min-h-screen bg-panel text-white">
       <LandingHeader onRequireAuth={onRequireAuth} />
@@ -355,16 +368,29 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
             </h1>
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               {/* LOBBY-DECK-1: "Try it live" died — the booking strip sits right
-                  below anyway; the white CTA now walks the guest to the deck. */}
-              <button
-                type="button"
-                onClick={() =>
-                  document.getElementById('pillar-deck')?.scrollIntoView({ behavior: 'smooth' })
-                }
-                className="px-6 py-3 bg-white text-brand-purple font-medium hover:bg-bg-row text-sm text-center"
-              >
-                See how it works ↓
-              </button>
+                  below anyway. LOBBY-DECK-1b: the white CTA is honesty-gated on
+                  DEMO_VIDEO_URL — a demo that exists gets "Watch the demo 🎥"
+                  (opens the modal below); while the URL is null the button walks
+                  the guest to the deck instead. */}
+              {DEMO_VIDEO_URL !== null ? (
+                <button
+                  type="button"
+                  onClick={() => setShowDemo(true)}
+                  className="px-6 py-3 bg-white text-brand-purple font-medium hover:bg-bg-row text-sm text-center"
+                >
+                  Watch the demo 🎥
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() =>
+                    document.getElementById('pillar-deck')?.scrollIntoView({ behavior: 'smooth' })
+                  }
+                  className="px-6 py-3 bg-white text-brand-purple font-medium hover:bg-bg-row text-sm text-center"
+                >
+                  See how it works ↓
+                </button>
+              )}
               <button
                 type="button"
                 onClick={onRequireAuth}
@@ -586,6 +612,50 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
           </Link>
         </div>
       </section>
+
+      {/* ── LOBBY-DECK-1b: the demo modal — the house dialog idiom
+            (CheckoutPanel.tsx:300 backdrop). YouTube URLs embed via iframe;
+            any other URL plays through a native <video>. Backdrop click or
+            ✕ closes. Unreachable while DEMO_VIDEO_URL is null. ─────────────── */}
+      {showDemo && DEMO_VIDEO_URL !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setShowDemo(false)}
+        >
+          <div
+            className="w-full max-w-3xl rounded-lg border border-panel-border bg-panel p-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
+                The demo
+              </p>
+              <button
+                type="button"
+                aria-label="Close the demo"
+                onClick={() => setShowDemo(false)}
+                className="text-white/50 transition-colors hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+            {youTubeEmbedUrl(DEMO_VIDEO_URL) ? (
+              <iframe
+                src={youTubeEmbedUrl(DEMO_VIDEO_URL) as string}
+                title="Demo video"
+                allow="autoplay; encrypted-media; picture-in-picture"
+                allowFullScreen
+                className="aspect-video w-full rounded"
+              />
+            ) : (
+              // eslint-disable-next-line jsx-a11y/media-has-caption
+              <video src={DEMO_VIDEO_URL} controls autoPlay className="aspect-video w-full rounded" />
+            )}
+          </div>
+        </div>
+      )}
 
       <LandingFooter />
     </div>
