@@ -67,13 +67,11 @@ import SectionD_ProjectBacklog from '@/components/workbench/operations/SectionD_
 // this verbatim, wrapped in the same self-fetching OperationsEntityProvider; logged-out gets the
 // pointer-card to /modules/content (MOD-2).
 import ContentPipeline from '@/components/workbench/operations/content/ContentPipeline';
-// TAB-SHOW-AND-GATE / MOD-2: only the per-tab purchase CTA survives from
-// TabShowcases — the four deck wrappers are no longer imported (locked viewers
-// get pointer-card + LockedTabCard). NOTE: this import keeps TabShowcases (and
-// its slide-section modules) transitively in the app graph — extracting
-// LockedTabCard to a leaf is the MOD-3 follow-up if Alex wants the full shed
-// (it requires editing TabShowcases, ruled 0 lines this PR).
-import { LockedTabCard } from '@/components/home/TabShowcases';
+// TAB-SHOW-AND-GATE / MOD-3: the per-tab purchase CTA from its own leaf —
+// the last transitive deck thread (TabShowcases and its slide-section
+// modules) is out of the app graph; locked viewers get pointer-card +
+// LockedTabCard.
+import { LockedTabCard } from '@/components/home/LockedTabCard';
 import { isTabLocked } from '@/lib/categoryLock';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
 import { DEFAULT_FILTERS } from '@/lib/convergence/filter-types';
