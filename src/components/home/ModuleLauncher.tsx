@@ -51,34 +51,29 @@ import TaxHandoffGate from '@/components/home/TaxHandoffGate';
 // COMP-1: the Compliance A–J institutional workbench (Section A → sub-page link row →
 // Sections B…J), bare (no AppLayout — the homepage tab supplies the shell).
 import ComplianceWorkbench from '@/components/home/ComplianceWorkbench';
-// PROJECTS-CONTENT-SHOWCASE: the logged-out Projects/Content surfaces are the
-// Bloomberg slide decks (grounded in PROJECTS-CONTENT-FULL-INVENTORY) — they
-// SUPERSEDE OperationsPipelineShowroom here, its only consumer. The showroom
-// file and its seeds remain in-tree (the decks reuse the content seed).
-import ProjectsShowcase from '@/components/home/ProjectsShowcaseSections';
-import ContentShowcase from '@/components/home/ContentShowcaseSections';
-import RunwayShowcase from '@/components/home/RunwayShowcaseSections';
-import RoutinesShowcase from '@/components/home/RoutinesShowcaseSections';
-// TRAVEL-SHOWCASE-BLOOMBERG: the INVERTED deck — hero + slides render ABOVE the
-// existing live guest search stack (which stays mounted, untouched: the guest
-// surface is ToS-obligated + revenue-bearing per the deck's header guard).
-import TravelShowcase from '@/components/home/TravelShowcaseSections';
+// MOD-2: the decks exited the app — guest/locked tab bodies render the slim
+// pointer-card to /modules/<pillar> instead of mounting full decks; the nine
+// deck imports (five thesis decks + the four TabShowcases wrappers) are gone.
+import ModulePointerCard from '@/components/home/ModulePointerCard';
 // HB-4e-mount: the real routine builder (workbench CRUD) + its self-fetching entity provider.
-// Logged-out gets the RoutinesShowcase deck (ROUTINES-SHOWCASE-BLOOMBERG), which mounts the
-// fetch-free teaser builder inside its own live section.
+// Logged-out gets the pointer-card to /modules/routines (MOD-2).
 import { OperationsEntityProvider } from '@/components/workbench/operations/EntitySelector';
 import SectionE_Routines from '@/components/workbench/operations/SectionE_Routines';
 // Projects-mount: the real Projects CRUD (Bridgewater backlog). Authed users get this verbatim,
 // wrapped in the same self-fetching OperationsEntityProvider as SectionE_Routines; logged-out
-// gets the ProjectsShowcase deck (PROJECTS-CONTENT-SHOWCASE).
+// gets the pointer-card to /modules/projects (MOD-2).
 import SectionD_ProjectBacklog from '@/components/workbench/operations/SectionD_ProjectBacklog';
 // Content-mount: the real content pipeline (sources → scenify → grid → script). Authed users get
 // this verbatim, wrapped in the same self-fetching OperationsEntityProvider; logged-out gets the
-// ContentShowcase deck (PROJECTS-CONTENT-SHOWCASE).
+// pointer-card to /modules/content (MOD-2).
 import ContentPipeline from '@/components/workbench/operations/content/ContentPipeline';
-// TAB-SHOW-AND-GATE: the SHOW surfaces + locked CTAs for the four paid tabs, and the
-// client-side per-tab lock (bundle-aware twin of hasTabAccess; admin bypass inside).
-import { TradeShowcase, BooksShowcase, TaxShowcase, ComplianceShowcase } from '@/components/home/TabShowcases';
+// TAB-SHOW-AND-GATE / MOD-2: only the per-tab purchase CTA survives from
+// TabShowcases — the four deck wrappers are no longer imported (locked viewers
+// get pointer-card + LockedTabCard). NOTE: this import keeps TabShowcases (and
+// its slide-section modules) transitively in the app graph — extracting
+// LockedTabCard to a leaf is the MOD-3 follow-up if Alex wants the full shed
+// (it requires editing TabShowcases, ruled 0 lines this PR).
+import { LockedTabCard } from '@/components/home/TabShowcases';
 import { isTabLocked } from '@/lib/categoryLock';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
 import { DEFAULT_FILTERS } from '@/lib/convergence/filter-types';
@@ -518,7 +513,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       // OperationsEntityProvider (self-fetches /api/entities). Reused VERBATIM — no CRUD rewrite,
       // /operations/projects untouched. This kills the "logged-in kick to login/operations": authed
       // users now author projects inline instead of every click → onRequireAuth. Logged-out gets
-      // the fetch-free ProjectsShowcase deck (PROJECTS-CONTENT-SHOWCASE). Auth resolving → nothing.
+      // the pointer-card to /modules/projects (MOD-2). Auth resolving → nothing.
       // (Styling aligns to the homepage tab contract in PR-Projects-style — terminal for now.)
       if (authed === true) {
         return (
@@ -528,10 +523,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         );
       }
       if (authed === false) {
-        // PROJECTS-CONTENT-SHOWCASE: the Projects slide deck (dark hero → 7
-        // causal slides → the live Truth Machine mount → free-account CTA)
-        // supersedes the old OperationsPipelineShowroom here.
-        return <ProjectsShowcase onRequireAuth={onRequireAuth} />;
+        // MOD-2: the deck lives at /modules/projects — the tab points there.
+        return <ModulePointerCard pillarId="projects" />;
       }
       return null; // authed === null → resolving
     }
@@ -540,7 +533,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       // pipeline — the workbench ContentPipeline (sources → scenify → grid → script, self-fetching
       // the existing /api/operations/content/* routes) wrapped in OperationsEntityProvider. Reused
       // VERBATIM — no rewrite, /operations/content untouched. Logged-out gets the
-      // ContentShowcase deck (PROJECTS-CONTENT-SHOWCASE — supersedes the showroom here).
+      // pointer-card to /modules/content (MOD-2).
       // Auth resolving → nothing. (Styling aligns in PR-Content-style — terminal for now.)
       if (authed === true) {
         return (
@@ -550,10 +543,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         );
       }
       if (authed === false) {
-        // PROJECTS-CONTENT-SHOWCASE: the Content slide deck (dark hero → 5
-        // causal slides → the live Day/Script mounts → free-account CTA)
-        // supersedes the old OperationsPipelineShowroom here.
-        return <ContentShowcase onRequireAuth={onRequireAuth} />;
+        // MOD-2: the deck lives at /modules/content — the tab points there.
+        return <ModulePointerCard pillarId="content" />;
       }
       return null; // authed === null → resolving
     }
@@ -561,9 +552,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       // HB-4e-mount: authed users get the REAL routine builder — the workbench SectionE_Routines
       // (create form w/ HB-4b COA picker + budget input, self-fetching routine list, edit) wrapped
       // in its OperationsEntityProvider (which self-fetches /api/entities). Reused VERBATIM — no
-      // CRUD rewrite, /operations/routines untouched. Logged-out gets the RoutinesShowcase deck
-      // (which mounts the fetch-free teaser builder in its live section). Auth resolving →
-      // nothing. (Authed styling reads workbench/terminal for now, intentionally.)
+      // CRUD rewrite, /operations/routines untouched. Logged-out gets the pointer-card to
+      // /modules/routines (MOD-2). Auth resolving → nothing. (Authed styling reads workbench/terminal for now, intentionally.)
       if (authed === true) {
         return (
           <OperationsEntityProvider>
@@ -572,11 +562,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         );
       }
       if (authed === false) {
-        // ROUTINES-SHOWCASE-BLOOMBERG: the Routines slide deck (dark hero → 7
-        // causal slides → the REAL in-browser builder mounted live → free-account
-        // CTA) supersedes the bare teaser here; the deck mounts that same teaser
-        // inside its live section. Zero fetches by construction.
-        return <RoutinesShowcase onRequireAuth={onRequireAuth} />;
+        // MOD-2: the deck lives at /modules/routines — the tab points there.
+        return <ModulePointerCard pillarId="routines" />;
       }
       return null; // authed === null → resolving
     }
@@ -658,13 +645,9 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         <section className={`w-full bg-white border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto">
             <div className="px-4 py-4">
-              {/* RUNWAY-SHOWCASE-BLOOMBERG: the Runway thesis deck (dark hero → 8 causal
-                  slides → the REAL HubCalendar mounted live on a declared example day + three
-                  labeled static mirrors → free-account CTA) supersedes the old empty-grid +
-                  preview-shell pair here. Zero fetches by construction: the deck imports no
-                  data provider, and the live calendar rides HubCalendar's demoEvents
-                  truthy-guard (HubCalendar.tsx:173,180). Every action routes to sign-up. */}
-              <RunwayShowcase onRequireAuth={onRequireAuth} />
+              {/* MOD-2: the Runway deck lives at /modules/runway — the guest tab
+                  points there instead of mounting it. */}
+              <ModulePointerCard pillarId="runway" />
             </div>
           </div>
         </section>
@@ -678,14 +661,14 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       <section className={`w-full bg-white border-b border-border ${activeModule === 'travel' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
-            {/* TRAVEL-SHOWCASE-BLOOMBERG (logged-out only): the INVERTED deck — dark hero +
-                6 calibrated slides + the inverted connective line, rendered ABOVE the live
-                guest stack. Unlike every other tab's deck it REPLACES NOTHING: the real
-                searches below already work logged-out through PUBLIC_PATHS + the quota
-                guards, and per the deck's header guard (ToS-obligated + revenue-bearing)
-                they must never be walled behind login without a vendor-terms review. The
-                deck itself adds zero fetch paths. Auth resolving (null) → no deck. */}
-            {authed === false && <TravelShowcase onRequireAuth={onRequireAuth} />}
+            {/* MOD-2 (TRAVEL EXCEPTION): only the deck mount is replaced by the
+                pointer-card — the LIVE guest tools below (create-a-trip, the
+                search stacks) are NOT decks and stay exactly as-is: the real
+                searches work logged-out through PUBLIC_PATHS + the quota guards,
+                and per the standing ruling (ToS-obligated + revenue-bearing)
+                they must never be walled behind login without a vendor-terms
+                review. Auth resolving (null) → no card. */}
+            {authed === false && <ModulePointerCard pillarId="travel" />}
             {/* 1·Create-a-trip → 2·Your trips → 3·Budgeted+Actual (renderBody, order
                 unchanged). */}
             <div>
@@ -814,7 +797,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       </section>
       {/* HB-4e-style: Routines renders in its own FLUSH block (mirrors Calendar/Travel) — out of
           the MODULES.map purple-band card, so the real builder reads as the app, not a demo card.
-          renderBody handles the authed-builder / logged-out RoutinesShowcase-deck branch. */}
+          renderBody handles the authed-builder / logged-out pointer-card branch (MOD-2). */}
       <section className={`w-full bg-white border-b border-border ${activeModule === 'routines' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 lg:px-8 space-y-6">
@@ -849,7 +832,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           only; the terminal styling of ScanFilterForm/ConvergenceIntelligence/TradeLabPanel is
           UNCHANGED (that is TRADE-2). TAB-SHOW-AND-GATE: the gate is the tab:trade
           entitlement (isTabLocked — admin bypass inside); locked viewers get the
-          TradeShowcase (engine-computed example data) + the unlock CTA. Server-side the
+          pointer-card + unlock CTA (MOD-2). Server-side the
           scan API is tab:trade-gated too (TAB-SERVER-GATE flipped it off requireAdmin,
           api/trading/convergence/route.ts) — an entitled non-admin's scan runs, with the
           per-user run quota from SCAN-SPEND-QUOTA on top. */}
@@ -887,7 +870,19 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 <TradeLabPanel />
               </>
             ) : (
-              <TradeShowcase currentUserId={currentUserId} onRequireAuth={onRequireAuth} />
+              <>
+                {/* MOD-2: pointer-card to /modules/trade + the surviving purchase
+                    path. label/valueLine are VERBATIM lockstep copies of
+                    TabShowcases' TradeShowcase cta (extraction = MOD-3). */}
+                <ModulePointerCard pillarId="trade" />
+                <LockedTabCard
+                  tabKey="tab:trade"
+                  label="Trading"
+                  valueLine="Run live scans on real market data, with the reconcile queue and the self-graded record."
+                  currentUserId={currentUserId}
+                  onRequireAuth={onRequireAuth}
+                />
+              </>
             )}
           </div>
         </div>
@@ -896,7 +891,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           the MODULES.map purple-band card. Active-module check uses the TAB key 'books'
           (TABS :93; MODULE_TO_TAB bookkeeping→'books' :102; selectTab sets activeModule to the
           tab key). TAB-SHOW-AND-GATE: gate is the tab:books entitlement (isTabLocked —
-          admin bypass inside); locked viewers get the BooksShowcase + unlock CTA.
+          admin bypass inside); locked viewers get the pointer-card + unlock CTA (MOD-2).
           STRUCTURE + cockpit + drop-ins only; the parent-fed engines are BOOKS-2. */}
       <section className={`w-full bg-white border-b border-border ${activeModule === 'books' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
@@ -947,7 +942,19 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 <BooksPipeline />
               </>
             ) : (
-              <BooksShowcase currentUserId={currentUserId} onRequireAuth={onRequireAuth} />
+              <>
+                {/* MOD-2: pointer-card to /modules/books + the surviving purchase
+                    path. label/valueLine are VERBATIM lockstep copies of
+                    TabShowcases' BooksShowcase cta (extraction = MOD-3). */}
+                <ModulePointerCard pillarId="books" />
+                <LockedTabCard
+                  tabKey="tab:books"
+                  label="Bookkeeping"
+                  valueLine="Your real accounts, synced and closed month after month — GAAP double-entry, not a spreadsheet."
+                  currentUserId={currentUserId}
+                  onRequireAuth={onRequireAuth}
+                />
+              </>
             )}
           </div>
         </div>
@@ -957,14 +964,26 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           key both 'tax'; selectTab sets activeModule to the tab key). TAB-SHOW-AND-GATE:
           gate is the tab:tax entitlement (isTabLocked — admin bypass inside). Entitled →
           the closed-books handoff gate (wizard once a period is closed, else a "close your
-          books first" screen that jumps to the Books tab); locked → TaxShowcase + CTA. */}
+          books first" screen that jumps to the Books tab); locked → pointer-card + CTA (MOD-2). */}
       <section className={`w-full bg-white border-b border-border ${activeModule === 'tax' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
             {!taxLocked ? (
               <TaxHandoffGate onGoToBooks={() => selectTab('books')} />
             ) : (
-              <TaxShowcase currentUserId={currentUserId} onRequireAuth={onRequireAuth} />
+              <>
+                {/* MOD-2: pointer-card to /modules/tax + the surviving purchase
+                    path. label/valueLine are VERBATIM lockstep copies of
+                    TabShowcases' TaxShowcase cta (extraction = MOD-3). */}
+                <ModulePointerCard pillarId="tax" />
+                <LockedTabCard
+                  tabKey="tab:tax"
+                  label="Tax"
+                  valueLine="Your 1040 estimate and schedules, derived from your actual closed books — plus the CPA-ready export."
+                  currentUserId={currentUserId}
+                  onRequireAuth={onRequireAuth}
+                />
+              </>
             )}
           </div>
         </div>
@@ -975,14 +994,26 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           key). TAB-SHOW-AND-GATE: gate is the tab:compliance entitlement (isTabLocked —
           admin bypass inside). Entitled → the A–J workbench (Section A → sub-page link
           row → Sections B…J, bare — no AppLayout chrome inside the tab); locked →
-          ComplianceShowcase + unlock CTA. */}
+          pointer-card + unlock CTA (MOD-2). */}
       <section className={`w-full bg-white border-b border-border ${activeModule === 'compliance' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
             {!complianceLocked ? (
               <ComplianceWorkbench />
             ) : (
-              <ComplianceShowcase currentUserId={currentUserId} onRequireAuth={onRequireAuth} />
+              <>
+                {/* MOD-2: pointer-card to /modules/compliance + the surviving
+                    purchase path. label/valueLine are VERBATIM lockstep copies of
+                    TabShowcases' ComplianceShowcase cta (extraction = MOD-3). */}
+                <ModulePointerCard pillarId="compliance" />
+                <LockedTabCard
+                  tabKey="tab:compliance"
+                  label="Compliance"
+                  valueLine="The live workbench: corpus search, citation verification, missions, and the audit registry."
+                  currentUserId={currentUserId}
+                  onRequireAuth={onRequireAuth}
+                />
+              </>
             )}
           </div>
         </div>
