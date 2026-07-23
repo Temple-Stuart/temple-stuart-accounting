@@ -171,7 +171,7 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
   return (
     <TravelSectionShell
       title="Search real hotels — free, no account needed."
-      explainer="Type a destination and your dates to see live stays with photos and nightly prices. Book a room now, or save a stay to a trip to budget it (log in and pick a trip)."
+      explainer="Type a destination and your dates to see live stays with photos and nightly prices. Book a room now — signed in, you can attach the stay to a trip at checkout; create a free account to budget it."
     >
       <form onSubmit={search} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {/* PR-loc-2: linked country→city picker (real LiteAPI cities only)
@@ -221,12 +221,12 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
           a saved confirmation, or a save error. */}
       {saveNote && (
         <div
-          className={`rounded-lg border bg-white p-3 text-sm ${
+          className={`rounded-lg border bg-panel-surface p-3 text-sm ${
             saveNote.kind === 'ok'
               ? 'border-brand-green/40 text-brand-green'
               : saveNote.kind === 'err'
                 ? 'border-brand-red/40 text-brand-red'
-                : 'border-border text-text-secondary'
+                : 'border-panel-border text-white/70'
           }`}
         >
           {saveNote.text}
@@ -245,7 +245,7 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
         />
       )}
       {!searched && error && (
-        <div className="rounded-lg border border-border bg-white p-4 text-sm text-brand-red">{error}</div>
+        <div className="rounded-lg border border-panel-border bg-panel-surface p-4 text-sm text-brand-red">{error}</div>
       )}
 
       {/* PR-G3 + T2a: checkout opens directly on Book, guest-ok. For an AUTHED

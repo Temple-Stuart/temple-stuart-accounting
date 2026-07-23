@@ -247,7 +247,7 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
   return (
     <TravelSectionShell
       title="Search real flights — free, no account needed."
-      explainer="Type two airports and a date to see live fares — free, no account needed. To save a flight to a trip, log in and pick a trip above. Hotels, activities, and rides are coming next."
+      explainer="Type two airports and a date to see live fares — free, no account needed. Book right here, or create a free account to save flights to a trip. Hotels are live below; activities and rides are coming next."
     >
       <FlightPickerView
         legs={legs}

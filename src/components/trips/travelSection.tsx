@@ -8,9 +8,11 @@
  * module is the single source of truth for those three pieces so the sections can
  * stop duplicating them (consumption happens in PR-B; this PR only adds them).
  *
- * Everything here is byte-identical to what the sections already render — adopting
- * it must not change a single pixel. Tokens (brand-purple, border-border, etc.) are
- * the existing ones; nothing new is invented.
+ * BOOK-1b: the shell + shared input/button moved to the compact Bloomberg
+ * skin (the LandingSearchTeaser reference vocabulary — dark bg-white/10
+ * fields, white/brand-purple buttons, panel hairlines). The app's travel tab
+ * inherits this skin — ruled-desired as FD-3's first installment. Tokens
+ * only; nothing new is invented.
  */
 
 import type { ReactNode } from 'react';
@@ -20,12 +22,12 @@ import type { ReactNode } from 'react';
  *  there). One space between `text-text-primary` and `focus:outline-none`, matching
  *  the original two-string concatenation. */
 export const TRAVEL_INPUT_CLASS =
-  'bg-white border border-border rounded px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/40';
+  'bg-white/10 border border-white/20 rounded px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/40';
 
 /** The shared submit-button class — verbatim from PublicHotelSearch.tsx:215,
  *  PublicActivitySearch.tsx:108, and PublicVisaCheck.tsx:128 (identical in all three). */
 export const TRAVEL_BUTTON_CLASS =
-  'rounded bg-brand-purple px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-purple-hover disabled:opacity-50';
+  'rounded bg-white px-4 py-2 text-sm font-medium text-brand-purple transition-colors hover:bg-bg-row disabled:opacity-50';
 
 interface TravelSectionShellProps {
   /** Bold purple section header (the "PR-T-Headers" family). */
@@ -53,17 +55,17 @@ interface TravelSectionShellProps {
  */
 export default function TravelSectionShell({ title, explainer, badge, children }: TravelSectionShellProps) {
   return (
-    <div className="mt-10 pt-8 border-t border-border space-y-4">
+    <div className="mt-8 pt-6 border-t border-panel-border space-y-4">
       <div>
         {badge ? (
           <div className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-            <p className="text-lg font-bold text-brand-purple">{title}</p>
+            <p className="text-sm font-medium text-white">{title}</p>
             {badge}
           </div>
         ) : (
-          <p className="text-lg font-bold text-brand-purple mb-1">{title}</p>
+          <p className="text-sm font-medium text-white mb-1">{title}</p>
         )}
-        <p className="text-xs text-text-muted">{explainer}</p>
+        <p className="text-xs text-white/50">{explainer}</p>
       </div>
       {children}
     </div>

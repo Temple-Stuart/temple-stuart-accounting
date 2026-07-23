@@ -304,13 +304,13 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
         onLoad={() => setSdkReady(true)}
         onError={() => setError('Could not load the payment form. Please close and try again.')}
       />
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-sm">
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg border border-panel-border bg-panel p-5 shadow-2xl">
         <div className="mb-3 flex items-start justify-between">
           <div>
-            <h3 className="text-lg font-bold text-text-primary">Book {hotelName}</h3>
-            <p className="text-xs text-text-muted">{checkin} → {checkout}</p>
+            <h3 className="text-lg font-bold text-white">Book {hotelName}</h3>
+            <p className="text-xs text-white/50">{checkin} → {checkout}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="text-text-muted hover:text-text-primary">✕</button>
+          <button type="button" onClick={onClose} aria-label="Close" className="text-white/50 hover:text-white">✕</button>
         </div>
 
         {/* Env-honest banner — sandbox = test card, production = a real charge. */}
@@ -348,45 +348,45 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
             {content && (
               <div className="space-y-1">
                 {(content.starRating || content.rating != null) && (
-                  <div className="flex items-center gap-2 text-sm text-text-secondary">
+                  <div className="flex items-center gap-2 text-sm text-white/70">
                     {content.starRating ? <span className="text-brand-gold" aria-label={`${content.starRating} star`}>{'★'.repeat(Math.min(5, Math.round(content.starRating)))}</span> : null}
                     {content.rating != null && (
-                      <span><span className="font-semibold text-text-primary">{content.rating}</span>/10{content.reviewCount ? ` · ${content.reviewCount.toLocaleString()} reviews` : ''}</span>
+                      <span><span className="font-semibold text-white">{content.rating}</span>/10{content.reviewCount ? ` · ${content.reviewCount.toLocaleString()} reviews` : ''}</span>
                     )}
                   </div>
                 )}
                 {(content.address || content.city) && (
-                  <p className="text-xs text-text-muted">{[content.address, content.city].filter(Boolean).join(', ')}</p>
+                  <p className="text-xs text-white/50">{[content.address, content.city].filter(Boolean).join(', ')}</p>
                 )}
                 {facilityNames.length > 0 && (
-                  <p className="text-xs text-text-muted">{facilityNames.slice(0, 6).join(' · ')}{facilityNames.length > 6 ? ` · +${facilityNames.length - 6} more` : ''}</p>
+                  <p className="text-xs text-white/50">{facilityNames.slice(0, 6).join(' · ')}{facilityNames.length > 6 ? ` · +${facilityNames.length - 6} more` : ''}</p>
                 )}
-                {description && <p className="line-clamp-4 text-sm text-text-secondary">{description}</p>}
+                {description && <p className="line-clamp-4 text-sm text-white/70">{description}</p>}
               </div>
             )}
-            {contentLoading && !content && <p className="text-xs text-text-muted">Loading hotel details…</p>}
-            {contentError && <p className="text-xs text-text-faint">Couldn&apos;t load hotel details.</p>}
+            {contentLoading && !content && <p className="text-xs text-white/50">Loading hotel details…</p>}
+            {contentError && <p className="text-xs text-white/40">Couldn&apos;t load hotel details.</p>}
 
             {/* 3. CANCELLATION (FREE from prebook) + T&C. Non-refundable is loud. */}
             {cancellation && (
-              <div className="rounded border border-border p-3 text-sm">
+              <div className="rounded border border-panel-border p-3 text-sm">
                 {isNonRefundable ? (
                   <p className="font-semibold text-brand-red">Non-refundable — this booking can&apos;t be cancelled or refunded.</p>
                 ) : (
                   <p className="font-semibold text-brand-green">Refundable</p>
                 )}
                 {!isNonRefundable && cancelConditionCount > 0 && (
-                  <p className="mt-1 text-xs text-text-muted">Cancellation deadlines apply — see the hotel terms below.</p>
+                  <p className="mt-1 text-xs text-white/50">Cancellation deadlines apply — see the hotel terms below.</p>
                 )}
                 {hotelRemarks.length > 0 && (
-                  <ul className="mt-1 space-y-0.5 text-xs text-text-muted">
+                  <ul className="mt-1 space-y-0.5 text-xs text-white/50">
                     {hotelRemarks.slice(0, 4).map((r, i) => <li key={i}>{stripHtml(r)}</li>)}
                   </ul>
                 )}
               </div>
             )}
             {importantInfo && (
-              <div className="text-xs text-text-muted">
+              <div className="text-xs text-white/50">
                 <button type="button" onClick={() => setShowTerms((v) => !v)} className="font-medium text-brand-purple underline">
                   {showTerms ? 'Hide' : 'Show'} hotel terms &amp; important info
                 </button>
@@ -396,20 +396,20 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
 
             {/* 4. REVIEWS — render only non-empty headline/pros/cons; honest empty. */}
             <div className="space-y-2">
-              <p className="text-sm font-medium text-text-primary">Guest reviews</p>
-              {reviewsLoading && !reviews && <p className="text-xs text-text-muted">Loading reviews…</p>}
-              {reviewsError && <p className="text-xs text-text-faint">Couldn&apos;t load reviews.</p>}
-              {reviews && reviews.length === 0 && <p className="text-xs text-text-muted">No reviews yet.</p>}
+              <p className="text-sm font-medium text-white">Guest reviews</p>
+              {reviewsLoading && !reviews && <p className="text-xs text-white/50">Loading reviews…</p>}
+              {reviewsError && <p className="text-xs text-white/40">Couldn&apos;t load reviews.</p>}
+              {reviews && reviews.length === 0 && <p className="text-xs text-white/50">No reviews yet.</p>}
               {reviews && reviews.slice(0, 5).map((r, i) => (
-                <div key={i} className="rounded border border-border bg-bg-row p-2 text-xs">
+                <div key={i} className="rounded border border-panel-border bg-white/5 p-2 text-xs">
                   <div className="flex items-center justify-between">
-                    <span className="font-medium text-text-primary">{r.name?.trim() || 'Guest'}{r.country ? ` · ${r.country.toUpperCase()}` : ''}</span>
+                    <span className="font-medium text-white">{r.name?.trim() || 'Guest'}{r.country ? ` · ${r.country.toUpperCase()}` : ''}</span>
                     {r.averageScore != null && <span className="font-semibold text-brand-green">{r.averageScore}/10</span>}
                   </div>
-                  {r.headline?.trim() && <p className="mt-0.5 font-medium text-text-secondary">{r.headline.trim()}</p>}
-                  {r.pros?.trim() && <p className="mt-0.5 text-text-muted">+ {r.pros.trim()}</p>}
-                  {r.cons?.trim() && <p className="text-text-muted">− {r.cons.trim()}</p>}
-                  {r.date?.trim() && <p className="mt-0.5 text-text-faint">{r.date.slice(0, 10)}</p>}
+                  {r.headline?.trim() && <p className="mt-0.5 font-medium text-white/70">{r.headline.trim()}</p>}
+                  {r.pros?.trim() && <p className="mt-0.5 text-white/50">+ {r.pros.trim()}</p>}
+                  {r.cons?.trim() && <p className="text-white/50">− {r.cons.trim()}</p>}
+                  {r.date?.trim() && <p className="mt-0.5 text-white/40">{r.date.slice(0, 10)}</p>}
                 </div>
               ))}
             </div>
@@ -417,7 +417,7 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
         )}
 
         {phase === 'prebooking' && !error && (
-          <p className="py-6 text-center text-sm text-text-muted">Holding this rate…</p>
+          <p className="py-6 text-center text-sm text-white/50">Holding this rate…</p>
         )}
 
         {phase === 'pay' && prebook && (
@@ -432,16 +432,16 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
                 Attaching to: <span className="font-semibold">{tripName || 'your selected trip'}</span>
               </div>
             ) : authed === true && tripsFetch === 'loading' ? (
-              <p className="text-xs text-text-muted">Checking your trips…</p>
+              <p className="text-xs text-white/50">Checking your trips…</p>
             ) : authed === true && tripsFetch === 'error' ? (
-              <div className="rounded border border-border bg-bg-row px-3 py-2 text-xs text-text-muted">
+              <div className="rounded border border-panel-border bg-white/5 px-3 py-2 text-xs text-white/50">
                 Couldn&apos;t load your trips — this booking won&apos;t attach to a trip.
               </div>
             ) : authed === true && tripsFetch === 'ok' && (myTrips?.length ?? 0) > 0 ? (
               chosenTripId === undefined ? (
                 <div className="rounded border border-brand-purple/40 p-3">
-                  <p className="text-sm font-medium text-text-primary">Save this booking to a trip?</p>
-                  <p className="mt-0.5 text-xs text-text-muted">
+                  <p className="text-sm font-medium text-white">Save this booking to a trip?</p>
+                  <p className="mt-0.5 text-xs text-white/50">
                     Pick a trip or book without one — payment opens after you choose.
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -458,7 +458,7 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
                     <button
                       type="button"
                       onClick={() => setChosenTripId(null)}
-                      className="rounded border border-border px-3 py-1.5 text-sm text-text-muted hover:bg-bg-row"
+                      className="rounded border border-white/30 px-3 py-1.5 text-sm text-white/70 hover:bg-white/10"
                     >
                       Don&apos;t attach
                     </button>
@@ -469,33 +469,33 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
                   Attaching to: <span className="font-semibold">{myTrips!.find((t) => t.id === chosenTripId)?.name}</span>
                 </div>
               ) : (
-                <div className="rounded border border-border bg-bg-row px-3 py-2 text-sm text-text-muted">
+                <div className="rounded border border-panel-border bg-white/5 px-3 py-2 text-sm text-white/50">
                   Not attaching to a trip.
                 </div>
               )
             ) : null}
 
-            <div className="rounded border border-border bg-bg-row p-3 text-sm">
+            <div className="rounded border border-panel-border bg-white/5 p-3 text-sm">
               <div className="flex items-baseline justify-between">
-                <span className="text-text-muted">Total</span>
+                <span className="text-white/50">Total</span>
                 <span className="text-lg font-bold text-brand-green">{money(prebook.price, prebook.currency)}</span>
               </div>
               {prebook.commission > 0 && (
-                <div className="mt-1 flex items-baseline justify-between text-xs text-text-faint">
+                <div className="mt-1 flex items-baseline justify-between text-xs text-white/40">
                   <span>Service margin (included)</span>
                   <span>{money(prebook.commission, prebook.currency)}</span>
                 </div>
               )}
             </div>
 
-            <p className="text-sm text-text-muted">
+            <p className="text-sm text-white/50">
               Enter your card to pay. You&apos;ll add the guest&apos;s name on the next step, then we book the room.
             </p>
 
             {/* LiteAPI's hosted SDK fills this with the card form (client-side only —
                 card details never reach our servers). */}
             <div id={PAYMENT_TARGET_ID} className="min-h-[40px] rounded border border-border p-2">
-              {!sdkReady && <p className="text-center text-sm text-text-muted">Loading the secure payment form…</p>}
+              {!sdkReady && <p className="text-center text-sm text-white/50">Loading the secure payment form…</p>}
             </div>
           </div>
         )}
