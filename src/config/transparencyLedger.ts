@@ -29,7 +29,10 @@
 //     share of its bill: 100 (dedicated) or the equal-split percentage with
 //     the ᵉ footnote (the allocatedShare methodology, /how-pricing-works
 //     :53-56) — platform bills explode to one row per module at 11.1ᵉ (the
-//     former '÷ all' cell) — no other figures exist to show.
+//     former '÷ all' cell) — no other figures exist to show;
+//   • D-SPLITS: splits are the declared even-split methodology EXCEPT rows
+//     whose bill carries an ALEX-RULED comment — those targets are the
+//     owner's explicit allocation ruling, recorded at the bill.
 //
 // ROW-SELECTION RULE (FD-1e, unchanged): FIXED + PER_USE + UNKNOWN entries
 // render; COMMISSION entries are excluded ("not a bill we pay",
@@ -191,11 +194,14 @@ export const SCHEDULE_BILLS: ScheduleBill[] = [
 
   // ── B-5100-40 · Banking & financial data ──────────────────────────────────
   // Plaid — pricing-costs.ts:122-130 (PER_USE per-item, null, ['bookkeeping','trading'])
+  // ALEX-RULED (D-SPLITS-1): 100% to Books. Plaid feeds the ledger —
+  // bank/card sync + investment cost basis are Books functions; Trade
+  // consumes Books' output, not Plaid directly.
   {
     entity: 'B', account: '5100', sub: '40', object: 'API', vendor: 'PLD',
     description: 'Bank/card transaction sync · investment holdings for cost basis',
     basis: 'PER-USE', cadence: 'per item',
-    allocatedTo: [{ type: 'module', name: 'Books' }, { type: 'module', name: 'Trade' }],
+    allocatedTo: [{ type: 'module', name: 'Books' }],
     amountUsd: null, footnotes: ['ᵃ'],
   },
 
