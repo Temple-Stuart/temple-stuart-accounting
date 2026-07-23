@@ -15,7 +15,7 @@
  * hotel/ground/activity cards — flights is the one live public tool here.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import FlightPickerView, { type FlightLeg, type FlightOffer } from './FlightPickerView';
 import FlightCheckoutPanel from './FlightCheckoutPanel';
 import TravelSectionShell from './travelSection';
@@ -74,39 +74,28 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
 
   const bookLeg = (legId: string) => {
     const leg = legs.find((l) => l.id === legId);
-    if (leg?.selectedOffer) setBooking({ legId, offer: leg.selectedOffer });
+    if (!leg?.selectedOffer) return;
+    // BOOK-1 mitigation (offer-expiry diagnosis): Duffel offers carry short
+    // TTLs (the sub-60s expiry investigation, flights/search/route.ts:66-75).
+    // If the selected offer is ALREADY dead, opening the checkout is certain
+    // failure — route straight to the existing recovery (drop the selection,
+    // re-run the leg's ORIGINAL search) instead. Mid-form expiry still lands
+    // on the panel's honest 410 refresh path; fixing THAT means changing the
+    // money-flow design (a ruled STOP — reported, not built).
+    const exp = leg.selectedOffer.expiresAt;
+    if (exp && new Date(exp).getTime() <= Date.now()) {
+      updateLeg(legId, { selectedOffer: null });
+      void searchLeg(legId);
+      return;
+    }
+    setBooking({ legId, offer: leg.selectedOffer });
   };
 
-  // LAND-SEARCH-1: scroll target for the landing-teaser handoff.
-  const sectionRef = useRef<HTMLDivElement>(null);
-
   // One empty leg on mount. No authed itinerary load (guest has no trip).
-  // LAND-SEARCH-1: if the landing teaser handed off flight params
-  // (?ls=flights&lsFrom/lsTo/lsDepart/lsReturn — validated here), the first
-  // leg is seeded with them via makeLeg's existing overrides seam and the
-  // section scrolls into view once. PREFILL ONLY — the user presses the real
-  // Search button (no auto-fire; guest API caps stay unburned). Absent or
-  // invalid params → the empty default leg, byte-identical behavior.
+  // (BOOK-1: the LAND-SEARCH-1 ls* prefill handoff died with the teaser —
+  // the real search now lives ON the landing, so there is nothing to hand off.)
   useEffect(() => {
-    if (legs.length !== 0) return;
-    const p = new URLSearchParams(window.location.search);
-    if (p.get('ls') !== 'flights') { setLegs([makeLeg()]); return; }
-    const iata = (v: string | null) => (v && /^[A-Za-z]{3}$/.test(v) ? v.toUpperCase() : '');
-    const date = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '');
-    const origin = iata(p.get('lsFrom'));
-    const destination = iata(p.get('lsTo'));
-    const departureDate = date(p.get('lsDepart'));
-    const returnDate = date(p.get('lsReturn'));
-    setLegs([makeLeg({
-      ...(origin ? { origin } : {}),
-      ...(destination ? { destination } : {}),
-      ...(departureDate ? { departureDate } : {}),
-      ...(returnDate ? { returnDate } : { returnDate: '', tripType: 'oneway' }),
-    })]);
-    // Deferred: ModuleLauncher's own mount effect flips the travel tab visible
-    // AFTER child effects run (parent effects fire last) — scroll once it has.
-    const t = setTimeout(() => sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
-    return () => clearTimeout(t);
+    if (legs.length === 0) setLegs([makeLeg()]);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateLeg = (legId: string, updates: Partial<FlightLeg>) => {
@@ -256,7 +245,6 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
   };
 
   return (
-    <div ref={sectionRef}>
     <TravelSectionShell
       title="Search real flights — free, no account needed."
       explainer="Type two airports and a date to see live fares — free, no account needed. To save a flight to a trip, log in and pick a trip above. Hotels, activities, and rides are coming next."
@@ -314,6 +302,5 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
         />
       )}
     </TravelSectionShell>
-    </div>
   );
 }
