@@ -54,6 +54,10 @@ import LandingFooter from './LandingFooter';
 // REPLACES the LAND-SEARCH-1 teaser: the mounted components' own controls
 // ARE the landing's search controls (zero duplicated search UIs — the ruled
 // conversion shape), so the teaser and its ls* prefill handoff died.
+// BOOK-3: the session-trip strip (guest-only by construction — Landing renders
+// only on the FD-2 verified-guest branch).
+import GuestTripStrip from './GuestTripStrip';
+
 const LandingBookingSection = dynamic(() => import('./LandingBookingSection'), {
   ssr: false,
   loading: () => (
@@ -343,6 +347,10 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
 
       {/* ── BOOK-1: the lobby books — the real search + booking stack, live ── */}
       <LandingBookingSection onRequireAuth={onRequireAuth} />
+
+      {/* ── BOOK-3: the guest's session trip — renders only when records
+            exist (fail-honest empty state = nothing). ─────────────────────── */}
+      <GuestTripStrip onRequireAuth={onRequireAuth} />
 
       {/* ── The nine pillars — Explore lands on the shareable module page ──── */}
       <section className="w-full border-b border-panel-border bg-panel">
