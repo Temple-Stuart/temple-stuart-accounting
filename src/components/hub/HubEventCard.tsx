@@ -36,7 +36,12 @@ interface Props {
   onClose: () => void;
   /** Fired after a successful reschedule/reconcile so the parent refetches. */
   onUpdated: () => void;
+  /** CAL-DS-THEME: light default (byte-identical); HubCalendar passes 'dark'. */
+  surface?: Surface;
 }
+
+// CAL-DS-THEME
+import { themed, type Surface } from '@/lib/ds';
 
 const BLOCK_STATUSES = ['scheduled', 'in_progress', 'completed', 'missed', 'cancelled'] as const;
 
@@ -92,15 +97,19 @@ function formatCostUsd(s: string | null): string | null {
   return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-const pillClass =
+const pillClassBase =
   'inline-block px-2 py-0.5 border border-border rounded text-xs font-mono text-text-muted';
 
-const labelClass = 'text-text-faint uppercase tracking-wide text-xs font-mono';
+const labelClassBase = 'text-text-faint uppercase tracking-wide text-xs font-mono';
 
-const fieldClass =
+const fieldClassBase =
   'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
 
-export default function HubEventCard({ item, block, onClose, onUpdated }: Props) {
+export default function HubEventCard({ item, block, onClose, onUpdated, surface = 'light' }: Props) {
+  const dk = surface === 'dark';
+  const pillClass = themed(pillClassBase, dk);
+  const labelClass = themed(labelClassBase, dk);
+  const fieldClass = themed(fieldClassBase, dk);
   const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -246,7 +255,7 @@ export default function HubEventCard({ item, block, onClose, onUpdated }: Props)
       {/* Panel */}
       <div
         ref={panelRef}
-        className="relative w-full max-w-lg bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-200"
+        className={themed('relative w-full max-w-lg bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-200', dk)}
         style={{ animation: 'slideInRight 0.2s ease-out' }}
       >
         {/* Header */}
@@ -274,14 +283,14 @@ export default function HubEventCard({ item, block, onClose, onUpdated }: Props)
           {/* Time + status */}
           <div className="space-y-1">
             <div className={labelClass}>scheduled</div>
-            <div className="font-mono text-text-primary">
+            <div className={themed('font-mono text-text-primary', dk)}>
               {formatTime12h(block.scheduled_start)} – {formatTime12h(block.scheduled_end)}
             </div>
             <div>
               <span className={pillClass}>{block.status}</span>
             </div>
             {hasActualTimes && (
-              <div className="text-xs font-mono text-text-muted">
+              <div className={themed('text-xs font-mono text-text-muted', dk)}>
                 actually: {formatTime12h(block.actual_start as string)} – {formatTime12h(block.actual_end as string)}
               </div>
             )}
@@ -289,9 +298,9 @@ export default function HubEventCard({ item, block, onClose, onUpdated }: Props)
 
           {/* Task (when not ad-hoc) */}
           {item.task && (
-            <div className="space-y-1 pt-3 border-t border-border-light">
+            <div className={themed('space-y-1 pt-3 border-t border-border-light', dk)}>
               <div className={labelClass}>task</div>
-              <div className="text-text-primary">{item.task.title}</div>
+              <div className={themed('text-text-primary', dk)}>{item.task.title}</div>
               <div>
                 <span className={pillClass}>{item.task.status}</span>
               </div>
@@ -300,33 +309,33 @@ export default function HubEventCard({ item, block, onClose, onUpdated }: Props)
 
           {/* Ad-hoc description (when ad-hoc) */}
           {!item.task && item.ad_hoc_description && (
-            <div className="space-y-1 pt-3 border-t border-border-light">
+            <div className={themed('space-y-1 pt-3 border-t border-border-light', dk)}>
               <div className={labelClass}>description</div>
-              <div className="text-text-primary whitespace-pre-wrap">{item.ad_hoc_description}</div>
+              <div className={themed('text-text-primary whitespace-pre-wrap', dk)}>{item.ad_hoc_description}</div>
             </div>
           )}
 
           {/* Category */}
           {item.task?.coa_code && (
-            <div className="space-y-1 pt-3 border-t border-border-light">
+            <div className={themed('space-y-1 pt-3 border-t border-border-light', dk)}>
               <div className={labelClass}>category</div>
-              <div className="font-mono text-text-primary">{item.task.coa_code}</div>
+              <div className={themed('font-mono text-text-primary', dk)}>{item.task.coa_code}</div>
             </div>
           )}
 
           {/* Cost — render only sides that are populated */}
           {(planned || actual) && (
-            <div className="space-y-1 pt-3 border-t border-border-light">
+            <div className={themed('space-y-1 pt-3 border-t border-border-light', dk)}>
               <div className={labelClass}>cost</div>
-              <div className="font-mono text-text-primary space-y-0.5">
+              <div className={themed('font-mono text-text-primary space-y-0.5', dk)}>
                 {planned && (
                   <div>
-                    <span className="text-text-muted">Planned:</span> {planned}
+                    <span className={themed('text-text-muted', dk)}>Planned:</span> {planned}
                   </div>
                 )}
                 {actual && (
                   <div>
-                    <span className="text-text-muted">Actual:</span> {actual}
+                    <span className={themed('text-text-muted', dk)}>Actual:</span> {actual}
                   </div>
                 )}
               </div>
@@ -335,18 +344,18 @@ export default function HubEventCard({ item, block, onClose, onUpdated }: Props)
 
           {/* Notes — show both block + item when present, labeled by scope */}
           {hasAnyNote && (
-            <div className="space-y-2 pt-3 border-t border-border-light">
+            <div className={themed('space-y-2 pt-3 border-t border-border-light', dk)}>
               <div className={labelClass}>notes</div>
               {block.notes && (
                 <div>
-                  <div className="text-xs font-mono text-text-muted">Block note:</div>
-                  <div className="text-text-primary whitespace-pre-wrap">{block.notes}</div>
+                  <div className={themed('text-xs font-mono text-text-muted', dk)}>Block note:</div>
+                  <div className={themed('text-text-primary whitespace-pre-wrap', dk)}>{block.notes}</div>
                 </div>
               )}
               {item.notes && (
                 <div>
-                  <div className="text-xs font-mono text-text-muted">Task note:</div>
-                  <div className="text-text-primary whitespace-pre-wrap">{item.notes}</div>
+                  <div className={themed('text-xs font-mono text-text-muted', dk)}>Task note:</div>
+                  <div className={themed('text-text-primary whitespace-pre-wrap', dk)}>{item.notes}</div>
                 </div>
               )}
             </div>
@@ -355,7 +364,7 @@ export default function HubEventCard({ item, block, onClose, onUpdated }: Props)
 
         {/* Action panels (reschedule / reconcile) */}
         {mode && (
-          <div className="border-t border-border px-5 py-4 space-y-3 bg-purple-50/20 text-xs font-mono">
+          <div className={themed('border-t border-border px-5 py-4 space-y-3 bg-purple-50/20 text-xs font-mono', dk)}>
             {actionError && (
               <div className="px-2 py-1 rounded border bg-red-50 border-red-200 text-red-800">{actionError}</div>
             )}
@@ -383,7 +392,7 @@ export default function HubEventCard({ item, block, onClose, onUpdated }: Props)
                       <button type="button" onClick={() => submitReschedule(true)} disabled={saving} className="px-2 py-0.5 border border-amber-500 bg-amber-500 text-white rounded hover:opacity-90 disabled:opacity-50">
                         {saving ? 'saving…' : 'reschedule anyway'}
                       </button>
-                      <button type="button" onClick={() => setConflictIds(null)} disabled={saving} className="px-2 py-0.5 border border-border rounded hover:bg-white disabled:opacity-50">
+                      <button type="button" onClick={() => setConflictIds(null)} disabled={saving} className={themed('px-2 py-0.5 border border-border rounded hover:bg-white disabled:opacity-50', dk)}>
                         pick another time
                       </button>
                     </div>
@@ -441,25 +450,25 @@ export default function HubEventCard({ item, block, onClose, onUpdated }: Props)
         )}
 
         {/* Footer — actions + LIVE dimension link-outs */}
-        <div className="border-t border-border bg-bg-row/50 px-5 py-3 flex flex-wrap items-center gap-2">
+        <div className={themed('border-t border-border bg-bg-row/50 px-5 py-3 flex flex-wrap items-center gap-2', dk)}>
           <button
             type="button"
             onClick={() => { setMode(mode === 'reschedule' ? null : 'reschedule'); setActionError(null); setConflictIds(null); }}
-            className="px-3 py-1.5 text-xs font-mono border border-border rounded hover:bg-white text-text-primary"
+            className={themed('px-3 py-1.5 text-xs font-mono border border-border rounded hover:bg-white text-text-primary', dk)}
           >
             {mode === 'reschedule' ? 'Cancel' : 'Reschedule'}
           </button>
           <button
             type="button"
             onClick={() => { setMode(mode === 'reconcile' ? null : 'reconcile'); setActionError(null); }}
-            className="px-3 py-1.5 text-xs font-mono border border-border rounded hover:bg-white text-text-primary"
+            className={themed('px-3 py-1.5 text-xs font-mono border border-border rounded hover:bg-white text-text-primary', dk)}
           >
             {mode === 'reconcile' ? 'Cancel' : 'Reconcile'}
           </button>
           <button
             type="button"
             onClick={() => router.push('/operations/projects')}
-            className="px-3 py-1.5 text-xs font-mono border border-border rounded hover:bg-white text-text-primary"
+            className={themed('px-3 py-1.5 text-xs font-mono border border-border rounded hover:bg-white text-text-primary', dk)}
           >
             Open in Projects →
           </button>

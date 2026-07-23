@@ -1,4 +1,5 @@
 'use client';
+import { themed } from '@/lib/ds';
 
 /**
  * BudgetComparison (PR-Runway-Comparison) — the Travel-vs-Personal budget comparison,
@@ -126,26 +127,26 @@ export default function BudgetComparison({ initialYear, preview = false }: { ini
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <div>
-            <h2 className="text-sm font-semibold text-text-primary tracking-tight">Budget Comparison</h2>
-            <p className="text-sm text-text-muted mt-0.5">FY {selectedYear} · Homebase + Business + Travel · USD</p>
+            <h2 className={themed('text-sm font-semibold text-text-primary tracking-tight', true)}>Budget Comparison</h2>
+            <p className={themed('text-sm text-text-muted mt-0.5', true)}>FY {selectedYear} · Homebase + Business + Travel · USD</p>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-emerald-600 rounded-sm"></span><span className="text-text-secondary">Under Budget</span></span>
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-red-600 rounded-sm"></span><span className="text-text-secondary">Over Budget</span></span>
+            <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-emerald-600 rounded-sm"></span><span className={themed('text-text-secondary', true)}>Under Budget</span></span>
+            <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-red-600 rounded-sm"></span><span className={themed('text-text-secondary', true)}>Over Budget</span></span>
             <div className="h-4 w-px bg-border mx-2"></div>
-            <button onClick={() => setSelectedYear(y => y - 1)} className="px-2 py-1 text-text-secondary hover:bg-bg-row rounded">◀</button>
-            <span className="font-semibold text-text-primary">{selectedYear}</span>
-            <button onClick={() => setSelectedYear(y => y + 1)} className="px-2 py-1 text-text-secondary hover:bg-bg-row rounded">▶</button>
+            <button onClick={() => setSelectedYear(y => y - 1)} className={themed('px-2 py-1 text-text-secondary hover:bg-bg-row rounded', true)}>◀</button>
+            <span className={themed('font-semibold text-text-primary', true)}>{selectedYear}</span>
+            <button onClick={() => setSelectedYear(y => y + 1)} className={themed('px-2 py-1 text-text-secondary hover:bg-bg-row rounded', true)}>▶</button>
           </div>
         </div>
 
         {/* Month Toggle */}
-        <div className="mb-4 p-4 bg-white border border-border">
+        <div className={themed('mb-4 p-4 bg-white border border-border', true)}>
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-text-secondary">Travel months (homebase costs excluded):</span>
+            <span className={themed('text-sm font-medium text-text-secondary', true)}>Travel months (homebase costs excluded):</span>
             <div className="flex gap-2">
-              <button onClick={() => setTravelMonths([0,1,2,3,4,5,6,7,8,9,10,11])} className="text-xs px-3 py-1 text-text-secondary hover:bg-bg-row border border-border transition-colors font-medium">All Travel</button>
-              <button onClick={() => setTravelMonths([])} className="text-xs px-3 py-1 text-text-secondary hover:bg-bg-row border border-border transition-colors font-medium">All Home</button>
+              <button onClick={() => setTravelMonths([0,1,2,3,4,5,6,7,8,9,10,11])} className={themed('text-xs px-3 py-1 text-text-secondary hover:bg-bg-row border border-border transition-colors font-medium', true)}>All Travel</button>
+              <button onClick={() => setTravelMonths([])} className={themed('text-xs px-3 py-1 text-text-secondary hover:bg-bg-row border border-border transition-colors font-medium', true)}>All Home</button>
             </div>
           </div>
           <div className="flex gap-1 flex-wrap">
@@ -153,17 +154,17 @@ export default function BudgetComparison({ initialYear, preview = false }: { ini
               <button
                 key={i}
                 onClick={() => setTravelMonths(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i].sort((a,b) => a-b))}
-                className={`px-3 py-1.5 text-xs font-mono font-medium transition-all border ${
+                className={themed(`px-3 py-1.5 text-xs font-mono font-medium transition-all border ${
                   travelMonths.includes(i)
                     ? 'bg-brand-purple text-white border-brand-purple'
                     : 'bg-white text-text-secondary border-border hover:bg-bg-row'
-                }`}
+                }`, true)}
               >
                 {m}
               </button>
             ))}
           </div>
-          <div className="flex gap-6 text-xs text-text-muted mt-3 font-mono">
+          <div className={themed('flex gap-6 text-xs text-text-muted mt-3 font-mono', true)}>
             <span>Home: {homeMonths.length} mo</span>
             <span>Travel: {travelMonths.length} mo</span>
           </div>
@@ -171,30 +172,30 @@ export default function BudgetComparison({ initialYear, preview = false }: { ini
 
         {/* Summary Row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border mb-4">
-          <div className="bg-white p-4">
-            <div className="text-xs text-text-muted font-medium mb-1">Home Months Cost</div>
-            <div className="text-sm font-bold text-text-primary font-mono">{fmt(homeMonthsHomebaseBudget)}</div>
-            <div className="text-xs text-text-muted mt-1">+ {fmt(homeMonthsTravelBudget)} travel</div>
+          <div className={themed('bg-white p-4', true)}>
+            <div className={themed('text-xs text-text-muted font-medium mb-1', true)}>Home Months Cost</div>
+            <div className={themed('text-sm font-bold text-text-primary font-mono', true)}>{fmt(homeMonthsHomebaseBudget)}</div>
+            <div className={themed('text-xs text-text-muted mt-1', true)}>+ {fmt(homeMonthsTravelBudget)} travel</div>
           </div>
-          <div className="bg-white p-4">
-            <div className="text-xs text-text-muted font-medium mb-1">Travel Months Cost</div>
-            <div className="text-sm font-bold text-text-primary font-mono">{fmt(travelMonthsTravelBudget)}</div>
-            <div className="text-xs text-text-faint line-through mt-1">{fmt(travelMonthsHomebaseBudget)} homebase</div>
+          <div className={themed('bg-white p-4', true)}>
+            <div className={themed('text-xs text-text-muted font-medium mb-1', true)}>Travel Months Cost</div>
+            <div className={themed('text-sm font-bold text-text-primary font-mono', true)}>{fmt(travelMonthsTravelBudget)}</div>
+            <div className={themed('text-xs text-text-faint line-through mt-1', true)}>{fmt(travelMonthsHomebaseBudget)} homebase</div>
           </div>
-          <div className="bg-white p-4">
-            <div className="text-xs text-text-muted font-medium mb-1">Travel Savings</div>
+          <div className={themed('bg-white p-4', true)}>
+            <div className={themed('text-xs text-text-muted font-medium mb-1', true)}>Travel Savings</div>
             <div className={`text-sm font-bold font-mono ${travelSavings >= 0 ? 'text-emerald-700' : 'text-brand-red'}`}>{travelSavings >= 0 ? '+' : ''}{fmt(travelSavings)}</div>
-            <div className="text-xs text-text-muted mt-1">{travelSavings >= 0 ? 'Saved vs home' : 'Extra vs home'}</div>
+            <div className={themed('text-xs text-text-muted mt-1', true)}>{travelSavings >= 0 ? 'Saved vs home' : 'Extra vs home'}</div>
           </div>
           <div className="bg-brand-purple p-4 text-white">
-            <div className="text-xs text-text-faint font-medium mb-1">Effective Total</div>
+            <div className={themed('text-xs text-text-faint font-medium mb-1', true)}>Effective Total</div>
             <div className="text-sm font-bold font-mono">{fmt(effectiveYearlyCost)}</div>
-            <div className="text-xs text-text-faint mt-1">{selectedYear} projected</div>
+            <div className={themed('text-xs text-text-faint mt-1', true)}>{selectedYear} projected</div>
           </div>
         </div>
 
         {/* Comparison Table */}
-        <div className="border border-border bg-white overflow-x-auto">
+        <div className={themed('border border-border bg-white overflow-x-auto', true)}>
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-brand-purple text-white">
@@ -206,34 +207,34 @@ export default function BudgetComparison({ initialYear, preview = false }: { ini
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b border-border bg-white hover:bg-brand-purple-wash/30">
-                <td className="py-2 px-3 font-medium text-text-primary border-r border-border">Homebase</td>
+              <tr className={themed('border-b border-border bg-white hover:bg-brand-purple-wash/30', true)}>
+                <td className={themed('py-2 px-3 font-medium text-text-primary border-r border-border', true)}>Homebase</td>
                 {MONTHS_SHORT.map((_, i) => {
                   const val = Object.values(homebaseBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                   const isTraveling = travelMonths.includes(i);
                   return (
-                    <td key={i} className={`py-2 px-2 text-right font-mono border-r border-border-light ${isTraveling ? 'bg-bg-row' : ''}`}>
-                      <span className={isTraveling ? 'text-text-faint line-through' : 'text-text-secondary'}>{fmt(val)}</span>
+                    <td key={i} className={themed(`py-2 px-2 text-right font-mono border-r border-border-light ${isTraveling ? 'bg-bg-row' : ''}`, true)}>
+                      <span className={themed(isTraveling ? 'text-text-faint line-through' : 'text-text-secondary', true)}>{fmt(val)}</span>
                     </td>
                   );
                 })}
-                <td className="py-2 px-3 text-right font-mono font-semibold text-text-primary bg-bg-row">{fmt(homeMonthsHomebaseBudget)}</td>
+                <td className={themed('py-2 px-3 text-right font-mono font-semibold text-text-primary bg-bg-row', true)}>{fmt(homeMonthsHomebaseBudget)}</td>
               </tr>
-              <tr className="border-b border-border bg-bg-row/50 hover:bg-brand-purple-wash/30">
-                <td className="py-2 px-3 font-medium text-text-primary border-r border-border">Business</td>
+              <tr className={themed('border-b border-border bg-bg-row/50 hover:bg-brand-purple-wash/30', true)}>
+                <td className={themed('py-2 px-3 font-medium text-text-primary border-r border-border', true)}>Business</td>
                 {MONTHS_SHORT.map((_, i) => {
                   const val = Object.values(businessBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
-                  return (<td key={i} className="py-2 px-2 text-right font-mono border-r border-border-light text-text-secondary">{fmt(val)}</td>);
+                  return (<td key={i} className={themed('py-2 px-2 text-right font-mono border-r border-border-light text-text-secondary', true)}>{fmt(val)}</td>);
                 })}
-                <td className="py-2 px-3 text-right font-mono font-semibold text-text-primary bg-bg-row">{fmt(yearlyBusinessBudget)}</td>
+                <td className={themed('py-2 px-3 text-right font-mono font-semibold text-text-primary bg-bg-row', true)}>{fmt(yearlyBusinessBudget)}</td>
               </tr>
-              <tr className="border-b border-border bg-white hover:bg-brand-purple-wash/30">
-                <td className="py-2 px-3 font-medium text-text-primary border-r border-border">Travel</td>
+              <tr className={themed('border-b border-border bg-white hover:bg-brand-purple-wash/30', true)}>
+                <td className={themed('py-2 px-3 font-medium text-text-primary border-r border-border', true)}>Travel</td>
                 {MONTHS_SHORT.map((_, i) => {
                   const val = Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
-                  return (<td key={i} className="py-2 px-2 text-right font-mono border-r border-border-light text-text-secondary">{fmt(val)}</td>);
+                  return (<td key={i} className={themed('py-2 px-2 text-right font-mono border-r border-border-light text-text-secondary', true)}>{fmt(val)}</td>);
                 })}
-                <td className="py-2 px-3 text-right font-mono font-semibold text-text-primary bg-bg-row">{fmt(yearlyTravelBudget)}</td>
+                <td className={themed('py-2 px-3 text-right font-mono font-semibold text-text-primary bg-bg-row', true)}>{fmt(yearlyTravelBudget)}</td>
               </tr>
             </tbody>
             <tfoot>
@@ -249,8 +250,8 @@ export default function BudgetComparison({ initialYear, preview = false }: { ini
                 })}
                 <td className="py-2 px-3 text-right font-mono bg-panel-highlight">{fmt(effectiveYearlyCost)}</td>
               </tr>
-              <tr className="bg-bg-row text-text-secondary text-[10px]">
-                <td className="py-1.5 px-3 border-r border-border">Trips</td>
+              <tr className={themed('bg-bg-row text-text-secondary text-[10px]', true)}>
+                <td className={themed('py-1.5 px-3 border-r border-border', true)}>Trips</td>
                 {MONTHS_SHORT.map((_, i) => {
                   const tripsInMonth = committedTrips.filter(t => {
                     if (!t.startDate) return false;
@@ -258,7 +259,7 @@ export default function BudgetComparison({ initialYear, preview = false }: { ini
                     return start.getMonth() === i && start.getFullYear() === selectedYear;
                   });
                   return (
-                    <td key={i} className="py-1.5 px-1 text-center border-r border-border-light truncate" style={{maxWidth: '55px'}}>
+                    <td key={i} className={themed('py-1.5 px-1 text-center border-r border-border-light truncate', true)} style={{maxWidth: '55px'}}>
                       {tripsInMonth.length > 0 ? tripsInMonth.map(t => t.destination?.split(',')[0] || t.name).join(', ') : '—'}
                     </td>
                   );

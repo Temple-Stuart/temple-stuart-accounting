@@ -136,6 +136,51 @@ export const LAYOUT = {
   stack: 'space-y-6',
 } as const;
 
+/* ─── THEME-AWARE HELPER (CAL-DS-THEME) ──────────────────────────────────────
+ * A component shared between light and dark surfaces stays byte-identical on
+ * its light default and only darkens when asked. `themed(classes, dark)`:
+ *   • dark === false → returns `classes` VERBATIM (byte-identical light default,
+ *     guaranteed by construction — the map never runs);
+ *   • dark === true  → swaps each light token for its panel-family equivalent.
+ * The dark vocabulary lives ONLY here (the ruling: dark classes come exclusively
+ * from ds.ts). Tokens already dark-friendly in both themes — `text-white`,
+ * `text-white/NN`, `bg-black/NN`, `hover:text-white` — are deliberately NOT in
+ * the map, so filled calendar blocks and modal overlays are unchanged.
+ */
+export type Surface = 'light' | 'dark';
+
+const DARKEN_MAP: [RegExp, string][] = [
+  // hover/prefixed variants FIRST (so the bare token regexes below don't touch them)
+  [/\bhover:bg-bg-row\b/g, 'hover:bg-panel-hover'],
+  [/\bhover:bg-white\b(?!\/)/g, 'hover:bg-white/10'],
+  [/\bhover:text-text-secondary\b/g, 'hover:text-white/60'],
+  [/\bhover:border-border\b/g, 'hover:border-panel-border'],
+  // translucent + solid light insets → the dark inset
+  [/\bbg-bg-row\/\d+\b/g, 'bg-white/5'],
+  [/\bbg-bg-row\b/g, 'bg-white/5'],
+  // hairline-as-fill (tracks/dividers)
+  [/\bbg-border\/\d+\b/g, 'bg-panel-border'],
+  [/\bbg-border\b/g, 'bg-panel-border'],
+  // a neutral marker fill
+  [/\bbg-gray-400\b/g, 'bg-white/40'],
+  // solid surfaces (NOT bg-white/NN, which is already a dark token)
+  [/\bbg-white\b(?!\/)/g, 'bg-panel-surface'],
+  // borders + the text ladder (border-border-light before border-border)
+  [/\bborder-border-light\b/g, 'border-panel-border'],
+  [/\bborder-border\b/g, 'border-panel-border'],
+  [/\btext-text-primary\b/g, 'text-white'],
+  [/\btext-text-secondary\b/g, 'text-white/60'],
+  [/\btext-text-muted\b/g, 'text-white/50'],
+  [/\btext-text-faint\b/g, 'text-white/40'],
+];
+
+export function themed(classes: string, dark: boolean): string {
+  if (!dark) return classes; // byte-identical light default — the map never runs
+  let out = classes;
+  for (const [re, to] of DARKEN_MAP) out = out.replace(re, to);
+  return out;
+}
+
 /** The whole system under one import for terse call sites. */
 export const DS = {
   SURFACE,

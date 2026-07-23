@@ -634,7 +634,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           highlighted Calendar tab already says you're here). The grid toolbar sits right
           under the tab row, one continuous surface. Other modules keep their bands. */}
       {authed === true && (
-        <section className={`w-full bg-white border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
+        <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto">
             <HubCalendar />
             {/* PR-HB-1: month-scoped budget section under the calendar (authed only, so the
@@ -649,7 +649,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         </section>
       )}
       {authed === false && (
-        <section className={`w-full bg-white border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
+        <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto">
             <div className="px-4 py-4">
               {/* MOD-2: the Runway deck lives at /modules/runway — the guest tab

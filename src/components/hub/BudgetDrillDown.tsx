@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { themed, type Surface } from '@/lib/ds';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -22,6 +23,8 @@ interface BudgetDrillDownProps {
   categoryName: string;
   cellAmount: number;
   entityType: string;
+  /** CAL-DS-THEME: light default (byte-identical); HubBudgetSection passes 'dark'. */
+  surface?: Surface;
 }
 
 export default function BudgetDrillDown({
@@ -33,7 +36,9 @@ export default function BudgetDrillDown({
   categoryName,
   cellAmount,
   entityType,
+  surface = 'light',
 }: BudgetDrillDownProps) {
+  const dk = surface === 'dark';
   const [transactions, setTransactions] = useState<DrillDownTransaction[]>([]);
   const [total, setTotal] = useState(0);
   const [count, setCount] = useState(0);
@@ -101,7 +106,7 @@ export default function BudgetDrillDown({
       {/* Panel */}
       <div
         ref={panelRef}
-        className="relative w-full max-w-lg bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-200"
+        className={themed('relative w-full max-w-lg bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-200', dk)}
         style={{ animation: 'slideInRight 0.2s ease-out' }}
       >
         {/* Header */}
@@ -124,17 +129,17 @@ export default function BudgetDrillDown({
           {loading ? (
             <div className="p-5 space-y-3">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-10 bg-bg-row/50 rounded animate-pulse" />
+                <div key={i} className={themed('h-10 bg-bg-row/50 rounded animate-pulse', dk)} />
               ))}
             </div>
           ) : error ? (
             <div className="p-8 text-center text-brand-red text-sm">{error}</div>
           ) : transactions.length === 0 ? (
-            <div className="p-8 text-center text-text-faint text-sm">No transactions found for this period</div>
+            <div className={themed('p-8 text-center text-text-faint text-sm', dk)}>No transactions found for this period</div>
           ) : (
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-border bg-bg-row/50 text-text-muted">
+                <tr className={themed('border-b border-border bg-bg-row/50 text-text-muted', dk)}>
                   <th className="text-left py-2 px-4 font-medium">Date</th>
                   <th className="text-left py-2 px-2 font-medium">Merchant</th>
                   {coaCodes.length > 1 && <th className="text-left py-2 px-2 font-medium">Account</th>}
@@ -143,15 +148,15 @@ export default function BudgetDrillDown({
               </thead>
               <tbody>
                 {transactions.map((txn, i) => (
-                  <tr key={i} className={`border-b border-border-light hover:bg-brand-purple-wash/20 ${i % 2 === 0 ? 'bg-white' : 'bg-bg-row/30'}`}>
-                    <td className="py-2 px-4 font-mono text-text-muted whitespace-nowrap">{txn.date}</td>
-                    <td className="py-2 px-2 text-text-primary truncate max-w-[200px]" title={txn.description}>
+                  <tr key={i} className={themed(`border-b border-border-light hover:bg-brand-purple-wash/20 ${i % 2 === 0 ? 'bg-white' : 'bg-bg-row/30'}`, dk)}>
+                    <td className={themed('py-2 px-4 font-mono text-text-muted whitespace-nowrap', dk)}>{txn.date}</td>
+                    <td className={themed('py-2 px-2 text-text-primary truncate max-w-[200px]', dk)} title={txn.description}>
                       {txn.merchant}
                     </td>
                     {coaCodes.length > 1 && (
-                      <td className="py-2 px-2 text-text-muted font-mono whitespace-nowrap">{txn.coaCode}</td>
+                      <td className={themed('py-2 px-2 text-text-muted font-mono whitespace-nowrap', dk)}>{txn.coaCode}</td>
                     )}
-                    <td className="py-2 px-4 text-right font-mono text-text-primary whitespace-nowrap">{fmt(txn.amount)}</td>
+                    <td className={themed('py-2 px-4 text-right font-mono text-text-primary whitespace-nowrap', dk)}>{fmt(txn.amount)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -161,9 +166,9 @@ export default function BudgetDrillDown({
 
         {/* Footer */}
         {!loading && !error && transactions.length > 0 && (
-          <div className="border-t border-border bg-bg-row/50 px-5 py-3">
+          <div className={themed('border-t border-border bg-bg-row/50 px-5 py-3', dk)}>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-text-muted">{count} transaction{count !== 1 ? 's' : ''}</span>
+              <span className={themed('text-xs text-text-muted', dk)}>{count} transaction{count !== 1 ? 's' : ''}</span>
               <div className="flex items-center gap-2">
                 {totalMismatch && (
                   <span className="text-amber-600 text-xs flex items-center gap-1" title={`Expected ${fmt(cellAmount)}, got ${fmt(total)}`}>
@@ -173,7 +178,7 @@ export default function BudgetDrillDown({
                     mismatch
                   </span>
                 )}
-                <span className="text-sm font-semibold font-mono text-text-primary">{fmt(total)}</span>
+                <span className={themed('text-sm font-semibold font-mono text-text-primary', dk)}>{fmt(total)}</span>
               </div>
             </div>
           </div>
