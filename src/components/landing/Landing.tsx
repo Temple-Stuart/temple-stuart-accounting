@@ -69,12 +69,16 @@ interface PillarCard {
 // (cite table in the FD-1o report): Runway = /api/runway:38 "DB-only read";
 // Routines = enrich-routine/route.ts:42 requireTier('ai'); Projects =
 // requirePipeBudget across the pipe routes + pipeBudget.ts:15 default cap 20;
-// Content = generate-script/route.ts:53 requireTier('ai'). TRAVEL'S RULED
-// LABEL WAS STOPPED: its "guest booking — …activities" sub-claim failed
-// verification (activities Book routes to sign-up, PublicActivitySearch.tsx
-// :92-94 — no guest activities booking exists), so travel keeps its prior
-// verified label pending Alex's re-ruling.
-const FREE_NO_ACCOUNT = 'Free — search works with no account';
+// Content = generate-script/route.ts:53 requireTier('ai').
+// FD-1o-b: Travel re-ruled after the FD-1o STOP — every clause verified:
+// free search = the public surface (middleware.ts:81-100 — flights/hotels/
+// activities/transfers search); guest booking = flights & hotels ONLY
+// (flights/book + liteapi prebook/book are public; activities Book routes to
+// sign-up, PublicActivitySearch.tsx:92-94); paid picks =
+// places/category-search/route.ts:89-99 (401 → requireTier('placesSearch')
+// → category entitlements).
+const FREE_TRAVEL =
+  'Free search — flights, hotels, activities. Guest booking for flights & hotels. Premium local picks are paid add-ons.';
 const FREE_RUNWAY = "Free with a free account — its numbers come from your ledger, so it's most useful with Books.";
 const FREE_ROUTINES = 'Free with a free account — build & run routines. AI scene enrichment is a paid feature.';
 const FREE_PROJECTS = 'Free with a free account — includes the AI planning pipeline, capped at 20 runs/day.';
@@ -99,7 +103,7 @@ const FREE_CONTENT = 'Free with a free account — day log & planning. AI script
 //   Content:    ContentShowcaseSections.tsx :461, :492, :506
 const PILLAR_CARDS: PillarCard[] = [
   {
-    id: 'travel', label: 'Travel', tab: 'travel', freeLabel: FREE_NO_ACCOUNT,
+    id: 'travel', label: 'Travel', tab: 'travel', freeLabel: FREE_TRAVEL,
     bullets: [
       'Search it. Price it. Book it. No account required to look.',
       'Book a flight or hotel and it’s saved to your trip.',
