@@ -36,6 +36,19 @@
  * (ModuleCostBreakdown + helpers) is PRESERVED unmounted below (exported;
  * HPW-1 consumes it); the transparency door is the one-line link under the
  * deck. transparencyLedger is untouched.
+ *
+ * FD-1i (the selection floor — Alex's seven rulings): the deck gains
+ * checkboxes on the four PAID slides ("Add to plan" → a selection Set); the
+ * bundle strip becomes a live CALCULATOR strip (0 selected = the bundle
+ * pitch; 1 = single-select continue; 2+ = count + the honest sum ONLY when
+ * every selected TAB_PRICING monthlyPrice exists — all five are null today,
+ * so "prices shown at checkout" is the live default — vs the bundle line);
+ * a visual regrade (existing token families only: brand-purple = paid,
+ * brand-green = free, white opacities); and a second SUMMARY deck beneath —
+ * every string lifted verbatim from the module decks (per-line provenance on
+ * SUMMARY_BY_ID). Commerce stays on /pricing: the landing SELECTS, /pricing
+ * SELLS — Continue links carry ?module= / ?modules= only, and multi-purchase
+ * remains N clicks through /pricing's existing per-module buttons.
  */
 
 import Link from 'next/link';
@@ -216,6 +229,114 @@ const PILLAR_CARDS: PillarCard[] = [
   },
 ];
 
+// FD-1i: the SUMMARY deck's content — LIFTED ONLY, zero invented copy (the
+// FD-1b bullet-lift precedent). Per pillar: the module deck's dark-hero
+// eyebrow + headline, then 3 verbatim slide titles. Provenance (file:line,
+// verified this PR):
+//   Travel:     eyebrow/headline TravelShowcaseSections.tsx:324-325;
+//               lines :342, :363, :370
+//   Runway:     eyebrow/headline RunwayShowcaseSections.tsx:344-345;
+//               lines :362, :397, :411
+//   Books:      eyebrow/headline TabShowcases.tsx:237-238;
+//               lines :247, :268, :289
+//   Trade:      eyebrow/headline TabShowcases.tsx:134-135;
+//               lines :162, :176, :190
+//   Tax:        eyebrow/headline TabShowcases.tsx:340-341;
+//               lines :364, :371, :385
+//   Compliance: eyebrow/headline ComplianceShowcaseSections.tsx:327-328;
+//               lines :345, :359, :387
+//   Routines:   eyebrow/headline RoutinesShowcaseSections.tsx:366-367;
+//               lines :384, :405, :412
+//   Projects:   eyebrow/headline ProjectsShowcaseSections.tsx:270-271;
+//               lines :288, :309, :330
+//   Content:    eyebrow/headline ContentShowcaseSections.tsx:228-229;
+//               lines :246, :253, :267
+// Lines were chosen to NOT repeat the selection deck's PILLAR_CARDS bullets —
+// the two decks tell different halves of each pillar's story.
+const SUMMARY_BY_ID: Record<string, { eyebrow: string; headline: string; lines: string[] }> = {
+  travel: {
+    eyebrow: 'Travel — the real product, no account required',
+    headline: 'Search it. Price it. Book it. No account required to look.',
+    lines: [
+      'Real searches, free by design.',
+      'The trip is the container.',
+      'Every booking feeds the books.',
+    ],
+  },
+  runway: {
+    eyebrow: 'Runway — the whole platform, one question',
+    headline: 'Every system you’re juggling. One question answered: how long can you keep going?',
+    lines: [
+      'Not a number you typed — the number your banks report.',
+      'Your routines ARE the budget.',
+      'Trading money ≠ living money. The wall is the feature.',
+    ],
+  },
+  books: {
+    eyebrow: 'Books — double-entry bookkeeping',
+    headline: 'Every transaction becomes a journal entry. Every period must balance.',
+    lines: [
+      'Link your banks. Assign every account.',
+      'The trial balance must balance.',
+      'Closed means closed.',
+    ],
+  },
+  trade: {
+    eyebrow: 'Trade — the scanner',
+    headline: 'An entire index in full focus. One decision out.',
+    lines: [
+      'Every ticker scored. Strategies only where the gates pass.',
+      'The whole trade, written down.',
+      'The grades accumulate. Denominators first.',
+    ],
+  },
+  tax: {
+    eyebrow: 'Tax — from closed books to a filed return',
+    headline: 'Your books are already clean. Your taxes are half-done before you start.',
+    lines: [
+      'What others type in, your ledger already knows.',
+      'Every income line traces to its source.',
+      'Every lot boxed. Every box explained.',
+    ],
+  },
+  compliance: {
+    eyebrow: 'Compliance — the receipts',
+    headline: 'Don’t trust us. Verify us.',
+    lines: [
+      'A real regulatory corpus, on real schedules.',
+      'The statute you cited is the statute you saw.',
+      'Obligations tracked like engineering tickets.',
+    ],
+  },
+  routines: {
+    eyebrow: 'Routines — the recurrence engine',
+    headline: 'Build it once. It shows up everywhere.',
+    lines: [
+      'You describe the rhythm. The machine writes the schedule.',
+      'The streak counts both ways.',
+      'Feed one: every occurrence lands on the one calendar, priced.',
+    ],
+  },
+  projects: {
+    eyebrow: 'Projects — the Truth Machine',
+    headline: 'Goals in. Audited tasks out.',
+    lines: [
+      'A project starts as goals in your own words.',
+      'Auto-generated work waits for your ✓.',
+      'Every inference has a receipt.',
+    ],
+  },
+  content: {
+    eyebrow: 'Content — day to script',
+    headline: 'Your day becomes the script.',
+    lines: [
+      'The whole day, one feed.',
+      'Inputs feed the map.',
+      'Answer the day. Keep the record.',
+    ],
+  },
+};
+
 // FD-1n: the footnote marks ACTUALLY referenced by the allocation rows
 // (amount footnotes + the ᵉ riding split percentages) — the merged registry
 // renders only these, derived, never hardcoded.
@@ -353,6 +474,48 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
   // (the hero button that opens it renders only then).
   const [showDemo, setShowDemo] = useState(false);
 
+  // FD-1i: the selection set — entitlement KEYS ('tab:books' …) toggled by
+  // the paid slides' "Add to plan" checkboxes. Free pillars have nothing to
+  // sell, so they never enter this set.
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const toggleSelected = (key: string) =>
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  // Stable PILLAR_CARDS order; every entitlementKey resolves in TAB_PRICING.
+  const selectedCards = PILLAR_CARDS
+    .filter((p) => p.entitlementKey && selectedKeys.has(p.entitlementKey))
+    .map((p) => pricingByKey.get(p.entitlementKey as string)!);
+  // The honest sum: ONLY when every selected display price exists (they are
+  // all null today — pricing-costs.ts:346-370 — so this stays null and the
+  // strip renders "prices shown at checkout" until Alex enters prices).
+  const selectedSum =
+    selectedCards.length > 0 && selectedCards.every((t) => t.monthlyPrice !== null)
+      ? selectedCards.reduce((s, t) => s + (t.monthlyPrice as number), 0)
+      : null;
+  const continueHref =
+    selectedCards.length === 1
+      ? `/pricing?module=${encodeURIComponent(selectedCards[0].key)}`
+      : `/pricing?modules=${selectedCards.map((t) => t.key).join(',')}`;
+
+  // FD-1i: the summary deck's nav — same mechanics as the selection deck.
+  const summaryTrackRef = useRef<HTMLDivElement>(null);
+  const [summaryActive, setSummaryActive] = useState(0);
+  const onSummaryScroll = () => {
+    const el = summaryTrackRef.current;
+    if (!el) return;
+    const denom = Math.max(1, el.scrollWidth - el.clientWidth);
+    setSummaryActive(Math.round((el.scrollLeft / denom) * (PILLAR_CARDS.length - 1)));
+  };
+  const summaryScrollBy = (dir: 1 | -1) => {
+    const el = summaryTrackRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * Math.round(el.clientWidth * 0.9), behavior: 'smooth' });
+  };
+
   return (
     <div className="min-h-screen bg-panel text-white">
       <LandingHeader onRequireAuth={onRequireAuth} />
@@ -472,15 +635,26 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
               const pricing = p.entitlementKey ? pricingByKey.get(p.entitlementKey) : undefined;
               const available = p.entitlementKey ? entitlementAvailability[p.entitlementKey] === true : false;
               return (
+                // FD-1i regrade (ruling 7) — existing token families only:
+                // paid = the brand-purple ladder, free = the brand-green
+                // ladder, white opacities for type. Accent left-border +
+                // chip fill; the descriptor is the value line in white/90;
+                // bullets tightened; the truth block's hairline strengthened.
                 <article
                   key={p.id}
-                  className="flex w-[85%] shrink-0 snap-start flex-col rounded-lg border border-panel-border bg-panel-surface p-4 sm:w-[48%] lg:w-[32%]"
+                  className={`flex w-[85%] shrink-0 snap-start flex-col rounded-lg border border-panel-border border-l-2 bg-panel-surface p-4 sm:w-[48%] lg:w-[32%] ${
+                    pricing ? 'border-l-brand-purple' : 'border-l-brand-green/70'
+                  }`}
                 >
-                  <span className="self-start rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
+                  <span
+                    className={`self-start rounded border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white ${
+                      pricing ? 'border-brand-purple/40 bg-brand-purple/10' : 'border-brand-green/40 bg-brand-green/10'
+                    }`}
+                  >
                     {p.label}
                   </span>
-                  <p className="mt-2 text-xs leading-relaxed text-white/60">{TAB_DESCRIPTORS[p.tab]}</p>
-                  <ul className="mt-3 space-y-1">
+                  <p className="mt-2 text-xs leading-relaxed text-white/90">{TAB_DESCRIPTORS[p.tab]}</p>
+                  <ul className="mt-3 space-y-0.5">
                     {p.bullets.map((b, i) => (
                       <li key={i} className={`text-xs leading-relaxed ${i === 0 ? 'font-medium text-white' : 'text-white/60'}`}>
                         {b}
@@ -490,7 +664,7 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
 
                   {/* The sheet row's truth, folded into the slide: price-or-Free,
                       the Unlocks/freeLabel line, the FD-1o cost summary. */}
-                  <div className="mt-3 border-t border-panel-border pt-3">
+                  <div className="mt-4 border-t border-white/20 pt-3">
                     <p className="font-mono text-sm font-bold text-white">
                       {pricing ? (
                         pricing.monthlyPrice !== null ? (
@@ -511,6 +685,22 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
                       {projectCostSummary(p.label)}
                     </p>
                   </div>
+
+                  {/* FD-1i (ruling A): the multi-select checkbox — PAID slides
+                      only (free pillars have nothing to sell). Wired to the
+                      selection Set; the calculator strip below reacts live. */}
+                  {pricing && (
+                    <label className="mt-3 flex cursor-pointer items-center gap-2 self-start font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70 transition-colors hover:text-white">
+                      <input
+                        type="checkbox"
+                        checked={selectedKeys.has(pricing.key)}
+                        onChange={() => toggleSelected(pricing.key)}
+                        className="h-3.5 w-3.5 accent-brand-purple"
+                        aria-label={`Add ${p.label} to plan`}
+                      />
+                      Add to plan
+                    </label>
+                  )}
 
                   <div className="mt-auto flex items-center justify-between gap-3 pt-3">
                     <Link
@@ -563,10 +753,60 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
             ))}
           </div>
 
-          {/* ── The bundle — the ruled call: a slim strip BELOW the deck (not a
-                tenth slide; it has no card/descriptor shape). Markup + commerce
-                wiring verbatim from the dead sheet's closer. ────────────────── */}
-          {bundle && (
+          {/* ── FD-1i (ruling B): the CALCULATOR strip — live selection state
+                replaced the static bundle row. Nothing selected → the bundle
+                pitch below, unchanged. 1+ selected → the live strip: count,
+                the honest price area (the sum ONLY when every selected
+                TAB_PRICING monthlyPrice exists — all five are null today,
+                pricing-costs.ts:346-370, so "prices shown at checkout" is the
+                live default), the bundle comparison at 2+, and Continue into
+                /pricing (?module= single / ?modules= multi). Commerce stays
+                on /pricing — multi-purchase is N checkouts there, and the
+                strip says so. ─────────────────────────────────────────────── */}
+          {selectedCards.length > 0 && (
+            <div className="mt-5 flex flex-col gap-4 rounded-lg border border-brand-purple/60 bg-panel p-4 sm:flex-row sm:items-center">
+              <div className="flex-1">
+                <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
+                  {selectedCards.length} module{selectedCards.length === 1 ? '' : 's'} selected
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-white/60">
+                  {selectedCards.map((t) => t.label).join(' · ')}
+                </p>
+                {selectedCards.length >= 2 && (
+                  <p className="mt-1 text-[10px] text-white/40">
+                    Complete each module&apos;s checkout on the next page.
+                  </p>
+                )}
+              </div>
+              <div className="sm:text-right">
+                <p className="font-mono text-lg font-bold text-white">
+                  {selectedSum !== null ? (
+                    <>${selectedSum}<span className="text-xs font-normal text-white/50">/mo</span></>
+                  ) : (
+                    <span className="text-xs font-normal italic text-white/50">prices shown at checkout</span>
+                  )}
+                </p>
+                {selectedCards.length >= 2 && bundle && (
+                  <p className="mt-0.5 text-[10px] text-white/50">
+                    {bundle.monthlyPrice !== null
+                      ? `Bundle: everything for $${bundle.monthlyPrice}/mo`
+                      : 'Bundle: price shown at checkout'}
+                  </p>
+                )}
+              </div>
+              <Link
+                href={continueHref}
+                className="bg-white px-6 py-2 text-center text-xs font-medium text-brand-purple hover:bg-bg-row"
+              >
+                Continue →
+              </Link>
+            </div>
+          )}
+
+          {/* ── The bundle pitch — the calculator's EMPTY state (nothing
+                selected). Markup + commerce wiring verbatim from the dead
+                sheet's closer (LOBBY-DECK-1). ───────────────────────────────── */}
+          {selectedCards.length === 0 && bundle && (
             <div className="mt-5 flex flex-col gap-4 rounded-lg border border-white/30 bg-panel p-4 sm:flex-row sm:items-center">
               <div className="flex-1">
                 <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
@@ -610,6 +850,91 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
           >
             Every price, traced to a real bill → see the full breakdown
           </Link>
+        </div>
+      </section>
+
+      {/* ── FD-1i (ruling E): the SUMMARY deck — a second pass beneath the
+            selection floor, same scroll-snap mechanics. Content LIFTED ONLY:
+            each pillar's dark-hero eyebrow + headline, the descriptor, and
+            three verbatim slide titles (provenance on SUMMARY_BY_ID). ──────── */}
+      <section className="w-full border-b border-panel-border bg-panel-surface">
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
+          <div className="flex items-center justify-between">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
+              The pillars — in their own words
+            </p>
+            <div className="flex shrink-0 gap-1.5">
+              <button
+                type="button"
+                aria-label="Previous summaries"
+                onClick={() => summaryScrollBy(-1)}
+                className="grid h-8 w-8 place-items-center rounded-full border border-white/30 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                aria-label="Next summaries"
+                onClick={() => summaryScrollBy(1)}
+                className="grid h-8 w-8 place-items-center rounded-full border border-white/30 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div
+            ref={summaryTrackRef}
+            onScroll={onSummaryScroll}
+            role="group"
+            aria-label="Pillar summaries"
+            tabIndex={0}
+            className="mt-4 flex snap-x snap-mandatory items-stretch gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {PILLAR_CARDS.map((p) => {
+              const s = SUMMARY_BY_ID[p.id];
+              return (
+                <article
+                  key={p.id}
+                  className="flex w-[85%] shrink-0 snap-start flex-col rounded-lg border border-panel-border bg-panel p-4 sm:w-[48%] lg:w-[32%]"
+                >
+                  <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
+                    {s.eyebrow}
+                  </p>
+                  <p className="mt-2 text-sm font-medium leading-snug text-white">{s.headline}</p>
+                  <p className="mt-2 text-xs leading-relaxed text-white/60">{TAB_DESCRIPTORS[p.tab]}</p>
+                  <ul className="mt-3 space-y-1">
+                    {s.lines.map((l, i) => (
+                      <li key={i} className="text-xs leading-relaxed text-white/60">{l}</li>
+                    ))}
+                  </ul>
+                  <Link
+                    href={`/modules/${p.id}`}
+                    className="mt-auto pt-3 font-mono text-xs font-medium text-white hover:text-white/70"
+                  >
+                    Explore {p.label} →
+                  </Link>
+                </article>
+              );
+            })}
+          </div>
+
+          <div className="mt-3 flex justify-center gap-1.5" aria-hidden="true">
+            {PILLAR_CARDS.map((p, i) => (
+              <span
+                key={p.id}
+                className={`h-1.5 rounded-full transition-all ${
+                  i === summaryActive ? 'w-4 bg-white' : 'w-1.5 bg-white/30'
+                }`}
+              />
+            ))}
+          </div>
         </div>
       </section>
 
