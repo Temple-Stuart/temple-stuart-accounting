@@ -278,21 +278,21 @@ export default function TripBookings({ tripId, onChanged }: Props) {
   };
 
   return (
-    <div className="mt-4 rounded-lg border border-border bg-bg-row p-4">
+    <div className="mt-4 rounded-lg border border-panel-border bg-panel-surface p-4">
       <div className="mb-2 flex items-center justify-between">
-        <p className="text-sm font-semibold text-text-primary">
+        <p className="text-sm font-semibold text-white">
           Booked{state === 'ok' ? ` (${rows.length})` : ''}
         </p>
         <button
           type="button"
           onClick={() => load()}
-          className="text-xs font-medium text-brand-purple underline hover:text-brand-purple/80"
+          className="text-xs font-medium text-white underline hover:text-white/80"
         >
           Refresh
         </button>
       </div>
 
-      {state === 'loading' && <p className="text-sm text-text-muted">Loading bookings…</p>}
+      {state === 'loading' && <p className="text-sm text-white/50">Loading bookings…</p>}
       {state === 'error' && (
         <p className="text-sm text-brand-red">
           Couldn&apos;t load this trip&apos;s bookings.{' '}
@@ -300,25 +300,25 @@ export default function TripBookings({ tripId, onChanged }: Props) {
         </p>
       )}
       {state === 'ok' && rows.length === 0 && (
-        <p className="text-sm text-text-muted">No bookings attached yet.</p>
+        <p className="text-sm text-white/50">No bookings attached yet.</p>
       )}
       {actionError && (
-        <p className="mb-2 rounded border border-border bg-white p-2 text-sm text-brand-red">{actionError}</p>
+        <p className="mb-2 rounded border border-panel-border bg-panel-surface p-2 text-sm text-brand-red">{actionError}</p>
       )}
 
       {state === 'ok' && rows.length > 0 && (
         <>
-          <div className="overflow-x-auto rounded-lg border border-border bg-white">
+          <div className="overflow-x-auto rounded-lg border border-panel-border bg-panel-surface">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border bg-bg-row text-xs uppercase tracking-wide">
-                  <th className="px-3 py-2 text-left font-medium text-text-muted">Type</th>
-                  <th className="px-3 py-2 text-left font-medium text-text-muted">Name</th>
-                  <th className="px-3 py-2 text-left font-medium text-text-muted">Dates</th>
-                  <th className="px-3 py-2 text-right font-medium text-text-muted">Amount</th>
-                  <th className="px-3 py-2 text-left font-medium text-text-muted">Status</th>
-                  <th className="px-3 py-2 text-left font-medium text-text-muted">Confirmation</th>
-                  <th className="px-3 py-2 text-left font-medium text-text-muted"></th>
+                <tr className="border-b border-panel-border bg-panel-surface font-mono text-[10px] uppercase tracking-wider">
+                  <th className="px-3 py-2 text-left font-medium text-white/50">Type</th>
+                  <th className="px-3 py-2 text-left font-medium text-white/50">Name</th>
+                  <th className="px-3 py-2 text-left font-medium text-white/50">Dates</th>
+                  <th className="px-3 py-2 text-right font-medium text-white/50">Amount</th>
+                  <th className="px-3 py-2 text-left font-medium text-white/50">Status</th>
+                  <th className="px-3 py-2 text-left font-medium text-white/50">Confirmation</th>
+                  <th className="px-3 py-2 text-left font-medium text-white/50"></th>
                 </tr>
               </thead>
               <tbody>
@@ -326,19 +326,19 @@ export default function TripBookings({ tripId, onChanged }: Props) {
                   const outcome = cancelOutcomes[r.id];
                   return (
                   <Fragment key={r.id}>
-                  <tr className="border-b border-border last:border-0">
-                    <td className="px-3 py-2 capitalize text-text-secondary">{r.type}</td>
-                    <td className="px-3 py-2 font-medium text-text-primary">{r.name}</td>
-                    <td className="px-3 py-2 text-text-secondary">
+                  <tr className="border-b border-panel-border last:border-0">
+                    <td className="px-3 py-2 capitalize text-white/60">{r.type}</td>
+                    <td className="px-3 py-2 font-medium text-white">{r.name}</td>
+                    <td className="px-3 py-2 text-white/60">
                       {r.checkIn && r.checkOut
                         ? `${String(r.checkIn).slice(0, 10)} → ${String(r.checkOut).slice(0, 10)}`
                         : ''}
                     </td>
-                    <td className="px-3 py-2 text-right font-semibold text-brand-green">
+                    <td className="px-3 py-2 text-right font-mono font-semibold text-brand-green">
                       ${r.amountUsd.toFixed(2)}
                     </td>
-                    <td className="px-3 py-2 text-text-secondary">{r.status}</td>
-                    <td className="px-3 py-2 font-mono text-xs text-text-secondary">
+                    <td className="px-3 py-2 text-white/60">{r.status}</td>
+                    <td className="px-3 py-2 font-mono text-xs text-white/60">
                       {r.confirmationCode ?? ''}
                     </td>
                     <td className="px-3 py-2 text-right">
@@ -361,7 +361,7 @@ export default function TripBookings({ tripId, onChanged }: Props) {
                         type="button"
                         disabled={busyId === r.id}
                         onClick={() => detach(r.id)}
-                        className="rounded border border-border px-2 py-1 text-xs font-medium text-text-muted hover:bg-bg-row disabled:opacity-50"
+                        className="rounded border border-panel-border px-2 py-1 text-xs font-medium text-white/50 hover:bg-panel-hover disabled:opacity-50"
                       >
                         {busyId === r.id ? 'Removing…' : 'Remove from trip'}
                       </button>
@@ -371,12 +371,12 @@ export default function TripBookings({ tripId, onChanged }: Props) {
                       row — verbatim numbers on success, the provider's message on
                       failure. Absent fields say so; nothing is invented. */}
                   {outcome && (
-                    <tr className="border-b border-border last:border-0">
+                    <tr className="border-b border-panel-border last:border-0">
                       <td colSpan={7} className="px-3 py-2">
                         {!outcome.ok ? (
                           <p className="text-xs text-brand-red">{outcome.message}</p>
                         ) : 'flight' in outcome ? (
-                          <p className="text-xs text-text-secondary">
+                          <p className="text-xs text-white/60">
                             <span className="font-semibold text-brand-green">Cancelled</span>
                             {' — Duffel refunds '}
                             <span className="font-medium">
@@ -387,7 +387,7 @@ export default function TripBookings({ tripId, onChanged }: Props) {
                             {' to the platform balance. Card refunds are processed separately.'}
                           </p>
                         ) : (
-                          <p className="text-xs text-text-secondary">
+                          <p className="text-xs text-white/60">
                             <span className="font-semibold text-brand-green">Cancelled</span>
                             {outcome.providerStatus ? ` (provider status: ${outcome.providerStatus})` : ''}
                             {' — refund: '}
@@ -405,7 +405,7 @@ export default function TripBookings({ tripId, onChanged }: Props) {
               </tbody>
             </table>
           </div>
-          <p className="mt-2 text-right text-sm font-semibold text-text-primary">
+          <p className="mt-2 text-right font-mono text-sm font-semibold text-white">
             Total booked: <span className="text-brand-green">${sumUsd(rows)}</span>
           </p>
         </>

@@ -100,29 +100,29 @@ export default function AllTripsList({ refreshSignal = 0, onSelect, selectedTrip
   return (
     <div className="mt-6">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <p className="text-lg font-bold text-brand-purple">Your trips</p>
+        <p className="text-lg font-bold text-white">Your trips</p>
         <div className="flex items-center gap-3">
-          {!loading && !error && <span className="text-xs text-text-muted">{trips.length} {trips.length === 1 ? 'trip' : 'trips'}</span>}
+          {!loading && !error && <span className="text-xs text-white/50">{trips.length} {trips.length === 1 ? 'trip' : 'trips'}</span>}
           {headerAction}
         </div>
       </div>
 
-      {loading && <p className="text-sm text-text-muted">Loading your trips…</p>}
-      {error && <p className="rounded-lg border border-border bg-bg-row p-4 text-sm text-brand-red">{error}</p>}
+      {loading && <p className="text-sm text-white/50">Loading your trips…</p>}
+      {error && <p className="rounded-lg border border-panel-border bg-panel-surface p-4 text-sm text-brand-red">{error}</p>}
 
       {!loading && !error && trips.length === 0 && (
-        <p className="rounded-lg border border-border bg-bg-row p-4 text-sm text-text-muted">
+        <p className="rounded-lg border border-panel-border bg-panel-surface p-4 text-sm text-white/50">
           No trips yet. Tap &ldquo;+ Create a trip&rdquo; and it shows up here.
         </p>
       )}
 
-      {deleteError && <p className="mb-2 rounded-lg border border-border bg-bg-row p-3 text-sm text-brand-red">{deleteError}</p>}
+      {deleteError && <p className="mb-2 rounded-lg border border-panel-border bg-panel-surface p-3 text-sm text-brand-red">{deleteError}</p>}
 
       {!loading && !error && trips.length > 0 && (
-        <div className="overflow-hidden rounded-lg border border-border">
+        <div className="overflow-hidden rounded-lg border border-panel-border">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-bg-row text-left text-xs uppercase tracking-wide text-text-faint">
+              <tr className="bg-panel-surface text-left font-mono text-[10px] uppercase tracking-wider text-white/40">
                 <th className="px-3 py-2 font-medium">Trip</th>
                 <th className="px-3 py-2 font-medium">Where</th>
                 <th className="px-3 py-2 font-medium">Dates</th>
@@ -136,13 +136,13 @@ export default function AllTripsList({ refreshSignal = 0, onSelect, selectedTrip
                   key={trip.id}
                   onClick={() => onSelect?.(trip)}
                   aria-selected={selectedTripId === trip.id}
-                  className={`cursor-pointer border-t transition-colors hover:bg-bg-row ${selectedTripId === trip.id ? 'border-brand-purple bg-brand-purple/5' : 'border-border bg-white'}`}
+                  className={`cursor-pointer border-t transition-colors hover:bg-panel-hover ${selectedTripId === trip.id ? 'border-brand-purple bg-brand-purple/10' : 'border-panel-border bg-panel-surface'}`}
                 >
-                  <td className="px-3 py-3 font-medium text-text-primary">{trip.name}</td>
-                  <td className="px-3 py-3 text-text-secondary">{trip.destination || '—'}</td>
-                  <td className="px-3 py-3 text-text-secondary">{formatRange(trip.startDate, trip.endDate)}</td>
+                  <td className="px-3 py-3 font-medium text-white">{trip.name}</td>
+                  <td className="px-3 py-3 text-white/60">{trip.destination || '—'}</td>
+                  <td className="px-3 py-3 text-white/60">{formatRange(trip.startDate, trip.endDate)}</td>
                   <td className="px-3 py-3">
-                    <span className="rounded-full bg-brand-purple/10 px-2 py-0.5 text-xs font-medium text-brand-purple">
+                    <span className="rounded-full bg-brand-purple/10 px-2 py-0.5 text-xs font-medium text-white">
                       {trip.status}
                     </span>
                   </td>
@@ -153,7 +153,7 @@ export default function AllTripsList({ refreshSignal = 0, onSelect, selectedTrip
                       disabled={deletingId === trip.id}
                       aria-label={`Delete ${trip.name}`}
                       title="Delete trip"
-                      className="rounded p-1 text-text-muted transition-colors hover:bg-bg-row hover:text-brand-red disabled:opacity-50"
+                      className="rounded p-1 text-white/50 transition-colors hover:bg-panel-hover hover:text-brand-red disabled:opacity-50"
                     >
                       {deletingId === trip.id ? (
                         <span className="text-xs">Deleting…</span>
