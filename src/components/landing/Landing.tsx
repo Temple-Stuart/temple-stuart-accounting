@@ -856,7 +856,10 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
       {/* ── FD-1i (ruling E): the SUMMARY deck — a second pass beneath the
             selection floor, same scroll-snap mechanics. Content LIFTED ONLY:
             each pillar's dark-hero eyebrow + headline, the descriptor, and
-            three verbatim slide titles (provenance on SUMMARY_BY_ID). ──────── */}
+            three verbatim slide titles (provenance on SUMMARY_BY_ID).
+            DECK-2: the slides render as MINIATURE EXPLORE HEROES — wide,
+            tall, radial-glow panels in the darkHero language (the stage
+            changed; the script is byte-identical). ─────────────────────────── */}
       <section className="w-full border-b border-panel-border bg-panel-surface">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
           <div className="flex items-center justify-between">
@@ -900,26 +903,41 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
             {PILLAR_CARDS.map((p) => {
               const s = SUMMARY_BY_ID[p.id];
               return (
+                // DECK-2: each slide IS a miniature explore hero — the
+                // TabShowcaseTemplate darkHero visual language (:142-148:
+                // near-black base + brand-purple radial glows), rebuilt on
+                // tokens via the FD-1c HERO_BG const (reused verbatim — the
+                // template's raw color literals never enter this file).
+                // Chip = the template's :151 eyebrow idiom (+ the
+                // landing's mono); headline = the hero's display type scaled
+                // down (text-3xl/5xl → 2xl/3xl); sub-copy white/65-70; CTA =
+                // the white hero-button family. Content strings byte-identical
+                // to FD-1i (SUMMARY_BY_ID + TAB_DESCRIPTORS — 0 data lines).
                 <article
                   key={p.id}
-                  className="flex w-[85%] shrink-0 snap-start flex-col rounded-lg border border-panel-border bg-panel p-4 sm:w-[48%] lg:w-[32%]"
+                  className="flex min-h-[22rem] w-[92%] shrink-0 snap-start flex-col overflow-hidden rounded-lg p-6 text-white sm:w-[80%] sm:p-8 lg:w-[55%]"
+                  style={{ background: HERO_BG }}
                 >
-                  <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
-                    {s.eyebrow}
-                  </p>
-                  <p className="mt-2 text-sm font-medium leading-snug text-white">{s.headline}</p>
-                  <p className="mt-2 text-xs leading-relaxed text-white/60">{TAB_DESCRIPTORS[p.tab]}</p>
-                  <ul className="mt-3 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
+                      {s.eyebrow}
+                    </span>
+                  </div>
+                  <h3 className="mt-4 text-2xl font-light tracking-tight sm:text-3xl">{s.headline}</h3>
+                  <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/65">{TAB_DESCRIPTORS[p.tab]}</p>
+                  <ul className="mt-3 max-w-xl space-y-1">
                     {s.lines.map((l, i) => (
-                      <li key={i} className="text-xs leading-relaxed text-white/60">{l}</li>
+                      <li key={i} className="text-sm leading-relaxed text-white/70">{l}</li>
                     ))}
                   </ul>
-                  <Link
-                    href={`/modules/${p.id}`}
-                    className="mt-auto pt-3 font-mono text-xs font-medium text-white hover:text-white/70"
-                  >
-                    Explore {p.label} →
-                  </Link>
+                  <div className="mt-auto pt-5">
+                    <Link
+                      href={`/modules/${p.id}`}
+                      className="inline-block bg-white px-4 py-1.5 text-xs font-medium text-brand-purple hover:bg-bg-row"
+                    >
+                      Explore {p.label} →
+                    </Link>
+                  </div>
                 </article>
               );
             })}
