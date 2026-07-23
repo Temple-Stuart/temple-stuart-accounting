@@ -46,6 +46,9 @@ function DimCell({ code, label }: { code: string; label: string }) {
 }
 import LandingHeader from './LandingHeader';
 import LandingFooter from './LandingFooter';
+// LAND-SEARCH-1: the hero search teaser — builds a prefill handoff URL into
+// the live travel tools; zero fetches, zero search-stack imports.
+import LandingSearchTeaser from './LandingSearchTeaser';
 
 interface PillarCard {
   id: string;
@@ -213,6 +216,10 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
                 Create free account
               </button>
             </div>
+            {/* LAND-SEARCH-1: the booking-style teaser, below the RULED CTAs
+                (both stay verbatim — redundancy with "Try it live" is flagged
+                in the report for Alex's visual gate, not resolved here). */}
+            <LandingSearchTeaser />
           </div>
         </div>
       </section>
