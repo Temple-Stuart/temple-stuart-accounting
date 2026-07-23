@@ -1,7 +1,8 @@
 'use client';
 
 /**
- * ActivityResultsView — PURE, image-capable activity results grid (PR-A2).
+ * ActivityResultsView — PURE, image-capable activity results list (PR-A2;
+ * COMPACT-1 converted the photo-card scroller to dense list rows).
  *
  * Renders the image-rich results from the PUBLIC activity search route (PR-A1,
  * /api/travel/activities/search → { results, count }). Each result is the
@@ -20,7 +21,6 @@
  */
 
 import { useState } from 'react';
-import HorizontalScroller from './HorizontalScroller';
 import ResultsFilterBar from './ResultsFilterBar';
 import { sortAndFilterResults, type SortKey } from '@/lib/resultsSortFilter';
 
@@ -70,32 +70,32 @@ function formatDuration(min: number | null): string | null {
   return rem === 0 ? `${h}h` : `${h}h ${rem}m`;
 }
 
-/** Per-card image: shows the photo when present + loadable, else a neutral
+/** Per-row thumbnail: shows the photo when present + loadable, else a neutral
  *  placeholder block. NEVER a broken <img> — a present-but-404 URL flips to the
- *  same placeholder via onError (local UI state, not data loading). */
+ *  same placeholder via onError (local UI state, not data loading). COMPACT-1:
+ *  fills its parent (the row's fixed h-14 w-20 cell) instead of a 4/3 card face. */
 function ActivityCardImage({ photoUrl, name }: { photoUrl: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
   const showPhoto = !!photoUrl && !failed;
 
   return (
-    <div className="relative aspect-[4/3] w-full overflow-hidden bg-white/5">
+    <div className="relative h-full w-full overflow-hidden bg-white/5">
       {showPhoto ? (
         <img
           src={photoUrl as string}
           alt={name}
           loading="lazy"
           onError={() => setFailed(true)}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+          className="h-full w-full object-cover"
         />
       ) : (
         // Neutral placeholder — not a broken image icon.
-        <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-white/40">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        <div className="flex h-full w-full items-center justify-center text-white/40">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="9" />
             <path d="M12 7v5l3 2" />
           </svg>
-          <span className="text-[11px]">No photo</span>
         </div>
       )}
     </div>
@@ -103,9 +103,10 @@ function ActivityCardImage({ photoUrl, name }: { photoUrl: string | null; name: 
 }
 
 function RatingPill({ activity }: { activity: ActivityResult }) {
+  // COMPACT-1: an inline chip in the row (no photo to overlay anymore).
   if (activity.googleRating <= 0) return null;
   return (
-    <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/20 bg-panel/90 px-2 py-1 text-xs font-semibold text-white shadow-sm backdrop-blur">
+    <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-white">
       <span className="text-brand-amber" aria-hidden="true">★</span>
       {activity.googleRating.toFixed(1)}
       {activity.reviewCount > 0 && (
@@ -121,16 +122,17 @@ export default function ActivityResultsView({ results, loading, error, onBook }:
   const [minRating, setMinRating] = useState(0);
 
   if (loading) {
+    // COMPACT-1: skeleton rows, matching the dense list-row result layout.
     return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="overflow-hidden rounded-lg border border-panel-border bg-panel-surface">
-            <div className="aspect-[4/3] w-full animate-pulse bg-white/10" />
-            <div className="space-y-2 p-4">
-              <div className="h-4 w-3/4 animate-pulse rounded bg-white/10" />
+      <div className="divide-y divide-panel-border rounded-lg border border-panel-border bg-panel-surface" aria-busy="true">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 p-2">
+            <div className="h-14 w-20 shrink-0 animate-pulse rounded bg-white/10" />
+            <div className="flex-1 space-y-2">
               <div className="h-3 w-1/2 animate-pulse rounded bg-white/10" />
-              <div className="h-8 w-full animate-pulse rounded bg-white/10" />
+              <div className="h-3 w-1/3 animate-pulse rounded bg-white/10" />
             </div>
+            <div className="h-7 w-16 shrink-0 animate-pulse rounded bg-white/10" />
           </div>
         ))}
       </div>
@@ -139,7 +141,7 @@ export default function ActivityResultsView({ results, loading, error, onBook }:
 
   if (error) {
     return (
-      <div className="rounded-lg border border-panel-border bg-panel-surface p-6 text-sm text-brand-red">
+      <div className="rounded-lg border border-panel-border bg-panel-surface p-3 text-sm text-brand-red">
         {error}
       </div>
     );
@@ -147,9 +149,9 @@ export default function ActivityResultsView({ results, loading, error, onBook }:
 
   if (results.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-panel-border bg-panel-surface p-8 text-center">
+      <div className="rounded-lg border border-dashed border-panel-border bg-panel-surface p-4 text-center">
         <p className="text-sm font-medium text-white">No activities yet</p>
-        <p className="mt-1 text-sm text-white/50">
+        <p className="mt-1 text-xs text-white/50">
           Enter a city and country to see real tours and experiences with photos and prices.
         </p>
       </div>
@@ -178,64 +180,71 @@ export default function ActivityResultsView({ results, loading, error, onBook }:
         totalCount={results.length}
       />
       {displayed.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-panel-border bg-panel-surface p-6 text-center text-sm text-white/50">
+        <div className="rounded-lg border border-dashed border-panel-border bg-panel-surface p-4 text-center text-sm text-white/50">
           No results match these filters.
         </div>
       ) : (
-        <HorizontalScroller ariaLabel="Activity results">
+        // COMPACT-1: dense list rows (thumbnail · name/meta · price · action),
+        // replacing the horizontal photo-card scroller.
+        <div
+          aria-label="Activity results"
+          className="divide-y divide-panel-border rounded-lg border border-panel-border bg-panel-surface"
+        >
           {displayed.map((activity, idx) => {
         const duration = formatDuration(activity.durationMinutes);
         const place = activity.address;
 
         return (
-          <article
+          <div
             key={`${activity.viatorProductCode || activity.name}-${idx}`}
-            className="group flex flex-col overflow-hidden rounded-lg border border-panel-border bg-panel-surface transition-colors hover:bg-panel-hover"
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 p-2 transition-colors hover:bg-panel-hover sm:flex-nowrap"
           >
-            <div className="relative">
+            <div className="h-14 w-20 shrink-0 overflow-hidden rounded">
               <ActivityCardImage photoUrl={activity.photoUrl} name={activity.name} />
-              <RatingPill activity={activity} />
             </div>
 
-            <div className="flex flex-1 flex-col p-4">
-              <h3 className="line-clamp-2 font-medium text-white" title={activity.name}>
-                {activity.name}
-              </h3>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <h3 className="truncate text-sm font-medium text-white" title={activity.name}>
+                  {activity.name}
+                </h3>
+                <RatingPill activity={activity} />
+              </div>
 
               {/* Meta row: place + duration chip. */}
-              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-white/50">
-                {place && <span className="line-clamp-1">{place}</span>}
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-white/50">
+                {place && <span className="truncate">{place}</span>}
                 {duration && (
-                  <span className="inline-flex items-center rounded-full bg-white/10 px-2 py-0.5 text-xs text-white/70">
+                  <span className="inline-flex items-center rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] text-white/70">
                     {duration}
                   </span>
                 )}
               </div>
-
-              {/* Price — "From $X". Mirrors the hotel card's green price emphasis. */}
-              <div className="mt-3">
-                {typeof activity.price === 'number' ? (
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-xs text-white/50">From</span>
-                    <span className="text-lg font-bold text-brand-green">{money(activity.price)}</span>
-                  </div>
-                ) : (
-                  <div className="text-sm text-white/40">Price on request</div>
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => onBook(activity)}
-                className="mt-4 w-full rounded bg-brand-purple px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-purple-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
-              >
-                Book
-              </button>
             </div>
-          </article>
+
+            {/* Price — "From $X". Mirrors the hotel row's green price emphasis. */}
+            <div className="shrink-0 text-right">
+              {typeof activity.price === 'number' ? (
+                <div className="flex items-baseline justify-end gap-1">
+                  <span className="text-[10px] text-white/50">From</span>
+                  <span className="text-sm font-bold text-brand-green">{money(activity.price)}</span>
+                </div>
+              ) : (
+                <div className="text-xs text-white/40">Price on request</div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => onBook(activity)}
+              className="shrink-0 rounded bg-brand-purple px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-purple-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+            >
+              Book
+            </button>
+          </div>
         );
           })}
-        </HorizontalScroller>
+        </div>
       )}
     </div>
   );

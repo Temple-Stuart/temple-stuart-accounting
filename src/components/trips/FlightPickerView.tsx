@@ -180,24 +180,24 @@ export default function FlightPickerView({
                   {/* Search form */}
                   <div className="flex flex-wrap items-end gap-3">
                     <div>
-                      <label className="text-[10px] text-white/50 block mb-0.5">From</label>
+                      <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">From</label>
                       <input type="text" value={leg.origin} onChange={e => onUpdateLeg(leg.id, { origin: e.target.value.toUpperCase() })}
                         className="w-16 px-2 py-1.5 border border-white/20 bg-white/10 text-white placeholder-white/40 rounded text-xs font-mono text-center" maxLength={3} placeholder="LAX" />
                     </div>
                     <span className="text-white/50 pb-1.5">→</span>
                     <div>
-                      <label className="text-[10px] text-white/50 block mb-0.5">To</label>
+                      <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">To</label>
                       <input type="text" value={leg.destination} onChange={e => onUpdateLeg(leg.id, { destination: e.target.value.toUpperCase() })}
                         className="w-16 px-2 py-1.5 border border-white/20 bg-white/10 text-white placeholder-white/40 rounded text-xs font-mono text-center" maxLength={3} placeholder="DPS" />
                     </div>
                     <div>
-                      <label className="text-[10px] text-white/50 block mb-0.5">Depart</label>
+                      <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">Depart</label>
                       <input type="date" value={leg.departureDate} onChange={e => onUpdateLeg(leg.id, { departureDate: e.target.value })}
                         className="px-2 py-1.5 border border-white/20 bg-white/10 text-white rounded text-xs" />
                     </div>
                     {leg.tripType === 'roundtrip' && (
                       <div>
-                        <label className="text-[10px] text-white/50 block mb-0.5">Return</label>
+                        <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">Return</label>
                         <input type="date" value={leg.returnDate} onChange={e => onUpdateLeg(leg.id, { returnDate: e.target.value })}
                           className="px-2 py-1.5 border border-white/20 bg-white/10 text-white rounded text-xs" />
                       </div>
@@ -364,11 +364,10 @@ export default function FlightPickerView({
         </div>
       ))}
 
-      {/* Add another leg */}
+      {/* Add another leg — COMPACT-1: a small inline control, not a full-width banner. */}
       <button onClick={onAddLeg}
-        className="w-full py-2 text-sm text-purple-600 hover:text-purple-800 font-medium flex items-center justify-center gap-2 border border-dashed border-purple-300 rounded hover:bg-purple-50 transition-colors">
-        <span className="w-5 h-5 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 text-xs">+</span>
-        Add Another Flight Leg
+        className="rounded border border-white/20 px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50 transition-colors hover:bg-white/10 hover:text-white">
+        + Leg
       </button>
 
       {!liveSearchEnabled && (

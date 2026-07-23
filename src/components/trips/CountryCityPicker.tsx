@@ -15,6 +15,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { TRAVEL_LABEL_CLASS } from './travelSection';
 
 interface Country { code: string; name: string }
 
@@ -121,58 +122,66 @@ export default function CountryCityPicker({ onChange }: Props) {
   };
 
   return (
-    <div className="lg:col-span-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+    // COMPACT-1: two labelled cells in the teaser form factor — mono micro-labels
+    // above each field, 2-up on mobile, spanning 3 of the hotel form's 5 lg columns.
+    <div className="col-span-2 grid grid-cols-2 gap-2 lg:col-span-3">
       {/* Country dropdown (label = name, value = code). */}
-      <select
-        value={countryCode}
-        onChange={(e) => onPickCountry(e.target.value)}
-        disabled={countriesLoading || !!countriesError}
-        className={inputClass}
-        aria-label="Destination country"
-      >
-        <option value="">
-          {countriesLoading ? 'Loading countries…' : countriesError ? 'Countries unavailable' : 'Select a country…'}
-        </option>
-        {countries.map((c) => (
-          <option key={c.code} value={c.code}>{c.name}</option>
-        ))}
-      </select>
+      <label className="flex flex-col gap-1">
+        <span className={TRAVEL_LABEL_CLASS}>Country</span>
+        <select
+          value={countryCode}
+          onChange={(e) => onPickCountry(e.target.value)}
+          disabled={countriesLoading || !!countriesError}
+          className={inputClass}
+          aria-label="Destination country"
+        >
+          <option value="">
+            {countriesLoading ? 'Loading countries…' : countriesError ? 'Countries unavailable' : 'Select a country…'}
+          </option>
+          {countries.map((c) => (
+            <option key={c.code} value={c.code}>{c.name}</option>
+          ))}
+        </select>
+      </label>
 
       {/* City type-ahead (enabled once a country is chosen). */}
-      <div className="relative" ref={cityBoxRef}>
-        <input
-          type="text"
-          value={cityQuery}
-          onChange={(e) => onTypeCity(e.target.value)}
-          onFocus={() => { if (cityQuery.trim().length > 0) setShowDropdown(true); }}
-          disabled={!countryCode || citiesLoading}
-          placeholder={
-            !countryCode ? 'Pick a country first'
-            : citiesLoading ? 'Loading cities…'
-            : 'Type a city (e.g. Lis)'
-          }
-          className={`${inputClass} w-full ${cityChosen ? 'border-brand-green' : ''}`}
-          aria-label="Destination city"
-        />
-        {showDropdown && (
-          <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[260px] overflow-y-auto rounded-lg border border-panel-border bg-panel-surface shadow-lg">
-            {matches.length > 0 ? (
-              matches.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => onPickCity(c)}
-                  className="block w-full px-3 py-2 text-left text-sm text-white hover:bg-white/10"
-                >
-                  {c}
-                </button>
-              ))
-            ) : (
-              <div className="px-3 py-2 text-sm text-white/50">No matching cities — try a different spelling.</div>
-            )}
-          </div>
-        )}
-        {citiesError && <p className="mt-1 text-xs text-brand-red">{citiesError}</p>}
+      <div className="flex flex-col gap-1" ref={cityBoxRef}>
+        <span className={TRAVEL_LABEL_CLASS}>City</span>
+        <div className="relative">
+          <input
+            type="text"
+            value={cityQuery}
+            onChange={(e) => onTypeCity(e.target.value)}
+            onFocus={() => { if (cityQuery.trim().length > 0) setShowDropdown(true); }}
+            disabled={!countryCode || citiesLoading}
+            placeholder={
+              !countryCode ? 'Pick a country first'
+              : citiesLoading ? 'Loading cities…'
+              : 'Type a city (e.g. Lis)'
+            }
+            className={`${inputClass} w-full ${cityChosen ? 'border-brand-green' : ''}`}
+            aria-label="Destination city"
+          />
+          {showDropdown && (
+            <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[260px] overflow-y-auto rounded-lg border border-panel-border bg-panel-surface shadow-lg">
+              {matches.length > 0 ? (
+                matches.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => onPickCity(c)}
+                    className="block w-full px-3 py-2 text-left text-sm text-white hover:bg-white/10"
+                  >
+                    {c}
+                  </button>
+                ))
+              ) : (
+                <div className="px-3 py-2 text-sm text-white/50">No matching cities — try a different spelling.</div>
+              )}
+            </div>
+          )}
+          {citiesError && <p className="mt-1 text-xs text-brand-red">{citiesError}</p>}
+        </div>
       </div>
     </div>
   );

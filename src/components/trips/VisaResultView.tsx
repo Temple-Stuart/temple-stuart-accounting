@@ -66,9 +66,9 @@ function Essential({ label, value }: { label: string; value?: string }) {
 export default function VisaResultView({ result, loading, error }: Props) {
   if (loading) {
     return (
-      <div className="rounded-lg border border-panel-border bg-panel-surface p-6" aria-busy="true">
+      <div className="rounded-lg border border-panel-border bg-panel-surface p-4" aria-busy="true">
         <div className="h-6 w-40 animate-pulse rounded-full bg-white/10" />
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="h-10 animate-pulse rounded bg-white/10" />
           ))}
@@ -79,7 +79,7 @@ export default function VisaResultView({ result, loading, error }: Props) {
 
   if (error) {
     return (
-      <div className="rounded-lg border border-panel-border bg-panel-surface p-6 text-sm text-brand-red">
+      <div className="rounded-lg border border-panel-border bg-panel-surface p-3 text-sm text-brand-red">
         {error}
       </div>
     );
@@ -87,9 +87,9 @@ export default function VisaResultView({ result, loading, error }: Props) {
 
   if (!result) {
     return (
-      <div className="rounded-lg border border-dashed border-panel-border bg-panel-surface p-8 text-center">
+      <div className="rounded-lg border border-dashed border-panel-border bg-panel-surface p-4 text-center">
         <p className="text-sm font-medium text-white">Check visa requirements</p>
-        <p className="mt-1 text-sm text-white/50">
+        <p className="mt-1 text-xs text-white/50">
           Pick your passport and where you&apos;re headed to see if you need a visa, how long you can stay, and the official place to apply.
         </p>
       </div>
@@ -109,7 +109,7 @@ export default function VisaResultView({ result, loading, error }: Props) {
 
   return (
     <div className="rounded-lg border border-panel-border bg-panel-surface">
-      <div className="space-y-4 p-5">
+      <div className="space-y-3 p-4">
         {/* Header: passport → destination */}
         <div>
           <p className="text-xs text-white/50">
@@ -127,7 +127,7 @@ export default function VisaResultView({ result, loading, error }: Props) {
 
         {/* Destination essentials (each renders only when present) */}
         {(destination.capital || destination.currency || destination.passportValidity) && (
-          <div className="grid grid-cols-2 gap-3 border-t border-panel-border pt-4 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 border-t border-panel-border pt-3 sm:grid-cols-3">
             <Essential label="Capital" value={destination.capital} />
             <Essential label="Currency" value={destination.currency} />
             <Essential label="Passport valid for" value={destination.passportValidity} />

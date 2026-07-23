@@ -13,6 +13,13 @@
  * fields, white/brand-purple buttons, panel hairlines). The app's travel tab
  * inherits this skin — ruled-desired as FD-3's first installment. Tokens
  * only; nothing new is invented.
+ *
+ * COMPACT-1: the shell adopts the teaser's FORM FACTOR — each section is one
+ * bordered panel strip (the teaser's container: rounded border-panel-border
+ * bg-white/5 p-4) headed by a single mono micro-label row (title + optional
+ * badge + a one-line explainer), replacing the divider-and-paragraph header
+ * block. TRAVEL_LABEL_CLASS is the teaser's LABEL_CLASS verbatim, exported so
+ * every field label above an input shares the one vocabulary.
  */
 
 import type { ReactNode } from 'react';
@@ -29,43 +36,39 @@ export const TRAVEL_INPUT_CLASS =
 export const TRAVEL_BUTTON_CLASS =
   'rounded bg-white px-4 py-2 text-sm font-medium text-brand-purple transition-colors hover:bg-bg-row disabled:opacity-50';
 
+/** The mono micro-label rendered ABOVE each search field — the deleted teaser's
+ *  LABEL_CLASS verbatim (LandingSearchTeaser.tsx@840a053b). */
+export const TRAVEL_LABEL_CLASS =
+  'font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50';
+
 interface TravelSectionShellProps {
-  /** Bold purple section header (the "PR-T-Headers" family). */
+  /** Short section name, rendered as the strip's mono micro-label (COMPACT-1). */
   title: string;
-  /** One plain-language line under the header. */
+  /** ONE short line beside the title — wraps inside the same header row. */
   explainer: string;
   /** Optional pill/badge shown inline beside the title (e.g. ComingSoonSection's
-   *  "Coming soon" tag). When omitted the header is byte-identical to the live
-   *  search sections (plain title `<p>`); when present the title row matches
-   *  ComingSoonSection's existing flex layout. */
+   *  "Coming soon" tag). Flows in the same header row. */
   badge?: ReactNode;
-  /** The section body (form / results), slotted below the header inside the same
-   *  `space-y-4` wrapper — exactly where each section's form sits today. */
+  /** The section body (form / results), slotted below the header row inside the
+   *  strip's `space-y-3`. */
   children?: ReactNode;
 }
 
 /**
- * The shared section wrapper + header. Renders the EXACT markup the live sections
- * already produce: wrapper `mt-10 pt-8 border-t border-border space-y-4`, an inner
- * `<div>` holding the title `<p>` (text-lg font-bold text-brand-purple mb-1) and the
- * explainer `<p>` (text-xs text-text-muted), then `children` as the next sibling so
- * the wrapper's `space-y-4` spaces the header from the body — identical to e.g.
- * PublicHotelSearch.tsx:174-180 / PublicActivitySearch.tsx:79-86. With a `badge`, the
- * title row matches ComingSoonSection's flex-with-pill layout instead.
+ * The shared section strip (COMPACT-1: the teaser's form factor). One bordered
+ * panel strip — `rounded-lg border-panel-border bg-white/5 p-4` — with a single
+ * header row: the mono micro-label title, the optional badge, and the one-line
+ * explainer, all inline (wrapping on narrow screens). The body slots directly
+ * beneath. The `mt-4` keeps strips separated where no parent `space-y` exists
+ * (the app travel tab stacks these as plain siblings).
  */
 export default function TravelSectionShell({ title, explainer, badge, children }: TravelSectionShellProps) {
   return (
-    <div className="mt-8 pt-6 border-t border-panel-border space-y-4">
-      <div>
-        {badge ? (
-          <div className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-            <p className="text-sm font-medium text-white">{title}</p>
-            {badge}
-          </div>
-        ) : (
-          <p className="text-sm font-medium text-white mb-1">{title}</p>
-        )}
-        <p className="text-xs text-white/50">{explainer}</p>
+    <div className="mt-4 rounded-lg border border-panel-border bg-white/5 p-4 space-y-3">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+        <p className={TRAVEL_LABEL_CLASS}>{title}</p>
+        {badge}
+        <p className="text-[10px] text-white/40">{explainer}</p>
       </div>
       {children}
     </div>

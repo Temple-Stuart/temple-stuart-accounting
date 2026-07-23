@@ -34,13 +34,16 @@ import PublicVisaCheck from '@/components/trips/PublicVisaCheck';
 
 export default function LandingBookingSection({ onRequireAuth }: { onRequireAuth: () => void }) {
   return (
+    // COMPACT-1: compressed section chrome — the five surfaces are now dense
+    // bordered strips (TravelSectionShell), so the section header + spacing
+    // tighten to match (py-8/space-y-4, text-lg headline; same ruled copy).
     <section className="w-full border-b border-panel-border bg-panel">
-      <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8 space-y-4">
         <div>
           <p className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
             Live searches · no account needed
           </p>
-          <h2 className="text-2xl font-light tracking-tight text-white">
+          <h2 className="text-lg font-light tracking-tight text-white">
             Flights, hotels, activities, ground transit &amp; visa rules — search them all here.
             Book flights &amp; hotels right now.
           </h2>

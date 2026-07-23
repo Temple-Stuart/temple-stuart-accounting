@@ -18,7 +18,7 @@
 
 import { useState, useEffect } from 'react';
 import ActivityResultsView, { type ActivityResult } from './ActivityResultsView';
-import TravelSectionShell, { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS } from './travelSection';
+import TravelSectionShell, { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS, TRAVEL_LABEL_CLASS } from './travelSection';
 
 interface Props {
   /** Opens the existing home register/login modal (booking requires sign-in). */
@@ -97,27 +97,33 @@ export default function PublicTransferSearch({ onRequireAuth, sharedCity, shared
 
   return (
     <TravelSectionShell
-      title="Getting around — airport rides & transfers, no account needed."
-      explainer="Type a city and country to see real airport and hotel transfers with photos and prices. Booking asks you to sign up."
+      title="Getting around"
+      explainer="Real airport & hotel transfers. Booking asks you to sign up."
     >
-      <form onSubmit={search} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <input
-          type="text"
-          value={city}
-          onChange={(e) => setCity(e.target.value)}
-          placeholder="City (e.g. Bali)"
-          className={`${TRAVEL_INPUT_CLASS} lg:col-span-2`}
-          aria-label="Destination city"
-        />
-        <input
-          type="text"
-          value={country}
-          onChange={(e) => setCountry(e.target.value)}
-          placeholder="Country (e.g. Indonesia)"
-          className={TRAVEL_INPUT_CLASS}
-          aria-label="Destination country"
-        />
-        <div className="flex items-end">
+      <form onSubmit={search} className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+        <label className="flex flex-col gap-1 lg:col-span-2">
+          <span className={TRAVEL_LABEL_CLASS}>City</span>
+          <input
+            type="text"
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            placeholder="e.g. Bali"
+            className={TRAVEL_INPUT_CLASS}
+            aria-label="Destination city"
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className={TRAVEL_LABEL_CLASS}>Country</span>
+          <input
+            type="text"
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            placeholder="e.g. Indonesia"
+            className={TRAVEL_INPUT_CLASS}
+            aria-label="Destination country"
+          />
+        </label>
+        <div className="col-span-2 flex items-end lg:col-span-1">
           <button
             type="submit"
             disabled={loading}
