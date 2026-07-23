@@ -253,6 +253,7 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
         onMonthChange={(year, month) => { setSelectedYear(year); setSelectedMonth(month); }}
         onRangeChange={(from, to) => setRange({ from, to })}
         flush={true}
+        surface="dark"
       />
 
       {cardSelection && (
@@ -261,11 +262,12 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
           block={cardSelection.block}
           onClose={() => setCardSelection(null)}
           onUpdated={() => { loadOperationsBlocks(); setCardSelection(null); }}
+          surface="dark"
         />
       )}
 
       {detailEvent && (
-        <EventDetailPanel event={detailEvent} onClose={() => setDetailEvent(null)} />
+        <EventDetailPanel event={detailEvent} onClose={() => setDetailEvent(null)} surface="dark" />
       )}
     </div>
   );

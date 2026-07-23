@@ -23,10 +23,13 @@
 
 import { useEffect, useRef } from 'react';
 import type { CalendarEvent as GridEvent } from '@/components/shared/CalendarGrid';
+import { themed, type Surface } from '@/lib/ds';
 
 interface Props {
   event: GridEvent;
   onClose: () => void;
+  /** CAL-DS-THEME: light default (byte-identical); HubCalendar passes 'dark'. */
+  surface?: Surface;
 }
 
 // Source label + legend dot color — the SAME hues as the calendar legend
@@ -56,19 +59,20 @@ function formatUsd(n?: number): string {
 }
 
 /** One label/value row. A "not set yet" value reads as a muted, italic placeholder. */
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value, dk }: { label: string; value: string; dk: boolean }) {
   const isPlaceholder = value === NOT_SET;
   return (
-    <div className="flex items-start justify-between gap-3 border-b border-border py-2 last:border-0">
-      <span className={labelClass}>{label}</span>
-      <span className={`text-right text-sm ${isPlaceholder ? 'italic text-text-faint' : 'text-text-primary'}`}>
+    <div className={themed('flex items-start justify-between gap-3 border-b border-border py-2 last:border-0', dk)}>
+      <span className={themed(labelClass, dk)}>{label}</span>
+      <span className={themed(`text-right text-sm ${isPlaceholder ? 'italic text-text-faint' : 'text-text-primary'}`, dk)}>
         {value}
       </span>
     </div>
   );
 }
 
-export default function EventDetailPanel({ event, onClose }: Props) {
+export default function EventDetailPanel({ event, onClose, surface = 'light' }: Props) {
+  const dk = surface === 'dark';
   const panelRef = useRef<HTMLDivElement>(null);
   const cfg = SOURCE_BADGE[event.source] ?? { label: event.source, dot: 'bg-border' };
   const isTrade = event.source === 'trade';
@@ -127,14 +131,14 @@ export default function EventDetailPanel({ event, onClose }: Props) {
       {/* Centered modal box — matches the booking popup (CheckoutPanel.tsx:249,256). */}
       <div
         ref={panelRef}
-        className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-lg bg-white shadow-sm"
+        className={themed('flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-lg bg-white shadow-sm', dk)}
       >
         {/* Header */}
         <div className="flex items-start justify-between bg-brand-purple px-5 py-4 text-white">
           <div className="min-w-0 flex-1 pr-3">
             <h3 className="break-words text-sm font-semibold">{event.title}</h3>
             <p className="mt-1 flex items-center gap-1.5 text-xs text-white/70">
-              <span className={`h-2 w-2 rounded-sm ${cfg.dot}`} />
+              <span className={themed(`h-2 w-2 rounded-sm ${cfg.dot}`, dk)} />
               {cfg.label} · {formatDate(event.startDate)}
             </p>
           </div>
@@ -152,25 +156,25 @@ export default function EventDetailPanel({ event, onClose }: Props) {
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-5">
-          <div className="rounded-lg border border-border p-3">
+          <div className={themed('rounded-lg border border-border p-3', dk)}>
             {rows.map((r) => (
-              <Row key={r.label} label={r.label} value={r.value} />
+              <Row key={r.label} label={r.label} value={r.value} dk={dk} />
             ))}
           </div>
 
           {/* The event's own detail lines (project cost line, trade notes), if any. */}
           {event.details && event.details.length > 0 && (
             <div className="mt-4">
-              <p className={labelClass}>Notes</p>
+              <p className={themed(labelClass, dk)}>Notes</p>
               <ul className="mt-1 space-y-0.5">
                 {event.details.map((line, i) => (
-                  <li key={i} className="text-sm text-text-secondary">{line}</li>
+                  <li key={i} className={themed('text-sm text-text-secondary', dk)}>{line}</li>
                 ))}
               </ul>
             </div>
           )}
 
-          <p className="mt-4 text-xs text-text-faint">
+          <p className={themed('mt-4 text-xs text-text-faint', dk)}>
             {isTrade
               ? 'The trade details fill in once this is wired to your trading account.'
               : 'The blank fields fill in once this is wired to your account.'}
