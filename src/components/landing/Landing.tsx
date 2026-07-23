@@ -65,8 +65,20 @@ interface PillarCard {
   bullets: string[];
 }
 
-const FREE_WITH_ACCOUNT = 'Free with a free account';
+// FD-1o: per-tab truth labels, each claim verified against its live gate
+// (cite table in the FD-1o report): Runway = /api/runway:38 "DB-only read";
+// Routines = enrich-routine/route.ts:42 requireTier('ai'); Projects =
+// requirePipeBudget across the pipe routes + pipeBudget.ts:15 default cap 20;
+// Content = generate-script/route.ts:53 requireTier('ai'). TRAVEL'S RULED
+// LABEL WAS STOPPED: its "guest booking — …activities" sub-claim failed
+// verification (activities Book routes to sign-up, PublicActivitySearch.tsx
+// :92-94 — no guest activities booking exists), so travel keeps its prior
+// verified label pending Alex's re-ruling.
 const FREE_NO_ACCOUNT = 'Free — search works with no account';
+const FREE_RUNWAY = "Free with a free account — its numbers come from your ledger, so it's most useful with Books.";
+const FREE_ROUTINES = 'Free with a free account — build & run routines. AI scene enrichment is a paid feature.';
+const FREE_PROJECTS = 'Free with a free account — includes the AI planning pipeline, capped at 20 runs/day.';
+const FREE_CONTENT = 'Free with a free account — day log & planning. AI script generation is a paid feature.';
 
 // Funnel order — Alex's ruling. Bullet provenance (deck lifts verbatim, except
 // the FD-1h bullets — ruled copy cleared by the NOTE-0 booking→runway audit):
@@ -95,7 +107,7 @@ const PILLAR_CARDS: PillarCard[] = [
     ],
   },
   {
-    id: 'runway', label: 'Runway', tab: 'calendar', freeLabel: FREE_WITH_ACCOUNT,
+    id: 'runway', label: 'Runway', tab: 'calendar', freeLabel: FREE_RUNWAY,
     bullets: [
       'Every system you’re juggling. One question answered: how long can you keep going?',
       'Burn broken out by Personal vs. Business — strays surfaced, never dropped.',
@@ -134,7 +146,7 @@ const PILLAR_CARDS: PillarCard[] = [
     ],
   },
   {
-    id: 'routines', label: 'Routines', tab: 'routines', freeLabel: FREE_WITH_ACCOUNT,
+    id: 'routines', label: 'Routines', tab: 'routines', freeLabel: FREE_ROUTINES,
     bullets: [
       'Build it once. It shows up everywhere.',
       'A routine is executable — steps you actually run.',
@@ -142,13 +154,13 @@ const PILLAR_CARDS: PillarCard[] = [
     ],
   },
   {
-    id: 'projects', label: 'Projects', tab: 'projects', freeLabel: FREE_WITH_ACCOUNT,
+    id: 'projects', label: 'Projects', tab: 'projects', freeLabel: FREE_PROJECTS,
     bullets: [
       'Goals in. Audited tasks out.',
     ],
   },
   {
-    id: 'content', label: 'Content', tab: 'content', freeLabel: FREE_WITH_ACCOUNT,
+    id: 'content', label: 'Content', tab: 'content', freeLabel: FREE_CONTENT,
     bullets: [
       'Your day becomes the script.',
       'Every step gets a shot, a question, a purpose.',
@@ -168,6 +180,19 @@ const REFERENCED_MARKS: Set<string> = (() => {
   }
   return s;
 })();
+
+// FD-1o: the glanceable per-module cost summary — the SAME per-project
+// derivation the expansion uses (no new data, no new claims), condensed to
+// one mono micro line under the module chip.
+function projectCostSummary(projectName: string): string {
+  const rows = ALLOCATION_ROWS.filter((r) => r.target.name === projectName);
+  const entered = rows.filter((r) => r.amountUsd !== null);
+  const total = entered.reduce((s, r) => s + (r.amountUsd as number), 0);
+  const usd = `$${total.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
+  return entered.length > 0
+    ? `our cost: ${usd}/mo entered · ${rows.length} items`
+    : `our cost: $0 of ${rows.length} entered`;
+}
 
 // FD-1n: the $0-strip fold-ins — the strip died as a section; its two facts
 // render inside the ruled expansions (TT → Trade, GOV → Compliance). Mapped
@@ -378,13 +403,18 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
                         <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70 whitespace-nowrap">
                           {p.label}
                         </span>
+                        {/* FD-1o: the glanceable summary — always visible; the
+                            receipt dropdown below it stays. */}
+                        <span className="mt-1.5 block font-mono text-[10px] text-white/40 whitespace-nowrap">
+                          {projectCostSummary(p.label)}
+                        </span>
                         {/* FD-1n: the receipt behind the price — expands this
                             module's allocation rows inline. */}
                         <button
                           type="button"
                           onClick={() => toggleCosts(p.id)}
                           aria-expanded={costsOpen}
-                          className="mt-1.5 block font-mono text-[10px] font-medium text-white/50 hover:text-white"
+                          className="mt-0.5 block font-mono text-[10px] font-medium text-white/50 hover:text-white"
                         >
                           costs {costsOpen ? '▴' : '▾'}
                         </button>
