@@ -49,6 +49,20 @@
  * SUMMARY_BY_ID). Commerce stays on /pricing: the landing SELECTS, /pricing
  * SELLS — Continue links carry ?module= / ?modules= only, and multi-purchase
  * remains N clicks through /pricing's existing per-module buttons.
+ *
+ * DECKS-3 (three verbatim rulings): (1) the PILLARS deck is a VERTICAL STACK
+ * of full-width mini heroes — its carousel mechanics died; (2) the SELECTION
+ * deck adopted the mini-hero glow-panel format but stays a horizontal snap
+ * rail, each slide carrying the commerce (chip, display label, descriptor,
+ * bullets, price, our-cost, ADD TO PLAN, Select/Explore); (3) NOTHING IS
+ * FREE except the home-page travel search itself — every "Free…" access
+ * label was reframed paid (claims stay gate-true; see PAID_*), all NINE
+ * slides carry the checkbox, "Learn more" died, and Select's key mapping
+ * comes from the REAL purchasable vocabulary (categoryKeys.ts:22-29 —
+ * tab:travel + tab:operations exist; runway/routines/content have NO key →
+ * availability-honest "Not yet available", never an invented key).
+ * ENFORCEMENT of the paid framing (gates for the five former-free pillars)
+ * is a separate ruled decision — no gate/tier/middleware line changes here.
  */
 
 import Link from 'next/link';
@@ -112,10 +126,16 @@ interface PillarCard {
   /** TAB_DESCRIPTORS key — differs from `id` only for Runway, whose tab key
    *  is 'calendar' (ModuleLauncher.tsx TABS :126). */
   tab: string;
-  /** TAB_PRICING key for the four entitlement modules; absent = free pillar. */
+  /** PURCHASABLE entitlement key when one exists in the real vocabulary
+   *  (categoryKeys.ts:22-29 TAB_ENTITLEMENT_KEYS — DECKS-3 added tab:travel
+   *  + tab:operations). Absent = not yet sellable (runway/routines/content):
+   *  the slide renders the availability-honest disabled Select. A key may
+   *  exist WITHOUT a TAB_PRICING display entry — the price line then falls
+   *  back to "price shown at checkout". */
   entitlementKey?: string;
-  /** The free pillar's truthful access label (audit-cited in the header note). */
-  freeLabel?: string;
+  /** The pillar's truthful access label, paid-framed (DECKS-3) — shown when
+   *  no TAB_PRICING entry carries an Unlocks line. Claims stay gate-true. */
+  accessLabel?: string;
   /** LIFTED VERBATIM from the deck's own headings — except where the provenance
    *  block below marks a bullet as an FD-1h audit-cleared claim instead. */
   bullets: string[];
@@ -133,12 +153,15 @@ interface PillarCard {
 // sign-up, PublicActivitySearch.tsx:92-94); paid picks =
 // places/category-search/route.ts:89-99 (401 → requireTier('placesSearch')
 // → category entitlements).
-const FREE_TRAVEL =
-  'Free search — flights, hotels, activities. Guest booking for flights & hotels. Premium local picks are paid add-ons.';
-const FREE_RUNWAY = "Free with a free account — its numbers come from your ledger, so it's most useful with Books.";
-const FREE_ROUTINES = 'Free with a free account — build & run routines. AI scene enrichment is a paid feature.';
-const FREE_PROJECTS = 'Free with a free account — includes the AI planning pipeline, capped at 20 runs/day.';
-const FREE_CONTENT = 'Free with a free account — day log & planning. AI script generation is a paid feature.';
+// DECKS-3 (ruling 3): the labels reframe PAID — every capability claim above
+// stays gate-verified; only the free framing died. The ONE surviving free
+// claim is the home-page travel search itself (its routes are public —
+// middleware.ts:81-100 — and that stays true).
+const PAID_TRAVEL = 'Free search on this page — the full Travel module is paid.';
+const PAID_RUNWAY = "A paid module — its numbers come from your ledger, so it's most useful with Books.";
+const PAID_ROUTINES = 'A paid module — build & run routines. AI scene enrichment is a paid feature.';
+const PAID_PROJECTS = 'A paid module — includes the AI planning pipeline, capped at 20 runs/day.';
+const PAID_CONTENT = 'A paid module — day log & planning. AI script generation is a paid feature.';
 
 // Funnel order — Alex's ruling. Bullet provenance (deck lifts verbatim, except
 // the FD-1h bullets — ruled copy cleared by the NOTE-0 booking→runway audit):
@@ -159,7 +182,7 @@ const FREE_CONTENT = 'Free with a free account — day log & planning. AI script
 //   Content:    ContentShowcaseSections.tsx :461, :492, :506
 const PILLAR_CARDS: PillarCard[] = [
   {
-    id: 'travel', label: 'Travel', tab: 'travel', freeLabel: FREE_TRAVEL,
+    id: 'travel', label: 'Travel', tab: 'travel', entitlementKey: 'tab:travel', accessLabel: PAID_TRAVEL,
     bullets: [
       'Search it. Price it. Book it. No account required to look.',
       'Book a flight or hotel and it’s saved to your trip.',
@@ -167,7 +190,7 @@ const PILLAR_CARDS: PillarCard[] = [
     ],
   },
   {
-    id: 'runway', label: 'Runway', tab: 'calendar', freeLabel: FREE_RUNWAY,
+    id: 'runway', label: 'Runway', tab: 'calendar', accessLabel: PAID_RUNWAY,
     bullets: [
       'Every system you’re juggling. One question answered: how long can you keep going?',
       'Burn broken out by Personal vs. Business — strays surfaced, never dropped.',
@@ -206,7 +229,7 @@ const PILLAR_CARDS: PillarCard[] = [
     ],
   },
   {
-    id: 'routines', label: 'Routines', tab: 'routines', freeLabel: FREE_ROUTINES,
+    id: 'routines', label: 'Routines', tab: 'routines', accessLabel: PAID_ROUTINES,
     bullets: [
       'Build it once. It shows up everywhere.',
       'A routine is executable — steps you actually run.',
@@ -214,13 +237,13 @@ const PILLAR_CARDS: PillarCard[] = [
     ],
   },
   {
-    id: 'projects', label: 'Projects', tab: 'projects', freeLabel: FREE_PROJECTS,
+    id: 'projects', label: 'Projects', tab: 'projects', entitlementKey: 'tab:operations', accessLabel: PAID_PROJECTS,
     bullets: [
       'Goals in. Audited tasks out.',
     ],
   },
   {
-    id: 'content', label: 'Content', tab: 'content', freeLabel: FREE_CONTENT,
+    id: 'content', label: 'Content', tab: 'content', accessLabel: PAID_CONTENT,
     bullets: [
       'Your day becomes the script.',
       'Every step gets a shot, a question, a purpose.',
@@ -474,47 +497,40 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
   // (the hero button that opens it renders only then).
   const [showDemo, setShowDemo] = useState(false);
 
-  // FD-1i: the selection set — entitlement KEYS ('tab:books' …) toggled by
-  // the paid slides' "Add to plan" checkboxes. Free pillars have nothing to
-  // sell, so they never enter this set.
-  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
-  const toggleSelected = (key: string) =>
-    setSelectedKeys((prev) => {
+  // FD-1i → DECKS-3: the selection set is keyed by PILLAR ID now — ALL NINE
+  // slides carry the checkbox (ruling 3). A selected pillar without a
+  // sellable entitlement key still lists in the strip; only mappable keys
+  // ride the Continue link (no invented keys, no fake checkout paths).
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const toggleSelected = (id: string) =>
+    setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
-  // Stable PILLAR_CARDS order; every entitlementKey resolves in TAB_PRICING.
-  const selectedCards = PILLAR_CARDS
-    .filter((p) => p.entitlementKey && selectedKeys.has(p.entitlementKey))
-    .map((p) => pricingByKey.get(p.entitlementKey as string)!);
-  // The honest sum: ONLY when every selected display price exists (they are
-  // all null today — pricing-costs.ts:346-370 — so this stays null and the
-  // strip renders "prices shown at checkout" until Alex enters prices).
+  // Stable PILLAR_CARDS order.
+  const selectedPillars = PILLAR_CARDS.filter((p) => selectedIds.has(p.id));
+  // The honest sum: ONLY when every selected pillar has a display price
+  // (TAB_PRICING — all entries are null today, pricing-costs.ts:346-370, and
+  // five pillars have no entry at all — so this stays null and the strip
+  // renders "prices shown at checkout" until Alex enters prices).
+  const selectedPrices = selectedPillars.map((p) =>
+    p.entitlementKey ? pricingByKey.get(p.entitlementKey)?.monthlyPrice ?? null : null,
+  );
   const selectedSum =
-    selectedCards.length > 0 && selectedCards.every((t) => t.monthlyPrice !== null)
-      ? selectedCards.reduce((s, t) => s + (t.monthlyPrice as number), 0)
+    selectedPillars.length > 0 && selectedPrices.every((v) => v !== null)
+      ? selectedPrices.reduce((s, v) => (s as number) + (v as number), 0)
       : null;
+  const selectedSellKeys = selectedPillars
+    .map((p) => p.entitlementKey)
+    .filter((k): k is string => typeof k === 'string');
   const continueHref =
-    selectedCards.length === 1
-      ? `/pricing?module=${encodeURIComponent(selectedCards[0].key)}`
-      : `/pricing?modules=${selectedCards.map((t) => t.key).join(',')}`;
-
-  // FD-1i: the summary deck's nav — same mechanics as the selection deck.
-  const summaryTrackRef = useRef<HTMLDivElement>(null);
-  const [summaryActive, setSummaryActive] = useState(0);
-  const onSummaryScroll = () => {
-    const el = summaryTrackRef.current;
-    if (!el) return;
-    const denom = Math.max(1, el.scrollWidth - el.clientWidth);
-    setSummaryActive(Math.round((el.scrollLeft / denom) * (PILLAR_CARDS.length - 1)));
-  };
-  const summaryScrollBy = (dir: 1 | -1) => {
-    const el = summaryTrackRef.current;
-    if (!el) return;
-    el.scrollBy({ left: dir * Math.round(el.clientWidth * 0.9), behavior: 'smooth' });
-  };
+    selectedSellKeys.length === 1
+      ? `/pricing?module=${encodeURIComponent(selectedSellKeys[0])}`
+      : selectedSellKeys.length > 1
+        ? `/pricing?modules=${selectedSellKeys.join(',')}`
+        : '/pricing';
 
   return (
     <div className="min-h-screen bg-panel text-white">
@@ -579,11 +595,10 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
       {/* ── LOBBY-DECK-1: the nine pillars + the module sheet, consolidated
             into ONE slide deck — nine slides in the funnel order. Each slide
             = the pillar card's content (chip + TAB_DESCRIPTORS + verbatim
-            PILLAR_CARDS bullets) + its sheet row's truth (Unlocks/freeLabel,
-            price-or-Free, the FD-1o cost summary) + the sheet's actions
-            (Explore → /modules/<id>; availability-honest Select →
-            /pricing?module=<key> / Learn more — commerce wiring byte-
-            identical to the dead sheet). Navigation: CSS scroll-snap (no new
+            PILLAR_CARDS bullets) + its sheet row's truth (Unlocks/accessLabel,
+            the price line, the FD-1o cost summary) + the actions
+            (availability-honest Select → /pricing?module=<key>; Explore →
+            /modules/<id>). Navigation: CSS scroll-snap (no new
             deps), chevrons + scroll-derived dots. The hero CTA scrolls here
             (id="pillar-deck"). ─────────────────────────────────────────────── */}
       <section id="pillar-deck" className="w-full border-b border-panel-border bg-panel">
@@ -635,106 +650,92 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
               const pricing = p.entitlementKey ? pricingByKey.get(p.entitlementKey) : undefined;
               const available = p.entitlementKey ? entitlementAvailability[p.entitlementKey] === true : false;
               return (
-                // FD-1i regrade (ruling 7) — existing token families only:
-                // paid = the brand-purple ladder, free = the brand-green
-                // ladder, white opacities for type. Accent left-border +
-                // chip fill; the descriptor is the value line in white/90;
-                // bullets tightened; the truth block's hairline strengthened.
+                // DECKS-3 (ruling 2): the selection slide is a wide GLOW HERO
+                // (the DECK-2 panel language — HERO_BG reused verbatim) that
+                // carries the commerce. The FD-1i purple/green accent split
+                // died with "free" itself. Chip = the hero eyebrow idiom
+                // ('Module', a chrome label); the pillar label is the display
+                // headline. ALL NINE slides get ADD TO PLAN (ruling 3);
+                // actions are Select → /pricing?module=<key> (availability-
+                // honest disabled when no key or no Stripe price) + the
+                // Explore secondary. "Learn more" is gone.
                 <article
                   key={p.id}
-                  className={`flex w-[85%] shrink-0 snap-start flex-col rounded-lg border border-panel-border border-l-2 bg-panel-surface p-4 sm:w-[48%] lg:w-[32%] ${
-                    pricing ? 'border-l-brand-purple' : 'border-l-brand-green/70'
-                  }`}
+                  className="flex min-h-[22rem] w-[92%] shrink-0 snap-start flex-col overflow-hidden rounded-lg p-6 text-white sm:w-[80%] sm:p-8 lg:w-[55%]"
+                  style={{ background: HERO_BG }}
                 >
-                  <span
-                    className={`self-start rounded border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white ${
-                      pricing ? 'border-brand-purple/40 bg-brand-purple/10' : 'border-brand-green/40 bg-brand-green/10'
-                    }`}
-                  >
-                    {p.label}
-                  </span>
-                  <p className="mt-2 text-xs leading-relaxed text-white/90">{TAB_DESCRIPTORS[p.tab]}</p>
-                  <ul className="mt-3 space-y-0.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
+                      Module
+                    </span>
+                  </div>
+                  <h3 className="mt-4 text-2xl font-light tracking-tight sm:text-3xl">{p.label}</h3>
+                  <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/65">{TAB_DESCRIPTORS[p.tab]}</p>
+                  <ul className="mt-3 max-w-xl space-y-1">
                     {p.bullets.map((b, i) => (
-                      <li key={i} className={`text-xs leading-relaxed ${i === 0 ? 'font-medium text-white' : 'text-white/60'}`}>
+                      <li key={i} className={`text-sm leading-relaxed ${i === 0 ? 'font-medium text-white' : 'text-white/70'}`}>
                         {b}
                       </li>
                     ))}
                   </ul>
 
-                  {/* The sheet row's truth, folded into the slide: price-or-Free,
-                      the Unlocks/freeLabel line, the FD-1o cost summary. */}
-                  <div className="mt-4 border-t border-white/20 pt-3">
+                  {/* The commerce block: price (TAB_PRICING when present, else
+                      the italic fallback — no pillar says Free anymore), the
+                      Unlocks/accessLabel truth line, the FD-1o cost summary. */}
+                  <div className="mt-4 max-w-xl border-t border-white/20 pt-3">
                     <p className="font-mono text-sm font-bold text-white">
-                      {pricing ? (
-                        pricing.monthlyPrice !== null ? (
-                          <>${pricing.monthlyPrice}<span className="text-xs font-normal text-white/50">/mo</span></>
-                        ) : (
-                          <span className="text-xs font-normal italic text-white/50" title="Display price not entered yet — Stripe shows the real price at checkout">
-                            price shown at checkout
-                          </span>
-                        )
+                      {pricing && pricing.monthlyPrice !== null ? (
+                        <>${pricing.monthlyPrice}<span className="text-xs font-normal text-white/50">/mo</span></>
                       ) : (
-                        <>Free</>
+                        <span className="text-xs font-normal italic text-white/50" title="Display price not entered yet — Stripe shows the real price at checkout">
+                          price shown at checkout
+                        </span>
                       )}
                     </p>
                     <p className="mt-1 text-xs leading-relaxed text-white/60">
-                      {pricing ? <>Unlocks {pricing.unlocks}.</> : p.freeLabel}
+                      {pricing ? <>Unlocks {pricing.unlocks}.</> : p.accessLabel}
                     </p>
                     <p className="mt-1.5 font-mono text-[10px] text-white/40">
                       {projectCostSummary(p.label)}
                     </p>
                   </div>
 
-                  {/* FD-1i (ruling A): the multi-select checkbox — PAID slides
-                      only (free pillars have nothing to sell). Wired to the
-                      selection Set; the calculator strip below reacts live. */}
-                  {pricing && (
-                    <label className="mt-3 flex cursor-pointer items-center gap-2 self-start font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70 transition-colors hover:text-white">
-                      <input
-                        type="checkbox"
-                        checked={selectedKeys.has(pricing.key)}
-                        onChange={() => toggleSelected(pricing.key)}
-                        className="h-3.5 w-3.5 accent-brand-purple"
-                        aria-label={`Add ${p.label} to plan`}
-                      />
-                      Add to plan
-                    </label>
-                  )}
+                  {/* DECKS-3 (ruling 3): every slide is selectable. */}
+                  <label className="mt-3 flex cursor-pointer items-center gap-2 self-start font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70 transition-colors hover:text-white">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(p.id)}
+                      onChange={() => toggleSelected(p.id)}
+                      className="h-3.5 w-3.5 accent-brand-purple"
+                      aria-label={`Add ${p.label} to plan`}
+                    />
+                    Add to plan
+                  </label>
 
-                  <div className="mt-auto flex items-center justify-between gap-3 pt-3">
+                  <div className="mt-auto flex flex-wrap items-center gap-3 pt-4">
+                    {p.entitlementKey && available ? (
+                      <Link
+                        href={`/pricing?module=${encodeURIComponent(p.entitlementKey)}`}
+                        className="inline-block bg-white px-4 py-1.5 text-xs font-medium text-brand-purple hover:bg-bg-row"
+                      >
+                        Select →
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        title="This module's Stripe price isn't configured yet"
+                        className="cursor-not-allowed border border-panel-border px-4 py-1.5 text-xs font-medium text-white/40"
+                      >
+                        Not yet available
+                      </button>
+                    )}
                     <Link
                       href={`/modules/${p.id}`}
-                      className="font-mono text-xs font-medium text-white hover:text-white/70"
+                      className="inline-block border border-white/30 px-4 py-1.5 text-xs font-medium text-white hover:bg-white/10"
                     >
-                      Explore {p.label} →
+                      Explore →
                     </Link>
-                    {pricing ? (
-                      available ? (
-                        <Link
-                          href={`/pricing?module=${encodeURIComponent(pricing.key)}`}
-                          className="inline-block bg-white px-4 py-1.5 text-xs font-medium text-brand-purple hover:bg-bg-row"
-                        >
-                          Select →
-                        </Link>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled
-                          title="This module's Stripe price isn't configured yet"
-                          className="cursor-not-allowed border border-panel-border px-4 py-1.5 text-xs font-medium text-white/40"
-                        >
-                          Not yet available
-                        </button>
-                      )
-                    ) : (
-                      <Link
-                        href={`/modules/${p.id}`}
-                        className="inline-block border border-white/30 px-4 py-1.5 text-xs font-medium text-white hover:bg-white/10"
-                      >
-                        Learn more →
-                      </Link>
-                    )}
                   </div>
                 </article>
               );
@@ -763,16 +764,16 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
                 /pricing (?module= single / ?modules= multi). Commerce stays
                 on /pricing — multi-purchase is N checkouts there, and the
                 strip says so. ─────────────────────────────────────────────── */}
-          {selectedCards.length > 0 && (
+          {selectedPillars.length > 0 && (
             <div className="mt-5 flex flex-col gap-4 rounded-lg border border-brand-purple/60 bg-panel p-4 sm:flex-row sm:items-center">
               <div className="flex-1">
                 <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
-                  {selectedCards.length} module{selectedCards.length === 1 ? '' : 's'} selected
+                  {selectedPillars.length} module{selectedPillars.length === 1 ? '' : 's'} selected
                 </p>
                 <p className="mt-1 text-xs leading-relaxed text-white/60">
-                  {selectedCards.map((t) => t.label).join(' · ')}
+                  {selectedPillars.map((p) => p.label).join(' · ')}
                 </p>
-                {selectedCards.length >= 2 && (
+                {selectedPillars.length >= 2 && (
                   <p className="mt-1 text-[10px] text-white/40">
                     Complete each module&apos;s checkout on the next page.
                   </p>
@@ -786,7 +787,7 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
                     <span className="text-xs font-normal italic text-white/50">prices shown at checkout</span>
                   )}
                 </p>
-                {selectedCards.length >= 2 && bundle && (
+                {selectedPillars.length >= 2 && bundle && (
                   <p className="mt-0.5 text-[10px] text-white/50">
                     {bundle.monthlyPrice !== null
                       ? `Bundle: everything for $${bundle.monthlyPrice}/mo`
@@ -806,7 +807,7 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
           {/* ── The bundle pitch — the calculator's EMPTY state (nothing
                 selected). Markup + commerce wiring verbatim from the dead
                 sheet's closer (LOBBY-DECK-1). ───────────────────────────────── */}
-          {selectedCards.length === 0 && bundle && (
+          {selectedPillars.length === 0 && bundle && (
             <div className="mt-5 flex flex-col gap-4 rounded-lg border border-white/30 bg-panel p-4 sm:flex-row sm:items-center">
               <div className="flex-1">
                 <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
@@ -859,47 +860,17 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
             three verbatim slide titles (provenance on SUMMARY_BY_ID).
             DECK-2: the slides render as MINIATURE EXPLORE HEROES — wide,
             tall, radial-glow panels in the darkHero language (the stage
-            changed; the script is byte-identical). ─────────────────────────── */}
+            changed; the script is byte-identical).
+            DECKS-3 (ruling 1): the deck is a VERTICAL STACK now — nine
+            full-width mini heroes, top to bottom. The carousel mechanics
+            (snap rail, chevrons, dots) died on this section. ───────────────── */}
       <section className="w-full border-b border-panel-border bg-panel-surface">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-          <div className="flex items-center justify-between">
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
-              The pillars — in their own words
-            </p>
-            <div className="flex shrink-0 gap-1.5">
-              <button
-                type="button"
-                aria-label="Previous summaries"
-                onClick={() => summaryScrollBy(-1)}
-                className="grid h-8 w-8 place-items-center rounded-full border border-white/30 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M15 18l-6-6 6-6" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                aria-label="Next summaries"
-                onClick={() => summaryScrollBy(1)}
-                className="grid h-8 w-8 place-items-center rounded-full border border-white/30 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M9 18l6-6-6-6" />
-                </svg>
-              </button>
-            </div>
-          </div>
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
+            The pillars — in their own words
+          </p>
 
-          <div
-            ref={summaryTrackRef}
-            onScroll={onSummaryScroll}
-            role="group"
-            aria-label="Pillar summaries"
-            tabIndex={0}
-            className="mt-4 flex snap-x snap-mandatory items-stretch gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          >
+          <div className="mt-4 space-y-6">
             {PILLAR_CARDS.map((p) => {
               const s = SUMMARY_BY_ID[p.id];
               return (
@@ -915,7 +886,7 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
                 // to FD-1i (SUMMARY_BY_ID + TAB_DESCRIPTORS — 0 data lines).
                 <article
                   key={p.id}
-                  className="flex min-h-[22rem] w-[92%] shrink-0 snap-start flex-col overflow-hidden rounded-lg p-6 text-white sm:w-[80%] sm:p-8 lg:w-[55%]"
+                  className="flex min-h-[22rem] w-full flex-col overflow-hidden rounded-lg p-6 text-white sm:p-8"
                   style={{ background: HERO_BG }}
                 >
                   <div className="flex flex-wrap items-center gap-2">
@@ -943,16 +914,6 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
             })}
           </div>
 
-          <div className="mt-3 flex justify-center gap-1.5" aria-hidden="true">
-            {PILLAR_CARDS.map((p, i) => (
-              <span
-                key={p.id}
-                className={`h-1.5 rounded-full transition-all ${
-                  i === summaryActive ? 'w-4 bg-white' : 'w-1.5 bg-white/30'
-                }`}
-              />
-            ))}
-          </div>
         </div>
       </section>
 
