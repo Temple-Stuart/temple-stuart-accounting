@@ -7,6 +7,8 @@ import Image from 'next/image';
 import LoginBox from '@/components/LoginBox';
 import ModuleLauncher, { TAB_DESCRIPTORS } from '@/components/home/ModuleLauncher';
 import { ChevronDown } from 'lucide-react';
+// DS-2: the app hero uses the SAME radial-glow surface as the landing hero.
+import { HERO_BG } from '@/lib/ds';
 
 // PR-Hero-Collapsible: the "How it works" steps per tab — ONE source of truth for the three
 // tab explainers (projects / calendar=Runway / routines). Copy preserved verbatim from the prior
@@ -145,13 +147,13 @@ export default function HomeClient() {
         </div>
       </header>
 
-      {/* Hero — FD-3 (installment 1): the purple marketing band → the lobby's
-          compact hero language (bg-panel flat, chosen over the HERO_BG radial
-          glow — the app is utility density, not a marketing splash). The
-          tagline shrinks (text-4xl/5xl → text-2xl/3xl); the descriptor + Get
-          Started stay but tighten. A panel-border hairline seats it against the
-          dark tab bar below. */}
-      <section className="bg-panel text-white border-b border-panel-border pb-8 pt-6">
+      {/* Hero — DS-2: the app hero uses the SAME HERO_BG purple radial gradient
+          the landing hero uses (src/lib/ds.ts, applied the same way:
+          style={{ background: HERO_BG }}), so the two surfaces are identical
+          (Alex's ruling). FD-3-1's compaction stays (tagline text-2xl/3xl,
+          pb-8 pt-6) — this changed the SURFACE only. The panel-border hairline
+          still seats it against the dark tab bar below. */}
+      <section className="text-white border-b border-panel-border pb-8 pt-6" style={{ background: HERO_BG }}>
         <div className="max-w-7xl mx-auto px-4 lg:px-8">
           <div className="max-w-3xl">
             <h1 className="text-2xl lg:text-3xl font-light tracking-tight mb-3">
