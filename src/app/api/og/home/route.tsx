@@ -80,7 +80,7 @@ export async function GET() {
         {/* Tagline */}
         <div style={{ marginTop: '40px', textAlign: 'center', display: 'flex', justifyContent: 'center' }}>
           <span style={{ fontSize: '24px', color: '#6b7280' }}>
-            Track your money. Plan your life. Act smarter.
+            Track your money. Plan your time. Live smarter.
           </span>
         </div>
       </div>

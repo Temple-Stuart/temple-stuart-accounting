@@ -15,7 +15,7 @@ export default function HeroSection() {
             <span className="block text-brand-accent text-3xl sm:text-4xl lg:text-5xl">Founder&apos;s Back Office</span>
           </h1>
           <p className="text-sm sm:text-sm text-text-muted font-light max-w-2xl mx-auto mb-10 leading-relaxed">
-            Track your money. Plan your life. Act smarter.
+            Track your money. Plan your time. Live smarter.
           </p>
           
           <button 

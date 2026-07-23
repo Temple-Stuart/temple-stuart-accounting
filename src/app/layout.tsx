@@ -21,7 +21,7 @@ export const viewport: Viewport = {
 
 // FOUNDERS-POSITIONING-AND-OG-TRUTH: the link-preview metadata previously served
 // stale copy ("Plan your trips. Find your people.") contradicting the live hero
-// (page.tsx: "Track your money. Plan your life. Act smarter."). Description now
+// (page.tsx: "Track your money. Plan your time. Live smarter."). Description now
 // mirrors the real hero + the founder positioning; claims are only what is true
 // (nine modules — the nine TABS — and Plaid bank sync; no "IRS compliant", no
 // "AI powered" headline). "Founder's Back Office" is BRAND COPY only — the
@@ -29,11 +29,11 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "Temple Stuart | Founder's Back Office",
   description:
-    "Track your money. Plan your life. Act smarter. Nine modules — books, tax, trading, travel, runway, and more — every claim receipted.",
+    "Track your money. Plan your time. Live smarter. Nine modules — books, tax, trading, travel, runway, and more — every claim receipted.",
   openGraph: {
     title: "Temple Stuart — Founder's Back Office",
     description:
-      "Track your money. Plan your life. Act smarter. Nine modules — books, tax, trading, travel, runway, and more — every claim receipted.",
+      "Track your money. Plan your time. Live smarter. Nine modules — books, tax, trading, travel, runway, and more — every claim receipted.",
     url: "https://templestuart.com",
     siteName: "Temple Stuart",
     images: [
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Temple Stuart — Founder's Back Office",
     description:
-      "Track your money. Plan your life. Act smarter. Nine modules — books, tax, trading, travel, runway, and more — every claim receipted.",
+      "Track your money. Plan your time. Live smarter. Nine modules — books, tax, trading, travel, runway, and more — every claim receipted.",
     images: ["https://templestuart.com/opengraph-image"],
   },
 };
