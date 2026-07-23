@@ -546,37 +546,30 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
               <span className="text-white/50">Live smarter.</span>
             </h1>
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              {/* LOBBY-DECK-1: "Try it live" died — the booking strip sits right
-                  below anyway. LOBBY-DECK-1b: the white CTA is honesty-gated on
-                  DEMO_VIDEO_URL — a demo that exists gets "Watch the demo 🎥"
-                  (opens the modal below); while the URL is null the button walks
-                  the guest to the deck instead. */}
-              {DEMO_VIDEO_URL !== null ? (
-                <button
-                  type="button"
-                  onClick={() => setShowDemo(true)}
-                  className="px-6 py-3 bg-white text-brand-purple font-medium hover:bg-bg-row text-sm text-center"
-                >
-                  Watch the demo 🎥
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() =>
-                    document.getElementById('pillar-deck')?.scrollIntoView({ behavior: 'smooth' })
-                  }
-                  className="px-6 py-3 bg-white text-brand-purple font-medium hover:bg-bg-row text-sm text-center"
-                >
-                  See how it works ↓
-                </button>
-              )}
+              {/* HERO-REPO-1 (Alex's rationale): the hosted product leads —
+                  "Create free account" is the promoted white CTA. The repo
+                  joins as the bordered-ghost secondary: cloning requires
+                  provisioning every API (Duffel / LiteAPI / Plaid / Stripe /
+                  Anthropic / …) — most won't, many can't, and Alex sells setup
+                  for those who want it; open-sourcing extends the honesty
+                  thesis to the code. "See how it works ↓" left the hero (the
+                  booking strip sits right below anyway; the demo trigger moved
+                  to the pillar-deck header). */}
               <button
                 type="button"
                 onClick={onRequireAuth}
-                className="px-6 py-3 border border-white/40 text-white font-medium hover:bg-white/10 text-sm"
+                className="px-6 py-3 bg-white text-brand-purple font-medium hover:bg-bg-row text-sm text-center"
               >
                 Create free account
               </button>
+              <a
+                href="https://github.com/Temple-Stuart/temple-stuart-accounting"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-6 py-3 border border-white/40 text-white font-medium hover:bg-white/10 text-sm text-center"
+              >
+                Clone it on GitHub ↗
+              </a>
             </div>
           </div>
 
@@ -599,8 +592,8 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
             the price line, the FD-1o cost summary) + the actions
             (availability-honest Select → /pricing?module=<key>; Explore →
             /modules/<id>). Navigation: CSS scroll-snap (no new
-            deps), chevrons + scroll-derived dots. The hero CTA scrolls here
-            (id="pillar-deck"). ─────────────────────────────────────────────── */}
+            deps), chevrons + scroll-derived dots. HERO-REPO-1: the demo
+            trigger mounts in this header (id="pillar-deck" retained). ───────── */}
       <section id="pillar-deck" className="w-full border-b border-panel-border bg-panel">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
           <div className="flex items-center justify-between">
@@ -611,6 +604,20 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
               <h2 className="mt-1 text-lg font-light tracking-tight text-white">
                 Buy the modules you&apos;ll use. One, some, or all.
               </h2>
+              {/* HERO-REPO-1: the demo trigger relocated here from the hero.
+                  Honesty-gated on DEMO_VIDEO_URL — null renders nothing (the
+                  deck is self-explanatory); non-null shows "Watch the demo 🎥"
+                  opening the existing modal (config + modal + youTubeEmbedUrl
+                  untouched — only the trigger's mount moved). */}
+              {DEMO_VIDEO_URL !== null && (
+                <button
+                  type="button"
+                  onClick={() => setShowDemo(true)}
+                  className="mt-2 inline-block bg-white px-4 py-1.5 text-xs font-medium text-brand-purple hover:bg-bg-row"
+                >
+                  Watch the demo 🎥
+                </button>
+              )}
             </div>
             <div className="flex shrink-0 gap-1.5">
               <button
