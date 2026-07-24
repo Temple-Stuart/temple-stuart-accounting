@@ -623,28 +623,36 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           so the six read as distinct breathing sections (the old marketing
           rhythm). The card content + its single purple band header are unchanged —
           the separation comes from the full-width bg, NOT a second purple. */}
-      {/* PR-HCR1.1 + PR-HCR-DEMO: the shared master calendar is the TOP of the
-          module stack — ABOVE the Travel/Create-trip section and everything else.
+      {/* PR-HCR1.1 + PR-HCR-DEMO: the calendar tab is the TOP of the module
+          stack — ABOVE the Travel/Create-trip section and everything else.
           It links across travel, operations, routines, and bookkeeping, so it sits
           first under the hero. Logged in → the real calendar (fetches the viewer's
           data). Logged out → a LIVING DEMO fed a static fictional seed, which
           fetches NOTHING (zero personal-route calls — fake by construction). Auth
-          still resolving (authed === null) → nothing. /hub is untouched. */}
+          still resolving (authed === null) → nothing. /hub is untouched.
+          RUNWAY-UX-1: WITHIN the authed tab the zero-date hero + budget panel
+          now lead and the calendar grid follows (order ruling, shape b). */}
       {/* PR-Calendar-Flush: Calendar tab is flush — no purple band, no card chrome (the
           highlighted Calendar tab already says you're here). The grid toolbar sits right
           under the tab row, one continuous surface. Other modules keep their bands. */}
       {authed === true && (
         <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto">
-            <HubCalendar />
-            {/* PR-HB-1: month-scoped budget section under the calendar (authed only, so the
-                logged-out demo below never renders it → no personal data, no fake numbers). */}
+            {/* RUNWAY-UX-1 (order ruling, audit-decided shape b): hero → budget
+                tables → calendar. The zero-date HERO STRIP is the tab's
+                headline — it renders at the top of RunwayBudgetPanel (the
+                component that already owns the /api/runway state; mounting it
+                anywhere else would need a second fetch or a state lift). So
+                the provider block leads and the calendar follows. PR-HB-1's
+                authed-only guard unchanged (the logged-out branch below never
+                renders this → no personal data, no fake numbers). */}
             <RunwayDataProvider>
               {/* ONE-BUDGET-TOGGLE: one panel with a Month/Year toggle — shows
                   HubBudgetSection (month) OR BudgetComparison (year) one at a time
                   (RunwayBudgetPanel owns the toggle; neither component is modified). */}
               <RunwayBudgetPanel />
             </RunwayDataProvider>
+            <HubCalendar />
           </div>
         </section>
       )}
