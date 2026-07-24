@@ -24,6 +24,7 @@ import type {
 } from '@/lib/convergence/types';
 import type { TickerDetail } from '@/lib/convergence/filter-engine';
 import { TickerChapter } from './ConvergenceIntelligence';
+import { themed, type Surface } from '@/lib/ds';
 
 interface Headline {
   datetime: number;
@@ -153,7 +154,7 @@ type SortKey = 'symbol' | 'score' | 'direction' | 'strategyName' | 'maxProfit' |
 
 // ── Expanded Detail ──────────────────────────────────────────────────
 
-function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: TickerDetail; card: TradeCardData | null; sentiment?: SocialSentimentData; rejections?: RejectionReason[] }) {
+function ExpandedDetail({ dk = false, detail, card, sentiment, rejections }: { dk?: boolean; detail: TickerDetail; card: TradeCardData | null; sentiment?: SocialSentimentData; rejections?: RejectionReason[] }) {
   const comp = detail.scores.composite;
   const why = card?.why;
   const ks = card?.key_stats;
@@ -161,21 +162,21 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
   const allRejections = rejections || detail._rejection_reasons;
 
   return (
-    <div className="px-6 py-4 space-y-4 border-t border-border">
+    <div className={themed('px-6 py-4 space-y-4 border-t border-border', dk)}>
       {/* Rejection reasons (when no strategies passed) */}
       {allRejections && allRejections.length > 0 && !card && (
         <div>
-          <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5">Why No Strategies Passed</div>
+          <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5', dk)}>Why No Strategies Passed</div>
           <div className="space-y-1 max-h-[200px] overflow-y-auto">
             {allRejections.map((rej, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs rounded px-2 py-1 bg-bg-row">
+              <div key={i} className={themed('flex items-start gap-2 text-xs rounded px-2 py-1 bg-bg-row', dk)}>
                 <span className={`shrink-0 px-1 py-0.5 rounded text-[9px] font-bold ${rej.gate === 'construction' ? 'bg-amber-50 text-brand-amber' : 'bg-red-50 text-brand-red'}`}>
                   {rej.gate === 'construction' ? 'BUILD' : `GATE ${rej.gate}`}
                 </span>
-                <span className="text-text-faint flex-1">
-                  <span className="text-text-faint font-mono">{rej.strategy}:</span> {rej.reason}
+                <span className={themed('text-text-faint flex-1', dk)}>
+                  <span className={themed('text-text-faint font-mono', dk)}>{rej.strategy}:</span> {rej.reason}
                   {rej.details?.spreadWidth != null && (
-                    <span className="text-text-muted"> (width: ${rej.details.spreadWidth})</span>
+                    <span className={themed('text-text-muted', dk)}> (width: ${rej.details.spreadWidth})</span>
                   )}
                 </span>
               </div>
@@ -190,10 +191,10 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
           const score = comp.category_scores[cat];
           return (
             <div key={cat} className="flex items-center gap-2">
-              <span className="text-[10px] text-text-faint w-16 text-right shrink-0">
+              <span className={themed('text-[10px] text-text-faint w-16 text-right shrink-0', dk)}>
                 {cat === 'vol_edge' ? 'Vol Edge' : cat === 'info_edge' ? 'Info Edge' : cat.charAt(0).toUpperCase() + cat.slice(1)}
               </span>
-              <div className="flex-1 h-3 rounded-full overflow-hidden bg-bg-row">
+              <div className={themed('flex-1 h-3 rounded-full overflow-hidden bg-bg-row', dk)}>
                 <div className="h-full rounded-full" style={{ width: `${Math.min(score, 100)}%`, background: gradeColorHex(score) }} />
               </div>
               <span className={`text-[10px] font-mono font-bold w-8 text-right shrink-0 ${gradeColor(score)}`}>
@@ -207,11 +208,11 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
       {/* WHY THIS TRADE */}
       {why && why.plain_english_signals.length > 0 && (
         <div>
-          <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5">Why This Trade</div>
+          <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5', dk)}>Why This Trade</div>
           <div className="space-y-1">
             {why.plain_english_signals.map((sig, i) => (
-              <div key={i} className="flex gap-2 text-xs text-text-faint leading-relaxed">
-                <span className="shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold bg-bg-row text-text-muted">{i + 1}</span>
+              <div key={i} className={themed('flex gap-2 text-xs text-text-faint leading-relaxed', dk)}>
+                <span className={themed('shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold bg-bg-row text-text-muted', dk)}>{i + 1}</span>
                 <span>{sig}</span>
               </div>
             ))}
@@ -222,44 +223,44 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
       {/* KEY STATS */}
       {ks && (
         <div>
-          <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5">Key Stats</div>
+          <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5', dk)}>Key Stats</div>
           <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
             <div>
-              <span className="text-text-muted">IV Rank: </span>
-              <span className="text-text-faint font-mono">{ks.iv_rank != null ? ks.iv_rank.toFixed(1) : '—'}</span>
-              {ks.iv_rank != null && <span className="text-text-muted text-[10px]"> &mdash; {statExplain('iv_rank', ks.iv_rank)}</span>}
+              <span className={themed('text-text-muted', dk)}>IV Rank: </span>
+              <span className={themed('text-text-faint font-mono', dk)}>{ks.iv_rank != null ? ks.iv_rank.toFixed(1) : '—'}</span>
+              {ks.iv_rank != null && <span className={themed('text-text-muted text-[10px]', dk)}> &mdash; {statExplain('iv_rank', ks.iv_rank)}</span>}
             </div>
             <div>
-              <span className="text-text-muted">P/E: </span>
-              <span className="text-text-faint font-mono">{ks.pe_ratio != null ? ks.pe_ratio.toFixed(1) : '—'}</span>
-              {ks.pe_ratio != null && <span className="text-text-muted text-[10px]"> &mdash; {statExplain('pe_ratio', ks.pe_ratio)}</span>}
+              <span className={themed('text-text-muted', dk)}>P/E: </span>
+              <span className={themed('text-text-faint font-mono', dk)}>{ks.pe_ratio != null ? ks.pe_ratio.toFixed(1) : '—'}</span>
+              {ks.pe_ratio != null && <span className={themed('text-text-muted text-[10px]', dk)}> &mdash; {statExplain('pe_ratio', ks.pe_ratio)}</span>}
             </div>
             <div>
-              <span className="text-text-muted">Beta: </span>
-              <span className="text-text-faint font-mono">{ks.beta != null ? ks.beta.toFixed(2) : '—'}</span>
-              {ks.beta != null && <span className="text-text-muted text-[10px]"> &mdash; {statExplain('beta', ks.beta)}</span>}
+              <span className={themed('text-text-muted', dk)}>Beta: </span>
+              <span className={themed('text-text-faint font-mono', dk)}>{ks.beta != null ? ks.beta.toFixed(2) : '—'}</span>
+              {ks.beta != null && <span className={themed('text-text-muted text-[10px]', dk)}> &mdash; {statExplain('beta', ks.beta)}</span>}
             </div>
             <div>
-              <span className="text-text-muted">SPY Corr: </span>
-              <span className="text-text-faint font-mono">{ks.spy_correlation != null ? ks.spy_correlation.toFixed(2) : '—'}</span>
-              {ks.spy_correlation != null && <span className="text-text-muted text-[10px]"> &mdash; {statExplain('spy_correlation', ks.spy_correlation)}</span>}
+              <span className={themed('text-text-muted', dk)}>SPY Corr: </span>
+              <span className={themed('text-text-faint font-mono', dk)}>{ks.spy_correlation != null ? ks.spy_correlation.toFixed(2) : '—'}</span>
+              {ks.spy_correlation != null && <span className={themed('text-text-muted text-[10px]', dk)}> &mdash; {statExplain('spy_correlation', ks.spy_correlation)}</span>}
             </div>
             <div>
-              <span className="text-text-muted">Liquidity: </span>
-              <span className="text-text-faint font-mono">{ks.liquidity_rating != null ? `${ks.liquidity_rating}/5` : '—'}</span>
-              {ks.liquidity_rating != null && <span className="text-text-muted text-[10px]"> &mdash; {statExplain('liquidity_rating', ks.liquidity_rating)}</span>}
+              <span className={themed('text-text-muted', dk)}>Liquidity: </span>
+              <span className={themed('text-text-faint font-mono', dk)}>{ks.liquidity_rating != null ? `${ks.liquidity_rating}/5` : '—'}</span>
+              {ks.liquidity_rating != null && <span className={themed('text-text-muted text-[10px]', dk)}> &mdash; {statExplain('liquidity_rating', ks.liquidity_rating)}</span>}
             </div>
             <div>
-              <span className="text-text-muted">Mkt Cap: </span>
-              <span className="text-text-faint font-mono">{fmtMcap(ks.market_cap)}</span>
+              <span className={themed('text-text-muted', dk)}>Mkt Cap: </span>
+              <span className={themed('text-text-faint font-mono', dk)}>{fmtMcap(ks.market_cap)}</span>
             </div>
             <div>
-              <span className="text-text-muted">Sector: </span>
-              <span className="text-text-faint">{ks.sector ?? '—'}</span>
+              <span className={themed('text-text-muted', dk)}>Sector: </span>
+              <span className={themed('text-text-faint', dk)}>{ks.sector ?? '—'}</span>
             </div>
             <div>
-              <span className="text-text-muted">Earnings: </span>
-              <span className="text-text-faint font-mono">{ks.earnings_date ?? '—'}</span>
+              <span className={themed('text-text-muted', dk)}>Earnings: </span>
+              <span className={themed('text-text-faint font-mono', dk)}>{ks.earnings_date ?? '—'}</span>
               {ks.days_to_earnings != null && ks.days_to_earnings > 0 && (
                 <span className="text-brand-amber text-[10px]"> ({ks.days_to_earnings}d away)</span>
               )}
@@ -271,8 +272,8 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
       {/* Regime context */}
       {why?.regime_context && (
         <div>
-          <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1">Macro Regime</div>
-          <div className="rounded px-3 py-2 text-xs text-text-faint leading-relaxed bg-bg-row">
+          <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1', dk)}>Macro Regime</div>
+          <div className={themed('rounded px-3 py-2 text-xs text-text-faint leading-relaxed bg-bg-row', dk)}>
             {why.regime_context}
           </div>
         </div>
@@ -298,12 +299,12 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
       {/* Headlines */}
       {headlines.length > 0 && (
         <div>
-          <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5">Headlines</div>
+          <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5', dk)}>Headlines</div>
           <div className="space-y-1">
             {headlines.map((h, i) => (
               <div key={i} className="flex items-start gap-2 text-xs">
-                <span className="text-text-faint leading-relaxed flex-1">&ldquo;{h.headline}&rdquo;</span>
-                <span className="shrink-0 text-[9px] text-text-muted">{h.source}</span>
+                <span className={themed('text-text-faint leading-relaxed flex-1', dk)}>&ldquo;{h.headline}&rdquo;</span>
+                <span className={themed('shrink-0 text-[9px] text-text-muted', dk)}>{h.source}</span>
                 <Badge
                   variant={h.sentiment === 'bullish' ? 'success' : h.sentiment === 'bearish' ? 'danger' : 'default'}
                   size="sm"
@@ -319,27 +320,27 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
       {/* Social Pulse — from xAI x_search */}
       {sentiment && !sentiment.error && sentiment.postCount > 0 && (
         <div>
-          <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5">
+          <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5', dk)}>
             Social Pulse
-            <span className="ml-2 text-[9px] text-text-secondary normal-case font-normal">
+            <span className={themed('ml-2 text-[9px] text-text-secondary normal-case font-normal', dk)}>
               Based on {sentiment.postCount} X posts in last 24h
             </span>
           </div>
-          <div className="rounded px-3 py-2 text-xs space-y-2 bg-bg-row">
+          <div className={themed('rounded px-3 py-2 text-xs space-y-2 bg-bg-row', dk)}>
             <div className="flex items-center gap-3">
-              <span className="text-text-faint">Score:</span>
+              <span className={themed('text-text-faint', dk)}>Score:</span>
               <span
-                className={`font-mono font-bold ${sentiment.score > 0.2 ? 'text-brand-green' : sentiment.score < -0.2 ? 'text-brand-red' : 'text-text-muted'}`}
+                className={themed(`font-mono font-bold ${sentiment.score > 0.2 ? 'text-brand-green' : sentiment.score < -0.2 ? 'text-brand-red' : 'text-text-muted'}`, dk)}
               >
                 {sentiment.score > 0 ? '+' : ''}{sentiment.score.toFixed(2)}
               </span>
-              <span className="text-text-faint">
+              <span className={themed('text-text-faint', dk)}>
                 ({sentiment.bullishCount} bullish / {sentiment.bearishCount} bearish / {sentiment.neutralCount} neutral)
               </span>
             </div>
             {sentiment.themes.length > 0 && (
               <div className="flex items-center gap-2">
-                <span className="text-text-faint shrink-0">Themes:</span>
+                <span className={themed('text-text-faint shrink-0', dk)}>Themes:</span>
                 <div className="flex flex-wrap gap-1">
                   {sentiment.themes.slice(0, 5).map((t, i) => (
                     <Badge key={i} variant="default" size="sm">{t}</Badge>
@@ -357,8 +358,8 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
                     >
                       {post.sentiment.charAt(0).toUpperCase()}
                     </Badge>
-                    <span className="text-text-faint leading-relaxed flex-1">&ldquo;{post.text}&rdquo;</span>
-                    <span className="shrink-0 text-[9px] text-text-muted font-mono">{post.author}</span>
+                    <span className={themed('text-text-faint leading-relaxed flex-1', dk)}>&ldquo;{post.text}&rdquo;</span>
+                    <span className={themed('shrink-0 text-[9px] text-text-muted font-mono', dk)}>{post.author}</span>
                   </div>
                 ))}
               </div>
@@ -382,7 +383,9 @@ export default function ScannerResultsTable({
   onSaveCard,
   onRemoveCard,
   pipelineProgress,
-}: ScannerResultsTableProps) {
+  surface = 'light',
+}: ScannerResultsTableProps & { surface?: Surface }) {
+  const dk = surface === 'dark';
   const [sortKey, setSortKey] = useState<SortKey>('score');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
@@ -538,17 +541,17 @@ export default function ScannerResultsTable({
     return sortDir === 'asc' ? ' \u25B2' : ' \u25BC';
   };
 
-  const thBase = 'px-2 py-2 text-[10px] font-bold text-text-muted uppercase tracking-wider cursor-pointer hover:text-text-secondary select-none whitespace-nowrap';
+  const thBase = themed('px-2 py-2 text-[10px] font-bold text-text-muted uppercase tracking-wider cursor-pointer hover:text-text-secondary select-none whitespace-nowrap', dk);
 
   return (
     <div className="px-4 py-3">
       {/* Batch actions bar */}
       <div className="flex items-center gap-3 mb-3 flex-wrap">
         <button onClick={selectAll} className="text-[10px] text-brand-purple hover:text-brand-purple-hover font-medium">Select All</button>
-        <span className="text-text-secondary">|</span>
+        <span className={themed('text-text-secondary', dk)}>|</span>
         <button onClick={deselectAll} className="text-[10px] text-brand-purple hover:text-brand-purple-hover font-medium">Deselect All</button>
         {selectedCount > 0 && (
-          <span className="text-[10px] text-text-faint font-mono">{selectedCount} selected</span>
+          <span className={themed('text-[10px] text-text-faint font-mono', dk)}>{selectedCount} selected</span>
         )}
         <div className="ml-auto">
           <Button
@@ -568,10 +571,10 @@ export default function ScannerResultsTable({
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded border border-border overflow-y-auto">
+      <div className={themed('overflow-x-auto rounded border border-border overflow-y-auto', dk)}>
         <table className="w-full text-xs" style={{ minWidth: 900 }}>
           <thead className="sticky top-0 z-10">
-            <tr className="bg-bg-row">
+            <tr className={themed('bg-bg-row', dk)}>
               <th className="px-2 py-2 w-8">{/* checkbox col */}</th>
               <th className={thBase + ' text-left'} onClick={() => toggleSort('symbol')}>Symbol{sortIndicator('symbol')}</th>
               <th className={thBase + ' text-center w-6'} title="Social Sentiment from X/Twitter (via xAI Grok)">X</th>
@@ -589,7 +592,7 @@ export default function ScannerResultsTable({
               <th className={thBase + ' text-right'} onClick={() => toggleSort('dte')}>DTE{sortIndicator('dte')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className={themed('divide-y divide-border', dk)}>
             {sortedRows.map((row, idx) => {
               const isExpanded = expandedRow === row.id;
               const isQueued = row.card ? savedCards.has(row.cardKey) : false;
@@ -600,7 +603,7 @@ export default function ScannerResultsTable({
               return (
                 <Fragment key={row.id}>
                   <tr
-                    className={`transition-colors cursor-pointer hover:bg-bg-row ${idx % 2 === 0 ? 'bg-white' : 'bg-bg-terminal'} ${isQueued ? 'bg-green-50' : ''} ${isSelected ? 'bg-brand-purple-wash' : ''}`}
+                    className={themed(`transition-colors cursor-pointer hover:bg-bg-row ${idx % 2 === 0 ? 'bg-white' : 'bg-bg-terminal'} ${isQueued ? 'bg-green-50' : ''} ${isSelected ? 'bg-brand-purple-wash' : ''}`, dk)}
                     style={{
                       borderLeft: isSelected ? '2px solid #3b2d6b' : isQueued ? '2px solid #16a34a' : '2px solid transparent',
                     }}
@@ -610,18 +613,18 @@ export default function ScannerResultsTable({
                       {row.card === null ? null : isQueued ? (
                         <span className="text-brand-green text-sm">&#10003;</span>
                       ) : isSaving ? (
-                        <span className="inline-block w-3 h-3 border-2 border-text-muted border-t-transparent rounded-full animate-spin" />
+                        <span className={themed('inline-block w-3 h-3 border-2 border-text-muted border-t-transparent rounded-full animate-spin', dk)} />
                       ) : (
                         <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleSelect(row.id)}
-                          className="w-3.5 h-3.5 rounded border-border text-brand-purple focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                          className={themed('w-3.5 h-3.5 rounded border-border text-brand-purple focus:ring-0 focus:ring-offset-0 cursor-pointer', dk)}
                         />
                       )}
                     </td>
                     {/* Symbol */}
-                    <td className="px-2 py-2 font-mono font-bold text-text-primary" onClick={() => toggleRow(row.id)}>
+                    <td className={themed('px-2 py-2 font-mono font-bold text-text-primary', dk)} onClick={() => toggleRow(row.id)}>
                       {row.symbol}
                     </td>
                     {/* Sentiment dot */}
@@ -648,7 +651,7 @@ export default function ScannerResultsTable({
                       <Badge variant={dirBadgeVariant(row.direction)} size="sm">{row.direction}</Badge>
                     </td>
                     {/* Strategy */}
-                    <td className="px-2 py-2 text-text-faint" onClick={() => toggleRow(row.id)}>
+                    <td className={themed('px-2 py-2 text-text-faint', dk)} onClick={() => toggleRow(row.id)}>
                       {row.card ? (
                         <>
                           {row.strategyName}
@@ -657,7 +660,7 @@ export default function ScannerResultsTable({
                           )}
                         </>
                       ) : (
-                        <span className="text-text-muted italic">
+                        <span className={themed('text-text-muted italic', dk)}>
                           {row.detail._fetch_errors?.chain_fetch || (() => {
                             const rej = row.detail._rejection_reasons || rejectionMap?.[row.symbol];
                             if (rej && rej.length > 0) {
@@ -671,11 +674,11 @@ export default function ScannerResultsTable({
                       )}
                     </td>
                     {/* Legs */}
-                    <td className="px-2 py-2 text-text-faint font-mono text-[10px] max-w-[200px]" onClick={() => toggleRow(row.id)} style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                    <td className={themed('px-2 py-2 text-text-faint font-mono text-[10px] max-w-[200px]', dk)} onClick={() => toggleRow(row.id)} style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
                       {row.legsText || '—'}
                     </td>
                     {/* Entry */}
-                    <td className="px-2 py-2 text-right font-mono text-text-faint" onClick={() => toggleRow(row.id)}>
+                    <td className={themed('px-2 py-2 text-right font-mono text-text-faint', dk)} onClick={() => toggleRow(row.id)}>
                       {row.entryText}
                     </td>
                     {/* Max Profit */}
@@ -688,7 +691,7 @@ export default function ScannerResultsTable({
                     </td>
                     {/* Est. PoP */}
                     <td
-                      className="px-2 py-2 text-right font-mono text-text-faint"
+                      className={themed('px-2 py-2 text-right font-mono text-text-faint', dk)}
                       onClick={() => toggleRow(row.id)}
                       title={row.popMethod === 'breakeven_d2'
                         ? 'PoP via N(d2) at breakeven price'
@@ -697,19 +700,19 @@ export default function ScannerResultsTable({
                       {fmtPct(row.winPct)}
                     </td>
                     {/* Est. EV */}
-                    <td className={`px-2 py-2 text-right font-mono ${row.ev == null ? 'text-text-muted' : row.ev > 0 ? 'text-brand-green' : row.ev < 0 ? 'text-brand-red' : 'text-text-muted'}`} onClick={() => toggleRow(row.id)}>
+                    <td className={themed(`px-2 py-2 text-right font-mono ${row.ev == null ? 'text-text-muted' : row.ev > 0 ? 'text-brand-green' : row.ev < 0 ? 'text-brand-red' : 'text-text-muted'}`, dk)} onClick={() => toggleRow(row.id)}>
                       {row.ev != null ? `${row.ev >= 0 ? '+' : ''}$${Math.round(row.ev)}` : '—'}
                     </td>
                     {/* EV/Risk */}
-                    <td className={`px-2 py-2 text-right font-mono ${row.evPerRisk == null ? 'text-text-muted' : row.evPerRisk > 0 ? 'text-brand-green' : row.evPerRisk < 0 ? 'text-brand-red' : 'text-text-muted'}`} onClick={() => toggleRow(row.id)}>
+                    <td className={themed(`px-2 py-2 text-right font-mono ${row.evPerRisk == null ? 'text-text-muted' : row.evPerRisk > 0 ? 'text-brand-green' : row.evPerRisk < 0 ? 'text-brand-red' : 'text-text-muted'}`, dk)} onClick={() => toggleRow(row.id)}>
                       {row.evPerRisk != null ? row.evPerRisk.toFixed(3) : '—'}
                     </td>
                     {/* R:R */}
-                    <td className="px-2 py-2 text-right font-mono text-text-faint" onClick={() => toggleRow(row.id)}>
+                    <td className={themed('px-2 py-2 text-right font-mono text-text-faint', dk)} onClick={() => toggleRow(row.id)}>
                       {row.riskReward != null ? row.riskReward.toFixed(2) : '—'}
                     </td>
                     {/* DTE */}
-                    <td className="px-2 py-2 text-right font-mono text-text-faint" onClick={() => toggleRow(row.id)}>
+                    <td className={themed('px-2 py-2 text-right font-mono text-text-faint', dk)} onClick={() => toggleRow(row.id)}>
                       {row.dte ?? '—'}
                     </td>
                   </tr>
@@ -726,7 +729,7 @@ export default function ScannerResultsTable({
                   {/* Expanded detail row */}
                   {isExpanded && (
                     <tr>
-                      <td colSpan={15} className="bg-white p-0">
+                      <td colSpan={15} className={themed('bg-white p-0', dk)}>
                         <TickerChapter detail={row.detail} sentiment={sentimentMap?.[row.symbol]} savedCards={savedCards} savingCards={savingCards} saveErrors={saveErrors} onSave={onSaveCard} onRemove={onRemoveCard} pipelineProgress={pipelineProgress ?? {}} />
                       </td>
                     </tr>

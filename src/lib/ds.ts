@@ -151,16 +151,30 @@ export type Surface = 'light' | 'dark';
 
 const DARKEN_MAP: [RegExp, string][] = [
   // hover/prefixed variants FIRST (so the bare token regexes below don't touch them)
-  [/\bhover:bg-bg-row\b/g, 'hover:bg-panel-hover'],
+  [/\bhover:bg-bg-row\b(?!\/)/g, 'hover:bg-panel-hover'],
   [/\bhover:bg-white\b(?!\/)/g, 'hover:bg-white/10'],
   [/\bhover:text-text-secondary\b/g, 'hover:text-white/60'],
   [/\bhover:text-text-primary\b/g, 'hover:text-white'],
   [/\bhover:border-border\b/g, 'hover:border-panel-border'],
   // BOOKS-DS-1 additions: the dashboard stack's gray-family neutrals
   [/\bhover:bg-gray-100\b/g, 'hover:bg-panel-hover'],
+  [/\bhover:bg-gray-50\b/g, 'hover:bg-panel-hover'],
   [/\bbg-gray-50\b(?!\/)/g, 'bg-white/5'],
   [/\bborder-gray-200(\/\d+)?\b/g, 'border-panel-border'],
+  [/\bborder-gray-100\b/g, 'border-panel-border'],
   [/\bdivide-border\b/g, 'divide-panel-border'],
+  // TRADE-DS-1 additions: opacity-variant neutrals collapse to the PLAIN panel
+  // token (panel colors are plain var() — a /NN modifier would not compile),
+  // the darker gray text ladder, and borders colored with text tokens.
+  [/\bhover:bg-bg-row\/\d+\b/g, 'hover:bg-panel-hover'],
+  [/\bborder-border\/\d+\b/g, 'border-panel-border'],
+  [/\bhover:text-gray-700\b/g, 'hover:text-white'],
+  [/\btext-gray-800\b/g, 'text-white'],
+  [/\btext-gray-500\b/g, 'text-white/50'],
+  [/\btext-gray-400\b/g, 'text-white/40'],
+  [/\btext-gray-300\b/g, 'text-white/40'],
+  [/\bborder-text-muted\b/g, 'border-white/50'],
+  [/\bborder-text-faint\b/g, 'border-white/40'],
   // translucent + solid light insets → the dark inset
   [/\bbg-bg-row\/\d+\b/g, 'bg-white/5'],
   [/\bbg-bg-row\b/g, 'bg-white/5'],
@@ -173,7 +187,7 @@ const DARKEN_MAP: [RegExp, string][] = [
   [/\bbg-white\b(?!\/)/g, 'bg-panel-surface'],
   // borders + the text ladder (border-border-light before border-border)
   [/\bborder-border-light\b/g, 'border-panel-border'],
-  [/\bborder-border\b/g, 'border-panel-border'],
+  [/\bborder-border\b(?!\/)/g, 'border-panel-border'],
   [/\btext-text-primary\b/g, 'text-white'],
   [/\btext-text-secondary\b/g, 'text-white/60'],
   [/\btext-text-muted\b/g, 'text-white/50'],

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { themed } from '@/lib/ds';
 
 /**
  * RISK-1 — coverage declaration for the Trade tab.
@@ -31,6 +32,8 @@ function fmtDate(iso: string | null): string {
 }
 
 export default function CoverageDeclaration() {
+  // TRADE-DS-1: single-consumer (the ML Trade tab) — always dark.
+  const dk = true;
   const [state, setState] = useState<'loading' | 'error' | 'ok'>('loading');
   const [data, setData] = useState<Coverage | null>(null);
 
@@ -52,7 +55,7 @@ export default function CoverageDeclaration() {
 
   if (state === 'loading') {
     return (
-      <div className="rounded-lg border border-border bg-white px-3 py-2 text-xs text-text-muted">
+      <div className={themed('rounded-lg border border-border bg-white px-3 py-2 text-xs text-text-muted', dk)}>
         Checking synced coverage…
       </div>
     );
@@ -76,11 +79,11 @@ export default function CoverageDeclaration() {
   if (!data) return null; // unreachable in 'ok', keeps types honest
 
   return (
-    <div className="rounded-lg border border-border bg-white px-3 py-2 text-xs text-text-secondary">
-      This tab reflects <span className="font-semibold text-text-primary">{data.investment_txn_count}</span> synced
+    <div className={themed('rounded-lg border border-border bg-white px-3 py-2 text-xs text-text-secondary', dk)}>
+      This tab reflects <span className={themed('font-semibold text-text-primary', dk)}>{data.investment_txn_count}</span> synced
       transactions from <span className="font-mono">{fmtDate(data.earliest_txn_date)}</span> to{' '}
       <span className="font-mono">{fmtDate(data.latest_txn_date)}</span>.{' '}
-      <span className="font-semibold text-text-primary">{data.unlinked_closed_count}</span> closed position
+      <span className={themed('font-semibold text-text-primary', dk)}>{data.unlinked_closed_count}</span> closed position
       {data.unlinked_closed_count === 1 ? ' is' : 's are'} not linked to a card and{' '}
       {data.unlinked_closed_count === 1 ? 'is' : 'are'} excluded from card statistics. Trades never synced from
       your broker are not visible here — stats below describe only what has been synced (sync window starts{' '}
