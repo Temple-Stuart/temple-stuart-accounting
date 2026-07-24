@@ -23,6 +23,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { dayAnchoredMinute, minuteOfDayFromInstant, minuteOfDayFromTime } from '@/lib/content/dayOrder';
 import type { TimelineRow, Entity } from './dayCalendarTypes';
+import { themed, type Surface } from '@/lib/ds';
 
 const sectionHeader = 'text-sm font-medium tracking-wide text-brand-purple';
 
@@ -136,14 +137,15 @@ export interface DayCalendarViewProps {
   entities: Entity[];
 }
 
-export default function DayCalendarView({
+export default function DayCalendarView({ surface = 'light',
   date,
   onDateChange,
   timeline,
   loading,
   error,
   entities,
-}: DayCalendarViewProps) {
+}: DayCalendarViewProps & { surface?: Surface }) {
+  const dk = surface === 'dark';
   // PR-Content-1: ·DAY time-blocks shown by default (still collapsible via the toggle).
   const [open, setOpen] = useState(true);
 
@@ -234,7 +236,7 @@ export default function DayCalendarView({
       project = row.travel.coaCode; // the COA shows in the project column for travel
       fill = TRAVEL_FILL;
       rightPill = (
-        <span className="px-2 py-0.5 rounded border border-transparent bg-white text-cyan-700 text-[11px] whitespace-nowrap">
+        <span className={themed('px-2 py-0.5 rounded border border-transparent bg-white text-cyan-700 text-[11px] whitespace-nowrap', dk)}>
           ${Math.round(row.travel.cost).toLocaleString()}
         </span>
       );
@@ -243,7 +245,7 @@ export default function DayCalendarView({
       project = row.block.projectName;
       fill = TASK_FILL;
       rightPill = (
-        <span className="px-2 py-0.5 rounded border border-transparent bg-white text-indigo-700 text-[11px] uppercase tracking-wide whitespace-nowrap">
+        <span className={themed('px-2 py-0.5 rounded border border-transparent bg-white text-indigo-700 text-[11px] uppercase tracking-wide whitespace-nowrap', dk)}>
           {row.block.status}
         </span>
       );
@@ -289,11 +291,11 @@ export default function DayCalendarView({
           els.push(
             <li
               key={`gap-${rowKey(r)}`}
-              className="flex items-center gap-2 px-2 py-0.5 text-[10px] uppercase tracking-wide text-text-muted"
+              className={themed('flex items-center gap-2 px-2 py-0.5 text-[10px] uppercase tracking-wide text-text-muted', dk)}
             >
-              <span className="flex-1 border-t border-dashed border-border-light" aria-hidden="true" />
+              <span className={themed('flex-1 border-t border-dashed border-border-light', dk)} aria-hidden="true" />
               {fmtDuration(gap)} open
-              <span className="flex-1 border-t border-dashed border-border-light" aria-hidden="true" />
+              <span className={themed('flex-1 border-t border-dashed border-border-light', dk)} aria-hidden="true" />
             </li>
           );
         }
@@ -306,7 +308,7 @@ export default function DayCalendarView({
   }, [timed, collidingKeys, entityNameById]);
 
   return (
-    <section className="bg-white rounded border border-border p-4 space-y-3">
+    <section className={themed('bg-white rounded border border-border p-4 space-y-3', dk)}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <button
           type="button"
@@ -316,7 +318,7 @@ export default function DayCalendarView({
         >
           <h2 className={sectionHeader}>
             · DAY
-            <span className="ml-2 font-normal text-text-muted">time blocks</span>
+            <span className={themed('ml-2 font-normal text-text-muted', dk)}>time blocks</span>
           </h2>
           <span className="text-xs text-brand-purple" aria-hidden="true">
             {open ? '▾ hide' : '▸ show'}
@@ -325,18 +327,18 @@ export default function DayCalendarView({
         {/* Day nav — drives the SHARED date (same setter as section 3). Button
             treatment echoes trips/ItineraryAgenda.tsx:151-155. */}
         <div className="flex items-center gap-1 text-xs">
-          <button type="button" onClick={() => onDateChange(shiftDay(date, -1))} className={navBtn} aria-label="Previous day">
+          <button type="button" onClick={() => onDateChange(shiftDay(date, -1))} className={themed(navBtn, dk)} aria-label="Previous day">
             ‹
           </button>
           <button
             type="button"
             onClick={() => onDateChange(todayLocal())}
-            className="px-2 h-7 rounded border border-border-light text-text-muted hover:bg-bg-row"
+            className={themed('px-2 h-7 rounded border border-border-light text-text-muted hover:bg-bg-row', dk)}
           >
             today
           </button>
-          <span className="px-1 text-text-muted tabular-nums">{date}</span>
-          <button type="button" onClick={() => onDateChange(shiftDay(date, 1))} className={navBtn} aria-label="Next day">
+          <span className={themed('px-1 text-text-muted tabular-nums', dk)}>{date}</span>
+          <button type="button" onClick={() => onDateChange(shiftDay(date, 1))} className={themed(navBtn, dk)} aria-label="Next day">
             ›
           </button>
         </div>
@@ -348,13 +350,13 @@ export default function DayCalendarView({
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               {presentEntityIds.length > 0 && (
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-[10px] uppercase tracking-wide text-text-muted">entity</span>
+                  <span className={themed('text-[10px] uppercase tracking-wide text-text-muted', dk)}>entity</span>
                   {presentEntityIds.map((id) => (
                     <button
                       key={id}
                       type="button"
                       onClick={() => toggleEntity(id)}
-                      className={`${chipBase} ${activeEntities.has(id) ? chipOn : chipOff}`}
+                      className={themed(`${chipBase} ${activeEntities.has(id) ? chipOn : chipOff}`, dk)}
                     >
                       {entityNameById.get(id) ?? id}
                     </button>
@@ -363,12 +365,12 @@ export default function DayCalendarView({
               )}
               {(hasScenes || hasTasks || hasTravel) && (
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-[10px] uppercase tracking-wide text-text-muted">source</span>
+                  <span className={themed('text-[10px] uppercase tracking-wide text-text-muted', dk)}>source</span>
                   {hasScenes && (
                     <button
                       type="button"
                       onClick={() => toggleSource('scene')}
-                      className={`${chipBase} ${activeSources.has('scene') ? chipOn : chipOff}`}
+                      className={themed(`${chipBase} ${activeSources.has('scene') ? chipOn : chipOff}`, dk)}
                     >
                       scenes
                     </button>
@@ -377,7 +379,7 @@ export default function DayCalendarView({
                     <button
                       type="button"
                       onClick={() => toggleSource('travel')}
-                      className={`${chipBase} ${activeSources.has('travel') ? chipOn : chipOff}`}
+                      className={themed(`${chipBase} ${activeSources.has('travel') ? chipOn : chipOff}`, dk)}
                     >
                       travel
                     </button>
@@ -386,7 +388,7 @@ export default function DayCalendarView({
                     <button
                       type="button"
                       onClick={() => toggleSource('task')}
-                      className={`${chipBase} ${activeSources.has('task') ? chipOn : chipOff}`}
+                      className={themed(`${chipBase} ${activeSources.has('task') ? chipOn : chipOff}`, dk)}
                     >
                       tasks
                     </button>
@@ -403,18 +405,18 @@ export default function DayCalendarView({
           )}
 
           {loading ? (
-            <p className="text-sm text-text-muted">Loading…</p>
+            <p className={themed('text-sm text-text-muted', dk)}>Loading…</p>
           ) : visible.length === 0 ? (
-            <p className="text-xs text-text-muted">No time blocks for {date}.</p>
+            <p className={themed('text-xs text-text-muted', dk)}>No time blocks for {date}.</p>
           ) : (
             <ul className="space-y-1 text-xs">
               {timedElements}
               {untimed.length > 0 && (
-                <li className="pt-3 mt-2 border-t border-border-light">
+                <li className={themed('pt-3 mt-2 border-t border-border-light', dk)}>
                   <span className="text-xs font-medium text-brand-purple uppercase tracking-wide">
                     unscheduled
                   </span>
-                  <span className="ml-2 font-normal text-text-muted">no time set · {untimed.length}</span>
+                  <span className={themed('ml-2 font-normal text-text-muted', dk)}>no time set · {untimed.length}</span>
                 </li>
               )}
               {untimed.map((r) => renderRow(r, false))}

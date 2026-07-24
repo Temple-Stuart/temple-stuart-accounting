@@ -28,6 +28,7 @@
 
 import { useState } from 'react';
 import InspectionDrawer, { type InspectionData } from '../ai/InspectionDrawer';
+import { themed, type Surface } from '@/lib/ds';
 
 export interface AIGeneratedTask {
   title: string;
@@ -75,7 +76,7 @@ function toEditable(t: AIGeneratedTask): EditableTask {
   };
 }
 
-export default function AITaskPreview({
+export default function AITaskPreview({ surface = 'light',
   tasks,
   sourceAiUsageId,
   projectId,
@@ -83,7 +84,8 @@ export default function AITaskPreview({
   onDiscarded,
   inspection,
   onAcceptStateless,
-}: Props) {
+}: Props & { surface?: Surface }) {
+  const dk = surface === 'dark';
   const [editable, setEditable] = useState<EditableTask[]>(() =>
     tasks.map(toEditable).sort((a, b) => a.suggested_order - b.suggested_order)
   );
@@ -143,17 +145,17 @@ export default function AITaskPreview({
   };
 
   const inputClass =
-    'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
-  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
+    themed('w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple', dk);
+  const labelClass = themed('text-text-faint uppercase tracking-wide mb-1 text-xs', dk);
 
   return (
     <div className="space-y-3 border border-brand-purple rounded p-4 bg-purple-50/30">
       <div className="flex items-center justify-between">
-        <div className="text-xs font-bold text-text-primary">
+        <div className={themed('text-xs font-bold text-text-primary', dk)}>
           AI-generated tasks — {editable.length} {editable.length === 1 ? 'task' : 'tasks'} (review and edit before accepting)
         </div>
-        <div className="text-xs text-text-muted">
-          source: ai_usage_id <span className="text-text-faint">{sourceAiUsageId.slice(0, 8)}…</span>
+        <div className={themed('text-xs text-text-muted', dk)}>
+          source: ai_usage_id <span className={themed('text-text-faint', dk)}>{sourceAiUsageId.slice(0, 8)}…</span>
         </div>
       </div>
 
@@ -165,9 +167,9 @@ export default function AITaskPreview({
 
       <div className="space-y-3">
         {editable.map((t, i) => (
-          <div key={i} className="border border-border-light rounded p-3 bg-white space-y-2 text-xs">
+          <div key={i} className={themed('border border-border-light rounded p-3 bg-white space-y-2 text-xs', dk)}>
             <div className="flex items-center justify-between">
-              <div className="text-text-faint">
+              <div className={themed('text-text-faint', dk)}>
                 #{i + 1} · suggested_order {t.suggested_order}
               </div>
               <input
@@ -175,7 +177,7 @@ export default function AITaskPreview({
                 min={0}
                 value={t.suggested_order}
                 onChange={(e) => updateTask(i, { suggested_order: Number(e.target.value) || 0 })}
-                className="w-16 px-2 py-0.5 border border-border rounded text-xs"
+                className={themed('w-16 px-2 py-0.5 border border-border rounded text-xs', dk)}
                 title="suggested order (0-indexed)"
               />
             </div>
@@ -229,7 +231,7 @@ export default function AITaskPreview({
         ))}
       </div>
 
-      <div className="flex items-center gap-2 pt-2 border-t border-border-light">
+      <div className={themed('flex items-center gap-2 pt-2 border-t border-border-light', dk)}>
         <button
           type="button"
           onClick={handleAcceptAll}
@@ -242,13 +244,13 @@ export default function AITaskPreview({
           type="button"
           onClick={onDiscarded}
           disabled={submitting}
-          className="px-3 py-1 border border-border rounded text-xs hover:bg-bg-row disabled:opacity-50"
+          className={themed('px-3 py-1 border border-border rounded text-xs hover:bg-bg-row disabled:opacity-50', dk)}
         >
           discard
         </button>
       </div>
 
-      {inspection && <InspectionDrawer data={inspection} />}
+      {inspection && <InspectionDrawer surface={surface} data={inspection} />}
     </div>
   );
 }

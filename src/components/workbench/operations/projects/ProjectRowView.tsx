@@ -16,8 +16,8 @@
  * DependencyList); the public showroom passes the pure PR1–PR4 views fed with
  * static seed. The view owns only the section wrappers + the showEvolution gate,
  * never the section's data source — so when fed pure views the whole expanded
- * subtree is provably fetch-free. <ListManager/>, <InspectionDrawer/> and
- * <AITaskPreview/> remain rendered as-is.
+ * subtree is provably fetch-free. <ListManager surface={surface} />, <InspectionDrawer surface={surface} /> and
+ * <AITaskPreview surface={surface} /> remain rendered as-is.
  */
 
 'use client';
@@ -27,6 +27,7 @@ import { STATUS_LABELS, STATUS_PILL_CLASSES } from './types';
 import ListManager from './ListManager';
 import InspectionDrawer, { type InspectionData } from '../ai/InspectionDrawer';
 import AITaskPreview, { type AIGeneratedTask } from './AITaskPreview';
+import { themed, type Surface } from '@/lib/ds';
 
 export interface Entity {
   id: string;
@@ -152,7 +153,7 @@ function entityName(entities: Entity[], entityId: string): string {
   return entities.find((e) => e.id === entityId)?.name ?? entityId;
 }
 
-export default function ProjectRowView({
+export default function ProjectRowView({ surface = 'light',
   project,
   entities,
   rowRef,
@@ -204,10 +205,11 @@ export default function ProjectRowView({
   onDelete,
   onArchive,
   onUnarchive,
-}: ProjectRowViewProps) {
+}: ProjectRowViewProps & { surface?: Surface }) {
+  const dk = surface === 'dark';
   const inputClass =
-    'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
-  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
+    themed('w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple', dk);
+  const labelClass = themed('text-text-faint uppercase tracking-wide mb-1 text-xs', dk);
   const pillClass = `inline-block px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_PILL_CLASSES[project.status]}`;
 
   // Derive structured-list arrays from the project. JsonB columns may
@@ -236,7 +238,7 @@ export default function ProjectRowView({
   ) => {
     if (items.length > 0) {
       return (
-        <ul className="list-disc list-inside text-text-primary text-xs space-y-0.5 ml-2">
+        <ul className={themed('list-disc list-inside text-text-primary text-xs space-y-0.5 ml-2', dk)}>
           {items.map((it, i) => (
             <li key={i} className="break-words">{it}</li>
           ))}
@@ -245,41 +247,41 @@ export default function ProjectRowView({
     }
     if (legacyText && legacyText.trim().length > 0) {
       return (
-        <div className="text-text-primary text-xs whitespace-pre-wrap">
+        <div className={themed('text-text-primary text-xs whitespace-pre-wrap', dk)}>
           {legacyText}
-          <span className="text-text-faint italic ml-2">(legacy paragraph format)</span>
+          <span className={themed('text-text-faint italic ml-2', dk)}>(legacy paragraph format)</span>
         </div>
       );
     }
-    return <div className="text-text-muted text-xs italic">(no content)</div>;
+    return <div className={themed('text-text-muted text-xs italic', dk)}>(no content)</div>;
   };
 
   return (
     <div
       ref={rowRef}
       className={
-        'border rounded bg-white transition-colors ' +
-        (flash ? 'border-brand-purple shadow-md' : 'border-border') +
+        themed('border rounded bg-white transition-colors ', dk) +
+        (flash ? 'border-brand-purple shadow-md' : themed('border-border', dk)) +
         (project.status === 'archived' ? ' opacity-60' : '')
       }
     >
       <div
-        className="flex items-center justify-between px-4 py-2 cursor-pointer hover:bg-bg-row text-xs"
+        className={themed('flex items-center justify-between px-4 py-2 cursor-pointer hover:bg-bg-row text-xs', dk)}
         onClick={() => !editing && onToggleExpanded()}
       >
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <span className="text-text-faint">{expanded ? '▾' : '▸'}</span>
-          <span className="font-bold text-text-primary truncate">{project.title}</span>
+          <span className={themed('text-text-faint', dk)}>{expanded ? '▾' : '▸'}</span>
+          <span className={themed('font-bold text-text-primary truncate', dk)}>{project.title}</span>
           <span className={pillClass}>{STATUS_LABELS[project.status]}</span>
-          <span className="text-text-muted">{entityName(entities, project.entity_id)}</span>
+          <span className={themed('text-text-muted', dk)}>{entityName(entities, project.entity_id)}</span>
         </div>
-        <div className="flex items-center gap-3 text-text-muted shrink-0">
+        <div className={themed('flex items-center gap-3 text-text-muted shrink-0', dk)}>
           <span>target: {formatTargetDate(project.target_completion_date)}</span>
         </div>
       </div>
 
       {expanded && !editing && (
-        <div className="px-4 py-3 border-t border-border-light text-xs space-y-3">
+        <div className={themed('px-4 py-3 border-t border-border-light text-xs space-y-3', dk)}>
           <div>
             <div className={labelClass}>1 · goal</div>
             {renderStructuredField(goalItems, project.goal)}
@@ -306,19 +308,19 @@ export default function ProjectRowView({
               <button
                 type="button"
                 onClick={onToggleDesignReasoning}
-                className="px-2 py-0.5 border border-border rounded text-xs text-text-muted hover:bg-bg-row"
+                className={themed('px-2 py-0.5 border border-border rounded text-xs text-text-muted hover:bg-bg-row', dk)}
               >
                 {showDesignReasoning ? 'hide AI design reasoning' : 'view AI design reasoning'}
               </button>
             </div>
             {showDesignReasoning && (
-              <div className="text-text-primary text-xs whitespace-pre-wrap p-3 bg-white border border-border-light rounded">
+              <div className={themed('text-text-primary text-xs whitespace-pre-wrap p-3 bg-white border border-border-light rounded', dk)}>
                 {project.design}
               </div>
             )}
           </div>
           )}
-          <div className="pt-2 border-t border-border-light">
+          <div className={themed('pt-2 border-t border-border-light', dk)}>
             <div className={labelClass}>reality inputs (ground AI regeneration)</div>
             {/* PR-Ops-Evolve-1: reality inputs — paste targets that ground task
                 regeneration in external research + a codebase audit. Sits beside the
@@ -344,7 +346,7 @@ export default function ProjectRowView({
                   onChange={(e) => onResearchInputChange(e.target.value)}
                   placeholder="Paste deep research output here, or click “run deep research”…"
                   rows={4}
-                  className="w-full text-xs border border-border rounded px-2 py-1.5 bg-white text-text-primary"
+                  className={themed('w-full text-xs border border-border rounded px-2 py-1.5 bg-white text-text-primary', dk)}
                 />
                 {researchError && (
                   <div className="mt-1 text-[11px] text-red-700">{researchError}</div>
@@ -357,7 +359,7 @@ export default function ProjectRowView({
                   onChange={(e) => onAuditInputChange(e.target.value)}
                   placeholder="Paste Claude Code audit findings here…"
                   rows={4}
-                  className="w-full text-xs border border-border rounded px-2 py-1.5 bg-white text-text-primary"
+                  className={themed('w-full text-xs border border-border rounded px-2 py-1.5 bg-white text-text-primary', dk)}
                 />
               </div>
             </div>
@@ -366,52 +368,52 @@ export default function ProjectRowView({
                 type="button"
                 onClick={onSaveInputs}
                 disabled={savingInputs}
-                className="px-2 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
+                className={themed('px-2 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50', dk)}
               >
                 {savingInputs ? 'saving…' : 'save inputs'}
               </button>
-              {inputsSaved && <span className="text-text-faint text-xs">saved — regenerate tasks to use these</span>}
+              {inputsSaved && <span className={themed('text-text-faint text-xs', dk)}>saved — regenerate tasks to use these</span>}
             </div>
           </div>
           {/* PR A: optional read-view slot — undefined on the authed path (read view
               unchanged), the locked generate buttons + caption in the showroom. */}
           {readViewAiActions}
-          <div className="pt-2 border-t border-border-light">
+          <div className={themed('pt-2 border-t border-border-light', dk)}>
             <div className={labelClass}>5 · execute (tasks)</div>
             {taskSection}
           </div>
-          <div className="pt-2 border-t border-border-light">
+          <div className={themed('pt-2 border-t border-border-light', dk)}>
             <div className="flex items-center justify-between mb-1">
               <div className={labelClass}>evolution (trajectory by AI re-run)</div>
               <button
                 type="button"
                 onClick={onToggleEvolution}
-                className="px-2 py-0.5 border border-border rounded text-xs text-text-muted hover:bg-bg-row"
+                className={themed('px-2 py-0.5 border border-border rounded text-xs text-text-muted hover:bg-bg-row', dk)}
               >
                 {showEvolution ? 'hide evolution' : 'view evolution'}
               </button>
             </div>
             {showEvolution && evolutionSection}
           </div>
-          <div className="pt-2 border-t border-border-light">
+          <div className={themed('pt-2 border-t border-border-light', dk)}>
             <div className={labelClass}>6 · dependencies</div>
             {dependencySection}
           </div>
-          <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border-light">
+          <div className={themed('grid grid-cols-2 gap-4 pt-2 border-t border-border-light', dk)}>
             <div>
               <div className={labelClass}>est. minutes</div>
-              <div className="text-text-primary">{project.estimated_total_minutes ?? '—'}</div>
+              <div className={themed('text-text-primary', dk)}>{project.estimated_total_minutes ?? '—'}</div>
             </div>
             <div>
               <div className={labelClass}>est. cost (usd)</div>
-              <div className="text-text-primary">{project.estimated_total_cost_usd ?? '—'}</div>
+              <div className={themed('text-text-primary', dk)}>{project.estimated_total_cost_usd ?? '—'}</div>
             </div>
           </div>
-          <div className="flex items-center gap-2 pt-2 border-t border-border-light">
+          <div className={themed('flex items-center gap-2 pt-2 border-t border-border-light', dk)}>
             <button
               type="button"
               onClick={onEnterEdit}
-              className="px-2 py-1 border border-border rounded hover:bg-bg-row"
+              className={themed('px-2 py-1 border border-border rounded hover:bg-bg-row', dk)}
             >
               edit
             </button>
@@ -420,7 +422,7 @@ export default function ProjectRowView({
                 type="button"
                 onClick={onUnarchive}
                 disabled={archiving}
-                className="px-2 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
+                className={themed('px-2 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50', dk)}
               >
                 {archiving ? 'unarchiving…' : 'unarchive'}
               </button>
@@ -429,7 +431,7 @@ export default function ProjectRowView({
                 type="button"
                 onClick={onArchive}
                 disabled={archiving}
-                className="px-2 py-1 border border-border text-text-muted rounded hover:bg-bg-row disabled:opacity-50"
+                className={themed('px-2 py-1 border border-border text-text-muted rounded hover:bg-bg-row disabled:opacity-50', dk)}
               >
                 {archiving ? 'archiving…' : 'archive'}
               </button>
@@ -447,7 +449,7 @@ export default function ProjectRowView({
       )}
 
       {editing && (
-        <div className="px-4 py-3 border-t border-border-light text-xs space-y-3">
+        <div className={themed('px-4 py-3 border-t border-border-light text-xs space-y-3', dk)}>
           {error && (
             <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
               {error}
@@ -497,7 +499,7 @@ export default function ProjectRowView({
 
           <div>
             <div className={labelClass}>1 · goal — what success looks like</div>
-            <ListManager
+            <ListManager surface={surface}
               items={form.goalItems}
               onChange={(next) => onFormChange({ ...form, goalItems: next })}
               verbPrefix="I WANT to "
@@ -507,7 +509,7 @@ export default function ProjectRowView({
           </div>
           <div>
             <div className={labelClass}>2 · problem — gap between current and goal</div>
-            <ListManager
+            <ListManager surface={surface}
               items={form.problemItems}
               onChange={(next) => onFormChange({ ...form, problemItems: next })}
               verbPrefix="I HAVE NOT "
@@ -518,7 +520,7 @@ export default function ProjectRowView({
           </div>
           <div>
             <div className={labelClass}>3 · diagnosis — root cause of the gap</div>
-            <ListManager
+            <ListManager surface={surface}
               items={form.diagnosisItems}
               onChange={(next) => onFormChange({ ...form, diagnosisItems: next })}
               verbPrefix="Because "
@@ -541,11 +543,11 @@ export default function ProjectRowView({
               </button>
             </div>
             {form.design.trim().length > 0 ? (
-              <div className="text-text-primary text-xs whitespace-pre-wrap p-3 bg-white border border-border-light rounded">
+              <div className={themed('text-text-primary text-xs whitespace-pre-wrap p-3 bg-white border border-border-light rounded', dk)}>
                 {form.design}
               </div>
             ) : (
-              <div className="text-text-muted text-xs italic p-3 bg-bg-row border border-border-light rounded">
+              <div className={themed('text-text-muted text-xs italic p-3 bg-bg-row border border-border-light rounded', dk)}>
                 (no design yet — fill in goal/problem/diagnosis items above, then click "↑ generate plan")
               </div>
             )}
@@ -556,19 +558,19 @@ export default function ProjectRowView({
             )}
             {generatedDesignPreview && (
               <div className="mt-2 border border-brand-purple rounded p-3 bg-purple-50/30 text-xs space-y-2">
-                <div className="font-bold text-text-primary flex items-center justify-between">
+                <div className={themed('font-bold text-text-primary flex items-center justify-between', dk)}>
                   <span>AI-generated design (review before saving)</span>
                   {generationCost && (
-                    <span className="text-text-muted text-xs font-normal">
+                    <span className={themed('text-text-muted text-xs font-normal', dk)}>
                       ${generationCost.cost_usd} · {generationCost.input_tokens} in · {generationCost.output_tokens} out
                     </span>
                   )}
                 </div>
-                <div className="text-text-primary whitespace-pre-wrap p-2 bg-white border border-border-light rounded">
+                <div className={themed('text-text-primary whitespace-pre-wrap p-2 bg-white border border-border-light rounded', dk)}>
                   {generatedDesignPreview}
                 </div>
                 {generationInspection && (
-                  <InspectionDrawer
+                  <InspectionDrawer surface={surface}
                     data={{
                       model: generationInspection.model,
                       temperature: generationInspection.temperature,
@@ -594,7 +596,7 @@ export default function ProjectRowView({
                   <button
                     type="button"
                     onClick={onDiscardGeneratedDesign}
-                    className="px-3 py-1 border border-border rounded hover:bg-bg-row"
+                    className={themed('px-3 py-1 border border-border rounded hover:bg-bg-row', dk)}
                   >
                     discard
                   </button>
@@ -617,7 +619,7 @@ export default function ProjectRowView({
               </button>
             </div>
             {!tasksPreview && (
-              <div className="text-text-muted text-xs italic p-3 bg-bg-row border border-border-light rounded">
+              <div className={themed('text-text-muted text-xs italic p-3 bg-bg-row border border-border-light rounded', dk)}>
                 (tasks are saved directly to this project on accept — click "↑ generate tasks" to synthesize an atomic task array from the goal/problem/diagnosis items above)
               </div>
             )}
@@ -629,11 +631,11 @@ export default function ProjectRowView({
             {tasksPreview && (
               <>
                 {tasksPreview.costSummary && (
-                  <div className="text-text-muted text-xs text-right mb-1">
+                  <div className={themed('text-text-muted text-xs text-right mb-1', dk)}>
                     ${tasksPreview.costSummary.cost_usd} · {tasksPreview.costSummary.input_tokens} in · {tasksPreview.costSummary.output_tokens} out
                   </div>
                 )}
-                <AITaskPreview
+                <AITaskPreview surface={surface}
                   tasks={tasksPreview.tasks}
                   sourceAiUsageId={tasksPreview.sourceAiUsageId}
                   projectId={project.id}
@@ -677,7 +679,7 @@ export default function ProjectRowView({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 pt-2 border-t border-border-light">
+          <div className={themed('flex items-center gap-2 pt-2 border-t border-border-light', dk)}>
             <button
               type="button"
               onClick={onSave}
@@ -690,7 +692,7 @@ export default function ProjectRowView({
               type="button"
               onClick={onCancelEdit}
               disabled={saving}
-              className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
+              className={themed('px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50', dk)}
             >
               cancel
             </button>

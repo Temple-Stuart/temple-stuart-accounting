@@ -9,7 +9,7 @@
  *
  * The per-task rows are NOT rendered by this view directly — they arrive via the
  * `renderTaskRow` render-prop (PR7b). The authed TaskList container injects the
- * LIVE <TaskRow> container; the public showroom injects the pure <TaskRowView>.
+ * LIVE <TaskRow surface={surface}> container; the public showroom injects the pure <TaskRowView surface={surface}>.
  * The view owns only the list wrapper, header, create-form and empty/loading
  * states — never a row's data source — so when fed pure rows it is fetch-free.
  */
@@ -18,6 +18,7 @@
 
 import { Fragment } from 'react';
 import type { Task, TaskForm, CoaAccountSummary } from './types';
+import { themed, type Surface } from '@/lib/ds';
 
 export interface TaskListViewProps {
   // ── Data (loaded by the container) ──────────────────────────────────────────
@@ -39,12 +40,12 @@ export interface TaskListViewProps {
   onCreate: () => void;
   // ── Injected row slot (PR7b) ────────────────────────────────────────────────
   // Each row's data source is the slot-builder's concern, never this view's.
-  // Authed → live <TaskRow> containers; showroom → pure <TaskRowView> rows.
+  // Authed → live <TaskRow surface={surface}> containers; showroom → pure <TaskRowView surface={surface}> rows.
   // `index` is the 1-based display index (this view passes `i + 1`, unchanged).
   renderTaskRow: (task: Task, index: number) => React.ReactNode;
 }
 
-export default function TaskListView({
+export default function TaskListView({ surface = 'light',
   tasks,
   loading,
   error,
@@ -60,16 +61,17 @@ export default function TaskListView({
   onCreateFormChange,
   onCreate,
   renderTaskRow,
-}: TaskListViewProps) {
+}: TaskListViewProps & { surface?: Surface }) {
+  const dk = surface === 'dark';
   const inputClass =
-    'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
-  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
+    themed('w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple', dk);
+  const labelClass = themed('text-text-faint uppercase tracking-wide mb-1 text-xs', dk);
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 text-xs">
-          <span className="text-text-muted">
+          <span className={themed('text-text-muted', dk)}>
             {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
           </span>
           <label className="flex items-center gap-1 cursor-pointer" onClick={(e) => e.stopPropagation()}>
@@ -78,7 +80,7 @@ export default function TaskListView({
               checked={showArchived}
               onChange={(e) => onShowArchivedChange(e.target.checked)}
             />
-            <span className="text-text-muted">show archived</span>
+            <span className={themed('text-text-muted', dk)}>show archived</span>
           </label>
         </div>
         {!showCreate && (
@@ -99,8 +101,8 @@ export default function TaskListView({
       )}
 
       {showCreate && (
-        <div className="border border-border rounded p-3 bg-white text-xs space-y-3">
-          <div className="font-bold text-text-primary">new task</div>
+        <div className={themed('border border-border rounded p-3 bg-white text-xs space-y-3', dk)}>
+          <div className={themed('font-bold text-text-primary', dk)}>new task</div>
           {createError && (
             <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
               {createError}
@@ -183,7 +185,7 @@ export default function TaskListView({
               </select>
             </div>
           </div>
-          <div className="flex items-center gap-2 pt-2 border-t border-border-light">
+          <div className={themed('flex items-center gap-2 pt-2 border-t border-border-light', dk)}>
             <button
               type="button"
               onClick={onCreate}
@@ -196,7 +198,7 @@ export default function TaskListView({
               type="button"
               onClick={onCancelCreate}
               disabled={createSaving}
-              className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
+              className={themed('px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50', dk)}
             >
               cancel
             </button>
@@ -205,9 +207,9 @@ export default function TaskListView({
       )}
 
       {loading ? (
-        <div className="text-xs text-text-muted">loading tasks…</div>
+        <div className={themed('text-xs text-text-muted', dk)}>loading tasks…</div>
       ) : tasks.length === 0 ? (
-        <div className="text-xs text-text-muted italic">
+        <div className={themed('text-xs text-text-muted italic', dk)}>
           no tasks yet — click "+ add task" to break this project down into atomic execution units.
         </div>
       ) : (

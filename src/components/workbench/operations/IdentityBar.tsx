@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import EntitySelectorStrip from './EntitySelector';
+import { themed, type Surface } from '@/lib/ds';
 
 const BUILD_SHA = (process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ?? 'dev').slice(0, 8);
 
 const REFRESH_INTERVAL_MS = 15_000;
 const MAX_CONSECUTIVE_FAILURES = 3;
 
-export default function OperationsIdentityBar() {
+export default function OperationsIdentityBar({ surface = 'light' }: { surface?: Surface } = {}) {
+  const dk = surface === 'dark';
   const [auditTailHash, setAuditTailHash] = useState<string | null>(null);
   const [tailError, setTailError] = useState<string | null>(null);
 
@@ -55,10 +57,10 @@ export default function OperationsIdentityBar() {
   }, []);
 
   return (
-    <div className="sticky top-0 z-30 bg-white border-b border-border shadow-sm">
-      <div className="max-w-[1600px] mx-auto px-4 py-2 flex items-center justify-between text-xs font-mono text-text-secondary">
+    <div className={themed('sticky top-0 z-30 bg-white border-b border-border shadow-sm', dk)}>
+      <div className={themed('max-w-[1600px] mx-auto px-4 py-2 flex items-center justify-between text-xs font-mono text-text-secondary', dk)}>
         <div className="flex items-center gap-4">
-          <span className="font-bold text-text-primary tracking-wide">OPERATIONS</span>
+          <span className={themed('font-bold text-text-primary tracking-wide', dk)}>OPERATIONS</span>
           <span>build:{BUILD_SHA}</span>
           {auditTailHash && (
             <span title="Operations audit log tail hash (last 8 chars of latest content_hash, filtered to operations_*)">

@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { themed, type Surface } from '@/lib/ds';
 
 export type SubNavTab = {
   label: string;
@@ -10,7 +11,8 @@ export type SubNavTab = {
   disabled?: boolean;
 };
 
-export default function SubNav({ tabs }: { tabs: SubNavTab[] }) {
+export default function SubNav({ surface = 'light', tabs }: { surface?: Surface; tabs: SubNavTab[] }) {
+  const dk = surface === 'dark';
   const pathname = usePathname();
 
   const isActive = (tab: SubNavTab): boolean => {
@@ -20,7 +22,7 @@ export default function SubNav({ tabs }: { tabs: SubNavTab[] }) {
   };
 
   return (
-    <div className="border-b border-border bg-white">
+    <div className={themed('border-b border-border bg-white', dk)}>
       <div className="max-w-[1600px] mx-auto px-4">
         <nav className="flex items-center gap-1 -mb-px">
           {tabs.map((tab) => {
@@ -28,7 +30,7 @@ export default function SubNav({ tabs }: { tabs: SubNavTab[] }) {
               return (
                 <span
                   key={tab.label}
-                  className="px-3 py-2 text-terminal-sm font-mono text-text-faint cursor-default"
+                  className={themed('px-3 py-2 text-terminal-sm font-mono text-text-faint cursor-default', dk)}
                 >
                   {tab.label}
                 </span>
@@ -42,7 +44,7 @@ export default function SubNav({ tabs }: { tabs: SubNavTab[] }) {
                 className={
                   active
                     ? 'px-3 py-2 text-terminal-sm font-mono transition-colors border-b-2 border-brand-purple text-brand-purple font-medium'
-                    : 'px-3 py-2 text-terminal-sm font-mono transition-colors border-b-2 border-transparent text-text-muted hover:text-text-primary hover:border-border'
+                    : themed('px-3 py-2 text-terminal-sm font-mono transition-colors border-b-2 border-transparent text-text-muted hover:text-text-primary hover:border-border', dk)
                 }
               >
                 {tab.label}

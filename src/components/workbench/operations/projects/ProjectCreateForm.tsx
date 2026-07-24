@@ -27,6 +27,7 @@ import { useEffect, useMemo, useState } from 'react';
 import ListManager from './ListManager';
 import type { ProjectForm } from './types';
 import { DEFAULT_PROJECT_FORM } from './types';
+import { themed, type Surface } from '@/lib/ds';
 
 interface Entity {
   id: string;
@@ -48,7 +49,8 @@ interface Props {
 // other surface that uses Trading are untouched (no rename, no delete, no data change).
 const isProjectEntity = (name: string) => name.trim().toLowerCase() !== 'trading';
 
-export default function ProjectCreateForm({ entities, defaultEntityId, onCreated, onCancel }: Props) {
+export default function ProjectCreateForm({ surface = 'light', entities, defaultEntityId, onCreated, onCancel }: Props & { surface?: Surface }) {
+  const dk = surface === 'dark';
   // The options offered for project creation — Trading filtered out (display-only).
   const selectableEntities = useMemo(
     () => entities.filter((e) => isProjectEntity(e.name)),
@@ -108,16 +110,16 @@ export default function ProjectCreateForm({ entities, defaultEntityId, onCreated
   };
 
   const inputClass =
-    'w-full px-2.5 py-1.5 border border-gray-300 rounded text-xs text-gray-900 bg-white focus:outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20';
-  const labelClass = 'text-gray-400 uppercase tracking-wide mb-1 text-[10px] font-medium';
+    themed('w-full px-2.5 py-1.5 border border-gray-300 rounded text-xs text-gray-900 bg-white focus:outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20', dk);
+  const labelClass = themed('text-gray-400 uppercase tracking-wide mb-1 text-[10px] font-medium', dk);
 
   return (
     <div
-      className="mb-4 rounded-md border border-gray-200 border-l-4 bg-white p-3 sm:p-4 text-xs space-y-3 shadow-sm"
+      className={themed('mb-4 rounded-md border border-gray-200 border-l-4 bg-white p-3 sm:p-4 text-xs space-y-3 shadow-sm', dk)}
       style={{ borderLeftColor: '#6B46C1' }}
     >
       <div className="flex items-baseline justify-between gap-2">
-        <div className="text-sm font-bold text-gray-900">New project</div>
+        <div className={themed('text-sm font-bold text-gray-900', dk)}>New project</div>
         <div className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: '#6B46C1' }}>title + goals</div>
       </div>
 
@@ -169,7 +171,7 @@ export default function ProjectCreateForm({ entities, defaultEntityId, onCreated
 
       <div>
         <div className={labelClass}>goal — what success looks like</div>
-        <ListManager
+        <ListManager surface={surface}
           items={createForm.goalItems}
           onChange={(next) => setCreateForm({ ...createForm, goalItems: next })}
           verbPrefix="I WANT to "
@@ -178,7 +180,7 @@ export default function ProjectCreateForm({ entities, defaultEntityId, onCreated
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-gray-200">
+      <div className={themed('flex flex-wrap items-center gap-2 pt-3 border-t border-gray-200', dk)}>
         <button
           type="button"
           onClick={handleCreate}
@@ -191,7 +193,7 @@ export default function ProjectCreateForm({ entities, defaultEntityId, onCreated
           type="button"
           onClick={onCancel}
           disabled={createSaving}
-          className="px-3 py-1.5 text-xs border border-gray-300 text-gray-600 rounded hover:bg-gray-50 disabled:opacity-50"
+          className={themed('px-3 py-1.5 text-xs border border-gray-300 text-gray-600 rounded hover:bg-gray-50 disabled:opacity-50', dk)}
         >
           cancel
         </button>

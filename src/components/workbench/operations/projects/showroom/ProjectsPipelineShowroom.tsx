@@ -44,6 +44,7 @@ import {
 } from './demoData';
 import { showroomNarrativeCopy, type CopyBlock } from './narrativeCopy';
 import { guardShowroomRender } from '@/lib/showroom/renderGuard';
+import { themed, type Surface } from '@/lib/ds';
 
 interface Props {
   /** Opens the existing home register/login modal (page.tsx:74 — the same
@@ -67,11 +68,11 @@ function makeLockedHandlers(onRequireAuth: () => void) {
  * for the real UI below it). Pure presentational — text only, no data, no
  * callbacks. Voice/wording live in showroomNarrativeCopy (PR8), never inline.
  */
-function SectionNote({ copy }: { copy: CopyBlock }) {
+function SectionNote({ dk = false, copy }: { dk?: boolean; copy: CopyBlock }) {
   return (
     <div className="mb-2">
       <div className="text-xs font-mono font-semibold uppercase tracking-wide text-brand-purple-hover mb-1">{copy.heading}</div>
-      <div className="text-xs font-mono text-text-muted">{copy.body}</div>
+      <div className={themed('text-xs font-mono text-text-muted', dk)}>{copy.body}</div>
     </div>
   );
 }
@@ -84,7 +85,8 @@ function SectionNote({ copy }: { copy: CopyBlock }) {
 // this class is applied only in the showroom wrappers, never on a shared view.
 const SECTION_CARD = 'rounded-lg border border-brand-purple/15 bg-brand-purple-wash/40 p-4';
 
-export default function ProjectsPipelineShowroom({ onRequireAuth }: Props) {
+export default function ProjectsPipelineShowroom({ surface = 'light', onRequireAuth }: Props & { surface?: Surface }) {
+  const dk = surface === 'dark';
   const lock = makeLockedHandlers(onRequireAuth);
 
   // Required by ProjectRowView; the container normally owns the scroll-into-view
@@ -95,8 +97,8 @@ export default function ProjectsPipelineShowroom({ onRequireAuth }: Props) {
   // ── taskSection: real TaskListView, rows = pure TaskRowView (NOT TaskRow) ──
   const taskSection = (
     <div className={SECTION_CARD}>
-      <SectionNote copy={showroomNarrativeCopy.sections.tasks} />
-    <TaskListView
+      <SectionNote dk={dk} copy={showroomNarrativeCopy.sections.tasks} />
+    <TaskListView surface={surface}
       tasks={demoTasks}
       loading={false}
       error={null}
@@ -112,7 +114,7 @@ export default function ProjectsPipelineShowroom({ onRequireAuth }: Props) {
       onCreateFormChange={lock}
       onCreate={lock}
       renderTaskRow={(task, index) => (
-        <TaskRowView
+        <TaskRowView surface={surface}
           task={task}
           index={index}
           coaAccounts={demoCoaAccounts}
@@ -158,16 +160,16 @@ export default function ProjectsPipelineShowroom({ onRequireAuth }: Props) {
   // ── evolutionSection: read-only timeline, no callbacks ────────────────────
   const evolutionSection = (
     <div className={SECTION_CARD}>
-      <SectionNote copy={showroomNarrativeCopy.sections.evolution} />
-      <EvolutionTimelineView loading={false} error={null} data={demoEvolution} />
+      <SectionNote dk={dk} copy={showroomNarrativeCopy.sections.evolution} />
+      <EvolutionTimelineView surface={surface} loading={false} error={null} data={demoEvolution} />
     </div>
   );
 
   // ── dependencySection: real DependencyListView fed seed edges ─────────────
   const dependencySection = (
     <div className={SECTION_CARD}>
-      <SectionNote copy={showroomNarrativeCopy.sections.dependencies} />
-    <DependencyListView
+      <SectionNote dk={dk} copy={showroomNarrativeCopy.sections.dependencies} />
+    <DependencyListView surface={surface}
       projectId={demoProjectId}
       allProjects={demoAllProjects}
       outgoing={demoOutgoingDependencies}
@@ -198,7 +200,7 @@ export default function ProjectsPipelineShowroom({ onRequireAuth }: Props) {
   // design in step 4 + the evolution history, both already rendered above/below).
   const readViewAiActions = (
     <div className={SECTION_CARD}>
-      <p className="text-xs font-mono text-text-muted mb-2">
+      <p className={themed('text-xs font-mono text-text-muted mb-2', dk)}>
         {showroomNarrativeCopy.aiLoop.caption}
       </p>
       <div className="flex items-center gap-2">
@@ -227,13 +229,13 @@ export default function ProjectsPipelineShowroom({ onRequireAuth }: Props) {
     <div>
       {/* Intro — what this is, above the pipe. */}
       <div className="mb-4">
-        <h2 className="text-base font-semibold text-text-primary mb-1">
+        <h2 className={themed('text-base font-semibold text-text-primary mb-1', dk)}>
           {showroomNarrativeCopy.intro.heading}
         </h2>
-        <p className="text-sm text-text-muted">{showroomNarrativeCopy.intro.body}</p>
+        <p className={themed('text-sm text-text-muted', dk)}>{showroomNarrativeCopy.intro.body}</p>
       </div>
 
-      <ProjectRowView
+      <ProjectRowView surface={surface}
       project={demoProject}
       entities={demoEntities}
       rowRef={rowRef}
@@ -296,7 +298,7 @@ export default function ProjectsPipelineShowroom({ onRequireAuth }: Props) {
       {/* Closing nudge — friendly sign-up invite, below the pipe. The CTA does
           ONLY onRequireAuth() (the shared lock handler): no fetch, no nav. */}
       <div className="mt-4">
-        <p className="text-sm text-text-muted mb-2">{showroomNarrativeCopy.closingNudge.body}</p>
+        <p className={themed('text-sm text-text-muted mb-2', dk)}>{showroomNarrativeCopy.closingNudge.body}</p>
         <button
           type="button"
           onClick={lock}

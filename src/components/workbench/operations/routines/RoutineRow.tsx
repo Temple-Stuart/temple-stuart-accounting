@@ -22,6 +22,7 @@ import CoaSelect from './CoaSelect';
 import { RoutineStepList } from './RoutineStepList';
 import ScenifyButton from '../content/ScenifyButton';
 import type { Scene, Take } from '../content/ContentTable';
+import { themed, type Surface } from '@/lib/ds';
 
 interface Entity {
   id: string;
@@ -94,7 +95,8 @@ function formatTime12h(hhmm: string): string {
   return `${h12}:${String(m || 0).padStart(2, '0')} ${ampm}`;
 }
 
-export default function RoutineRow({ routine, entities, onUpdate, onDelete, onScenify, onTakeify }: Props) {
+export default function RoutineRow({ surface = 'light', routine, entities, onUpdate, onDelete, onScenify, onTakeify }: Props & { surface?: Surface }) {
+  const dk = surface === 'dark';
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<RoutineForm>(() => routineToForm(routine));
@@ -188,30 +190,30 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
   };
 
   const inputClass =
-    'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
-  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
+    themed('w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple', dk);
+  const labelClass = themed('text-text-faint uppercase tracking-wide mb-1 text-xs', dk);
 
   return (
     <div
       className={
-        'border rounded bg-white ' +
-        (routine.is_active ? 'border-border' : 'border-border-light opacity-60')
+        themed('border rounded bg-white ', dk) +
+        (routine.is_active ? themed('border-border', dk) : themed('border-border-light opacity-60', dk))
       }
     >
       <div
-        className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-bg-row text-xs"
+        className={themed('flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-bg-row text-xs', dk)}
         onClick={() => !editing && setExpanded((x) => !x)}
       >
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <span className="text-text-faint">{expanded ? '▾' : '▸'}</span>
-          <span className="font-bold text-text-primary truncate">{routine.name}</span>
+          <span className={themed('text-text-faint', dk)}>{expanded ? '▾' : '▸'}</span>
+          <span className={themed('font-bold text-text-primary truncate', dk)}>{routine.name}</span>
           {!routine.is_active && (
-            <span className="px-2 py-0.5 border rounded text-xs bg-gray-100 text-gray-600 border-gray-300">
+            <span className={themed('px-2 py-0.5 border rounded text-xs bg-gray-100 text-gray-600 border-gray-300', dk)}>
               inactive
             </span>
           )}
         </div>
-        <div className="flex items-center gap-3 text-text-muted shrink-0">
+        <div className={themed('flex items-center gap-3 text-text-muted shrink-0', dk)}>
           <span title="completion streak / miss streak">
             🔥 {routine.consecutive_completion_streak} ✓ / {routine.consecutive_miss_streak} ✗
           </span>
@@ -219,7 +221,7 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
             next: {formatDateTime(routine.next_due_at, routine.timezone)}
           </span>
           {(routine.start_date || routine.end_date) && (
-            <span className="text-xs text-text-muted" title="active date window">
+            <span className={themed('text-xs text-text-muted', dk)} title="active date window">
               {(() => {
                 const startStr = routine.start_date ? formatDate(routine.start_date) : null;
                 const endStr = routine.end_date ? formatDate(routine.end_date) : null;
@@ -231,7 +233,7 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
             </span>
           )}
           {(routine.start_time || routine.end_time) && (
-            <span className="text-xs text-text-muted" title="intent time window">
+            <span className={themed('text-xs text-text-muted', dk)} title="intent time window">
               {(() => {
                 const startStr = routine.start_time ? formatTime12h(routine.start_time.slice(11, 16)) : null;
                 const endStr = routine.end_time ? formatTime12h(routine.end_time.slice(11, 16)) : null;
@@ -246,7 +248,7 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
       </div>
 
       {expanded && !editing && (
-        <div className="px-4 py-3 border-t border-border-light text-xs space-y-3">
+        <div className={themed('px-4 py-3 border-t border-border-light text-xs space-y-3', dk)}>
           {error && (
             <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
               {error}
@@ -255,49 +257,49 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
           {routine.description ? (
             <div>
               <div className={labelClass}>description</div>
-              <div className="text-text-primary whitespace-pre-wrap">{routine.description}</div>
+              <div className={themed('text-text-primary whitespace-pre-wrap', dk)}>{routine.description}</div>
             </div>
           ) : (
-            <div className="text-text-muted italic">no description</div>
+            <div className={themed('text-text-muted italic', dk)}>no description</div>
           )}
 
-          <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border-light">
+          <div className={themed('grid grid-cols-3 gap-3 pt-2 border-t border-border-light', dk)}>
             <div>
               <div className={labelClass}>schedule (rrule)</div>
-              <div className="text-text-primary font-mono break-all">{routine.schedule_rrule}</div>
+              <div className={themed('text-text-primary font-mono break-all', dk)}>{routine.schedule_rrule}</div>
             </div>
             <div>
               <div className={labelClass}>timezone</div>
-              <div className="text-text-primary">{routine.timezone}</div>
+              <div className={themed('text-text-primary', dk)}>{routine.timezone}</div>
             </div>
             <div>
               <div className={labelClass}>fail threshold</div>
-              <div className="text-text-primary">{routine.fail_threshold_minutes} min</div>
+              <div className={themed('text-text-primary', dk)}>{routine.fail_threshold_minutes} min</div>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border-light">
+          <div className={themed('grid grid-cols-3 gap-3 pt-2 border-t border-border-light', dk)}>
             <div>
               <div className={labelClass}>last completed</div>
-              <div className="text-text-primary">{formatDateTime(routine.last_completed_at, routine.timezone)}</div>
+              <div className={themed('text-text-primary', dk)}>{formatDateTime(routine.last_completed_at, routine.timezone)}</div>
             </div>
             <div>
               <div className={labelClass}>last evaluated</div>
-              <div className="text-text-primary">{formatDateTime(routine.last_evaluated_at, routine.timezone)}</div>
+              <div className={themed('text-text-primary', dk)}>{formatDateTime(routine.last_evaluated_at, routine.timezone)}</div>
             </div>
             <div>
               <div className={labelClass}>ideal time</div>
-              <div className="text-text-primary">{routine.ideal_time_label ?? '—'}</div>
+              <div className={themed('text-text-primary', dk)}>{routine.ideal_time_label ?? '—'}</div>
             </div>
           </div>
 
-          <RoutineStepList routine={routine} onUpdate={onUpdate} onTakeify={onTakeify} />
+          <RoutineStepList surface={surface} routine={routine} onUpdate={onUpdate} onTakeify={onTakeify} />
 
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border-light">
+          <div className={themed('flex flex-wrap items-center gap-2 pt-2 border-t border-border-light', dk)}>
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); enterEdit(); }}
-              className="px-2 py-1 border border-border rounded hover:bg-bg-row"
+              className={themed('px-2 py-1 border border-border rounded hover:bg-bg-row', dk)}
             >
               edit
             </button>
@@ -305,7 +307,7 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
               type="button"
               onClick={handleToggleActive}
               disabled={toggling}
-              className="px-2 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
+              className={themed('px-2 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50', dk)}
             >
               {toggling ? '…' : routine.is_active ? 'deactivate' : 'reactivate'}
             </button>
@@ -317,13 +319,13 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
             >
               {deleting ? 'deleting…' : 'delete'}
             </button>
-            <ScenifyButton routine={routine} onScenify={onScenify} />
+            <ScenifyButton surface={surface} routine={routine} onScenify={onScenify} />
           </div>
         </div>
       )}
 
       {editing && (
-        <div className="px-4 py-3 border-t border-border-light text-xs space-y-3">
+        <div className={themed('px-4 py-3 border-t border-border-light text-xs space-y-3', dk)}>
           {error && (
             <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
               {error}
@@ -394,7 +396,7 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
             </div>
           </div>
 
-          <RRULEBuilder form={form} setForm={setForm} />
+          <RRULEBuilder surface={surface} form={form} setForm={setForm} />
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -438,7 +440,7 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
             </div>
           </div>
 
-          <div className="flex items-center gap-2 pt-2 border-t border-border-light">
+          <div className={themed('flex items-center gap-2 pt-2 border-t border-border-light', dk)}>
             <button
               type="button"
               onClick={handleSave}
@@ -451,7 +453,7 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
               type="button"
               onClick={cancelEdit}
               disabled={saving}
-              className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
+              className={themed('px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50', dk)}
             >
               cancel
             </button>

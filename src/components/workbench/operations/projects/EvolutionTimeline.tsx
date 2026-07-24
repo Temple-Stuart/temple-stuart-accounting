@@ -4,7 +4,7 @@
  *
  * PR2 split: this file keeps the EXACT live behavior it had before (self-fetch
  * GET /api/operations/projects/[projectId]/evolution on mount) and now renders
- * the pure <EvolutionTimelineView/> with the live loading/error/data as props.
+ * the pure <EvolutionTimelineView surface={surface} /> with the live loading/error/data as props.
  * The public name + prop shape ({ projectId }) are unchanged, so the existing
  * call site (ProjectRow.tsx:530) is untouched and /operations/projects behaves
  * identically. READ-ONLY: no edit/delete/create. NO new behavior, NO demo data.
@@ -18,12 +18,14 @@
 
 import { useEffect, useState } from 'react';
 import EvolutionTimelineView, { type EvolutionResponse } from './EvolutionTimelineView';
+import { themed, type Surface } from '@/lib/ds';
 
 interface Props {
   projectId: string;
 }
 
-export default function EvolutionTimeline({ projectId }: Props) {
+export default function EvolutionTimeline({ surface = 'light', projectId }: Props & { surface?: Surface }) {
+  const dk = surface === 'dark';
   const [data, setData] = useState<EvolutionResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,5 +54,5 @@ export default function EvolutionTimeline({ projectId }: Props) {
     };
   }, [projectId]);
 
-  return <EvolutionTimelineView loading={loading} error={error} data={data} />;
+  return <EvolutionTimelineView surface={surface} loading={loading} error={error} data={data} />;
 }

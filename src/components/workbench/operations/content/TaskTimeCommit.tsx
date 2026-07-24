@@ -19,8 +19,10 @@
 
 import { useState } from 'react';
 import { CONTENT_DAY_PLAN_CHANGED_EVENT } from './ScenifyModal';
+import { themed, type Surface } from '@/lib/ds';
 
-export default function TaskTimeCommit({ itemId, date }: { itemId: string; date: string }) {
+export default function TaskTimeCommit({ surface = 'light', itemId, date }: { surface?: Surface; itemId: string; date: string }) {
+  const dk = surface === 'dark';
   const [start, setStart] = useState('09:00');
   const [end, setEnd] = useState('10:00');
   const [saving, setSaving] = useState(false);
@@ -28,7 +30,7 @@ export default function TaskTimeCommit({ itemId, date }: { itemId: string; date:
   const [conflict, setConflict] = useState(false);
 
   const inputClass =
-    'px-1.5 py-0.5 bg-white border border-brand-purple/40 rounded text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple';
+    themed('px-1.5 py-0.5 bg-white border border-brand-purple/40 rounded text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple', dk);
 
   const commit = async (allowConflicts: boolean) => {
     if (saving) return;

@@ -14,13 +14,14 @@
 import type { Scene, Routine } from './ContentTable';
 import { formatDay, formatHours, truncateScript } from './ContentTable';
 import EditableCell from './EditableCell';
+import { themed, type Surface } from '@/lib/ds';
 
-export default function SceneHeaderRow({
+export default function SceneHeaderRow({ surface = 'light',
   scene,
   routine,
   onSceneUpdate,
   onScriptClick,
-}: {
+}: { surface?: Surface;
   scene: Scene;
   routine: Routine;
   onSceneUpdate: (
@@ -30,11 +31,12 @@ export default function SceneHeaderRow({
   ) => Promise<void>;
   onScriptClick: (scene: Scene) => void;
 }) {
+  const dk = surface === 'dark';
   const cellClass = 'py-1 px-2';
   return (
-    <tr className="border-t border-border-light bg-bg-row font-semibold text-text-primary">
+    <tr className={themed('border-t border-border-light bg-bg-row font-semibold text-text-primary', dk)}>
       <td className={cellClass}>{scene.scene_number}</td>
-      <EditableCell
+      <EditableCell surface={surface}
         value={scene.scene_title}
         type="text"
         required
@@ -42,14 +44,14 @@ export default function SceneHeaderRow({
         onSave={(v) => onSceneUpdate(scene.id, 'scene_title', v)}
         cellClassName={cellClass}
       />
-      <EditableCell
+      <EditableCell surface={surface}
         value={scene.focus_category}
         type="text"
         maxLength={200}
         onSave={(v) => onSceneUpdate(scene.id, 'focus_category', v)}
         cellClassName={cellClass}
       />
-      <EditableCell
+      <EditableCell surface={surface}
         value={scene.estimated_hours}
         type="number"
         min={0.01}
@@ -60,7 +62,7 @@ export default function SceneHeaderRow({
         cellClassName={cellClass}
       />
       <td className={cellClass}>{formatDay(routine.schedule_rrule)}</td>
-      <EditableCell
+      <EditableCell surface={surface}
         value={scene.filming_location_base}
         type="text"
         maxLength={200}

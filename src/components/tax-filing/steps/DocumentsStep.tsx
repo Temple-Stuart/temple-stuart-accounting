@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { StepProps } from '../TaxFilingWizard';
 import type { LifeEvents } from '../TaxFilingWizard';
+import { themed, type Surface } from '@/lib/ds';
 
 // ═══════════════════════════════════════════════════════════════════
 // Step 1 — Documents
@@ -179,7 +180,8 @@ function formatEIN(raw: string): string {
 
 // ─── Component ─────────────────────────────────────────────────────
 
-export default function DocumentsStep({ taxYear, onComplete, lifeEvents }: StepProps) {
+export default function DocumentsStep({ surface = 'light', taxYear, onComplete, lifeEvents }: StepProps & { surface?: Surface }) {
+  const dk = surface === 'dark';
   const [entries, setEntries] = useState<EntriesByType>(EMPTY_ENTRIES);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -379,7 +381,7 @@ export default function DocumentsStep({ taxYear, onComplete, lifeEvents }: StepP
     const value = raw == null ? '' : String(raw);
 
     const inputClass =
-      'w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500';
+      themed('w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500', dk);
 
     if (field.type === 'select') {
       return (
@@ -426,7 +428,7 @@ export default function DocumentsStep({ taxYear, onComplete, lifeEvents }: StepP
     if (field.type === 'number') {
       return (
         <div className="relative">
-          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
+          <span className={themed('absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-sm', dk)}>
             $
           </span>
           <input
@@ -461,20 +463,20 @@ export default function DocumentsStep({ taxYear, onComplete, lifeEvents }: StepP
     return (
       <div
         key={typeDef.key}
-        className="border border-gray-200 rounded-lg overflow-hidden"
+        className={themed('border border-gray-200 rounded-lg overflow-hidden', dk)}
       >
-        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+        <div className={themed('px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between', dk)}>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-gray-900">
+              <span className={themed('text-sm font-semibold text-gray-900', dk)}>
                 {typeDef.label}
               </span>
-              <span className="text-xs text-gray-500">{typeDef.fullName}</span>
+              <span className={themed('text-xs text-gray-500', dk)}>{typeDef.fullName}</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {list.length === 0 ? (
-              <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold text-gray-600 bg-white border border-gray-300 rounded">
+              <span className={themed('inline-flex items-center px-2 py-0.5 text-[10px] font-semibold text-gray-600 bg-white border border-gray-300 rounded', dk)}>
                 empty
               </span>
             ) : (
@@ -503,10 +505,10 @@ export default function DocumentsStep({ taxYear, onComplete, lifeEvents }: StepP
                   className="w-full flex items-center justify-between hover:opacity-80"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400">
+                    <span className={themed('text-xs text-gray-400', dk)}>
                       {isOpen ? '▼' : '▶'}
                     </span>
-                    <span className="text-sm font-medium text-gray-900">
+                    <span className={themed('text-sm font-medium text-gray-900', dk)}>
                       {title}
                     </span>
                     {entry.saved && !entry.dirty && (
@@ -525,7 +527,7 @@ export default function DocumentsStep({ taxYear, onComplete, lifeEvents }: StepP
                       e.stopPropagation();
                       deleteEntry(typeDef.key, index);
                     }}
-                    className="text-xs text-gray-400 hover:text-red-600 cursor-pointer px-1"
+                    className={themed('text-xs text-gray-400 hover:text-red-600 cursor-pointer px-1', dk)}
                   >
                     remove
                   </span>
@@ -536,10 +538,10 @@ export default function DocumentsStep({ taxYear, onComplete, lifeEvents }: StepP
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {typeDef.fields.map((field) => (
                         <div key={field.key}>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                          <label className={themed('block text-xs font-medium text-gray-700 mb-1', dk)}>
                             {field.label}
                             {field.box && (
-                              <span className="ml-1 text-[10px] text-gray-400">
+                              <span className={themed('ml-1 text-[10px] text-gray-400', dk)}>
                                 ({field.box})
                               </span>
                             )}
@@ -579,7 +581,7 @@ export default function DocumentsStep({ taxYear, onComplete, lifeEvents }: StepP
           })}
         </div>
 
-        <div className="px-4 py-2 bg-gray-50 border-t border-gray-200">
+        <div className={themed('px-4 py-2 bg-gray-50 border-t border-gray-200', dk)}>
           <button
             type="button"
             onClick={() => addEntry(typeDef.key)}
@@ -595,17 +597,17 @@ export default function DocumentsStep({ taxYear, onComplete, lifeEvents }: StepP
   const renderAutoCard = (auto: AutoDocTypeDef) => (
     <div
       key={auto.key}
-      className="border border-gray-200 rounded-lg border-l-4 border-l-emerald-500 overflow-hidden"
+      className={themed('border border-gray-200 rounded-lg border-l-4 border-l-emerald-500 overflow-hidden', dk)}
     >
       <div className="px-4 py-3 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-gray-900">
+            <span className={themed('text-sm font-semibold text-gray-900', dk)}>
               {auto.label}
             </span>
-            <span className="text-xs text-gray-500">{auto.fullName}</span>
+            <span className={themed('text-xs text-gray-500', dk)}>{auto.fullName}</span>
           </div>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className={themed('text-xs text-gray-500 mt-0.5', dk)}>
             Auto-populated from: {auto.source}
           </p>
         </div>
@@ -621,14 +623,14 @@ export default function DocumentsStep({ taxYear, onComplete, lifeEvents }: StepP
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm text-gray-600">
+        <p className={themed('text-sm text-gray-600', dk)}>
           Enter each tax document you received. Only the forms relevant to the
           life events you checked are shown here.
         </p>
       </div>
 
       {loading && (
-        <div className="px-3 py-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded">
+        <div className={themed('px-3 py-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded', dk)}>
           Loading saved documents…
         </div>
       )}
@@ -646,7 +648,7 @@ export default function DocumentsStep({ taxYear, onComplete, lifeEvents }: StepP
       )}
 
       {!loading && visibleTypes.length === 0 && visibleAutoTypes.length === 0 && (
-        <div className="px-3 py-3 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded">
+        <div className={themed('px-3 py-3 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded', dk)}>
           No documents needed based on your life events. You can go back to
           Step 1 to add events, or proceed to the next step.
         </div>
@@ -655,7 +657,7 @@ export default function DocumentsStep({ taxYear, onComplete, lifeEvents }: StepP
       {/* Auto-populated cards first — these are the "already done" reassurance */}
       {visibleAutoTypes.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          <h3 className={themed('text-xs font-semibold text-gray-500 uppercase tracking-wider', dk)}>
             Already captured
           </h3>
           {visibleAutoTypes.map(renderAutoCard)}
@@ -665,7 +667,7 @@ export default function DocumentsStep({ taxYear, onComplete, lifeEvents }: StepP
       {/* Editable cards */}
       {visibleTypes.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          <h3 className={themed('text-xs font-semibold text-gray-500 uppercase tracking-wider', dk)}>
             Enter these forms
           </h3>
           <div className="space-y-3">{visibleTypes.map(renderEditableCard)}</div>
@@ -674,8 +676,8 @@ export default function DocumentsStep({ taxYear, onComplete, lifeEvents }: StepP
 
       {/* Completion checklist */}
       {visibleTypes.length > 0 && (
-        <div className="border border-gray-200 rounded-lg bg-gray-50 p-4">
-          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+        <div className={themed('border border-gray-200 rounded-lg bg-gray-50 p-4', dk)}>
+          <h4 className={themed('text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2', dk)}>
             Checklist
           </h4>
           <ul className="space-y-1">
@@ -688,14 +690,14 @@ export default function DocumentsStep({ taxYear, onComplete, lifeEvents }: StepP
                 >
                   <span
                     className={
-                      done ? 'text-emerald-600' : 'text-gray-400'
+                      done ? 'text-emerald-600' : themed('text-gray-400', dk)
                     }
                   >
                     {done ? '✓' : '○'}
                   </span>
                   <span
                     className={
-                      done ? 'text-gray-700' : 'text-gray-500'
+                      done ? themed('text-gray-700', dk) : themed('text-gray-500', dk)
                     }
                   >
                     {done ? `${t.label} entered` : `${t.label} needed`}
@@ -710,13 +712,13 @@ export default function DocumentsStep({ taxYear, onComplete, lifeEvents }: StepP
             </p>
           ) : (
             <div className="mt-3 flex items-center justify-between">
-              <p className="text-xs text-gray-500">
+              <p className={themed('text-xs text-gray-500', dk)}>
                 You can come back and enter these later.
               </p>
               <button
                 type="button"
                 onClick={onComplete}
-                className="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-300 rounded hover:bg-white"
+                className={themed('px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-300 rounded hover:bg-white', dk)}
               >
                 Skip for now
               </button>

@@ -1,3 +1,5 @@
+'use client';
+import { themed, type Surface } from '@/lib/ds';
 /**
  * ScriptGeneratorView — the PURE, props-only render of the day's reel-voiceover
  * script generator (S4 of the content pipeline).
@@ -16,7 +18,6 @@
  * so the copy-to-clipboard handler and this display stay in sync.
  */
 
-'use client';
 
 // ~150 words/min spoken → mm:ss.
 const readTime = (words: number): string => {
@@ -52,7 +53,7 @@ export interface ScriptGeneratorViewProps {
   onExecNotesChange: (value: string) => void;
 }
 
-export default function ScriptGeneratorView({
+export default function ScriptGeneratorView({ surface = 'light',
   dayAuditPrompt,
   hasPiece,
   disabledReason,
@@ -70,20 +71,21 @@ export default function ScriptGeneratorView({
   onCopyPrompt,
   onDraftChange,
   onExecNotesChange,
-}: ScriptGeneratorViewProps) {
+}: ScriptGeneratorViewProps & { surface?: Surface }) {
+  const dk = surface === 'dark';
   const words = (draft ?? '').trim() ? (draft as string).trim().split(/\s+/).length : 0;
   const hasScript = draft !== null;
 
   return (
-    <section className="bg-white rounded border border-border p-4 space-y-3">
+    <section className={themed('bg-white rounded border border-border p-4 space-y-3', dk)}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-sm font-medium tracking-wide text-brand-purple">
           4 · SCRIPT
-          <span className="ml-2 font-normal text-text-muted">the day&rsquo;s answers + task record → reel voiceover</span>
+          <span className={themed('ml-2 font-normal text-text-muted', dk)}>the day&rsquo;s answers + task record → reel voiceover</span>
         </h2>
         <div className="flex items-center gap-2">
           {hasScript && (
-            <span className="text-xs text-text-muted">
+            <span className={themed('text-xs text-text-muted', dk)}>
               {words} words · ~{readTime(words)} read
             </span>
           )}
@@ -99,16 +101,16 @@ export default function ScriptGeneratorView({
         </div>
       </div>
 
-      {disabledReason && <p className="text-xs text-text-muted">{disabledReason}</p>}
+      {disabledReason && <p className={themed('text-xs text-text-muted', dk)}>{disabledReason}</p>}
       {notice && (
-        <div className="text-xs px-3 py-2 rounded border bg-purple-50 border-brand-purple/40 text-text-primary">{notice}</div>
+        <div className={themed('text-xs px-3 py-2 rounded border bg-purple-50 border-brand-purple/40 text-text-primary', dk)}>{notice}</div>
       )}
       {error && (
         <div className="text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">{error}</div>
       )}
 
       {/* DAY-AUDIT helper — run in Claude Code, paste the output below. Always visible. */}
-      <div className="rounded border border-border-light bg-bg-row p-3 space-y-2">
+      <div className={themed('rounded border border-border-light bg-bg-row p-3 space-y-2', dk)}>
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs text-brand-purple font-medium uppercase tracking-wide">
             Day-audit — run this in Claude Code, paste the output below
@@ -123,7 +125,7 @@ export default function ScriptGeneratorView({
         </div>
         {/* Content-style-2: the day-audit PROMPT is a code value (pasted into Claude Code) — kept
             monospace, like the rrule input. The surrounding chrome is sans. */}
-        <pre className="font-mono text-[11px] leading-relaxed text-text-muted whitespace-pre-wrap break-words bg-white border border-border-light rounded p-2">
+        <pre className={themed('font-mono text-[11px] leading-relaxed text-text-muted whitespace-pre-wrap break-words bg-white border border-border-light rounded p-2', dk)}>
 {dayAuditPrompt}
         </pre>
       </div>
@@ -133,7 +135,7 @@ export default function ScriptGeneratorView({
         <label className="text-xs text-brand-purple font-medium uppercase tracking-wide">
           Execution notes (optional)
         </label>
-        <p className="text-xs text-text-muted">
+        <p className={themed('text-xs text-text-muted', dk)}>
           what actually got built/done today, in your words — the receipts. The script grounds its work claims in this.
         </p>
         <textarea
@@ -142,7 +144,7 @@ export default function ScriptGeneratorView({
           rows={4}
           disabled={!hasPiece}
           placeholder={hasPiece ? 'paste the day-audit bullets, or jot the receipts…' : 'start the day’s log first (section 3)'}
-          className="w-full resize-y bg-white border border-brand-purple/40 rounded px-3 py-2 text-xs leading-relaxed text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple disabled:opacity-50"
+          className={themed('w-full resize-y bg-white border border-brand-purple/40 rounded px-3 py-2 text-xs leading-relaxed text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple disabled:opacity-50', dk)}
         />
         <button
           type="button"
@@ -163,7 +165,7 @@ export default function ScriptGeneratorView({
             onChange={(e) => onDraftChange(e.target.value)}
             rows={16}
             placeholder="the reel voiceover, scene-tagged…"
-            className="w-full resize-y bg-white border border-brand-purple/40 rounded px-3 py-2 font-mono text-xs leading-relaxed text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple"
+            className={themed('w-full resize-y bg-white border border-brand-purple/40 rounded px-3 py-2 font-mono text-xs leading-relaxed text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple', dk)}
           />
           <div className="flex items-center gap-2">
             <button
@@ -174,7 +176,7 @@ export default function ScriptGeneratorView({
             >
               {saving ? 'saving…' : 'save to the day'}
             </button>
-            <span className="text-xs text-text-muted">edits are yours — saving overwrites the day&rsquo;s script (every run is logged)</span>
+            <span className={themed('text-xs text-text-muted', dk)}>edits are yours — saving overwrites the day&rsquo;s script (every run is logged)</span>
           </div>
         </div>
       )}

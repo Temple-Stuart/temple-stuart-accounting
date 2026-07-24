@@ -10,6 +10,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { themed, type Surface } from '@/lib/ds';
 
 interface MissionRow {
   id: string;
@@ -31,7 +32,8 @@ function relTime(iso: string): string {
   return `${Math.floor(ms / 86_400_000)}d ago`;
 }
 
-export function SectionF_Roadmap() {
+export function SectionF_Roadmap({ surface = 'light' }: { surface?: Surface } = {}) {
+  const dk = surface === 'dark';
   const [data, setData] = useState<RoadmapData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -64,9 +66,9 @@ export function SectionF_Roadmap() {
   }, []);
 
   return (
-    <section className="bg-white rounded border border-border shadow-sm p-5">
+    <section className={themed('bg-white rounded border border-border shadow-sm p-5', dk)}>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-mono text-sm font-bold tracking-wide text-text-primary">
+        <h2 className={themed('font-mono text-sm font-bold tracking-wide text-text-primary', dk)}>
           F · ROADMAP
         </h2>
         <Link
@@ -78,27 +80,27 @@ export function SectionF_Roadmap() {
       </div>
 
       {loading ? (
-        <div className="text-xs font-mono text-text-muted">loading…</div>
+        <div className={themed('text-xs font-mono text-text-muted', dk)}>loading…</div>
       ) : data && data.missions.length > 0 ? (
         <div className="space-y-1 text-xs font-mono">
-          <div className="text-text-faint uppercase tracking-wide mb-2">
+          <div className={themed('text-text-faint uppercase tracking-wide mb-2', dk)}>
             {data.total_missions.toLocaleString()} mission(s)
           </div>
           {data.missions.map((m) => (
             <Link
               key={m.id}
               href={`/compliance/missions/${m.id}`}
-              className="flex items-center justify-between py-1 px-2 -mx-2 rounded hover:bg-bg-row"
+              className={themed('flex items-center justify-between py-1 px-2 -mx-2 rounded hover:bg-bg-row', dk)}
             >
-              <span className="text-text-primary truncate">{m.title}</span>
-              <span className="text-text-muted ml-3 shrink-0">
+              <span className={themed('text-text-primary truncate', dk)}>{m.title}</span>
+              <span className={themed('text-text-muted ml-3 shrink-0', dk)}>
                 {m.status} · {relTime(m.updated_at)}
               </span>
             </Link>
           ))}
         </div>
       ) : (
-        <div className="text-xs font-mono text-text-muted leading-relaxed">
+        <div className={themed('text-xs font-mono text-text-muted leading-relaxed', dk)}>
           No missions yet. Once Phase 2 (PRs 16-25) ships the multi-model
           ensemble, discovery runs will populate this section automatically
           from the founder profile + corpus retrieval. Until then, missions

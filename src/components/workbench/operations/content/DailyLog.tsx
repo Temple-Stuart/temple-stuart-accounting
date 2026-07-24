@@ -30,6 +30,7 @@ import {
   type DayTaskBlock,
   type DayTravelBlock,
 } from './useDayFeed';
+import { themed, type Surface } from '@/lib/ds';
 
 type RowState = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -44,7 +45,8 @@ const fmtTimeOfDay = (t: string | null): string => {
 const headerCellClass =
   'bg-bg-row border border-border-light px-2 py-1.5 text-left text-brand-purple font-semibold uppercase tracking-wide whitespace-nowrap';
 
-export default function DailyLog({ date }: { date: string }) {
+export default function DailyLog({ surface = 'light', date }: { surface?: Surface; date: string }) {
+  const dk = surface === 'dark';
   // selectedEntityId is used ONLY to create the day's canonical piece. Reading is
   // CROSS-ENTITY (OPS-CE-8): the day is ONE reel — scenes/answers/blocks span entities.
   const { selectedEntityId } = useOperationsEntity();
@@ -138,44 +140,44 @@ export default function DailyLog({ date }: { date: string }) {
     const state = rowState[s.id] ?? 'idle';
     return (
       <tr key={`scene-${s.id}`}>
-        <td className="border border-border-light px-2 py-1 align-top text-center">
+        <td className={themed('border border-border-light px-2 py-1 align-top text-center', dk)}>
           <span
-            className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] ${
-              saved ? 'bg-brand-purple text-white' : 'border border-border text-text-muted'
-            }`}
+            className={themed(`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] ${
+              saved ? 'bg-brand-purple text-white' : themed('border border-border text-text-muted', dk)
+            }`, dk)}
             aria-hidden="true"
           >
             {saved ? '✓' : s.routine_step.step_order}
           </span>
         </td>
-        <td className="border border-border-light px-2 py-1 align-top min-w-[150px]">
-          <div className="text-text-primary font-medium">{s.routine_step.activity}</div>
-          {time && <div className="text-text-muted">{time}</div>}
+        <td className={themed('border border-border-light px-2 py-1 align-top min-w-[150px]', dk)}>
+          <div className={themed('text-text-primary font-medium', dk)}>{s.routine_step.activity}</div>
+          {time && <div className={themed('text-text-muted', dk)}>{time}</div>}
         </td>
-        <td className="border border-border-light px-2 py-1 align-top min-w-[180px]">
+        <td className={themed('border border-border-light px-2 py-1 align-top min-w-[180px]', dk)}>
           {narrative ? (
-            <span className="text-text-muted">{narrative}</span>
+            <span className={themed('text-text-muted', dk)}>{narrative}</span>
           ) : (
-            <span className="text-text-muted">—</span>
+            <span className={themed('text-text-muted', dk)}>—</span>
           )}
         </td>
-        <td className="border border-border-light px-2 py-1 align-top min-w-[200px]">
+        <td className={themed('border border-border-light px-2 py-1 align-top min-w-[200px]', dk)}>
           {question ? (
-            <span className="text-text-primary">{question}</span>
+            <span className={themed('text-text-primary', dk)}>{question}</span>
           ) : (
-            <span className="text-text-muted">none — set in the script map</span>
+            <span className={themed('text-text-muted', dk)}>none — set in the script map</span>
           )}
         </td>
-        <td className="border border-border-light px-2 py-1 align-top min-w-[150px] text-text-muted">
+        <td className={themed('border border-border-light px-2 py-1 align-top min-w-[150px] text-text-muted', dk)}>
           {s.b_roll?.trim() ? (
             <span>
               <span aria-hidden="true">🎥</span> {s.b_roll}
             </span>
           ) : (
-            <span className="text-text-muted">—</span>
+            <span className={themed('text-text-muted', dk)}>—</span>
           )}
         </td>
-        <td className="border border-border-light px-2 py-1 align-top min-w-[260px]">
+        <td className={themed('border border-border-light px-2 py-1 align-top min-w-[260px]', dk)}>
           <textarea
             value={draftFor(s.id)}
             onChange={(e) => {
@@ -185,7 +187,7 @@ export default function DailyLog({ date }: { date: string }) {
             }}
             rows={3}
             placeholder="answer the question in your own words…"
-            className="w-full resize-y border border-border rounded px-2 py-1 text-text-primary focus:outline-none focus:border-brand-purple"
+            className={themed('w-full resize-y border border-border rounded px-2 py-1 text-text-primary focus:outline-none focus:border-brand-purple', dk)}
           />
           <div className="mt-1 flex items-center gap-2">
             <button
@@ -207,8 +209,8 @@ export default function DailyLog({ date }: { date: string }) {
   // Read-only execution band — fully legible, labeled, wrapped (shared TaskBand).
   const renderTaskRow = (b: DayTaskBlock) => (
     <tr key={`task-${b.id}`}>
-      <td colSpan={6} className="border border-border-light border-l-4 border-l-amber-400 bg-amber-50/50 px-3 py-2 align-top">
-        <TaskBand
+      <td colSpan={6} className={themed('border border-border-light border-l-4 border-l-amber-400 bg-amber-50/50 px-3 py-2 align-top', dk)}>
+        <TaskBand surface={surface}
           date={date}
           planned={b.planned}
           itemId={b.itemId}
@@ -230,11 +232,11 @@ export default function DailyLog({ date }: { date: string }) {
   // Minimal sibling of renderTaskRow; no TaskBand (that's task-specific).
   const renderTravelRow = (t: DayTravelBlock) => (
     <tr key={`travel-${t.id}`}>
-      <td colSpan={6} className="border border-border-light border-l-4 border-l-cyan-500 bg-cyan-50/50 px-3 py-2 align-top">
+      <td colSpan={6} className={themed('border border-border-light border-l-4 border-l-cyan-500 bg-cyan-50/50 px-3 py-2 align-top', dk)}>
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs">
-          <span className="tabular-nums text-text-muted">{t.label}</span>
-          <span className="font-medium text-text-primary break-words">{t.title}</span>
-          {t.coaCode && <span className="text-text-faint">· {t.coaCode}</span>}
+          <span className={themed('tabular-nums text-text-muted', dk)}>{t.label}</span>
+          <span className={themed('font-medium text-text-primary break-words', dk)}>{t.title}</span>
+          {t.coaCode && <span className={themed('text-text-faint', dk)}>· {t.coaCode}</span>}
           {t.recurrence === 'daily' && <span className="text-cyan-700">· daily</span>}
         </div>
       </td>
@@ -246,10 +248,10 @@ export default function DailyLog({ date }: { date: string }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-sm font-medium tracking-wide text-brand-purple">
           ANSWER
-          <span className="ml-2 font-normal text-text-muted">the day, top to bottom — mindset + execution</span>
+          <span className={themed('ml-2 font-normal text-text-muted', dk)}>the day, top to bottom — mindset + execution</span>
         </h3>
         {piece && dayScenes.length > 0 && (
-          <span className="text-xs text-text-muted">
+          <span className={themed('text-xs text-text-muted', dk)}>
             {answeredCount} of {dayScenes.length} answered
           </span>
         )}
@@ -262,19 +264,19 @@ export default function DailyLog({ date }: { date: string }) {
       )}
 
       {loading ? (
-        <p className="text-sm text-text-muted">Loading…</p>
+        <p className={themed('text-sm text-text-muted', dk)}>Loading…</p>
       ) : dayScenes.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-8 px-4 border border-border-light rounded bg-bg-row text-center">
+        <div className={themed('flex flex-col items-center justify-center py-8 px-4 border border-border-light rounded bg-bg-row text-center', dk)}>
           <div className="text-2xl mb-2" aria-hidden="true">🎬</div>
-          <div className="text-sm font-semibold text-text-primary">No scenes yet</div>
-          <div className="text-xs text-text-muted mt-1">
+          <div className={themed('text-sm font-semibold text-text-primary', dk)}>No scenes yet</div>
+          <div className={themed('text-xs text-text-muted mt-1', dk)}>
             Scenify a routine first — its steps become the scenes you answer here.
           </div>
         </div>
       ) : !piece ? (
-        <div className="flex flex-col items-center justify-center py-8 px-4 border border-border-light rounded bg-bg-row text-center gap-3">
-          <div className="text-xs text-text-muted">
-            No log started for <span className="text-text-primary font-semibold">{date}</span> yet.
+        <div className={themed('flex flex-col items-center justify-center py-8 px-4 border border-border-light rounded bg-bg-row text-center gap-3', dk)}>
+          <div className={themed('text-xs text-text-muted', dk)}>
+            No log started for <span className={themed('text-text-primary font-semibold', dk)}>{date}</span> yet.
           </div>
           <button
             type="button"
@@ -290,12 +292,12 @@ export default function DailyLog({ date }: { date: string }) {
           <table className="border-collapse text-xs w-full">
             <thead>
               <tr>
-                <th className={`${headerCellClass} text-center`}>#</th>
-                <th className={headerCellClass}>Activity</th>
-                <th className={headerCellClass}>Narrative</th>
-                <th className={headerCellClass}>Question</th>
-                <th className={headerCellClass}>B-Roll</th>
-                <th className={headerCellClass}>Answer</th>
+                <th className={themed(`${headerCellClass} text-center`, dk)}>#</th>
+                <th className={themed(headerCellClass, dk)}>Activity</th>
+                <th className={themed(headerCellClass, dk)}>Narrative</th>
+                <th className={themed(headerCellClass, dk)}>Question</th>
+                <th className={themed(headerCellClass, dk)}>B-Roll</th>
+                <th className={themed(headerCellClass, dk)}>Answer</th>
               </tr>
             </thead>
             <tbody>
@@ -306,7 +308,7 @@ export default function DailyLog({ date }: { date: string }) {
               )}
               {!timeline.some((row) => row.kind === 'task') && (
                 <tr>
-                  <td colSpan={6} className="border border-border-light px-3 py-1.5 text-text-muted">
+                  <td colSpan={6} className={themed('border border-border-light px-3 py-1.5 text-text-muted', dk)}>
                     no task blocks committed — assign tasks in section 1 or on the Daily Plan tab
                   </td>
                 </tr>

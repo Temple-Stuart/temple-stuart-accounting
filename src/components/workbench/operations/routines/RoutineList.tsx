@@ -19,6 +19,7 @@ import RoutineCreateForm from './RoutineCreateForm';
 import type { CadenceGroup, Routine } from './types';
 import { CADENCE_GROUP_LABELS, CADENCE_GROUP_ORDER } from './types';
 import type { Scene, Take } from '../content/ContentTable';
+import { themed, type Surface } from '@/lib/ds';
 
 interface Entity {
   id: string;
@@ -30,7 +31,8 @@ interface Props {
   onCommitted?: () => void;
 }
 
-export default function RoutineList({ entities, onCommitted }: Props) {
+export default function RoutineList({ surface = 'light', entities, onCommitted }: Props & { surface?: Surface }) {
+  const dk = surface === 'dark';
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -137,7 +139,7 @@ export default function RoutineList({ entities, onCommitted }: Props) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 text-xs">
-          <span className="text-text-muted">
+          <span className={themed('text-text-muted', dk)}>
             {routines.length} {routines.length === 1 ? 'routine' : 'routines'}
           </span>
           <label className="flex items-center gap-1 cursor-pointer">
@@ -146,7 +148,7 @@ export default function RoutineList({ entities, onCommitted }: Props) {
               checked={showInactive}
               onChange={(e) => setShowInactive(e.target.checked)}
             />
-            <span className="text-text-muted">show inactive</span>
+            <span className={themed('text-text-muted', dk)}>show inactive</span>
           </label>
         </div>
         {!showCreate && (
@@ -168,7 +170,7 @@ export default function RoutineList({ entities, onCommitted }: Props) {
       )}
 
       {showCreate && (
-        <RoutineCreateForm
+        <RoutineCreateForm surface={surface}
           entities={entities}
           defaultEntityId={createDefaultEntityId}
           onCreated={() => {
@@ -180,9 +182,9 @@ export default function RoutineList({ entities, onCommitted }: Props) {
       )}
 
       {loading ? (
-        <div className="text-xs text-text-muted">loading routines…</div>
+        <div className={themed('text-xs text-text-muted', dk)}>loading routines…</div>
       ) : routines.length === 0 ? (
-        <div className="text-xs text-text-muted italic">
+        <div className={themed('text-xs text-text-muted italic', dk)}>
           no routines yet — click "+ new routine" to create your first one. Bridgewater's Principles operationalize through cadence; this is where you set yours.
         </div>
       ) : (
@@ -192,12 +194,12 @@ export default function RoutineList({ entities, onCommitted }: Props) {
             if (!items || items.length === 0) return null;
             return (
               <div key={g}>
-                <div className="text-xs text-text-faint uppercase tracking-wide mb-1">
+                <div className={themed('text-xs text-text-faint uppercase tracking-wide mb-1', dk)}>
                   {CADENCE_GROUP_LABELS[g]} ({items.length})
                 </div>
                 <div className="space-y-1.5">
                   {items.map((r) => (
-                    <RoutineRow
+                    <RoutineRow surface={surface}
                       key={r.id}
                       routine={r}
                       entities={entities}

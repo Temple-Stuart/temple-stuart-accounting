@@ -1,3 +1,5 @@
+'use client';
+import { themed, type Surface } from '@/lib/ds';
 /**
  * src/components/workbench/SectionE_LiveStream.tsx
  *
@@ -16,7 +18,6 @@
  * token as it streams.
  */
 
-'use client';
 
 const PHASE_2_BLOCKS = [
   {
@@ -51,11 +52,12 @@ const PHASE_2_BLOCKS = [
   },
 ];
 
-export function SectionE_LiveStream() {
+export function SectionE_LiveStream({ surface = 'light' }: { surface?: Surface } = {}) {
+  const dk = surface === 'dark';
   return (
-    <section className="bg-white rounded border border-border shadow-sm p-5">
+    <section className={themed('bg-white rounded border border-border shadow-sm p-5', dk)}>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-mono text-sm font-bold tracking-wide text-text-primary">
+        <h2 className={themed('font-mono text-sm font-bold tracking-wide text-text-primary', dk)}>
           E · LIVE DISCOVERY STREAM
         </h2>
         <span className="text-xs font-mono text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
@@ -64,7 +66,7 @@ export function SectionE_LiveStream() {
       </div>
 
       <div className="space-y-2 text-xs font-mono">
-        <div className="text-text-muted leading-relaxed mb-3">
+        <div className={themed('text-text-muted leading-relaxed mb-3', dk)}>
           Architecture doc § 6.2 E. Six blocks render in document-flow order
           while a discovery run is in progress. Each block remains visible
           after the run completes — nothing is hidden.
@@ -73,14 +75,14 @@ export function SectionE_LiveStream() {
         {PHASE_2_BLOCKS.map((b) => (
           <div
             key={b.id}
-            className="border border-border-light rounded p-3 opacity-60"
+            className={themed('border border-border-light rounded p-3 opacity-60', dk)}
           >
-            <div className="text-text-primary font-bold">{b.name}</div>
-            <div className="text-text-muted mt-0.5">{b.note}</div>
+            <div className={themed('text-text-primary font-bold', dk)}>{b.name}</div>
+            <div className={themed('text-text-muted mt-0.5', dk)}>{b.note}</div>
           </div>
         ))}
 
-        <div className="text-text-muted leading-relaxed pt-3 border-t border-border-light">
+        <div className={themed('text-text-muted leading-relaxed pt-3 border-t border-border-light', dk)}>
           SSE relay implementation will mirror{' '}
           <code className="font-mono">
             src/app/api/trading/convergence/route.ts

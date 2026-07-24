@@ -23,6 +23,7 @@ import {
 } from '@/components/workbench/operations/routines/types';
 import SceneHeaderRow from './SceneHeaderRow';
 import TakeRow from './TakeRow';
+import { themed, type Surface } from '@/lib/ds';
 
 export type Step = {
   id: string;
@@ -127,14 +128,14 @@ const HEADERS = [
   'Script',
 ];
 
-export default function ContentTable({
+export default function ContentTable({ surface = 'light',
   scenes,
   takes,
   routines,
   onSceneUpdate,
   onTakeUpdate,
   onScriptClick,
-}: {
+}: { surface?: Surface;
   scenes: Scene[];
   takes: Take[];
   routines: Routine[];
@@ -150,6 +151,7 @@ export default function ContentTable({
   ) => Promise<void>;
   onScriptClick: (scene: Scene) => void;
 }) {
+  const dk = surface === 'dark';
   const routinesById = new Map(routines.map((r) => [r.id, r]));
   const takesByStepId = new Map(takes.map((t) => [t.routine_step_id, t]));
 
@@ -159,7 +161,7 @@ export default function ContentTable({
     <div className="text-xs font-mono overflow-x-auto">
       <table className="w-full">
         <thead>
-          <tr className="text-text-faint uppercase tracking-wide">
+          <tr className={themed('text-text-faint uppercase tracking-wide', dk)}>
             {HEADERS.map((h) => (
               <th key={h} className="text-left pb-1 px-2 whitespace-nowrap">
                 {h}
@@ -182,14 +184,14 @@ export default function ContentTable({
             );
             return (
               <Fragment key={scene.id}>
-                <SceneHeaderRow
+                <SceneHeaderRow surface={surface}
                   scene={scene}
                   routine={routine}
                   onSceneUpdate={onSceneUpdate}
                   onScriptClick={onScriptClick}
                 />
                 {steps.map((step) => (
-                  <TakeRow
+                  <TakeRow surface={surface}
                     key={step.id}
                     step={step}
                     take={takesByStepId.get(step.id)}

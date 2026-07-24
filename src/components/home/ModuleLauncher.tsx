@@ -518,8 +518,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       // (Styling aligns to the homepage tab contract in PR-Projects-style — terminal for now.)
       if (authed === true) {
         return (
-          <OperationsEntityProvider>
-            <SectionD_ProjectBacklog />
+          <OperationsEntityProvider surface="dark">
+            <SectionD_ProjectBacklog surface="dark" />
           </OperationsEntityProvider>
         );
       }
@@ -538,8 +538,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       // Auth resolving → nothing. (Styling aligns in PR-Content-style — terminal for now.)
       if (authed === true) {
         return (
-          <OperationsEntityProvider>
-            <ContentPipeline />
+          <OperationsEntityProvider surface="dark">
+            <ContentPipeline surface="dark" />
           </OperationsEntityProvider>
         );
       }
@@ -557,8 +557,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       // /modules/routines (MOD-2). Auth resolving → nothing. (Authed styling reads workbench/terminal for now, intentionally.)
       if (authed === true) {
         return (
-          <OperationsEntityProvider>
-            <SectionE_Routines />
+          <OperationsEntityProvider surface="dark">
+            <SectionE_Routines surface="dark" />
           </OperationsEntityProvider>
         );
       }
@@ -830,7 +830,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       {/* HB-4e-style: Routines renders in its own FLUSH block (mirrors Calendar/Travel) — out of
           the MODULES.map purple-band card, so the real builder reads as the app, not a demo card.
           renderBody handles the authed-builder / logged-out pointer-card branch (MOD-2). */}
-      <section className={`w-full bg-white border-b border-border ${activeModule === 'routines' ? 'block' : 'hidden'}`}>
+      <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'routines' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 lg:px-8 space-y-6">
             {renderBody(routinesModule)}
@@ -840,7 +840,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       {/* Projects-style-1: Projects renders in its own FLUSH block (mirrors Calendar/Travel/
           Routines) — out of the MODULES.map purple-band card, so the authed builder reads as the
           app. renderBody handles the authed-builder / logged-out-showroom branch. */}
-      <section className={`w-full bg-white border-b border-border ${activeModule === 'projects' ? 'block' : 'hidden'}`}>
+      <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'projects' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 lg:px-8 space-y-6">
             {renderBody(projectsModule)}
@@ -850,7 +850,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       {/* Content-mount: Content renders in its own FLUSH block (mirrors Projects/Routines) — out of
           the MODULES.map purple-band card. renderBody handles the authed-pipeline / logged-out-
           showroom branch. */}
-      <section className={`w-full bg-white border-b border-border ${activeModule === 'content' ? 'block' : 'hidden'}`}>
+      <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'content' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 lg:px-8 space-y-6">
             {renderBody(contentModule)}
@@ -1009,7 +1009,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           gate is the tab:tax entitlement (isTabLocked — admin bypass inside). Entitled →
           the closed-books handoff gate (wizard once a period is closed, else a "close your
           books first" screen that jumps to the Books tab); locked → pointer-card + CTA (MOD-2). */}
-      <section className={`w-full bg-white border-b border-border ${activeModule === 'tax' ? 'block' : 'hidden'}`}>
+      <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'tax' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
             {!taxLocked ? (
@@ -1026,6 +1026,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                   valueLine="Your 1040 estimate and schedules, derived from your actual closed books — plus the CPA-ready export."
                   currentUserId={currentUserId}
                   onRequireAuth={onRequireAuth}
+                  surface="dark"
                 />
               </>
             )}
@@ -1039,7 +1040,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           admin bypass inside). Entitled → the A–J workbench (Section A → sub-page link
           row → Sections B…J, bare — no AppLayout chrome inside the tab); locked →
           pointer-card + unlock CTA (MOD-2). */}
-      <section className={`w-full bg-white border-b border-border ${activeModule === 'compliance' ? 'block' : 'hidden'}`}>
+      <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'compliance' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
             {!complianceLocked ? (
@@ -1056,6 +1057,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                   valueLine="The live workbench: corpus search, citation verification, missions, and the audit registry."
                   currentUserId={currentUserId}
                   onRequireAuth={onRequireAuth}
+                  surface="dark"
                 />
               </>
             )}

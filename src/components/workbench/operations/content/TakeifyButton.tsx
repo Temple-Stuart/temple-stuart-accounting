@@ -20,26 +20,28 @@
 
 import { useState } from 'react';
 import type { Take } from './ContentTable';
+import { themed, type Surface } from '@/lib/ds';
 
 type TakeifyStep = {
   id: string;
   content_scene?: { id: string } | null;
 };
 
-export default function TakeifyButton({
+export default function TakeifyButton({ surface = 'light',
   step,
   onTakeify,
-}: {
+}: { surface?: Surface;
   step: TakeifyStep;
   onTakeify: (newTake: Take) => void;
 }) {
+  const dk = surface === 'dark';
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (step.content_scene) {
     return (
       <span
-        className="px-2 py-0.5 border border-border rounded bg-purple-50 text-brand-purple text-xs font-mono"
+        className={themed('px-2 py-0.5 border border-border rounded bg-purple-50 text-brand-purple text-xs font-mono', dk)}
         title="this step already has a take"
       >
         🎬 Take
@@ -90,7 +92,7 @@ export default function TakeifyButton({
           handleClick();
         }}
         disabled={submitting}
-        className="px-2 py-0.5 border border-border rounded hover:bg-bg-row disabled:opacity-50 text-xs font-mono"
+        className={themed('px-2 py-0.5 border border-border rounded hover:bg-bg-row disabled:opacity-50 text-xs font-mono', dk)}
       >
         {submitting ? '…' : '🎬 Take'}
       </button>
