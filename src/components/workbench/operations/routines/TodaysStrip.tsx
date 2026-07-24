@@ -19,6 +19,7 @@
 
 import { useEffect, useState } from 'react';
 import type { TodayStatus } from './types';
+import { formatBudgetPerOccurrence } from './types';
 import { themed, type Surface } from '@/lib/ds';
 
 interface TodayEntry {
@@ -29,6 +30,14 @@ interface TodayEntry {
     fail_threshold_minutes: number;
     consecutive_completion_streak: number;
     consecutive_miss_streak: number;
+    // ROUTINES-UX-2: ALREADY in the payload as merged — the today route
+    // returns FULL operations_routines rows (findMany with include, no
+    // select; today/route.ts entries push `routine: r`), so budget_amount
+    // (Decimal → JSON string) + coa_code ride every entry. This interface
+    // was just a narrow view; widening it types existing data — zero new
+    // fetches, zero route changes.
+    budget_amount?: string | null;
+    coa_code?: string | null;
   };
   expected_at: string;
   status: TodayStatus;
@@ -172,6 +181,19 @@ export default function TodaysStrip({ surface = 'light', onCommitted }: Props & 
                 )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
+                {/* ROUTINES-UX-2: the occurrence's money — the same mono cell
+                    as the routine row (one shared formatter). For a single due
+                    item the amount IS this occurrence's budget, so the bare
+                    figure is the tightest honest form; the lifted form label
+                    rides the title. Null → nothing renders. */}
+                {e.routine.budget_amount != null && (
+                  <span
+                    className={themed('font-mono tabular-nums font-bold text-text-primary', dk)}
+                    title="budget / occurrence"
+                  >
+                    {formatBudgetPerOccurrence(e.routine.budget_amount)}
+                  </span>
+                )}
                 {canComplete && (
                   <button
                     type="button"
