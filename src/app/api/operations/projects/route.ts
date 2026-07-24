@@ -101,6 +101,70 @@ export async function GET(request: NextRequest) {
       runCountByProject.set(g.project_id, (runCountByProject.get(g.project_id) ?? 0) + 1);
     }
 
+    // PROJECTS-UX-2: REAL cost-per-project — the DIM allocation rollup.
+    // READ-ONLY (findMany only), layered onto the payload exactly like the
+    // PD-2 counts above. The math derives from the schema's own doctrine:
+    //   • ledger_entries.amount is BigInt CENTS ("Clean slate with BigInt
+    //     amounts", schema.prisma ledger_entries); sign lives in entry_type
+    //     ('D'/'C') — the same D/C semantics /api/runway uses for its burn
+    //     legs. Net allocated = debit allocations − credit allocations (a
+    //     credit allocated to a project offsets its cost).
+    //   • ledger_line_links.percent is Decimal(5,2) — the link's SHARE of the
+    //     line (sum-to-100 across a line's links, the DIM-1 doctrine). One
+    //     link's allocated cents = amount × percent / 100; computed as
+    //     amount × round(percent×100) / 10000 so the 2dp percent is exact
+    //     integer math (fractional cents accumulate, rounded ONCE per project).
+    //   • User scoping via the owning chain the EXPORT-1 route proved:
+    //     link → ledger_entry → journal_entry.userId (links carry no userId).
+    //   • Coverage is DECLARED per the DIM-1 doctrine: link_count/line_count
+    //     ride the payload so the display can say how many lines feed the sum.
+    // Self-reported estimates (estimated/actual_cost_usd) are NOT mixed in.
+    type LedgerAllocated = { cents: number; dollars: string; link_count: number; line_count: number };
+    let allocByProject: Map<string, LedgerAllocated> | null = null;
+    try {
+      const links = projectIds.length
+        ? await prisma.ledger_line_links.findMany({
+            where: {
+              project_id: { in: projectIds },
+              ledger_entry: { journal_entry: { userId: user.id } },
+            },
+            select: {
+              project_id: true,
+              percent: true,
+              ledger_entry_id: true,
+              ledger_entry: { select: { amount: true, entry_type: true } },
+            },
+          })
+        : [];
+      const acc = new Map<string, { cents: number; links: number; lines: Set<string> }>();
+      for (const l of links) {
+        if (!l.project_id) continue;
+        const pctCenti = Math.round(Number(l.percent) * 100);
+        const signed = (l.ledger_entry.entry_type === 'C' ? -1 : 1) * Number(l.ledger_entry.amount);
+        const a = acc.get(l.project_id) ?? { cents: 0, links: 0, lines: new Set<string>() };
+        a.cents += (signed * pctCenti) / 10_000;
+        a.links += 1;
+        a.lines.add(l.ledger_entry_id);
+        acc.set(l.project_id, a);
+      }
+      allocByProject = new Map();
+      for (const [pid, a] of acc) {
+        const rounded = Math.round(a.cents);
+        allocByProject.set(pid, {
+          cents: rounded,
+          dollars: (rounded / 100).toFixed(2),
+          link_count: a.links,
+          line_count: a.lines.size,
+        });
+      }
+    } catch (rollupError) {
+      // RULED degradation (PROJECTS-UX-2): if the rollup read fails, the field
+      // is OMITTED and the client renders NOTHING — never a made-up number —
+      // while the projects list itself still loads. Logged, never swallowed.
+      console.error('[Projects GET] ledger allocation rollup failed', rollupError);
+      allocByProject = null;
+    }
+
     // Status-priority sort layered on top of priority_score order.
     const sorted = projects.slice().sort((a, b) => {
       const sa = STATUS_ORDER[a.status];
@@ -111,10 +175,14 @@ export async function GET(request: NextRequest) {
     });
 
     // PD-2: surface the real counts on each row (and drop the internal _count shape).
+    // PROJECTS-UX-2: ledger_allocated joins the row — an object for projects
+    // with links, null for projects with none (absence is honest — the client
+    // renders nothing), and ABSENT entirely when the rollup read failed.
     const withCounts = sorted.map(({ _count, ...p }) => ({
       ...p,
       task_count: _count.tasks,
       run_count: runCountByProject.get(p.id) ?? 0,
+      ...(allocByProject ? { ledger_allocated: allocByProject.get(p.id) ?? null } : {}),
     }));
 
     return NextResponse.json({ projects: withCounts });
