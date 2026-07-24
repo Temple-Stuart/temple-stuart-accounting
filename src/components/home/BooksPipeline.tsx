@@ -15,7 +15,8 @@ import PeriodClose from '@/components/dashboard/PeriodClose';
 import CloseBooksTab from '@/components/dashboard/CloseBooksTab';
 import PositionReportTab from '@/components/dashboard/PositionReportTab';
 import CPAExport from '@/components/dashboard/CPAExport';
-import { themed } from '@/lib/ds';
+import ToggleStrip, { type ToggleMode } from '@/components/ui/ToggleStrip';
+import { DS, themed } from '@/lib/ds';
 import { useExportDownload } from '@/lib/useExportDownload';
 
 /**
@@ -184,7 +185,30 @@ export default function BooksPipeline() {
   // Dashboard canonical order (src/app/dashboard/page.tsx): SRC → CAT → JE → LDG →
   // TB → REC → ADJ → STMT → TAX-LOT → CLOSE → CLOSE-YE → POS → EXP.
   return (
-    <div className="space-y-3">
+    // BOOKS-UX-1: the 13-stage flat stack consolidates into SIX PHASES on the
+    // shared <ToggleStrip> (the travel-tab precedent, ModuleLauncher DS-1) —
+    // one phase visible at a time, ALL phases mounted (CSS show/hide,
+    // ToggleStrip.tsx:60-64), so in-flight engine state survives switching.
+    // Stage → phase mapping (canonical order preserved WITHIN each phase):
+    //   Feed      = SRC
+    //   Code      = CAT → JE → LDG
+    //   Reconcile = REC            ← the dossier anchor: Xero-grade bank
+    //               reconciliation is the market's most-loved concrete feature;
+    //               it gets its OWN chip (never folded into a bigger phase),
+    //               third of six — right after the feed+coding that produce
+    //               what it checks, ahead of Close (PeriodClose consumes
+    //               reconciliations) and everything downstream. Structural
+    //               prominence only; zero copy claims added.
+    //   Close     = ADJ → CLOSE → CLOSE-YE
+    //   Reports   = TB → STMT → TAX-LOT → POS
+    //   Export    = EXP (CPAExport + the EXPORT-1 button — reachable, untouched)
+    // Every stage renders inside exactly one phase; section JSX is byte-moved,
+    // not modified. ToggleStrip owns the ONLY new state (the active phase).
+    <ToggleStrip
+      className={DS.STRIP}
+      modes={([
+        { key: 'feed', label: 'Feed', panel: (
+          <div className="mt-3 space-y-3">
       {/* 1. SRC — Source Accounts (dashboard :502). Linking/sync live in the cockpit above. */}
       <BookkeepingSection surface="dark" title="Source Accounts" pipelineKey="SRC"
         subtitle={`${accounts.length} connected`}
@@ -244,7 +268,10 @@ export default function BooksPipeline() {
           </div>
         </div>
       </BookkeepingSection>
-
+          </div>
+        ) },
+        { key: 'code', label: 'Code', panel: (
+          <div className="mt-3 space-y-3">
       {/* 2. CAT — Categorize (dashboard :568): the COA-assignment queue. */}
       <BookkeepingSection surface="dark" title="Categorize Transactions" pipelineKey="CAT"
         subtitle={`${uncommittedSpending.length + uncommittedInvestments.length} pending`}
@@ -290,12 +317,10 @@ export default function BooksPipeline() {
           <GeneralLedger surface="dark" coaOptions={coaOptions} onReload={reloadAll} />
         </div>
       </BookkeepingSection>
-
-      {/* 5. TB — Trial Balance (dashboard :614, self-fetching). */}
-      <BookkeepingSection surface="dark" title="Trial Balance" pipelineKey="TB" status="pending">
-        <TrialBalanceSection surface="dark" />
-      </BookkeepingSection>
-
+          </div>
+        ) },
+        { key: 'reconcile', label: 'Reconcile', panel: (
+          <div className="mt-3 space-y-3">
       {/* 6. REC — Bank Reconciliation (dashboard :620). */}
       <BookkeepingSection surface="dark" title="Bank Reconciliation" pipelineKey="REC" status="pending">
         <div className="p-2">
@@ -316,20 +341,13 @@ export default function BooksPipeline() {
           />
         </div>
       </BookkeepingSection>
-
+          </div>
+        ) },
+        { key: 'close', label: 'Close', panel: (
+          <div className="mt-3 space-y-3">
       {/* 7. ADJ — Adjusting Entries (dashboard :644, self-fetching). */}
       <BookkeepingSection surface="dark" title="Adjusting Entries" pipelineKey="ADJ" status="pending">
         <AdjustingEntriesTab surface="dark" />
-      </BookkeepingSection>
-
-      {/* 8. STMT — Financial Statements (dashboard :650, self-fetching). */}
-      <BookkeepingSection surface="dark" title="Financial Statements" pipelineKey="STMT" status="pending">
-        <FinancialStatementsTab surface="dark" />
-      </BookkeepingSection>
-
-      {/* 9. TAX-LOT — Tax Lot Accounting & Wash Sales (dashboard :657, self-fetching). */}
-      <BookkeepingSection surface="dark" title="Tax Lot Accounting & Wash Sales" pipelineKey="TAX-LOT" status="pending">
-        <WashSaleReportTab surface="dark" />
       </BookkeepingSection>
 
       {/* 10. CLOSE — Period Close (dashboard :663). */}
@@ -375,12 +393,33 @@ export default function BooksPipeline() {
           <CloseBooksTab surface="dark" entityId={entityId} selectedYear={year} />
         </div>
       </BookkeepingSection>
+          </div>
+        ) },
+        { key: 'reports', label: 'Reports', panel: (
+          <div className="mt-3 space-y-3">
+      {/* 5. TB — Trial Balance (dashboard :614, self-fetching). */}
+      <BookkeepingSection surface="dark" title="Trial Balance" pipelineKey="TB" status="pending">
+        <TrialBalanceSection surface="dark" />
+      </BookkeepingSection>
+
+      {/* 8. STMT — Financial Statements (dashboard :650, self-fetching). */}
+      <BookkeepingSection surface="dark" title="Financial Statements" pipelineKey="STMT" status="pending">
+        <FinancialStatementsTab surface="dark" />
+      </BookkeepingSection>
+
+      {/* 9. TAX-LOT — Tax Lot Accounting & Wash Sales (dashboard :657, self-fetching). */}
+      <BookkeepingSection surface="dark" title="Tax Lot Accounting & Wash Sales" pipelineKey="TAX-LOT" status="pending">
+        <WashSaleReportTab surface="dark" />
+      </BookkeepingSection>
 
       {/* 12. POS — Position Report (dashboard :714, self-fetching). */}
       <BookkeepingSection surface="dark" title="Position Report" pipelineKey="POS" status="pending">
         <PositionReportTab surface="dark" />
       </BookkeepingSection>
-
+          </div>
+        ) },
+        { key: 'export', label: 'Export', panel: (
+          <div className="mt-3 space-y-3">
       {/* 13. EXP — CPA Export (dashboard :745). The dashboard's Tax-forms link (:720) is
           intentionally omitted — Tax is its own homepage tab, not part of this pipe. */}
       <BookkeepingSection surface="dark" title="CPA Export" pipelineKey="EXP" status="pending">
@@ -395,7 +434,10 @@ export default function BooksPipeline() {
           <ExportMyData />
         </div>
       </BookkeepingSection>
-    </div>
+          </div>
+        ) },
+      ] as ToggleMode[])}
+    />
   );
 }
 
