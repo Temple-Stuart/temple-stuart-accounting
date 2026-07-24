@@ -9,6 +9,7 @@ import ModuleLauncher, { TAB_DESCRIPTORS } from '@/components/home/ModuleLaunche
 import { ChevronDown } from 'lucide-react';
 // DS-2: the app hero uses the SAME radial-glow surface as the landing hero.
 import { HERO_BG } from '@/lib/ds';
+import { useExportDownload } from '@/lib/useExportDownload';
 
 // PR-Hero-Collapsible: the "How it works" steps per tab — ONE source of truth for the three
 // tab explainers (projects / calendar=Runway / routines). Copy preserved verbatim from the prior
@@ -62,6 +63,8 @@ export default function HomeClient() {
   // (render a neutral placeholder, never flash the wrong action); true/false once resolved.
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [userLabel, setUserLabel] = useState('');
+  // EXPORT-1b: the header export chip — shared behavior with the Books-tab button.
+  const { busy: exportBusy, error: exportError, run: runExport } = useExportDownload();
   useEffect(() => {
     let cancelled = false;
     fetch('/api/auth/me')
@@ -128,6 +131,28 @@ export default function HomeClient() {
                 <span className="px-4 py-2 text-xs opacity-0 select-none" aria-hidden="true">Enter →</span>
               ) : authed ? (
                 <>
+                  {/* EXPORT-1b: the export must reach EVERY authed user, not just
+                      tab:books holders — the only prior mount sat inside the
+                      entitlement-locked BooksPipeline. This header user area is
+                      the one authed surface with no entitlement in front of it
+                      (no settings/account page exists). Same behavior as the
+                      CPA-context button via the shared useExportDownload hook;
+                      visible at all breakpoints (mobile users export too). The
+                      error renders inline, truncated with the full message in
+                      title — fail-loud, layout-stable. */}
+                  {exportError && (
+                    <span role="alert" title={exportError} className="max-w-[14rem] truncate text-xs text-rose-400">
+                      {exportError}
+                    </span>
+                  )}
+                  <button
+                    onClick={runExport}
+                    disabled={exportBusy}
+                    title="Download every financial + travel table you own — one CSV per table, zipped. Never paywalled."
+                    className="text-xs text-white/60 hover:text-white disabled:opacity-60"
+                  >
+                    {exportBusy ? 'Preparing export…' : 'Export my data'}
+                  </button>
                   {userLabel && (
                     <span className="text-xs text-white/60 hidden sm:block">{userLabel}</span>
                   )}

@@ -16,6 +16,7 @@ import CloseBooksTab from '@/components/dashboard/CloseBooksTab';
 import PositionReportTab from '@/components/dashboard/PositionReportTab';
 import CPAExport from '@/components/dashboard/CPAExport';
 import { themed } from '@/lib/ds';
+import { useExportDownload } from '@/lib/useExportDownload';
 
 /**
  * BOOKS-2 — the full bookkeeping PIPE for the homepage Books tab.
@@ -400,35 +401,12 @@ export default function BooksPipeline() {
 
 /** EXPORT-1: one button — the whole ledger leaves with you. Busy state, inline
  *  error (fail-loud: a 413-oversize or any failure renders the server's honest
- *  message), success = the browser downloads the dated zip. */
+ *  message), success = the browser downloads the dated zip.
+ *  EXPORT-1b: behavior extracted to the shared useExportDownload hook — this
+ *  CPA-context mount and the authed-header mount (HomeClient) stay identical
+ *  by construction. UI unchanged. */
 function ExportMyData() {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const run = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/export');
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        throw new Error(d.error || `Export failed (status ${res.status}).`);
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `temple-stuart-export-${new Date().toISOString().slice(0, 10)}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Export failed.');
-    } finally {
-      setBusy(false);
-    }
-  };
+  const { busy, error, run } = useExportDownload();
 
   return (
     <div className={themed('mt-4 pt-4 border-t border-border', true)}>
