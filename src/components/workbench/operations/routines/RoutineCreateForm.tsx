@@ -149,21 +149,27 @@ export default function RoutineCreateForm({ surface = 'light', entities, default
 
       {/* HB-4b: per-occurrence budget + COA. Both optional — empty budget → null (never 0), no COA
           → null (no default account). The COA list is scoped to the selected entity. */}
+      {/* ROUTINES-UX-1: the dossier anchor (habits↔money) — this budget+COA pair
+          IS the tab's only money-rendering surface (the linkage is schema-real,
+          budget_amount/coa_code on every routine, but the display row renders no
+          money — so no invented row UI). Strongest-cell treatment at the existing
+          site: primary-weight labels + the mono numeral idiom on the money input
+          (the RUNWAY/TRADE/TAX precedent). Handlers/fields untouched. */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <div className={labelClass}>budget / occurrence (optional)</div>
+          <div className={themed('font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs', dk)}>budget / occurrence (optional)</div>
           <input
             type="number"
             min="0"
             step="0.01"
             value={createForm.budget_amount ?? ''}
             onChange={(e) => setCreateForm({ ...createForm, budget_amount: e.target.value })}
-            className={inputClass}
+            className={`${inputClass} font-mono tabular-nums font-bold`}
             placeholder="e.g., 60"
           />
         </div>
         <div>
-          <div className={labelClass}>COA (optional)</div>
+          <div className={themed('font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs', dk)}>COA (optional)</div>
           <CoaSelect
             entityId={createForm.entity_id}
             value={createForm.coa_code ?? ''}
