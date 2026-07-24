@@ -372,21 +372,24 @@ export default function RoutineRow({ surface = 'light', routine, entities, onUpd
 
           {/* HB-4b: per-occurrence budget + COA (pre-filled from the routine; empty → null on save).
               COA scoped to the routine's entity (entity is fixed after creation). */}
+          {/* ROUTINES-UX-1: the anchor pair gets the same strongest-cell
+              treatment as the create form (see RoutineCreateForm) — the
+              edit form is the other of the tab's two money renders. */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <div className={labelClass}>budget / occurrence (optional)</div>
+              <div className={themed('font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs', dk)}>budget / occurrence (optional)</div>
               <input
                 type="number"
                 min="0"
                 step="0.01"
                 value={form.budget_amount ?? ''}
                 onChange={(e) => setForm({ ...form, budget_amount: e.target.value })}
-                className={inputClass}
+                className={`${inputClass} font-mono tabular-nums font-bold`}
                 placeholder="e.g., 60"
               />
             </div>
             <div>
-              <div className={labelClass}>COA (optional)</div>
+              <div className={themed('font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs', dk)}>COA (optional)</div>
               <CoaSelect
                 entityId={form.entity_id}
                 value={form.coa_code ?? ''}
