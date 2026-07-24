@@ -16,7 +16,7 @@
 
 import { useState } from 'react';
 import type { Routine, RoutineForm } from './types';
-import { DEFAULT_ROUTINE_FORM } from './types';
+import { DEFAULT_ROUTINE_FORM, formatBudgetPerOccurrence } from './types';
 import RRULEBuilder from './RRULEBuilder';
 import CoaSelect from './CoaSelect';
 import { RoutineStepList } from './RoutineStepList';
@@ -214,6 +214,29 @@ export default function RoutineRow({ surface = 'light', routine, entities, onUpd
           )}
         </div>
         <div className={themed('flex items-center gap-3 text-text-muted shrink-0', dk)}>
+          {/* ROUTINES-UX-2: the routine's money renders — display of the
+              already-fetched budget_amount/coa_code (in scope since HB-4b for
+              edit pre-fill, never shown). Null budget → NOTHING renders
+              (absence is honest — no dashes); the COA micro-chip rides beside
+              the money cell only. Label lifted from the forms via title. */}
+          {routine.budget_amount != null && (
+            <>
+              <span
+                className={themed('font-mono tabular-nums font-bold text-text-primary', dk)}
+                title="budget / occurrence"
+              >
+                {formatBudgetPerOccurrence(routine.budget_amount)} / occurrence
+              </span>
+              {routine.coa_code && (
+                <span
+                  className={themed('font-mono text-[10px] border border-border rounded px-1.5 py-0.5', dk)}
+                  title="COA"
+                >
+                  {routine.coa_code}
+                </span>
+              )}
+            </>
+          )}
           <span title="completion streak / miss streak">
             🔥 {routine.consecutive_completion_streak} ✓ / {routine.consecutive_miss_streak} ✗
           </span>
@@ -292,6 +315,28 @@ export default function RoutineRow({ surface = 'light', routine, entities, onUpd
               <div className={themed('text-text-primary', dk)}>{routine.ideal_time_label ?? '—'}</div>
             </div>
           </div>
+
+          {/* ROUTINES-UX-2: budget + COA join the detail fields — the same
+              label + value idiom as their neighbors; a null field renders
+              nothing, and the whole block skips when both are null. */}
+          {(routine.budget_amount != null || !!routine.coa_code) && (
+            <div className={themed('grid grid-cols-3 gap-3 pt-2 border-t border-border-light', dk)}>
+              {routine.budget_amount != null && (
+                <div>
+                  <div className={labelClass}>budget / occurrence</div>
+                  <div className={themed('text-text-primary font-mono tabular-nums font-bold', dk)}>
+                    {formatBudgetPerOccurrence(routine.budget_amount)}
+                  </div>
+                </div>
+              )}
+              {!!routine.coa_code && (
+                <div>
+                  <div className={labelClass}>COA</div>
+                  <div className={themed('text-text-primary font-mono', dk)}>{routine.coa_code}</div>
+                </div>
+              )}
+            </div>
+          )}
 
           <RoutineStepList surface={surface} routine={routine} onUpdate={onUpdate} onTakeify={onTakeify} />
 

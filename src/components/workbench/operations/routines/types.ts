@@ -229,3 +229,14 @@ export const CADENCE_GROUP_LABELS: Record<CadenceGroup, string> = {
 export const CADENCE_GROUP_ORDER: CadenceGroup[] = [
   'daily', 'weekly', 'monthly', 'quarterly', 'yearly', 'custom',
 ];
+
+// ROUTINES-UX-2: display formatter for the per-occurrence budget (a Decimal
+// 12,2 JSON-serialized as a string, e.g. "60.00"). Display only — locale
+// formatting, no derived figures. Callers render NOTHING for null (absence is
+// honest — no dashes, no placeholders). One formatter, three render sites
+// (RoutineRow collapsed + expanded, TodaysStrip), so the string can't drift.
+export function formatBudgetPerOccurrence(amount: string): string {
+  const n = Number(amount);
+  if (!Number.isFinite(n)) return `$${amount}`;
+  return `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+}
