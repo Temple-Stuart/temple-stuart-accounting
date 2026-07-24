@@ -55,6 +55,16 @@ interface CookieUser {
 
 const TRAVEL_PREFIXES = ['/budgets/trips', '/trips'];
 
+// FD-4: routes that RENDER for guests despite mounting AppLayout. /pricing is
+// the landing funnel's register — every Select → and calculator Continue →
+// lands here, and PricingClient's own buy-resume flow (pendingTabKey →
+// LoginBox → resume checkout, PricingClient.tsx:170-177, :198-209) was built
+// FOR logged-out visitors; purchase auth stays at checkout (every /api/stripe/*
+// POST verifies the cookie server-side). Mirrors the middleware allowlist
+// posture — '/pricing' is already in PUBLIC_PATHS (middleware.ts:58). Every
+// other AppLayout consumer keeps the bounce.
+const GUEST_OK_PATHS = ['/pricing'];
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function fmtDollars(cents: number | undefined): string {
@@ -106,12 +116,14 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
 
   const isAuthenticated = session?.user || cookieUser;
   const currentUser = session?.user || cookieUser;
+  // FD-4: same match shape as the middleware allowlist (middleware.ts:115).
+  const guestOk = GUEST_OK_PATHS.some(p => pathname === p || pathname?.startsWith(p + '/'));
 
   useEffect(() => {
-    if (!checkingAuth && status !== 'loading' && !isAuthenticated) {
+    if (!checkingAuth && status !== 'loading' && !isAuthenticated && !guestOk) {
       router.push('/');
     }
-  }, [checkingAuth, status, isAuthenticated, router]);
+  }, [checkingAuth, status, isAuthenticated, guestOk, router]);
 
   // ─── Auth Guards ───────────────────────────────────────────────────────────
 
@@ -126,7 +138,7 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !guestOk) {
     return null;
   }
 
