@@ -79,9 +79,18 @@ export default function ScriptGeneratorView({ surface = 'light',
   return (
     <section className={themed('bg-white rounded border border-border p-4 space-y-3', dk)}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-medium tracking-wide text-brand-purple">
-          4 · SCRIPT
-          <span className={themed('ml-2 font-normal text-text-muted', dk)}>the day&rsquo;s answers + task record → reel voiceover</span>
+        {/* CONTENT-UX-1: the dossier anchor (my real day → script) — the
+            section's own mechanism line IS the tab's strongest day-log→script
+            evidence, so it gets the display-scale treatment at its existing
+            site (the TAX precedent: an existing message promoted, words
+            verbatim, zero new copy). The section number stays as the eyebrow.
+            The generate button, its disabledReason, and the container's AI
+            tier gating are untouched — nothing here implies free generation. */}
+        <h2>
+          <span className="block text-sm font-medium tracking-wide text-brand-purple">4 · SCRIPT</span>
+          <span className={themed('mt-0.5 block text-2xl lg:text-3xl font-light tracking-tight text-text-primary', dk)}>
+            the day&rsquo;s answers + task record → reel voiceover
+          </span>
         </h2>
         <div className="flex items-center gap-2">
           {hasScript && (
