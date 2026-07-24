@@ -394,8 +394,10 @@ export default function TaskRowView({ surface = 'light',
               <div className={themed('text-text-primary', dk)}>{task.estimated_minutes ?? '—'}</div>
             </div>
             <div>
-              <div className={labelClass}>est. cost (usd)</div>
-              <div className={themed('text-text-primary', dk)}>{task.estimated_cost_usd ?? '—'}</div>
+              {/* PROJECTS-UX-1: the anchor — task cost cells get the
+                  strongest-cell treatment (see ProjectRowView). */}
+              <div className={themed('font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs', dk)}>est. cost (usd)</div>
+              <div className={themed('text-text-primary font-mono tabular-nums font-bold', dk)}>{task.estimated_cost_usd ?? '—'}</div>
             </div>
             <div>
               <div className={labelClass}>category</div>
@@ -428,8 +430,10 @@ export default function TaskRowView({ surface = 'light',
               <div className={themed('text-text-primary', dk)}>{task.actual_minutes ?? '—'}</div>
             </div>
             <div>
-              <div className={labelClass}>actual cost (usd)</div>
-              <div className={themed('text-text-primary', dk)}>{task.actual_cost_usd ?? '—'}</div>
+              {/* PROJECTS-UX-1: actual cost — the strongest evidence on the
+                  tab (money actually spent per task) — same treatment. */}
+              <div className={themed('font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs', dk)}>actual cost (usd)</div>
+              <div className={themed('text-text-primary font-mono tabular-nums font-bold', dk)}>{task.actual_cost_usd ?? '—'}</div>
             </div>
             <div>
               <div className={labelClass}>completed at</div>
