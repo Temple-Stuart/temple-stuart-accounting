@@ -14,6 +14,7 @@
 
 import { useState } from 'react';
 import { Lock } from 'lucide-react';
+import { themed, type Surface } from '@/lib/ds';
 
 /** The per-tab locked CTA — Travel's LockedCategoryCard pattern, keyed tab:X. */
 export function LockedTabCard({
@@ -22,13 +23,17 @@ export function LockedTabCard({
   valueLine,
   currentUserId,
   onRequireAuth,
+  surface = 'light',
 }: {
   tabKey: string;
   label: string;
   valueLine: string;
   currentUserId: string;
   onRequireAuth: () => void;
+  /** BOOKS-DS-1: light default (byte-identical); the ML Books mount passes 'dark'. */
+  surface?: Surface;
 }) {
+  const dk = surface === 'dark';
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState('');
 
@@ -57,13 +62,13 @@ export function LockedTabCard({
   };
 
   return (
-    <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-brand-purple/15 bg-bg-row px-6 py-8 text-center">
+    <div className={themed('flex flex-col items-center justify-center gap-4 rounded-lg border border-brand-purple/15 bg-bg-row px-6 py-8 text-center', dk)}>
       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-purple/10 text-brand-purple">
         <Lock className="h-6 w-6" strokeWidth={2} aria-hidden="true" />
       </div>
       <div className="space-y-1">
-        <p className="text-base font-bold text-text-primary">{label} — built and running</p>
-        <p className="text-sm text-text-muted">{valueLine}</p>
+        <p className={themed('text-base font-bold text-text-primary', dk)}>{label} — built and running</p>
+        <p className={themed('text-sm text-text-muted', dk)}>{valueLine}</p>
       </div>
       <button
         type="button"

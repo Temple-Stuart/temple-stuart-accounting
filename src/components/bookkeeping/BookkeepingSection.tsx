@@ -1,6 +1,7 @@
 'use client';
 
 import { ReactNode, useState } from 'react';
+import { themed, type Surface } from '@/lib/ds';
 
 interface BookkeepingSectionProps {
   title: string;
@@ -27,11 +28,13 @@ export default function BookkeepingSection({
   collapsible = false,
   defaultCollapsed = false,
   children,
-}: BookkeepingSectionProps) {
+  surface = 'light',
+}: BookkeepingSectionProps & { surface?: Surface }) {
+  const dk = surface === 'dark';
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
   return (
-    <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+    <div className={themed('rounded-lg overflow-hidden border border-gray-200/50 shadow-sm', dk)}>
       <div
         className={`bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between${collapsible ? ' cursor-pointer select-none' : ''}`}
         onClick={collapsible ? () => setCollapsed(c => !c) : undefined}
@@ -42,14 +45,14 @@ export default function BookkeepingSection({
         </div>
         <div className="flex items-center gap-2">
           {subtitle && <span className="text-xs text-white/70">{subtitle}</span>}
-          {status && <div className={`w-2 h-2 rounded-full ${STATUS_DOT[status]}`} />}
+          {status && <div className={themed(`w-2 h-2 rounded-full ${STATUS_DOT[status]}`, dk)} />}
           {collapsible && (
             <span className="text-white/60 text-xs ml-1">{collapsed ? '\u25B6' : '\u25BC'}</span>
           )}
         </div>
       </div>
       {!collapsed && (
-        <div className="bg-white">
+        <div className={themed('bg-white', dk)}>
           {children}
         </div>
       )}

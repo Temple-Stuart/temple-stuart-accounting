@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { themed, type Surface } from '@/lib/ds';
 
 interface Account {
   id: string;
@@ -50,7 +51,8 @@ interface BankReconciliationProps {
   onReload: () => void;
 }
 
-export default function BankReconciliation({ accounts, transactions, reconciliations, onSave, onReload }: BankReconciliationProps) {
+export default function BankReconciliation({ accounts, transactions, reconciliations, onSave, onReload, surface = 'light' }: BankReconciliationProps & { surface?: Surface }) {
+  const dk = surface === 'dark';
   const [selectedAccount, setSelectedAccount] = useState<string>('');
   const [periodEnd, setPeriodEnd] = useState(new Date().toISOString().split('T')[0]);
   const [statementBalance, setStatementBalance] = useState('');
@@ -160,10 +162,10 @@ export default function BankReconciliation({ accounts, transactions, reconciliat
   };
 
   return (
-    <div className="bg-white overflow-hidden">
+    <div className={themed('bg-white overflow-hidden', dk)}>
       {/* Actions */}
-      <div className="px-3 py-2 border-b border-border flex items-center justify-between">
-        <span className="text-terminal-sm text-text-muted font-mono">
+      <div className={themed('px-3 py-2 border-b border-border flex items-center justify-between', dk)}>
+        <span className={themed('text-terminal-sm text-text-muted font-mono', dk)}>
           {reconciliations.filter(r => r.status === 'reconciled').length} reconciled periods
         </span>
         <button
@@ -176,12 +178,12 @@ export default function BankReconciliation({ accounts, transactions, reconciliat
 
       {/* New Reconciliation Form */}
       {showForm && (
-        <div className="p-4 border-b bg-bg-row">
+        <div className={themed('p-4 border-b bg-bg-row', dk)}>
 
           {/* Account & Period Selection */}
           <div className="flex flex-wrap gap-3 mb-4">
             <div>
-              <label className="block text-xs text-text-muted mb-1">Account</label>
+              <label className={themed('block text-xs text-text-muted mb-1', dk)}>Account</label>
               <select
                 value={selectedAccount}
                 onChange={(e) => setSelectedAccount(e.target.value)}
@@ -196,7 +198,7 @@ export default function BankReconciliation({ accounts, transactions, reconciliat
               </select>
             </div>
             <div>
-              <label className="block text-xs text-text-muted mb-1">Period End Date</label>
+              <label className={themed('block text-xs text-text-muted mb-1', dk)}>Period End Date</label>
               <input
                 type="date"
                 value={periodEnd}
@@ -205,7 +207,7 @@ export default function BankReconciliation({ accounts, transactions, reconciliat
               />
             </div>
             <div>
-              <label className="block text-xs text-text-muted mb-1">Statement Balance</label>
+              <label className={themed('block text-xs text-text-muted mb-1', dk)}>Statement Balance</label>
               <input
                 type="number"
                 step="0.01"
@@ -221,8 +223,8 @@ export default function BankReconciliation({ accounts, transactions, reconciliat
             <>
               {/* Reconciliation Summary */}
               <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="bg-white p-4 rounded border">
-                  <h5 className="text-xs text-text-muted uppercase mb-2">Bank Side</h5>
+                <div className={themed('bg-white p-4 rounded border', dk)}>
+                  <h5 className={themed('text-xs text-text-muted uppercase mb-2', dk)}>Bank Side</h5>
                   <div className="space-y-1 text-sm">
                     <div className="flex justify-between">
                       <span>Statement Balance:</span>
@@ -243,8 +245,8 @@ export default function BankReconciliation({ accounts, transactions, reconciliat
                   </div>
                 </div>
 
-                <div className="bg-white p-4 rounded border">
-                  <h5 className="text-xs text-text-muted uppercase mb-2">Book Side</h5>
+                <div className={themed('bg-white p-4 rounded border', dk)}>
+                  <h5 className={themed('text-xs text-text-muted uppercase mb-2', dk)}>Book Side</h5>
                   <div className="space-y-1 text-sm">
                     <div className="flex justify-between">
                       <span>Book Balance:</span>
@@ -287,8 +289,8 @@ export default function BankReconciliation({ accounts, transactions, reconciliat
                 </div>
 
                 {items.length > 0 && (
-                  <table className="w-full text-sm bg-white rounded border">
-                    <thead className="bg-bg-row">
+                  <table className={themed('w-full text-sm bg-white rounded border', dk)}>
+                    <thead className={themed('bg-bg-row', dk)}>
                       <tr>
                         <th className="px-3 py-2 text-left">Type</th>
                         <th className="px-3 py-2 text-left">Description</th>
@@ -371,7 +373,7 @@ export default function BankReconciliation({ accounts, transactions, reconciliat
       {/* Past Reconciliations */}
       <div className="divide-y">
         {reconciliations.length === 0 ? (
-          <div className="p-8 text-center text-text-faint">
+          <div className={themed('p-8 text-center text-text-faint', dk)}>
             No reconciliations yet. Click "+ New Reconciliation" to start.
           </div>
         ) : (
@@ -379,7 +381,7 @@ export default function BankReconciliation({ accounts, transactions, reconciliat
             <div
               key={recon.id}
               onClick={() => loadExisting(recon)}
-              className="px-4 py-3 flex items-center justify-between hover:bg-bg-row cursor-pointer"
+              className={themed('px-4 py-3 flex items-center justify-between hover:bg-bg-row cursor-pointer', dk)}
             >
               <div className="flex items-center gap-4">
                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${
@@ -388,10 +390,10 @@ export default function BankReconciliation({ accounts, transactions, reconciliat
                   {recon.status}
                 </span>
                 <span className="font-medium">{recon.account?.institutionName} •••• {recon.account?.mask}</span>
-                <span className="text-sm text-text-muted">{new Date(recon.periodEnd).toLocaleDateString()}</span>
+                <span className={themed('text-sm text-text-muted', dk)}>{new Date(recon.periodEnd).toLocaleDateString()}</span>
               </div>
               <div className="flex items-center gap-4 text-sm">
-                <span className="text-text-secondary">Stmt: ${Number(recon.statementBalance).toFixed(2)}</span>
+                <span className={themed('text-text-secondary', dk)}>Stmt: ${Number(recon.statementBalance).toFixed(2)}</span>
                 <span className={recon.difference < 0.01 ? 'text-brand-green' : 'text-brand-red'}>
                   Diff: ${Number(recon.difference).toFixed(2)}
                 </span>

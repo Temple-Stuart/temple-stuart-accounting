@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { themed, type Surface } from '@/lib/ds';
 
 interface TrialBalanceAccount {
   accountCode: string;
@@ -38,7 +39,8 @@ const fmtCents = (cents: number) => {
   return cents < 0 ? `(${formatted})` : formatted;
 };
 
-export default function TrialBalanceSection() {
+export default function TrialBalanceSection({ surface = 'light' }: { surface?: Surface } = {}) {
+  const dk = surface === 'dark';
   const [data, setData] = useState<TrialBalanceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +75,7 @@ export default function TrialBalanceSection() {
 
   if (!data || data.accounts.length === 0) {
     return (
-      <div className="p-8 text-center text-text-muted text-sm">
+      <div className={themed('p-8 text-center text-text-muted text-sm', dk)}>
         No ledger entries found. Commit transactions to generate a trial balance.
       </div>
     );
@@ -82,7 +84,7 @@ export default function TrialBalanceSection() {
   return (
     <div>
       {/* Subtle status pill */}
-      <div className="px-4 py-2 border-b border-border flex items-center gap-2">
+      <div className={themed('px-4 py-2 border-b border-border flex items-center gap-2', dk)}>
         {data.totals.isBalanced ? (
           <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
             {'\u2713'} Balanced
@@ -92,46 +94,46 @@ export default function TrialBalanceSection() {
             {'\u2717'} Unbalanced by {fmtCents(data.totals.imbalance)}
           </span>
         )}
-        <span className="text-terminal-sm text-text-muted font-mono">{data.accounts.length} accounts</span>
+        <span className={themed('text-terminal-sm text-text-muted font-mono', dk)}>{data.accounts.length} accounts</span>
       </div>
 
       {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
-          <thead className="bg-gray-50">
+          <thead className={themed('bg-gray-50', dk)}>
             <tr>
-              <th className="px-3 py-2 text-left font-medium text-text-secondary">Account Code</th>
-              <th className="px-3 py-2 text-left font-medium text-text-secondary">Account Name</th>
-              <th className="px-3 py-2 text-left font-medium text-text-secondary">Type</th>
-              <th className="px-3 py-2 text-left font-medium text-text-secondary">Entity</th>
-              <th className="px-3 py-2 text-right font-medium text-text-secondary">Debit</th>
-              <th className="px-3 py-2 text-right font-medium text-text-secondary">Credit</th>
+              <th className={themed('px-3 py-2 text-left font-medium text-text-secondary', dk)}>Account Code</th>
+              <th className={themed('px-3 py-2 text-left font-medium text-text-secondary', dk)}>Account Name</th>
+              <th className={themed('px-3 py-2 text-left font-medium text-text-secondary', dk)}>Type</th>
+              <th className={themed('px-3 py-2 text-left font-medium text-text-secondary', dk)}>Entity</th>
+              <th className={themed('px-3 py-2 text-right font-medium text-text-secondary', dk)}>Debit</th>
+              <th className={themed('px-3 py-2 text-right font-medium text-text-secondary', dk)}>Credit</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className={themed('divide-y divide-border', dk)}>
             {data.accounts.map((acct, idx) => {
               const absBalance = Math.abs(acct.normalBalance);
               return (
-                <tr key={`${acct.accountCode}-${acct.entityId}`} className={idx % 2 === 1 ? 'bg-bg-row' : ''}>
-                  <td className="px-3 py-2 font-mono text-text-secondary">{acct.accountCode}</td>
-                  <td className="px-3 py-2 text-text-primary">{acct.accountName}</td>
-                  <td className="px-3 py-2 text-text-muted capitalize">{acct.accountType}</td>
-                  <td className="px-3 py-2 text-text-muted">{acct.entityName}</td>
-                  <td className="px-3 py-2 text-right font-mono text-text-primary">
+                <tr key={`${acct.accountCode}-${acct.entityId}`} className={idx % 2 === 1 ? themed('bg-bg-row', dk) : ''}>
+                  <td className={themed('px-3 py-2 font-mono text-text-secondary', dk)}>{acct.accountCode}</td>
+                  <td className={themed('px-3 py-2 text-text-primary', dk)}>{acct.accountName}</td>
+                  <td className={themed('px-3 py-2 text-text-muted capitalize', dk)}>{acct.accountType}</td>
+                  <td className={themed('px-3 py-2 text-text-muted', dk)}>{acct.entityName}</td>
+                  <td className={themed('px-3 py-2 text-right font-mono text-text-primary', dk)}>
                     {acct.displaySide === 'debit' ? fmtCents(absBalance) : ''}
                   </td>
-                  <td className="px-3 py-2 text-right font-mono text-text-primary">
+                  <td className={themed('px-3 py-2 text-right font-mono text-text-primary', dk)}>
                     {acct.displaySide === 'credit' ? fmtCents(absBalance) : ''}
                   </td>
                 </tr>
               );
             })}
           </tbody>
-          <tfoot className="bg-gray-50 border-t-2 border-border">
+          <tfoot className={themed('bg-gray-50 border-t-2 border-border', dk)}>
             <tr className="font-semibold">
-              <td colSpan={4} className="px-3 py-2 text-text-primary">Totals</td>
-              <td className="px-3 py-2 text-right font-mono text-text-primary">{fmtCents(data.totals.totalDebits)}</td>
-              <td className="px-3 py-2 text-right font-mono text-text-primary">{fmtCents(data.totals.totalCredits)}</td>
+              <td colSpan={4} className={themed('px-3 py-2 text-text-primary', dk)}>Totals</td>
+              <td className={themed('px-3 py-2 text-right font-mono text-text-primary', dk)}>{fmtCents(data.totals.totalDebits)}</td>
+              <td className={themed('px-3 py-2 text-right font-mono text-text-primary', dk)}>{fmtCents(data.totals.totalCredits)}</td>
             </tr>
           </tfoot>
         </table>

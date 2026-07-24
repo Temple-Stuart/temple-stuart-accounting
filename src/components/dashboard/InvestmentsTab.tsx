@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import CommittedInvestmentsTable from "./CommittedInvestmentsTable";
 import TradeCommitWorkflow from "./TradeCommitWorkflow";
+import { themed, type Surface } from '@/lib/ds';
 
 interface InvestmentsTabProps {
   investmentTransactions: any[];
@@ -10,7 +11,8 @@ interface InvestmentsTabProps {
   onReload: () => Promise<void>;
 }
 
-export default function InvestmentsTab({ investmentTransactions, committedInvestments, onReload }: InvestmentsTabProps) {
+export default function InvestmentsTab({ investmentTransactions, committedInvestments, onReload, surface = 'light' }: InvestmentsTabProps & { surface?: Surface }) {
+  const dk = surface === 'dark';
   const [selectedCommittedInvestments, setSelectedCommittedInvestments] = useState<string[]>([]);
 
   const massUncommitInvestments = async () => {

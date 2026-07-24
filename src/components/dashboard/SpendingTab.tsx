@@ -5,6 +5,7 @@ import { TAB_DESCRIPTORS } from '@/lib/tabDescriptors';
 import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Button } from '@/components/ui';
+import { themed, type Surface } from '@/lib/ds';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -288,7 +289,7 @@ function sortTransactions(txns: SpendingTransaction[], field: SortField, dir: So
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-function MultiSelectFilter({ label, options, selected, onToggle }: {
+function MultiSelectFilter({ dk = false,  label, options, selected, onToggle }: { dk?: boolean;
   label: string;
   options: [string, number][];
   selected: string[];
@@ -299,17 +300,17 @@ function MultiSelectFilter({ label, options, selected, onToggle }: {
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className={`px-2 py-1 text-terminal-sm font-mono border rounded flex items-center gap-1 transition-colors ${
-          selected.length > 0 ? 'bg-brand-purple-deep text-white border-brand-purple-deep' : 'bg-white hover:border-border'
-        }`}
+        className={themed(`px-2 py-1 text-terminal-sm font-mono border rounded flex items-center gap-1 transition-colors ${
+          selected.length > 0 ? 'bg-brand-purple-deep text-white border-brand-purple-deep' : themed('bg-white hover:border-border', dk)
+        }`, dk)}
       >
         {label} {selected.length > 0 && <span className="px-1 py-0.5 bg-white/20 rounded text-[8px]">{selected.length}</span>}
         <span className="text-[8px]">{open ? '▲' : '▼'}</span>
       </button>
       {open && (
-        <div className="absolute z-30 top-full mt-1 left-0 bg-white border border-border rounded shadow-sm max-h-60 overflow-auto min-w-[200px]">
+        <div className={themed('absolute z-30 top-full mt-1 left-0 bg-white border border-border rounded shadow-sm max-h-60 overflow-auto min-w-[200px]', dk)}>
           {options.map(([val, count]) => (
-            <label key={val} className="flex items-center gap-2 px-2 py-1 hover:bg-bg-row cursor-pointer text-terminal-sm">
+            <label key={val} className={themed('flex items-center gap-2 px-2 py-1 hover:bg-bg-row cursor-pointer text-terminal-sm', dk)}>
               <input
                 type="checkbox"
                 checked={selected.includes(val)}
@@ -317,7 +318,7 @@ function MultiSelectFilter({ label, options, selected, onToggle }: {
                 className="w-3 h-3 rounded"
               />
               <span className="truncate flex-1">{val}</span>
-              <span className="text-text-faint text-terminal-xs">{count}</span>
+              <span className={themed('text-text-faint text-terminal-xs', dk)}>{count}</span>
             </label>
           ))}
         </div>
@@ -326,7 +327,7 @@ function MultiSelectFilter({ label, options, selected, onToggle }: {
   );
 }
 
-function SortHeader({ label, field, currentField, currentDir, onSort, className = '' }: {
+function SortHeader({ dk = false,  label, field, currentField, currentDir, onSort, className = '' }: { dk?: boolean;
   label: string;
   field: SortField;
   currentField: SortField;
@@ -337,7 +338,7 @@ function SortHeader({ label, field, currentField, currentDir, onSort, className 
   const isActive = currentField === field;
   return (
     <th
-      className={`px-2 py-1 text-terminal-xs font-semibold font-mono uppercase tracking-widest cursor-pointer select-none hover:bg-gray-100 transition-colors ${className}`}
+      className={themed(`px-2 py-1 text-terminal-xs font-semibold font-mono uppercase tracking-widest cursor-pointer select-none hover:bg-gray-100 transition-colors ${className}`, dk)}
       onClick={() => onSort(field)}
     >
       <span className="flex items-center gap-1">
@@ -348,7 +349,7 @@ function SortHeader({ label, field, currentField, currentDir, onSort, className 
   );
 }
 
-function CreateCoaModal({ onClose, onCreate }: {
+function CreateCoaModal({ dk = false,  onClose, onCreate }: { dk?: boolean;
   onClose: () => void;
   onCreate: (account: CoaOption) => void;
 }) {
@@ -381,7 +382,7 @@ function CreateCoaModal({ onClose, onCreate }: {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded shadow-sm w-full max-w-md" onClick={e => e.stopPropagation()}>
+      <div className={themed('bg-white rounded shadow-sm w-full max-w-md', dk)} onClick={e => e.stopPropagation()}>
         <div className="bg-brand-purple-deep text-white px-4 py-3 rounded-t-lg flex items-center justify-between">
           <span className="text-sm font-semibold">Create New COA Account</span>
           <button onClick={onClose} className="text-white/60 hover:text-white text-terminal-lg">×</button>
@@ -389,16 +390,16 @@ function CreateCoaModal({ onClose, onCreate }: {
         <div className="p-4 space-y-3">
           {error && <div className="text-xs text-brand-red bg-red-50 px-3 py-2 rounded">{error}</div>}
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Account Code</label>
+            <label className={themed('block text-xs font-medium text-text-secondary mb-1', dk)}>Account Code</label>
             <input value={code} onChange={e => setCode(e.target.value)} placeholder="e.g. P-6100" className="w-full px-3 py-2 border rounded text-sm" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Account Name</label>
+            <label className={themed('block text-xs font-medium text-text-secondary mb-1', dk)}>Account Name</label>
             <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Office Supplies" className="w-full px-3 py-2 border rounded text-sm" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">Account Type</label>
+              <label className={themed('block text-xs font-medium text-text-secondary mb-1', dk)}>Account Type</label>
               <select value={accountType} onChange={e => setAccountType(e.target.value)} className="w-full px-3 py-2 border rounded text-sm">
                 <option value="expense">Expense</option>
                 <option value="revenue">Revenue</option>
@@ -408,7 +409,7 @@ function CreateCoaModal({ onClose, onCreate }: {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">Entity Type</label>
+              <label className={themed('block text-xs font-medium text-text-secondary mb-1', dk)}>Entity Type</label>
               <select value={entityType} onChange={e => setEntityType(e.target.value)} className="w-full px-3 py-2 border rounded text-sm">
                 <option value="personal">Personal</option>
                 <option value="business">Business</option>
@@ -428,7 +429,7 @@ function CreateCoaModal({ onClose, onCreate }: {
 
 // ─── Column Filter Dropdown ──────────────────────────────────────────────────
 
-function ColumnFilterDropdown({
+function ColumnFilterDropdown({ dk = false, 
   field,
   filterType,
   allTransactions,
@@ -440,7 +441,7 @@ function ColumnFilterDropdown({
   sortDir,
   onSortWithDir,
   coaLookup,
-}: {
+}: { dk?: boolean;
   field: SortField;
   filterType: 'checkbox' | 'dateRange' | 'amountRange' | 'search';
   allTransactions: SpendingTransaction[];
@@ -555,18 +556,18 @@ function ColumnFilterDropdown({
   };
 
   return createPortal(
-    <div ref={panelRef} className="fixed bg-white border border-border rounded shadow-sm z-[100] w-64" style={panelStyle}>
+    <div ref={panelRef} className={themed('fixed bg-white border border-border rounded shadow-sm z-[100] w-64', dk)} style={panelStyle}>
       {/* Sort controls */}
-      <div className="border-b border-border-light p-2 space-y-1">
+      <div className={themed('border-b border-border-light p-2 space-y-1', dk)}>
         <button
           onClick={() => { onSortWithDir(field, 'asc'); onCancel(); }}
-          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-bg-row flex items-center gap-2 ${isSortedAsc ? 'text-brand-purple-deep font-semibold bg-brand-purple-deep/5' : 'text-text-secondary'}`}
+          className={themed(`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-bg-row flex items-center gap-2 ${isSortedAsc ? 'text-brand-purple-deep font-semibold bg-brand-purple-deep/5' : 'text-text-secondary'}`, dk)}
         >
           <span className="text-[10px]">{'\u25B2'}</span> {sortAscLabel}
         </button>
         <button
           onClick={() => { onSortWithDir(field, 'desc'); onCancel(); }}
-          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-bg-row flex items-center gap-2 ${isSortedDesc ? 'text-brand-purple-deep font-semibold bg-brand-purple-deep/5' : 'text-text-secondary'}`}
+          className={themed(`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-bg-row flex items-center gap-2 ${isSortedDesc ? 'text-brand-purple-deep font-semibold bg-brand-purple-deep/5' : 'text-text-secondary'}`, dk)}
         >
           <span className="text-[10px]">{'\u25BC'}</span> {sortDescLabel}
         </button>
@@ -592,7 +593,7 @@ function ColumnFilterDropdown({
             </div>
             <div className="max-h-[300px] overflow-auto border rounded">
               {filteredValues.map(([val, count]) => (
-                <label key={val} className="flex items-center gap-2 px-2 py-1.5 hover:bg-bg-row cursor-pointer text-xs">
+                <label key={val} className={themed('flex items-center gap-2 px-2 py-1.5 hover:bg-bg-row cursor-pointer text-xs', dk)}>
                   <input
                     type="checkbox"
                     checked={localSelected.has(val)}
@@ -606,11 +607,11 @@ function ColumnFilterDropdown({
                     className="w-3.5 h-3.5 rounded flex-shrink-0"
                   />
                   <span className="truncate flex-1">{displayVal(val)}</span>
-                  <span className="text-text-faint text-[10px] flex-shrink-0">({count})</span>
+                  <span className={themed('text-text-faint text-[10px] flex-shrink-0', dk)}>({count})</span>
                 </label>
               ))}
               {filteredValues.length === 0 && (
-                <div className="px-2 py-3 text-center text-text-faint text-xs">No values found</div>
+                <div className={themed('px-2 py-3 text-center text-text-faint text-xs', dk)}>No values found</div>
               )}
             </div>
           </>
@@ -619,11 +620,11 @@ function ColumnFilterDropdown({
         {filterType === 'dateRange' && (
           <div className="space-y-2">
             <div>
-              <label className="block text-[10px] text-text-muted mb-1">From</label>
+              <label className={themed('block text-[10px] text-text-muted mb-1', dk)}>From</label>
               <input ref={searchRef} type="date" value={localFrom} onChange={e => setLocalFrom(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" />
             </div>
             <div>
-              <label className="block text-[10px] text-text-muted mb-1">To</label>
+              <label className={themed('block text-[10px] text-text-muted mb-1', dk)}>To</label>
               <input type="date" value={localTo} onChange={e => setLocalTo(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" />
             </div>
           </div>
@@ -632,11 +633,11 @@ function ColumnFilterDropdown({
         {filterType === 'amountRange' && (
           <div className="space-y-2">
             <div>
-              <label className="block text-[10px] text-text-muted mb-1">Min ($)</label>
+              <label className={themed('block text-[10px] text-text-muted mb-1', dk)}>Min ($)</label>
               <input ref={searchRef} type="number" placeholder="0.00" value={localMin} onChange={e => setLocalMin(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" />
             </div>
             <div>
-              <label className="block text-[10px] text-text-muted mb-1">Max ($)</label>
+              <label className={themed('block text-[10px] text-text-muted mb-1', dk)}>Max ($)</label>
               <input type="number" placeholder="999999" value={localMax} onChange={e => setLocalMax(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" />
             </div>
           </div>
@@ -648,10 +649,10 @@ function ColumnFilterDropdown({
       </div>
 
       {/* Apply / Cancel */}
-      <div className="border-t border-border-light p-2 flex justify-between gap-2">
+      <div className={themed('border-t border-border-light p-2 flex justify-between gap-2', dk)}>
         <button onClick={() => onApply(undefined)} className="text-[10px] text-brand-red hover:underline">Clear</button>
         <div className="flex gap-2">
-          <button onClick={onCancel} className="px-3 py-1 text-xs border rounded hover:bg-bg-row">Cancel</button>
+          <button onClick={onCancel} className={themed('px-3 py-1 text-xs border rounded hover:bg-bg-row', dk)}>Cancel</button>
           <button onClick={handleApply} className="px-3 py-1 text-xs bg-brand-purple-deep text-white rounded hover:bg-brand-purple-hover">Apply</button>
         </div>
       </div>
@@ -662,11 +663,11 @@ function ColumnFilterDropdown({
 
 // ─── Filterable Header ──────────────────────────────────────────────────────
 
-function FilterableHeader({
+function FilterableHeader({ dk = false, 
   label, field, sortField, sortDir, onSort,
   filterType, allTransactions, columnFilter, onApplyColumnFilter,
   className, coaLookup,
-}: {
+}: { dk?: boolean;
   label: string;
   field: SortField;
   sortField: SortField;
@@ -707,7 +708,7 @@ function FilterableHeader({
         </button>
       </span>
       {open && (
-        <ColumnFilterDropdown
+        <ColumnFilterDropdown dk={dk}
           field={field}
           filterType={filterType}
           allTransactions={allTransactions}
@@ -762,7 +763,7 @@ function formatProofDate(d: string | null | undefined): string {
 
 // ─── Virtualized Table ───────────────────────────────────────────────────────
 
-function VirtualTable({
+function VirtualTable({ dk = false, 
   rows,
   coaOptions,
   coaGroupedByEntity,
@@ -778,7 +779,7 @@ function VirtualTable({
   allTransactions,
   columnFilters,
   onApplyColumnFilter,
-}: {
+}: { dk?: boolean;
   rows: SpendingTransaction[];
   coaOptions: CoaOption[];
   coaGroupedByEntity: Record<string, CoaOption[]>;
@@ -832,19 +833,19 @@ function VirtualTable({
   };
 
   return (
-    <div ref={parentRef} className="overflow-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-bg-row [&::-webkit-scrollbar-thumb]:bg-brand-purple/30 [&::-webkit-scrollbar-thumb]:rounded" style={{ maxHeight: '600px' }}>
+    <div ref={parentRef} className={themed('overflow-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-bg-row [&::-webkit-scrollbar-thumb]:bg-brand-purple/30 [&::-webkit-scrollbar-thumb]:rounded', dk)} style={{ maxHeight: '600px' }}>
       <table className={`w-full text-xs border-collapse ${variant === 'committed' ? 'min-w-[1500px]' : 'min-w-[900px]'}`}>
-        <thead className="bg-gray-50 text-text-secondary sticky top-0 z-10">
+        <thead className={themed('bg-gray-50 text-text-secondary sticky top-0 z-10', dk)}>
           <tr>
-            <th className="px-2 py-1 w-10 sticky left-0 bg-gray-50 z-20">
+            <th className={themed('px-2 py-1 w-10 sticky left-0 bg-gray-50 z-20', dk)}>
               <input type="checkbox" checked={allSelected} onChange={toggleAll} className="w-3 h-3 rounded" />
             </th>
-            <FilterableHeader label="Date" field="date" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="dateRange" allTransactions={allTransactions} columnFilter={columnFilters.date} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-24" />
-            <FilterableHeader label="Merchant" field="merchantName" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="checkbox" allTransactions={allTransactions} columnFilter={columnFilters.merchantName} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="min-w-[130px]" />
-            <FilterableHeader label="Desc" field="name" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="search" allTransactions={allTransactions} columnFilter={columnFilters.name} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="min-w-[200px]" />
-            <FilterableHeader label="Amount" field="amount" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="amountRange" allTransactions={allTransactions} columnFilter={columnFilters.amount} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-24 text-right" />
-            <FilterableHeader label="Account" field="accountName" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="checkbox" allTransactions={allTransactions} columnFilter={columnFilters.accountName} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-28" />
-            <FilterableHeader label="Inst" field="institutionName" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="checkbox" allTransactions={allTransactions} columnFilter={columnFilters.institutionName} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-28" />
+            <FilterableHeader dk={dk} label="Date" field="date" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="dateRange" allTransactions={allTransactions} columnFilter={columnFilters.date} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-24" />
+            <FilterableHeader dk={dk} label="Merchant" field="merchantName" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="checkbox" allTransactions={allTransactions} columnFilter={columnFilters.merchantName} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="min-w-[130px]" />
+            <FilterableHeader dk={dk} label="Desc" field="name" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="search" allTransactions={allTransactions} columnFilter={columnFilters.name} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="min-w-[200px]" />
+            <FilterableHeader dk={dk} label="Amount" field="amount" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="amountRange" allTransactions={allTransactions} columnFilter={columnFilters.amount} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-24 text-right" />
+            <FilterableHeader dk={dk} label="Account" field="accountName" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="checkbox" allTransactions={allTransactions} columnFilter={columnFilters.accountName} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-28" />
+            <FilterableHeader dk={dk} label="Inst" field="institutionName" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="checkbox" allTransactions={allTransactions} columnFilter={columnFilters.institutionName} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-28" />
             <th className="px-2 py-1 text-terminal-xs font-semibold font-mono uppercase tracking-widest min-w-[180px]">COA</th>
             {variant === 'committed' && (
               <>
@@ -873,14 +874,14 @@ function VirtualTable({
             const rowBg = isSelected
               ? 'bg-brand-purple-deep/5'
               : vRow.index % 2 === 0
-                ? 'bg-white'
-                : 'bg-bg-row';
+                ? themed('bg-white', dk)
+                : themed('bg-bg-row', dk);
 
             return (
               <tr
                 key={txn.id}
                 data-index={vRow.index}
-                className={`${rowBg} hover:bg-brand-purple-deep/[.07] border-b border-border-light transition-colors`}
+                className={themed(`${rowBg} hover:bg-brand-purple-deep/[.07] border-b border-border-light transition-colors`, dk)}
                 style={{ height: ROW_HEIGHT }}
               >
                 {/* Checkbox */}
@@ -888,7 +889,7 @@ function VirtualTable({
                   <input type="checkbox" checked={isSelected} onChange={() => toggleOne(txn.id)} className="w-3 h-3 rounded" />
                 </td>
                 {/* Date */}
-                <td className="py-1 px-2 text-text-muted whitespace-nowrap font-mono text-terminal-base">{formatDate(txn.date)}</td>
+                <td className={themed('py-1 px-2 text-text-muted whitespace-nowrap font-mono text-terminal-base', dk)}>{formatDate(txn.date)}</td>
                 {/* Merchant */}
                 <td className="py-1 px-2">
                   <div className="flex items-center gap-1">
@@ -897,7 +898,7 @@ function VirtualTable({
                   </div>
                 </td>
                 {/* Description */}
-                <td className="py-1 px-2 text-text-secondary text-terminal-sm truncate">{txn.name}</td>
+                <td className={themed('py-1 px-2 text-text-secondary text-terminal-sm truncate', dk)}>{txn.name}</td>
                 {/* Amount */}
                 <td className="py-1 px-2 text-right font-mono font-semibold whitespace-nowrap text-terminal-base">
                   <span className={txn.amount > 0 ? 'text-brand-red' : 'text-brand-green'}>
@@ -905,16 +906,16 @@ function VirtualTable({
                   </span>
                 </td>
                 {/* Account */}
-                <td className="py-1 px-2 font-mono text-terminal-sm text-text-muted truncate">{txn.accountName || '\u2014'}</td>
+                <td className={themed('py-1 px-2 font-mono text-terminal-sm text-text-muted truncate', dk)}>{txn.accountName || '\u2014'}</td>
                 {/* Institution */}
-                <td className="py-1 px-2 font-mono text-terminal-sm text-text-muted truncate">{txn.institutionName || '\u2014'}</td>
+                <td className={themed('py-1 px-2 font-mono text-terminal-sm text-text-muted truncate', dk)}>{txn.institutionName || '\u2014'}</td>
                 {/* COA dropdown */}
                 <td className="py-1 px-2">
                   {variant === 'pending' ? (
                     <select
                       value={rowChanges[txn.id]?.coa || ''}
                       onChange={e => setRowChanges(prev => ({ ...prev, [txn.id]: { ...(prev[txn.id] || { coa: '', sub: '' }), coa: e.target.value } }))}
-                      className="w-full text-terminal-sm font-mono border border-border rounded px-1 py-0.5 bg-white focus:border-brand-purple-deep focus:ring-1 focus:ring-brand-purple-deep outline-none"
+                      className={themed('w-full text-terminal-sm font-mono border border-border rounded px-1 py-0.5 bg-white focus:border-brand-purple-deep focus:ring-1 focus:ring-brand-purple-deep outline-none', dk)}
                     >
                       <option value="">{txn.predicted_coa_code ? `${txn.predicted_coa_code} - ${coaLookup.get(txn.predicted_coa_code)?.name || 'Unknown'}` : 'Select...'}</option>
                       {Object.entries(coaGroupedByEntity).map(([entity, opts]) => (
@@ -932,7 +933,7 @@ function VirtualTable({
                     return (
                       <span className="font-mono text-brand-green text-terminal-sm">
                         {txn.accountCode}
-                        {displayName && <span className="text-text-faint ml-1">{displayName}</span>}
+                        {displayName && <span className={themed('text-text-faint ml-1', dk)}>{displayName}</span>}
                       </span>
                     );
                   })()}
@@ -946,20 +947,20 @@ function VirtualTable({
                       <td className="py-1 px-2 font-mono text-terminal-sm whitespace-nowrap text-brand-purple" title={jp?.jeId || ''}>
                         {jp?.jeId ? jp.jeId.slice(0, 8) : '\u2014'}
                       </td>
-                      <td className="py-1 px-2 text-terminal-sm text-text-secondary truncate" title={getProofDrAccounts(jp)}>
+                      <td className={themed('py-1 px-2 text-terminal-sm text-text-secondary truncate', dk)} title={getProofDrAccounts(jp)}>
                         {getProofDrAccounts(jp)}
                       </td>
-                      <td className="py-1 px-2 text-terminal-sm text-text-secondary truncate" title={getProofCrAccounts(jp)}>
+                      <td className={themed('py-1 px-2 text-terminal-sm text-text-secondary truncate', dk)} title={getProofCrAccounts(jp)}>
                         {getProofCrAccounts(jp)}
                       </td>
                       <td className="py-1 px-2 text-center text-terminal-base">
                         {balanced === null ? '\u2014' : balanced ? <span className="text-brand-green font-bold">{'\u2713'}</span> : <span className="text-brand-red font-bold">{'\u2717'}</span>}
                       </td>
-                      <td className="py-1 px-2 text-terminal-sm text-text-muted truncate">{jp?.entityName || '\u2014'}</td>
-                      <td className="py-1 px-2 text-terminal-sm text-text-muted truncate" title={jp?.createdBy || ''}>
+                      <td className={themed('py-1 px-2 text-terminal-sm text-text-muted truncate', dk)}>{jp?.entityName || '\u2014'}</td>
+                      <td className={themed('py-1 px-2 text-terminal-sm text-text-muted truncate', dk)} title={jp?.createdBy || ''}>
                         {jp?.createdBy || '\u2014'}
                       </td>
-                      <td className="py-1 px-2 text-terminal-sm text-text-faint font-mono whitespace-nowrap">{formatProofDate(jp?.createdAt)}</td>
+                      <td className={themed('py-1 px-2 text-terminal-sm text-text-faint font-mono whitespace-nowrap', dk)}>{formatProofDate(jp?.createdAt)}</td>
                       <td className="py-1 px-2 text-center" title="Immutable (trigger-enforced)">
                         <span className="text-brand-gold">{'\uD83D\uDD12'}</span>
                       </td>
@@ -997,7 +998,8 @@ function Toast({ message, onDone }: { message: string; onDone: () => void }) {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export default function SpendingTab({ transactions, committedTransactions, coaOptions, onReload }: SpendingTabProps) {
+export default function SpendingTab({ transactions, committedTransactions, coaOptions, onReload, surface = 'light' }: SpendingTabProps & { surface?: Surface }) {
+  const dk = surface === 'dark';
   // State
   const [pendingFilters, setPendingFilters] = useState<ActiveFilters>(EMPTY_FILTERS);
   const [committedFilters, setCommittedFilters] = useState<ActiveFilters>(EMPTY_FILTERS);
@@ -1366,7 +1368,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
   const rowsWithCoa = Object.entries(rowChanges).filter(([_, c]) => c.coa && c.coa !== '__NEW__').length;
 
   if (!transactions && !committedTransactions) {
-    return <div className="p-4 text-center text-text-faint">Loading...</div>;
+    return <div className={themed('p-4 text-center text-text-faint', dk)}>Loading...</div>;
   }
 
   return (
@@ -1380,21 +1382,21 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
           onChange={e => activeTable === 'pending'
             ? setPendingFilters(prev => ({ ...prev, search: e.target.value }))
             : setCommittedFilters(prev => ({ ...prev, search: e.target.value }))}
-          className="flex-1 min-w-[120px] max-w-[200px] h-7 px-2 text-terminal-sm font-mono border border-border rounded bg-white focus:border-brand-purple-deep outline-none"
+          className={themed('flex-1 min-w-[120px] max-w-[200px] h-7 px-2 text-terminal-sm font-mono border border-border rounded bg-white focus:border-brand-purple-deep outline-none', dk)}
         />
         <input type="date" value={pendingFilters.dateFrom} onChange={e => setPendingFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
-          className="h-7 px-1.5 text-terminal-sm font-mono border border-border rounded bg-white" />
-        <span className="text-terminal-xs text-text-faint">{'\u2192'}</span>
+          className={themed('h-7 px-1.5 text-terminal-sm font-mono border border-border rounded bg-white', dk)} />
+        <span className={themed('text-terminal-xs text-text-faint', dk)}>{'\u2192'}</span>
         <input type="date" value={pendingFilters.dateTo} onChange={e => setPendingFilters(prev => ({ ...prev, dateTo: e.target.value }))}
-          className="h-7 px-1.5 text-terminal-sm font-mono border border-border rounded bg-white" />
+          className={themed('h-7 px-1.5 text-terminal-sm font-mono border border-border rounded bg-white', dk)} />
         <input type="number" placeholder="Min $" value={pendingFilters.amountMin} onChange={e => setPendingFilters(prev => ({ ...prev, amountMin: e.target.value }))}
-          className="w-16 h-7 px-1.5 text-terminal-sm font-mono border border-border rounded bg-white" />
-        <span className="text-terminal-xs text-text-faint">-</span>
+          className={themed('w-16 h-7 px-1.5 text-terminal-sm font-mono border border-border rounded bg-white', dk)} />
+        <span className={themed('text-terminal-xs text-text-faint', dk)}>-</span>
         <input type="number" placeholder="Max $" value={pendingFilters.amountMax} onChange={e => setPendingFilters(prev => ({ ...prev, amountMax: e.target.value }))}
-          className="w-16 h-7 px-1.5 text-terminal-sm font-mono border border-border rounded bg-white" />
-        <MultiSelectFilter label="Merchant" options={pendingMerchants} selected={pendingFilters.merchants}
+          className={themed('w-16 h-7 px-1.5 text-terminal-sm font-mono border border-border rounded bg-white', dk)} />
+        <MultiSelectFilter dk={dk} label="Merchant" options={pendingMerchants} selected={pendingFilters.merchants}
           onToggle={val => toggleFilter(pendingFilters, setPendingFilters, 'merchants', val)} />
-        <MultiSelectFilter label="Account" options={pendingAccounts} selected={pendingFilters.accounts}
+        <MultiSelectFilter dk={dk} label="Account" options={pendingAccounts} selected={pendingFilters.accounts}
           onToggle={val => toggleFilter(pendingFilters, setPendingFilters, 'accounts', val)} />
         {(hasActiveFilters(pendingFilters) || hasPendingColFilters) && (
           <button onClick={() => { setPendingFilters(EMPTY_FILTERS); setPendingColFilters(EMPTY_COL_FILTERS); }}
@@ -1408,24 +1410,24 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
       </div>
 
       {/* Table Tabs */}
-      <div className="flex border-b border-border">
+      <div className={themed('flex border-b border-border', dk)}>
         <button
           onClick={() => setActiveTable('pending')}
-          className={`px-3 py-1 text-terminal-base font-mono font-medium border-b-2 transition-colors ${
+          className={themed(`px-3 py-1 text-terminal-base font-mono font-medium border-b-2 transition-colors ${
             activeTable === 'pending'
               ? 'border-brand-amber text-brand-amber'
-              : 'border-transparent text-text-muted hover:text-text-secondary'
-          }`}
+              : themed('border-transparent text-text-muted hover:text-text-secondary', dk)
+          }`, dk)}
         >
           Pending ({pendingRows.length}{hasActiveFilters(pendingFilters) || hasPendingColFilters ? ` of ${transactions.length}` : ''})
         </button>
         <button
           onClick={() => setActiveTable('committed')}
-          className={`px-3 py-1 text-terminal-base font-mono font-medium border-b-2 transition-colors ${
+          className={themed(`px-3 py-1 text-terminal-base font-mono font-medium border-b-2 transition-colors ${
             activeTable === 'committed'
               ? 'border-brand-green text-brand-green'
-              : 'border-transparent text-text-muted hover:text-text-secondary'
-          }`}
+              : themed('border-transparent text-text-muted hover:text-text-secondary', dk)
+          }`, dk)}
         >
           Committed ({committedRows.length}{hasActiveFilters(committedFilters) || hasCommittedColFilters ? ` of ${committedTransactions.length}` : ''})
         </button>
@@ -1435,7 +1437,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
       {activeTable === 'pending' && (
         <>
           {pendingRows.length === 0 ? (
-            <div className="text-center py-12 text-text-faint">
+            <div className={themed('text-center py-12 text-text-faint', dk)}>
               {transactions.length === 0 ? (
                 <>
                   <div className="text-3xl mb-2">✓</div>
@@ -1449,7 +1451,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
               )}
             </div>
           ) : (
-            <VirtualTable
+            <VirtualTable dk={dk}
               rows={pendingRows}
               coaOptions={localCoaOptions}
               coaGroupedByEntity={coaGroupedByEntity}
@@ -1480,7 +1482,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
               placeholder="Search committed..."
               value={committedFilters.search}
               onChange={e => setCommittedFilters(prev => ({ ...prev, search: e.target.value }))}
-              className="flex-1 max-w-xs px-2 py-1 text-terminal-base font-mono border rounded bg-white focus:border-brand-purple-deep outline-none"
+              className={themed('flex-1 max-w-xs px-2 py-1 text-terminal-base font-mono border rounded bg-white focus:border-brand-purple-deep outline-none', dk)}
             />
             {hasActiveFilters(committedFilters) && (
               <button onClick={() => setCommittedFilters(EMPTY_FILTERS)} className="text-terminal-sm text-brand-red">Clear search</button>
@@ -1501,11 +1503,11 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
             </div>
           )}
           {committedRows.length === 0 ? (
-            <div className="text-center py-12 text-text-faint">
+            <div className={themed('text-center py-12 text-text-faint', dk)}>
               <p className="text-sm">{committedTransactions.length === 0 ? 'No committed transactions yet' : 'No matches'}</p>
             </div>
           ) : (
-            <VirtualTable
+            <VirtualTable dk={dk}
               rows={committedRows}
               coaOptions={localCoaOptions}
               coaGroupedByEntity={coaGroupedByEntity}
@@ -1671,7 +1673,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
               variant="danger"
               loading={uncommitting}
               onClick={handleUncommit}
-              className="!bg-white !text-brand-red hover:!bg-red-50"
+              className={themed('!bg-white !text-brand-red hover:!bg-red-50', dk)}
             >
               Uncommit
             </Button>
@@ -1687,7 +1689,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
 
       {/* Create COA Modal */}
       {showCreateCoa && (
-        <CreateCoaModal
+        <CreateCoaModal dk={dk}
           onClose={() => setShowCreateCoa(false)}
           onCreate={handleCoaCreated}
         />

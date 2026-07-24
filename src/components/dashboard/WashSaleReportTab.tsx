@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { themed, type Surface } from '@/lib/ds';
 
 interface WashSaleViolation {
   dispositionId: string;
@@ -51,7 +52,8 @@ interface WashSaleData {
   taxImpact: TaxImpact;
 }
 
-export default function WashSaleReportTab() {
+export default function WashSaleReportTab({ surface = 'light' }: { surface?: Surface } = {}) {
+  const dk = surface === 'dark';
   const [data, setData] = useState<WashSaleData | null>(null);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
@@ -101,7 +103,7 @@ export default function WashSaleReportTab() {
     new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
 
   if (loading) {
-    return <div className="p-8 text-center text-terminal-sm text-text-muted">Scanning for wash sale violations...</div>;
+    return <div className={themed('p-8 text-center text-terminal-sm text-text-muted', dk)}>Scanning for wash sale violations...</div>;
   }
 
   if (!data) {
@@ -113,10 +115,10 @@ export default function WashSaleReportTab() {
   return (
     <div>
       {/* Actions */}
-      <div className="px-3 py-2 border-b border-border flex items-center justify-between">
-        <span className="text-terminal-sm text-text-muted font-mono">IRS Publication 550</span>
+      <div className={themed('px-3 py-2 border-b border-border flex items-center justify-between', dk)}>
+        <span className={themed('text-terminal-sm text-text-muted font-mono', dk)}>IRS Publication 550</span>
         <div className="flex gap-2">
-          <button onClick={loadData} className="px-3 py-1 text-xs border border-border text-text-secondary rounded-lg hover:bg-bg-row transition-colors">
+          <button onClick={loadData} className={themed('px-3 py-1 text-xs border border-border text-text-secondary rounded-lg hover:bg-bg-row transition-colors', dk)}>
             Re-scan
           </button>
           {summary.totalViolations > 0 && (
@@ -136,7 +138,7 @@ export default function WashSaleReportTab() {
         {summary.totalViolations === 0 ? (
           <div className="text-center py-8">
             <div className="text-terminal-lg mb-2">No wash sale violations detected</div>
-            <div className="text-terminal-sm text-text-muted">
+            <div className={themed('text-terminal-sm text-text-muted', dk)}>
               All losing dispositions have been scanned against the 30-day replacement window.
             </div>
           </div>
@@ -144,22 +146,22 @@ export default function WashSaleReportTab() {
           <>
             {/* Top metrics */}
             <div className="grid grid-cols-4 gap-2">
-              <div className="border border-border rounded p-2 bg-bg-row">
-                <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Disallowed Losses</div>
+              <div className={themed('border border-border rounded p-2 bg-bg-row', dk)}>
+                <div className={themed('text-terminal-xs text-text-muted uppercase tracking-widest', dk)}>Disallowed Losses</div>
                 <div className="text-terminal-lg font-bold font-mono text-brand-red">
                   {fmt(summary.totalDisallowedLosses)}
                 </div>
               </div>
-              <div className="border border-border rounded p-2">
-                <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Violations Found</div>
+              <div className={themed('border border-border rounded p-2', dk)}>
+                <div className={themed('text-terminal-xs text-text-muted uppercase tracking-widest', dk)}>Violations Found</div>
                 <div className="text-terminal-lg font-bold font-mono">{summary.totalViolations}</div>
               </div>
-              <div className="border border-border rounded p-2">
-                <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Symbols Affected</div>
+              <div className={themed('border border-border rounded p-2', dk)}>
+                <div className={themed('text-terminal-xs text-text-muted uppercase tracking-widest', dk)}>Symbols Affected</div>
                 <div className="text-terminal-lg font-bold font-mono">{summary.symbolsAffected.length}</div>
               </div>
-              <div className="border border-border rounded p-2 bg-bg-row">
-                <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Est. Tax Impact</div>
+              <div className={themed('border border-border rounded p-2 bg-bg-row', dk)}>
+                <div className={themed('text-terminal-xs text-text-muted uppercase tracking-widest', dk)}>Est. Tax Impact</div>
                 <div className="text-terminal-lg font-bold font-mono text-brand-amber">
                   {fmt(taxImpact.estimatedAdditionalTax)}
                 </div>
@@ -168,20 +170,20 @@ export default function WashSaleReportTab() {
 
             {/* Type breakdown */}
             <div className="grid grid-cols-4 gap-2 text-terminal-base">
-              <div className="border border-border rounded p-2">
-                <div className="text-text-muted">Stock to Stock</div>
+              <div className={themed('border border-border rounded p-2', dk)}>
+                <div className={themed('text-text-muted', dk)}>Stock to Stock</div>
                 <div className="font-bold font-mono">{summary.stockToStockCount}</div>
               </div>
-              <div className="border border-border rounded p-2">
-                <div className="text-text-muted">Stock to Option</div>
+              <div className={themed('border border-border rounded p-2', dk)}>
+                <div className={themed('text-text-muted', dk)}>Stock to Option</div>
                 <div className="font-bold font-mono">{summary.stockToOptionCount}</div>
               </div>
-              <div className="border border-border rounded p-2">
-                <div className="text-text-muted">Option to Stock</div>
+              <div className={themed('border border-border rounded p-2', dk)}>
+                <div className={themed('text-text-muted', dk)}>Option to Stock</div>
                 <div className="font-bold font-mono">{summary.optionToStockCount}</div>
               </div>
-              <div className="border border-border rounded p-2">
-                <div className="text-text-muted">Option to Option</div>
+              <div className={themed('border border-border rounded p-2', dk)}>
+                <div className={themed('text-text-muted', dk)}>Option to Option</div>
                 <div className="font-bold font-mono">{summary.optionToOptionCount}</div>
               </div>
             </div>
@@ -192,10 +194,10 @@ export default function WashSaleReportTab() {
             </div>
 
             {/* Per-symbol breakdown */}
-            <div className="border border-border rounded overflow-hidden">
-              <div className="bg-bg-row px-3 py-1.5 text-terminal-lg font-semibold">By Symbol</div>
+            <div className={themed('border border-border rounded overflow-hidden', dk)}>
+              <div className={themed('bg-bg-row px-3 py-1.5 text-terminal-lg font-semibold', dk)}>By Symbol</div>
               <table className="w-full text-terminal-base">
-                <thead className="bg-gray-50 text-text-secondary">
+                <thead className={themed('bg-gray-50 text-text-secondary', dk)}>
                   <tr>
                     <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">Symbol</th>
                     <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Violations</th>
@@ -208,7 +210,7 @@ export default function WashSaleReportTab() {
                     <>
                       <tr
                         key={group.symbol}
-                        className={`border-b border-border-light hover:bg-bg-row cursor-pointer ${idx % 2 === 0 ? 'bg-white' : 'bg-bg-row'}`}
+                        className={themed(`border-b border-border-light hover:bg-bg-row cursor-pointer ${idx % 2 === 0 ? 'bg-white' : 'bg-bg-row'}`, dk)}
                         onClick={() => setExpandedSymbol(expandedSymbol === group.symbol ? null : group.symbol)}
                       >
                         <td className="py-1 px-2 font-medium">{group.symbol}</td>
@@ -216,36 +218,36 @@ export default function WashSaleReportTab() {
                         <td className="py-1 px-2 text-right font-mono text-brand-red font-semibold">
                           {fmt(group.totalDisallowed)}
                         </td>
-                        <td className="py-1 px-2 text-center text-text-faint">
+                        <td className={themed('py-1 px-2 text-center text-text-faint', dk)}>
                           {expandedSymbol === group.symbol ? '\u25B2' : '\u25BC'}
                         </td>
                       </tr>
                       {expandedSymbol === group.symbol && group.violations.map((v, i) => (
-                        <tr key={`${v.dispositionId}-${i}`} className="bg-bg-row border-b border-border-light text-terminal-sm">
+                        <tr key={`${v.dispositionId}-${i}`} className={themed('bg-bg-row border-b border-border-light text-terminal-sm', dk)}>
                           <td className="py-1 px-2 pl-6" colSpan={4}>
                             <div className="grid grid-cols-2 gap-x-8 gap-y-1">
                               <div>
-                                <span className="text-text-muted">Sale:</span>{' '}
-                                <span className="font-mono text-text-muted">{fmtDate(v.saleDate)}</span>{' '}
+                                <span className={themed('text-text-muted', dk)}>Sale:</span>{' '}
+                                <span className={themed('font-mono text-text-muted', dk)}>{fmtDate(v.saleDate)}</span>{' '}
                                 {v.quantitySold} shares @ {fmt(v.proceedsPerShare)}
                               </div>
                               <div>
-                                <span className="text-text-muted">Replacement:</span>{' '}
+                                <span className={themed('text-text-muted', dk)}>Replacement:</span>{' '}
                                 <span className={`px-1 py-0.5 rounded text-[10px] font-medium ${
                                   v.replacementType === 'stock' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
                                 }`}>{v.replacementType}</span>{' '}
-                                <span className="font-mono text-text-muted">{fmtDate(v.replacementDate)}</span>{' '}
+                                <span className={themed('font-mono text-text-muted', dk)}>{fmtDate(v.replacementDate)}</span>{' '}
                                 {v.replacementQuantity} {v.replacementType === 'option' ? 'contracts' : 'shares'} @ {fmt(v.replacementCostPerShare)}
                               </div>
                               <div>
-                                <span className="text-text-muted">Realized Loss:</span>{' '}
+                                <span className={themed('text-text-muted', dk)}>Realized Loss:</span>{' '}
                                 <span className="font-mono text-brand-red">{fmt(v.realizedLoss)}</span>
                               </div>
                               <div>
-                                <span className="text-text-muted">Disallowed:</span>{' '}
+                                <span className={themed('text-text-muted', dk)}>Disallowed:</span>{' '}
                                 <span className="font-mono text-brand-red font-semibold">{fmt(v.disallowedLoss)}</span>
                                 {' '}
-                                <span className="text-text-muted">Adjusted Basis:</span>{' '}
+                                <span className={themed('text-text-muted', dk)}>Adjusted Basis:</span>{' '}
                                 <span className="font-mono">{fmt(v.adjustedCostBasis)}</span>
                               </div>
                             </div>

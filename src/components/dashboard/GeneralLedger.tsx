@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback, Fragment } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { themed, type Surface } from '@/lib/ds';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -91,7 +92,8 @@ const entryStatus = (e: LedgerEntry): 'Active' | 'Reversed' | 'Reversal' => {
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
-export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerProps) {
+export default function GeneralLedger({ coaOptions, onReload, surface = 'light' }: GeneralLedgerProps & { surface?: Surface }) {
+  const dk = surface === 'dark';
   /* ---- state ---- */
   const [ledgers, setLedgers] = useState<LedgerAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -365,16 +367,16 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
   /* ================================================================ */
 
   return (
-    <div className="bg-white overflow-hidden">
+    <div className={themed('bg-white overflow-hidden', dk)}>
       {/* ---- Entity tabs ---- */}
-      <div className="flex border-b border-border">
+      <div className={themed('flex border-b border-border', dk)}>
         <button
           onClick={() => { setSelectedEntityId(null); setSelectedCode(null); }}
-          className={`px-3 py-1.5 text-terminal-base font-mono font-medium border-b-2 transition-colors ${
+          className={themed(`px-3 py-1.5 text-terminal-base font-mono font-medium border-b-2 transition-colors ${
             selectedEntityId === null
               ? 'border-brand-purple text-brand-purple'
-              : 'border-transparent text-text-muted hover:text-text-secondary'
-          }`}
+              : themed('border-transparent text-text-muted hover:text-text-secondary', dk)
+          }`, dk)}
         >
           All
         </button>
@@ -382,11 +384,11 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
           <button
             key={entity.id}
             onClick={() => { setSelectedEntityId(entity.id); setSelectedCode(null); }}
-            className={`px-3 py-1.5 text-terminal-base font-mono font-medium border-b-2 transition-colors ${
+            className={themed(`px-3 py-1.5 text-terminal-base font-mono font-medium border-b-2 transition-colors ${
               selectedEntityId === entity.id
                 ? 'border-brand-purple text-brand-purple'
-                : 'border-transparent text-text-muted hover:text-text-secondary'
-            }`}
+                : themed('border-transparent text-text-muted hover:text-text-secondary', dk)
+            }`, dk)}
           >
             {entity.name}
           </button>
@@ -394,7 +396,7 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
       </div>
 
       {/* ---- Controls bar ---- */}
-      <div className="p-2 border-b bg-bg-row flex flex-wrap gap-2 items-center">
+      <div className={themed('p-2 border-b bg-bg-row flex flex-wrap gap-2 items-center', dk)}>
         {/* Account selector */}
         <div className="relative min-w-[260px]" ref={dropdownRef}>
           <input
@@ -415,7 +417,7 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
               setAccountSearch('');
             }}
             placeholder="Search accounts..."
-            className="w-full h-7 px-2 border border-border rounded text-terminal-base font-mono pr-8"
+            className={themed('w-full h-7 px-2 border border-border rounded text-terminal-base font-mono pr-8', dk)}
           />
           {selectedCode && (
             <button
@@ -424,20 +426,20 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
                 setAccountSearch('');
                 setAccountDropdownOpen(false);
               }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-text-faint hover:text-text-primary text-sm"
+              className={themed('absolute right-2 top-1/2 -translate-y-1/2 text-text-faint hover:text-text-primary text-sm', dk)}
               title="Clear selection"
             >
               x
             </button>
           )}
           {accountDropdownOpen && (
-            <div className="absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-border rounded shadow-sm max-h-72 overflow-y-auto">
+            <div className={themed('absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-border rounded shadow-sm max-h-72 overflow-y-auto', dk)}>
               {Object.entries(groupedAccounts).length === 0 && (
-                <div className="px-3 py-2 text-terminal-base text-text-faint">No accounts found</div>
+                <div className={themed('px-3 py-2 text-terminal-base text-text-faint', dk)}>No accounts found</div>
               )}
               {Object.entries(groupedAccounts).map(([group, accounts]) => (
                 <div key={group}>
-                  <div className="px-3 py-1.5 text-terminal-xs font-semibold text-text-muted bg-bg-row uppercase tracking-wider">
+                  <div className={themed('px-3 py-1.5 text-terminal-xs font-semibold text-text-muted bg-bg-row uppercase tracking-wider', dk)}>
                     {group}
                   </div>
                   {accounts.map((a) => (
@@ -452,9 +454,9 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
                     >
                       <span>
                         <span className="font-medium">{a.code}</span>{' '}
-                        <span className="text-text-secondary">- {a.name}</span>
+                        <span className={themed('text-text-secondary', dk)}>- {a.name}</span>
                       </span>
-                      <span className="text-text-muted ml-2 tabular-nums">{fmtMoney(a.balance)}</span>
+                      <span className={themed('text-text-muted ml-2 tabular-nums', dk)}>{fmtMoney(a.balance)}</span>
                     </button>
                   ))}
                 </div>
@@ -468,14 +470,14 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
           type="date"
           value={dateFrom}
           onChange={(e) => setDateFrom(e.target.value)}
-          className="h-7 px-2 border border-border rounded text-terminal-base font-mono"
+          className={themed('h-7 px-2 border border-border rounded text-terminal-base font-mono', dk)}
           placeholder="From"
         />
         <input
           type="date"
           value={dateTo}
           onChange={(e) => setDateTo(e.target.value)}
-          className="h-7 px-2 border border-border rounded text-terminal-base font-mono"
+          className={themed('h-7 px-2 border border-border rounded text-terminal-base font-mono', dk)}
           placeholder="To"
         />
 
@@ -485,7 +487,7 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           placeholder="Search descriptions..."
-          className="flex-1 min-w-[150px] h-7 px-2 border border-border rounded text-terminal-base font-mono"
+          className={themed('flex-1 min-w-[150px] h-7 px-2 border border-border rounded text-terminal-base font-mono', dk)}
         />
 
         {/* Reload */}
@@ -494,7 +496,7 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
             onReload();
             fetchLedger(selectedCode, selectedEntityId);
           }}
-          className="h-7 px-2 text-terminal-base font-mono border border-border rounded hover:bg-bg-row"
+          className={themed('h-7 px-2 text-terminal-base font-mono border border-border rounded hover:bg-bg-row', dk)}
         >
           Reload
         </button>
@@ -502,7 +504,7 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
         {selectedCode && (
           <button
             onClick={handleExportCSV}
-            className="h-7 px-2 text-terminal-base font-mono border border-border rounded hover:bg-bg-row ml-auto"
+            className={themed('h-7 px-2 text-terminal-base font-mono border border-border rounded hover:bg-bg-row ml-auto', dk)}
           >
             Export CSV
           </button>
@@ -511,7 +513,7 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
 
       {/* ---- Loading / Error ---- */}
       {loading && (
-        <div className="p-8 text-center text-terminal-sm text-text-muted">Loading ledger data...</div>
+        <div className={themed('p-8 text-center text-terminal-sm text-text-muted', dk)}>Loading ledger data...</div>
       )}
       {error && (
         <div className="p-4 text-center text-terminal-sm text-brand-red bg-red-50">
@@ -527,7 +529,7 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
         <div className="overflow-x-auto">
           <table className="w-full text-terminal-base min-w-[700px]">
             <thead>
-              <tr className="bg-gray-50 text-text-secondary">
+              <tr className={themed('bg-gray-50 text-text-secondary', dk)}>
                 <th className="text-terminal-xs uppercase tracking-widest font-mono py-1 px-2 text-left">Account Code</th>
                 <th className="text-terminal-xs uppercase tracking-widest font-mono py-1 px-2 text-left">Account Name</th>
                 <th className="text-terminal-xs uppercase tracking-widest font-mono py-1 px-2 text-left">Type</th>
@@ -541,7 +543,7 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
                     <tr>
                       <td
                         colSpan={4}
-                        className="py-2 px-2 text-xs uppercase text-text-muted font-semibold tracking-wider border-b border-border-light bg-bg-row"
+                        className={themed('py-2 px-2 text-xs uppercase text-text-muted font-semibold tracking-wider border-b border-border-light bg-bg-row', dk)}
                       >
                         {group.entityName}
                       </td>
@@ -552,7 +554,7 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
                       <tr>
                         <td
                           colSpan={4}
-                          className="py-1 px-2 text-terminal-xs font-bold text-text-muted bg-bg-row/60 uppercase tracking-wider pl-4"
+                          className={themed('py-1 px-2 text-terminal-xs font-bold text-text-muted bg-bg-row/60 uppercase tracking-wider pl-4', dk)}
                         >
                           {type}
                         </td>
@@ -561,13 +563,13 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
                         <tr
                           key={acct.accountCode}
                           onClick={() => setSelectedCode(acct.accountCode)}
-                          className={`cursor-pointer hover:bg-brand-purple/[.07] ${
-                            idx % 2 === 0 ? 'bg-white' : 'bg-bg-row'
-                          }`}
+                          className={themed(`cursor-pointer hover:bg-brand-purple/[.07] ${
+                            idx % 2 === 0 ? themed('bg-white', dk) : themed('bg-bg-row', dk)
+                          }`, dk)}
                         >
                           <td className="py-1 px-2 font-medium">{acct.accountCode}</td>
-                          <td className="py-1 px-2 text-text-secondary">{acct.accountName}</td>
-                          <td className="py-1 px-2 text-text-muted">{acct.accountType}</td>
+                          <td className={themed('py-1 px-2 text-text-secondary', dk)}>{acct.accountName}</td>
+                          <td className={themed('py-1 px-2 text-text-muted', dk)}>{acct.accountType}</td>
                           <td className="py-1 px-2 text-right font-mono tabular-nums">
                             {fmtMoney(acct.closingBalance)}
                           </td>
@@ -579,7 +581,7 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
               ))}
               {accountsByEntityAndType.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-3 py-8 text-center text-text-faint">
+                  <td colSpan={4} className={themed('px-3 py-8 text-center text-text-faint', dk)}>
                     No ledger entries found. Post journal entries first.
                   </td>
                 </tr>
@@ -593,15 +595,15 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
       {!loading && !error && selectedCode && selectedAccount && (
         <>
           {/* Account summary row */}
-          <div className="px-3 py-1.5 bg-bg-row border-b flex flex-wrap gap-6 text-terminal-sm">
+          <div className={themed('px-3 py-1.5 bg-bg-row border-b flex flex-wrap gap-6 text-terminal-sm', dk)}>
             <div>
-              <span className="text-text-muted">Opening Balance</span>
+              <span className={themed('text-text-muted', dk)}>Opening Balance</span>
               <div className="font-semibold tabular-nums mt-0.5">
                 {fmtMoney(selectedAccount.openingBalance)}
               </div>
             </div>
             <div>
-              <span className="text-text-muted">Total Debits</span>
+              <span className={themed('text-text-muted', dk)}>Total Debits</span>
               <div className="font-semibold text-brand-red tabular-nums mt-0.5">
                 {fmtMoney(
                   selectedAccount.entries
@@ -611,7 +613,7 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
               </div>
             </div>
             <div>
-              <span className="text-text-muted">Total Credits</span>
+              <span className={themed('text-text-muted', dk)}>Total Credits</span>
               <div className="font-semibold text-brand-green tabular-nums mt-0.5">
                 {fmtMoney(
                   selectedAccount.entries
@@ -621,44 +623,44 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
               </div>
             </div>
             <div>
-              <span className="text-text-muted">Closing Balance</span>
+              <span className={themed('text-text-muted', dk)}>Closing Balance</span>
               <div className="font-semibold tabular-nums mt-0.5">
                 {fmtMoney(selectedAccount.closingBalance)}
               </div>
             </div>
-            <div className="ml-auto self-center text-text-muted">
+            <div className={themed('ml-auto self-center text-text-muted', dk)}>
               {selectedAccount.accountCode} - {selectedAccount.accountName} ({selectedAccount.accountType})
             </div>
           </div>
 
           {/* Virtualized table */}
-          <div className="overflow-x-auto border border-border">
+          <div className={themed('overflow-x-auto border border-border', dk)}>
             {/* Column headers */}
             <div className="min-w-[900px]">
-              <div className="bg-gray-50 text-text-secondary flex text-terminal-xs uppercase tracking-widest font-mono sticky top-0 z-10">
+              <div className={themed('bg-gray-50 text-text-secondary flex text-terminal-xs uppercase tracking-widest font-mono sticky top-0 z-10', dk)}>
                 <button
                   onClick={() => handleSort('date')}
-                  className="py-1 px-2 text-left w-[100px] hover:bg-gray-100 shrink-0"
+                  className={themed('py-1 px-2 text-left w-[100px] hover:bg-gray-100 shrink-0', dk)}
                 >
                   Date{sortArrow('date')}
                 </button>
                 <div className="py-1 px-2 text-left w-[90px] shrink-0">Entry #</div>
                 <button
                   onClick={() => handleSort('description')}
-                  className="py-1 px-2 text-left flex-1 hover:bg-gray-100"
+                  className={themed('py-1 px-2 text-left flex-1 hover:bg-gray-100', dk)}
                 >
                   Description{sortArrow('description')}
                 </button>
                 <button
                   onClick={() => handleSort('amount')}
-                  className="py-1 px-2 text-right w-[100px] hover:bg-gray-100 shrink-0"
+                  className={themed('py-1 px-2 text-right w-[100px] hover:bg-gray-100 shrink-0', dk)}
                 >
                   Debit{sortArrow('amount')}
                 </button>
                 <div className="py-1 px-2 text-right w-[100px] shrink-0">Credit</div>
                 <button
                   onClick={() => handleSort('balance')}
-                  className="py-1 px-2 text-right w-[110px] hover:bg-gray-100 shrink-0"
+                  className={themed('py-1 px-2 text-right w-[110px] hover:bg-gray-100 shrink-0', dk)}
                 >
                   Balance{sortArrow('balance')}
                 </button>
@@ -690,14 +692,14 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
                         }}
                         className={[
                           'flex items-center text-terminal-base',
-                          rowIdx % 2 === 0 ? 'bg-white' : 'bg-bg-row',
+                          rowIdx % 2 === 0 ? themed('bg-white', dk) : themed('bg-bg-row', dk),
                           'hover:bg-brand-purple/[.07]',
-                          isReversed ? 'text-text-faint' : '',
+                          isReversed ? themed('text-text-faint', dk) : '',
                           isReversal ? 'border-l-[3px] border-amber-400' : '',
                         ].join(' ')}
                       >
                         {/* Date */}
-                        <div className="py-1 px-2 w-[100px] shrink-0 whitespace-nowrap font-mono text-text-muted">
+                        <div className={themed('py-1 px-2 w-[100px] shrink-0 whitespace-nowrap font-mono text-text-muted', dk)}>
                           {fmtDate(entry.date)}
                         </div>
 
@@ -737,7 +739,7 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
                             </span>
                           )}
                           {status === 'Reversed' && (
-                            <span className="inline-block px-1.5 py-0.5 rounded text-[10px] bg-bg-row text-text-muted">
+                            <span className={themed('inline-block px-1.5 py-0.5 rounded text-[10px] bg-bg-row text-text-muted', dk)}>
                               Reversed
                             </span>
                           )}
@@ -756,15 +758,15 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
           </div>
 
           {/* Footer summary */}
-          <div className="px-3 py-1.5 bg-bg-row border-t flex justify-between text-terminal-sm">
-            <span className="text-text-secondary">
+          <div className={themed('px-3 py-1.5 bg-bg-row border-t flex justify-between text-terminal-sm', dk)}>
+            <span className={themed('text-text-secondary', dk)}>
               {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}
             </span>
-            <span className="text-text-secondary">
+            <span className={themed('text-text-secondary', dk)}>
               Total Debits:{' '}
               <span className="font-semibold text-brand-red">{fmtMoney(totalDebits)}</span>
             </span>
-            <span className="text-text-secondary">
+            <span className={themed('text-text-secondary', dk)}>
               Total Credits:{' '}
               <span className="font-semibold text-brand-green">{fmtMoney(totalCredits)}</span>
             </span>
@@ -774,7 +776,7 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
 
       {/* Account selected but not found in data */}
       {!loading && !error && selectedCode && !selectedAccount && (
-        <div className="p-8 text-center text-terminal-sm text-text-muted">
+        <div className={themed('p-8 text-center text-terminal-sm text-text-muted', dk)}>
           No ledger entries for account {selectedCode}.
         </div>
       )}

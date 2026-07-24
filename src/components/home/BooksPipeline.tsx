@@ -15,6 +15,7 @@ import PeriodClose from '@/components/dashboard/PeriodClose';
 import CloseBooksTab from '@/components/dashboard/CloseBooksTab';
 import PositionReportTab from '@/components/dashboard/PositionReportTab';
 import CPAExport from '@/components/dashboard/CPAExport';
+import { themed } from '@/lib/ds';
 
 /**
  * BOOKS-2 — the full bookkeeping PIPE for the homepage Books tab.
@@ -43,6 +44,8 @@ const fmt = (n: number) =>
   '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
 export default function BooksPipeline() {
+  // BOOKS-DS-1: single-consumer (the ML Books tab) — always dark.
+  const dk = true;
   const [year] = useState(new Date().getFullYear());
   const [state, setState] = useState<'loading' | 'error' | 'ok'>('loading');
 
@@ -157,7 +160,7 @@ export default function BooksPipeline() {
 
   if (state === 'loading') {
     return (
-      <div className="rounded-xl border-2 border-border bg-white px-4 py-3 text-sm text-text-muted">
+      <div className={themed('rounded-xl border-2 border-border bg-white px-4 py-3 text-sm text-text-muted', dk)}>
         Loading your books pipeline…
       </div>
     );
@@ -182,14 +185,14 @@ export default function BooksPipeline() {
   return (
     <div className="space-y-3">
       {/* 1. SRC — Source Accounts (dashboard :502). Linking/sync live in the cockpit above. */}
-      <BookkeepingSection title="Source Accounts" pipelineKey="SRC"
+      <BookkeepingSection surface="dark" title="Source Accounts" pipelineKey="SRC"
         subtitle={`${accounts.length} connected`}
         status={accounts.length > 0 ? 'complete' : 'pending'}
         collapsible defaultCollapsed={false}>
         <div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
-              <thead className="bg-gray-50 text-text-secondary">
+              <thead className={themed('bg-gray-50 text-text-secondary', dk)}>
                 <tr>
                   <th className="px-3 py-2 text-left font-medium">Institution</th>
                   <th className="px-3 py-2 text-left font-medium">Account</th>
@@ -198,7 +201,7 @@ export default function BooksPipeline() {
                   <th className="px-3 py-2 text-right font-medium">Balance</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className={themed('divide-y divide-border', dk)}>
                 {accounts.map((acc) => {
                   const et = acc.entityType;
                   const pillColor = et === 'personal' ? 'bg-blue-100 text-blue-700'
@@ -206,10 +209,10 @@ export default function BooksPipeline() {
                     : et === 'trading' ? 'bg-green-100 text-green-700'
                     : 'bg-orange-100 text-orange-700';
                   return (
-                    <tr key={acc.id} className="hover:bg-bg-row">
-                      <td className="px-3 py-2 font-medium text-text-primary">{acc.institutionName}</td>
-                      <td className="px-3 py-2 text-text-secondary font-mono">{'••••'} {acc.mask || '----'}</td>
-                      <td className="px-3 py-2"><span className="px-2 py-0.5 bg-bg-row text-text-secondary text-[10px] uppercase">{acc.type}</span></td>
+                    <tr key={acc.id} className={themed('hover:bg-bg-row', dk)}>
+                      <td className={themed('px-3 py-2 font-medium text-text-primary', dk)}>{acc.institutionName}</td>
+                      <td className={themed('px-3 py-2 text-text-secondary font-mono', dk)}>{'••••'} {acc.mask || '----'}</td>
+                      <td className="px-3 py-2"><span className={themed('px-2 py-0.5 bg-bg-row text-text-secondary text-[10px] uppercase', dk)}>{acc.type}</span></td>
                       <td className="px-3 py-2">
                         <select
                           value={acc.entityType || ''}
@@ -227,13 +230,13 @@ export default function BooksPipeline() {
                   );
                 })}
                 {accounts.length === 0 && (
-                  <tr><td colSpan={5} className="px-3 py-8 text-center text-text-faint">No accounts connected — link one from the cockpit above.</td></tr>
+                  <tr><td colSpan={5} className={themed('px-3 py-8 text-center text-text-faint', dk)}>No accounts connected — link one from the cockpit above.</td></tr>
                 )}
               </tbody>
-              <tfoot className="bg-bg-row border-t border-border">
+              <tfoot className={themed('bg-bg-row border-t border-border', dk)}>
                 <tr>
-                  <td colSpan={4} className="px-3 py-2 font-semibold text-text-primary">Total</td>
-                  <td className="px-3 py-2 text-right font-mono font-bold text-text-primary">{fmt(totalBalance)}</td>
+                  <td colSpan={4} className={themed('px-3 py-2 font-semibold text-text-primary', dk)}>Total</td>
+                  <td className={themed('px-3 py-2 text-right font-mono font-bold text-text-primary', dk)}>{fmt(totalBalance)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -242,60 +245,60 @@ export default function BooksPipeline() {
       </BookkeepingSection>
 
       {/* 2. CAT — Categorize (dashboard :568): the COA-assignment queue. */}
-      <BookkeepingSection title="Categorize Transactions" pipelineKey="CAT"
+      <BookkeepingSection surface="dark" title="Categorize Transactions" pipelineKey="CAT"
         subtitle={`${uncommittedSpending.length + uncommittedInvestments.length} pending`}
         status={uncommittedSpending.length + uncommittedInvestments.length > 0 ? 'action-needed' : 'complete'}>
         <div>
-          <div className="flex items-center gap-3 px-3 py-1.5 border-b border-border">
-            <div className="flex items-center border border-border bg-white">
+          <div className={themed('flex items-center gap-3 px-3 py-1.5 border-b border-border', dk)}>
+            <div className={themed('flex items-center border border-border bg-white', dk)}>
               <button onClick={() => setMappingTab('spending')}
-                className={`px-2 py-0.5 text-[10px] font-mono font-medium transition-colors ${
-                  mappingTab === 'spending' ? 'bg-brand-purple-wash text-brand-purple' : 'text-text-muted hover:text-text-primary'
-                }`}>
+                className={themed(`px-2 py-0.5 text-[10px] font-mono font-medium transition-colors ${
+                  mappingTab === 'spending' ? 'bg-brand-purple-wash text-brand-purple' : themed('text-text-muted hover:text-text-primary', dk)
+                }`, dk)}>
                 Spending <span className="font-bold text-brand-gold">{uncommittedSpending.length}</span>
               </button>
               <button onClick={() => setMappingTab('investments')}
-                className={`px-2 py-0.5 text-[10px] font-mono font-medium border-l border-border transition-colors ${
-                  mappingTab === 'investments' ? 'bg-brand-purple-wash text-brand-purple' : 'text-text-muted hover:text-text-primary'
-                }`}>
+                className={themed(`px-2 py-0.5 text-[10px] font-mono font-medium border-l border-border transition-colors ${
+                  mappingTab === 'investments' ? 'bg-brand-purple-wash text-brand-purple' : themed('text-text-muted hover:text-text-primary', dk)
+                }`, dk)}>
                 Investments <span className="font-bold text-brand-gold">{uncommittedInvestments.length}</span>
               </button>
             </div>
           </div>
           <div className="p-4">
-            {mappingTab === 'spending' && <SpendingTab transactions={uncommittedSpending} committedTransactions={committedSpending} coaOptions={coaOptions} onReload={reloadAll} />}
-            {mappingTab === 'investments' && <InvestmentsTab investmentTransactions={uncommittedInvestments} committedInvestments={committedInvestments} onReload={reloadAll} />}
+            {mappingTab === 'spending' && <SpendingTab surface="dark" transactions={uncommittedSpending} committedTransactions={committedSpending} coaOptions={coaOptions} onReload={reloadAll} />}
+            {mappingTab === 'investments' && <InvestmentsTab surface="dark" investmentTransactions={uncommittedInvestments} committedInvestments={committedInvestments} onReload={reloadAll} />}
           </div>
         </div>
       </BookkeepingSection>
 
       {/* 3. JE — Journal Entries (dashboard :596). */}
-      <BookkeepingSection title="Journal Entries" pipelineKey="JE"
+      <BookkeepingSection surface="dark" title="Journal Entries" pipelineKey="JE"
         subtitle={`${journalEntries.length} entries`}
         status={journalEntries.length > 0 ? 'complete' : 'pending'}>
         <div className="p-4">
-          <JournalEntryEngine journalTransactions={journalEntries} coaOptions={coaOptions} onSave={saveJournalEntry} onReload={reloadAll} />
+          <JournalEntryEngine surface="dark" journalTransactions={journalEntries} coaOptions={coaOptions} onSave={saveJournalEntry} onReload={reloadAll} />
         </div>
       </BookkeepingSection>
 
       {/* 4. LDG — General Ledger (dashboard :605). */}
-      <BookkeepingSection title="General Ledger" pipelineKey="LDG"
+      <BookkeepingSection surface="dark" title="General Ledger" pipelineKey="LDG"
         subtitle={`${committedCount * 2} entries`}
         status={committedCount > 0 ? 'complete' : 'pending'}>
         <div className="p-4">
-          <GeneralLedger coaOptions={coaOptions} onReload={reloadAll} />
+          <GeneralLedger surface="dark" coaOptions={coaOptions} onReload={reloadAll} />
         </div>
       </BookkeepingSection>
 
       {/* 5. TB — Trial Balance (dashboard :614, self-fetching). */}
-      <BookkeepingSection title="Trial Balance" pipelineKey="TB" status="pending">
-        <TrialBalanceSection />
+      <BookkeepingSection surface="dark" title="Trial Balance" pipelineKey="TB" status="pending">
+        <TrialBalanceSection surface="dark" />
       </BookkeepingSection>
 
       {/* 6. REC — Bank Reconciliation (dashboard :620). */}
-      <BookkeepingSection title="Bank Reconciliation" pipelineKey="REC" status="pending">
+      <BookkeepingSection surface="dark" title="Bank Reconciliation" pipelineKey="REC" status="pending">
         <div className="p-2">
-          <BankReconciliation
+          <BankReconciliation surface="dark"
             accounts={accounts}
             transactions={transactions}
             reconciliations={reconciliations}
@@ -314,24 +317,24 @@ export default function BooksPipeline() {
       </BookkeepingSection>
 
       {/* 7. ADJ — Adjusting Entries (dashboard :644, self-fetching). */}
-      <BookkeepingSection title="Adjusting Entries" pipelineKey="ADJ" status="pending">
-        <AdjustingEntriesTab />
+      <BookkeepingSection surface="dark" title="Adjusting Entries" pipelineKey="ADJ" status="pending">
+        <AdjustingEntriesTab surface="dark" />
       </BookkeepingSection>
 
       {/* 8. STMT — Financial Statements (dashboard :650, self-fetching). */}
-      <BookkeepingSection title="Financial Statements" pipelineKey="STMT" status="pending">
-        <FinancialStatementsTab />
+      <BookkeepingSection surface="dark" title="Financial Statements" pipelineKey="STMT" status="pending">
+        <FinancialStatementsTab surface="dark" />
       </BookkeepingSection>
 
       {/* 9. TAX-LOT — Tax Lot Accounting & Wash Sales (dashboard :657, self-fetching). */}
-      <BookkeepingSection title="Tax Lot Accounting & Wash Sales" pipelineKey="TAX-LOT" status="pending">
-        <WashSaleReportTab />
+      <BookkeepingSection surface="dark" title="Tax Lot Accounting & Wash Sales" pipelineKey="TAX-LOT" status="pending">
+        <WashSaleReportTab surface="dark" />
       </BookkeepingSection>
 
       {/* 10. CLOSE — Period Close (dashboard :663). */}
-      <BookkeepingSection title="Period Close" pipelineKey="CLOSE" status="pending">
+      <BookkeepingSection surface="dark" title="Period Close" pipelineKey="CLOSE" status="pending">
         <div className="p-2">
-          <PeriodClose
+          <PeriodClose surface="dark"
             transactions={transactions}
             reconciliations={reconciliations}
             periodCloses={periodCloses}
@@ -366,22 +369,22 @@ export default function BooksPipeline() {
       </BookkeepingSection>
 
       {/* 11. CLOSE-YE — Year-End Close (dashboard :703). */}
-      <BookkeepingSection title="Year-End Close" pipelineKey="CLOSE-YE" status="pending">
+      <BookkeepingSection surface="dark" title="Year-End Close" pipelineKey="CLOSE-YE" status="pending">
         <div className="p-2">
-          <CloseBooksTab entityId={entityId} selectedYear={year} />
+          <CloseBooksTab surface="dark" entityId={entityId} selectedYear={year} />
         </div>
       </BookkeepingSection>
 
       {/* 12. POS — Position Report (dashboard :714, self-fetching). */}
-      <BookkeepingSection title="Position Report" pipelineKey="POS" status="pending">
-        <PositionReportTab />
+      <BookkeepingSection surface="dark" title="Position Report" pipelineKey="POS" status="pending">
+        <PositionReportTab surface="dark" />
       </BookkeepingSection>
 
       {/* 13. EXP — CPA Export (dashboard :745). The dashboard's Tax-forms link (:720) is
           intentionally omitted — Tax is its own homepage tab, not part of this pipe. */}
-      <BookkeepingSection title="CPA Export" pipelineKey="EXP" status="pending">
+      <BookkeepingSection surface="dark" title="CPA Export" pipelineKey="EXP" status="pending">
         <div className="p-4">
-          <CPAExport year={year} entityId={entityId} />
+          <CPAExport surface="dark" year={year} entityId={entityId} />
         </div>
       </BookkeepingSection>
     </div>

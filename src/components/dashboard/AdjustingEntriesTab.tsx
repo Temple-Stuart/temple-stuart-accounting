@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { themed, type Surface } from '@/lib/ds';
 
 interface CoaOption {
   id: string;
@@ -15,7 +16,8 @@ interface EntryLine {
   amount: string;
 }
 
-export default function AdjustingEntriesTab() {
+export default function AdjustingEntriesTab({ surface = 'light' }: { surface?: Surface } = {}) {
+  const dk = surface === 'dark';
   const [coaOptions, setCoaOptions] = useState<CoaOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -142,13 +144,13 @@ export default function AdjustingEntriesTab() {
 
   return (
     <div className="p-4">
-      <div className="bg-white">
+      <div className={themed('bg-white', dk)}>
         <h3 className="text-terminal-lg font-semibold mb-4">New Adjusting Entry</h3>
 
         {/* Date and Description */}
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-1">Date</label>
+            <label className={themed('block text-sm font-medium text-text-secondary mb-1', dk)}>Date</label>
             <input
               type="date"
               value={date}
@@ -157,7 +159,7 @@ export default function AdjustingEntriesTab() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-1">Description</label>
+            <label className={themed('block text-sm font-medium text-text-secondary mb-1', dk)}>Description</label>
             <input
               type="text"
               placeholder="e.g. Accrued rent expense"
@@ -171,7 +173,7 @@ export default function AdjustingEntriesTab() {
         {/* Entry Lines */}
         <div className="mb-4">
           <div className="flex justify-between items-center mb-2">
-            <label className="block text-sm font-medium text-text-secondary">Journal Entry Lines</label>
+            <label className={themed('block text-sm font-medium text-text-secondary', dk)}>Journal Entry Lines</label>
             <button
               onClick={addLine}
               className="px-3 py-1 bg-brand-purple text-white rounded text-sm"
@@ -238,15 +240,15 @@ export default function AdjustingEntriesTab() {
         <div className="border-t pt-4 mb-4">
           <div className="flex justify-end gap-8 text-sm">
             <div>
-              <span className="text-text-secondary">Total Debits:</span>
+              <span className={themed('text-text-secondary', dk)}>Total Debits:</span>
               <span className="ml-2 font-semibold text-brand-purple">${totalDebits.toFixed(2)}</span>
             </div>
             <div>
-              <span className="text-text-secondary">Total Credits:</span>
+              <span className={themed('text-text-secondary', dk)}>Total Credits:</span>
               <span className="ml-2 font-semibold text-brand-green">${totalCredits.toFixed(2)}</span>
             </div>
             <div>
-              <span className="text-text-secondary">Difference:</span>
+              <span className={themed('text-text-secondary', dk)}>Difference:</span>
               <span className={`ml-2 font-semibold ${balanced ? 'text-brand-green' : 'text-brand-red'}`}>
                 ${Math.abs(totalDebits - totalCredits).toFixed(2)}
               </span>
@@ -264,11 +266,11 @@ export default function AdjustingEntriesTab() {
           <button
             onClick={handleSubmit}
             disabled={!canSubmit() || loading}
-            className={`px-6 py-2 rounded text-sm font-medium ${
+            className={themed(`px-6 py-2 rounded text-sm font-medium ${
               canSubmit() && !loading
                 ? 'bg-brand-purple text-white hover:bg-brand-accent-dark'
-                : 'bg-border text-text-muted cursor-not-allowed'
-            }`}
+                : themed('bg-border text-text-muted cursor-not-allowed', dk)
+            }`, dk)}
           >
             {loading ? 'Creating...' : 'Create Adjusting Entry'}
           </button>
