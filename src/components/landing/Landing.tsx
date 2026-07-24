@@ -690,6 +690,18 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
                 astuart@templestuart.com
               </a>
             </p>
+            {/* EXPORT-1b: the ownership line — ships ONLY because the capability
+                now exists: GET /api/export (EXPORT-1), whose constitutional
+                header rules it NEVER paywalled (no tier gate, no entitlement
+                gate — verified email + user scoping only; src/app/api/export/
+                route.ts). WORDING CALL: "your complete financial records", not
+                "everything" — the EXPORT-1 enumeration covers the 27-table
+                financial spine + travel and EXCLUDES operations/content/
+                planning tables, so "everything" would overstate. "One click" =
+                the Export-my-data button (header + Books tab). */}
+            <p className="mt-1 font-mono text-xs text-white/50">
+              You always own your ledger — export your complete financial records, one click, never paywalled.
+            </p>
           </div>
 
           {/* ── TOGGLE-1: the lobby books — the five-way toggle strip, mounted
