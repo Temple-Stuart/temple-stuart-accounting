@@ -868,13 +868,16 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           scan API is tab:trade-gated too (TAB-SERVER-GATE flipped it off requireAdmin,
           api/trading/convergence/route.ts) — an entitled non-admin's scan runs, with the
           per-user run quota from SCAN-SPEND-QUOTA on top. */}
-      <section className={`w-full bg-white border-b border-border ${activeModule === 'trade' ? 'block' : 'hidden'}`}>
+      {/* TRADE-DS-1: the Trade tab joins the dark shell — DS wrapper; the shared
+          workbench components get surface="dark" (their /trading mounts pass
+          nothing → light, byte-identical via themed()). */}
+      <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'trade' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
             {!tradeLocked ? (
               <>
                 {/* LANG-1: disclaimer at the top of the Trade tab (persistent, visible). */}
-                <TradingDataDisclaimer />
+                <TradingDataDisclaimer surface="dark" />
                 {/* RISK-1: coverage declaration — what has actually synced (below the disclaimer). */}
                 <CoverageDeclaration />
                 {/* TRACK-1: the self-graded track record (claimed vs actual) — the honesty header. */}
@@ -887,6 +890,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                   onFiltersChange={handleFiltersChange}
                   scanTriggerRef={scanTriggerRef}
                   showHeader={false}
+                  surface="dark"
                 />
                 <ConvergenceIntelligence
                   externalFilters={scannerFilters}
@@ -896,10 +900,11 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                   hideControls={true}
                   scanTriggerRef={scanTriggerRef}
                   scanningRef={scanningRef}
+                  surface="dark"
                 />
                 {/* TRADE-1: closes the loop — queue viewer + link-to-reality + grade. Self-fetches
                     /api/trade-cards + /api/trade-card-links (0 required props, TradeLabPanel.tsx:50). */}
-                <TradeLabPanel />
+                <TradeLabPanel surface="dark" />
               </>
             ) : (
               <>
@@ -913,6 +918,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                   valueLine="Run live scans on real market data, with the reconcile queue and the self-graded record."
                   currentUserId={currentUserId}
                   onRequireAuth={onRequireAuth}
+                  surface="dark"
                 />
               </>
             )}

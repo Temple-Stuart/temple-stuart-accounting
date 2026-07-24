@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { formatMoney, moneyColorClass } from '@/lib/money';
+import { themed, type Surface } from '@/lib/ds';
 
 interface TradeCard {
   id: string;
@@ -47,7 +48,8 @@ interface MatchablePosition {
   expiration_date: string | null;
 }
 
-export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () => void }) {
+export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { onCardsChange?: () => void; surface?: Surface }) {
+  const dk = surface === 'dark';
   const [cards, setCards] = useState<TradeCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
@@ -306,10 +308,10 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
       {/* RISK-1: coverage stats strip — denominator always visible (no win-rate without it).
           Renders only when coverage loaded; never fabricated on failure. */}
       {coverage && (
-        <div className="border-b border-border bg-white px-4 py-1.5 text-[11px] text-text-muted">
-          Linked cards: <span className="font-mono font-semibold text-text-primary">{coverage.linked_card_count}</span>
-          {' · '}Closed positions: <span className="font-mono font-semibold text-text-primary">{coverage.closed_position_count}</span>
-          {' · '}Unlinked: <span className="font-mono font-semibold text-text-primary">{coverage.unlinked_closed_count}</span>
+        <div className={themed('border-b border-border bg-white px-4 py-1.5 text-[11px] text-text-muted', dk)}>
+          Linked cards: <span className={themed('font-mono font-semibold text-text-primary', dk)}>{coverage.linked_card_count}</span>
+          {' · '}Closed positions: <span className={themed('font-mono font-semibold text-text-primary', dk)}>{coverage.closed_position_count}</span>
+          {' · '}Unlinked: <span className={themed('font-mono font-semibold text-text-primary', dk)}>{coverage.unlinked_closed_count}</span>
         </div>
       )}
 
@@ -322,7 +324,7 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
               type="date"
               value={startDateInput}
               onChange={e => setStartDateInput(e.target.value)}
-              className="border border-amber-300 rounded px-1 py-0.5 text-xs bg-white"
+              className={themed('border border-amber-300 rounded px-1 py-0.5 text-xs bg-white', dk)}
             />
             <button
               onClick={() => saveScannerStartDate(startDateInput)}
@@ -332,7 +334,7 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
             </button>
             <button
               onClick={() => setEditingStartDate(false)}
-              className="text-xs text-gray-500 hover:text-gray-700"
+              className={themed('text-xs text-gray-500 hover:text-gray-700', dk)}
             >
               Cancel
             </button>
@@ -368,16 +370,16 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
       </div>
 
       {loading ? (
-        <div className="p-8 text-center text-sm text-text-muted">Loading trade cards...</div>
+        <div className={themed('p-8 text-center text-sm text-text-muted', dk)}>Loading trade cards...</div>
       ) : cards.length === 0 ? (
         <div className="p-12 text-center">
-          <div className="text-text-faint text-sm mb-2">No trade cards {filter !== 'all' ? `with status "${filter}"` : 'yet'}</div>
-          <div className="text-text-faint text-xs">
+          <div className={themed('text-text-faint text-sm mb-2', dk)}>No trade cards {filter !== 'all' ? `with status "${filter}"` : 'yet'}</div>
+          <div className={themed('text-text-faint text-xs', dk)}>
             Use Market Intelligence to scan for opportunities, then click &ldquo;Enter Trade&rdquo; on any strategy card to save it here.
           </div>
         </div>
       ) : (
-        <div className="divide-y divide-border">
+        <div className={themed('divide-y divide-border', dk)}>
           {cards.map(card => {
             const dir = dirColor(card.direction);
             const badge = statusBadge(card.status);
@@ -391,19 +393,19 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
               <div key={card.id}>
                 {/* Card row */}
                 <div
-                  className={`px-4 py-3 transition-colors cursor-pointer ${
+                  className={themed(`px-4 py-3 transition-colors cursor-pointer ${
                     card.status === 'graded' && card.link?.grade
                       ? Number(card.link.actual_pl) >= 0 ? 'bg-green-50 hover:bg-green-100' : 'bg-red-50 hover:bg-red-100'
                       : 'hover:bg-bg-row'
-                  }`}
+                  }`, dk)}
                   onClick={() => setExpandedCardId(isExpanded ? null : card.id)}
                 >
                   <div className="flex items-start justify-between gap-4">
                     {/* Left: symbol + strategy */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="text-base font-bold font-mono text-text-primary">{card.symbol}</span>
-                        <span className="text-xs font-medium text-text-secondary">{card.strategy_name}</span>
+                        <span className={themed('text-base font-bold font-mono text-text-primary', dk)}>{card.symbol}</span>
+                        <span className={themed('text-xs font-medium text-text-secondary', dk)}>{card.strategy_name}</span>
                         <span className="px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ background: dir.bg, color: dir.text }}>
                           {card.direction.toUpperCase()}
                         </span>
@@ -419,7 +421,7 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
                       </div>
 
                       {/* Legs */}
-                      <div className="flex gap-3 text-[11px] text-text-muted mb-1 flex-wrap">
+                      <div className={themed('flex gap-3 text-[11px] text-text-muted mb-1 flex-wrap', dk)}>
                         {legs.map((leg, i) => (
                           <span key={i} className="font-mono">
                             <span className={leg.side === 'sell' ? 'text-brand-red' : 'text-brand-green'}>{leg.side.toUpperCase()}</span>
@@ -429,7 +431,7 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
                       </div>
 
                       {/* Meta row */}
-                      <div className="flex items-center gap-4 text-[10px] text-text-faint flex-wrap">
+                      <div className={themed('flex items-center gap-4 text-[10px] text-text-faint flex-wrap', dk)}>
                         <span>Queued {fmtDate(card.generated_at)}</span>
                         {card.dte != null && <span>{card.dte} DTE</span>}
                         {card.expiration_date && <span>Exp {fmtDateShort(card.expiration_date)}</span>}
@@ -443,7 +445,7 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
                       {/* Actual P&L for graded cards */}
                       {card.link?.actual_pl != null && (
                         <div className="mb-1">
-                          <div className="text-[9px] text-text-faint uppercase">Actual P&L</div>
+                          <div className={themed('text-[9px] text-text-faint uppercase', dk)}>Actual P&L</div>
                           <div className={`text-terminal-lg font-mono font-black ${moneyColorClass(Number(card.link.actual_pl), 'pnl')}`}>
                             {formatMoney(Number(card.link.actual_pl), { kind: 'pnl', fractionDigits: 0 })}
                           </div>
@@ -451,13 +453,13 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
                       )}
 
                       <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[11px]">
-                        <div className="text-text-faint">Max Profit</div>
+                        <div className={themed('text-text-faint', dk)}>Max Profit</div>
                         <div className="font-mono font-bold text-brand-green">{fmtDollar(card.max_profit)}</div>
-                        <div className="text-text-faint">Max Loss</div>
+                        <div className={themed('text-text-faint', dk)}>Max Loss</div>
                         <div className="font-mono font-bold text-brand-red">{fmtDollar(card.max_loss)}</div>
-                        <div className="text-text-faint" title="Estimated Probability of Profit based on delta approximation">Est. PoP</div>
+                        <div className={themed('text-text-faint', dk)} title="Estimated Probability of Profit based on delta approximation">Est. PoP</div>
                         <div className="font-mono font-bold">{card.win_rate != null ? `${Number(card.win_rate).toFixed(1)}%` : '\u2014'}</div>
-                        <div className="text-text-faint">R:R</div>
+                        <div className={themed('text-text-faint', dk)}>R:R</div>
                         <div className="font-mono font-bold">{card.risk_reward != null ? Number(card.risk_reward).toFixed(2) : '\u2014'}</div>
                       </div>
 
@@ -474,7 +476,7 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
                             </button>
                             <button
                               onClick={() => deleteCard(card.id)}
-                              className="text-[10px] text-text-faint hover:text-brand-red transition-colors"
+                              className={themed('text-[10px] text-text-faint hover:text-brand-red transition-colors', dk)}
                             >
                               Remove
                             </button>
@@ -493,7 +495,7 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
                             </button>
                             <button
                               onClick={() => unlinkCard(card.link!.id)}
-                              className="text-[10px] text-text-faint hover:text-brand-red transition-colors"
+                              className={themed('text-[10px] text-text-faint hover:text-brand-red transition-colors', dk)}
                             >
                               Unlink
                             </button>
@@ -504,7 +506,7 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
                         {card.status === 'graded' && card.link && (
                           <button
                             onClick={() => unlinkCard(card.link!.id)}
-                            className="text-[10px] text-text-faint hover:text-brand-red transition-colors"
+                            className={themed('text-[10px] text-text-faint hover:text-brand-red transition-colors', dk)}
                           >
                             Unlink
                           </button>
@@ -524,9 +526,9 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
                       <div className="text-xs text-brand-red mb-2">{linkError}</div>
                     )}
                     {loadingPositions ? (
-                      <div className="text-xs text-text-muted">Loading positions...</div>
+                      <div className={themed('text-xs text-text-muted', dk)}>Loading positions...</div>
                     ) : matchablePositions.length === 0 ? (
-                      <div className="text-xs text-text-muted">
+                      <div className={themed('text-xs text-text-muted', dk)}>
                         No matching positions yet &mdash; execute the trade and commit it in Books first.
                       </div>
                     ) : (
@@ -535,22 +537,22 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
                           <button
                             key={pos.trade_num}
                             onClick={() => linkToPosition(card.id, pos.trade_num)}
-                            className="w-full text-left px-3 py-2 rounded bg-white border border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                            className={themed('w-full text-left px-3 py-2 rounded bg-white border border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-colors', dk)}
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2 text-xs">
-                                <span className="font-mono font-bold text-text-primary">#{pos.trade_num}</span>
-                                <span className="font-medium text-text-secondary">{pos.symbol}</span>
-                                {pos.strategy && <span className="text-text-muted">{pos.strategy}</span>}
+                                <span className={themed('font-mono font-bold text-text-primary', dk)}>#{pos.trade_num}</span>
+                                <span className={themed('font-medium text-text-secondary', dk)}>{pos.symbol}</span>
+                                {pos.strategy && <span className={themed('text-text-muted', dk)}>{pos.strategy}</span>}
                                 {pos.option_type && (
-                                  <span className="text-text-faint">
+                                  <span className={themed('text-text-faint', dk)}>
                                     {pos.option_type} {pos.strike_price ? `$${pos.strike_price}` : ''}
                                   </span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-2 text-[10px] text-text-faint">
+                              <div className={themed('flex items-center gap-2 text-[10px] text-text-faint', dk)}>
                                 <span>{fmtDateShort(pos.open_date)}</span>
-                                <span className={`px-1.5 py-0.5 rounded font-bold ${pos.status === 'OPEN' ? 'bg-green-100 text-brand-green' : 'bg-bg-row text-text-secondary'}`}>
+                                <span className={themed(`px-1.5 py-0.5 rounded font-bold ${pos.status === 'OPEN' ? 'bg-green-100 text-brand-green' : 'bg-bg-row text-text-secondary'}`, dk)}>
                                   {pos.status}
                                 </span>
                               </div>
@@ -564,31 +566,31 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
 
                 {/* Expanded scorecard */}
                 {isExpanded && (
-                  <div className="px-4 py-3 bg-bg-row border-t border-border">
+                  <div className={themed('px-4 py-3 bg-bg-row border-t border-border', dk)}>
                     <div className="grid grid-cols-2 gap-4">
                       {/* Left: Predicted */}
                       <div>
-                        <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2">Predicted</div>
+                        <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2', dk)}>Predicted</div>
                         <div className="space-y-1 text-xs">
                           <div className="flex justify-between">
-                            <span className="text-text-muted">Max Profit</span>
+                            <span className={themed('text-text-muted', dk)}>Max Profit</span>
                             <span className="font-mono font-bold text-brand-green">{fmtDollar(card.max_profit)}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-text-muted">Max Loss</span>
+                            <span className={themed('text-text-muted', dk)}>Max Loss</span>
                             <span className="font-mono font-bold text-brand-red">{fmtDollar(card.max_loss)}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-text-muted" title="Estimated Probability of Profit based on delta approximation">Est. PoP</span>
+                            <span className={themed('text-text-muted', dk)} title="Estimated Probability of Profit based on delta approximation">Est. PoP</span>
                             <span className="font-mono font-bold">{card.win_rate != null ? `${Number(card.win_rate).toFixed(1)}%` : '\u2014'}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-text-muted">R:R</span>
+                            <span className={themed('text-text-muted', dk)}>R:R</span>
                             <span className="font-mono font-bold">{card.risk_reward != null ? Number(card.risk_reward).toFixed(2) : '\u2014'}</span>
                           </div>
                           {card.entry_price != null && (
                             <div className="flex justify-between">
-                              <span className="text-text-muted">Entry Price</span>
+                              <span className={themed('text-text-muted', dk)}>Entry Price</span>
                               <span className="font-mono font-bold">${Number(card.entry_price).toFixed(2)}</span>
                             </div>
                           )}
@@ -599,29 +601,29 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
                       <div>
                         {card.link ? (
                           <>
-                            <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2">Actual</div>
+                            <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2', dk)}>Actual</div>
                             <div className="space-y-1 text-xs">
                               <div className="flex justify-between">
-                                <span className="text-text-muted">P&L</span>
-                                <span className={`font-mono font-bold ${card.link.actual_pl != null ? moneyColorClass(Number(card.link.actual_pl), 'pnl') : 'text-text-secondary'}`}>
+                                <span className={themed('text-text-muted', dk)}>P&L</span>
+                                <span className={themed(`font-mono font-bold ${card.link.actual_pl != null ? moneyColorClass(Number(card.link.actual_pl), 'pnl') : 'text-text-secondary'}`, dk)}>
                                   {card.link.actual_pl != null ? formatMoney(Number(card.link.actual_pl), { kind: 'pnl', fractionDigits: 0 }) : 'Open'}
                                 </span>
                               </div>
                               {card.link.actual_entry_price != null && (
                                 <div className="flex justify-between">
-                                  <span className="text-text-muted">Entry Price</span>
+                                  <span className={themed('text-text-muted', dk)}>Entry Price</span>
                                   <span className="font-mono font-bold">${Number(card.link.actual_entry_price).toFixed(2)}</span>
                                 </div>
                               )}
                               {card.link.actual_exit_price != null && (
                                 <div className="flex justify-between">
-                                  <span className="text-text-muted">Exit Price</span>
+                                  <span className={themed('text-text-muted', dk)}>Exit Price</span>
                                   <span className="font-mono font-bold">${Number(card.link.actual_exit_price).toFixed(2)}</span>
                                 </div>
                               )}
                               {card.link.grade && (
                                 <div className="flex justify-between items-center mt-2">
-                                  <span className="text-text-muted">Grade</span>
+                                  <span className={themed('text-text-muted', dk)}>Grade</span>
                                   <span className="px-3 py-1 rounded text-terminal-lg font-black" style={{ background: gradeColor(card.link.grade).bg, color: gradeColor(card.link.grade).text }}>
                                     {card.link.grade}
                                   </span>
@@ -631,8 +633,8 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
                           </>
                         ) : (
                           <div>
-                            <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2">Actual</div>
-                            <div className="text-xs text-text-faint italic">Not yet linked to a position</div>
+                            <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2', dk)}>Actual</div>
+                            <div className={themed('text-xs text-text-faint italic', dk)}>Not yet linked to a position</div>
                           </div>
                         )}
                       </div>
@@ -640,8 +642,8 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
 
                     {/* Thesis points with checkmarks */}
                     {card.thesis_points && card.thesis_points.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-border">
-                        <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5">Thesis</div>
+                      <div className={themed('mt-3 pt-3 border-t border-border', dk)}>
+                        <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5', dk)}>Thesis</div>
                         <div className="space-y-1">
                           {(card.thesis_points as string[]).map((pt, i) => {
                             const result = card.link?.thesis_results?.[i];
@@ -650,9 +652,9 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
                                 <span className="shrink-0 w-4 text-center">
                                   {result === true ? <span className="text-brand-green">&#10003;</span> :
                                    result === false ? <span className="text-brand-red">&#10005;</span> :
-                                   <span className="text-text-faint">&bull;</span>}
+                                   <span className={themed('text-text-faint', dk)}>&bull;</span>}
                                 </span>
-                                <span className="text-text-secondary">{pt}</span>
+                                <span className={themed('text-text-secondary', dk)}>{pt}</span>
                               </div>
                             );
                           })}
@@ -662,17 +664,17 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
 
                     {/* Macro regime */}
                     {card.macro_regime && (
-                      <div className="mt-3 pt-3 border-t border-border">
-                        <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1">Regime</div>
-                        <div className="text-xs text-text-secondary">{card.macro_regime}</div>
+                      <div className={themed('mt-3 pt-3 border-t border-border', dk)}>
+                        <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1', dk)}>Regime</div>
+                        <div className={themed('text-xs text-text-secondary', dk)}>{card.macro_regime}</div>
                       </div>
                     )}
 
                     {/* Link notes */}
                     {card.link?.notes && (
-                      <div className="mt-3 pt-3 border-t border-border">
-                        <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1">Notes</div>
-                        <div className="text-xs text-text-secondary">{card.link.notes}</div>
+                      <div className={themed('mt-3 pt-3 border-t border-border', dk)}>
+                        <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1', dk)}>Notes</div>
+                        <div className={themed('text-xs text-text-secondary', dk)}>{card.link.notes}</div>
                       </div>
                     )}
                   </div>
