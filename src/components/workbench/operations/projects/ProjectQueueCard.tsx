@@ -13,7 +13,7 @@
 
 import { useEffect, useState } from 'react';
 import type { Project, ProjectStatus } from './types';
-import { STATUS_LABELS, STATUS_PILL_CLASSES } from './types';
+import { STATUS_LABELS, STATUS_PILL_CLASSES, formatAllocatedCents } from './types';
 import { themed, type Surface } from '@/lib/ds';
 
 // Left-stripe color by status — a quick visual scan of the backlog.
@@ -76,6 +76,17 @@ export default function ProjectQueueCard({ surface = 'light', project, taskCount
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
+        {/* PROJECTS-UX-2: real allocated ledger money on the collapsed card —
+            the ROUTINES collapsed-row precedent (mono numeral, right-aligned).
+            No links / failed rollup → nothing renders. */}
+        {project.ledger_allocated && (
+          <span
+            className={themed('font-mono tabular-nums font-bold text-text-primary text-xs', dk)}
+            title="allocated from ledger"
+          >
+            {formatAllocatedCents(project.ledger_allocated.cents)}
+          </span>
+        )}
         <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${STATUS_PILL_CLASSES[project.status]}`}>
           {STATUS_LABELS[project.status]}
         </span>

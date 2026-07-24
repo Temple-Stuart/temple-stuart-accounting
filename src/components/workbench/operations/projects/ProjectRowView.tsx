@@ -23,7 +23,7 @@
 'use client';
 
 import type { Project, ProjectForm, ProjectStatus } from './types';
-import { STATUS_LABELS, STATUS_PILL_CLASSES } from './types';
+import { STATUS_LABELS, STATUS_PILL_CLASSES, formatAllocatedCents } from './types';
 import ListManager from './ListManager';
 import InspectionDrawer, { type InspectionData } from '../ai/InspectionDrawer';
 import AITaskPreview, { type AIGeneratedTask } from './AITaskPreview';
@@ -412,6 +412,28 @@ export default function ProjectRowView({ surface = 'light',
               <div className={themed('font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs', dk)}>est. cost (usd)</div>
               <div className={themed('text-text-primary font-mono tabular-nums font-bold', dk)}>{project.estimated_total_cost_usd ?? '—'}</div>
             </div>
+            {/* PROJECTS-UX-2: REAL ledger money — the DIM allocation rollup,
+                rendered DISTINCT from the self-reported estimate beside it
+                (label honesty is load-bearing). Coverage declared per the
+                DIM-1 doctrine (N ledger lines feed the sum). No links or a
+                failed rollup → the cell does not render — no fabricated
+                zeros, no dashes (the ROUTINES absence-is-honest precedent). */}
+            {project.ledger_allocated && (
+              <div>
+                <div
+                  className={themed('font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs', dk)}
+                  title="Real money from your ledger, allocated to this project via line links — distinct from the self-reported estimates"
+                >
+                  allocated from ledger
+                </div>
+                <div className={themed('text-text-primary font-mono tabular-nums font-bold', dk)}>
+                  {formatAllocatedCents(project.ledger_allocated.cents)}
+                </div>
+                <div className={themed('text-[10px] font-mono text-text-faint mt-0.5', dk)}>
+                  {project.ledger_allocated.line_count} ledger line{project.ledger_allocated.line_count === 1 ? '' : 's'} · {project.ledger_allocated.link_count} link{project.ledger_allocated.link_count === 1 ? '' : 's'}
+                </div>
+              </div>
+            )}
           </div>
           <div className={themed('flex items-center gap-2 pt-2 border-t border-border-light', dk)}>
             <button

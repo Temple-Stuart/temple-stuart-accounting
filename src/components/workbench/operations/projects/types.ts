@@ -47,6 +47,18 @@ export interface Project {
   // because other fetches of a Project don't compute them.
   task_count?: number;
   run_count?: number;
+  // PROJECTS-UX-2: REAL ledger money allocated to this project (the DIM
+  // ledger_line_links rollup, computed server-side in /api/operations/projects
+  // — read-only, user-scoped, D−C netted, coverage declared). Distinct from
+  // the self-reported estimated/actual_cost_usd fields. An object when links
+  // exist; null when none; ABSENT when the rollup read failed — the display
+  // renders NOTHING in both non-object cases (absence is honest).
+  ledger_allocated?: {
+    cents: number;
+    dollars: string;
+    link_count: number;
+    line_count: number;
+  } | null;
 }
 
 /**
@@ -288,3 +300,14 @@ export const DEPENDENCY_TYPE_DESCRIPTIONS: Record<DependencyType, string> = {
   informs: 'this project should reference the target (advisory, mutual cycles allowed)',
   derived_from: "this project's design originated from the target (lineage)",
 };
+
+// PROJECTS-UX-2: display formatter for allocated ledger cents (server-rounded
+// integer cents). Display only — locale formatting, sign rendered as a leading
+// minus for net-credit projects. Callers render NOTHING for a missing rollup.
+export function formatAllocatedCents(cents: number): string {
+  const abs = (Math.abs(cents) / 100).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return `${cents < 0 ? '−' : ''}$${abs}`;
+}
