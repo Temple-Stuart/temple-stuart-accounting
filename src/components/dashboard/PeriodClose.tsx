@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { themed, type Surface } from '@/lib/ds';
 
 interface Transaction {
   id: string;
@@ -37,7 +38,8 @@ interface PeriodCloseProps {
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 
                 'July', 'August', 'September', 'October', 'November', 'December'];
 
-export default function PeriodClose({ transactions, reconciliations, periodCloses, selectedYear, onClose, onReopen, onReload }: PeriodCloseProps) {
+export default function PeriodClose({ transactions, reconciliations, periodCloses, selectedYear, onClose, onReopen, onReload, surface = 'light' }: PeriodCloseProps & { surface?: Surface }) {
+  const dk = surface === 'dark';
   const [closing, setClosing] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
   const [processing, setProcessing] = useState(false);
@@ -122,11 +124,11 @@ export default function PeriodClose({ transactions, reconciliations, periodClose
   };
 
   return (
-    <div className="bg-white overflow-hidden">
-      <div className="px-4 py-3 border-b bg-bg-row">
+    <div className={themed('bg-white overflow-hidden', dk)}>
+      <div className={themed('px-4 py-3 border-b bg-bg-row', dk)}>
         <div className="flex items-center justify-between">
           <div>
-            <span className="text-sm text-text-secondary">Fiscal Year {selectedYear}</span>
+            <span className={themed('text-sm text-text-secondary', dk)}>Fiscal Year {selectedYear}</span>
           </div>
           <div className="flex items-center gap-4 text-xs">
             <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-500 rounded-full"></span> Closed</span>
@@ -138,7 +140,7 @@ export default function PeriodClose({ transactions, reconciliations, periodClose
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-text-secondary">
+          <thead className={themed('bg-gray-50 text-text-secondary', dk)}>
             <tr>
               <th className="px-4 py-3 text-left font-semibold">Month</th>
               <th className="px-4 py-3 text-right font-semibold">Transactions</th>
@@ -164,7 +166,7 @@ export default function PeriodClose({ transactions, reconciliations, periodClose
                     {monthName}
                     {isCurrent && <span className="ml-2 text-xs text-brand-purple">(Current)</span>}
                   </td>
-                  <td className="px-4 py-3 text-right text-text-secondary">{txnCount || '-'}</td>
+                  <td className={themed('px-4 py-3 text-right text-text-secondary', dk)}>{txnCount || '-'}</td>
                   <td className="px-4 py-3 text-right">
                     {uncatCount > 0 ? (
                       <span className="text-brand-red font-medium">{uncatCount}</span>
@@ -183,7 +185,7 @@ export default function PeriodClose({ transactions, reconciliations, periodClose
                     {status === 'closed' ? (
                       <span className="px-2 py-1 bg-green-100 text-brand-green rounded text-xs font-medium">🔒 Closed</span>
                     ) : isFuture ? (
-                      <span className="px-2 py-1 bg-bg-row text-text-muted rounded text-xs">Future</span>
+                      <span className={themed('px-2 py-1 bg-bg-row text-text-muted rounded text-xs', dk)}>Future</span>
                     ) : isCurrent ? (
                       <span className="px-2 py-1 bg-brand-purple-wash text-brand-purple rounded text-xs font-medium">🔄 Current</span>
                     ) : (
@@ -195,7 +197,7 @@ export default function PeriodClose({ transactions, reconciliations, periodClose
                       <button
                         onClick={() => handleReopen(idx)}
                         disabled={processing}
-                        className="text-xs text-text-muted hover:text-brand-red"
+                        className={themed('text-xs text-text-muted hover:text-brand-red', dk)}
                       >
                         Reopen
                       </button>
@@ -217,7 +219,7 @@ export default function PeriodClose({ transactions, reconciliations, periodClose
                         </button>
                         <button
                           onClick={() => setClosing(null)}
-                          className="text-text-faint hover:text-text-secondary"
+                          className={themed('text-text-faint hover:text-text-secondary', dk)}
                         >
                           ✕
                         </button>
@@ -241,11 +243,11 @@ export default function PeriodClose({ transactions, reconciliations, periodClose
       </div>
 
       {/* Summary Footer */}
-      <div className="px-4 py-3 bg-bg-row border-t flex justify-between text-sm">
-        <span className="text-text-secondary">
+      <div className={themed('px-4 py-3 bg-bg-row border-t flex justify-between text-sm', dk)}>
+        <span className={themed('text-text-secondary', dk)}>
           Closed: {periodCloses.filter(p => p.year === selectedYear && p.status === 'closed').length} / 12 months
         </span>
-        <span className="text-text-secondary">
+        <span className={themed('text-text-secondary', dk)}>
           {periodCloses.filter(p => p.year === selectedYear && p.status === 'closed').length === 12 ? (
             <span className="text-brand-green font-medium">✓ Year Complete</span>
           ) : (

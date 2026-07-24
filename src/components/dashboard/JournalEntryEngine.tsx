@@ -3,6 +3,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { themed, type Surface } from '@/lib/ds';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -233,10 +234,10 @@ const emptyLine = (): JournalEntryLine => ({
 
 // ─── Column Filter Dropdown (portal) ─────────────────────────────────────────
 
-function JournalColumnFilterDropdown({
+function JournalColumnFilterDropdown({ dk = false, 
   field, filterType, allTransactions, currentFilter, onApply, onCancel, anchorEl,
   sortField, sortDir, onSortWithDir,
-}: {
+}: { dk?: boolean;
   field: SortField;
   filterType: 'checkbox' | 'dateRange' | 'amountRange' | 'search';
   allTransactions: JournalTxn[];
@@ -307,14 +308,14 @@ function JournalColumnFilterDropdown({
   };
 
   return createPortal(
-    <div ref={panelRef} className="fixed bg-white border border-border rounded shadow-sm z-[100] w-64" style={panelStyle}>
-      <div className="border-b border-border-light p-2 space-y-1">
+    <div ref={panelRef} className={themed('fixed bg-white border border-border rounded shadow-sm z-[100] w-64', dk)} style={panelStyle}>
+      <div className={themed('border-b border-border-light p-2 space-y-1', dk)}>
         <button onClick={() => { onSortWithDir(field, 'asc'); onCancel(); }}
-          className={`w-full text-left px-2 py-1.5 text-terminal-sm rounded hover:bg-bg-row flex items-center gap-2 ${isSortedAsc ? 'text-brand-purple font-semibold bg-brand-purple/5' : 'text-text-secondary'}`}>
+          className={themed(`w-full text-left px-2 py-1.5 text-terminal-sm rounded hover:bg-bg-row flex items-center gap-2 ${isSortedAsc ? 'text-brand-purple font-semibold bg-brand-purple/5' : 'text-text-secondary'}`, dk)}>
           <span className="text-[10px]">{'\u25B2'}</span> {sortAscLabel}
         </button>
         <button onClick={() => { onSortWithDir(field, 'desc'); onCancel(); }}
-          className={`w-full text-left px-2 py-1.5 text-terminal-sm rounded hover:bg-bg-row flex items-center gap-2 ${isSortedDesc ? 'text-brand-purple font-semibold bg-brand-purple/5' : 'text-text-secondary'}`}>
+          className={themed(`w-full text-left px-2 py-1.5 text-terminal-sm rounded hover:bg-bg-row flex items-center gap-2 ${isSortedDesc ? 'text-brand-purple font-semibold bg-brand-purple/5' : 'text-text-secondary'}`, dk)}>
           <span className="text-[10px]">{'\u25BC'}</span> {sortDescLabel}
         </button>
       </div>
@@ -325,7 +326,7 @@ function JournalColumnFilterDropdown({
             {uniqueValues.length > 6 && (
               <input ref={searchRef} type="text" placeholder="Search..." value={localSearch}
                 onChange={e => setLocalSearch(e.target.value)}
-                className="w-full px-2 h-7 text-terminal-base font-mono border border-border rounded mb-2 outline-none focus:border-brand-purple" />
+                className={themed('w-full px-2 h-7 text-terminal-base font-mono border border-border rounded mb-2 outline-none focus:border-brand-purple', dk)} />
             )}
             <div className="flex items-center justify-between mb-1 px-1">
               <button onClick={() => setLocalSelected(new Set(filteredValues.map(([v]) => v)))} className="text-[10px] text-brand-purple hover:underline">Select All</button>
@@ -333,48 +334,48 @@ function JournalColumnFilterDropdown({
             </div>
             <div className="max-h-[300px] overflow-auto border rounded">
               {filteredValues.map(([val, count]) => (
-                <label key={val} className="flex items-center gap-2 px-2 py-1.5 hover:bg-bg-row cursor-pointer text-terminal-sm">
+                <label key={val} className={themed('flex items-center gap-2 px-2 py-1.5 hover:bg-bg-row cursor-pointer text-terminal-sm', dk)}>
                   <input type="checkbox" checked={localSelected.has(val)}
                     onChange={() => setLocalSelected(prev => { const next = new Set(prev); if (next.has(val)) next.delete(val); else next.add(val); return next; })}
                     className="w-3.5 h-3.5 rounded flex-shrink-0" />
                   <span className="truncate flex-1">{val}</span>
-                  <span className="text-text-faint text-[10px] flex-shrink-0">({count})</span>
+                  <span className={themed('text-text-faint text-[10px] flex-shrink-0', dk)}>({count})</span>
                 </label>
               ))}
-              {filteredValues.length === 0 && <div className="px-2 py-3 text-center text-text-faint text-terminal-sm">No values found</div>}
+              {filteredValues.length === 0 && <div className={themed('px-2 py-3 text-center text-text-faint text-terminal-sm', dk)}>No values found</div>}
             </div>
           </>
         )}
 
         {filterType === 'dateRange' && (
           <div className="space-y-2">
-            <div><label className="block text-[10px] text-text-muted mb-1">From</label>
-              <input ref={searchRef} type="date" value={localFrom} onChange={e => setLocalFrom(e.target.value)} className="w-full px-2 h-7 text-terminal-base font-mono border border-border rounded outline-none focus:border-brand-purple" /></div>
-            <div><label className="block text-[10px] text-text-muted mb-1">To</label>
-              <input type="date" value={localTo} onChange={e => setLocalTo(e.target.value)} className="w-full px-2 h-7 text-terminal-base font-mono border border-border rounded outline-none focus:border-brand-purple" /></div>
+            <div><label className={themed('block text-[10px] text-text-muted mb-1', dk)}>From</label>
+              <input ref={searchRef} type="date" value={localFrom} onChange={e => setLocalFrom(e.target.value)} className={themed('w-full px-2 h-7 text-terminal-base font-mono border border-border rounded outline-none focus:border-brand-purple', dk)} /></div>
+            <div><label className={themed('block text-[10px] text-text-muted mb-1', dk)}>To</label>
+              <input type="date" value={localTo} onChange={e => setLocalTo(e.target.value)} className={themed('w-full px-2 h-7 text-terminal-base font-mono border border-border rounded outline-none focus:border-brand-purple', dk)} /></div>
           </div>
         )}
 
         {filterType === 'amountRange' && (
           <div className="space-y-2">
-            <div><label className="block text-[10px] text-text-muted mb-1">Min</label>
-              <input ref={searchRef} type="number" placeholder="0" value={localMin} onChange={e => setLocalMin(e.target.value)} className="w-full px-2 h-7 text-terminal-base font-mono border border-border rounded outline-none focus:border-brand-purple" /></div>
-            <div><label className="block text-[10px] text-text-muted mb-1">Max</label>
-              <input type="number" placeholder="999999" value={localMax} onChange={e => setLocalMax(e.target.value)} className="w-full px-2 h-7 text-terminal-base font-mono border border-border rounded outline-none focus:border-brand-purple" /></div>
+            <div><label className={themed('block text-[10px] text-text-muted mb-1', dk)}>Min</label>
+              <input ref={searchRef} type="number" placeholder="0" value={localMin} onChange={e => setLocalMin(e.target.value)} className={themed('w-full px-2 h-7 text-terminal-base font-mono border border-border rounded outline-none focus:border-brand-purple', dk)} /></div>
+            <div><label className={themed('block text-[10px] text-text-muted mb-1', dk)}>Max</label>
+              <input type="number" placeholder="999999" value={localMax} onChange={e => setLocalMax(e.target.value)} className={themed('w-full px-2 h-7 text-terminal-base font-mono border border-border rounded outline-none focus:border-brand-purple', dk)} /></div>
           </div>
         )}
 
         {filterType === 'search' && (
           <input ref={searchRef} type="text" placeholder="Search..." value={localTerm}
             onChange={e => setLocalTerm(e.target.value)}
-            className="w-full px-2 h-7 text-terminal-base font-mono border border-border rounded outline-none focus:border-brand-purple" />
+            className={themed('w-full px-2 h-7 text-terminal-base font-mono border border-border rounded outline-none focus:border-brand-purple', dk)} />
         )}
       </div>
 
-      <div className="border-t border-border-light p-2 flex justify-between gap-2">
+      <div className={themed('border-t border-border-light p-2 flex justify-between gap-2', dk)}>
         <button onClick={() => onApply(undefined)} className="text-[10px] text-brand-red hover:underline">Clear</button>
         <div className="flex gap-2">
-          <button onClick={onCancel} className="px-3 py-1 text-terminal-sm border rounded hover:bg-bg-row">Cancel</button>
+          <button onClick={onCancel} className={themed('px-3 py-1 text-terminal-sm border rounded hover:bg-bg-row', dk)}>Cancel</button>
           <button onClick={handleApply} className="px-3 py-1 text-terminal-sm bg-brand-purple text-white rounded hover:bg-brand-purple-hover">Apply</button>
         </div>
       </div>
@@ -385,10 +386,10 @@ function JournalColumnFilterDropdown({
 
 // ─── Filterable Header ──────────────────────────────────────────────────────
 
-function JournalFilterableHeader({
+function JournalFilterableHeader({ dk = false, 
   label, field, sortField, sortDir, onSort, filterType, allTransactions,
   columnFilter, onApplyColumnFilter, className,
-}: {
+}: { dk?: boolean;
   label: string;
   field: SortField;
   sortField: SortField;
@@ -420,7 +421,7 @@ function JournalFilterableHeader({
         </button>
       </span>
       {open && (
-        <JournalColumnFilterDropdown
+        <JournalColumnFilterDropdown dk={dk}
           field={field} filterType={filterType} allTransactions={allTransactions}
           currentFilter={columnFilter}
           onApply={(val) => { onApplyColumnFilter(field, val); setOpen(false); }}
@@ -436,7 +437,8 @@ function JournalFilterableHeader({
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export default function JournalEntryEngine({ journalTransactions, coaOptions, onSave, onReload }: JournalEntryEngineProps) {
+export default function JournalEntryEngine({ journalTransactions, coaOptions, onSave, onReload, surface = 'light' }: JournalEntryEngineProps & { surface?: Surface }) {
+  const dk = surface === 'dark';
   const parentRef = useRef<HTMLDivElement>(null);
 
   // State
@@ -561,10 +563,10 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
   // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="bg-white overflow-hidden">
+    <div className={themed('bg-white overflow-hidden', dk)}>
       {/* Actions */}
-      <div className="px-3 py-2 border-b border-border flex items-center justify-between">
-        <span className="text-terminal-sm text-text-muted font-mono">
+      <div className={themed('px-3 py-2 border-b border-border flex items-center justify-between', dk)}>
+        <span className={themed('text-terminal-sm text-text-muted font-mono', dk)}>
           {txns.length} journal entries ({reversalCount} reversals)
         </span>
         <button
@@ -583,39 +585,39 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
           {/* Entry Header */}
           <div className="flex flex-wrap gap-3 mb-4">
             <div>
-              <label className="block text-terminal-sm text-text-muted mb-1">Date</label>
+              <label className={themed('block text-terminal-sm text-text-muted mb-1', dk)}>Date</label>
               <input
                 type="date"
                 value={newDate}
                 onChange={(e) => setNewDate(e.target.value)}
-                className="px-2 h-7 border border-border rounded text-terminal-base font-mono"
+                className={themed('px-2 h-7 border border-border rounded text-terminal-base font-mono', dk)}
               />
             </div>
             <div>
-              <label className="block text-terminal-sm text-text-muted mb-1">Type</label>
+              <label className={themed('block text-terminal-sm text-text-muted mb-1', dk)}>Type</label>
               <select
                 value={newType}
                 onChange={(e) => setNewType(e.target.value)}
-                className="px-2 h-7 border border-border rounded text-terminal-base font-mono"
+                className={themed('px-2 h-7 border border-border rounded text-terminal-base font-mono', dk)}
               >
                 {ENTRY_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
             <div className="flex-1 min-w-[200px]">
-              <label className="block text-terminal-sm text-text-muted mb-1">Memo</label>
+              <label className={themed('block text-terminal-sm text-text-muted mb-1', dk)}>Memo</label>
               <input
                 type="text"
                 value={newMemo}
                 onChange={(e) => setNewMemo(e.target.value)}
                 placeholder="Description of this entry..."
-                className="w-full px-2 h-7 border border-border rounded text-terminal-base font-mono"
+                className={themed('w-full px-2 h-7 border border-border rounded text-terminal-base font-mono', dk)}
               />
             </div>
           </div>
 
           {/* Entry Lines */}
           <table className="w-full text-sm mb-3">
-            <thead className="bg-gray-50 text-text-secondary">
+            <thead className={themed('bg-gray-50 text-text-secondary', dk)}>
               <tr>
                 <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono font-medium">Account</th>
                 <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono font-medium">Description</th>
@@ -626,7 +628,7 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
             </thead>
             <tbody>
               {newLines.map((line, idx) => (
-                <tr key={idx} className="border-b border-border-light">
+                <tr key={idx} className={themed('border-b border-border-light', dk)}>
                   <td className="px-2 py-2">
                     <select
                       value={line.accountCode}
@@ -674,13 +676,13 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                   </td>
                   <td className="px-1">
                     {newLines.length > 2 && (
-                      <button onClick={() => removeLine(idx)} className="text-text-faint hover:text-brand-red">{'\u2715'}</button>
+                      <button onClick={() => removeLine(idx)} className={themed('text-text-faint hover:text-brand-red', dk)}>{'\u2715'}</button>
                     )}
                   </td>
                 </tr>
               ))}
             </tbody>
-            <tfoot className="bg-bg-row font-semibold">
+            <tfoot className={themed('bg-bg-row font-semibold', dk)}>
               <tr>
                 <td className="px-2 py-2" colSpan={2}>
                   <button onClick={addLine} className="text-brand-purple text-sm hover:underline">+ Add Line</button>
@@ -711,7 +713,7 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
               <button
                 onClick={() => handleSave('draft')}
                 disabled={!isBalanced || saving}
-                className="px-4 py-2 border border-border rounded text-sm disabled:opacity-50"
+                className={themed('px-4 py-2 border border-border rounded text-sm disabled:opacity-50', dk)}
               >
                 Save as Draft
               </button>
@@ -728,14 +730,14 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
       )}
 
       {/* Search + filter pills */}
-      <div className="bg-bg-row border-x border-border px-4 py-2 space-y-2">
+      <div className={themed('bg-bg-row border-x border-border px-4 py-2 space-y-2', dk)}>
         <div className="flex items-center gap-2">
           <input
             type="text"
             placeholder="Search descriptions..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="flex-1 px-2 h-7 text-terminal-base font-mono border border-border rounded outline-none focus:border-brand-purple focus:ring-1 focus:ring-brand-purple"
+            className={themed('flex-1 px-2 h-7 text-terminal-base font-mono border border-border rounded outline-none focus:border-brand-purple focus:ring-1 focus:ring-brand-purple', dk)}
           />
           {(search || activeColFilterCount > 0) && (
             <button onClick={() => { setSearch(''); setColumnFilters({}); }}
@@ -768,21 +770,21 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
       </div>
 
       {/* Virtualized Table */}
-      <div ref={parentRef} className="overflow-auto border border-border border-t-0" style={{ maxHeight: '600px' }}>
+      <div ref={parentRef} className={themed('overflow-auto border border-border border-t-0', dk)} style={{ maxHeight: '600px' }}>
         <table className="w-full text-terminal-base border-collapse min-w-[1000px]">
-          <thead className="bg-gray-50 text-text-secondary sticky top-0 z-10">
+          <thead className={themed('bg-gray-50 text-text-secondary sticky top-0 z-10', dk)}>
             <tr>
-              <JournalFilterableHeader label="Date" field="date" sortField={sortField} sortDir={sortDir} onSort={handleSort}
+              <JournalFilterableHeader dk={dk} label="Date" field="date" sortField={sortField} sortDir={sortDir} onSort={handleSort}
                 filterType="dateRange" allTransactions={txns} columnFilter={columnFilters.date} onApplyColumnFilter={handleApplyColumnFilter} className="w-24" />
-              <JournalFilterableHeader label="Description" field="description" sortField={sortField} sortDir={sortDir} onSort={handleSort}
+              <JournalFilterableHeader dk={dk} label="Description" field="description" sortField={sortField} sortDir={sortDir} onSort={handleSort}
                 filterType="search" allTransactions={txns} columnFilter={columnFilters.description} onApplyColumnFilter={handleApplyColumnFilter} className="min-w-[200px]" />
-              <JournalFilterableHeader label="Type" field="type" sortField={sortField} sortDir={sortDir} onSort={handleSort}
+              <JournalFilterableHeader dk={dk} label="Type" field="type" sortField={sortField} sortDir={sortDir} onSort={handleSort}
                 filterType="checkbox" allTransactions={txns} columnFilter={columnFilters.type} onApplyColumnFilter={handleApplyColumnFilter} className="w-24" />
-              <JournalFilterableHeader label="Status" field="status" sortField={sortField} sortDir={sortDir} onSort={handleSort}
+              <JournalFilterableHeader dk={dk} label="Status" field="status" sortField={sortField} sortDir={sortDir} onSort={handleSort}
                 filterType="checkbox" allTransactions={txns} columnFilter={columnFilters.status} onApplyColumnFilter={handleApplyColumnFilter} className="w-24" />
-              <JournalFilterableHeader label="Debits" field="debits" sortField={sortField} sortDir={sortDir} onSort={handleSort}
+              <JournalFilterableHeader dk={dk} label="Debits" field="debits" sortField={sortField} sortDir={sortDir} onSort={handleSort}
                 filterType="amountRange" allTransactions={txns} columnFilter={columnFilters.debits} onApplyColumnFilter={handleApplyColumnFilter} className="w-24 text-right" />
-              <JournalFilterableHeader label="Credits" field="credits" sortField={sortField} sortDir={sortDir} onSort={handleSort}
+              <JournalFilterableHeader dk={dk} label="Credits" field="credits" sortField={sortField} sortDir={sortDir} onSort={handleSort}
                 filterType="amountRange" allTransactions={txns} columnFilter={columnFilters.credits} onApplyColumnFilter={handleApplyColumnFilter} className="w-24 text-right" />
               <th className="py-1 px-2 text-terminal-xs uppercase tracking-widest font-mono font-semibold w-16 text-center">Balanced</th>
               <th className="py-1 px-2 text-terminal-xs uppercase tracking-widest font-mono font-semibold w-36">Related</th>
@@ -806,8 +808,8 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
               const isReversal = txn.is_reversal;
               const isExpanded = expandedId === txn.id;
 
-              const rowBg = vRow.index % 2 === 0 ? 'bg-white' : 'bg-bg-row';
-              const textClass = isReversed ? 'text-text-faint' : '';
+              const rowBg = vRow.index % 2 === 0 ? themed('bg-white', dk) : themed('bg-bg-row', dk);
+              const textClass = isReversed ? themed('text-text-faint', dk) : '';
               const borderClass = isReversal ? 'border-l-[3px] border-amber-400' : '';
 
               return (
@@ -820,7 +822,7 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                       onClick={() => setExpandedId(isExpanded ? null : txn.id)}
                     >
                       {/* Date */}
-                      <div className="px-2 py-1 w-24 flex-shrink-0 whitespace-nowrap font-mono text-text-muted">
+                      <div className={themed('px-2 py-1 w-24 flex-shrink-0 whitespace-nowrap font-mono text-text-muted', dk)}>
                         {formatDate(txn.date)}
                       </div>
                       {/* Description */}
@@ -831,9 +833,9 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                       </div>
                       {/* Type */}
                       <div className="px-2 py-1 w-24 flex-shrink-0">
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                          derivedType === 'Reversal' ? 'bg-amber-100 text-amber-700' : 'bg-bg-row text-text-secondary'
-                        }`}>
+                        <span className={themed(`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                          derivedType === 'Reversal' ? 'bg-amber-100 text-amber-700' : themed('bg-bg-row text-text-secondary', dk)
+                        }`, dk)}>
                           {derivedType}
                         </span>
                       </div>
@@ -886,9 +888,9 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
 
                     {/* Expanded detail */}
                     {isExpanded && (
-                      <div className="bg-bg-row px-6 py-3 border-t border-border-light">
+                      <div className={themed('bg-bg-row px-6 py-3 border-t border-border-light', dk)}>
                         <table className="w-full text-terminal-base">
-                          <thead className="bg-gray-50 text-text-secondary">
+                          <thead className={themed('bg-gray-50 text-text-secondary', dk)}>
                             <tr>
                               <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono font-medium">COA Code</th>
                               <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono font-medium">COA Name</th>
@@ -901,7 +903,7 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                               const legDebit = leg.entry_type === 'D' ? leg.amount : 0;
                               const legCredit = leg.entry_type === 'C' ? leg.amount : 0;
                               return (
-                                <tr key={leg.id} className={`border-b border-border-light ${isReversed ? 'text-text-faint' : ''}`}>
+                                <tr key={leg.id} className={themed(`border-b border-border-light ${isReversed ? 'text-text-faint' : ''}`, dk)}>
                                   <td className={`py-1 px-2 font-mono ${isReversed ? 'line-through' : ''}`}>
                                     {leg.account.code}
                                   </td>
@@ -918,7 +920,7 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                               );
                             })}
                           </tbody>
-                          <tfoot className="bg-bg-row font-semibold">
+                          <tfoot className={themed('bg-bg-row font-semibold', dk)}>
                             <tr>
                               <td colSpan={2} className="py-1 px-2">Total</td>
                               <td className="py-1 px-2 text-right font-mono font-semibold">{formatMoneyDollars(debits)}</td>
@@ -927,9 +929,9 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                           </tfoot>
                         </table>
                         {txn.strategy && (
-                          <div className="mt-2 text-[10px] text-text-muted">
-                            Strategy: <span className="font-medium text-text-primary">{txn.strategy}</span>
-                            {txn.trade_num && <> | Trade #: <span className="font-medium text-text-primary">{txn.trade_num}</span></>}
+                          <div className={themed('mt-2 text-[10px] text-text-muted', dk)}>
+                            Strategy: <span className={themed('font-medium text-text-primary', dk)}>{txn.strategy}</span>
+                            {txn.trade_num && <> | Trade #: <span className={themed('font-medium text-text-primary', dk)}>{txn.trade_num}</span></>}
                           </div>
                         )}
                       </div>
@@ -949,15 +951,15 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
           </tbody>
         </table>
         {filtered.length === 0 && (
-          <div className="px-4 py-8 text-center text-text-faint text-terminal-sm">
+          <div className={themed('px-4 py-8 text-center text-text-faint text-terminal-sm', dk)}>
             {search || activeColFilterCount > 0 ? 'No journal entries match your filters.' : 'No journal entries yet. Click "+ New Entry" to create one.'}
           </div>
         )}
       </div>
 
       {/* Footer summary */}
-      <div className="bg-bg-row border border-border border-t-0 px-3 py-1.5 flex items-center justify-between text-terminal-sm">
-        <span className="text-text-muted">
+      <div className={themed('bg-bg-row border border-border border-t-0 px-3 py-1.5 flex items-center justify-between text-terminal-sm', dk)}>
+        <span className={themed('text-text-muted', dk)}>
           {filtered.length === txns.length ? txns.length : `${filtered.length} of ${txns.length}`} entries
         </span>
         <span className="font-mono font-medium">

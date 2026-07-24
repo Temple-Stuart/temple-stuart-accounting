@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { themed, type Surface } from '@/lib/ds';
 
 interface FinancialData {
   incomeStatement: {
@@ -15,7 +16,8 @@ interface FinancialData {
   };
 }
 
-export default function FinancialStatementsTab() {
+export default function FinancialStatementsTab({ surface = 'light' }: { surface?: Surface } = {}) {
+  const dk = surface === 'dark';
   const [data, setData] = useState<FinancialData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -72,19 +74,19 @@ export default function FinancialStatementsTab() {
     <div className="p-4 space-y-6">
       <div className="grid grid-cols-2 gap-6">
         {/* Income Statement */}
-        <div className="bg-white border rounded p-6">
+        <div className={themed('bg-white border rounded p-6', dk)}>
           <h3 className="text-sm font-semibold mb-6">Income Statement</h3>
           
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <span className="text-text-secondary">Revenue</span>
+              <span className={themed('text-text-secondary', dk)}>Revenue</span>
               <span className="text-terminal-lg font-semibold text-brand-green">
                 ${data.incomeStatement.revenue.toFixed(2)}
               </span>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-text-secondary">Expenses</span>
+              <span className={themed('text-text-secondary', dk)}>Expenses</span>
               <span className="text-terminal-lg font-semibold text-brand-red">
                 ${data.incomeStatement.expenses.toFixed(2)}
               </span>
@@ -104,33 +106,33 @@ export default function FinancialStatementsTab() {
         </div>
 
         {/* Balance Sheet */}
-        <div className="bg-white border rounded p-6">
+        <div className={themed('bg-white border rounded p-6', dk)}>
           <h3 className="text-sm font-semibold mb-6">Balance Sheet</h3>
           
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <span className="text-text-secondary">Assets</span>
+              <span className={themed('text-text-secondary', dk)}>Assets</span>
               <span className="text-terminal-lg font-semibold">
                 ${data.balanceSheet.assets.toFixed(2)}
               </span>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-text-secondary">Liabilities</span>
+              <span className={themed('text-text-secondary', dk)}>Liabilities</span>
               <span className="text-terminal-lg font-semibold">
                 ${data.balanceSheet.liabilities.toFixed(2)}
               </span>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-text-secondary">Equity</span>
+              <span className={themed('text-text-secondary', dk)}>Equity</span>
               <span className="text-terminal-lg font-semibold">
                 ${data.balanceSheet.equity.toFixed(2)}
               </span>
             </div>
 
             <div className="border-t pt-4 mt-4">
-              <div className="text-sm text-text-secondary space-y-1">
+              <div className={themed('text-sm text-text-secondary space-y-1', dk)}>
                 <div>Balance Check: Assets = ${data.balanceSheet.assets.toFixed(2)}</div>
                 <div>Liabilities + Equity = ${(data.balanceSheet.liabilities + data.balanceSheet.equity).toFixed(2)}</div>
                 <div className={`font-semibold ${isBalanced ? 'text-brand-green' : 'text-brand-red'}`}>
@@ -143,11 +145,11 @@ export default function FinancialStatementsTab() {
       </div>
 
       {/* Quick Stats */}
-      <div className="bg-white border rounded p-6">
+      <div className={themed('bg-white border rounded p-6', dk)}>
         <h3 className="text-terminal-lg font-semibold mb-4">Quick Ratios</h3>
         <div className="grid grid-cols-3 gap-4">
           <div className="border rounded p-4 text-center">
-            <div className="text-sm text-text-secondary mb-1">Profit Margin</div>
+            <div className={themed('text-sm text-text-secondary mb-1', dk)}>Profit Margin</div>
             <div className="text-sm font-bold">
               {data.incomeStatement.revenue > 0 
                 ? ((data.incomeStatement.netIncome / data.incomeStatement.revenue) * 100).toFixed(1)
@@ -157,7 +159,7 @@ export default function FinancialStatementsTab() {
           </div>
           
           <div className="border rounded p-4 text-center">
-            <div className="text-sm text-text-secondary mb-1">Current Ratio</div>
+            <div className={themed('text-sm text-text-secondary mb-1', dk)}>Current Ratio</div>
             <div className="text-sm font-bold">
               {data.balanceSheet.liabilities !== 0
                 ? (data.balanceSheet.assets / Math.abs(data.balanceSheet.liabilities)).toFixed(2)
@@ -167,7 +169,7 @@ export default function FinancialStatementsTab() {
           </div>
           
           <div className="border rounded p-4 text-center">
-            <div className="text-sm text-text-secondary mb-1">ROE</div>
+            <div className={themed('text-sm text-text-secondary mb-1', dk)}>ROE</div>
             <div className="text-sm font-bold">
               {data.balanceSheet.equity !== 0
                 ? ((data.incomeStatement.netIncome / data.balanceSheet.equity) * 100).toFixed(1)

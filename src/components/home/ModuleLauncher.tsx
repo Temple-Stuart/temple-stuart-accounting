@@ -925,7 +925,11 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           tab key). TAB-SHOW-AND-GATE: gate is the tab:books entitlement (isTabLocked —
           admin bypass inside); locked viewers get the pointer-card + unlock CTA (MOD-2).
           STRUCTURE + cockpit + drop-ins only; the parent-fed engines are BOOKS-2. */}
-      <section className={`w-full bg-white border-b border-border ${activeModule === 'books' ? 'block' : 'hidden'}`}>
+      {/* BOOKS-DS-1: the Books tab joins the dark shell — DS surfaces on the
+          wrapper + loading card; the cockpit, pipeline, and locked card get
+          surface="dark" (their non-Books consumers pass nothing → light,
+          byte-identical via themed()). */}
+      <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'books' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
             {!booksLocked ? (
@@ -936,7 +940,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 {/* Cockpit — TRUTH-FIRST: loading / explicit-error / real-data only. Never a
                     fake "Balanced" or zeros. */}
                 {booksState === 'loading' && (
-                  <div className="rounded-xl border-2 border-border bg-white px-4 py-3 text-sm text-text-muted">
+                  <div className="rounded-xl border-2 border-panel-border bg-panel-surface px-4 py-3 text-sm text-white/50">
                     Loading your books…
                   </div>
                 )}
@@ -964,6 +968,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                     onSync={booksSyncAccounts}
                     syncing={booksSyncing}
                     onLinkAccount={booksLinkAccount}
+                    surface="dark"
                   />
                 )}
                 {/* BOOKS-2: the full pipe below the cockpit — import → categorize/COA →
@@ -985,6 +990,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                   valueLine="Your real accounts, synced and closed month after month — GAAP double-entry, not a spreadsheet."
                   currentUserId={currentUserId}
                   onRequireAuth={onRequireAuth}
+                  surface="dark"
                 />
               </>
             )}

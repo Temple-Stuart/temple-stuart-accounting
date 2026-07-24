@@ -154,7 +154,13 @@ const DARKEN_MAP: [RegExp, string][] = [
   [/\bhover:bg-bg-row\b/g, 'hover:bg-panel-hover'],
   [/\bhover:bg-white\b(?!\/)/g, 'hover:bg-white/10'],
   [/\bhover:text-text-secondary\b/g, 'hover:text-white/60'],
+  [/\bhover:text-text-primary\b/g, 'hover:text-white'],
   [/\bhover:border-border\b/g, 'hover:border-panel-border'],
+  // BOOKS-DS-1 additions: the dashboard stack's gray-family neutrals
+  [/\bhover:bg-gray-100\b/g, 'hover:bg-panel-hover'],
+  [/\bbg-gray-50\b(?!\/)/g, 'bg-white/5'],
+  [/\bborder-gray-200(\/\d+)?\b/g, 'border-panel-border'],
+  [/\bdivide-border\b/g, 'divide-panel-border'],
   // translucent + solid light insets → the dark inset
   [/\bbg-bg-row\/\d+\b/g, 'bg-white/5'],
   [/\bbg-bg-row\b/g, 'bg-white/5'],
