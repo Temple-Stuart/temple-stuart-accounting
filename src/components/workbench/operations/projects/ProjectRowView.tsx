@@ -405,8 +405,12 @@ export default function ProjectRowView({ surface = 'light',
               <div className={themed('text-text-primary', dk)}>{project.estimated_total_minutes ?? '—'}</div>
             </div>
             <div>
-              <div className={labelClass}>est. cost (usd)</div>
-              <div className={themed('text-text-primary', dk)}>{project.estimated_total_cost_usd ?? '—'}</div>
+              {/* PROJECTS-UX-1: the dossier anchor (cost-per-project) — the
+                  project's cost cell gets the strongest-cell treatment at its
+                  existing site (the ROUTINES-UX-1 precedent): primary-weight
+                  label + the mono numeral idiom. Same field, same value. */}
+              <div className={themed('font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs', dk)}>est. cost (usd)</div>
+              <div className={themed('text-text-primary font-mono tabular-nums font-bold', dk)}>{project.estimated_total_cost_usd ?? '—'}</div>
             </div>
           </div>
           <div className={themed('flex items-center gap-2 pt-2 border-t border-border-light', dk)}>
