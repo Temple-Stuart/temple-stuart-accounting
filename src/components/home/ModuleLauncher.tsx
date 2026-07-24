@@ -888,31 +888,59 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 <TradingDataDisclaimer surface="dark" />
                 {/* RISK-1: coverage declaration — what has actually synced (below the disclaimer). */}
                 <CoverageDeclaration />
-                {/* TRACK-1: the self-graded track record (claimed vs actual) — the honesty header. */}
-                <TradeRecord />
-                {/* Option A — scanner first, reconcile below. Same props the inline branch used. */}
-                <ScanFilterForm
-                  scannerUniverse={scannerUniverse}
-                  setScannerUniverse={setScannerUniverse}
-                  scannerFilters={scannerFilters}
-                  onFiltersChange={handleFiltersChange}
-                  scanTriggerRef={scanTriggerRef}
-                  showHeader={false}
-                  surface="dark"
+                {/* TRADE-UX-1: the tab's sections consolidate on the shared
+                    <ToggleStrip> (the travel/books precedent) — one phase
+                    visible, ALL mounted (CSS show/hide), so a running scan and
+                    the lab queue survive switching. Audit grouping (the sketch's
+                    SCAN/RESULTS merged): ScanFilterForm + ConvergenceIntelligence
+                    are ONE phase — they're ref-coupled (scanTriggerRef fires the
+                    scan the results render; splitting them would hide the
+                    results the Scan button produces). The disclaimers stay
+                    ABOVE the strip, persistent: they qualify the market data of
+                    EVERY phase (LANG-1 "persistent, visible" + RISK-1), so
+                    adjacency = above all three panels. Phase selection is
+                    ToggleStrip's own state — zero other semantics changed. */}
+                <ToggleStrip
+                  modes={([
+                    { key: 'scan', label: 'Scan', panel: (
+                      <div className="mt-3 space-y-6">
+                        {/* Option A — scanner first, reconcile below. Same props the inline branch used. */}
+                        <ScanFilterForm
+                          scannerUniverse={scannerUniverse}
+                          setScannerUniverse={setScannerUniverse}
+                          scannerFilters={scannerFilters}
+                          onFiltersChange={handleFiltersChange}
+                          scanTriggerRef={scanTriggerRef}
+                          showHeader={false}
+                          surface="dark"
+                        />
+                        <ConvergenceIntelligence
+                          externalFilters={scannerFilters}
+                          onFiltersChange={handleFiltersChange}
+                          externalUniverse={scannerUniverse}
+                          onUniverseChange={setScannerUniverse}
+                          hideControls={true}
+                          scanTriggerRef={scanTriggerRef}
+                          scanningRef={scanningRef}
+                          surface="dark"
+                        />
+                      </div>
+                    ) },
+                    { key: 'lab', label: 'Lab', panel: (
+                      <div className="mt-3">
+                        {/* TRADE-1: closes the loop — queue viewer + link-to-reality + grade. Self-fetches
+                            /api/trade-cards + /api/trade-card-links (0 required props, TradeLabPanel.tsx:50). */}
+                        <TradeLabPanel surface="dark" />
+                      </div>
+                    ) },
+                    { key: 'record', label: 'Record', panel: (
+                      <div className="mt-3">
+                        {/* TRACK-1: the self-graded track record (claimed vs actual). */}
+                        <TradeRecord />
+                      </div>
+                    ) },
+                  ] as ToggleMode[])}
                 />
-                <ConvergenceIntelligence
-                  externalFilters={scannerFilters}
-                  onFiltersChange={handleFiltersChange}
-                  externalUniverse={scannerUniverse}
-                  onUniverseChange={setScannerUniverse}
-                  hideControls={true}
-                  scanTriggerRef={scanTriggerRef}
-                  scanningRef={scanningRef}
-                  surface="dark"
-                />
-                {/* TRADE-1: closes the loop — queue viewer + link-to-reality + grade. Self-fetches
-                    /api/trade-cards + /api/trade-card-links (0 required props, TradeLabPanel.tsx:50). */}
-                <TradeLabPanel surface="dark" />
               </>
             ) : (
               <>

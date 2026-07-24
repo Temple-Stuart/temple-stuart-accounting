@@ -689,9 +689,12 @@ export default function ScannerResultsTable({
                     <td className="px-2 py-2 text-right font-mono text-brand-red" onClick={() => toggleRow(row.id)}>
                       {fmtDollar(row.maxLoss)}
                     </td>
-                    {/* Est. PoP */}
+                    {/* Est. PoP — TRADE-UX-1: the dossier anchor leads the row.
+                        Within the table idiom the promotion is weight + primary
+                        color (a display numeral would break row rhythm): the
+                        strongest cell in every results row. Same field/format. */}
                     <td
-                      className={themed('px-2 py-2 text-right font-mono text-text-faint', dk)}
+                      className={themed('px-2 py-2 text-right font-mono text-sm font-black text-text-primary', dk)}
                       onClick={() => toggleRow(row.id)}
                       title={row.popMethod === 'breakeven_d2'
                         ? 'PoP via N(d2) at breakeven price'
