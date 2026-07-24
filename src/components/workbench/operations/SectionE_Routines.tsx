@@ -16,8 +16,10 @@ import { useState } from 'react';
 import { useOperationsEntity } from './EntitySelector';
 import TodaysStrip from './routines/TodaysStrip';
 import RoutineList from './routines/RoutineList';
+import { themed, type Surface } from '@/lib/ds';
 
-export default function SectionE_Routines() {
+export default function SectionE_Routines({ surface = 'light' }: { surface?: Surface } = {}) {
+  const dk = surface === 'dark';
   const { entities } = useOperationsEntity();
   // Bumping this counter forces both children to refetch. Each child
   // takes onCommitted as a stable callback that increments this counter
@@ -34,17 +36,17 @@ export default function SectionE_Routines() {
       </div>
 
       <div>
-        <div className="text-xs text-text-faint uppercase tracking-wide mb-2">
+        <div className={themed('text-xs text-text-faint uppercase tracking-wide mb-2', dk)}>
           today
         </div>
-        <TodaysStrip onCommitted={bump} />
+        <TodaysStrip surface={surface} onCommitted={bump} />
       </div>
 
-      <div className="pt-3 border-t border-border-light">
-        <div className="text-xs text-text-faint uppercase tracking-wide mb-2">
+      <div className={themed('pt-3 border-t border-border-light', dk)}>
+        <div className={themed('text-xs text-text-faint uppercase tracking-wide mb-2', dk)}>
           all routines
         </div>
-        <RoutineList entities={entities} onCommitted={bump} />
+        <RoutineList surface={surface} entities={entities} onCommitted={bump} />
       </div>
     </section>
   );

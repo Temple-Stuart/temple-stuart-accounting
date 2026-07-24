@@ -18,14 +18,16 @@
 import { useState } from 'react';
 import type { Scene } from './ContentTable';
 import ScenifyModal from './ScenifyModal';
+import { themed, type Surface } from '@/lib/ds';
 
-export default function ScenifyButton({
+export default function ScenifyButton({ surface = 'light',
   routine,
-}: {
+}: { surface?: Surface;
   routine: { id: string; name: string };
   /** Legacy callback from the container-scene flow; no longer invoked. */
   onScenify?: (newScene: Scene) => void;
 }) {
+  const dk = surface === 'dark';
   const [open, setOpen] = useState(false);
 
   return (
@@ -36,12 +38,12 @@ export default function ScenifyButton({
           e.stopPropagation();
           setOpen(true);
         }}
-        className="px-2 py-1 border border-border rounded hover:bg-bg-row text-xs font-mono"
+        className={themed('px-2 py-1 border border-border rounded hover:bg-bg-row text-xs font-mono', dk)}
       >
         🎬 Scenify
       </button>
       {open && (
-        <ScenifyModal
+        <ScenifyModal surface={surface}
           routine={{ id: routine.id, name: routine.name }}
           open={open}
           onClose={() => setOpen(false)}

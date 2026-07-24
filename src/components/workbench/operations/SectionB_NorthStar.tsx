@@ -27,6 +27,7 @@ import type {
 } from './types';
 import { DEFAULT_NORTH_STAR_FORM } from './types';
 import InspectionDrawer from './ai/InspectionDrawer';
+import { themed, type Surface } from '@/lib/ds';
 
 interface ProjectSummary {
   id: string;
@@ -98,7 +99,8 @@ function toForm(ns: NorthStar): NorthStarForm {
   };
 }
 
-export default function SectionB_NorthStar() {
+export default function SectionB_NorthStar({ surface = 'light' }: { surface?: Surface } = {}) {
+  const dk = surface === 'dark';
   const [northStar, setNorthStar] = useState<NorthStar | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -396,9 +398,9 @@ export default function SectionB_NorthStar() {
   };
 
   return (
-    <section className="bg-white rounded border border-border shadow-sm p-5">
+    <section className={themed('bg-white rounded border border-border shadow-sm p-5', dk)}>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-mono text-sm font-bold tracking-wide text-text-primary">
+        <h2 className={themed('font-mono text-sm font-bold tracking-wide text-text-primary', dk)}>
           B · NORTH STAR
         </h2>
         <div className="flex items-center gap-3 text-xs font-mono">
@@ -408,7 +410,7 @@ export default function SectionB_NorthStar() {
                 type="button"
                 onClick={handleReview}
                 disabled={reviewing}
-                className="px-2 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
+                className={themed('px-2 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50', dk)}
                 title="Record a review-without-edit attestation"
               >
                 {reviewing ? 'recording…' : 'I reviewed — still holds'}
@@ -416,7 +418,7 @@ export default function SectionB_NorthStar() {
               <button
                 type="button"
                 onClick={() => setEditing(true)}
-                className="px-2 py-1 border border-border rounded hover:bg-bg-row"
+                className={themed('px-2 py-1 border border-border rounded hover:bg-bg-row', dk)}
               >
                 edit
               </button>
@@ -437,10 +439,10 @@ export default function SectionB_NorthStar() {
       )}
 
       {loading ? (
-        <div className="text-xs font-mono text-text-muted">loading north star…</div>
+        <div className={themed('text-xs font-mono text-text-muted', dk)}>loading north star…</div>
       ) : editing ? (
         <>
-          <NorthStarEditor
+          <NorthStarEditor dk={dk}
             form={form}
             setForm={setForm}
             coreValueInput={coreValueInput}
@@ -455,7 +457,7 @@ export default function SectionB_NorthStar() {
             onUndoSection={handleUndoSection}
           />
           {openOptimizer && (
-            <OptimizePicker
+            <OptimizePicker dk={dk}
               sectionName={openOptimizer}
               projects={projects}
               projectsLoaded={projectsLoaded}
@@ -468,7 +470,7 @@ export default function SectionB_NorthStar() {
           )}
           {lastInspection && (
             <div className="mt-4">
-              <InspectionDrawer
+              <InspectionDrawer surface={surface}
                 data={{
                   model: lastInspection.model,
                   temperature: lastInspection.temperature,
@@ -486,70 +488,70 @@ export default function SectionB_NorthStar() {
           )}
         </>
       ) : northStar ? (
-        <NorthStarDisplay northStar={northStar} />
+        <NorthStarDisplay dk={dk} northStar={northStar} />
       ) : (
-        <div className="text-xs font-mono text-text-muted">no north star yet — entering edit mode…</div>
+        <div className={themed('text-xs font-mono text-text-muted', dk)}>no north star yet — entering edit mode…</div>
       )}
     </section>
   );
 }
 
-function NorthStarDisplay({ northStar }: { northStar: NorthStar }) {
+function NorthStarDisplay({ dk = false, northStar }: { dk?: boolean; northStar: NorthStar }) {
   const daysToReview = daysUntil(northStar.next_review_at);
   return (
     <div className="space-y-4 text-xs font-mono">
       {northStar.mission_statement ? (
         <div>
-          <div className="text-text-faint uppercase tracking-wide mb-1">mission</div>
-          <div className="text-text-primary text-sm whitespace-pre-wrap">
+          <div className={themed('text-text-faint uppercase tracking-wide mb-1', dk)}>mission</div>
+          <div className={themed('text-text-primary text-sm whitespace-pre-wrap', dk)}>
             {northStar.mission_statement}
           </div>
         </div>
       ) : (
-        <div className="text-text-muted italic">no mission statement set</div>
+        <div className={themed('text-text-muted italic', dk)}>no mission statement set</div>
       )}
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <div className="text-text-faint uppercase tracking-wide mb-1">life stage</div>
-          <div className="text-text-primary">{northStar.life_stage ?? '—'}</div>
+          <div className={themed('text-text-faint uppercase tracking-wide mb-1', dk)}>life stage</div>
+          <div className={themed('text-text-primary', dk)}>{northStar.life_stage ?? '—'}</div>
         </div>
         <div>
-          <div className="text-text-faint uppercase tracking-wide mb-1">location · timezone</div>
-          <div className="text-text-primary">
+          <div className={themed('text-text-faint uppercase tracking-wide mb-1', dk)}>location · timezone</div>
+          <div className={themed('text-text-primary', dk)}>
             {northStar.current_location_label ?? '—'} · {northStar.current_timezone}
           </div>
         </div>
       </div>
 
       <div>
-        <div className="text-text-faint uppercase tracking-wide mb-1">core values</div>
+        <div className={themed('text-text-faint uppercase tracking-wide mb-1', dk)}>core values</div>
         {northStar.core_values.length > 0 ? (
           <div className="flex flex-wrap gap-1">
             {northStar.core_values.map((v) => (
               <span
                 key={v}
-                className="px-2 py-0.5 border border-border rounded bg-bg-row text-text-primary"
+                className={themed('px-2 py-0.5 border border-border rounded bg-bg-row text-text-primary', dk)}
               >
                 {v}
               </span>
             ))}
           </div>
         ) : (
-          <div className="text-text-muted">—</div>
+          <div className={themed('text-text-muted', dk)}>—</div>
         )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <div className="text-text-faint uppercase tracking-wide mb-1">1-year target</div>
-          <div className="text-text-primary whitespace-pre-wrap">
+          <div className={themed('text-text-faint uppercase tracking-wide mb-1', dk)}>1-year target</div>
+          <div className={themed('text-text-primary whitespace-pre-wrap', dk)}>
             {northStar.one_year_target ?? '—'}
           </div>
         </div>
         <div>
-          <div className="text-text-faint uppercase tracking-wide mb-1">3-year target</div>
-          <div className="text-text-primary whitespace-pre-wrap">
+          <div className={themed('text-text-faint uppercase tracking-wide mb-1', dk)}>3-year target</div>
+          <div className={themed('text-text-primary whitespace-pre-wrap', dk)}>
             {northStar.three_year_target ?? '—'}
           </div>
         </div>
@@ -557,12 +559,12 @@ function NorthStarDisplay({ northStar }: { northStar: NorthStar }) {
 
       {northStar.guiding_principles && (
         <div>
-          <div className="text-text-faint uppercase tracking-wide mb-1">guiding principles</div>
-          <div className="text-text-primary whitespace-pre-wrap">{northStar.guiding_principles}</div>
+          <div className={themed('text-text-faint uppercase tracking-wide mb-1', dk)}>guiding principles</div>
+          <div className={themed('text-text-primary whitespace-pre-wrap', dk)}>{northStar.guiding_principles}</div>
         </div>
       )}
 
-      <div className="flex items-center gap-4 pt-2 border-t border-border-light text-text-muted">
+      <div className={themed('flex items-center gap-4 pt-2 border-t border-border-light text-text-muted', dk)}>
         <span>
           last reviewed:{' '}
           {northStar.last_reviewed_at ? relTime(northStar.last_reviewed_at) : 'never'}
@@ -577,7 +579,7 @@ function NorthStarDisplay({ northStar }: { northStar: NorthStar }) {
                 ? 'text-red-700'
                 : daysToReview <= 7
                 ? 'text-amber-700'
-                : 'text-text-muted'
+                : themed('text-text-muted', dk)
             }
           >
             {daysToReview < 0
@@ -593,6 +595,7 @@ function NorthStarDisplay({ northStar }: { northStar: NorthStar }) {
 }
 
 interface OptimizePickerProps {
+  dk?: boolean;
   sectionName: OptimizableSection;
   projects: ProjectSummary[];
   projectsLoaded: boolean;
@@ -603,7 +606,7 @@ interface OptimizePickerProps {
   onCancel: () => void;
 }
 
-function OptimizePicker({
+function OptimizePicker({ dk = false,
   sectionName,
   projects,
   projectsLoaded,
@@ -622,56 +625,56 @@ function OptimizePicker({
   return (
     <div className="mt-4 border border-brand-purple rounded p-3 bg-purple-50/30 text-xs font-mono space-y-2">
       <div className="flex items-center justify-between">
-        <div className="font-bold text-text-primary">
+        <div className={themed('font-bold text-text-primary', dk)}>
           optimize {readableSectionLabel(sectionName)} from reality{' '}
-          <span className="text-text-muted font-normal">
+          <span className={themed('text-text-muted font-normal', dk)}>
             ({kind === 'chips' ? 'AI proposes a revised chip set' : 'AI proposes replacement text'})
           </span>
         </div>
         <button
           type="button"
           onClick={onCancel}
-          className="text-text-muted hover:text-text-primary"
+          className={themed('text-text-muted hover:text-text-primary', dk)}
           title="Close picker"
         >
           ✕
         </button>
       </div>
-      <div className="text-text-muted">
+      <div className={themed('text-text-muted', dk)}>
         Pick the projects whose tasks should ground the proposal. Full project + task rows are
         sent to the model — never summarized, never truncated. If the payload exceeds the
         context window the server returns an error asking you to narrow the selection.
       </div>
       {!projectsLoaded ? (
-        <div className="text-text-muted italic">loading projects…</div>
+        <div className={themed('text-text-muted italic', dk)}>loading projects…</div>
       ) : projects.length === 0 ? (
-        <div className="text-text-muted italic">
+        <div className={themed('text-text-muted italic', dk)}>
           no projects yet — the AI will propose based on the current section text alone.
         </div>
       ) : (
-        <div className="max-h-48 overflow-y-auto border border-border rounded bg-white">
+        <div className={themed('max-h-48 overflow-y-auto border border-border rounded bg-white', dk)}>
           {projects.map((p) => (
             <label
               key={p.id}
-              className="flex items-center gap-2 px-2 py-1 border-b border-border-light last:border-b-0 hover:bg-bg-row cursor-pointer"
+              className={themed('flex items-center gap-2 px-2 py-1 border-b border-border-light last:border-b-0 hover:bg-bg-row cursor-pointer', dk)}
             >
               <input
                 type="checkbox"
                 checked={selectedIds.has(p.id)}
                 onChange={() => onToggle(p.id)}
               />
-              <span className="flex-1 truncate text-text-primary">{p.title}</span>
-              <span className="text-text-faint">{p.status}</span>
+              <span className={themed('flex-1 truncate text-text-primary', dk)}>{p.title}</span>
+              <span className={themed('text-text-faint', dk)}>{p.status}</span>
             </label>
           ))}
         </div>
       )}
-      <div className="text-text-muted">
+      <div className={themed('text-text-muted', dk)}>
         selected: {selectedList.length} of {projects.length} projects · ~
         {approxTokens.toLocaleString()} input tokens · ~${approxCost} per call (estimate; server
         logs authoritative cost)
       </div>
-      <div className="flex items-center gap-2 pt-2 border-t border-border-light">
+      <div className={themed('flex items-center gap-2 pt-2 border-t border-border-light', dk)}>
         <button
           type="button"
           onClick={onOptimize}
@@ -684,7 +687,7 @@ function OptimizePicker({
           type="button"
           onClick={onCancel}
           disabled={optimizing}
-          className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
+          className={themed('px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50', dk)}
         >
           cancel
         </button>
@@ -694,6 +697,7 @@ function OptimizePicker({
 }
 
 interface EditorProps {
+  dk?: boolean;
   form: NorthStarForm;
   setForm: (f: NorthStarForm) => void;
   coreValueInput: string;
@@ -709,12 +713,12 @@ interface EditorProps {
   onUndoSection: (section: OptimizableSection) => void;
 }
 
-function OptimizeButton({
+function OptimizeButton({ dk = false,
   section,
   onClick,
   hasProposal,
   onUndo,
-}: {
+}: { dk?: boolean;
   section: OptimizableSection;
   onClick: (s: OptimizableSection) => void;
   hasProposal: boolean;
@@ -734,7 +738,7 @@ function OptimizeButton({
         <button
           type="button"
           onClick={() => onUndo(section)}
-          className="text-text-muted hover:text-text-primary underline"
+          className={themed('text-text-muted hover:text-text-primary underline', dk)}
           title="Revert this section to its pre-proposal value"
         >
           🤖 AI proposal · undo
@@ -744,7 +748,7 @@ function OptimizeButton({
   );
 }
 
-function NorthStarEditor({
+function NorthStarEditor({ dk = false,
   form,
   setForm,
   coreValueInput,
@@ -758,16 +762,16 @@ function NorthStarEditor({
   sectionHasProposal,
   onUndoSection,
 }: EditorProps) {
-  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs font-mono';
+  const labelClass = themed('text-text-faint uppercase tracking-wide mb-1 text-xs font-mono', dk);
   const inputClass =
-    'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
+    themed('w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple', dk);
 
   return (
     <div className="space-y-4">
       <div>
         <div className="flex items-center justify-between mb-1">
           <div className={labelClass}>mission statement</div>
-          <OptimizeButton
+          <OptimizeButton dk={dk}
             section="mission_statement"
             onClick={onOpenOptimizer}
             hasProposal={sectionHasProposal.mission_statement !== undefined}
@@ -811,7 +815,7 @@ function NorthStarEditor({
       <div>
         <div className="flex items-center justify-between mb-1">
           <div className={labelClass}>core values</div>
-          <OptimizeButton
+          <OptimizeButton dk={dk}
             section="core_values"
             onClick={onOpenOptimizer}
             hasProposal={sectionHasProposal.core_values !== undefined}
@@ -822,13 +826,13 @@ function NorthStarEditor({
           {form.core_values.map((v) => (
             <span
               key={v}
-              className="px-2 py-0.5 border border-border rounded bg-bg-row text-text-primary text-xs font-mono inline-flex items-center gap-1"
+              className={themed('px-2 py-0.5 border border-border rounded bg-bg-row text-text-primary text-xs font-mono inline-flex items-center gap-1', dk)}
             >
               {v}
               <button
                 type="button"
                 onClick={() => removeCoreValue(v)}
-                className="text-text-muted hover:text-red-700"
+                className={themed('text-text-muted hover:text-red-700', dk)}
                 aria-label={`Remove ${v}`}
               >
                 ×
@@ -853,7 +857,7 @@ function NorthStarEditor({
           <button
             type="button"
             onClick={addCoreValue}
-            className="px-3 py-1 border border-border rounded text-xs font-mono hover:bg-bg-row"
+            className={themed('px-3 py-1 border border-border rounded text-xs font-mono hover:bg-bg-row', dk)}
           >
             add
           </button>
@@ -864,7 +868,7 @@ function NorthStarEditor({
         <div>
           <div className="flex items-center justify-between mb-1">
             <div className={labelClass}>1-year target</div>
-            <OptimizeButton
+            <OptimizeButton dk={dk}
               section="one_year_target"
               onClick={onOpenOptimizer}
               hasProposal={sectionHasProposal.one_year_target !== undefined}
@@ -882,7 +886,7 @@ function NorthStarEditor({
         <div>
           <div className="flex items-center justify-between mb-1">
             <div className={labelClass}>3-year target</div>
-            <OptimizeButton
+            <OptimizeButton dk={dk}
               section="three_year_target"
               onClick={onOpenOptimizer}
               hasProposal={sectionHasProposal.three_year_target !== undefined}
@@ -902,7 +906,7 @@ function NorthStarEditor({
       <div>
         <div className="flex items-center justify-between mb-1">
           <div className={labelClass}>guiding principles</div>
-          <OptimizeButton
+          <OptimizeButton dk={dk}
             section="guiding_principles"
             onClick={onOpenOptimizer}
             hasProposal={sectionHasProposal.guiding_principles !== undefined}
@@ -941,7 +945,7 @@ function NorthStarEditor({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 pt-2 border-t border-border-light">
+      <div className={themed('flex items-center gap-2 pt-2 border-t border-border-light', dk)}>
         <button
           type="button"
           onClick={onSave}
@@ -955,7 +959,7 @@ function NorthStarEditor({
             type="button"
             onClick={onCancel}
             disabled={saving}
-            className="px-3 py-1 border border-border rounded text-xs font-mono hover:bg-bg-row disabled:opacity-50"
+            className={themed('px-3 py-1 border border-border rounded text-xs font-mono hover:bg-bg-row disabled:opacity-50', dk)}
           >
             cancel
           </button>

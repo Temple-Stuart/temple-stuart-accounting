@@ -31,6 +31,7 @@ import ScriptGenerator from './ScriptGenerator';
 import PieceGrid from './PieceGrid';
 import DailyLog from './DailyLog';
 import DayCalendar from './DayCalendar';
+import { themed, type Surface } from '@/lib/ds';
 
 interface RoutineLite {
   id: string;
@@ -65,7 +66,8 @@ const todayLocal = () => {
 
 const sectionHeader = 'text-sm font-medium tracking-wide text-brand-purple';
 
-export default function ContentPipeline() {
+export default function ContentPipeline({ surface = 'light' }: { surface?: Surface } = {}) {
+  const dk = surface === 'dark';
   const { entities, selectedEntityId, setSelectedEntityId } = useOperationsEntity();
   const [routines, setRoutines] = useState<RoutineLite[]>([]);
   const [tasks, setTasks] = useState<TaskLite[]>([]);
@@ -280,20 +282,20 @@ export default function ContentPipeline() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-lg font-bold text-brand-purple">
           Content
-          <span className="ml-2 text-sm font-normal text-text-muted">inputs → script map → answer + record → script</span>
+          <span className={themed('ml-2 text-sm font-normal text-text-muted', dk)}>inputs → script map → answer + record → script</span>
         </h1>
         <div className="flex items-center gap-2 text-xs">
-          <span className="px-2 py-0.5 rounded border border-border-light bg-bg-row text-text-primary">
+          <span className={themed('px-2 py-0.5 rounded border border-border-light bg-bg-row text-text-primary', dk)}>
             {sceneCount} scenes
           </span>
-          <span className="px-2 py-0.5 rounded border border-border-light bg-bg-row text-text-primary">
+          <span className={themed('px-2 py-0.5 rounded border border-border-light bg-bg-row text-text-primary', dk)}>
             {answeredCount} answered
           </span>
           {entities.length > 0 && (
             <select
               value={selectedEntityId ?? ''}
               onChange={(e) => setSelectedEntityId(e.target.value)}
-              className="px-2 py-1 bg-white border border-brand-purple/40 rounded text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple"
+              className={themed('px-2 py-1 bg-white border border-brand-purple/40 rounded text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple', dk)}
               aria-label="New-day entity"
               title="Which entity a newly-created day is filed under (the day reads cross-entity)"
             >
@@ -315,17 +317,17 @@ export default function ContentPipeline() {
 
       {/* · DAY — the day's blocks as a stacked clock-order list (shares useDayFeed
           with section 3's answer timeline). Collapsed by default; sits above INPUTS. */}
-      <DayCalendar date={date} onDateChange={setDate} />
+      <DayCalendar surface={surface} date={date} onDateChange={setDate} />
 
       {/* 1 · INPUTS — projects/routines are CREATED in their own tabs; here you only
           SELECT existing ones (PR-Content-2 removed the redundant in-tab create step). */}
-      <section className="bg-white rounded border border-border p-4 space-y-3">
+      <section className={themed('bg-white rounded border border-border p-4 space-y-3', dk)}>
         <h2 className={sectionHeader}>
           1 · INPUTS
-          <span className="ml-2 font-normal text-text-muted">pick routines to scenify · add tasks to the day</span>
+          <span className={themed('ml-2 font-normal text-text-muted', dk)}>pick routines to scenify · add tasks to the day</span>
         </h2>
         {loading ? (
-          <p className="text-sm text-text-muted">Loading…</p>
+          <p className={themed('text-sm text-text-muted', dk)}>Loading…</p>
         ) : (
           <div className="grid grid-cols-1 gap-4 text-xs">
             {/* PR-Content-3: cues stack VERTICALLY (tasks above routines) with full data —
@@ -333,11 +335,11 @@ export default function ContentPipeline() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h3 className="text-brand-purple font-medium uppercase tracking-wide">Project tasks</h3>
-                <span className="text-text-muted">add to {date}</span>
+                <span className={themed('text-text-muted', dk)}>add to {date}</span>
               </div>
-              <div className="border border-border rounded p-3 bg-white text-xs space-y-3">
+              <div className={themed('border border-border rounded p-3 bg-white text-xs space-y-3', dk)}>
                 {tasks.length === 0 ? (
-                  <p className="text-text-muted">No unscheduled tasks.</p>
+                  <p className={themed('text-text-muted', dk)}>No unscheduled tasks.</p>
                 ) : (
                   <ul className="space-y-1 max-h-[260px] overflow-y-auto pr-1">
                     {tasks.map((t) => {
@@ -346,22 +348,22 @@ export default function ContentPipeline() {
                       return (
                         <li
                           key={t.id}
-                          className="flex flex-col gap-1 px-2 py-1.5 rounded border border-border-light"
+                          className={themed('flex flex-col gap-1 px-2 py-1.5 rounded border border-border-light', dk)}
                         >
-                          <span className="text-text-primary">{t.title}</span>
+                          <span className={themed('text-text-primary', dk)}>{t.title}</span>
                           {t.project?.title && (
-                            <span className="text-text-muted break-words">{t.project.title}</span>
+                            <span className={themed('text-text-muted break-words', dk)}>{t.project.title}</span>
                           )}
                           {t.project && entityNameById.get(t.project.entity_id) && (
-                            <span className="text-text-muted break-words">
+                            <span className={themed('text-text-muted break-words', dk)}>
                               {entityNameById.get(t.project.entity_id)}
                             </span>
                           )}
                           <div className="flex items-center justify-end gap-2">
                             <span
-                              className={`shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide ${
-                                STATUS_PILL[t.status] ?? 'bg-gray-100 text-gray-600'
-                              }`}
+                              className={themed(`shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide ${
+                                STATUS_PILL[t.status] ?? themed('bg-gray-100 text-gray-600', dk)
+                              }`, dk)}
                             >
                               {t.status}
                             </span>
@@ -396,7 +398,7 @@ export default function ContentPipeline() {
                     })}
                   </ul>
                 )}
-                <p className="text-text-muted">
+                <p className={themed('text-text-muted', dk)}>
                   Adds the task to the day (commit times on the{' '}
                   <a href="/operations" className="text-brand-purple hover:underline">Daily Plan</a> tab).
                 </p>
@@ -406,9 +408,9 @@ export default function ContentPipeline() {
             {/* Right: routines (selectable, order tracked) */}
             <div className="space-y-2">
               <h3 className="text-brand-purple font-medium uppercase tracking-wide">Routines</h3>
-              <div className="border border-border rounded p-3 bg-white text-xs space-y-3">
+              <div className={themed('border border-border rounded p-3 bg-white text-xs space-y-3', dk)}>
                 {routines.length === 0 ? (
-                  <p className="text-text-muted">No routines — create one on the Routines tab.</p>
+                  <p className={themed('text-text-muted', dk)}>No routines — create one on the Routines tab.</p>
                 ) : (
                   <ul className="space-y-1">
                     {routines.map((r) => {
@@ -419,23 +421,23 @@ export default function ContentPipeline() {
                           <button
                             type="button"
                             onClick={() => toggle(r.id)}
-                            className={`w-full flex items-center gap-2 text-left px-2 py-1.5 rounded border ${
-                              isSel ? 'border-brand-purple bg-purple-50/50' : 'border-border-light hover:bg-bg-row'
-                            }`}
+                            className={themed(`w-full flex items-center gap-2 text-left px-2 py-1.5 rounded border ${
+                              isSel ? 'border-brand-purple bg-purple-50/50' : themed('border-border-light hover:bg-bg-row', dk)
+                            }`, dk)}
                           >
                             <span
-                              className={`shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] ${
-                                isSel ? 'bg-brand-purple text-white' : 'border border-border text-text-muted'
-                              }`}
+                              className={themed(`shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] ${
+                                isSel ? 'bg-brand-purple text-white' : themed('border border-border text-text-muted', dk)
+                              }`, dk)}
                               aria-hidden="true"
                             >
                               {isSel ? order + 1 : ''}
                             </span>
-                            <span className="text-text-primary font-medium flex-1">{r.name}</span>
+                            <span className={themed('text-text-primary font-medium flex-1', dk)}>{r.name}</span>
                             {entityNameById.get(r.entity_id) && (
-                              <span className="text-text-muted break-words">{entityNameById.get(r.entity_id)}</span>
+                              <span className={themed('text-text-muted break-words', dk)}>{entityNameById.get(r.entity_id)}</span>
                             )}
-                            <span className="text-text-muted">
+                            <span className={themed('text-text-muted', dk)}>
                               {r.steps.length} step{r.steps.length === 1 ? '' : 's'}
                             </span>
                           </button>
@@ -452,15 +454,15 @@ export default function ContentPipeline() {
 
       {/* 2 · AI SCRIPT MAP (renders inline when ≥1 routine selected) */}
       {selectedRoutines.length > 0 && (
-        <ScenifyDraft routines={selectedRoutines} date={date} onSaved={loadCounts} />
+        <ScenifyDraft surface={surface} routines={selectedRoutines} date={date} onSaved={loadCounts} />
       )}
 
       {/* 3 · ANSWER + RECORD — date at top, the answer timeline over the record grid. */}
-      <section className="bg-white rounded border border-border p-4 space-y-4">
+      <section className={themed('bg-white rounded border border-border p-4 space-y-4', dk)}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className={sectionHeader}>
             3 · ANSWER + RECORD
-            <span className="ml-2 font-normal text-text-muted">answer the day → the evolution record</span>
+            <span className={themed('ml-2 font-normal text-text-muted', dk)}>answer the day → the evolution record</span>
           </h2>
           <label className="flex items-center gap-1.5 text-xs text-brand-purple font-medium">
             day
@@ -468,17 +470,17 @@ export default function ContentPipeline() {
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="px-2 py-1 bg-white border border-brand-purple/40 rounded text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple"
+              className={themed('px-2 py-1 bg-white border border-brand-purple/40 rounded text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple', dk)}
               aria-label="Day"
             />
           </label>
         </div>
-        <DailyLog date={date} />
-        <PieceGrid />
+        <DailyLog surface={surface} date={date} />
+        <PieceGrid surface={surface} />
       </section>
 
       {/* 4 · SCRIPT — the reel voiceover generator (CE-5). */}
-      <ScriptGenerator date={date} />
+      <ScriptGenerator surface={surface} date={date} />
     </div>
   );
 }

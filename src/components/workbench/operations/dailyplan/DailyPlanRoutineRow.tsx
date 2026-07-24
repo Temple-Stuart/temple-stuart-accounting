@@ -11,6 +11,7 @@
 
 import { useState } from 'react';
 import type { TodayRoutineEntry, TodayStatus } from '../routines/types';
+import { themed, type Surface } from '@/lib/ds';
 
 function formatTime(iso: string, tz?: string): string {
   try {
@@ -45,22 +46,23 @@ interface Props {
   entry: TodayRoutineEntry;
 }
 
-export function DailyPlanRoutineRow({ entry }: Props) {
+export function DailyPlanRoutineRow({ surface = 'light', entry }: Props & { surface?: Surface }) {
+  const dk = surface === 'dark';
   const [showSteps, setShowSteps] = useState(false);
   const steps = entry.routine.steps ?? [];
   const hasSteps = steps.length > 0;
 
   return (
-    <div className="bg-white border border-border rounded p-3 space-y-2">
+    <div className={themed('bg-white border border-border rounded p-3 space-y-2', dk)}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-mono text-text-muted">[routine]</span>
-            <span className="font-mono text-sm text-text-primary font-bold">{entry.routine.name}</span>
-            <span className={statusPillClass(entry.status)}>{entry.status}</span>
+            <span className={themed('text-xs font-mono text-text-muted', dk)}>[routine]</span>
+            <span className={themed('font-mono text-sm text-text-primary font-bold', dk)}>{entry.routine.name}</span>
+            <span className={themed(statusPillClass(entry.status), dk)}>{entry.status}</span>
           </div>
 
-          <div className="text-xs font-mono text-text-muted mt-1 flex items-center gap-3 flex-wrap">
+          <div className={themed('text-xs font-mono text-text-muted mt-1 flex items-center gap-3 flex-wrap', dk)}>
             <span>expected: {formatTime(entry.expected_at, entry.routine.timezone)}</span>
             {(entry.routine.start_time || entry.routine.end_time) && (
               <span title="intent time window">
@@ -88,7 +90,7 @@ export function DailyPlanRoutineRow({ entry }: Props) {
                   e.stopPropagation();
                   setShowSteps((x) => !x);
                 }}
-                className="text-text-muted hover:text-text-primary"
+                className={themed('text-text-muted hover:text-text-primary', dk)}
                 title={showSteps ? 'hide steps' : 'show steps'}
               >
                 {showSteps ? '▾' : '▸'} {steps.length} {steps.length === 1 ? 'step' : 'steps'}
@@ -97,16 +99,16 @@ export function DailyPlanRoutineRow({ entry }: Props) {
           </div>
 
           {showSteps && hasSteps && (
-            <div className="mt-2 pl-2 border-l-2 border-border-light space-y-1">
+            <div className={themed('mt-2 pl-2 border-l-2 border-border-light space-y-1', dk)}>
               {steps.map((step) => (
-                <div key={step.id} className="text-xs font-mono text-text-muted">
+                <div key={step.id} className={themed('text-xs font-mono text-text-muted', dk)}>
                   <div className="flex items-baseline gap-2 flex-wrap">
                     {step.time_of_day && (
-                      <span className="text-text-primary shrink-0">
+                      <span className={themed('text-text-primary shrink-0', dk)}>
                         {step.time_of_day.slice(11, 16)}
                       </span>
                     )}
-                    <span className="text-text-primary truncate">{step.activity}</span>
+                    <span className={themed('text-text-primary truncate', dk)}>{step.activity}</span>
                     {step.sub_activity && <span>· {step.sub_activity}</span>}
                     {step.location && <span className="shrink-0">@ {step.location}</span>}
                     {step.duration_minutes !== null && (
@@ -114,7 +116,7 @@ export function DailyPlanRoutineRow({ entry }: Props) {
                     )}
                   </div>
                   {step.notes && (
-                    <div className="text-text-muted italic pl-2 mt-0.5">{step.notes}</div>
+                    <div className={themed('text-text-muted italic pl-2 mt-0.5', dk)}>{step.notes}</div>
                   )}
                 </div>
               ))}
@@ -122,7 +124,7 @@ export function DailyPlanRoutineRow({ entry }: Props) {
           )}
 
           {entry.routine.description && (
-            <div className="text-xs font-mono text-text-muted mt-1 italic whitespace-pre-wrap">
+            <div className={themed('text-xs font-mono text-text-muted mt-1 italic whitespace-pre-wrap', dk)}>
               {entry.routine.description}
             </div>
           )}

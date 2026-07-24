@@ -20,6 +20,7 @@ import type {
   Project,
 } from './types';
 import { DEPENDENCY_TYPE_LABELS, DEPENDENCY_TYPE_DESCRIPTIONS } from './types';
+import { themed, type Surface } from '@/lib/ds';
 
 const DEPENDENCY_TYPES: DependencyType[] = ['blocks', 'informs', 'derived_from'];
 
@@ -48,7 +49,7 @@ export interface DependencyListViewProps {
   onDelete: (depId: string) => void;
 }
 
-export default function DependencyListView({
+export default function DependencyListView({ surface = 'light',
   projectId,
   allProjects,
   outgoing,
@@ -68,10 +69,11 @@ export default function DependencyListView({
   onCreateFormChange,
   onCreate,
   onDelete,
-}: DependencyListViewProps) {
+}: DependencyListViewProps & { surface?: Surface }) {
+  const dk = surface === 'dark';
   const inputClass =
-    'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
-  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
+    themed('w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple', dk);
+  const labelClass = themed('text-text-faint uppercase tracking-wide mb-1 text-xs', dk);
 
   // Filter to blocks-only by default; show advisory edges only when toggled.
   const outgoingBlocks = outgoing.filter((d) => d.dependency_type === 'blocks');
@@ -100,10 +102,10 @@ export default function DependencyListView({
     return (
       <div
         key={dep.id}
-        className="flex items-center justify-between gap-2 py-1 px-2 hover:bg-bg-row rounded"
+        className={themed('flex items-center justify-between gap-2 py-1 px-2 hover:bg-bg-row rounded', dk)}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <span className="text-text-faint">▸</span>
+          <span className={themed('text-text-faint', dk)}>▸</span>
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onJumpTo(linkedId); }}
@@ -112,14 +114,14 @@ export default function DependencyListView({
           >
             {linkedTitle}
           </button>
-          <span className="text-text-muted text-xs">({linkedStatus.replace(/_/g, ' ')})</span>
+          <span className={themed('text-text-muted text-xs', dk)}>({linkedStatus.replace(/_/g, ' ')})</span>
           {dep.dependency_type !== 'blocks' && (
-            <span className="text-text-faint italic text-xs">
+            <span className={themed('text-text-faint italic text-xs', dk)}>
               {DEPENDENCY_TYPE_LABELS[dep.dependency_type]}
             </span>
           )}
           {dep.rationale && (
-            <span className="text-text-muted truncate" title={dep.rationale}>
+            <span className={themed('text-text-muted truncate', dk)} title={dep.rationale}>
               — {dep.rationale}
             </span>
           )}
@@ -142,7 +144,7 @@ export default function DependencyListView({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <div className="text-xs text-text-muted">
+        <div className={themed('text-xs text-text-muted', dk)}>
           {outgoingBlocks.length + incomingBlocks.length} blocks edges
           {(outgoingAdvisory.length + incomingAdvisory.length > 0) && (
             <>, {outgoingAdvisory.length + incomingAdvisory.length} advisory</>
@@ -153,7 +155,7 @@ export default function DependencyListView({
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onToggleAdvisory(); }}
-              className="px-2 py-1 border border-border rounded text-xs hover:bg-bg-row"
+              className={themed('px-2 py-1 border border-border rounded text-xs hover:bg-bg-row', dk)}
             >
               {showAdvisory ? 'hide advisory' : 'show advisory'}
             </button>
@@ -178,8 +180,8 @@ export default function DependencyListView({
       )}
 
       {showCreate && (
-        <div className="border border-border rounded p-3 bg-white text-xs space-y-3">
-          <div className="font-bold text-text-primary">new dependency</div>
+        <div className={themed('border border-border rounded p-3 bg-white text-xs space-y-3', dk)}>
+          <div className={themed('font-bold text-text-primary', dk)}>new dependency</div>
           {createError && (
             <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
               {createError}
@@ -215,7 +217,7 @@ export default function DependencyListView({
                 </option>
               ))}
             </select>
-            <div className="text-text-muted text-xs italic mt-1">
+            <div className={themed('text-text-muted text-xs italic mt-1', dk)}>
               {DEPENDENCY_TYPE_DESCRIPTIONS[createForm.dependency_type]}
             </div>
           </div>
@@ -229,7 +231,7 @@ export default function DependencyListView({
               placeholder="why does this dependency exist?"
             />
           </div>
-          <div className="flex items-center gap-2 pt-2 border-t border-border-light">
+          <div className={themed('flex items-center gap-2 pt-2 border-t border-border-light', dk)}>
             <button
               type="button"
               onClick={onCreate}
@@ -242,7 +244,7 @@ export default function DependencyListView({
               type="button"
               onClick={onCancelCreate}
               disabled={createSaving}
-              className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
+              className={themed('px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50', dk)}
             >
               cancel
             </button>
@@ -251,9 +253,9 @@ export default function DependencyListView({
       )}
 
       {loading ? (
-        <div className="text-xs text-text-muted">loading dependencies…</div>
+        <div className={themed('text-xs text-text-muted', dk)}>loading dependencies…</div>
       ) : outgoingBlocks.length === 0 && incomingBlocks.length === 0 && (!showAdvisory || (outgoingAdvisory.length === 0 && incomingAdvisory.length === 0)) ? (
-        <div className="text-xs text-text-muted italic">
+        <div className={themed('text-xs text-text-muted italic', dk)}>
           no dependencies yet — click "+ add dependency" to link this project to others.
         </div>
       ) : (

@@ -6,7 +6,7 @@
  * ALL four fetches (GET content grid load / PATCH execution notes / POST the
  * PAID generate-script / PATCH save script), the mount + event-listener loads,
  * the day-piece resolution, the editor draft/notes state, and the clipboard
- * helper — and now renders the pure <ScriptGeneratorView/> with the live values
+ * helper — and now renders the pure <ScriptGeneratorView surface={surface} /> with the live values
  * + the real handlers wired to its callbacks. The public name + prop shape
  * ({ date }) are unchanged, so the existing call site (ContentPipeline.tsx:565)
  * is untouched and /operations/content generates scripts EXACTLY as before — the
@@ -20,6 +20,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CONTENT_DAY_PLAN_CHANGED_EVENT, CONTENT_SCENES_CHANGED_EVENT } from './ScenifyModal';
 import ScriptGeneratorView from './ScriptGeneratorView';
+import { themed, type Surface } from '@/lib/ds';
 
 interface PieceLite {
   id: string;
@@ -42,7 +43,8 @@ what changed for the user (not the code mechanics). Note anything merged but not
 usable (e.g. migration pending). No jargon, no file paths, no code. Output a short
 bullet list I can paste as today's execution notes. Read-only — touch nothing.`;
 
-export default function ScriptGenerator({ date }: { date: string }) {
+export default function ScriptGenerator({ surface = 'light', date }: { surface?: Surface; date: string }) {
+  const dk = surface === 'dark';
   const [pieces, setPieces] = useState<PieceLite[]>([]);
   const [cells, setCells] = useState<CellLite[]>([]);
   const [draft, setDraft] = useState<string | null>(null); // null = not loaded/edited yet
@@ -139,7 +141,7 @@ export default function ScriptGenerator({ date }: { date: string }) {
       : null;
 
   // PAID Anthropic — POST /content/generate-script (tier-gated server-side).
-  // Container-only: never reachable from the pure <ScriptGeneratorView/>.
+  // Container-only: never reachable from the pure <ScriptGeneratorView surface={surface} />.
   const generate = async () => {
     if (generating || !piece || disabledReason) return;
     setGenerating(true);
@@ -186,7 +188,7 @@ export default function ScriptGenerator({ date }: { date: string }) {
   };
 
   return (
-    <ScriptGeneratorView
+    <ScriptGeneratorView surface={surface}
       dayAuditPrompt={DAY_AUDIT_PROMPT}
       hasPiece={piece !== null}
       disabledReason={disabledReason}

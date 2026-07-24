@@ -26,13 +26,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { themed, type Surface } from '@/lib/ds';
 
-export default function ScriptDrawer({
+export default function ScriptDrawer({ surface = 'light',
   scene,
   open,
   onSave,
   onCancel,
-}: {
+}: { surface?: Surface;
   scene: {
     id: string;
     scene_number: number;
@@ -43,6 +44,7 @@ export default function ScriptDrawer({
   onSave: (script: string | null) => Promise<void>;
   onCancel: () => void;
 }) {
+  const dk = surface === 'dark';
   const [draftScript, setDraftScript] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,8 +84,8 @@ export default function ScriptDrawer({
   };
 
   return (
-    <div className="fixed right-0 top-0 h-full w-[35%] min-w-[400px] max-w-[600px] bg-white border-l border-border shadow-lg flex flex-col z-50">
-      <div className="px-4 py-3 border-b border-border-light font-mono text-xs font-semibold text-text-primary">
+    <div className={themed('fixed right-0 top-0 h-full w-[35%] min-w-[400px] max-w-[600px] bg-white border-l border-border shadow-lg flex flex-col z-50', dk)}>
+      <div className={themed('px-4 py-3 border-b border-border-light font-mono text-xs font-semibold text-text-primary', dk)}>
         Scene {scene.scene_number} · {scene.scene_title}
       </div>
 
@@ -94,11 +96,11 @@ export default function ScriptDrawer({
           disabled={saving}
           autoFocus
           placeholder="Write the script for this scene..."
-          className="w-full h-full resize-none border border-border rounded px-3 py-2 font-mono text-xs text-text-primary focus:outline-none focus:border-brand-purple disabled:opacity-50"
+          className={themed('w-full h-full resize-none border border-border rounded px-3 py-2 font-mono text-xs text-text-primary focus:outline-none focus:border-brand-purple disabled:opacity-50', dk)}
         />
       </div>
 
-      <div className="px-4 py-3 border-t border-border-light flex flex-col gap-2">
+      <div className={themed('px-4 py-3 border-t border-border-light flex flex-col gap-2', dk)}>
         {error && (
           <div className="text-xs font-mono text-red-700 bg-red-50 border border-red-200 px-2 py-1 rounded">
             {error}
@@ -109,7 +111,7 @@ export default function ScriptDrawer({
             type="button"
             onClick={handleCancel}
             disabled={saving}
-            className="px-3 py-1.5 text-xs font-mono border border-border rounded hover:bg-bg-row disabled:opacity-50"
+            className={themed('px-3 py-1.5 text-xs font-mono border border-border rounded hover:bg-bg-row disabled:opacity-50', dk)}
           >
             Cancel
           </button>

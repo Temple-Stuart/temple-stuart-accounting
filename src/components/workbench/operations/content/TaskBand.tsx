@@ -22,6 +22,7 @@
 import { useState } from 'react';
 import { CONTENT_DAY_PLAN_CHANGED_EVENT } from './ScenifyModal';
 import TaskTimeCommit from './TaskTimeCommit';
+import { themed, type Surface } from '@/lib/ds';
 
 const fieldLabel = 'text-brand-purple uppercase tracking-wide text-[10px] font-medium';
 const timeInput =
@@ -46,7 +47,7 @@ const isoToTime = (iso: string | null): string => {
 
 type Mode = 'view' | 'edit' | 'uncommit' | 'remove' | 'done';
 
-export default function TaskBand({
+export default function TaskBand({ surface = 'light',
   date,
   planned,
   itemId,
@@ -59,7 +60,7 @@ export default function TaskBand({
   scheduledStart,
   scheduledEnd,
   timeLabel,
-}: {
+}: { surface?: Surface;
   date: string;
   planned: boolean;
   itemId: string;
@@ -75,6 +76,7 @@ export default function TaskBand({
   actualEnd?: string | null;
   timeLabel: string;
 }) {
+  const dk = surface === 'dark';
   const done = status === 'completed';
   const [mode, setMode] = useState<Mode>('view');
   const [start, setStart] = useState('');
@@ -184,11 +186,11 @@ export default function TaskBand({
   // the committed default view (one source).
   const removeConfirm = (
     <span className="flex flex-wrap items-center gap-1.5">
-      <span className="text-text-muted">Remove this task from the day?</span>
+      <span className={themed('text-text-muted', dk)}>Remove this task from the day?</span>
       <button type="button" onClick={removeFromDay} disabled={busy} className={`${btn} border-red-300 text-red-700 hover:bg-red-50`}>
         {busy ? 'removing…' : 'remove from day'}
       </button>
-      <button type="button" onClick={() => setMode('view')} disabled={busy} className={`${btn} border-border text-text-muted hover:bg-bg-row`}>
+      <button type="button" onClick={() => setMode('view')} disabled={busy} className={themed(`${btn} border-border text-text-muted hover:bg-bg-row`, dk)}>
         cancel
       </button>
     </span>
@@ -240,27 +242,27 @@ export default function TaskBand({
             removeConfirm
           ) : (
             <span className="flex flex-wrap items-center gap-2">
-              <TaskTimeCommit itemId={itemId} date={date} />
+              <TaskTimeCommit surface={surface} itemId={itemId} date={date} />
               <button
                 type="button"
                 onClick={() => setMode('remove')}
-                className={`${btn} border-border text-text-muted hover:bg-bg-row`}
+                className={themed(`${btn} border-border text-text-muted hover:bg-bg-row`, dk)}
               >
                 remove from day
               </button>
             </span>
           )
         ) : done ? (
-          <span className="text-text-primary font-medium tabular-nums whitespace-nowrap">✓ DONE · {timeLabel}</span>
+          <span className={themed('text-text-primary font-medium tabular-nums whitespace-nowrap', dk)}>✓ DONE · {timeLabel}</span>
         ) : mode === 'edit' || mode === 'done' ? (
           <span className="flex flex-wrap items-center gap-1.5">
             <label className="flex items-center gap-1 text-brand-purple font-medium">
               {mode === 'done' ? 'actual start' : 'start'}
-              <input type="time" value={start} onChange={(e) => setStart(e.target.value)} className={timeInput} />
+              <input type="time" value={start} onChange={(e) => setStart(e.target.value)} className={themed(timeInput, dk)} />
             </label>
             <label className="flex items-center gap-1 text-brand-purple font-medium">
               {mode === 'done' ? 'actual end' : 'end'}
-              <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} className={timeInput} />
+              <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} className={themed(timeInput, dk)} />
             </label>
             <button
               type="button"
@@ -280,17 +282,17 @@ export default function TaskBand({
                 schedule anyway
               </button>
             )}
-            <button type="button" onClick={() => setMode('view')} disabled={busy} className={`${btn} border-border text-text-muted hover:bg-bg-row`}>
+            <button type="button" onClick={() => setMode('view')} disabled={busy} className={themed(`${btn} border-border text-text-muted hover:bg-bg-row`, dk)}>
               cancel
             </button>
           </span>
         ) : mode === 'uncommit' ? (
           <span className="flex flex-wrap items-center gap-1.5">
-            <span className="text-text-muted">Remove the time? Returns to planned.</span>
+            <span className={themed('text-text-muted', dk)}>Remove the time? Returns to planned.</span>
             <button type="button" onClick={uncommit} disabled={busy} className={`${btn} border-red-300 text-red-700 hover:bg-red-50`}>
               {busy ? 'removing…' : 'remove'}
             </button>
-            <button type="button" onClick={() => setMode('view')} disabled={busy} className={`${btn} border-border text-text-muted hover:bg-bg-row`}>
+            <button type="button" onClick={() => setMode('view')} disabled={busy} className={themed(`${btn} border-border text-text-muted hover:bg-bg-row`, dk)}>
               cancel
             </button>
           </span>
@@ -298,14 +300,14 @@ export default function TaskBand({
           removeConfirm
         ) : (
           <span className="flex flex-wrap items-center gap-2">
-            <span className="text-text-primary font-medium tabular-nums whitespace-nowrap">{timeLabel}</span>
+            <span className={themed('text-text-primary font-medium tabular-nums whitespace-nowrap', dk)}>{timeLabel}</span>
             <button type="button" onClick={() => open('edit')} className={`${btn} border-brand-purple text-brand-purple hover:bg-purple-100/50`}>
               edit time
             </button>
-            <button type="button" onClick={() => setMode('uncommit')} className={`${btn} border-border text-text-muted hover:bg-bg-row`}>
+            <button type="button" onClick={() => setMode('uncommit')} className={themed(`${btn} border-border text-text-muted hover:bg-bg-row`, dk)}>
               uncommit
             </button>
-            <button type="button" onClick={() => setMode('remove')} className={`${btn} border-border text-text-muted hover:bg-bg-row`}>
+            <button type="button" onClick={() => setMode('remove')} className={themed(`${btn} border-border text-text-muted hover:bg-bg-row`, dk)}>
               remove from day
             </button>
             <button type="button" onClick={() => open('done')} className={`${btn} border-brand-purple bg-brand-purple text-white hover:opacity-90`}>
@@ -317,20 +319,20 @@ export default function TaskBand({
       </Field>
 
       <Field label="task" className="min-w-[160px] flex-1">
-        <span className="text-text-primary font-medium break-words">{title}</span>
+        <span className={themed('text-text-primary font-medium break-words', dk)}>{title}</span>
       </Field>
 
       {projectName && (
         <Field label="project" className="min-w-[120px]">
-          <span className="text-text-muted break-words">{projectName}</span>
+          <span className={themed('text-text-muted break-words', dk)}>{projectName}</span>
         </Field>
       )}
 
       <Field label="status">
         <span
-          className={`px-1.5 py-0.5 rounded border text-[10px] uppercase tracking-wide whitespace-nowrap ${
-            done ? 'border-brand-purple bg-purple-50 text-brand-purple' : 'border-amber-300 bg-white text-amber-700'
-          }`}
+          className={themed(`px-1.5 py-0.5 rounded border text-[10px] uppercase tracking-wide whitespace-nowrap ${
+            done ? 'border-brand-purple bg-purple-50 text-brand-purple' : themed('border-amber-300 bg-white text-amber-700', dk)
+          }`, dk)}
         >
           {status}
         </span>

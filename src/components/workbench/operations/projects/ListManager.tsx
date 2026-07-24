@@ -20,6 +20,7 @@
 'use client';
 
 import { useState } from 'react';
+import { themed, type Surface } from '@/lib/ds';
 
 interface Props {
   /** Current items (each is a complete natural-voice line with verb prefix). */
@@ -46,14 +47,15 @@ interface Props {
 const MAX_ITEMS = 20;
 const MAX_CHARS = 500;
 
-export default function ListManager({
+export default function ListManager({ surface = 'light',
   items,
   onChange,
   verbPrefix,
   altVerbPrefix,
   placeholder,
   disabled = false,
-}: Props) {
+}: Props & { surface?: Surface }) {
+  const dk = surface === 'dark';
   const [draft, setDraft] = useState<string>('');
   const [draftPrefix, setDraftPrefix] = useState<string>(verbPrefix);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -117,19 +119,19 @@ export default function ListManager({
   };
 
   const inputClass =
-    'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
+    themed('w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple', dk);
 
   return (
     <div className="space-y-1">
       {items.length === 0 && draft.length === 0 && (
-        <div className="text-xs text-text-muted italic px-1">
+        <div className={themed('text-xs text-text-muted italic px-1', dk)}>
           (no items yet — click below to add)
         </div>
       )}
 
       {items.map((item, i) => (
         <div key={i} className="flex items-start gap-2 group">
-          <span className="text-text-faint text-xs mt-1 select-none">·</span>
+          <span className={themed('text-text-faint text-xs mt-1 select-none', dk)}>·</span>
           {editingIndex === i ? (
             <>
               <input
@@ -157,7 +159,7 @@ export default function ListManager({
                 type="button"
                 onClick={cancelEdit}
                 disabled={disabled}
-                className="px-2 py-0.5 border border-border rounded text-xs hover:bg-bg-row disabled:opacity-50"
+                className={themed('px-2 py-0.5 border border-border rounded text-xs hover:bg-bg-row disabled:opacity-50', dk)}
               >
                 cancel
               </button>
@@ -165,7 +167,7 @@ export default function ListManager({
           ) : (
             <>
               <span
-                className="flex-1 text-xs text-text-primary cursor-pointer hover:bg-bg-row rounded px-1"
+                className={themed('flex-1 text-xs text-text-primary cursor-pointer hover:bg-bg-row rounded px-1', dk)}
                 onClick={() => !disabled && startEdit(i)}
                 title="Click to edit"
               >
@@ -175,7 +177,7 @@ export default function ListManager({
                 type="button"
                 onClick={() => removeItem(i)}
                 disabled={disabled}
-                className="opacity-0 group-hover:opacity-100 px-1 text-text-faint hover:text-red-700 text-xs disabled:opacity-50"
+                className={themed('opacity-0 group-hover:opacity-100 px-1 text-text-faint hover:text-red-700 text-xs disabled:opacity-50', dk)}
                 title="Remove item"
               >
                 ✕
@@ -214,7 +216,7 @@ export default function ListManager({
             type="button"
             onClick={cancelAdd}
             disabled={disabled}
-            className="px-2 py-0.5 border border-border rounded text-xs hover:bg-bg-row disabled:opacity-50"
+            className={themed('px-2 py-0.5 border border-border rounded text-xs hover:bg-bg-row disabled:opacity-50', dk)}
           >
             cancel
           </button>
@@ -242,12 +244,12 @@ export default function ListManager({
             </button>
           )}
           {atLimit && (
-            <span className="text-xs text-text-muted italic">
+            <span className={themed('text-xs text-text-muted italic', dk)}>
               (max {MAX_ITEMS} items reached)
             </span>
           )}
           {!atLimit && items.length >= MAX_ITEMS - 5 && (
-            <span className="text-xs text-text-muted">
+            <span className={themed('text-xs text-text-muted', dk)}>
               ({MAX_ITEMS - items.length} slots left)
             </span>
           )}

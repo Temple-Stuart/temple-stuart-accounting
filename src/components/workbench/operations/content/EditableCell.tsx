@@ -22,8 +22,9 @@
 'use client';
 
 import { useState } from 'react';
+import { themed, type Surface } from '@/lib/ds';
 
-export default function EditableCell({
+export default function EditableCell({ surface = 'light',
   value,
   type,
   onSave,
@@ -36,7 +37,7 @@ export default function EditableCell({
   renderValue,
   cellClassName = 'py-1 px-2',
   inputClassName,
-}: {
+}: { surface?: Surface;
   value: string | number | null;
   type: 'text' | 'number';
   onSave: (newValue: string | number | null) => Promise<void>;
@@ -50,6 +51,7 @@ export default function EditableCell({
   cellClassName?: string;
   inputClassName?: string;
 }) {
+  const dk = surface === 'dark';
   const [isEditing, setIsEditing] = useState(false);
   const [draftValue, setDraftValue] = useState<string>('');
   const [saving, setSaving] = useState(false);
@@ -144,10 +146,10 @@ export default function EditableCell({
 
   const baseInput =
     inputClassName ??
-    'w-full px-1 py-0 border rounded text-xs font-mono text-text-primary focus:outline-none disabled:opacity-50';
+    themed('w-full px-1 py-0 border rounded text-xs font-mono text-text-primary focus:outline-none disabled:opacity-50', dk);
   const borderClass = error
     ? 'border-red-500 focus:border-red-500'
-    : 'border-border focus:border-brand-purple';
+    : themed('border-border focus:border-brand-purple', dk);
 
   return (
     <td className={cellClassName}>

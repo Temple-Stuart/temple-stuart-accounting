@@ -14,6 +14,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useOperationsEntity } from '../EntitySelector';
+import { themed, type Surface } from '@/lib/ds';
 
 interface Question {
   id: string;
@@ -25,7 +26,8 @@ interface Question {
 const inputClass =
   'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
 
-export default function QuestionLibrary() {
+export default function QuestionLibrary({ surface = 'light' }: { surface?: Surface } = {}) {
+  const dk = surface === 'dark';
   const { selectedEntityId } = useOperationsEntity();
   const [questions, setQuestions] = useState<Question[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -109,21 +111,21 @@ export default function QuestionLibrary() {
   };
 
   return (
-    <div className="w-full border border-border-light rounded bg-white text-xs font-mono">
+    <div className={themed('w-full border border-border-light rounded bg-white text-xs font-mono', dk)}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-3 py-2 text-text-primary hover:bg-bg-row"
+        className={themed('w-full flex items-center justify-between px-3 py-2 text-text-primary hover:bg-bg-row', dk)}
       >
         <span className="font-semibold">
           ❓ Question library{questions ? ` (${questions.length})` : ''}
         </span>
-        <span className="text-text-faint">{open ? 'hide' : 'manage'}</span>
+        <span className={themed('text-text-faint', dk)}>{open ? 'hide' : 'manage'}</span>
       </button>
 
       {open && (
-        <div className="px-3 pb-3 space-y-3 border-t border-border-light pt-3">
-          <p className="text-text-muted">
+        <div className={themed('px-3 pb-3 space-y-3 border-t border-border-light pt-3', dk)}>
+          <p className={themed('text-text-muted', dk)}>
             Your reusable on-camera questions. AI suggest assigns the best fit per scene; you can
             archive (never deleted — scenes keep the exact wording they asked).
           </p>
@@ -133,7 +135,7 @@ export default function QuestionLibrary() {
           )}
 
           {/* Add */}
-          <div className="grid grid-cols-1 gap-2 border border-border-light rounded p-2 bg-bg-row/30">
+          <div className={themed('grid grid-cols-1 gap-2 border border-border-light rounded p-2 bg-bg-row/30', dk)}>
             <div className="grid grid-cols-3 gap-2">
               <input
                 type="text"
@@ -141,14 +143,14 @@ export default function QuestionLibrary() {
                 onChange={(e) => setNewLabel(e.target.value)}
                 placeholder="label (optional, e.g. day_score)"
                 maxLength={200}
-                className={`${inputClass} col-span-1`}
+                className={themed(`${inputClass} col-span-1`, dk)}
               />
               <input
                 type="text"
                 value={newText}
                 onChange={(e) => setNewText(e.target.value)}
                 placeholder="question text (e.g. what's the discomfort you're choosing today?)"
-                className={`${inputClass} col-span-2`}
+                className={themed(`${inputClass} col-span-2`, dk)}
               />
             </div>
             <div>
@@ -165,17 +167,17 @@ export default function QuestionLibrary() {
 
           {/* List */}
           {questions === null ? (
-            <p className="text-text-faint">Loading…</p>
+            <p className={themed('text-text-faint', dk)}>Loading…</p>
           ) : questions.length === 0 ? (
-            <p className="text-text-muted">No questions yet — add your framework above.</p>
+            <p className={themed('text-text-muted', dk)}>No questions yet — add your framework above.</p>
           ) : (
             <ul className="space-y-1">
               {questions.map((q) => (
                 <li
                   key={q.id}
-                  className="flex items-start justify-between gap-2 border border-border-light rounded px-2 py-1"
+                  className={themed('flex items-start justify-between gap-2 border border-border-light rounded px-2 py-1', dk)}
                 >
-                  <span className="text-text-primary">
+                  <span className={themed('text-text-primary', dk)}>
                     {q.label && (
                       <span className="mr-2 px-1.5 py-0.5 rounded bg-purple-50 text-brand-purple text-[10px]">
                         {q.label}
@@ -187,7 +189,7 @@ export default function QuestionLibrary() {
                     type="button"
                     onClick={() => handleArchive(q.id)}
                     disabled={busy}
-                    className="shrink-0 px-2 py-0.5 border border-border rounded text-text-muted hover:bg-bg-row disabled:opacity-50"
+                    className={themed('shrink-0 px-2 py-0.5 border border-border rounded text-text-muted hover:bg-bg-row disabled:opacity-50', dk)}
                   >
                     archive
                   </button>

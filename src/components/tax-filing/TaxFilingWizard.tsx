@@ -10,6 +10,7 @@ import DeductionsStep from './steps/DeductionsStep';
 import TradingStep from './steps/TradingStep';
 import ReviewStep from './steps/ReviewStep';
 import FileStep from './steps/FileStep';
+import { themed, type Surface } from '@/lib/ds';
 
 // ═══════════════════════════════════════════════════════════════════
 // Tax Filing Wizard — 7-step guided flow from life events to filing.
@@ -140,7 +141,8 @@ function availableTaxYears(): number[] {
   return [current + 1, current, current - 1, current - 2];
 }
 
-export default function TaxFilingWizard() {
+export default function TaxFilingWizard({ surface = 'light' }: { surface?: Surface } = {}) {
+  const dk = surface === 'dark';
   const [state, setState] = useState<WizardState>({
     currentStep: 0,
     completedSteps: new Set<number>(),
@@ -296,8 +298,8 @@ export default function TaxFilingWizard() {
         {/* Header */}
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">File your taxes</h1>
-            <p className="text-sm text-gray-500 mt-1">
+            <h1 className={themed('text-2xl font-semibold text-gray-900', dk)}>File your taxes</h1>
+            <p className={themed('text-sm text-gray-500 mt-1', dk)}>
               Tax year {state.taxYear} · Step {state.currentStep + 1} of {STEPS.length} ·{' '}
               {step.label}
             </p>
@@ -305,7 +307,7 @@ export default function TaxFilingWizard() {
           <div className="shrink-0">
             <label
               htmlFor="wizard-tax-year"
-              className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1 text-right"
+              className={themed('block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1 text-right', dk)}
             >
               Tax year
             </label>
@@ -318,7 +320,7 @@ export default function TaxFilingWizard() {
                   taxYear: parseInt(e.target.value, 10),
                 }))
               }
-              className="px-3 py-1.5 text-sm font-mono font-semibold border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+              className={themed('px-3 py-1.5 text-sm font-mono font-semibold border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white', dk)}
             >
               {availableTaxYears().map((y) => (
                 <option key={y} value={y}>
@@ -339,7 +341,7 @@ export default function TaxFilingWizard() {
                 ? 'bg-emerald-500'
                 : isCurrent
                   ? 'bg-blue-500'
-                  : 'bg-gray-200';
+                  : themed('bg-gray-200', dk);
               return (
                 <div
                   key={s.id}
@@ -368,7 +370,7 @@ export default function TaxFilingWizard() {
                 ? 'bg-emerald-500 text-white border-emerald-500'
                 : isCurrent
                   ? 'bg-blue-500 text-white border-blue-500'
-                  : 'bg-white text-gray-400 border-gray-300';
+                  : themed('bg-white text-gray-400 border-gray-300', dk);
 
               return (
                 <li key={s.id}>
@@ -389,13 +391,13 @@ export default function TaxFilingWizard() {
                       {isDone ? '✓' : s.id + 1}
                     </span>
                     <span
-                      className={`text-[11px] text-center leading-tight ${
+                      className={themed(`text-[11px] text-center leading-tight ${
                         isCurrent
-                          ? 'text-gray-900 font-medium'
+                          ? themed('text-gray-900 font-medium', dk)
                           : isDone
                             ? 'text-emerald-700'
-                            : 'text-gray-500'
-                      }`}
+                            : themed('text-gray-500', dk)
+                      }`, dk)}
                     >
                       {s.label}
                     </span>
@@ -408,18 +410,18 @@ export default function TaxFilingWizard() {
 
         {/* Auto-detect banner */}
         {autoDetectLoading && (
-          <div className="mb-4 px-3 py-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded">
+          <div className={themed('mb-4 px-3 py-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded', dk)}>
             Detecting your existing data…
           </div>
         )}
 
         {/* Current step content */}
-        <div className="bg-white border border-gray-200 rounded-lg">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900">
+        <div className={themed('bg-white border border-gray-200 rounded-lg', dk)}>
+          <div className={themed('px-5 py-4 border-b border-gray-100', dk)}>
+            <h2 className={themed('text-lg font-semibold text-gray-900', dk)}>
               {step.id + 1}. {step.label}
             </h2>
-            <p className="text-sm text-gray-500 mt-0.5">{step.description}</p>
+            <p className={themed('text-sm text-gray-500 mt-0.5', dk)}>{step.description}</p>
           </div>
           <div className="p-5">
             <StepComponent
@@ -431,12 +433,12 @@ export default function TaxFilingWizard() {
               autoDetected={state.autoDetected}
             />
           </div>
-          <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 flex items-center justify-between rounded-b-lg">
+          <div className={themed('px-5 py-3 border-t border-gray-100 bg-gray-50 flex items-center justify-between rounded-b-lg', dk)}>
             <button
               type="button"
               onClick={onStepBack}
               disabled={state.currentStep === 0}
-              className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+              className={themed('px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed', dk)}
             >
               ← Back
             </button>

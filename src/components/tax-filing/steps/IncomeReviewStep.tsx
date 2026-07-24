@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { StepProps } from '../TaxFilingWizard';
+import { themed, type Surface } from '@/lib/ds';
 
 // ═══════════════════════════════════════════════════════════════════
 // Step 2 — Income Review
@@ -180,7 +181,7 @@ function SourceBadge({
 
 // ─── Reusable card shell ───────────────────────────────────────────
 
-function IncomeCard({
+function IncomeCard({ dk = false,
   title,
   subtitle,
   total,
@@ -191,7 +192,7 @@ function IncomeCard({
   onToggle,
   detail,
   highlight,
-}: {
+}: { dk?: boolean;
   title: string;
   subtitle?: string;
   total: number | null;
@@ -206,44 +207,44 @@ function IncomeCard({
   const isOpen = expanded.has(expandKey);
   return (
     <div
-      className={`border rounded-lg overflow-hidden ${
-        highlight ? 'border-blue-200 bg-blue-50/30' : 'border-gray-200 bg-white'
-      }`}
+      className={themed(`border rounded-lg overflow-hidden ${
+        highlight ? 'border-blue-200 bg-blue-50/30' : themed('border-gray-200 bg-white', dk)
+      }`, dk)}
     >
       <button
         type="button"
         onClick={() => onToggle(expandKey)}
-        className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50"
+        className={themed('w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50', dk)}
       >
         <div className="flex items-center gap-3 min-w-0">
-          <span className="text-xs text-gray-400 w-3">
+          <span className={themed('text-xs text-gray-400 w-3', dk)}>
             {isOpen ? '▼' : '▶'}
           </span>
           <div className="text-left">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-gray-900">
+              <span className={themed('text-sm font-semibold text-gray-900', dk)}>
                 {title}
               </span>
               {badge}
             </div>
             {subtitle && (
-              <div className="text-xs text-gray-500 mt-0.5">{subtitle}</div>
+              <div className={themed('text-xs text-gray-500 mt-0.5', dk)}>{subtitle}</div>
             )}
           </div>
         </div>
         <div className="text-right">
-          <div className="text-[10px] text-gray-400 font-mono uppercase tracking-wider">
+          <div className={themed('text-[10px] text-gray-400 font-mono uppercase tracking-wider', dk)}>
             {totalLabel}
           </div>
           <div
-            className={`text-lg font-mono font-semibold ${amountClass(total)}`}
+            className={themed(`text-lg font-mono font-semibold ${amountClass(total)}`, dk)}
           >
             {fmtMoney(total)}
           </div>
         </div>
       </button>
       {isOpen && (
-        <div className="px-4 pb-4 border-t border-gray-100 bg-white">
+        <div className={themed('px-4 pb-4 border-t border-gray-100 bg-white', dk)}>
           {detail}
         </div>
       )}
@@ -253,12 +254,12 @@ function IncomeCard({
 
 // ─── Nested detail row ─────────────────────────────────────────────
 
-function DetailRow({
+function DetailRow({ dk = false,
   label,
   value,
   indent = 0,
   muted,
-}: {
+}: { dk?: boolean;
   label: React.ReactNode;
   value: React.ReactNode;
   indent?: number;
@@ -269,11 +270,11 @@ function DetailRow({
       className="flex items-center justify-between py-1.5 text-sm"
       style={{ paddingLeft: indent * 12 }}
     >
-      <span className={muted ? 'text-gray-500' : 'text-gray-700'}>{label}</span>
+      <span className={muted ? themed('text-gray-500', dk) : themed('text-gray-700', dk)}>{label}</span>
       <span
-        className={`font-mono ${
-          muted ? 'text-gray-500' : 'text-gray-900'
-        }`}
+        className={themed(`font-mono ${
+          muted ? themed('text-gray-500', dk) : themed('text-gray-900', dk)
+        }`, dk)}
       >
         {value}
       </span>
@@ -283,10 +284,11 @@ function DetailRow({
 
 // ─── Component ─────────────────────────────────────────────────────
 
-export default function IncomeReviewStep({
+export default function IncomeReviewStep({ surface = 'light',
   taxYear,
   lifeEvents,
-}: StepProps) {
+}: StepProps & { surface?: Surface }) {
+  const dk = surface === 'dark';
   const [calc, setCalc] = useState<CalculateResponse | null>(null);
   const [docs, setDocs] = useState<TaxDocument[]>([]);
   const [report, setReport] = useState<TaxReportResponse | null>(null);
@@ -466,7 +468,7 @@ export default function IncomeReviewStep({
         {[...Array(4)].map((_, i) => (
           <div
             key={i}
-            className="h-20 bg-gray-50 border border-gray-200 rounded animate-pulse"
+            className={themed('h-20 bg-gray-50 border border-gray-200 rounded animate-pulse', dk)}
           />
         ))}
       </div>
@@ -490,7 +492,7 @@ export default function IncomeReviewStep({
 
   if (!calc || !form1040) {
     return (
-      <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700">
+      <div className={themed('px-4 py-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700', dk)}>
         No tax data available for {taxYear}.
       </div>
     );
@@ -498,7 +500,7 @@ export default function IncomeReviewStep({
 
   return (
     <div className="space-y-5">
-      <p className="text-sm text-gray-600">
+      <p className={themed('text-sm text-gray-600', dk)}>
         Every income number below is traced back to its source. Click any
         card to see the underlying documents, ledger entries, or trading
         positions.
@@ -522,7 +524,7 @@ export default function IncomeReviewStep({
 
       {/* A. W-2 Wages */}
       {lifeEvents.hasW2 && (
-        <IncomeCard
+        <IncomeCard dk={dk}
           title="W-2 Wages"
           subtitle={
             w2Docs.length === 0
@@ -537,7 +539,7 @@ export default function IncomeReviewStep({
           detail={
             <div className="pt-3 space-y-3">
               {w2Docs.length === 0 ? (
-                <p className="text-sm text-gray-500">
+                <p className={themed('text-sm text-gray-500', dk)}>
                   No W-2 documents entered. Go back to Documents to add one.
                 </p>
               ) : (
@@ -551,73 +553,73 @@ export default function IncomeReviewStep({
                     return (
                       <div
                         key={d.id}
-                        className="border border-gray-100 rounded"
+                        className={themed('border border-gray-100 rounded', dk)}
                       >
                         <button
                           type="button"
                           onClick={() => toggle(key)}
-                          className="w-full px-3 py-2 flex items-center justify-between hover:bg-gray-50"
+                          className={themed('w-full px-3 py-2 flex items-center justify-between hover:bg-gray-50', dk)}
                         >
                           <div className="flex items-center gap-2 text-sm">
-                            <span className="text-gray-400 text-xs">
+                            <span className={themed('text-gray-400 text-xs', dk)}>
                               {isOpen ? '▼' : '▶'}
                             </span>
-                            <span className="text-gray-800">{employer}</span>
+                            <span className={themed('text-gray-800', dk)}>{employer}</span>
                           </div>
-                          <span className="font-mono text-sm text-gray-900">
+                          <span className={themed('font-mono text-sm text-gray-900', dk)}>
                             {fmtMoney(wages)}
                           </span>
                         </button>
                         {isOpen && (
                           <div className="px-3 pb-2">
-                            <DetailRow
+                            <DetailRow dk={dk}
                               indent={1}
                               label="Employer EIN"
                               value={strField(d.data, 'employer_ein') || '—'}
                             />
-                            <DetailRow
+                            <DetailRow dk={dk}
                               indent={1}
                               label="Gross wages (Box 1)"
                               value={fmtMoney(
                                 numField(d.data, 'gross_wages')
                               )}
                             />
-                            <DetailRow
+                            <DetailRow dk={dk}
                               indent={1}
                               label="Federal withheld (Box 2)"
                               value={fmtMoney(
                                 numField(d.data, 'federal_withheld')
                               )}
                             />
-                            <DetailRow
+                            <DetailRow dk={dk}
                               indent={1}
                               label="SS wages (Box 3)"
                               value={fmtMoney(
                                 numField(d.data, 'social_security_wages')
                               )}
                             />
-                            <DetailRow
+                            <DetailRow dk={dk}
                               indent={1}
                               label="SS tax (Box 4)"
                               value={fmtMoney(
                                 numField(d.data, 'social_security_tax')
                               )}
                             />
-                            <DetailRow
+                            <DetailRow dk={dk}
                               indent={1}
                               label="Medicare wages (Box 5)"
                               value={fmtMoney(
                                 numField(d.data, 'medicare_wages')
                               )}
                             />
-                            <DetailRow
+                            <DetailRow dk={dk}
                               indent={1}
                               label="State wages (Box 16)"
                               value={fmtMoney(
                                 numField(d.data, 'state_wages')
                               )}
                             />
-                            <DetailRow
+                            <DetailRow dk={dk}
                               indent={1}
                               label="State withheld (Box 17)"
                               value={fmtMoney(
@@ -629,8 +631,8 @@ export default function IncomeReviewStep({
                       </div>
                     );
                   })}
-                  <div className="pt-2 border-t border-gray-100 space-y-0.5">
-                    <DetailRow
+                  <div className={themed('pt-2 border-t border-gray-100 space-y-0.5', dk)}>
+                    <DetailRow dk={dk}
                       label="Total federal withholding"
                       value={`${fmtMoney(w2TotalFedWH)}${
                         effectiveWithholdingPct > 0
@@ -638,7 +640,7 @@ export default function IncomeReviewStep({
                           : ''
                       }`}
                     />
-                    <DetailRow
+                    <DetailRow dk={dk}
                       label="Total state withholding"
                       value={fmtMoney(w2TotalStateWH)}
                       muted
@@ -653,7 +655,7 @@ export default function IncomeReviewStep({
 
       {/* B. Business Income (Schedule C) */}
       {lifeEvents.hasBusiness && scheduleC && (
-        <IncomeCard
+        <IncomeCard dk={dk}
           title="Business Income (Schedule C)"
           subtitle={scheduleC.businessName}
           total={scheduleC.line31}
@@ -674,7 +676,7 @@ export default function IncomeReviewStep({
                   This loss reduces your taxable income on Form 1040 Line 8.
                 </p>
               )}
-              <DetailRow
+              <DetailRow dk={dk}
                 label="Line 1 — Gross receipts"
                 value={fmtMoney(scheduleC.line1)}
               />
@@ -686,24 +688,24 @@ export default function IncomeReviewStep({
                     <button
                       type="button"
                       onClick={() => toggle(key)}
-                      className="w-full flex items-center justify-between py-1 text-sm hover:bg-gray-50"
+                      className={themed('w-full flex items-center justify-between py-1 text-sm hover:bg-gray-50', dk)}
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-gray-400 text-xs">
+                        <span className={themed('text-gray-400 text-xs', dk)}>
                           {isOpen ? '▼' : '▶'}
                         </span>
-                        <span className="text-gray-700">
+                        <span className={themed('text-gray-700', dk)}>
                           Line {exp.line} — {exp.label}
                         </span>
                       </div>
-                      <span className="font-mono text-gray-900">
+                      <span className={themed('font-mono text-gray-900', dk)}>
                         {fmtMoney(exp.amount)}
                       </span>
                     </button>
                     {isOpen && (
                       <div className="pl-6 pb-1">
                         {exp.accounts.map((a) => (
-                          <DetailRow
+                          <DetailRow dk={dk}
                             key={a.code}
                             indent={1}
                             label={`${a.code} ${a.name}`}
@@ -716,12 +718,12 @@ export default function IncomeReviewStep({
                   </div>
                 );
               })}
-              <div className="pt-2 border-t border-gray-100">
-                <DetailRow
+              <div className={themed('pt-2 border-t border-gray-100', dk)}>
+                <DetailRow dk={dk}
                   label="Line 28 — Total expenses"
                   value={fmtMoney(scheduleC.line28)}
                 />
-                <DetailRow
+                <DetailRow dk={dk}
                   label="Line 31 — Net profit/(loss)"
                   value={fmtMoney(scheduleC.line31)}
                 />
@@ -739,7 +741,7 @@ export default function IncomeReviewStep({
 
       {/* C. Retirement Distributions (1099-R) */}
       {lifeEvents.hasRetirement && (
-        <IncomeCard
+        <IncomeCard dk={dk}
           title="Retirement Distributions"
           subtitle={
             r1099Docs.length === 0
@@ -761,7 +763,7 @@ export default function IncomeReviewStep({
           detail={
             <div className="pt-3 space-y-2">
               {r1099Docs.length === 0 ? (
-                <p className="text-sm text-gray-500">
+                <p className={themed('text-sm text-gray-500', dk)}>
                   No 1099-R documents entered. Go back to Documents to add one.
                 </p>
               ) : (
@@ -776,60 +778,60 @@ export default function IncomeReviewStep({
                     return (
                       <div
                         key={d.id}
-                        className="border border-gray-100 rounded px-3 py-2"
+                        className={themed('border border-gray-100 rounded px-3 py-2', dk)}
                       >
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium text-gray-800">
+                          <span className={themed('text-sm font-medium text-gray-800', dk)}>
                             {payer}
                           </span>
-                          <span className="font-mono text-sm text-gray-900">
+                          <span className={themed('font-mono text-sm text-gray-900', dk)}>
                             {fmtMoney(
                               numField(d.data, 'gross_distribution')
                             )}
                           </span>
                         </div>
-                        <DetailRow
+                        <DetailRow dk={dk}
                           label="Gross distribution (Box 1)"
                           value={fmtMoney(
                             numField(d.data, 'gross_distribution')
                           )}
                           indent={1}
                         />
-                        <DetailRow
+                        <DetailRow dk={dk}
                           label="Taxable amount (Box 2a)"
                           value={fmtMoney(numField(d.data, 'taxable_amount'))}
                           indent={1}
                         />
-                        <DetailRow
+                        <DetailRow dk={dk}
                           label="Federal withheld (Box 4)"
                           value={fmtMoney(
                             numField(d.data, 'federal_withheld')
                           )}
                           indent={1}
                         />
-                        <DetailRow
+                        <DetailRow dk={dk}
                           label="Distribution code (Box 7)"
                           value={code || '—'}
                           indent={1}
                         />
                         {codeHint && (
-                          <p className="text-xs text-gray-500 pl-3 mt-1">
+                          <p className={themed('text-xs text-gray-500 pl-3 mt-1', dk)}>
                             {codeHint}
                           </p>
                         )}
                       </div>
                     );
                   })}
-                  <div className="pt-2 border-t border-gray-100">
-                    <DetailRow
+                  <div className={themed('pt-2 border-t border-gray-100', dk)}>
+                    <DetailRow dk={dk}
                       label="Total gross distribution"
                       value={fmtMoney(retTotalGross)}
                     />
-                    <DetailRow
+                    <DetailRow dk={dk}
                       label="Total taxable"
                       value={fmtMoney(retTotalTaxable)}
                     />
-                    <DetailRow
+                    <DetailRow dk={dk}
                       label="Total federal withholding"
                       value={fmtMoney(retTotalWH)}
                     />
@@ -843,7 +845,7 @@ export default function IncomeReviewStep({
 
       {/* D. Capital Gains/Losses */}
       {lifeEvents.hasTrading && (
-        <IncomeCard
+        <IncomeCard dk={dk}
           title="Capital Gains & Losses"
           subtitle={`${totalDispositions} disposition${totalDispositions === 1 ? '' : 's'}`}
           total={form1040.line7}
@@ -859,16 +861,16 @@ export default function IncomeReviewStep({
           onToggle={toggle}
           detail={
             <div className="pt-3 space-y-2">
-              <DetailRow
+              <DetailRow dk={dk}
                 label={`Short-term gain/(loss) — ${stockCount} disposition(s)`}
                 value={fmtMoney(form1040.line7_stcg)}
               />
-              <DetailRow
+              <DetailRow dk={dk}
                 label={`Long-term gain/(loss) — ${ltCount} disposition(s)`}
                 value={fmtMoney(form1040.line7_ltcg)}
               />
-              <div className="pt-2 border-t border-gray-100">
-                <DetailRow
+              <div className={themed('pt-2 border-t border-gray-100', dk)}>
+                <DetailRow dk={dk}
                   label="Net capital gain/(loss)"
                   value={fmtMoney(form1040.line7)}
                 />
@@ -897,7 +899,7 @@ export default function IncomeReviewStep({
 
       {/* E. Interest & Dividends (placeholder) */}
       {lifeEvents.hasInterestDividends && (
-        <IncomeCard
+        <IncomeCard dk={dk}
           title="Interest & Dividends"
           subtitle="1099-INT / 1099-DIV"
           total={null}
@@ -908,7 +910,7 @@ export default function IncomeReviewStep({
           expanded={expanded}
           onToggle={toggle}
           detail={
-            <div className="pt-3 text-sm text-gray-600">
+            <div className={themed('pt-3 text-sm text-gray-600', dk)}>
               Enter your 1099-INT and 1099-DIV in the Documents step. Full
               wiring for these document types is coming in a later release.
             </div>
@@ -918,7 +920,7 @@ export default function IncomeReviewStep({
 
       {/* F. Student Loan Interest (1098-E) */}
       {lifeEvents.hasStudentLoan && (
-        <IncomeCard
+        <IncomeCard dk={dk}
           title="Student Loan Interest"
           subtitle={
             e1098Docs.length === 0
@@ -939,26 +941,26 @@ export default function IncomeReviewStep({
           onToggle={toggle}
           detail={
             <div className="pt-3 space-y-2">
-              <p className="text-xs text-gray-500">
+              <p className={themed('text-xs text-gray-500', dk)}>
                 Deduction up to $2,500 — reduces your adjusted gross income.
               </p>
               {e1098Docs.map((d) => (
                 <div
                   key={d.id}
-                  className="border border-gray-100 rounded px-3 py-2"
+                  className={themed('border border-gray-100 rounded px-3 py-2', dk)}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-800">
+                    <span className={themed('text-sm text-gray-800', dk)}>
                       {strField(d.data, 'lender_name') || d.label || 'Lender'}
                     </span>
-                    <span className="font-mono text-sm text-gray-900">
+                    <span className={themed('font-mono text-sm text-gray-900', dk)}>
                       {fmtMoney(numField(d.data, 'interest_paid'))}
                     </span>
                   </div>
                 </div>
               ))}
               {e1098Docs.length > 0 && (
-                <DetailRow
+                <DetailRow dk={dk}
                   label="Estimated deduction (capped at $2,500)"
                   value={fmtMoney(Math.min(slTotalInterest, 2500))}
                 />
@@ -970,7 +972,7 @@ export default function IncomeReviewStep({
 
       {/* G. Education Credits (1098-T) */}
       {lifeEvents.hasEducation && (
-        <IncomeCard
+        <IncomeCard dk={dk}
           title="Education Credits"
           subtitle={
             t1098Docs.length === 0
@@ -994,21 +996,21 @@ export default function IncomeReviewStep({
               {t1098Docs.map((d) => (
                 <div
                   key={d.id}
-                  className="border border-gray-100 rounded px-3 py-2"
+                  className={themed('border border-gray-100 rounded px-3 py-2', dk)}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-gray-800">
+                    <span className={themed('text-sm font-medium text-gray-800', dk)}>
                       {strField(d.data, 'school_name') ||
                         d.label ||
                         'School'}
                     </span>
                   </div>
-                  <DetailRow
+                  <DetailRow dk={dk}
                     indent={1}
                     label="Qualified tuition (Box 1)"
                     value={fmtMoney(numField(d.data, 'amounts_billed'))}
                   />
-                  <DetailRow
+                  <DetailRow dk={dk}
                     indent={1}
                     label="Scholarships (Box 5)"
                     value={fmtMoney(numField(d.data, 'scholarships'))}
@@ -1016,32 +1018,32 @@ export default function IncomeReviewStep({
                 </div>
               ))}
               {t1098Docs.length > 0 && (
-                <div className="pt-2 border-t border-gray-100">
-                  <DetailRow
+                <div className={themed('pt-2 border-t border-gray-100', dk)}>
+                  <DetailRow dk={dk}
                     label="Total billed"
                     value={fmtMoney(edTotalBilled)}
                   />
-                  <DetailRow
+                  <DetailRow dk={dk}
                     label="Less scholarships"
                     value={fmtMoney(edTotalScholarships)}
                     muted
                   />
-                  <DetailRow
+                  <DetailRow dk={dk}
                     label="Qualified expenses"
                     value={fmtMoney(edQualifiedExpenses)}
                   />
                   <div className="pt-2">
-                    <DetailRow
+                    <DetailRow dk={dk}
                       label="AOTC"
                       value={fmtMoney(form1040.aotcAmount)}
                       muted
                     />
-                    <DetailRow
+                    <DetailRow dk={dk}
                       label="LLC"
                       value={fmtMoney(form1040.llcAmount)}
                       muted
                     />
-                    <DetailRow
+                    <DetailRow dk={dk}
                       label={`Selected credit (${form1040.educationCreditType.toUpperCase()})`}
                       value={fmtMoney(form1040.educationCredit)}
                     />
@@ -1059,41 +1061,41 @@ export default function IncomeReviewStep({
           Form 1040 — Income Summary
         </h3>
         <div className="space-y-0.5">
-          <DetailRow
+          <DetailRow dk={dk}
             label="Line 1 — W-2 wages"
             value={fmtMoney(form1040.line1)}
           />
           {form1040.line5a !== 0 && (
-            <DetailRow
+            <DetailRow dk={dk}
               label="Line 5a — Pension / IRA gross"
               value={fmtMoney(form1040.line5a)}
               muted
             />
           )}
-          <DetailRow
+          <DetailRow dk={dk}
             label="Line 5b — Pension / IRA taxable"
             value={fmtMoney(form1040.line5b)}
           />
-          <DetailRow
+          <DetailRow dk={dk}
             label="Line 7 — Capital gain/(loss)"
             value={fmtMoney(form1040.line7)}
           />
-          <DetailRow
+          <DetailRow dk={dk}
             label="Line 8 — Schedule C net profit/(loss)"
             value={fmtMoney(form1040.line8)}
           />
           <div className="pt-2 border-t border-blue-200">
-            <DetailRow
+            <DetailRow dk={dk}
               label="Line 9 — Total income"
               value={fmtMoney(form1040.line9)}
             />
           </div>
-          <DetailRow
+          <DetailRow dk={dk}
             label="Less: deductible half of SE tax"
             value={fmtMoney(form1040.seTaxDeduction)}
             muted
           />
-          <DetailRow
+          <DetailRow dk={dk}
             label="Less: student loan interest deduction"
             value={fmtMoney(form1040.studentLoanDeduction)}
             muted
@@ -1111,7 +1113,7 @@ export default function IncomeReviewStep({
         </div>
       </div>
 
-      <p className="text-xs text-gray-400 italic">
+      <p className={themed('text-xs text-gray-400 italic', dk)}>
         {calc.disclaimer}
       </p>
     </div>

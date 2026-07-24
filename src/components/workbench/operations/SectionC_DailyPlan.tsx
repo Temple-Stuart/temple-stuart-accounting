@@ -19,6 +19,7 @@ import DailyPlanItemRow from './dailyplan/DailyPlanItemRow';
 import { DailyPlanRoutineRow } from './dailyplan/DailyPlanRoutineRow';
 import type { DailyPlanItem } from './dailyplan/types';
 import type { TodayRoutineEntry } from './routines/types';
+import { themed, type Surface } from '@/lib/ds';
 
 const inputClass =
   'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
@@ -44,7 +45,8 @@ const EMPTY_CREATE_FORM = {
   entity_id: '',
 };
 
-export default function SectionC_DailyPlan() {
+export default function SectionC_DailyPlan({ surface = 'light' }: { surface?: Surface } = {}) {
+  const dk = surface === 'dark';
   const { entities } = useOperationsEntity();
 
   const [currentDate, setCurrentDate] = useState<string>(todayIso());
@@ -153,16 +155,16 @@ export default function SectionC_DailyPlan() {
   };
 
   const navBtnClass =
-    'px-2 py-0.5 border border-border rounded hover:bg-bg-row text-text-primary disabled:opacity-50';
+    themed('px-2 py-0.5 border border-border rounded hover:bg-bg-row text-text-primary disabled:opacity-50', dk);
 
   return (
-    <section className="bg-white rounded border border-border shadow-sm p-5">
+    <section className={themed('bg-white rounded border border-border shadow-sm p-5', dk)}>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-mono text-sm font-bold tracking-wide text-text-primary">
+        <h2 className={themed('font-mono text-sm font-bold tracking-wide text-text-primary', dk)}>
           C · DAILY PLAN
         </h2>
         <div className="flex items-center gap-3 text-xs font-mono">
-          <span className="text-text-muted">
+          <span className={themed('text-text-muted', dk)}>
             {items.length} {items.length === 1 ? 'item' : 'items'}
           </span>
           {!showCreate && (
@@ -191,20 +193,20 @@ export default function SectionC_DailyPlan() {
           type="date"
           value={currentDate}
           onChange={(e) => setCurrentDate(e.target.value || todayIso())}
-          className="px-2 py-0.5 border border-border rounded text-text-primary"
+          className={themed('px-2 py-0.5 border border-border rounded text-text-primary', dk)}
         />
-        <span className="text-text-muted ml-2">(showing all entities)</span>
+        <span className={themed('text-text-muted ml-2', dk)}>(showing all entities)</span>
       </div>
 
       {showCreate && (
         <div className="border border-brand-purple rounded p-3 bg-purple-50/30 space-y-2 mb-4">
-          <div className="font-mono text-xs font-bold text-text-primary">
+          <div className={themed('font-mono text-xs font-bold text-text-primary', dk)}>
             new ad-hoc item · {currentDate}
           </div>
           <div>
-            <label className="text-xs font-mono text-text-muted">entity</label>
+            <label className={themed('text-xs font-mono text-text-muted', dk)}>entity</label>
             <select
-              className={inputClass}
+              className={themed(inputClass, dk)}
               value={createForm.entity_id}
               onChange={(e) => setCreateForm({ ...createForm, entity_id: e.target.value })}
             >
@@ -217,10 +219,10 @@ export default function SectionC_DailyPlan() {
             </select>
           </div>
           <div>
-            <label className="text-xs font-mono text-text-muted">title</label>
+            <label className={themed('text-xs font-mono text-text-muted', dk)}>title</label>
             <input
               type="text"
-              className={inputClass}
+              className={themed(inputClass, dk)}
               value={createForm.ad_hoc_title}
               onChange={(e) => setCreateForm({ ...createForm, ad_hoc_title: e.target.value })}
               maxLength={500}
@@ -228,9 +230,9 @@ export default function SectionC_DailyPlan() {
             />
           </div>
           <div>
-            <label className="text-xs font-mono text-text-muted">description (optional)</label>
+            <label className={themed('text-xs font-mono text-text-muted', dk)}>description (optional)</label>
             <textarea
-              className={inputClass}
+              className={themed(inputClass, dk)}
               value={createForm.ad_hoc_description}
               onChange={(e) => setCreateForm({ ...createForm, ad_hoc_description: e.target.value })}
               rows={3}
@@ -238,9 +240,9 @@ export default function SectionC_DailyPlan() {
             />
           </div>
           <div>
-            <label className="text-xs font-mono text-text-muted">notes (optional)</label>
+            <label className={themed('text-xs font-mono text-text-muted', dk)}>notes (optional)</label>
             <textarea
-              className={inputClass}
+              className={themed(inputClass, dk)}
               value={createForm.notes}
               onChange={(e) => setCreateForm({ ...createForm, notes: e.target.value })}
               rows={2}
@@ -269,7 +271,7 @@ export default function SectionC_DailyPlan() {
                 setCreateError(null);
               }}
               disabled={creating}
-              className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50 text-xs font-mono"
+              className={themed('px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50 text-xs font-mono', dk)}
             >
               cancel
             </button>
@@ -284,7 +286,7 @@ export default function SectionC_DailyPlan() {
         const showEmpty = !hasRoutines && !hasItems && !loading && !error;
 
         if (loading) {
-          return <div className="text-text-muted font-mono text-sm">loading daily plan…</div>;
+          return <div className={themed('text-text-muted font-mono text-sm', dk)}>loading daily plan…</div>;
         }
         if (error) {
           return (
@@ -295,7 +297,7 @@ export default function SectionC_DailyPlan() {
         }
         if (showEmpty) {
           return (
-            <div className="text-text-muted font-mono text-sm">
+            <div className={themed('text-text-muted font-mono text-sm', dk)}>
               nothing scheduled for {currentDate} — use &apos;+ add item&apos; or schedule a task from
               Projects.
             </div>
@@ -307,7 +309,7 @@ export default function SectionC_DailyPlan() {
             {isToday && (
               <>
                 {routinesLoading && (
-                  <div className="text-xs font-mono text-text-muted">loading routines…</div>
+                  <div className={themed('text-xs font-mono text-text-muted', dk)}>loading routines…</div>
                 )}
                 {routinesError && (
                   <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs font-mono">
@@ -316,11 +318,11 @@ export default function SectionC_DailyPlan() {
                 )}
                 {hasRoutines && (
                   <>
-                    <div className="text-xs font-mono text-text-faint uppercase tracking-wide mt-1">
+                    <div className={themed('text-xs font-mono text-text-faint uppercase tracking-wide mt-1', dk)}>
                       routines
                     </div>
                     {routines.map((entry) => (
-                      <DailyPlanRoutineRow key={entry.routine.id} entry={entry} />
+                      <DailyPlanRoutineRow surface={surface} key={entry.routine.id} entry={entry} />
                     ))}
                   </>
                 )}
@@ -328,7 +330,7 @@ export default function SectionC_DailyPlan() {
             )}
 
             {!isToday && (
-              <div className="text-xs font-mono text-text-faint italic">
+              <div className={themed('text-xs font-mono text-text-faint italic', dk)}>
                 routines shown for today only
               </div>
             )}
@@ -336,12 +338,12 @@ export default function SectionC_DailyPlan() {
             {hasItems && (
               <>
                 {isToday && hasRoutines && (
-                  <div className="text-xs font-mono text-text-faint uppercase tracking-wide mt-3">
+                  <div className={themed('text-xs font-mono text-text-faint uppercase tracking-wide mt-3', dk)}>
                     items
                   </div>
                 )}
                 {items.map((item) => (
-                  <DailyPlanItemRow
+                  <DailyPlanItemRow surface={surface}
                     key={item.id}
                     item={item}
                     onUpdate={fetchItems}

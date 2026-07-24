@@ -16,6 +16,7 @@
 'use client';
 
 import { useState } from 'react';
+import { themed, type Surface } from '@/lib/ds';
 
 type RetrievalMode = 'keyword' | 'semantic' | 'hybrid';
 
@@ -50,7 +51,8 @@ const MODE_LABELS: Record<RetrievalMode, string> = {
   hybrid: 'Hybrid (BM25 + vectors + rerank)',
 };
 
-export function SectionH_CorpusInspector() {
+export function SectionH_CorpusInspector({ surface = 'light' }: { surface?: Surface } = {}) {
+  const dk = surface === 'dark';
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<RetrievalMode>('hybrid');
   const [results, setResults] = useState<RetrievalResult[]>([]);
@@ -95,7 +97,7 @@ export function SectionH_CorpusInspector() {
   }
 
   return (
-    <section className="border border-border bg-white">
+    <section className={themed('border border-border bg-white', dk)}>
       <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
         H · Corpus Inspector
       </div>
@@ -107,7 +109,7 @@ export function SectionH_CorpusInspector() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="e.g. substantiation requirements for business meal expenses"
-            className="w-full px-3 py-2 text-sm font-mono border border-border focus:border-brand-purple focus:outline-none"
+            className={themed('w-full px-3 py-2 text-sm font-mono border border-border focus:border-brand-purple focus:outline-none', dk)}
             disabled={isLoading}
           />
           <div className="flex items-center gap-2">
@@ -116,11 +118,11 @@ export function SectionH_CorpusInspector() {
                 key={m}
                 type="button"
                 onClick={() => setMode(m)}
-                className={`px-3 py-1 text-[10px] uppercase tracking-wider border ${
+                className={themed(`px-3 py-1 text-[10px] uppercase tracking-wider border ${
                   mode === m
                     ? 'bg-brand-purple text-white border-brand-purple'
-                    : 'bg-white text-text-secondary border-border hover:border-brand-purple'
-                }`}
+                    : themed('bg-white text-text-secondary border-border hover:border-brand-purple', dk)
+                }`, dk)}
                 disabled={isLoading}
               >
                 {MODE_LABELS[m]}
@@ -144,7 +146,7 @@ export function SectionH_CorpusInspector() {
         )}
 
         {duration !== null && results.length > 0 && (
-          <div className="text-[10px] text-text-muted uppercase tracking-wider">
+          <div className={themed('text-[10px] text-text-muted uppercase tracking-wider', dk)}>
             {results.length} results · {duration}ms · mode: {mode}
           </div>
         )}
@@ -155,33 +157,33 @@ export function SectionH_CorpusInspector() {
             return (
               <div
                 key={r.chunk_id}
-                className="border border-border bg-bg-row hover:border-brand-purple"
+                className={themed('border border-border bg-bg-row hover:border-brand-purple', dk)}
               >
                 <div className="px-3 py-2 flex items-center gap-2 text-xs">
                   <span className="px-2 py-0.5 bg-brand-purple text-white text-[9px] uppercase tracking-wider">
                     {r.doc_type}
                   </span>
-                  <span className="font-mono text-text-primary">
+                  <span className={themed('font-mono text-text-primary', dk)}>
                     {r.citation_key}
                   </span>
-                  <span className="text-text-muted">·</span>
-                  <span className="text-[10px] text-text-muted">
+                  <span className={themed('text-text-muted', dk)}>·</span>
+                  <span className={themed('text-[10px] text-text-muted', dk)}>
                     {r.source_domain}
                   </span>
                   <div className="flex-1" />
-                  <span className="text-[10px] font-mono text-text-muted">
+                  <span className={themed('text-[10px] font-mono text-text-muted', dk)}>
                     rerank: {formatScore(r.rerank_score)} · rrf: {formatScore(r.fusion_score)}
                   </span>
                 </div>
                 <div className="px-3 pb-2">
-                  <div className="text-xs text-text-primary font-medium mb-1">
+                  <div className={themed('text-xs text-text-primary font-medium mb-1', dk)}>
                     {r.title}
                   </div>
-                  <div className="text-[10px] text-text-muted font-mono mb-2">
+                  <div className={themed('text-[10px] text-text-muted font-mono mb-2', dk)}>
                     {r.structural_path}
                     {r.pinpoint ? ` · ${r.pinpoint}` : ''}
                   </div>
-                  <div className="text-xs text-text-secondary leading-relaxed">
+                  <div className={themed('text-xs text-text-secondary leading-relaxed', dk)}>
                     {isExpanded ? r.text : r.text.slice(0, 300) + (r.text.length > 300 ? '…' : '')}
                   </div>
                   <div className="mt-2 flex items-center gap-3">
@@ -198,7 +200,7 @@ export function SectionH_CorpusInspector() {
                       href={r.canonical_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[10px] text-text-muted hover:text-brand-purple"
+                      className={themed('text-[10px] text-text-muted hover:text-brand-purple', dk)}
                     >
                       source ↗
                     </a>
@@ -210,7 +212,7 @@ export function SectionH_CorpusInspector() {
         </div>
 
         {!isLoading && results.length === 0 && query && !error && duration !== null && (
-          <div className="text-xs text-text-muted text-center py-4">
+          <div className={themed('text-xs text-text-muted text-center py-4', dk)}>
             No results for &quot;{query}&quot;.
           </div>
         )}

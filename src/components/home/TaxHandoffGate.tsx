@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BookOpen, Lock } from 'lucide-react';
 import TaxFilingWizard from '@/components/tax-filing/TaxFilingWizard';
+import { themed } from '@/lib/ds';
 
 /**
  * TAX-1 — the closed-books handoff gate for the homepage Tax tab.
@@ -22,7 +23,7 @@ import TaxFilingWizard from '@/components/tax-filing/TaxFilingWizard';
  *   error   → explicit error + Retry (a FAILED closing-periods/entities fetch is neither
  *             open nor closed — we never guess a state)
  *   loaded  → NO closed period → the handoff gate screen (with a jump-to-Books button)
- *             ≥1 closed period → the bare <TaxFilingWizard />
+ *             ≥1 closed period → the bare <TaxFilingWizard surface="dark" />
  * "No entity / no closed period" is the TRUE not-yet-closed state, not a fallback.
  *
  * All fetches hit existing, auth-gated, user-scoped routes (/api/entities,
@@ -37,6 +38,8 @@ interface Props {
 type GateState = 'loading' | 'error' | 'gate' | 'wizard';
 
 export default function TaxHandoffGate({ onGoToBooks }: Props) {
+  // FINISH-DS-1: single-consumer (ML) — always dark.
+  const dk = true;
   const [state, setState] = useState<GateState>('loading');
   const [periodCount, setPeriodCount] = useState(0);
 
@@ -73,7 +76,7 @@ export default function TaxHandoffGate({ onGoToBooks }: Props) {
 
   if (state === 'loading') {
     return (
-      <div className="rounded-xl border-2 border-border bg-white px-4 py-3 text-sm text-text-muted">
+      <div className={themed('rounded-xl border-2 border-border bg-white px-4 py-3 text-sm text-text-muted', dk)}>
         Checking your books…
       </div>
     );
@@ -100,8 +103,8 @@ export default function TaxHandoffGate({ onGoToBooks }: Props) {
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-gold/15 text-brand-gold">
           <Lock className="h-6 w-6" aria-hidden="true" />
         </div>
-        <h3 className="text-lg font-semibold text-text-primary">Tax begins at completed books</h3>
-        <p className="mx-auto mt-2 max-w-md text-sm text-text-secondary">
+        <h3 className={themed('text-lg font-semibold text-text-primary', dk)}>Tax begins at completed books</h3>
+        <p className={themed('mx-auto mt-2 max-w-md text-sm text-text-secondary', dk)}>
           Your tax figures come straight from your ledger, so the filing wizard opens once you&rsquo;ve
           closed at least one accounting period. {periodCount > 0
             ? `You have ${periodCount} period${periodCount === 1 ? '' : 's'} on record, but none are closed yet.`
@@ -120,5 +123,5 @@ export default function TaxHandoffGate({ onGoToBooks }: Props) {
   }
 
   // state === 'wizard' — handoff satisfied (at least one closed period); render the bare wizard.
-  return <TaxFilingWizard />;
+  return <TaxFilingWizard surface="dark" />;
 }

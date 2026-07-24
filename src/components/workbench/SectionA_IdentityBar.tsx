@@ -10,6 +10,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { themed, type Surface } from '@/lib/ds';
 
 interface IdentityBarData {
   user_email: string | null;
@@ -20,7 +21,8 @@ interface IdentityBarData {
 
 const BUILD_SHA = (process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ?? 'dev').slice(0, 8);
 
-export function SectionA_IdentityBar() {
+export function SectionA_IdentityBar({ surface = 'light' }: { surface?: Surface } = {}) {
+  const dk = surface === 'dark';
   const [data, setData] = useState<IdentityBarData>({
     user_email: null,
     current_entity_name: null,
@@ -50,10 +52,10 @@ export function SectionA_IdentityBar() {
   }, []);
 
   return (
-    <div className="sticky top-0 z-30 bg-white border-b border-border shadow-sm">
-      <div className="max-w-[1600px] mx-auto px-4 py-2 flex items-center justify-between text-xs font-mono text-text-secondary">
+    <div className={themed('sticky top-0 z-30 bg-white border-b border-border shadow-sm', dk)}>
+      <div className={themed('max-w-[1600px] mx-auto px-4 py-2 flex items-center justify-between text-xs font-mono text-text-secondary', dk)}>
         <div className="flex items-center gap-4">
-          <span className="font-bold text-text-primary tracking-wide">WORKBENCH</span>
+          <span className={themed('font-bold text-text-primary tracking-wide', dk)}>WORKBENCH</span>
           <span>build:{data.build_sha}</span>
           {data.audit_tail_hash && (
             <span title="Audit log tail hash (last 8 chars of latest content_hash)">

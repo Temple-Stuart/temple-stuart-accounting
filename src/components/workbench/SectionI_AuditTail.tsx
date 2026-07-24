@@ -10,6 +10,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { themed, type Surface } from '@/lib/ds';
 
 interface AuditRow {
   id: string;
@@ -42,7 +43,8 @@ function relTime(iso: string): string {
   return `${Math.floor(ms / 86_400_000)}d ago`;
 }
 
-export function SectionI_AuditTail() {
+export function SectionI_AuditTail({ surface = 'light' }: { surface?: Surface } = {}) {
+  const dk = surface === 'dark';
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
@@ -81,17 +83,17 @@ export function SectionI_AuditTail() {
   };
 
   return (
-    <section className="bg-white rounded border border-border shadow-sm p-5">
+    <section className={themed('bg-white rounded border border-border shadow-sm p-5', dk)}>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-mono text-sm font-bold tracking-wide text-text-primary">
+        <h2 className={themed('font-mono text-sm font-bold tracking-wide text-text-primary', dk)}>
           I · AUDIT LOG TAIL
         </h2>
         <div className="flex items-center gap-3 text-xs font-mono">
-          <span className="text-text-muted">refresh 10s</span>
+          <span className={themed('text-text-muted', dk)}>refresh 10s</span>
           <button
             onClick={verifyChain}
             disabled={verifying}
-            className="px-2 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
+            className={themed('px-2 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50', dk)}
           >
             {verifying ? 'verifying…' : 'verify chain'}
           </button>
@@ -113,12 +115,12 @@ export function SectionI_AuditTail() {
       )}
 
       {loading ? (
-        <div className="text-xs font-mono text-text-muted">loading…</div>
+        <div className={themed('text-xs font-mono text-text-muted', dk)}>loading…</div>
       ) : rows.length > 0 ? (
         <div className="text-xs font-mono max-h-96 overflow-y-auto">
           <table className="w-full">
-            <thead className="sticky top-0 bg-white">
-              <tr className="text-text-faint uppercase tracking-wide">
+            <thead className={themed('sticky top-0 bg-white', dk)}>
+              <tr className={themed('text-text-faint uppercase tracking-wide', dk)}>
                 <th className="text-left pb-1 w-20">when</th>
                 <th className="text-left pb-1">action</th>
                 <th className="text-left pb-1 w-24">target</th>
@@ -128,26 +130,26 @@ export function SectionI_AuditTail() {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id} className="border-t border-border-light">
-                  <td className="py-1 text-text-muted">{relTime(r.created_at)}</td>
-                  <td className="py-1 text-text-primary">
+                <tr key={r.id} className={themed('border-t border-border-light', dk)}>
+                  <td className={themed('py-1 text-text-muted', dk)}>{relTime(r.created_at)}</td>
+                  <td className={themed('py-1 text-text-primary', dk)}>
                     <div className="font-bold">{r.action_type}</div>
-                    <div className="text-text-muted truncate max-w-md">
+                    <div className={themed('text-text-muted truncate max-w-md', dk)}>
                       {r.action_description}
                     </div>
                   </td>
-                  <td className="py-1 text-text-muted truncate">
+                  <td className={themed('py-1 text-text-muted truncate', dk)}>
                     {r.target_table ?? '—'}
                   </td>
-                  <td className="py-1 text-text-faint">{shortHash(r.prev_hash)}</td>
-                  <td className="py-1 text-text-faint">{shortHash(r.content_hash)}</td>
+                  <td className={themed('py-1 text-text-faint', dk)}>{shortHash(r.prev_hash)}</td>
+                  <td className={themed('py-1 text-text-faint', dk)}>{shortHash(r.content_hash)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       ) : (
-        <div className="text-xs font-mono text-text-muted">no audit entries</div>
+        <div className={themed('text-xs font-mono text-text-muted', dk)}>no audit entries</div>
       )}
     </section>
   );

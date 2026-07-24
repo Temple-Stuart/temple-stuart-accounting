@@ -11,6 +11,7 @@ import { SectionG_CitationVerification } from '@/components/workbench/SectionG_C
 import { SectionH_CorpusInspector } from '@/components/workbench/SectionH_CorpusInspector';
 import { SectionI_AuditTail } from '@/components/workbench/SectionI_AuditTail';
 import { SectionJ_CostLedger } from '@/components/workbench/SectionJ_CostLedger';
+import { themed } from '@/lib/ds';
 
 /**
  * COMP-1 — the Compliance A–J institutional workbench for the homepage Compliance tab.
@@ -37,9 +38,11 @@ const SUBPAGES: { name: string; href: string }[] = [
 ];
 
 export default function ComplianceWorkbench() {
+  // FINISH-DS-1: single-consumer (ML) — always dark.
+  const dk = true;
   return (
     <div className="space-y-4">
-      <SectionA_IdentityBar />
+      <SectionA_IdentityBar surface="dark" />
 
       {/* Sub-page link row — replaces OpsSubNav's role, homepage-styled. Each link opens
           the existing sub-page route (which keeps its own AppLayout chrome). */}
@@ -56,15 +59,15 @@ export default function ComplianceWorkbench() {
       </nav>
 
       {/* Sections B…J in the standalone page's order (compliance/page.tsx:39-47). */}
-      <SectionB_FounderProfile />
-      <SectionC_CorpusContext />
-      <SectionD_DiscoveryLauncher />
-      <SectionE_LiveStream />
-      <SectionF_Roadmap />
-      <SectionG_CitationVerification />
-      <SectionH_CorpusInspector />
-      <SectionI_AuditTail />
-      <SectionJ_CostLedger />
+      <SectionB_FounderProfile surface="dark" />
+      <SectionC_CorpusContext surface="dark" />
+      <SectionD_DiscoveryLauncher surface="dark" />
+      <SectionE_LiveStream surface="dark" />
+      <SectionF_Roadmap surface="dark" />
+      <SectionG_CitationVerification surface="dark" />
+      <SectionH_CorpusInspector surface="dark" />
+      <SectionI_AuditTail surface="dark" />
+      <SectionJ_CostLedger surface="dark" />
     </div>
   );
 }

@@ -12,12 +12,13 @@
 import type { Step, Take } from './ContentTable';
 import { formatTime, dashOrValue } from './ContentTable';
 import EditableCell from './EditableCell';
+import { themed, type Surface } from '@/lib/ds';
 
-export default function TakeRow({
+export default function TakeRow({ surface = 'light',
   step,
   take,
   onTakeUpdate,
-}: {
+}: { surface?: Surface;
   step: Step;
   take: Take | undefined;
   onTakeUpdate: (
@@ -26,9 +27,10 @@ export default function TakeRow({
     value: string | number | null
   ) => Promise<void>;
 }) {
+  const dk = surface === 'dark';
   const cellClass = 'py-1 px-2';
   return (
-    <tr className="border-t border-border-light text-text-muted">
+    <tr className={themed('border-t border-border-light text-text-muted', dk)}>
       <td className={cellClass} />
       <td className={cellClass} />
       <td className={cellClass} />
@@ -40,28 +42,28 @@ export default function TakeRow({
       <td className={cellClass}>{dashOrValue(step.sub_activity)}</td>
       {take ? (
         <>
-          <EditableCell
+          <EditableCell surface={surface}
             value={take.filming_location_specific}
             type="text"
             maxLength={200}
             onSave={(v) => onTakeUpdate(take.id, 'filming_location_specific', v)}
             cellClassName={cellClass}
           />
-          <EditableCell
+          <EditableCell surface={surface}
             value={take.camera_needed}
             type="text"
             maxLength={200}
             onSave={(v) => onTakeUpdate(take.id, 'camera_needed', v)}
             cellClassName={cellClass}
           />
-          <EditableCell
+          <EditableCell surface={surface}
             value={take.filming_angle}
             type="text"
             maxLength={200}
             onSave={(v) => onTakeUpdate(take.id, 'filming_angle', v)}
             cellClassName={cellClass}
           />
-          <EditableCell
+          <EditableCell surface={surface}
             value={take.notes}
             type="text"
             onSave={(v) => onTakeUpdate(take.id, 'notes', v)}
