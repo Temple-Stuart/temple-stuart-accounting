@@ -103,7 +103,11 @@ export default function TaxHandoffGate({ onGoToBooks }: Props) {
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-gold/15 text-brand-gold">
           <Lock className="h-6 w-6" aria-hidden="true" />
         </div>
-        <h3 className={themed('text-lg font-semibold text-text-primary', dk)}>Tax begins at completed books</h3>
+        {/* TAX-UX-1: the dossier anchor (derived-not-typed) — the gate's own
+            message IS the derivation story pre-close, so it gets the
+            display-scale treatment (TYPE.display idiom; the RUNWAY/TRADE
+            precedent). Same sentence, zero new copy. */}
+        <h3 className={themed('text-2xl lg:text-3xl font-light tracking-tight text-text-primary', dk)}>Tax begins at completed books</h3>
         <p className={themed('mx-auto mt-2 max-w-md text-sm text-text-secondary', dk)}>
           Your tax figures come straight from your ledger, so the filing wizard opens once you&rsquo;ve
           closed at least one accounting period. {periodCount > 0
@@ -122,6 +126,27 @@ export default function TaxHandoffGate({ onGoToBooks }: Props) {
     );
   }
 
-  // state === 'wizard' — handoff satisfied (at least one closed period); render the bare wizard.
-  return <TaxFilingWizard surface="dark" />;
+  // state === 'wizard' — handoff satisfied (at least one closed period).
+  // TAX-UX-1: once books close, the bare wizard carried ZERO derivation story —
+  // exactly when the dossier anchor ("taxes auto-derived from your own books")
+  // is TRUE. The promotion scopes to the tab's entry surface (the ruled call:
+  // a display numeral inside the sequential wizard would fight its flow): a
+  // slim strip above the wizard, display-scale. ZERO new copy claims — both
+  // strings exist verbatim on audited surfaces: "The whole return, derived —
+  // not typed." is the landing's tax deck bullet (Landing.tsx PILLAR_CARDS);
+  // "derived from your actual closed books" is the tab's own LockedTabCard
+  // valueLine (ModuleLauncher tax branch). Wizard untouched.
+  return (
+    <>
+      <div className={themed('rounded-xl border-2 border-border bg-white px-6 py-5', dk)}>
+        <p className={themed('font-mono text-[10px] font-semibold uppercase tracking-wider text-text-muted', dk)}>
+          Derived from your actual closed books
+        </p>
+        <div className={themed('mt-1 text-2xl lg:text-3xl font-light tracking-tight text-text-primary', dk)}>
+          The whole return, derived — not typed.
+        </div>
+      </div>
+      <TaxFilingWizard surface="dark" />
+    </>
+  );
 }
