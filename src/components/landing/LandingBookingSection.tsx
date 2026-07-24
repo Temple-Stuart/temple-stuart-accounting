@@ -57,13 +57,23 @@ export default function LandingBookingSection({ onRequireAuth }: { onRequireAuth
       className={`mt-8 ${DS.STRIP}`}
       modes={modes}
       header={
-        /* LOBBY-POLISH-1: the value blurb — first child of the strip, above the
-           chip row. Claims verified: booking = flights & hotels; the session trip
-           strip renders below (GuestTripStrip). */
-        <p className="mb-2 font-mono text-[11px] leading-relaxed text-white/70">
-          Live searches — book real flights &amp; hotels right here, no account needed.
-          Your bookings show up below as your trip.
-        </p>
+        /* LAND-MSG-1: the strip names itself (mono micro-heading) and the blurb
+           answers WHY it's on the front page — Alex's reframe: free for everyone,
+           account or not; hiding it in the app would force an account; an account
+           only ADDS saving/budgeting/runway. Claims verified: search routes are
+           public per-IP-capped (flights/search/route.ts:26-49); guest booking =
+           flights & hotels; the account clause rephrases the approved
+           GuestTripStrip pitch ("save it, budget it, map it to your runway"). */
+        <div className="mb-2">
+          <p className={`${DS.TYPE.microLabel} mb-1`}>Free travel search &amp; booking</p>
+          <p className="font-mono text-[11px] leading-relaxed text-white/70">
+            This part is free for everyone — no account needed. That&apos;s why it lives
+            here on the front page instead of behind a login. Search flights, hotels
+            &amp; more, book flights &amp; hotels right here, and your bookings show up
+            below as your trip. A free account just adds saving, budgeting, and runway
+            on top.
+          </p>
+        </div>
       }
     />
   );
