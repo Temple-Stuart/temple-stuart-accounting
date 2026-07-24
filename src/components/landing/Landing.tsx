@@ -67,6 +67,8 @@
 
 import Link from 'next/link';
 import { useRef, useState } from 'react';
+// PERSONA-1: the persona chips reuse the ToggleStrip chip idiom verbatim.
+import { toggleChip } from '@/lib/ds';
 import { TAB_PRICING } from '@/config/pricing-costs';
 import {
   ALLOCATION_ROWS, NO_COST_STRIP,
@@ -264,6 +266,66 @@ const PILLAR_CARDS: PillarCard[] = [
       'Every step gets a shot, a question, a purpose.',
       'The script only says what happened.',
     ],
+  },
+];
+
+// PERSONA-1: the persona selector config — Alex's framing: the one-stop shop
+// for anyone starting a business; the hero speaks to everyone, these chips let
+// each audience self-select. A persona REORDERS the same nine slides (its
+// moduleIds first, the rest in funnel order), writes its value line on the
+// highlighted slides, and dims the rest slightly — never hides them.
+// "Everyone" (moduleIds empty) is the default: the untouched funnel deck.
+// HARD RULE (LAND-MSG-1): every value line is a REPHRASE of already-verified
+// claims — per-clause source cites in the PERSONA-1 report. Words Alex drafted
+// that no machinery backs were DROPPED, not shipped: "invoices"/"jobs"/"crews"
+// (no invoicing or job/crew machinery exists — the only "invoice" hit is a
+// marketing stat, BookkeepingSection.tsx:73) and any sales-channel implication
+// (no store integrations; sales arrive as bank transactions via Plaid).
+// Verified anchors: wash-sale scan = TabShowcases.tsx:387 (IRS Pub 550 30-day
+// window); "the scanner" is the house term (metricExplainers.ts:49, "TT
+// Scanner" TradeShowcaseSections.tsx:110); Plaid sync = tabDescriptors.ts:21;
+// journal/double-entry = the Books bullets above + pricing-costs.ts:351.
+interface Persona {
+  key: string;
+  label: string;
+  /** PILLAR_CARDS ids, highlighted and shown first, in this order. Empty =
+   *  Everyone: no reorder, no highlight, no dim — today's exact deck. */
+  moduleIds: string[];
+  /** The audience value line, rendered above the LAND-MSG-1 plain line on
+   *  highlighted slides only. null for Everyone. */
+  line: string | null;
+}
+const PERSONAS: Persona[] = [
+  { key: 'everyone', label: 'Everyone', moduleIds: [], line: null },
+  {
+    key: 'founders', label: 'Founders & freelancers',
+    moduleIds: ['books', 'tax', 'runway', 'projects'],
+    line: 'Bank feed in, clean books out — taxes half-done before you start.',
+  },
+  {
+    key: 'service', label: 'Service businesses',
+    moduleIds: ['books', 'routines', 'projects', 'tax'],
+    line: 'Routine work planned to the day — money tracked like an accountant would.',
+  },
+  {
+    key: 'ecom', label: 'Product & e-commerce',
+    moduleIds: ['books', 'runway', 'tax', 'projects'],
+    line: 'Every sale and expense flows in from your bank — books clean, tax-ready year round.',
+  },
+  {
+    key: 'traders', label: 'Traders',
+    moduleIds: ['trade', 'books', 'tax'],
+    line: 'Scanner to journal to wash-sales — one pipe.',
+  },
+  {
+    key: 'nomads', label: 'Nomads & creators',
+    moduleIds: ['travel', 'runway', 'content', 'books'],
+    line: 'Book the trip, budget the trip, film the day.',
+  },
+  {
+    key: 'students', label: 'Students',
+    moduleIds: ['books', 'trade', 'compliance'],
+    line: 'Learn accounting and trading on your own real data — not textbook hypotheticals.',
   },
 ];
 
@@ -526,6 +588,22 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
     });
   // Stable PILLAR_CARDS order.
   const selectedPillars = PILLAR_CARDS.filter((p) => selectedIds.has(p.id));
+
+  // PERSONA-1: chip state (client only). Everyone (the default) short-circuits
+  // to PILLAR_CARDS ITSELF — same array reference, no map, no class suffix —
+  // so the default deck renders byte-identical to pre-PERSONA-1 by
+  // construction. A persona lists its modules first (config order), then the
+  // rest in funnel order; nothing is ever removed — nine slides always.
+  const [personaKey, setPersonaKey] = useState('everyone');
+  const persona = PERSONAS.find((a) => a.key === personaKey) ?? PERSONAS[0];
+  const personaActive = persona.moduleIds.length > 0;
+  const personaIds = new Set(persona.moduleIds);
+  const deckCards = personaActive
+    ? [
+        ...persona.moduleIds.flatMap((id) => PILLAR_CARDS.filter((p) => p.id === id)),
+        ...PILLAR_CARDS.filter((p) => !personaIds.has(p.id)),
+      ]
+    : PILLAR_CARDS;
   // The honest sum: ONLY when every selected pillar has a display price
   // (TAB_PRICING — all entries are null today, pricing-costs.ts:346-370, and
   // five pillars have no entry at all — so this stays null and the strip
@@ -686,6 +764,26 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
             </div>
           </div>
 
+          {/* PERSONA-1: the persona chip row — the ToggleStrip chip idiom
+              (DS toggleChip, ToggleStrip.tsx:46-57) above the selection deck.
+              "Everyone" leads and is the default: today's exact deck, zero
+              regression. A chip reorders the SAME nine slides and speaks that
+              audience's language; the shop stays whole. Client state only —
+              commerce wiring, selection state, and slide mechanics untouched. */}
+          <div className="mt-4 flex flex-wrap items-center gap-1.5" role="group" aria-label="Show the deck for your situation">
+            {PERSONAS.map((a) => (
+              <button
+                key={a.key}
+                type="button"
+                onClick={() => setPersonaKey(a.key)}
+                aria-pressed={personaKey === a.key}
+                className={toggleChip(personaKey === a.key)}
+              >
+                {a.label}
+              </button>
+            ))}
+          </div>
+
           <div
             ref={deckTrackRef}
             onScroll={onDeckScroll}
@@ -694,7 +792,7 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
             tabIndex={0}
             className="mt-4 flex snap-x snap-mandatory items-stretch gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            {PILLAR_CARDS.map((p) => {
+            {deckCards.map((p) => {
               const pricing = p.entitlementKey ? pricingByKey.get(p.entitlementKey) : undefined;
               const available = p.entitlementKey ? entitlementAvailability[p.entitlementKey] === true : false;
               return (
@@ -709,7 +807,12 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
                 // Explore secondary. "Learn more" is gone.
                 <article
                   key={p.id}
-                  className="flex min-h-[18rem] w-[85%] shrink-0 snap-start flex-col overflow-hidden rounded-lg p-5 text-white sm:w-[60%] sm:p-6 lg:w-[38%]"
+                  // PERSONA-1: a non-highlighted slide under an active persona
+                  // dims one ladder step — never hides. Everyone appends the
+                  // empty string: the class stays byte-identical to pre-PR.
+                  className={`flex min-h-[18rem] w-[85%] shrink-0 snap-start flex-col overflow-hidden rounded-lg p-5 text-white sm:w-[60%] sm:p-6 lg:w-[38%]${
+                    personaActive && !personaIds.has(p.id) ? ' opacity-70' : ''
+                  }`}
                   style={{ background: HERO_BG }}
                 >
                   <div className="flex flex-wrap items-center gap-2">
@@ -718,6 +821,13 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
                     </span>
                   </div>
                   <h3 className="mt-4 text-xl font-light tracking-tight sm:text-2xl">{p.label}</h3>
+                  {/* PERSONA-1: the audience value line — highlighted slides
+                      only, above the LAND-MSG-1 plain line. Full white: one
+                      ladder step above the plain line, so the persona's hook
+                      leads. Everyone renders nothing here. */}
+                  {personaActive && personaIds.has(p.id) && persona.line && (
+                    <p className="mt-1.5 text-sm font-medium text-white">{persona.line}</p>
+                  )}
                   {/* LAND-MSG-1: the plain-English outcome line — the novice's
                       on-ramp; the technical descriptor + bullets follow. */}
                   <p className="mt-1 text-sm font-medium text-white/90">{p.plain}</p>
