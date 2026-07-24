@@ -458,7 +458,9 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                         <div className={themed('text-text-faint', dk)}>Max Loss</div>
                         <div className="font-mono font-bold text-brand-red">{fmtDollar(card.max_loss)}</div>
                         <div className={themed('text-text-faint', dk)} title="Estimated Probability of Profit based on delta approximation">Est. PoP</div>
-                        <div className="font-mono font-bold">{card.win_rate != null ? `${Number(card.win_rate).toFixed(1)}%` : '\u2014'}</div>
+                        {/* TRADE-UX-1: the anchor leads the queue row \u2014 size +
+                            weight within the grid idiom. Same field/format. */}
+                        <div className="font-mono font-black text-sm">{card.win_rate != null ? `${Number(card.win_rate).toFixed(1)}%` : '\u2014'}</div>
                         <div className={themed('text-text-faint', dk)}>R:R</div>
                         <div className="font-mono font-bold">{card.risk_reward != null ? Number(card.risk_reward).toFixed(2) : '\u2014'}</div>
                       </div>

@@ -715,14 +715,32 @@ export function TerminalTradeCard({ dk = false, detail, sentiment, savedCards, s
           <div key={ci} className={themed('bg-bg-terminal rounded border border-border font-mono text-xs p-4', dk)}>
 
             {/* SECTION 1 — HEADER */}
-            <div className={themed('text-text-primary', dk)}>
-              <span className="font-bold">{detail.symbol}</span>
-              <span className={themed('text-text-muted', dk)}> · </span>
-              <span className={themed('text-text-primary font-bold', dk)}>{card.setup.strategy_name}</span>
-              <span className={themed('text-text-muted', dk)}> · {card.setup.expiration_date} · {card.setup.dte}DTE</span>
-            </div>
-            <div className={themed('text-text-muted', dk)}>
-              Score <span className={termGateColor(comp.score)}>{comp.score.toFixed(1)} {letterGrade(comp.score)}</span> · {comp.categories_above_50}/4 gates · {comp.direction}{ks?.sector ? ` · ${ks.sector}` : ''}
+            {/* TRADE-UX-1: the dossier anchor (tastytrade's PoP-on-every-ticket) —
+                the card's Est. PoP leads the header as the display-scale mono
+                numeral (the RUNWAY-UX precedent). Same field + fmtPct + method
+                string the setup line below already renders — zero new math,
+                zero new claims; structural prominence only. */}
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className={themed('text-text-primary', dk)}>
+                  <span className="font-bold">{detail.symbol}</span>
+                  <span className={themed('text-text-muted', dk)}> · </span>
+                  <span className={themed('text-text-primary font-bold', dk)}>{card.setup.strategy_name}</span>
+                  <span className={themed('text-text-muted', dk)}> · {card.setup.expiration_date} · {card.setup.dte}DTE</span>
+                </div>
+                <div className={themed('text-text-muted', dk)}>
+                  Score <span className={termGateColor(comp.score)}>{comp.score.toFixed(1)} {letterGrade(comp.score)}</span> · {comp.categories_above_50}/4 gates · {comp.direction}{ks?.sector ? ` · ${ks.sector}` : ''}
+                </div>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className={themed('text-[9px] text-text-muted uppercase', dk)}>Est. PoP</div>
+                <div className={themed('text-2xl tracking-tight font-mono font-black text-text-primary', dk)}>
+                  {fmtPct(card.setup.probability_of_profit)}
+                </div>
+                <div className={themed('text-[8px] font-mono text-text-faint', dk)}>
+                  {card.setup.pop_method === 'breakeven_d2' ? 'N(d2)' : 'Δ approx'}
+                </div>
+              </div>
             </div>
 
             {divider}
@@ -979,7 +997,10 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
                   </div>
                   <div className="text-center">
                     <div className={themed('text-[9px] text-text-muted uppercase', dk)} title={card.setup.pop_method === 'breakeven_d2' ? 'PoP via N(d2) at breakeven price — the standard Black-Scholes probability that the underlying closes beyond the breakeven price at expiration. More accurate than delta approx.' : 'PoP estimated from option deltas — quick approximation used when breakeven calculation is unavailable. Less precise than N(d2) method.'}><MetricInfo surface={dk ? 'dark' : 'light'} metricKey="est_pop" values={{ pop: card.setup.probability_of_profit != null ? card.setup.probability_of_profit * 100 : null, pop_method: card.setup.pop_method === 'breakeven_d2' ? 'N(d2)' : 'delta' }} hasValue={card.setup.probability_of_profit != null}>Est. PoP</MetricInfo></div>
-                    <div className={themed('text-sm font-mono font-black text-text-primary', dk)}>{fmtPct(card.setup.probability_of_profit)}</div>
+                    {/* TRADE-UX-1: the dossier anchor — PoP is the card's visual
+                        headline (display-scale mono, the RUNWAY-UX numeral
+                        precedent). Same field, same format — structural only. */}
+                    <div className={themed('text-2xl lg:text-3xl tracking-tight font-mono font-black text-text-primary', dk)}>{fmtPct(card.setup.probability_of_profit)}</div>
                     <div className={themed(`text-[8px] font-mono mt-0.5 ${card.setup.pop_method === 'breakeven_d2' ? 'text-brand-green' : 'text-text-faint'}`, dk)}>
                       {card.setup.pop_method === 'breakeven_d2' ? 'N(d2)' : 'Δ approx'}
                     </div>
