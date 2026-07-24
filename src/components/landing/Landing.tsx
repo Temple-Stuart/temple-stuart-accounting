@@ -136,6 +136,12 @@ interface PillarCard {
   /** The pillar's truthful access label, paid-framed (DECKS-3) — shown when
    *  no TAB_PRICING entry carries an Unlocks line. Claims stay gate-true. */
   accessLabel?: string;
+  /** LAND-MSG-1: ONE plain-English outcome line under the pillar name, for a
+   *  reader who's never heard of accounting. HARD RULE: every line is a
+   *  REPHRASE of an already-verified claim (deck bullets / TAB_PRICING
+   *  unlocks / FD-1h audit-cleared sentences / the HOW_IT_WORKS copy) — the
+   *  per-line source cites are in the LAND-MSG-1 report. Zero new claims. */
+  plain: string;
   /** LIFTED VERBATIM from the deck's own headings — except where the provenance
    *  block below marks a bullet as an FD-1h audit-cleared claim instead. */
   bullets: string[];
@@ -183,6 +189,7 @@ const PAID_CONTENT = 'A paid module — day log & planning. AI script generation
 const PILLAR_CARDS: PillarCard[] = [
   {
     id: 'travel', label: 'Travel', tab: 'travel', entitlementKey: 'tab:travel', accessLabel: PAID_TRAVEL,
+    plain: 'Search, book, and budget your trips in one place.',
     bullets: [
       'Search it. Price it. Book it. No account required to look.',
       'Book a flight or hotel and it’s saved to your trip.',
@@ -191,6 +198,7 @@ const PILLAR_CARDS: PillarCard[] = [
   },
   {
     id: 'runway', label: 'Runway', tab: 'calendar', accessLabel: PAID_RUNWAY,
+    plain: 'See how many months your money lasts.',
     bullets: [
       'Every system you’re juggling. One question answered: how long can you keep going?',
       'Burn broken out by Personal vs. Business — strays surfaced, never dropped.',
@@ -198,6 +206,7 @@ const PILLAR_CARDS: PillarCard[] = [
   },
   {
     id: 'books', label: 'Books', tab: 'books', entitlementKey: 'tab:books',
+    plain: 'Know where every dollar went — synced straight from your bank.',
     bullets: [
       'Every transaction becomes a journal entry. Every period must balance.',
       'Commit is double-entry. Unbalanced refuses to save.',
@@ -206,6 +215,7 @@ const PILLAR_CARDS: PillarCard[] = [
   },
   {
     id: 'trade', label: 'Trade', tab: 'trade', entitlementKey: 'tab:trade',
+    plain: 'Find trades worth taking — and get told when to skip.',
     bullets: [
       'An entire index in full focus. One decision out.',
       'Eighteen real controls. Sixteen strategies.',
@@ -214,6 +224,7 @@ const PILLAR_CARDS: PillarCard[] = [
   },
   {
     id: 'tax', label: 'Tax', tab: 'tax', entitlementKey: 'tab:tax',
+    plain: 'Your return builds itself from your records.',
     bullets: [
       'Your books are already clean. Your taxes are half-done before you start.',
       'Tax begins at completed books.',
@@ -222,6 +233,7 @@ const PILLAR_CARDS: PillarCard[] = [
   },
   {
     id: 'compliance', label: 'Compliance', tab: 'compliance', entitlementKey: 'tab:compliance',
+    plain: 'Every number keeps its receipt — proof you can show later.',
     bullets: [
       'Don’t trust us. Verify us.',
       'Citations that verify — and a checker that declares its limits.',
@@ -230,6 +242,7 @@ const PILLAR_CARDS: PillarCard[] = [
   },
   {
     id: 'routines', label: 'Routines', tab: 'routines', accessLabel: PAID_ROUTINES,
+    plain: 'Set up a habit once — it lands on your calendar and your budget.',
     bullets: [
       'Build it once. It shows up everywhere.',
       'A routine is executable — steps you actually run.',
@@ -238,12 +251,14 @@ const PILLAR_CARDS: PillarCard[] = [
   },
   {
     id: 'projects', label: 'Projects', tab: 'projects', entitlementKey: 'tab:operations', accessLabel: PAID_PROJECTS,
+    plain: 'Type a goal — get a plan you can actually run.',
     bullets: [
       'Goals in. Audited tasks out.',
     ],
   },
   {
     id: 'content', label: 'Content', tab: 'content', accessLabel: PAID_CONTENT,
+    plain: 'Turn what you did today into a ready-to-film script.',
     bullets: [
       'Your day becomes the script.',
       'Every step gets a shot, a question, a purpose.',
@@ -545,6 +560,15 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
               Plan your time.<br />
               <span className="text-white/50">Live smarter.</span>
             </h1>
+            {/* LAND-MSG-1: the hero previously jumped tagline → CTAs with
+                nothing telling a novice what this IS. One plain sentence,
+                Alex's framing near-verbatim. Claims verified: bookkeeping is
+                GAAP double-entry (tab:books unlocks), and the platform spans
+                nine modules — money, calendar, travel, trading, tax in one
+                app rather than separate tools. */}
+            <p className="mb-6 max-w-xl text-base text-white/70">
+              Track your money the way an accountant would — one app, not ten.
+            </p>
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               {/* HERO-REPO-1 (Alex's rationale): the hosted product leads —
                   "Create free account" is the promoted white CTA. The repo
@@ -694,6 +718,9 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
                     </span>
                   </div>
                   <h3 className="mt-4 text-xl font-light tracking-tight sm:text-2xl">{p.label}</h3>
+                  {/* LAND-MSG-1: the plain-English outcome line — the novice's
+                      on-ramp; the technical descriptor + bullets follow. */}
+                  <p className="mt-1 text-sm font-medium text-white/90">{p.plain}</p>
                   <p className="mt-3 max-w-xl text-xs leading-relaxed text-white/65">{TAB_DESCRIPTORS[p.tab]}</p>
                   <ul className="mt-3 max-w-xl space-y-1">
                     {p.bullets.map((b, i) => (
