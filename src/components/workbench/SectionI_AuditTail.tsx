@@ -90,19 +90,25 @@ export function SectionI_AuditTail({ surface = 'light' }: { surface?: Surface } 
         </h2>
         <div className="flex items-center gap-3 text-xs font-mono">
           <span className={themed('text-text-muted', dk)}>refresh 10s</span>
+          {/* COMPLIANCE-UX-1: the dossier anchor — the verify-chain affordance
+              is the tab's strongest verification machinery, so it takes the
+              house primary-CTA idiom (strongest-cell treatment at its existing
+              site). Same label, same handler, zero new copy. */}
           <button
             onClick={verifyChain}
             disabled={verifying}
-            className={themed('px-2 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50', dk)}
+            className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
           >
             {verifying ? 'verifying…' : 'verify chain'}
           </button>
         </div>
       </div>
 
+      {/* COMPLIANCE-UX-1: the verdict steps up one rung (text-sm bold) — the
+          chain's answer should be unmissable. Strings verbatim. */}
       {verifyResult && (
         <div
-          className={`text-xs font-mono mb-3 px-3 py-2 rounded border ${
+          className={`text-sm font-bold font-mono mb-3 px-3 py-2 rounded border ${
             verifyResult.ok
               ? 'bg-green-50 border-green-200 text-green-800'
               : 'bg-red-50 border-red-200 text-red-800'

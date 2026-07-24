@@ -11,6 +11,7 @@ import { SectionG_CitationVerification } from '@/components/workbench/SectionG_C
 import { SectionH_CorpusInspector } from '@/components/workbench/SectionH_CorpusInspector';
 import { SectionI_AuditTail } from '@/components/workbench/SectionI_AuditTail';
 import { SectionJ_CostLedger } from '@/components/workbench/SectionJ_CostLedger';
+import ToggleStrip, { type ToggleMode } from '@/components/ui/ToggleStrip';
 import { themed } from '@/lib/ds';
 
 /**
@@ -58,16 +59,62 @@ export default function ComplianceWorkbench() {
         ))}
       </nav>
 
-      {/* Sections B…J in the standalone page's order (compliance/page.tsx:39-47). */}
-      <SectionB_FounderProfile surface="dark" />
-      <SectionC_CorpusContext surface="dark" />
-      <SectionD_DiscoveryLauncher surface="dark" />
-      <SectionE_LiveStream surface="dark" />
-      <SectionF_Roadmap surface="dark" />
-      <SectionG_CitationVerification surface="dark" />
-      <SectionH_CorpusInspector surface="dark" />
-      <SectionI_AuditTail surface="dark" />
-      <SectionJ_CostLedger surface="dark" />
+      {/* COMPLIANCE-UX-1: the B…J stack consolidates into SIX PHASES on the
+          shared <ToggleStrip> (the travel/books/trade precedent) — one phase
+          visible, ALL mounted (CSS show/hide), so every section's self-fetched
+          state survives switching. Section → phase mapping (A–J relative order
+          preserved WITHIN each phase; every section in exactly one phase):
+            Verify    = G (citation verification) → I (audit tail + hash chain)
+                        ← the dossier anchor: the tab's REAL verification
+                        machinery leads as the FIRST chip ("verify-us leads")
+                        — structural prominence only, ZERO marketing copy (the
+                        dossier's own caveat: demand is inferred, not voiced).
+            Profile   = B    ·  Corpus = C → H   ·  Discovery = D → E
+            Missions  = F    ·  Cost   = J
+          The identity bar (build SHA + audit tail hash — the global integrity
+          indicator) and the sub-page nav stay ABOVE the strip, persistent:
+          they qualify every phase. Limit declarations (G's UNBUILT badge, the
+          D/J placeholder states) live INSIDE their sections and move WITH
+          them — adjacency preserved by construction (the load-bearing rule:
+          this tab's whole thesis is declared limits). ToggleStrip owns the
+          only new state. */}
+      <ToggleStrip
+        modes={([
+          { key: 'verify', label: 'Verify', panel: (
+            <div className="mt-3 space-y-4">
+              <SectionG_CitationVerification surface="dark" />
+              <SectionI_AuditTail surface="dark" />
+            </div>
+          ) },
+          { key: 'profile', label: 'Profile', panel: (
+            <div className="mt-3">
+              <SectionB_FounderProfile surface="dark" />
+            </div>
+          ) },
+          { key: 'corpus', label: 'Corpus', panel: (
+            <div className="mt-3 space-y-4">
+              <SectionC_CorpusContext surface="dark" />
+              <SectionH_CorpusInspector surface="dark" />
+            </div>
+          ) },
+          { key: 'discovery', label: 'Discovery', panel: (
+            <div className="mt-3 space-y-4">
+              <SectionD_DiscoveryLauncher surface="dark" />
+              <SectionE_LiveStream surface="dark" />
+            </div>
+          ) },
+          { key: 'missions', label: 'Missions', panel: (
+            <div className="mt-3">
+              <SectionF_Roadmap surface="dark" />
+            </div>
+          ) },
+          { key: 'cost', label: 'Cost', panel: (
+            <div className="mt-3">
+              <SectionJ_CostLedger surface="dark" />
+            </div>
+          ) },
+        ] as ToggleMode[])}
+      />
     </div>
   );
 }
