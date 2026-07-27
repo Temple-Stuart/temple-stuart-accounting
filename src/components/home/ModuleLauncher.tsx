@@ -188,34 +188,59 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // not touch any existing state (authed/currentTrip/tripsRefresh/scanner). Default the
   // master calendar.
   const [activeModule, setActiveModule] = useState('calendar');
-  // F2: the active tab lives in the URL (?tab=<id>) so reload and deep links restore
-  // it. Written with NATIVE history.replaceState — a shallow URL update: no Next.js
-  // navigation, no RSC refetch, no scroll jump, no remount (tab panels are CSS
-  // block/hidden anyway). Only the 'tab' key is touched; other params + hash survive.
-  // Normalize rule: the 'calendar' default OMITS the param (clean root URL).
+  // F2 → ROUTE-1: the active tab lives in the URL as a REAL PATH (/runway,
+  // /travel, …) so reload and deep links restore it. Still written with NATIVE
+  // history.replaceState — a shallow URL update: no Next.js navigation, no RSC
+  // refetch, no scroll jump, no remount (tab panels are CSS block/hidden
+  // anyway; the App Router syncs usePathname from native replaceState). Other
+  // params + hash survive; any legacy 'tab' param is dropped (the path IS the
+  // truth now). CARVE-OUT: 'compliance' keeps the legacy /?tab=compliance URL —
+  // /compliance is the standalone cockpit page (static-beats-dynamic; out of
+  // ROUTE-1 scope), pending Alex's ruling on the collision.
+  const TAB_PATH_BY_KEY: Record<string, string> = {
+    calendar: '/runway', travel: '/travel', routines: '/routines',
+    projects: '/projects', content: '/content', trade: '/trade',
+    books: '/books', tax: '/tax',
+  };
   const writeTabParam = (key: string) => {
     const params = new URLSearchParams(window.location.search);
-    if (key === 'calendar') params.delete('tab');
-    else params.set('tab', key);
+    params.delete('tab');
+    let path = TAB_PATH_BY_KEY[key];
+    if (!path) {
+      // compliance (the carve-out) — legacy param on the root path.
+      params.set('tab', key);
+      path = '/';
+    }
     const qs = params.toString();
-    window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`);
+    window.history.replaceState(null, '', `${path}${qs ? `?${qs}` : ''}${window.location.hash}`);
   };
   // PR-Hero-PerTab: switch the active tab AND tell the parent, so the hero subhead up top
   // (page.tsx) reflects the same tab. Both tab bars (desktop + mobile) route through this.
   // F2: the same funnel also writes the URL, so state and URL can never drift.
   const selectTab = (key: string) => { setActiveModule(key); onTabChange?.(key); writeTabParam(key); };
 
-  // F2: on mount the URL is the source of truth. A valid ?tab= restores that tab
-  // through the SAME funnel a click uses (state + hero sync + URL normalize — so
-  // ?tab=calendar re-lands on the clean root). An invalid value is STRIPPED (never
-  // a lying URL) and the 'calendar' default stands. Absent → default, untouched.
-  // Effect-only read keeps hydration safe: first paint is 'calendar' on server and
-  // client alike; the restore runs client-side immediately after mount.
+  // F2 → ROUTE-1: on mount the URL is the source of truth — the PATH first
+  // (/runway → calendar, /travel → travel, …; the [tab] route already 404'd
+  // anything else), then the legacy ?tab= param (only reachable on '/' now:
+  // the front door 307s every valid param to its real path EXCEPT the
+  // compliance carve-out). An invalid leftover param is STRIPPED in place
+  // (never a lying URL). Bare '/' → the 'calendar' default stands, URL
+  // untouched (the FD-2 front door renders as today). Effect-only read keeps
+  // hydration safe: first paint is 'calendar' on server and client alike.
   useEffect(() => {
+    const seg = window.location.pathname.split('/')[1] ?? '';
+    const fromPath = seg === 'runway' ? 'calendar' : TABS.some((t) => t.key === seg) ? seg : null;
+    if (fromPath) { selectTab(fromPath); return; }
     const raw = new URLSearchParams(window.location.search).get('tab');
     if (raw === null) return;
     if (TABS.some((t) => t.key === raw)) selectTab(raw);
-    else writeTabParam('calendar');
+    else {
+      // Strip the invalid param in place — path and hash stay as they are.
+      const params = new URLSearchParams(window.location.search);
+      params.delete('tab');
+      const qs = params.toString();
+      window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`);
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { decode } from 'next-auth/jwt';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { TAB_ENTITLEMENT_KEYS, BUNDLE_ALL_KEY } from '@/lib/categoryKeys';
@@ -54,10 +55,24 @@ async function isVerifiedAuthed(): Promise<boolean> {
 export default async function Page({ searchParams }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  // ?tab=<anything> → the app, both audiences (explicit app intent). The F2
-  // restore validates the value client-side; an invalid one is stripped there.
+  // ROUTE-1: legacy /?tab=<x> links redirect FOREVER to the real paths
+  // (/travel, /runway, …) — old links in the wild keep working. redirect() =
+  // 307 (temporary), deliberately not 308: browsers cache permanent redirects
+  // aggressively and the mapping should stay revisable. Two carve-outs:
+  //   • tab=compliance renders the app as before (NO redirect): /compliance is
+  //     the standalone cockpit page — the collision awaits Alex's ruling.
+  //   • an invalid/non-string value redirects to the clean root (never a lying
+  //     URL — the F2 doctrine, now server-side).
   const params = await searchParams;
-  if (params.tab !== undefined) return <HomeClient />;
+  if (params.tab !== undefined) {
+    if (params.tab === 'compliance') return <HomeClient />;
+    const TAB_TO_PATH: Record<string, string> = {
+      calendar: '/runway', travel: '/travel', routines: '/routines',
+      projects: '/projects', content: '/content', trade: '/trade',
+      books: '/books', tax: '/tax',
+    };
+    redirect(typeof params.tab === 'string' ? (TAB_TO_PATH[params.tab] ?? '/') : '/');
+  }
 
   if (await isVerifiedAuthed()) return <HomeClient />;
 

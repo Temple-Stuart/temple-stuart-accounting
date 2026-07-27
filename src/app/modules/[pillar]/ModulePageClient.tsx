@@ -166,7 +166,7 @@ export default function ModulePageClient({ pillar, availability }: {
                 </p>
               </div>
               <Link
-                href="/?tab=travel"
+                href="/travel"
                 className="bg-white px-6 py-2 text-center text-xs font-medium text-brand-purple hover:bg-bg-row"
               >
                 Try it live — search real flights &amp; hotels. No account needed.

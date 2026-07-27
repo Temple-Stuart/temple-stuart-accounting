@@ -8,7 +8,10 @@
  *     env-only map landing-preview computed; /pricing/page.tsx:15-24 pattern);
  *   • onRequireAuth opens the REAL LoginBox in REGISTER mode — the modal
  *     markup mirrors the home shell's own mount (HomeClient :262-274 — same
- *     backdrop, same props).
+ *     backdrop, same props);
+ *   • ROUTE-1 (ruling b): onRequireLogin opens the SAME LoginBox in LOGIN
+ *     mode — the header's "Log in" button. One modal, one state pair; only
+ *     the initial mode differs (the user can still switch inside LoginBox).
  *
  * NO LOOP by construction: LoginBox onSuccess reloads '/'; a successful
  * login/registration set the signed userEmail cookie, so the server branch
@@ -25,12 +28,14 @@ export default function GuestLanding({ entitlementAvailability }: {
   entitlementAvailability: Record<string, boolean>;
 }) {
   const [showLogin, setShowLogin] = useState(false);
+  const [loginMode, setLoginMode] = useState<'login' | 'register'>('register');
 
   return (
     <>
       <Landing
         entitlementAvailability={entitlementAvailability}
-        onRequireAuth={() => setShowLogin(true)}
+        onRequireAuth={() => { setLoginMode('register'); setShowLogin(true); }}
+        onRequireLogin={() => { setLoginMode('login'); setShowLogin(true); }}
       />
       {showLogin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -40,7 +45,7 @@ export default function GuestLanding({ entitlementAvailability }: {
               onClose={() => setShowLogin(false)}
               onSuccess={() => { window.location.href = '/'; }}
               redirectTo="/"
-              initialMode="register"
+              initialMode={loginMode}
             />
           </div>
         </div>
