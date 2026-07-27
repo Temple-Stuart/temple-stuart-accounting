@@ -25,6 +25,21 @@ import HomeClient from '@/components/home/HomeClient';
  * auth resolution is unchanged.
  */
 
+// HERO-BUG-1: force-dynamic — the ONE real divergence between this mount and
+// the front door's (page.tsx:35, which force-dynamics "mirroring /pricing").
+// Without it, this page uses no dynamic API, so Next renders it on demand and
+// CACHES it (the Full Route Cache) with cacheable response headers — a static
+// shell that can outlive a deployment in CDN/browser caches
+// (stale-while-revalidate) and keep pointing at the PREVIOUS build's immutable
+// JS chunks. That is exactly how a signed-in user saw the pre-ROUTE-1b
+// unconditional "Get Started" next to an authed header AFTER #1335 merged:
+// within any one bundle both surfaces read the SAME `authed` state
+// (HomeClient — one variable, one fetch; they cannot disagree), but a stale
+// cached shell runs the OLD bundle. force-dynamic renders per-request with
+// no-store headers — no cacheable shell, no resurrection. ROUTE-1b's
+// three-state hero logic is untouched.
+export const dynamic = 'force-dynamic';
+
 const TAB_PATHS = new Set([
   'runway', 'travel', 'routines', 'projects', 'content', 'trade', 'books', 'tax',
 ]);
