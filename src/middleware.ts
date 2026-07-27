@@ -73,6 +73,23 @@ const PUBLIC_PATHS = [
   // Prefix-matching makes every /modules/* segment public — acceptable ONLY
   // because the [pillar] route 404s unknown ids and renders static marketing.
   '/modules',
+  // ROUTE-1: the eight real tab URLs — the SAME public surface bare '/' (and
+  // the old /?tab=<x> deep links, which '/' served publicly) always exposed:
+  // HomeClient's guest view (pointer cards + the guest-functional travel
+  // search). Without these, the forever-redirect (/?tab=travel → /travel)
+  // would 307-bounce guests to the Landing and kill every old deep link.
+  // Guest loads make zero authed/paid calls (client-side /api/auth/me
+  // branches — the FD-2 posture). '/compliance' is deliberately ABSENT: that
+  // path is the auth-walled cockpit page (the ROUTE-1 collision, pending
+  // Alex's ruling), and the Compliance tab keeps its legacy /?tab= URL.
+  '/runway',
+  '/travel',
+  '/routines',
+  '/projects',
+  '/content',
+  '/trade',
+  '/books',
+  '/tax',
   '/api/stripe/webhook',
   '/api/inngest',
   '/opengraph-image',

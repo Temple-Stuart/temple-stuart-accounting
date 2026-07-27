@@ -536,9 +536,13 @@ export function ModuleCostBreakdown({ projectName, zeroCostVendor }: { projectNa
 }
 
 interface Props {
-  /** The ONE account-ask funnel — hero secondary CTA + header. FD-2 supplies
-   *  the real register-modal opener; the preview wrapper supplies a stub. */
+  /** The register-ask funnel — the hero CTA + every in-page save/auth nudge.
+   *  FD-2 supplies the real register-modal opener; the preview wrapper a stub. */
   onRequireAuth: () => void;
+  /** ROUTE-1 (ruling b): the header's "Log in" opener — the SAME LoginBox in
+   *  LOGIN mode (returning users). Optional so the preview wrapper needs no
+   *  change; absent → LandingHeader falls back to its /pricing link mode. */
+  onRequireLogin?: () => void;
   /** Per-entitlement-key availability, SERVER-computed by the mount route
    *  (mirrors /pricing/page.tsx:15-24). Missing key → unavailable. */
   entitlementAvailability: Record<string, boolean>;
@@ -549,7 +553,7 @@ interface Props {
 const HERO_BG =
   'radial-gradient(ellipse 80% 90% at 85% 10%, rgb(var(--ts-purple) / 0.65), transparent 60%), radial-gradient(ellipse 60% 70% at 100% 80%, rgb(var(--ts-purple-deep) / 0.5), transparent 55%), var(--ts-panel)';
 
-export default function Landing({ onRequireAuth, entitlementAvailability }: Props) {
+export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvailability }: Props) {
   const pricingByKey = new Map(TAB_PRICING.map((t) => [t.key, t]));
   const bundle = pricingByKey.get('bundle:all');
 
@@ -627,7 +631,7 @@ export default function Landing({ onRequireAuth, entitlementAvailability }: Prop
 
   return (
     <div className="min-h-screen bg-panel text-white">
-      <LandingHeader onRequireAuth={onRequireAuth} />
+      <LandingHeader onRequireLogin={onRequireLogin} />
 
       {/* ── Hero — the house Bloomberg treatment; copy + CTAs verbatim ─────── */}
       <section className="text-white pb-14 pt-12" style={{ background: HERO_BG }}>
