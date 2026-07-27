@@ -216,11 +216,22 @@ export default function HomeClient() {
                 )}
               </div>
             )}
+            {/* ROUTE-1b: "Get Started" is a REGISTER funnel — a guest pitch.
+                It renders ONLY for verified guests (authed === false — the
+                same /api/auth/me state the header's Enter↔Log-out branch
+                reads). Signed-in users see no CTA (Alex: "why would we need
+                to get started inside the app"). While auth resolves
+                (authed === null) an invisible placeholder holds the space —
+                the header's own no-flash idiom — so the hero never jumps. */}
             <div className="flex items-center gap-4">
-              <button onClick={() => { setLoginMode('register'); setShowLogin(true); }}
-                className="px-6 py-3 bg-white text-brand-purple font-medium hover:bg-bg-row text-sm">
-                Get Started
-              </button>
+              {authed === null ? (
+                <span className="px-6 py-3 text-sm opacity-0 select-none" aria-hidden="true">Get Started</span>
+              ) : authed === false ? (
+                <button onClick={() => { setLoginMode('register'); setShowLogin(true); }}
+                  className="px-6 py-3 bg-white text-brand-purple font-medium hover:bg-bg-row text-sm">
+                  Get Started
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
