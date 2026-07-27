@@ -13,8 +13,14 @@
  *      intent succeeded and creates the order (type:'instant', paid from balance),
  *   5. show the booking reference, or a clear failure — never a fake success.
  *
- * TEST MODE only — the backend blocks live unless an explicit flag is set, and the
- * panel shows a "test mode" note. Nothing card-related is ever logged here.
+ * MODE-HONEST (FLIGHT-BANNER-1): the backend gates live behind the deliberate
+ * DUFFEL_ALLOW_LIVE_BOOKING flag (payment-intent + book routes), and the panel's
+ * banner renders FROM the server's actual mode — the payment-intent response's
+ * `mode` field (payment-intent/route.ts), stored below at setMode(). 'test' →
+ * the test note; 'live' → the real-charge warning (the hotel CheckoutPanel
+ * env-honest banner pattern); unknown/absent → NO claim either way. The old
+ * hardcoded test note asserted "no real charge" before mode was known — a lie
+ * on live rails. Nothing card-related is ever logged here.
  */
 
 import { useState, useEffect } from 'react';
@@ -306,10 +312,19 @@ export default function FlightCheckoutPanel({ tripId, authed, tripName, offer, p
       subtitle={`${offer.currency} ${offer.price.toLocaleString()} · pay now`}
       onClose={onClose}
     >
-      {/* Test-mode note — makes it obvious no real charge happens. */}
-      {phase !== 'booked' && (mode === null || isTest) && (
-        <p className="mb-3 rounded border border-white/20 bg-white/10 px-3 py-2 text-xs text-white/70">
+      {/* FLIGHT-BANNER-1: the env-honest banner — the hotel CheckoutPanel
+          pattern (CheckoutPanel.tsx env-honest banner: amber test / purple
+          real-charge), rendered ONLY from the server's actual mode. mode is
+          null until the payment-intent response arrives (the passenger-form
+          phase) → NO claim either way; never assert "test" when unknown. */}
+      {phase !== 'booked' && isTest && (
+        <p className="mb-3 rounded border border-brand-amber/40 bg-brand-amber/10 px-3 py-2 text-xs text-brand-amber">
           Test mode — no real charge. Use a Duffel test card.
+        </p>
+      )}
+      {phase !== 'booked' && mode === 'live' && (
+        <p className="mb-3 rounded border border-brand-purple/40 bg-brand-purple/10 px-3 py-2 text-xs text-brand-purple">
+          You&apos;re paying for real — your card will be charged when you book.
         </p>
       )}
 
