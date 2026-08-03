@@ -1,18 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getOffer, createPaymentIntent, applyMarkup, duffelMode, DuffelApiError } from '@/lib/duffel';
+import { getOffer, applyMarkup, duffelMode, DuffelApiError } from '@/lib/duffel';
+// PR-PAY-1: the intent rail is Stripe now (duffel.ts is untouched — its
+// createPaymentIntent keeps its one remaining caller, the legacy
+// no-paymentIntentId path in book/route.ts:163-166, which PAY-3 retires).
+import { createFlightPaymentIntent, stripeKeyMode } from '@/lib/stripePayments';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
 
-// ─── FLIGHT PAYMENT INTENT (PR-Duffel-Pay-2) ─────────────────────────────────────
-// Step 1 of the flight checkout: create a Duffel Payment Intent for the selected
-// offer and return its client_token so the frontend Card component (@duffel/components)
-// can collect the card + confirm the payment — the card NEVER touches our server (PCI).
-// The order itself (the airline spend) happens at /api/flights/book AFTER the
-// component confirms. This route is PUBLIC + guest-ok (booking is never locked) and
-// bounded by a per-IP rate limit + the same durable 'flightbooking' daily cap as
-// /book — it makes two paid Duffel calls (getOffer + createPaymentIntent), so it is
-// capped BEFORE either fires. Markup is a CONFIG POINT (applyMarkup),
-// 0 for now. TEST MODE only — live is blocked unless the explicit live flag is set.
+// ─── FLIGHT PAYMENT INTENT (PR-Duffel-Pay-2 → PR-PAY-1) ──────────────────────────
+// Step 1 of the flight checkout: create a STRIPE PaymentIntent for the selected
+// offer and return its client_secret (as `clientToken`) so the frontend can
+// collect the card — the card NEVER touches our server (PCI). Duffel Payments
+// is closed to new customers (DUFFEL-AUDIT-1), so Stripe collects; the Duffel
+// balance is pre-funded out-of-band; the order itself (the airline spend)
+// happens at /api/flights/book, still payments:[{type:'balance'}]. This route
+// is PUBLIC + guest-ok (booking is never locked) and bounded by a per-IP rate
+// limit + the same durable 'flightbooking' daily cap as /book — one paid
+// Duffel call (getOffer) + one Stripe intent create, capped BEFORE either
+// fires. Markup is a CONFIG POINT (applyMarkup), 0 for now. Gating: the
+// Duffel mode gate stays (the order side), PLUS the Stripe/Duffel mode
+// cross-check (ruling 3) — both fail closed.
 export async function POST(request: NextRequest) {
   const ip =
     request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
@@ -31,7 +38,9 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     offerId = body.offerId;
-    const { idempotencyKey } = body;
+    // PR-PAY-1: body.idempotencyKey is no longer read here (it fed the Duffel
+    // intent's Idempotency-Key; Stripe idempotency is PAY-2's concern). The
+    // panel never sent one anyway (FlightCheckoutPanel posts offerId only).
     if (!offerId) {
       return NextResponse.json({ error: 'Missing offerId' }, { status: 400 });
     }
@@ -52,6 +61,44 @@ export async function POST(request: NextRequest) {
       console.error(`[Duffel] Payment blocked — mode '${mode}' not permitted`);
       return NextResponse.json(
         { error: 'Flight booking is not available right now.' },
+        { status: 503 }
+      );
+    }
+
+    // PR-PAY-1 (ruling 3): BOTH gates. The Duffel gate above stays exactly
+    // as-is (it still governs the order side); the Stripe rail must agree
+    // with it — a live Duffel token with a test Stripe key (or vice versa)
+    // would charge play-money for real flights or real money for test
+    // inventory. Fail closed, declared, loud. stripeKeyMode() itself THROWS
+    // on a missing/unrecognized key — caught here as a declared config 503,
+    // never a silent fall-through. `mode` is the Duffel-gate variable
+    // (this file, the `const mode = duffelMode()` line above).
+    let stripeMode: 'live' | 'test';
+    try {
+      stripeMode = stripeKeyMode();
+    } catch (cfgErr) {
+      console.error('[Stripe] Payment blocked — key mode unresolved:', cfgErr instanceof Error ? cfgErr.message : cfgErr);
+      return NextResponse.json(
+        { error: 'Payment rail is not configured.' },
+        { status: 503 }
+      );
+    }
+    if (stripeMode !== mode) {
+      console.error(`[Stripe] Payment blocked — payment rail mode mismatch (stripe '${stripeMode}' vs duffel '${mode}')`);
+      return NextResponse.json(
+        { error: 'Payment rail mode mismatch.' },
+        { status: 503 }
+      );
+    }
+
+    // PR-PAY-1: the browser needs the publishable key to mount Stripe
+    // Elements (PAY-2). Missing key → declared 503 BEFORE any Stripe spend —
+    // the envelope never ships an undefined field.
+    const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+    if (!publishableKey) {
+      console.error('[Stripe] Payment blocked — NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is not set');
+      return NextResponse.json(
+        { error: 'Payment rail is not configured.' },
         { status: 503 }
       );
     }
@@ -88,18 +135,37 @@ export async function POST(request: NextRequest) {
     }
 
     // Markup is a CONFIG POINT (applyMarkup) — the intent may collect more than the
-    // offer total; the delta stays in our balance after the order is paid. 0 for now.
+    // offer total; the delta funds the balance top-up that pays the order. 0 for now.
+    // PR-PAY-1: the intent is now a STRIPE PaymentIntent (Duffel Payments is
+    // closed to new customers — DUFFEL-AUDIT-1). Amount stays SERVER-derived
+    // from the fresh offer above, never client-supplied; the string→minor-units
+    // conversion (incl. zero-decimal currencies) lives in stripePayments.ts.
+    // The Duffel idempotencyKey plumbing is not forwarded — Stripe intent
+    // creation is not retried by the client, and PAY-2 owns any Stripe
+    // idempotency semantics.
     const intentAmount = applyMarkup(offer.total_amount);
-    const intent = await createPaymentIntent(intentAmount, offer.total_currency, idempotencyKey);
+    const intent = await createFlightPaymentIntent({
+      amountDecimal: intentAmount,
+      currency: offer.total_currency,
+      offerId,
+    });
 
-    // client_token is RETURNED to the browser (its intended use — the Card component
-    // needs it) but is NEVER logged. Nothing card-related is logged here.
+    // The client_secret is RETURNED to the browser (Stripe Elements needs it)
+    // but is NEVER logged. Nothing card-related is logged here.
+    // PR-PAY-1 envelope (ruling 2): `clientToken` carries the Stripe
+    // client_secret so the field name the panel hard-requires stays present
+    // (FlightCheckoutPanel.tsx keys on data.clientToken); amount/currency are
+    // the offer-derived DECIMAL string + ISO code (the old envelope's
+    // semantics — NOT Stripe's minor-units integer); mode is the literal
+    // 'stripe' (PAY-2 keys its banner/component on it). Dark window until
+    // PAY-2 swaps the card component — accepted by ruling.
     return NextResponse.json({
-      clientToken: intent.client_token,
+      clientToken: intent.client_secret,
       paymentIntentId: intent.id,
-      amount: intent.amount,
-      currency: intent.currency,
-      mode,
+      amount: intentAmount,
+      currency: offer.total_currency,
+      mode: 'stripe',
+      publishableKey,
       expiresAt: offer.expires_at ?? null,
     });
   } catch (error) {
@@ -116,11 +182,19 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     }
-    // EXPIRY INSTRUMENTATION: the RAW Duffel message VERBATIM (no truncation) +
-    // the offer id, so a misclassified or genuinely-stale offer is provable from
-    // one log line. Duffel error messages are provider prose — no card data,
+    // EXPIRY INSTRUMENTATION: the RAW provider message VERBATIM (no truncation)
+    // + the offer id, so a misclassified or genuinely-stale offer is provable
+    // from one log line. Provider error messages are prose — no card data,
     // secrets, or client tokens flow through them (this route sends no
     // passenger fields), so untruncated logging stays PCI-safe.
+    // PR-PAY-1: STRIPE failures (createFlightPaymentIntent / toMinorUnits
+    // throws) land in this SAME log line — rawDuffelMessage then carries the
+    // Stripe/conversion message and the duffelErr fields are null; the expiry
+    // classifier below still applies only to real DuffelApiErrors (now only
+    // getOffer can produce one here), then everything else → the declared 502.
+    // Nothing Duffel-specific was REMOVED from this catch: the expiry branches
+    // remain correct for getOffer, and the 502 is the ruled Stripe-failure
+    // response.
     const msg = error instanceof Error ? error.message : '';
     const duffelErr = error instanceof DuffelApiError ? error : null;
     console.error('[Duffel] Payment intent error:', JSON.stringify({
