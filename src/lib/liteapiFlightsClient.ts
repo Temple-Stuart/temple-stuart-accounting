@@ -17,35 +17,25 @@
 //
 // HOSTS: the flights PRODUCTION host is documented as the same API host the
 // hotel lane uses (docs.liteapi.travel/reference/post_flights-rates.md: "API
-// base URL: https://api.liteapi.travel/v3.0"). The SANDBOX host is AMBIGUOUS in
-// the docs — the rates reference also mentions "Sandbox available at
-// https://sandbox.nuitee.flights" (FLIGHT-LITE-1 recon). Per the PR-FL-1
-// ruling: one host per mode at runtime, NO silent host fallback; an unresolved
-// host THROWS. The live sandbox probe decides which candidate is real; until
-// its verdict lands, sandbox mode fails loud (see FLIGHTS_HOST_SANDBOX below).
+// base URL: https://api.liteapi.travel/v3.0"). The SANDBOX host was ambiguous
+// in the docs (a stray "Sandbox available at https://sandbox.nuitee.flights"
+// mention — FLIGHT-LITE-1 recon); the PR-FL-1 live probe settled it — see the
+// verdict on FLIGHTS_HOST_SANDBOX below. One host per mode at runtime, no
+// fallback chain.
 
 import { MissingLiteApiKeyError, LiteApiError } from './travelErrors';
 
 // Production flights host — documented on the rates reference (see header).
 const FLIGHTS_HOST_PRODUCTION = 'https://api.liteapi.travel/v3.0';
 
-/** The two DOCUMENTED sandbox host candidates (FLIGHT-LITE-1 recon). The
- *  PR-FL-1 acceptance probe runs the same search against both to learn which
- *  is real. NOTE: whether the nuitee candidate carries a /v3.0 path prefix is
- *  itself undocumented — the probe curls test both spellings. */
-export const FLIGHTS_SANDBOX_HOST_CANDIDATES = {
-  /** Same host as hotels — the hotel lane uses ONE host for both modes and
-   *  lets the key select the environment (liteapiClient.ts:22,46-53). */
-  liteapi: 'https://api.liteapi.travel/v3.0',
-  /** Named by the flights rates reference as the flights sandbox. */
-  nuitee: 'https://sandbox.nuitee.flights',
-} as const;
-
-/** RESOLVED sandbox host. Stays null until the live probe's verdict is ruled
- *  in (PR-FL-1 shipped BLOCKED-ON-KEY — no LITEAPI_SANDBOX_KEY in the build
- *  environment, so the probe is Alex's curl run; the follow-up PR hardcodes
- *  the winner here). null → sandbox mode THROWS, never guesses a host. */
-const FLIGHTS_HOST_SANDBOX: string | null = null;
+/** Sandbox flights host — PROBE-VERIFIED (PR-FL-1 live probe, 2026-08-03,
+ *  key-authenticated): the sandbox key against api.liteapi.travel/v3.0
+ *  /flights/rates returned 200 with 158 journeys / 421 offers, Nuitée Air
+ *  present, sample offer priced + expiring; the docs' other candidate,
+ *  sandbox.nuitee.flights, returned 404 on both path spellings. Sandbox and
+ *  production SHARE the documented host — the key selects the environment,
+ *  exactly like the hotel lane (liteapiClient.ts:22,46-53). */
+const FLIGHTS_HOST_SANDBOX = 'https://api.liteapi.travel/v3.0';
 
 type LiteApiMode = 'sandbox' | 'production';
 
@@ -73,28 +63,11 @@ function headers(): Record<string, string> {
   };
 }
 
-/** Thrown in sandbox mode while the sandbox host is unresolved (see
- *  FLIGHTS_HOST_SANDBOX). Config-shaped, never a fallback: the caller learns
- *  exactly what is unresolved and what decides it. */
-export class LiteApiFlightsSandboxHostUnresolvedError extends Error {
-  readonly source = 'liteapi' as const;
-  readonly kind = 'config_error' as const;
-  constructor() {
-    super(
-      'LiteAPI flights sandbox host is unresolved — two documented candidates ' +
-      `(${FLIGHTS_SANDBOX_HOST_CANDIDATES.liteapi} vs ${FLIGHTS_SANDBOX_HOST_CANDIDATES.nuitee}); ` +
-      'run the PR-FL-1 probe curls to decide, then set FLIGHTS_HOST_SANDBOX in liteapiFlightsClient.ts'
-    );
-    this.name = 'LiteApiFlightsSandboxHostUnresolvedError';
-  }
-}
-
-/** One host per mode; no fallback chain. Production → the documented host;
- *  sandbox → the probe-resolved host or a loud throw. */
+/** One host per mode; no fallback chain. Both currently resolve to the same
+ *  documented host (probe verdict above) — kept mode-keyed so any future host
+ *  divergence is a one-line change. */
 function flightsBaseUrl(): string {
-  if (getMode() === 'production') return FLIGHTS_HOST_PRODUCTION;
-  if (FLIGHTS_HOST_SANDBOX) return FLIGHTS_HOST_SANDBOX;
-  throw new LiteApiFlightsSandboxHostUnresolvedError();
+  return getMode() === 'production' ? FLIGHTS_HOST_PRODUCTION : FLIGHTS_HOST_SANDBOX;
 }
 
 // ─── Typed errors ────────────────────────────────────────────────────────────
@@ -370,20 +343,14 @@ async function postFlights<T>(base: string, path: string, body: unknown): Promis
 // ─── Search (POST /flights/rates) ────────────────────────────────────────────
 
 /** Search flight rates. Returns the response's `data[]` (each entry: journeys
- *  with segments + offers, plus sortMetadata). Throws MissingLiteApiKeyError /
- *  LiteApiFlightsSandboxHostUnresolvedError before any network call,
- *  LiteApiFlightsApiError (or FlightOfferExpiredError) on non-2xx, and a
- *  contract-deviation error when 2xx arrives without `data[]`.
- *
- *  `opts.baseUrlOverride` exists for ONE caller: the PR-FL-1 acceptance probe,
- *  which runs this exact code path against BOTH sandbox host candidates to
- *  decide which is real. Runtime callers never pass it — the default is the
- *  mode-resolved host, and there is no fallback between hosts. */
+ *  with segments + offers, plus sortMetadata). Throws MissingLiteApiKeyError
+ *  before any network call, LiteApiFlightsApiError (or
+ *  FlightOfferExpiredError) on non-2xx, and a contract-deviation error when
+ *  2xx arrives without `data[]`. */
 export async function searchFlightRates(
   params: FlightSearchParams,
-  opts?: { baseUrlOverride?: string },
 ): Promise<FlightSearchResult[]> {
-  const base = opts?.baseUrlOverride ?? flightsBaseUrl();
+  const base = flightsBaseUrl();
 
   // Observability, mirroring liteapiClient.ts:790-792 — mode + 4-char key
   // prefix (never the full key) + the route being priced.
@@ -449,9 +416,8 @@ export interface FlightVerifyResult {
  *  FlightOfferExpiredError (dead offer → re-search, don't retry). */
 export async function verifyFlightOffer(
   { offerId }: { offerId: string },
-  opts?: { baseUrlOverride?: string },
 ): Promise<FlightVerifyResult[]> {
-  const base = opts?.baseUrlOverride ?? flightsBaseUrl();
+  const base = flightsBaseUrl();
 
   const mode = getMode();
   const keyPrefix = (mode === 'production' ? process.env.LITEAPI_PRODUCTION_KEY : process.env.LITEAPI_SANDBOX_KEY)?.slice(0, 4) ?? 'none';
