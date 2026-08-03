@@ -112,6 +112,11 @@ const PUBLIC_PATHS = [
   '/api/travel/locations/cities',
   '/api/travel/liteapi/prebook',
   '/api/travel/liteapi/book',
+  // PR-FL-2: LiteAPI flight search + verify — same public guest-ok posture as
+  // the search routes above. Each is guarded per-IP (rateLimit) + metered
+  // against the 'liteapi' durable daily provider cap BEFORE the paid call.
+  '/api/travel/liteapi/flights/search',
+  '/api/travel/liteapi/flights/verify',
   // Payment-SDK return page — renders the guest checkout UI only; NO paid API
   // calls on load. Its only money call is the user-submitted POST to
   // /api/travel/liteapi/book, which is public + rate-limited + daily-capped
