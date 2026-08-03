@@ -7,11 +7,14 @@
  * (/api/travel/activities/search — no auth, bounded by per-IP rate-limit + the
  * daily Viator cap). Results render through the pure <ActivityResultsView/> (PR-A2).
  *
- * SEARCH is public; BOOKING is gated. Viator "booking" is an external affiliate
- * URL, already STRIPPED from the route payload (route.ts:76). "Book" routes to
- * onRequireAuth (sign-up) — this component fires NO booking fetch and renders NO
- * affiliate link. No authed loads, no trip scope. No fake results: the grid renders
- * exactly what the route returns.
+ * SEARCH is public; BOOKING links out (PR-CHIP-1, Alex's ruling, 2026-08-03 —
+ * the affiliate lock is reversed for ACTIVITIES ONLY). The route now emits a
+ * VALIDATED `bookingUrl` (viator.com + our pid, activities/search/route.ts)
+ * and the view renders it as a real outbound Book link — guest-completable,
+ * no sign-up wall. Results that failed URL validation carry no bookingUrl and
+ * fall back to onBook → onRequireAuth (sign-up), the pre-ruling behavior.
+ * No authed loads, no trip scope. No fake results: the grid renders exactly
+ * what the route returns.
  */
 
 import { useState, useEffect } from 'react';
@@ -89,14 +92,14 @@ export default function PublicActivitySearch({ onRequireAuth, sharedCity, shared
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchNonce]);
 
-  // BOOKING is gated: tapping "Book" routes to sign-up, never a booking fetch and
-  // never an affiliate link. The view never books or links out — it calls back.
+  // PR-CHIP-1: results WITH a validated bookingUrl link out directly (the view
+  // renders the <a>); this callback is the fallback for URL-less results only.
   const book = () => onRequireAuth();
 
   return (
     <TravelSectionShell
       title="Things to do"
-      explainer="Real tours & experiences. Booking asks you to sign up."
+      explainer="Real tours & experiences. Book on Viator."
     >
       <form onSubmit={search} className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         <label className="flex flex-col gap-1 lg:col-span-2">

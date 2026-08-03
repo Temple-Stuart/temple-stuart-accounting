@@ -36,6 +36,9 @@ interface Props {
   /** Optional "Showing X of Y" hint (shown only when filtered count < total). */
   shownCount?: number;
   totalCount?: number;
+  /** PR-CHIP-1 (ruling 3): truncation disclosure, e.g. "Top 12 results" — the
+   *  caller passes it only when the route-side cap was actually hit. */
+  capNote?: string;
 }
 
 export default function ResultsFilterBar({
@@ -45,7 +48,10 @@ export default function ResultsFilterBar({
   onMinRatingChange,
   shownCount,
   totalCount,
+  capNote,
 }: Props) {
+  const showingHint =
+    typeof shownCount === 'number' && typeof totalCount === 'number' && shownCount !== totalCount;
   return (
     <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
       <label className={`flex items-center gap-2 ${TRAVEL_LABEL_CLASS}`}>
@@ -80,9 +86,11 @@ export default function ResultsFilterBar({
         ))}
       </div>
 
-      {typeof shownCount === 'number' && typeof totalCount === 'number' && shownCount !== totalCount && (
+      {(showingHint || capNote) && (
         <span className="ml-auto text-xs text-white/40">
-          Showing {shownCount} of {totalCount}
+          {showingHint ? `Showing ${shownCount} of ${totalCount}` : ''}
+          {showingHint && capNote ? ' · ' : ''}
+          {capNote ?? ''}
         </span>
       )}
     </div>
