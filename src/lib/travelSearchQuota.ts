@@ -58,6 +58,13 @@ const PROVIDER_SAFE_DEFAULT_CAP: Record<string, number> = {
   // booking → a tight daily cap, bounded even with no env override. Raise via
   // TRAVEL_SEARCH_DAILY_CAP_FLIGHTBOOKING on a real volume plan.
   flightbooking: 25,
+  // PR-FL-3: LiteAPI flight PREBOOK is money-adjacent like hotelprebook above —
+  // it reserves the offer AND mints the Stripe payment intent — so it gets the
+  // same quote-tier safe cap (prebook is a quote: looser than booking, tighter
+  // than search). Without this entry a new string provider would inherit the
+  // 1000/day global default. Raise via TRAVEL_SEARCH_DAILY_CAP_FLIGHTPREBOOK
+  // on a real volume plan.
+  flightprebook: 100,
 };
 
 /** Per-provider daily cap. Precedence: TRAVEL_SEARCH_DAILY_CAP_<PROVIDER> env →
