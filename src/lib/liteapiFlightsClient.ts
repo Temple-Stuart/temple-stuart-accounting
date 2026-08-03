@@ -411,6 +411,109 @@ export interface FlightVerifyResult {
   changes?: FlightVerifyChanges | null;
 }
 
+// ─── Prebook (POST /flights/prebooks) ────────────────────────────────────────
+// Creates the flight checkout session: reserves the offer and — because
+// usePaymentSdk is HARDCODED true below — mints a Stripe PaymentIntent on
+// Nuitee's account. The response's transactionId/secretKey/publishableKey are
+// the browser-side card-collection context (FL-4 mounts Stripe Elements with
+// them); /flights/bookings later completes with payment.method TRANSACTION_ID.
+// Docs (FLIGHT-LITE-1 recon + the prebooks reference): response nests under
+// data[0]; passengerType is an INTEGER (0=adult, 1=child, 2=infant).
+
+export interface FlightPrebookContact {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber: string;
+  phoneCountryCode?: string;
+  middleName?: string;
+}
+
+/** Documented integer enum: 0 = adult, 1 = child, 2 = infant. */
+export type FlightPassengerType = 0 | 1 | 2;
+
+export interface FlightPrebookPassenger {
+  passengerType: FlightPassengerType;
+  firstName: string;
+  lastName: string;
+  /** "YYYY-MM-DD" */
+  birthday: string;
+  middleName?: string;
+  gender?: 'M' | 'F';
+  nationality?: string;
+  documentType?: string;
+  documentNumber?: string;
+  documentIssueCountry?: string;
+  /** "YYYY-MM-DD" */
+  documentExpiry?: string;
+}
+
+export interface FlightPrebookParams {
+  offerId: string;
+  contact: FlightPrebookContact;
+  passengers: FlightPrebookPassenger[];
+}
+
+/** The card-collection context + price. publishableKey is nullable in the
+ *  documented response; price/currency/paymentTypes are normalized to null
+ *  when absent (absence is honest — never invented). */
+export interface FlightPrebookResult {
+  prebookId: string;
+  transactionId: string;
+  secretKey: string;
+  publishableKey: string | null;
+  price: number | null;
+  currency: string | null;
+  paymentTypes: string[] | null;
+}
+
+/** Create the flight checkout session. usePaymentSdk is NOT a parameter —
+ *  it is hardcoded true: client-card User Payment is the RULED rail
+ *  (PR-FL-3), so the account-side CREDIT path deliberately cannot be
+ *  expressed through our code. Throws typed on non-2xx (42004/42017 →
+ *  FlightOfferExpiredError), and throws a contract-deviation error on a 2xx
+ *  missing prebookId/transactionId/secretKey — the checkout cannot proceed
+ *  without them, so a quiet partial return would just fail later and darker. */
+export async function prebookFlight(params: FlightPrebookParams): Promise<FlightPrebookResult> {
+  const base = flightsBaseUrl();
+
+  const mode = getMode();
+  const keyPrefix = (mode === 'production' ? process.env.LITEAPI_PRODUCTION_KEY : process.env.LITEAPI_SANDBOX_KEY)?.slice(0, 4) ?? 'none';
+  console.log(`[LiteAPI flights] prebook: mode=${mode} keyPrefix=${keyPrefix} host=${base} passengers=${params.passengers.length}`);
+
+  const json = await postFlights<{ data?: unknown }>(base, '/flights/prebooks', {
+    offerId: params.offerId,
+    contact: params.contact,
+    passengers: params.passengers,
+    usePaymentSdk: true,
+  });
+
+  const first = Array.isArray(json?.data) ? (json.data[0] as Record<string, unknown> | undefined) : undefined;
+  const prebookId = typeof first?.prebookId === 'string' ? first.prebookId : '';
+  const transactionId = typeof first?.transactionId === 'string' ? first.transactionId : '';
+  const secretKey = typeof first?.secretKey === 'string' ? first.secretKey : '';
+  if (!prebookId || !transactionId || !secretKey) {
+    throw new LiteApiFlightsApiError(
+      '/flights/prebooks',
+      200,
+      null,
+      'Prebook 2xx missing prebookId/transactionId/secretKey — contract deviation from the documented shape',
+      JSON.stringify(json).slice(0, 500),
+    );
+  }
+  return {
+    prebookId,
+    transactionId,
+    secretKey,
+    publishableKey: typeof first?.publishableKey === 'string' ? first.publishableKey : null,
+    price: typeof first?.price === 'number' ? first.price : null,
+    currency: typeof first?.currency === 'string' ? first.currency : null,
+    paymentTypes: Array.isArray(first?.paymentTypes)
+      ? (first.paymentTypes as unknown[]).filter((t): t is string => typeof t === 'string')
+      : null,
+  };
+}
+
 /** Re-price + availability-check one offer before prebook. Same typed-error
  *  contract as searchFlightRates; 42004/42017 arrive as
  *  FlightOfferExpiredError (dead offer → re-search, don't retry). */
