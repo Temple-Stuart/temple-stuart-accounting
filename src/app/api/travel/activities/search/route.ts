@@ -23,13 +23,42 @@ import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQ
 // directly) + maxResults=12 (< Viator's 50/page), so the paginated loop fills on
 // the FIRST page and exits → one reservation ≈ one real Viator call.
 //
-// AFFILIATE-URL LOCK: Viator "booking" is an external affiliate URL, not an API
-// order. The public surface must NEVER receive the live affiliate link, so both
-// affiliate-bearing fields the mapper emits — `bookingUrl` (viatorClient.ts:549)
-// and `website` (:533) — are STRIPPED from each result before it leaves the
-// route. "Book" is gated at the UI (onRequireAuth). BOOKING (the authed discover
-// page) + the tier-gated AI scan are untouched by this PR.
+// AFFILIATE LOCK — REVERSED FOR ACTIVITIES ONLY (PR-CHIP-1, Alex's ruling,
+// 2026-08-03; supersedes the original lock): `bookingUrl` now SHIPS in the
+// public payload so the chip's Book can link out to Viator — the guest-
+// completable booking this chip never had (TRAVEL-CHIPS-AUDIT). `website`
+// stays stripped. Emission is VALIDATED, never arbitrary: the mapper's
+// bookingUrl can fall back to the raw `product.productUrl` when a productCode
+// is missing (viatorClient.ts:629-631,659), so only a URL that (a) parses,
+// (b) is https on viator.com/www.viator.com — the only host
+// buildAffiliateUrl constructs (viatorClient.ts:287-289) — and (c) carries
+// our partner id pid=P00294427 (VIATOR_PARTNER_ID, viatorClient.ts:284)
+// leaves the route; anything else is OMITTED with a loud log. The transfers
+// route's stripping is UNTOUCHED (no vendor exists for ground).
 const ACTIVITY_MAX_RESULTS = 12;
+
+// Mirrors VIATOR_PARTNER_ID (viatorClient.ts:284 — module-private there).
+const VIATOR_AFFILIATE_PID = 'P00294427';
+
+/** The ruled emit gate: return the URL only when it is provably OUR Viator
+ *  affiliate link; otherwise null (field omitted) + a loud log. Never a
+ *  silent pass-through of an arbitrary vendor URL. */
+function validatedAffiliateUrl(candidate: string | null | undefined): string | null {
+  if (!candidate) return null;
+  try {
+    const u = new URL(candidate);
+    const hostOk = u.protocol === 'https:' && (u.hostname === 'www.viator.com' || u.hostname === 'viator.com');
+    const pidOk = u.searchParams.get('pid') === VIATOR_AFFILIATE_PID;
+    if (hostOk && pidOk) return candidate;
+    console.error(
+      `[Viator] activities: bookingUrl failed affiliate validation (host=${u.hostname} pid=${u.searchParams.get('pid') ?? 'none'}) — field omitted`
+    );
+    return null;
+  } catch {
+    console.error('[Viator] activities: bookingUrl is not a parseable URL — field omitted');
+    return null;
+  }
+}
 
 export async function GET(request: NextRequest) {
   // Client IP for the rate-limit key. A missing/absent header still gets limited
@@ -72,15 +101,16 @@ export async function GET(request: NextRequest) {
 
     const products = await searchViatorProducts(city, country, 'activities', [], ACTIVITY_MAX_RESULTS, preResolvedDestId);
 
-    // Map to the canonical recommendation shape, then STRIP the two affiliate-URL
-    // fields (`bookingUrl` + `website`) so the live affiliate link never leaves
-    // the route. The public payload keeps photoUrl/name/rating/price/duration/
-    // productCode — image-rich, but no clickable affiliate href.
+    // Map to the canonical recommendation shape. PR-CHIP-1: `bookingUrl` ships
+    // when it passes the affiliate validation above (viator.com + our pid);
+    // `website` stays stripped. A result whose URL fails validation simply has
+    // no bookingUrl — the view falls back to its no-URL behavior.
     const results = products.map((p) => {
       const rec = viatorProductToRecommendation(p, 'activities', 'midrange');
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { bookingUrl, website, ...publicRec } = rec;
-      return publicRec;
+      const safeBookingUrl = validatedAffiliateUrl(bookingUrl);
+      return safeBookingUrl ? { ...publicRec, bookingUrl: safeBookingUrl } : publicRec;
     });
 
     return NextResponse.json({

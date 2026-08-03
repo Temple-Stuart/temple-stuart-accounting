@@ -14,10 +14,16 @@
  * container does the searching and feeds `results` + `onBook` down. The single bit
  * of local state is a per-card image-error fallback (UI only, not data).
  *
- * AFFILIATE LOCK: Viator "booking" is an external affiliate URL. This view must
- * NEVER render an <a href> to a booking/affiliate/viator.com URL, and must NOT
- * construct one from the product code. "Book" is a CALLBACK ONLY — onBook(activity)
- * — which the container routes to sign-up. No outbound link leaves this component.
+ * AFFILIATE LOCK — REVERSED FOR ACTIVITIES (PR-CHIP-1, Alex's ruling,
+ * 2026-08-03; supersedes the original lock): when a result CARRIES a
+ * `bookingUrl` (emitted only by the activities route, and only after its
+ * viator.com + pid validation), Book renders as a real outbound
+ * <a target="_blank" rel="noopener noreferrer sponsored"> — the guest-
+ * completable booking. The view still NEVER CONSTRUCTS a URL from the product
+ * code — it renders exactly the validated field or nothing. Results without a
+ * bookingUrl keep the old behavior: the optional onBook callback, or — for
+ * rails with no vendor at all (ground, PR-CHIP-1 ruling 2) — the honest
+ * disabled `bookDisabledLabel` instead of a fake CTA.
  */
 
 import { useState } from 'react';
@@ -25,9 +31,10 @@ import ResultsFilterBar from './ResultsFilterBar';
 import { sortAndFilterResults, type SortKey } from '@/lib/resultsSortFilter';
 
 /** The fields this view renders off a PR-A1 result item — the
- *  viatorProductToRecommendation shape MINUS the stripped affiliate fields
- *  (`bookingUrl` + `website`, dropped at route.ts:76). Kept local; deliberately
- *  has no booking/affiliate URL field so the view cannot render one. */
+ *  viatorProductToRecommendation shape minus `website` (still stripped).
+ *  PR-CHIP-1: `bookingUrl` is OPTIONAL — present only on activities results
+ *  that passed the route's viator.com + pid affiliate validation; transfers
+ *  results never carry it (their route still strips). */
 export interface ActivityResult {
   name: string;
   address: string;
@@ -40,16 +47,32 @@ export interface ActivityResult {
   viatorProductCode: string;
   durationMinutes: number | null;
   price: number | null;        // from-price in USD
+  /** Validated Viator affiliate URL (activities only) — rendered verbatim as
+   *  the Book link when present; never constructed here. */
+  bookingUrl?: string | null;
 }
 
 interface Props {
   results: ActivityResult[];
   loading: boolean;
   error: string;
-  /** Booking is gated — the view never books or links out. The container routes
-   *  this to sign-up. NO affiliate URL is ever rendered here. */
-  onBook: (activity: ActivityResult) => void;
+  /** Fallback Book action for results WITHOUT a bookingUrl (e.g. the container
+   *  routes it to sign-up). Optional since PR-CHIP-1 — a container may instead
+   *  pass bookDisabledLabel when no booking path exists at all. */
+  onBook?: (activity: ActivityResult) => void;
+  /** PR-CHIP-1 (ruling 2): when set, URL-less results render this DISABLED
+   *  honest label instead of a Book action — for rails with no vendor wired
+   *  (ground). Takes precedence over onBook. */
+  bookDisabledLabel?: string;
 }
+
+/** Route-side result cap shared by BOTH consumers of this view — the
+ *  activities + transfers search routes each slice to 12
+ *  (ACTIVITY_MAX_RESULTS, activities/search/route.ts; TRANSFER_MAX_RESULTS,
+ *  transfers/search/route.ts). Disclosed in the filter bar when a full page
+ *  arrives (PR-CHIP-1 ruling 3); fewer than 12 = the complete result set, so
+ *  nothing is disclosed (an un-truncated list labeled "Top 12" would lie). */
+const ROUTE_RESULT_CAP = 12;
 
 function money(amount: number): string {
   try {
@@ -116,7 +139,7 @@ function RatingPill({ activity }: { activity: ActivityResult }) {
   );
 }
 
-export default function ActivityResultsView({ results, loading, error, onBook }: Props) {
+export default function ActivityResultsView({ results, loading, error, onBook, bookDisabledLabel }: Props) {
   // Client-side sort/filter over the already-fetched results — NO refetch.
   const [sort, setSort] = useState<SortKey>('price-asc');
   const [minRating, setMinRating] = useState(0);
@@ -178,6 +201,7 @@ export default function ActivityResultsView({ results, loading, error, onBook }:
         onMinRatingChange={setMinRating}
         shownCount={displayed.length}
         totalCount={results.length}
+        capNote={results.length >= ROUTE_RESULT_CAP ? `Top ${ROUTE_RESULT_CAP} results` : undefined}
       />
       {displayed.length === 0 ? (
         <div className="rounded-lg border border-dashed border-panel-border bg-panel-surface p-4 text-center text-sm text-white/50">
@@ -234,13 +258,34 @@ export default function ActivityResultsView({ results, loading, error, onBook }:
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={() => onBook(activity)}
-              className="shrink-0 rounded bg-brand-purple px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-purple-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
-            >
-              Book
-            </button>
+            {/* PR-CHIP-1 action precedence: validated affiliate URL → real
+                outbound Book link; no URL + bookDisabledLabel → honest disabled
+                label (no vendor exists); no URL + onBook → legacy callback. */}
+            {activity.bookingUrl ? (
+              <a
+                href={activity.bookingUrl}
+                target="_blank"
+                rel="noopener noreferrer sponsored"
+                className="shrink-0 rounded bg-brand-purple px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-purple-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+              >
+                Book
+              </a>
+            ) : bookDisabledLabel ? (
+              <span
+                aria-disabled="true"
+                className="shrink-0 cursor-default rounded bg-white/10 px-3 py-1.5 text-xs font-medium text-white/50"
+              >
+                {bookDisabledLabel}
+              </span>
+            ) : onBook ? (
+              <button
+                type="button"
+                onClick={() => onBook(activity)}
+                className="shrink-0 rounded bg-brand-purple px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-purple-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+              >
+                Book
+              </button>
+            ) : null}
           </div>
         );
           })}

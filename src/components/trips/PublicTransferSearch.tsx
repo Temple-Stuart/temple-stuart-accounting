@@ -10,10 +10,15 @@
  * 12044), merged + deduped. Results render through the same pure <ActivityResultsView/>
  * (the payload is the identical recommendation shape).
  *
- * SEARCH is public; BOOKING is gated. The affiliate URL is STRIPPED at the route; "Book"
- * routes to onRequireAuth (sign-up) — this component fires NO booking fetch and renders NO
- * affiliate link. No fake results: the grid renders exactly what the route returns, and an
- * empty result shows an honest empty state (never sample data).
+ * SEARCH is public; BOOKING does not exist yet (PR-CHIP-1, Alex's ruling 2,
+ * 2026-08-03): no ground vendor is wired (Mozio is declared-not-connected,
+ * travelSourceRegistry.ts:22), so the old Book→sign-up wall was a false CTA —
+ * signing up completed nothing (TRAVEL-CHIPS-AUDIT). The result rows now
+ * render the honest disabled label "Booking coming soon" instead. The
+ * affiliate URL stays STRIPPED at the route; this component fires NO booking
+ * fetch and renders NO affiliate link. No fake results: the grid renders
+ * exactly what the route returns, and an empty result shows an honest empty
+ * state (never sample data).
  */
 
 import { useState, useEffect } from 'react';
@@ -21,7 +26,10 @@ import ActivityResultsView, { type ActivityResult } from './ActivityResultsView'
 import TravelSectionShell, { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS, TRAVEL_LABEL_CLASS } from './travelSection';
 
 interface Props {
-  /** Opens the existing home register/login modal (booking requires sign-in). */
+  /** Interface stability only (both parents still pass it — LandingBookingSection
+   *  :50, ModuleLauncher :800-807, untouched by PR-CHIP-1). Ground Book no
+   *  longer routes to sign-up: no vendor exists, so the rows render the honest
+   *  disabled label instead (ruling 2). */
   onRequireAuth: () => void;
   /** PR-3: unified-bar fan-out. When searchNonce increments, this section runs its OWN
    *  search for {sharedCity, sharedCountry}. Manual per-section search still works. */
@@ -30,7 +38,8 @@ interface Props {
   searchNonce?: number;
 }
 
-export default function PublicTransferSearch({ onRequireAuth, sharedCity, sharedCountry, searchNonce }: Props) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export default function PublicTransferSearch({ onRequireAuth: _onRequireAuth, sharedCity, sharedCountry, searchNonce }: Props) {
   // Guest has no trip/destination props — start empty so they search by typing a
   // city + country. Transfer search is destination-based (no dates).
   const [city, setCity] = useState('');
@@ -91,14 +100,10 @@ export default function PublicTransferSearch({ onRequireAuth, sharedCity, shared
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchNonce]);
 
-  // BOOKING is gated: tapping "Book" routes to sign-up, never a booking fetch and
-  // never an affiliate link. The view never books or links out — it calls back.
-  const book = () => onRequireAuth();
-
   return (
     <TravelSectionShell
       title="Getting around"
-      explainer="Real airport & hotel transfers. Booking asks you to sign up."
+      explainer="Real airport & hotel transfers. Booking coming soon."
     >
       <form onSubmit={search} className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         <label className="flex flex-col gap-1 lg:col-span-2">
@@ -134,9 +139,16 @@ export default function PublicTransferSearch({ onRequireAuth, sharedCity, shared
         </div>
       </form>
 
-      {/* Results: only after the first search. Empty/loading/error live in the view. */}
+      {/* Results: only after the first search. Empty/loading/error live in the view.
+          PR-CHIP-1 (ruling 2): no onBook — ground has no vendor, so URL-less rows
+          render the honest disabled label (the discover page's coming-soon posture). */}
       {searched && (
-        <ActivityResultsView results={results} loading={loading} error={error} onBook={book} />
+        <ActivityResultsView
+          results={results}
+          loading={loading}
+          error={error}
+          bookDisabledLabel="Booking coming soon"
+        />
       )}
       {!searched && error && (
         <div className="rounded-lg border border-panel-border bg-panel-surface p-4 text-sm text-brand-red">{error}</div>
