@@ -19,6 +19,7 @@
     "@auth/prisma-adapter": "^2.11.1",
     "@duffel/components": "^3.16.1",
     "@prisma/client": "^5.22.0",
+    "@stripe/react-stripe-js": "^6.8.0",
     "@stripe/stripe-js": "^8.7.0",
     "@tanstack/react-virtual": "^3.13.18",
     "@tastytrade/api": "^6.0.1",
