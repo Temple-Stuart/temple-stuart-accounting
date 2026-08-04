@@ -18,6 +18,17 @@
  * prebookId (and fires onBooked) — the /flights/bookings completion call is
  * FL-5's; the public search UI wiring is FL-6's. No card data ever touches our
  * server: the browser talks to Stripe directly via Elements.
+ *
+ * FL-4b — the form collects the EMPIRICAL prebook contract (proven live
+ * 2026-08-04, HTTP 200): contact additionally REQUIRES phoneCountryCode
+ * (numeric string, no '+'); the passenger additionally REQUIRES gender
+ * ('M'|'F'), nationality (ISO-2) and the full passport block (documentType/
+ * documentNumber/documentIssueCountry/documentExpiry). LiteAPI's fraud filter
+ * (code 53099) rejects placeholder names like 'Test' — the form says so.
+ * publishableKey came back NULL in sandbox: per LiteAPI's own Stripe-Elements
+ * doc the publishable keys are "Provided by LiteAPI" and "not exposed in the
+ * dashboard — contact your account manager or customer support to request
+ * them" — so null stays a DECLARED error naming that gap, never a fallback.
  */
 
 import { useMemo, useState } from 'react';
@@ -66,14 +77,22 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
   const [phase, setPhase] = useState<Phase>('form');
   const [error, setError] = useState('');
 
-  // Contact (the route's required four) + one adult passenger (contract minimum).
+  // Contact + one passenger — the FULL proven contract (FL-4b header).
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [phoneCC, setPhoneCC] = useState('');
+  const [paxType, setPaxType] = useState<0 | 1 | 2>(0);
   const [paxFirst, setPaxFirst] = useState('');
   const [paxLast, setPaxLast] = useState('');
   const [birthday, setBirthday] = useState('');
+  const [gender, setGender] = useState<'M' | 'F' | ''>('');
+  const [nationality, setNationality] = useState('');
+  const [docType, setDocType] = useState('passport');
+  const [docNumber, setDocNumber] = useState('');
+  const [docIssueCountry, setDocIssueCountry] = useState('');
+  const [docExpiry, setDocExpiry] = useState('');
 
   const [prebook, setPrebook] = useState<PrebookEnvelope | null>(null);
 
@@ -88,11 +107,18 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
   const validate = (): string => {
     if (!firstName.trim() || !lastName.trim()) return 'Contact first and last name are required.';
     if (!EMAIL_RE.test(email.trim())) return 'Enter a valid email address.';
+    if (!/^\d{1,4}$/.test(phoneCC.trim())) return "Phone country code must be numeric with no '+' (e.g. 1).";
     if (!phone.trim()) return 'Contact phone number is required.';
     if (!paxFirst.trim() || !paxLast.trim()) return 'Passenger first and last name are required.';
     if (!DATE_RE.test(birthday.trim()) || birthday.trim() >= todayUtc()) {
       return 'Passenger birthday must be YYYY-MM-DD and in the past.';
     }
+    if (gender !== 'M' && gender !== 'F') return 'Select the passenger gender.';
+    if (!/^[A-Za-z]{2}$/.test(nationality.trim())) return 'Nationality must be a 2-letter country code (e.g. US).';
+    if (!docType.trim()) return 'Document type is required.';
+    if (!docNumber.trim()) return 'Document number is required.';
+    if (!/^[A-Za-z]{2}$/.test(docIssueCountry.trim())) return 'Document issue country must be a 2-letter code (e.g. US).';
+    if (!DATE_RE.test(docExpiry.trim())) return 'Document expiry must be YYYY-MM-DD.';
     return '';
   };
 
@@ -113,12 +139,19 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
             lastName: lastName.trim(),
             email: email.trim(),
             phoneNumber: phone.trim(),
+            phoneCountryCode: phoneCC.trim(),
           },
           passengers: [{
-            passengerType: 0,
+            passengerType: paxType,
             firstName: paxFirst.trim(),
             lastName: paxLast.trim(),
             birthday: birthday.trim(),
+            gender,
+            nationality: nationality.trim().toUpperCase(),
+            documentType: docType.trim(),
+            documentNumber: docNumber.trim(),
+            documentIssueCountry: docIssueCountry.trim().toUpperCase(),
+            documentExpiry: docExpiry.trim(),
           }],
         }),
       });
@@ -133,14 +166,20 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
       // RULED GATE: both Stripe fields must be present, or this is a declared
       // dead end — mounting Elements with any OTHER key (env, our Stripe)
       // would confirm the card against the wrong rail. No fallback exists.
-      if (typeof data?.secretKey !== 'string' || !data.secretKey ||
-          typeof data?.publishableKey !== 'string' || !data.publishableKey) {
-        console.error('[LiteAPI flights] prebook succeeded but the Stripe context is incomplete:', JSON.stringify({
-          hasSecretKey: !!data?.secretKey,
-          hasPublishableKey: !!data?.publishableKey,
+      if (typeof data?.secretKey !== 'string' || !data.secretKey) {
+        console.error('[LiteAPI flights] prebook succeeded but returned no secretKey:', JSON.stringify({
           prebookId: data?.prebookId ?? null,
         }));
-        throw new Error('Payment cannot start — the checkout session is missing its payment keys. This is a provider-side issue; nothing was charged.');
+        throw new Error('Payment cannot start — the checkout session is missing its payment secret. This is a provider-side issue; nothing was charged.');
+      }
+      if (typeof data?.publishableKey !== 'string' || !data.publishableKey) {
+        // FL-4b: the OBSERVED sandbox behavior — publishableKey: null. Their
+        // Stripe-Elements doc says the publishable keys are "Provided by
+        // LiteAPI" and "not exposed in the dashboard — contact your account
+        // manager or customer support to request them", so this names the real
+        // gap instead of pretending it's transient.
+        console.error('[LiteAPI flights] prebook returned no publishableKey — Elements cannot mount; the per-env keys come from Nuitee support, not the response.');
+        throw new Error('Sandbox prebook returned no publishable key — pending Nuitee guidance.');
       }
       setPrebook(data as PrebookEnvelope);
       setPhase('pay');
@@ -173,19 +212,51 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
               <input className={FIELD} value={firstName} onChange={(e) => setFirstName(e.target.value)} /></label>
             <label className="space-y-1"><span className={LABEL}>Last name</span>
               <input className={FIELD} value={lastName} onChange={(e) => setLastName(e.target.value)} /></label>
-            <label className="space-y-1"><span className={LABEL}>Email</span>
+            <label className="col-span-2 space-y-1"><span className={LABEL}>Email</span>
               <input className={FIELD} type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+            <label className="space-y-1"><span className={LABEL}>Country code (no +)</span>
+              <input className={FIELD} inputMode="numeric" placeholder="1" value={phoneCC} onChange={(e) => setPhoneCC(e.target.value)} /></label>
             <label className="space-y-1"><span className={LABEL}>Phone</span>
               <input className={FIELD} value={phone} onChange={(e) => setPhone(e.target.value)} /></label>
           </div>
-          <p className="text-xs text-text-muted">Passenger (adult)</p>
+          <p className="text-xs text-text-muted">Passenger</p>
+          {/* FL-4b: real-looking names required — LiteAPI's fraud filter (53099)
+              rejects placeholders like 'Test'. */}
+          <p className="text-[11px] text-text-muted">
+            Use a real name — the provider&apos;s fraud filter rejects placeholder names like &ldquo;Test&rdquo;.
+          </p>
           <div className="grid grid-cols-2 gap-2">
+            <label className="space-y-1"><span className={LABEL}>Type</span>
+              <select className={FIELD} value={paxType} onChange={(e) => setPaxType(Number(e.target.value) as 0 | 1 | 2)}>
+                <option value={0}>Adult</option>
+                <option value={1}>Child</option>
+                <option value={2}>Infant</option>
+              </select></label>
+            <label className="space-y-1"><span className={LABEL}>Gender</span>
+              <select className={FIELD} value={gender} onChange={(e) => setGender(e.target.value as 'M' | 'F' | '')}>
+                <option value="">Select…</option>
+                <option value="M">M</option>
+                <option value="F">F</option>
+              </select></label>
             <label className="space-y-1"><span className={LABEL}>First name</span>
               <input className={FIELD} value={paxFirst} onChange={(e) => setPaxFirst(e.target.value)} /></label>
             <label className="space-y-1"><span className={LABEL}>Last name</span>
               <input className={FIELD} value={paxLast} onChange={(e) => setPaxLast(e.target.value)} /></label>
-            <label className="col-span-2 space-y-1"><span className={LABEL}>Birthday (YYYY-MM-DD)</span>
+            <label className="space-y-1"><span className={LABEL}>Birthday (YYYY-MM-DD)</span>
               <input className={FIELD} placeholder="1990-01-31" value={birthday} onChange={(e) => setBirthday(e.target.value)} /></label>
+            <label className="space-y-1"><span className={LABEL}>Nationality (ISO-2)</span>
+              <input className={FIELD} placeholder="US" maxLength={2} value={nationality} onChange={(e) => setNationality(e.target.value)} /></label>
+          </div>
+          <p className="text-xs text-text-muted">Travel document</p>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="space-y-1"><span className={LABEL}>Type</span>
+              <input className={FIELD} value={docType} onChange={(e) => setDocType(e.target.value)} /></label>
+            <label className="space-y-1"><span className={LABEL}>Number</span>
+              <input className={FIELD} value={docNumber} onChange={(e) => setDocNumber(e.target.value)} /></label>
+            <label className="space-y-1"><span className={LABEL}>Issue country (ISO-2)</span>
+              <input className={FIELD} placeholder="US" maxLength={2} value={docIssueCountry} onChange={(e) => setDocIssueCountry(e.target.value)} /></label>
+            <label className="space-y-1"><span className={LABEL}>Expiry (YYYY-MM-DD)</span>
+              <input className={FIELD} placeholder="2030-01-31" value={docExpiry} onChange={(e) => setDocExpiry(e.target.value)} /></label>
           </div>
           {error && <p className="text-sm text-brand-red">{error}</p>}
           <button
