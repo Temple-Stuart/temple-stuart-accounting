@@ -65,6 +65,11 @@ const PROVIDER_SAFE_DEFAULT_CAP: Record<string, number> = {
   // 1000/day global default. Raise via TRAVEL_SEARCH_DAILY_CAP_FLIGHTPREBOOK
   // on a real volume plan.
   flightprebook: 100,
+  // PR-FL-5: LiteAPI flight BOOKING is the money call (real ticket issuance),
+  // DISTINCT from Duffel's 'flightbooking' bucket above — same money-tier cap.
+  // Raise via TRAVEL_SEARCH_DAILY_CAP_LITEAPIFLIGHTBOOKING on a real volume
+  // plan.
+  liteapiflightbooking: 25,
 };
 
 /** Per-provider daily cap. Precedence: TRAVEL_SEARCH_DAILY_CAP_<PROVIDER> env →

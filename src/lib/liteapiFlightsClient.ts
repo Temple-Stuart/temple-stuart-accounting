@@ -375,6 +375,87 @@ export async function searchFlightRates(
   return json.data as FlightSearchResult[];
 }
 
+// ─── Book (POST /flights/bookings) ───────────────────────────────────────────
+// Completes the booking AFTER the browser confirmed the Stripe payment (FL-4
+// panel): body is prebookId + payment { method: 'TRANSACTION_ID',
+// transactionId } — the docs' exact TRANSACTION_ID shape ("Stripe payment
+// intent id. Required when method is TRANSACTION_ID"). The CREDIT method is
+// deliberately not expressible here (client-card-only is the ruled rail).
+
+/** The five DOCUMENTED booking statuses (bookings reference). The API may add
+ *  values; unknown strings pass through VERBATIM — never remapped. */
+export const FLIGHT_BOOKING_STATUSES = [
+  'PENDING_CONFIRMATION', 'CONFIRMED', 'CANCELLED', 'PENDING', 'TICKETED',
+] as const;
+export type FlightBookingStatus = (typeof FLIGHT_BOOKING_STATUSES)[number];
+
+/** Booking completion result — raw provider truth, nullable where the response
+ *  didn't carry the field (absence is honest, nothing invented). `pnr` is
+ *  order.reference.provider.pnr; price prefers pricing.totalAmount, falling
+ *  back to payment.amount (the captured charge). */
+export interface FlightBookResult {
+  bookingId: string;
+  bookingRef: string | null;          // "FH-YYM-XXXXXXXX"
+  status: FlightBookingStatus | (string & {}) | null;
+  paymentStatus: string | null;       // 'pending' | 'completed' | 'failed' | 'not_required'
+  pnr: string | null;
+  price: number | null;
+  currency: string | null;
+}
+
+/** Complete one flight booking. IDEMPOTENT PER THE DOCS: "Returns the existing
+ *  booking if one already exists for the given `prebookId`" — a retry with the
+ *  same prebookId cannot double-book. Throws typed on non-2xx (42004/42017 →
+ *  FlightOfferExpiredError) and throws a contract-deviation error on a 2xx
+ *  missing booking.bookingId. */
+export async function bookFlight({ prebookId, transactionId }: {
+  prebookId: string;
+  transactionId: string;
+}): Promise<FlightBookResult> {
+  const base = flightsBaseUrl();
+
+  const mode = getMode();
+  const keyPrefix = (mode === 'production' ? process.env.LITEAPI_PRODUCTION_KEY : process.env.LITEAPI_SANDBOX_KEY)?.slice(0, 4) ?? 'none';
+  console.log(`[LiteAPI flights] book: mode=${mode} keyPrefix=${keyPrefix} host=${base}`);
+
+  const json = await postFlights<{ data?: unknown }>(base, '/flights/bookings', {
+    prebookId,
+    payment: { method: 'TRANSACTION_ID', transactionId },
+  });
+
+  const first = Array.isArray(json?.data) ? (json.data[0] as Record<string, unknown> | undefined) : undefined;
+  const booking = first?.booking as Record<string, unknown> | undefined;
+  const bookingId = typeof booking?.bookingId === 'string' ? booking.bookingId : '';
+  if (!bookingId) {
+    throw new LiteApiFlightsApiError(
+      '/flights/bookings',
+      200,
+      null,
+      'Book 2xx missing booking.bookingId — contract deviation from the documented shape',
+      JSON.stringify(json).slice(0, 500),
+    );
+  }
+  const pricing = booking?.pricing as Record<string, unknown> | undefined;
+  const payment = booking?.payment as Record<string, unknown> | undefined;
+  const order = booking?.order as Record<string, unknown> | undefined;
+  const reference = order?.reference as Record<string, unknown> | undefined;
+  const providerRef = reference?.provider as Record<string, unknown> | undefined;
+
+  return {
+    bookingId,
+    bookingRef: typeof booking?.bookingRef === 'string' ? booking.bookingRef : null,
+    status: typeof booking?.status === 'string' ? booking.status : null,
+    paymentStatus: typeof booking?.paymentStatus === 'string' ? booking.paymentStatus : null,
+    pnr: typeof providerRef?.pnr === 'string' ? providerRef.pnr : null,
+    price: typeof pricing?.totalAmount === 'number'
+      ? pricing.totalAmount
+      : (typeof payment?.amount === 'number' ? payment.amount : null),
+    currency: typeof pricing?.currency === 'string'
+      ? pricing.currency
+      : (typeof payment?.currency === 'string' ? payment.currency : null),
+  };
+}
+
 // ─── Verify (POST /flights/verify) ───────────────────────────────────────────
 // Recon note preserved: "the offerId is not returned in the JSON body (use the
 // same id you sent on the verify request for prebook/book)" — the CALLER
