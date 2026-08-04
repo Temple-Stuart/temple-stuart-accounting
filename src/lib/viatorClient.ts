@@ -5,6 +5,7 @@
 // V1 fallback host (viatorapi.viator.com) has been retired and now returns
 // HTTP 503 globally — all V1 paths were removed in PR-5 quickfix.
 
+import { VIATOR_PARTNER_ID } from '@/config/affiliates';
 import { ACTIVITY_LABELS } from './activities';
 import { TRAVEL_COA } from './travelCOA';
 import { MissingViatorKeyError, ViatorApiError } from './travelErrors';
@@ -281,7 +282,9 @@ function buildSearchTerms(coaCategory: string, userInterests: string[]): string[
 }
 
 // ─── Affiliate URL Construction ──────────────────────────────────────────────
-const VIATOR_PARTNER_ID = 'P00294427';
+// TILE-CFG-1: the partner id single-sources from src/config/affiliates.ts
+// (imported at top) — the same constant the emit gate validates against, so
+// builder and validator can never drift.
 const VIATOR_MCID = '42383';
 
 function buildAffiliateUrl(productCode: string): string {
