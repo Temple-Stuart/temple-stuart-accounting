@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { validatedAffiliateUrl } from '@/config/affiliates';
 import { searchViatorProducts, viatorProductToRecommendation } from '@/lib/viatorClient';
 import { findViatorDestIdFor } from '@/lib/destinations';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
@@ -30,35 +31,13 @@ import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQ
 // stays stripped. Emission is VALIDATED, never arbitrary: the mapper's
 // bookingUrl can fall back to the raw `product.productUrl` when a productCode
 // is missing (viatorClient.ts:629-631,659), so only a URL that (a) parses,
-// (b) is https on viator.com/www.viator.com — the only host
-// buildAffiliateUrl constructs (viatorClient.ts:287-289) — and (c) carries
-// our partner id pid=P00294427 (VIATOR_PARTNER_ID, viatorClient.ts:284)
-// leaves the route; anything else is OMITTED with a loud log. The transfers
+// (b) is https on viator.com/www.viator.com and (c) carries our partner id
+// leaves the route; anything else is OMITTED with a loud log. TILE-CFG-1
+// moved the gate to the shared config — validatedAffiliateUrl(url, 'viator')
+// in src/config/affiliates.ts, recipe + partner id single-sourced there —
+// with behavior identical to the CHIP-1 inline version. The transfers
 // route's stripping is UNTOUCHED (no vendor exists for ground).
 const ACTIVITY_MAX_RESULTS = 12;
-
-// Mirrors VIATOR_PARTNER_ID (viatorClient.ts:284 — module-private there).
-const VIATOR_AFFILIATE_PID = 'P00294427';
-
-/** The ruled emit gate: return the URL only when it is provably OUR Viator
- *  affiliate link; otherwise null (field omitted) + a loud log. Never a
- *  silent pass-through of an arbitrary vendor URL. */
-function validatedAffiliateUrl(candidate: string | null | undefined): string | null {
-  if (!candidate) return null;
-  try {
-    const u = new URL(candidate);
-    const hostOk = u.protocol === 'https:' && (u.hostname === 'www.viator.com' || u.hostname === 'viator.com');
-    const pidOk = u.searchParams.get('pid') === VIATOR_AFFILIATE_PID;
-    if (hostOk && pidOk) return candidate;
-    console.error(
-      `[Viator] activities: bookingUrl failed affiliate validation (host=${u.hostname} pid=${u.searchParams.get('pid') ?? 'none'}) — field omitted`
-    );
-    return null;
-  } catch {
-    console.error('[Viator] activities: bookingUrl is not a parseable URL — field omitted');
-    return null;
-  }
-}
 
 export async function GET(request: NextRequest) {
   // Client IP for the rate-limit key. A missing/absent header still gets limited
@@ -109,7 +88,7 @@ export async function GET(request: NextRequest) {
       const rec = viatorProductToRecommendation(p, 'activities', 'midrange');
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { bookingUrl, website, ...publicRec } = rec;
-      const safeBookingUrl = validatedAffiliateUrl(bookingUrl);
+      const safeBookingUrl = validatedAffiliateUrl(bookingUrl, 'viator');
       return safeBookingUrl ? { ...publicRec, bookingUrl: safeBookingUrl } : publicRec;
     });
 
