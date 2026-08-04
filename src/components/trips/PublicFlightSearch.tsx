@@ -18,6 +18,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import FlightPickerView, { type FlightLeg, type FlightOffer } from './FlightPickerView';
 import FlightCheckoutPanel from './FlightCheckoutPanel';
+import LiteApiFlightCheckoutPanel from './LiteApiFlightCheckoutPanel';
+import { liteApiResultsToFlightOffers } from '@/lib/liteapiFlightAdapter';
 import TravelSectionShell from './travelSection';
 
 interface Props {
@@ -61,6 +63,31 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
     manualArriveDate: '',
     ...overrides,
   }), []);
+
+  // PR-FL-6a: which provider rail this surface drives — SERVER-resolved
+  // (FLIGHTS_LANE env via /api/travel/flights/lane; unset = 'duffel'). null
+  // until the read lands; a failed/invalid read BLOCKS searching with a
+  // declared error — the client NEVER guesses a lane and NEVER falls back
+  // between lanes (the ruled no-auto-detection design).
+  const [lane, setLane] = useState<'duffel' | 'liteapi' | null>(null);
+  const [laneError, setLaneError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/travel/flights/lane');
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Flight search is misconfigured.');
+        if (data.lane !== 'duffel' && data.lane !== 'liteapi') {
+          throw new Error('Flight search is misconfigured.');
+        }
+        if (!cancelled) setLane(data.lane);
+      } catch (err) {
+        if (!cancelled) setLaneError(err instanceof Error ? err.message : 'Flight search is misconfigured.');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const [legs, setLegs] = useState<FlightLeg[]>([]);
   // The leg currently committing (its button shows a pending state) — same as FlightPicker.
@@ -120,7 +147,9 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
     })]);
   };
 
-  // ── LIVE search against the now-PUBLIC /api/flights/search (PR-3). ──
+  // ── LIVE search — lane-branched (PR-FL-6a). The 'duffel' branch is the
+  //    pre-existing code, unchanged; the 'liteapi' branch drives the FL-2
+  //    route and adapts its journeys into the SAME picker shape. ──
   const searchLeg = async (legId: string) => {
     const leg = legs.find(l => l.id === legId);
     if (!leg) return;
@@ -129,8 +158,44 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
       updateLeg(legId, { error: 'Enter both origin and destination airport codes' });
       return;
     }
+    if (lane === null) {
+      // Lane read failed or hasn't landed — declared, never a guessed lane.
+      updateLeg(legId, { error: laneError || 'Search is still loading its configuration — try again in a moment.' });
+      return;
+    }
 
     updateLeg(legId, { loading: true, error: '', offers: [] });
+
+    if (lane === 'liteapi') {
+      try {
+        // Round-trip = TWO legs in ONE search (the documented legs[] contract);
+        // the response's direction-tagged segments split back into the picker's
+        // outbound/return blocks in the adapter. Currency is pinned USD — the
+        // FL-2 route requires an explicit ISO code and the public surface
+        // displays USD fares.
+        const searchLegs = [
+          { origin: leg.origin.trim().toUpperCase(), destination: leg.destination.trim().toUpperCase(), date: leg.departureDate },
+          ...(leg.tripType === 'roundtrip' && leg.returnDate
+            ? [{ origin: leg.destination.trim().toUpperCase(), destination: leg.origin.trim().toUpperCase(), date: leg.returnDate }]
+            : []),
+        ];
+        const res = await fetch('/api/travel/liteapi/flights/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ legs: searchLegs, adults: 1, currency: 'USD' }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || 'Failed to search flights');
+        }
+        const data = await res.json();
+        const offers = liteApiResultsToFlightOffers(data.results || []);
+        updateLeg(legId, { offers, loading: false, expanded: true });
+      } catch (err) {
+        updateLeg(legId, { error: err instanceof Error ? err.message : 'Search failed', loading: false });
+      }
+      return;
+    }
 
     try {
       const params = new URLSearchParams({
@@ -261,6 +326,7 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
         onCommitLeg={commitLeg}
         onUncommitLeg={uncommitLeg}
         onBookLeg={bookLeg}
+        providerLabel={lane === 'liteapi' ? 'LiteAPI' : 'Duffel'}
       />
 
       {/* PR-Duffel-Pay-3: Book opens the flight checkout (PR-2) for the selected offer —
@@ -272,7 +338,29 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
           tripId passes ONLY under authed === true && currentTrip — provable from this
           component's own props (currentTrip is also only settable from the authed-gated
           trips list). A guest always books standalone, unchanged. */}
-      {booking && (
+      {/* PR-FL-6a: the LiteAPI lane mounts ITS checkout (FL-4/4b panel —
+          passenger form → Nuitee-Stripe Elements; publishableKey-null renders
+          its declared error until Nuitee's key lands). Standalone bookings
+          only on this lane — trip attach stays a Duffel-lane feature until a
+          later PR. The Duffel branch below is byte-unchanged. */}
+      {booking && lane === 'liteapi' && (
+        <div className="mt-4 space-y-2">
+          <LiteApiFlightCheckoutPanel
+            offerId={booking.offer.id}
+            price={booking.offer.price}
+            currency={booking.offer.currency}
+            onBooked={() => { onCommitted?.(); }}
+          />
+          <button
+            type="button"
+            onClick={() => setBooking(null)}
+            className="text-xs text-white/60 underline hover:text-white"
+          >
+            Close checkout
+          </button>
+        </div>
+      )}
+      {booking && lane !== 'liteapi' && (
         <FlightCheckoutPanel
           tripId={authed === true && currentTrip ? currentTrip.id : undefined}
           tripName={authed === true && currentTrip ? currentTrip.name : undefined}

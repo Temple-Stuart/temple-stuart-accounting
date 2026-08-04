@@ -98,6 +98,11 @@ export interface FlightPickerViewProps {
    *  + "Use This"). Default true (the authed in-trip picker keeps it for "booked
    *  elsewhere"). The public home flight search passes false — guests use Duffel only. */
   enableManualEntry?: boolean;
+  /** PR-FL-6a: the provider name rendered in the two brand strings ("Searching …
+   *  via X", "Powered by X"). Defaults to 'Duffel' — every existing mount renders
+   *  byte-identical output. The lane-flagged search passes 'LiteAPI' so the label
+   *  never lies about whose fares these are (no-drift). */
+  providerLabel?: string;
 }
 
 const formatStops = (stops: number) => {
@@ -119,6 +124,7 @@ export default function FlightPickerView({
   onUncommitLeg,
   onBookLeg,
   enableManualEntry = true,
+  providerLabel = 'Duffel',
 }: FlightPickerViewProps) {
   const totalCommitted = legs.filter(l => l.committed).reduce((s, l) => s + (l.selectedOffer?.price || 0), 0);
 
@@ -263,7 +269,7 @@ export default function FlightPickerView({
                   {leg.loading ? (
                     <div className="py-6 text-center">
                       <div className="animate-spin inline-block w-6 h-6 border-3 border-brand-purple border-t-transparent rounded-full mb-1"></div>
-                      <div className="text-xs text-white/50">Searching 300+ airlines via Duffel...</div>
+                      <div className="text-xs text-white/50">Searching 300+ airlines via {providerLabel}...</div>
                     </div>
                   ) : leg.offers.length > 0 ? (
                     <div className="space-y-2">
@@ -327,7 +333,7 @@ export default function FlightPickerView({
                           </div>
                         </div>
                       ))}
-                      <div className="text-[10px] text-white/40 text-center pt-1">Powered by Duffel &middot; Prices include all taxes &amp; fees</div>
+                      <div className="text-[10px] text-white/40 text-center pt-1">Powered by {providerLabel} &middot; Prices include all taxes &amp; fees</div>
                     </div>
                   ) : null}
 
