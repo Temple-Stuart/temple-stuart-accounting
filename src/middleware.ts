@@ -127,6 +127,10 @@ const PUBLIC_PATHS = [
   // tight 'liteapiflightbooking' durable daily cap BEFORE the paid call.
   // Idempotent upstream per prebookId.
   '/api/travel/liteapi/flights/book',
+  // PR-FL-6a: the lane-flag read — a static config field (zero provider calls,
+  // zero DB, zero user data) telling the public search surface which flights
+  // rail to drive. Nothing to cap; guests need it before any search.
+  '/api/travel/flights/lane',
   // Payment-SDK return page — renders the guest checkout UI only; NO paid API
   // calls on load. Its only money call is the user-submitted POST to
   // /api/travel/liteapi/book, which is public + rate-limited + daily-capped
