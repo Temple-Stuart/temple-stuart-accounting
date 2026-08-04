@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { validatedAffiliateUrl } from '@/config/affiliates';
 import { searchViatorProductsByTags, viatorProductToRecommendation } from '@/lib/viatorClient';
 import { findViatorDestIdFor } from '@/lib/destinations';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
@@ -21,10 +22,16 @@ import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQ
 // Bali (e.g. "Private Arrival Transfer: Bali Airport to Hotel"). We query BOTH,
 // MERGE, and DEDUPE by productCode (handled in searchViatorProductsByTags).
 //
-// AFFILIATE-URL LOCK: same as activities — the two affiliate-bearing fields the
-// mapper emits (`bookingUrl` + `website`) are STRIPPED before the result leaves
-// the route; "Book" is gated at the UI (onRequireAuth). No fabricated data — a
-// city with no transfers returns an empty list, and the UI shows an honest empty.
+// AFFILIATE LOCK — REVERSED FOR GROUND (PR-TILE-GROUND-A, Alex's ruling,
+// 2026-08-04; supersedes the original strip): the ground rows ARE Viator
+// transfer products, so booking them on Viator is truthful inventory labeling
+// — `bookingUrl` now ships after the SAME emit gate the activities chip uses
+// (validatedAffiliateUrl(url, 'viator'), src/config/affiliates.ts: https +
+// viator.com host allowlist + our pid, else omitted with a loud log; the raw
+// `product.productUrl` fallback can never escape). `website` stays stripped.
+// 12Go/Travelpayouts is NOT this PR (TILE-GROUND-B — waits for the real
+// marker). No fabricated data — a city with no transfers returns an empty
+// list, and the UI shows an honest empty.
 const TRANSFERS_TAG = 21745;               // verified Viator tag "Transfers"
 const AIRPORT_HOTEL_TRANSFERS_TAG = 12044; // verified Viator tag "Airport & Hotel Transfers"
 const TRANSFER_MAX_RESULTS = 12;
@@ -74,15 +81,17 @@ export async function GET(request: NextRequest) {
       preResolvedDestId,
     );
 
-    // Map to the canonical recommendation shape, then STRIP the two affiliate-URL
-    // fields (`bookingUrl` + `website`) so the live affiliate link never leaves the
-    // route — identical to the activities route. No fake results: the grid renders
-    // exactly the REAL transfer products Viator returned (empty when there are none).
+    // Map to the canonical recommendation shape. PR-TILE-GROUND-A: `bookingUrl`
+    // ships when it passes the shared emit gate (viator.com + our pid);
+    // `website` stays stripped. A result whose URL fails validation simply has
+    // no bookingUrl — its row renders no action (absence is honest). Identical
+    // mechanics to the activities route post-CHIP-1/CFG-1.
     const results = products.map((p) => {
       const rec = viatorProductToRecommendation(p, 'activities', 'midrange');
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { bookingUrl, website, ...publicRec } = rec;
-      return publicRec;
+      const safeBookingUrl = validatedAffiliateUrl(bookingUrl, 'viator');
+      return safeBookingUrl ? { ...publicRec, bookingUrl: safeBookingUrl } : publicRec;
     });
 
     return NextResponse.json({

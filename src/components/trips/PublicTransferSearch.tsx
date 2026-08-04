@@ -10,13 +10,14 @@
  * 12044), merged + deduped. Results render through the same pure <ActivityResultsView/>
  * (the payload is the identical recommendation shape).
  *
- * SEARCH is public; BOOKING does not exist yet (PR-CHIP-1, Alex's ruling 2,
- * 2026-08-03): no ground vendor is wired (Mozio is declared-not-connected,
- * travelSourceRegistry.ts:22), so the old Book→sign-up wall was a false CTA —
- * signing up completed nothing (TRAVEL-CHIPS-AUDIT). The result rows now
- * render the honest disabled label "Booking coming soon" instead. The
- * affiliate URL stays STRIPPED at the route; this component fires NO booking
- * fetch and renders NO affiliate link. No fake results: the grid renders
+ * SEARCH is public; BOOKING links out (PR-TILE-GROUND-A, Alex's ruling,
+ * 2026-08-04 — supersedes CHIP-1's "coming soon" posture): the ground rows are
+ * Viator transfer products, and the route now emits a VALIDATED `bookingUrl`
+ * (viator.com + our pid via the shared emit gate, transfers/search/route.ts)
+ * — so Book is a real outbound link rendered by the view, guest-completable.
+ * Rows whose URL failed validation carry no bookingUrl and render no action
+ * (absence is honest — never a fake CTA). This component itself still fires
+ * NO booking fetch and constructs NO URL. No fake results: the grid renders
  * exactly what the route returns, and an empty result shows an honest empty
  * state (never sample data).
  */
@@ -103,7 +104,7 @@ export default function PublicTransferSearch({ onRequireAuth: _onRequireAuth, sh
   return (
     <TravelSectionShell
       title="Getting around"
-      explainer="Real airport & hotel transfers. Booking coming soon."
+      explainer="Airport transfers & fast-track. Book on Viator."
     >
       <form onSubmit={search} className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         <label className="flex flex-col gap-1 lg:col-span-2">
@@ -140,15 +141,11 @@ export default function PublicTransferSearch({ onRequireAuth: _onRequireAuth, sh
       </form>
 
       {/* Results: only after the first search. Empty/loading/error live in the view.
-          PR-CHIP-1 (ruling 2): no onBook — ground has no vendor, so URL-less rows
-          render the honest disabled label (the discover page's coming-soon posture). */}
+          PR-TILE-GROUND-A: rows with a validated bookingUrl render the outbound
+          Book link (the view's CHIP-1 precedence); URL-less rows render no
+          action — no onBook, no disabled label, no fake CTA. */}
       {searched && (
-        <ActivityResultsView
-          results={results}
-          loading={loading}
-          error={error}
-          bookDisabledLabel="Booking coming soon"
-        />
+        <ActivityResultsView results={results} loading={loading} error={error} />
       )}
       {!searched && error && (
         <div className="rounded-lg border border-panel-border bg-panel-surface p-4 text-sm text-brand-red">{error}</div>
