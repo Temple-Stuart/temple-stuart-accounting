@@ -34,6 +34,7 @@
 import { useMemo, useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { TRAVEL_INPUT_CLASS, TRAVEL_LABEL_CLASS } from './travelSection';
 
 interface Props {
   /** The searched offer to check out (from /api/travel/liteapi/flights/search). */
@@ -59,8 +60,15 @@ interface PrebookEnvelope {
   currency: string | null;
 }
 
-const FIELD = 'w-full rounded border border-panel-border bg-panel-surface px-3 py-2 text-sm text-text-primary';
-const LABEL = 'text-[11px] font-medium text-brand-purple';
+// FL-6b: the panel mounts INSIDE the dark travel strip, where the app's
+// panel-theme tokens (text-text-primary on bg-panel-surface) resolve
+// dark-on-dark — typed values were invisible (live-preview screenshots). The
+// working reference is the surface's own vocabulary: TRAVEL_INPUT_CLASS
+// (travelSection.tsx:31-32 — explicit text-white on bg-white/10 with
+// placeholder-white/40), the exact classes every readable form on this
+// surface consumes (hotel/activity/transfer/visa inputs; ResultsFilterBar's
+// select). No new design language.
+const LABEL = TRAVEL_LABEL_CLASS;
 // Same validation the route enforces (flights/prebook/route.ts) — client-side
 // mirror so a guest gets instant feedback instead of a 400 round-trip.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -76,6 +84,12 @@ type Phase = 'form' | 'prebooking' | 'pay' | 'succeeded' | 'expired';
 export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, onBooked }: Props) {
   const [phase, setPhase] = useState<Phase>('form');
   const [error, setError] = useState('');
+  // FL-6b: the field that failed validation — it gets focus + a visible red
+  // ring (cleared on the next submit). Values are NEVER wiped on error: no
+  // code path writes the form states except their own onChange handlers.
+  const [errorField, setErrorField] = useState<string | null>(null);
+  const fieldClass = (id: string) =>
+    `w-full ${TRAVEL_INPUT_CLASS}${errorField === id ? ' border-brand-red ring-2 ring-brand-red/60' : ''}`;
 
   // Contact + one passenger — the FULL proven contract (FL-4b header).
   const [firstName, setFirstName] = useState('');
@@ -104,29 +118,49 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
     [prebook?.publishableKey],
   );
 
-  const validate = (): string => {
-    if (!firstName.trim() || !lastName.trim()) return 'Contact first and last name are required.';
-    if (!EMAIL_RE.test(email.trim())) return 'Enter a valid email address.';
-    if (!/^\d{1,4}$/.test(phoneCC.trim())) return "Phone country code must be numeric with no '+' (e.g. 1).";
-    if (!phone.trim()) return 'Contact phone number is required.';
-    if (!paxFirst.trim() || !paxLast.trim()) return 'Passenger first and last name are required.';
-    if (!DATE_RE.test(birthday.trim()) || birthday.trim() >= todayUtc()) {
-      return 'Passenger birthday must be YYYY-MM-DD and in the past.';
+  // Same proven rules as before (FL-4b) — now each failure names its FIELD so
+  // the submit handler can focus + highlight it.
+  const validate = (): { message: string; field: string } | null => {
+    if (!firstName.trim() || !lastName.trim()) {
+      return { message: 'Contact first and last name are required.', field: !firstName.trim() ? 'flck-co-first' : 'flck-co-last' };
     }
-    if (gender !== 'M' && gender !== 'F') return 'Select the passenger gender.';
-    if (!/^[A-Za-z]{2}$/.test(nationality.trim())) return 'Nationality must be a 2-letter country code (e.g. US).';
-    if (!docType.trim()) return 'Document type is required.';
-    if (!docNumber.trim()) return 'Document number is required.';
-    if (!/^[A-Za-z]{2}$/.test(docIssueCountry.trim())) return 'Document issue country must be a 2-letter code (e.g. US).';
-    if (!DATE_RE.test(docExpiry.trim())) return 'Document expiry must be YYYY-MM-DD.';
-    return '';
+    if (!EMAIL_RE.test(email.trim())) return { message: 'Enter a valid email address.', field: 'flck-co-email' };
+    if (!/^\d{1,4}$/.test(phoneCC.trim())) {
+      return { message: "Phone country code must be numeric with no '+' (e.g. 1).", field: 'flck-co-cc' };
+    }
+    if (!phone.trim()) return { message: 'Contact phone number is required.', field: 'flck-co-phone' };
+    if (!paxFirst.trim() || !paxLast.trim()) {
+      return { message: 'Passenger first and last name are required.', field: !paxFirst.trim() ? 'flck-px-first' : 'flck-px-last' };
+    }
+    if (!DATE_RE.test(birthday.trim()) || birthday.trim() >= todayUtc()) {
+      return { message: 'Passenger birthday must be YYYY-MM-DD and in the past.', field: 'flck-px-birthday' };
+    }
+    if (gender !== 'M' && gender !== 'F') return { message: 'Select the passenger gender.', field: 'flck-px-gender' };
+    if (!/^[A-Za-z]{2}$/.test(nationality.trim())) {
+      return { message: 'Nationality must be a 2-letter country code (e.g. US).', field: 'flck-px-nationality' };
+    }
+    if (!docType.trim()) return { message: 'Document type is required.', field: 'flck-doc-type' };
+    if (!docNumber.trim()) return { message: 'Document number is required.', field: 'flck-doc-number' };
+    if (!/^[A-Za-z]{2}$/.test(docIssueCountry.trim())) {
+      return { message: 'Document issue country must be a 2-letter code (e.g. US).', field: 'flck-doc-issue' };
+    }
+    if (!DATE_RE.test(docExpiry.trim())) return { message: 'Document expiry must be YYYY-MM-DD.', field: 'flck-doc-expiry' };
+    return null;
   };
 
   const submitPrebook = async (e: React.FormEvent) => {
     e.preventDefault();
     const v = validate();
-    if (v) { setError(v); return; }
+    if (v) {
+      // Entered values stay exactly as typed — only the message + highlight
+      // change, and the failing field takes focus.
+      setError(v.message);
+      setErrorField(v.field);
+      document.getElementById(v.field)?.focus();
+      return;
+    }
     setError('');
+    setErrorField(null);
     setPhase('prebooking');
     try {
       const res = await fetch('/api/travel/liteapi/flights/prebook', {
@@ -194,9 +228,9 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
   const displayCurrency = prebook?.currency ?? currency ?? null;
 
   return (
-    <div className="space-y-4 rounded-lg border border-panel-border bg-panel p-4">
+    <div className="space-y-4 rounded-lg border border-panel-border bg-white/5 p-4">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-sm font-bold text-text-primary">Flight checkout</h2>
+        <h2 className="text-sm font-bold text-white">Flight checkout</h2>
         {displayPrice != null && (
           <span className="text-sm font-bold text-brand-green">
             {displayCurrency ?? ''} {displayPrice}
@@ -206,57 +240,57 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
 
       {phase === 'form' || phase === 'prebooking' ? (
         <form onSubmit={submitPrebook} className="space-y-3">
-          <p className="text-xs text-text-muted">Contact</p>
+          <p className="text-xs text-white/50">Contact</p>
           <div className="grid grid-cols-2 gap-2">
             <label className="space-y-1"><span className={LABEL}>First name</span>
-              <input className={FIELD} value={firstName} onChange={(e) => setFirstName(e.target.value)} /></label>
+              <input id="flck-co-first" className={fieldClass('flck-co-first')} value={firstName} onChange={(e) => setFirstName(e.target.value)} /></label>
             <label className="space-y-1"><span className={LABEL}>Last name</span>
-              <input className={FIELD} value={lastName} onChange={(e) => setLastName(e.target.value)} /></label>
+              <input id="flck-co-last" className={fieldClass('flck-co-last')} value={lastName} onChange={(e) => setLastName(e.target.value)} /></label>
             <label className="col-span-2 space-y-1"><span className={LABEL}>Email</span>
-              <input className={FIELD} type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+              <input id="flck-co-email" className={fieldClass('flck-co-email')} type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
             <label className="space-y-1"><span className={LABEL}>Country code (no +)</span>
-              <input className={FIELD} inputMode="numeric" placeholder="1" value={phoneCC} onChange={(e) => setPhoneCC(e.target.value)} /></label>
+              <input id="flck-co-cc" className={fieldClass('flck-co-cc')} inputMode="numeric" placeholder="1" value={phoneCC} onChange={(e) => setPhoneCC(e.target.value)} /></label>
             <label className="space-y-1"><span className={LABEL}>Phone</span>
-              <input className={FIELD} value={phone} onChange={(e) => setPhone(e.target.value)} /></label>
+              <input id="flck-co-phone" className={fieldClass('flck-co-phone')} value={phone} onChange={(e) => setPhone(e.target.value)} /></label>
           </div>
-          <p className="text-xs text-text-muted">Passenger</p>
+          <p className="text-xs text-white/50">Passenger</p>
           {/* FL-4b: real-looking names required — LiteAPI's fraud filter (53099)
               rejects placeholders like 'Test'. */}
-          <p className="text-[11px] text-text-muted">
+          <p className="text-[11px] text-white/50">
             Use a real name — the provider&apos;s fraud filter rejects placeholder names like &ldquo;Test&rdquo;.
           </p>
           <div className="grid grid-cols-2 gap-2">
             <label className="space-y-1"><span className={LABEL}>Type</span>
-              <select className={FIELD} value={paxType} onChange={(e) => setPaxType(Number(e.target.value) as 0 | 1 | 2)}>
+              <select id="flck-px-type" className={fieldClass('flck-px-type')} value={paxType} onChange={(e) => setPaxType(Number(e.target.value) as 0 | 1 | 2)}>
                 <option value={0}>Adult</option>
                 <option value={1}>Child</option>
                 <option value={2}>Infant</option>
               </select></label>
             <label className="space-y-1"><span className={LABEL}>Gender</span>
-              <select className={FIELD} value={gender} onChange={(e) => setGender(e.target.value as 'M' | 'F' | '')}>
+              <select id="flck-px-gender" className={fieldClass('flck-px-gender')} value={gender} onChange={(e) => setGender(e.target.value as 'M' | 'F' | '')}>
                 <option value="">Select…</option>
                 <option value="M">M</option>
                 <option value="F">F</option>
               </select></label>
             <label className="space-y-1"><span className={LABEL}>First name</span>
-              <input className={FIELD} value={paxFirst} onChange={(e) => setPaxFirst(e.target.value)} /></label>
+              <input id="flck-px-first" className={fieldClass('flck-px-first')} value={paxFirst} onChange={(e) => setPaxFirst(e.target.value)} /></label>
             <label className="space-y-1"><span className={LABEL}>Last name</span>
-              <input className={FIELD} value={paxLast} onChange={(e) => setPaxLast(e.target.value)} /></label>
+              <input id="flck-px-last" className={fieldClass('flck-px-last')} value={paxLast} onChange={(e) => setPaxLast(e.target.value)} /></label>
             <label className="space-y-1"><span className={LABEL}>Birthday (YYYY-MM-DD)</span>
-              <input className={FIELD} placeholder="1990-01-31" value={birthday} onChange={(e) => setBirthday(e.target.value)} /></label>
+              <input id="flck-px-birthday" className={fieldClass('flck-px-birthday')} placeholder="1990-01-31" value={birthday} onChange={(e) => setBirthday(e.target.value)} /></label>
             <label className="space-y-1"><span className={LABEL}>Nationality (ISO-2)</span>
-              <input className={FIELD} placeholder="US" maxLength={2} value={nationality} onChange={(e) => setNationality(e.target.value)} /></label>
+              <input id="flck-px-nationality" className={fieldClass('flck-px-nationality')} placeholder="US" maxLength={2} value={nationality} onChange={(e) => setNationality(e.target.value)} /></label>
           </div>
-          <p className="text-xs text-text-muted">Travel document</p>
+          <p className="text-xs text-white/50">Travel document</p>
           <div className="grid grid-cols-2 gap-2">
             <label className="space-y-1"><span className={LABEL}>Type</span>
-              <input className={FIELD} value={docType} onChange={(e) => setDocType(e.target.value)} /></label>
+              <input id="flck-doc-type" className={fieldClass('flck-doc-type')} value={docType} onChange={(e) => setDocType(e.target.value)} /></label>
             <label className="space-y-1"><span className={LABEL}>Number</span>
-              <input className={FIELD} value={docNumber} onChange={(e) => setDocNumber(e.target.value)} /></label>
+              <input id="flck-doc-number" className={fieldClass('flck-doc-number')} value={docNumber} onChange={(e) => setDocNumber(e.target.value)} /></label>
             <label className="space-y-1"><span className={LABEL}>Issue country (ISO-2)</span>
-              <input className={FIELD} placeholder="US" maxLength={2} value={docIssueCountry} onChange={(e) => setDocIssueCountry(e.target.value)} /></label>
+              <input id="flck-doc-issue" className={fieldClass('flck-doc-issue')} placeholder="US" maxLength={2} value={docIssueCountry} onChange={(e) => setDocIssueCountry(e.target.value)} /></label>
             <label className="space-y-1"><span className={LABEL}>Expiry (YYYY-MM-DD)</span>
-              <input className={FIELD} placeholder="2030-01-31" value={docExpiry} onChange={(e) => setDocExpiry(e.target.value)} /></label>
+              <input id="flck-doc-expiry" className={fieldClass('flck-doc-expiry')} placeholder="2030-01-31" value={docExpiry} onChange={(e) => setDocExpiry(e.target.value)} /></label>
           </div>
           {error && <p className="text-sm text-brand-red">{error}</p>}
           <button
@@ -286,16 +320,16 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
           <p className="text-sm font-semibold text-brand-green">Payment succeeded (sandbox proof).</p>
           {/* FL-4 raw success state — FL-5 turns these into the /flights/bookings
               completion call. Shown raw on purpose: this is the dev-harness proof. */}
-          <p className="break-all font-mono text-xs text-text-primary">transactionId: {prebook.transactionId}</p>
-          <p className="break-all font-mono text-xs text-text-primary">prebookId: {prebook.prebookId}</p>
-          <p className="text-xs text-text-muted">Booking completion (the /flights/bookings call) lands in FL-5 — no ticket was issued yet.</p>
+          <p className="break-all font-mono text-xs text-white">transactionId: {prebook.transactionId}</p>
+          <p className="break-all font-mono text-xs text-white">prebookId: {prebook.prebookId}</p>
+          <p className="text-xs text-white/50">Booking completion (the /flights/bookings call) lands in FL-5 — no ticket was issued yet.</p>
         </div>
       )}
 
       {phase === 'expired' && (
-        <div className="rounded border border-panel-border bg-panel-surface p-3">
-          <p className="text-sm text-text-primary">This fare quote expired — airlines only hold prices for a few minutes.</p>
-          <p className="mt-1 text-xs text-text-muted">Run a new search and open checkout with a fresh offer.</p>
+        <div className="rounded border border-panel-border bg-white/5 p-3">
+          <p className="text-sm text-white">This fare quote expired — airlines only hold prices for a few minutes.</p>
+          <p className="mt-1 text-xs text-white/50">Run a new search and open checkout with a fresh offer.</p>
         </div>
       )}
     </div>
@@ -345,7 +379,7 @@ function PayForm({ prebook, onSucceeded }: { prebook: PrebookEnvelope; onSucceed
       >
         {paying ? 'Paying…' : 'Pay now'}
       </button>
-      <p className="break-all font-mono text-[10px] text-text-muted">tx: {prebook.transactionId}</p>
+      <p className="break-all font-mono text-[10px] text-white/50">tx: {prebook.transactionId}</p>
     </div>
   );
 }
