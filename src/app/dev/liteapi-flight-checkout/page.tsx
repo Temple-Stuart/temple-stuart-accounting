@@ -31,7 +31,10 @@ export default function DevLiteApiFlightCheckoutPage() {
         Paste a LiteAPI <strong>sandbox</strong> offerId (from a fresh
         /api/travel/liteapi/flights/search — offers expire in minutes) and open
         the checkout. Payment mounts on Nuitee&apos;s Stripe via the prebook
-        response — FL-6 wires the real Book button.
+        response — FL-6 wires the real Book button. Fill EVERY passenger field
+        (FL-4b: gender, nationality + full passport block are required by the
+        live contract) and use a real-looking name — the provider&apos;s fraud
+        filter rejects placeholders like &ldquo;Test&rdquo;.
       </p>
       <label className="block space-y-1">
         <span className="text-[11px] font-medium text-brand-purple">Offer id</span>
