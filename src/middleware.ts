@@ -122,6 +122,11 @@ const PUBLIC_PATHS = [
   // durable daily cap BEFORE the paid call. Returns the browser's Stripe
   // card-collection context; card data never touches our server.
   '/api/travel/liteapi/flights/prebook',
+  // PR-FL-5: flight booking completion — public guest-ok like the hotel book
+  // above (booking is never locked); per-IP rateLimit (money window) + the
+  // tight 'liteapiflightbooking' durable daily cap BEFORE the paid call.
+  // Idempotent upstream per prebookId.
+  '/api/travel/liteapi/flights/book',
   // Payment-SDK return page — renders the guest checkout UI only; NO paid API
   // calls on load. Its only money call is the user-submitted POST to
   // /api/travel/liteapi/book, which is public + rate-limited + daily-capped
