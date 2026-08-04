@@ -109,6 +109,10 @@ import LandingFooter from './LandingFooter';
 // BOOK-3: the session-trip strip (guest-only by construction — Landing renders
 // only on the FD-2 verified-guest branch).
 import GuestTripStrip from './GuestTripStrip';
+// PR-LANDING-1: the shared coming-soon travel tiles (the SAME row the app
+// travel tab mounts). Static import — stateless + fetch-free, so no dynamic()
+// split is warranted (that pattern exists for the heavy search stack above).
+import TravelTilesRow from '@/components/home/TravelTilesRow';
 
 // TOGGLE-1: the section is now ONE toggle strip mounted INSIDE the hero
 // (where the LAND-SEARCH-1 teaser sat, pre-BOOK-1 Landing.tsx:325-328), so
@@ -713,6 +717,17 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 Landing.tsx:325-328). Full content width — the strip holds
                 whole booking surfaces + result rows, not just a form. ─────── */}
           <LandingBookingSection onRequireAuth={onRequireAuth} />
+
+          {/* ── PR-LANDING-1 (Alex's ruling): the guest landing carries the FULL
+                travel stack — the coming-soon tiles render below the booking
+                strip, the SAME shared row the app travel tab mounts
+                (ModuleLauncher's <TravelTilesRow/>), so tiles light up on both
+                surfaces at once as affiliate IDs land. Static import (unlike
+                the dynamic'd search stack above): stateless, fetch-free,
+                ~nothing on the wire — first-paint weight is unaffected. Each
+                tile spaces itself (TravelSectionShell's mt-4), continuing the
+                strip's flow. ─────────────────────────────────────────────── */}
+          <TravelTilesRow />
         </div>
       </section>
 
