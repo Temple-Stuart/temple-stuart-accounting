@@ -21,7 +21,7 @@ import PublicActivitySearch from '@/components/trips/PublicActivitySearch';
 import PublicCategorySearch from '@/components/trips/PublicCategorySearch';
 import PublicTransferSearch from '@/components/trips/PublicTransferSearch';
 import PublicVisaCheck from '@/components/trips/PublicVisaCheck';
-import ComingSoonSection from '@/components/home/ComingSoonSection';
+import TravelTilesRow from '@/components/home/TravelTilesRow';
 import { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS } from '@/components/trips/travelSection';
 import { HOMEPAGE_PAID_CATEGORIES } from '@/lib/categoryKeys';
 // DS-1: the travel tab is rebuilt from the design system — the SAME ToggleStrip
@@ -844,19 +844,10 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
 
             {/* DS-1: the STATIC "coming soon" promises stay reachable as a compact
                 group below the strip (no fetch/state; not toggle panels since they
-                have no search). Kept verbatim. */}
-            <ComingSoonSection
-              title="Travel insurance"
-              explainer="Cover your trip — medical, delays, lost bags — priced into your budget."
-            />
-            <ComingSoonSection
-              title="Stay connected"
-              explainer="Get data the moment you land, no hunting for a SIM."
-            />
-            <ComingSoonSection
-              title="Events"
-              explainer="Concerts, shows, and live events wherever you're headed."
-            />
+                have no search). PR-LANDING-1: extracted verbatim into the shared
+                <TravelTilesRow/> so the guest landing renders the SAME row —
+                rendered output here is byte-equivalent. */}
+            <TravelTilesRow />
           </div>
         </div>
       </section>
