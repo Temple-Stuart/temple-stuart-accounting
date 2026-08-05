@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <!-- PR-DEMO-1: code-drawn illustration of the live Books review queue.
+       Sources: column headers Date/Merchant/Amount/Predicted Category/
+       Confidence/Assign Category = ReviewQueueTab.tsx:170-175; "N transactions
+       pending review" = :139; "Commit Selected (N)" = :154. Merchants +
+       amounts are innocuous samples (unavoidable table content); category
+       chips use generic COA words. Palette = ds.ts dark vocabulary literals. -->
+  <defs>
+    <radialGradient id="glowA" cx="80%" cy="0%" r="90%">
+      <stop offset="0%" stop-color="#3b2d6b" stop-opacity="0.85"/>
+      <stop offset="70%" stop-color="#3b2d6b" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="10%" cy="100%" r="80%">
+      <stop offset="0%" stop-color="#2d1b4e" stop-opacity="0.7"/>
+      <stop offset="65%" stop-color="#2d1b4e" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="800" rx="16" fill="#0d1117"/>
+  <rect width="1200" height="800" rx="16" fill="url(#glowA)"/>
+  <rect width="1200" height="800" rx="16" fill="url(#glowB)"/>
+
+  <text x="48" y="72" font-family="ui-monospace, Menlo, monospace" font-size="15" letter-spacing="3" fill="#ffffff" opacity="0.5">REVIEW QUEUE</text>
+  <text x="48" y="112" font-size="17" fill="#ffffff" opacity="0.6">3 transactions pending review</text>
+  <rect x="944" y="84" width="208" height="40" rx="4" fill="#ffffff"/>
+  <text x="1048" y="109" text-anchor="middle" font-size="15" font-weight="600" fill="#3b2d6b">Commit Selected (3)</text>
+
+  <rect x="48" y="152" width="1104" height="600" rx="12" fill="#161b22" stroke="#30363d"/>
+  <g font-family="ui-monospace, Menlo, monospace" font-size="13" letter-spacing="1.5" fill="#ffffff" opacity="0.5">
+    <text x="96" y="204">DATE</text>
+    <text x="212" y="204">MERCHANT</text>
+    <text x="560" y="204" text-anchor="end">AMOUNT</text>
+    <text x="608" y="204">PREDICTED CATEGORY</text>
+    <text x="856" y="204">CONFIDENCE</text>
+    <text x="992" y="204">ASSIGN CATEGORY</text>
+  </g>
+  <line x1="80" y1="224" x2="1120" y2="224" stroke="#30363d"/>
+
+  <rect x="80" y="264" width="14" height="14" rx="3" fill="none" stroke="#ffffff" stroke-opacity="0.4"/>
+  <text x="96" y="300" font-size="15" fill="#ffffff" opacity="0.6">Jul 14</text>
+  <text x="212" y="300" font-size="17" fill="#ffffff" opacity="0.9">Coffee shop</text>
+  <text x="560" y="300" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="17" fill="#ffffff">$4.85</text>
+  <rect x="608" y="278" width="84" height="30" rx="15" fill="#3b2d6b" opacity="0.5"/>
+  <text x="650" y="298" text-anchor="middle" font-size="14" fill="#ffffff" opacity="0.9">Meals</text>
+  <text x="856" y="300" font-family="ui-monospace, Menlo, monospace" font-size="15" fill="#16a34a">92%</text>
+  <rect x="992" y="276" width="128" height="34" rx="4" fill="#0d1117" stroke="#30363d"/>
+  <text x="1008" y="298" font-size="13" fill="#ffffff" opacity="0.5">Select ▾</text>
+  <line x1="80" y1="340" x2="1120" y2="340" stroke="#30363d"/>
+
+  <rect x="80" y="380" width="14" height="14" rx="3" fill="none" stroke="#ffffff" stroke-opacity="0.4"/>
+  <text x="96" y="416" font-size="15" fill="#ffffff" opacity="0.6">Jul 15</text>
+  <text x="212" y="416" font-size="17" fill="#ffffff" opacity="0.9">Office supplies</text>
+  <text x="560" y="416" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="17" fill="#ffffff">$23.10</text>
+  <rect x="608" y="394" width="106" height="30" rx="15" fill="#3b2d6b" opacity="0.5"/>
+  <text x="661" y="414" text-anchor="middle" font-size="14" fill="#ffffff" opacity="0.9">Supplies</text>
+  <text x="856" y="416" font-family="ui-monospace, Menlo, monospace" font-size="15" fill="#16a34a">88%</text>
+  <rect x="992" y="392" width="128" height="34" rx="4" fill="#0d1117" stroke="#30363d"/>
+  <text x="1008" y="414" font-size="13" fill="#ffffff" opacity="0.5">Select ▾</text>
+  <line x1="80" y1="456" x2="1120" y2="456" stroke="#30363d"/>
+
+  <rect x="80" y="496" width="14" height="14" rx="3" fill="none" stroke="#ffffff" stroke-opacity="0.4"/>
+  <text x="96" y="532" font-size="15" fill="#ffffff" opacity="0.6">Jul 15</text>
+  <text x="212" y="532" font-size="17" fill="#ffffff" opacity="0.9">Rideshare</text>
+  <text x="560" y="532" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="17" fill="#ffffff">$12.40</text>
+  <rect x="608" y="510" width="84" height="30" rx="15" fill="#3b2d6b" opacity="0.5"/>
+  <text x="650" y="530" text-anchor="middle" font-size="14" fill="#ffffff" opacity="0.9">Travel</text>
+  <text x="856" y="532" font-family="ui-monospace, Menlo, monospace" font-size="15" fill="#d97706">75%</text>
+  <rect x="992" y="508" width="128" height="34" rx="4" fill="#0d1117" stroke="#30363d"/>
+  <text x="1008" y="530" font-size="13" fill="#ffffff" opacity="0.5">Select ▾</text>
+  <line x1="80" y1="572" x2="1120" y2="572" stroke="#30363d"/>
+
+  <rect x="96" y="612" width="280" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
+  <rect x="96" y="644" width="420" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
+  <rect x="96" y="676" width="340" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
+</svg>

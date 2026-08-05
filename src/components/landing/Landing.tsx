@@ -403,16 +403,16 @@ const PERSONAS: Persona[] = [
 //               lines :246, :253, :267
 // Lines were chosen to NOT repeat the selection deck's PILLAR_CARDS bullets —
 // the two decks tell different halves of each pillar's story.
-// PR-ELEV-2c: entries MAY carry an optional demoImage — a real product
-// screenshot rendered as a framed panel on the slide (PR-DECK-CLEAN-3: the
-// frame is the slide's RIGHT column now, Nuitée-style; absent → text spans
-// full width). Asset convention (the
-// follow-up drop is copy-paste): file lands at public/demo/<pillar-id>.png,
-// entry gains one line:
-//   demoImage: { src: '/demo/<pillar-id>.png', alt: '<what the screenshot shows>' },
-// ZERO images are wired this PR (Alex captures the screenshots — his call
-// which); absence renders today's exact layout — no placeholders, no empty
-// frames.
+// PR-ELEV-2c: entries MAY carry an optional demoImage — rendered as the
+// slide's framed RIGHT column (PR-DECK-CLEAN-3, Nuitée-style; absent → text
+// spans full width).
+// PR-DEMO-1: all nine slots are now filled with CODE-DRAWN SVG illustrations
+// of the live UI (public/demo/<pillar-id>.svg) — each depicts the REAL
+// interface (component labels, column headers, chip names, read from the
+// cited source component; provenance in each SVG's header comment). Sample
+// values only where a table needs content, always innocuous; never invented
+// revenue/user/performance numbers. REAL SCREENSHOTS MAY REPLACE ANY FILE AT
+// THE SAME PATH — drop the capture in, keep the filename, done.
 const SUMMARY_BY_ID: Record<string, {
   eyebrow: string;
   headline: string;
@@ -427,6 +427,7 @@ const SUMMARY_BY_ID: Record<string, {
       'The trip is the container.',
       'Every booking feeds the books.',
     ],
+    demoImage: { src: '/demo/travel.svg', alt: 'Illustration of the Travel interface' },
   },
   runway: {
     eyebrow: 'Runway — the whole platform, one question',
@@ -436,6 +437,7 @@ const SUMMARY_BY_ID: Record<string, {
       'Your routines ARE the budget.',
       'Trading money ≠ living money. The wall is the feature.',
     ],
+    demoImage: { src: '/demo/runway.svg', alt: 'Illustration of the Runway interface' },
   },
   books: {
     eyebrow: 'Books — double-entry bookkeeping',
@@ -445,6 +447,7 @@ const SUMMARY_BY_ID: Record<string, {
       'The trial balance must balance.',
       'Closed means closed.',
     ],
+    demoImage: { src: '/demo/books.svg', alt: 'Illustration of the Books interface' },
   },
   trade: {
     eyebrow: 'Trade — the scanner',
@@ -454,6 +457,7 @@ const SUMMARY_BY_ID: Record<string, {
       'The whole trade, written down.',
       'The grades accumulate. Denominators first.',
     ],
+    demoImage: { src: '/demo/trade.svg', alt: 'Illustration of the Trade interface' },
   },
   tax: {
     eyebrow: 'Tax — from closed books to a filed return',
@@ -463,6 +467,7 @@ const SUMMARY_BY_ID: Record<string, {
       'Every income line traces to its source.',
       'Every lot boxed. Every box explained.',
     ],
+    demoImage: { src: '/demo/tax.svg', alt: 'Illustration of the Tax interface' },
   },
   compliance: {
     eyebrow: 'Compliance — the receipts',
@@ -472,6 +477,7 @@ const SUMMARY_BY_ID: Record<string, {
       'The statute you cited is the statute you saw.',
       'Obligations tracked like engineering tickets.',
     ],
+    demoImage: { src: '/demo/compliance.svg', alt: 'Illustration of the Compliance interface' },
   },
   routines: {
     eyebrow: 'Routines — the recurrence engine',
@@ -481,6 +487,7 @@ const SUMMARY_BY_ID: Record<string, {
       'The streak counts both ways.',
       'Feed one: every occurrence lands on the one calendar, priced.',
     ],
+    demoImage: { src: '/demo/routines.svg', alt: 'Illustration of the Routines interface' },
   },
   projects: {
     eyebrow: 'Projects — the Truth Machine',
@@ -490,6 +497,7 @@ const SUMMARY_BY_ID: Record<string, {
       'Auto-generated work waits for your ✓.',
       'Every inference has a receipt.',
     ],
+    demoImage: { src: '/demo/projects.svg', alt: 'Illustration of the Projects interface' },
   },
   content: {
     eyebrow: 'Content — day to script',
@@ -499,6 +507,7 @@ const SUMMARY_BY_ID: Record<string, {
       'Inputs feed the map.',
       'Answer the day. Keep the record.',
     ],
+    demoImage: { src: '/demo/content.svg', alt: 'Illustration of the Content interface' },
   },
 };
 

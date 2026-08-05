@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <!-- PR-DEMO-1: code-drawn illustration of the live Projects pipeline.
+       Sources: the research / audit / fusion stage names = ProjectRow.tsx:124
+       ("the live interpolated prompts (research / audit / fusion)"); QUEUE =
+       ProjectQueueCard.tsx header ("a single project in the QUEUE"). Goal
+       text and task rows are skeleton bars — no invented project content.
+       Palette = ds.ts dark vocabulary literals. -->
+  <defs>
+    <radialGradient id="glowA" cx="80%" cy="0%" r="90%">
+      <stop offset="0%" stop-color="#3b2d6b" stop-opacity="0.85"/>
+      <stop offset="70%" stop-color="#3b2d6b" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="10%" cy="100%" r="80%">
+      <stop offset="0%" stop-color="#2d1b4e" stop-opacity="0.7"/>
+      <stop offset="65%" stop-color="#2d1b4e" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="800" rx="16" fill="#0d1117"/>
+  <rect width="1200" height="800" rx="16" fill="url(#glowA)"/>
+  <rect width="1200" height="800" rx="16" fill="url(#glowB)"/>
+
+  <text x="48" y="72" font-family="ui-monospace, Menlo, monospace" font-size="15" letter-spacing="3" fill="#ffffff" opacity="0.5">PROJECTS — QUEUE</text>
+
+  <!-- The goal input -->
+  <rect x="48" y="100" width="1104" height="88" rx="12" fill="#161b22" stroke="#30363d"/>
+  <rect x="80" y="128" width="880" height="32" rx="4" fill="#ffffff" opacity="0.1"/>
+  <rect x="96" y="140" width="420" height="10" rx="5" fill="#ffffff" opacity="0.15"/>
+  <rect x="992" y="124" width="128" height="40" rx="4" fill="#ffffff"/>
+  <rect x="1018" y="140" width="76" height="10" rx="5" fill="#3b2d6b"/>
+
+  <!-- The pipeline stages (ProjectRow.tsx:124 names, in order) -->
+  <g font-family="ui-monospace, Menlo, monospace" font-size="15">
+    <rect x="228" y="228" width="180" height="44" rx="22" fill="#3b2d6b" opacity="0.5"/>
+    <text x="318" y="256" text-anchor="middle" fill="#ffffff" opacity="0.9">research</text>
+    <line x1="408" y1="250" x2="500" y2="250" stroke="#4e3e85" stroke-width="2"/>
+    <path d="M 494 244 l 8 6 l -8 6" stroke="#4e3e85" stroke-width="2" fill="none"/>
+    <rect x="510" y="228" width="180" height="44" rx="22" fill="#3b2d6b" opacity="0.5"/>
+    <text x="600" y="256" text-anchor="middle" fill="#ffffff" opacity="0.9">audit</text>
+    <line x1="690" y1="250" x2="782" y2="250" stroke="#4e3e85" stroke-width="2"/>
+    <path d="M 776 244 l 8 6 l -8 6" stroke="#4e3e85" stroke-width="2" fill="none"/>
+    <rect x="792" y="228" width="180" height="44" rx="22" fill="#3b2d6b" opacity="0.5"/>
+    <text x="882" y="256" text-anchor="middle" fill="#ffffff" opacity="0.9">fusion</text>
+  </g>
+
+  <!-- The task batch (skeleton rows; checkboxes = the house selection idiom) -->
+  <rect x="48" y="316" width="1104" height="436" rx="12" fill="#161b22" stroke="#30363d"/>
+  <g font-family="ui-monospace, Menlo, monospace" font-size="13" letter-spacing="1.5" fill="#ffffff" opacity="0.5">
+    <text x="80" y="368">TASKS</text>
+  </g>
+  <line x1="80" y1="388" x2="1120" y2="388" stroke="#30363d"/>
+
+  <rect x="80" y="424" width="16" height="16" rx="3" fill="none" stroke="#ffffff" stroke-opacity="0.4"/>
+  <rect x="120" y="426" width="480" height="14" rx="7" fill="#ffffff" opacity="0.12"/>
+  <rect x="1020" y="426" width="100" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
+  <line x1="80" y1="468" x2="1120" y2="468" stroke="#30363d"/>
+
+  <rect x="80" y="504" width="16" height="16" rx="3" fill="#16a34a"/>
+  <path d="M 83 511 l 4 5 l 7 -8" stroke="#ffffff" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <rect x="120" y="506" width="560" height="14" rx="7" fill="#ffffff" opacity="0.12"/>
+  <rect x="1020" y="506" width="100" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
+  <line x1="80" y1="548" x2="1120" y2="548" stroke="#30363d"/>
+
+  <rect x="80" y="584" width="16" height="16" rx="3" fill="none" stroke="#ffffff" stroke-opacity="0.4"/>
+  <rect x="120" y="586" width="400" height="14" rx="7" fill="#ffffff" opacity="0.12"/>
+  <rect x="1020" y="586" width="100" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
+  <line x1="80" y1="628" x2="1120" y2="628" stroke="#30363d"/>
+
+  <rect x="80" y="664" width="16" height="16" rx="3" fill="none" stroke="#ffffff" stroke-opacity="0.4"/>
+  <rect x="120" y="666" width="520" height="14" rx="7" fill="#ffffff" opacity="0.12"/>
+  <rect x="1020" y="666" width="100" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
+</svg>

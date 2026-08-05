@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <!-- PR-DEMO-1: code-drawn illustration of the live Content table.
+       Sources: scene-level columns (Scene / Title / Focus / Hours / Day /
+       Loc Base / Script) = SceneHeaderRow.tsx:4-5 verbatim; take-level chips
+       Question / Answer / B-Roll / Narrative / Activity = PieceGrid.tsx
+       labels; "✨ generate script" = ScriptGeneratorView.tsx:108 verbatim.
+       All row content is skeleton bars — no invented scenes.
+       Palette = ds.ts dark vocabulary literals. -->
+  <defs>
+    <radialGradient id="glowA" cx="80%" cy="0%" r="90%">
+      <stop offset="0%" stop-color="#3b2d6b" stop-opacity="0.85"/>
+      <stop offset="70%" stop-color="#3b2d6b" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="10%" cy="100%" r="80%">
+      <stop offset="0%" stop-color="#2d1b4e" stop-opacity="0.7"/>
+      <stop offset="65%" stop-color="#2d1b4e" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="800" rx="16" fill="#0d1117"/>
+  <rect width="1200" height="800" rx="16" fill="url(#glowA)"/>
+  <rect width="1200" height="800" rx="16" fill="url(#glowB)"/>
+
+  <text x="48" y="72" font-family="ui-monospace, Menlo, monospace" font-size="15" letter-spacing="3" fill="#ffffff" opacity="0.5">CONTENT</text>
+  <rect x="944" y="52" width="208" height="40" rx="4" fill="#ffffff"/>
+  <text x="1048" y="77" text-anchor="middle" font-size="15" font-weight="600" fill="#3b2d6b">✨ generate script</text>
+
+  <!-- The scene table (SceneHeaderRow columns, verbatim) -->
+  <rect x="48" y="120" width="1104" height="632" rx="12" fill="#161b22" stroke="#30363d"/>
+  <g font-family="ui-monospace, Menlo, monospace" font-size="13" letter-spacing="1.5" fill="#ffffff" opacity="0.5">
+    <text x="80" y="172">SCENE</text>
+    <text x="200" y="172">TITLE</text>
+    <text x="480" y="172">FOCUS</text>
+    <text x="680" y="172">HOURS</text>
+    <text x="790" y="172">DAY</text>
+    <text x="890" y="172">LOC BASE</text>
+    <text x="1030" y="172">SCRIPT</text>
+  </g>
+  <line x1="80" y1="192" x2="1120" y2="192" stroke="#30363d"/>
+
+  <!-- Scene header row (bold band) -->
+  <rect x="80" y="212" width="1040" height="52" rx="6" fill="#3b2d6b" opacity="0.35"/>
+  <text x="96" y="244" font-family="ui-monospace, Menlo, monospace" font-size="15" fill="#ffffff" opacity="0.9">1</text>
+  <rect x="200" y="232" width="240" height="14" rx="7" fill="#ffffff" opacity="0.25"/>
+  <rect x="480" y="232" width="150" height="14" rx="7" fill="#ffffff" opacity="0.2"/>
+  <rect x="680" y="232" width="60" height="14" rx="7" fill="#ffffff" opacity="0.2"/>
+  <rect x="790" y="232" width="60" height="14" rx="7" fill="#ffffff" opacity="0.2"/>
+  <rect x="890" y="232" width="100" height="14" rx="7" fill="#ffffff" opacity="0.2"/>
+  <rect x="1030" y="232" width="70" height="14" rx="7" fill="#ffffff" opacity="0.2"/>
+
+  <!-- Take rows with the PieceGrid chip vocabulary -->
+  <g font-size="13">
+    <rect x="120" y="296" width="86" height="26" rx="13" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
+    <text x="163" y="314" text-anchor="middle" fill="#ffffff" opacity="0.7">Question</text>
+    <rect x="120" y="296" width="0" height="0"/>
+    <rect x="230" y="298" width="560" height="12" rx="6" fill="#ffffff" opacity="0.1"/>
+    <line x1="80" y1="338" x2="1120" y2="338" stroke="#30363d"/>
+
+    <rect x="120" y="366" width="78" height="26" rx="13" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
+    <text x="159" y="384" text-anchor="middle" fill="#ffffff" opacity="0.7">Answer</text>
+    <rect x="230" y="368" width="640" height="12" rx="6" fill="#ffffff" opacity="0.1"/>
+    <line x1="80" y1="408" x2="1120" y2="408" stroke="#30363d"/>
+
+    <rect x="120" y="436" width="72" height="26" rx="13" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
+    <text x="156" y="454" text-anchor="middle" fill="#ffffff" opacity="0.7">B-Roll</text>
+    <rect x="230" y="438" width="480" height="12" rx="6" fill="#ffffff" opacity="0.1"/>
+    <line x1="80" y1="478" x2="1120" y2="478" stroke="#30363d"/>
+
+    <rect x="120" y="506" width="94" height="26" rx="13" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
+    <text x="167" y="524" text-anchor="middle" fill="#ffffff" opacity="0.7">Narrative</text>
+    <rect x="240" y="508" width="600" height="12" rx="6" fill="#ffffff" opacity="0.1"/>
+    <line x1="80" y1="548" x2="1120" y2="548" stroke="#30363d"/>
+
+    <rect x="120" y="576" width="82" height="26" rx="13" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
+    <text x="161" y="594" text-anchor="middle" fill="#ffffff" opacity="0.7">Activity</text>
+    <rect x="230" y="578" width="520" height="12" rx="6" fill="#ffffff" opacity="0.1"/>
+    <line x1="80" y1="618" x2="1120" y2="618" stroke="#30363d"/>
+  </g>
+
+  <!-- Second scene band -->
+  <rect x="80" y="648" width="1040" height="52" rx="6" fill="#3b2d6b" opacity="0.35"/>
+  <text x="96" y="680" font-family="ui-monospace, Menlo, monospace" font-size="15" fill="#ffffff" opacity="0.9">2</text>
+  <rect x="200" y="668" width="300" height="14" rx="7" fill="#ffffff" opacity="0.25"/>
+  <rect x="480" y="668" width="120" height="14" rx="7" fill="#ffffff" opacity="0.2"/>
+</svg>
