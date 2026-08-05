@@ -22,8 +22,16 @@
  * Saved vs Booked: every budget line is shown as "Saved" (planned). A real "Booked" (paid)
  * status is NOT derivable from budget_line_items today — paid bookings live in a separate
  * `reservations` table with no link back to a budget line — so the status column honestly
- * shows "Saved" for all rows rather than guessing. A later PR adds the reservations
- * join / a status column to mark genuinely-booked lines.
+ * shows "Saved" for all rows rather than guessing.
+ *
+ * PR-MATCH-3 closes that gap at the RESERVATION level (per-budget-line mapping
+ * stays structurally impossible — no reservation↔line key exists, and it is
+ * never guessed by vendor-name heuristics): below the planned table, the
+ * travel LENS renders (a) "Booked & bank-confirmed" — the trip's reservations
+ * with bank actuals from ACCEPTED transaction links only (proposed ≠ actual;
+ * accepts happen in Runway's match review), and (b) "In-trip spend not in
+ * your budget" — in-window outflows with no accepted link anywhere (FX fees,
+ * extras). Both from GET /api/trips/[id]/actuals; both absent-when-empty.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -51,6 +59,28 @@ interface LedgerItem {
 }
 
 type RowState = 'loading' | 'ok' | 'error';
+
+// ─── PR-MATCH-3 lens shapes (GET /api/trips/[id]/actuals envelope) ───────────
+interface BookedRow {
+  reservationId: string;
+  label: string;
+  provider: string;
+  status: string;
+  finalPriceCents: number;
+  currency: string;
+  createdAt: string;
+  checkinDate: string | null;
+  checkoutDate: string | null;
+  actual: { totalCents: number; transactions: { id: string; name: string; amount: number; date: string }[] } | null;
+}
+interface UnplannedRow {
+  id: string;
+  name: string;
+  merchantName: string | null;
+  amount: number;
+  date: string;
+  pending: boolean;
+}
 
 const DASH = '—';
 
@@ -263,6 +293,32 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
     return () => { cancelled = true; };
   }, [trip.id, reloadKey]);
 
+  // PR-MATCH-3: the lens fetch — separate from the budget fetch so neither
+  // blocks the other; a lens failure is DECLARED in its own line, never
+  // hides the planned table.
+  const [booked, setBooked] = useState<BookedRow[]>([]);
+  const [unplanned, setUnplanned] = useState<UnplannedRow[]>([]);
+  const [lensError, setLensError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    setLensError('');
+    fetch(`/api/trips/${trip.id}/actuals`)
+      .then(async (r) => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+        return data;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setBooked((data.booked || []) as BookedRow[]);
+        setUnplanned((data.unplanned || []) as UnplannedRow[]);
+      })
+      .catch((err) => {
+        if (!cancelled) setLensError(err instanceof Error ? err.message : 'Could not load bank actuals.');
+      });
+    return () => { cancelled = true; };
+  }, [trip.id, reloadKey]);
+
   const total = items.reduce((s, it) => s + Number(it.amount || 0), 0);
 
   const th = 'px-3 py-2 text-left font-medium text-white/40 whitespace-nowrap';
@@ -353,6 +409,94 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* ── PR-MATCH-3: the travel LENS — reservation-level bank truth below
+            the planned table. Both sections render ONLY when data exists
+            (absence is honest); a lens fetch failure is declared here. ───── */}
+      {lensError && (
+        <p className="mt-3 text-xs text-brand-red">Bank actuals unavailable: {lensError}</p>
+      )}
+
+      {booked.length > 0 && (
+        <div className="mt-4">
+          <p className="text-sm font-bold text-white">Booked &amp; bank-confirmed</p>
+          <p className="text-xs text-white/40">
+            Your real bookings on this trip. &ldquo;Bank actual&rdquo; comes only from matches you accepted in
+            Runway&apos;s match review — nothing is matched automatically.
+          </p>
+          <div className="mt-2 overflow-x-auto rounded-lg border border-panel-border bg-panel-surface">
+            <table className="w-full min-w-[560px] text-sm">
+              <thead>
+                <tr className="border-b border-panel-border">
+                  <th className={th}>Booking</th>
+                  <th className={th}>Booked</th>
+                  <th className={`${th} text-right`}>Booked price</th>
+                  <th className={`${th} text-right`}>Bank actual</th>
+                </tr>
+              </thead>
+              <tbody>
+                {booked.map((b) => (
+                  <tr key={b.reservationId} className="border-b border-panel-border last:border-0">
+                    <td className={`${td} font-medium text-white`}>
+                      {b.label}
+                      <span className="ml-2 text-xs text-white/40">{b.provider}</span>
+                    </td>
+                    <td className={td}>
+                      {b.actual ? (
+                        <span className="rounded-full bg-brand-green/10 px-2 py-0.5 text-xs font-medium text-brand-green">Booked · bank-confirmed</span>
+                      ) : (
+                        <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-medium text-white/60">Booked · not bank-confirmed yet</span>
+                      )}
+                    </td>
+                    <td className={`${td} text-right font-mono text-white`}>
+                      {b.currency} {(b.finalPriceCents / 100).toFixed(2)}
+                    </td>
+                    <td className={`${td} text-right font-mono font-bold ${b.actual ? 'text-white' : 'text-white/40'}`}>
+                      {b.actual ? `$${(b.actual.totalCents / 100).toFixed(2)}` : DASH}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {unplanned.length > 0 && (
+        <div className="mt-4">
+          <p className="text-sm font-bold text-white">In-trip spend not in your budget</p>
+          <p className="text-xs text-white/40">
+            Charges inside this trip&apos;s dates with no accepted booking match — FX fees, card fees,
+            extras. Display-only: nothing here is tagged to the trip yet.
+          </p>
+          <div className="mt-2 overflow-x-auto rounded-lg border border-panel-border bg-panel-surface">
+            <table className="w-full min-w-[480px] text-sm">
+              <thead>
+                <tr className="border-b border-panel-border">
+                  <th className={th}>Date</th>
+                  <th className={th}>Transaction</th>
+                  <th className={`${th} text-right`}>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {unplanned.map((u) => (
+                  <tr key={u.id} className="border-b border-panel-border last:border-0">
+                    <td className={`${td} text-white/60`}>{fmtDate(u.date)}</td>
+                    <td className={`${td} text-white`}>
+                      {u.name}
+                      {u.merchantName ? <span className="ml-2 text-xs text-white/40">{u.merchantName}</span> : null}
+                      {u.pending ? <span className="ml-2 text-xs text-white/40">pending</span> : null}
+                    </td>
+                    <td className={`${td} text-right font-mono font-bold ${moneyColorClass(u.amount, 'expense')}`}>
+                      {formatMoney(u.amount, { kind: 'expense' })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
