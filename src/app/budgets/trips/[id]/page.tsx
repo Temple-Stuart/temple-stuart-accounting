@@ -118,7 +118,9 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const [originAirport, setOriginAirport] = useState("");
   const [destinationAirport, setDestinationAirport] = useState("");
 
-  // TODO: onBudgetChange/tripBudget is legacy — budget now flows through vendor-commit only
+  // onBudgetChange/tripBudget is LEGACY state — budget flows through
+  // vendor-commit only; kept because child components still read these props.
+  // Removing the plumbing is its own cleanup PR (POLISH-1 #8: fact, not TODO).
   const [tripBudget, setTripBudget] = useState<{category: string; amount: number; description: string; splitType?: string}[]>([]);
   const [committedBudgetItems, setCommittedBudgetItems] = useState<{category: string; amount: number; description: string; location?: string | null; vote?: 'up' | 'down' | null}[]>([]);
   const [initialCosts, setInitialCosts] = useState<Record<string, Record<string, number>>>({});
