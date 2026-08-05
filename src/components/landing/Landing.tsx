@@ -55,7 +55,9 @@
  * with the first selected, and the strip says so.
  *
  * DECKS-3 (three verbatim rulings): (1) the PILLARS deck is a VERTICAL STACK
- * of full-width mini heroes — its carousel mechanics died; (2) the SELECTION
+ * of full-width mini heroes — its carousel mechanics died (PR-DECK-CLEAN-3:
+ * each hero is internally TWO-COLUMN when it carries a demoImage — text
+ * left, framed screenshot right); (2) the SELECTION
  * deck adopted the mini-hero glow-panel format but stays a horizontal snap
  * rail, each slide carrying the commerce (PR-DECK-CLEAN-1 re-cut the slide
  * to the 5-part scannable card: name, one line, checkmark fragments, price
@@ -301,7 +303,8 @@ const PILLAR_CARDS: PillarCard[] = [
 // for anyone starting a business; the hero speaks to everyone, these chips let
 // each audience self-select. A persona REORDERS the same nine slides (its
 // moduleIds first, the rest in funnel order), writes its value line on the
-// highlighted slides, and dims the rest slightly — never hides them.
+// highlighted slides, and — PR-DECK-CLEAN-3 (Alex: "why have it there if
+// it's not included") — REMOVES the rest from the rail; the old dim died.
 // "Everyone" (moduleIds empty) is the default: the untouched funnel deck.
 // HARD RULE (LAND-MSG-1): every value line is a REPHRASE of already-verified
 // claims — per-clause source cites in the PERSONA-1 report. Words Alex drafted
@@ -316,8 +319,9 @@ const PILLAR_CARDS: PillarCard[] = [
 interface Persona {
   key: string;
   label: string;
-  /** PILLAR_CARDS ids, highlighted and shown first, in this order. Empty =
-   *  Everyone: no reorder, no highlight, no dim — today's exact deck. */
+  /** PILLAR_CARDS ids — PR-DECK-CLEAN-3: the ONLY cards mounted while this
+   *  persona is active, in this order. Empty = Everyone: all nine, funnel
+   *  order. */
   moduleIds: string[];
   /** The audience value line — ONE per persona (there are no per-module
    *  variants in this config; nothing is invented). PR-DECK-CLEAN-1 evicted
@@ -400,7 +404,9 @@ const PERSONAS: Persona[] = [
 // Lines were chosen to NOT repeat the selection deck's PILLAR_CARDS bullets —
 // the two decks tell different halves of each pillar's story.
 // PR-ELEV-2c: entries MAY carry an optional demoImage — a real product
-// screenshot rendered as a framed panel on the slide. Asset convention (the
+// screenshot rendered as a framed panel on the slide (PR-DECK-CLEAN-3: the
+// frame is the slide's RIGHT column now, Nuitée-style; absent → text spans
+// full width). Asset convention (the
 // follow-up drop is copy-paste): file lands at public/demo/<pillar-id>.png,
 // entry gains one line:
 //   demoImage: { src: '/demo/<pillar-id>.png', alt: '<what the screenshot shows>' },
@@ -627,21 +633,45 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
   const pricingByKey = new Map(TAB_PRICING.map((t) => [t.key, t]));
   const bundle = pricingByKey.get('bundle:all');
 
+  // PERSONA-1 → PR-DECK-CLEAN-3: chip state (client only). Everyone (the
+  // default) short-circuits to PILLAR_CARDS ITSELF — same array reference —
+  // so the default deck renders all nine, byte-identical. An active persona
+  // REMOVES the non-relevant cards (Alex's ruling: "why have it there if
+  // it's not included" — the opacity-70 dim died): ONLY its moduleIds mount,
+  // in the persona's own order. The rail re-lays naturally. Declared above
+  // the nav block because the dot math derives from the MOUNTED count.
+  const [personaKey, setPersonaKey] = useState('everyone');
+  const persona = PERSONAS.find((a) => a.key === personaKey) ?? PERSONAS[0];
+  const personaActive = persona.moduleIds.length > 0;
+  const deckCards = personaActive
+    ? persona.moduleIds.flatMap((id) => PILLAR_CARDS.filter((p) => p.id === id))
+    : PILLAR_CARDS;
+
   // LOBBY-DECK-1: the deck's nav — a ref on the snap track, chevrons that
   // scroll it, and ONE scroll-derived piece of client state (the active-dot
   // index). No slide data lives in state; CSS scroll-snap owns positioning.
+  // PR-DECK-CLEAN-3: the index derives from deckCards (the mounted, possibly
+  // persona-filtered set), so the dots track the filtered count.
   const deckTrackRef = useRef<HTMLDivElement>(null);
   const [activeSlide, setActiveSlide] = useState(0);
   const onDeckScroll = () => {
     const el = deckTrackRef.current;
     if (!el) return;
     const denom = Math.max(1, el.scrollWidth - el.clientWidth);
-    setActiveSlide(Math.round((el.scrollLeft / denom) * (PILLAR_CARDS.length - 1)));
+    setActiveSlide(Math.round((el.scrollLeft / denom) * (deckCards.length - 1)));
   };
   const deckScrollBy = (dir: 1 | -1) => {
     const el = deckTrackRef.current;
     if (!el) return;
     el.scrollBy({ left: dir * Math.round(el.clientWidth * 0.9), behavior: 'smooth' });
+  };
+  // PR-DECK-CLEAN-3: a persona switch changes what's mounted — reset the rail
+  // to its start so the persona's first module leads and the dot index can't
+  // point past the filtered count.
+  const selectPersona = (key: string) => {
+    setPersonaKey(key);
+    setActiveSlide(0);
+    deckTrackRef.current?.scrollTo({ left: 0 });
   };
 
   // LOBBY-DECK-1b: the demo modal — only reachable when DEMO_VIDEO_URL is set
@@ -662,22 +692,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
     });
   // Stable PILLAR_CARDS order.
   const selectedPillars = PILLAR_CARDS.filter((p) => selectedIds.has(p.id));
-
-  // PERSONA-1: chip state (client only). Everyone (the default) short-circuits
-  // to PILLAR_CARDS ITSELF — same array reference, no map, no class suffix —
-  // so the default deck renders byte-identical to pre-PERSONA-1 by
-  // construction. A persona lists its modules first (config order), then the
-  // rest in funnel order; nothing is ever removed — nine slides always.
-  const [personaKey, setPersonaKey] = useState('everyone');
-  const persona = PERSONAS.find((a) => a.key === personaKey) ?? PERSONAS[0];
-  const personaActive = persona.moduleIds.length > 0;
-  const personaIds = new Set(persona.moduleIds);
-  const deckCards = personaActive
-    ? [
-        ...persona.moduleIds.flatMap((id) => PILLAR_CARDS.filter((p) => p.id === id)),
-        ...PILLAR_CARDS.filter((p) => !personaIds.has(p.id)),
-      ]
-    : PILLAR_CARDS;
   // The honest sum: ONLY when every selected pillar has a display price
   // (TAB_PRICING — all entries are null today, pricing-costs.ts:346-370, and
   // five pillars have no entry at all — so this stays null and the strip
@@ -851,15 +865,16 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
           {/* PERSONA-1: the persona chip row — the ToggleStrip chip idiom
               (DS toggleChip, ToggleStrip.tsx:46-57) above the selection deck.
               "Everyone" leads and is the default: today's exact deck, zero
-              regression. A chip reorders the SAME nine slides and speaks that
-              audience's language; the shop stays whole. Client state only —
-              commerce wiring, selection state, and slide mechanics untouched. */}
+              regression. PR-DECK-CLEAN-3: a chip FILTERS the rail to that
+              persona's modules (remove, not dim) and speaks that audience's
+              language; Everyone restores all nine. Client state only —
+              commerce wiring and selection state untouched. */}
           <div className="mt-4 flex flex-wrap items-center gap-1.5" role="group" aria-label="Show the deck for your situation">
             {PERSONAS.map((a) => (
               <button
                 key={a.key}
                 type="button"
-                onClick={() => setPersonaKey(a.key)}
+                onClick={() => selectPersona(a.key)}
                 aria-pressed={personaKey === a.key}
                 className={toggleChip(personaKey === a.key)}
               >
@@ -902,27 +917,34 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 // and narrower slides (~3 full cards in the lg rail). The
                 // persona value line RETURNED (ruling: personas must mean
                 // something) — small, above the bullets, relevant cards only.
+                // PR-DECK-CLEAN-3 ("cards still uneven"): LOCKED anatomy — no
+                // content variance moves a shared line. Subtitle = a fixed
+                // 2-line block (line-clamp-2 + min-h-8); persona slot = same
+                // fixed block, and under an active persona EVERY mounted card
+                // renders it (only moduleIds cards mount now) while Everyone
+                // renders none — uniform either way; price <p> = min-h-10
+                // (the 2-line green free-travel case). Bullets are 3×1 line
+                // (≤6-word fragments). With items-stretch equalizing card
+                // heights, every divider/price/action row sits at identical y.
+                // The dim suffix died with the remove-not-dim ruling.
                 <article
                   key={p.id}
-                  // PERSONA-1: a non-highlighted slide under an active persona
-                  // dims one ladder step — never hides. Everyone appends the
-                  // empty string: the class stays byte-identical to pre-PR.
-                  className={`flex w-[80%] shrink-0 snap-start flex-col overflow-hidden rounded-lg p-4 text-white sm:w-[46%] sm:p-5 lg:w-[32%]${
-                    personaActive && !personaIds.has(p.id) ? ' opacity-70' : ''
-                  }`}
+                  className="flex w-[80%] shrink-0 snap-start flex-col overflow-hidden rounded-lg p-4 text-white sm:w-[46%] sm:p-5 lg:w-[32%]"
                   style={{ background: CARD_BG }}
                 >
                   <h3 className="text-lg font-light tracking-tight sm:text-xl">{p.label}</h3>
                   {/* LAND-MSG-1: the plain-English outcome line — the card's
-                      ONE subtitle (structure slot 2). */}
-                  <p className="mt-1 text-xs font-medium text-white/90">{p.plain}</p>
-                  {/* PERSONA-1 → PR-DECK-CLEAN-2: the persona's ONE verified
-                      value line (PERSONAS config, :331-366 cites), rendered
-                      inside each of that persona's moduleIds cards — small,
-                      above the bullets. Everyone (line: null) renders
-                      nothing; no persona×module combo is invented. */}
-                  {personaActive && personaIds.has(p.id) && persona.line && (
-                    <p className="mt-1.5 text-xs font-medium text-white">{persona.line}</p>
+                      ONE subtitle (structure slot 2), locked to 2 lines. */}
+                  <p className="mt-1 min-h-8 text-xs font-medium text-white/90 line-clamp-2">{p.plain}</p>
+                  {/* PERSONA-1 → PR-DECK-CLEAN-2/3: the persona's ONE verified
+                      value line (PERSONAS config, :331-366 cites) — small,
+                      above the bullets, locked to the same 2-line block.
+                      Under an active persona every mounted card is a
+                      moduleIds card, so the slot renders uniformly across
+                      the view; Everyone (line: null) renders it nowhere. No
+                      persona×module combo is invented. */}
+                  {personaActive && persona.line && (
+                    <p className="mt-1.5 min-h-8 text-xs font-medium text-white line-clamp-2">{persona.line}</p>
                   )}
                   {/* Slot 3: the checkmark fragments — lucide Check, the house
                       icon vocabulary (TripHeader.tsx:16 precedent). */}
@@ -945,7 +967,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                       stack to the card floor — consistent positions, no
                       ragged bottoms. */}
                   <div className="mt-auto max-w-xl border-t border-white/20 pt-3">
-                    <p className="font-mono text-sm font-bold text-white">
+                    {/* PR-DECK-CLEAN-3: min-h-10 reserves the 2-line green
+                        free-travel height on every card — identical price-
+                        slot height, identical divider y. States inside are
+                        byte-identical (pricing logic untouched). */}
+                    <p className="min-h-10 font-mono text-sm font-bold text-white">
                       {p.id === 'travel' ? (
                         <span className="text-xs font-normal text-brand-green">
                           Free today: search &amp; book travel, no account required.
@@ -1002,9 +1028,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             })}
           </div>
 
-          {/* Slide-position dots — indicators only, scroll-derived. */}
+          {/* Slide-position dots — indicators only, scroll-derived.
+              PR-DECK-CLEAN-3: one dot per MOUNTED card (deckCards), so the
+              row tracks the persona-filtered count. */}
           <div className="mt-3 flex justify-center gap-1.5" aria-hidden="true">
-            {PILLAR_CARDS.map((p, i) => (
+            {deckCards.map((p, i) => (
               <span
                 key={p.id}
                 className={`h-1.5 rounded-full transition-all ${
@@ -1132,7 +1160,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             changed; the script is byte-identical).
             DECKS-3 (ruling 1): the deck is a VERTICAL STACK now — nine
             full-width mini heroes, top to bottom. The carousel mechanics
-            (snap rail, chevrons, dots) died on this section. ───────────────── */}
+            (snap rail, chevrons, dots) died on this section.
+            PR-DECK-CLEAN-3 (Alex: Nuitée-style): each hero splits
+            TWO-COLUMN when its SUMMARY_BY_ID entry carries a demoImage —
+            text left, framed screenshot right; imageless slides keep the
+            full-width text layout (today's state for all nine). ────────────── */}
       <section className="w-full border-b border-panel-border bg-panel-surface">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
           <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
@@ -1153,40 +1185,53 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 // down (text-3xl/5xl → 2xl/3xl); sub-copy white/65-70; CTA =
                 // the white hero-button family. Content strings byte-identical
                 // to FD-1i (SUMMARY_BY_ID + TAB_DESCRIPTORS — 0 data lines).
+                // PR-DECK-CLEAN-3 (Alex: Nuitée-style): the slide is a
+                // TWO-COLUMN grid when it carries a demoImage — text LEFT
+                // (copy byte-identical), the ELEV-2c framed screenshot RIGHT,
+                // filling the column height; mobile stacks text-then-image.
+                // No image → the grid does NOT engage and text spans full
+                // width (absence-is-honest — today's exact state; never a
+                // placeholder frame).
                 <article
                   key={p.id}
                   className="flex min-h-[22rem] w-full flex-col overflow-hidden rounded-lg p-6 text-white sm:p-8"
                   style={{ background: CARD_BG }}
                 >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
-                      {s.eyebrow}
-                    </span>
-                  </div>
-                  <h3 className="mt-4 text-2xl font-light tracking-tight sm:text-3xl">{s.headline}</h3>
-                  <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/65">{TAB_DESCRIPTORS[p.tab]}</p>
-                  <ul className="mt-3 max-w-xl space-y-1">
-                    {s.lines.map((l, i) => (
-                      <li key={i} className="text-sm leading-relaxed text-white/70">{l}</li>
-                    ))}
-                  </ul>
-                  {/* PR-ELEV-2c: the framed screenshot panel — renders ONLY
-                      when the entry carries a real image (absence = the exact
-                      pre-2c layout; never a placeholder). Plain <img> per the
-                      house precedent (HotelGallery.tsx:38). */}
-                  {s.demoImage && (
-                    <div className="mt-4 max-w-xl overflow-hidden rounded-lg border border-white/15 bg-black/20">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={s.demoImage.src} alt={s.demoImage.alt} className="w-full" />
+                  <div className={`flex-1${s.demoImage ? ' grid gap-6 md:grid-cols-2' : ' flex flex-col'}`}>
+                    <div className="flex flex-1 flex-col">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
+                          {s.eyebrow}
+                        </span>
+                      </div>
+                      <h3 className="mt-4 text-2xl font-light tracking-tight sm:text-3xl">{s.headline}</h3>
+                      <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/65">{TAB_DESCRIPTORS[p.tab]}</p>
+                      <ul className="mt-3 max-w-xl space-y-1">
+                        {s.lines.map((l, i) => (
+                          <li key={i} className="text-sm leading-relaxed text-white/70">{l}</li>
+                        ))}
+                      </ul>
+                      <div className="mt-auto pt-5">
+                        <Link
+                          href={`/modules/${p.id}`}
+                          className="inline-block bg-white px-4 py-1.5 text-xs font-medium text-brand-purple hover:bg-bg-row"
+                        >
+                          Explore {p.label} →
+                        </Link>
+                      </div>
                     </div>
-                  )}
-                  <div className="mt-auto pt-5">
-                    <Link
-                      href={`/modules/${p.id}`}
-                      className="inline-block bg-white px-4 py-1.5 text-xs font-medium text-brand-purple hover:bg-bg-row"
-                    >
-                      Explore {p.label} →
-                    </Link>
+                    {/* PR-ELEV-2c → PR-DECK-CLEAN-3: the framed screenshot
+                        panel, now the RIGHT column — renders ONLY when the
+                        entry carries a real image. Plain <img> per the house
+                        precedent (HotelGallery.tsx:38); object-cover fills
+                        the column height at md+, natural ratio when stacked
+                        on mobile. */}
+                    {s.demoImage && (
+                      <div className="overflow-hidden rounded-lg border border-white/15 bg-black/20">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={s.demoImage.src} alt={s.demoImage.alt} className="w-full object-cover md:h-full" />
+                      </div>
+                    )}
                   </div>
                 </article>
               );
