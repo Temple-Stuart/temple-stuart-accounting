@@ -24,6 +24,10 @@ export interface ToggleMode {
   /** The surface shown when this chip is active. Built by the caller with its
    *  own props — all modes mount at once (CSS show/hide), so results survive. */
   panel: ReactNode;
+  /** PR-ELEV-1: optional marker rendered IN-CHIP after the label (e.g. the
+   *  "Soon" tag on not-yet-live modes). Caller-supplied node; the chip stays
+   *  fully selectable — a soon chip opens its honest explainer panel. */
+  badge?: ReactNode;
 }
 
 interface Props {
@@ -53,6 +57,7 @@ export default function ToggleStrip({ modes, header, defaultKey, className }: Pr
             className={DS.toggleChip(active === m.key)}
           >
             {m.label}
+            {m.badge}
           </button>
         ))}
       </div>
