@@ -88,6 +88,9 @@ import {
 } from '@/config/transparencyLedger';
 import { TAB_DESCRIPTORS } from '@/lib/tabDescriptors';
 import { DEMO_VIDEO_URL } from '@/config/demoVideo';
+// PR-ELEV-2d: the Built-on wall data + per-vendor logo rules live in the
+// server-safe leaf (page.tsx fs-checks the same entries' logo files).
+import { BUILT_ON } from '@/lib/builtOnWall';
 
 /** LOBBY-DECK-1b: a YouTube watch/short URL → its /embed/ form for the modal
  *  iframe. Anything else (e.g. a plain file URL) returns null and plays via a
@@ -612,6 +615,10 @@ interface Props {
   /** Per-entitlement-key availability, SERVER-computed by the mount route
    *  (page.tsx:83-85 env-presence read). Missing key → unavailable. */
   entitlementAvailability: Record<string, boolean>;
+  /** PR-ELEV-2d: per logo slug, does public/logos/<slug>.svg exist? SERVER-
+   *  computed (page.tsx fs check over BUILT_ON's logo slots). Missing/false
+   *  → the text-only card, exactly as before — never a broken <img>. */
+  logoAvailability: Record<string, boolean>;
   /** PR-PRICE-3: the deck's buy path — /pricing died, so Select/Continue no
    *  longer link out; they hand the entitlement key to GuestLanding, which
    *  owns the account-first + checkout-entitlement resume (every Landing
@@ -638,7 +645,7 @@ const HERO_BG =
 const CARD_BG =
   'radial-gradient(ellipse 120% 120% at 80% 0%, rgb(var(--ts-purple) / 0.85), transparent 70%), radial-gradient(ellipse 90% 90% at 10% 100%, rgb(var(--ts-purple-deep) / 0.7), transparent 65%), var(--ts-panel)';
 
-export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvailability, onBuyModule }: Props) {
+export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvailability, logoAvailability, onBuyModule }: Props) {
   const pricingByKey = new Map(TAB_PRICING.map((t) => [t.key, t]));
   const bundle = pricingByKey.get('bundle:all');
 
@@ -1260,36 +1267,63 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             endorsement framing. CLAIMABILITY RULE: wired clients only (each
             name has a live client file in src/lib — LANDING-ELEVATE-AUDIT-1
             Part C); declared-not-connected vendors (Mozio/Airalo/Cover
-            Genius) and unverified feeds (FRED) never appear. TEXT MARKS
-            still — logos are PENDING per-vendor brand-terms verification
-            (Stripe/Plaid publish brand kits; a future PR adds image marks
-            only after their live brand pages are read and quoted). ────────── */}
+            Genius) and unverified feeds (FRED) never appear.
+            PR-ELEV-2d: cards are LOGO-CAPABLE now — entries live in the
+            builtOnWall.ts leaf; a brand-terms-CLEARED vendor (per-vendor
+            rules + policy URLs documented there) carries a logo slot that
+            lights ONLY when its official file exists at
+            public/logos/<slug>.svg (server fs check → logoAvailability).
+            Stripe's lit card links to stripe.com (their marks mandate).
+            No file → today's exact text card; uncleared vendors stay
+            text-only by construction. ─────────────────────────────────────── */}
       <section className="w-full border-b border-panel-border bg-panel-surface">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
           <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
             Built on
           </p>
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {[
-              ['Plaid', 'bank data'],
-              ['Stripe', 'payments'],
-              ['Duffel + LiteAPI (Nuitée)', 'flights & stays'],
-              ['Viator', 'tours & transfers'],
-              ['tastytrade', 'brokerage data'],
-              ['Finnhub', 'market data'],
-              ['Anthropic + OpenAI', 'AI'],
-              ['Resend', 'email'],
-              ['Next.js + Prisma + Azure PostgreSQL + Vercel + Inngest', 'infrastructure'],
-            ].map(([name, tag]) => (
-              <article
-                key={name}
-                className="flex flex-col justify-between overflow-hidden rounded-lg p-4 text-white"
-                style={{ background: CARD_BG }}
-              >
-                <p className="text-sm font-semibold leading-snug">{name}</p>
-                <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-white/50">{tag}</p>
-              </article>
-            ))}
+            {BUILT_ON.map((e) => {
+              // Lit = a cleared slot AND its official file exists on disk
+              // (server-checked). Anything less renders the text card
+              // byte-identically — no placeholder, no broken image.
+              const logoLive = e.logo !== undefined && logoAvailability[e.logo.slug] === true;
+              const cardClass = 'flex flex-col justify-between overflow-hidden rounded-lg p-4 text-white';
+              const body = (
+                <>
+                  <div>
+                    {logoLive && e.logo && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={`/logos/${e.logo.slug}.svg`}
+                        alt={e.logo.alt}
+                        className="mb-2 h-7 w-auto object-contain"
+                      />
+                    )}
+                    <p className="text-sm font-semibold leading-snug">{e.name}</p>
+                  </div>
+                  <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-white/50">{e.tag}</p>
+                </>
+              );
+              // Stripe's marks rule: the lit logo must link to stripe.com —
+              // the whole card becomes the outbound link. href without a lit
+              // logo does nothing (the mandate binds the MARK, not the name).
+              return logoLive && e.logo?.href ? (
+                <a
+                  key={e.name}
+                  href={e.logo.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cardClass}
+                  style={{ background: CARD_BG }}
+                >
+                  {body}
+                </a>
+              ) : (
+                <article key={e.name} className={cardClass} style={{ background: CARD_BG }}>
+                  {body}
+                </article>
+              );
+            })}
           </div>
         </div>
       </section>

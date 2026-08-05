@@ -1,9 +1,12 @@
+import fs from 'fs';
+import path from 'path';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { decode } from 'next-auth/jwt';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { TAB_ENTITLEMENT_KEYS, BUNDLE_ALL_KEY } from '@/lib/categoryKeys';
 import { getPriceIdFromEntitlementKey } from '@/lib/stripe';
+import { BUILT_ON } from '@/lib/builtOnWall';
 import HomeClient from '@/components/home/HomeClient';
 import GuestLanding from '@/components/landing/GuestLanding';
 
@@ -83,5 +86,14 @@ export default async function Page({ searchParams }: {
   const entitlementAvailability = Object.fromEntries(
     [...TAB_ENTITLEMENT_KEYS, BUNDLE_ALL_KEY].map((k) => [k, getPriceIdFromEntitlementKey(k) !== null]),
   );
-  return <GuestLanding entitlementAvailability={entitlementAvailability} />;
+  // PR-ELEV-2d: per cleared logo slot, does public/logos/<slug>.svg exist?
+  // File-presence only (the availability-map idiom above) — a dropped file
+  // lights its Built-on card on the next request, no code change. force-
+  // dynamic keeps the check per-request.
+  const logoAvailability = Object.fromEntries(
+    BUILT_ON.flatMap((e) =>
+      e.logo ? [[e.logo.slug, fs.existsSync(path.join(process.cwd(), 'public', 'logos', `${e.logo.slug}.svg`))]] : [],
+    ),
+  );
+  return <GuestLanding entitlementAvailability={entitlementAvailability} logoAvailability={logoAvailability} />;
 }
