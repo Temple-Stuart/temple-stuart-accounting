@@ -1,21 +1,26 @@
 'use client';
 
 /**
- * PRICING-PAGE-SELL: the /pricing client surface. The MODULES section sells the
- * per-tab entitlements + the bundle through the existing signature-verified
- * entitlement checkout (POST /api/stripe/checkout-entitlement — the same flow
- * Travel's locked categories use). The server component (page.tsx) tells this
- * component, per key, whether a Stripe price ID is configured RIGHT NOW —
- * a buy-button renders functional ONLY then; otherwise an explicit, disabled
- * "Not yet available" (never a button that would 400). Display prices come
- * from TAB_PRICING (Alex-entered config); null renders "price not set —
- * shown at checkout", never a fabricated number.
- * The legacy tier cards below cover the features tiers still gate
- * (lifestyle AI, travel discovery, trip AI) — kept per TRUTH-LABELS.
+ * PRICING-PAGE-SELL → PR-PRICE-2: /pricing is THE ONE pricing table, consuming
+ * THE one model (src/config/pricingModel.ts via page.tsx's server availability
+ * check). Columns: Free today / Per module / Bundle. The RESOLUTION RULE
+ * (pricingModel.ts): a price + working Unlock button render ONLY when the
+ * config number AND the Stripe env price ID both exist; anything less renders
+ * the one honest state — "Pricing coming". No invented numbers, no dead
+ * buttons. Checkout is the untouched signature-verified entitlement flow
+ * (POST /api/stripe/checkout-entitlement — the same flow Travel's locked
+ * categories use), with the logged-out resume path intact.
+ *
+ * The parallel Pro/Pro+ TIER vocabulary DIED here (PRICING-AUDIT-1's
+ * two-model confusion): the tier cards + their /api/stripe/checkout flow are
+ * gone from this page; tiers.ts remains ONLY as legacy gate vocabulary
+ * (requireTier call sites — see its header) until module entitlements replace
+ * those gates. "Manage existing subscription" stays for anyone already
+ * subscribed.
  */
 
 import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { AppLayout } from '@/components/ui';
 import LoginBox from '@/components/LoginBox';
 
@@ -28,57 +33,6 @@ export interface CatalogItem {
   available: boolean;
 }
 
-const TIERS = [
-  {
-    name: 'Free',
-    price: '$0',
-    period: 'forever',
-    tier: 'free',
-    // TRUTH-LABELS: bullets list only what each tier's gates ACTUALLY grant in
-    // code today (requireTier call sites). The modules are sold above, per-tab.
-    features: [
-      'Manual transaction entry',
-      'Budgeting across all modules',
-      'Trip planning & flight search',
-      'Runway calendar & hub',
-    ],
-    cta: 'Get Started Free',
-    highlight: false,
-  },
-  {
-    name: 'Pro',
-    // PRICE-1: the display number was STRIPPED — this tier is deliberately
-    // gated (tiers.ts:19) and no real Stripe price exists; showing "$20" was
-    // an unverifiable claim (PRICING-AUDIT-1). The badge + CTA already say
-    // Coming Soon; the number returns when a real price is configured.
-    price: '—',
-    period: '',
-    tier: 'pro',
-    features: [
-      'Everything in Free, plus:',
-      'Premium travel discovery (category search, with category subscriptions)',
-    ],
-    cta: 'Coming Soon',
-    highlight: true,
-  },
-  {
-    name: 'Pro+',
-    // PRICE-1: stripped like Pro above — no real price exists yet.
-    price: '—',
-    period: '',
-    tier: 'pro_plus',
-    features: [
-      'Everything in Pro, plus:',
-      'AI meal & cart planning',
-      'Trip AI recommendations',
-      'AI content tools (reel scripts, routine scenes)',
-      'Priority support',
-    ],
-    cta: 'Coming Soon',
-    highlight: false,
-  },
-];
-
 /** FD-1c: the DOM id a landing ?module=<key> link scrolls to (':' is not
  *  queryable-safe in ids — sanitized to '-'). */
 function moduleCardId(key: string): string {
@@ -88,12 +42,10 @@ function moduleCardId(key: string): string {
 export default function PricingClient({ catalog }: { catalog: CatalogItem[] }) {
   const [loading, setLoading] = useState<string | null>(null);
   const [showLogin, setShowLogin] = useState(false);
-  const [pendingTier, setPendingTier] = useState<string | null>(null);
   // PRICING-PAGE-SELL: a module buy started while logged out resumes after login.
   const [pendingTabKey, setPendingTabKey] = useState<string | null>(null);
   const [buyError, setBuyError] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
-  const router = useRouter();
   const searchParams = useSearchParams();
   const cancelled = searchParams.get('cancelled');
   // FD-1c: ?module=<key> from the landing sheet → scroll that card into view
@@ -127,26 +79,9 @@ export default function PricingClient({ catalog }: { catalog: CatalogItem[] }) {
       .catch(() => setIsLoggedIn(false));
   }, []);
 
-  const proceedToCheckout = async (tier: string) => {
-    setLoading(tier);
-    try {
-      const res = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tier }),
-      });
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        alert(data.error || 'Something went wrong');
-      }
-    } catch {
-      alert('Failed to start checkout');
-    } finally {
-      setLoading(null);
-    }
-  };
+  // PR-PRICE-2: the tier subscription checkout (proceedToCheckout →
+  // /api/stripe/checkout) left this page with the tier cards. The route +
+  // webhook stay (existing subscribers), reachable via "Manage" below.
 
   // PRICING-PAGE-SELL: the entitlement buy-flow — the SAME request Travel's
   // LockedCategoryCard makes. Only ever called for catalog items the server
@@ -181,32 +116,9 @@ export default function PricingClient({ catalog }: { catalog: CatalogItem[] }) {
     proceedToTabCheckout(key);
   };
 
-  const handleUpgrade = async (tier: string) => {
-    if (tier === 'free') {
-      if (isLoggedIn) {
-        router.push('/hub');
-      } else {
-        setShowLogin(true);
-      }
-      return;
-    }
-
-    if (!isLoggedIn) {
-      setPendingTier(tier);
-      setShowLogin(true);
-      return;
-    }
-
-    proceedToCheckout(tier);
-  };
-
   const handleLoginSuccess = () => {
     setShowLogin(false);
     setIsLoggedIn(true);
-    if (pendingTier) {
-      proceedToCheckout(pendingTier);
-      setPendingTier(null);
-    }
     if (pendingTabKey) {
       proceedToTabCheckout(pendingTabKey);
       setPendingTabKey(null);
@@ -235,6 +147,31 @@ export default function PricingClient({ catalog }: { catalog: CatalogItem[] }) {
   const bundle = catalog.find((c) => c.key === 'bundle:all');
   const tabs = catalog.filter((c) => c.key !== 'bundle:all');
 
+  // PR-PRICE-2: THE resolution rule (pricingModel.ts) at the render site —
+  // live = config number AND Stripe env both exist; anything less is the one
+  // honest state. This deliberately supersedes the old "price shown at
+  // checkout"-with-working-button path: numbers-day requires BOTH halves.
+  const priceCell = (c: CatalogItem, buyLabel?: string) => {
+    const live = c.monthlyPrice !== null && c.available;
+    if (!live) return <span className="italic text-text-muted">Pricing coming</span>;
+    return (
+      <div className="flex flex-col items-start gap-2">
+        <span className="font-mono text-sm font-bold text-brand-purple">
+          ${c.monthlyPrice}
+          <span className="text-xs font-normal text-text-muted">/mo</span>
+        </span>
+        <button
+          onClick={() => handleBuyTab(c.key)}
+          disabled={loading !== null}
+          className="px-4 py-2 text-xs font-medium bg-brand-purple text-white hover:bg-brand-purple/90 disabled:opacity-60"
+        >
+          {loading === c.key ? 'Starting checkout…' : (buyLabel ?? `Unlock ${c.label}`)}
+        </button>
+        <span className="text-[10px] text-text-muted">Billed monthly · cancel anytime</span>
+      </div>
+    );
+  };
+
   return (
     <AppLayout>
       <div className="mb-8">
@@ -258,141 +195,71 @@ export default function PricingClient({ catalog }: { catalog: CatalogItem[] }) {
         </div>
       )}
 
-      {/* MODULES — the per-tab sell */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        {tabs.map((c) => (
-          <div key={c.key} id={moduleCardId(c.key)} className={`p-6 border relative ${highlightKeys.has(c.key) ? 'border-brand-purple ring-2 ring-brand-purple/40' : 'border-border'}`}>
-            <div className="text-xs font-medium text-text-primary mb-1">{c.label}</div>
-            <div className="text-sm font-bold font-mono text-brand-purple mb-1">
-              {c.monthlyPrice !== null ? (
-                <>
-                  ${c.monthlyPrice}
-                  <span className="text-sm font-normal text-text-muted">/mo</span>
-                </>
-              ) : (
-                <span className="text-xs font-normal italic text-text-faint" title="Display price not entered yet — Stripe shows the real price at checkout">
-                  price shown at checkout
-                </span>
-              )}
-            </div>
-            <div className="text-[10px] text-text-muted mb-4">Billed monthly · cancel anytime</div>
-            <p className="text-xs text-text-secondary mb-6">Unlocks {c.unlocks}.</p>
-            {c.available ? (
-              <button
-                onClick={() => handleBuyTab(c.key)}
-                disabled={loading !== null}
-                className="w-full px-4 py-2 text-xs font-medium bg-brand-purple text-white hover:bg-brand-purple/90 disabled:opacity-60"
+      {/* THE TABLE (PR-PRICE-2) — one pricing model, drop-in ready. Rows =
+          modules (+ the bundle closer); columns = Free today / Per module /
+          Bundle. priceCell enforces the pricingModel.ts resolution rule:
+          "$X/mo" + a WORKING Unlock button ONLY when config number AND Stripe
+          env both exist; otherwise "Pricing coming" — never a number without
+          a checkout, never a button that would 400. */}
+      <div className="mb-10 overflow-x-auto">
+        <table className="w-full min-w-[680px] border border-border text-xs">
+          <thead>
+            <tr className="border-b border-border bg-bg-row">
+              <th className="px-4 py-3 text-left font-medium text-text-primary">Module</th>
+              <th className="px-4 py-3 text-left font-medium text-text-primary">Free today</th>
+              <th className="px-4 py-3 text-left font-medium text-text-primary">Per module</th>
+              <th className="px-4 py-3 text-left font-medium text-text-primary">Bundle</th>
+            </tr>
+          </thead>
+          <tbody>
+            {/* Travel — the one module with LIVE free value (public booking
+                rails); its premium discovery categories sell on the Travel
+                tab, not here. Not a catalog row: nothing to price. */}
+            <tr className="border-b border-border">
+              <td className="px-4 py-3 font-medium text-text-primary">Travel</td>
+              <td className="px-4 py-3 text-emerald-600">
+                Search &amp; book flights, hotels &amp; more — free, no account required
+              </td>
+              <td className="px-4 py-3 text-text-muted">
+                Premium discovery categories — sold individually on the Travel tab
+              </td>
+              <td className="px-4 py-3 text-text-secondary">Included</td>
+            </tr>
+            {tabs.map((c) => (
+              <tr
+                key={c.key}
+                id={moduleCardId(c.key)}
+                className={`border-b border-border align-top ${highlightKeys.has(c.key) ? 'ring-2 ring-inset ring-brand-purple/40' : ''}`}
               >
-                {loading === c.key ? 'Starting checkout…' : `Unlock ${c.label}`}
-              </button>
-            ) : (
-              // Honest partial-Stripe state: no configured price ID → no
-              // functional button (a click would 400 at checkout). Explicit.
-              <button
-                disabled
-                title="This module's Stripe price isn't configured yet"
-                className="w-full px-4 py-2 text-xs font-medium bg-border text-text-muted cursor-not-allowed"
+                <td className="px-4 py-3">
+                  <div className="font-medium text-text-primary">{c.label}</div>
+                  <div className="mt-1 max-w-md text-[10px] leading-relaxed text-text-muted">
+                    Unlocks {c.unlocks}.
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-text-faint">—</td>
+                <td className="px-4 py-3">{priceCell(c)}</td>
+                <td className="px-4 py-3 text-text-secondary">Included</td>
+              </tr>
+            ))}
+            {bundle && (
+              <tr
+                id={moduleCardId(bundle.key)}
+                className={`bg-bg-row/50 align-top ${highlightKeys.has(bundle.key) ? 'ring-2 ring-inset ring-brand-purple/40' : ''}`}
               >
-                Not yet available
-              </button>
+                <td className="px-4 py-3">
+                  <div className="font-medium text-text-primary">{bundle.label}</div>
+                  <div className="mt-1 max-w-md text-[10px] leading-relaxed text-text-muted">
+                    Unlocks {bundle.unlocks}.
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-text-faint">—</td>
+                <td className="px-4 py-3 text-text-faint">—</td>
+                <td className="px-4 py-3">{priceCell(bundle, 'Unlock everything')}</td>
+              </tr>
             )}
-          </div>
-        ))}
-      </div>
-
-      {/* THE BUNDLE */}
-      {bundle && (
-        <div id={moduleCardId(bundle.key)} className={`p-6 border-2 border-brand-purple mb-10 flex flex-col sm:flex-row sm:items-center gap-4 ${highlightKeys.has(bundle.key) ? 'ring-2 ring-brand-purple/40' : ''}`}>
-          <div className="flex-1">
-            <div className="text-xs font-medium text-text-primary mb-1">{bundle.label}</div>
-            <p className="text-xs text-text-secondary">Unlocks {bundle.unlocks}.</p>
-          </div>
-          <div className="text-sm font-bold font-mono text-brand-purple">
-            {bundle.monthlyPrice !== null ? (
-              <>${bundle.monthlyPrice}<span className="text-sm font-normal text-text-muted">/mo</span></>
-            ) : (
-              <span className="text-xs font-normal italic text-text-faint">price shown at checkout</span>
-            )}
-          </div>
-          {bundle.available ? (
-            <button
-              onClick={() => handleBuyTab(bundle.key)}
-              disabled={loading !== null}
-              className="px-6 py-2 text-xs font-medium bg-brand-purple text-white hover:bg-brand-purple/90 disabled:opacity-60"
-            >
-              {loading === bundle.key ? 'Starting checkout…' : 'Unlock everything'}
-            </button>
-          ) : (
-            <button disabled title="The bundle's Stripe price isn't configured yet"
-              className="px-6 py-2 text-xs font-medium bg-border text-text-muted cursor-not-allowed">
-              Not yet available
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* LEGACY TIERS — the features tiers still gate (TRUTH-LABELS bullets) */}
-      <div className="mb-8">
-        <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Plans</div>
-        <h2 className="text-sm font-light text-text-primary">Lifestyle features — free to start.</h2>
-        <p className="mt-2 text-xs text-text-muted max-w-2xl">
-          These plans cover the lifestyle AI and travel-discovery features (not the modules above).
-        </p>
-      </div>
-
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-        {TIERS.map((t) => (
-          <div
-            key={t.tier}
-            className={`p-6 relative ${
-              t.highlight
-                ? 'border-2 border-brand-purple'
-                : 'border border-border'
-            }`}
-          >
-            {t.highlight && (
-              <div className="absolute -top-2.5 left-4 bg-brand-purple text-white text-[9px] px-2 py-0.5 uppercase tracking-wider">
-                Popular
-              </div>
-            )}
-            {t.tier !== 'free' && (
-              <div className="absolute -top-2.5 left-4 bg-emerald-500 text-white text-[9px] px-2 py-0.5 uppercase tracking-wider">
-                Coming Soon
-              </div>
-            )}
-            <div className="text-xs font-medium text-text-primary mb-1">{t.name}</div>
-            <div className="text-sm font-bold font-mono text-brand-purple mb-1">
-              {t.price}
-              {t.period !== 'forever' && (
-                <span className="text-sm font-normal text-text-muted">{t.period}</span>
-              )}
-            </div>
-            <div className="text-[10px] text-text-muted mb-4">
-              {t.period === 'forever' ? 'Forever' : 'Billed monthly'}
-            </div>
-
-            <div className="space-y-2 text-xs text-text-secondary mb-6">
-              {t.features.map((f, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <div className="w-1 h-1 bg-emerald-500 rounded-full flex-shrink-0"></div>
-                  <span>{f}</span>
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={() => t.tier === 'free' && handleUpgrade(t.tier)}
-              disabled={loading !== null || t.tier !== 'free'}
-              className={`w-full px-4 py-2 text-xs font-medium ${
-                t.tier !== 'free'
-                  ? 'bg-border text-text-muted cursor-not-allowed'
-                  : 'border border-border text-text-secondary hover:bg-bg-row'
-              }`}
-            >
-              {loading === t.tier ? 'Loading...' : t.cta}
-            </button>
-          </div>
-        ))}
+          </tbody>
+        </table>
       </div>
 
       <div className="text-center">
@@ -407,10 +274,10 @@ export default function PricingClient({ catalog }: { catalog: CatalogItem[] }) {
       {/* Login Modal */}
       {showLogin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setShowLogin(false); setPendingTier(null); setPendingTabKey(null); }} />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setShowLogin(false); setPendingTabKey(null); }} />
           <div className="relative z-10">
             <LoginBox
-              onClose={() => { setShowLogin(false); setPendingTier(null); setPendingTabKey(null); }}
+              onClose={() => { setShowLogin(false); setPendingTabKey(null); }}
               onSuccess={handleLoginSuccess}
             />
           </div>

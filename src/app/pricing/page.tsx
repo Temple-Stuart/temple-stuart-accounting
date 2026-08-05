@@ -1,6 +1,10 @@
 import { Suspense } from 'react';
 import PricingClient, { type CatalogItem } from './PricingClient';
-import { TAB_PRICING } from '@/config/pricing-costs';
+// PR-PRICE-2: the catalog reads THE one pricing model directly. Availability
+// still resolves through getPriceIdFromEntitlementKey (it validates the key
+// against the purchasable vocabulary before touching env — safer than reading
+// entry.stripeEnvKey raw).
+import { PRICING_MODEL } from '@/config/pricingModel';
 import { getPriceIdFromEntitlementKey } from '@/lib/stripe';
 
 /**
@@ -15,7 +19,7 @@ import { getPriceIdFromEntitlementKey } from '@/lib/stripe';
 export const dynamic = 'force-dynamic';
 
 export default function PricingPage() {
-  const catalog: CatalogItem[] = TAB_PRICING.map((t) => ({
+  const catalog: CatalogItem[] = PRICING_MODEL.map((t) => ({
     key: t.key,
     label: t.label,
     unlocks: t.unlocks,
