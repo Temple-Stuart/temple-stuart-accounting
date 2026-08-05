@@ -33,7 +33,13 @@ export async function GET() {
       },
     });
 
+    // POLISH-4: the UI's collapse-when-empty needs to say "no bookings yet"
+    // TRUTHFULLY — one user-scoped count keeps the claim real instead of
+    // inferred from an empty proposal queue.
+    const reservationCount = await prisma.reservations.count({ where: { userId: user.id } });
+
     return NextResponse.json({
+      reservationCount,
       queue: links.map((l) => ({
         id: l.id,
         confidence: l.confidence,

@@ -202,11 +202,11 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
     });
   };
 
-  // POLISH-1 #7/#8: NOT IMPLEMENTED — the bulk COA apply was never wired to the
-  // database, so the button calling this (below, "Apply") currently does
-  // nothing. Behavior unchanged here (it was a silent no-op before); making it
-  // real — or disabling the button — is its own PR, flagged in POLISH-AUDIT-1.
-  const applyBulkCOA = () => {};
+  // POLISH-5: the bulk COA apply was never wired to the database — the button
+  // below is now DISABLED with an honest label instead of a silent no-op
+  // (disable beats hide: the adjacent Account/SubAccount selects share this
+  // toolbar row, so hiding would orphan the layout for a bigger diff).
+  // Implementing the real bulk apply is its own PR.
 
   return (
     <>
@@ -393,11 +393,13 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                       >
                         <option value="">Sub Account</option>
                       </select>
-                      <button 
-                        onClick={applyBulkCOA}
-                        className="px-4 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+                      <button
+                        type="button"
+                        disabled
+                        title="Bulk COA apply is not wired to the database yet"
+                        className="px-4 py-1 bg-green-600 text-white rounded text-sm opacity-50 cursor-not-allowed"
                       >
-                        Apply to All
+                        Bulk apply — coming soon
                       </button>
                       <button 
                         onClick={() => {

@@ -438,7 +438,7 @@ export default async function DiscoverDetailPage({
 
           {source === 'mozio' && (
             <span className="text-xs text-text-muted px-3 py-2 border border-border rounded">
-              Mozio not connected yet — coming soon.
+              Ground transport books via Viator — use the travel tab&apos;s Getting around search.
             </span>
           )}
 
