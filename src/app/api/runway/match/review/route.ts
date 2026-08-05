@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 
 // ─── POST /api/runway/match/review (PR-MATCH-2) ──────────────────────────────
 // ONE human decision per call: {linkId, action 'accept'|'reject', notes?} →
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
     // Ownership — defensive 404 on anything not owned by this user.
     const link = await prisma.transaction_reservation_links.findFirst({
       where: { id: linkId, userId: user.id },
-      select: { id: true, status: true },
+      select: { id: true, status: true, transactionId: true, reservationId: true, confidence: true },
     });
     if (!link) return NextResponse.json({ error: 'Link not found' }, { status: 404 });
     if (link.status !== 'proposed') {
@@ -62,6 +63,41 @@ export async function POST(request: NextRequest) {
       },
       select: { id: true, status: true, reviewedAt: true },
     });
+
+    // ─── Audit trail (PR-MATCH-2b) ───────────────────────────────────────────
+    // A match decision changes financial IDENTITY (which bank row a booking
+    // is), so both accept AND reject are audit-logged — the FL-5 pattern:
+    // 'system_other' (no reservation enum value; adding one is a gated
+    // migration), request_id keyed on linkId+action so a retried request
+    // cannot double-log, and a failed audit write is DECLARED (loud log) but
+    // never fails the review itself (the D5 rationale).
+    try {
+      await writeAuditLog({
+        actor: { user_id: user.id, email: userEmail, type: 'human_user' },
+        action: {
+          type: 'system_other',
+          description:
+            `match_review_${action} — transaction ${link.transactionId} ↔ reservation ${link.reservationId} ` +
+            `${action}ed (confidence ${link.confidence ?? 'n/a'}) via link ${link.id}`,
+        },
+        target: { table: 'transaction_reservation_links', id: link.id },
+        payload: {
+          metadata: {
+            action,
+            transactionId: link.transactionId,
+            reservationId: link.reservationId,
+            confidence: link.confidence,
+            reviewNotes: notes || null,
+          },
+        },
+        request_id: `match-review-${link.id}-${action}`,
+      });
+    } catch (auditErr) {
+      console.error('[Runway match review] audit log FAILED (review itself succeeded):', {
+        linkId: link.id, action,
+        error: auditErr instanceof Error ? auditErr.message : auditErr,
+      });
+    }
 
     return NextResponse.json({ link: updated });
   } catch (err) {
