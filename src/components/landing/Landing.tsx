@@ -1325,6 +1325,15 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
               );
             })}
           </div>
+          {/* PR-ELEV-2d (re-issue): REQUIRED attribution — mandatory under
+              vercel.com/geist/brands while their marks render above (the ▲
+              unicode mark + the Next.js name on the infrastructure card).
+              Exact required wording, verbatim; the house trace-line idiom
+              (DATA.traceLine — font-mono text-[10px] text-white/40). */}
+          <p className="mt-3 max-w-3xl font-mono text-[10px] leading-relaxed text-white/40">
+            Vercel, the Vercel design, Next.js and related marks, designs and logos are trademarks
+            or registered trademarks of Vercel, Inc. or its affiliates in the US and other countries.
+          </p>
         </div>
       </section>
 
