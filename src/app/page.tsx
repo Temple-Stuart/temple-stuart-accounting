@@ -26,10 +26,10 @@ import GuestLanding from '@/components/landing/GuestLanding';
  * never a cockpit shell.
  *
  * Guest renders make ZERO paid/authed external calls: the availability map
- * reads STRIPE_*_PRICE_ID env presence only (getPriceIdFromEntitlementKey —
- * the /pricing/page.tsx:15-24 pattern; price-ID values never reach the
- * client). cookies() makes this route request-dynamic by nature; force-dynamic
- * states it explicitly, mirroring /pricing.
+ * reads STRIPE_*_PRICE_ID env presence only (getPriceIdFromEntitlementKey;
+ * price-ID values never reach the client). cookies() makes this route
+ * request-dynamic by nature; force-dynamic states it explicitly. (PR-PRICE-3:
+ * this page IS the pricing surface now — /pricing redirects to /#modules.)
  */
 
 export const dynamic = 'force-dynamic';

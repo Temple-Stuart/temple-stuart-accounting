@@ -1,15 +1,15 @@
 // ─── THE pricing model (PR-PRICE-2) — one source of truth, drop-in ready ─────
-// Every pricing surface derives from this file: /pricing's table consumes it
-// directly (via page.tsx's server availability check) and the landing deck's
-// TAB_PRICING is a mapped view of it (pricing-costs.ts) — ONE model, no
-// parallel vocabularies (the Pro/Pro+ tier cards died with this PR; tiers.ts
-// is LEGACY gate vocabulary only).
+// Every pricing surface derives from this file: the landing deck (THE pricing
+// surface since PR-PRICE-3 — /pricing is a permanent redirect to /#modules)
+// consumes it through TAB_PRICING, a mapped view of it (pricing-costs.ts) —
+// ONE model, no parallel vocabularies (the Pro/Pro+ tier cards died with
+// PR-PRICE-2; tiers.ts is LEGACY gate vocabulary only).
 //
 // RESOLUTION RULE (the skeleton's law, enforced at the render sites):
 //   a price renders ONLY when BOTH are true —
 //     1. `monthlyPrice` is set here (Alex's display number), AND
 //     2. the module's `stripeEnvKey` env var holds a real Stripe price ID
-//        (checked server-side, pricing/page.tsx — the value never reaches
+//        (checked server-side, app/page.tsx:83-85 — the value never reaches
 //        the client).
 //   Anything less renders the ONE honest state: "Pricing coming". No invented
 //   numbers, no dead buy buttons, ever.

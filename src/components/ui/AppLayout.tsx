@@ -55,15 +55,12 @@ interface CookieUser {
 
 const TRAVEL_PREFIXES = ['/budgets/trips', '/trips'];
 
-// FD-4: routes that RENDER for guests despite mounting AppLayout. /pricing is
-// the landing funnel's register — every Select → and calculator Continue →
-// lands here, and PricingClient's own buy-resume flow (pendingTabKey →
-// LoginBox → resume checkout, PricingClient.tsx:170-177, :198-209) was built
-// FOR logged-out visitors; purchase auth stays at checkout (every /api/stripe/*
-// POST verifies the cookie server-side). Mirrors the middleware allowlist
-// posture — '/pricing' is already in PUBLIC_PATHS (middleware.ts:58). Every
-// other AppLayout consumer keeps the bounce.
-const GUEST_OK_PATHS = ['/pricing'];
+// FD-4: routes that RENDER for guests despite mounting AppLayout. EMPTY since
+// PR-PRICE-3: '/pricing' (the only entry) no longer mounts AppLayout — it is
+// a permanent redirect to /#modules, and the deck's buy flow (GuestLanding
+// onBuyModule) owns the guest resume PricingClient used to. The mechanism
+// stays for the next guest-renderable AppLayout consumer.
+const GUEST_OK_PATHS: string[] = [];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

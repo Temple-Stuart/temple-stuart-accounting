@@ -325,11 +325,12 @@ export const PRODUCTS: ProductEntry[] = [
   },
 ];
 
-// ═══ PRICING-PAGE-SELL: the sellable tabs + bundle, as shown on /pricing ═══
-// `monthlyPrice` is the Alex-entered DISPLAY price (what the page shows) —
+// ═══ The sellable tabs + bundle, as shown on the landing deck (PR-PRICE-3:
+// the deck is THE pricing surface; /pricing redirects to /#modules) ═══
+// `monthlyPrice` is the Alex-entered DISPLAY price (what the deck shows) —
 // null renders the explicit "price not set — shown at checkout" state, never
 // a fabricated number. What checkout CHARGES is the Stripe price behind the
-// STRIPE_*_PRICE_ID env var for the same key (server-only; the page learns
+// STRIPE_*_PRICE_ID env var for the same key (server-only; the client learns
 // only a boolean "purchasable right now" from the server component).
 export interface SellableTab {
   key: string; // must be a PURCHASABLE_ENTITLEMENT_KEYS member (stripe.ts)
@@ -342,7 +343,7 @@ export interface SellableTab {
 // PR-PRICE-2: TAB_PRICING is now a DERIVED VIEW of THE one pricing model
 // (src/config/pricingModel.ts) — same keys, labels, gate-verified unlocks
 // strings and display prices, minus the stripeEnvKey plumbing. One source;
-// the landing deck and /pricing can never drift from each other.
+// every consumer (the deck, the /modules access blocks) reads the same rows.
 export const TAB_PRICING: SellableTab[] = PRICING_MODEL.map(({ key, label, unlocks, monthlyPrice }) => ({ key, label, unlocks, monthlyPrice }));
 
 /** Vendors the audit found declared or referenced but NOT connected — zero cost, listed for completeness. */

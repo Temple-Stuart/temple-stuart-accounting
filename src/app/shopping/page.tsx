@@ -304,7 +304,7 @@ export default function ShoppingPage() {
             <div className="text-sm font-medium text-text-primary mb-2">AI Shopping Planner requires Pro+</div>
             <div className="text-xs text-text-muted mb-4">Upgrade to Pro+ ($40/mo) to unlock AI-powered planning.</div>
             <div className="flex gap-2">
-              <button onClick={() => window.location.href = "/pricing"} className="flex-1 px-4 py-2 text-xs bg-brand-purple text-white font-medium hover:bg-brand-purple-hover">View Plans</button>
+              <button onClick={() => window.location.href = "/#modules"} className="flex-1 px-4 py-2 text-xs bg-brand-purple text-white font-medium hover:bg-brand-purple-hover">View Plans</button>
               <button onClick={() => setShowUpgradeModal(false)} className="flex-1 px-4 py-2 text-xs border border-border text-text-secondary font-medium hover:bg-bg-row">Not Now</button>
             </div>
           </div>

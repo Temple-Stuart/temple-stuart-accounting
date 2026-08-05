@@ -65,6 +65,30 @@ export default function HomeClient() {
   const [userLabel, setUserLabel] = useState('');
   // EXPORT-1b: the header export chip — shared behavior with the Books-tab button.
   const { busy: exportBusy, error: exportError, run: runExport } = useExportDownload();
+  // PR-PRICE-3: "Manage subscription" relocated here from the dead /pricing
+  // page — the EXPORT-1b rationale verbatim: this header user area is the one
+  // authed surface with no entitlement in front of it (no settings/account
+  // page exists), and billing must reach EVERY subscriber regardless of which
+  // module they hold. Same portal flow PricingClient ran (POST
+  // /api/stripe/portal → Stripe's hosted portal); errors render inline like
+  // the export chip's — fail-loud, no alert().
+  const [manageBusy, setManageBusy] = useState(false);
+  const [manageError, setManageError] = useState('');
+  const openBillingPortal = async () => {
+    setManageError('');
+    setManageBusy(true);
+    try {
+      const res = await fetch('/api/stripe/portal', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.url) {
+        throw new Error(data.error || 'Could not open the billing portal');
+      }
+      window.location.href = data.url;
+    } catch (err) {
+      setManageError(err instanceof Error ? err.message : 'Could not open the billing portal');
+      setManageBusy(false);
+    }
+  };
   useEffect(() => {
     let cancelled = false;
     fetch('/api/auth/me')
@@ -152,6 +176,21 @@ export default function HomeClient() {
                     className="text-xs text-white/60 hover:text-white disabled:opacity-60"
                   >
                     {exportBusy ? 'Preparing export…' : 'Export my data'}
+                  </button>
+                  {/* PR-PRICE-3: the relocated /pricing "Manage existing
+                      subscription" — same link idiom as the export chip. */}
+                  {manageError && (
+                    <span role="alert" title={manageError} className="max-w-[14rem] truncate text-xs text-rose-400">
+                      {manageError}
+                    </span>
+                  )}
+                  <button
+                    onClick={openBillingPortal}
+                    disabled={manageBusy}
+                    title="Open the Stripe billing portal — view, update, or cancel your subscriptions."
+                    className="text-xs text-white/60 hover:text-white disabled:opacity-60"
+                  >
+                    {manageBusy ? 'Opening portal…' : 'Manage subscription'}
                   </button>
                   {userLabel && (
                     <span className="text-xs text-white/60 hidden sm:block">{userLabel}</span>
