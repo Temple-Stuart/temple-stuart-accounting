@@ -15,17 +15,31 @@ export interface PillarDef {
   tab: string;
   /** TAB_PRICING entitlement key — the four paid pillars only. */
   entitlementKey?: string;
+  /** PR-DECK-CLEAN-1: the pillar-specific access sentence EVICTED from the
+   *  landing deck's cards (the old PAID_* labels, minus the "A paid module —"
+   *  lead the module page's paid block already states) — rendered there so
+   *  the claim is preserved, not deleted. Claims stay the FD-1o
+   *  gate-verified ones: Runway = /api/runway:38 DB-only ledger read;
+   *  Routines = enrich-routine/route.ts:42 requireTier('ai'); Projects =
+   *  requirePipeBudget, default cap 20 (pipeBudget.ts:15); Content =
+   *  generate-script/route.ts:53 requireTier('ai'). Travel's equivalent
+   *  already lives in ModulePageClient's travel branch. */
+  accessNote?: string;
 }
 
 // The nine pillars — ids are the /modules/<id> route segments (funnel order).
 export const PILLARS: PillarDef[] = [
   { id: 'travel', label: 'Travel', tab: 'travel' },
-  { id: 'runway', label: 'Runway', tab: 'calendar' },
+  { id: 'runway', label: 'Runway', tab: 'calendar',
+    accessNote: 'Its numbers come from your ledger, so it’s most useful with Books.' },
   { id: 'books', label: 'Books', tab: 'books', entitlementKey: 'tab:books' },
   { id: 'trade', label: 'Trade', tab: 'trade', entitlementKey: 'tab:trade' },
   { id: 'tax', label: 'Tax', tab: 'tax', entitlementKey: 'tab:tax' },
   { id: 'compliance', label: 'Compliance', tab: 'compliance', entitlementKey: 'tab:compliance' },
-  { id: 'routines', label: 'Routines', tab: 'routines' },
-  { id: 'projects', label: 'Projects', tab: 'projects' },
-  { id: 'content', label: 'Content', tab: 'content' },
+  { id: 'routines', label: 'Routines', tab: 'routines',
+    accessNote: 'Build & run routines. AI scene enrichment is a paid feature.' },
+  { id: 'projects', label: 'Projects', tab: 'projects',
+    accessNote: 'Includes the AI planning pipeline, capped at 20 runs/day.' },
+  { id: 'content', label: 'Content', tab: 'content',
+    accessNote: 'Day log & planning. AI script generation is a paid feature.' },
 ];

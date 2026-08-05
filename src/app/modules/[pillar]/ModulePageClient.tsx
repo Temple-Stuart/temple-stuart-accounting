@@ -189,6 +189,12 @@ export default function ModulePageClient({ pillar, availability }: {
                   {pillar.label} is a paid module. Its subscription isn&apos;t on sale yet — pricing
                   appears here when it is.
                 </p>
+                {/* PR-DECK-CLEAN-1: the pillar-specific access sentence the
+                    landing deck evicted lands here (modulePillars.ts
+                    accessNote) — preserved, not deleted. */}
+                {pillar.accessNote && (
+                  <p className="mt-1 text-xs leading-relaxed text-white/60">{pillar.accessNote}</p>
+                )}
               </div>
               <Link
                 href="/"
