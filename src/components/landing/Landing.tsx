@@ -359,7 +359,20 @@ const PERSONAS: Persona[] = [
 //               lines :246, :253, :267
 // Lines were chosen to NOT repeat the selection deck's PILLAR_CARDS bullets —
 // the two decks tell different halves of each pillar's story.
-const SUMMARY_BY_ID: Record<string, { eyebrow: string; headline: string; lines: string[] }> = {
+// PR-ELEV-2c: entries MAY carry an optional demoImage — a real product
+// screenshot rendered as a framed panel on the slide. Asset convention (the
+// follow-up drop is copy-paste): file lands at public/demo/<pillar-id>.png,
+// entry gains one line:
+//   demoImage: { src: '/demo/<pillar-id>.png', alt: '<what the screenshot shows>' },
+// ZERO images are wired this PR (Alex captures the screenshots — his call
+// which); absence renders today's exact layout — no placeholders, no empty
+// frames.
+const SUMMARY_BY_ID: Record<string, {
+  eyebrow: string;
+  headline: string;
+  lines: string[];
+  demoImage?: { src: string; alt: string };
+}> = {
   travel: {
     eyebrow: 'Travel — the real product, no account required',
     headline: 'Search it. Price it. Book it. No account required to look.',
@@ -558,6 +571,19 @@ interface Props {
 // on token vars (no hex).
 const HERO_BG =
   'radial-gradient(ellipse 80% 90% at 85% 10%, rgb(var(--ts-purple) / 0.65), transparent 60%), radial-gradient(ellipse 60% 70% at 100% 80%, rgb(var(--ts-purple-deep) / 0.5), transparent 55%), var(--ts-panel)';
+
+// PR-ELEV-2c: the CARD variant of the glow. HERO_BG's ellipses are positioned
+// for the WIDE hero — on a small card the glow collapses into one corner and
+// the surface reads near-black (Alex, live screenshots). Same hue family
+// (--ts-purple/--ts-purple-deep/--ts-panel — existing tokens only), wider
+// ellipses + stronger stops so the glow reaches the card's center:
+//   purple:      80%×90% @ 0.65 / fade 60%  →  120%×120% @ 0.85 / fade 70%
+//   purple-deep: 60%×70% @ 0.50 / fade 55%  →   90%×90%  @ 0.70 / fade 65%
+// Applied to the wall cards + BOTH deck slide surfaces; the hero keeps
+// HERO_BG untouched (the smaller-blast-radius option — the hero was tuned for
+// its own scale and drew no complaint).
+const CARD_BG =
+  'radial-gradient(ellipse 120% 120% at 80% 0%, rgb(var(--ts-purple) / 0.85), transparent 70%), radial-gradient(ellipse 90% 90% at 10% 100%, rgb(var(--ts-purple-deep) / 0.7), transparent 65%), var(--ts-panel)';
 
 export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvailability }: Props) {
   const pricingByKey = new Map(TAB_PRICING.map((t) => [t.key, t]));
@@ -839,7 +865,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                   className={`flex min-h-[18rem] w-[85%] shrink-0 snap-start flex-col overflow-hidden rounded-lg p-5 text-white sm:w-[60%] sm:p-6 lg:w-[38%]${
                     personaActive && !personaIds.has(p.id) ? ' opacity-70' : ''
                   }`}
-                  style={{ background: HERO_BG }}
+                  style={{ background: CARD_BG }}
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
@@ -1074,7 +1100,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 <article
                   key={p.id}
                   className="flex min-h-[22rem] w-full flex-col overflow-hidden rounded-lg p-6 text-white sm:p-8"
-                  style={{ background: HERO_BG }}
+                  style={{ background: CARD_BG }}
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
@@ -1088,6 +1114,16 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                       <li key={i} className="text-sm leading-relaxed text-white/70">{l}</li>
                     ))}
                   </ul>
+                  {/* PR-ELEV-2c: the framed screenshot panel — renders ONLY
+                      when the entry carries a real image (absence = the exact
+                      pre-2c layout; never a placeholder). Plain <img> per the
+                      house precedent (HotelGallery.tsx:38). */}
+                  {s.demoImage && (
+                    <div className="mt-4 max-w-xl overflow-hidden rounded-lg border border-white/15 bg-black/20">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={s.demoImage.src} alt={s.demoImage.alt} className="w-full" />
+                    </div>
+                  )}
                   <div className="mt-auto pt-5">
                     <Link
                       href={`/modules/${p.id}`}
@@ -1138,7 +1174,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
               <article
                 key={name}
                 className="flex flex-col justify-between overflow-hidden rounded-lg p-4 text-white"
-                style={{ background: HERO_BG }}
+                style={{ background: CARD_BG }}
               >
                 <p className="text-sm font-semibold leading-snug">{name}</p>
                 <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-white/50">{tag}</p>
