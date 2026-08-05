@@ -57,20 +57,25 @@
  * DECKS-3 (three verbatim rulings): (1) the PILLARS deck is a VERTICAL STACK
  * of full-width mini heroes — its carousel mechanics died; (2) the SELECTION
  * deck adopted the mini-hero glow-panel format but stays a horizontal snap
- * rail, each slide carrying the commerce (chip, display label, descriptor,
- * bullets, price, our-cost, ADD TO PLAN, Select/Explore); (3) NOTHING IS
+ * rail, each slide carrying the commerce (PR-DECK-CLEAN-1 re-cut the slide
+ * to the 5-part scannable card: name, one line, checkmark fragments, price
+ * slot, actions — the evicted prose lives on /modules/<id>); (3) NOTHING IS
  * FREE except the home-page travel search itself — every "Free…" access
- * label was reframed paid (claims stay gate-true; see PAID_*), all NINE
- * slides carry the checkbox, "Learn more" died, and Select's key mapping
- * comes from the REAL purchasable vocabulary (categoryKeys.ts:22-29 —
+ * label was reframed paid (claims stay gate-true; the PAID_* label prose
+ * moved to /modules/<id> via modulePillars.ts accessNote, PR-DECK-CLEAN-1),
+ * all NINE slides carry the checkbox, "Learn more" died, and Select's key
+ * mapping comes from the REAL purchasable vocabulary (categoryKeys.ts:22-29 —
  * tab:travel + tab:operations exist; runway/routines/content have NO key →
- * availability-honest "Not yet available", never an invented key).
+ * availability-honest "Launching soon", never an invented key).
  * ENFORCEMENT of the paid framing (gates for the five former-free pillars)
  * is a separate ruled decision — no gate/tier/middleware line changes here.
  */
 
 import Link from 'next/link';
 import { useRef, useState } from 'react';
+// PR-DECK-CLEAN-1: the card fragments' checkmark — lucide is the house icon
+// vocabulary (TripHeader.tsx:16 already imports Check).
+import { Check } from 'lucide-react';
 // PERSONA-1: the persona chips reuse the ToggleStrip chip idiom verbatim.
 import { toggleChip } from '@/lib/ds';
 import { TAB_PRICING } from '@/config/pricing-costs';
@@ -137,140 +142,151 @@ interface PillarCard {
   /** PURCHASABLE entitlement key when one exists in the real vocabulary
    *  (categoryKeys.ts:22-29 TAB_ENTITLEMENT_KEYS — DECKS-3 added tab:travel
    *  + tab:operations). Absent = not yet sellable (runway/routines/content):
-   *  the slide renders the availability-honest disabled Select. A key may
+   *  the slide renders the availability-honest "Launching soon". A key may
    *  exist WITHOUT a TAB_PRICING display entry — the price line then falls
    *  back to "price shown at checkout". */
   entitlementKey?: string;
-  /** The pillar's truthful access label, paid-framed (DECKS-3) — shown when
-   *  no TAB_PRICING entry carries an Unlocks line. Claims stay gate-true. */
-  accessLabel?: string;
-  /** LAND-MSG-1: ONE plain-English outcome line under the pillar name, for a
-   *  reader who's never heard of accounting. HARD RULE: every line is a
-   *  REPHRASE of an already-verified claim (deck bullets / TAB_PRICING
-   *  unlocks / FD-1h audit-cleared sentences / the HOW_IT_WORKS copy) — the
-   *  per-line source cites are in the LAND-MSG-1 report. Zero new claims. */
+  /** LAND-MSG-1: ONE plain-English outcome line under the pillar name — the
+   *  card's single subtitle (PR-DECK-CLEAN-1 structure slot 2). HARD RULE:
+   *  every line is a REPHRASE of an already-verified claim — the per-line
+   *  source cites are in the LAND-MSG-1 report. Zero new claims. */
   plain: string;
-  /** LIFTED VERBATIM from the deck's own headings — except where the provenance
-   *  block below marks a bullet as an FD-1h audit-cleared claim instead. */
+  /** PR-DECK-CLEAN-1 (Alex, vs resend/plaid/stripe pricing: "too much
+   *  text"): 3-4 CHECKMARK fragments, ≤6 words each — every fragment
+   *  COMPRESSED from a pre-existing verified string (pricingModel.ts unlocks
+   *  lines / the old deck bullets / the old PAID_* access labels; per-card
+   *  provenance below). Zero new claims. The evicted long copy is preserved
+   *  on /modules/<id> — the showcase decks already carry the old bullets and
+   *  TAB_DESCRIPTORS verbatim, and the PAID_* specifics moved to
+   *  modulePillars.ts accessNote. */
   bullets: string[];
 }
 
-// FD-1o: per-tab truth labels, each claim verified against its live gate
-// (cite table in the FD-1o report): Runway = /api/runway:38 "DB-only read";
-// Routines = enrich-routine/route.ts:42 requireTier('ai'); Projects =
-// requirePipeBudget across the pipe routes + pipeBudget.ts:15 default cap 20;
-// Content = generate-script/route.ts:53 requireTier('ai').
-// FD-1o-b: Travel re-ruled after the FD-1o STOP — every clause verified:
-// free search = the public surface (middleware.ts:81-100 — flights/hotels/
-// activities/transfers search); guest booking = flights & hotels ONLY
-// (flights/book + liteapi prebook/book are public; activities Book routes to
-// sign-up, PublicActivitySearch.tsx:92-94); paid picks =
-// places/category-search/route.ts:89-99 (401 → requireTier('placesSearch')
-// → category entitlements).
-// DECKS-3 (ruling 3): the labels reframe PAID — every capability claim above
-// stays gate-verified; only the free framing died. The ONE surviving free
-// claim is the home-page travel search itself (its routes are public —
-// middleware.ts:81-100 — and that stays true).
-const PAID_TRAVEL = 'Free search on this page — the full Travel module is paid.';
-const PAID_RUNWAY = "A paid module — its numbers come from your ledger, so it's most useful with Books.";
-const PAID_ROUTINES = 'A paid module — build & run routines. AI scene enrichment is a paid feature.';
-const PAID_PROJECTS = 'A paid module — includes the AI planning pipeline, capped at 20 runs/day.';
-const PAID_CONTENT = 'A paid module — day log & planning. AI script generation is a paid feature.';
+// PR-DECK-CLEAN-1: the PAID_* access labels left the deck. Their claims
+// survive, verified unchanged (FD-1o gate cites): Travel's framing already
+// lives on /modules/travel (ModulePageClient travel branch); the
+// Runway/Routines/Projects/Content specifics moved VERBATIM (minus the
+// duplicated "A paid module —" lead the module page already states) to
+// modulePillars.ts accessNote, rendered in each page's paid block.
 
-// Funnel order — Alex's ruling. Bullet provenance (deck lifts verbatim, except
-// the FD-1h bullets — ruled copy cleared by the NOTE-0 booking→runway audit):
-//   Travel:     TravelShowcaseSections.tsx :325 (bullet 1); bullets 2-3 are
-//               FD-1h audit-cleared claims (bookings attach to the trip —
-//               flights/book/route.ts :201; trip budget planned-vs-actual —
-//               TripBudgetActual.tsx), NOT deck lifts
-//   Runway:     RunwayShowcaseSections.tsx :588 (bullet 1); bullet 2 is an
-//               FD-1h audit-cleared claim (per-entity BURN only — runway/route.ts
-//               :146-171, RunwayBudgetPanel.tsx :128-142; cash is combined, so
-//               per-entity runway months must NOT be claimed)
-//   Books:      TabShowcases.tsx :337, :360, :395
-//   Trade:      TabShowcases.tsx :207, :220, :269
-//   Tax:        TabShowcases.tsx :454, :463, :505
-//   Compliance: ComplianceShowcaseSections.tsx :328, :352, :366
-//   Routines:   RoutinesShowcaseSections.tsx :430, :454, :461
-//   Projects:   ProjectsShowcaseSections.tsx :717
-//   Content:    ContentShowcaseSections.tsx :461, :492, :506
+// Funnel order — Alex's ruling. PR-DECK-CLEAN-1 fragment provenance — every
+// bullet is a compression of ONE pre-existing verified string, zero new
+// claims (the old FD-1o / FD-1h gate cites carry over with each source):
+//   Travel:     b1 ← "Search it. Price it. Book it. No account required to
+//               look." (TravelShowcaseSections.tsx:325; public routes,
+//               middleware-verified); b2 ← FD-1h claim "Book a flight or
+//               hotel and it's saved to your trip" (flights/book/route.ts
+//               :201); b3 ← FD-1h claim "planned vs. actual from your real
+//               ledger" (TripBudgetActual.tsx)
+//   Runway:     b1 ← RunwayShowcaseSections.tsx:345 headline fragment;
+//               b2+b3 ← FD-1h claim "Burn broken out by Personal vs.
+//               Business — strays surfaced, never dropped" (runway/route.ts
+//               :146-171); b4 ← old PAID_RUNWAY ("its numbers come from
+//               your ledger")
+//   Books:      b1-b3 ← pricingModel.ts tab:books unlocks fragments;
+//               b4 ← TabShowcases.tsx:296 verbatim
+//   Trade:      b1-b3 ← pricingModel.ts tab:trade unlocks fragments;
+//               b4 ← TabShowcases.tsx:148 ("Eighteen real controls.
+//               Sixteen strategies.")
+//   Tax:        b1-b4 ← pricingModel.ts tab:tax unlocks fragments
+//   Compliance: b1-b4 ← pricingModel.ts tab:compliance unlocks fragments
+//   Routines:   b1-b3 ← RoutinesShowcaseSections.tsx :367, :391, :398;
+//               b4 ← old PAID_ROUTINES ("AI scene enrichment is a paid
+//               feature")
+//   Projects:   b1 ← ProjectsShowcaseSections.tsx:271 ("Goals in. Audited
+//               tasks out."); b2+b3 ← old PAID_PROJECTS ("the AI planning
+//               pipeline, capped at 20 runs/day")
+//   Content:    b1 ← old PAID_CONTENT ("day log & planning");
+//               b2 ← ContentShowcaseSections.tsx:229 verbatim; b3 ← :260
+//               fragment; b4 ← old PAID_CONTENT ("AI script generation is
+//               a paid feature")
 const PILLAR_CARDS: PillarCard[] = [
   {
-    id: 'travel', label: 'Travel', tab: 'travel', entitlementKey: 'tab:travel', accessLabel: PAID_TRAVEL,
+    id: 'travel', label: 'Travel', tab: 'travel', entitlementKey: 'tab:travel',
     plain: 'Search, book, and budget your trips in one place.',
     bullets: [
-      'Search it. Price it. Book it. No account required to look.',
-      'Book a flight or hotel and it’s saved to your trip.',
-      'Budget the trip line by line — planned vs. actual from your real ledger.',
+      'Search, price, book — no account',
+      'Bookings saved to your trip',
+      'Planned vs. actual, from your ledger',
     ],
   },
   {
-    id: 'runway', label: 'Runway', tab: 'calendar', accessLabel: PAID_RUNWAY,
+    id: 'runway', label: 'Runway', tab: 'calendar',
     plain: 'See how many months your money lasts.',
     bullets: [
-      'Every system you’re juggling. One question answered: how long can you keep going?',
-      'Burn broken out by Personal vs. Business — strays surfaced, never dropped.',
+      'Every system you’re juggling',
+      'Burn: Personal vs. Business',
+      'Strays surfaced, never dropped',
+      'Numbers from your ledger',
     ],
   },
   {
     id: 'books', label: 'Books', tab: 'books', entitlementKey: 'tab:books',
     plain: 'Know where every dollar went — synced straight from your bank.',
     bullets: [
-      'Every transaction becomes a journal entry. Every period must balance.',
-      'Commit is double-entry. Unbalanced refuses to save.',
-      'Hand your CPA a package, not a shoebox.',
+      'Plaid bank sync',
+      'Double-entry journal & ledger',
+      'Reconciliation & period close',
+      'Hand your CPA a package',
     ],
   },
   {
     id: 'trade', label: 'Trade', tab: 'trade', entitlementKey: 'tab:trade',
     plain: 'Find trades worth taking — and get told when to skip.',
     bullets: [
-      'An entire index in full focus. One decision out.',
-      'Eighteen real controls. Sixteen strategies.',
-      'The brake that says no for you.',
+      'Scanner on live market data',
+      'Trade cards + reconcile queue',
+      'Trading journal & realized P&L',
+      'Eighteen controls, sixteen strategies',
     ],
   },
   {
     id: 'tax', label: 'Tax', tab: 'tax', entitlementKey: 'tab:tax',
     plain: 'Your return builds itself from your records.',
     bullets: [
-      'Your books are already clean. Your taxes are half-done before you start.',
-      'Tax begins at completed books.',
-      'The whole return, derived — not typed.',
+      '1040 estimate from closed books',
+      'Schedule C/D/SE',
+      'Wash sales + Form 8949',
+      'CPA export',
     ],
   },
   {
     id: 'compliance', label: 'Compliance', tab: 'compliance', entitlementKey: 'tab:compliance',
     plain: 'Every number keeps its receipt — proof you can show later.',
     bullets: [
-      'Don’t trust us. Verify us.',
-      'Citations that verify — and a checker that declares its limits.',
-      'Break one row, the whole chain screams.',
+      'Regulatory corpus search',
+      'Citation verification',
+      'Missions & tasks',
+      'Tamper-evident audit registry',
     ],
   },
   {
-    id: 'routines', label: 'Routines', tab: 'routines', accessLabel: PAID_ROUTINES,
+    id: 'routines', label: 'Routines', tab: 'routines',
     plain: 'Set up a habit once — it lands on your calendar and your budget.',
     bullets: [
-      'Build it once. It shows up everywhere.',
-      'A routine is executable — steps you actually run.',
-      'Every day answers: what’s due, what’s done, what slipped.',
+      'Build once, shows up everywhere',
+      'Executable steps you actually run',
+      'What’s due, done, slipped',
+      'AI scene enrichment (paid)',
     ],
   },
   {
-    id: 'projects', label: 'Projects', tab: 'projects', entitlementKey: 'tab:operations', accessLabel: PAID_PROJECTS,
+    id: 'projects', label: 'Projects', tab: 'projects', entitlementKey: 'tab:operations',
     plain: 'Type a goal — get a plan you can actually run.',
     bullets: [
-      'Goals in. Audited tasks out.',
+      'Goals in, audited tasks out',
+      'AI planning pipeline',
+      'Capped at 20 runs/day',
     ],
   },
   {
-    id: 'content', label: 'Content', tab: 'content', accessLabel: PAID_CONTENT,
+    id: 'content', label: 'Content', tab: 'content',
     plain: 'Turn what you did today into a ready-to-film script.',
     bullets: [
-      'Your day becomes the script.',
-      'Every step gets a shot, a question, a purpose.',
-      'The script only says what happened.',
+      'Day log & planning',
+      'Your day becomes the script',
+      'Every step: shot, question, purpose',
+      'AI script generation (paid)',
     ],
   },
 ];
@@ -297,8 +313,11 @@ interface Persona {
   /** PILLAR_CARDS ids, highlighted and shown first, in this order. Empty =
    *  Everyone: no reorder, no highlight, no dim — today's exact deck. */
   moduleIds: string[];
-  /** The audience value line, rendered above the LAND-MSG-1 plain line on
-   *  highlighted slides only. null for Everyone. */
+  /** The audience value line. PR-DECK-CLEAN-1: NOT rendered anymore — the
+   *  5-part scannable card structure evicted the per-slide persona line
+   *  ("NOTHING else"). The verified copy is retained here, ready if Alex
+   *  rules it back; the persona voice still reaches the page via leadIn +
+   *  the reorder/dim treatment. */
   line: string | null;
   /** PRICE-1 (PRICING-AUDIT-1 proposal c): ONE verified line under the chip
    *  row. HARD RULE: only claims that are env/gate-true TODAY — the free
@@ -763,17 +782,15 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             exist (fail-honest empty state = nothing). ─────────────────────── */}
       <GuestTripStrip onRequireAuth={onRequireAuth} />
 
-      {/* ── LOBBY-DECK-1: the nine pillars + the module sheet, consolidated
-            into ONE slide deck — nine slides in the funnel order. Each slide
-            = the pillar card's content (chip + TAB_DESCRIPTORS + verbatim
-            PILLAR_CARDS bullets) + its sheet row's truth (Unlocks/accessLabel,
-            the price line, the FD-1o cost summary) + the actions
-            (availability-honest Select → direct checkout; Explore →
-            /modules/<id>). Navigation: CSS scroll-snap (no new
-            deps), chevrons + scroll-derived dots. HERO-REPO-1: the demo
-            trigger mounts in this header. PR-PRICE-3: id="modules" — THE
-            stable anchor the /pricing permanent redirect (and any deep link)
-            targets; this deck IS the pricing surface now. ───────────────────── */}
+      {/* ── LOBBY-DECK-1 → PR-DECK-CLEAN-1: the nine pillars as SCANNABLE
+            cards, funnel order. Each slide = the 5-part structure and nothing
+            else: name · one plain line · 3-4 checkmark fragments · the price
+            slot (PRICE-1/2 states) · actions (availability-honest Select →
+            direct checkout; Explore → /modules/<id>). Navigation: CSS
+            scroll-snap (no new deps), chevrons + scroll-derived dots.
+            HERO-REPO-1: the demo trigger mounts in this header. PR-PRICE-3:
+            id="modules" — THE stable anchor the /pricing permanent redirect
+            (and any deep link) targets; this deck IS the pricing surface. ──── */}
       <section id="modules" className="w-full border-b border-panel-border bg-panel">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
           <div className="flex items-center justify-between">
@@ -862,61 +879,49 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
               const available = p.entitlementKey ? entitlementAvailability[p.entitlementKey] === true : false;
               return (
                 // DECKS-3 (ruling 2): the selection slide is a wide GLOW HERO
-                // (the DECK-2 panel language — HERO_BG reused verbatim) that
-                // carries the commerce. The FD-1i purple/green accent split
-                // died with "free" itself. Chip = the hero eyebrow idiom
-                // ('Module', a chrome label); the pillar label is the display
-                // headline. ALL NINE slides get ADD TO PLAN (ruling 3);
-                // actions are Select → onBuyModule(key) — the direct
-                // checkout-entitlement path, PR-PRICE-3 (availability-honest:
-                // hidden when no key or no Stripe price) + the Explore
-                // secondary. "Learn more" is gone.
+                // (CARD_BG) that carries the commerce. PR-DECK-CLEAN-1 (Alex,
+                // from live comparison vs resend/plaid/stripe pricing: "too
+                // much text — even I'm confused"): the card is the 5-part
+                // scannable structure and NOTHING else — name, the one plain
+                // line, 3-4 checkmark fragments, the price slot (PRICE-1/2
+                // states, logic untouched), the actions. Evicted — preserved
+                // on /modules/<id> (showcase decks + TAB_DESCRIPTORS render
+                // there; PAID_* specifics = modulePillars.ts accessNote): the
+                // descriptor paragraph, the multi-sentence bullet blocks, the
+                // "Unlocks …"/access-label prose, the per-slide persona value
+                // line, and the "Module" eyebrow chip. min-h-[18rem] died —
+                // card height is content now.
                 <article
                   key={p.id}
                   // PERSONA-1: a non-highlighted slide under an active persona
                   // dims one ladder step — never hides. Everyone appends the
                   // empty string: the class stays byte-identical to pre-PR.
-                  className={`flex min-h-[18rem] w-[85%] shrink-0 snap-start flex-col overflow-hidden rounded-lg p-5 text-white sm:w-[60%] sm:p-6 lg:w-[38%]${
+                  className={`flex w-[85%] shrink-0 snap-start flex-col overflow-hidden rounded-lg p-5 text-white sm:w-[60%] sm:p-6 lg:w-[38%]${
                     personaActive && !personaIds.has(p.id) ? ' opacity-70' : ''
                   }`}
                   style={{ background: CARD_BG }}
                 >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
-                      Module
-                    </span>
-                  </div>
-                  <h3 className="mt-4 text-xl font-light tracking-tight sm:text-2xl">{p.label}</h3>
-                  {/* PERSONA-1: the audience value line — highlighted slides
-                      only, above the LAND-MSG-1 plain line. Full white: one
-                      ladder step above the plain line, so the persona's hook
-                      leads. Everyone renders nothing here. */}
-                  {personaActive && personaIds.has(p.id) && persona.line && (
-                    <p className="mt-1.5 text-sm font-medium text-white">{persona.line}</p>
-                  )}
-                  {/* LAND-MSG-1: the plain-English outcome line — the novice's
-                      on-ramp; the technical descriptor + bullets follow. */}
+                  <h3 className="text-xl font-light tracking-tight sm:text-2xl">{p.label}</h3>
+                  {/* LAND-MSG-1: the plain-English outcome line — the card's
+                      ONE subtitle (structure slot 2). */}
                   <p className="mt-1 text-sm font-medium text-white/90">{p.plain}</p>
-                  <p className="mt-3 max-w-xl text-xs leading-relaxed text-white/65">{TAB_DESCRIPTORS[p.tab]}</p>
-                  <ul className="mt-3 max-w-xl space-y-1">
+                  {/* Slot 3: the checkmark fragments — lucide Check, the house
+                      icon vocabulary (TripHeader.tsx:16 precedent). */}
+                  <ul className="mt-3 max-w-xl space-y-1.5">
                     {p.bullets.map((b, i) => (
-                      <li key={i} className={`text-xs leading-relaxed ${i === 0 ? 'font-medium text-white' : 'text-white/70'}`}>
+                      <li key={i} className="flex items-start gap-2 text-xs leading-relaxed text-white/80">
+                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/60" strokeWidth={2.5} aria-hidden="true" />
                         {b}
                       </li>
                     ))}
                   </ul>
 
-                  {/* PRICE-1 (PRICING-AUDIT-1 proposal a): ONE honest state per
-                      slide. available → real price (or "price shown at
-                      checkout" — TRUE there: the checkout exists) + Select;
-                      !available → "Launching soon", NO checkbox, NO dead
-                      button (the old "price shown at checkout" + disabled
-                      "Not yet available" contradiction is gone). Travel
-                      carries the one claim that is live today: free search +
-                      booking, no account (public routes, middleware-verified).
-                      The "our cost:" FD-1o line moved OFF the deck — the full
-                      receipt ledger lives at /how-pricing-works (the
-                      transparency door below). */}
+                  {/* Slot 4 — PRICE-1/2's states, LOGIC UNTOUCHED: green
+                      free-travel line on Travel; real price when config +
+                      Stripe env exist; "price shown at checkout" when only
+                      the env exists; "Launching soon" otherwise. The prose
+                      line that sat under it ("Unlocks …"/access label) was
+                      evicted — the fragments above carry those claims. */}
                   <div className="mt-4 max-w-xl border-t border-white/20 pt-3">
                     <p className="font-mono text-sm font-bold text-white">
                       {p.id === 'travel' ? (
@@ -932,9 +937,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                       ) : (
                         <span className="text-xs font-normal text-white/60">Launching soon</span>
                       )}
-                    </p>
-                    <p className="mt-1 text-xs leading-relaxed text-white/60">
-                      {pricing ? <>Unlocks {pricing.unlocks}.</> : p.accessLabel}
                     </p>
                   </div>
 
@@ -1054,7 +1056,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
                   {bundle.label}
                 </span>
-                <p className="mt-2 text-xs leading-relaxed text-white/60">Unlocks {bundle.unlocks}.</p>
+                {/* PR-DECK-CLEAN-1 (bundle = same treatment: name, ONE line,
+                    price slot): compressed from the pricingModel bundle:all
+                    unlocks string — the full sentence stays the checkout
+                    truth ("resolved at read time — one purchase unlocks all
+                    tabs"). */}
+                <p className="mt-2 text-xs leading-relaxed text-white/60">Every module above — one subscription.</p>
               </div>
               {/* PRICE-1: the bundle row follows the slide rule — ONE honest
                   state. Purchasable → price/italic + Select; not → "Launching
