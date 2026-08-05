@@ -851,10 +851,8 @@ export function TripApiSection({ catKey, title }: { catKey: string; title?: stri
   // zero-spend skip in autoScanCategoriesFor means a locked cat never fired a Google scan.
   const locked = isCategoryLocked(catKey, entitledCategories, currentUserId);
   if (locked) {
-    // Placeholder unlock handler — Stripe checkout is PR-D. For now: no-op + log.
-    const onRequestUnlock = (key: string) => {
-      console.log('[entitlements] unlock requested for', key);
-    };
+    // Placeholder unlock handler — Stripe checkout is PR-D. For now: no-op.
+    const onRequestUnlock = (_key: string) => {};
     return (
       <SectionCard title={title ?? label}>
         <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-border bg-bg-row p-8 text-center">

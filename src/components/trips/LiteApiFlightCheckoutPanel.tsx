@@ -294,12 +294,12 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
       {phase === 'form' || phase === 'prebooking' ? (
         <form onSubmit={submitPrebook} className="space-y-3">
           <p className="text-xs text-white/50">Contact</p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <label className="space-y-1"><span className={LABEL}>First name</span>
               <input id="flck-co-first" className={fieldClass('flck-co-first')} value={firstName} onChange={(e) => setFirstName(e.target.value)} /></label>
             <label className="space-y-1"><span className={LABEL}>Last name</span>
               <input id="flck-co-last" className={fieldClass('flck-co-last')} value={lastName} onChange={(e) => setLastName(e.target.value)} /></label>
-            <label className="col-span-2 space-y-1"><span className={LABEL}>Email</span>
+            <label className="space-y-1 sm:col-span-2"><span className={LABEL}>Email</span>
               <input id="flck-co-email" className={fieldClass('flck-co-email')} type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
             <label className="space-y-1"><span className={LABEL}>Country code (no +)</span>
               <input id="flck-co-cc" className={fieldClass('flck-co-cc')} inputMode="numeric" placeholder="1" value={phoneCC} onChange={(e) => setPhoneCC(e.target.value)} /></label>
@@ -312,7 +312,7 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
           <p className="text-[11px] text-white/50">
             Use a real name — the provider&apos;s fraud filter rejects placeholder names like &ldquo;Test&rdquo;.
           </p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <label className="space-y-1"><span className={LABEL}>Type</span>
               <select id="flck-px-type" className={fieldClass('flck-px-type')} value={paxType} onChange={(e) => setPaxType(Number(e.target.value) as 0 | 1 | 2)}>
                 <option value={0}>Adult</option>
@@ -335,7 +335,7 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
               <input id="flck-px-nationality" className={fieldClass('flck-px-nationality')} placeholder="US" maxLength={2} value={nationality} onChange={(e) => setNationality(e.target.value)} /></label>
           </div>
           <p className="text-xs text-white/50">Travel document</p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <label className="space-y-1"><span className={LABEL}>Type</span>
               <input id="flck-doc-type" className={fieldClass('flck-doc-type')} value={docType} onChange={(e) => setDocType(e.target.value)} /></label>
             <label className="space-y-1"><span className={LABEL}>Number</span>

@@ -450,11 +450,14 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
                         <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-medium text-white/60">Booked · not bank-confirmed yet</span>
                       )}
                     </td>
-                    <td className={`${td} text-right font-mono text-white`}>
-                      {b.currency} {(b.finalPriceCents / 100).toFixed(2)}
+                    {/* POLISH-1 #6: house money idiom (formatMoney/moneyColorClass —
+                        expenses red + negative-signed, matching the planned table).
+                        Non-USD keeps its ISO code prefix — never relabeled as $. */}
+                    <td className={`${td} text-right font-mono font-bold ${moneyColorClass(b.finalPriceCents / 100, 'expense')}`}>
+                      {b.currency !== 'USD' ? `${b.currency} ` : ''}{formatMoney(b.finalPriceCents / 100, { kind: 'expense' })}
                     </td>
-                    <td className={`${td} text-right font-mono font-bold ${b.actual ? 'text-white' : 'text-white/40'}`}>
-                      {b.actual ? `$${(b.actual.totalCents / 100).toFixed(2)}` : DASH}
+                    <td className={`${td} text-right font-mono font-bold ${b.actual ? moneyColorClass(b.actual.totalCents / 100, 'expense') : 'text-white/40'}`}>
+                      {b.actual ? formatMoney(b.actual.totalCents / 100, { kind: 'expense' }) : DASH}
                     </td>
                   </tr>
                 ))}

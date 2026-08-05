@@ -4628,7 +4628,6 @@ export default function ConvergenceIntelligence({
       full_card_json: card ?? null,
     };
 
-    console.log('[TradeCard] Saving:', cardKey, body);
 
     try {
       const res = await fetch('/api/trade-cards', {
@@ -4637,7 +4636,6 @@ export default function ConvergenceIntelligence({
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      console.log('[TradeCard] Response:', res.status, data);
       if (res.ok) {
         setSavedCards(prev => {
           const next = new Map(prev);
@@ -4658,7 +4656,6 @@ export default function ConvergenceIntelligence({
 
   // Remove a card from queue
   const removeCard = useCallback(async (cardKey: string, savedId: string) => {
-    console.log('[TradeCard] Removing:', cardKey, savedId);
     try {
       const res = await fetch('/api/trade-cards', {
         method: 'DELETE',
@@ -4666,7 +4663,6 @@ export default function ConvergenceIntelligence({
         body: JSON.stringify({ id: savedId }),
       });
       const data = await res.json();
-      console.log('[TradeCard] Remove response:', res.status, data);
       if (res.ok) {
         setSavedCards(prev => {
           const next = new Map(prev);

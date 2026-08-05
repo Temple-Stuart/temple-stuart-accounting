@@ -69,9 +69,9 @@ export default function LandingBookingSection({ onRequireAuth }: { onRequireAuth
           <p className="font-mono text-[11px] leading-relaxed text-white/70">
             This part is free for everyone — no account needed. That&apos;s why it lives
             here on the front page instead of behind a login. Search flights, hotels
-            &amp; more, book flights &amp; hotels right here, and your bookings show up
-            below as your trip. A free account just adds saving, budgeting, and runway
-            on top.
+            &amp; more, book flights &amp; hotels right here, and book tours &amp;
+            transfers on Viator — your bookings show up below as your trip. A free
+            account just adds saving, budgeting, and runway on top.
           </p>
         </div>
       }

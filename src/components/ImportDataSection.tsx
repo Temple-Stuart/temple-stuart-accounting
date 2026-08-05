@@ -202,12 +202,11 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
     });
   };
 
-  // NEW: Apply COA to filtered transactions
-  const applyBulkCOA = () => {
-    const filtered = getFilteredTransactions();
-    console.log(`Applying Account: ${selectedAccount}, SubAccount: ${selectedSubAccount} to ${filtered.length} transactions`);
-    // TODO: Update transactions in database
-  };
+  // POLISH-1 #7/#8: NOT IMPLEMENTED — the bulk COA apply was never wired to the
+  // database, so the button calling this (below, "Apply") currently does
+  // nothing. Behavior unchanged here (it was a silent no-op before); making it
+  // real — or disabling the button — is its own PR, flagged in POLISH-AUDIT-1.
+  const applyBulkCOA = () => {};
 
   return (
     <>
