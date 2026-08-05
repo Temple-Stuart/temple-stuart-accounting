@@ -34,8 +34,10 @@ import { useState } from 'react';
 import Landing from './Landing';
 import LoginBox from '@/components/LoginBox';
 
-export default function GuestLanding({ entitlementAvailability }: {
+export default function GuestLanding({ entitlementAvailability, logoAvailability }: {
   entitlementAvailability: Record<string, boolean>;
+  /** PR-ELEV-2d: server-computed public/logos/<slug>.svg presence map. */
+  logoAvailability: Record<string, boolean>;
 }) {
   const [showLogin, setShowLogin] = useState(false);
   const [loginMode, setLoginMode] = useState<'login' | 'register'>('register');
@@ -78,6 +80,7 @@ export default function GuestLanding({ entitlementAvailability }: {
     <>
       <Landing
         entitlementAvailability={entitlementAvailability}
+        logoAvailability={logoAvailability}
         onRequireAuth={() => { setLoginMode('register'); setShowLogin(true); }}
         onRequireLogin={() => { setLoginMode('login'); setShowLogin(true); }}
         onBuyModule={onBuyModule}
