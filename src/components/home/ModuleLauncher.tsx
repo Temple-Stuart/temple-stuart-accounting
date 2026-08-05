@@ -16,13 +16,8 @@ import HubCalendar from '@/components/hub/HubCalendar';
 import RunwayDataProvider from '@/components/hub/RunwayDataProvider';
 import RunwayBudgetPanel from '@/components/hub/RunwayBudgetPanel';
 import MatchReviewSection from '@/components/hub/MatchReviewSection';
-import PublicFlightSearch from '@/components/trips/PublicFlightSearch';
-import PublicHotelSearch from '@/components/trips/PublicHotelSearch';
-import PublicActivitySearch from '@/components/trips/PublicActivitySearch';
+import { travelStripModes } from '@/components/trips/travelStripModes';
 import PublicCategorySearch from '@/components/trips/PublicCategorySearch';
-import PublicTransferSearch from '@/components/trips/PublicTransferSearch';
-import PublicVisaCheck from '@/components/trips/PublicVisaCheck';
-import TravelTilesRow from '@/components/home/TravelTilesRow';
 import { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS } from '@/components/trips/travelSection';
 import { HOMEPAGE_PAID_CATEGORIES } from '@/lib/categoryKeys';
 // DS-1: the travel tab is rebuilt from the design system — the SAME ToggleStrip
@@ -787,39 +782,20 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 from the old stacked layout — composition-only, zero logic change. */}
             <ToggleStrip
               modes={([
-                { key: 'flights', label: 'Flights', panel: (
-                  <PublicFlightSearch
-                    onRequireAuth={onRequireAuth}
-                    authed={authed}
-                    currentTrip={currentTrip}
-                    onCommitted={() => setTripsRefresh((n) => n + 1)}
-                  />
-                ) },
-                { key: 'hotels', label: 'Hotels', panel: (
-                  <PublicHotelSearch
-                    onRequireAuth={onRequireAuth}
-                    authed={authed}
-                    currentTrip={currentTrip}
-                    onCommitted={() => setTripsRefresh((n) => n + 1)}
-                  />
-                ) },
-                { key: 'transit', label: 'Getting around', panel: (
-                  <PublicTransferSearch
-                    onRequireAuth={onRequireAuth}
-                    sharedCity={travelCity}
-                    sharedCountry={travelCountry}
-                    searchNonce={travelSearchNonce}
-                  />
-                ) },
-                { key: 'activities', label: 'Things to do', panel: (
-                  <PublicActivitySearch
-                    onRequireAuth={onRequireAuth}
-                    sharedCity={travelCity}
-                    sharedCountry={travelCountry}
-                    searchNonce={travelSearchNonce}
-                  />
-                ) },
-                { key: 'visa', label: 'Visa', panel: <PublicVisaCheck /> },
+                // PR-ELEV-1: the 8 shared travel modes (5 live + 3 "Soon") from
+                // the ONE builder both surfaces consume — same keys, same
+                // panels, same props as the old inline mounts. Premium stays
+                // this surface's own chip, appended LAST (it moved from 6th to
+                // 9th position — the paid upsell closes the row).
+                ...travelStripModes({
+                  onRequireAuth,
+                  authed,
+                  currentTrip,
+                  onCommitted: () => setTripsRefresh((n) => n + 1),
+                  sharedCity: travelCity,
+                  sharedCountry: travelCountry,
+                  searchNonce: travelSearchNonce,
+                }),
                 // PREMIUM (honest label): the paid Google-Places categories. Gate =
                 // isCategoryLocked(catKey, entitledCategories, currentUserId)
                 // (PublicCategorySearch.tsx:65). Locked → each card renders the
@@ -848,12 +824,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
               ]) as ToggleMode[]}
             />
 
-            {/* DS-1: the STATIC "coming soon" promises stay reachable as a compact
-                group below the strip (no fetch/state; not toggle panels since they
-                have no search). PR-LANDING-1: extracted verbatim into the shared
-                <TravelTilesRow/> so the guest landing renders the SAME row —
-                rendered output here is byte-equivalent. */}
-            <TravelTilesRow />
+            {/* PR-ELEV-1: the coming-soon tiles became badged "Soon" CHIPS inside
+                the strip above (travelStripModes) — the tile row is gone. */}
           </div>
         </div>
       </section>

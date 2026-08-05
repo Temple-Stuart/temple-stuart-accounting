@@ -37,20 +37,13 @@
 // TOGGLE-1 output.
 import ToggleStrip, { type ToggleMode } from '@/components/ui/ToggleStrip';
 import { DS } from '@/lib/ds';
-import PublicFlightSearch from '@/components/trips/PublicFlightSearch';
-import PublicHotelSearch from '@/components/trips/PublicHotelSearch';
-import PublicActivitySearch from '@/components/trips/PublicActivitySearch';
-import PublicTransferSearch from '@/components/trips/PublicTransferSearch';
-import PublicVisaCheck from '@/components/trips/PublicVisaCheck';
+// PR-ELEV-1: the modes come from the ONE shared builder (8 chips — 5 live + 3
+// "Soon"), so the guest landing and the app travel tab render the same strip
+// and light up together as affiliate IDs land.
+import { travelStripModes } from '@/components/trips/travelStripModes';
 
 export default function LandingBookingSection({ onRequireAuth }: { onRequireAuth: () => void }) {
-  const modes: ToggleMode[] = [
-    { key: 'flights', label: 'Flights', panel: <PublicFlightSearch onRequireAuth={onRequireAuth} authed={false} /> },
-    { key: 'hotels', label: 'Hotels', panel: <PublicHotelSearch onRequireAuth={onRequireAuth} authed={false} /> },
-    { key: 'transit', label: 'Getting around', panel: <PublicTransferSearch onRequireAuth={onRequireAuth} /> },
-    { key: 'activities', label: 'Things to do', panel: <PublicActivitySearch onRequireAuth={onRequireAuth} /> },
-    { key: 'visa', label: 'Visa', panel: <PublicVisaCheck /> },
-  ];
+  const modes: ToggleMode[] = travelStripModes({ onRequireAuth, authed: false });
 
   return (
     <ToggleStrip
