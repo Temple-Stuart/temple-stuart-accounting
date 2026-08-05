@@ -22,13 +22,20 @@
 //     Center ONLY (we are an affiliate — VIATOR_PARTNER_ID, affiliates.ts).
 //     The file dropped at public/logos/viator.svg must come from there,
 //     never a mark scraped elsewhere.
-//   • OpenAI — openai.com/brand: badge use, NO partnership implication.
-//     Slot DEFERRED: its wall card names TWO vendors ("Anthropic + OpenAI")
-//     and a solo OpenAI badge there would misattribute the card. Activates
-//     if/when the card splits (a ruled wall change).
-//   • Vercel — vercel.com/geist/brands: unmodified marks only. Slot
-//     DEFERRED for the same shared-card reason (the five-name
-//     infrastructure card).
+//   • OpenAI — openai.com/brand: badge use ONLY, NO partnership
+//     implication, NO alterations, and their badge may never render more
+//     prominent than our own marks. Image slot DEFERRED: its wall card
+//     names TWO vendors ("Anthropic + OpenAI") and a solo OpenAI badge
+//     there would misattribute the card. Activates if/when the card splits
+//     (a ruled wall change).
+//   • Vercel — vercel.com/geist/brands: unmodified marks only, and
+//     ATTRIBUTION IS REQUIRED when their marks are used — the exact
+//     required wording renders under the wall grid (Landing.tsx).
+//     PR-ELEV-2d (re-issue): geist/brands sanctions the UNICODE TRIANGLE
+//     ▲ (U+25B2) as the mark in text / multi-brand rows — so Vercel is
+//     LIVE NOW with zero image files: the ▲ precedes "Vercel" inline in
+//     the infrastructure card's name below. The IMAGE slot stays deferred
+//     for the shared-card reason (a five-name card).
 // NOT cleared (text-only, untouched): Duffel, Nuitée, tastytrade, Finnhub,
 // Resend, Anthropic, Prisma, Inngest, Azure.
 //
@@ -54,5 +61,8 @@ export const BUILT_ON: BuiltOnEntry[] = [
   { name: 'Finnhub', tag: 'market data' },
   { name: 'Anthropic + OpenAI', tag: 'AI' },
   { name: 'Resend', tag: 'email' },
-  { name: 'Next.js + Prisma + Azure PostgreSQL + Vercel + Inngest', tag: 'infrastructure' },
+  // ▲ = Vercel's sanctioned unicode mark (U+25B2) for text/multi-brand
+  // contexts (vercel.com/geist/brands) — the required attribution line
+  // renders under the wall grid.
+  { name: 'Next.js + Prisma + Azure PostgreSQL + ▲ Vercel + Inngest', tag: 'infrastructure' },
 ];
