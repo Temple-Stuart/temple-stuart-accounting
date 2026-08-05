@@ -1046,7 +1046,7 @@ export function TripScanModals() {
 // (hotels, transfers, activities) leads, and browsable Google discovery trails.
 const CAROUSEL_ORDER = [
   'accommodation',     // Hotels (LiteAPI)
-  'ground_transport',  // Ground Transport (Mozio — 501 "coming soon" today, PR-24)
+  'ground_transport',  // Ground Transport (books via Viator link-out — the travel tab's Getting around)
   // PR-11: single "Activities" row replaces the four Viator carousels
   // (adventure / arts_culture / wellness / bucket_list). The carousel
   // surfaces every Viator product for the active destination. COA-level
@@ -1085,7 +1085,7 @@ function sourceAttribution(source: Source): string {
     case 'liteapi':     return 'via LiteAPI';
     case 'viator':      return 'via Viator';
     case 'google':      return 'Google · discovery';
-    case 'mozio':       return 'Mozio (coming soon)';
+    case 'mozio':       return 'ground — books via Viator';
     case 'duffel':      return 'via Duffel';
     case 'airalo':      return 'Airalo (coming soon)';
     case 'covergenius': return 'Cover Genius (coming soon)';

@@ -80,7 +80,10 @@ export default function ItineraryComparison({
   const [editValue, setEditValue] = useState('');
 
   const travelerCount = participants.length || 4;
-  const homeAirport = 'LAX'; // TODO: Get from user profile
+  // POLISH-3: a LABELED ASSUMPTION, not user data — the comparison renders
+  // "(assumed home airport)" beside it. Sourcing this from the user profile /
+  // participants[].homeAirport is a future ruling, not guessed here.
+  const homeAirport = 'LAX';
 
   // Calculate trip dates
   const tripDates = useMemo(() => {
@@ -126,8 +129,8 @@ export default function ItineraryComparison({
     setLoading(prev => ({ ...prev, [resortId]: true }));
 
     try {
-      // TODO: Wire to Duffel flight data from FlightPicker selectedFlight prop
-      // Flight data not available after Amadeus removal — use defaults for itinerary timing
+      // Flight data not available after Amadeus removal — defaults stand in for
+      // itinerary timing (fact, not TODO — wiring Duffel data here is its own PR).
       const landingTime = '14:00';
       const hotelCheckIn = addHours(landingTime, 2);
 
@@ -479,7 +482,7 @@ export default function ItineraryComparison({
       <div className="mt-3 text-[10px] text-zinc-500">
         <span className="text-blue-400">*</span> = Shared cost (split by {travelerCount})
         <span className="mx-2">•</span>
-        Origin: {homeAirport}
+        Origin: {homeAirport} (assumed home airport)
         <span className="mx-2">•</span>
         Resort hours: {formatTime(RESORT_HOURS.firstChair)} - {formatTime(RESORT_HOURS.lastChair)}
       </div>

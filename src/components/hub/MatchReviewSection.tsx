@@ -35,6 +35,9 @@ const day = (s: string | null) => (s ? s.slice(0, 10) : '—');
 
 export default function MatchReviewSection() {
   const [queue, setQueue] = useState<QueueRow[]>([]);
+  // POLISH-4: user-scoped bookings count from the queue route — the truthful
+  // basis for collapse-when-empty ("no bookings yet" is a COUNTED claim).
+  const [reservationCount, setReservationCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [proposing, setProposing] = useState(false);
@@ -49,6 +52,7 @@ export default function MatchReviewSection() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `Queue failed (HTTP ${res.status})`);
       setQueue((data.queue || []) as QueueRow[]);
+      setReservationCount(typeof data.reservationCount === 'number' ? data.reservationCount : null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load the match queue.');
     } finally {
@@ -96,6 +100,28 @@ export default function MatchReviewSection() {
       setBusyLink(null);
     }
   };
+
+  // POLISH-4: collapse-when-empty — zero bookings AND zero proposals means the
+  // full bordered panel is pure noise for non-travel users; a single quiet row
+  // keeps the door visible. The full panel returns the moment ANYTHING exists
+  // (a booking, a proposal, a run summary, or an error to declare).
+  if (!loading && !error && !runSummary && queue.length === 0 && reservationCount === 0) {
+    return (
+      <div className="mx-4 my-4">
+        <p className={themed('text-xs text-text-muted', true)}>
+          Booking ↔ bank matching — no bookings yet ·{' '}
+          <button
+            type="button"
+            onClick={runPropose}
+            disabled={proposing}
+            className="underline decoration-dotted hover:text-brand-purple disabled:opacity-50"
+          >
+            {proposing ? 'Scanning…' : 'Find matches'}
+          </button>
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className={themed('mx-4 my-4 rounded-lg border border-border bg-bg-row/40 p-4', true)}>
