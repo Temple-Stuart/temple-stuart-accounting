@@ -299,38 +299,52 @@ interface Persona {
   /** The audience value line, rendered above the LAND-MSG-1 plain line on
    *  highlighted slides only. null for Everyone. */
   line: string | null;
+  /** PRICE-1 (PRICING-AUDIT-1 proposal c): ONE verified line under the chip
+   *  row. HARD RULE: only claims that are env/gate-true TODAY — the free
+   *  travel anchor (public routes) + "launching soon" for the persona's
+   *  modules (every TAB_PRICING monthlyPrice is null and no STRIPE_TAB_* env
+   *  is set — the same facts the deck states render from). When a module
+   *  gets a real Stripe price, its persona lines update (one copy line each). */
+  leadIn: string;
 }
 const PERSONAS: Persona[] = [
-  { key: 'everyone', label: 'Everyone', moduleIds: [], line: null },
+  { key: 'everyone', label: 'Everyone', moduleIds: [], line: null,
+    leadIn: 'Search & book travel free today — no account needed. Paid modules are launching soon.' },
   {
     key: 'founders', label: 'Founders & freelancers',
     moduleIds: ['books', 'tax', 'runway', 'projects'],
     line: 'Bank feed in, clean books out — taxes half-done before you start.',
+    leadIn: 'Book work travel free today. Books, tax, runway & projects are launching soon.',
   },
   {
     key: 'service', label: 'Service businesses',
     moduleIds: ['books', 'routines', 'projects', 'tax'],
     line: 'Routine work planned to the day — money tracked like an accountant would.',
+    leadIn: 'Free travel booking today. Books, routines, projects & tax are launching soon.',
   },
   {
     key: 'ecom', label: 'Product & e-commerce',
     moduleIds: ['books', 'runway', 'tax', 'projects'],
     line: 'Every sale and expense flows in from your bank — books clean, tax-ready year round.',
+    leadIn: 'Free travel booking today. Books, runway, tax & projects are launching soon.',
   },
   {
     key: 'traders', label: 'Traders',
     moduleIds: ['trade', 'books', 'tax'],
     line: 'Scanner to journal to wash-sales — one pipe.',
+    leadIn: 'Free travel booking today. Trade, books & tax are launching soon.',
   },
   {
     key: 'nomads', label: 'Nomads & creators',
     moduleIds: ['travel', 'runway', 'content', 'books'],
     line: 'Book the trip, budget the trip, film the day.',
+    leadIn: 'Search & book travel free today, no account. Runway, content & books are launching soon.',
   },
   {
     key: 'students', label: 'Students',
     moduleIds: ['books', 'trade', 'compliance'],
     line: 'Learn accounting and trading on your own real data — not textbook hypotheticals.',
+    leadIn: 'Free travel booking today. Books, trade & compliance are launching soon.',
   },
 ];
 
@@ -470,18 +484,10 @@ export const REFERENCED_MARKS: Set<string> = (() => {
   return s;
 })();
 
-// FD-1o: the glanceable per-module cost summary — the SAME per-project
-// derivation the expansion uses (no new data, no new claims), condensed to
-// one mono micro line under the module chip.
-function projectCostSummary(projectName: string): string {
-  const rows = ALLOCATION_ROWS.filter((r) => r.target.name === projectName);
-  const entered = rows.filter((r) => r.amountUsd !== null);
-  const total = entered.reduce((s, r) => s + (r.amountUsd as number), 0);
-  const usd = `$${total.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
-  return entered.length > 0
-    ? `our cost: ${usd}/mo entered · ${rows.length} items`
-    : `our cost: $0 of ${rows.length} entered`;
-}
+// PRICE-1: the FD-1o "our cost: …" deck micro-line was REMOVED — accurate but
+// incomprehensible on a sales card (PRICING-AUDIT-1). The full cost receipts
+// live where they always did: /how-pricing-works (the transparency door link
+// under the deck).
 
 // FD-1n: the $0-strip fold-ins — the strip died as a section; its two facts
 // render inside the ruled expansions (TT → Trade, GOV → Compliance). Mapped
@@ -836,6 +842,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             ))}
           </div>
 
+          {/* PRICE-1 (proposal c): the persona's ONE verified lead-in line —
+              free-travel anchor + launching-soon truth, above the deck. */}
+          <p className="mt-2 font-mono text-xs text-white/60">{persona.leadIn}</p>
+
           <div
             ref={deckTrackRef}
             onScroll={onDeckScroll}
@@ -892,56 +902,62 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                     ))}
                   </ul>
 
-                  {/* The commerce block: price (TAB_PRICING when present, else
-                      the italic fallback — no pillar says Free anymore), the
-                      Unlocks/accessLabel truth line, the FD-1o cost summary. */}
+                  {/* PRICE-1 (PRICING-AUDIT-1 proposal a): ONE honest state per
+                      slide. available → real price (or "price shown at
+                      checkout" — TRUE there: the checkout exists) + Select;
+                      !available → "Launching soon", NO checkbox, NO dead
+                      button (the old "price shown at checkout" + disabled
+                      "Not yet available" contradiction is gone). Travel
+                      carries the one claim that is live today: free search +
+                      booking, no account (public routes, middleware-verified).
+                      The "our cost:" FD-1o line moved OFF the deck — the full
+                      receipt ledger lives at /how-pricing-works (the
+                      transparency door below). */}
                   <div className="mt-4 max-w-xl border-t border-white/20 pt-3">
                     <p className="font-mono text-sm font-bold text-white">
-                      {pricing && pricing.monthlyPrice !== null ? (
+                      {p.id === 'travel' ? (
+                        <span className="text-xs font-normal text-brand-green">
+                          Free today: search &amp; book travel, no account required.
+                        </span>
+                      ) : pricing && pricing.monthlyPrice !== null ? (
                         <>${pricing.monthlyPrice}<span className="text-xs font-normal text-white/50">/mo</span></>
-                      ) : (
-                        <span className="text-xs font-normal italic text-white/50" title="Display price not entered yet — Stripe shows the real price at checkout">
+                      ) : available ? (
+                        <span className="text-xs font-normal italic text-white/50" title="Stripe shows the real price at checkout">
                           price shown at checkout
                         </span>
+                      ) : (
+                        <span className="text-xs font-normal text-white/60">Launching soon</span>
                       )}
                     </p>
                     <p className="mt-1 text-xs leading-relaxed text-white/60">
                       {pricing ? <>Unlocks {pricing.unlocks}.</> : p.accessLabel}
                     </p>
-                    <p className="mt-1.5 font-mono text-[10px] text-white/40">
-                      {projectCostSummary(p.label)}
-                    </p>
                   </div>
 
-                  {/* DECKS-3 (ruling 3): every slide is selectable. */}
-                  <label className="mt-3 flex cursor-pointer items-center gap-2 self-start font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70 transition-colors hover:text-white">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(p.id)}
-                      onChange={() => toggleSelected(p.id)}
-                      className="h-3.5 w-3.5 accent-brand-purple"
-                      aria-label={`Add ${p.label} to plan`}
-                    />
-                    Add to plan
-                  </label>
+                  {/* DECKS-3 (ruling 3) × PRICE-1: selectable ONLY when a real
+                      checkout exists — an unpriced slide in the cart would put
+                      un-buyable items behind "Continue". */}
+                  {available && (
+                    <label className="mt-3 flex cursor-pointer items-center gap-2 self-start font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70 transition-colors hover:text-white">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(p.id)}
+                        onChange={() => toggleSelected(p.id)}
+                        className="h-3.5 w-3.5 accent-brand-purple"
+                        aria-label={`Add ${p.label} to plan`}
+                      />
+                      Add to plan
+                    </label>
+                  )}
 
                   <div className="mt-auto flex flex-wrap items-center gap-3 pt-4">
-                    {p.entitlementKey && available ? (
+                    {p.entitlementKey && available && (
                       <Link
                         href={`/pricing?module=${encodeURIComponent(p.entitlementKey)}`}
                         className="inline-block bg-white px-4 py-1.5 text-xs font-medium text-brand-purple hover:bg-bg-row"
                       >
                         Select →
                       </Link>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled
-                        title="This module's Stripe price isn't configured yet"
-                        className="cursor-not-allowed border border-panel-border px-4 py-1.5 text-xs font-medium text-white/40"
-                      >
-                        Not yet available
-                      </button>
                     )}
                     <Link
                       href={`/modules/${p.id}`}
@@ -1004,7 +1020,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                   <p className="mt-0.5 text-[10px] text-white/50">
                     {bundle.monthlyPrice !== null
                       ? `Bundle: everything for $${bundle.monthlyPrice}/mo`
-                      : 'Bundle: price shown at checkout'}
+                      : entitlementAvailability[bundle.key] === true
+                        ? 'Bundle: price shown at checkout'
+                        : 'Bundle: launching soon'}
                   </p>
                 )}
               </div>
@@ -1028,29 +1046,25 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 </span>
                 <p className="mt-2 text-xs leading-relaxed text-white/60">Unlocks {bundle.unlocks}.</p>
               </div>
+              {/* PRICE-1: the bundle row follows the slide rule — ONE honest
+                  state. Purchasable → price/italic + Select; not → "Launching
+                  soon", no dead button. */}
               <div className="font-mono text-lg font-bold text-white">
                 {bundle.monthlyPrice !== null ? (
                   <>${bundle.monthlyPrice}<span className="text-xs font-normal text-white/50">/mo</span></>
-                ) : (
+                ) : entitlementAvailability[bundle.key] === true ? (
                   <span className="text-xs font-normal italic text-white/50">price shown at checkout</span>
+                ) : (
+                  <span className="text-xs font-normal text-white/60">Launching soon</span>
                 )}
               </div>
-              {entitlementAvailability[bundle.key] === true ? (
+              {entitlementAvailability[bundle.key] === true && (
                 <Link
                   href={`/pricing?module=${encodeURIComponent(bundle.key)}`}
                   className="bg-white px-6 py-2 text-center text-xs font-medium text-brand-purple hover:bg-bg-row"
                 >
                   Select the bundle →
                 </Link>
-              ) : (
-                <button
-                  type="button"
-                  disabled
-                  title="The bundle's Stripe price isn't configured yet"
-                  className="cursor-not-allowed border border-panel-border px-6 py-2 text-xs font-medium text-white/40"
-                >
-                  Not yet available
-                </button>
               )}
             </div>
           )}
