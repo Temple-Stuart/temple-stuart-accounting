@@ -44,11 +44,11 @@
  * every selected TAB_PRICING monthlyPrice exists — all five are null today,
  * so "prices shown at checkout" is the live default — vs the bundle line);
  * a visual regrade (existing token families only: brand-purple = paid,
- * brand-green = free, white opacities); and a second SUMMARY deck beneath —
- * every string lifted verbatim from the module decks (per-line provenance on
- * SUMMARY_BY_ID). Commerce stays on /pricing: the landing SELECTS, /pricing
- * SELLS — Continue links carry ?module= / ?modules= only, and multi-purchase
- * remains N clicks through /pricing's existing per-module buttons.
+ * brand-green = free, white opacities). (PR-ELEV-2+3: the FD-1i SUMMARY deck
+ * was CUT — Alex's ruling; the "Built on" + "Built in public" proof sections
+ * now hold that slot.) Commerce stays on /pricing: the landing SELECTS,
+ * /pricing SELLS — Continue links carry ?module= / ?modules= only, and
+ * multi-purchase remains N clicks through /pricing's existing buttons.
  *
  * DECKS-3 (three verbatim rulings): (1) the PILLARS deck is a VERTICAL STACK
  * of full-width mini heroes — its carousel mechanics died; (2) the SELECTION
@@ -331,113 +331,6 @@ const PERSONAS: Persona[] = [
   },
 ];
 
-// FD-1i: the SUMMARY deck's content — LIFTED ONLY, zero invented copy (the
-// FD-1b bullet-lift precedent). Per pillar: the module deck's dark-hero
-// eyebrow + headline, then 3 verbatim slide titles. Provenance (file:line,
-// verified this PR):
-//   Travel:     eyebrow/headline TravelShowcaseSections.tsx:324-325;
-//               lines :342, :363, :370
-//   Runway:     eyebrow/headline RunwayShowcaseSections.tsx:344-345;
-//               lines :362, :397, :411
-//   Books:      eyebrow/headline TabShowcases.tsx:237-238;
-//               lines :247, :268, :289
-//   Trade:      eyebrow/headline TabShowcases.tsx:134-135;
-//               lines :162, :176, :190
-//   Tax:        eyebrow/headline TabShowcases.tsx:340-341;
-//               lines :364, :371, :385
-//   Compliance: eyebrow/headline ComplianceShowcaseSections.tsx:327-328;
-//               lines :345, :359, :387
-//   Routines:   eyebrow/headline RoutinesShowcaseSections.tsx:366-367;
-//               lines :384, :405, :412
-//   Projects:   eyebrow/headline ProjectsShowcaseSections.tsx:270-271;
-//               lines :288, :309, :330
-//   Content:    eyebrow/headline ContentShowcaseSections.tsx:228-229;
-//               lines :246, :253, :267
-// Lines were chosen to NOT repeat the selection deck's PILLAR_CARDS bullets —
-// the two decks tell different halves of each pillar's story.
-const SUMMARY_BY_ID: Record<string, { eyebrow: string; headline: string; lines: string[] }> = {
-  travel: {
-    eyebrow: 'Travel — the real product, no account required',
-    headline: 'Search it. Price it. Book it. No account required to look.',
-    lines: [
-      'Real searches, free by design.',
-      'The trip is the container.',
-      'Every booking feeds the books.',
-    ],
-  },
-  runway: {
-    eyebrow: 'Runway — the whole platform, one question',
-    headline: 'Every system you’re juggling. One question answered: how long can you keep going?',
-    lines: [
-      'Not a number you typed — the number your banks report.',
-      'Your routines ARE the budget.',
-      'Trading money ≠ living money. The wall is the feature.',
-    ],
-  },
-  books: {
-    eyebrow: 'Books — double-entry bookkeeping',
-    headline: 'Every transaction becomes a journal entry. Every period must balance.',
-    lines: [
-      'Link your banks. Assign every account.',
-      'The trial balance must balance.',
-      'Closed means closed.',
-    ],
-  },
-  trade: {
-    eyebrow: 'Trade — the scanner',
-    headline: 'An entire index in full focus. One decision out.',
-    lines: [
-      'Every ticker scored. Strategies only where the gates pass.',
-      'The whole trade, written down.',
-      'The grades accumulate. Denominators first.',
-    ],
-  },
-  tax: {
-    eyebrow: 'Tax — from closed books to a filed return',
-    headline: 'Your books are already clean. Your taxes are half-done before you start.',
-    lines: [
-      'What others type in, your ledger already knows.',
-      'Every income line traces to its source.',
-      'Every lot boxed. Every box explained.',
-    ],
-  },
-  compliance: {
-    eyebrow: 'Compliance — the receipts',
-    headline: 'Don’t trust us. Verify us.',
-    lines: [
-      'A real regulatory corpus, on real schedules.',
-      'The statute you cited is the statute you saw.',
-      'Obligations tracked like engineering tickets.',
-    ],
-  },
-  routines: {
-    eyebrow: 'Routines — the recurrence engine',
-    headline: 'Build it once. It shows up everywhere.',
-    lines: [
-      'You describe the rhythm. The machine writes the schedule.',
-      'The streak counts both ways.',
-      'Feed one: every occurrence lands on the one calendar, priced.',
-    ],
-  },
-  projects: {
-    eyebrow: 'Projects — the Truth Machine',
-    headline: 'Goals in. Audited tasks out.',
-    lines: [
-      'A project starts as goals in your own words.',
-      'Auto-generated work waits for your ✓.',
-      'Every inference has a receipt.',
-    ],
-  },
-  content: {
-    eyebrow: 'Content — day to script',
-    headline: 'Your day becomes the script.',
-    lines: [
-      'The whole day, one feed.',
-      'Inputs feed the map.',
-      'Answer the day. Keep the record.',
-    ],
-  },
-};
 
 // FD-1n: the footnote marks ACTUALLY referenced by the allocation rows
 // (amount footnotes + the ᵉ riding split percentages) — the merged registry
@@ -1037,66 +930,70 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
         </div>
       </section>
 
-      {/* ── FD-1i (ruling E): the SUMMARY deck — a second pass beneath the
-            selection floor, same scroll-snap mechanics. Content LIFTED ONLY:
-            each pillar's dark-hero eyebrow + headline, the descriptor, and
-            three verbatim slide titles (provenance on SUMMARY_BY_ID).
-            DECK-2: the slides render as MINIATURE EXPLORE HEROES — wide,
-            tall, radial-glow panels in the darkHero language (the stage
-            changed; the script is byte-identical).
-            DECKS-3 (ruling 1): the deck is a VERTICAL STACK now — nine
-            full-width mini heroes, top to bottom. The carousel mechanics
-            (snap rail, chevrons, dots) died on this section. ───────────────── */}
+      {/* ── PR-ELEV-2: the "Built on" wall (the FD-1i summary deck was CUT
+            here — Alex's ruling; the selection deck above already tells the
+            pillar story). WORDING LAW (locked): "Built on" / "integrates
+            with" ONLY — never "partners", "trusted by", or any endorsement
+            framing. CLAIMABILITY RULE: wired clients only (each name below
+            has a live client file in src/lib — LANDING-ELEVATE-AUDIT-1 Part
+            C); declared-not-connected vendors (Mozio/Airalo/Cover Genius) and
+            unverified feeds (FRED) never appear. TEXT MARKS ONLY, no logos
+            (logo usage needs per-vendor brand terms). ─────────────────────── */}
       <section className="w-full border-b border-panel-border bg-panel-surface">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
           <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
-            The pillars — in their own words
+            Built on
           </p>
-
-          <div className="mt-4 space-y-6">
-            {PILLAR_CARDS.map((p) => {
-              const s = SUMMARY_BY_ID[p.id];
-              return (
-                // DECK-2: each slide IS a miniature explore hero — the
-                // TabShowcaseTemplate darkHero visual language (:142-148:
-                // near-black base + brand-purple radial glows), rebuilt on
-                // tokens via the FD-1c HERO_BG const (reused verbatim — the
-                // template's raw color literals never enter this file).
-                // Chip = the template's :151 eyebrow idiom (+ the
-                // landing's mono); headline = the hero's display type scaled
-                // down (text-3xl/5xl → 2xl/3xl); sub-copy white/65-70; CTA =
-                // the white hero-button family. Content strings byte-identical
-                // to FD-1i (SUMMARY_BY_ID + TAB_DESCRIPTORS — 0 data lines).
-                <article
-                  key={p.id}
-                  className="flex min-h-[22rem] w-full flex-col overflow-hidden rounded-lg p-6 text-white sm:p-8"
-                  style={{ background: HERO_BG }}
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
-                      {s.eyebrow}
-                    </span>
-                  </div>
-                  <h3 className="mt-4 text-2xl font-light tracking-tight sm:text-3xl">{s.headline}</h3>
-                  <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/65">{TAB_DESCRIPTORS[p.tab]}</p>
-                  <ul className="mt-3 max-w-xl space-y-1">
-                    {s.lines.map((l, i) => (
-                      <li key={i} className="text-sm leading-relaxed text-white/70">{l}</li>
-                    ))}
-                  </ul>
-                  <div className="mt-auto pt-5">
-                    <Link
-                      href={`/modules/${p.id}`}
-                      className="inline-block bg-white px-4 py-1.5 text-xs font-medium text-brand-purple hover:bg-bg-row"
-                    >
-                      Explore {p.label} →
-                    </Link>
-                  </div>
-                </article>
-              );
-            })}
+          <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
+            {[
+              ['Plaid', 'bank data'],
+              ['Stripe', 'payments'],
+              ['Duffel + LiteAPI (Nuitée)', 'flights & stays'],
+              ['Viator', 'tours & transfers'],
+              ['tastytrade', 'brokerage data'],
+              ['Finnhub', 'market data'],
+              ['Anthropic + OpenAI', 'AI'],
+              ['Resend', 'email'],
+              ['Next.js + Prisma + Azure PostgreSQL + Vercel + Inngest', 'infrastructure'],
+            ].map(([name, tag]) => (
+              <p key={name} className="font-mono text-xs leading-relaxed text-white/70">
+                <span className="font-semibold text-white">{name}</span>
+                <span className="text-white/40"> — {tag}</span>
+              </p>
+            ))}
           </div>
+        </div>
+      </section>
 
+      {/* ── PR-ELEV-3: building in public — REAL FACTS ONLY (ruling): the
+            public repo, the PR-by-PR build history, the never-paywalled
+            export. No invented stats, no testimonials; a news/changelog
+            carousel exists only when real content does. ───────────────────── */}
+      <section className="w-full border-b border-panel-border bg-panel-surface">
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
+            Built in public
+          </p>
+          <div className="mt-4 max-w-2xl space-y-2">
+            <p className="text-sm leading-relaxed text-white/70">
+              The code is public —{' '}
+              <a
+                href="https://github.com/Temple-Stuart/temple-stuart-accounting"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-white underline decoration-dotted hover:text-white/80"
+              >
+                github.com/Temple-Stuart/temple-stuart-accounting
+              </a>{' '}
+              (source-available under BSL 1.1 — free to self-host for personal use).
+            </p>
+            <p className="text-sm leading-relaxed text-white/70">
+              Every change ships as a reviewed pull request — the build history is the changelog.
+            </p>
+            <p className="text-sm leading-relaxed text-white/70">
+              Your complete financial records export in one click — never paywalled.
+            </p>
+          </div>
         </div>
       </section>
 
