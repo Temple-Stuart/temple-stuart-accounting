@@ -1,3 +1,4 @@
+import { PRICING_MODEL } from './pricingModel';
 /**
  * PRICING-PAGE — the Alex-editable cost table behind /how-pricing-works.
  *
@@ -338,38 +339,11 @@ export interface SellableTab {
   monthlyPrice: number | null;
 }
 
-export const TAB_PRICING: SellableTab[] = [
-  {
-    key: 'tab:trade',
-    label: 'Trading',
-    unlocks: 'the convergence scanner on live market data, trade cards + reconcile queue, trading journal, realized P&L',
-    monthlyPrice: null,
-  },
-  {
-    key: 'tab:books',
-    label: 'Bookkeeping',
-    unlocks: 'Plaid bank sync, double-entry journal & ledger, statements, reconciliation, period close, spending insights',
-    monthlyPrice: null,
-  },
-  {
-    key: 'tab:tax',
-    label: 'Tax',
-    unlocks: '1040 estimate from your closed books, Schedule C/D/SE, wash sales, Form 8949 + CPA export',
-    monthlyPrice: null,
-  },
-  {
-    key: 'tab:compliance',
-    label: 'Compliance',
-    unlocks: 'regulatory corpus search, citation verification, missions & tasks, the tamper-evident audit registry',
-    monthlyPrice: null,
-  },
-  {
-    key: 'bundle:all',
-    label: 'All-modules bundle',
-    unlocks: 'every module above with one subscription (resolved at read time — one purchase unlocks all tabs)',
-    monthlyPrice: null,
-  },
-];
+// PR-PRICE-2: TAB_PRICING is now a DERIVED VIEW of THE one pricing model
+// (src/config/pricingModel.ts) — same keys, labels, gate-verified unlocks
+// strings and display prices, minus the stripeEnvKey plumbing. One source;
+// the landing deck and /pricing can never drift from each other.
+export const TAB_PRICING: SellableTab[] = PRICING_MODEL.map(({ key, label, unlocks, monthlyPrice }) => ({ key, label, unlocks, monthlyPrice }));
 
 /** Vendors the audit found declared or referenced but NOT connected — zero cost, listed for completeness. */
 export const NOT_CONNECTED = [

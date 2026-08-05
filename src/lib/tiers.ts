@@ -1,6 +1,15 @@
 /**
  * Temple Stuart — Tier definitions & feature gating
  *
+ * ── LEGACY VOCABULARY (PR-PRICE-2, Alex's ruling) ──────────────────────────
+ * The pricing page NO LONGER SELLS TIERS — /pricing is the one module/bundle
+ * table consuming src/config/pricingModel.ts, and the Pro/Pro+ cards are gone.
+ * This file survives ONLY because live gates still read it (requireTier call
+ * sites: ai/meal-plan, ai/cart-plan, ai/meal-planner, places/category-search,
+ * trips/[id]/ai-assistant) and existing subscriptions resolve through it
+ * (webhook getTierFromPriceId). Retiring it fully = migrating those gates to
+ * module entitlements — its own ruled PR, not a copy change.
+ *
  * TRUTH-LABELS: what tiers ACTUALLY gate today (post TAB-SERVER-GATE):
  *   'ai'           → lifestyle/ops AI: meal-plan, cart-plan, meal-planner,
  *                    operations content (enrich-routine, generate-script)
