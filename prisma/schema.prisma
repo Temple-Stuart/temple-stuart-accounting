@@ -446,6 +446,7 @@ model transactions {
   entity_id                          String?
   accounts                           accounts  @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   entity                             entities? @relation(fields: [entity_id], references: [id])
+  transaction_reservation_links      transaction_reservation_links[]
 }
 
 model investment_transactions {
@@ -534,6 +535,7 @@ model users {
   discovery_runs          discovery_runs[]
   reservations            reservations[]
   commission_ledger       commission_ledger[]
+  transaction_reservation_links transaction_reservation_links[]
 }
 
 model budgets {
@@ -1308,10 +1310,46 @@ model reservations {
   user              users?              @relation(fields: [userId], references: [id], onDelete: Cascade)
   trip              trips?              @relation(fields: [tripId], references: [id], onDelete: SetNull) // T-D7: trip deletion orphans bookings, never erases them
   commission_ledger commission_ledger[]
+  transaction_reservation_links transaction_reservation_links[]
 
   @@index([userId])
   @@index([tripId])
   @@index([provider, providerBookingId])
+}
+
+// ─── Transaction ↔ reservation links (MATCH-0, the arc's ONLY migration) ─────
+// The booking↔bank matching spine (VISION-AUDIT-1): one row = one PROPOSED (or
+// reviewed) identity between a Plaid transaction and a booking reservation.
+// JOIN TABLE by ruling — transactions stays pristine; the link carries the
+// FULL proposal lifecycle (the discovery_proposals pattern, :2740-2769 —
+// status/confidence/rationale/reviewer stamps) so MATCH-1/2/3 need no further
+// schema. NEVER silently auto-linked: MATCH-1 writes 'proposed' rows only;
+// only a human review (MATCH-2) moves status to 'accepted'/'rejected'.
+// Restrict FKs both sides (the ledger_line_links posture): a matched money
+// row cannot vanish silently — deleting a linked transaction/reservation
+// fails loudly until the link is dealt with. userId = the OWNER scope: links
+// exist only for account-owned reservations (guest rows have userId null and
+// never enter matching until the MATCH-4 claim-flow ruling).
+model transaction_reservation_links {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transactionId  String
+  reservationId  String    @db.Uuid
+  userId         String
+  status         String    @default("proposed") @db.VarChar(20) // 'proposed' | 'accepted' | 'rejected' (CHECK-enforced in SQL)
+  confidence     Float?    // matcher score 0-1 (ruled Float; prediction_confidence/ai_confidence precedents use Decimal — noted deviation)
+  matchRationale String?   @db.Text // which heuristics matched (amount/date/descriptor) — the ai_rationale analog
+  reviewNotes    String?   @db.Text // reviewer's note, esp. on reject (the discovery_proposals review_notes analog — STEP-0 addition)
+  proposedAt     DateTime  @default(now())
+  reviewedAt     DateTime?
+  reviewedBy     String?   @db.VarChar(255)
+
+  transaction transactions @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+  reservation reservations @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+  user        users        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([transactionId, reservationId]) // one lifecycle row per pair — re-runs upsert, never duplicate
+  @@index([userId, status]) // the review queue + unplanned-bucket anti-join
+  @@index([reservationId]) // "Booked" status lookups (MATCH-3)
 }
 
 // ─── Commission ledger (margin earned per reservation) ──────────────────────
