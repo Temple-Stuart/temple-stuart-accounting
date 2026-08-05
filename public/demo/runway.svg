@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <!-- PR-DEMO-1: code-drawn illustration of the live Runway interface.
+       Sources: "Net burn" / "Runway" cell labels = RunwayBudgetPanel.tsx:126,:130;
+       PERSONAL / BUSINESS per-entity micro-labels = :140,:144; match-review
+       heading + "% match" + Accept/Reject = MatchReviewSection.tsx:132,:174,
+       :192,:200. Bars are GENERIC (no invented totals — dashes per the house
+       faint idiom). Palette = ds.ts dark vocabulary literals. -->
+  <defs>
+    <radialGradient id="glowA" cx="80%" cy="0%" r="90%">
+      <stop offset="0%" stop-color="#3b2d6b" stop-opacity="0.85"/>
+      <stop offset="70%" stop-color="#3b2d6b" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="10%" cy="100%" r="80%">
+      <stop offset="0%" stop-color="#2d1b4e" stop-opacity="0.7"/>
+      <stop offset="65%" stop-color="#2d1b4e" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="800" rx="16" fill="#0d1117"/>
+  <rect width="1200" height="800" rx="16" fill="url(#glowA)"/>
+  <rect width="1200" height="800" rx="16" fill="url(#glowB)"/>
+
+  <text x="48" y="72" font-family="ui-monospace, Menlo, monospace" font-size="15" letter-spacing="3" fill="#ffffff" opacity="0.5">RUNWAY</text>
+
+  <!-- Left: burn panel (RunwayBudgetPanel labels; bars generic) -->
+  <rect x="48" y="100" width="530" height="652" rx="12" fill="#161b22" stroke="#30363d"/>
+  <text x="80" y="156" font-size="15" fill="#ffffff" opacity="0.5">Net burn</text>
+  <text x="530" y="156" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="20" fill="#ffffff" opacity="0.4">— / mo</text>
+  <text x="80" y="196" font-size="15" fill="#ffffff" opacity="0.5">Runway</text>
+  <text x="530" y="196" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="20" fill="#ffffff" opacity="0.4">— months</text>
+  <line x1="80" y1="228" x2="530" y2="228" stroke="#30363d"/>
+
+  <text x="80" y="286" font-family="ui-monospace, Menlo, monospace" font-size="13" letter-spacing="2" fill="#ffffff" opacity="0.4">PERSONAL</text>
+  <rect x="80" y="304" width="450" height="22" rx="4" fill="#ffffff" opacity="0.06"/>
+  <rect x="80" y="304" width="320" height="22" rx="4" fill="#4e3e85"/>
+
+  <text x="80" y="376" font-family="ui-monospace, Menlo, monospace" font-size="13" letter-spacing="2" fill="#ffffff" opacity="0.4">BUSINESS</text>
+  <rect x="80" y="394" width="450" height="22" rx="4" fill="#ffffff" opacity="0.06"/>
+  <rect x="80" y="394" width="196" height="22" rx="4" fill="#3b2d6b"/>
+
+  <line x1="80" y1="470" x2="530" y2="470" stroke="#30363d"/>
+  <text x="80" y="520" font-size="15" fill="#ffffff" opacity="0.5">Zero date</text>
+  <text x="530" y="520" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="20" fill="#ffffff" opacity="0.4">—</text>
+  <rect x="80" y="560" width="450" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
+  <rect x="80" y="592" width="360" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
+
+  <!-- Right: booking ↔ bank match review (MatchReviewSection) -->
+  <rect x="602" y="100" width="550" height="652" rx="12" fill="#161b22" stroke="#30363d"/>
+  <text x="634" y="156" font-family="ui-monospace, Menlo, monospace" font-size="13" letter-spacing="2" fill="#ffffff" opacity="0.5">MATCH REVIEW</text>
+  <text x="634" y="192" font-size="15" fill="#ffffff" opacity="0.6">Proposed matches between your bookings and</text>
+  <text x="634" y="216" font-size="15" fill="#ffffff" opacity="0.6">bank transactions. Nothing links until you accept it.</text>
+
+  <rect x="634" y="252" width="486" height="200" rx="8" fill="#0d1117" stroke="#30363d"/>
+  <text x="662" y="300" font-size="17" fill="#ffffff" opacity="0.9">Hotel booking ↔ bank transaction</text>
+  <rect x="662" y="322" width="110" height="26" rx="13" fill="#3b2d6b" opacity="0.5"/>
+  <text x="717" y="340" text-anchor="middle" font-family="ui-monospace, Menlo, monospace" font-size="13" fill="#ffffff" opacity="0.9">82% match</text>
+  <rect x="662" y="368" width="380" height="12" rx="6" fill="#ffffff" opacity="0.08"/>
+  <rect x="662" y="392" width="300" height="12" rx="6" fill="#ffffff" opacity="0.08"/>
+  <rect x="662" y="414" width="96" height="34" rx="4" fill="#ffffff"/>
+  <text x="710" y="436" text-anchor="middle" font-size="14" font-weight="600" fill="#3b2d6b">Accept</text>
+  <rect x="774" y="414" width="92" height="34" rx="4" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
+  <text x="820" y="436" text-anchor="middle" font-size="14" fill="#ffffff" opacity="0.7">Reject</text>
+
+  <rect x="634" y="484" width="486" height="120" rx="8" fill="#0d1117" stroke="#30363d"/>
+  <rect x="662" y="516" width="340" height="12" rx="6" fill="#ffffff" opacity="0.08"/>
+  <rect x="662" y="544" width="260" height="12" rx="6" fill="#ffffff" opacity="0.08"/>
+  <rect x="662" y="568" width="180" height="12" rx="6" fill="#ffffff" opacity="0.08"/>
+</svg>

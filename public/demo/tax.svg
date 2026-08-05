@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <!-- PR-DEMO-1: code-drawn illustration of the live Tax filing wizard.
+       Sources: the seven step labels (Life events / Documents / Income /
+       Deductions / Trading / Review / File) = TaxFilingWizard.tsx:62-104
+       verbatim; Schedule C / Schedule D / Form 8949 strings = tax-filing
+       components (grep-verified); Wash sales = WashSaleReport.tsx. No
+       invented amounts — value cells are dashes. Palette = ds.ts dark
+       vocabulary literals. -->
+  <defs>
+    <radialGradient id="glowA" cx="80%" cy="0%" r="90%">
+      <stop offset="0%" stop-color="#3b2d6b" stop-opacity="0.85"/>
+      <stop offset="70%" stop-color="#3b2d6b" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="10%" cy="100%" r="80%">
+      <stop offset="0%" stop-color="#2d1b4e" stop-opacity="0.7"/>
+      <stop offset="65%" stop-color="#2d1b4e" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="800" rx="16" fill="#0d1117"/>
+  <rect width="1200" height="800" rx="16" fill="url(#glowA)"/>
+  <rect width="1200" height="800" rx="16" fill="url(#glowB)"/>
+
+  <text x="48" y="72" font-family="ui-monospace, Menlo, monospace" font-size="15" letter-spacing="3" fill="#ffffff" opacity="0.5">TAX FILING</text>
+
+  <!-- The wizard step rail (TaxFilingWizard.tsx steps, verbatim, in order) -->
+  <g font-size="15">
+    <line x1="80" y1="132" x2="1120" y2="132" stroke="#30363d" stroke-width="2"/>
+    <circle cx="90" cy="132" r="12" fill="#16a34a"/>
+    <text x="90" y="170" text-anchor="middle" fill="#ffffff" opacity="0.6">Life events</text>
+    <circle cx="252" cy="132" r="12" fill="#16a34a"/>
+    <text x="252" y="170" text-anchor="middle" fill="#ffffff" opacity="0.6">Documents</text>
+    <circle cx="414" cy="132" r="12" fill="#16a34a"/>
+    <text x="414" y="170" text-anchor="middle" fill="#ffffff" opacity="0.6">Income</text>
+    <circle cx="576" cy="132" r="14" fill="#ffffff"/>
+    <text x="576" y="170" text-anchor="middle" fill="#ffffff" font-weight="600">Deductions</text>
+    <circle cx="738" cy="132" r="12" fill="none" stroke="#ffffff" stroke-opacity="0.3" stroke-width="2"/>
+    <text x="738" y="170" text-anchor="middle" fill="#ffffff" opacity="0.5">Trading</text>
+    <circle cx="900" cy="132" r="12" fill="none" stroke="#ffffff" stroke-opacity="0.3" stroke-width="2"/>
+    <text x="900" y="170" text-anchor="middle" fill="#ffffff" opacity="0.5">Review</text>
+    <circle cx="1062" cy="132" r="12" fill="none" stroke="#ffffff" stroke-opacity="0.3" stroke-width="2"/>
+    <text x="1062" y="170" text-anchor="middle" fill="#ffffff" opacity="0.5">File</text>
+  </g>
+
+  <!-- Derived schedules (real form names; dash values, no invented numbers) -->
+  <rect x="48" y="220" width="1104" height="360" rx="12" fill="#161b22" stroke="#30363d"/>
+  <text x="80" y="276" font-size="20" font-weight="300" fill="#ffffff" opacity="0.95">1040 complete return review</text>
+  <line x1="80" y1="304" x2="1120" y2="304" stroke="#30363d"/>
+
+  <text x="80" y="356" font-size="17" fill="#ffffff" opacity="0.9">Schedule C</text>
+  <rect x="380" y="342" width="480" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
+  <text x="1120" y="356" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="17" fill="#ffffff" opacity="0.4">—</text>
+  <line x1="80" y1="384" x2="1120" y2="384" stroke="#30363d"/>
+
+  <text x="80" y="436" font-size="17" fill="#ffffff" opacity="0.9">Schedule D</text>
+  <rect x="380" y="422" width="420" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
+  <text x="1120" y="436" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="17" fill="#ffffff" opacity="0.4">—</text>
+  <line x1="80" y1="464" x2="1120" y2="464" stroke="#30363d"/>
+
+  <text x="80" y="516" font-size="17" fill="#ffffff" opacity="0.9">Form 8949</text>
+  <rect x="380" y="502" width="360" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
+  <text x="1120" y="516" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="17" fill="#ffffff" opacity="0.4">—</text>
+
+  <!-- Wash sales band (WashSaleReport) -->
+  <rect x="48" y="612" width="1104" height="140" rx="12" fill="#161b22" stroke="#30363d"/>
+  <text x="80" y="668" font-family="ui-monospace, Menlo, monospace" font-size="13" letter-spacing="2" fill="#ffffff" opacity="0.5">WASH SALES</text>
+  <rect x="80" y="692" width="520" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
+  <rect x="80" y="720" width="380" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
+  <rect x="980" y="684" width="140" height="40" rx="4" fill="#ffffff"/>
+  <text x="1050" y="709" text-anchor="middle" font-size="14" font-weight="600" fill="#3b2d6b">CPA export</text>
+</svg>

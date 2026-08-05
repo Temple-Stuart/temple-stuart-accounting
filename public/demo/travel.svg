@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <!-- PR-DEMO-1: code-drawn illustration of the live travel interface.
+       Sources: chip labels = travelStripModes.tsx:54-100; "flights found — click
+       to select:" = FlightPickerView.tsx:276; Nonstop = :109; Refundable (green)
+       = :331. Flight rows = Alex's VERIFIED live sandbox results (SGN→BKK).
+       Palette = the ds.ts dark vocabulary literals (globals.css :23-70). -->
+  <defs>
+    <radialGradient id="glowA" cx="80%" cy="0%" r="90%">
+      <stop offset="0%" stop-color="#3b2d6b" stop-opacity="0.85"/>
+      <stop offset="70%" stop-color="#3b2d6b" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="10%" cy="100%" r="80%">
+      <stop offset="0%" stop-color="#2d1b4e" stop-opacity="0.7"/>
+      <stop offset="65%" stop-color="#2d1b4e" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="800" rx="16" fill="#0d1117"/>
+  <rect width="1200" height="800" rx="16" fill="url(#glowA)"/>
+  <rect width="1200" height="800" rx="16" fill="url(#glowB)"/>
+
+  <text x="48" y="72" font-family="ui-monospace, Menlo, monospace" font-size="15" letter-spacing="3" fill="#ffffff" opacity="0.5">TRAVEL</text>
+
+  <!-- The 8-chip strip (travelStripModes.tsx labels, verbatim; Flights active) -->
+  <g font-family="ui-monospace, Menlo, monospace" font-size="15">
+    <rect x="48" y="100" width="92" height="40" rx="4" fill="#ffffff"/>
+    <text x="94" y="125" text-anchor="middle" fill="#3b2d6b" font-weight="600">Flights</text>
+    <rect x="148" y="100" width="84" height="40" rx="4" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
+    <text x="190" y="125" text-anchor="middle" fill="#ffffff" opacity="0.7">Hotels</text>
+    <rect x="240" y="100" width="152" height="40" rx="4" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
+    <text x="316" y="125" text-anchor="middle" fill="#ffffff" opacity="0.7">Getting around</text>
+    <rect x="400" y="100" width="136" height="40" rx="4" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
+    <text x="468" y="125" text-anchor="middle" fill="#ffffff" opacity="0.7">Things to do</text>
+    <rect x="544" y="100" width="64" height="40" rx="4" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
+    <text x="576" y="125" text-anchor="middle" fill="#ffffff" opacity="0.7">Visa</text>
+    <rect x="616" y="100" width="204" height="40" rx="4" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
+    <text x="700" y="125" text-anchor="middle" fill="#ffffff" opacity="0.7">Travel insurance</text>
+    <rect x="778" y="108" width="36" height="18" rx="9" fill="#3b2d6b"/>
+    <text x="796" y="121" text-anchor="middle" font-size="10" fill="#ffffff" opacity="0.9">Soon</text>
+    <rect x="828" y="100" width="190" height="40" rx="4" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
+    <text x="905" y="125" text-anchor="middle" fill="#ffffff" opacity="0.7">Stay connected</text>
+    <rect x="976" y="108" width="36" height="18" rx="9" fill="#3b2d6b"/>
+    <text x="994" y="121" text-anchor="middle" font-size="10" fill="#ffffff" opacity="0.9">Soon</text>
+    <rect x="1026" y="100" width="126" height="40" rx="4" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
+    <text x="1075" y="125" text-anchor="middle" fill="#ffffff" opacity="0.7">Events</text>
+    <rect x="1110" y="108" width="36" height="18" rx="9" fill="#3b2d6b"/>
+    <text x="1128" y="121" text-anchor="middle" font-size="10" fill="#ffffff" opacity="0.9">Soon</text>
+  </g>
+
+  <!-- Results card: VERIFIED sandbox data (SGN → BKK probe) -->
+  <rect x="48" y="176" width="1104" height="576" rx="12" fill="#161b22" stroke="#30363d"/>
+  <text x="80" y="238" font-size="28" font-weight="300" fill="#ffffff" opacity="0.95">SGN → BKK</text>
+  <text x="80" y="270" font-family="ui-monospace, Menlo, monospace" font-size="15" fill="#ffffff" opacity="0.5">434 flights found — click to select:</text>
+
+  <line x1="80" y1="300" x2="1120" y2="300" stroke="#30363d"/>
+  <text x="80" y="356" font-size="20" fill="#ffffff" opacity="0.9">Thai AirAsia</text>
+  <text x="360" y="356" font-size="19" fill="#ffffff" opacity="0.8">15:55 → 17:35 · DMK</text>
+  <text x="700" y="356" font-size="15" fill="#ffffff" opacity="0.5">1h 40m · Nonstop</text>
+  <text x="1120" y="350" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="22" fill="#ffffff">$42.30</text>
+  <text x="1120" y="376" text-anchor="end" font-size="14" fill="#16a34a">Refundable</text>
+
+  <line x1="80" y1="420" x2="1120" y2="420" stroke="#30363d"/>
+  <text x="80" y="476" font-size="20" fill="#ffffff" opacity="0.9">Thai AirAsia</text>
+  <text x="360" y="476" font-size="19" fill="#ffffff" opacity="0.8">09:45 → 11:20</text>
+  <text x="1120" y="476" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="22" fill="#ffffff">$52.06</text>
+
+  <line x1="80" y1="540" x2="1120" y2="540" stroke="#30363d"/>
+  <text x="80" y="596" font-size="20" fill="#ffffff" opacity="0.9">Vietjet Air</text>
+  <text x="360" y="596" font-size="19" fill="#ffffff" opacity="0.8">15:05 → 16:45 · BKK</text>
+  <text x="1120" y="596" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="22" fill="#ffffff">$56.24</text>
+
+  <line x1="80" y1="660" x2="1120" y2="660" stroke="#30363d"/>
+  <rect x="80" y="684" width="200" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
+  <rect x="360" y="684" width="240" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
+  <rect x="1000" y="684" width="120" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
+</svg>
