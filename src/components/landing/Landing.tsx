@@ -152,13 +152,15 @@ interface PillarCard {
    *  source cites are in the LAND-MSG-1 report. Zero new claims. */
   plain: string;
   /** PR-DECK-CLEAN-1 (Alex, vs resend/plaid/stripe pricing: "too much
-   *  text"): 3-4 CHECKMARK fragments, ≤6 words each — every fragment
-   *  COMPRESSED from a pre-existing verified string (pricingModel.ts unlocks
-   *  lines / the old deck bullets / the old PAID_* access labels; per-card
+   *  text"): CHECKMARK fragments, ≤6 words each — every fragment COMPRESSED
+   *  from a pre-existing verified string (pricingModel.ts unlocks lines /
+   *  the old deck bullets / the old PAID_* access labels; per-card
    *  provenance below). Zero new claims. The evicted long copy is preserved
    *  on /modules/<id> — the showcase decks already carry the old bullets and
    *  TAB_DESCRIPTORS verbatim, and the PAID_* specifics moved to
-   *  modulePillars.ts accessNote. */
+   *  modulePillars.ts accessNote. PR-DECK-CLEAN-2 (even-card ruling):
+   *  EXACTLY 3 per card — the trimmed 4th fragments stay preserved at the
+   *  same /modules/<id> destinations (cut list in the provenance below). */
   bullets: string[];
 }
 
@@ -181,25 +183,36 @@ interface PillarCard {
 //   Runway:     b1 ← RunwayShowcaseSections.tsx:345 headline fragment;
 //               b2+b3 ← FD-1h claim "Burn broken out by Personal vs.
 //               Business — strays surfaced, never dropped" (runway/route.ts
-//               :146-171); b4 ← old PAID_RUNWAY ("its numbers come from
-//               your ledger")
-//   Books:      b1-b3 ← pricingModel.ts tab:books unlocks fragments;
-//               b4 ← TabShowcases.tsx:296 verbatim
-//   Trade:      b1-b3 ← pricingModel.ts tab:trade unlocks fragments;
-//               b4 ← TabShowcases.tsx:148 ("Eighteen real controls.
+//               :146-171)
+//   Books:      b1+b2 ← pricingModel.ts tab:books unlocks fragments;
+//               b3 ← TabShowcases.tsx:296 verbatim
+//   Trade:      b1+b2 ← pricingModel.ts tab:trade unlocks fragments;
+//               b3 ← TabShowcases.tsx:148 ("Eighteen real controls.
 //               Sixteen strategies.")
-//   Tax:        b1-b4 ← pricingModel.ts tab:tax unlocks fragments
-//   Compliance: b1-b4 ← pricingModel.ts tab:compliance unlocks fragments
-//   Routines:   b1-b3 ← RoutinesShowcaseSections.tsx :367, :391, :398;
-//               b4 ← old PAID_ROUTINES ("AI scene enrichment is a paid
-//               feature")
+//   Tax:        b1-b3 ← pricingModel.ts tab:tax unlocks fragments
+//   Compliance: b1-b3 ← pricingModel.ts tab:compliance unlocks fragments
+//   Routines:   b1-b3 ← RoutinesShowcaseSections.tsx :367, :391, :398
 //   Projects:   b1 ← ProjectsShowcaseSections.tsx:271 ("Goals in. Audited
 //               tasks out."); b2+b3 ← old PAID_PROJECTS ("the AI planning
 //               pipeline, capped at 20 runs/day")
-//   Content:    b1 ← old PAID_CONTENT ("day log & planning");
-//               b2 ← ContentShowcaseSections.tsx:229 verbatim; b3 ← :260
-//               fragment; b4 ← old PAID_CONTENT ("AI script generation is
+//   Content:    b1 ← ContentShowcaseSections.tsx:229 verbatim; b2 ← :260
+//               fragment; b3 ← old PAID_CONTENT ("AI script generation is
 //               a paid feature")
+// PR-DECK-CLEAN-2 cuts (exactly-3 ruling) — each cut fragment's claim stays
+// preserved where DECK-CLEAN-1 already parked the full copy:
+//   Runway     − "Numbers from your ledger"      → /modules/runway accessNote
+//   Books      − "Reconciliation & period close" → tab:books unlocks,
+//                rendered on /modules/books ("Unlocks …")
+//   Trade      − "Trade cards + reconcile queue" → tab:trade unlocks,
+//                rendered on /modules/trade
+//   Tax        − "Schedule C/D/SE"               → tab:tax unlocks,
+//                rendered on /modules/tax
+//   Compliance − "Missions & tasks"              → tab:compliance unlocks,
+//                rendered on /modules/compliance
+//   Routines   − "AI scene enrichment (paid)"    → /modules/routines
+//                accessNote
+//   Content    − "Day log & planning"            → /modules/content
+//                accessNote
 const PILLAR_CARDS: PillarCard[] = [
   {
     id: 'travel', label: 'Travel', tab: 'travel', entitlementKey: 'tab:travel',
@@ -217,7 +230,6 @@ const PILLAR_CARDS: PillarCard[] = [
       'Every system you’re juggling',
       'Burn: Personal vs. Business',
       'Strays surfaced, never dropped',
-      'Numbers from your ledger',
     ],
   },
   {
@@ -226,7 +238,6 @@ const PILLAR_CARDS: PillarCard[] = [
     bullets: [
       'Plaid bank sync',
       'Double-entry journal & ledger',
-      'Reconciliation & period close',
       'Hand your CPA a package',
     ],
   },
@@ -235,7 +246,6 @@ const PILLAR_CARDS: PillarCard[] = [
     plain: 'Find trades worth taking — and get told when to skip.',
     bullets: [
       'Scanner on live market data',
-      'Trade cards + reconcile queue',
       'Trading journal & realized P&L',
       'Eighteen controls, sixteen strategies',
     ],
@@ -245,7 +255,6 @@ const PILLAR_CARDS: PillarCard[] = [
     plain: 'Your return builds itself from your records.',
     bullets: [
       '1040 estimate from closed books',
-      'Schedule C/D/SE',
       'Wash sales + Form 8949',
       'CPA export',
     ],
@@ -256,7 +265,6 @@ const PILLAR_CARDS: PillarCard[] = [
     bullets: [
       'Regulatory corpus search',
       'Citation verification',
-      'Missions & tasks',
       'Tamper-evident audit registry',
     ],
   },
@@ -267,7 +275,6 @@ const PILLAR_CARDS: PillarCard[] = [
       'Build once, shows up everywhere',
       'Executable steps you actually run',
       'What’s due, done, slipped',
-      'AI scene enrichment (paid)',
     ],
   },
   {
@@ -283,7 +290,6 @@ const PILLAR_CARDS: PillarCard[] = [
     id: 'content', label: 'Content', tab: 'content',
     plain: 'Turn what you did today into a ready-to-film script.',
     bullets: [
-      'Day log & planning',
       'Your day becomes the script',
       'Every step: shot, question, purpose',
       'AI script generation (paid)',
@@ -313,11 +319,11 @@ interface Persona {
   /** PILLAR_CARDS ids, highlighted and shown first, in this order. Empty =
    *  Everyone: no reorder, no highlight, no dim — today's exact deck. */
   moduleIds: string[];
-  /** The audience value line. PR-DECK-CLEAN-1: NOT rendered anymore — the
-   *  5-part scannable card structure evicted the per-slide persona line
-   *  ("NOTHING else"). The verified copy is retained here, ready if Alex
-   *  rules it back; the persona voice still reaches the page via leadIn +
-   *  the reorder/dim treatment. */
+  /** The audience value line — ONE per persona (there are no per-module
+   *  variants in this config; nothing is invented). PR-DECK-CLEAN-1 evicted
+   *  the render; PR-DECK-CLEAN-2 ruled it BACK ("personas must mean
+   *  something"): the line renders small, above the bullets, inside each of
+   *  this persona's moduleIds cards. null (Everyone) renders nothing. */
   line: string | null;
   /** PRICE-1 (PRICING-AUDIT-1 proposal c): ONE verified line under the chip
    *  row. HARD RULE: only claims that are env/gate-true TODAY — the free
@@ -883,31 +889,44 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 // from live comparison vs resend/plaid/stripe pricing: "too
                 // much text — even I'm confused"): the card is the 5-part
                 // scannable structure and NOTHING else — name, the one plain
-                // line, 3-4 checkmark fragments, the price slot (PRICE-1/2
+                // line, checkmark fragments, the price slot (PRICE-1/2
                 // states, logic untouched), the actions. Evicted — preserved
                 // on /modules/<id> (showcase decks + TAB_DESCRIPTORS render
                 // there; PAID_* specifics = modulePillars.ts accessNote): the
                 // descriptor paragraph, the multi-sentence bullet blocks, the
-                // "Unlocks …"/access-label prose, the per-slide persona value
-                // line, and the "Module" eyebrow chip. min-h-[18rem] died —
-                // card height is content now.
+                // "Unlocks …"/access-label prose, and the "Module" eyebrow
+                // chip. PR-DECK-CLEAN-2 (Alex: "cards uneven, too big"):
+                // UNIFORM anatomy — exactly 3 fragments, the divider+price+
+                // actions stack bottom-pinned (mt-auto) so no ragged bottoms;
+                // one step tighter (p-4/p-5, h3 text-lg/xl, subtitle text-xs)
+                // and narrower slides (~3 full cards in the lg rail). The
+                // persona value line RETURNED (ruling: personas must mean
+                // something) — small, above the bullets, relevant cards only.
                 <article
                   key={p.id}
                   // PERSONA-1: a non-highlighted slide under an active persona
                   // dims one ladder step — never hides. Everyone appends the
                   // empty string: the class stays byte-identical to pre-PR.
-                  className={`flex w-[85%] shrink-0 snap-start flex-col overflow-hidden rounded-lg p-5 text-white sm:w-[60%] sm:p-6 lg:w-[38%]${
+                  className={`flex w-[80%] shrink-0 snap-start flex-col overflow-hidden rounded-lg p-4 text-white sm:w-[46%] sm:p-5 lg:w-[32%]${
                     personaActive && !personaIds.has(p.id) ? ' opacity-70' : ''
                   }`}
                   style={{ background: CARD_BG }}
                 >
-                  <h3 className="text-xl font-light tracking-tight sm:text-2xl">{p.label}</h3>
+                  <h3 className="text-lg font-light tracking-tight sm:text-xl">{p.label}</h3>
                   {/* LAND-MSG-1: the plain-English outcome line — the card's
                       ONE subtitle (structure slot 2). */}
-                  <p className="mt-1 text-sm font-medium text-white/90">{p.plain}</p>
+                  <p className="mt-1 text-xs font-medium text-white/90">{p.plain}</p>
+                  {/* PERSONA-1 → PR-DECK-CLEAN-2: the persona's ONE verified
+                      value line (PERSONAS config, :331-366 cites), rendered
+                      inside each of that persona's moduleIds cards — small,
+                      above the bullets. Everyone (line: null) renders
+                      nothing; no persona×module combo is invented. */}
+                  {personaActive && personaIds.has(p.id) && persona.line && (
+                    <p className="mt-1.5 text-xs font-medium text-white">{persona.line}</p>
+                  )}
                   {/* Slot 3: the checkmark fragments — lucide Check, the house
                       icon vocabulary (TripHeader.tsx:16 precedent). */}
-                  <ul className="mt-3 max-w-xl space-y-1.5">
+                  <ul className="mt-2.5 mb-4 max-w-xl space-y-1">
                     {p.bullets.map((b, i) => (
                       <li key={i} className="flex items-start gap-2 text-xs leading-relaxed text-white/80">
                         <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/60" strokeWidth={2.5} aria-hidden="true" />
@@ -921,8 +940,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                       Stripe env exist; "price shown at checkout" when only
                       the env exists; "Launching soon" otherwise. The prose
                       line that sat under it ("Unlocks …"/access label) was
-                      evicted — the fragments above carry those claims. */}
-                  <div className="mt-4 max-w-xl border-t border-white/20 pt-3">
+                      evicted — the fragments above carry those claims.
+                      PR-DECK-CLEAN-2: mt-auto pins the divider+price+actions
+                      stack to the card floor — consistent positions, no
+                      ragged bottoms. */}
+                  <div className="mt-auto max-w-xl border-t border-white/20 pt-3">
                     <p className="font-mono text-sm font-bold text-white">
                       {p.id === 'travel' ? (
                         <span className="text-xs font-normal text-brand-green">
@@ -956,7 +978,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                     </label>
                   )}
 
-                  <div className="mt-auto flex flex-wrap items-center gap-3 pt-4">
+                  {/* PR-DECK-CLEAN-2: the price block above owns the bottom
+                      pin (mt-auto); the actions keep a fixed gap under it. */}
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
                     {p.entitlementKey && available && (
                       <button
                         type="button"
