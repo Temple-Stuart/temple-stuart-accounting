@@ -15,6 +15,7 @@ import TripBudgetActual from '@/components/trips/TripBudgetActual';
 import HubCalendar from '@/components/hub/HubCalendar';
 import RunwayDataProvider from '@/components/hub/RunwayDataProvider';
 import RunwayBudgetPanel from '@/components/hub/RunwayBudgetPanel';
+import MatchReviewSection from '@/components/hub/MatchReviewSection';
 import PublicFlightSearch from '@/components/trips/PublicFlightSearch';
 import PublicHotelSearch from '@/components/trips/PublicHotelSearch';
 import PublicActivitySearch from '@/components/trips/PublicActivitySearch';
@@ -677,6 +678,11 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                   (RunwayBudgetPanel owns the toggle; neither component is modified). */}
               <RunwayBudgetPanel />
             </RunwayDataProvider>
+            {/* PR-MATCH-2: booking↔bank match review — a SIBLING between the
+                budget panel and the calendar (no existing panel touched).
+                Authed-only by this section's own guard; matching lives in
+                Runway per the VISION-AUDIT-1 ruling. */}
+            <MatchReviewSection />
             <HubCalendar />
           </div>
         </section>
