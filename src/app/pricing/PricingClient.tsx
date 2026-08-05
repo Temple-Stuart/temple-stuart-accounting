@@ -47,8 +47,12 @@ const TIERS = [
   },
   {
     name: 'Pro',
-    price: '$20',
-    period: '/mo',
+    // PRICE-1: the display number was STRIPPED — this tier is deliberately
+    // gated (tiers.ts:19) and no real Stripe price exists; showing "$20" was
+    // an unverifiable claim (PRICING-AUDIT-1). The badge + CTA already say
+    // Coming Soon; the number returns when a real price is configured.
+    price: '—',
+    period: '',
     tier: 'pro',
     features: [
       'Everything in Free, plus:',
@@ -59,8 +63,9 @@ const TIERS = [
   },
   {
     name: 'Pro+',
-    price: '$40',
-    period: '/mo',
+    // PRICE-1: stripped like Pro above — no real price exists yet.
+    price: '—',
+    period: '',
     tier: 'pro_plus',
     features: [
       'Everything in Pro, plus:',
