@@ -14,10 +14,15 @@
  * null/absent publishableKey or secretKey is a DECLARED error state — loud, no
  * fallback of any kind.
  *
- * Scope (PR-FL-4): payment proof only. Success renders the raw transactionId +
- * prebookId (and fires onBooked) — the /flights/bookings completion call is
- * FL-5's; the public search UI wiring is FL-6's. No card data ever touches our
- * server: the browser talks to Stripe directly via Elements.
+ * PR-FL-6c: the panel COMPLETES THE BOOKING — payment success POSTs
+ * /api/travel/liteapi/flights/book {prebookId, transactionId} and renders a
+ * customer-grade booked state (ref/PNR/price; PENDING_CONFIRMATION is
+ * success-shaped "ticket issuing", never an error). The critical
+ * paid-but-not-booked state NEVER pretends: it names both references and
+ * offers RETRY BOOKING only — the book call is idempotent per prebookId
+ * (docs: "Returns the existing booking if one already exists"), so retrying
+ * can never re-pay or double-book. No card data ever touches our server: the
+ * browser talks to Stripe directly via Elements.
  *
  * FL-4b — the form collects the EMPIRICAL prebook contract (proven live
  * 2026-08-04, HTTP 200): contact additionally REQUIRES phoneCountryCode
@@ -43,8 +48,8 @@ interface Props {
    *  server-derived at prebook; these are never sent anywhere. */
   price?: number | string | null;
   currency?: string | null;
-  /** FL-5 wires this to the booking completion; the panel also renders its raw
-   *  success state regardless. */
+  /** Fired once, AFTER the booking completed (PR-FL-6c — not on mere payment
+   *  success). Parents use it to refresh their booking lists. */
   onBooked?: (info: { prebookId: string; transactionId: string }) => void;
 }
 
@@ -79,7 +84,18 @@ function todayUtc(): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
 }
 
-type Phase = 'form' | 'prebooking' | 'pay' | 'succeeded' | 'expired';
+type Phase = 'form' | 'prebooking' | 'pay' | 'booking' | 'booked' | 'bookFailed' | 'expired';
+
+/** The book route's whitelisted envelope (FL-5, flights/book/route.ts). */
+interface BookEnvelope {
+  bookingId: string;
+  bookingRef: string | null;
+  status: string | null;
+  paymentStatus: string | null;
+  pnr: string | null;
+  price: number | null;
+  currency: string | null;
+}
 
 export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, onBooked }: Props) {
   const [phase, setPhase] = useState<Phase>('form');
@@ -109,6 +125,43 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
   const [docExpiry, setDocExpiry] = useState('');
 
   const [prebook, setPrebook] = useState<PrebookEnvelope | null>(null);
+  const [bookResult, setBookResult] = useState<BookEnvelope | null>(null);
+  const [bookError, setBookError] = useState('');
+  const [bookingBusy, setBookingBusy] = useState(false);
+
+  // PR-FL-6c: payment succeeded → complete the booking. RETRY-SAFE BY THE
+  // DOCS' OWN CONTRACT: /flights/bookings is idempotent per prebookId
+  // ("Returns the existing booking if one already exists"), and this function
+  // re-POSTs the BOOK step only — the payment is already confirmed and is
+  // never touched again.
+  const completeBooking = async (pb: PrebookEnvelope) => {
+    setPhase('booking');
+    setBookingBusy(true);
+    setBookError('');
+    try {
+      const res = await fetch('/api/travel/liteapi/flights/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prebookId: pb.prebookId, transactionId: pb.transactionId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 410 || data?.code === 'offer_expired') {
+        setPhase('expired');
+        return;
+      }
+      if (!res.ok) throw new Error(data?.error || `Booking did not complete (HTTP ${res.status})`);
+      setBookResult(data as BookEnvelope);
+      setPhase('booked');
+      onBooked?.({ prebookId: pb.prebookId, transactionId: pb.transactionId });
+    } catch (err) {
+      // THE CRITICAL STATE — paid but not booked. Never pretend: the failure
+      // renders loudly with both references and a retry of the book step only.
+      setBookError(err instanceof Error ? err.message : 'Booking did not complete.');
+      setPhase('bookFailed');
+    } finally {
+      setBookingBusy(false);
+    }
+  };
 
   // Nuitee's publishable key ONLY — from the prebook response, never env. The
   // memo keys on the response value so a re-prebook with a different key would
@@ -305,24 +358,61 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
 
       {phase === 'pay' && prebook && stripePromise && (
         <Elements stripe={stripePromise} options={{ clientSecret: prebook.secretKey }}>
-          <PayForm
-            prebook={prebook}
-            onSucceeded={() => {
-              setPhase('succeeded');
-              onBooked?.({ prebookId: prebook.prebookId, transactionId: prebook.transactionId });
-            }}
-          />
+          <PayForm onSucceeded={() => { void completeBooking(prebook); }} />
         </Elements>
       )}
 
-      {phase === 'succeeded' && prebook && (
-        <div className="space-y-2 rounded border border-brand-green/40 bg-brand-green/10 p-3">
-          <p className="text-sm font-semibold text-brand-green">Payment succeeded (sandbox proof).</p>
-          {/* FL-4 raw success state — FL-5 turns these into the /flights/bookings
-              completion call. Shown raw on purpose: this is the dev-harness proof. */}
-          <p className="break-all font-mono text-xs text-white">transactionId: {prebook.transactionId}</p>
-          <p className="break-all font-mono text-xs text-white">prebookId: {prebook.prebookId}</p>
-          <p className="text-xs text-white/50">Booking completion (the /flights/bookings call) lands in FL-5 — no ticket was issued yet.</p>
+      {phase === 'booking' && (
+        <div className="rounded border border-panel-border bg-white/5 p-3" aria-busy="true">
+          <p className="text-sm text-white">Payment received — completing your booking…</p>
+        </div>
+      )}
+
+      {/* PR-FL-6c: the customer-grade booked state. PENDING_CONFIRMATION /
+          PENDING are SUCCESS-shaped (the provider is issuing the ticket) —
+          never rendered as an error. No dev ids here; references live only in
+          the failure state, where the customer actually needs them. */}
+      {phase === 'booked' && bookResult && (
+        <div className="space-y-1.5 rounded border border-brand-green/40 bg-brand-green/10 p-3">
+          <p className="text-sm font-semibold text-brand-green">
+            Booked · ref {bookResult.bookingRef ?? bookResult.bookingId}
+          </p>
+          <p className="text-xs text-white/70">
+            {bookResult.status === 'PENDING_CONFIRMATION' || bookResult.status === 'PENDING'
+              ? 'Booking confirmed — your ticket is being issued.'
+              : 'Your ticket is confirmed.'}
+          </p>
+          {bookResult.pnr && (
+            <p className="text-xs text-white">Airline confirmation (PNR): <span className="font-mono">{bookResult.pnr}</span></p>
+          )}
+          {bookResult.price != null && (
+            <p className="text-xs text-white/70">
+              Total charged: {bookResult.currency ?? ''} {bookResult.price.toFixed(2)}
+            </p>
+          )}
+        </div>
+      )}
+
+      {phase === 'bookFailed' && prebook && (
+        <div className="space-y-2 rounded border border-brand-red/40 bg-brand-red/10 p-3">
+          <p className="text-sm font-semibold text-brand-red">
+            Your payment went through but the booking didn&apos;t complete — nothing is lost.
+          </p>
+          {bookError && <p className="text-xs text-white/70">{bookError}</p>}
+          <p className="text-xs text-white/70">
+            Retry below — retrying completes the SAME booking and never charges you again. If it keeps
+            failing, contact support with these references:
+          </p>
+          <p className="break-all font-mono text-xs text-white">booking reference: {prebook.prebookId}</p>
+          <p className="break-all font-mono text-xs text-white">payment reference: {prebook.transactionId}</p>
+          <button
+            type="button"
+            onClick={() => { void completeBooking(prebook); }}
+            disabled={bookingBusy}
+            className="rounded bg-brand-purple px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {bookingBusy ? 'Retrying…' : 'Retry booking'}
+          </button>
         </div>
       )}
 
@@ -339,7 +429,7 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
 /** Inner card form — must live inside <Elements>, so useStripe/useElements
  *  resolve. Retry policy (ruled): a failed confirmPayment retries the PAYMENT
  *  only, on the SAME clientSecret/Elements — never a silent re-prebook. */
-function PayForm({ prebook, onSucceeded }: { prebook: PrebookEnvelope; onSucceeded: () => void }) {
+function PayForm({ onSucceeded }: { onSucceeded: () => void }) {
   const stripe = useStripe();
   const elements = useElements();
   const [paying, setPaying] = useState(false);
@@ -379,7 +469,6 @@ function PayForm({ prebook, onSucceeded }: { prebook: PrebookEnvelope; onSucceed
       >
         {paying ? 'Paying…' : 'Pay now'}
       </button>
-      <p className="break-all font-mono text-[10px] text-white/50">tx: {prebook.transactionId}</p>
     </div>
   );
 }
