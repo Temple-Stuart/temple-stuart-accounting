@@ -16,19 +16,21 @@
  *   • the four entitlement modules (trade/books/tax/compliance — the ONLY
  *     tab-gated pillars, categoryLock.ts:28-30 via ML :259-262) render
  *     TAB_PRICING price-or-fallback + the server-computed availability →
- *     Select links /pricing?module=<key> (PricingClient owns login-resume,
- *     :143-182) or the disabled "Not yet available" (PricingClient :256-266);
+ *     Select links /?module=<key>#modules (PR-PRICE-3: the landing deck is
+ *     THE pricing surface; its Select owns the account-first checkout) or
+ *     the disabled "Not yet available";
  *   • travel: free, guest-usable — its search/booking routes are PUBLIC
  *     (middleware.ts:70-94) and its deck's own eyebrow says "no account
  *     required" (TravelShowcaseSections.tsx:324) → CTA = the live tools;
  *   • runway/routines/projects/content: free with a free account — their real
  *     builders are auth-gated but carry NO entitlement gate (isTabLocked
  *     wraps only the four, ML :259-262) and NO tier gate (modules are not
- *     tier features — tiers.ts TRUTH-LABELS :4-17) → CTA links /pricing,
- *     whose "Get Started Free" opens account creation.
+ *     tier features — tiers.ts TRUTH-LABELS :4-17) → CTA links '/', whose
+ *     hero "Create free account" opens account creation.
  *
- * On these pages every deck onRequireAuth routes to /pricing — no login modal
- * exists here, and /pricing is the real ask surface (see LandingHeader note).
+ * On these pages every deck onRequireAuth routes to '/' — no login modal
+ * exists here, and PR-PRICE-3 made the front door the real ask surface
+ * (/pricing is a permanent redirect to /#modules now).
  */
 
 import Link from 'next/link';
@@ -82,7 +84,7 @@ export default function ModulePageClient({ pillar, availability }: {
   pillar: PillarDef;
   availability: Record<string, boolean>;
 }) {
-  const requireAuth = () => { window.location.href = '/pricing'; };
+  const requireAuth = () => { window.location.href = '/'; };
   const Plain = PLAIN_DECKS[pillar.id];
   const Wrapped = WRAPPED_DECKS[pillar.id];
   const pricing = pillar.entitlementKey
@@ -134,7 +136,7 @@ export default function ModulePageClient({ pillar, availability }: {
               </div>
               {available ? (
                 <Link
-                  href={`/pricing?module=${encodeURIComponent(pricing.key)}`}
+                  href={`/?module=${encodeURIComponent(pricing.key)}#modules`}
                   className="bg-white px-6 py-2 text-center text-xs font-medium text-brand-purple hover:bg-bg-row"
                 >
                   Select {pricing.label} →
@@ -189,7 +191,7 @@ export default function ModulePageClient({ pillar, availability }: {
                 </p>
               </div>
               <Link
-                href="/pricing"
+                href="/"
                 className="bg-white px-6 py-2 text-center text-xs font-medium text-brand-purple hover:bg-bg-row"
               >
                 Create free account

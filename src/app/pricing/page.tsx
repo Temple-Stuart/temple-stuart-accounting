@@ -1,35 +1,29 @@
-import { Suspense } from 'react';
-import PricingClient, { type CatalogItem } from './PricingClient';
-// PR-PRICE-2: the catalog reads THE one pricing model directly. Availability
-// still resolves through getPriceIdFromEntitlementKey (it validates the key
-// against the purchasable vocabulary before touching env — safer than reading
-// entry.stripeEnvKey raw).
-import { PRICING_MODEL } from '@/config/pricingModel';
-import { getPriceIdFromEntitlementKey } from '@/lib/stripe';
+import { permanentRedirect } from 'next/navigation';
 
 /**
- * PRICING-PAGE-SELL: server component — the ONLY place the page touches the
- * STRIPE_*_PRICE_ID env vars. It computes, per sellable key, a single boolean
- * `available` (is a Stripe price ID configured RIGHT NOW) and passes it with
- * the Alex-entered display price to the client. The price-ID VALUES never
- * cross to the client — no secret leak, no extra API route, no PUBLIC_PATHS
- * change. force-dynamic: availability is read per-request, so Alex can add a
- * price ID in Vercel env and the buy-button lights up without a redeploy.
+ * PR-PRICE-3 (Alex's ruling): /pricing is a DISCONTINUED surface — the pricing
+ * model lives on the landing deck ("THE NINE PILLARS · MODULES",
+ * Landing.tsx id="modules"). This route survives ONLY as a permanent redirect
+ * so every link in the wild (and any bookmark) lands on the deck; the query
+ * string rides along verbatim (?module= / ?modules= / ?cancelled= …).
+ * PricingClient (the standalone table) died with this PR — the deck's own
+ * Select/Continue flow calls /api/stripe/checkout-entitlement directly, and
+ * "Manage existing subscription" moved to the authed home header (HomeClient).
+ *
+ * permanentRedirect = 308: the discontinuation is a ruling, not an experiment.
+ * force-dynamic: searchParams must be read per-request to preserve the query.
  */
 export const dynamic = 'force-dynamic';
 
-export default function PricingPage() {
-  const catalog: CatalogItem[] = PRICING_MODEL.map((t) => ({
-    key: t.key,
-    label: t.label,
-    unlocks: t.unlocks,
-    monthlyPrice: t.monthlyPrice,
-    available: getPriceIdFromEntitlementKey(t.key) !== null,
-  }));
-
-  return (
-    <Suspense>
-      <PricingClient catalog={catalog} />
-    </Suspense>
-  );
+export default async function PricingPage({ searchParams }: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (typeof v === 'string') qs.append(k, v);
+    else if (Array.isArray(v)) for (const item of v) qs.append(k, item);
+  }
+  const query = qs.toString();
+  permanentRedirect(`/${query ? `?${query}` : ''}#modules`);
 }

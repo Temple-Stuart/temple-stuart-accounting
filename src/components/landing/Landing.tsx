@@ -13,7 +13,7 @@
  *   • pillar cards' "Explore →" targets the pillar's shareable info page
  *     (/modules/<id> — deck + honest access block), not the tab deep link;
  *   • the sheet lists ALL NINE pillars honestly: the four entitlement modules
- *     (TAB_PRICING data, availability-honest Select → /pricing?module=<key>)
+ *     (TAB_PRICING data, availability-honest Select → direct checkout)
  *     PLUS the five free pillars as explicit Free rows — travel is free with
  *     NO account (its search/booking routes are public, middleware.ts:70-94);
  *     runway/routines/projects/content are free WITH a free account (their
@@ -48,10 +48,11 @@
  * every string lifted verbatim from the module decks (per-line provenance on
  * SUMMARY_BY_ID). (PR-ELEV-2b: the deck was cut in ELEV-2+3, then RESTORED
  * byte-faithfully from fec63b01 by Alex's ruling; the "Built on" card wall +
- * "Built in public" sections follow it.) Commerce stays on /pricing: the
- * landing SELECTS, /pricing SELLS — Continue links carry ?module= /
- * ?modules= only, and multi-purchase remains N clicks through /pricing's
- * existing buttons.
+ * "Built in public" sections follow it.) PR-PRICE-3: /pricing is DISCONTINUED
+ * — this deck is THE pricing surface. Select/Continue call the
+ * checkout-entitlement flow directly (via GuestLanding's onBuyModule
+ * account-first resume); multi-select is one checkout per module, starting
+ * with the first selected, and the strip says so.
  *
  * DECKS-3 (three verbatim rulings): (1) the PILLARS deck is a VERTICAL STACK
  * of full-width mini heroes — its carousel mechanics died; (2) the SELECTION
@@ -566,11 +567,17 @@ interface Props {
   onRequireAuth: () => void;
   /** ROUTE-1 (ruling b): the header's "Log in" opener — the SAME LoginBox in
    *  LOGIN mode (returning users). Optional so the preview wrapper needs no
-   *  change; absent → LandingHeader falls back to its /pricing link mode. */
+   *  change; absent → LandingHeader falls back to its '/' link mode. */
   onRequireLogin?: () => void;
   /** Per-entitlement-key availability, SERVER-computed by the mount route
-   *  (mirrors /pricing/page.tsx:15-24). Missing key → unavailable. */
+   *  (page.tsx:83-85 env-presence read). Missing key → unavailable. */
   entitlementAvailability: Record<string, boolean>;
+  /** PR-PRICE-3: the deck's buy path — /pricing died, so Select/Continue no
+   *  longer link out; they hand the entitlement key to GuestLanding, which
+   *  owns the account-first + checkout-entitlement resume (every Landing
+   *  viewer is a guest by construction — page.tsx:77 branches authed viewers
+   *  to HomeClient, where LockedTabCard is the buy surface). */
+  onBuyModule: (key: string) => void;
 }
 
 // The house dark-hero background — TabShowcaseTemplate.tsx:140-144's pattern
@@ -591,7 +598,7 @@ const HERO_BG =
 const CARD_BG =
   'radial-gradient(ellipse 120% 120% at 80% 0%, rgb(var(--ts-purple) / 0.85), transparent 70%), radial-gradient(ellipse 90% 90% at 10% 100%, rgb(var(--ts-purple-deep) / 0.7), transparent 65%), var(--ts-panel)';
 
-export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvailability }: Props) {
+export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvailability, onBuyModule }: Props) {
   const pricingByKey = new Map(TAB_PRICING.map((t) => [t.key, t]));
   const bundle = pricingByKey.get('bundle:all');
 
@@ -660,12 +667,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
   const selectedSellKeys = selectedPillars
     .map((p) => p.entitlementKey)
     .filter((k): k is string => typeof k === 'string');
-  const continueHref =
-    selectedSellKeys.length === 1
-      ? `/pricing?module=${encodeURIComponent(selectedSellKeys[0])}`
-      : selectedSellKeys.length > 1
-        ? `/pricing?modules=${selectedSellKeys.join(',')}`
-        : '/pricing';
 
   return (
     <div className="min-h-screen bg-panel text-white">
@@ -767,11 +768,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             = the pillar card's content (chip + TAB_DESCRIPTORS + verbatim
             PILLAR_CARDS bullets) + its sheet row's truth (Unlocks/accessLabel,
             the price line, the FD-1o cost summary) + the actions
-            (availability-honest Select → /pricing?module=<key>; Explore →
+            (availability-honest Select → direct checkout; Explore →
             /modules/<id>). Navigation: CSS scroll-snap (no new
             deps), chevrons + scroll-derived dots. HERO-REPO-1: the demo
-            trigger mounts in this header (id="pillar-deck" retained). ───────── */}
-      <section id="pillar-deck" className="w-full border-b border-panel-border bg-panel">
+            trigger mounts in this header. PR-PRICE-3: id="modules" — THE
+            stable anchor the /pricing permanent redirect (and any deep link)
+            targets; this deck IS the pricing surface now. ───────────────────── */}
+      <section id="modules" className="w-full border-b border-panel-border bg-panel">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
           <div className="flex items-center justify-between">
             <div>
@@ -864,9 +867,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 // died with "free" itself. Chip = the hero eyebrow idiom
                 // ('Module', a chrome label); the pillar label is the display
                 // headline. ALL NINE slides get ADD TO PLAN (ruling 3);
-                // actions are Select → /pricing?module=<key> (availability-
-                // honest disabled when no key or no Stripe price) + the
-                // Explore secondary. "Learn more" is gone.
+                // actions are Select → onBuyModule(key) — the direct
+                // checkout-entitlement path, PR-PRICE-3 (availability-honest:
+                // hidden when no key or no Stripe price) + the Explore
+                // secondary. "Learn more" is gone.
                 <article
                   key={p.id}
                   // PERSONA-1: a non-highlighted slide under an active persona
@@ -952,12 +956,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
 
                   <div className="mt-auto flex flex-wrap items-center gap-3 pt-4">
                     {p.entitlementKey && available && (
-                      <Link
-                        href={`/pricing?module=${encodeURIComponent(p.entitlementKey)}`}
+                      <button
+                        type="button"
+                        onClick={() => onBuyModule(p.entitlementKey as string)}
                         className="inline-block bg-white px-4 py-1.5 text-xs font-medium text-brand-purple hover:bg-bg-row"
                       >
                         Select →
-                      </Link>
+                      </button>
                     )}
                     <Link
                       href={`/modules/${p.id}`}
@@ -989,10 +994,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 the honest price area (the sum ONLY when every selected
                 TAB_PRICING monthlyPrice exists — all five are null today,
                 pricing-costs.ts:346-370, so "prices shown at checkout" is the
-                live default), the bundle comparison at 2+, and Continue into
-                /pricing (?module= single / ?modules= multi). Commerce stays
-                on /pricing — multi-purchase is N checkouts there, and the
-                strip says so. ─────────────────────────────────────────────── */}
+                live default), the bundle comparison at 2+, and Continue →
+                onBuyModule (PR-PRICE-3: /pricing died; Stripe checkout is one
+                subscription per session, so multi-select starts with the
+                FIRST selected key and the strip says so — the remaining
+                modules buy the same way after each checkout returns). ──────── */}
           {selectedPillars.length > 0 && (
             <div className="mt-5 flex flex-col gap-4 rounded-lg border border-brand-purple/60 bg-panel p-4 sm:flex-row sm:items-center">
               <div className="flex-1">
@@ -1004,7 +1010,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 </p>
                 {selectedPillars.length >= 2 && (
                   <p className="mt-1 text-[10px] text-white/40">
-                    Complete each module&apos;s checkout on the next page.
+                    One checkout per module — Continue starts with the first selected.
                   </p>
                 )}
               </div>
@@ -1026,12 +1032,16 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                   </p>
                 )}
               </div>
-              <Link
-                href={continueHref}
+              {/* Selection requires `available` (the checkbox gate above), so
+                  every selected pillar has a sell key — selectedSellKeys is
+                  never empty while this strip renders. */}
+              <button
+                type="button"
+                onClick={() => onBuyModule(selectedSellKeys[0])}
                 className="bg-white px-6 py-2 text-center text-xs font-medium text-brand-purple hover:bg-bg-row"
               >
                 Continue →
-              </Link>
+              </button>
             </div>
           )}
 
@@ -1059,12 +1069,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 )}
               </div>
               {entitlementAvailability[bundle.key] === true && (
-                <Link
-                  href={`/pricing?module=${encodeURIComponent(bundle.key)}`}
+                <button
+                  type="button"
+                  onClick={() => onBuyModule(bundle.key)}
                   className="bg-white px-6 py-2 text-center text-xs font-medium text-brand-purple hover:bg-bg-row"
                 >
                   Select the bundle →
-                </Link>
+                </button>
               )}
             </div>
           )}

@@ -4,9 +4,9 @@
  * access block, between the shared Bloomberg header/footer.
  *
  * SERVER component — the only place this route touches STRIPE_*_PRICE_ID env
- * vars: it computes the per-key availability booleans exactly as
- * /pricing/page.tsx:15-24 does and passes the map down. force-dynamic mirrors
- * /pricing (no generateStaticParams precedent exists in this repo, and live
+ * vars: it computes the per-key availability booleans exactly as the front
+ * door (app/page.tsx:83-85) does and passes the map down. force-dynamic
+ * mirrors it (no generateStaticParams precedent exists in this repo, and live
  * availability truth beats static generation — the FD-1d determination).
  *
  * An unknown pillar id → notFound() (404) — never a guessed page.

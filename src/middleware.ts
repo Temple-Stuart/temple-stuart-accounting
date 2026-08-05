@@ -55,6 +55,9 @@ const PUBLIC_PATHS = [
   '/api/auth',
   '/_next',
   '/favicon.ico',
+  // PR-PRICE-3: /pricing is a permanent redirect to /#modules now — the entry
+  // stays so guests (links in the wild, bookmarks) can REACH the redirect
+  // instead of bouncing to '/' without their query string.
   '/pricing',
   // FD-0: the cost-transparency page the landing header links (page.tsx:109) —
   // a static server component: zero authed calls, zero paid external calls

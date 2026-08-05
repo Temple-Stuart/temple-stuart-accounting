@@ -26,7 +26,7 @@ import HomeClient from '@/components/home/HomeClient';
  */
 
 // HERO-BUG-1: force-dynamic — the ONE real divergence between this mount and
-// the front door's (page.tsx:35, which force-dynamics "mirroring /pricing").
+// the front door's (page.tsx:35, which also force-dynamics).
 // Without it, this page uses no dynamic API, so Next renders it on demand and
 // CACHES it (the Full Route Cache) with cacheable response headers — a static
 // shell that can outlive a deployment in CDN/browser caches

@@ -46,7 +46,11 @@ export async function POST(request: NextRequest) {
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${baseUrl}/dashboard?upgraded=true`,
-      cancel_url: `${baseUrl}/pricing?cancelled=true`,
+      // PR-PRICE-3: /pricing (and its ?cancelled banner) died — cancels land
+      // on the deck, carrying the checkout-entitlement route's cancel param
+      // (:69 there) so ONE cancel vocabulary survives. NOTE: no reader renders
+      // a banner for it on '/' today (pre-existing gap, reported).
+      cancel_url: `${baseUrl}/?checkout=cancelled#modules`,
       metadata: { userId: user.id, tier },
     });
 

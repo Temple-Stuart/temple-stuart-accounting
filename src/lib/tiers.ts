@@ -2,8 +2,9 @@
  * Temple Stuart — Tier definitions & feature gating
  *
  * ── LEGACY VOCABULARY (PR-PRICE-2, Alex's ruling) ──────────────────────────
- * The pricing page NO LONGER SELLS TIERS — /pricing is the one module/bundle
- * table consuming src/config/pricingModel.ts, and the Pro/Pro+ cards are gone.
+ * NOTHING SELLS TIERS — the landing deck is THE pricing surface (PR-PRICE-3;
+ * /pricing is a permanent redirect to /#modules), it consumes
+ * src/config/pricingModel.ts, and the Pro/Pro+ cards are gone.
  * This file survives ONLY because live gates still read it (requireTier call
  * sites: ai/meal-plan, ai/cart-plan, ai/meal-planner, places/category-search,
  * trips/[id]/ai-assistant) and existing subscriptions resolve through it

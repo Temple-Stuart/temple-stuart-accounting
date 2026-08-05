@@ -11,8 +11,10 @@
  *   • onRequireLogin provided (the Landing; GuestLanding passes the LoginBox
  *     opener in LOGIN mode) → a button calling it;
  *   • absent (the /modules pages, which have no login modal) → a LINK to
- *     /pricing, whose "Get Started Free" opens LoginBox and whose buy flow
- *     owns login-resume (PricingClient.tsx:143-182) — the ruled ask surface.
+ *     '/' — PR-PRICE-3: /pricing (the old ask surface) is a redirect now, so
+ *     the front door is the real one: its header renders THIS component in
+ *     button mode (working Log in modal) and its hero carries the register
+ *     ask.
  */
 
 import Link from 'next/link';
@@ -47,7 +49,7 @@ export default function LandingHeader({ onRequireLogin }: { onRequireLogin?: () 
                 Log in
               </button>
             ) : (
-              <Link href="/pricing" className="px-4 py-2 text-xs bg-white text-brand-purple font-medium hover:bg-bg-row">
+              <Link href="/" className="px-4 py-2 text-xs bg-white text-brand-purple font-medium hover:bg-bg-row">
                 Log in
               </Link>
             )}
