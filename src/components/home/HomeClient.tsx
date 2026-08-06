@@ -131,9 +131,9 @@ export default function HomeClient() {
           the panel-border HAIRLINE, not a different colour. */}
       <header className="border-b border-panel-border bg-panel text-white">
         <div className="max-w-7xl mx-auto px-4 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-16 sm:h-20">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white flex items-center justify-center">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white flex items-center justify-center">
                 <span className="text-brand-purple font-bold text-terminal-lg">TS</span>
               </div>
               <div>
@@ -152,7 +152,7 @@ export default function HomeClient() {
                   is still resolving (authed === null), show an invisible placeholder so the
                   header never flashes the wrong action or shifts width. */}
               {authed === null ? (
-                <span className="px-4 py-2 text-xs opacity-0 select-none" aria-hidden="true">Enter →</span>
+                <span className="px-4 py-2.5 text-sm opacity-0 select-none" aria-hidden="true">Enter →</span>
               ) : authed ? (
                 <>
                   {/* EXPORT-1b: the export must reach EVERY authed user, not just
@@ -196,13 +196,13 @@ export default function HomeClient() {
                     <span className="text-xs text-white/60 hidden sm:block">{userLabel}</span>
                   )}
                   <button onClick={handleSignOut}
-                    className="px-4 py-2 text-xs bg-white text-brand-purple font-medium hover:bg-bg-row">
+                    className="px-4 py-2.5 text-sm bg-white text-brand-purple font-medium hover:bg-bg-row">
                     Log out
                   </button>
                 </>
               ) : (
                 <button onClick={() => { setLoginMode('login'); setShowLogin(true); }}
-                  className="px-4 py-2 text-xs bg-white text-brand-purple font-medium hover:bg-bg-row">
+                  className="px-4 py-2.5 text-sm bg-white text-brand-purple font-medium hover:bg-bg-row">
                   Enter →
                 </button>
               )}
