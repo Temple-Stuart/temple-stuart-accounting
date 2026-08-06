@@ -19,7 +19,14 @@
 
 import Link from 'next/link';
 
-export default function LandingHeader({ onRequireLogin }: { onRequireLogin?: () => void }) {
+export default function LandingHeader({ onRequireLogin, onRequireAuth }: {
+  onRequireLogin?: () => void;
+  /** HEADER-CTA: the hero "Create free account" opener (Landing.tsx:772
+   *  onClick={onRequireAuth}) — passed through by the Landing mount so the
+   *  header CTA's destination is byte-identical to the hero's. Absent (the
+   *  /modules pages, no modal) → the CTA links '/' like link-mode Log in. */
+  onRequireAuth?: () => void;
+}) {
   return (
     <header className="border-b border-panel-border bg-panel text-white">
       <div className="max-w-7xl mx-auto px-4 lg:px-8">
@@ -51,6 +58,24 @@ export default function LandingHeader({ onRequireLogin }: { onRequireLogin?: () 
             ) : (
               <Link href="/" className="px-4 py-2.5 text-sm bg-white text-brand-purple font-medium hover:bg-bg-row">
                 Log in
+              </Link>
+            )}
+            {/* HEADER-CTA: the gradient Create-account CTA — right of Log in,
+                all breakpoints (the CTA pattern; only the nav links collapse
+                on mobile). Same dual-mode shape as Log in: the hero's
+                onRequireAuth opener when the mount provides it, else the '/'
+                ask-surface link. No rounding — the header buttons carry none. */}
+            {onRequireAuth ? (
+              <button
+                type="button"
+                onClick={onRequireAuth}
+                className="px-4 py-2.5 text-sm font-medium ts-cta-gradient text-white hover:brightness-110"
+              >
+                Create account
+              </button>
+            ) : (
+              <Link href="/" className="px-4 py-2.5 text-sm font-medium ts-cta-gradient text-white hover:brightness-110">
+                Create account
               </Link>
             )}
           </div>
