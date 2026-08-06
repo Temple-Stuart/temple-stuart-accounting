@@ -36,7 +36,6 @@
 // the mount-all/CSS-hide behavior are byte-identical to the pre-extraction
 // TOGGLE-1 output.
 import ToggleStrip, { type ToggleMode } from '@/components/ui/ToggleStrip';
-import { DS } from '@/lib/ds';
 // PR-ELEV-1: the modes come from the ONE shared builder (8 chips — 5 live + 3
 // "Soon"), so the guest landing and the app travel tab render the same strip
 // and light up together as affiliate IDs land.
@@ -51,27 +50,17 @@ export default function LandingBookingSection({ onRequireAuth }: { onRequireAuth
     // ToggleStrip now paints the purple BAND_BG band around its floating
     // card, so only the margin rides className here (the card chrome moved
     // inside ToggleStrip).
+    // PR-STRIP-DESIGN-4 (Alex: the band header was overloaded — 5 text
+    // layers): the eyebrow + free-today header DELETED. The free-today truth
+    // survives on-site twice: trust chip 1 "No account required"
+    // (travelStripModes.tsx TRAVEL_TRUST_CHIPS) and the deck's green line
+    // "Free today: search & book travel, no account required."
+    // (Landing.tsx travel price slot). Band = headline + chips, nothing else.
     <ToggleStrip
       band
       className="mt-8"
       modes={modes}
       trust={TRAVEL_TRUST_CHIPS}
-      header={
-        /* LAND-MSG-1 → PR-STRIP-DESIGN-1: the long WHY paragraph compressed
-           to ONE line — the per-mode explainer carries the explaining now.
-           Claims verified, both pre-existing: the free-today clause is the
-           deck's PRICE-1 green line near-verbatim (public search routes,
-           guest booking); the account clause is the old blurb's own closing
-           sentence compressed. PR-STRIP-DESIGN-3: centered ON the band above
-           the headline — eyebrow small, the free line as the trust anchor. */
-        <div className="mb-3 text-center">
-          <p className={`${DS.TYPE.microLabel} mb-1`}>Free travel search &amp; booking</p>
-          <p className="font-mono text-[11px] leading-relaxed text-white/70">
-            Free today: search &amp; book travel, no account required — a free account
-            adds saving, budgeting, and runway.
-          </p>
-        </div>
-      }
     />
   );
 }

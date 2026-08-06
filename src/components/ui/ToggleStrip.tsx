@@ -33,9 +33,11 @@ export interface ToggleMode {
    *  original text chip (DS.toggleChip) — existing consumers unchanged. */
   icon?: ReactNode;
   /** PR-STRIP-DESIGN-1: the Kayak-style per-mode line — ONE short sentence
-   *  swapping with the active mode. Absent → nothing renders (e.g. modes
-   *  whose panel self-explains). PR-STRIP-DESIGN-2: with `band`, it renders
-   *  beneath the headline ON the band; without, under the tab row as before. */
+   *  swapping with the active mode, rendered under the tab row in the
+   *  NON-band strip only. PR-STRIP-DESIGN-4 (de-clutter ruling): the band
+   *  does NOT render it — the band is headline + trust chips, nothing else;
+   *  the strings stay documented on the modes and live on in their source
+   *  components. */
   explainer?: string;
   /** PR-STRIP-DESIGN-2: the prominent per-mode headline (text-lg/xl white),
    *  rendered ON the band above the floating card, swapping with the active
@@ -56,16 +58,16 @@ interface Props {
   className?: string;
   /** PR-STRIP-DESIGN-2: the trip.com band composition — a purple gradient
    *  band (DS.BAND_BG, rounded-2xl) behind a FLOATING elevated card, with
-   *  the per-mode headline + explainer swapping ON the band above the card.
-   *  Off (default) → the original flat strip, byte-identical (the trade
+   *  the per-mode headline swapping ON the band above the card. Off
+   *  (default) → the original flat strip, byte-identical (the trade
    *  Scan/Lab/Record strip stays untouched by construction).
    *  PR-STRIP-DESIGN-3: band content CENTERS (headline bigger/bolder, tabs
-   *  justify-center) and `header` renders ON the band above the headline
-   *  instead of inside the card. */
+   *  justify-center). PR-STRIP-DESIGN-4: the band renders EXACTLY headline +
+   *  trust chips + card — no header/eyebrow/explainer layers. */
   band?: boolean;
   /** PR-STRIP-DESIGN-3: the trust-chips row (verified facts only, caller-
-   *  built) — rendered centered on the band under the headline/explainer.
-   *  Band-only; ignored without `band`. */
+   *  built) — rendered centered on the band under the headline. Band-only;
+   *  ignored without `band`. */
   trust?: ReactNode;
 }
 
@@ -136,22 +138,21 @@ export default function ToggleStrip({ modes, header, defaultKey, className, band
 
   if (!band) return card;
 
-  // PR-STRIP-DESIGN-2 → 3: the band composition, CENTERED — the caller's
-  // header (eyebrow + trust anchor line) above, then the per-mode headline
-  // (bigger, bolder), the promoted explainer, the trust-chips row, and the
-  // floating card (whose forms stay left-aligned — they read left-to-right).
+  // PR-STRIP-DESIGN-2 → 3 → 4: the band composition, CENTERED and
+  // DE-CLUTTERED (Alex: 5 text layers → 2). EXACTLY: the per-mode headline,
+  // the trust-chips row, the floating card — nothing else. The per-mode
+  // explainer no longer renders on the band (its strings survive in their
+  // own components — e.g. PublicFlightSearch.tsx:315 shell explainer — and
+  // the Soon panels still render theirs); `header` stays a slot for non-band
+  // consumers but no band surface passes one anymore. Padding tightened one
+  // step (p-4/sm:p-6 → p-3/sm:p-5) so the shorter band doesn't read empty.
   return (
-    <div className={`${className ?? ''} rounded-2xl p-4 sm:p-6`} style={{ background: DS.BAND_BG }}>
+    <div className={`${className ?? ''} rounded-2xl p-3 sm:p-5`} style={{ background: DS.BAND_BG }}>
       {header}
       {activeMode?.headline && (
         <h3 className="text-center text-2xl font-semibold tracking-tight text-white sm:text-3xl">
           {activeMode.headline}
         </h3>
-      )}
-      {activeMode?.explainer && (
-        <p className="mt-1.5 text-center font-mono text-[11px] leading-relaxed text-white/70">
-          {activeMode.explainer}
-        </p>
       )}
       {trust && <div className="mt-3">{trust}</div>}
       <div className="mt-4">{card}</div>
