@@ -203,6 +203,19 @@ export default function FlightPicker({
     const leg = legs.find(l => l.id === legId);
     if (!leg || !leg.manualPrice) return;
 
+    // MANUAL-ROUTE-GUARD: manual commits meet the SAME completeness bar the
+    // search path enforces (searchLeg :172-175 guards origin+destination;
+    // departureDate is an unconditional required search param). Fail loud in
+    // the leg's own error channel — never silently default or proceed.
+    const missing: string[] = [];
+    if (!leg.origin.trim()) missing.push('origin airport');
+    if (!leg.destination.trim()) missing.push('destination airport');
+    if (!leg.departureDate.trim()) missing.push('departure date');
+    if (missing.length > 0) {
+      updateLeg(legId, { error: `Enter ${missing.join(', ')} before saving a manual flight.` });
+      return;
+    }
+
     const manualFlight: FlightOffer = {
       id: `manual-${Date.now()}`,
       price: parseFloat(leg.manualPrice),
@@ -224,13 +237,22 @@ export default function FlightPicker({
       isManual: true,
     };
 
-    updateLeg(legId, { selectedOffer: manualFlight, expanded: false, manualAirline: '', manualPrice: '', manualDepartTime: '', manualArriveTime: '', manualArriveDate: '' });
+    updateLeg(legId, { selectedOffer: manualFlight, expanded: false, error: '', manualAirline: '', manualPrice: '', manualDepartTime: '', manualArriveTime: '', manualArriveDate: '' });
   };
 
   // ── Commit via vendor-commit ──
   const commitLeg = async (legId: string) => {
     const leg = legs.find(l => l.id === legId);
     if (!leg?.selectedOffer) return;
+
+    // MANUAL-ROUTE-GUARD (R3): a search offer always carries a route, but the
+    // persisted vendor title is built from the MUTABLE leg fields below —
+    // which can be cleared after an offer is selected. Same completeness bar
+    // at the last gate before persistence; fail loud, no fallback.
+    if (!leg.origin.trim() || !leg.destination.trim()) {
+      updateLeg(legId, { error: 'Enter both origin and destination airport codes before saving.' });
+      return;
+    }
 
     setCommitting(legId);
     try {
