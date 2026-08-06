@@ -151,35 +151,45 @@ export default function FlightPickerView({
         // the leg block steps DOWN to the inset token (bg-white/5) to keep
         // its separation — same ds.ts surface family, no new colors.
         <div key={leg.id} className="bg-white/5 border border-panel-border rounded overflow-hidden">
-          {/* Leg header */}
-          <div
-            className="flex items-center justify-between px-3 py-2 bg-white/5 border-b border-panel-border cursor-pointer hover:bg-white/10 transition-colors"
-            onClick={() => onUpdateLeg(leg.id, { expanded: !leg.expanded })}
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-lg">✈️</span>
-              <div>
-                <div className="flex items-center gap-2 text-sm font-medium text-white">
-                  {legs.length > 1 && <span className="text-white/50">Leg {legIdx + 1}:</span>}
-                  {/* PR-STRIP-DESIGN-1 nit: the "??? → ???" empty state reads
-                      broken — honest neutral copy until BOTH airports are set. */}
-                  {leg.origin && leg.destination ? `${leg.origin} → ${leg.destination}` : 'Plan your trip'}
-                  {leg.committed && <span className="px-2 py-0.5 bg-brand-green/20 text-brand-green text-[10px] font-medium rounded">Saved</span>}
-                </div>
-                <div className="text-xs text-white/50">
-                  {leg.departureDate}{leg.tripType === 'roundtrip' && leg.returnDate ? ` — ${leg.returnDate}` : ''} • {leg.tripType === 'roundtrip' ? 'Round-trip' : 'One-way'}
-                  {leg.selectedOffer && !leg.committed && <span className="ml-2 text-brand-purple font-medium">${leg.selectedOffer.price} selected</span>}
+          {/* Leg header — BAR-COMMITTED-ONLY (the BAR-KILL gate ruling,
+              variant b): the bar renders ONLY for committed legs, where it IS
+              the saved-flight summary card and the toggle for the 8
+              programmatic collapse paths (setters untouched). Uncommitted
+              legs render no bar — their form is always open (body gate
+              below). The 'Plan your trip' route fallback STAYS: commitLeg
+              requires only selectedOffer (FlightPicker.tsx:231-233) and the
+              authed manual path gates on manualPrice alone, so a committed
+              manual leg can lack a route. The "$X selected" line died — the
+              bar now requires committed, making that branch unreachable; the
+              Saved badge's committed check was tautological and dropped. */}
+          {leg.committed && (
+            <div
+              className="flex items-center justify-between px-3 py-2 bg-white/5 border-b border-panel-border cursor-pointer hover:bg-white/10 transition-colors"
+              onClick={() => onUpdateLeg(leg.id, { expanded: !leg.expanded })}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-lg">✈️</span>
+                <div>
+                  <div className="flex items-center gap-2 text-sm font-medium text-white">
+                    {legs.length > 1 && <span className="text-white/50">Leg {legIdx + 1}:</span>}
+                    {leg.origin && leg.destination ? `${leg.origin} → ${leg.destination}` : 'Plan your trip'}
+                    <span className="px-2 py-0.5 bg-brand-green/20 text-brand-green text-[10px] font-medium rounded">Saved</span>
+                  </div>
+                  <div className="text-xs text-white/50">
+                    {leg.departureDate}{leg.tripType === 'roundtrip' && leg.returnDate ? ` — ${leg.returnDate}` : ''} • {leg.tripType === 'roundtrip' ? 'Round-trip' : 'One-way'}
+                  </div>
                 </div>
               </div>
+              <div className="flex items-center gap-2">
+                {leg.selectedOffer && <span className="text-sm font-bold text-brand-green">${leg.selectedOffer.price}</span>}
+                <span className="text-xs text-white/50">{leg.expanded ? '▲' : '▼'}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              {leg.selectedOffer && <span className="text-sm font-bold text-brand-green">${leg.selectedOffer.price}</span>}
-              <span className="text-xs text-white/50">{leg.expanded ? '▲' : '▼'}</span>
-            </div>
-          </div>
+          )}
 
-          {/* Leg body */}
-          {leg.expanded && (
+          {/* Leg body — always open while uncommitted; committed legs keep
+              the expanded toggle (the bar above). */}
+          {(leg.expanded || !leg.committed) && (
             <div className="p-4 space-y-4">
               {/* Committed state */}
               {leg.committed ? (
