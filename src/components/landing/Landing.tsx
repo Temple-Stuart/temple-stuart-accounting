@@ -630,7 +630,9 @@ interface Props {
 // The house dark-hero background — TabShowcaseTemplate.tsx:140-144's pattern
 // on token vars (no hex).
 const HERO_BG =
-  'radial-gradient(ellipse 80% 90% at 85% 10%, rgb(var(--ts-purple) / 0.65), transparent 60%), radial-gradient(ellipse 60% 70% at 100% 80%, rgb(var(--ts-purple-deep) / 0.5), transparent 55%), var(--ts-panel)';
+  // BG-DEPTH: glow PARITY with the app hero — the same idea-state
+  // single-radial recipe as ds.ts HERO_BG, on the page canvas.
+  'radial-gradient(ellipse 55% 65% at 68% 35%, rgb(var(--ts-purple-pop) / 0.22), transparent 62%), var(--ts-page)';
 
 // PR-ELEV-2c: the CARD variant of the glow. HERO_BG's ellipses are positioned
 // for the WIDE hero — on a small card the glow collapses into one corner and
@@ -724,7 +726,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
     .filter((k): k is string => typeof k === 'string');
 
   return (
-    <div className="min-h-screen bg-panel text-white">
+    <div className="min-h-screen bg-page text-white">
       <LandingHeader onRequireLogin={onRequireLogin} />
 
       {/* ── Hero — the house Bloomberg treatment; copy + CTAs verbatim ─────── */}

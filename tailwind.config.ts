@@ -32,8 +32,11 @@ const config: Config = {
           accent: 'rgb(var(--ts-accent) / <alpha-value>)',              // #b4b237
           'accent-dark': 'rgb(var(--ts-accent-dark) / <alpha-value>)',  // #9a9630
         },
+        // BG-DEPTH: the page canvas — its own token so page and cards move
+        // independently (same plain-var pattern as `panel`).
+        page: 'var(--ts-page)',                    // #0b0d14
         panel: {
-          DEFAULT: 'var(--ts-panel)',              // #0d1117
+          DEFAULT: 'var(--ts-panel)',              // #11131b (BG-DEPTH lift; was #0d1117)
           surface: 'var(--ts-panel-surface)',      // #161b22
           border: 'var(--ts-panel-border)',        // #30363d
           hover: 'var(--ts-panel-hover)',          // #21262d

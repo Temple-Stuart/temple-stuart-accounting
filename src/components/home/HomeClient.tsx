@@ -124,7 +124,7 @@ export default function HomeClient() {
     // (bg-bg-terminal → bg-panel), so the shell reads dark like the lobby. Each
     // tab body sets its OWN surface (bg-white for the still-light tabs, bg-panel
     // for travel), so nothing naked inherits this and inverts.
-    <div className="min-h-screen bg-panel">
+    <div className="min-h-screen bg-page">
       {/* Header — FD-3-2: joins the panel family, mirroring LandingHeader
           (border-b border-panel-border bg-panel text-white; mono micro sub-
           line; text-white/60 nav links). It stays distinct from the hero via
