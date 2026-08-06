@@ -88,8 +88,14 @@
   --ts-accent:      180 178 55;   /* #b4b237 */
   --ts-accent-dark: 154 150 48;   /* #9a9630 */
 
-  /* Dark "panel / terminal" surfaces (unchanged values, now named) */
-  --ts-panel:           #0d1117;
+  /* Dark "panel / terminal" surfaces. BG-DEPTH (resolves the
+     PALETTE-OVERHAUL stop-gate deliberately): the page CANVAS gets its own
+     token so page and cards move independently — hierarchy is
+     page #0b0d14 < panel #11131b < panel-surface #161b22. History:
+     --ts-panel was #0d1117 (page AND cards); BG-DEPTH added --ts-page and
+     lifted --ts-panel to the idea-state surface value. */
+  --ts-page:            #0b0d14;   /* idea-state page canvas */
+  --ts-panel:           #11131b;   /* idea-state surface (was #0d1117) */
   --ts-panel-surface:   #161b22;
   --ts-panel-border:    #30363d;
   --ts-panel-hover:     #21262d;

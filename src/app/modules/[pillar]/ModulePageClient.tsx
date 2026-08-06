@@ -93,7 +93,7 @@ export default function ModulePageClient({ pillar, availability }: {
   const available = pillar.entitlementKey ? availability[pillar.entitlementKey] === true : false;
 
   return (
-    <div className="min-h-screen bg-panel text-white">
+    <div className="min-h-screen bg-page text-white">
       <LandingHeader />
 
       {/* ── THE DECK — standalone, as-built ────────────────────────────────── */}

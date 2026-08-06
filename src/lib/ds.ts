@@ -15,8 +15,9 @@
  * and the landing hero glow (HERO_BG).
  */
 export const SURFACE = {
-  /** The page background. Origin: HomeClient.tsx:98 `min-h-screen bg-panel`. */
-  page: 'bg-panel',
+  /** The page background — BG-DEPTH: the dedicated canvas token
+   *  (HomeClient/Landing shells use `min-h-screen bg-page`). */
+  page: 'bg-page',
   /** A raised card. Origin: the trip components + CountryCityPicker dropdown
    *  (bg-panel-surface + border-panel-border). */
   card: 'rounded-lg border border-panel-border bg-panel-surface',
@@ -35,7 +36,7 @@ export const SURFACE = {
  *  HERO_BG const (Landing.tsx:632), which this edit deliberately does not
  *  touch (no Landing hero edits in PALETTE-OVERHAUL's C scope). */
 export const HERO_BG =
-  'radial-gradient(ellipse 55% 65% at 68% 35%, rgb(var(--ts-purple-pop) / 0.22), transparent 62%), var(--ts-panel)';
+  'radial-gradient(ellipse 55% 65% at 68% 35%, rgb(var(--ts-purple-pop) / 0.22), transparent 62%), var(--ts-page)';
 
 /** PR-STRIP-DESIGN-2 → STRIP-FLAT-BAND: the booking strip's band. The
  *  4-layer glow composition died (the STRIP-VISUAL-2 audit: the electric
