@@ -100,6 +100,9 @@ export default function PublicActivitySearch({ onRequireAuth, sharedCity, shared
     <TravelSectionShell
       title="Things to do"
       explainer="Real tours & experiences. Book on Viator."
+      // PR-STRIP-DESIGN-1: under the strip the tab + per-mode line carry
+      // this identity — the in-card header hides (title stays, sr-only).
+      hideHeader
     >
       <form onSubmit={search} className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         <label className="flex flex-col gap-1 lg:col-span-2">

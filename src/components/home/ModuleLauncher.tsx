@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Script from 'next/script';
 import {
-  Calendar, Plane, Repeat, FolderKanban, TrendingUp, BookOpen, Receipt, ShieldCheck, Clapperboard,
+  Calendar, Plane, Repeat, FolderKanban, TrendingUp, BookOpen, Receipt, ShieldCheck, Clapperboard, Lock,
   type LucideIcon,
 } from 'lucide-react';
 import CreateTripForm from '@/components/trips/CreateTripForm';
@@ -802,11 +802,15 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 // EXISTING upgrade path (LockedCategoryCard "Subscribe to unlock" →
                 // the real checkout-entitlement flow); entitled/admin → the live
                 // search. Copy is the existing PR-2c divider copy, not invented.
-                { key: 'premium', label: 'Premium', panel: (
+                // PR-STRIP-DESIGN-1: the Premium chip joins the icon-tab row
+                // (Lock = the paid-gate vocabulary, LockedTabCard precedent);
+                // its old in-panel intro line moved UP verbatim as the mode
+                // explainer — the Kayak line the shared strip renders.
+                { key: 'premium', label: 'Premium',
+                  icon: <Lock className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />,
+                  explainer: 'Subscription — unlock local picks with ratings and prices to access.',
+                  panel: (
                   <div className="space-y-3">
-                    <p className="text-sm text-white/60">
-                      Subscription — unlock local picks with ratings and prices to access.
-                    </p>
                     {HOMEPAGE_PAID_CATEGORIES.map((catKey) => (
                       <PublicCategorySearch
                         key={catKey}

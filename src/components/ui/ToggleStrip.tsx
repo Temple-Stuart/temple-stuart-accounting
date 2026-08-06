@@ -28,6 +28,14 @@ export interface ToggleMode {
    *  "Soon" tag on not-yet-live modes). Caller-supplied node; the chip stays
    *  fully selectable — a soon chip opens its honest explainer panel. */
   badge?: ReactNode;
+  /** PR-STRIP-DESIGN-1: optional icon (~20px lucide node). Present → this
+   *  mode renders as an icon-above-label TAB (DS.iconTab); absent → the
+   *  original text chip (DS.toggleChip) — existing consumers unchanged. */
+  icon?: ReactNode;
+  /** PR-STRIP-DESIGN-1: the Kayak-style per-mode line — ONE short sentence
+   *  rendered under the tab row, swapping with the active mode. Absent →
+   *  nothing renders (e.g. modes whose panel self-explains). */
+  explainer?: string;
 }
 
 interface Props {
@@ -43,6 +51,7 @@ interface Props {
 
 export default function ToggleStrip({ modes, header, defaultKey, className }: Props) {
   const [active, setActive] = useState<string>(defaultKey ?? modes[0]?.key ?? '');
+  const activeMode = modes.find((m) => m.key === active);
 
   return (
     <div className={className ?? DS.STRIP}>
@@ -54,13 +63,37 @@ export default function ToggleStrip({ modes, header, defaultKey, className }: Pr
             type="button"
             onClick={() => setActive(m.key)}
             aria-pressed={active === m.key}
-            className={DS.toggleChip(active === m.key)}
+            className={m.icon ? DS.iconTab(active === m.key) : DS.toggleChip(active === m.key)}
           >
-            {m.label}
-            {m.badge}
+            {/* PR-STRIP-DESIGN-1: icon present → icon above label (the
+                trip.com tab form factor); absent → the original chip
+                content, byte-identical. */}
+            {m.icon ? (
+              <>
+                <span aria-hidden="true">{m.icon}</span>
+                <span>
+                  {m.label}
+                  {m.badge}
+                </span>
+              </>
+            ) : (
+              <>
+                {m.label}
+                {m.badge}
+              </>
+            )}
           </button>
         ))}
       </div>
+
+      {/* PR-STRIP-DESIGN-1: the per-mode explainer — one line, swaps with the
+          active mode (the Kayak behavior). The vocabulary is the landing
+          blurb's own (font-mono text-[11px] text-white/70). */}
+      {activeMode?.explainer && (
+        <p className="mt-2 font-mono text-[11px] leading-relaxed text-white/70">
+          {activeMode.explainer}
+        </p>
+      )}
 
       {modes.map((m) => (
         <div key={m.key} className={active === m.key ? 'block' : 'hidden'}>

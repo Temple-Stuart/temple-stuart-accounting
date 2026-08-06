@@ -313,6 +313,9 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
     <TravelSectionShell
       title="Flights"
       explainer="Live fares — book right here, or create a free account to save flights to a trip."
+      // PR-STRIP-DESIGN-1: under the strip the tab + per-mode line carry
+      // this identity — the in-card header hides (title stays, sr-only).
+      hideHeader
     >
       <FlightPickerView
         legs={legs}

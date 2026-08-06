@@ -142,7 +142,10 @@ export default function FlightPickerView({
 
       {/* Flight legs */}
       {legs.map((leg, legIdx) => (
-        <div key={leg.id} className="bg-panel-surface border border-panel-border rounded overflow-hidden">
+        // PR-STRIP-DESIGN-1: the shell card elevated to bg-panel-surface, so
+        // the leg block steps DOWN to the inset token (bg-white/5) to keep
+        // its separation — same ds.ts surface family, no new colors.
+        <div key={leg.id} className="bg-white/5 border border-panel-border rounded overflow-hidden">
           {/* Leg header */}
           <div
             className="flex items-center justify-between px-3 py-2 bg-white/5 border-b border-panel-border cursor-pointer hover:bg-white/10 transition-colors"
@@ -153,7 +156,9 @@ export default function FlightPickerView({
               <div>
                 <div className="flex items-center gap-2 text-sm font-medium text-white">
                   {legs.length > 1 && <span className="text-white/50">Leg {legIdx + 1}:</span>}
-                  {leg.origin || '???'} → {leg.destination || '???'}
+                  {/* PR-STRIP-DESIGN-1 nit: the "??? → ???" empty state reads
+                      broken — honest neutral copy until BOTH airports are set. */}
+                  {leg.origin && leg.destination ? `${leg.origin} → ${leg.destination}` : 'Plan your trip'}
                   {leg.committed && <span className="px-2 py-0.5 bg-brand-green/20 text-brand-green text-[10px] font-medium rounded">Saved</span>}
                 </div>
                 <div className="text-xs text-white/50">
@@ -183,32 +188,42 @@ export default function FlightPickerView({
                 </div>
               ) : (
                 <>
-                  {/* Search form */}
-                  <div className="flex flex-wrap items-end gap-3">
-                    <div>
-                      <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">From</label>
-                      <input type="text" value={leg.origin} onChange={e => onUpdateLeg(leg.id, { origin: e.target.value.toUpperCase() })}
-                        className="w-16 px-2 py-1.5 border border-white/20 bg-white/10 text-white placeholder-white/40 rounded text-xs font-mono text-center" maxLength={3} placeholder="LAX" />
-                    </div>
-                    <span className="text-white/50 pb-1.5">→</span>
-                    <div>
-                      <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">To</label>
-                      <input type="text" value={leg.destination} onChange={e => onUpdateLeg(leg.id, { destination: e.target.value.toUpperCase() })}
-                        className="w-16 px-2 py-1.5 border border-white/20 bg-white/10 text-white placeholder-white/40 rounded text-xs font-mono text-center" maxLength={3} placeholder="DPS" />
-                    </div>
-                    <div>
-                      <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">Depart</label>
-                      <input type="date" value={leg.departureDate} onChange={e => onUpdateLeg(leg.id, { departureDate: e.target.value })}
-                        className="px-2 py-1.5 border border-white/20 bg-white/10 text-white rounded text-xs" />
-                    </div>
-                    {leg.tripType === 'roundtrip' && (
-                      <div>
-                        <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">Return</label>
-                        <input type="date" value={leg.returnDate} onChange={e => onUpdateLeg(leg.id, { returnDate: e.target.value })}
-                          className="px-2 py-1.5 border border-white/20 bg-white/10 text-white rounded text-xs" />
+                  {/* Search form — PR-STRIP-DESIGN-1: the segmented bar. ONE
+                      row at desktop (FROM | ⇄ | TO | dates | trip-type |
+                      Search — the Kayak form factor), stacking cleanly on
+                      mobile. Existing field vocabulary only (the
+                      TRAVEL_INPUT_CLASS bg-white/10 border-white/20 text-sm
+                      py-2 scale); same handlers, same state — chrome only.
+                      The 🔍 emoji left the Search button (clean chrome). */}
+                  <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-end lg:gap-3">
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1 lg:flex-none">
+                        <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">From</label>
+                        <input type="text" value={leg.origin} onChange={e => onUpdateLeg(leg.id, { origin: e.target.value.toUpperCase() })}
+                          className="w-full lg:w-20 px-2 py-2 border border-white/20 bg-white/10 text-white placeholder-white/40 rounded text-sm font-mono text-center" maxLength={3} placeholder="LAX" />
                       </div>
-                    )}
-                    <div className="flex items-center gap-1 bg-white/10 rounded p-0.5">
+                      <span className="pb-2.5 text-white/50" aria-hidden="true">⇄</span>
+                      <div className="flex-1 lg:flex-none">
+                        <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">To</label>
+                        <input type="text" value={leg.destination} onChange={e => onUpdateLeg(leg.id, { destination: e.target.value.toUpperCase() })}
+                          className="w-full lg:w-20 px-2 py-2 border border-white/20 bg-white/10 text-white placeholder-white/40 rounded text-sm font-mono text-center" maxLength={3} placeholder="DPS" />
+                      </div>
+                    </div>
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1 lg:flex-none">
+                        <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">Depart</label>
+                        <input type="date" value={leg.departureDate} onChange={e => onUpdateLeg(leg.id, { departureDate: e.target.value })}
+                          className="w-full px-2 py-2 border border-white/20 bg-white/10 text-white rounded text-sm" />
+                      </div>
+                      {leg.tripType === 'roundtrip' && (
+                        <div className="flex-1 lg:flex-none">
+                          <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">Return</label>
+                          <input type="date" value={leg.returnDate} onChange={e => onUpdateLeg(leg.id, { returnDate: e.target.value })}
+                            className="w-full px-2 py-2 border border-white/20 bg-white/10 text-white rounded text-sm" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 self-start bg-white/10 rounded p-0.5 lg:self-auto">
                       <button onClick={() => onUpdateLeg(leg.id, { tripType: 'roundtrip' })}
                         className={`px-2 py-1 text-xs rounded transition-colors ${leg.tripType === 'roundtrip' ? 'bg-white shadow text-brand-purple font-medium' : 'text-white/70'}`}>
                         Round-trip
@@ -219,8 +234,8 @@ export default function FlightPickerView({
                       </button>
                     </div>
                     <button onClick={() => onSearchLeg(leg.id)} disabled={leg.loading}
-                      className="px-3 py-1.5 bg-brand-purple text-white text-xs rounded hover:opacity-90 disabled:opacity-50">
-                      {leg.loading ? 'Searching...' : '🔍 Search'}
+                      className="w-full lg:w-auto px-6 py-2 bg-brand-purple text-white text-sm font-medium rounded hover:opacity-90 disabled:opacity-50">
+                      {leg.loading ? 'Searching...' : 'Search'}
                     </button>
                     {legs.length > 1 && !leg.committed && (
                       <button onClick={() => onRemoveLeg(leg.id)} className="px-2 py-1.5 text-xs text-white/50 hover:text-red-600">✕</button>

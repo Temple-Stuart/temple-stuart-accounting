@@ -92,6 +92,9 @@ export default function PublicVisaCheck() {
     <TravelSectionShell
       title="Visa check"
       explainer="The rule, how long you can stay, and the official place to apply."
+      // PR-STRIP-DESIGN-1: under the strip the tab + per-mode line carry
+      // this identity — the in-card header hides (title stays, sr-only).
+      hideHeader
     >
       <form onSubmit={check} className="grid grid-cols-2 gap-2 lg:grid-cols-3">
         <label className="flex flex-col gap-1">
