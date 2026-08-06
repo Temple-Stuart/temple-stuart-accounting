@@ -18,6 +18,9 @@
  */
 
 import type { ToggleMode } from '@/components/ui/ToggleStrip';
+// PR-STRIP-DESIGN-1: the tab icons — lucide is the house icon vocabulary
+// (TripHeader/TripPlannerAI precedents), ~20px per the icon-tab spec.
+import { Plane, BedDouble, Bus, Compass, FileCheck, Shield, Wifi, CalendarDays } from 'lucide-react';
 import ComingSoonSection from '@/components/home/ComingSoonSection';
 import PublicFlightSearch from './PublicFlightSearch';
 import PublicHotelSearch from './PublicHotelSearch';
@@ -48,10 +51,22 @@ const SOON_BADGE = (
   </span>
 );
 
+/** The shared ~20px tab-icon sizing (PR-STRIP-DESIGN-1 spec). */
+const ICON_CLASS = 'h-5 w-5';
+
 export function travelStripModes(opts: TravelStripOptions): ToggleMode[] {
   const { onRequireAuth, authed, currentTrip, onCommitted, sharedCity, sharedCountry, searchNonce } = opts;
+  // PR-STRIP-DESIGN-1: each LIVE mode's `explainer` is that component's own
+  // TravelSectionShell line VERBATIM (the shell header hides under the strip
+  // now — the line moved UP, it did not change): flights =
+  // PublicFlightSearch.tsx shell line; hotels = PublicHotelSearch's; transit
+  // = PublicTransferSearch's; activities = PublicActivitySearch's; visa =
+  // PublicVisaCheck's. The three Soon modes carry NO strip explainer — their
+  // ComingSoonSection panels self-explain verbatim (no duplicated line).
   return [
-    { key: 'flights', label: 'Flights', panel: (
+    { key: 'flights', label: 'Flights', icon: <Plane className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />,
+      explainer: 'Live fares — book right here, or create a free account to save flights to a trip.',
+      panel: (
       <PublicFlightSearch
         onRequireAuth={onRequireAuth}
         authed={authed}
@@ -59,7 +74,9 @@ export function travelStripModes(opts: TravelStripOptions): ToggleMode[] {
         onCommitted={onCommitted}
       />
     ) },
-    { key: 'hotels', label: 'Hotels', panel: (
+    { key: 'hotels', label: 'Hotels', icon: <BedDouble className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />,
+      explainer: 'Live stays with nightly prices — book a room now; a free account budgets it.',
+      panel: (
       <PublicHotelSearch
         onRequireAuth={onRequireAuth}
         authed={authed}
@@ -67,7 +84,9 @@ export function travelStripModes(opts: TravelStripOptions): ToggleMode[] {
         onCommitted={onCommitted}
       />
     ) },
-    { key: 'transit', label: 'Getting around', panel: (
+    { key: 'transit', label: 'Getting around', icon: <Bus className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />,
+      explainer: 'Airport transfers & fast-track. Book on Viator.',
+      panel: (
       <PublicTransferSearch
         onRequireAuth={onRequireAuth}
         sharedCity={sharedCity}
@@ -75,7 +94,9 @@ export function travelStripModes(opts: TravelStripOptions): ToggleMode[] {
         searchNonce={searchNonce}
       />
     ) },
-    { key: 'activities', label: 'Things to do', panel: (
+    { key: 'activities', label: 'Things to do', icon: <Compass className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />,
+      explainer: 'Real tours & experiences. Book on Viator.',
+      panel: (
       <PublicActivitySearch
         onRequireAuth={onRequireAuth}
         sharedCity={sharedCity}
@@ -83,21 +104,23 @@ export function travelStripModes(opts: TravelStripOptions): ToggleMode[] {
         searchNonce={searchNonce}
       />
     ) },
-    { key: 'visa', label: 'Visa', panel: <PublicVisaCheck /> },
+    { key: 'visa', label: 'Visa', icon: <FileCheck className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />,
+      explainer: 'The rule, how long you can stay, and the official place to apply.',
+      panel: <PublicVisaCheck /> },
     // ── The three former tiles, now badged chips (explainers verbatim). ──────
-    { key: 'insurance', label: 'Travel insurance', badge: SOON_BADGE, panel: (
+    { key: 'insurance', label: 'Travel insurance', badge: SOON_BADGE, icon: <Shield className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />, panel: (
       <ComingSoonSection
         title="Travel insurance"
         explainer="Cover your trip — medical, delays, lost bags — priced into your budget."
       />
     ) },
-    { key: 'esim', label: 'Stay connected', badge: SOON_BADGE, panel: (
+    { key: 'esim', label: 'Stay connected', badge: SOON_BADGE, icon: <Wifi className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />, panel: (
       <ComingSoonSection
         title="Stay connected"
         explainer="Get data the moment you land, no hunting for a SIM."
       />
     ) },
-    { key: 'events', label: 'Events', badge: SOON_BADGE, panel: (
+    { key: 'events', label: 'Events', badge: SOON_BADGE, icon: <CalendarDays className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />, panel: (
       <ComingSoonSection
         title="Events"
         explainer="Concerts, shows, and live events wherever you're headed."

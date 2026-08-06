@@ -172,6 +172,9 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
     <TravelSectionShell
       title="Hotels"
       explainer="Live stays with nightly prices — book a room now; a free account budgets it."
+      // PR-STRIP-DESIGN-1: under the strip the tab + per-mode line carry
+      // this identity — the in-card header hides (title stays, sr-only).
+      hideHeader
     >
       <form onSubmit={search} className="grid grid-cols-2 gap-2 lg:grid-cols-5">
         {/* PR-loc-2: linked country→city picker (real LiteAPI cities only)

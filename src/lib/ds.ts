@@ -97,6 +97,19 @@ export function toggleChip(active: boolean): string {
   }`;
 }
 
+/** PR-STRIP-DESIGN-1: the icon-above-label tab (the trip.com tab form factor
+ *  on OUR tokens — zero new colors). Active = brand-purple underline + the
+ *  white/5 inset fill + full-white text (border-brand-purple/60 precedent:
+ *  the FD-1i calculator strip); inactive = transparent underline, secondary
+ *  text, inset on hover. Used by ToggleStrip when a mode carries an icon. */
+export function iconTab(active: boolean): string {
+  return `flex flex-col items-center gap-1 rounded-t px-3 py-2 font-mono text-[11px] font-medium border-b-2 transition-colors ${
+    active
+      ? 'border-brand-purple bg-white/5 text-white'
+      : 'border-transparent text-white/60 hover:bg-white/5 hover:text-white'
+  }`;
+}
+
 /** Checkbox idiom. Origin: the FD-1i selection slides `accent-brand-purple`. */
 export const CHECKBOX = 'h-3.5 w-3.5 accent-brand-purple';
 
@@ -216,6 +229,7 @@ export const DS = {
   TEXT,
   CONTROL,
   toggleChip,
+  iconTab,
   CHECKBOX,
   DATA,
   LAYOUT,
