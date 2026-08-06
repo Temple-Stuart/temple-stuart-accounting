@@ -162,14 +162,18 @@ export default function ToggleStrip({ modes, header, defaultKey, className, band
   // verified this PR).
   return (
     <div className={className ?? ''}>
-      <div className="rounded-2xl pt-4 px-3 pb-10 sm:pt-6 sm:pb-12" style={{ background: DS.BAND_BG }}>
+      {/* BAND-FAT (trip.com presence): headline 30/36 bold, taller top,
+          deeper apron — visible apron = pb − overlap = 48−24 = 24px mobile,
+          56−32 = 24px desktop (was 16px); the card sibling is untouched, so
+          below-card clearance is unaffected. */}
+      <div className="rounded-2xl pt-8 px-3 pb-12 sm:pt-10 sm:pb-14" style={{ background: DS.BAND_BG }}>
         {header}
         {activeMode?.headline && (
-          <h3 className="text-center text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          <h3 className="text-center text-3xl font-bold tracking-tight text-white sm:text-4xl">
             {activeMode.headline}
           </h3>
         )}
-        {trust && <div className="mt-3">{trust}</div>}
+        {trust && <div className="mt-4">{trust}</div>}
       </div>
       <div className="relative -mt-6 sm:-mt-8">{card}</div>
     </div>
