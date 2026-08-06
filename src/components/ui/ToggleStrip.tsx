@@ -138,16 +138,17 @@ export default function ToggleStrip({ modes, header, defaultKey, className, band
 
   if (!band) return card;
 
-  // PR-STRIP-DESIGN-2 → 3 → 4: the band composition, CENTERED and
-  // DE-CLUTTERED (Alex: 5 text layers → 2). EXACTLY: the per-mode headline,
-  // the trust-chips row, the floating card — nothing else. The per-mode
-  // explainer no longer renders on the band (its strings survive in their
-  // own components — e.g. PublicFlightSearch.tsx:315 shell explainer — and
-  // the Soon panels still render theirs); `header` stays a slot for non-band
-  // consumers but no band surface passes one anymore. Padding tightened one
-  // step (p-4/sm:p-6 → p-3/sm:p-5) so the shorter band doesn't read empty.
+  // PR-STRIP-DESIGN-2 → 3 → 4 → STRIP-FLAT-BAND: the band composition,
+  // CENTERED and DE-CLUTTERED — exactly the per-mode headline, the
+  // trust-chips row, the floating card. STRIP-FLAT-BAND (the trip.com box
+  // anatomy): the band is a FLAT pop fill (DS.BAND_BG) with asymmetric
+  // padding — top 16/24px, sides 12px, bottom ZERO — and the card HANGS out
+  // of the band's bottom edge (-mb-6/-mb-8; the container has no
+  // overflow-hidden, verified, so the overhang renders). Collision bound:
+  // the hero's own pb-14 (56px, Landing.tsx hero section) absorbs the 24/32px
+  // hang — the card bottom stays inside the hero, above the next section.
   return (
-    <div className={`${className ?? ''} rounded-2xl p-3 sm:p-5`} style={{ background: DS.BAND_BG }}>
+    <div className={`${className ?? ''} rounded-2xl pt-4 px-3 pb-0 sm:pt-6 sm:pb-0`} style={{ background: DS.BAND_BG }}>
       {header}
       {activeMode?.headline && (
         <h3 className="text-center text-2xl font-semibold tracking-tight text-white sm:text-3xl">
@@ -155,7 +156,7 @@ export default function ToggleStrip({ modes, header, defaultKey, className, band
         </h3>
       )}
       {trust && <div className="mt-3">{trust}</div>}
-      <div className="mt-4">{card}</div>
+      <div className="mt-4 -mb-6 sm:-mb-8">{card}</div>
     </div>
   );
 }

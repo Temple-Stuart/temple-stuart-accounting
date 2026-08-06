@@ -33,21 +33,12 @@ export const SURFACE = {
 export const HERO_BG =
   'radial-gradient(ellipse 80% 90% at 85% 10%, rgb(var(--ts-purple) / 0.65), transparent 60%), radial-gradient(ellipse 60% 70% at 100% 80%, rgb(var(--ts-purple-deep) / 0.5), transparent 55%), var(--ts-panel)';
 
-/** PR-STRIP-DESIGN-2: the BAND variant of the glow family (HERO_BG/CARD_BG
- *  lineage — same three tokens, zero new colors) — a stronger, fuller purple
- *  presence so the booking strip's band POPS off the page (the trip.com
- *  blue-band composition in our vocabulary) with the strip card FLOATING on
- *  it. A flat purple wash underlays the two radials so no corner falls back
- *  to near-black. */
-// PR-STRIP-DESIGN-3: the bright radial lifts to the pop token (was
-// rgb(var(--ts-purple) / 0.9)); the anchor radial keeps the family purple
-// (was --ts-purple-deep / 0.85) and the wash deepens slightly — the band
-// reads vibrant instead of dull, same composition.
-// PR-STRIP-DESIGN-4b: the pop stop's alpha lifts 0.5 → 0.65 (with the
-// retuned electric #764cf6 token) so the band GLOWS; anchor + wash
-// unchanged.
-export const BAND_BG =
-  'radial-gradient(ellipse 120% 140% at 15% 0%, rgb(var(--ts-purple-pop) / 0.65), transparent 65%), radial-gradient(ellipse 100% 120% at 90% 100%, rgb(var(--ts-purple) / 0.9), transparent 60%), linear-gradient(rgb(var(--ts-purple) / 0.45), rgb(var(--ts-purple-deep) / 0.5)), var(--ts-panel)';
+/** PR-STRIP-DESIGN-2 → STRIP-FLAT-BAND: the booking strip's band. The
+ *  4-layer glow composition died (the STRIP-VISUAL-2 audit: the electric
+ *  radial lived only in the top-left, so the band dimmed to the right) —
+ *  ONE flat, fully opaque fill of the pop token, edge to edge. No
+ *  gradients, no overlays, no opacity. */
+export const BAND_BG = 'rgb(var(--ts-purple-pop))';
 
 /* ─── TYPE ───────────────────────────────────────────────────────────────────
  * Scale + the white-opacity ladder. Origin: the landing hero (display), the
