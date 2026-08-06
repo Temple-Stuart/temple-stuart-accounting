@@ -31,10 +31,11 @@
      → #764cf6 hsl(255 90% 63%) — the #8b5cf6 electric-violet family,
      saturation into the ≥85% zone, hue + lightness held. White text on it
      measures ~5.1:1 (WCAG AA normal-text pass). POP-ELECTRIC: retuned again
-     → #6633ff hsl(255 100% 60%) — S 90→100, L 63→60, hue held. Used for
-     active tab states, the Search button, the band fill, the tab-icon
-     accent — nothing else. */
-  --ts-purple-pop:   102 51 255;   /* #6633ff — electric indigo */
+     → #6633ff hsl(255 100% 60%) — S 90→100, L 63→60, hue held.
+     POP-DEEPEN: → #5b21ff hsl(256 100% 56%) — L 60→56, sat held,
+     GPT-palette anchor. Used for active tab states, the Search button, the
+     band fill, the tab-icon accent — nothing else. */
+  --ts-purple-pop:   91 33 255;    /* #5b21ff — electric indigo, deep */
   --ts-purple-wash:  234 231 242;  /* #eae7f2 — replaces BOTH old wash AND Tailwind purple-50 */
 
   /* Aqua — NEW, punchier than the old teal-400. Calendar routine blocks. */
