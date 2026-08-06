@@ -138,25 +138,31 @@ export default function ToggleStrip({ modes, header, defaultKey, className, band
 
   if (!band) return card;
 
-  // PR-STRIP-DESIGN-2 → 3 → 4 → STRIP-FLAT-BAND: the band composition,
-  // CENTERED and DE-CLUTTERED — exactly the per-mode headline, the
-  // trust-chips row, the floating card. STRIP-FLAT-BAND (the trip.com box
-  // anatomy): the band is a FLAT pop fill (DS.BAND_BG) with asymmetric
-  // padding — top 16/24px, sides 12px, bottom ZERO — and the card HANGS out
-  // of the band's bottom edge (-mb-6/-mb-8; the container has no
-  // overflow-hidden, verified, so the overhang renders). Collision bound:
-  // the hero's own pb-14 (56px, Landing.tsx hero section) absorbs the 24/32px
-  // hang — the card bottom stays inside the hero, above the next section.
+  // PR-STRIP-DESIGN-2 → 3 → 4 → STRIP-FLAT-BAND → STRIP-STRADDLE: the band
+  // CLOSES after the trust chips; the card is its NEXT SIBLING, not a child
+  // (the trip.com straddle). A neutral root wrapper carries the mount's
+  // className (e.g. the landing's mt-8) so the external contract is
+  // unchanged and both mounts render identically. The band keeps the flat
+  // pop fill with a pb-10/sm:pb-12 purple APRON; the card pulls up over it
+  // (relative -mt-6/sm:-mt-8, full container width — flush with the band's
+  // edges, purple showing only at the card's rounded top corners). Visible
+  // apron between chips and card top = pb − overlap = 40−24 = 16px mobile,
+  // 48−32 = 16px desktop. DOM order paints the card over the band;
+  // `relative` makes it deterministic — no z-index needed (no stacking
+  // context exists on the band or wrappers: no transform/filter/z-index,
+  // verified this PR).
   return (
-    <div className={`${className ?? ''} rounded-2xl pt-4 px-3 pb-0 sm:pt-6 sm:pb-0`} style={{ background: DS.BAND_BG }}>
-      {header}
-      {activeMode?.headline && (
-        <h3 className="text-center text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-          {activeMode.headline}
-        </h3>
-      )}
-      {trust && <div className="mt-3">{trust}</div>}
-      <div className="mt-4 -mb-6 sm:-mb-8">{card}</div>
+    <div className={className ?? ''}>
+      <div className="rounded-2xl pt-4 px-3 pb-10 sm:pt-6 sm:pb-12" style={{ background: DS.BAND_BG }}>
+        {header}
+        {activeMode?.headline && (
+          <h3 className="text-center text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+            {activeMode.headline}
+          </h3>
+        )}
+        {trust && <div className="mt-3">{trust}</div>}
+      </div>
+      <div className="relative -mt-6 sm:-mt-8">{card}</div>
     </div>
   );
 }
