@@ -30,10 +30,11 @@
      mystifying violet, not pastel, not neon-toy): #7a5fdd hsl(253 65% 62%)
      → #764cf6 hsl(255 90% 63%) — the #8b5cf6 electric-violet family,
      saturation into the ≥85% zone, hue + lightness held. White text on it
-     measures ~5.1:1 (WCAG AA normal-text pass). Used for active tab states,
-     the Search button, the band's bright radial, the trust-chip checks —
-     nothing else. */
-  --ts-purple-pop:   118 76 246;   /* #764cf6 — electric violet */
+     measures ~5.1:1 (WCAG AA normal-text pass). POP-ELECTRIC: retuned again
+     → #6633ff hsl(255 100% 60%) — S 90→100, L 63→60, hue held. Used for
+     active tab states, the Search button, the band fill, the tab-icon
+     accent — nothing else. */
+  --ts-purple-pop:   102 51 255;   /* #6633ff — electric indigo */
   --ts-purple-wash:  234 231 242;  /* #eae7f2 — replaces BOTH old wash AND Tailwind purple-50 */
 
   /* Aqua — NEW, punchier than the old teal-400. Calendar routine blocks. */
