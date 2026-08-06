@@ -1,5 +1,10 @@
 'use client';
 
+// PR-STRIP-DESIGN-2: presentational-only imports (icon-inside-field) — no
+// data, no network; the pure-view contract below holds.
+import { Plane, Calendar } from 'lucide-react';
+import { TravelField } from './travelSection';
+
 /**
  * FlightPickerView — the PURE, props-only render of the flight picker.
  *
@@ -199,27 +204,35 @@ export default function FlightPickerView({
                     <div className="flex items-end gap-2">
                       <div className="flex-1 lg:flex-none">
                         <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">From</label>
-                        <input type="text" value={leg.origin} onChange={e => onUpdateLeg(leg.id, { origin: e.target.value.toUpperCase() })}
-                          className="w-full lg:w-20 px-2 py-2 border border-white/20 bg-white/10 text-white placeholder-white/40 rounded text-sm font-mono text-center" maxLength={3} placeholder="LAX" />
+                        <TravelField icon={<Plane className="h-4 w-4" strokeWidth={1.75} />}>
+                          <input type="text" value={leg.origin} onChange={e => onUpdateLeg(leg.id, { origin: e.target.value.toUpperCase() })}
+                            className="w-full lg:w-28 pl-9 pr-2 py-3 border border-white/20 bg-white/10 text-white placeholder-white/40 rounded-lg text-sm font-mono text-center" maxLength={3} placeholder="LAX" />
+                        </TravelField>
                       </div>
                       <span className="pb-2.5 text-white/50" aria-hidden="true">⇄</span>
                       <div className="flex-1 lg:flex-none">
                         <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">To</label>
-                        <input type="text" value={leg.destination} onChange={e => onUpdateLeg(leg.id, { destination: e.target.value.toUpperCase() })}
-                          className="w-full lg:w-20 px-2 py-2 border border-white/20 bg-white/10 text-white placeholder-white/40 rounded text-sm font-mono text-center" maxLength={3} placeholder="DPS" />
+                        <TravelField icon={<Plane className="h-4 w-4" strokeWidth={1.75} />}>
+                          <input type="text" value={leg.destination} onChange={e => onUpdateLeg(leg.id, { destination: e.target.value.toUpperCase() })}
+                            className="w-full lg:w-28 pl-9 pr-2 py-3 border border-white/20 bg-white/10 text-white placeholder-white/40 rounded-lg text-sm font-mono text-center" maxLength={3} placeholder="DPS" />
+                        </TravelField>
                       </div>
                     </div>
                     <div className="flex items-end gap-2">
                       <div className="flex-1 lg:flex-none">
                         <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">Depart</label>
-                        <input type="date" value={leg.departureDate} onChange={e => onUpdateLeg(leg.id, { departureDate: e.target.value })}
-                          className="w-full px-2 py-2 border border-white/20 bg-white/10 text-white rounded text-sm" />
+                        <TravelField icon={<Calendar className="h-4 w-4" strokeWidth={1.75} />}>
+                          <input type="date" value={leg.departureDate} onChange={e => onUpdateLeg(leg.id, { departureDate: e.target.value })}
+                            className="w-full pl-9 pr-2 py-3 border border-white/20 bg-white/10 text-white rounded-lg text-sm" />
+                        </TravelField>
                       </div>
                       {leg.tripType === 'roundtrip' && (
                         <div className="flex-1 lg:flex-none">
                           <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">Return</label>
-                          <input type="date" value={leg.returnDate} onChange={e => onUpdateLeg(leg.id, { returnDate: e.target.value })}
-                            className="w-full px-2 py-2 border border-white/20 bg-white/10 text-white rounded text-sm" />
+                          <TravelField icon={<Calendar className="h-4 w-4" strokeWidth={1.75} />}>
+                            <input type="date" value={leg.returnDate} onChange={e => onUpdateLeg(leg.id, { returnDate: e.target.value })}
+                              className="w-full pl-9 pr-2 py-3 border border-white/20 bg-white/10 text-white rounded-lg text-sm" />
+                          </TravelField>
                         </div>
                       )}
                     </div>
@@ -234,7 +247,7 @@ export default function FlightPickerView({
                       </button>
                     </div>
                     <button onClick={() => onSearchLeg(leg.id)} disabled={leg.loading}
-                      className="w-full lg:w-auto px-6 py-2 bg-brand-purple text-white text-sm font-medium rounded hover:opacity-90 disabled:opacity-50">
+                      className="w-full lg:w-auto px-8 py-3 bg-brand-purple text-white text-sm font-medium rounded-lg hover:opacity-90 disabled:opacity-50">
                       {leg.loading ? 'Searching...' : 'Search'}
                     </button>
                     {legs.length > 1 && !leg.committed && (

@@ -19,7 +19,9 @@
 
 import { useState, useEffect } from 'react';
 import ActivityResultsView, { type ActivityResult } from './ActivityResultsView';
-import TravelSectionShell, { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS, TRAVEL_LABEL_CLASS } from './travelSection';
+// PR-STRIP-DESIGN-2: icon-inside-field — MapPin marks the destination.
+import { MapPin } from 'lucide-react';
+import TravelSectionShell, { TravelField, TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS, TRAVEL_LABEL_CLASS } from './travelSection';
 
 interface Props {
   /** Opens the existing home register/login modal (booking requires sign-in). */
@@ -107,14 +109,16 @@ export default function PublicActivitySearch({ onRequireAuth, sharedCity, shared
       <form onSubmit={search} className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         <label className="flex flex-col gap-1 lg:col-span-2">
           <span className={TRAVEL_LABEL_CLASS}>City</span>
-          <input
-            type="text"
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            placeholder="e.g. Lisbon"
-            className={TRAVEL_INPUT_CLASS}
-            aria-label="Destination city"
-          />
+          <TravelField icon={<MapPin className="h-4 w-4" strokeWidth={1.75} />}>
+            <input
+              type="text"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              placeholder="e.g. Lisbon"
+              className={`w-full pl-10 ${TRAVEL_INPUT_CLASS}`}
+              aria-label="Destination city"
+            />
+          </TravelField>
         </label>
         <label className="flex flex-col gap-1">
           <span className={TRAVEL_LABEL_CLASS}>Country</span>

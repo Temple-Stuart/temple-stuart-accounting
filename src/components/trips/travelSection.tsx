@@ -24,22 +24,42 @@
 
 import type { ReactNode } from 'react';
 
-/** The shared input/select class — verbatim from the duplicated definitions in
- *  PublicHotelSearch.tsx:169-171 and PublicActivitySearch.tsx:74-76 (byte-identical
- *  there). One space between `text-text-primary` and `focus:outline-none`, matching
- *  the original two-string concatenation. */
+/** The shared input/select class. PR-STRIP-DESIGN-2: stepped up ONE grade
+ *  (py-2 → py-3, rounded → rounded-lg — the "large, rounded" field spec on
+ *  the same tokens; text-sm stays: nothing measured cramped at it). Every
+ *  consumer inherits — the strip forms, the unified bar, the checkout
+ *  panels. */
 export const TRAVEL_INPUT_CLASS =
-  'bg-white/10 border border-white/20 rounded px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/40';
+  'bg-white/10 border border-white/20 rounded-lg px-3 py-3 text-sm text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/40';
 
-/** The shared submit-button class — verbatim from PublicHotelSearch.tsx:215,
- *  PublicActivitySearch.tsx:108, and PublicVisaCheck.tsx:128 (identical in all three). */
+/** The shared submit-button class. PR-STRIP-DESIGN-2: the big confident
+ *  Search — px-8 py-3, brand-purple fill, white text (the ruled spec; the
+ *  FlightPickerView Search's own hover:opacity idiom). Consumers are the
+ *  strip-family CTAs only (the five search/check buttons, the category
+ *  unlock, the unified "Search all") — the checkout panels don't import it. */
 export const TRAVEL_BUTTON_CLASS =
-  'rounded bg-white px-4 py-2 text-sm font-medium text-brand-purple transition-colors hover:bg-bg-row disabled:opacity-50';
+  'rounded-lg bg-brand-purple px-8 py-3 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50';
 
 /** The mono micro-label rendered ABOVE each search field — the deleted teaser's
  *  LABEL_CLASS verbatim (LandingSearchTeaser.tsx@840a053b). */
 export const TRAVEL_LABEL_CLASS =
   'font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50';
+
+/** PR-STRIP-DESIGN-2: the icon-inside-field wrapper (the trip.com field
+ *  anatomy) — a muted lucide icon pinned to the field's left edge. ADDITIVE:
+ *  wrap any input/select and give it `pl-10` (+ `w-full` inside the relative
+ *  box); unwrapped fields render exactly as before. Icon = caller-supplied
+ *  ~16px lucide node in the faint rung (text-white/40). */
+export function TravelField({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+  return (
+    <div className="relative">
+      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/40" aria-hidden="true">
+        {icon}
+      </span>
+      {children}
+    </div>
+  );
+}
 
 interface TravelSectionShellProps {
   /** Short section name, rendered as the strip's mono micro-label (COMPACT-1).

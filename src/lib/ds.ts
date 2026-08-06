@@ -33,6 +33,15 @@ export const SURFACE = {
 export const HERO_BG =
   'radial-gradient(ellipse 80% 90% at 85% 10%, rgb(var(--ts-purple) / 0.65), transparent 60%), radial-gradient(ellipse 60% 70% at 100% 80%, rgb(var(--ts-purple-deep) / 0.5), transparent 55%), var(--ts-panel)';
 
+/** PR-STRIP-DESIGN-2: the BAND variant of the glow family (HERO_BG/CARD_BG
+ *  lineage — same three tokens, zero new colors) — a stronger, fuller purple
+ *  presence so the booking strip's band POPS off the page (the trip.com
+ *  blue-band composition in our vocabulary) with the strip card FLOATING on
+ *  it. A flat purple wash underlays the two radials so no corner falls back
+ *  to near-black. */
+export const BAND_BG =
+  'radial-gradient(ellipse 120% 140% at 15% 0%, rgb(var(--ts-purple) / 0.9), transparent 65%), radial-gradient(ellipse 100% 120% at 90% 100%, rgb(var(--ts-purple-deep) / 0.85), transparent 60%), linear-gradient(rgb(var(--ts-purple) / 0.4), rgb(var(--ts-purple-deep) / 0.4)), var(--ts-panel)';
+
 /* ─── TYPE ───────────────────────────────────────────────────────────────────
  * Scale + the white-opacity ladder. Origin: the landing hero (display), the
  * deck headings (section), COMPACT-1 (micro-label), and the ladder used across
@@ -225,6 +234,7 @@ export function themed(classes: string, dark: boolean): string {
 export const DS = {
   SURFACE,
   HERO_BG,
+  BAND_BG,
   TYPE,
   TEXT,
   CONTROL,

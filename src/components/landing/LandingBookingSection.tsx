@@ -46,8 +46,14 @@ export default function LandingBookingSection({ onRequireAuth }: { onRequireAuth
   const modes: ToggleMode[] = travelStripModes({ onRequireAuth, authed: false });
 
   return (
+    // PR-STRIP-DESIGN-2: the band composition — the strip still mounts at the
+    // SAME hero insertion point (Landing.tsx, directly under the CTA row);
+    // ToggleStrip now paints the purple BAND_BG band around its floating
+    // card, so only the margin rides className here (the card chrome moved
+    // inside ToggleStrip).
     <ToggleStrip
-      className={`mt-8 ${DS.STRIP}`}
+      band
+      className="mt-8"
       modes={modes}
       header={
         /* LAND-MSG-1 → PR-STRIP-DESIGN-1: the long WHY paragraph compressed

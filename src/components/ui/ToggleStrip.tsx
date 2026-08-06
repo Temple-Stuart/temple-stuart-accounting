@@ -33,9 +33,14 @@ export interface ToggleMode {
    *  original text chip (DS.toggleChip) — existing consumers unchanged. */
   icon?: ReactNode;
   /** PR-STRIP-DESIGN-1: the Kayak-style per-mode line — ONE short sentence
-   *  rendered under the tab row, swapping with the active mode. Absent →
-   *  nothing renders (e.g. modes whose panel self-explains). */
+   *  swapping with the active mode. Absent → nothing renders (e.g. modes
+   *  whose panel self-explains). PR-STRIP-DESIGN-2: with `band`, it renders
+   *  beneath the headline ON the band; without, under the tab row as before. */
   explainer?: string;
+  /** PR-STRIP-DESIGN-2: the prominent per-mode headline (text-lg/xl white),
+   *  rendered ON the band above the floating card, swapping with the active
+   *  mode. Band-only — ignored without `band`. */
+  headline?: string;
 }
 
 interface Props {
@@ -45,16 +50,28 @@ interface Props {
   header?: ReactNode;
   /** The chip active on first render. Defaults to the first mode. */
   defaultKey?: string;
-  /** Container class. Defaults to DS.STRIP; the landing passes `mt-8 ${DS.STRIP}`. */
+  /** Container class. Defaults to DS.STRIP. With `band`, this lands on the
+   *  OUTER band div (margins only — e.g. the landing's mt-8); the floating
+   *  card carries its own elevated class. */
   className?: string;
+  /** PR-STRIP-DESIGN-2: the trip.com band composition — a purple gradient
+   *  band (DS.BAND_BG, rounded-2xl) behind a FLOATING elevated card, with
+   *  the per-mode headline + explainer swapping ON the band above the card.
+   *  Off (default) → the original flat strip, byte-identical (the trade
+   *  Scan/Lab/Record strip stays untouched by construction). */
+  band?: boolean;
 }
 
-export default function ToggleStrip({ modes, header, defaultKey, className }: Props) {
+export default function ToggleStrip({ modes, header, defaultKey, className, band }: Props) {
   const [active, setActive] = useState<string>(defaultKey ?? modes[0]?.key ?? '');
   const activeMode = modes.find((m) => m.key === active);
 
-  return (
-    <div className={className ?? DS.STRIP}>
+  // PR-STRIP-DESIGN-2: with the band, the strip content becomes a FLOATING
+  // card — solid panel surface, the stronger white/20 hairline, shadow-lg
+  // (all existing vocabulary; shadow-lg per the GuestLanding toast/pill
+  // precedents). Without the band, exactly the original container.
+  const card = (
+    <div className={band ? 'rounded-lg border border-white/20 bg-panel p-4 shadow-lg' : (className ?? DS.STRIP)}>
       {header}
       <div className="flex flex-wrap items-center gap-1.5">
         {modes.map((m) => (
@@ -88,8 +105,10 @@ export default function ToggleStrip({ modes, header, defaultKey, className }: Pr
 
       {/* PR-STRIP-DESIGN-1: the per-mode explainer — one line, swaps with the
           active mode (the Kayak behavior). The vocabulary is the landing
-          blurb's own (font-mono text-[11px] text-white/70). */}
-      {activeMode?.explainer && (
+          blurb's own (font-mono text-[11px] text-white/70).
+          PR-STRIP-DESIGN-2: with the band it PROMOTES onto the band beneath
+          the headline (below) — not rendered in-card there. */}
+      {!band && activeMode?.explainer && (
         <p className="mt-2 font-mono text-[11px] leading-relaxed text-white/70">
           {activeMode.explainer}
         </p>
@@ -100,6 +119,23 @@ export default function ToggleStrip({ modes, header, defaultKey, className }: Pr
           {m.panel}
         </div>
       ))}
+    </div>
+  );
+
+  if (!band) return card;
+
+  // PR-STRIP-DESIGN-2: the band composition — purple gradient band, the
+  // per-mode headline (text-lg/xl white, the deck-heading type scale) + the
+  // promoted explainer swapping with the active tab, then the floating card.
+  return (
+    <div className={`${className ?? ''} rounded-2xl p-4 sm:p-6`} style={{ background: DS.BAND_BG }}>
+      {activeMode?.headline && (
+        <h3 className="text-lg font-light tracking-tight text-white sm:text-xl">{activeMode.headline}</h3>
+      )}
+      {activeMode?.explainer && (
+        <p className="mt-1 font-mono text-[11px] leading-relaxed text-white/70">{activeMode.explainer}</p>
+      )}
+      <div className="mt-4">{card}</div>
     </div>
   );
 }
