@@ -16,7 +16,7 @@ import HubCalendar from '@/components/hub/HubCalendar';
 import RunwayDataProvider from '@/components/hub/RunwayDataProvider';
 import RunwayBudgetPanel from '@/components/hub/RunwayBudgetPanel';
 import MatchReviewSection from '@/components/hub/MatchReviewSection';
-import { travelStripModes } from '@/components/trips/travelStripModes';
+import { travelStripModes, TRAVEL_TRUST_CHIPS } from '@/components/trips/travelStripModes';
 import PublicCategorySearch from '@/components/trips/PublicCategorySearch';
 import { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS } from '@/components/trips/travelSection';
 import { HOMEPAGE_PAID_CATEGORIES } from '@/lib/categoryKeys';
@@ -783,7 +783,9 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
             <ToggleStrip
               // PR-STRIP-DESIGN-2: the same band composition the landing
               // strip wears — one shared component, both surfaces inherit.
+              // PR-STRIP-DESIGN-3: + the shared verified trust chips.
               band
+              trust={TRAVEL_TRUST_CHIPS}
               modes={([
                 // PR-ELEV-1: the 8 shared travel modes (5 live + 3 "Soon") from
                 // the ONE builder both surfaces consume — same keys, same

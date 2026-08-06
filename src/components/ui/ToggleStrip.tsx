@@ -58,11 +58,18 @@ interface Props {
    *  band (DS.BAND_BG, rounded-2xl) behind a FLOATING elevated card, with
    *  the per-mode headline + explainer swapping ON the band above the card.
    *  Off (default) → the original flat strip, byte-identical (the trade
-   *  Scan/Lab/Record strip stays untouched by construction). */
+   *  Scan/Lab/Record strip stays untouched by construction).
+   *  PR-STRIP-DESIGN-3: band content CENTERS (headline bigger/bolder, tabs
+   *  justify-center) and `header` renders ON the band above the headline
+   *  instead of inside the card. */
   band?: boolean;
+  /** PR-STRIP-DESIGN-3: the trust-chips row (verified facts only, caller-
+   *  built) — rendered centered on the band under the headline/explainer.
+   *  Band-only; ignored without `band`. */
+  trust?: ReactNode;
 }
 
-export default function ToggleStrip({ modes, header, defaultKey, className, band }: Props) {
+export default function ToggleStrip({ modes, header, defaultKey, className, band, trust }: Props) {
   const [active, setActive] = useState<string>(defaultKey ?? modes[0]?.key ?? '');
   const activeMode = modes.find((m) => m.key === active);
 
@@ -70,10 +77,12 @@ export default function ToggleStrip({ modes, header, defaultKey, className, band
   // card — solid panel surface, the stronger white/20 hairline, shadow-lg
   // (all existing vocabulary; shadow-lg per the GuestLanding toast/pill
   // precedents). Without the band, exactly the original container.
+  // PR-STRIP-DESIGN-3: band mode centers the tab row and moves `header`
+  // onto the band (rendered above the headline, below).
   const card = (
     <div className={band ? 'rounded-lg border border-white/20 bg-panel p-4 shadow-lg' : (className ?? DS.STRIP)}>
-      {header}
-      <div className="flex flex-wrap items-center gap-1.5">
+      {!band && header}
+      <div className={`flex flex-wrap items-center gap-1.5${band ? ' justify-center' : ''}`}>
         {modes.map((m) => (
           <button
             key={m.key}
@@ -84,10 +93,13 @@ export default function ToggleStrip({ modes, header, defaultKey, className, band
           >
             {/* PR-STRIP-DESIGN-1: icon present → icon above label (the
                 trip.com tab form factor); absent → the original chip
-                content, byte-identical. */}
+                content, byte-identical. PR-STRIP-DESIGN-3: the active tab's
+                ICON lifts to the pop accent with the underline. */}
             {m.icon ? (
               <>
-                <span aria-hidden="true">{m.icon}</span>
+                <span aria-hidden="true" className={active === m.key ? 'text-brand-purple-pop' : undefined}>
+                  {m.icon}
+                </span>
                 <span>
                   {m.label}
                   {m.badge}
@@ -124,17 +136,24 @@ export default function ToggleStrip({ modes, header, defaultKey, className, band
 
   if (!band) return card;
 
-  // PR-STRIP-DESIGN-2: the band composition — purple gradient band, the
-  // per-mode headline (text-lg/xl white, the deck-heading type scale) + the
-  // promoted explainer swapping with the active tab, then the floating card.
+  // PR-STRIP-DESIGN-2 → 3: the band composition, CENTERED — the caller's
+  // header (eyebrow + trust anchor line) above, then the per-mode headline
+  // (bigger, bolder), the promoted explainer, the trust-chips row, and the
+  // floating card (whose forms stay left-aligned — they read left-to-right).
   return (
     <div className={`${className ?? ''} rounded-2xl p-4 sm:p-6`} style={{ background: DS.BAND_BG }}>
+      {header}
       {activeMode?.headline && (
-        <h3 className="text-lg font-light tracking-tight text-white sm:text-xl">{activeMode.headline}</h3>
+        <h3 className="text-center text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          {activeMode.headline}
+        </h3>
       )}
       {activeMode?.explainer && (
-        <p className="mt-1 font-mono text-[11px] leading-relaxed text-white/70">{activeMode.explainer}</p>
+        <p className="mt-1.5 text-center font-mono text-[11px] leading-relaxed text-white/70">
+          {activeMode.explainer}
+        </p>
       )}
+      {trust && <div className="mt-3">{trust}</div>}
       <div className="mt-4">{card}</div>
     </div>
   );

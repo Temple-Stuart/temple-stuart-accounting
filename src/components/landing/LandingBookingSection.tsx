@@ -40,7 +40,7 @@ import { DS } from '@/lib/ds';
 // PR-ELEV-1: the modes come from the ONE shared builder (8 chips — 5 live + 3
 // "Soon"), so the guest landing and the app travel tab render the same strip
 // and light up together as affiliate IDs land.
-import { travelStripModes } from '@/components/trips/travelStripModes';
+import { travelStripModes, TRAVEL_TRUST_CHIPS } from '@/components/trips/travelStripModes';
 
 export default function LandingBookingSection({ onRequireAuth }: { onRequireAuth: () => void }) {
   const modes: ToggleMode[] = travelStripModes({ onRequireAuth, authed: false });
@@ -55,15 +55,16 @@ export default function LandingBookingSection({ onRequireAuth }: { onRequireAuth
       band
       className="mt-8"
       modes={modes}
+      trust={TRAVEL_TRUST_CHIPS}
       header={
         /* LAND-MSG-1 → PR-STRIP-DESIGN-1: the long WHY paragraph compressed
-           to ONE line — the per-mode explainer under the tabs carries the
-           explaining now (the Kayak behavior). Claims verified, both
-           pre-existing: the free-today clause is the deck's PRICE-1 green
-           line near-verbatim (public search routes, guest booking); the
-           account clause is the old blurb's own closing sentence compressed
-           ("A free account just adds saving, budgeting, and runway on top"). */
-        <div className="mb-2">
+           to ONE line — the per-mode explainer carries the explaining now.
+           Claims verified, both pre-existing: the free-today clause is the
+           deck's PRICE-1 green line near-verbatim (public search routes,
+           guest booking); the account clause is the old blurb's own closing
+           sentence compressed. PR-STRIP-DESIGN-3: centered ON the band above
+           the headline — eyebrow small, the free line as the trust anchor. */
+        <div className="mb-3 text-center">
           <p className={`${DS.TYPE.microLabel} mb-1`}>Free travel search &amp; booking</p>
           <p className="font-mono text-[11px] leading-relaxed text-white/70">
             Free today: search &amp; book travel, no account required — a free account

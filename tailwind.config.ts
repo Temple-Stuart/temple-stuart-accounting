@@ -20,6 +20,7 @@ const config: Config = {
           purple: 'rgb(var(--ts-purple) / <alpha-value>)',              // #3b2d6b
           'purple-deep': 'rgb(var(--ts-purple-deep) / <alpha-value>)',  // #2d1b4e
           'purple-hover': 'rgb(var(--ts-purple-light) / <alpha-value>)',// #4e3e85 (locked --ts-purple-light == old hover value)
+          'purple-pop': 'rgb(var(--ts-purple-pop) / <alpha-value>)',    // #7a5fdd PR-STRIP-DESIGN-3: the one pop accent (see globals.css)
           'purple-light': 'rgb(123 107 170 / <alpha-value>)',           // #7b6baa LEGACY, unused (0 refs); kept alpha-compatible for family consistency; retire in component-migration PR
           'purple-wash': 'rgb(var(--ts-purple-wash) / <alpha-value>)',  // #eae7f2
           gold: 'rgb(var(--ts-gold) / <alpha-value>)',                  // #7D6B2C

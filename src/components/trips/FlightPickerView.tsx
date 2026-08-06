@@ -247,7 +247,7 @@ export default function FlightPickerView({
                       </button>
                     </div>
                     <button onClick={() => onSearchLeg(leg.id)} disabled={leg.loading}
-                      className="w-full lg:w-auto px-8 py-3 bg-brand-purple text-white text-sm font-medium rounded-lg hover:opacity-90 disabled:opacity-50">
+                      className="w-full lg:w-auto px-8 py-3 bg-brand-purple-pop text-white text-sm font-medium rounded-lg hover:bg-brand-purple disabled:opacity-50">
                       {leg.loading ? 'Searching...' : 'Search'}
                     </button>
                     {legs.length > 1 && !leg.committed && (

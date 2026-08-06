@@ -23,6 +23,12 @@
   --ts-purple-deep:  45 27 78;     /* #2d1b4e — darkest (= old brand-purple-deep) */
   --ts-purple:       59 45 107;    /* #3b2d6b — command-center banner (= old brand-purple) */
   --ts-purple-light: 78 62 133;    /* #4e3e85 — (= old brand-purple-hover value) */
+  /* PR-STRIP-DESIGN-3: the ONE pop accent (Alex: our purple reads dull vs
+     trip.com's electric blue). Derived INSIDE the family: --ts-purple is
+     hsl(254 41% 30%); pop keeps the hue and lifts lightness+saturation to
+     hsl(253 65% 62%). Used for active tab states, the Search button, the
+     band's bright radial, the trust-chip checks — nothing else. */
+  --ts-purple-pop:   122 95 221;   /* #7a5fdd — same hue, brighter + saturated */
   --ts-purple-wash:  234 231 242;  /* #eae7f2 — replaces BOTH old wash AND Tailwind purple-50 */
 
   /* Aqua — NEW, punchier than the old teal-400. Calendar routine blocks. */
