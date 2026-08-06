@@ -43,11 +43,16 @@ export interface TravelStripOptions {
   searchNonce?: number;
 }
 
-/** The in-chip "Soon" marker — plain text inheriting the chip's own color so it
- *  reads correctly in both chip states (DS.toggleChip active/inactive). No new
- *  design vocabulary. */
+/** The "Soon" marker — plain text inheriting the tab's own color so it reads
+ *  correctly in both states. STRIP-POLISH: the inline-position classes
+ *  (ml-1.5 align-middle) died — since label-wrap the badge is a HOISTED
+ *  sibling under the wrapped label in the flex-col icon tab, and those
+ *  classes shoved it off-center. The tab's items-center now centers it.
+ *  Safe to edit the shared node: every badge consumer is an icon mode
+ *  (insurance/esim/events below) — no chip-path mode carries a badge, so
+ *  that path's output is byte-identical by consumer absence. */
 const SOON_BADGE = (
-  <span className="ml-1.5 align-middle text-[9px] font-semibold uppercase tracking-wider opacity-60">
+  <span className="text-[9px] font-semibold uppercase tracking-wider opacity-60">
     Soon
   </span>
 );
@@ -55,14 +60,15 @@ const SOON_BADGE = (
 /** The shared ~20px tab-icon sizing (PR-STRIP-DESIGN-1 spec). */
 const ICON_CLASS = 'h-5 w-5';
 
-/** One trust chip — check + a short verified fact. STRIP-FLAT-BAND made the
- *  check white (pop-on-pop was invisible on the flat band);
- *  PALETTE-OVERHAUL (F): it wears the idea-state success token now
- *  (text-status-success, #22c55e) — visible on the pop band. */
+/** One trust chip — check + a short verified fact. STRIP-POLISH (mockup
+ *  parity): the BAND checks are white at the row's /80 — the success green
+ *  now lives only on the HERO trust chips (Landing.tsx, a different
+ *  surface). History: pop → white (STRIP-FLAT-BAND) → success green
+ *  (PALETTE-OVERHAUL F) → white (this PR). */
 function TrustChip({ fact }: { fact: string }) {
   return (
     <span className="flex items-center gap-1">
-      <Check className="h-3.5 w-3.5 shrink-0 text-status-success" strokeWidth={2.5} aria-hidden="true" />
+      <Check className="h-3.5 w-3.5 shrink-0 text-white/80" strokeWidth={2.5} aria-hidden="true" />
       {fact}
     </span>
   );
