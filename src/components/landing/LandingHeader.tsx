@@ -23,9 +23,9 @@ export default function LandingHeader({ onRequireLogin }: { onRequireLogin?: () 
   return (
     <header className="border-b border-panel-border bg-panel text-white">
       <div className="max-w-7xl mx-auto px-4 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-16 sm:h-20">
           <Link href="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white flex items-center justify-center">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white flex items-center justify-center">
               <span className="text-brand-purple font-bold text-terminal-lg">TS</span>
             </div>
             <div>
@@ -44,12 +44,12 @@ export default function LandingHeader({ onRequireLogin }: { onRequireLogin?: () 
               <button
                 type="button"
                 onClick={onRequireLogin}
-                className="px-4 py-2 text-xs bg-white text-brand-purple font-medium hover:bg-bg-row"
+                className="px-4 py-2.5 text-sm bg-white text-brand-purple font-medium hover:bg-bg-row"
               >
                 Log in
               </button>
             ) : (
-              <Link href="/" className="px-4 py-2 text-xs bg-white text-brand-purple font-medium hover:bg-bg-row">
+              <Link href="/" className="px-4 py-2.5 text-sm bg-white text-brand-purple font-medium hover:bg-bg-row">
                 Log in
               </Link>
             )}
