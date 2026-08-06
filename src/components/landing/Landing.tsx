@@ -727,7 +727,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
 
   return (
     <div className="min-h-screen bg-page text-white">
-      <LandingHeader onRequireLogin={onRequireLogin} />
+      {/* HEADER-CTA: onRequireAuth passed through so the header's Create
+          account button is the SAME register opener as the hero CTA. */}
+      <LandingHeader onRequireLogin={onRequireLogin} onRequireAuth={onRequireAuth} />
 
       {/* ── Hero — the house Bloomberg treatment; copy + CTAs verbatim ─────── */}
       <section className="text-white pb-14 pt-12" style={{ background: HERO_BG }}>
