@@ -36,7 +36,7 @@ export const SURFACE = {
  *  HERO_BG const (Landing.tsx:632), which this edit deliberately does not
  *  touch (no Landing hero edits in PALETTE-OVERHAUL's C scope). */
 export const HERO_BG =
-  'radial-gradient(ellipse 65% 75% at 68% 35%, rgb(var(--ts-purple-pop) / 0.35), transparent 70%), var(--ts-page)';
+  'radial-gradient(ellipse 80% 90% at 68% 35%, rgb(var(--ts-purple-pop) / 0.45), transparent 74%), var(--ts-page)';
 
 /** PR-STRIP-DESIGN-2 → STRIP-FLAT-BAND: the booking strip's band. The
  *  4-layer glow composition died (the STRIP-VISUAL-2 audit: the electric

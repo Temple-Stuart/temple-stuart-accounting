@@ -632,7 +632,7 @@ interface Props {
 const HERO_BG =
   // BG-DEPTH: glow PARITY with the app hero — the same idea-state
   // single-radial recipe as ds.ts HERO_BG, on the page canvas.
-  'radial-gradient(ellipse 65% 75% at 68% 35%, rgb(var(--ts-purple-pop) / 0.35), transparent 70%), var(--ts-page)';
+  'radial-gradient(ellipse 80% 90% at 68% 35%, rgb(var(--ts-purple-pop) / 0.45), transparent 74%), var(--ts-page)';
 
 // PR-ELEV-2c: the CARD variant of the glow. HERO_BG's ellipses are positioned
 // for the WIDE hero — on a small card the glow collapses into one corner and
