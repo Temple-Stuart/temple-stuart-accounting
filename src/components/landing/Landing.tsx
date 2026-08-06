@@ -847,6 +847,50 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
         </div>
       </section>
 
+      {/* ── STATS-STRIP: the idea-state demo strip — STATIC JSX, zero fetches,
+            zero client state, zero links. The numbers are EXAMPLES and the
+            eyebrow says so (the honest-labeling condition on every value
+            below). Cards reuse the deck's CARD_BG surface verbatim; the
+            container + eyebrow reuse the #modules section's classes. ───────── */}
+      <section className="w-full border-b border-panel-border bg-panel">
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
+            DEMO PREVIEW · EXAMPLE NUMBERS
+          </p>
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4 items-stretch">
+            <div className="flex flex-col justify-center">
+              <h2 className="text-xl font-bold text-white">All-in-one. All connected.</h2>
+              <p className="mt-2 text-sm text-white/60">
+                From travel bookings to financial tracking — bookings flow into your trip budget.
+              </p>
+            </div>
+            <div className="flex flex-col overflow-hidden rounded-lg p-4 text-white sm:p-5" style={{ background: CARD_BG }}>
+              <p className="text-xs text-white/50">Spend this month</p>
+              <p className="text-2xl font-bold text-white">$4,392.21</p>
+              <p className="text-xs text-status-success">↑ 12.5% vs last month</p>
+              <svg viewBox="0 0 100 24" aria-hidden="true" className="mt-2 h-6 w-full">
+                <polyline
+                  points="0,20 14,16 28,18 42,12 56,14 70,8 84,10 100,4"
+                  fill="none"
+                  stroke="rgb(var(--ts-purple-pop))"
+                  strokeWidth="2"
+                />
+              </svg>
+            </div>
+            <div className="flex flex-col overflow-hidden rounded-lg p-4 text-white sm:p-5" style={{ background: CARD_BG }}>
+              <p className="text-xs text-white/50">Upcoming trips</p>
+              <p className="text-2xl font-bold text-white">2</p>
+              <p className="text-xs text-white/50">Da Nang, Vietnam · Aug 6 – Sep 2</p>
+            </div>
+            <div className="flex flex-col overflow-hidden rounded-lg p-4 text-white sm:p-5" style={{ background: CARD_BG }}>
+              <p className="text-xs text-white/50">Accounts connected</p>
+              <p className="text-2xl font-bold text-white">12</p>
+              <p className="text-xs text-white/50">Banking, Card, Investments</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── BOOK-3: the guest's session trip — renders only when records
             exist (fail-honest empty state = nothing). ─────────────────────── */}
       <GuestTripStrip onRequireAuth={onRequireAuth} />
