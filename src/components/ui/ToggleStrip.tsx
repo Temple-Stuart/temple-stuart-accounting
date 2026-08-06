@@ -84,7 +84,9 @@ export default function ToggleStrip({ modes, header, defaultKey, className, band
   const card = (
     <div className={band ? 'rounded-lg border border-white/20 bg-panel p-4 shadow-lg' : (className ?? DS.STRIP)}>
       {!band && header}
-      <div className={`flex flex-wrap items-center gap-1.5${band ? ' justify-center' : ''}`}>
+      {/* PR-LABEL-WRAP: items-center → items-start so 1-line and 2-line tabs
+          coexist off one shared icon top line (trip.com). */}
+      <div className={`flex flex-wrap items-start gap-1.5${band ? ' justify-center' : ''}`}>
         {modes.map((m) => (
           <button
             key={m.key}
@@ -96,16 +98,23 @@ export default function ToggleStrip({ modes, header, defaultKey, className, band
             {/* PR-STRIP-DESIGN-1: icon present → icon above label (the
                 trip.com tab form factor); absent → the original chip
                 content, byte-identical. PR-STRIP-DESIGN-3: the active tab's
-                ICON lifts to the pop accent with the underline. */}
+                ICON lifts to the pop accent with the underline.
+                PR-LABEL-WRAP: the label is a w-min block — min-content width
+                breaks every multi-word label at its space (the trip.com
+                "Tours & Activities" pattern); single-word labels render
+                unchanged. The Soon badge HOISTED out of the label span to a
+                sibling below it (inside w-min it became a phantom third
+                line); its classes are untouched (travelStripModes
+                SOON_BADGE). */}
             {m.icon ? (
               <>
                 <span aria-hidden="true" className={active === m.key ? 'text-brand-purple-pop' : undefined}>
                   {m.icon}
                 </span>
-                <span>
+                <span className="w-min whitespace-normal text-center leading-tight">
                   {m.label}
-                  {m.badge}
                 </span>
+                {m.badge}
               </>
             ) : (
               <>
