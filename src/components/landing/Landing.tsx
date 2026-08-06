@@ -734,7 +734,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             <h1 className="text-4xl lg:text-5xl font-light tracking-tight mb-6">
               Track your money.<br />
               Plan your time.<br />
-              <span className="text-white/50">Live smarter.</span>
+              {/* PALETTE-OVERHAUL (E): the separable final segment carries the
+                  gradient accent — copy untouched. */}
+              <span className="ts-cta-gradient bg-clip-text text-transparent">Live smarter.</span>
             </h1>
             {/* LAND-MSG-1: the hero previously jumped tagline → CTAs with
                 nothing telling a novice what this IS. One plain sentence,
@@ -755,10 +757,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                   thesis to the code. "See how it works ↓" left the hero (the
                   booking strip sits right below anyway; the demo trigger moved
                   to the pillar-deck header). */}
+              {/* PALETTE-OVERHAUL: the primary CTA wears the one gradient
+                  (.ts-cta-gradient, globals.css) — size/padding untouched. */}
               <button
                 type="button"
                 onClick={onRequireAuth}
-                className="px-6 py-3 bg-white text-brand-purple font-medium hover:bg-bg-row text-sm text-center"
+                className="px-6 py-3 ts-cta-gradient text-white font-medium hover:brightness-110 text-sm text-center"
               >
                 Create free account
               </button>

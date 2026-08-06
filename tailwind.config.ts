@@ -53,6 +53,13 @@ const config: Config = {
           DEFAULT: 'rgb(var(--ts-border) / <alpha-value>)',       // #e2e0da
           light: 'rgb(var(--ts-border-light) / <alpha-value>)',   // #f0eee9
         },
+        // PALETTE-OVERHAUL: the idea-state status trio (ADDITIVE — the legacy
+        // brand.green/red/amber utilities are untouched; tokens in globals.css).
+        status: {
+          success: 'rgb(var(--ts-success) / <alpha-value>)',      // #22c55e
+          warning: 'rgb(var(--ts-warning) / <alpha-value>)',      // #f59e0b
+          info: 'rgb(var(--ts-info) / <alpha-value>)',            // #3b82f6
+        },
         // NEW design-token family (PR-Ops-DS-2). Enables bg-ts-aqua, text-ts-cyan,
         // bg-ts-white, etc. NOT referenced by any component yet — adoption is the
         // next PR. aqua + warm white are brand-new; cyan/indigo tokenize the

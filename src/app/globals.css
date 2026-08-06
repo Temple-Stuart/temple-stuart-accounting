@@ -68,6 +68,19 @@
   --ts-red:   197 48 48;    /* #c53030 */
   --ts-amber: 217 119 6;    /* #d97706 */
 
+  /* PALETTE-OVERHAUL: the idea-state status trio — ADDITIVE (no
+     --ts-success/warning/info existed; the legacy green/red/amber trio above
+     keeps every existing consumer). Mapped in tailwind.config as the
+     `status` family. */
+  --ts-success: 34 197 94;   /* #22c55e */
+  --ts-warning: 245 158 11;  /* #f59e0b */
+  --ts-info:    59 130 246;  /* #3b82f6 */
+
+  /* PALETTE-OVERHAUL: CTA gradient stops — start = --ts-purple-pop above;
+     consumed only by .ts-cta-gradient (end of this file). */
+  --ts-grad-mid: 109 40 255;  /* #6d28ff */
+  --ts-grad-end: 168 85 247;  /* #a855f7 */
+
   /* Gold accent family (unchanged) */
   --ts-gold:        125 107 44;   /* #7D6B2C */
   --ts-gold-bright: 139 125 60;   /* #8B7D3C */
@@ -109,4 +122,11 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* PALETTE-OVERHAUL: the one CTA gradient — pop → grad-mid → grad-end (tokens
+   above). Used as a button fill (with text-white hover:brightness-110) and as
+   gradient text (with bg-clip-text text-transparent). */
+.ts-cta-gradient {
+  background-image: linear-gradient(90deg, rgb(var(--ts-purple-pop)), rgb(var(--ts-grad-mid)), rgb(var(--ts-grad-end)));
 }
