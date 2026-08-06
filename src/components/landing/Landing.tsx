@@ -632,7 +632,7 @@ interface Props {
 const HERO_BG =
   // BG-DEPTH: glow PARITY with the app hero — the same idea-state
   // single-radial recipe as ds.ts HERO_BG, on the page canvas.
-  'radial-gradient(ellipse 55% 65% at 68% 35%, rgb(var(--ts-purple-pop) / 0.22), transparent 62%), var(--ts-page)';
+  'radial-gradient(ellipse 65% 75% at 68% 35%, rgb(var(--ts-purple-pop) / 0.35), transparent 70%), var(--ts-page)';
 
 // PR-ELEV-2c: the CARD variant of the glow. HERO_BG's ellipses are positioned
 // for the WIDE hero — on a small card the glow collapses into one corner and
@@ -733,7 +733,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
       <section className="text-white pb-14 pt-12" style={{ background: HERO_BG }}>
         <div className="max-w-7xl mx-auto px-4 lg:px-8">
           <div className="max-w-3xl">
-            <h1 className="text-4xl lg:text-5xl font-light tracking-tight mb-6">
+            {/* HERO-PRESENCE: the idea-state badge pill — first element in the
+                hero; the ✦ glyph wears the pop accent. */}
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/80 mb-6">
+              <span className="text-brand-purple-pop" aria-hidden="true">✦</span>
+              All-in-one financial operating system
+            </div>
+            <h1 className="text-4xl sm:text-6xl font-bold leading-tight tracking-tight mb-6">
               Track your money.<br />
               Plan your time.<br />
               {/* PALETTE-OVERHAUL (E): the separable final segment carries the
@@ -776,6 +782,25 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
               >
                 Clone it on GitHub ↗
               </a>
+            </div>
+
+            {/* HERO-PRESENCE: the three trust chips — Check in the status
+                success token (the strip-chip pattern); labels only, no links.
+                Claims: free account needs no card; BSL self-hosting is
+                LICENSE-true (the block below). */}
+            <div className="flex flex-wrap items-center gap-4 mt-5 text-sm text-white/70">
+              <span className="flex items-center gap-1.5">
+                <Check className="h-4 w-4 text-status-success" strokeWidth={2.5} aria-hidden="true" />
+                No credit card
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Check className="h-4 w-4 text-status-success" strokeWidth={2.5} aria-hidden="true" />
+                Privacy first
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Check className="h-4 w-4 text-status-success" strokeWidth={2.5} aria-hidden="true" />
+                Self-hostable
+              </span>
             </div>
 
             {/* ── LOBBY-FIX-1: the source-availability line moved here, directly
