@@ -202,7 +202,7 @@ export default function HomeClient() {
                 </>
               ) : (
                 <button onClick={() => { setLoginMode('login'); setShowLogin(true); }}
-                  className="px-4 py-2.5 text-sm bg-white text-brand-purple font-medium hover:bg-bg-row">
+                  className="px-4 py-2.5 text-sm ts-cta-gradient text-white font-medium hover:brightness-110">
                   Enter →
                 </button>
               )}

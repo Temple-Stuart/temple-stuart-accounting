@@ -27,11 +27,15 @@ export const SURFACE = {
   hover: 'bg-panel-hover',
 } as const;
 
-/** The hero radial glow, verbatim from Landing.tsx:472-474 (const HERO_BG) —
- *  token-native (rgb(var(--ts-purple)…)/var(--ts-panel)), zero hex. Applied via
- *  `style={{ background: HERO_BG }}` (Landing hero + DECK-2 mini-hero slides). */
+/** The hero radial glow. PALETTE-OVERHAUL: the idea-state single-glow — one
+ *  soft pop radial on the panel base (was the two-radial purple/purple-deep
+ *  composition). NOTE: --ts-panel is stored as HEX, so the base is
+ *  `var(--ts-panel)` (a `rgb(var())` wrap would emit invalid CSS). Consumer
+ *  today: the APP hero (HomeClient) — Landing.tsx keeps its own LOCAL
+ *  HERO_BG const (Landing.tsx:632), which this edit deliberately does not
+ *  touch (no Landing hero edits in PALETTE-OVERHAUL's C scope). */
 export const HERO_BG =
-  'radial-gradient(ellipse 80% 90% at 85% 10%, rgb(var(--ts-purple) / 0.65), transparent 60%), radial-gradient(ellipse 60% 70% at 100% 80%, rgb(var(--ts-purple-deep) / 0.5), transparent 55%), var(--ts-panel)';
+  'radial-gradient(ellipse 55% 65% at 68% 35%, rgb(var(--ts-purple-pop) / 0.22), transparent 62%), var(--ts-panel)';
 
 /** PR-STRIP-DESIGN-2 → STRIP-FLAT-BAND: the booking strip's band. The
  *  4-layer glow composition died (the STRIP-VISUAL-2 audit: the electric
