@@ -65,6 +65,7 @@ export function travelStripModes(opts: TravelStripOptions): ToggleMode[] {
   // ComingSoonSection panels self-explain verbatim (no duplicated line).
   return [
     { key: 'flights', label: 'Flights', icon: <Plane className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />,
+      headline: 'Book flights right here — live fares.',
       explainer: 'Live fares — book right here, or create a free account to save flights to a trip.',
       panel: (
       <PublicFlightSearch
@@ -75,6 +76,7 @@ export function travelStripModes(opts: TravelStripOptions): ToggleMode[] {
       />
     ) },
     { key: 'hotels', label: 'Hotels', icon: <BedDouble className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />,
+      headline: 'Book your stay — live nightly prices.',
       explainer: 'Live stays with nightly prices — book a room now; a free account budgets it.',
       panel: (
       <PublicHotelSearch
@@ -85,6 +87,7 @@ export function travelStripModes(opts: TravelStripOptions): ToggleMode[] {
       />
     ) },
     { key: 'transit', label: 'Getting around', icon: <Bus className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />,
+      headline: 'Airport transfers & fast-track.',
       explainer: 'Airport transfers & fast-track. Book on Viator.',
       panel: (
       <PublicTransferSearch
@@ -95,6 +98,7 @@ export function travelStripModes(opts: TravelStripOptions): ToggleMode[] {
       />
     ) },
     { key: 'activities', label: 'Things to do', icon: <Compass className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />,
+      headline: 'Real tours & experiences.',
       explainer: 'Real tours & experiences. Book on Viator.',
       panel: (
       <PublicActivitySearch
@@ -105,22 +109,26 @@ export function travelStripModes(opts: TravelStripOptions): ToggleMode[] {
       />
     ) },
     { key: 'visa', label: 'Visa', icon: <FileCheck className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />,
+      headline: 'The visa rule — and the official place to apply.',
       explainer: 'The rule, how long you can stay, and the official place to apply.',
       panel: <PublicVisaCheck /> },
     // ── The three former tiles, now badged chips (explainers verbatim). ──────
-    { key: 'insurance', label: 'Travel insurance', badge: SOON_BADGE, icon: <Shield className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />, panel: (
+    { key: 'insurance', label: 'Travel insurance', badge: SOON_BADGE, icon: <Shield className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />,
+      headline: 'Travel insurance — coming soon.', panel: (
       <ComingSoonSection
         title="Travel insurance"
         explainer="Cover your trip — medical, delays, lost bags — priced into your budget."
       />
     ) },
-    { key: 'esim', label: 'Stay connected', badge: SOON_BADGE, icon: <Wifi className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />, panel: (
+    { key: 'esim', label: 'Stay connected', badge: SOON_BADGE, icon: <Wifi className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />,
+      headline: 'Stay connected — coming soon.', panel: (
       <ComingSoonSection
         title="Stay connected"
         explainer="Get data the moment you land, no hunting for a SIM."
       />
     ) },
-    { key: 'events', label: 'Events', badge: SOON_BADGE, icon: <CalendarDays className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />, panel: (
+    { key: 'events', label: 'Events', badge: SOON_BADGE, icon: <CalendarDays className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />,
+      headline: 'Events — coming soon.', panel: (
       <ComingSoonSection
         title="Events"
         explainer="Concerts, shows, and live events wherever you're headed."

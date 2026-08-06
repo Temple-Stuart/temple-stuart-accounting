@@ -20,7 +20,10 @@ import { useState } from 'react';
 import HotelResultsView, { type HotelResult } from './HotelResultsView';
 import CheckoutPanel from './CheckoutPanel';
 import CountryCityPicker from './CountryCityPicker';
-import TravelSectionShell, { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS, TRAVEL_LABEL_CLASS } from './travelSection';
+// PR-STRIP-DESIGN-2: icon-inside-field (TravelField) — Calendar on dates,
+// Users on guests (the ruled field anatomy; lucide = house vocabulary).
+import { Calendar, Users } from 'lucide-react';
+import TravelSectionShell, { TravelField, TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS, TRAVEL_LABEL_CLASS } from './travelSection';
 
 interface Props {
   /** Opens the existing home register/login modal (saving requires sign-in). */
@@ -182,39 +185,45 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
         <CountryCityPicker onChange={setPicked} />
         <label className="flex flex-col gap-1">
           <span className={TRAVEL_LABEL_CLASS}>Check-in</span>
-          <input
-            type="date"
-            value={checkin}
-            onChange={(e) => setCheckin(e.target.value)}
-            className={TRAVEL_INPUT_CLASS}
-            aria-label="Check-in date"
-          />
+          <TravelField icon={<Calendar className="h-4 w-4" strokeWidth={1.75} />}>
+            <input
+              type="date"
+              value={checkin}
+              onChange={(e) => setCheckin(e.target.value)}
+              className={`w-full pl-10 ${TRAVEL_INPUT_CLASS}`}
+              aria-label="Check-in date"
+            />
+          </TravelField>
         </label>
         <label className="flex flex-col gap-1">
           <span className={TRAVEL_LABEL_CLASS}>Check-out</span>
-          <input
-            type="date"
-            value={checkout}
-            onChange={(e) => setCheckout(e.target.value)}
-            className={TRAVEL_INPUT_CLASS}
-            aria-label="Check-out date"
-          />
+          <TravelField icon={<Calendar className="h-4 w-4" strokeWidth={1.75} />}>
+            <input
+              type="date"
+              value={checkout}
+              onChange={(e) => setCheckout(e.target.value)}
+              className={`w-full pl-10 ${TRAVEL_INPUT_CLASS}`}
+              aria-label="Check-out date"
+            />
+          </TravelField>
         </label>
         {/* PR-B: the guests select gets its OWN grid cell (it previously shared a
             flex row with the Search button, which squeezed the button past the cell's
             right edge — the reported cutoff). */}
         <label className="flex flex-col gap-1">
           <span className={TRAVEL_LABEL_CLASS}>Guests</span>
+          <TravelField icon={<Users className="h-4 w-4" strokeWidth={1.75} />}>
           <select
             value={adults}
             onChange={(e) => setAdults(Number(e.target.value))}
-            className={TRAVEL_INPUT_CLASS}
+            className={`w-full pl-10 ${TRAVEL_INPUT_CLASS}`}
             aria-label="Guests"
           >
             {[1, 2, 3, 4, 5, 6].map((n) => (
               <option key={n} value={n}>{n} guest{n === 1 ? '' : 's'}</option>
             ))}
           </select>
+          </TravelField>
         </label>
         {/* PR-B cutoff fix: Search button in its OWN final cell, full-width so it
             fills the column and never overflows. */}

@@ -781,6 +781,9 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 Premium as a sixth chip. Every panel keeps its exact props/handlers
                 from the old stacked layout — composition-only, zero logic change. */}
             <ToggleStrip
+              // PR-STRIP-DESIGN-2: the same band composition the landing
+              // strip wears — one shared component, both surfaces inherit.
+              band
               modes={([
                 // PR-ELEV-1: the 8 shared travel modes (5 live + 3 "Soon") from
                 // the ONE builder both surfaces consume — same keys, same
@@ -808,6 +811,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 // explainer — the Kayak line the shared strip renders.
                 { key: 'premium', label: 'Premium',
                   icon: <Lock className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />,
+                  headline: 'Unlock local picks.',
                   explainer: 'Subscription — unlock local picks with ratings and prices to access.',
                   panel: (
                   <div className="space-y-3">
