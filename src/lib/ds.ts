@@ -43,8 +43,11 @@ export const HERO_BG =
 // rgb(var(--ts-purple) / 0.9)); the anchor radial keeps the family purple
 // (was --ts-purple-deep / 0.85) and the wash deepens slightly — the band
 // reads vibrant instead of dull, same composition.
+// PR-STRIP-DESIGN-4b: the pop stop's alpha lifts 0.5 → 0.65 (with the
+// retuned electric #764cf6 token) so the band GLOWS; anchor + wash
+// unchanged.
 export const BAND_BG =
-  'radial-gradient(ellipse 120% 140% at 15% 0%, rgb(var(--ts-purple-pop) / 0.5), transparent 65%), radial-gradient(ellipse 100% 120% at 90% 100%, rgb(var(--ts-purple) / 0.9), transparent 60%), linear-gradient(rgb(var(--ts-purple) / 0.45), rgb(var(--ts-purple-deep) / 0.5)), var(--ts-panel)';
+  'radial-gradient(ellipse 120% 140% at 15% 0%, rgb(var(--ts-purple-pop) / 0.65), transparent 65%), radial-gradient(ellipse 100% 120% at 90% 100%, rgb(var(--ts-purple) / 0.9), transparent 60%), linear-gradient(rgb(var(--ts-purple) / 0.45), rgb(var(--ts-purple-deep) / 0.5)), var(--ts-panel)';
 
 /* ─── TYPE ───────────────────────────────────────────────────────────────────
  * Scale + the white-opacity ladder. Origin: the landing hero (display), the
