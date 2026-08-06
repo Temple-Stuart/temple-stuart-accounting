@@ -25,10 +25,15 @@
   --ts-purple-light: 78 62 133;    /* #4e3e85 — (= old brand-purple-hover value) */
   /* PR-STRIP-DESIGN-3: the ONE pop accent (Alex: our purple reads dull vs
      trip.com's electric blue). Derived INSIDE the family: --ts-purple is
-     hsl(254 41% 30%); pop keeps the hue and lifts lightness+saturation to
-     hsl(253 65% 62%). Used for active tab states, the Search button, the
-     band's bright radial, the trust-chip checks — nothing else. */
-  --ts-purple-pop:   122 95 221;   /* #7a5fdd — same hue, brighter + saturated */
+     hsl(254 41% 30%); pop holds the hue and lifts lightness+saturation.
+     PR-STRIP-DESIGN-4b retune (Alex: still dull — target electric/
+     mystifying violet, not pastel, not neon-toy): #7a5fdd hsl(253 65% 62%)
+     → #764cf6 hsl(255 90% 63%) — the #8b5cf6 electric-violet family,
+     saturation into the ≥85% zone, hue + lightness held. White text on it
+     measures ~5.1:1 (WCAG AA normal-text pass). Used for active tab states,
+     the Search button, the band's bright radial, the trust-chip checks —
+     nothing else. */
+  --ts-purple-pop:   118 76 246;   /* #764cf6 — electric violet */
   --ts-purple-wash:  234 231 242;  /* #eae7f2 — replaces BOTH old wash AND Tailwind purple-50 */
 
   /* Aqua — NEW, punchier than the old teal-400. Calendar routine blocks. */
