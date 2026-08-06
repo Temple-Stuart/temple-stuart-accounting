@@ -33,12 +33,13 @@ export const TRAVEL_INPUT_CLASS =
   'bg-white/10 border border-white/20 rounded-lg px-3 py-3 text-sm text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/40';
 
 /** The shared submit-button class. PR-STRIP-DESIGN-2: the big confident
- *  Search — px-8 py-3, brand-purple fill, white text (the ruled spec; the
- *  FlightPickerView Search's own hover:opacity idiom). Consumers are the
- *  strip-family CTAs only (the five search/check buttons, the category
- *  unlock, the unified "Search all") — the checkout panels don't import it. */
+ *  Search — px-8 py-3, white text (the ruled spec). PR-STRIP-DESIGN-3: the
+ *  fill lifts to the pop accent; hover = the current (deeper) family purple,
+ *  per the ruling. Consumers are the strip-family CTAs only (the five
+ *  search/check buttons, the category unlock, the unified "Search all") —
+ *  the checkout panels don't import it. */
 export const TRAVEL_BUTTON_CLASS =
-  'rounded-lg bg-brand-purple px-8 py-3 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50';
+  'rounded-lg bg-brand-purple-pop px-8 py-3 text-sm font-medium text-white transition-colors hover:bg-brand-purple disabled:opacity-50';
 
 /** The mono micro-label rendered ABOVE each search field — the deleted teaser's
  *  LABEL_CLASS verbatim (LandingSearchTeaser.tsx@840a053b). */

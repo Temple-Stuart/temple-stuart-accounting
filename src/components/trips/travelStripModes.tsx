@@ -20,7 +20,8 @@
 import type { ToggleMode } from '@/components/ui/ToggleStrip';
 // PR-STRIP-DESIGN-1: the tab icons — lucide is the house icon vocabulary
 // (TripHeader/TripPlannerAI precedents), ~20px per the icon-tab spec.
-import { Plane, BedDouble, Bus, Compass, FileCheck, Shield, Wifi, CalendarDays } from 'lucide-react';
+// PR-STRIP-DESIGN-3: Check joins for the trust chips.
+import { Plane, BedDouble, Bus, Compass, FileCheck, Shield, Wifi, CalendarDays, Check } from 'lucide-react';
 import ComingSoonSection from '@/components/home/ComingSoonSection';
 import PublicFlightSearch from './PublicFlightSearch';
 import PublicHotelSearch from './PublicHotelSearch';
@@ -53,6 +54,43 @@ const SOON_BADGE = (
 
 /** The shared ~20px tab-icon sizing (PR-STRIP-DESIGN-1 spec). */
 const ICON_CLASS = 'h-5 w-5';
+
+/** One trust chip — pop-accent check + a short verified fact. */
+function TrustChip({ fact }: { fact: string }) {
+  return (
+    <span className="flex items-center gap-1">
+      <Check className="h-3.5 w-3.5 shrink-0 text-brand-purple-pop" strokeWidth={2.5} aria-hidden="true" />
+      {fact}
+    </span>
+  );
+}
+
+/** PR-STRIP-DESIGN-3: the trust-chips row — VERIFIED FACTS ONLY, one shared
+ *  node both surfaces pass to ToggleStrip's `trust` slot. Per-chip cites:
+ *    • "No account required" — the travel search/booking routes are PUBLIC
+ *      (middleware.ts PUBLIC_PATHS travel block) and the claim already ships
+ *      on the deck's green line + this strip's own free-today line.
+ *    • "Live fares & real prices" — the shipped mode lines' own claims
+ *      ("Live fares…" PublicFlightSearch; "Live stays with nightly prices…"
+ *      PublicHotelSearch).
+ *    • "Book on this page" — flights book in-panel + hotels via the hosted-
+ *      payment flow (LandingBookingSection.tsx BOOK-1 header, both live).
+ *    • "Bookings flow into your trip budget" — bookings persist to the trip
+ *      (flights/book/route.ts reservation write) and the trip budget lens
+ *      renders booked-vs-bank (TripBudgetActual + /api/trips/[id]/actuals,
+ *      MATCH-3).
+ *  NO invented numbers, NO user counts, NO airline counts. */
+export const TRAVEL_TRUST_CHIPS = (
+  <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 font-mono text-[11px] text-white/80">
+    <TrustChip fact="No account required" />
+    <span className="text-white/30" aria-hidden="true">|</span>
+    <TrustChip fact="Live fares & real prices" />
+    <span className="text-white/30" aria-hidden="true">|</span>
+    <TrustChip fact="Book on this page" />
+    <span className="text-white/30" aria-hidden="true">|</span>
+    <TrustChip fact="Bookings flow into your trip budget" />
+  </div>
+);
 
 export function travelStripModes(opts: TravelStripOptions): ToggleMode[] {
   const { onRequireAuth, authed, currentTrip, onCommitted, sharedCity, sharedCountry, searchNonce } = opts;

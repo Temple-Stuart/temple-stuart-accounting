@@ -39,8 +39,12 @@ export const HERO_BG =
  *  blue-band composition in our vocabulary) with the strip card FLOATING on
  *  it. A flat purple wash underlays the two radials so no corner falls back
  *  to near-black. */
+// PR-STRIP-DESIGN-3: the bright radial lifts to the pop token (was
+// rgb(var(--ts-purple) / 0.9)); the anchor radial keeps the family purple
+// (was --ts-purple-deep / 0.85) and the wash deepens slightly — the band
+// reads vibrant instead of dull, same composition.
 export const BAND_BG =
-  'radial-gradient(ellipse 120% 140% at 15% 0%, rgb(var(--ts-purple) / 0.9), transparent 65%), radial-gradient(ellipse 100% 120% at 90% 100%, rgb(var(--ts-purple-deep) / 0.85), transparent 60%), linear-gradient(rgb(var(--ts-purple) / 0.4), rgb(var(--ts-purple-deep) / 0.4)), var(--ts-panel)';
+  'radial-gradient(ellipse 120% 140% at 15% 0%, rgb(var(--ts-purple-pop) / 0.5), transparent 65%), radial-gradient(ellipse 100% 120% at 90% 100%, rgb(var(--ts-purple) / 0.9), transparent 60%), linear-gradient(rgb(var(--ts-purple) / 0.45), rgb(var(--ts-purple-deep) / 0.5)), var(--ts-panel)';
 
 /* ─── TYPE ───────────────────────────────────────────────────────────────────
  * Scale + the white-opacity ladder. Origin: the landing hero (display), the
@@ -112,9 +116,10 @@ export function toggleChip(active: boolean): string {
  *  the FD-1i calculator strip); inactive = transparent underline, secondary
  *  text, inset on hover. Used by ToggleStrip when a mode carries an icon. */
 export function iconTab(active: boolean): string {
+  // PR-STRIP-DESIGN-3: the active underline lifts to the pop accent.
   return `flex flex-col items-center gap-1 rounded-t px-3 py-2 font-mono text-[11px] font-medium border-b-2 transition-colors ${
     active
-      ? 'border-brand-purple bg-white/5 text-white'
+      ? 'border-brand-purple-pop bg-white/5 text-white'
       : 'border-transparent text-white/60 hover:bg-white/5 hover:text-white'
   }`;
 }
