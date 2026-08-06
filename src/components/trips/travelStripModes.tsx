@@ -55,11 +55,13 @@ const SOON_BADGE = (
 /** The shared ~20px tab-icon sizing (PR-STRIP-DESIGN-1 spec). */
 const ICON_CLASS = 'h-5 w-5';
 
-/** One trust chip — pop-accent check + a short verified fact. */
+/** One trust chip — check + a short verified fact. STRIP-FLAT-BAND: the
+ *  check was pop-colored, but the chips render ON the now-flat pop band —
+ *  pop-on-pop is invisible. White at the row's own /80 opacity. */
 function TrustChip({ fact }: { fact: string }) {
   return (
     <span className="flex items-center gap-1">
-      <Check className="h-3.5 w-3.5 shrink-0 text-brand-purple-pop" strokeWidth={2.5} aria-hidden="true" />
+      <Check className="h-3.5 w-3.5 shrink-0 text-white/80" strokeWidth={2.5} aria-hidden="true" />
       {fact}
     </span>
   );
