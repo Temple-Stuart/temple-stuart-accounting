@@ -223,9 +223,9 @@ const PILLAR_CARDS: PillarCard[] = [
     id: 'travel', label: 'Travel', tab: 'travel', entitlementKey: 'tab:travel',
     plain: 'Search, book, and budget your trips in one place.',
     bullets: [
-      'Search, price, book — no account',
-      'Bookings saved to your trip',
-      'Planned vs. actual, from your ledger',
+      'Search and book — no account needed',
+      'Every booking saves to your trip',
+      'See planned vs. what you really spent',
     ],
   },
   {
@@ -423,12 +423,12 @@ const SUMMARY_BY_ID: Record<string, {
   demoImage?: { src: string; alt: string };
 }> = {
   travel: {
-    eyebrow: 'Travel — the real product, no account required',
-    headline: 'Search it. Price it. Book it. No account required to look.',
+    eyebrow: 'Travel — try it free, no account',
+    headline: 'Search it. Price it. Book it. Free to look.',
     lines: [
-      'Real searches, free by design.',
-      'The trip is the container.',
-      'Every booking feeds the books.',
+      'Searching is always free.',
+      'One trip holds everything — plans, bookings, budget.',
+      'Every booking flows into your budget.',
     ],
     demoImage: { src: '/demo/travel.svg', alt: 'Illustration of the Travel interface' },
   },
@@ -1023,7 +1023,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                     <p className="min-h-10 font-mono text-sm font-bold text-white">
                       {p.id === 'travel' ? (
                         <span className="text-xs font-normal text-brand-green">
-                          Free today: search &amp; book travel, no account required.
+                          Free today — search and book, no sign-up.
                         </span>
                       ) : pricing && pricing.monthlyPrice !== null ? (
                         <>${pricing.monthlyPrice}<span className="text-xs font-normal text-white/50">/mo</span></>
