@@ -157,7 +157,8 @@ interface PillarCard {
    *  source cites are in the LAND-MSG-1 report. Zero new claims. */
   plain: string;
   /** PR-DECK-CLEAN-1 (Alex, vs resend/plaid/stripe pricing: "too much
-   *  text"): CHECKMARK fragments, ≤6 words each — every fragment COMPRESSED
+   *  text"): CHECKMARK short fragments (aim ≤6 words; approved copy may
+   *  exceed — PLAIN-SHOWCASE) — every fragment COMPRESSED
    *  from a pre-existing verified string (pricingModel.ts unlocks lines /
    *  the old deck bullets / the old PAID_* access labels; per-card
    *  provenance below). Zero new claims. The evicted long copy is preserved
@@ -383,9 +384,12 @@ const PERSONAS: Persona[] = [
 
 
 // FD-1i: the SUMMARY deck's content — LIFTED ONLY, zero invented copy (the
-// FD-1b bullet-lift precedent). Per pillar: the module deck's dark-hero
-// eyebrow + headline, then 3 verbatim slide titles. Provenance (file:line,
-// verified this PR):
+// FD-1b bullet-lift precedent). PLAIN-SHOWCASE exception: the TRAVEL entry
+// now carries Alex's ruled plain-language copy (PR-SLIDE-TRAVEL-REAL) rather
+// than a lift — the showcase was brought to parity in the same ruling; the
+// other eight pillars remain verbatim lifts. Per pillar: the module deck's
+// dark-hero eyebrow + headline, then 3 verbatim slide titles. Provenance
+// (file:line, verified at lift time):
 //   Travel:     eyebrow/headline TravelShowcaseSections.tsx:324-325;
 //               lines :342, :363, :370
 //   Runway:     eyebrow/headline RunwayShowcaseSections.tsx:344-345;

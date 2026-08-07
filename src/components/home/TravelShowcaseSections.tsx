@@ -321,8 +321,8 @@ export default function TravelShowcase({ onRequireAuth }: Props) {
   return (
     <TabShowcaseTemplate
       darkHero={{
-        eyebrow: 'Travel — the real product, no account required',
-        headline: 'Search it. Price it. Book it. No account required to look.',
+        eyebrow: 'Travel — try it free, no account',
+        headline: 'Search it. Price it. Book it. Free to look.',
         subcopy:
           'Every other tab shows you a demo — this one hands you the product. Real flight, hotel, activity, and visa searches against real vendors, free by design and by our vendor agreements, quota-capped and honest about every limit.',
         cta: (
