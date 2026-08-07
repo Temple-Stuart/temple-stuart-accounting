@@ -430,7 +430,7 @@ const SUMMARY_BY_ID: Record<string, {
       'One trip holds everything — plans, bookings, budget.',
       'Every booking flows into your budget.',
     ],
-    demoImage: { src: '/demo/travel.svg', alt: 'Illustration of the Travel interface' },
+    demoImage: { src: '/demo/travel-real.png', alt: 'Temple Stuart flight search — the live booking form' },
   },
   runway: {
     eyebrow: 'Runway — the whole platform, one question',
