@@ -230,7 +230,10 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
         <div className="flex items-end">
           <button
             type="submit"
-            disabled={loading || !picked}
+            // SEARCH-ALWAYS-ON: full-strength at rest — search() already
+            // errors loudly on the missing pieces (:63-69) and clears on a
+            // valid attempt; only loading dims.
+            disabled={loading}
             className={`${TRAVEL_BUTTON_CLASS} w-full`}
           >
             {loading ? 'Searching…' : 'Search'}
