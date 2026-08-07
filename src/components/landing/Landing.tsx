@@ -157,7 +157,8 @@ interface PillarCard {
    *  source cites are in the LAND-MSG-1 report. Zero new claims. */
   plain: string;
   /** PR-DECK-CLEAN-1 (Alex, vs resend/plaid/stripe pricing: "too much
-   *  text"): CHECKMARK fragments, ≤6 words each — every fragment COMPRESSED
+   *  text"): CHECKMARK short fragments (aim ≤6 words; approved copy may
+   *  exceed — PLAIN-SHOWCASE) — every fragment COMPRESSED
    *  from a pre-existing verified string (pricingModel.ts unlocks lines /
    *  the old deck bullets / the old PAID_* access labels; per-card
    *  provenance below). Zero new claims. The evicted long copy is preserved
@@ -179,12 +180,12 @@ interface PillarCard {
 // Funnel order — Alex's ruling. PR-DECK-CLEAN-1 fragment provenance — every
 // bullet is a compression of ONE pre-existing verified string, zero new
 // claims (the old FD-1o / FD-1h gate cites carry over with each source):
-//   Travel:     b1 ← "Search it. Price it. Book it. No account required to
-//               look." (TravelShowcaseSections.tsx:325; public routes,
-//               middleware-verified); b2 ← FD-1h claim "Book a flight or
-//               hotel and it's saved to your trip" (flights/book/route.ts
-//               :201); b3 ← FD-1h claim "planned vs. actual from your real
-//               ledger" (TripBudgetActual.tsx)
+//   Travel:     ruled plain-language pass (PR-SLIDE-TRAVEL-REAL) — Alex's
+//               approved copy, not lift-quotes. The claims behind each
+//               bullet stay the verified ones: free public search
+//               (middleware-verified routes), bookings persist to the trip
+//               (flights/book/route.ts:201), planned-vs-actual budget lens
+//               (TripBudgetActual.tsx)
 //   Runway:     b1 ← RunwayShowcaseSections.tsx:345 headline fragment;
 //               b2+b3 ← FD-1h claim "Burn broken out by Personal vs.
 //               Business — strays surfaced, never dropped" (runway/route.ts
@@ -383,9 +384,12 @@ const PERSONAS: Persona[] = [
 
 
 // FD-1i: the SUMMARY deck's content — LIFTED ONLY, zero invented copy (the
-// FD-1b bullet-lift precedent). Per pillar: the module deck's dark-hero
-// eyebrow + headline, then 3 verbatim slide titles. Provenance (file:line,
-// verified this PR):
+// FD-1b bullet-lift precedent). PLAIN-SHOWCASE exception: the TRAVEL entry
+// now carries Alex's ruled plain-language copy (PR-SLIDE-TRAVEL-REAL) rather
+// than a lift — the showcase was brought to parity in the same ruling; the
+// other eight pillars remain verbatim lifts. Per pillar: the module deck's
+// dark-hero eyebrow + headline, then 3 verbatim slide titles. Provenance
+// (file:line, verified at lift time):
 //   Travel:     eyebrow/headline TravelShowcaseSections.tsx:324-325;
 //               lines :342, :363, :370
 //   Runway:     eyebrow/headline RunwayShowcaseSections.tsx:344-345;
