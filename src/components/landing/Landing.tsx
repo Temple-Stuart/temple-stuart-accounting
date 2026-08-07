@@ -74,12 +74,14 @@
  */
 
 import Link from 'next/link';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 // PR-DECK-CLEAN-1: the card fragments' checkmark — lucide is the house icon
 // vocabulary (TripHeader.tsx:16 already imports Check).
-import { Check } from 'lucide-react';
-// PERSONA-1: the persona chips reuse the ToggleStrip chip idiom verbatim.
-import { toggleChip } from '@/lib/ds';
+// PR-DECK-4CAT: the four category-tab icons join.
+import { Check, Plane, BookOpen, TrendingUp, Settings } from 'lucide-react';
+// PR-DECK-4CAT: the category tabs reuse the ToggleStrip icon-tab idiom
+// (DS.iconTab — the trip.com tab form factor the booking strip wears).
+import { iconTab } from '@/lib/ds';
 import { TAB_PRICING } from '@/config/pricing-costs';
 import {
   ALLOCATION_ROWS, NO_COST_STRIP,
@@ -176,6 +178,17 @@ interface PillarCard {
 // Runway/Routines/Projects/Content specifics moved VERBATIM (minus the
 // duplicated "A paid module —" lead the module page already states) to
 // modulePillars.ts accessNote, rendered in each page's paid block.
+
+// PR-DECK-4CAT: the four category tabs — a fixed PARTITION of the nine
+// PILLAR_CARDS ids (every id appears in exactly one category; verified in the
+// DECK-4CAT report). The active tab mounts ONLY its moduleIds cards, in this
+// order, as a static grid — the persona-filtered carousel retired.
+const DECK_CATEGORIES = [
+  { key: 'travel',     label: 'Travel',     icon: Plane,      moduleIds: ['travel'] },
+  { key: 'accounting', label: 'Accounting', icon: BookOpen,   moduleIds: ['books', 'runway', 'tax'] },
+  { key: 'trading',    label: 'Trading',    icon: TrendingUp, moduleIds: ['trade'] },
+  { key: 'operations', label: 'Operations', icon: Settings,   moduleIds: ['projects', 'routines', 'content', 'compliance'] },
+] as const;
 
 // Funnel order — Alex's ruling. PR-DECK-CLEAN-1 fragment provenance — every
 // bullet is a compression of ONE pre-existing verified string, zero new
@@ -302,86 +315,6 @@ const PILLAR_CARDS: PillarCard[] = [
     ],
   },
 ];
-
-// PERSONA-1: the persona selector config — Alex's framing: the one-stop shop
-// for anyone starting a business; the hero speaks to everyone, these chips let
-// each audience self-select. A persona REORDERS the same nine slides (its
-// moduleIds first, the rest in funnel order), writes its value line on the
-// highlighted slides, and — PR-DECK-CLEAN-3 (Alex: "why have it there if
-// it's not included") — REMOVES the rest from the rail; the old dim died.
-// "Everyone" (moduleIds empty) is the default: the untouched funnel deck.
-// HARD RULE (LAND-MSG-1): every value line is a REPHRASE of already-verified
-// claims — per-clause source cites in the PERSONA-1 report. Words Alex drafted
-// that no machinery backs were DROPPED, not shipped: "invoices"/"jobs"/"crews"
-// (no invoicing or job/crew machinery exists — the only "invoice" hit is a
-// marketing stat, BookkeepingSection.tsx:73) and any sales-channel implication
-// (no store integrations; sales arrive as bank transactions via Plaid).
-// Verified anchors: wash-sale scan = TabShowcases.tsx:387 (IRS Pub 550 30-day
-// window); "the scanner" is the house term (metricExplainers.ts:49, "TT
-// Scanner" TradeShowcaseSections.tsx:110); Plaid sync = tabDescriptors.ts:21;
-// journal/double-entry = the Books bullets above + pricing-costs.ts:351.
-interface Persona {
-  key: string;
-  label: string;
-  /** PILLAR_CARDS ids — PR-DECK-CLEAN-3: the ONLY cards mounted while this
-   *  persona is active, in this order. Empty = Everyone: all nine, funnel
-   *  order. */
-  moduleIds: string[];
-  /** The audience value line — ONE per persona (there are no per-module
-   *  variants in this config; nothing is invented). PR-DECK-CLEAN-1 evicted
-   *  the render; PR-DECK-CLEAN-2 ruled it BACK ("personas must mean
-   *  something"): the line renders small, above the bullets, inside each of
-   *  this persona's moduleIds cards. null (Everyone) renders nothing. */
-  line: string | null;
-  /** PRICE-1 (PRICING-AUDIT-1 proposal c): ONE verified line under the chip
-   *  row. HARD RULE: only claims that are env/gate-true TODAY — the free
-   *  travel anchor (public routes) + "launching soon" for the persona's
-   *  modules (every TAB_PRICING monthlyPrice is null and no STRIPE_TAB_* env
-   *  is set — the same facts the deck states render from). When a module
-   *  gets a real Stripe price, its persona lines update (one copy line each). */
-  leadIn: string;
-}
-const PERSONAS: Persona[] = [
-  { key: 'everyone', label: 'Everyone', moduleIds: [], line: null,
-    leadIn: 'Search & book travel free today — no account needed. Paid modules are launching soon.' },
-  {
-    key: 'founders', label: 'Founders & freelancers',
-    moduleIds: ['books', 'tax', 'runway', 'projects'],
-    line: 'Bank feed in, clean books out — taxes half-done before you start.',
-    leadIn: 'Book work travel free today. Books, tax, runway & projects are launching soon.',
-  },
-  {
-    key: 'service', label: 'Service businesses',
-    moduleIds: ['books', 'routines', 'projects', 'tax'],
-    line: 'Routine work planned to the day — money tracked like an accountant would.',
-    leadIn: 'Free travel booking today. Books, routines, projects & tax are launching soon.',
-  },
-  {
-    key: 'ecom', label: 'Product & e-commerce',
-    moduleIds: ['books', 'runway', 'tax', 'projects'],
-    line: 'Every sale and expense flows in from your bank — books clean, tax-ready year round.',
-    leadIn: 'Free travel booking today. Books, runway, tax & projects are launching soon.',
-  },
-  {
-    key: 'traders', label: 'Traders',
-    moduleIds: ['trade', 'books', 'tax'],
-    line: 'Scanner to journal to wash-sales — one pipe.',
-    leadIn: 'Free travel booking today. Trade, books & tax are launching soon.',
-  },
-  {
-    key: 'nomads', label: 'Nomads & creators',
-    moduleIds: ['travel', 'runway', 'content', 'books'],
-    line: 'Book the trip, budget the trip, film the day.',
-    leadIn: 'Search & book travel free today, no account. Runway, content & books are launching soon.',
-  },
-  {
-    key: 'students', label: 'Students',
-    moduleIds: ['books', 'trade', 'compliance'],
-    line: 'Learn accounting and trading on your own real data — not textbook hypotheticals.',
-    leadIn: 'Free travel booking today. Books, trade & compliance are launching soon.',
-  },
-];
-
 
 // FD-1i: the SUMMARY deck's content — LIFTED ONLY, zero invented copy (the
 // FD-1b bullet-lift precedent). PLAIN-SHOWCASE exception: the TRAVEL entry
@@ -655,46 +588,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
   const pricingByKey = new Map(TAB_PRICING.map((t) => [t.key, t]));
   const bundle = pricingByKey.get('bundle:all');
 
-  // PERSONA-1 → PR-DECK-CLEAN-3: chip state (client only). Everyone (the
-  // default) short-circuits to PILLAR_CARDS ITSELF — same array reference —
-  // so the default deck renders all nine, byte-identical. An active persona
-  // REMOVES the non-relevant cards (Alex's ruling: "why have it there if
-  // it's not included" — the opacity-70 dim died): ONLY its moduleIds mount,
-  // in the persona's own order. The rail re-lays naturally. Declared above
-  // the nav block because the dot math derives from the MOUNTED count.
-  const [personaKey, setPersonaKey] = useState('everyone');
-  const persona = PERSONAS.find((a) => a.key === personaKey) ?? PERSONAS[0];
-  const personaActive = persona.moduleIds.length > 0;
-  const deckCards = personaActive
-    ? persona.moduleIds.flatMap((id) => PILLAR_CARDS.filter((p) => p.id === id))
-    : PILLAR_CARDS;
-
-  // LOBBY-DECK-1: the deck's nav — a ref on the snap track, chevrons that
-  // scroll it, and ONE scroll-derived piece of client state (the active-dot
-  // index). No slide data lives in state; CSS scroll-snap owns positioning.
-  // PR-DECK-CLEAN-3: the index derives from deckCards (the mounted, possibly
-  // persona-filtered set), so the dots track the filtered count.
-  const deckTrackRef = useRef<HTMLDivElement>(null);
-  const [activeSlide, setActiveSlide] = useState(0);
-  const onDeckScroll = () => {
-    const el = deckTrackRef.current;
-    if (!el) return;
-    const denom = Math.max(1, el.scrollWidth - el.clientWidth);
-    setActiveSlide(Math.round((el.scrollLeft / denom) * (deckCards.length - 1)));
-  };
-  const deckScrollBy = (dir: 1 | -1) => {
-    const el = deckTrackRef.current;
-    if (!el) return;
-    el.scrollBy({ left: dir * Math.round(el.clientWidth * 0.9), behavior: 'smooth' });
-  };
-  // PR-DECK-CLEAN-3: a persona switch changes what's mounted — reset the rail
-  // to its start so the persona's first module leads and the dot index can't
-  // point past the filtered count.
-  const selectPersona = (key: string) => {
-    setPersonaKey(key);
-    setActiveSlide(0);
-    deckTrackRef.current?.scrollTo({ left: 0 });
-  };
+  // PR-DECK-4CAT: category tab state (client only). The four fixed tabs
+  // partition the nine cards; the active tab mounts ONLY its moduleIds
+  // cards, in category order (the flatMap idiom kept from the retired
+  // persona filter), laid out as a static grid — no rail, no scroll state.
+  const [categoryKey, setCategoryKey] = useState('travel');
+  const category = DECK_CATEGORIES.find((c) => c.key === categoryKey)!;
+  const deckCards = category.moduleIds.flatMap((id) => PILLAR_CARDS.filter((p) => p.id === id));
 
   // LOBBY-DECK-1b: the demo modal — only reachable when DEMO_VIDEO_URL is set
   // (the hero button that opens it renders only then).
@@ -859,8 +759,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             cards, funnel order. Each slide = the 5-part structure and nothing
             else: name · one plain line · 3-4 checkmark fragments · the price
             slot (PRICE-1/2 states) · actions (availability-honest Select →
-            direct checkout; Explore → /modules/<id>). Navigation: CSS
-            scroll-snap (no new deps), chevrons + scroll-derived dots.
+            direct checkout; Explore → /modules/<id>). PR-DECK-4CAT:
+            navigation is 4 category tabs over a static grid — the
+            scroll-snap rail, chevrons, and dots retired.
             HERO-REPO-1: the demo trigger mounts in this header. PR-PRICE-3:
             id="modules" — THE stable anchor the /pricing permanent redirect
             (and any deep link) targets; this deck IS the pricing surface. ──── */}
@@ -889,64 +790,42 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 </button>
               )}
             </div>
-            <div className="flex shrink-0 gap-1.5">
-              <button
-                type="button"
-                aria-label="Previous slides"
-                onClick={() => deckScrollBy(-1)}
-                className="grid h-8 w-8 place-items-center rounded-full border border-white/30 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M15 18l-6-6 6-6" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                aria-label="Next slides"
-                onClick={() => deckScrollBy(1)}
-                className="grid h-8 w-8 place-items-center rounded-full border border-white/30 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M9 18l6-6-6-6" />
-                </svg>
-              </button>
-            </div>
           </div>
 
-          {/* PERSONA-1: the persona chip row — the ToggleStrip chip idiom
-              (DS toggleChip, ToggleStrip.tsx:46-57) above the selection deck.
-              "Everyone" leads and is the default: today's exact deck, zero
-              regression. PR-DECK-CLEAN-3: a chip FILTERS the rail to that
-              persona's modules (remove, not dim) and speaks that audience's
-              language; Everyone restores all nine. Client state only —
-              commerce wiring and selection state untouched. */}
-          <div className="mt-4 flex flex-wrap items-center gap-1.5" role="group" aria-label="Show the deck for your situation">
-            {PERSONAS.map((a) => (
+          {/* PR-DECK-4CAT: the category tab row — the ToggleStrip icon-tab
+              idiom (DS.iconTab, ToggleStrip.tsx icon path) above the deck.
+              A tab mounts ONLY its category's cards in the grid below.
+              Client state only — commerce wiring and selection state
+              untouched. */}
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5" role="group" aria-label="Module categories">
+            {DECK_CATEGORIES.map((c) => (
               <button
-                key={a.key}
+                key={c.key}
                 type="button"
-                onClick={() => selectPersona(a.key)}
-                aria-pressed={personaKey === a.key}
-                className={toggleChip(personaKey === a.key)}
+                onClick={() => setCategoryKey(c.key)}
+                aria-pressed={categoryKey === c.key}
+                className={iconTab(categoryKey === c.key)}
               >
-                {a.label}
+                <span aria-hidden="true" className={categoryKey === c.key ? 'text-brand-purple-pop' : undefined}>
+                  <c.icon className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+                </span>
+                <span className="w-min whitespace-normal text-center leading-tight">
+                  {c.label}
+                </span>
               </button>
             ))}
           </div>
 
-          {/* PRICE-1 (proposal c): the persona's ONE verified lead-in line —
-              free-travel anchor + launching-soon truth, above the deck. */}
-          <p className="mt-2 font-mono text-xs text-white/60">{persona.leadIn}</p>
+          {/* PRICE-1 (proposal c) → PR-DECK-4CAT: the ONE verified lead-in
+              line — free-travel anchor + launching-soon truth, above the
+              deck. STATIC now: the 'everyone' persona's string survives
+              verbatim; the per-persona variants retired with the filter. */}
+          <p className="mt-2 font-mono text-xs text-white/60">Search & book travel free today — no account needed. Paid modules are launching soon.</p>
 
           <div
-            ref={deckTrackRef}
-            onScroll={onDeckScroll}
             role="group"
             aria-label="The nine pillars"
-            tabIndex={0}
-            className="mt-4 flex snap-x snap-mandatory items-stretch gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 items-stretch"
           >
             {deckCards.map((p) => {
               const pricing = p.entitlementKey ? pricingByKey.get(p.entitlementKey) : undefined;
@@ -966,39 +845,27 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 // chip. PR-DECK-CLEAN-2 (Alex: "cards uneven, too big"):
                 // UNIFORM anatomy — exactly 3 fragments, the divider+price+
                 // actions stack bottom-pinned (mt-auto) so no ragged bottoms;
-                // one step tighter (p-4/p-5, h3 text-lg/xl, subtitle text-xs)
-                // and narrower slides (~3 full cards in the lg rail). The
-                // persona value line RETURNED (ruling: personas must mean
-                // something) — small, above the bullets, relevant cards only.
+                // one step tighter (p-4/p-5, h3 text-lg/xl, subtitle text-xs).
                 // PR-DECK-CLEAN-3 ("cards still uneven"): LOCKED anatomy — no
                 // content variance moves a shared line. Subtitle = a fixed
-                // 2-line block (line-clamp-2 + min-h-8); persona slot = same
-                // fixed block, and under an active persona EVERY mounted card
-                // renders it (only moduleIds cards mount now) while Everyone
-                // renders none — uniform either way; price <p> = min-h-10
+                // 2-line block (line-clamp-2 + min-h-8); price <p> = min-h-10
                 // (the 2-line green free-travel case). Bullets are 3×1 line
                 // (≤6-word fragments). With items-stretch equalizing card
                 // heights, every divider/price/action row sits at identical y.
                 // The dim suffix died with the remove-not-dim ruling.
+                // PR-DECK-4CAT: the slide became a GRID CELL — the rail width
+                // classes (w-[80%]/sm:w-[46%]/lg:w-[32%] + snap) died; the
+                // grid tracks size the cards. Every other class + CARD_BG
+                // unchanged. The persona value line retired with the filter.
                 <article
                   key={p.id}
-                  className="flex w-[80%] shrink-0 snap-start flex-col overflow-hidden rounded-lg p-4 text-white sm:w-[46%] sm:p-5 lg:w-[32%]"
+                  className="flex flex-col overflow-hidden rounded-lg p-4 text-white sm:p-5"
                   style={{ background: CARD_BG }}
                 >
                   <h3 className="text-lg font-light tracking-tight sm:text-xl">{p.label}</h3>
                   {/* LAND-MSG-1: the plain-English outcome line — the card's
                       ONE subtitle (structure slot 2), locked to 2 lines. */}
                   <p className="mt-1 min-h-8 text-xs font-medium text-white/90 line-clamp-2">{p.plain}</p>
-                  {/* PERSONA-1 → PR-DECK-CLEAN-2/3: the persona's ONE verified
-                      value line (PERSONAS config, :331-366 cites) — small,
-                      above the bullets, locked to the same 2-line block.
-                      Under an active persona every mounted card is a
-                      moduleIds card, so the slot renders uniformly across
-                      the view; Everyone (line: null) renders it nowhere. No
-                      persona×module combo is invented. */}
-                  {personaActive && persona.line && (
-                    <p className="mt-1.5 min-h-8 text-xs font-medium text-white line-clamp-2">{persona.line}</p>
-                  )}
                   {/* Slot 3: the checkmark fragments — lucide Check, the house
                       icon vocabulary (TripHeader.tsx:16 precedent). */}
                   <ul className="mt-2.5 mb-4 max-w-xl space-y-1">
@@ -1079,20 +946,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 </article>
               );
             })}
-          </div>
-
-          {/* Slide-position dots — indicators only, scroll-derived.
-              PR-DECK-CLEAN-3: one dot per MOUNTED card (deckCards), so the
-              row tracks the persona-filtered count. */}
-          <div className="mt-3 flex justify-center gap-1.5" aria-hidden="true">
-            {deckCards.map((p, i) => (
-              <span
-                key={p.id}
-                className={`h-1.5 rounded-full transition-all ${
-                  i === activeSlide ? 'w-4 bg-white' : 'w-1.5 bg-white/30'
-                }`}
-              />
-            ))}
           </div>
 
           {/* ── FD-1i (ruling B): the CALCULATOR strip — live selection state
