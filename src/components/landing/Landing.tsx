@@ -180,12 +180,12 @@ interface PillarCard {
 // Funnel order — Alex's ruling. PR-DECK-CLEAN-1 fragment provenance — every
 // bullet is a compression of ONE pre-existing verified string, zero new
 // claims (the old FD-1o / FD-1h gate cites carry over with each source):
-//   Travel:     b1 ← "Search it. Price it. Book it. No account required to
-//               look." (TravelShowcaseSections.tsx:325; public routes,
-//               middleware-verified); b2 ← FD-1h claim "Book a flight or
-//               hotel and it's saved to your trip" (flights/book/route.ts
-//               :201); b3 ← FD-1h claim "planned vs. actual from your real
-//               ledger" (TripBudgetActual.tsx)
+//   Travel:     ruled plain-language pass (PR-SLIDE-TRAVEL-REAL) — Alex's
+//               approved copy, not lift-quotes. The claims behind each
+//               bullet stay the verified ones: free public search
+//               (middleware-verified routes), bookings persist to the trip
+//               (flights/book/route.ts:201), planned-vs-actual budget lens
+//               (TripBudgetActual.tsx)
 //   Runway:     b1 ← RunwayShowcaseSections.tsx:345 headline fragment;
 //               b2+b3 ← FD-1h claim "Burn broken out by Personal vs.
 //               Business — strays surfaced, never dropped" (runway/route.ts
