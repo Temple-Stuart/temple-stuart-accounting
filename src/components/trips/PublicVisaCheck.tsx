@@ -61,11 +61,27 @@ export default function PublicVisaCheck() {
   const [searched, setSearched] = useState(false);
 
   const sameCountry = !!passport && passport === destination;
-  const canCheck = !!passport && !!destination && !sameCountry && !loading;
+  // SEARCH-ALWAYS-ON: canCheck died — its conditions live on as the named
+  // guards inside check() (loud errors), and the button dims on loading only.
 
   const check = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canCheck) return;
+    if (loading) return;
+    // SEARCH-ALWAYS-ON: the silent !canCheck return died — an incomplete
+    // click names the missing piece loudly (the hotels/flights pattern);
+    // the valid path's setError('') below is the clear-on-attempt.
+    if (!passport) {
+      setError('Pick a passport country.');
+      return;
+    }
+    if (!destination) {
+      setError('Pick a destination country.');
+      return;
+    }
+    if (sameCountry) {
+      setError('Pick two different countries to check entry rules.');
+      return;
+    }
 
     setLoading(true);
     setError('');
@@ -119,7 +135,9 @@ export default function PublicVisaCheck() {
         <div className="col-span-2 flex items-end lg:col-span-1">
           <button
             type="submit"
-            disabled={!canCheck}
+            // SEARCH-ALWAYS-ON: full-strength at rest — loading (which
+            // exists here) is the only dim; incomplete clicks error above.
+            disabled={loading}
             className={`${TRAVEL_BUTTON_CLASS} w-full`}
           >
             {loading ? 'Checking…' : 'Check'}
@@ -131,6 +149,11 @@ export default function PublicVisaCheck() {
         <p className="text-xs text-brand-amber">Pick two different countries to check entry rules.</p>
       )}
 
+      {/* SEARCH-ALWAYS-ON: pre-search guard errors need a surface — the
+          in-family template (PublicHotelSearch.tsx:268-270) verbatim. */}
+      {!searched && error && (
+        <div className="rounded-lg border border-panel-border bg-panel-surface p-4 text-sm text-brand-red">{error}</div>
+      )}
       {searched && <VisaResultView result={result} loading={loading} error={error} />}
     </TravelSectionShell>
   );
