@@ -79,3 +79,9 @@ discover-schema.sh
 audits/
 # internal audit reports — never publicly tracked (SOC 2 posture).
 audit-reports/
+# local ops scripts — NOT for the public repo (one-off probes, data tooling,
+# machine-local automation on Alex's disk). The 8 scripts tracked before this
+# rule stay tracked (gitignore never affects tracked files; untracking = a
+# separate ruling); adding a NEW repo script deliberately requires git add -f.
+# (PR-SCRIPTS-GITIGNORE, 2026-08-06)
+scripts/
