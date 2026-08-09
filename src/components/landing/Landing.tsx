@@ -74,7 +74,7 @@
  */
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 // PR-DECK-CLEAN-1: the card fragments' checkmark — lucide is the house icon
 // vocabulary (TripHeader.tsx:16 already imports Check).
 // PR-DECK-4CAT: the four category-tab icons join.
@@ -92,7 +92,7 @@ import { TAB_DESCRIPTORS } from '@/lib/tabDescriptors';
 import { DEMO_VIDEO_URL } from '@/config/demoVideo';
 // PR-ELEV-2d: the Built-on wall data + per-vendor logo rules live in the
 // server-safe leaf (page.tsx fs-checks the same entries' logo files).
-import { BUILT_ON } from '@/lib/builtOnWall';
+import { BUILT_ON, WALL_SECTIONS } from '@/lib/builtOnWall';
 
 /** LOBBY-DECK-1b: a YouTube watch/short URL → its /embed/ form for the modal
  *  iframe. Anything else (e.g. a plain file URL) returns null and plays via a
@@ -628,13 +628,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
   const selectedSellKeys = selectedPillars
     .map((p) => p.entitlementKey)
     .filter((k): k is string => typeof k === 'string');
-
-  // PR-WALL-PURE: the wall's lit/unlit partition — ONE predicate over the
-  // server fs-check data (logoAvailability). The grid renders lit-only;
-  // every unlit vendor rides the "Also built on" line below it and
-  // graduates to the grid on a bare file drop, zero code.
-  const wallLit = BUILT_ON.filter((e) => e.logo !== undefined && logoAvailability[e.logo.slug] === true);
-  const wallUnlit = BUILT_ON.filter((e) => !(e.logo !== undefined && logoAvailability[e.logo.slug] === true));
 
   return (
     <div className="min-h-screen bg-page text-white">
@@ -1172,63 +1165,75 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             lights ONLY when its official file exists at
             public/logos/<slug>.svg (server fs check → logoAvailability).
             Stripe's lit card links to stripe.com (their marks mandate).
-            PR-WALL-PURE: the grid is LIT-ONLY now — no file → the vendor
-            rides the "Also built on" line below the grid; never-cleared
-            marks never light by construction (verdicts in builtOnWall.ts). ── */}
+            PR-WALL-TEACH: the wall is a categorized TEACHING DIAGRAM —
+            WALL_SECTIONS headers + plain-language explainers, EVERY card
+            visible: the real mark when its file is lit, a letter tile
+            until then (the WALL-PURE "Also built on" line died);
+            never-cleared marks never light by construction (verdicts in
+            builtOnWall.ts). ─────────────────────────────────────────────── */}
       <section className="w-full border-b border-panel-border bg-panel-surface">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
           <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
             Built on
           </p>
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {wallLit.map((e) => {
-              // PR-WALL-PURE: LIT-ONLY grid — every mapped entry passed the
-              // slot+file predicate (wallLit above), so the mark always
-              // renders; e.logo! is proven by the filter. Logo-led card:
-              // centered column, mark leads at h-10, name + tag under it.
-              const cardClass = 'flex flex-col items-center justify-center text-center gap-1.5 min-h-24 overflow-hidden rounded-lg p-4 text-white';
-              const body = (
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`/logos/${e.logo!.slug}.svg`}
-                    alt={e.logo!.alt}
-                    className="h-10 w-auto object-contain"
-                  />
-                  <p className="text-xs font-medium text-white/80">{e.name}</p>
-                  <p className="font-mono text-[10px] uppercase tracking-wider text-white/40">{e.tag}</p>
-                </>
-              );
-              // Stripe's marks rule: the lit logo must link to stripe.com —
-              // the whole card becomes the outbound link. href without a lit
-              // logo does nothing (the mandate binds the MARK, not the name).
-              return e.logo!.href ? (
-                <a
-                  key={e.name}
-                  href={e.logo!.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={cardClass}
-                  style={{ background: CARD_BG }}
-                >
-                  {body}
-                </a>
-              ) : (
-                <article key={e.name} className={cardClass} style={{ background: CARD_BG }}>
-                  {body}
-                </article>
-              );
-            })}
+          {/* PR-WALL-TEACH: the one plain-language intro line. */}
+          <p className="text-sm text-white/60 mt-1">Every tool this platform runs on — and what each layer does.</p>
+          {/* PR-WALL-TEACH: the categorized teaching diagram — WALL_SECTIONS
+              order, every card ALWAYS visible: real mark when its file is
+              lit (same server fs-check), a letter tile until then. Tiles
+              auto-swap to marks on a bare file drop, zero code. Sections
+              render as fragments in one container so first:mt-0 hits only
+              the first header. */}
+          <div className="mt-4">
+            {WALL_SECTIONS.map((s) => (
+              <Fragment key={s.key}>
+                <p className="font-mono text-[10px] uppercase tracking-wider text-white/50 mt-8 first:mt-0">{s.label}</p>
+                <p className="text-xs text-white/50 mt-1 mb-3">{s.description}</p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                  {BUILT_ON.filter((e) => e.category === s.key).map((e) => {
+                    const logoLive = e.logo !== undefined && logoAvailability[e.logo.slug] === true;
+                    const cardClass = 'flex flex-col items-center justify-center text-center gap-1.5 min-h-24 overflow-hidden rounded-lg p-4 text-white';
+                    const body = (
+                      <>
+                        {logoLive && e.logo ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={`/logos/${e.logo.slug}.svg`}
+                            alt={e.logo.alt}
+                            className="h-10 w-auto object-contain"
+                          />
+                        ) : (
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/10 text-lg font-semibold text-white/80">{e.name[0]}</div>
+                        )}
+                        <p className="text-xs font-medium text-white/80">{e.name}</p>
+                        <p className="font-mono text-[10px] uppercase tracking-wider text-white/40">{e.tag}</p>
+                      </>
+                    );
+                    // Stripe's marks rule: the lit logo must link to
+                    // stripe.com — the whole card becomes the outbound link.
+                    // href without a lit logo does nothing (the mandate
+                    // binds the MARK, not the name).
+                    return logoLive && e.logo?.href ? (
+                      <a
+                        key={e.name}
+                        href={e.logo.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={cardClass}
+                        style={{ background: CARD_BG }}
+                      >
+                        {body}
+                      </a>
+                    ) : (
+                      <article key={e.name} className={cardClass} style={{ background: CARD_BG }}>
+                        {body}
+                      </article>
+                    );
+                  })}
+                </div>
+              </Fragment>
+            ))}
           </div>
-          {/* PR-WALL-PURE: every unlit vendor rides this one line —
-              auto-derived from the SAME fs-check partition, so a vendor
-              graduates to the grid on a bare file drop with zero code.
-              Empty partition → the line honestly renders nothing. */}
-          {wallUnlit.length > 0 && (
-            <p className="mt-4 font-mono text-[11px] text-white/50">
-              Also built on: {wallUnlit.map((e) => e.name).join(' · ')}
-            </p>
-          )}
           {/* PR-ELEV-2d (re-issue): REQUIRED attribution — mandatory under
               vercel.com/geist/brands while their marks render above (the
               Vercel + Next.js image marks on their split cards; the interim

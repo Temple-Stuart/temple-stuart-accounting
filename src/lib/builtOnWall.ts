@@ -25,10 +25,11 @@
 //   • OpenAI — openai.com/brand: badge use ONLY, NO partnership
 //     implication, NO alterations, and their badge may never render more
 //     prominent than our own marks. PR-WALL-PURE: the shared card SPLIT,
-//     so the misattribution deferral died — the slot is ARMED. The file
-//     must be the official badge from their brand page (white version is
-//     their own dark-bg recommendation); Alex supplies it — never a
-//     harvested mark.
+//     so the misattribution deferral died — the slot is ARMED. WALL-
+//     HARVEST-ALL (2026-08-09): the mirror blossom shipped under the
+//     SHIP-tier clearance; the official badge from their brand page
+//     (white version is their own dark-bg recommendation) remains the
+//     gold path — Alex's file overwrites at the same slug any time.
 //   • Vercel — vercel.com/geist/brands: unmodified marks only, and
 //     ATTRIBUTION IS REQUIRED when their marks are used — the exact
 //     required wording renders under the wall grid (Landing.tsx).
@@ -40,17 +41,19 @@
 //   CLEARED — Vercel + Next.js (geist/brands customer + symbol-wall
 //   clauses), Prisma (presskit badge invitation), Resend (resend.com/brand
 //   kit; white-on-dark is their own dark-theme treatment), Leaflet
-//   (BSD-2-licensed free-software logo), OpenAI (openai.com/brand customer
-//   badge program — official asset only, Alex supplies; usage verified
-//   live, LOGOS-3 audit), React + TypeScript + Tailwind CSS (open-source
-//   referential norm, simple-icons marks).
+//   (BSD-2-licensed free-software logo), React + TypeScript + Tailwind CSS
+//   (open-source referential norm, simple-icons marks).
+//   SHIPPED via WALL-HARVEST-ALL (2026-08-09 SHIP-tier clearance —
+//   referential customer marks, no written prohibition found; supersedes
+//   the older Anthropic-PARKED and OpenAI-official-asset-only lines):
+//   Anthropic, OpenAI (mirror blossom, fidelity-checked — Alex's official
+//   badge remains the gold overwrite at the same path), xAI.
 //   NEVER-LIGHT — Stripe (terms — standing; slot uniformity-only),
 //   Azure PostgreSQL (the PostgreSQL mark stays killed: no-modify /
 //   no-co-present / standard-forms), SEC EDGAR (agency seal).
-//   PARKED — Anthropic (license unverified; one-command re-harvest when
-//   cleared). PENDING — Plaid (permission pending — standing; slot inert).
+//   PENDING — Plaid (permission pending — standing; slot inert).
 //   ARMED-INERT awaiting permission/asset: Duffel, Nuitée, Viator (portal
-//   file only), tastytrade, Finnhub, Inngest, xAI, FRED, Google Places.
+//   file only), tastytrade, Finnhub, Inngest, FRED, Google Places.
 //
 // DROP CONVENTION: land the official file at public/logos/<slug>.svg
 // (white/monochrome variant preferred on the dark cards) — the card lights
@@ -60,10 +63,28 @@
 export interface BuiltOnEntry {
   name: string;
   tag: string;
+  /** PR-WALL-TEACH: the teaching-diagram section this card renders under
+   *  (WALL_SECTIONS below defines order, labels, and explainers). */
+  category: 'banking' | 'travel' | 'markets' | 'ai' | 'infra';
   /** Present ONLY on brand-terms-cleared vendors (rules above). `href`
    *  makes the whole lit card an outbound link (Stripe's marks mandate). */
   logo?: { slug: string; alt: string; href?: string };
 }
+
+/** PR-WALL-TEACH: the wall's ordered sections — each renders as a header +
+ *  plain-language explainer + that category's card grid (Landing.tsx). */
+export interface WallSection {
+  key: BuiltOnEntry['category'];
+  label: string;
+  description: string;
+}
+export const WALL_SECTIONS: WallSection[] = [
+  { key: 'banking', label: 'Banking & Payments', description: 'How money moves — bank connections in, card payments out.' },
+  { key: 'travel', label: 'Travel & Places', description: 'The services that search and book real flights, hotels, activities, and maps.' },
+  { key: 'markets', label: 'Markets & Data', description: 'Live market prices plus official government data feeds.' },
+  { key: 'ai', label: 'AI', description: 'The models that read, summarize, and plan inside the app.' },
+  { key: 'infra', label: 'Infrastructure', description: 'The code, database, and servers everything runs on.' },
+];
 
 // PR-WALL-PURE: EVERY card carries a logo slot now — the grid renders
 // lit-only (file exists) and everyone else rides the auto-derived
@@ -71,53 +92,51 @@ export interface BuiltOnEntry {
 // a bare file drop, zero code. Armed-inert costs nothing; the marks
 // RULINGS (verdict block above) still govern which files may EVER land —
 // slots marked NEVER-LIGHT exist for uniformity only, do not ship files.
+// PR-WALL-TEACH: entries grouped by category in WALL_SECTIONS order — the
+// render filters per section, so within-category order here IS display
+// order. Names/tags/slots carried over unchanged from WALL-PURE (splits,
+// claimability cites, and NEVER-LIGHT rules all stand).
 export const BUILT_ON: BuiltOnEntry[] = [
-  { name: 'Plaid', tag: 'bank data', logo: { slug: 'plaid', alt: 'Plaid logo' } },
+  // ── banking ───────────────────────────────────────────────────────────
+  { name: 'Plaid', tag: 'bank data', category: 'banking', logo: { slug: 'plaid', alt: 'Plaid logo' } },
   // NEVER-LIGHT per ruling (Stripe terms — standing): slot for uniformity
   // only, do not ship a file.
-  { name: 'Stripe', tag: 'payments', logo: { slug: 'stripe', alt: 'Stripe logo', href: 'https://stripe.com' } },
-  // PR-WALL-PURE: the combined flights & stays card SPLIT per vendor
-  // (armed-inert — files come via the pending permission emails).
-  { name: 'Duffel', tag: 'flights', logo: { slug: 'duffel', alt: 'Duffel logo' } },
-  { name: 'Nuitée liteAPI', tag: 'stays', logo: { slug: 'nuitee', alt: 'Nuitée liteAPI logo' } },
-  { name: 'Viator', tag: 'tours & transfers', logo: { slug: 'viator', alt: 'Viator logo' } },
-  { name: 'tastytrade', tag: 'brokerage data', logo: { slug: 'tastytrade', alt: 'tastytrade logo' } },
-  { name: 'Finnhub', tag: 'market data', logo: { slug: 'finnhub', alt: 'Finnhub logo' } },
-  // PR-WALL-PURE: the 'Anthropic + OpenAI' card SPLIT per vendor — the
-  // LOGOS-3 truth audit stands for both (Anthropic: src/lib/ai/client.ts
-  // family; OpenAI: src/lib/openai.ts singleton + four api/ai routes).
-  // Anthropic armed-inert (permission pending); OpenAI CLEARED 2026-08-09
-  // (openai.com/brand customer badge program) — its file must come from
-  // their OFFICIAL page (Alex supplies), never a harvested mark.
-  { name: 'Anthropic', tag: 'AI', logo: { slug: 'anthropic', alt: 'Anthropic logo' } },
-  { name: 'OpenAI', tag: 'AI', logo: { slug: 'openai', alt: 'OpenAI logo' } },
-  { name: 'Resend', tag: 'email', logo: { slug: 'resend', alt: 'Resend logo' } },
-  // PR-WALL-LOGOS-2: the shared 'infrastructure' five-name card SPLIT into
-  // per-vendor cards (tags derive its one role into per-vendor facts). The
-  // required Vercel/Next.js attribution line under the wall grid
-  // (Landing.tsx) is unchanged and still binds — their marks render above.
-  { name: 'Next.js', tag: 'web framework', logo: { slug: 'nextdotjs', alt: 'Next.js logo' } },
-  { name: 'Prisma', tag: 'database ORM', logo: { slug: 'prisma', alt: 'Prisma logo' } },
-  { name: 'Vercel', tag: 'hosting & deploys', logo: { slug: 'vercel', alt: 'Vercel logo' } },
-  // NEVER-LIGHT per ruling (PostgreSQL trademark policy — the mark stays
-  // killed): slot for uniformity only, do not ship a file.
-  { name: 'Azure PostgreSQL', tag: 'database', logo: { slug: 'azurepostgresql', alt: 'Azure PostgreSQL logo' } },
-  { name: 'Inngest', tag: 'background jobs', logo: { slug: 'inngest', alt: 'Inngest logo' } },
-  // PR-WALL-PURE: the core front-of-stack trio joins, CLEARED 2026-08-09
-  // (open-source referential norm, simple-icons marks).
-  { name: 'React', tag: 'UI', logo: { slug: 'react', alt: 'React logo' } },
-  { name: 'TypeScript', tag: 'language', logo: { slug: 'typescript', alt: 'TypeScript logo' } },
-  { name: 'Tailwind CSS', tag: 'styling', logo: { slug: 'tailwindcss', alt: 'Tailwind CSS logo' } },
-  // PR-WALL-LOGOS-2: the five wired stack vendors the wall was missing
-  // (ruled additions). Claimability cites: grok.ts (api.x.ai client),
-  // convergence/data-fetchers.ts (FRED macro + SEC EDGAR XBRL fetchers),
-  // placesCache.ts, Leaflet (package.json dep — HotelMap/DestinationMap
-  // render it).
-  { name: 'xAI Grok', tag: 'AI', logo: { slug: 'xai', alt: 'xAI Grok logo' } },
-  { name: 'FRED', tag: 'economic data', logo: { slug: 'fred', alt: 'FRED logo' } },
+  { name: 'Stripe', tag: 'payments', category: 'banking', logo: { slug: 'stripe', alt: 'Stripe logo', href: 'https://stripe.com' } },
+  // ── travel (armed-inert marks come via the pending permission emails) ──
+  { name: 'Duffel', tag: 'flights', category: 'travel', logo: { slug: 'duffel', alt: 'Duffel logo' } },
+  { name: 'Nuitée liteAPI', tag: 'stays', category: 'travel', logo: { slug: 'nuitee', alt: 'Nuitée liteAPI logo' } },
+  { name: 'Viator', tag: 'tours & transfers', category: 'travel', logo: { slug: 'viator', alt: 'Viator logo' } },
+  { name: 'Google Places', tag: 'location data', category: 'travel', logo: { slug: 'googleplaces', alt: 'Google Places logo' } },
+  { name: 'Leaflet', tag: 'maps', category: 'travel', logo: { slug: 'leaflet', alt: 'Leaflet logo' } },
+  // ── markets (claimability: grok.ts api.x.ai client; convergence/
+  //    data-fetchers.ts FRED macro + SEC EDGAR XBRL fetchers) ─────────────
+  { name: 'tastytrade', tag: 'brokerage data', category: 'markets', logo: { slug: 'tastytrade', alt: 'tastytrade logo' } },
+  { name: 'Finnhub', tag: 'market data', category: 'markets', logo: { slug: 'finnhub', alt: 'Finnhub logo' } },
+  { name: 'FRED', tag: 'economic data', category: 'markets', logo: { slug: 'fred', alt: 'FRED logo' } },
   // NEVER-LIGHT per ruling (SEC — a government agency seal never lands on a
   // vendor wall): slot for uniformity only, do not ship a file.
-  { name: 'SEC EDGAR', tag: 'filings data', logo: { slug: 'secedgar', alt: 'SEC EDGAR logo' } },
-  { name: 'Google Places', tag: 'location data', logo: { slug: 'googleplaces', alt: 'Google Places logo' } },
-  { name: 'Leaflet', tag: 'maps', logo: { slug: 'leaflet', alt: 'Leaflet logo' } },
+  { name: 'SEC EDGAR', tag: 'filings data', category: 'markets', logo: { slug: 'secedgar', alt: 'SEC EDGAR logo' } },
+  // ── ai (WALL-PURE split; LOGOS-3 truth audit stands: Anthropic =
+  //    src/lib/ai/client.ts family, OpenAI = src/lib/openai.ts + 4 routes.
+  //    WALL-HARVEST-ALL 2026-08-09 SHIP clearance superseded the old
+  //    Anthropic PARKED / OpenAI official-asset-only lines: all three AI
+  //    marks shipped from mirrors, fidelity-checked; Alex's official
+  //    OpenAI badge remains the gold overwrite at the same path.) ─────────
+  { name: 'Anthropic', tag: 'AI', category: 'ai', logo: { slug: 'anthropic', alt: 'Anthropic logo' } },
+  { name: 'OpenAI', tag: 'AI', category: 'ai', logo: { slug: 'openai', alt: 'OpenAI logo' } },
+  { name: 'xAI Grok', tag: 'AI', category: 'ai', logo: { slug: 'xai', alt: 'xAI Grok logo' } },
+  // ── infra (LOGOS-2 five-way split + the WALL-PURE core trio; the
+  //    required Vercel/Next.js attribution line under the wall grid is
+  //    unchanged and still binds — their marks render above it) ───────────
+  { name: 'Next.js', tag: 'web framework', category: 'infra', logo: { slug: 'nextdotjs', alt: 'Next.js logo' } },
+  { name: 'React', tag: 'UI', category: 'infra', logo: { slug: 'react', alt: 'React logo' } },
+  { name: 'TypeScript', tag: 'language', category: 'infra', logo: { slug: 'typescript', alt: 'TypeScript logo' } },
+  { name: 'Tailwind CSS', tag: 'styling', category: 'infra', logo: { slug: 'tailwindcss', alt: 'Tailwind CSS logo' } },
+  { name: 'Prisma', tag: 'database ORM', category: 'infra', logo: { slug: 'prisma', alt: 'Prisma logo' } },
+  // NEVER-LIGHT per ruling (PostgreSQL trademark policy — the mark stays
+  // killed): slot for uniformity only, do not ship a file.
+  { name: 'Azure PostgreSQL', tag: 'database', category: 'infra', logo: { slug: 'azurepostgresql', alt: 'Azure PostgreSQL logo' } },
+  { name: 'Vercel', tag: 'hosting & deploys', category: 'infra', logo: { slug: 'vercel', alt: 'Vercel logo' } },
+  { name: 'Inngest', tag: 'background jobs', category: 'infra', logo: { slug: 'inngest', alt: 'Inngest logo' } },
+  { name: 'Resend', tag: 'email', category: 'infra', logo: { slug: 'resend', alt: 'Resend logo' } },
 ];
