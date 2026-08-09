@@ -114,10 +114,12 @@ function gradeColor(s: number): string {
   return 'text-brand-red';
 }
 
+// TRADE-CHIPS: DISCRETE 3-bucket score color — tokenized to the status
+// family (kept as an rgb(var()) string: consumers feed inline style/SVG).
 function gradeColorHex(s: number): string {
-  if (s >= 70) return '#16a34a';
-  if (s >= 50) return '#d97706';
-  return '#c53030';
+  if (s >= 70) return 'rgb(var(--ts-success))';
+  if (s >= 50) return 'rgb(var(--ts-warning))';
+  return 'rgb(var(--ts-danger))';
 }
 
 function letterGrade(s: number): string {
@@ -315,7 +317,7 @@ export function TickerChapter({ dk = false, detail, sentiment, savedCards, savin
                     {jRow.allExpirations.map((exp: any, i: number) => {
                       const isWinner = exp.expiration === (jRow.winningExpiration ?? jRow.expiration);
                       return (
-                        <tr key={i} className={isWinner ? 'bg-amber-50/50' : ''} style={isWinner ? { borderLeft: '2px solid #d97706' } : {}}>
+                        <tr key={i} className={isWinner ? 'bg-amber-50/50' : ''} style={isWinner ? { borderLeft: '2px solid rgb(var(--ts-warning))' } : {}}>
                           <td className={themed(`py-0.5 pr-3 font-mono ${isWinner ? 'text-brand-amber font-bold' : 'text-text-faint'}`, dk)}>{exp.expiration}</td>
                           <td className={themed('py-0.5 pr-3 text-right font-mono text-text-faint', dk)}>{exp.dte}</td>
                           <td className={themed('py-0.5 pr-3 text-right font-mono text-text-faint', dk)}>{exp.strikeCount}</td>

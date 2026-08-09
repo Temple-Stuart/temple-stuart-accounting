@@ -62,6 +62,7 @@ const config: Config = {
           success: 'rgb(var(--ts-success) / <alpha-value>)',      // #22c55e
           warning: 'rgb(var(--ts-warning) / <alpha-value>)',      // #f59e0b
           info: 'rgb(var(--ts-info) / <alpha-value>)',            // #3b82f6
+          danger: 'rgb(var(--ts-danger) / <alpha-value>)',        // #ef4444 (TRADE-CHIPS)
         },
         // NEW design-token family (PR-Ops-DS-2). Enables bg-ts-aqua, text-ts-cyan,
         // bg-ts-white, etc. NOT referenced by any component yet — adoption is the

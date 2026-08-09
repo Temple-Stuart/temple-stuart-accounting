@@ -77,10 +77,12 @@ function gradeColor(s: number): string {
   return 'text-brand-red';
 }
 
+// TRADE-CHIPS: DISCRETE 3-bucket score color — tokenized to the status
+// family (kept as an rgb(var()) string: consumers feed inline style/SVG).
 function gradeColorHex(s: number): string {
-  if (s >= 70) return '#16a34a';
-  if (s >= 50) return '#d97706';
-  return '#c53030';
+  if (s >= 70) return 'rgb(var(--ts-success))';
+  if (s >= 50) return 'rgb(var(--ts-warning))';
+  return 'rgb(var(--ts-danger))';
 }
 
 function letterGrade(s: number): string {
@@ -605,7 +607,7 @@ export default function ScannerResultsTable({
                   <tr
                     className={themed(`transition-colors cursor-pointer hover:bg-bg-row ${idx % 2 === 0 ? 'bg-white' : 'bg-bg-terminal'} ${isQueued ? 'bg-green-50' : ''} ${isSelected ? 'bg-brand-purple-wash' : ''}`, dk)}
                     style={{
-                      borderLeft: isSelected ? '2px solid #3b2d6b' : isQueued ? '2px solid #16a34a' : '2px solid transparent',
+                      borderLeft: isSelected ? '2px solid rgb(var(--ts-purple-pop))' : isQueued ? '2px solid rgb(var(--ts-success))' : '2px solid transparent',
                     }}
                   >
                     {/* Checkbox */}

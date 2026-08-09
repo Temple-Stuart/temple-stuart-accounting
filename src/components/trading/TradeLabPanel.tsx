@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { formatMoney, moneyColorClass } from '@/lib/money';
-import { themed, type Surface } from '@/lib/ds';
+import { chip, CHIP_VARIANTS, type ChipVariant, themed, type Surface } from '@/lib/ds';
 
 interface TradeCard {
   id: string;
@@ -250,32 +250,36 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
     return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  const dirColor = (d: string) => {
+  // TRADE-CHIPS: the 25-hex inline-style system died — states map to the DS
+  // chip vocabulary (ds.ts CHIP_VARIANTS). The letter/word INSIDE the chip
+  // carries any distinction two states sharing a variant would lose.
+  const dirVariant = (d: string): ChipVariant => {
     const u = d.toUpperCase();
-    if (u === 'BULLISH') return { bg: '#065F46', text: '#34D399' };
-    if (u === 'BEARISH') return { bg: '#7F1D1D', text: '#FCA5A5' };
-    return { bg: '#334155', text: '#94A3B8' };
+    if (u === 'BULLISH') return 'success';
+    if (u === 'BEARISH') return 'danger';
+    return 'neutral';
   };
 
-  const statusBadge = (status: string) => {
+  // Pipeline stages stay visually DISTINCT (queued→warning, entered→info,
+  // linked→accent, graded→success) — no two stages collapse.
+  const statusBadge = (status: string): { variant: ChipVariant; text: string } => {
     switch (status) {
-      case 'queued': return { bg: '#D97706', text: 'Queued' };
-      case 'entered': return { bg: '#4F46E5', text: 'Entered' };
-      case 'linked': return { bg: '#2563EB', text: 'Linked' };
-      case 'graded': return { bg: '#7C3AED', text: 'Graded' };
-      default: return { bg: '#6B7280', text: status };
+      case 'queued': return { variant: 'warning', text: 'Queued' };
+      case 'entered': return { variant: 'info', text: 'Entered' };
+      case 'linked': return { variant: 'accent', text: 'Linked' };
+      case 'graded': return { variant: 'success', text: 'Graded' };
+      default: return { variant: 'neutral', text: status };
     }
   };
 
-  const gradeColor = (g: string | null) => {
-    if (!g) return { bg: '#6B7280', text: '#E5E7EB' };
+  // A,B→success · C→warning · D,F→danger (the ruled mapping; the letter is
+  // the chip text, so A vs B and D vs F stay distinguishable).
+  const gradeVariant = (g: string | null): ChipVariant => {
     switch (g) {
-      case 'A': return { bg: '#059669', text: '#ECFDF5' };
-      case 'B': return { bg: '#2563EB', text: '#EFF6FF' };
-      case 'C': return { bg: '#D97706', text: '#FFFBEB' };
-      case 'D': return { bg: '#DC2626', text: '#FEF2F2' };
-      case 'F': return { bg: '#991B1B', text: '#FEF2F2' };
-      default: return { bg: '#6B7280', text: '#E5E7EB' };
+      case 'A': case 'B': return 'success';
+      case 'C': return 'warning';
+      case 'D': case 'F': return 'danger';
+      default: return 'neutral';
     }
   };
 
@@ -381,13 +385,13 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
       ) : (
         <div className={themed('divide-y divide-border', dk)}>
           {cards.map(card => {
-            const dir = dirColor(card.direction);
+            const dir = dirVariant(card.direction);
             const badge = statusBadge(card.status);
             const legs = card.legs as { type: string; side: string; strike: number; price: number }[];
             const isExpanded = expandedCardId === card.id;
             const isLinking = linkingCardId === card.id;
             const isGrading = gradingCardId === card.id;
-            const gc = gradeColor(card.link?.grade ?? null);
+            const gc = gradeVariant(card.link?.grade ?? null);
 
             return (
               <div key={card.id}>
@@ -406,15 +410,15 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className={themed('text-base font-bold font-mono text-text-primary', dk)}>{card.symbol}</span>
                         <span className={themed('text-xs font-medium text-text-secondary', dk)}>{card.strategy_name}</span>
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ background: dir.bg, color: dir.text }}>
+                        <span className={chip(dir)}>
                           {card.direction.toUpperCase()}
                         </span>
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ background: badge.bg }}>
+                        <span className={chip(badge.variant)}>
                           {badge.text}
                         </span>
                         {/* Grade badge */}
                         {card.link?.grade && (
-                          <span className="px-2 py-0.5 rounded text-sm font-black" style={{ background: gc.bg, color: gc.text }}>
+                          <span className={`rounded px-2 py-0.5 text-sm font-black ${CHIP_VARIANTS[gc]}`}>
                             {card.link.grade}
                           </span>
                         )}
@@ -626,7 +630,9 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                               {card.link.grade && (
                                 <div className="flex justify-between items-center mt-2">
                                   <span className={themed('text-text-muted', dk)}>Grade</span>
-                                  <span className="px-3 py-1 rounded text-terminal-lg font-black" style={{ background: gradeColor(card.link.grade).bg, color: gradeColor(card.link.grade).text }}>
+                                  {/* TRADE-CHIPS: hero grade keeps its scale,
+                                      wears the chip variant colors (one map). */}
+                                  <span className={`rounded px-3 py-1 text-terminal-lg font-black ${CHIP_VARIANTS[gradeVariant(card.link.grade)]}`}>
                                     {card.link.grade}
                                   </span>
                                 </div>
