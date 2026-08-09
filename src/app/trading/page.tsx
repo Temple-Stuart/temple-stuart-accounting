@@ -11,6 +11,9 @@ import type { ScannerFilters } from '@/lib/convergence/filter-types';
 import { DEFAULT_FILTERS } from '@/lib/convergence/filter-types';
 import ScanFilterForm from '@/components/trading/ScanFilterForm';
 import COAManagementTable from '@/components/bookkeeping/COAManagementTable';
+// TRADE-SHELL-DARK: the one section-header idiom (ds.ts) — replaces the
+// seven divergent bg-brand-purple/80 header strips.
+import { SECTION_HEADER } from '@/lib/ds';
 
 
 interface TradeSummary {
@@ -732,7 +735,7 @@ export default function TradingPage() {
     return (
       <AppLayout>
         <div className="flex items-center justify-center py-20">
-          <div className="w-6 h-6 border-2 border-brand-purple border-t-transparent rounded-full animate-spin" />
+          <div className="w-6 h-6 border-2 border-brand-purple-pop border-t-transparent rounded-full animate-spin" />
         </div>
       </AppLayout>
     );
@@ -740,7 +743,7 @@ export default function TradingPage() {
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-bg-terminal">
+      <div className="min-h-screen bg-page text-white">
         <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
 
           {/* TRADING-PR-3: the sticky/backdrop-blur "Purple Background Zone" is
@@ -754,12 +757,13 @@ export default function TradingPage() {
             onFiltersChange={handleFiltersChange}
             scanTriggerRef={scanTriggerRef}
             ttConnected={ttConnected}
+            surface="dark"
           />
 
           {/* Performance — the 7-metric row (was ROW 2 in the sticky zone). */}
           {(() => { const m = filteredMetrics; return (
-          <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm mb-3">
-            <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center gap-2">
+          <div className="rounded-lg overflow-hidden border border-panel-border shadow-sm mb-3">
+            <div className={SECTION_HEADER}>
               <span>Performance</span>
               <span className="flex items-center gap-1.5 text-xs font-normal ml-auto">
                 <span className="text-white/60 uppercase text-[10px]">Period</span>
@@ -769,14 +773,14 @@ export default function TradingPage() {
                 {(dateFrom || dateTo) && <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="text-white/60 hover:text-white text-xs">x</button>}
               </span>
             </div>
-            <div className="bg-white px-3 py-3 grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2 text-center">
-              <div className="px-2"><div className="text-[9px] text-text-muted uppercase">P&amp;L</div><div className={`text-sm font-bold font-mono truncate ${m.totalRealizedPL >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{fmtPL(m.totalRealizedPL)}</div></div>
-              <div className="px-2"><div className="text-[9px] text-text-muted uppercase">WR</div><div className="text-sm font-bold font-mono text-text-primary truncate">{m.winRate}%</div></div>
-              <div className="px-2"><div className="text-[9px] text-text-muted uppercase">PF</div><div className="text-sm font-bold font-mono text-text-primary truncate">{m.profitFactor >= 999 ? '∞' : m.profitFactor.toFixed(2)}</div></div>
-              <div className="px-2"><div className="text-[9px] text-text-muted uppercase">Max W</div><div className="text-sm font-bold font-mono text-emerald-600 truncate">{fmt(m.largestWin)}</div></div>
-              <div className="px-2"><div className="text-[9px] text-text-muted uppercase">Max L</div><div className="text-sm font-bold font-mono text-red-500 truncate">{fmt(Math.abs(m.largestLoss))}</div></div>
-              <div className="px-2"><div className="text-[9px] text-text-muted uppercase">Avg W</div><div className="text-sm font-bold font-mono text-emerald-600 truncate">{fmt(m.avgWin)}</div></div>
-              <div className="px-2"><div className="text-[9px] text-text-muted uppercase">Avg L</div><div className="text-sm font-bold font-mono text-red-500 truncate">{fmt(m.avgLoss)}</div></div>
+            <div className="bg-panel-surface px-3 py-3 grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2 text-center">
+              <div className="px-2"><div className="text-[9px] text-white/50 uppercase">P&amp;L</div><div className={`text-sm font-bold font-mono truncate ${m.totalRealizedPL >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{fmtPL(m.totalRealizedPL)}</div></div>
+              <div className="px-2"><div className="text-[9px] text-white/50 uppercase">WR</div><div className="text-sm font-bold font-mono text-white truncate">{m.winRate}%</div></div>
+              <div className="px-2"><div className="text-[9px] text-white/50 uppercase">PF</div><div className="text-sm font-bold font-mono text-white truncate">{m.profitFactor >= 999 ? '∞' : m.profitFactor.toFixed(2)}</div></div>
+              <div className="px-2"><div className="text-[9px] text-white/50 uppercase">Max W</div><div className="text-sm font-bold font-mono text-emerald-600 truncate">{fmt(m.largestWin)}</div></div>
+              <div className="px-2"><div className="text-[9px] text-white/50 uppercase">Max L</div><div className="text-sm font-bold font-mono text-red-500 truncate">{fmt(Math.abs(m.largestLoss))}</div></div>
+              <div className="px-2"><div className="text-[9px] text-white/50 uppercase">Avg W</div><div className="text-sm font-bold font-mono text-emerald-600 truncate">{fmt(m.avgWin)}</div></div>
+              <div className="px-2"><div className="text-[9px] text-white/50 uppercase">Avg L</div><div className="text-sm font-bold font-mono text-red-500 truncate">{fmt(m.avgLoss)}</div></div>
             </div>
           </div>
           ); })()}
@@ -785,9 +789,9 @@ export default function TradingPage() {
           <div className="space-y-3 mt-4">
             {/* Chart of Accounts */}
             {tradingEntityId && (
-              <div className="overflow-hidden border-x border-b border-gray-200/50">
-                <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Chart of Accounts</div>
-                <div className="bg-white p-3">
+              <div className="overflow-hidden border-x border-b border-panel-border">
+                <div className={SECTION_HEADER}>Chart of Accounts</div>
+                <div className="bg-panel-surface p-3">
                   <COAManagementTable
                     entityId={tradingEntityId}
                     entityName="Trading"
@@ -799,14 +803,14 @@ export default function TradingPage() {
 
             {/* Commit Trades to Ledger */}
             {uncommittedTrades.length > 0 && (
-              <div className="overflow-hidden border-x border-b border-gray-200/50">
-                <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Commit Trades to Ledger</div>
-                <div className="bg-white px-4 py-3 flex items-center justify-between">
+              <div className="overflow-hidden border-x border-b border-panel-border">
+                <div className={SECTION_HEADER}>Commit Trades to Ledger</div>
+                <div className="bg-panel-surface px-4 py-3 flex items-center justify-between">
                   <div>
-                    <span className="text-sm text-text-primary font-medium">
+                    <span className="text-sm text-white font-medium">
                       {uncommittedTrades.length} closed trade{uncommittedTrades.length !== 1 ? 's' : ''} not yet in ledger
                     </span>
-                    <span className="text-xs text-text-muted ml-2">
+                    <span className="text-xs text-white/50 ml-2">
                       (Net P&L: {fmtCurrency(uncommittedTrades.reduce((s, t) => s + t.realizedPL, 0))})
                     </span>
                   </div>
@@ -831,9 +835,9 @@ export default function TradingPage() {
             )}
 
             {/* P&L Calendar */}
-            <div className="overflow-hidden border-x border-b border-gray-200/50">
-              <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">P&L Calendar</div>
-              <div className="bg-white">
+            <div className="overflow-hidden border-x border-b border-panel-border">
+              <div className={SECTION_HEADER}>P&L Calendar</div>
+              <div className="bg-panel-surface">
                 <CalendarGrid
                   events={plCalendarEvents}
                   sourceConfig={PL_SOURCE_CONFIG}
@@ -841,6 +845,7 @@ export default function TradingPage() {
                   showBudgetTotals={true}
                   showCategoryLegend={false}
                   compact={true}
+                  surface="dark"
                 />
               </div>
             </div>
@@ -851,9 +856,9 @@ export default function TradingPage() {
             {isOwner && ttConnected && (
               <div className="mb-4">
                 {ttLoading ? (
-                  <div className="overflow-hidden border-x border-b border-gray-200/50 bg-white p-4 text-center text-text-faint text-sm">Loading account data...</div>
+                  <div className="overflow-hidden border-x border-b border-panel-border bg-panel-surface p-4 text-center text-white/40 text-sm">Loading account data...</div>
                 ) : ttDataError ? (
-                  <div className="overflow-hidden border-x border-b border-gray-200/50 bg-white p-4">
+                  <div className="overflow-hidden border-x border-b border-panel-border bg-panel-surface p-4">
                     <div className="text-sm text-brand-red mb-3">{ttDataError}</div>
                     <button onClick={fetchTtData} className="text-xs text-brand-purple hover:underline font-medium">Retry</button>
                   </div>
@@ -866,6 +871,7 @@ export default function TradingPage() {
                     hideControls={true}
                     scanTriggerRef={scanTriggerRef}
                     scanningRef={scanningRef}
+                    surface="dark"
                   />
                 )}
               </div>
@@ -874,6 +880,7 @@ export default function TradingPage() {
             {/* ── Trade Lab ── */}
             <div className="mb-4">
               <TradeLabPanel
+                surface="dark"
                 onCardsChange={() => {
                   fetch('/api/trade-cards')
                     .then(r => r.json())
@@ -884,14 +891,14 @@ export default function TradingPage() {
 
 
                 {/* Trade Journal */}
-                <div className="overflow-hidden border-x border-b border-gray-200/50">
-                  <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
+                <div className="overflow-hidden border-x border-b border-panel-border">
+                  <div className={SECTION_HEADER}>
                     <span>Trade Journal</span>
-                    <span className="text-xs text-text-faint">{filteredTrades.length} trades · {journalEntries.length} entries</span>
+                    <span className="text-xs text-white/40">{filteredTrades.length} trades · {journalEntries.length} entries</span>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
-                      <thead className="bg-gray-50">
+                      <thead className="bg-white/5">
                         <tr>
                           <th className="px-3 py-2 text-left font-medium">Trade #</th>
                           <th className="px-3 py-2 text-left font-medium">Date</th>
@@ -905,22 +912,22 @@ export default function TradingPage() {
                           <th className="px-3 py-2 text-center font-medium"></th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-border">
+                      <tbody className="divide-y divide-panel-border">
                         {filteredTrades.map(trade => {
                           const journal = getJournalEntry(trade.tradeNum);
                           const isExpanded = expandedTrade === trade.tradeNum;
 
                           return (
                             <>
-                              <tr key={trade.tradeNum} className={`hover:bg-bg-row ${isExpanded ? 'bg-brand-purple/5' : ''}`}>
-                                <td className="px-3 py-2 font-mono text-text-secondary">#{trade.tradeNum}</td>
-                                <td className="px-3 py-2 text-text-secondary">{new Date(trade.openDate).toLocaleDateString()}</td>
+                              <tr key={trade.tradeNum} className={`hover:bg-panel-hover ${isExpanded ? 'bg-brand-purple/5' : ''}`}>
+                                <td className="px-3 py-2 font-mono text-white/60">#{trade.tradeNum}</td>
+                                <td className="px-3 py-2 text-white/60">{new Date(trade.openDate).toLocaleDateString()}</td>
                                 <td className="px-3 py-2 font-mono font-semibold">{trade.underlying}</td>
                                 <td className="px-3 py-2">
                                   <span className="px-2 py-0.5 bg-brand-purple-wash text-brand-purple text-[10px]">{trade.strategy}</span>
                                 </td>
                                 <td className="px-3 py-2 text-center">
-                                  <span className={`px-2 py-0.5 text-[10px] ${trade.type === 'option' ? 'bg-purple-100 text-purple-700' : 'bg-bg-row text-text-secondary'}`}>
+                                  <span className={`px-2 py-0.5 text-[10px] ${trade.type === 'option' ? 'bg-purple-100 text-purple-700' : 'bg-white/5 text-white/60'}`}>
                                     {trade.type}
                                   </span>
                                 </td>
@@ -928,18 +935,18 @@ export default function TradingPage() {
                                   <span className={`px-2 py-0.5 text-[10px] ${
                                     trade.status === 'OPEN' ? 'bg-green-100 text-brand-green' :
                                     trade.status === 'PARTIAL' ? 'bg-yellow-100 text-yellow-700' :
-                                    'bg-bg-row text-text-secondary'
+                                    'bg-white/5 text-white/60'
                                   }`}>{trade.status}</span>
                                 </td>
                                 <td className={`px-3 py-2 text-right font-mono font-semibold ${
-                                  trade.status === 'CLOSED' ? (trade.realizedPL >= 0 ? 'text-brand-green' : 'text-brand-red') : 'text-text-faint'
+                                  trade.status === 'CLOSED' ? (trade.realizedPL >= 0 ? 'text-brand-green' : 'text-brand-red') : 'text-white/40'
                                 }`}>
                                   {trade.status === 'CLOSED' ? fmtPL(trade.realizedPL) : '—'}
                                 </td>
                                 <td className="px-3 py-2 text-center">
                                   {journal?.rating ? (
                                     <span className="text-amber-500">{'★'.repeat(journal.rating)}{'☆'.repeat(5 - journal.rating)}</span>
-                                  ) : <span className="text-text-faint">—</span>}
+                                  ) : <span className="text-white/40">—</span>}
                                 </td>
                                 <td className="px-3 py-2 text-center">
                                   {journal ? (
@@ -947,9 +954,9 @@ export default function TradingPage() {
                                       journal.emotion === 'confident' ? 'bg-emerald-100 text-brand-green' :
                                       journal.emotion === 'nervous' || journal.emotion === 'fearful' ? 'bg-yellow-100 text-yellow-700' :
                                       journal.emotion === 'fomo' || journal.emotion === 'revenge' || journal.emotion === 'greedy' ? 'bg-red-100 text-brand-red' :
-                                      'bg-bg-row text-text-secondary'
+                                      'bg-white/5 text-white/60'
                                     }`}>{journal.emotion}</span>
-                                  ) : <span className="text-text-faint">—</span>}
+                                  ) : <span className="text-white/40">—</span>}
                                 </td>
                                 <td className="px-3 py-2 text-center">
                                   <div className="flex items-center gap-1 justify-center">
@@ -958,7 +965,7 @@ export default function TradingPage() {
                                       {journal ? 'Edit' : 'Add'}
                                     </button>
                                     <button onClick={() => setExpandedTrade(isExpanded ? null : trade.tradeNum)}
-                                      className="px-2 py-1 text-[10px] bg-bg-row text-text-secondary hover:bg-border">
+                                      className="px-2 py-1 text-[10px] bg-white/5 text-white/60 hover:bg-panel-border">
                                       {isExpanded ? '▲' : '▼'}
                                     </button>
                                   </div>
@@ -966,11 +973,11 @@ export default function TradingPage() {
                               </tr>
                               {isExpanded && (
                                 <tr key={`${trade.tradeNum}-detail`}>
-                                  <td colSpan={10} className="px-4 py-3 bg-bg-row">
+                                  <td colSpan={10} className="px-4 py-3 bg-white/5">
                                     <div className="grid lg:grid-cols-2 gap-4 text-xs">
                                       <div>
-                                        <div className="font-semibold text-text-secondary mb-2">Trade Details</div>
-                                        <div className="space-y-1 text-text-secondary">
+                                        <div className="font-semibold text-white/60 mb-2">Trade Details</div>
+                                        <div className="space-y-1 text-white/60">
                                           <div>Opened: {new Date(trade.openDate).toLocaleString()}</div>
                                           {trade.closeDate && <div>Closed: {new Date(trade.closeDate).toLocaleString()}</div>}
                                           <div>Legs: {trade.legs}</div>
@@ -985,8 +992,8 @@ export default function TradingPage() {
                                       </div>
                                       {journal && (
                                         <div>
-                                          <div className="font-semibold text-text-secondary mb-2">Journal Notes</div>
-                                          <div className="space-y-1 text-text-secondary">
+                                          <div className="font-semibold text-white/60 mb-2">Journal Notes</div>
+                                          <div className="space-y-1 text-white/60">
                                             {journal.thesis && <div><span className="font-medium">Thesis:</span> {journal.thesis}</div>}
                                             {journal.setup && <div><span className="font-medium">Setup:</span> {journal.setup}</div>}
                                             {journal.mistakes && <div><span className="font-medium text-brand-red">Mistakes:</span> {journal.mistakes}</div>}
@@ -994,7 +1001,7 @@ export default function TradingPage() {
                                             {journal.tags?.length > 0 && (
                                               <div className="flex gap-1 flex-wrap">
                                                 {journal.tags.map(tag => (
-                                                  <span key={tag} className="px-2 py-0.5 bg-border text-text-secondary text-[10px]">{tag}</span>
+                                                  <span key={tag} className="px-2 py-0.5 bg-panel-border text-white/60 text-[10px]">{tag}</span>
                                                 ))}
                                               </div>
                                             )}
@@ -1009,7 +1016,7 @@ export default function TradingPage() {
                           );
                         })}
                         {filteredTrades.length === 0 && (
-                          <tr><td colSpan={10} className="px-3 py-8 text-center text-text-faint">No trades in selected period</td></tr>
+                          <tr><td colSpan={10} className="px-3 py-8 text-center text-white/40">No trades in selected period</td></tr>
                         )}
                       </tbody>
                     </table>
@@ -1032,20 +1039,20 @@ export default function TradingPage() {
       {/* Journal Entry Modal */}
       {journalModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setJournalModal(null)}>
-          <div className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="bg-brand-purple/80 text-white px-4 py-3 flex justify-between items-center sticky top-0">
+          <div className="bg-panel-surface w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className={`${SECTION_HEADER} sticky top-0`}>
               <div>
                 <div className="font-semibold">Trade Journal</div>
-                <div className="text-xs text-text-faint">#{journalModal.trade.tradeNum} · {journalModal.trade.underlying}</div>
+                <div className="text-xs text-white/40">#{journalModal.trade.tradeNum} · {journalModal.trade.underlying}</div>
               </div>
               <button onClick={() => setJournalModal(null)} className="text-white/60 hover:text-white text-sm">×</button>
             </div>
             
             <div className="p-4 space-y-4">
               <div>
-                <label className="block text-xs font-medium text-text-secondary mb-1">Entry Type</label>
+                <label className="block text-xs font-medium text-white/60 mb-1">Entry Type</label>
                 <select value={journalForm.entryType} onChange={e => setJournalForm(p => ({ ...p, entryType: e.target.value }))}
-                  className="w-full border border-border px-3 py-2 text-sm">
+                  className="w-full border border-panel-border px-3 py-2 text-sm">
                   <option value="pre-trade">Pre-Trade (Planning)</option>
                   <option value="during">During Trade</option>
                   <option value="post-trade">Post-Trade (Review)</option>
@@ -1053,47 +1060,47 @@ export default function TradingPage() {
               </div>
               
               <div>
-                <label className="block text-xs font-medium text-text-secondary mb-1">Thesis / Reason</label>
+                <label className="block text-xs font-medium text-white/60 mb-1">Thesis / Reason</label>
                 <textarea value={journalForm.thesis} onChange={e => setJournalForm(p => ({ ...p, thesis: e.target.value }))}
-                  className="w-full border border-border px-3 py-2 text-sm h-20" placeholder="Why did you take this trade?" />
+                  className="w-full border border-panel-border px-3 py-2 text-sm h-20" placeholder="Why did you take this trade?" />
               </div>
               
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-text-secondary mb-1">Setup</label>
+                  <label className="block text-xs font-medium text-white/60 mb-1">Setup</label>
                   <select value={journalForm.setup} onChange={e => setJournalForm(p => ({ ...p, setup: e.target.value }))}
-                    className="w-full border border-border px-3 py-2 text-sm">
+                    className="w-full border border-panel-border px-3 py-2 text-sm">
                     <option value="">Select...</option>
                     {SETUPS.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-text-secondary mb-1">Emotion</label>
+                  <label className="block text-xs font-medium text-white/60 mb-1">Emotion</label>
                   <select value={journalForm.emotion} onChange={e => setJournalForm(p => ({ ...p, emotion: e.target.value }))}
-                    className="w-full border border-border px-3 py-2 text-sm">
+                    className="w-full border border-panel-border px-3 py-2 text-sm">
                     {EMOTIONS.map(e => <option key={e} value={e}>{e}</option>)}
                   </select>
                 </div>
               </div>
               
               <div>
-                <label className="block text-xs font-medium text-text-secondary mb-1">Mistakes</label>
+                <label className="block text-xs font-medium text-white/60 mb-1">Mistakes</label>
                 <textarea value={journalForm.mistakes} onChange={e => setJournalForm(p => ({ ...p, mistakes: e.target.value }))}
-                  className="w-full border border-border px-3 py-2 text-sm h-16" placeholder="What went wrong?" />
+                  className="w-full border border-panel-border px-3 py-2 text-sm h-16" placeholder="What went wrong?" />
               </div>
               
               <div>
-                <label className="block text-xs font-medium text-text-secondary mb-1">Lessons Learned</label>
+                <label className="block text-xs font-medium text-white/60 mb-1">Lessons Learned</label>
                 <textarea value={journalForm.lessons} onChange={e => setJournalForm(p => ({ ...p, lessons: e.target.value }))}
-                  className="w-full border border-border px-3 py-2 text-sm h-16" placeholder="What will you do differently?" />
+                  className="w-full border border-panel-border px-3 py-2 text-sm h-16" placeholder="What will you do differently?" />
               </div>
               
               <div>
-                <label className="block text-xs font-medium text-text-secondary mb-1">Rating (1-5)</label>
+                <label className="block text-xs font-medium text-white/60 mb-1">Rating (1-5)</label>
                 <div className="flex gap-2">
                   {[1, 2, 3, 4, 5].map(n => (
                     <button key={n} onClick={() => setJournalForm(p => ({ ...p, rating: n }))}
-                      className={`w-10 h-10 text-terminal-lg ${journalForm.rating >= n ? 'text-amber-500' : 'text-text-faint'}`}>
+                      className={`w-10 h-10 text-terminal-lg ${journalForm.rating >= n ? 'text-amber-500' : 'text-white/40'}`}>
                       {journalForm.rating >= n ? '★' : '☆'}
                     </button>
                   ))}
@@ -1101,14 +1108,14 @@ export default function TradingPage() {
               </div>
               
               <div>
-                <label className="block text-xs font-medium text-text-secondary mb-1">Tags (comma separated)</label>
+                <label className="block text-xs font-medium text-white/60 mb-1">Tags (comma separated)</label>
                 <input type="text" value={journalForm.tags} onChange={e => setJournalForm(p => ({ ...p, tags: e.target.value }))}
-                  className="w-full border border-border px-3 py-2 text-sm" placeholder="e.g., earnings, scalp, swing" />
+                  className="w-full border border-panel-border px-3 py-2 text-sm" placeholder="e.g., earnings, scalp, swing" />
               </div>
             </div>
             
-            <div className="bg-bg-row px-4 py-3 flex justify-end gap-2 sticky bottom-0 border-t">
-              <button onClick={() => setJournalModal(null)} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">
+            <div className="bg-white/5 px-4 py-3 flex justify-end gap-2 sticky bottom-0 border-t">
+              <button onClick={() => setJournalModal(null)} className="px-4 py-2 text-sm text-white/60 hover:text-white">
                 Cancel
               </button>
               <button onClick={saveJournalEntry} disabled={saving}
