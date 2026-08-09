@@ -629,6 +629,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
     .map((p) => p.entitlementKey)
     .filter((k): k is string => typeof k === 'string');
 
+  // PR-WALL-PURE: the wall's lit/unlit partition — ONE predicate over the
+  // server fs-check data (logoAvailability). The grid renders lit-only;
+  // every unlit vendor rides the "Also built on" line below it and
+  // graduates to the grid on a bare file drop, zero code.
+  const wallLit = BUILT_ON.filter((e) => e.logo !== undefined && logoAvailability[e.logo.slug] === true);
+  const wallUnlit = BUILT_ON.filter((e) => !(e.logo !== undefined && logoAvailability[e.logo.slug] === true));
+
   return (
     <div className="min-h-screen bg-page text-white">
       {/* HEADER-CTA: onRequireAuth passed through so the header's Create
@@ -1157,50 +1164,48 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             endorsement framing. CLAIMABILITY RULE: wired clients only (each
             name has a live client file in src/lib — LANDING-ELEVATE-AUDIT-1
             Part C); declared-not-connected vendors (Mozio/Airalo/Cover
-            Genius) and unverified feeds (FRED) never appear.
-            PR-ELEV-2d: cards are LOGO-CAPABLE now — entries live in the
+            Genius) never appear. (FRED graduated in WALL-LOGOS-2 — its
+            fetchers are wired, convergence/data-fetchers.ts.)
+            PR-ELEV-2d: cards are LOGO-CAPABLE — entries live in the
             builtOnWall.ts leaf; a brand-terms-CLEARED vendor (per-vendor
             rules + policy URLs documented there) carries a logo slot that
             lights ONLY when its official file exists at
             public/logos/<slug>.svg (server fs check → logoAvailability).
             Stripe's lit card links to stripe.com (their marks mandate).
-            No file → today's exact text card; uncleared vendors stay
-            text-only by construction. ─────────────────────────────────────── */}
+            PR-WALL-PURE: the grid is LIT-ONLY now — no file → the vendor
+            rides the "Also built on" line below the grid; never-cleared
+            marks never light by construction (verdicts in builtOnWall.ts). ── */}
       <section className="w-full border-b border-panel-border bg-panel-surface">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
           <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
             Built on
           </p>
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {BUILT_ON.map((e) => {
-              // Lit = a cleared slot AND its official file exists on disk
-              // (server-checked). Anything less renders the text card
-              // byte-identically — no placeholder, no broken image.
-              const logoLive = e.logo !== undefined && logoAvailability[e.logo.slug] === true;
-              const cardClass = 'flex flex-col justify-between overflow-hidden rounded-lg p-4 text-white';
+            {wallLit.map((e) => {
+              // PR-WALL-PURE: LIT-ONLY grid — every mapped entry passed the
+              // slot+file predicate (wallLit above), so the mark always
+              // renders; e.logo! is proven by the filter. Logo-led card:
+              // centered column, mark leads at h-10, name + tag under it.
+              const cardClass = 'flex flex-col items-center justify-center text-center gap-1.5 min-h-24 overflow-hidden rounded-lg p-4 text-white';
               const body = (
                 <>
-                  <div>
-                    {logoLive && e.logo && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={`/logos/${e.logo.slug}.svg`}
-                        alt={e.logo.alt}
-                        className="mb-2 h-7 w-auto object-contain"
-                      />
-                    )}
-                    <p className="text-sm font-semibold leading-snug">{e.name}</p>
-                  </div>
-                  <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-white/50">{e.tag}</p>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`/logos/${e.logo!.slug}.svg`}
+                    alt={e.logo!.alt}
+                    className="h-10 w-auto object-contain"
+                  />
+                  <p className="text-xs font-medium text-white/80">{e.name}</p>
+                  <p className="font-mono text-[10px] uppercase tracking-wider text-white/40">{e.tag}</p>
                 </>
               );
               // Stripe's marks rule: the lit logo must link to stripe.com —
               // the whole card becomes the outbound link. href without a lit
               // logo does nothing (the mandate binds the MARK, not the name).
-              return logoLive && e.logo?.href ? (
+              return e.logo!.href ? (
                 <a
                   key={e.name}
-                  href={e.logo.href}
+                  href={e.logo!.href}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={cardClass}
@@ -1215,11 +1220,21 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
               );
             })}
           </div>
+          {/* PR-WALL-PURE: every unlit vendor rides this one line —
+              auto-derived from the SAME fs-check partition, so a vendor
+              graduates to the grid on a bare file drop with zero code.
+              Empty partition → the line honestly renders nothing. */}
+          {wallUnlit.length > 0 && (
+            <p className="mt-4 font-mono text-[11px] text-white/50">
+              Also built on: {wallUnlit.map((e) => e.name).join(' · ')}
+            </p>
+          )}
           {/* PR-ELEV-2d (re-issue): REQUIRED attribution — mandatory under
-              vercel.com/geist/brands while their marks render above (the ▲
-              unicode mark + the Next.js name on the infrastructure card).
-              Exact required wording, verbatim; the house trace-line idiom
-              (DATA.traceLine — font-mono text-[10px] text-white/40). */}
+              vercel.com/geist/brands while their marks render above (the
+              Vercel + Next.js image marks on their split cards; the interim
+              ▲ unicode mark retired with the shared infra card,
+              WALL-LOGOS-2 → WALL-PURE). Exact required wording, verbatim;
+              the house trace-line idiom (font-mono text-[10px] white/40). */}
           <p className="mt-3 max-w-3xl font-mono text-[10px] leading-relaxed text-white/40">
             Vercel, the Vercel design, Next.js and related marks, designs and logos are trademarks
             or registered trademarks of Vercel, Inc. or its affiliates in the US and other countries.
