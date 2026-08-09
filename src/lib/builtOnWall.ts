@@ -35,16 +35,19 @@
 //     cards, so the shared-card deferral died — the image slot is ARMED
 //     and the interim unicode ▲ (U+25B2, the ELEV-2d re-issue mechanism)
 //     retired with the shared card.
-// VERDICTS (2026-08-09, live policies read — WALL-LOGOS-2 ruling):
+// VERDICTS (2026-08-09, live policies read — WALL-LOGOS-2/3 rulings):
 //   CLEARED — Vercel + Next.js (geist/brands customer + symbol-wall
-//   clauses), Prisma (presskit badge invitation).
+//   clauses), Prisma (presskit badge invitation), Resend (resend.com/brand
+//   kit; white-on-dark is their own dark-theme treatment), Leaflet
+//   (BSD-2-licensed free-software logo).
 //   KILLED — PostgreSQL (trademark policy: no-modify / no-co-present /
 //   standard-forms — a white-fill mark on a vendor wall fails it);
 //   Stripe stays excluded (terms — standing ruling; slot inert, no file).
 //   PARKED — Anthropic (license unverified; one-command re-harvest when
 //   cleared). PENDING — Plaid (permission pending — standing; slot inert).
 //   Text-only, no marks ruling: Duffel, Nuitée, tastytrade, Finnhub,
-//   Resend, Azure, Inngest, xAI, FRED, SEC EDGAR, Google, Leaflet.
+//   Azure, Inngest, xAI, FRED, SEC EDGAR, Google. OpenAI: usage verified
+//   live (WALL-LOGOS-3 audit) — badge deferred, shared-card rule above.
 //
 // DROP CONVENTION: land the official file at public/logos/<slug>.svg
 // (white/monochrome variant preferred on the dark cards) — the card lights
@@ -66,8 +69,12 @@ export const BUILT_ON: BuiltOnEntry[] = [
   { name: 'Viator', tag: 'tours & transfers', logo: { slug: 'viator', alt: 'Viator logo' } },
   { name: 'tastytrade', tag: 'brokerage data' },
   { name: 'Finnhub', tag: 'market data' },
+  // WALL-LOGOS-3 OpenAI truth audit: the claim is TRUE — live client
+  // (src/lib/openai.ts singleton + openai@6 dep) and four calling routes
+  // (api/ai/spending-insights, meal-plan, cart-plan, meal-planner). Card
+  // stays; the badge slot stays deferred per the shared-card rule above.
   { name: 'Anthropic + OpenAI', tag: 'AI' },
-  { name: 'Resend', tag: 'email' },
+  { name: 'Resend', tag: 'email', logo: { slug: 'resend', alt: 'Resend logo' } },
   // PR-WALL-LOGOS-2: the shared 'infrastructure' five-name card SPLIT into
   // per-vendor cards (tags derive its one role into per-vendor facts). The
   // required Vercel/Next.js attribution line under the wall grid
@@ -86,5 +93,5 @@ export const BUILT_ON: BuiltOnEntry[] = [
   { name: 'FRED', tag: 'economic data' },
   { name: 'SEC EDGAR', tag: 'filings data' },
   { name: 'Google Places', tag: 'location data' },
-  { name: 'Leaflet', tag: 'maps' },
+  { name: 'Leaflet', tag: 'maps', logo: { slug: 'leaflet', alt: 'Leaflet logo' } },
 ];
