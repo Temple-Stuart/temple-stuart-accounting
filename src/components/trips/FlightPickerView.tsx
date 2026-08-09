@@ -156,12 +156,15 @@ export default function FlightPickerView({
               the saved-flight summary card and the toggle for the 8
               programmatic collapse paths (setters untouched). Uncommitted
               legs render no bar — their form is always open (body gate
-              below). The 'Plan your trip' route fallback STAYS: commitLeg
-              requires only selectedOffer (FlightPicker.tsx:231-233) and the
-              authed manual path gates on manualPrice alone, so a committed
-              manual leg can lack a route. The "$X selected" line died — the
-              bar now requires committed, making that branch unreachable; the
-              Saved badge's committed check was tautological and dropped. */}
+              below). PR-DEAD-FALLBACK: the placeholder route-title fallback
+              DIED — MANUAL-ROUTE-GUARD closed the forward path (FlightPicker
+              submitManual parity guard + commitLeg route guard: no commit
+              without origin+destination), and Alex's psql zero-proof
+              (2026-08-09, trip_itinerary vendorOptionType='flight') found no
+              routeless committed flight in prod, so the branch was
+              unreachable. The "$X selected" line died earlier — the bar
+              requires committed; the Saved badge's committed check was
+              tautological and dropped. */}
           {leg.committed && (
             <div
               className="flex items-center justify-between px-3 py-2 bg-white/5 border-b border-panel-border cursor-pointer hover:bg-white/10 transition-colors"
@@ -172,7 +175,7 @@ export default function FlightPickerView({
                 <div>
                   <div className="flex items-center gap-2 text-sm font-medium text-white">
                     {legs.length > 1 && <span className="text-white/50">Leg {legIdx + 1}:</span>}
-                    {leg.origin && leg.destination ? `${leg.origin} → ${leg.destination}` : 'Plan your trip'}
+                    {`${leg.origin} → ${leg.destination}`}
                     <span className="px-2 py-0.5 bg-brand-green/20 text-brand-green text-[10px] font-medium rounded">Saved</span>
                   </div>
                   <div className="text-xs text-white/50">
