@@ -126,6 +126,13 @@ export function iconTab(active: boolean): string {
 /** Checkbox idiom. Origin: the FD-1i selection slides `accent-brand-purple`. */
 export const CHECKBOX = 'h-3.5 w-3.5 accent-brand-purple';
 
+/** TRADE-SHELL-DARK: THE section-header bar — one idiom replacing the seven
+ *  divergent `bg-brand-purple/80` header strips the TRADE-UI-DS audit found
+ *  on /trading (+ DataObservatory). Dark-native: inset fill + hairline +
+ *  the DATA.columnHeader micro-label voice at bar scale. */
+export const SECTION_HEADER =
+  'flex items-center justify-between border-b border-panel-border bg-white/5 px-4 py-2.5 font-mono text-xs font-semibold uppercase tracking-wider text-white/80';
+
 /* ─── DATA DISPLAY ───────────────────────────────────────────────────────────
  * List-row rhythm + numerals + table headers. Origin: HotelResultsView /
  * ActivityResultsView (COMPACT-1 list rows) and the trip tables (FD-3-2).
@@ -239,6 +246,7 @@ export const DS = {
   SURFACE,
   HERO_BG,
   BAND_BG,
+  SECTION_HEADER,
   TYPE,
   TEXT,
   CONTROL,

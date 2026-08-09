@@ -2,6 +2,8 @@
 
 import { useState, useCallback } from 'react';
 import { Badge } from '@/components/ui';
+// TRADE-SHELL-DARK: the one section-header idiom (ds.ts).
+import { SECTION_HEADER } from '@/lib/ds';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -232,10 +234,12 @@ export default function DataObservatory() {
 
   return (
     <>
-      {/* ── Header Bar ──────────────────────────────────────────────── */}
-      <div className="bg-brand-purple/80 rounded-t-lg">
-        <div className="flex items-center justify-between px-4 py-2.5">
-          <span className="text-sm font-semibold text-white">
+      {/* ── Header Bar — TRADE-SHELL-DARK: the SECTION_HEADER idiom (the 7th
+            of the audit's divergent purple/80 strips). Right-side content
+            (error, symbol select, RUN CHECK) preserved verbatim. */}
+      <div className="rounded-t-lg overflow-hidden">
+        <div className={SECTION_HEADER}>
+          <span>
             Data Observatory
           </span>
           <div className="flex items-center gap-2">
