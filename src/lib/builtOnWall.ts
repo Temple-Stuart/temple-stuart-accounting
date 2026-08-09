@@ -31,13 +31,20 @@
 //   • Vercel — vercel.com/geist/brands: unmodified marks only, and
 //     ATTRIBUTION IS REQUIRED when their marks are used — the exact
 //     required wording renders under the wall grid (Landing.tsx).
-//     PR-ELEV-2d (re-issue): geist/brands sanctions the UNICODE TRIANGLE
-//     ▲ (U+25B2) as the mark in text / multi-brand rows — so Vercel is
-//     LIVE NOW with zero image files: the ▲ precedes "Vercel" inline in
-//     the infrastructure card's name below. The IMAGE slot stays deferred
-//     for the shared-card reason (a five-name card).
-// NOT cleared (text-only, untouched): Duffel, Nuitée, tastytrade, Finnhub,
-// Resend, Anthropic, Prisma, Inngest, Azure.
+//     PR-WALL-LOGOS-2: the five-name infra card SPLIT into per-vendor
+//     cards, so the shared-card deferral died — the image slot is ARMED
+//     and the interim unicode ▲ (U+25B2, the ELEV-2d re-issue mechanism)
+//     retired with the shared card.
+// VERDICTS (2026-08-09, live policies read — WALL-LOGOS-2 ruling):
+//   CLEARED — Vercel + Next.js (geist/brands customer + symbol-wall
+//   clauses), Prisma (presskit badge invitation).
+//   KILLED — PostgreSQL (trademark policy: no-modify / no-co-present /
+//   standard-forms — a white-fill mark on a vendor wall fails it);
+//   Stripe stays excluded (terms — standing ruling; slot inert, no file).
+//   PARKED — Anthropic (license unverified; one-command re-harvest when
+//   cleared). PENDING — Plaid (permission pending — standing; slot inert).
+//   Text-only, no marks ruling: Duffel, Nuitée, tastytrade, Finnhub,
+//   Resend, Azure, Inngest, xAI, FRED, SEC EDGAR, Google, Leaflet.
 //
 // DROP CONVENTION: land the official file at public/logos/<slug>.svg
 // (white/monochrome variant preferred on the dark cards) — the card lights
@@ -61,8 +68,23 @@ export const BUILT_ON: BuiltOnEntry[] = [
   { name: 'Finnhub', tag: 'market data' },
   { name: 'Anthropic + OpenAI', tag: 'AI' },
   { name: 'Resend', tag: 'email' },
-  // ▲ = Vercel's sanctioned unicode mark (U+25B2) for text/multi-brand
-  // contexts (vercel.com/geist/brands) — the required attribution line
-  // renders under the wall grid.
-  { name: 'Next.js + Prisma + Azure PostgreSQL + ▲ Vercel + Inngest', tag: 'infrastructure' },
+  // PR-WALL-LOGOS-2: the shared 'infrastructure' five-name card SPLIT into
+  // per-vendor cards (tags derive its one role into per-vendor facts). The
+  // required Vercel/Next.js attribution line under the wall grid
+  // (Landing.tsx) is unchanged and still binds — their marks render above.
+  { name: 'Next.js', tag: 'web framework', logo: { slug: 'nextdotjs', alt: 'Next.js logo' } },
+  { name: 'Prisma', tag: 'database ORM', logo: { slug: 'prisma', alt: 'Prisma logo' } },
+  { name: 'Vercel', tag: 'hosting & deploys', logo: { slug: 'vercel', alt: 'Vercel logo' } },
+  { name: 'Azure PostgreSQL', tag: 'database' },
+  { name: 'Inngest', tag: 'background jobs' },
+  // PR-WALL-LOGOS-2: the five wired stack vendors the wall was missing
+  // (ruled additions, text-only — no marks cleared). Claimability cites:
+  // grok.ts (api.x.ai client), convergence/data-fetchers.ts (FRED macro +
+  // SEC EDGAR XBRL fetchers), placesCache.ts, Leaflet (package.json dep —
+  // HotelMap/DestinationMap render it).
+  { name: 'xAI Grok', tag: 'AI' },
+  { name: 'FRED', tag: 'economic data' },
+  { name: 'SEC EDGAR', tag: 'filings data' },
+  { name: 'Google Places', tag: 'location data' },
+  { name: 'Leaflet', tag: 'maps' },
 ];
