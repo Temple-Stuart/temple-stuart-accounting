@@ -197,7 +197,7 @@ function ScoreBar({ dk = false, label, score }: { dk?: boolean; label: string; s
 function PriceSourceBadge({ dk = false, source }: { dk?: boolean; source: string }) {
   const colors: Record<string, string> = {
     live: 'text-brand-green',
-    theo: 'text-brand-amber',
+    theo: 'text-status-warning',
     mixed: 'text-blue-500',
     none: 'text-brand-red',
   };
@@ -1126,7 +1126,7 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
                 })()}
 
                 {card.setup.has_wide_spread && (
-                  <div className="text-[10px] text-brand-amber text-center mb-1" title="Bid/ask estimated from theoretical price — actual market spread may differ">
+                  <div className="text-[10px] text-status-warning text-center mb-1" title="Bid/ask estimated from theoretical price — actual market spread may differ">
                     &#x26A0; Wide bid-ask spread — prices estimated from theoretical model
                   </div>
                 )}
@@ -1341,7 +1341,7 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
                   const brake = detail.scores?.regime?.breakdown?.survival_brake;
                   if (!brake || brake.state === 'OFF') return null;
                   return (
-                    <div className={`flex items-start gap-2 rounded px-3 py-1.5 mt-2 text-[10px] font-bold leading-relaxed ${brake.state === 'ON' ? 'bg-red-50 text-brand-red' : 'bg-amber-50 text-brand-amber'}`} title="Anti-wipeout rule: backwardation or elevated VVIX cuts short-vol exposure regardless of how attractive the premium looks. UNVERIFIED = brake inputs missing — safety not confirmed.">
+                    <div className={`flex items-start gap-2 rounded px-3 py-1.5 mt-2 text-[10px] font-bold leading-relaxed ${brake.state === 'ON' ? 'bg-red-50 text-brand-red' : 'bg-amber-50 text-status-warning'}`} title="Anti-wipeout rule: backwardation or elevated VVIX cuts short-vol exposure regardless of how attractive the premium looks. UNVERIFIED = brake inputs missing — safety not confirmed.">
                       <span className="shrink-0 mt-0.5">⛔</span>
                       <span>{brake.declaration}</span>
                     </div>
@@ -1357,7 +1357,7 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
               {why.risk_flags.map((flag, i) => {
                 const isRed = flag.startsWith('UNLIMITED') || flag.startsWith('INSIDER') || flag.startsWith('REGIME BRAKE');
                 return (
-                  <div key={i} className={`flex items-start gap-2 rounded px-3 py-1.5 text-[10px] font-medium leading-relaxed ${isRed ? 'bg-red-50 text-brand-red' : 'bg-amber-50 text-brand-amber'}`} title="Risk flag: a condition that reduces confidence in this trade. Review before entering.">
+                  <div key={i} className={`flex items-start gap-2 rounded px-3 py-1.5 text-[10px] font-medium leading-relaxed ${isRed ? 'bg-red-50 text-brand-red' : 'bg-amber-50 text-status-warning'}`} title="Risk flag: a condition that reduces confidence in this trade. Review before entering.">
                     <span className="shrink-0 mt-0.5">{isRed ? '\u26D4' : '\u26A0'}</span>
                     <span>{flag}</span>
                   </div>
@@ -1479,7 +1479,7 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
                 {ks.pe_ratio != null && <span className={themed('text-text-muted', dk)}> — {statExplain('pe_ratio', ks.pe_ratio)}</span>}
                 {' | '}<span title="Total market capitalization. Larger caps tend to have tighter bid-ask spreads and more liquid options chains.">Cap {fmtMcap(ks.market_cap)}</span>
                 {' | '}<span title="Next scheduled earnings announcement. Options IV typically spikes before earnings and collapses after. Know this date before entering any position.">Earnings {ks.earnings_date ?? '—'}</span>
-                {ks.days_to_earnings != null && ks.days_to_earnings > 0 && <span className="text-brand-amber" title="Calendar days until next earnings. Under 21 days = elevated event risk. The scanner flags this in risk flags."> ({ks.days_to_earnings}d away)</span>}
+                {ks.days_to_earnings != null && ks.days_to_earnings > 0 && <span className="text-status-warning" title="Calendar days until next earnings. Under 21 days = elevated event risk. The scanner flags this in risk flags."> ({ks.days_to_earnings}d away)</span>}
               </span>
             </div>
             {/* Earnings pattern row */}

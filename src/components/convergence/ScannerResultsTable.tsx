@@ -172,7 +172,7 @@ function ExpandedDetail({ dk = false, detail, card, sentiment, rejections }: { d
           <div className="space-y-1 max-h-[200px] overflow-y-auto">
             {allRejections.map((rej, i) => (
               <div key={i} className={themed('flex items-start gap-2 text-xs rounded px-2 py-1 bg-bg-row', dk)}>
-                <span className={`shrink-0 px-1 py-0.5 rounded text-[9px] font-bold ${rej.gate === 'construction' ? 'bg-amber-50 text-brand-amber' : 'bg-red-50 text-brand-red'}`}>
+                <span className={`shrink-0 px-1 py-0.5 rounded text-[9px] font-bold ${rej.gate === 'construction' ? 'bg-amber-50 text-status-warning' : 'bg-red-50 text-brand-red'}`}>
                   {rej.gate === 'construction' ? 'BUILD' : `GATE ${rej.gate}`}
                 </span>
                 <span className={themed('text-text-faint flex-1', dk)}>
@@ -264,7 +264,7 @@ function ExpandedDetail({ dk = false, detail, card, sentiment, rejections }: { d
               <span className={themed('text-text-muted', dk)}>Earnings: </span>
               <span className={themed('text-text-faint font-mono', dk)}>{ks.earnings_date ?? '—'}</span>
               {ks.days_to_earnings != null && ks.days_to_earnings > 0 && (
-                <span className="text-brand-amber text-[10px]"> ({ks.days_to_earnings}d away)</span>
+                <span className="text-status-warning text-[10px]"> ({ks.days_to_earnings}d away)</span>
               )}
             </div>
           </div>
@@ -289,7 +289,7 @@ function ExpandedDetail({ dk = false, detail, card, sentiment, rejections }: { d
             return (
               <span
                 key={i}
-                className={`px-2 py-0.5 rounded text-[10px] font-medium ${isRed ? 'bg-red-50 text-brand-red' : 'bg-amber-50 text-brand-amber'}`}
+                className={`px-2 py-0.5 rounded text-[10px] font-medium ${isRed ? 'bg-red-50 text-brand-red' : 'bg-amber-50 text-status-warning'}`}
               >
                 {isRed ? '\u26D4 ' : '\u26A0 '}{flag}
               </span>
@@ -660,7 +660,7 @@ export default function ScannerResultsTable({
                         <>
                           {row.strategyName}
                           {row.hasWideSpread && (
-                            <span className="ml-1 text-brand-amber cursor-help" title="Bid/ask estimated from theoretical price — actual market spread may differ">&#x26A0;</span>
+                            <span className="ml-1 text-status-warning cursor-help" title="Bid/ask estimated from theoretical price — actual market spread may differ">&#x26A0;</span>
                           )}
                         </>
                       ) : (
