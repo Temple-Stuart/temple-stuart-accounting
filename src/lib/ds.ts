@@ -126,6 +126,25 @@ export function iconTab(active: boolean): string {
 /** Checkbox idiom. Origin: the FD-1i selection slides `accent-brand-purple`. */
 export const CHECKBOX = 'h-3.5 w-3.5 accent-brand-purple';
 
+/** TRADE-SEGMENTS: THE segmented control — anatomy extracted verbatim from
+ *  the flights bar's own Round-trip/One-way switch (FlightPickerView.tsx
+ *  :252-260, the house reference): an inset white/10 pill track (p-0.5,
+ *  gap-1), items rounded inside it, the ACTIVE item lifted to white with
+ *  the brand ink + shadow, idle = quiet white/70 text. Two layout-only
+ *  deltas from the source, declared: the track's `self-start lg:self-auto`
+ *  flex positioning stayed behind (positioning, not anatomy) and `w-max`
+ *  joins so the track hugs its content inside flex-col containers.
+ *  FlightPickerView itself still carries these classes inline — its
+ *  adoption of this extraction is a later travel micro-PR. */
+export const SEGMENT = {
+  wrap: 'flex w-max items-center gap-1 rounded bg-white/10 p-0.5',
+  item(active: boolean): string {
+    return `px-2 py-1 text-xs rounded transition-colors ${
+      active ? 'bg-white shadow text-brand-purple font-medium' : 'text-white/70'
+    }`;
+  },
+} as const;
+
 /** TRADE-CHIPS: THE status chip — one vocabulary replacing the trade lane's
  *  chip zoo (5 journal families + TradeLabPanel's 25-hex system + scattered
  *  state colors). Variants are the status token family (+ pop accent and a
@@ -269,6 +288,7 @@ export const DS = {
   SECTION_HEADER,
   CHIP_VARIANTS,
   chip,
+  SEGMENT,
   TYPE,
   TEXT,
   CONTROL,
