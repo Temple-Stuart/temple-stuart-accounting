@@ -214,16 +214,24 @@ export default function HomeClient() {
       {/* Hero — DS-2: the app hero uses the SAME HERO_BG purple radial gradient
           the landing hero uses (src/lib/ds.ts, applied the same way:
           style={{ background: HERO_BG }}), so the two surfaces are identical
-          (Alex's ruling). FD-3-1's compaction stays (tagline text-2xl/3xl,
-          pb-8 pt-6) — this changed the SURFACE only. The panel-border hairline
-          still seats it against the dark tab bar below. */}
+          (Alex's ruling). HOME-HERO-PARITY: the headline treatment now
+          matches the landing hero too — badge pill + 60px bold + gradient
+          'Live smarter.' (Landing.tsx HERO-PRESENCE block); the FD-3-1
+          text-2xl/3xl compaction died. Section padding (pb-8 pt-6) and the
+          panel-border hairline seating it against the tab bar stay. */}
       <section className="text-white border-b border-panel-border pb-8 pt-6" style={{ background: HERO_BG }}>
         <div className="max-w-7xl mx-auto px-4 lg:px-8">
           <div className="max-w-3xl">
-            <h1 className="text-2xl lg:text-3xl font-light tracking-tight mb-3">
+            {/* HOME-HERO-PARITY: the landing's badge pill, byte-exact
+                (reused copy — Landing.tsx:644-647). */}
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/80 mb-6">
+              <span className="text-brand-purple-pop" aria-hidden="true">✦</span>
+              All-in-one financial operating system
+            </div>
+            <h1 className="text-4xl sm:text-6xl font-bold leading-tight tracking-tight mb-6">
               Track your money.<br />
               Plan your time.<br />
-              <span className="text-text-faint">Live smarter.</span>
+              <span className="ts-cta-gradient bg-clip-text text-transparent">Live smarter.</span>
             </h1>
             {/* PR-Hero-PerTab: the subhead swaps to the active tab's descriptor. min-h
                 reserves space so the Get Started button never jumps as the line changes
