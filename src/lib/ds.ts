@@ -126,6 +126,26 @@ export function iconTab(active: boolean): string {
 /** Checkbox idiom. Origin: the FD-1i selection slides `accent-brand-purple`. */
 export const CHECKBOX = 'h-3.5 w-3.5 accent-brand-purple';
 
+/** TRADE-CHIPS: THE status chip — one vocabulary replacing the trade lane's
+ *  chip zoo (5 journal families + TradeLabPanel's 25-hex system + scattered
+ *  state colors). Variants are the status token family (+ pop accent and a
+ *  neutral); the text INSIDE the chip carries any finer distinction. The
+ *  variant record is exported separately so larger displays (the Lab's hero
+ *  grade letter) can wear the variant colors at their own scale without
+ *  duplicating the color map. */
+export const CHIP_VARIANTS = {
+  success: 'bg-status-success/15 text-status-success',
+  danger: 'bg-status-danger/15 text-status-danger',
+  warning: 'bg-status-warning/15 text-status-warning',
+  info: 'bg-status-info/15 text-status-info',
+  accent: 'bg-brand-purple-pop/25 text-white/90',
+  neutral: 'bg-white/10 text-white/70',
+} as const;
+export type ChipVariant = keyof typeof CHIP_VARIANTS;
+export function chip(variant: ChipVariant = 'neutral'): string {
+  return `inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wide ${CHIP_VARIANTS[variant]}`;
+}
+
 /** TRADE-SHELL-DARK: THE section-header bar — one idiom replacing the seven
  *  divergent `bg-brand-purple/80` header strips the TRADE-UI-DS audit found
  *  on /trading (+ DataObservatory). Dark-native: inset fill + hairline +
@@ -247,6 +267,8 @@ export const DS = {
   HERO_BG,
   BAND_BG,
   SECTION_HEADER,
+  CHIP_VARIANTS,
+  chip,
   TYPE,
   TEXT,
   CONTROL,

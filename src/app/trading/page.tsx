@@ -13,7 +13,7 @@ import ScanFilterForm from '@/components/trading/ScanFilterForm';
 import COAManagementTable from '@/components/bookkeeping/COAManagementTable';
 // TRADE-SHELL-DARK: the one section-header idiom (ds.ts) — replaces the
 // seven divergent bg-brand-purple/80 header strips.
-import { SECTION_HEADER } from '@/lib/ds';
+import { SECTION_HEADER, chip } from '@/lib/ds';
 
 
 interface TradeSummary {
@@ -774,13 +774,13 @@ export default function TradingPage() {
               </span>
             </div>
             <div className="bg-panel-surface px-3 py-3 grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2 text-center">
-              <div className="px-2"><div className="text-[9px] text-white/50 uppercase">P&amp;L</div><div className={`text-sm font-bold font-mono truncate ${m.totalRealizedPL >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{fmtPL(m.totalRealizedPL)}</div></div>
+              <div className="px-2"><div className="text-[9px] text-white/50 uppercase">P&amp;L</div><div className={`text-sm font-bold font-mono truncate ${m.totalRealizedPL >= 0 ? 'text-status-success' : 'text-status-danger'}`}>{fmtPL(m.totalRealizedPL)}</div></div>
               <div className="px-2"><div className="text-[9px] text-white/50 uppercase">WR</div><div className="text-sm font-bold font-mono text-white truncate">{m.winRate}%</div></div>
               <div className="px-2"><div className="text-[9px] text-white/50 uppercase">PF</div><div className="text-sm font-bold font-mono text-white truncate">{m.profitFactor >= 999 ? '∞' : m.profitFactor.toFixed(2)}</div></div>
-              <div className="px-2"><div className="text-[9px] text-white/50 uppercase">Max W</div><div className="text-sm font-bold font-mono text-emerald-600 truncate">{fmt(m.largestWin)}</div></div>
-              <div className="px-2"><div className="text-[9px] text-white/50 uppercase">Max L</div><div className="text-sm font-bold font-mono text-red-500 truncate">{fmt(Math.abs(m.largestLoss))}</div></div>
-              <div className="px-2"><div className="text-[9px] text-white/50 uppercase">Avg W</div><div className="text-sm font-bold font-mono text-emerald-600 truncate">{fmt(m.avgWin)}</div></div>
-              <div className="px-2"><div className="text-[9px] text-white/50 uppercase">Avg L</div><div className="text-sm font-bold font-mono text-red-500 truncate">{fmt(m.avgLoss)}</div></div>
+              <div className="px-2"><div className="text-[9px] text-white/50 uppercase">Max W</div><div className="text-sm font-bold font-mono text-status-success truncate">{fmt(m.largestWin)}</div></div>
+              <div className="px-2"><div className="text-[9px] text-white/50 uppercase">Max L</div><div className="text-sm font-bold font-mono text-status-danger truncate">{fmt(Math.abs(m.largestLoss))}</div></div>
+              <div className="px-2"><div className="text-[9px] text-white/50 uppercase">Avg W</div><div className="text-sm font-bold font-mono text-status-success truncate">{fmt(m.avgWin)}</div></div>
+              <div className="px-2"><div className="text-[9px] text-white/50 uppercase">Avg L</div><div className="text-sm font-bold font-mono text-status-danger truncate">{fmt(m.avgLoss)}</div></div>
             </div>
           </div>
           ); })()}
@@ -816,7 +816,7 @@ export default function TradingPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     {commitResult && (
-                      <span className={`text-xs ${commitResult.errors.length > 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                      <span className={`text-xs ${commitResult.errors.length > 0 ? 'text-status-danger' : 'text-status-success'}`}>
                         {commitResult.committed > 0 && `${commitResult.committed} committed`}
                         {commitResult.skipped > 0 && ` · ${commitResult.skipped} skipped`}
                         {commitResult.errors.length > 0 && ` · ${commitResult.errors.length} error${commitResult.errors.length !== 1 ? 's' : ''}`}
@@ -924,22 +924,20 @@ export default function TradingPage() {
                                 <td className="px-3 py-2 text-white/60">{new Date(trade.openDate).toLocaleDateString()}</td>
                                 <td className="px-3 py-2 font-mono font-semibold">{trade.underlying}</td>
                                 <td className="px-3 py-2">
-                                  <span className="px-2 py-0.5 bg-brand-purple-wash text-brand-purple text-[10px]">{trade.strategy}</span>
+                                  <span className={chip('accent')}>{trade.strategy}</span>
                                 </td>
                                 <td className="px-3 py-2 text-center">
-                                  <span className={`px-2 py-0.5 text-[10px] ${trade.type === 'option' ? 'bg-purple-100 text-purple-700' : 'bg-white/5 text-white/60'}`}>
+                                  <span className={chip(trade.type === 'option' ? 'info' : 'neutral')}>
                                     {trade.type}
                                   </span>
                                 </td>
                                 <td className="px-3 py-2 text-center">
-                                  <span className={`px-2 py-0.5 text-[10px] ${
-                                    trade.status === 'OPEN' ? 'bg-green-100 text-brand-green' :
-                                    trade.status === 'PARTIAL' ? 'bg-yellow-100 text-yellow-700' :
-                                    'bg-white/5 text-white/60'
-                                  }`}>{trade.status}</span>
+                                  <span className={chip(
+                                    trade.status === 'OPEN' || trade.status === 'PARTIAL' ? 'warning' : 'success'
+                                  )}>{trade.status}</span>
                                 </td>
                                 <td className={`px-3 py-2 text-right font-mono font-semibold ${
-                                  trade.status === 'CLOSED' ? (trade.realizedPL >= 0 ? 'text-brand-green' : 'text-brand-red') : 'text-white/40'
+                                  trade.status === 'CLOSED' ? (trade.realizedPL >= 0 ? 'text-status-success' : 'text-status-danger') : 'text-white/40'
                                 }`}>
                                   {trade.status === 'CLOSED' ? fmtPL(trade.realizedPL) : '—'}
                                 </td>
@@ -950,12 +948,12 @@ export default function TradingPage() {
                                 </td>
                                 <td className="px-3 py-2 text-center">
                                   {journal ? (
-                                    <span className={`px-2 py-0.5 text-[10px] ${
-                                      journal.emotion === 'confident' ? 'bg-emerald-100 text-brand-green' :
-                                      journal.emotion === 'nervous' || journal.emotion === 'fearful' ? 'bg-yellow-100 text-yellow-700' :
-                                      journal.emotion === 'fomo' || journal.emotion === 'revenge' || journal.emotion === 'greedy' ? 'bg-red-100 text-brand-red' :
-                                      'bg-white/5 text-white/60'
-                                    }`}>{journal.emotion}</span>
+                                    <span className={chip(
+                                      journal.emotion === 'confident' ? 'success' :
+                                      journal.emotion === 'nervous' || journal.emotion === 'fearful' ? 'warning' :
+                                      journal.emotion === 'fomo' || journal.emotion === 'revenge' || journal.emotion === 'greedy' ? 'danger' :
+                                      'neutral'
+                                    )}>{journal.emotion}</span>
                                   ) : <span className="text-white/40">—</span>}
                                 </td>
                                 <td className="px-3 py-2 text-center">
@@ -1001,7 +999,7 @@ export default function TradingPage() {
                                             {journal.tags?.length > 0 && (
                                               <div className="flex gap-1 flex-wrap">
                                                 {journal.tags.map(tag => (
-                                                  <span key={tag} className="px-2 py-0.5 bg-panel-border text-white/60 text-[10px]">{tag}</span>
+                                                  <span key={tag} className={chip()}>{tag}</span>
                                                 ))}
                                               </div>
                                             )}
