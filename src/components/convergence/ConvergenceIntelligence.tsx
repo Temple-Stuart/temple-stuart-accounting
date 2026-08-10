@@ -97,7 +97,7 @@ import type {
   TradeCardData,
 } from '@/lib/convergence/types';
 import type { TickerDetail } from '@/lib/convergence/filter-engine';
-import { themed, type Surface } from '@/lib/ds';
+import { STATE, themed, type Surface } from '@/lib/ds';
 
 interface Headline {
   datetime: number;
@@ -245,7 +245,7 @@ export function TickerChapter({ dk = false, detail, sentiment, savedCards, savin
   const labelStyle = themed('text-[11px] text-text-muted', dk);
   const valueStyle = themed('text-[11px] font-mono text-text-primary', dk);
   const gateScore = (v: number) => v >= 50 ? 'text-brand-green font-bold' : 'text-brand-red font-bold';
-  const loadingMsg = (msg: string) => <div className={themed('text-[11px] text-text-faint italic', dk)}>{msg}</div>;
+  const loadingMsg = (msg: string) => <div className={STATE.loading}>{msg}</div>;
 
   return (
     <div>
@@ -322,7 +322,7 @@ export function TickerChapter({ dk = false, detail, sentiment, savedCards, savin
                           <td className={themed('py-0.5 pr-3 text-right font-mono text-text-faint', dk)}>{exp.dte}</td>
                           <td className={themed('py-0.5 pr-3 text-right font-mono text-text-faint', dk)}>{exp.strikeCount}</td>
                           <td className={themed('py-0.5 pr-3 text-right font-mono text-text-faint', dk)}>{exp.strategiesBuilt}</td>
-                          <td className={themed(`py-0.5 text-right font-mono ${exp.bestScore != null ? (isWinner ? 'text-brand-amber font-bold' : 'text-text-faint') : themed('text-text-muted', dk)}`, dk)}>
+                          <td className={themed(`py-0.5 text-right font-mono ${exp.bestScore != null ? (isWinner ? 'text-status-warning font-bold' : 'text-text-faint') : themed('text-text-muted', dk)}`, dk)}>
                             {exp.bestScore != null ? exp.bestScore.toFixed(3) : '—'}
                           </td>
                         </tr>
@@ -4876,7 +4876,7 @@ export default function ConvergenceIntelligence({
       ) : (
         <div className="bg-brand-purple/80 rounded-t-lg px-4 py-2.5 flex items-center justify-between">
           <span className="text-sm font-semibold text-white">Market Intelligence</span>
-          <span className="text-xs text-white/50 font-mono">
+          <span className={STATE.empty}>
             {batchData ? `${batchData.top_9.length} results · ${(batchData.timing.total_ms / 1000).toFixed(1)}s` : scanning ? 'Scanning...' : 'Run scan from bar above'}
           </span>
         </div>

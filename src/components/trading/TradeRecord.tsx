@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { themed } from '@/lib/ds';
+import { STATE, themed } from '@/lib/ds';
 
 /**
  * TRACK-1 — the scanner's public track record: claimed-vs-actual, honest win rate.
@@ -75,12 +75,12 @@ export default function TradeRecord() {
   }
   if (state === 'error') {
     return (
-      <div role="alert" className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700 flex items-center justify-between gap-3">
+      <div role="alert" className={`${STATE.errorCard} flex items-center justify-between gap-3`}>
         <span>Couldn&rsquo;t load your track record. Nothing is assumed — no stats are shown until it loads.</span>
         <button
           type="button"
           onClick={load}
-          className="shrink-0 rounded border border-red-400 px-2 py-1 text-[11px] font-semibold text-red-700 hover:bg-red-100"
+          className="shrink-0 rounded border border-status-danger/40 px-2 py-1 text-[11px] font-semibold text-status-danger hover:bg-status-danger/15"
         >
           Retry
         </button>
