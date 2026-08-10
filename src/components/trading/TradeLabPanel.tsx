@@ -35,6 +35,34 @@ interface TradeCard {
     notes: string | null;
     linked_at: string;
   } | null;
+  // LAB-FULL-CARD: the captured scanner columns the GET already delivers
+  // (route has no select — every column flows; Prisma Decimals serialize as
+  // strings). Typing only — presentation reads, zero fetch changes.
+  composite_score: number | string | null;
+  letter_grade: string | null;
+  vol_edge_score: number | string | null;
+  quality_score: number | string | null;
+  regime_score: number | string | null;
+  info_edge_score: number | string | null;
+  greeks_delta: number | string | null;
+  greeks_gamma: number | string | null;
+  greeks_theta: number | string | null;
+  greeks_vega: number | string | null;
+  ev_per_risk: number | string | null;
+  risk_flags: string[] | null;
+  /** The full snapshot column — a Json field, so it arrives as an OBJECT
+   *  (no JSON.parse needed); setup carries the fields that never became
+   *  columns (breakevens, net credit/debit, ev, pop_method, theta/day). */
+  full_card_json: {
+    setup?: {
+      breakevens?: number[] | null;
+      net_credit?: number | null;
+      net_debit?: number | null;
+      ev?: number | null;
+      pop_method?: string | null;
+      greeks?: { theta_per_day?: number | null } | null;
+    } | null;
+  } | null;
 }
 
 interface MatchablePosition {
@@ -65,6 +93,11 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
 
   // Grading in progress
   const [gradingCardId, setGradingCardId] = useState<string | null>(null);
+
+  // LAB-FULL-CARD: presentation-only collapse for the full-intel block
+  // (DISCLOSURE-COMPACT precedent) — one boolean; it applies to whichever
+  // card is expanded (expandedCardId is single) and carries across cards.
+  const [intelOpen, setIntelOpen] = useState(false);
 
   // RISK-1: coverage stats (linked / closed / unlinked) from /api/trading/coverage.
   // Self-fetched; null until loaded — the strip renders only on success (never fabricated).
@@ -646,6 +679,90 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                           </div>
                         )}
                       </div>
+                    </div>
+
+                    {/* LAB-FULL-CARD: the scores strip — always visible,
+                        captured columns only (letter_grade + composite +
+                        the four pillar columns vol_edge/quality/regime/
+                        info_edge_score). Letter chip wears the slice-2
+                        grade mapping; +/− modifiers strip for variant
+                        lookup only (display keeps the exact grade). */}
+                    {(card.letter_grade || card.composite_score != null) && (
+                      <div className={themed('mt-3 pt-3 border-t border-border', dk)}>
+                        <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5', dk)}>Scanner scores</div>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {card.letter_grade && (
+                            <span className={chip(gradeVariant(card.letter_grade.replace(/[+-]/g, '')))}>
+                              {card.letter_grade}{card.composite_score != null ? ` ${Number(card.composite_score).toFixed(1)}` : ''}
+                            </span>
+                          )}
+                          {([['VOL', card.vol_edge_score], ['QUALITY', card.quality_score], ['REGIME', card.regime_score], ['INFO', card.info_edge_score]] as const).map(([name, v]) => (
+                            v != null ? <span key={name} className={chip()}>{name} {Number(v).toFixed(0)}</span> : null
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* LAB-FULL-CARD: full scanner intel — collapsible,
+                        default closed. Columns + the full_card_json snapshot
+                        (a Json field: already an OBJECT on the client, so
+                        the sanctioned JSON.parse was unnecessary). Every
+                        toFixed below is display formatting only. */}
+                    <div className={themed('mt-3 pt-3 border-t border-border', dk)}>
+                      <button
+                        type="button"
+                        onClick={() => setIntelOpen((v) => !v)}
+                        aria-expanded={intelOpen}
+                        className="flex w-full items-center justify-between gap-3 rounded-lg border border-panel-border bg-white/5 px-3 py-2 text-left font-mono text-[11px] text-white/50"
+                      >
+                        <span>Full scanner intel — details</span>
+                        <span aria-hidden="true" className="shrink-0 text-white/40">{intelOpen ? '▲' : '▼'}</span>
+                      </button>
+                      {intelOpen && (() => {
+                        const setup = card.full_card_json?.setup ?? {};
+                        const fmtN = (v: unknown, d = 2) => (v == null ? '—' : Number(v).toFixed(d));
+                        const row = (label: string, value: string) => (
+                          <div key={label} className="flex justify-between text-xs">
+                            <span className="text-white/60">{label}</span>
+                            <span className="text-right font-mono text-white/80">{value}</span>
+                          </div>
+                        );
+                        return (
+                          <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                              <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5', dk)}>Setup</div>
+                              <div className="space-y-1">
+                                {row('Breakevens', (setup.breakevens?.length ?? 0) > 0 ? setup.breakevens!.map((b) => `$${Number(b).toFixed(2)}`).join(' / ') : '—')}
+                                {row('Net credit', setup.net_credit != null ? `$${fmtN(setup.net_credit)}` : '—')}
+                                {row('Net debit', setup.net_debit != null ? `$${fmtN(setup.net_debit)}` : '—')}
+                                {row('EV', setup.ev != null ? `$${fmtN(setup.ev)}` : '—')}
+                                {row('EV/risk', card.ev_per_risk != null ? fmtN(card.ev_per_risk) : '—')}
+                                {row('Theta/day', setup.greeks?.theta_per_day != null ? `$${fmtN(setup.greeks.theta_per_day)}` : '—')}
+                                {row('PoP method', setup.pop_method ?? '—')}
+                              </div>
+                            </div>
+                            <div>
+                              <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5', dk)}>Greeks at entry</div>
+                              <div className="space-y-1">
+                                {row('Delta', fmtN(card.greeks_delta))}
+                                {row('Gamma', fmtN(card.greeks_gamma, 4))}
+                                {row('Theta', fmtN(card.greeks_theta))}
+                                {row('Vega', fmtN(card.greeks_vega))}
+                              </div>
+                              {Array.isArray(card.risk_flags) && card.risk_flags.length > 0 && (
+                                <div className="mt-3">
+                                  <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5', dk)}>Risk flags</div>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {card.risk_flags.map((f, i) => (
+                                      <span key={i} className={chip('warning')}>{String(f)}</span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {/* Thesis points with checkmarks */}
