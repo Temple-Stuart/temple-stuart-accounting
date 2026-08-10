@@ -165,6 +165,10 @@ export function chip(variant: ChipVariant = 'neutral'): string {
   return `inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wide ${CHIP_VARIANTS[variant]}`;
 }
 
+/** CI-PIPELINE-CLARITY: the explainer idiom — educational prose set off by a
+ *  pop hairline instead of italics (the pipeline panel's teaching voice). */
+export const EXPLAINER = 'border-l-2 border-brand-purple-pop/40 pl-3 text-xs leading-relaxed text-white/70';
+
 /** TRADE-ACTIONS-STATES: the money-action idiom — ruling: gold SURVIVES as
  *  the color reserved for money-moving actions — Commit to Ledger; Books
  *  commit inherits this idiom. Derivation: the /trading Commit-to-Ledger
@@ -307,6 +311,7 @@ export const DS = {
   SEGMENT,
   MONEY_ACTION,
   STATE,
+  EXPLAINER,
   TYPE,
   TEXT,
   CONTROL,
