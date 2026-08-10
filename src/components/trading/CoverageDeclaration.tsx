@@ -55,7 +55,7 @@ export default function CoverageDeclaration() {
 
   if (state === 'loading') {
     return (
-      <div className={themed('rounded-lg border border-border bg-white px-3 py-2 text-xs text-text-muted', dk)}>
+      <div className="rounded-lg border border-panel-border bg-white/5 px-3 py-2 font-mono text-[11px] text-white/50">
         Checking synced coverage…
       </div>
     );
@@ -79,7 +79,7 @@ export default function CoverageDeclaration() {
   if (!data) return null; // unreachable in 'ok', keeps types honest
 
   return (
-    <div className={themed('rounded-lg border border-border bg-white px-3 py-2 text-xs text-text-secondary', dk)}>
+    <div className="rounded-lg border border-panel-border bg-white/5 px-3 py-2 font-mono text-[11px] text-white/50">
       This tab reflects <span className={themed('font-semibold text-text-primary', dk)}>{data.investment_txn_count}</span> synced
       transactions from <span className="font-mono">{fmtDate(data.earliest_txn_date)}</span> to{' '}
       <span className="font-mono">{fmtDate(data.latest_txn_date)}</span>.{' '}

@@ -183,7 +183,7 @@ export default function ScanFilterForm({
       {/* Scan CTA */}
       <div className={themed('flex justify-end border-t border-gray-100 pt-3', dk)}>
         <button type="button" onClick={runScan}
-          className="px-8 py-2 bg-brand-gold hover:bg-brand-gold-bright text-white font-bold text-sm rounded transition-colors whitespace-nowrap">
+          className="px-8 py-2 ts-cta-gradient text-white font-bold text-sm rounded transition-colors hover:brightness-110 whitespace-nowrap">
           Scan
         </button>
       </div>
