@@ -13,7 +13,7 @@ import ScanFilterForm from '@/components/trading/ScanFilterForm';
 import COAManagementTable from '@/components/bookkeeping/COAManagementTable';
 // TRADE-SHELL-DARK: the one section-header idiom (ds.ts) — replaces the
 // seven divergent bg-brand-purple/80 header strips.
-import { SECTION_HEADER, chip } from '@/lib/ds';
+import { MONEY_ACTION, SECTION_HEADER, STATE, chip } from '@/lib/ds';
 
 
 interface TradeSummary {
@@ -825,7 +825,7 @@ export default function TradingPage() {
                     <button
                       onClick={commitTradesToLedger}
                       disabled={commitLoading}
-                      className="px-4 py-1.5 text-xs font-semibold bg-brand-gold text-white rounded hover:bg-brand-gold/90 disabled:opacity-50"
+                      className={MONEY_ACTION}
                     >
                       {commitLoading ? 'Committing...' : 'Commit to Ledger'}
                     </button>
@@ -856,11 +856,11 @@ export default function TradingPage() {
             {isOwner && ttConnected && (
               <div className="mb-4">
                 {ttLoading ? (
-                  <div className="overflow-hidden border-x border-b border-panel-border bg-panel-surface p-4 text-center text-white/40 text-sm">Loading account data...</div>
+                  <div className={`overflow-hidden border-x border-b border-panel-border bg-panel-surface ${STATE.loading}`}>Loading account data...</div>
                 ) : ttDataError ? (
-                  <div className="overflow-hidden border-x border-b border-panel-border bg-panel-surface p-4">
-                    <div className="text-sm text-brand-red mb-3">{ttDataError}</div>
-                    <button onClick={fetchTtData} className="text-xs text-brand-purple hover:underline font-medium">Retry</button>
+                  <div className={STATE.errorCard}>
+                    <div className="text-sm text-status-danger mb-3">{ttDataError}</div>
+                    <button onClick={fetchTtData} className="text-xs text-brand-purple-pop hover:underline font-medium">Retry</button>
                   </div>
                 ) : (
                   <ConvergenceIntelligence
@@ -943,7 +943,7 @@ export default function TradingPage() {
                                 </td>
                                 <td className="px-2 py-2 text-center">
                                   {journal?.rating ? (
-                                    <span className="text-amber-500">{'★'.repeat(journal.rating)}{'☆'.repeat(5 - journal.rating)}</span>
+                                    <span className="text-status-warning">{'★'.repeat(journal.rating)}{'☆'.repeat(5 - journal.rating)}</span>
                                   ) : <span className="text-white/40">—</span>}
                                 </td>
                                 <td className="px-2 py-2 text-center">
@@ -994,8 +994,8 @@ export default function TradingPage() {
                                           <div className="space-y-1 text-white/60">
                                             {journal.thesis && <div><span className="font-medium">Thesis:</span> {journal.thesis}</div>}
                                             {journal.setup && <div><span className="font-medium">Setup:</span> {journal.setup}</div>}
-                                            {journal.mistakes && <div><span className="font-medium text-brand-red">Mistakes:</span> {journal.mistakes}</div>}
-                                            {journal.lessons && <div><span className="font-medium text-brand-green">Lessons:</span> {journal.lessons}</div>}
+                                            {journal.mistakes && <div><span className="font-medium text-status-danger">Mistakes:</span> {journal.mistakes}</div>}
+                                            {journal.lessons && <div><span className="font-medium text-status-success">Lessons:</span> {journal.lessons}</div>}
                                             {journal.tags?.length > 0 && (
                                               <div className="flex gap-1 flex-wrap">
                                                 {journal.tags.map(tag => (
@@ -1014,7 +1014,7 @@ export default function TradingPage() {
                           );
                         })}
                         {filteredTrades.length === 0 && (
-                          <tr><td colSpan={10} className="px-2 py-8 text-center text-white/40">No trades in selected period</td></tr>
+                          <tr><td colSpan={10} className={STATE.empty}>No trades in selected period</td></tr>
                         )}
                       </tbody>
                     </table>
@@ -1098,7 +1098,7 @@ export default function TradingPage() {
                 <div className="flex gap-2">
                   {[1, 2, 3, 4, 5].map(n => (
                     <button key={n} onClick={() => setJournalForm(p => ({ ...p, rating: n }))}
-                      className={`w-10 h-10 text-terminal-lg ${journalForm.rating >= n ? 'text-amber-500' : 'text-white/40'}`}>
+                      className={`w-10 h-10 text-terminal-lg ${journalForm.rating >= n ? 'text-status-warning' : 'text-white/40'}`}>
                       {journalForm.rating >= n ? '★' : '☆'}
                     </button>
                   ))}

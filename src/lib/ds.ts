@@ -165,6 +165,22 @@ export function chip(variant: ChipVariant = 'neutral'): string {
   return `inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wide ${CHIP_VARIANTS[variant]}`;
 }
 
+/** TRADE-ACTIONS-STATES: the money-action idiom — ruling: gold SURVIVES as
+ *  the color reserved for money-moving actions — Commit to Ledger; Books
+ *  commit inherits this idiom. Derivation: the /trading Commit-to-Ledger
+ *  button's own classes verbatim (page.tsx Commit button), order
+ *  normalized only — byte-equal render. */
+export const MONEY_ACTION =
+  'rounded px-4 py-1.5 text-xs font-semibold bg-brand-gold text-white hover:bg-brand-gold/90 disabled:opacity-50';
+
+/** TRADE-ACTIONS-STATES: the one state language — loading / empty / error
+ *  across the trade lane (journal, account panel, TradeRecord, CI). */
+export const STATE = {
+  loading: 'flex items-center justify-center gap-2 py-8 font-mono text-xs text-white/50',
+  empty: 'py-8 text-center font-mono text-xs text-white/40',
+  errorCard: 'rounded-lg border border-status-danger/30 bg-status-danger/10 p-3 text-xs text-status-danger',
+} as const;
+
 /** TRADE-SHELL-DARK: THE section-header bar — one idiom replacing the seven
  *  divergent `bg-brand-purple/80` header strips the TRADE-UI-DS audit found
  *  on /trading (+ DataObservatory). Dark-native: inset fill + hairline +
@@ -289,6 +305,8 @@ export const DS = {
   CHIP_VARIANTS,
   chip,
   SEGMENT,
+  MONEY_ACTION,
+  STATE,
   TYPE,
   TEXT,
   CONTROL,
