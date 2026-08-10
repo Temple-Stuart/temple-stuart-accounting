@@ -97,7 +97,7 @@ import type {
   TradeCardData,
 } from '@/lib/convergence/types';
 import type { TickerDetail } from '@/lib/convergence/filter-engine';
-import { STATE, themed, type Surface } from '@/lib/ds';
+import { EXPLAINER, SECTION_HEADER, STATE, chip, themed, type Surface } from '@/lib/ds';
 
 interface Headline {
   datetime: number;
@@ -1627,49 +1627,49 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
     setExpanded(e => ({ ...e, [key]: !e[key] }));
 
   return (
-    <div className={themed('border border-border rounded bg-bg-card mb-4 text-xs font-mono', dk)}>
+    <div className={themed('border border-panel-border rounded bg-white/5 mb-4 text-xs font-mono', dk)}>
       {/* Header */}
-      <div className={themed('px-4 py-2 border-b border-border flex items-center justify-between', dk)}>
-        <span className={themed('text-text-primary font-bold uppercase tracking-wider text-[10px]', dk)}>Pipeline Flow</span>
-        <span className={themed('text-text-muted', dk)}>
+      <div className={themed('px-4 py-2 border-b border-panel-border flex items-center justify-between', dk)}>
+        <span className={themed('text-white font-bold uppercase tracking-wider text-[10px]', dk)}>Pipeline Flow</span>
+        <span className={themed('text-white/50', dk)}>
           {ps?.timestamp ? new Date(ps.timestamp).toLocaleTimeString() : ''}
           {' '}· {ps?.pipeline_runtime_ms ? `${(ps.pipeline_runtime_ms / 1000).toFixed(1)}s` : ''}
         </span>
       </div>
 
       {/* Step A */}
-      <div className={themed('border-b border-border', dk)}>
-        <div className={themed('px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row', dk)} onClick={() => toggle('step_a')}>
+      <div className={themed('border-b border-panel-border', dk)}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_a')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP A</span>
-            <span className={themed('text-text-secondary', dk)}>TT Scanner — Universe Scan</span>
+            <span className={chip('accent')}>STEP A</span>
+            <span className={themed('text-white/70', dk)}>TT Scanner — Universe Scan</span>
             {(ps?.total_universe ?? progress?.step_a?.data?.total_universe) ? (
               <>
-                <span className="text-brand-green">{ps?.total_universe ?? progress?.step_a?.data?.total_universe ?? 0} symbols fetched</span>
-                <span className={themed('text-text-muted', dk)}>({universe})</span>
+                <span className={chip('success')}>{ps?.total_universe ?? progress?.step_a?.data?.total_universe ?? 0} symbols fetched</span>
+                <span className={themed('text-white/50', dk)}>({universe})</span>
               </>
             ) : (
-              <span className={themed('text-text-muted animate-pulse', dk)}>waiting...</span>
+              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
             )}
           </div>
-          <span className={themed('text-text-muted', dk)}>{expanded['step_a'] ? '▲' : '▼'}</span>
+          <span className={themed('text-white/50', dk)}>{expanded['step_a'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_a'] && (
-          <div className={themed('border-t border-border bg-bg-row p-3', dk)}>
+          <div className={themed('border-t border-panel-border bg-white/5 p-3', dk)}>
             <div className="text-xs space-y-3 mb-4">
-              <p className={themed('text-text-muted italic text-xs', dk)}>
+              <p className={EXPLAINER}>
                 Step A pulls live market data on every ticker in the universe. This is the raw material — nothing here is estimated. Every number comes directly from TastyTrade. The two columns that matter most are IV Rank and IV-HV Spread — those two drive the ranking in Step B.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-border', dk)}>
+                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>DATA POINT</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>SOURCE</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHEN APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHERE APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHY</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>HOW / VALUE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1684,12 +1684,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Beta / SPY Correlation', 'TastyTrade market-metrics', 'Step A fetch', 'Step K Regime gate (SPY correlation modifier)', 'Tells us how closely this stock follows the market. High correlation amplifies regime signals', 'SPY correlation multiplied against base regime score in Step K'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{dp}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{src}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{when}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{where}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{why}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{how}</td>
+                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1716,13 +1716,13 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
               };
               return (
                 <>
-                <div className={themed('flex items-center gap-3 text-xs text-text-muted mb-1', dk)}>
+                <div className={themed('flex items-center gap-3 text-xs text-white/50 mb-1', dk)}>
                   <span className="font-bold">SYMBOLS FETCHED ({(progress?.step_a?.data?.symbols ?? []).length})</span>
                 </div>
                 <div className="overflow-y-auto" style={{maxHeight: '320px'}}>
                   <table className="w-full text-xs">
                     <thead>
-                      <tr className={themed('text-text-muted border-b border-border', dk)}>
+                      <tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}>
                         <th className="text-left py-1 pr-1 w-4"></th>
                         <th className="text-left py-1 pr-2">#</th>
                         <th className="text-left py-1 pr-2">SYMBOL</th>
@@ -1750,57 +1750,57 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                         const hasTerm = Array.isArray(s.termStructure) && s.termStructure.length > 0;
                         return (
                           <React.Fragment key={s.symbol}>
-                            <tr className={themed('border-b border-border/50 cursor-pointer hover:bg-bg-row/50', dk)} onClick={() => toggle(detailKey)}>
-                              <td className={themed('py-1 pr-1 text-text-muted text-center', dk)}>{isOpen ? '▼' : '▶'}</td>
-                              <td className={themed('py-1 pr-2 text-text-muted', dk)}>{i+1}</td>
-                              <td className="py-1 pr-2 font-bold">{s.symbol}</td>
-                              <td className="py-1 pr-2 text-right">{fmtPct(s.ivRank)}</td>
-                              <td className="py-1 pr-2 text-right">{fmtPct(s.ivPercentile)}</td>
-                              <td className="py-1 pr-2 text-right">{fmt1(s.iv30)}</td>
-                              <td className="py-1 pr-2 text-right">{fmtSpread(s.ivHvSpread)}</td>
-                              <td className="py-1 pr-2 text-right">{s.liquidityRating != null ? s.liquidityRating + '/5' : '—'}</td>
-                              <td className="py-1 pr-2 text-right">{fmtCap(s.marketCap)}</td>
-                              <td className="py-1 pr-2 text-right">{fmt2(s.beta)}</td>
-                              <td className="py-1 pr-2 text-right">{fmt2(s.corrSpy)}</td>
-                              <td className="py-1 pr-2 text-right">{s.borrowRate != null ? s.borrowRate + '%' : '—'}</td>
+                            <tr className={themed('border-b border-panel-border cursor-pointer hover:bg-white/5', dk)} onClick={() => toggle(detailKey)}>
+                              <td className={themed('py-1 pr-1 text-white/50 text-center', dk)}>{isOpen ? '▼' : '▶'}</td>
+                              <td className={themed('py-1 pr-2 text-white/50', dk)}>{i+1}</td>
+                              <td className="py-1 pr-2 font-bold text-white/80">{s.symbol}</td>
+                              <td className="py-1 pr-2 text-right text-white/80">{fmtPct(s.ivRank)}</td>
+                              <td className="py-1 pr-2 text-right text-white/80">{fmtPct(s.ivPercentile)}</td>
+                              <td className="py-1 pr-2 text-right text-white/80">{fmt1(s.iv30)}</td>
+                              <td className="py-1 pr-2 text-right text-white/80">{fmtSpread(s.ivHvSpread)}</td>
+                              <td className="py-1 pr-2 text-right text-white/80">{s.liquidityRating != null ? s.liquidityRating + '/5' : '—'}</td>
+                              <td className="py-1 pr-2 text-right text-white/80">{fmtCap(s.marketCap)}</td>
+                              <td className="py-1 pr-2 text-right text-white/80">{fmt2(s.beta)}</td>
+                              <td className="py-1 pr-2 text-right text-white/80">{fmt2(s.corrSpy)}</td>
+                              <td className="py-1 pr-2 text-right text-white/80">{s.borrowRate != null ? s.borrowRate + '%' : '—'}</td>
                               <td className="py-1 pr-2 text-left">{s.earningsDate ?? '—'}</td>
-                              <td className="py-1 pr-2 text-right">{s.daysTillEarnings != null ? s.daysTillEarnings + 'd' : '—'}</td>
-                              <td className={themed('py-1 pr-2 text-text-muted text-[10px]', dk)}>TastyTrade</td>
-                              <td className={themed('py-1 pr-2 text-text-muted text-[10px]', dk)}>market-metrics</td>
-                              <td className={themed('py-1 pr-2 text-text-muted text-[10px]', dk)}>{fetchedAt ? new Date(fetchedAt).toISOString().slice(11, 19) + ' UTC' : '—'}</td>
-                              <td className={themed('py-1 text-right text-text-muted text-[10px]', dk)}>{ageSec != null ? ageSec + 's' : '—'}</td>
+                              <td className="py-1 pr-2 text-right text-white/80">{s.daysTillEarnings != null ? s.daysTillEarnings + 'd' : '—'}</td>
+                              <td className={themed('py-1 pr-2 text-white/50 text-[10px]', dk)}>TastyTrade</td>
+                              <td className={themed('py-1 pr-2 text-white/50 text-[10px]', dk)}>market-metrics</td>
+                              <td className={themed('py-1 pr-2 text-white/50 text-[10px]', dk)}>{fetchedAt ? new Date(fetchedAt).toISOString().slice(11, 19) + ' UTC' : '—'}</td>
+                              <td className={themed('py-1 text-right text-white/50 text-[10px]', dk)}>{ageSec != null ? ageSec + 's' : '—'}</td>
                             </tr>
                             {isOpen && (
-                              <tr className={themed('bg-bg-row/30 border-b border-border/50', dk)}>
+                              <tr className={themed('bg-white/5/30 border-b border-panel-border', dk)}>
                                 <td colSpan={18} className="py-2 px-4">
                                   <div className="grid grid-cols-3 gap-x-6 gap-y-1 text-xs mb-2">
-                                    <div className="flex justify-between"><span className={themed('text-text-muted', dk)}>HV30</span><span>{fmt1(s.hv30)}</span></div>
-                                    <div className="flex justify-between"><span className={themed('text-text-muted', dk)}>HV60</span><span>{fmt1(s.hv60)}</span></div>
-                                    <div className="flex justify-between"><span className={themed('text-text-muted', dk)}>HV90</span><span>{fmt1(s.hv90)}</span></div>
-                                    <div className="flex justify-between"><span className={themed('text-text-muted', dk)}>SECTOR</span><span>{s.sector ?? '—'}</span></div>
-                                    <div className="flex justify-between"><span className={themed('text-text-muted', dk)}>INDUSTRY</span><span>{s.industry ?? '—'}</span></div>
-                                    <div className="flex justify-between"><span className={themed('text-text-muted', dk)}>IMPLIED VOL</span><span>{fmtPct(s.impliedVolatility)}{s.impliedVolatility != null ? '%' : ''}</span></div>
-                                    <div className="flex justify-between"><span className={themed('text-text-muted', dk)}>P/E</span><span>{fmt1(s.peRatio)}</span></div>
-                                    <div className="flex justify-between"><span className={themed('text-text-muted', dk)}>EPS</span><span>{fmt2(s.eps)}</span></div>
-                                    <div className="flex justify-between"><span className={themed('text-text-muted', dk)}>DIV YIELD</span><span>{s.dividendYield != null ? (s.dividendYield * 100).toFixed(2) + '%' : '—'}</span></div>
-                                    <div className="flex justify-between"><span className={themed('text-text-muted', dk)}>LENDABILITY</span><span>{s.lendability ?? '—'}</span></div>
-                                    <div className="flex justify-between"><span className={themed('text-text-muted', dk)}>LAST EPS</span><span>{fmt2(s.earningsActualEps)}</span></div>
-                                    <div className="flex justify-between"><span className={themed('text-text-muted', dk)}>EPS EST</span><span>{fmt2(s.earningsEstimate)}</span></div>
-                                    <div className="flex justify-between"><span className={themed('text-text-muted', dk)}>EARNINGS TOD</span><span>{s.earningsTimeOfDay ?? '—'}</span></div>
+                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>HV30</span><span>{fmt1(s.hv30)}</span></div>
+                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>HV60</span><span>{fmt1(s.hv60)}</span></div>
+                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>HV90</span><span>{fmt1(s.hv90)}</span></div>
+                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>SECTOR</span><span>{s.sector ?? '—'}</span></div>
+                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>INDUSTRY</span><span>{s.industry ?? '—'}</span></div>
+                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>IMPLIED VOL</span><span>{fmtPct(s.impliedVolatility)}{s.impliedVolatility != null ? '%' : ''}</span></div>
+                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>P/E</span><span>{fmt1(s.peRatio)}</span></div>
+                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>EPS</span><span>{fmt2(s.eps)}</span></div>
+                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>DIV YIELD</span><span>{s.dividendYield != null ? (s.dividendYield * 100).toFixed(2) + '%' : '—'}</span></div>
+                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>LENDABILITY</span><span>{s.lendability ?? '—'}</span></div>
+                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>LAST EPS</span><span>{fmt2(s.earningsActualEps)}</span></div>
+                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>EPS EST</span><span>{fmt2(s.earningsEstimate)}</span></div>
+                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>EARNINGS TOD</span><span>{s.earningsTimeOfDay ?? '—'}</span></div>
                                   </div>
                                   {hasTerm && (
                                     <div>
-                                      <p className={themed('text-text-muted text-xs font-bold mb-1', dk)}>TERM STRUCTURE</p>
+                                      <p className={themed('text-white/50 text-xs font-bold mb-1', dk)}>TERM STRUCTURE</p>
                                       <table className="text-xs">
                                         <thead>
-                                          <tr className={themed('text-text-muted', dk)}>
+                                          <tr className={themed('text-white/50', dk)}>
                                             <th className="text-left pr-4 py-0.5">EXPIRY</th>
                                             <th className="text-right py-0.5">IV</th>
                                           </tr>
                                         </thead>
                                         <tbody>
                                           {s.termStructure.map((t: any, ti: number) => (
-                                            <tr key={ti} className={themed('border-t border-border/30', dk)}>
+                                            <tr key={ti} className={themed('border-t border-panel-border/30', dk)}>
                                               <td className="pr-4 py-0.5">{t.date ?? '—'}</td>
                                               <td className="text-right py-0.5">{t.iv != null ? (t.iv * 100).toFixed(1) + '%' : '—'}</td>
                                             </tr>
@@ -1826,38 +1826,38 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step A2 */}
-      <div className={themed('border-b border-border', dk)}>
-        <div className={themed('px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row', dk)} onClick={() => toggle('step_b')}>
+      <div className={themed('border-b border-panel-border', dk)}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_b')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP B</span>
-            <span className={themed('text-text-secondary', dk)}>Pre-Filter</span>
+            <span className={chip('accent')}>STEP B</span>
+            <span className={themed('text-white/70', dk)}>Pre-Filter</span>
             {progress?.step_b ? (
               <span className="text-brand-red">
                 {progress.step_b.data.input} → {progress.step_b.data.output} survived
                 {(progress.step_b.data.excluded as number) > 0 && ` (${progress.step_b.data.excluded} excluded)`}
               </span>
             ) : (
-              <span className={themed('text-text-muted animate-pulse', dk)}>waiting...</span>
+              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
             )}
           </div>
-          <span className={themed('text-text-muted', dk)}>{expanded['step_b'] ? '▲' : '▼'}</span>
+          <span className={themed('text-white/50', dk)}>{expanded['step_b'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_b'] && progress?.step_b && (
-          <div className={themed('border-t border-border bg-bg-row p-3', dk)}>
+          <div className={themed('border-t border-panel-border bg-white/5 p-3', dk)}>
             <div className="text-xs space-y-3 mb-4">
-              <p className={themed('text-text-muted italic text-xs', dk)}>
+              <p className={EXPLAINER}>
                 Step B scores every ticker using only the data we already have from Step A. No new API calls. Three signals go in, one score comes out. This step ranks — it does not eliminate.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-border', dk)}>
+                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>DATA POINT</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>SOURCE</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHEN APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHERE APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHY</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>HOW / VALUE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1868,25 +1868,25 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Pre-Score', 'Computed', 'Step B output', 'Step D Top-N cutoff', 'Single number summarizing vol selling opportunity per ticker', 'Top scorers advance to Step E. Everyone else is ranked out'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{dp}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{src}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{when}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{where}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{why}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{how}</td>
+                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
-            <p className={themed('text-text-muted text-xs font-bold mb-1', dk)}>
+            <p className={themed('text-white/50 text-xs font-bold mb-1', dk)}>
               ALL TICKERS SCORED ({(progress?.step_b?.data?.tickers as any[] ?? []).length}){/* eslint-disable-line @typescript-eslint/no-explicit-any */}
             </p>
             <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '240px'}}>
               <table className="w-full text-xs">
                 <thead>
-                  <tr className={themed('text-text-muted border-b border-border', dk)}>
+                  <tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}>
                     <th className="text-left py-1 pr-3">#</th>
                     <th className="text-left py-1 pr-3">SYMBOL</th>
                     <th className="text-right py-1 pr-3">IV RANK</th>
@@ -1915,13 +1915,13 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ? '—'
                       : `(${(ivRankNorm ?? 0).toFixed(3)} × 40%) + (${(ivHvNorm ?? 0).toFixed(3)} × 35%) + (${(liqNorm ?? 0).toFixed(3)} × 25%)`;
                     return (
-                      <tr key={t.symbol} className={themed('border-b border-border/50', dk)}>
-                        <td className={themed('py-1 pr-3 text-text-muted', dk)}>{i+1}</td>
+                      <tr key={t.symbol} className={themed('border-b border-panel-border', dk)}>
+                        <td className={themed('py-1 pr-3 text-white/50', dk)}>{i+1}</td>
                         <td className="py-1 pr-3 font-bold">{t.symbol}</td>
                         <td className="py-1 pr-3 text-right">{t.iv_rank != null ? (t.iv_rank * 100).toFixed(1) : '—'}</td>
                         <td className="py-1 pr-3 text-right">{ivHvSpread != null ? (ivHvSpread >= 0 ? '+' : '') + ivHvSpread.toFixed(1) : '—'}</td>
                         <td className="py-1 pr-3 text-right">{t.liquidity ?? '—'}/5</td>
-                        <td className={themed('py-1 pr-3 text-text-muted font-mono text-[10px]', dk)}>
+                        <td className={themed('py-1 pr-3 text-white/50 font-mono text-[10px]', dk)}>
                           {calcStr}
                         </td>
                         <td className="py-1 pr-3 text-right text-brand-gold font-bold">{t.pre_score ?? '—'}</td>
@@ -1933,10 +1933,10 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                             : '✓ Passed'
                           }
                         </td>
-                        <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>TastyTrade</td>
-                        <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>market-metrics</td>
-                        <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>{fetchedTime}</td>
-                        <td className={themed('py-1 text-right text-text-muted text-[10px]', dk)}>{ageSec}</td>
+                        <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>TastyTrade</td>
+                        <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>market-metrics</td>
+                        <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{fetchedTime}</td>
+                        <td className={themed('py-1 text-right text-white/50 text-[10px]', dk)}>{ageSec}</td>
                       </tr>
                     );
                   })}
@@ -1948,37 +1948,37 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step C — Hard Exclusions */}
-      <div className={themed('border-b border-border', dk)}>
-        <div className={themed('px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row', dk)} onClick={() => toggle('step_c')}>
+      <div className={themed('border-b border-panel-border', dk)}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_c')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP C</span>
-            <span className={themed('text-text-secondary', dk)}>Hard Exclusions</span>
+            <span className={chip('accent')}>STEP C</span>
+            <span className={themed('text-white/70', dk)}>Hard Exclusions</span>
             {progress?.step_c ? (
-              <span className="text-brand-green">
+              <span className={chip('success')}>
                 {progress.step_c.data.excluded ?? '—'} excluded — {progress.step_c.data.survivors ?? '—'} passed
               </span>
             ) : (
-              <span className={themed('text-text-muted animate-pulse', dk)}>waiting...</span>
+              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
             )}
           </div>
-          <span className={themed('text-text-muted', dk)}>{expanded['step_c'] ? '▲' : '▼'}</span>
+          <span className={themed('text-white/50', dk)}>{expanded['step_c'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_c'] && (
-          <div className={themed('border-t border-border bg-bg-row p-3', dk)}>
+          <div className={themed('border-t border-panel-border bg-white/5 p-3', dk)}>
             <div className="text-xs space-y-3 mb-4">
-              <p className={themed('text-text-muted italic text-xs', dk)}>
+              <p className={EXPLAINER}>
                 Step C applies two instant disqualifiers. No partial credit. If a ticker fails either rule it is gone. This step eliminates — it does not score.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-border', dk)}>
+                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>DATA POINT</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>SOURCE</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHEN APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHERE APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHY</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>HOW / VALUE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1988,12 +1988,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Earnings proximity', 'Step A', 'Step C flag', 'Warning passed to Step E', 'Earnings within 3 days flagged for visibility — Step E enforces the hard 7-day rule', 'Not eliminated here — passed forward with warning'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{dp}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{src}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{when}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{where}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{why}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{how}</td>
+                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -2004,51 +2004,51 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
             <div className="grid grid-cols-2 gap-4">
               {/* LEFT TABLE — Excluded tickers */}
               <div>
-                <p className={themed('text-text-primary font-bold text-[10px] uppercase tracking-wider mb-1', dk)}>
+                <p className={themed('text-white font-bold text-[10px] uppercase tracking-wider mb-1', dk)}>
                   EXCLUDED ({progress?.step_c?.data?.excluded ?? '—'} tickers)
                 </p>
                 {(progress?.step_c?.data?.exclusions ?? []).length > 0 ? (
                   <div style={{ maxHeight: 200, overflowY: 'auto' }}>
                     <table className="w-full text-[10px]">
-                      <thead><tr className={themed('text-text-muted border-b border-border', dk)}>
+                      <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}>
                         <th className="text-left py-1 px-1">#</th>
                         <th className="text-left py-1 px-1">SYMBOL</th>
                         <th className="text-left py-1 px-1">REASON</th>
                       </tr></thead>
                       <tbody>
                         {(progress?.step_c?.data?.exclusions ?? []).map((e: { symbol: string; reason: string }, i: number) => (
-                          <tr key={e.symbol} className={themed('border-b border-border/50', dk)}>
-                            <td className={themed('py-0.5 px-1 text-text-muted font-mono', dk)}>{i + 1}</td>
-                            <td className={themed('py-0.5 px-1 font-bold text-text-primary', dk)}>{e.symbol}</td>
-                            <td className={themed('py-0.5 px-1 text-text-muted', dk)}>{e.reason}</td>
+                          <tr key={e.symbol} className={themed('border-b border-panel-border', dk)}>
+                            <td className={themed('py-0.5 px-1 text-white/50 font-mono', dk)}>{i + 1}</td>
+                            <td className={themed('py-0.5 px-1 font-bold text-white', dk)}>{e.symbol}</td>
+                            <td className={themed('py-0.5 px-1 text-white/50', dk)}>{e.reason}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
                 ) : (
-                  <p className={themed('text-text-muted text-[10px] italic', dk)}>No tickers excluded</p>
+                  <p className={themed('text-white/50 text-[10px] italic', dk)}>No tickers excluded</p>
                 )}
               </div>
 
               {/* RIGHT TABLE — Earnings warnings */}
               <div>
-                <p className={themed('text-text-primary font-bold text-[10px] uppercase tracking-wider mb-1', dk)}>
+                <p className={themed('text-white font-bold text-[10px] uppercase tracking-wider mb-1', dk)}>
                   EARNINGS WARNINGS ({(progress?.step_c?.data?.earnings_warnings ?? []).length} tickers flagged)
                 </p>
                 {(progress?.step_c?.data?.earnings_warnings ?? []).length > 0 ? (
                   <div style={{ maxHeight: 200, overflowY: 'auto' }}>
                     <table className="w-full text-[10px]">
-                      <thead><tr className={themed('text-text-muted border-b border-border', dk)}>
+                      <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}>
                         <th className="text-left py-1 px-1">#</th>
                         <th className="text-left py-1 px-1">SYMBOL</th>
                         <th className="text-right py-1 px-1">DAYS TO EARNINGS</th>
                       </tr></thead>
                       <tbody>
                         {(progress?.step_c?.data?.earnings_warnings ?? []).map((w: { symbol: string; days_to_earnings: number | null }, i: number) => (
-                          <tr key={w.symbol} className={themed('border-b border-border/50', dk)}>
-                            <td className={themed('py-0.5 px-1 text-text-muted font-mono', dk)}>{i + 1}</td>
-                            <td className={themed('py-0.5 px-1 font-bold text-text-primary', dk)}>{w.symbol}</td>
+                          <tr key={w.symbol} className={themed('border-b border-panel-border', dk)}>
+                            <td className={themed('py-0.5 px-1 text-white/50 font-mono', dk)}>{i + 1}</td>
+                            <td className={themed('py-0.5 px-1 font-bold text-white', dk)}>{w.symbol}</td>
                             <td className="py-0.5 px-1 text-right font-mono text-brand-gold">{w.days_to_earnings ?? '—'}</td>
                           </tr>
                         ))}
@@ -2056,15 +2056,15 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                     </table>
                   </div>
                 ) : (
-                  <p className={themed('text-text-muted text-[10px] italic', dk)}>No earnings warnings</p>
+                  <p className={themed('text-white/50 text-[10px] italic', dk)}>No earnings warnings</p>
                 )}
-                <p className={themed('text-text-muted text-[10px] mt-2', dk)}>
+                <p className={themed('text-white/50 text-[10px] mt-2', dk)}>
                   ⚠ These tickers passed but carry earnings risk. Step E will enforce the 7-day earnings exclusion.
                 </p>
               </div>
             </div>
 
-            <p className={themed('text-text-muted text-[10px] mt-3 italic', dk)}>
+            <p className={themed('text-white/50 text-[10px] mt-3 italic', dk)}>
               Source: Step B pre-filter computation — no new API calls
             </p>
           </div>
@@ -2072,35 +2072,35 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step D — Top-N Selection */}
-      <div className={themed('border-b border-border', dk)}>
-        <div className={themed('px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row', dk)} onClick={() => toggle('step_d')}>
+      <div className={themed('border-b border-panel-border', dk)}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_d')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP D</span>
-            <span className={themed('text-text-secondary', dk)}>Top-N Selection</span>
+            <span className={chip('accent')}>STEP D</span>
+            <span className={themed('text-white/70', dk)}>Top-N Selection</span>
             {progress?.step_b ? (
               <span className="text-brand-gold">{progress.step_b.data.output} → {progress?.step_e?.data?.input ?? 45} candidates for hard filters</span>
             ) : (
-              <span className={themed('text-text-muted animate-pulse', dk)}>waiting...</span>
+              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
             )}
           </div>
-          <span className={themed('text-text-muted', dk)}>{expanded['step_d'] ? '▲' : '▼'}</span>
+          <span className={themed('text-white/50', dk)}>{expanded['step_d'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_d'] && progress?.step_b && (
-          <div className={themed('border-t border-border bg-bg-row p-3', dk)}>
+          <div className={themed('border-t border-panel-border bg-white/5 p-3', dk)}>
             <div className="text-xs space-y-3 mb-4">
-              <p className={themed('text-text-muted italic text-xs', dk)}>
+              <p className={EXPLAINER}>
                 Step D makes one decision: who gets checked in Step E. The hard filters in Step E cost time. We only run them on tickers most likely to survive. We take the top scorers by pre-score and send them forward. Everyone else is ranked out.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-border', dk)}>
+                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>DATA POINT</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>SOURCE</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHEN APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHERE APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHY</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>HOW / VALUE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2109,26 +2109,26 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Rank', 'Computed', 'Step D output', 'Step E input', 'Ordered list of highest-conviction candidates before hard filters run', 'Rank determines who gets checked in Step E'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{dp}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{src}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{when}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{where}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{why}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{how}</td>
+                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
-            <p className={themed('text-text-muted text-xs font-bold mb-1', dk)}>
+            <p className={themed('text-white/50 text-xs font-bold mb-1', dk)}>
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               ALL TICKERS RANKED ({(progress?.step_b?.data?.tickers as any[] ?? []).filter((t: any) => !t.excluded).length} non-excluded)
             </p>
             <div className="overflow-y-auto" style={{maxHeight: '240px'}}>
               <table className="w-full text-xs">
                 <thead>
-                  <tr className={themed('text-text-muted border-b border-border', dk)}>
+                  <tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}>
                     <th className="text-left py-1 pr-3">#</th>
                     <th className="text-left py-1 pr-3">SYMBOL</th>
                     <th className="text-right py-1 pr-3">PRE-SCORE</th>
@@ -2152,16 +2152,16 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                     return nonExcluded.map((t: any, i: number) => { // eslint-disable-line @typescript-eslint/no-explicit-any
                       const selected = i < topN;
                       return (
-                        <tr key={t.symbol} className={themed('border-b border-border/50', dk)}>
-                          <td className={themed('py-1 pr-3 text-text-muted', dk)}>{i+1}</td>
+                        <tr key={t.symbol} className={themed('border-b border-panel-border', dk)}>
+                          <td className={themed('py-1 pr-3 text-white/50', dk)}>{i+1}</td>
                           <td className="py-1 pr-3 font-bold">{t.symbol}</td>
-                          <td className={themed(`py-1 pr-3 text-right font-bold ${selected ? 'text-brand-gold' : themed('text-text-muted', dk)}`, dk)}>
+                          <td className={themed(`py-1 pr-3 text-right font-bold ${selected ? 'text-brand-gold' : themed('text-white/50', dk)}`, dk)}>
                             {t.pre_score}
                           </td>
-                          <td className={themed('py-1 pr-3 text-right text-text-muted', dk)}>
+                          <td className={themed('py-1 pr-3 text-right text-white/50', dk)}>
                             #{i+1}
                           </td>
-                          <td className={themed('py-1 pr-3 text-right text-text-muted', dk)}>
+                          <td className={themed('py-1 pr-3 text-right text-white/50', dk)}>
                             {cutoffScore}
                           </td>
                           <td className={`py-1 pr-3 ${selected ? 'text-brand-green' : 'text-brand-red'}`}>
@@ -2170,10 +2170,10 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                               : `✗ Ranked #${i+1} — below top ${topN} cutoff (score ${t.pre_score} vs cutoff ${cutoffScore})`
                             }
                           </td>
-                          <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>TastyTrade</td>
-                          <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>market-metrics</td>
-                          <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>{fetchedTime}</td>
-                          <td className={themed('py-1 text-right text-text-muted text-[10px]', dk)}>{ageSec}</td>
+                          <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>TastyTrade</td>
+                          <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>market-metrics</td>
+                          <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{fetchedTime}</td>
+                          <td className={themed('py-1 text-right text-white/50 text-[10px]', dk)}>{ageSec}</td>
                         </tr>
                       );
                     });
@@ -2186,35 +2186,35 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step E — Hard Filters */}
-      <div className={themed('border-b border-border', dk)}>
-        <div className={themed('px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row', dk)} onClick={() => toggle('step_e')}>
+      <div className={themed('border-b border-panel-border', dk)}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_e')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP E</span>
-            <span className={themed('text-text-secondary', dk)}>Hard Filters</span>
+            <span className={chip('accent')}>STEP E</span>
+            <span className={themed('text-white/70', dk)}>Hard Filters</span>
             {(hf?.output_count != null || progress?.step_e) ? (
               <span className="text-brand-red">{hf?.input_count ?? progress?.step_e?.data?.input ?? 0} → {hf?.output_count ?? progress?.step_e?.data?.output ?? 0} survived</span>
             ) : (
-              <span className={themed('text-text-muted animate-pulse', dk)}>waiting...</span>
+              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
             )}
           </div>
-          <span className={themed('text-text-muted', dk)}>{expanded['step_e'] ? '▲' : '▼'}</span>
+          <span className={themed('text-white/50', dk)}>{expanded['step_e'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_e'] && (
-          <div className={themed('border-t border-border bg-bg-row p-3', dk)}>
+          <div className={themed('border-t border-panel-border bg-white/5 p-3', dk)}>
             <div className="text-xs space-y-3 mb-4">
-              <p className={themed('text-text-muted italic text-xs', dk)}>
+              <p className={EXPLAINER}>
                 Step E runs six binary rules against the candidates from Step D. Pass all six or you are out. No scores, no partial credit. Each rule has a hard threshold. The table shows the actual value for every rule on every ticker.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-border', dk)}>
+                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>DATA POINT</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>SOURCE</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHEN APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHERE APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHY</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>HOW / VALUE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2227,12 +2227,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Reg SHO Status', 'SEC FINRA daily list', 'Step E filter', 'Rule 6 — must not be on list', 'Stocks with persistent delivery failures carry elevated short squeeze risk', 'On list = eliminated'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{dp}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{src}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{when}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{where}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{why}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{how}</td>
+                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -2240,13 +2240,13 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
               </div>
             </div>
             {/* Full matrix table */}
-            <p className={themed('text-text-muted text-xs font-bold mb-1', dk)}>
+            <p className={themed('text-white/50 text-xs font-bold mb-1', dk)}>
               ALL {bData?.input ?? '?'} TICKERS — 6 FILTER MATRIX
             </p>
             <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
               <table className="w-full text-xs whitespace-nowrap">
                 <thead>
-                  <tr className={themed('text-text-muted border-b border-border sticky top-0 bg-bg-card', dk)}>
+                  <tr className={themed('text-white/50 border-b border-panel-border sticky top-0 bg-white/5', dk)}>
                     <th className="text-left py-1 pr-2">#</th>
                     <th className="text-left py-1 pr-2">SYMBOL</th>
                     <th className="text-right py-1 pr-2">MKT CAP<br/><span className="font-normal text-[9px]">&gt;$2B</span></th>
@@ -2301,8 +2301,8 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                         ? <td className="py-1 pr-2 text-right text-brand-gold">— ⚠</td>
                         : cell(borrowOk, d.borrow_rate != null ? d.borrow_rate+'%' : '—', ff === 'Borrow Rate');
                       return (
-                        <tr key={t.symbol} className={themed(`border-b border-border/50 ${t.rejected ? 'opacity-75' : ''}`, dk)}>
-                          <td className={themed('py-1 pr-2 text-text-muted', dk)}>{i+1}</td>
+                        <tr key={t.symbol} className={themed(`border-b border-panel-border ${t.rejected ? 'opacity-75' : ''}`, dk)}>
+                          <td className={themed('py-1 pr-2 text-white/50', dk)}>{i+1}</td>
                           <td className={`py-1 pr-2 font-bold ${t.rejected ? 'text-brand-red' : 'text-brand-green'}`}>{t.symbol}</td>
                           {cell(capOk, d.market_cap ? '$'+(d.market_cap/1e9).toFixed(1)+'B' : '—', ff === 'Market Cap')}
                           {cell(liqOk, d.liquidity_rating != null ? d.liquidity_rating+'/5' : '—', ff === 'Options Liquidity')}
@@ -2313,10 +2313,10 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                           <td className={`py-1 pr-2 font-bold ${t.rejected ? 'text-brand-red' : 'text-brand-green'}`}>
                             {t.rejected ? '✗ REJECTED' : '✓ PASSED'}
                           </td>
-                          <td className={themed('py-1 pr-2 text-text-muted text-[10px]', dk)}>TastyTrade</td>
-                          <td className={themed('py-1 pr-2 text-text-muted text-[10px]', dk)}>market-metrics</td>
-                          <td className={themed('py-1 pr-2 text-text-muted text-[10px]', dk)}>{fetchedTime}</td>
-                          <td className={themed('py-1 text-right text-text-muted text-[10px]', dk)}>{ageSec}</td>
+                          <td className={themed('py-1 pr-2 text-white/50 text-[10px]', dk)}>TastyTrade</td>
+                          <td className={themed('py-1 pr-2 text-white/50 text-[10px]', dk)}>market-metrics</td>
+                          <td className={themed('py-1 pr-2 text-white/50 text-[10px]', dk)}>{fetchedTime}</td>
+                          <td className={themed('py-1 text-right text-white/50 text-[10px]', dk)}>{ageSec}</td>
                         </tr>
                       );
                     });
@@ -2330,35 +2330,35 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step F — Peer Grouping */}
-      <div className={themed('border-b border-border', dk)}>
-        <div className={themed('px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row', dk)} onClick={() => toggle('step_f')}>
+      <div className={themed('border-b border-panel-border', dk)}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_f')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP F</span>
-            <span className={themed('text-text-secondary', dk)}>Peer Grouping</span>
+            <span className={chip('accent')}>STEP F</span>
+            <span className={themed('text-white/70', dk)}>Peer Grouping</span>
             {progress?.step_e ? (
-              <span className="text-brand-green">Finnhub peer relationships mapped</span>
+              <span className={chip('success')}>Finnhub peer relationships mapped</span>
             ) : (
-              <span className={themed('text-text-muted animate-pulse', dk)}>waiting...</span>
+              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
             )}
           </div>
-          <span className={themed('text-text-muted', dk)}>{expanded['step_f'] ? '▲' : '▼'}</span>
+          <span className={themed('text-white/50', dk)}>{expanded['step_f'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_f'] && (
-          <div className={themed('border-t border-border bg-bg-row p-3', dk)}>
+          <div className={themed('border-t border-panel-border bg-white/5 p-3', dk)}>
             <div className="text-xs space-y-3 mb-4">
-              <p className={themed('text-text-muted italic text-xs', dk)}>
+              <p className={EXPLAINER}>
                 Step F answers one question: is this stock&apos;s volatility high compared to companies just like it? We pull peer groups from Finnhub and compute z-scores — how many standard deviations each stock sits above or below its peers. Context matters more than raw numbers.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-border', dk)}>
+                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>DATA POINT</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>SOURCE</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHEN APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHERE APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHY</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>HOW / VALUE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2370,25 +2370,25 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['GICS sector fallback', 'TastyTrade sector data', 'Step F fallback', 'Peer grouping when Finnhub peers unavailable', 'Some tickers have no Finnhub peers. Sector grouping ensures every ticker gets a peer comparison', 'Flagged with ⚠ in the TYPE column'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{dp}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{src}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{when}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{where}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{why}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{how}</td>
+                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
-            <p className={themed('text-text-muted text-xs font-bold mb-1', dk)}>
+            <p className={themed('text-white/50 text-xs font-bold mb-1', dk)}>
               PEER GROUPING — ALL {' '}{(progress?.step_f?.data?.groups ?? []).length} SURVIVORS
             </p>
             <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '280px'}}>
               <table className="w-full text-xs whitespace-nowrap">
                 <thead>
-                  <tr className={themed('text-text-muted border-b border-border sticky top-0 bg-bg-card', dk)}>
+                  <tr className={themed('text-white/50 border-b border-panel-border sticky top-0 bg-white/5', dk)}>
                     <th className="text-left py-1 pr-3">#</th>
                     <th className="text-left py-1 pr-3">SYMBOL</th>
                     <th className="text-left py-1 pr-3">PEER GROUP</th>
@@ -2416,32 +2416,32 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                     const ageSec = fetchedAt ? Math.round((Date.now() - new Date(fetchedAt).getTime()) / 1000) + 's' : '—';
                     return (progress?.step_f?.data?.groups ?? []).map((g: any, i: number) => {
                     const zColor = (z: string | null) => {
-                      if (z == null) return 'text-text-muted';
+                      if (z == null) return 'text-white/50';
                       const n = parseFloat(z);
                       if (n >= 1.5) return 'text-brand-green font-bold';
                       if (n >= 0.5) return 'text-brand-gold';
                       if (n <= -1.5) return 'text-brand-red';
-                      return 'text-text-muted';
+                      return 'text-white/50';
                     };
                     return (
-                      <tr key={g.symbol} className={themed('border-b border-border/50', dk)}>
-                        <td className={themed('py-1 pr-3 text-text-muted', dk)}>{i+1}</td>
+                      <tr key={g.symbol} className={themed('border-b border-panel-border', dk)}>
+                        <td className={themed('py-1 pr-3 text-white/50', dk)}>{i+1}</td>
                         <td className="py-1 pr-3 font-bold">{g.symbol}</td>
-                        <td className={themed('py-1 pr-3 text-text-muted max-w-[200px] overflow-hidden text-ellipsis', dk)}>
+                        <td className={themed('py-1 pr-3 text-white/50 max-w-[200px] overflow-hidden text-ellipsis', dk)}>
                           {g.insufficient_peers ? '⚠ '+g.peer_group : g.peer_group}
                         </td>
                         <td className="py-1 pr-3 text-right">{g.peer_count}</td>
                         <td className="py-1 pr-3 text-right">
                           {g.my_iv_percentile != null ? Number(g.my_iv_percentile).toFixed(1) : '—'}
                         </td>
-                        <td className={themed('py-1 pr-3 text-right text-text-muted', dk)}>{g.peer_mean_iv ?? '—'}</td>
+                        <td className={themed('py-1 pr-3 text-right text-white/50', dk)}>{g.peer_mean_iv ?? '—'}</td>
                         <td className={`py-1 pr-3 text-right ${zColor(g.z_iv_percentile)}`}>
                           {g.z_iv_percentile != null ? (parseFloat(g.z_iv_percentile) >= 0 ? '+' : '')+g.z_iv_percentile : '—'}
                         </td>
                         <td className="py-1 pr-3 text-right">
                           {g.my_iv30 != null ? Number(g.my_iv30).toFixed(1) : '—'}
                         </td>
-                        <td className={themed('py-1 pr-3 text-right text-text-muted', dk)}>{g.peer_mean_iv30 ?? '—'}</td>
+                        <td className={themed('py-1 pr-3 text-right text-white/50', dk)}>{g.peer_mean_iv30 ?? '—'}</td>
                         <td className={`py-1 pr-3 text-right ${zColor(g.z_iv30)}`}>
                           {g.z_iv30 != null ? (parseFloat(g.z_iv30) >= 0 ? '+' : '')+g.z_iv30 : '—'}
                         </td>
@@ -2457,16 +2457,16 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                             return `(${Number(my).toFixed(1)}−${mean.toFixed(1)})/${std.toFixed(2)}=${g.z_iv_percentile}`;
                           })();
                           return (
-                            <td className={themed('py-1 pr-3 text-text-muted font-mono text-[10px]', dk)}>
+                            <td className={themed('py-1 pr-3 text-white/50 font-mono text-[10px]', dk)}>
                               {ivZFormula}
                             </td>
                           );
                         })()}
-                        <td className={themed('py-1 text-text-muted text-[10px]', dk)}>{g.group_type}</td>
-                        <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>TastyTrade</td>
-                        <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>market-metrics</td>
-                        <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>{fetchedTime}</td>
-                        <td className={themed('py-1 text-right text-text-muted text-[10px]', dk)}>{ageSec}</td>
+                        <td className={themed('py-1 text-white/50 text-[10px]', dk)}>{g.group_type}</td>
+                        <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>TastyTrade</td>
+                        <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>market-metrics</td>
+                        <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{fetchedTime}</td>
+                        <td className={themed('py-1 text-right text-white/50 text-[10px]', dk)}>{ageSec}</td>
                       </tr>
                     );
                   });
@@ -2479,35 +2479,35 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step G — Pre-Score */}
-      <div className={themed('border-b border-border', dk)}>
-        <div className={themed('px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row', dk)} onClick={() => toggle('step_g')}>
+      <div className={themed('border-b border-panel-border', dk)}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_g')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP G</span>
-            <span className={themed('text-text-secondary', dk)}>Pre-Score</span>
+            <span className={chip('accent')}>STEP G</span>
+            <span className={themed('text-white/70', dk)}>Pre-Score</span>
             {(ps?.finnhub_fetched != null || progress?.step_g) ? (
               <span className="text-brand-gold">{bData?.output ?? 0} → {ps?.finnhub_fetched ?? progress?.step_g?.data?.candidates ?? 0} selected for enrichment</span>
             ) : (
-              <span className={themed('text-text-muted animate-pulse', dk)}>waiting...</span>
+              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
             )}
           </div>
-          <span className={themed('text-text-muted', dk)}>{expanded['step_g'] ? '▲' : '▼'}</span>
+          <span className={themed('text-white/50', dk)}>{expanded['step_g'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_g'] && (
-          <div className={themed('border-t border-border bg-bg-row p-3', dk)}>
+          <div className={themed('border-t border-panel-border bg-white/5 p-3', dk)}>
             <div className="text-xs space-y-3 mb-4">
-              <p className={themed('text-text-muted italic text-xs', dk)}>
+              <p className={EXPLAINER}>
                 Step G re-scores the survivors with a more precise formula now that the field is small enough to be exact. Same three signals as Step B but with different weights. The top scorers get the expensive institutional data pull in Steps H, I, and J.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-border', dk)}>
+                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>DATA POINT</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>SOURCE</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHEN APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHERE APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHY</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>HOW / VALUE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2518,25 +2518,25 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Step G Score', 'Computed', 'Step G output', 'Steps H I J enrichment order', 'Determines which tickers get expensive data fetches first', 'All survivors advance but ranking matters for tie-breaking'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{dp}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{src}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{when}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{where}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{why}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{how}</td>
+                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
-            <p className={themed('text-text-muted text-xs font-bold mb-1', dk)}>
+            <p className={themed('text-white/50 text-xs font-bold mb-1', dk)}>
               ALL {progress?.step_g?.data?.total ?? '—'} SURVIVORS RANKED — TOP {progress?.step_g?.data?.candidates ?? 18} SELECTED FOR ENRICHMENT
             </p>
             <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '280px'}}>
               <table className="w-full text-xs whitespace-nowrap">
                 <thead>
-                  <tr className={themed('text-text-muted border-b border-border sticky top-0 bg-bg-card', dk)}>
+                  <tr className={themed('text-white/50 border-b border-panel-border sticky top-0 bg-white/5', dk)}>
                     <th className="text-left py-1 pr-3">RANK</th>
                     <th className="text-left py-1 pr-3">SYMBOL</th>
                     <th className="text-right py-1 pr-3">IV%<br/><span className="font-normal text-[9px]">×40%</span></th>
@@ -2562,26 +2562,26 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                     const ivhvC = (Math.min(Math.abs(t.iv_hv_spread ?? 0) / 20 * 100, 100) * 0.3).toFixed(1);
                     const liqC = (((t.liquidity ?? 0) / 5) * 100 * 0.3).toFixed(1);
                     return (
-                      <tr key={t.symbol} className={themed(`border-b border-border/50 ${!t.selected ? 'opacity-60' : ''}`, dk)}>
-                        <td className={themed('py-1 pr-3 text-text-muted', dk)}>#{t.rank}</td>
-                        <td className={themed(`py-1 pr-3 font-bold ${t.selected ? 'text-brand-green' : themed('text-text-muted', dk)}`, dk)}>{t.symbol}</td>
+                      <tr key={t.symbol} className={themed(`border-b border-panel-border ${!t.selected ? 'opacity-60' : ''}`, dk)}>
+                        <td className={themed('py-1 pr-3 text-white/50', dk)}>#{t.rank}</td>
+                        <td className={themed(`py-1 pr-3 font-bold ${t.selected ? 'text-brand-green' : themed('text-white/50', dk)}`, dk)}>{t.symbol}</td>
                         <td className="py-1 pr-3 text-right">{t.ivp ?? '—'}</td>
                         <td className="py-1 pr-3 text-right">{t.iv_hv_spread ?? '—'}</td>
                         <td className="py-1 pr-3 text-right">{t.liquidity ?? '—'}/5</td>
-                        <td className={themed('py-1 pr-3 text-text-muted font-mono text-[10px]', dk)}>
+                        <td className={themed('py-1 pr-3 text-white/50 font-mono text-[10px]', dk)}>
                           ({t.ivp ?? 0}×40%) + (min(|{t.iv_hv_spread ?? 0}|/20×100,100)×30%) + ({t.liquidity ?? 0}/5×100×30%) = {ivpC}+{ivhvC}+{liqC}
                         </td>
-                        <td className={themed(`py-1 pr-3 text-right font-bold ${t.selected ? 'text-brand-gold' : themed('text-text-muted', dk)}`, dk)}>{t.pre_score}</td>
+                        <td className={themed(`py-1 pr-3 text-right font-bold ${t.selected ? 'text-brand-gold' : themed('text-white/50', dk)}`, dk)}>{t.pre_score}</td>
                         <td className={`py-1 ${t.selected ? 'text-brand-green' : 'text-brand-red'}`}>
                           {t.selected
                             ? '✓ Selected for enrichment'
                             : `✗ ${t.reason?.replace('✗ ', '') ?? 'Ranked out'}`
                           }
                         </td>
-                        <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>TastyTrade</td>
-                        <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>market-metrics</td>
-                        <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>{fetchedTime}</td>
-                        <td className={themed('py-1 text-right text-text-muted text-[10px]', dk)}>{ageSec}</td>
+                        <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>TastyTrade</td>
+                        <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>market-metrics</td>
+                        <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{fetchedTime}</td>
+                        <td className={themed('py-1 text-right text-white/50 text-[10px]', dk)}>{ageSec}</td>
                       </tr>
                     );
                   });
@@ -2594,37 +2594,37 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step H — Macro & Regime Data */}
-      <div className={themed('border-b border-border', dk)}>
-        <div className={themed('px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row', dk)} onClick={() => toggle('step_h')}>
+      <div className={themed('border-b border-panel-border', dk)}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_h')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP H</span>
-            <span className={themed('text-text-secondary', dk)}>Macro &amp; Regime Data</span>
+            <span className={chip('accent')}>STEP H</span>
+            <span className={themed('text-white/70', dk)}>Macro &amp; Regime Data</span>
             {progress?.step_h ? (
-              <span className="text-brand-green">
+              <span className={chip('success')}>
                 {(progress.step_h.data?.series as any[])?.length ?? 0} FRED series fetched
               </span>
             ) : (
-              <span className={themed('text-text-muted animate-pulse', dk)}>waiting...</span>
+              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
             )}
           </div>
-          <span className={themed('text-text-muted', dk)}>{expanded['step_h'] ? '▲' : '▼'}</span>
+          <span className={themed('text-white/50', dk)}>{expanded['step_h'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_h'] && (
-          <div className={themed('border-t border-border bg-bg-row p-3', dk)}>
+          <div className={themed('border-t border-panel-border bg-white/5 p-3', dk)}>
             <div className="text-xs space-y-3 mb-4">
-              <p className={themed('text-text-muted italic text-xs', dk)}>
+              <p className={EXPLAINER}>
                 Step H pulls all macro data from FRED in a single batch. This is market-wide data — not per ticker. It tells us what the economic environment looks like right now. The Regime gate in Step K reads all of this to classify the current regime and adjust the scoring weights.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-border', dk)}>
+                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>DATA POINT</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>SOURCE</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHEN APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHERE APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHY</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>HOW / VALUE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2640,12 +2640,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['GDP / Unemployment / NFP', 'FRED GDPC1 / UNRATE / PAYEMS', 'Step H fetch', 'Step K Regime gate', 'Core growth signals. Determine whether we are in expansion or contraction', 'Low growth + high unemployment = Deflation or Stagflation classification'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{dp}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{src}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{when}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{where}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{why}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{how}</td>
+                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -2662,24 +2662,24 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
             vix_term_structure_slope: { value: number | null; formula: string; inputs: { vix: number | null; vxv: number | null }; null_reason: string | null };
           } | undefined;
           return (
-            <div className={themed('border-t border-border bg-bg-row p-3 text-xs space-y-4', dk)}>
+            <div className={themed('border-t border-panel-border bg-white/5 p-3 text-xs space-y-4', dk)}>
               {/* SECTION 1 — Computed Values */}
               <div className="space-y-3">
-                <p className={themed('text-text-secondary font-semibold', dk)}>Computed Values</p>
+                <p className={themed('text-white/70 font-semibold', dk)}>Computed Values</p>
                 {/* Fed Net Liquidity */}
-                <div className={themed('bg-bg-primary p-2 rounded border border-border/50', dk)}>
+                <div className={themed('bg-bg-primary p-2 rounded border border-panel-border', dk)}>
                   <div className="flex items-center gap-2">
-                    <span className={themed('text-text-primary font-medium', dk)}>Fed Net Liquidity</span>
-                    <span className={themed('text-text-secondary', dk)}>
+                    <span className={themed('text-white font-medium', dk)}>Fed Net Liquidity</span>
+                    <span className={themed('text-white/70', dk)}>
                       {computed?.fed_net_liquidity?.value != null
                         ? `$${(computed.fed_net_liquidity.value / 1e6).toFixed(0)}M`
                         : '—'}
                     </span>
                   </div>
-                  <div className={themed('text-text-muted mt-1', dk)}>
+                  <div className={themed('text-white/50 mt-1', dk)}>
                     Formula: {computed?.fed_net_liquidity?.formula ?? '—'}
                   </div>
-                  <div className={themed('text-text-muted', dk)}>
+                  <div className={themed('text-white/50', dk)}>
                     Inputs: WALCL={computed?.fed_net_liquidity?.inputs?.walcl != null ? `$${(computed.fed_net_liquidity.inputs.walcl / 1e6).toFixed(0)}M` : '—'}{' '}
                     · WTREGEN={computed?.fed_net_liquidity?.inputs?.wtregen != null ? `$${(computed.fed_net_liquidity.inputs.wtregen / 1e6).toFixed(0)}M` : '—'}{' '}
                     · RRPONTSYD={computed?.fed_net_liquidity?.inputs?.rrpontsyd != null ? `$${(computed.fed_net_liquidity.inputs.rrpontsyd / 1e6).toFixed(0)}M` : '—'}
@@ -2689,10 +2689,10 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                   )}
                 </div>
                 {/* VIX Term Structure Slope */}
-                <div className={themed('bg-bg-primary p-2 rounded border border-border/50', dk)}>
+                <div className={themed('bg-bg-primary p-2 rounded border border-panel-border', dk)}>
                   <div className="flex items-center gap-2">
-                    <span className={themed('text-text-primary font-medium', dk)}>VIX Term Structure Slope</span>
-                    <span className={themed('text-text-secondary', dk)}>
+                    <span className={themed('text-white font-medium', dk)}>VIX Term Structure Slope</span>
+                    <span className={themed('text-white/70', dk)}>
                       {computed?.vix_term_structure_slope?.value != null
                         ? computed.vix_term_structure_slope.value.toFixed(3)
                         : '—'}
@@ -2705,10 +2705,10 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       </span>
                     )}
                   </div>
-                  <div className={themed('text-text-muted mt-1', dk)}>
+                  <div className={themed('text-white/50 mt-1', dk)}>
                     Formula: {computed?.vix_term_structure_slope?.formula ?? '—'}
                   </div>
-                  <div className={themed('text-text-muted', dk)}>
+                  <div className={themed('text-white/50', dk)}>
                     Inputs: VIX={computed?.vix_term_structure_slope?.inputs?.vix ?? '—'}{' '}
                     · VXV={computed?.vix_term_structure_slope?.inputs?.vxv ?? '—'}
                   </div>
@@ -2720,12 +2720,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
               {/* SECTION 2 — Full FRED Series Table */}
               <div className="space-y-2">
-                <p className={themed('text-text-secondary font-semibold', dk)}>FRED Series</p>
-                <p className={themed('text-text-muted', dk)}>Fetched at: {hd.fetched_at as string ?? '—'}</p>
+                <p className={themed('text-white/70 font-semibold', dk)}>FRED Series</p>
+                <p className={themed('text-white/50', dk)}>Fetched at: {hd.fetched_at as string ?? '—'}</p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
-                      <tr className={themed('border-b border-border text-text-muted', dk)}>
+                      <tr className={themed('border-b border-panel-border text-white/50', dk)}>
                         <th className="py-1 pr-3">SERIES</th>
                         <th className="py-1 pr-3">SERIES ID</th>
                         <th className="py-1 pr-3 text-right">VALUE</th>
@@ -2735,13 +2735,13 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                     </thead>
                     <tbody>
                       {series.map((s) => (
-                        <tr key={s.key} className={themed('border-b border-border/30', dk)}>
-                          <td className={themed('py-1 pr-3 text-text-primary', dk)}>{s.name}</td>
-                          <td className={themed('py-1 pr-3 text-text-muted font-mono', dk)}>{s.series_id}</td>
-                          <td className={themed('py-1 pr-3 text-right text-text-primary font-mono', dk)}>
+                        <tr key={s.key} className={themed('border-b border-panel-border/30', dk)}>
+                          <td className={themed('py-1 pr-3 text-white', dk)}>{s.name}</td>
+                          <td className={themed('py-1 pr-3 text-white/50 font-mono', dk)}>{s.series_id}</td>
+                          <td className={themed('py-1 pr-3 text-right text-white font-mono', dk)}>
                             {s.value != null ? (typeof s.value === 'number' && Math.abs(s.value) >= 1000 ? s.value.toLocaleString() : s.value) : '—'}
                           </td>
-                          <td className={themed('py-1 pr-3 text-text-muted', dk)}>{s.source}</td>
+                          <td className={themed('py-1 pr-3 text-white/50', dk)}>{s.source}</td>
                           <td className="py-1 text-brand-red">{s.null_reason ?? ''}</td>
                         </tr>
                       ))}
@@ -2752,10 +2752,10 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
               {/* SECTION 3 — Fetch Metadata */}
               <div className="space-y-1">
-                <p className={themed('text-text-secondary font-semibold', dk)}>Fetch Metadata</p>
-                <p className={themed('text-text-muted', dk)}>Fetch time: {hd.fetch_ms as number}ms</p>
-                <p className={themed('text-text-muted', dk)}>Cached: {hd.cached ? 'yes' : 'no'}</p>
-                <p className={themed('text-text-muted', dk)}>Source: FRED API (free, commercial use permitted)</p>
+                <p className={themed('text-white/70 font-semibold', dk)}>Fetch Metadata</p>
+                <p className={themed('text-white/50', dk)}>Fetch time: {hd.fetch_ms as number}ms</p>
+                <p className={themed('text-white/50', dk)}>Cached: {hd.cached ? 'yes' : 'no'}</p>
+                <p className={themed('text-white/50', dk)}>Source: FRED API (free, commercial use permitted)</p>
               </div>
             </div>
           );
@@ -2763,40 +2763,40 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step I — Data Enrichment */}
-      <div className={themed('border-b border-border', dk)}>
-        <div className={themed('px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row', dk)} onClick={() => toggle('step_i')}>
+      <div className={themed('border-b border-panel-border', dk)}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_i')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP I</span>
-            <span className={themed('text-text-secondary', dk)}>Data Enrichment</span>
+            <span className={chip('accent')}>STEP I</span>
+            <span className={themed('text-white/70', dk)}>Data Enrichment</span>
             {(ps?.finnhub_calls_made != null || progress?.step_i) ? (
-              <span className={themed('text-text-secondary', dk)}>
+              <span className={themed('text-white/70', dk)}>
                 {ps?.finnhub_calls_made ?? progress?.step_i?.data?.finnhub_calls ?? 0} Finnhub calls
                 {(ps?.finnhub_errors > 0 || (progress?.step_i?.data?.finnhub_errors ?? 0) > 0) && (
                   <span className="text-brand-red"> · {ps?.finnhub_errors ?? progress?.step_i?.data?.finnhub_errors} errors</span>
                 )}
               </span>
             ) : (
-              <span className={themed('text-text-muted animate-pulse', dk)}>waiting...</span>
+              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
             )}
           </div>
-          <span className={themed('text-text-muted', dk)}>{expanded['step_i'] ? '▲' : '▼'}</span>
+          <span className={themed('text-white/50', dk)}>{expanded['step_i'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_i'] && (
-          <div className={themed('border-t border-border bg-bg-row p-3', dk)}>
+          <div className={themed('border-t border-panel-border bg-white/5 p-3', dk)}>
             <div className="text-xs space-y-3 mb-4">
-              <p className={themed('text-text-muted italic text-xs', dk)}>
+              <p className={EXPLAINER}>
                 Step I is the most expensive step. Multiple data sources per ticker. The question it answers is: why is IV elevated? A high IV rank tells you options are expensive. It does not tell you whether that is an opportunity or a warning. This step finds out.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-border', dk)}>
+                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>DATA POINT</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>SOURCE</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHEN APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHERE APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHY</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>HOW / VALUE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2816,19 +2816,19 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['SEC 8-K scan', 'SEC EDGAR EFTS', 'Step I fetch', 'Step K Info Edge gate (material event flag)', 'Recent 8-Ks flag M&A, leadership changes, restatements — events that explain elevated IV', 'High 8-K count = material event risk flag on trade card'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{dp}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{src}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{when}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{where}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{why}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{how}</td>
+                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
               {progress?.step_i?.data?.data_gaps?.length > 0 && (
-                <div className="p-2 bg-bg-card rounded border border-brand-red/30">
+                <div className="p-2 bg-white/5 rounded border border-brand-red/30">
                   <p className="text-brand-red font-bold text-xs mb-1">DATA GAPS DETECTED</p>
                   {(progress?.step_i?.data?.data_gaps ?? []).map((gap: string, i: number) => (
                     <p key={i} className="text-brand-red text-xs">⚠ {gap}</p>
@@ -2836,7 +2836,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 </div>
               )}
             </div>
-            <p className={themed('text-text-muted text-xs font-bold mb-1', dk)}>
+            <p className={themed('text-white/50 text-xs font-bold mb-1', dk)}>
               {progress?.step_i?.data?.finnhub_calls ?? '—'} FINNHUB CALLS — {progress?.step_i?.data?.tickers?.length ?? '—'} TICKERS ENRICHED
               {progress?.step_i?.data?.finnhub_errors > 0 && (
                 <span className="text-brand-red ml-2">⚠ {progress?.step_i?.data?.finnhub_errors} ERRORS</span>
@@ -2857,7 +2857,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                   <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
                     <table className="w-full text-xs whitespace-nowrap">
                       <thead>
-                        <tr className={themed('text-text-muted border-b border-border sticky top-0 bg-bg-card', dk)}>
+                        <tr className={themed('text-white/50 border-b border-panel-border sticky top-0 bg-white/5', dk)}>
                           <th className="text-left py-1 pr-3">#</th>
                           <th className="text-left py-1 pr-3">SYMBOL</th>
                           <th className="text-right py-1 pr-3">EARNINGS<br/><span className="font-normal text-[9px]">beat/total</span></th>
@@ -2881,12 +2881,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       </thead>
                       <tbody>
                         {tickers.map((t: any, i: number) => {
-                          const beatColor = t.beat_rate == null ? 'text-text-muted' : t.beat_rate >= 60 ? 'text-brand-green' : t.beat_rate >= 40 ? 'text-brand-gold' : 'text-brand-red';
-                          const insiderColor = t.insider_sentiment == null ? 'text-text-muted' : t.insider_sentiment > 10 ? 'text-brand-green' : t.insider_sentiment < -10 ? 'text-brand-red' : 'text-brand-gold';
-                          const newsColor = t.news_sentiment == null ? 'text-text-muted' : t.news_sentiment > 55 ? 'text-brand-green' : t.news_sentiment < 45 ? 'text-brand-red' : 'text-brand-gold';
+                          const beatColor = t.beat_rate == null ? 'text-white/50' : t.beat_rate >= 60 ? 'text-brand-green' : t.beat_rate >= 40 ? 'text-brand-gold' : 'text-brand-red';
+                          const insiderColor = t.insider_sentiment == null ? 'text-white/50' : t.insider_sentiment > 10 ? 'text-brand-green' : t.insider_sentiment < -10 ? 'text-brand-red' : 'text-brand-gold';
+                          const newsColor = t.news_sentiment == null ? 'text-white/50' : t.news_sentiment > 55 ? 'text-brand-green' : t.news_sentiment < 45 ? 'text-brand-red' : 'text-brand-gold';
                           return (
-                            <tr key={t.symbol} className={themed('border-b border-border/50', dk)}>
-                              <td className={themed('py-1 pr-3 text-text-muted', dk)}>{i+1}</td>
+                            <tr key={t.symbol} className={themed('border-b border-panel-border', dk)}>
+                              <td className={themed('py-1 pr-3 text-white/50', dk)}>{i+1}</td>
                               <td className="py-1 pr-3 font-bold">{t.symbol}</td>
                               <td className="py-1 pr-3 text-right">
                                 {t.beat_count != null && t.earnings_quarters != null
@@ -2894,7 +2894,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                                   : '—'}
                               </td>
                               <td className={`py-1 pr-3 text-right font-bold ${beatColor}`}>{t.beat_rate != null ? t.beat_rate+'%' : '—'}</td>
-                              <td className={themed('py-1 pr-3 text-text-muted', dk)}>{t.analyst_rating ?? '—'}</td>
+                              <td className={themed('py-1 pr-3 text-white/50', dk)}>{t.analyst_rating ?? '—'}</td>
                               <td className={`py-1 pr-3 text-right font-bold ${insiderColor}`}>{t.insider_sentiment != null ? t.insider_sentiment.toFixed(1) : '—'}</td>
                               <td className={`py-1 pr-3 text-right font-bold ${newsColor}`}>{t.news_sentiment != null ? t.news_sentiment.toFixed(1) : '—'}</td>
                               <td className="py-1 pr-3 text-right">{t.institutional_holders != null ? t.institutional_holders.toLocaleString() : '—'}</td>
@@ -2905,7 +2905,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                                   ? 'text-brand-gold'
                                   : t.earnings_quality_letter != null
                                   ? 'text-brand-red'
-                                  : 'text-text-muted'
+                                  : 'text-white/50'
                               }`, dk)}>
                                 {t.earnings_quality_letter != null && t.earnings_quality_score != null
                                   ? `${t.earnings_quality_letter} (${t.earnings_quality_score.toFixed(2)})`
@@ -2913,14 +2913,14 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                               </td>
                               <td className="py-1 pr-3 text-right">{t.pe_ratio != null ? t.pe_ratio.toFixed(1) : '—'}</td>
                               <td className="py-1 pr-3 text-right">{t.ebitda_estimate_count != null ? t.ebitda_estimate_count : '—'}</td>
-                              <td className={themed('py-1 pr-3 text-text-muted', dk)}>{t.next_ex_date ?? '—'}</td>
+                              <td className={themed('py-1 pr-3 text-white/50', dk)}>{t.next_ex_date ?? '—'}</td>
                               <td className="py-1 pr-3 text-right">{t.week52_high != null ? t.week52_high.toFixed(2) : '—'}</td>
                               <td className="py-1 pr-3 text-right">{t.week52_low != null ? t.week52_low.toFixed(2) : '—'}</td>
                               <td className="py-1 pr-3 text-left text-[10px]">{t.top_fund != null ? t.top_fund.slice(0, 12) : '—'}</td>
-                              <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>Finnhub</td>
-                              <td className={themed('py-1 pr-3 text-text-muted text-[10px] max-w-[180px] truncate', dk)}>earnings·recommendation·insider-sentiment·news-sentiment·ownership·earnings-quality·metric·ebitda-estimate·dividend·fund-ownership</td>
-                              <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>{gFetchedTime}</td>
-                              <td className={themed('py-1 text-right text-text-muted text-[10px]', dk)}>{gAgeSec}</td>
+                              <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>Finnhub</td>
+                              <td className={themed('py-1 pr-3 text-white/50 text-[10px] max-w-[180px] truncate', dk)}>earnings·recommendation·insider-sentiment·news-sentiment·ownership·earnings-quality·metric·ebitda-estimate·dividend·fund-ownership</td>
+                              <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{gFetchedTime}</td>
+                              <td className={themed('py-1 text-right text-white/50 text-[10px]', dk)}>{gAgeSec}</td>
                             </tr>
                           );
                         })}
@@ -2932,7 +2932,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                   <div className="overflow-x-auto overflow-y-auto mt-3" style={{maxHeight: '200px'}}>
                     <table className="text-xs whitespace-nowrap">
                       <thead>
-                        <tr className={themed('text-text-muted border-b border-border sticky top-0 bg-bg-card', dk)}>
+                        <tr className={themed('text-white/50 border-b border-panel-border sticky top-0 bg-white/5', dk)}>
                           <th className="text-left py-1 pr-3">#</th>
                           <th className="text-left py-1 pr-3">SYMBOL</th>
                           <th className="text-right py-1 pr-3">8-K<br/><span className="font-normal text-[9px]">30d</span></th>
@@ -2944,14 +2944,14 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       </thead>
                       <tbody>
                         {tickers.map((t: any, i: number) => (
-                          <tr key={t.symbol} className={themed('border-b border-border/50', dk)}>
-                            <td className={themed('py-1 pr-3 text-text-muted', dk)}>{i+1}</td>
+                          <tr key={t.symbol} className={themed('border-b border-panel-border', dk)}>
+                            <td className={themed('py-1 pr-3 text-white/50', dk)}>{i+1}</td>
                             <td className="py-1 pr-3 font-bold">{t.symbol}</td>
-                            <td className={themed(`py-1 pr-3 text-right font-bold ${t.edgar_8k_count != null && t.edgar_8k_count > 0 ? 'text-brand-red' : themed('text-text-muted', dk)}`, dk)}>{t.edgar_8k_count != null ? t.edgar_8k_count : '—'}</td>
-                            <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>SEC EDGAR</td>
-                            <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>EFTS /search-index</td>
-                            <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>{gFetchedTime}</td>
-                            <td className={themed('py-1 text-right text-text-muted text-[10px]', dk)}>{gAgeSec}</td>
+                            <td className={themed(`py-1 pr-3 text-right font-bold ${t.edgar_8k_count != null && t.edgar_8k_count > 0 ? 'text-brand-red' : themed('text-white/50', dk)}`, dk)}>{t.edgar_8k_count != null ? t.edgar_8k_count : '—'}</td>
+                            <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>SEC EDGAR</td>
+                            <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>EFTS /search-index</td>
+                            <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{gFetchedTime}</td>
+                            <td className={themed('py-1 text-right text-white/50 text-[10px]', dk)}>{gAgeSec}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -2965,35 +2965,35 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step J — Candle Data & Cross-Asset Correlations */}
-      <div className={themed('border-b border-border', dk)}>
-        <div className={themed('px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row', dk)} onClick={() => toggle('step_j')}>
+      <div className={themed('border-b border-panel-border', dk)}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_j')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP J</span>
-            <span className={themed('text-text-secondary', dk)}>Candle Data &amp; Cross-Asset Correlations</span>
+            <span className={chip('accent')}>STEP J</span>
+            <span className={themed('text-white/70', dk)}>Candle Data &amp; Cross-Asset Correlations</span>
             {progress?.step_j?.data ? (
-              <span className="text-brand-green">{progress.step_j.data.symbols_with_data} of {progress.step_j.data.symbols_requested} symbols have candle data</span>
+              <span className={chip('success')}>{progress.step_j.data.symbols_with_data} of {progress.step_j.data.symbols_requested} symbols have candle data</span>
             ) : (
-              <span className={themed('text-text-muted animate-pulse', dk)}>waiting...</span>
+              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
             )}
           </div>
-          <span className={themed('text-text-muted', dk)}>{expanded['step_j'] ? '▲' : '▼'}</span>
+          <span className={themed('text-white/50', dk)}>{expanded['step_j'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_j'] && progress?.step_j?.data && (
-          <div className={themed('border-t border-border bg-bg-row p-3', dk)}>
+          <div className={themed('border-t border-panel-border bg-white/5 p-3', dk)}>
             <div className="text-xs space-y-3 mb-4">
-              <p className={themed('text-text-muted italic text-xs', dk)}>
+              <p className={EXPLAINER}>
                 Step J fetches price history for every finalist. This candle data powers the technical indicators in Step L and the realized volatility cone on the trade card. Cross-asset correlations are also computed here and feed into the Regime gate.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-border', dk)}>
+                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>DATA POINT</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>SOURCE</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHEN APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHERE APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHY</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>HOW / VALUE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3002,19 +3002,19 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Cross-asset correlations', 'FRED daily series', 'Step J computation', 'Step K Regime gate cluster modifier', 'Correlation cluster tells us whether markets are risk-on or risk-off right now', 'Adjusts Regime gate score up or down based on cluster signal'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{dp}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{src}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{when}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{where}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{why}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{how}</td>
+                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
-            <p className={themed('text-text-muted text-xs font-bold mb-1', dk)}>
+            <p className={themed('text-white/50 text-xs font-bold mb-1', dk)}>
               {progress.step_j.data.total_candles} CANDLES — {progress.step_j.data.symbols_with_data}/{progress.step_j.data.symbols_requested} SYMBOLS — {progress.step_j.data.elapsed_ms}ms
               {progress.step_j.data.symbols_failed > 0 && (
                 <span className="text-brand-red ml-2">⚠ {progress.step_j.data.symbols_failed} FAILED</span>
@@ -3035,7 +3035,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
                   <table className="w-full text-xs whitespace-nowrap">
                     <thead>
-                      <tr className={themed('text-text-muted border-b border-border sticky top-0 bg-bg-card', dk)}>
+                      <tr className={themed('text-white/50 border-b border-panel-border sticky top-0 bg-white/5', dk)}>
                         <th className="text-left py-1 pr-3">#</th>
                         <th className="text-left py-1 pr-3">SYMBOL</th>
                         <th className="text-right py-1 pr-3">CANDLES</th>
@@ -3047,14 +3047,14 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                     </thead>
                     <tbody>
                       {candlesPerSymbol.map((c: any, i: number) => (
-                        <tr key={c.symbol} className={themed('border-b border-border/50', dk)}>
-                          <td className={themed('py-1 pr-3 text-text-muted', dk)}>{i+1}</td>
+                        <tr key={c.symbol} className={themed('border-b border-panel-border', dk)}>
+                          <td className={themed('py-1 pr-3 text-white/50', dk)}>{i+1}</td>
                           <td className="py-1 pr-3 font-bold">{c.symbol}</td>
-                          <td className={themed(`py-1 pr-3 text-right font-bold ${c.candle_count != null && c.candle_count > 0 ? 'text-brand-green' : themed('text-text-muted', dk)}`, dk)}>{c.candle_count != null ? c.candle_count : '—'}</td>
-                          <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>{c.source}</td>
-                          <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>{c.endpoint}</td>
-                          <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>{jFetchedTime}</td>
-                          <td className={themed('py-1 text-right text-text-muted text-[10px]', dk)}>{jAgeSec}</td>
+                          <td className={themed(`py-1 pr-3 text-right font-bold ${c.candle_count != null && c.candle_count > 0 ? 'text-brand-green' : themed('text-white/50', dk)}`, dk)}>{c.candle_count != null ? c.candle_count : '—'}</td>
+                          <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{c.source}</td>
+                          <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{c.endpoint}</td>
+                          <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{jFetchedTime}</td>
+                          <td className={themed('py-1 text-right text-white/50 text-[10px]', dk)}>{jAgeSec}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -3064,8 +3064,8 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
             })()}
 
             {/* Section 2 — Cross-asset correlations */}
-            <div className={themed('mt-3 p-2 bg-bg-card rounded border border-border', dk)}>
-              <p className={themed('text-text-muted text-xs font-bold mb-1', dk)}>CROSS-ASSET CORRELATIONS</p>
+            <div className={themed('mt-3 p-2 bg-white/5 rounded border border-panel-border', dk)}>
+              <p className={themed('text-white/50 text-xs font-bold mb-1', dk)}>CROSS-ASSET CORRELATIONS</p>
               {progress.step_j.data.cross_asset_correlations?.available ? (
                 <p className="text-xs text-brand-green">
                   Available — Source: {progress.step_j.data.cross_asset_correlations.source} | Endpoint: {progress.step_j.data.cross_asset_correlations.endpoint}
@@ -3081,35 +3081,35 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step K — 4-Gate Scoring */}
-      <div className={themed('border-b border-border', dk)}>
-        <div className={themed('px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row', dk)} onClick={() => toggle('step_k')}>
+      <div className={themed('border-b border-panel-border', dk)}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_k')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP K</span>
-            <span className={themed('text-text-secondary', dk)}>4-Gate Scoring</span>
+            <span className={chip('accent')}>STEP K</span>
+            <span className={themed('text-white/70', dk)}>4-Gate Scoring</span>
             {(ps?.scored != null || progress?.step_k) ? (
-              <span className="text-brand-green">{ps?.scored ?? progress?.step_k?.data?.scored ?? 0} tickers scored</span>
+              <span className={chip('success')}>{ps?.scored ?? progress?.step_k?.data?.scored ?? 0} tickers scored</span>
             ) : (
-              <span className={themed('text-text-muted animate-pulse', dk)}>waiting...</span>
+              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
             )}
           </div>
-          <span className={themed('text-text-muted', dk)}>{expanded['step_k'] ? '▲' : '▼'}</span>
+          <span className={themed('text-white/50', dk)}>{expanded['step_k'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_k'] && (
-          <div className={themed('border-t border-border bg-bg-row p-3', dk)}>
+          <div className={themed('border-t border-panel-border bg-white/5 p-3', dk)}>
             <div className="text-xs space-y-3 mb-4">
-              <p className={themed('text-text-muted italic text-xs', dk)}>
+              <p className={EXPLAINER}>
                 Step K scores every finalist 0 to 100 across four independent gates. Each gate looks at the stock from a completely different angle. The final score is a weighted average of all four. The weights shift based on the current macro regime.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-border', dk)}>
+                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>DATA POINT</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>SOURCE</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHEN APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHERE APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHY</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>HOW / VALUE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3122,25 +3122,25 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Convergence requirement', 'Computed', 'Step K output', 'Step M final selection', '3 of 4 gates must score above 50. One strong gate is not enough', 'Enforces multi-dimensional agreement before any trade signal is produced'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{dp}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{src}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{when}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{where}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{why}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{how}</td>
+                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
-            <p className={themed('text-text-muted text-xs font-bold mb-1', dk)}>
+            <p className={themed('text-white/50 text-xs font-bold mb-1', dk)}>
               {progress?.step_k?.data?.scored ?? '—'} TICKERS SCORED — 4-GATE MATRIX
             </p>
             <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
               <table className="w-full text-xs whitespace-nowrap">
                 <thead>
-                  <tr className={themed('text-text-muted border-b border-border sticky top-0 bg-bg-card', dk)}>
+                  <tr className={themed('text-white/50 border-b border-panel-border sticky top-0 bg-white/5', dk)}>
                     <th className="text-left py-1 pr-3">RANK</th>
                     <th className="text-left py-1 pr-3">SYMBOL</th>
                     <th className="text-right py-1 pr-3">VOL EDGE<br/><span className="font-normal text-[9px]">{(progress?.step_k?.data?.weights as any)?.vol_edge ?? 25}% weight</span></th>
@@ -3179,34 +3179,34 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                     const eligible = r.selection_status === 'eligible';
                     return (
                       <React.Fragment key={r.symbol}>
-                      <tr className={themed(`border-b border-border/50 cursor-pointer ${!eligible ? 'opacity-60' : ''}`, dk)} onClick={() => setHDrillDown(prev => ({ ...prev, [r.symbol]: !prev[r.symbol] }))}>
-                        <td className={themed('py-1 pr-3 text-text-muted', dk)}>#{i+1}</td>
-                        <td className={themed(`py-1 pr-3 font-bold ${eligible ? 'text-brand-green' : themed('text-text-muted', dk)}`, dk)}>{r.symbol}</td>
+                      <tr className={themed(`border-b border-panel-border cursor-pointer ${!eligible ? 'opacity-60' : ''}`, dk)} onClick={() => setHDrillDown(prev => ({ ...prev, [r.symbol]: !prev[r.symbol] }))}>
+                        <td className={themed('py-1 pr-3 text-white/50', dk)}>#{i+1}</td>
+                        <td className={themed(`py-1 pr-3 font-bold ${eligible ? 'text-brand-green' : themed('text-white/50', dk)}`, dk)}>{r.symbol}</td>
                         <td className={`py-1 pr-3 text-right ${gateColor(r.vol_edge)}`}>{r.vol_edge}</td>
                         <td className={`py-1 pr-3 text-right ${gateColor(r.quality)}`}>{r.quality}</td>
                         <td className={`py-1 pr-3 text-right ${gateColor(r.regime)}`}>{r.regime}</td>
                         <td className={`py-1 pr-3 text-right ${gateColor(r.info_edge)}`}>{r.info_edge}</td>
                         <td className={`py-1 pr-3 text-right font-bold ${gatesAbove50 >= 3 ? 'text-brand-green' : gatesAbove50 === 2 ? 'text-brand-gold' : 'text-brand-red'}`}>{gatesAbove50}/4</td>
-                        <td className={themed('py-1 pr-3 text-text-muted font-mono text-[10px]', dk)}>({r.vol_edge}×{w.vol_edge}%) + ({r.quality}×{w.quality}%) + ({r.regime}×{w.regime}%) + ({r.info_edge}×{w.info_edge}%) = {veC}+{qC}+{rC}+{ieC}</td>
-                        <td className={themed(`py-1 pr-3 text-right font-bold ${r.composite >= 60 ? 'text-brand-green' : r.composite >= 50 ? 'text-brand-gold' : themed('text-text-muted', dk)}`, dk)}>{r.composite}</td>
+                        <td className={themed('py-1 pr-3 text-white/50 font-mono text-[10px]', dk)}>({r.vol_edge}×{w.vol_edge}%) + ({r.quality}×{w.quality}%) + ({r.regime}×{w.regime}%) + ({r.info_edge}×{w.info_edge}%) = {veC}+{qC}+{rC}+{ieC}</td>
+                        <td className={themed(`py-1 pr-3 text-right font-bold ${r.composite >= 60 ? 'text-brand-green' : r.composite >= 50 ? 'text-brand-gold' : themed('text-white/50', dk)}`, dk)}>{r.composite}</td>
                         <td className={`py-1 pr-3 ${eligible ? 'text-brand-green' : 'text-brand-red'}`}>{eligible ? `✓ ${gatesAbove50}/4 gates — eligible` : `✗ ${gatesAbove50}/4 gates — needs 3`}</td>
-                        <td className={themed('py-1 pr-3 text-right text-text-muted', dk)}>{r.data_confidence != null ? (r.data_confidence * 100).toFixed(0) + '%' : '—'}</td>
-                        <td className={themed('py-1 pr-3 text-right text-text-muted', dk)}>{r.position_size_pct != null ? r.position_size_pct + '%' : '—'}</td>
-                        <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>{hFetchedTime}</td>
-                        <td className={themed('py-1 pr-3 text-right text-text-muted text-[10px]', dk)}>{hAgeSec}</td>
-                        <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>Steps A–J</td>
-                        <td className={themed('py-1 text-text-muted text-[10px]', dk)}>Composite — see Steps A–J</td>
+                        <td className={themed('py-1 pr-3 text-right text-white/50', dk)}>{r.data_confidence != null ? (r.data_confidence * 100).toFixed(0) + '%' : '—'}</td>
+                        <td className={themed('py-1 pr-3 text-right text-white/50', dk)}>{r.position_size_pct != null ? r.position_size_pct + '%' : '—'}</td>
+                        <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{hFetchedTime}</td>
+                        <td className={themed('py-1 pr-3 text-right text-white/50 text-[10px]', dk)}>{hAgeSec}</td>
+                        <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>Steps A–J</td>
+                        <td className={themed('py-1 text-white/50 text-[10px]', dk)}>Composite — see Steps A–J</td>
                       </tr>
                       {hDrillDown[r.symbol] && (
                         <tr key={r.symbol + '_drill'}>
-                          <td colSpan={16} className={themed('py-2 px-3 bg-bg-card border-b border-border', dk)}>
+                          <td colSpan={16} className={themed('py-2 px-3 bg-white/5 border-b border-panel-border', dk)}>
                             <div className="grid grid-cols-4 gap-3 text-xs">
                               {/* VOL EDGE */}
                               <div>
-                                <p className="text-brand-purple font-bold mb-1">VOL EDGE {r.vol_edge}<span className={themed('text-text-muted font-normal ml-1', dk)}>— TastyTrade + Candles</span></p>
+                                <p className="text-brand-purple-pop font-bold mb-1">VOL EDGE {r.vol_edge}<span className={themed('text-white/50 font-normal ml-1', dk)}>— TastyTrade + Candles</span></p>
                                 {r.vol_edge_detail && (
                                   <table className="w-full text-[10px]">
-                                    <thead><tr className={themed('text-text-muted border-b border-border', dk)}><th className="text-left py-0.5">COMPONENT</th><th className="text-right py-0.5">SCORE</th><th className="text-right py-0.5">WEIGHT</th><th className="text-right py-0.5">CONTRIB</th></tr></thead>
+                                    <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}><th className="text-left py-0.5">COMPONENT</th><th className="text-right py-0.5">SCORE</th><th className="text-right py-0.5">WEIGHT</th><th className="text-right py-0.5">CONTRIB</th></tr></thead>
                                     <tbody>
                                       {[
                                         ['Mispricing', r.vol_edge_detail.mispricing],
@@ -3215,24 +3215,24 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                                         ['Skew', r.vol_edge_detail.skew],
                                         ['GEX', r.vol_edge_detail.gex],
                                       ].map(([name, d]: any) => (
-                                        <tr key={name} className={themed('border-b border-border/30', dk)}>
-                                          <td className={themed('py-0.5 text-text-secondary', dk)}>{name}</td>
+                                        <tr key={name} className={themed('border-b border-panel-border/30', dk)}>
+                                          <td className={themed('py-0.5 text-white/70', dk)}>{name}</td>
                                           <td className="py-0.5 text-right">{d.score}</td>
-                                          <td className={themed('py-0.5 text-right text-text-muted', dk)}>{(d.weight * 100).toFixed(0)}%</td>
+                                          <td className={themed('py-0.5 text-right text-white/50', dk)}>{(d.weight * 100).toFixed(0)}%</td>
                                           <td className="py-0.5 text-right text-brand-gold">{(d.score * d.weight).toFixed(1)}</td>
                                         </tr>
                                       ))}
                                     </tbody>
                                   </table>
                                 )}
-                                <p className={themed('text-text-muted mt-1', dk)}>Conf: {r.vol_edge_detail ? (r.vol_edge_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.vol_edge_detail?.active_signal_count != null ? ` · computed from ${r.vol_edge_detail.active_signal_count}/${r.vol_edge_detail.total_signal_count} signals` : ''}</p>
+                                <p className={themed('text-white/50 mt-1', dk)}>Conf: {r.vol_edge_detail ? (r.vol_edge_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.vol_edge_detail?.active_signal_count != null ? ` · computed from ${r.vol_edge_detail.active_signal_count}/${r.vol_edge_detail.total_signal_count} signals` : ''}</p>
                               </div>
                               {/* QUALITY */}
                               <div>
-                                <p className="text-brand-purple font-bold mb-1">QUALITY {r.quality}<span className={themed('text-text-muted font-normal ml-1', dk)}>— Finnhub</span></p>
+                                <p className="text-brand-purple-pop font-bold mb-1">QUALITY {r.quality}<span className={themed('text-white/50 font-normal ml-1', dk)}>— Finnhub</span></p>
                                 {r.quality_detail && (
                                   <table className="w-full text-[10px]">
-                                    <thead><tr className={themed('text-text-muted border-b border-border', dk)}><th className="text-left py-0.5">COMPONENT</th><th className="text-right py-0.5">SCORE</th><th className="text-right py-0.5">WEIGHT</th><th className="text-right py-0.5">CONTRIB</th></tr></thead>
+                                    <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}><th className="text-left py-0.5">COMPONENT</th><th className="text-right py-0.5">SCORE</th><th className="text-right py-0.5">WEIGHT</th><th className="text-right py-0.5">CONTRIB</th></tr></thead>
                                     <tbody>
                                       {[
                                         ['Safety', r.quality_detail.safety],
@@ -3240,61 +3240,61 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                                         ['Growth', r.quality_detail.growth],
                                         ['Fund. Risk', r.quality_detail.fundamental_risk],
                                       ].map(([name, d]: any) => (
-                                        <tr key={name} className={themed('border-b border-border/30', dk)}>
-                                          <td className={themed('py-0.5 text-text-secondary', dk)}>{name}</td>
+                                        <tr key={name} className={themed('border-b border-panel-border/30', dk)}>
+                                          <td className={themed('py-0.5 text-white/70', dk)}>{name}</td>
                                           <td className="py-0.5 text-right">{d.score}</td>
-                                          <td className={themed('py-0.5 text-right text-text-muted', dk)}>{(d.weight * 100).toFixed(0)}%</td>
+                                          <td className={themed('py-0.5 text-right text-white/50', dk)}>{(d.weight * 100).toFixed(0)}%</td>
                                           <td className="py-0.5 text-right text-brand-gold">{(d.score * d.weight).toFixed(1)}</td>
                                         </tr>
                                       ))}
                                       {r.quality_detail.mspr_adjustment !== 0 && (
-                                        <tr className={themed('border-b border-border/30', dk)}>
-                                          <td className={themed('py-0.5 text-text-muted', dk)} colSpan={3}>MSPR adj</td>
+                                        <tr className={themed('border-b border-panel-border/30', dk)}>
+                                          <td className={themed('py-0.5 text-white/50', dk)} colSpan={3}>MSPR adj</td>
                                           <td className={`py-0.5 text-right ${r.quality_detail.mspr_adjustment > 0 ? 'text-brand-green' : 'text-brand-red'}`}>{r.quality_detail.mspr_adjustment > 0 ? '+' : ''}{r.quality_detail.mspr_adjustment}</td>
                                         </tr>
                                       )}
                                     </tbody>
                                   </table>
                                 )}
-                                <p className={themed('text-text-muted mt-1', dk)}>Conf: {r.quality_detail ? (r.quality_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.quality_detail?.active_signal_count != null ? ` · computed from ${r.quality_detail.active_signal_count}/${r.quality_detail.total_signal_count} signals` : ''}</p>
+                                <p className={themed('text-white/50 mt-1', dk)}>Conf: {r.quality_detail ? (r.quality_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.quality_detail?.active_signal_count != null ? ` · computed from ${r.quality_detail.active_signal_count}/${r.quality_detail.total_signal_count} signals` : ''}</p>
                               </div>
                               {/* REGIME */}
                               <div>
-                                <p className="text-brand-purple font-bold mb-1">REGIME {r.regime}<span className={themed('text-text-muted font-normal ml-1', dk)}>— FRED</span></p>
+                                <p className="text-brand-purple-pop font-bold mb-1">REGIME {r.regime}<span className={themed('text-white/50 font-normal ml-1', dk)}>— FRED</span></p>
                                 {r.regime_detail && (
                                   <table className="w-full text-[10px]">
                                     <tbody>
-                                      <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>Regime</td><td className="py-0.5 text-right font-bold">{r.regime_detail.dominant_regime}</td></tr>
-                                      <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>Growth Signal</td><td className="py-0.5 text-right">{r.regime_detail.growth_score}</td></tr>
-                                      <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>Inflation Signal</td><td className="py-0.5 text-right">{r.regime_detail.inflation_score}</td></tr>
-                                      <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>SPY Multiplier</td><td className="py-0.5 text-right">{r.regime_detail.spy_multiplier}</td></tr>
-                                      <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>Base → Final</td><td className="py-0.5 text-right">{r.regime_detail.base_score} → {r.regime}</td></tr>
-                                      <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>VIX</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.vix ?? '—'}</td></tr>
-                                      <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>GDP</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.gdp ?? '—'}</td></tr>
-                                      <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>CPI YoY</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.cpi_yoy ?? '—'}</td></tr>
-                                      <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>Fed Funds</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.fed_funds ?? '—'}</td></tr>
-                                      <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>Yield Curve Spread</td><td className="py-0.5 text-right">{r.regime_detail.yield_curve_spread ?? '—'}</td></tr>
-                                      <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>HY Spread</td><td className="py-0.5 text-right">{r.regime_detail.hy_spread ?? '—'}</td></tr>
-                                      <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>Cross-Asset Corr</td><td className="py-0.5 text-right">{r.regime_detail.cross_asset_available ? 'Available' : '—'}</td></tr>
-                                      <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>BBB Spread</td><td className="py-0.5 text-right">{r.regime_detail.bbb_spread_raw != null ? `${r.regime_detail.bbb_spread_raw}%` : '—'} → score {r.regime_detail.bbb_spread ?? '—'}</td></tr>
-                                      <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>T10Y3M</td><td className="py-0.5 text-right">{r.regime_detail.t10y3m_raw != null ? `${r.regime_detail.t10y3m_raw}%` : '—'} → score {r.regime_detail.t10y3m ?? '—'}</td></tr>
-                                      <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>Dollar Index</td><td className="py-0.5 text-right">{r.regime_detail.dollar_index_raw ?? '—'} → score {r.regime_detail.dollar_index ?? '—'}</td></tr>
-                                      <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>Fed Net Liquidity</td><td className="py-0.5 text-right">{r.regime_detail.fed_net_liquidity_raw != null ? `$${r.regime_detail.fed_net_liquidity_raw}B` : '—'} → score {r.regime_detail.fed_net_liquidity ?? '—'}</td></tr>
+                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Regime</td><td className="py-0.5 text-right font-bold">{r.regime_detail.dominant_regime}</td></tr>
+                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Growth Signal</td><td className="py-0.5 text-right">{r.regime_detail.growth_score}</td></tr>
+                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Inflation Signal</td><td className="py-0.5 text-right">{r.regime_detail.inflation_score}</td></tr>
+                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>SPY Multiplier</td><td className="py-0.5 text-right">{r.regime_detail.spy_multiplier}</td></tr>
+                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Base → Final</td><td className="py-0.5 text-right">{r.regime_detail.base_score} → {r.regime}</td></tr>
+                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>VIX</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.vix ?? '—'}</td></tr>
+                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>GDP</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.gdp ?? '—'}</td></tr>
+                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>CPI YoY</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.cpi_yoy ?? '—'}</td></tr>
+                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Fed Funds</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.fed_funds ?? '—'}</td></tr>
+                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Yield Curve Spread</td><td className="py-0.5 text-right">{r.regime_detail.yield_curve_spread ?? '—'}</td></tr>
+                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>HY Spread</td><td className="py-0.5 text-right">{r.regime_detail.hy_spread ?? '—'}</td></tr>
+                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Cross-Asset Corr</td><td className="py-0.5 text-right">{r.regime_detail.cross_asset_available ? 'Available' : '—'}</td></tr>
+                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>BBB Spread</td><td className="py-0.5 text-right">{r.regime_detail.bbb_spread_raw != null ? `${r.regime_detail.bbb_spread_raw}%` : '—'} → score {r.regime_detail.bbb_spread ?? '—'}</td></tr>
+                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>T10Y3M</td><td className="py-0.5 text-right">{r.regime_detail.t10y3m_raw != null ? `${r.regime_detail.t10y3m_raw}%` : '—'} → score {r.regime_detail.t10y3m ?? '—'}</td></tr>
+                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Dollar Index</td><td className="py-0.5 text-right">{r.regime_detail.dollar_index_raw ?? '—'} → score {r.regime_detail.dollar_index ?? '—'}</td></tr>
+                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Fed Net Liquidity</td><td className="py-0.5 text-right">{r.regime_detail.fed_net_liquidity_raw != null ? `$${r.regime_detail.fed_net_liquidity_raw}B` : '—'} → score {r.regime_detail.fed_net_liquidity ?? '—'}</td></tr>
                                       {/* EDGE-6: wired vol-regime conditioners + survival brake */}
-                                      <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>VIX/VIX3M (wired)</td><td className="py-0.5 text-right">{r.regime_detail.vix_term_structure_raw ?? '—'} → score {r.regime_detail.vix_term_structure ?? '—'}</td></tr>
-                                      <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>VVIX (wired)</td><td className="py-0.5 text-right">{r.regime_detail.vvix_raw ?? '—'} → score {r.regime_detail.vvix ?? '—'}</td></tr>
-                                      <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>Survival Brake</td><td className={`py-0.5 text-right font-bold ${r.regime_detail.survival_brake === 'OFF' ? 'text-brand-green' : 'text-brand-red'}`} title={r.regime_detail.survival_brake_declaration ?? ''}>{r.regime_detail.survival_brake ?? '—'}</td></tr>
+                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>VIX/VIX3M (wired)</td><td className="py-0.5 text-right">{r.regime_detail.vix_term_structure_raw ?? '—'} → score {r.regime_detail.vix_term_structure ?? '—'}</td></tr>
+                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>VVIX (wired)</td><td className="py-0.5 text-right">{r.regime_detail.vvix_raw ?? '—'} → score {r.regime_detail.vvix ?? '—'}</td></tr>
+                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Survival Brake</td><td className={`py-0.5 text-right font-bold ${r.regime_detail.survival_brake === 'OFF' ? 'text-brand-green' : 'text-brand-red'}`} title={r.regime_detail.survival_brake_declaration ?? ''}>{r.regime_detail.survival_brake ?? '—'}</td></tr>
                                     </tbody>
                                   </table>
                                 )}
-                                <p className={themed('text-text-muted mt-1', dk)}>Conf: {r.regime_detail ? (r.regime_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.regime_detail?.active_signal_count != null ? ` · computed from ${r.regime_detail.active_signal_count}/${r.regime_detail.total_signal_count} signals` : ''}</p>
+                                <p className={themed('text-white/50 mt-1', dk)}>Conf: {r.regime_detail ? (r.regime_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.regime_detail?.active_signal_count != null ? ` · computed from ${r.regime_detail.active_signal_count}/${r.regime_detail.total_signal_count} signals` : ''}</p>
                               </div>
                               {/* INFO EDGE */}
                               <div>
-                                <p className="text-brand-purple font-bold mb-1">INFO EDGE {r.info_edge}<span className={themed('text-text-muted font-normal ml-1', dk)}>— Finnhub</span></p>
+                                <p className="text-brand-purple-pop font-bold mb-1">INFO EDGE {r.info_edge}<span className={themed('text-white/50 font-normal ml-1', dk)}>— Finnhub</span></p>
                                 {r.info_edge_detail && (
                                   <table className="w-full text-[10px]">
-                                    <thead><tr className={themed('text-text-muted border-b border-border', dk)}><th className="text-left py-0.5">COMPONENT</th><th className="text-right py-0.5">SCORE</th><th className="text-right py-0.5">WEIGHT</th><th className="text-right py-0.5">CONTRIB</th></tr></thead>
+                                    <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}><th className="text-left py-0.5">COMPONENT</th><th className="text-right py-0.5">SCORE</th><th className="text-right py-0.5">WEIGHT</th><th className="text-right py-0.5">CONTRIB</th></tr></thead>
                                     <tbody>
                                       {[
                                         ['Analyst', r.info_edge_detail.analyst_consensus],
@@ -3309,35 +3309,35 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                                         ['Material Event', r.info_edge_detail.material_event],
                                         ['Rec. Revision', r.info_edge_detail.recommendation_revision],
                                       ].map(([name, d]: any) => (
-                                        <tr key={name} className={themed('border-b border-border/30', dk)}>
-                                          <td className={themed('py-0.5 text-text-secondary', dk)}>{name}</td>
+                                        <tr key={name} className={themed('border-b border-panel-border/30', dk)}>
+                                          <td className={themed('py-0.5 text-white/70', dk)}>{name}</td>
                                           <td className="py-0.5 text-right">{d?.score != null ? d.score : '—'}</td>
-                                          <td className={themed('py-0.5 text-right text-text-muted', dk)}>{d?.weight != null ? (d.weight * 100).toFixed(0) + '%' : '—'}</td>
+                                          <td className={themed('py-0.5 text-right text-white/50', dk)}>{d?.weight != null ? (d.weight * 100).toFixed(0) + '%' : '—'}</td>
                                           <td className="py-0.5 text-right text-brand-gold">{d?.score != null && d?.weight != null ? (d.score * d.weight).toFixed(1) : '—'}</td>
                                         </tr>
                                       ))}
                                     </tbody>
                                   </table>
                                 )}
-                                <p className={themed('text-text-muted mt-1', dk)}>Conf: {r.info_edge_detail ? (r.info_edge_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.info_edge_detail?.active_signal_count != null ? ` · computed from ${r.info_edge_detail.active_signal_count}/${r.info_edge_detail.total_signal_count} signals` : ''}</p>
+                                <p className={themed('text-white/50 mt-1', dk)}>Conf: {r.info_edge_detail ? (r.info_edge_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.info_edge_detail?.active_signal_count != null ? ` · computed from ${r.info_edge_detail.active_signal_count}/${r.info_edge_detail.total_signal_count} signals` : ''}</p>
                                 {r.info_edge_detail?.filing_recency && (
-                                  <div className={themed('mt-1 pt-1 border-t border-border/30', dk)}>
-                                    <p className={themed('text-text-secondary font-bold', dk)}>Filing Recency</p>
+                                  <div className={themed('mt-1 pt-1 border-t border-panel-border/30', dk)}>
+                                    <p className={themed('text-white/70 font-bold', dk)}>Filing Recency</p>
                                     <table className="w-full text-[10px]">
                                       <tbody>
-                                        <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>Signal Active</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_signal_active ? 'Yes' : 'No'}</td></tr>
-                                        <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>Filing Type</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_type ?? '—'}</td></tr>
-                                        <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>Filing Age</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_age_hours != null ? r.info_edge_detail.filing_recency.filing_age_hours + 'h' : '—'}</td></tr>
-                                        <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>EPS Surprise</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.eps_surprise_pct != null ? r.info_edge_detail.filing_recency.eps_surprise_pct + '%' : '—'}</td></tr>
-                                        <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>Recency Score</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_recency_score}</td></tr>
-                                        <tr className={themed('border-b border-border/30', dk)}><td className={themed('py-0.5 text-text-secondary', dk)}>Modifier</td><td className={`py-0.5 text-right ${r.info_edge_detail.filing_recency.filing_modifier > 0 ? 'text-brand-green' : r.info_edge_detail.filing_recency.filing_modifier < 0 ? 'text-brand-red' : ''}`}>{r.info_edge_detail.filing_recency.filing_modifier > 0 ? '+' : ''}{r.info_edge_detail.filing_recency.filing_modifier}</td></tr>
+                                        <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Signal Active</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_signal_active ? 'Yes' : 'No'}</td></tr>
+                                        <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Filing Type</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_type ?? '—'}</td></tr>
+                                        <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Filing Age</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_age_hours != null ? r.info_edge_detail.filing_recency.filing_age_hours + 'h' : '—'}</td></tr>
+                                        <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>EPS Surprise</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.eps_surprise_pct != null ? r.info_edge_detail.filing_recency.eps_surprise_pct + '%' : '—'}</td></tr>
+                                        <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Recency Score</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_recency_score}</td></tr>
+                                        <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Modifier</td><td className={`py-0.5 text-right ${r.info_edge_detail.filing_recency.filing_modifier > 0 ? 'text-brand-green' : r.info_edge_detail.filing_recency.filing_modifier < 0 ? 'text-brand-red' : ''}`}>{r.info_edge_detail.filing_recency.filing_modifier > 0 ? '+' : ''}{r.info_edge_detail.filing_recency.filing_modifier}</td></tr>
                                       </tbody>
                                     </table>
                                   </div>
                                 )}
                               </div>
                             </div>
-                            <p className={themed('text-text-muted text-[10px] mt-2', dk)}>Formula: ({r.vol_edge}×{progress?.step_k?.data?.weights?.vol_edge ?? '?'}%) + ({r.quality}×{progress?.step_k?.data?.weights?.quality ?? '?'}%) + ({r.regime}×{progress?.step_k?.data?.weights?.regime ?? '?'}%) + ({r.info_edge}×{progress?.step_k?.data?.weights?.info_edge ?? '?'}%) = {r.composite}</p>
+                            <p className={themed('text-white/50 text-[10px] mt-2', dk)}>Formula: ({r.vol_edge}×{progress?.step_k?.data?.weights?.vol_edge ?? '?'}%) + ({r.quality}×{progress?.step_k?.data?.weights?.quality ?? '?'}%) + ({r.regime}×{progress?.step_k?.data?.weights?.regime ?? '?'}%) + ({r.info_edge}×{progress?.step_k?.data?.weights?.info_edge ?? '?'}%) = {r.composite}</p>
                           </td>
                         </tr>
                       )}
@@ -3353,35 +3353,35 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step L — Re-Score With Technicals */}
-      <div className={themed('border-b border-border', dk)}>
-        <div className={themed('px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row', dk)} onClick={() => toggle('step_l')}>
+      <div className={themed('border-b border-panel-border', dk)}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_l')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP L</span>
-            <span className={themed('text-text-secondary', dk)}>Re-Score With Technicals</span>
+            <span className={chip('accent')}>STEP L</span>
+            <span className={themed('text-white/70', dk)}>Re-Score With Technicals</span>
             {progress?.step_l?.data ? (
-              <span className="text-brand-green">{(progress.step_l.data as any).re_scored} of {(progress.step_l.data as any).total} tickers re-scored with candle technicals</span>
+              <span className={chip('success')}>{(progress.step_l.data as any).re_scored} of {(progress.step_l.data as any).total} tickers re-scored with candle technicals</span>
             ) : (
-              <span className={themed('text-text-muted animate-pulse', dk)}>waiting...</span>
+              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
             )}
           </div>
-          <span className={themed('text-text-muted', dk)}>{expanded['step_l'] ? '▲' : '▼'}</span>
+          <span className={themed('text-white/50', dk)}>{expanded['step_l'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_l'] && progress?.step_l?.data && (
-          <div className={themed('px-8 py-2 border-t border-border bg-bg-row', dk)}>
+          <div className={themed('px-8 py-2 border-t border-panel-border bg-white/5', dk)}>
             <div className="text-xs space-y-3 mb-4">
-              <p className={themed('text-text-muted italic text-xs', dk)}>
+              <p className={EXPLAINER}>
                 Step K scored without technical indicators because candle computation runs separately. Step L plugs them in. RSI, Bollinger Bands, moving averages, and volume ratio are computed from the Step J candle data and added to the Vol Edge gate.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-border', dk)}>
+                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>DATA POINT</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>SOURCE</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHEN APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHERE APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHY</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>HOW / VALUE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3393,12 +3393,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['52-week high ratio', 'Step A / Step I fundamentals', 'Step L computation', 'Vol Edge technicals sub-score (15% of technicals)', 'Price proximity to 52-week high is a documented momentum signal', 'Near 52-week high = elevated score'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{dp}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{src}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{when}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{where}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{why}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{how}</td>
+                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -3418,7 +3418,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
                   <table className="w-full text-xs whitespace-nowrap">
                     <thead>
-                      <tr className={themed('text-text-muted border-b border-border sticky top-0 bg-bg-card', dk)}>
+                      <tr className={themed('text-white/50 border-b border-panel-border sticky top-0 bg-white/5', dk)}>
                         <th className="text-left py-1 pr-3">#</th>
                         <th className="text-left py-1 pr-3">SYMBOL</th>
                         <th className="text-right py-1 pr-3">CANDLES</th>
@@ -3439,10 +3439,10 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                     </thead>
                     <tbody>
                       {tickers.map((t: any, i: number) => (
-                        <tr key={t.symbol} className={themed('border-b border-border/50', dk)}>
-                          <td className={themed('py-1 pr-3 text-text-muted', dk)}>{i + 1}</td>
+                        <tr key={t.symbol} className={themed('border-b border-panel-border', dk)}>
+                          <td className={themed('py-1 pr-3 text-white/50', dk)}>{i + 1}</td>
                           <td className="py-1 pr-3 font-bold">{t.symbol}</td>
-                          <td className={themed(`py-1 pr-3 text-right font-bold ${t.candles_used != null && t.candles_used > 0 ? 'text-brand-green' : themed('text-text-muted', dk)}`, dk)}>{t.candles_used ?? '—'}</td>
+                          <td className={themed(`py-1 pr-3 text-right font-bold ${t.candles_used != null && t.candles_used > 0 ? 'text-brand-green' : themed('text-white/50', dk)}`, dk)}>{t.candles_used ?? '—'}</td>
                           <td className="py-1 pr-3 text-right">{t.vol_edge_score ?? '—'}</td>
                           <td className="py-1 pr-3 text-right">{t.composite_score ?? '—'}</td>
                           <td className="py-1 pr-3 text-right">{t.technicals_score ?? '—'}</td>
@@ -3452,10 +3452,10 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                           <td className="py-1 pr-3 text-right">{t.bb_position != null ? Number(t.bb_position).toFixed(2) : '—'}</td>
                           <td className="py-1 pr-3 text-right">{t.volume_ratio != null ? Number(t.volume_ratio).toFixed(2) : '—'}</td>
                           <td className="py-1 pr-3 text-right">{t.high52w_ratio != null ? Number(t.high52w_ratio).toFixed(2) : '—'}</td>
-                          <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>{t.source}</td>
-                          <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>{t.endpoint}</td>
-                          <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>{lFetchedTime}</td>
-                          <td className={themed('py-1 text-right text-text-muted text-[10px]', dk)}>{lAgeSec}</td>
+                          <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{t.source}</td>
+                          <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{t.endpoint}</td>
+                          <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{lFetchedTime}</td>
+                          <td className={themed('py-1 text-right text-white/50 text-[10px]', dk)}>{lAgeSec}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -3468,35 +3468,35 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step M — Final Selection */}
-      <div className={themed('border-b border-border', dk)}>
-        <div className={themed('px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row', dk)} onClick={() => toggle('step_m')}>
+      <div className={themed('border-b border-panel-border', dk)}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_m')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP M</span>
-            <span className={themed('text-text-secondary', dk)}>Final Selection</span>
+            <span className={chip('accent')}>STEP M</span>
+            <span className={themed('text-white/70', dk)}>Final Selection</span>
             {progress?.step_m?.data ? (
-              <span className="text-brand-green">{(progress.step_m.data as any).selected} of {(progress.step_m.data as any).total_scored} tickers selected</span>
+              <span className={chip('success')}>{(progress.step_m.data as any).selected} of {(progress.step_m.data as any).total_scored} tickers selected</span>
             ) : (
-              <span className={themed('text-text-muted animate-pulse', dk)}>waiting...</span>
+              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
             )}
           </div>
-          <span className={themed('text-text-muted', dk)}>{expanded['step_m'] ? '▲' : '▼'}</span>
+          <span className={themed('text-white/50', dk)}>{expanded['step_m'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_m'] && progress?.step_m?.data && (
-          <div className={themed('px-8 py-2 border-t border-border bg-bg-row', dk)}>
+          <div className={themed('px-8 py-2 border-t border-panel-border bg-white/5', dk)}>
             <div className="text-xs space-y-3 mb-4">
-              <p className={themed('text-text-muted italic text-xs', dk)}>
+              <p className={EXPLAINER}>
                 Step M applies three final rules and produces the diversified set of finalists. Raw scores alone do not produce a tradeable set. Sector concentration increases correlated risk. Quality floors protect against bad setups.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-border', dk)}>
+                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>DATA POINT</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>SOURCE</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHEN APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHERE APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHY</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>HOW / VALUE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3508,12 +3508,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Adjustments log', 'Computed', 'Step M output', 'Displayed in UI', 'Full audit trail of every promotion demotion and cap relaxation', 'Every decision documented with symbol rank composite and reason'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{dp}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{src}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{when}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{where}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{why}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{how}</td>
+                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -3538,10 +3538,10 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
               return (
                 <>
                   {/* PART 1 — Sector Distribution */}
-                  <div className={themed('mb-3 p-2 bg-bg-card rounded border border-border', dk)}>
-                    <p className={themed('text-text-muted text-xs font-bold mb-1', dk)}>SECTOR DISTRIBUTION</p>
+                  <div className={themed('mb-3 p-2 bg-white/5 rounded border border-panel-border', dk)}>
+                    <p className={themed('text-white/50 text-xs font-bold mb-1', dk)}>SECTOR DISTRIBUTION</p>
                     {Object.entries(sectorDist).map(([sector, count]) => (
-                      <p key={sector} className={themed('text-xs text-text-secondary', dk)}>{sector}: {count as number}</p>
+                      <p key={sector} className={themed('text-xs text-white/70', dk)}>{sector}: {count as number}</p>
                     ))}
                   </div>
 
@@ -3549,7 +3549,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                   <div className="overflow-x-auto overflow-y-auto mb-3" style={{maxHeight: '300px'}}>
                     <table className="w-full text-xs whitespace-nowrap">
                       <thead>
-                        <tr className={themed('text-text-muted border-b border-border sticky top-0 bg-bg-card', dk)}>
+                        <tr className={themed('text-white/50 border-b border-panel-border sticky top-0 bg-white/5', dk)}>
                           <th className="text-right py-1 pr-3">RANK</th>
                           <th className="text-left py-1 pr-3">SYMBOL</th>
                           <th className="text-right py-1 pr-3">COMPOSITE</th>
@@ -3564,8 +3564,8 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       </thead>
                       <tbody>
                         {selected.map((r: any) => (
-                          <tr key={r.symbol} className={themed('border-b border-border/50', dk)}>
-                            <td className={themed('py-1 pr-3 text-right text-text-muted', dk)}>{r.rank}</td>
+                          <tr key={r.symbol} className={themed('border-b border-panel-border', dk)}>
+                            <td className={themed('py-1 pr-3 text-right text-white/50', dk)}>{r.rank}</td>
                             <td className="py-1 pr-3 font-bold">{r.symbol}</td>
                             <td className="py-1 pr-3 text-right">{r.composite ?? '—'}</td>
                             <td className="py-1 pr-3 text-right">{r.vol_edge ?? '—'}</td>
@@ -3586,7 +3586,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                     <div className="overflow-x-auto overflow-y-auto mb-3" style={{maxHeight: '300px'}}>
                       <table className="w-full text-xs whitespace-nowrap">
                         <thead>
-                          <tr className={themed('text-text-muted border-b border-border sticky top-0 bg-bg-card', dk)}>
+                          <tr className={themed('text-white/50 border-b border-panel-border sticky top-0 bg-white/5', dk)}>
                             <th className="text-left py-1 pr-3">SYMBOL</th>
                             <th className="text-right py-1 pr-3">COMPOSITE</th>
                             <th className="text-left py-1 pr-3">CONVERGENCE</th>
@@ -3598,13 +3598,13 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                         </thead>
                         <tbody>
                           {excluded.map((r: any) => (
-                            <tr key={r.symbol} className={themed('border-b border-border/50', dk)}>
+                            <tr key={r.symbol} className={themed('border-b border-panel-border', dk)}>
                               <td className="py-1 pr-3 font-bold">{r.symbol}</td>
                               <td className="py-1 pr-3 text-right">{r.composite ?? '—'}</td>
                               <td className="py-1 pr-3">{r.convergence ?? '—'}</td>
                               <td className="py-1 pr-3 text-right">{r.quality ?? '—'}</td>
                               <td className="py-1 pr-3">{r.sector ?? '—'}</td>
-                              <td className={themed('py-1 pr-3 text-text-muted text-[10px]', dk)}>{r.reason}</td>
+                              <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{r.reason}</td>
                               <td className="py-1 text-brand-red font-bold">✗ EXCLUDED</td>
                             </tr>
                           ))}
@@ -3615,10 +3615,10 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
                   {/* PART 4 — Adjustments Log */}
                   {adjustments.length > 0 && (
-                    <div className={themed('p-2 bg-bg-card rounded border border-border', dk)}>
-                      <p className={themed('text-text-muted text-xs font-bold mb-1', dk)}>ADJUSTMENTS LOG</p>
+                    <div className={themed('p-2 bg-white/5 rounded border border-panel-border', dk)}>
+                      <p className={themed('text-white/50 text-xs font-bold mb-1', dk)}>ADJUSTMENTS LOG</p>
                       {adjustments.map((adj: string, i: number) => (
-                        <p key={i} className={themed('text-[10px] text-text-muted', dk)}>{adj}</p>
+                        <p key={i} className={themed('text-[10px] text-white/50', dk)}>{adj}</p>
                       ))}
                     </div>
                   )}
@@ -3630,35 +3630,35 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step N — Chain Fetch */}
-      <div className={themed('border-b border-border', dk)}>
-        <div className={themed('px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row', dk)} onClick={() => toggle('step_n')}>
+      <div className={themed('border-b border-panel-border', dk)}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_n')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP N</span>
-            <span className={themed('text-text-secondary', dk)}>Chain Fetch</span>
+            <span className={chip('accent')}>STEP N</span>
+            <span className={themed('text-white/70', dk)}>Chain Fetch</span>
             {jData ? (
-              <span className="text-brand-green">{jData.totalStrikes} strikes fetched across {jData.tickers?.length ?? 0} tickers — {jData.greeksEvents} Greeks events received</span>
+              <span className={chip('success')}>{jData.totalStrikes} strikes fetched across {jData.tickers?.length ?? 0} tickers — {jData.greeksEvents} Greeks events received</span>
             ) : (
-              <span className={themed('text-text-muted animate-pulse', dk)}>waiting...</span>
+              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
             )}
           </div>
-          <span className={themed('text-text-muted', dk)}>{expanded['step_n'] ? '▲' : '▼'}</span>
+          <span className={themed('text-white/50', dk)}>{expanded['step_n'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_n'] && (
-          <div className={themed('px-8 py-2 border-t border-border bg-bg-row', dk)}>
+          <div className={themed('px-8 py-2 border-t border-panel-border bg-white/5', dk)}>
             <div className="text-xs space-y-3 mb-4">
-              <p className={themed('text-text-muted italic text-xs', dk)}>
+              <p className={EXPLAINER}>
                 Step N fetches the live options chain for every finalist. Every strike, every expiration in the 15 to 60 day window. We evaluate every expiration — not just the nearest one. The expiration with the highest-scoring strategy wins.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-border', dk)}>
+                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>DATA POINT</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>SOURCE</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHEN APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHERE APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHY</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>HOW / VALUE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3668,12 +3668,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Streamer symbols', 'Converted from chain data', 'Step N output', 'Step O WebSocket subscription', 'Greeks subscription requires DXFeed format symbol strings', 'All symbols collected and passed to Step O WebSocket'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{dp}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{src}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{when}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{where}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{why}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{how}</td>
+                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -3687,7 +3687,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
               return (
               <div style={{ maxHeight: 240, overflowY: 'auto' }}>
                 <table className="w-full text-[10px]">
-                  <thead><tr className={themed('text-text-muted border-b border-border', dk)}>
+                  <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}>
                     <th className="text-left py-1 px-1">SYMBOL</th>
                     <th className="text-left py-1 px-1">EXPIRATION</th>
                     <th className="text-right py-1 px-1">DTE</th>
@@ -3703,16 +3703,16 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       const srcColor = t.priceSource === 'live' ? 'text-brand-green' : t.priceSource === 'theo' ? 'text-brand-gold' : t.priceSource === 'mixed' ? 'text-brand-blue' : 'text-brand-red';
                       const srcLabel = t.priceSource === 'theo' ? 'theo (market closed)' : (t.priceSource ?? '—');
                       return (
-                        <tr key={t.symbol} className={themed('border-b border-border/50', dk)}>
-                          <td className={themed('py-0.5 px-1 font-bold text-text-primary', dk)}>{t.symbol}</td>
-                          <td className={themed('py-0.5 px-1 text-text-secondary font-mono', dk)}>{t.expiration ?? '—'}</td>
-                          <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{t.dte ?? '—'}</td>
-                          <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{t.strikeCount ?? '—'}</td>
+                        <tr key={t.symbol} className={themed('border-b border-panel-border', dk)}>
+                          <td className={themed('py-0.5 px-1 font-bold text-white', dk)}>{t.symbol}</td>
+                          <td className={themed('py-0.5 px-1 text-white/70 font-mono', dk)}>{t.expiration ?? '—'}</td>
+                          <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.dte ?? '—'}</td>
+                          <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.strikeCount ?? '—'}</td>
                           <td className={`py-0.5 px-1 font-mono ${srcColor}`}>{srcLabel}</td>
-                          <td className={themed('py-0.5 px-1 font-mono text-text-secondary', dk)}>{t.source ?? 'TastyTrade'}</td>
-                          <td className={themed('py-0.5 px-1 font-mono text-text-secondary', dk)}>{t.endpoint ?? 'options-chain'}</td>
-                          <td className={themed('py-0.5 px-1 font-mono text-text-secondary', dk)}>{nFetchedTime}</td>
-                          <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{nAgeSec != null ? `${nAgeSec}s` : '—'}</td>
+                          <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{t.source ?? 'TastyTrade'}</td>
+                          <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{t.endpoint ?? 'options-chain'}</td>
+                          <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{nFetchedTime}</td>
+                          <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{nAgeSec != null ? `${nAgeSec}s` : '—'}</td>
                         </tr>
                       );
                     })}
@@ -3722,7 +3722,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
               );
             })()}
             {jData && (
-              <p className={themed('text-text-muted text-xs mt-3', dk)}>
+              <p className={themed('text-white/50 text-xs mt-3', dk)}>
                 {jData.streamerSymbols} streamer symbols subscribed · {jData.greeksEvents} Greeks events received
               </p>
             )}
@@ -3731,18 +3731,18 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step O — Live Greeks Subscription */}
-      <div className={themed('border-b border-border', dk)}>
-        <div className={themed('px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row', dk)} onClick={() => toggle('step_o')}>
+      <div className={themed('border-b border-panel-border', dk)}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_o')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP O</span>
-            <span className={themed('text-text-secondary', dk)}>Live Greeks Subscription</span>
+            <span className={chip('accent')}>STEP O</span>
+            <span className={themed('text-white/70', dk)}>Live Greeks Subscription</span>
             {progress?.step_o?.data ? (
-              <span className="text-brand-green">{(progress.step_o.data as any).greeks_events_received} Greeks events received across {(progress.step_o.data as any).streamer_symbols_subscribed} symbols</span>
+              <span className={chip('success')}>{(progress.step_o.data as any).greeks_events_received} Greeks events received across {(progress.step_o.data as any).streamer_symbols_subscribed} symbols</span>
             ) : (
-              <span className={themed('text-text-muted animate-pulse', dk)}>waiting...</span>
+              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
             )}
           </div>
-          <span className={themed('text-text-muted', dk)}>{expanded['step_o'] ? '▲' : '▼'}</span>
+          <span className={themed('text-white/50', dk)}>{expanded['step_o'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_o'] && progress?.step_o?.data && (() => {
           const od = progress.step_o.data as any;
@@ -3751,21 +3751,21 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
           const oAgeSec = oFetchedAt ? Math.round((Date.now() - oFetchedAt.getTime()) / 1000) : null;
           const tickers: any[] = od.tickers ?? [];
           return (
-            <div className={themed('px-8 py-2 border-t border-border bg-bg-row', dk)}>
+            <div className={themed('px-8 py-2 border-t border-panel-border bg-white/5', dk)}>
               <div className="text-xs space-y-3 mb-4">
-                <p className={themed('text-text-muted italic text-xs', dk)}>
+                <p className={EXPLAINER}>
                   Step O opens one WebSocket connection and subscribes every strike simultaneously. The system waits for the data to stabilize — no new events for 3 consecutive seconds — then closes the connection. Live Greeks power everything in Steps P and Q.
                 </p>
                 <div className="overflow-x-auto">
-                  <table className={themed('w-full border-collapse border border-border', dk)}>
+                  <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                     <thead>
                       <tr>
-                        <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>DATA POINT</th>
-                        <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>SOURCE</th>
-                        <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHEN APPLIED</th>
-                        <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHERE APPLIED</th>
-                        <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHY</th>
-                        <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>HOW / VALUE</th>
+                        <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
+                        <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
+                        <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
+                        <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
+                        <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
+                        <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -3776,12 +3776,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                         ['Market open / closed status', 'TastyTrade API', 'Step O check', 'Trade card pricing label', 'Closed market means theoretical pricing instead of live quotes', 'Market Closed label shown on trade card. Price source flagged as theo'],
                       ].map(([dp, src, when, where, why, how], i) => (
                         <tr key={i}>
-                          <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{dp}</td>
-                          <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{src}</td>
-                          <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{when}</td>
-                          <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{where}</td>
-                          <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{why}</td>
-                          <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{how}</td>
+                          <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
+                          <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
+                          <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
+                          <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
+                          <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
+                          <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -3797,7 +3797,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
               {tickers.length > 0 && (
                 <div style={{ maxHeight: 240, overflowY: 'auto' }}>
                   <table className="w-full text-[10px]">
-                    <thead><tr className={themed('text-text-muted border-b border-border', dk)}>
+                    <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}>
                       <th className="text-right py-1 px-1">#</th>
                       <th className="text-left py-1 px-1">SYMBOL</th>
                       <th className="text-right py-1 px-1">STRIKES</th>
@@ -3810,16 +3810,16 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                     </tr></thead>
                     <tbody>
                       {tickers.map((t: any, i: number) => (
-                        <tr key={t.symbol} className={themed('border-b border-border/50', dk)}>
-                          <td className={themed('py-0.5 px-1 text-right text-text-muted', dk)}>{i + 1}</td>
-                          <td className={themed('py-0.5 px-1 font-bold text-text-primary', dk)}>{t.symbol}</td>
-                          <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{t.strike_count ?? '—'}</td>
-                          <td className={themed('py-0.5 px-1 text-text-secondary font-mono', dk)}>{t.expiration ?? '—'}</td>
-                          <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{t.dte ?? '—'}</td>
-                          <td className={themed('py-0.5 px-1 font-mono text-text-secondary', dk)}>{t.source ?? 'TastyTrade'}</td>
-                          <td className={themed('py-0.5 px-1 font-mono text-text-secondary', dk)}>{t.endpoint ?? 'Greeks WebSocket'}</td>
-                          <td className={themed('py-0.5 px-1 font-mono text-text-secondary', dk)}>{oFetchedTime}</td>
-                          <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{oAgeSec != null ? `${oAgeSec}s` : '—'}</td>
+                        <tr key={t.symbol} className={themed('border-b border-panel-border', dk)}>
+                          <td className={themed('py-0.5 px-1 text-right text-white/50', dk)}>{i + 1}</td>
+                          <td className={themed('py-0.5 px-1 font-bold text-white', dk)}>{t.symbol}</td>
+                          <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.strike_count ?? '—'}</td>
+                          <td className={themed('py-0.5 px-1 text-white/70 font-mono', dk)}>{t.expiration ?? '—'}</td>
+                          <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.dte ?? '—'}</td>
+                          <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{t.source ?? 'TastyTrade'}</td>
+                          <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{t.endpoint ?? 'Greeks WebSocket'}</td>
+                          <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{oFetchedTime}</td>
+                          <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{oAgeSec != null ? `${oAgeSec}s` : '—'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -3832,35 +3832,35 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step P — Strategy Scoring */}
-      <div className={themed('border-b border-border', dk)}>
-        <div className={themed('px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row', dk)} onClick={() => toggle('step_p')}>
+      <div className={themed('border-b border-panel-border', dk)}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_p')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP P</span>
-            <span className={themed('text-text-secondary', dk)}>Strategy Scoring</span>
+            <span className={chip('accent')}>STEP P</span>
+            <span className={themed('text-white/70', dk)}>Strategy Scoring</span>
             {kData ? (
-              <span className="text-brand-green">{kData.totalPassed} strategies passed all 3 gates</span>
+              <span className={chip('success')}>{kData.totalPassed} strategies passed all 3 gates</span>
             ) : (
-              <span className={themed('text-text-muted animate-pulse', dk)}>waiting...</span>
+              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
             )}
           </div>
-          <span className={themed('text-text-muted', dk)}>{expanded['step_p'] ? '▲' : '▼'}</span>
+          <span className={themed('text-white/50', dk)}>{expanded['step_p'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_p'] && (
-          <div className={themed('px-8 py-2 border-t border-border bg-bg-row', dk)}>
+          <div className={themed('px-8 py-2 border-t border-panel-border bg-white/5', dk)}>
             <div className="text-xs space-y-3 mb-4">
-              <p className={themed('text-text-muted italic text-xs', dk)}>
+              <p className={EXPLAINER}>
                 With live Greeks in hand we build actual trade structures and run them through three quality gates. Every expiration is evaluated. The highest-scoring strategy that passes all three gates becomes the selected strategy.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-border', dk)}>
+                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>DATA POINT</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>SOURCE</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHEN APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHERE APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHY</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>HOW / VALUE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3872,12 +3872,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['xAI social sentiment', 'xAI Grok API', 'Step P fetch (parallel)', 'Trade card For/Against section', 'Real-time social signal from Reddit Twitter and financial forums', 'Bullish sentiment adds to For column. Bearish adds to Against'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{dp}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{src}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{when}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{where}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{why}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{how}</td>
+                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -3892,7 +3892,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
               return (
               <div style={{ maxHeight: 240, overflowY: 'auto' }}>
                 <table className="w-full text-[10px]">
-                  <thead><tr className={themed('text-text-muted border-b border-border', dk)}>
+                  <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}>
                     <th className="text-left py-1 px-1">SYMBOL</th>
                     <th className="text-right py-1 px-1">BUILT</th>
                     <th className="text-right py-1 px-1">GATE A ✗</th>
@@ -3908,19 +3908,19 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                   </tr></thead>
                   <tbody>
                     {kData.tickers.map((t: { symbol: string; strategiesBuilt?: number; gateAFailed?: number; gateBFailed?: number; gateCFailed?: number; strategiesPassed?: number; winner?: string | null; winnerScore?: number | null; source?: string; endpoint?: string }) => (
-                      <tr key={t.symbol} className={themed('border-b border-border/50', dk)}>
-                        <td className={themed('py-0.5 px-1 font-bold text-text-primary', dk)}>{t.symbol}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{t.strategiesBuilt ?? '—'}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{t.gateAFailed ?? 0}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{t.gateBFailed ?? 0}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{t.gateCFailed ?? 0}</td>
+                      <tr key={t.symbol} className={themed('border-b border-panel-border', dk)}>
+                        <td className={themed('py-0.5 px-1 font-bold text-white', dk)}>{t.symbol}</td>
+                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.strategiesBuilt ?? '—'}</td>
+                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.gateAFailed ?? 0}</td>
+                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.gateBFailed ?? 0}</td>
+                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.gateCFailed ?? 0}</td>
                         <td className={`py-0.5 px-1 text-right font-mono font-bold ${(t.strategiesPassed ?? 0) > 0 ? 'text-brand-green' : 'text-brand-red'}`}>{t.strategiesPassed ?? 0}</td>
                         <td className={`py-0.5 px-1 font-mono ${t.winner ? 'text-brand-green' : 'text-brand-red'}`}>{t.winner ?? 'none'}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{t.winnerScore != null ? t.winnerScore.toFixed(1) : '—'}</td>
-                        <td className={themed('py-0.5 px-1 font-mono text-text-secondary', dk)}>TastyTrade</td>
-                        <td className={themed('py-0.5 px-1 font-mono text-text-secondary', dk)}>Greeks WebSocket</td>
-                        <td className={themed('py-0.5 px-1 font-mono text-text-secondary', dk)}>{pFetchedTime}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{pAgeSec != null ? `${pAgeSec}s` : '—'}</td>
+                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.winnerScore != null ? t.winnerScore.toFixed(1) : '—'}</td>
+                        <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>TastyTrade</td>
+                        <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>Greeks WebSocket</td>
+                        <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{pFetchedTime}</td>
+                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{pAgeSec != null ? `${pAgeSec}s` : '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -3934,35 +3934,35 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
       {/* Step Q — Live Options Flow & GEX */}
       {(() => { const qData: any = progress?.step_q?.data ?? null; return (
-      <div className={themed('border-b border-border', dk)}>
-        <div className={themed('px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row', dk)} onClick={() => toggle('step_q')}>
+      <div className={themed('border-b border-panel-border', dk)}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_q')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP Q</span>
-            <span className={themed('text-text-secondary', dk)}>Live Options Flow &amp; GEX</span>
+            <span className={chip('accent')}>STEP Q</span>
+            <span className={themed('text-white/70', dk)}>Live Options Flow &amp; GEX</span>
             {qData ? (
-              <span className="text-brand-green">{qData.tickers_with_flow} tickers with live flow data</span>
+              <span className={chip('success')}>{qData.tickers_with_flow} tickers with live flow data</span>
             ) : (
-              <span className={themed('text-text-muted animate-pulse', dk)}>waiting...</span>
+              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
             )}
           </div>
-          <span className={themed('text-text-muted', dk)}>{expanded['step_q'] ? '▲' : '▼'}</span>
+          <span className={themed('text-white/50', dk)}>{expanded['step_q'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_q'] && (
-          <div className={themed('px-8 py-2 border-t border-border bg-bg-row', dk)}>
+          <div className={themed('px-8 py-2 border-t border-panel-border bg-white/5', dk)}>
             <div className="text-xs space-y-3 mb-4">
-              <p className={themed('text-text-muted italic text-xs', dk)}>
+              <p className={EXPLAINER}>
                 Step Q computes live options flow and dealer positioning from the real chain data. These signals replace the estimates used in Steps K and L when Step R re-scores.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-border', dk)}>
+                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>DATA POINT</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>SOURCE</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHEN APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHERE APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHY</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>HOW / VALUE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3974,12 +3974,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Zero-gamma flip point', 'Step Q GEX computation', 'Step Q output', 'Trade card risk flags', 'Price level where dealer hedging flips from stabilizing to destabilizing', 'Distance to flip shown on trade card'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{dp}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{src}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{when}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{where}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{why}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{how}</td>
+                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -3993,7 +3993,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
               return (
               <div style={{ maxHeight: 240, overflowY: 'auto' }}>
                 <table className="w-full text-[10px]">
-                  <thead><tr className={themed('text-text-muted border-b border-border', dk)}>
+                  <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}>
                     <th className="text-right py-1 px-1">#</th>
                     <th className="text-left py-1 px-1">SYMBOL</th>
                     <th className="text-right py-1 px-1">PCR</th>
@@ -4011,21 +4011,21 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                   </tr></thead>
                   <tbody>
                     {qData.tickers.map((t: { symbol: string; put_call_ratio?: number | null; volume_bias?: number | null; unusual_activity_ratio?: number | null; total_call_volume?: number | null; total_put_volume?: number | null; total_call_oi?: number | null; total_put_oi?: number | null; strikes_analyzed?: number | null; source?: string; endpoint?: string }, idx: number) => (
-                      <tr key={t.symbol} className={themed('border-b border-border/50', dk)}>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-text-muted', dk)}>{idx + 1}</td>
-                        <td className={themed('py-0.5 px-1 font-bold text-text-primary', dk)}>{t.symbol}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{t.put_call_ratio != null ? t.put_call_ratio.toFixed(2) : '—'}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{t.volume_bias != null ? t.volume_bias.toFixed(2) : '—'}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{t.unusual_activity_ratio != null ? t.unusual_activity_ratio.toFixed(2) : '—'}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{t.total_call_volume ?? '—'}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{t.total_put_volume ?? '—'}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{t.total_call_oi ?? '—'}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{t.total_put_oi ?? '—'}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{t.strikes_analyzed ?? '—'}</td>
-                        <td className={themed('py-0.5 px-1 font-mono text-text-secondary', dk)}>{t.source ?? '—'}</td>
-                        <td className={themed('py-0.5 px-1 font-mono text-text-secondary', dk)}>{t.endpoint ?? '—'}</td>
-                        <td className={themed('py-0.5 px-1 font-mono text-text-secondary', dk)}>{qFetchedTime}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{qAgeSec != null ? `${qAgeSec}s` : '—'}</td>
+                      <tr key={t.symbol} className={themed('border-b border-panel-border', dk)}>
+                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/50', dk)}>{idx + 1}</td>
+                        <td className={themed('py-0.5 px-1 font-bold text-white', dk)}>{t.symbol}</td>
+                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.put_call_ratio != null ? t.put_call_ratio.toFixed(2) : '—'}</td>
+                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.volume_bias != null ? t.volume_bias.toFixed(2) : '—'}</td>
+                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.unusual_activity_ratio != null ? t.unusual_activity_ratio.toFixed(2) : '—'}</td>
+                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.total_call_volume ?? '—'}</td>
+                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.total_put_volume ?? '—'}</td>
+                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.total_call_oi ?? '—'}</td>
+                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.total_put_oi ?? '—'}</td>
+                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.strikes_analyzed ?? '—'}</td>
+                        <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{t.source ?? '—'}</td>
+                        <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{t.endpoint ?? '—'}</td>
+                        <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{qFetchedTime}</td>
+                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{qAgeSec != null ? `${qAgeSec}s` : '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -4040,35 +4040,35 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
       {/* Step R — Re-Score With Live Data */}
       {(() => { const rData: any = progress?.step_r?.data ?? null; return (
-      <div className={themed('border-b border-border', dk)}>
-        <div className={themed('px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row', dk)} onClick={() => toggle('step_r')}>
+      <div className={themed('border-b border-panel-border', dk)}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_r')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP R</span>
-            <span className={themed('text-text-secondary', dk)}>Re-Score With Live Data</span>
+            <span className={chip('accent')}>STEP R</span>
+            <span className={themed('text-white/70', dk)}>Re-Score With Live Data</span>
             {rData ? (
-              <span className="text-brand-green">{rData.flow_re_scored} of {rData.total} tickers re-scored with live flow data</span>
+              <span className={chip('success')}>{rData.flow_re_scored} of {rData.total} tickers re-scored with live flow data</span>
             ) : (
-              <span className={themed('text-text-muted animate-pulse', dk)}>waiting...</span>
+              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
             )}
           </div>
-          <span className={themed('text-text-muted', dk)}>{expanded['step_r'] ? '▲' : '▼'}</span>
+          <span className={themed('text-white/50', dk)}>{expanded['step_r'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_r'] && (
-          <div className={themed('px-8 py-2 border-t border-border bg-bg-row', dk)}>
+          <div className={themed('px-8 py-2 border-t border-panel-border bg-white/5', dk)}>
             <div className="text-xs space-y-3 mb-4">
-              <p className={themed('text-text-muted italic text-xs', dk)}>
+              <p className={EXPLAINER}>
                 Steps K and L scored using estimated flow signals. Step R replaces those estimates with real data from Step Q and re-scores. This is the final composite score.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-border', dk)}>
+                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>DATA POINT</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>SOURCE</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHEN APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHERE APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHY</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>HOW / VALUE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -4078,12 +4078,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Updated composite score', 'Recomputed from all four gates', 'Step R output', 'Trade card, Step S eligibility', 'Final score the trade card is built on', 'Tickers without flow data keep their Step L score unchanged'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{dp}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{src}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{when}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{where}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{why}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{how}</td>
+                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -4097,7 +4097,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
               return (
               <div style={{ maxHeight: 240, overflowY: 'auto' }}>
                 <table className="w-full text-[10px]">
-                  <thead><tr className={themed('text-text-muted border-b border-border', dk)}>
+                  <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}>
                     <th className="text-right py-1 px-1">#</th>
                     <th className="text-left py-1 px-1">SYMBOL</th>
                     <th className="text-right py-1 px-1">COMPOSITE</th>
@@ -4111,17 +4111,17 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                   </tr></thead>
                   <tbody>
                     {rData.tickers.map((t: { symbol: string; composite?: number | null; vol_edge?: number | null; info_edge?: number | null; has_flow_data?: boolean; source?: string; endpoint?: string }, idx: number) => (
-                      <tr key={t.symbol} className={themed('border-b border-border/50', dk)}>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-text-muted', dk)}>{idx + 1}</td>
-                        <td className={themed('py-0.5 px-1 font-bold text-text-primary', dk)}>{t.symbol}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{t.composite != null ? t.composite.toFixed(1) : '—'}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{t.vol_edge != null ? t.vol_edge.toFixed(1) : '—'}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{t.info_edge != null ? t.info_edge.toFixed(1) : '—'}</td>
+                      <tr key={t.symbol} className={themed('border-b border-panel-border', dk)}>
+                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/50', dk)}>{idx + 1}</td>
+                        <td className={themed('py-0.5 px-1 font-bold text-white', dk)}>{t.symbol}</td>
+                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.composite != null ? t.composite.toFixed(1) : '—'}</td>
+                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.vol_edge != null ? t.vol_edge.toFixed(1) : '—'}</td>
+                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.info_edge != null ? t.info_edge.toFixed(1) : '—'}</td>
                         <td className={`py-0.5 px-1 font-mono font-bold ${t.has_flow_data ? 'text-brand-green' : 'text-brand-red'}`}>{t.has_flow_data ? 'YES' : 'NO'}</td>
-                        <td className={themed('py-0.5 px-1 font-mono text-text-secondary', dk)}>{t.source ?? '—'}</td>
-                        <td className={themed('py-0.5 px-1 font-mono text-text-secondary', dk)}>{t.endpoint ?? '—'}</td>
-                        <td className={themed('py-0.5 px-1 font-mono text-text-secondary', dk)}>{rFetchedTime}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{rAgeSec != null ? `${rAgeSec}s` : '—'}</td>
+                        <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{t.source ?? '—'}</td>
+                        <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{t.endpoint ?? '—'}</td>
+                        <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{rFetchedTime}</td>
+                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{rAgeSec != null ? `${rAgeSec}s` : '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -4135,35 +4135,35 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       ); })()}
 
       {/* Step S — Trade Cards */}
-      <div className={themed('border-b border-border', dk)}>
-        <div className={themed('px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row', dk)} onClick={() => toggle('step_s')}>
+      <div className={themed('border-b border-panel-border', dk)}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_s')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP S</span>
-            <span className={themed('text-text-secondary', dk)}>Trade Cards</span>
+            <span className={chip('accent')}>STEP S</span>
+            <span className={themed('text-white/70', dk)}>Trade Cards</span>
             {(ps?.total_trade_cards != null || progress?.step_s) ? (
-              <span className="text-brand-green">{ps?.total_trade_cards ?? progress?.step_s?.data?.trade_cards ?? 0} strategies generated</span>
+              <span className={chip('success')}>{ps?.total_trade_cards ?? progress?.step_s?.data?.trade_cards ?? 0} strategies generated</span>
             ) : (
-              <span className={themed('text-text-muted animate-pulse', dk)}>waiting...</span>
+              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
             )}
           </div>
-          <span className={themed('text-text-muted', dk)}>{expanded['step_s'] ? '▲' : '▼'}</span>
+          <span className={themed('text-white/50', dk)}>{expanded['step_s'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_s'] && (
-          <div className={themed('px-8 py-2 border-t border-border bg-bg-row', dk)}>
+          <div className={themed('px-8 py-2 border-t border-panel-border bg-white/5', dk)}>
             <div className="text-xs space-y-3 mb-4">
-              <p className={themed('text-text-muted italic text-xs', dk)}>
+              <p className={EXPLAINER}>
                 Step S is the last gate before the trade card. Convergence enforced. Quality floor enforced. Sector cap enforced. Every ticker that survives gets a trade card built on live data.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-border', dk)}>
+                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>DATA POINT</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>SOURCE</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHEN APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHERE APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHY</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>HOW / VALUE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -4174,12 +4174,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Trade card assembly', 'All prior steps', 'Step S output', 'User-facing card', 'Packages all signals scores strategy and risk flags into one structured card', 'Strategy legs strikes credit max loss PoP EV Greeks For/Against risk flags'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{dp}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{src}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{when}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{where}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{why}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{how}</td>
+                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -4195,7 +4195,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
               return (
             <div style={{ maxHeight: 300, overflowY: 'auto' }}>
               <table className="w-full text-[10px]">
-                <thead><tr className={themed('text-text-muted border-b border-border', dk)}>
+                <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}>
                   <th className="text-left py-1 px-1">RANK</th>
                   <th className="text-left py-1 px-1">SYMBOL</th>
                   <th className="text-right py-1 px-1">COMPOSITE</th>
@@ -4245,21 +4245,21 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                     }
 
                     return (
-                      <tr key={r.symbol} className={themed(`border-b border-border/50 hover:bg-bg-card ${inTop9 ? 'bg-white/50' : ''}`, dk)}>
-                        <td className={themed('py-0.5 px-1 text-text-muted font-mono', dk)}>{idx + 1}</td>
-                        <td className={themed('py-0.5 px-1 font-bold text-text-primary', dk)}>{r.symbol}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono font-bold text-text-primary', dk)}>{r.composite !== null ? r.composite.toFixed(1) : '—'}</td>
+                      <tr key={r.symbol} className={themed(`border-b border-panel-border hover:bg-white/5 ${inTop9 ? 'bg-white/50' : ''}`, dk)}>
+                        <td className={themed('py-0.5 px-1 text-white/50 font-mono', dk)}>{idx + 1}</td>
+                        <td className={themed('py-0.5 px-1 font-bold text-white', dk)}>{r.symbol}</td>
+                        <td className={themed('py-0.5 px-1 text-right font-mono font-bold text-white', dk)}>{r.composite !== null ? r.composite.toFixed(1) : '—'}</td>
                         <td className="py-0.5 px-1 text-center font-mono">{r.convergence ?? `${gatesAbove50}/4`}</td>
-                        <td className={themed(`py-0.5 px-1 text-right font-mono ${r.vol_edge !== null && r.vol_edge >= 50 ? 'text-brand-green' : themed('text-text-muted', dk)}`, dk)} title={r.vol_edge === null ? 'Gate excluded — zero computable signals' : undefined}>{r.vol_edge !== null ? r.vol_edge.toFixed(0) : '—'}</td>
-                        <td className={themed(`py-0.5 px-1 text-right font-mono ${r.quality !== null && r.quality >= 50 ? 'text-brand-green' : r.quality !== null && r.quality < 40 ? 'text-brand-red' : themed('text-text-muted', dk)}`, dk)} title={r.quality === null ? 'Gate excluded — zero computable signals' : undefined}>{r.quality !== null ? r.quality.toFixed(0) : '—'}</td>
-                        <td className={themed(`py-0.5 px-1 text-right font-mono ${r.regime !== null && r.regime >= 50 ? 'text-brand-green' : themed('text-text-muted', dk)}`, dk)} title={r.regime === null ? 'Gate excluded — zero computable signals' : undefined}>{r.regime !== null ? r.regime.toFixed(0) : '—'}</td>
-                        <td className={themed(`py-0.5 px-1 text-right font-mono ${r.info_edge !== null && r.info_edge >= 50 ? 'text-brand-green' : themed('text-text-muted', dk)}`, dk)} title={r.info_edge === null ? 'Gate excluded — zero computable signals' : undefined}>{r.info_edge !== null ? r.info_edge.toFixed(0) : '—'}</td>
-                        <td className={themed('py-0.5 px-1 text-text-secondary', dk)}>{r.sector ?? '—'}</td>
+                        <td className={themed(`py-0.5 px-1 text-right font-mono ${r.vol_edge !== null && r.vol_edge >= 50 ? 'text-brand-green' : themed('text-white/50', dk)}`, dk)} title={r.vol_edge === null ? 'Gate excluded — zero computable signals' : undefined}>{r.vol_edge !== null ? r.vol_edge.toFixed(0) : '—'}</td>
+                        <td className={themed(`py-0.5 px-1 text-right font-mono ${r.quality !== null && r.quality >= 50 ? 'text-brand-green' : r.quality !== null && r.quality < 40 ? 'text-brand-red' : themed('text-white/50', dk)}`, dk)} title={r.quality === null ? 'Gate excluded — zero computable signals' : undefined}>{r.quality !== null ? r.quality.toFixed(0) : '—'}</td>
+                        <td className={themed(`py-0.5 px-1 text-right font-mono ${r.regime !== null && r.regime >= 50 ? 'text-brand-green' : themed('text-white/50', dk)}`, dk)} title={r.regime === null ? 'Gate excluded — zero computable signals' : undefined}>{r.regime !== null ? r.regime.toFixed(0) : '—'}</td>
+                        <td className={themed(`py-0.5 px-1 text-right font-mono ${r.info_edge !== null && r.info_edge >= 50 ? 'text-brand-green' : themed('text-white/50', dk)}`, dk)} title={r.info_edge === null ? 'Gate excluded — zero computable signals' : undefined}>{r.info_edge !== null ? r.info_edge.toFixed(0) : '—'}</td>
+                        <td className={themed('py-0.5 px-1 text-white/70', dk)}>{r.sector ?? '—'}</td>
                         <td className={`py-0.5 px-1 ${status.color}`}>{status.text}</td>
-                        <td className={themed('py-0.5 px-1 font-mono text-text-secondary', dk)}>All prior steps</td>
-                        <td className={themed('py-0.5 px-1 font-mono text-text-secondary', dk)}>Composite — see Steps A–J</td>
-                        <td className={themed('py-0.5 px-1 font-mono text-text-secondary', dk)}>{sFetchedTime}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-text-secondary', dk)}>{sAgeSec != null ? `${sAgeSec}s` : '—'}</td>
+                        <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>All prior steps</td>
+                        <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>Composite — see Steps A–J</td>
+                        <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{sFetchedTime}</td>
+                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{sAgeSec != null ? `${sAgeSec}s` : '—'}</td>
                       </tr>
                     );
                   })}
@@ -4270,7 +4270,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
             })()}
 
             {/* Next steps explanation */}
-            <p className={themed('text-text-muted text-xs mt-3 italic', dk)}>
+            <p className={themed('text-white/50 text-xs mt-3 italic', dk)}>
               Step N fetches the live options chain for each of the final 9. Step P builds and scores strategy candidates.
             </p>
           </div>
@@ -4283,11 +4283,11 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
         const tFetchedTime = tFetchedAt ? tFetchedAt.toLocaleTimeString() : '—';
         const tAgeSec = tFetchedAt ? Math.round((Date.now() - tFetchedAt.getTime()) / 1000) : null;
         return (
-      <div className={themed('border-b border-border', dk)}>
-        <div className={themed('px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row', dk)} onClick={() => toggle('step_t')}>
+      <div className={themed('border-b border-panel-border', dk)}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_t')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP T</span>
-            <span className={themed('text-text-secondary', dk)}>Save &amp; Return</span>
+            <span className={chip('accent')}>STEP T</span>
+            <span className={themed('text-white/70', dk)}>Save &amp; Return</span>
             {tData ? (
               tData.saved ? (
                 <span className="text-brand-green">Scan saved — {tData.symbols_logged} tickers logged</span>
@@ -4295,27 +4295,27 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <span className="text-brand-gold">Not saved — no user session</span>
               )
             ) : (
-              <span className={themed('text-text-muted animate-pulse', dk)}>waiting...</span>
+              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
             )}
           </div>
-          <span className={themed('text-text-muted', dk)}>{expanded['step_t'] ? '▲' : '▼'}</span>
+          <span className={themed('text-white/50', dk)}>{expanded['step_t'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_t'] && tData && (
-          <div className={themed('px-8 py-2 border-t border-border bg-bg-row', dk)}>
+          <div className={themed('px-8 py-2 border-t border-panel-border bg-white/5', dk)}>
             <div className="text-xs space-y-3 mb-4">
-              <p className={themed('text-text-muted italic text-xs', dk)}>
+              <p className={EXPLAINER}>
                 Step T writes the full scan to the database and returns the result. This closes the performance loop. Every scan is logged so outcomes can be matched against the computed signals over time.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-border', dk)}>
+                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>DATA POINT</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>SOURCE</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHEN APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHERE APPLIED</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>WHY</th>
-                      <th className={themed('text-text-muted font-bold text-xs p-2 bg-bg-card border border-border', dk)}>HOW / VALUE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
+                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -4327,12 +4327,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Pipeline runtime', 'Computed', 'Step T output', 'UI summary bar', 'Operational metric', 'Tracks scan performance over time'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{dp}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{src}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{when}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{where}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{why}</td>
-                        <td className={themed('text-xs p-2 text-text-muted border border-border', dk)}>{how}</td>
+                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -4341,14 +4341,14 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
             </div>
             <table className="text-[10px]">
               <tbody>
-                <tr><td className={themed('py-0.5 pr-4 text-text-muted font-bold', dk)}>Pipeline Runtime</td><td className={themed('py-0.5 font-mono text-text-secondary', dk)}>{tData.pipeline_runtime_ms}ms</td></tr>
-                <tr><td className={themed('py-0.5 pr-4 text-text-muted font-bold', dk)}>Symbols Logged</td><td className={themed('py-0.5 font-mono text-text-secondary', dk)}>{tData.symbols_logged}</td></tr>
-                <tr><td className={themed('py-0.5 pr-4 text-text-muted font-bold', dk)}>Final 9</td><td className={themed('py-0.5 font-mono text-text-secondary', dk)}>{(tData.final_9 ?? []).join(', ')}</td></tr>
-                <tr><td className={themed('py-0.5 pr-4 text-text-muted font-bold', dk)}>Saved</td><td className={themed('py-0.5 font-mono text-text-secondary', dk)}>{tData.saved ? 'Yes' : 'No'}</td></tr>
-                <tr><td className={themed('py-0.5 pr-4 text-text-muted font-bold', dk)}>Source</td><td className={themed('py-0.5 font-mono text-text-secondary', dk)}>{tData.source}</td></tr>
-                <tr><td className={themed('py-0.5 pr-4 text-text-muted font-bold', dk)}>Endpoint</td><td className={themed('py-0.5 font-mono text-text-secondary', dk)}>{tData.endpoint}</td></tr>
-                <tr><td className={themed('py-0.5 pr-4 text-text-muted font-bold', dk)}>Fetched</td><td className={themed('py-0.5 font-mono text-text-secondary', dk)}>{tFetchedTime}</td></tr>
-                <tr><td className={themed('py-0.5 pr-4 text-text-muted font-bold', dk)}>Age</td><td className={themed('py-0.5 font-mono text-text-secondary', dk)}>{tAgeSec != null ? `${tAgeSec}s` : '—'}</td></tr>
+                <tr><td className={themed('py-0.5 pr-4 text-white/50 font-bold', dk)}>Pipeline Runtime</td><td className={themed('py-0.5 font-mono text-white/70', dk)}>{tData.pipeline_runtime_ms}ms</td></tr>
+                <tr><td className={themed('py-0.5 pr-4 text-white/50 font-bold', dk)}>Symbols Logged</td><td className={themed('py-0.5 font-mono text-white/70', dk)}>{tData.symbols_logged}</td></tr>
+                <tr><td className={themed('py-0.5 pr-4 text-white/50 font-bold', dk)}>Final 9</td><td className={themed('py-0.5 font-mono text-white/70', dk)}>{(tData.final_9 ?? []).join(', ')}</td></tr>
+                <tr><td className={themed('py-0.5 pr-4 text-white/50 font-bold', dk)}>Saved</td><td className={themed('py-0.5 font-mono text-white/70', dk)}>{tData.saved ? 'Yes' : 'No'}</td></tr>
+                <tr><td className={themed('py-0.5 pr-4 text-white/50 font-bold', dk)}>Source</td><td className={themed('py-0.5 font-mono text-white/70', dk)}>{tData.source}</td></tr>
+                <tr><td className={themed('py-0.5 pr-4 text-white/50 font-bold', dk)}>Endpoint</td><td className={themed('py-0.5 font-mono text-white/70', dk)}>{tData.endpoint}</td></tr>
+                <tr><td className={themed('py-0.5 pr-4 text-white/50 font-bold', dk)}>Fetched</td><td className={themed('py-0.5 font-mono text-white/70', dk)}>{tFetchedTime}</td></tr>
+                <tr><td className={themed('py-0.5 pr-4 text-white/50 font-bold', dk)}>Age</td><td className={themed('py-0.5 font-mono text-white/70', dk)}>{tAgeSec != null ? `${tAgeSec}s` : '—'}</td></tr>
               </tbody>
             </table>
           </div>
@@ -4357,17 +4357,17 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       ); })()}
 
       {/* Summary */}
-      <div className={themed('px-4 py-2 flex items-center gap-4 text-text-muted', dk)}>
+      <div className={themed('px-4 py-2 flex items-center gap-4 text-white/50', dk)}>
         <span>{ps?.total_universe ?? progress?.step_a?.data?.total_universe ?? 0} scanned</span>
         <span>→</span>
         <span>{hf?.output_count ?? progress?.step_e?.data?.output ?? 0} filtered</span>
         <span>→</span>
         <span>{ps?.scored ?? progress?.step_k?.data?.scored ?? 0} scored</span>
         <span>→</span>
-        <span className="text-brand-green">{ps?.final_9?.length ?? progress?.step_s?.data?.top_9?.length ?? 0} selected</span>
+        <span className={chip('success')}>{ps?.final_9?.length ?? progress?.step_s?.data?.top_9?.length ?? 0} selected</span>
         <span className="ml-auto">
           {isLive ? (
-            <span className="text-brand-purple animate-pulse">Pipeline running...</span>
+            <span className="text-brand-purple-pop animate-pulse">Pipeline running...</span>
           ) : (
             <>Finnhub: {ps?.finnhub_calls_made ?? 0} calls · Runtime: {ps?.pipeline_runtime_ms ? `${(ps.pipeline_runtime_ms / 1000).toFixed(1)}s` : '—'}</>
           )}
