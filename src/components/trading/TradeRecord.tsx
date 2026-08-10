@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { STATE, themed } from '@/lib/ds';
+import { chip, SECTION_HEADER, STATE, themed } from '@/lib/ds';
 
 /**
  * TRACK-1 — the scanner's public track record: claimed-vs-actual, honest win rate.
@@ -128,40 +128,40 @@ export default function TradeRecord() {
   });
 
   return (
-    <div className={themed('rounded-lg border border-border bg-white text-xs text-text-secondary', dk)}>
-      <div className={themed('border-b border-border px-3 py-2 font-semibold text-text-primary', dk)}>Track record</div>
+    <div className="rounded-lg border border-panel-border bg-panel-surface text-xs text-white/60">
+      <div className={`${SECTION_HEADER} rounded-t-lg`}>Track record</div>
 
       {/* (a) HEADLINE COUNTS — denominator first, always. */}
-      <div className={themed('px-3 py-2 border-b border-border', dk)}>
-        Record: <span className={themed('font-mono font-semibold text-text-primary', dk)}>{linked.length}</span> linked trades
-        {' · '}<span className={themed('font-mono font-semibold text-text-primary', dk)}>{unlinkedClosed}</span> closed positions unlinked (excluded)
-        {' · '}<span className={themed('font-mono font-semibold text-text-primary', dk)}>{queuedNotLinked}</span> cards queued, not yet linked
+      <div className="px-3 py-2 border-b border-panel-border">
+        Record: <span className="font-mono font-semibold text-white/90">{linked.length}</span> linked trades
+        {' · '}<span className="font-mono font-semibold text-white/90">{unlinkedClosed}</span> closed positions unlinked (excluded)
+        {' · '}<span className="font-mono font-semibold text-white/90">{queuedNotLinked}</span> cards queued, not yet linked
       </div>
 
       {linked.length === 0 ? (
         // Honest zero-state — no fabricated stats.
-        <div className={themed('px-3 py-3 text-text-muted', dk)}>
+        <div className="px-3 py-3 text-white/50">
           No linked trades yet — link queued cards to closed positions in Trade Lab to build your record.
         </div>
       ) : (
         <>
           {/* (b) HONEST WIN RATE — never a bare percentage without n. */}
-          <div className={themed('px-3 py-2 border-b border-border', dk)}>
-            <span className={themed('font-mono font-semibold text-text-primary', dk)}>{wins}W – {losses}L – {breakevens}BE</span>{' '}
-            of <span className={themed('font-mono font-semibold text-text-primary', dk)}>{decided.length}</span> decided
-            {openLinked > 0 && <span className={themed('text-text-faint', dk)}> ({openLinked} still open, outcome unknown)</span>}
+          <div className="px-3 py-2 border-b border-panel-border">
+            <span className="font-mono font-semibold text-white/90">{wins}W – {losses}L – {breakevens}BE</span>{' '}
+            of <span className="font-mono font-semibold text-white/90">{decided.length}</span> decided
+            {openLinked > 0 && <span className="text-white/40"> ({openLinked} still open, outcome unknown)</span>}
           </div>
 
           {/* (c) NET P&L — linked trades only. */}
-          <div className={themed('px-3 py-2 border-b border-border', dk)}>
+          <div className="px-3 py-2 border-b border-panel-border">
             Net P&amp;L: <span className={`font-mono font-semibold ${netPl >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>{fmtMoney(netPl)}</span>
-            <span className={themed('text-text-faint', dk)}> (linked trades only)</span>
+            <span className="text-white/40"> (linked trades only)</span>
           </div>
 
           {/* (d) INTEGRITY LINE — the flagship: claimed vs actual max loss. */}
-          <div className={themed('px-3 py-2 border-b border-border', dk)}>
-            Max-loss model: <span className={themed('font-mono font-semibold text-text-primary', dk)}>{withinClaim}</span> of{' '}
-            <span className={themed('font-mono font-semibold text-text-primary', dk)}>{withMaxLoss.length}</span> linked trades stayed within their card&rsquo;s stated max loss.
+          <div className="px-3 py-2 border-b border-panel-border">
+            Max-loss model: <span className="font-mono font-semibold text-white/90">{withinClaim}</span> of{' '}
+            <span className="font-mono font-semibold text-white/90">{withMaxLoss.length}</span> linked trades stayed within their card&rsquo;s stated max loss.
             {exceeded.length > 0 && (
               <ul className="mt-1 space-y-0.5">
                 {exceeded.map((c) => (
@@ -174,13 +174,13 @@ export default function TradeRecord() {
           </div>
 
           {/* (e) GRADE DISTRIBUTION over linked trades that carry a grade. */}
-          <div className={themed('px-3 py-2 border-b border-border', dk)}>
-            Grades:{' '}
-            {(['A', 'B', 'C', 'D', 'F'] as const).map((g, i) => (
-              <span key={g} className="font-mono">
-                {i > 0 && ' · '}{g} <span className={themed('font-semibold text-text-primary', dk)}>{gradeCounts[g]}</span>
+          <div className="px-3 py-2 border-b border-panel-border">
+            <span className="inline-flex flex-wrap items-center gap-1">Grades:{' '}
+            {(['A', 'B', 'C', 'D', 'F'] as const).map((g) => (
+              <span key={g} className={chip(g === 'A' || g === 'B' ? 'success' : g === 'C' ? 'warning' : 'danger')}>
+                {g} {gradeCounts[g]}
               </span>
-            ))}
+            ))}</span>
           </div>
 
           {/* (f) PER-TRADE TABLE (collapsible) — losses lead. */}
@@ -188,14 +188,14 @@ export default function TradeRecord() {
             <button
               type="button"
               onClick={() => setShowTable((s) => !s)}
-              className="text-[11px] font-medium text-brand-purple hover:underline"
+              className="text-[11px] font-medium text-brand-purple-pop hover:underline"
             >
               {showTable ? 'Hide' : 'Show'} per-trade detail ({linked.length})
             </button>
             {showTable && (
               <div className="mt-2 overflow-x-auto">
                 <table className="w-full text-[11px]">
-                  <thead className={themed('text-text-muted', dk)}>
+                  <thead className="text-white/50">
                     <tr>
                       <th className="px-2 py-1 text-left font-medium">Symbol</th>
                       <th className="px-2 py-1 text-left font-medium">Generated</th>
@@ -204,15 +204,15 @@ export default function TradeRecord() {
                       <th className="px-2 py-1 text-center font-medium">Grade</th>
                     </tr>
                   </thead>
-                  <tbody className={themed('divide-y divide-border', dk)}>
+                  <tbody className="divide-y divide-panel-border">
                     {tableRows.map((c) => {
                       const pl = c.link!.actual_pl;
                       return (
                         <tr key={c.id}>
-                          <td className={themed('px-2 py-1 font-mono font-semibold text-text-primary', dk)}>{c.symbol}</td>
-                          <td className={themed('px-2 py-1 font-mono text-text-muted', dk)}>{fmtDate(c.generated_at)}</td>
+                          <td className="px-2 py-1 font-mono font-semibold text-white/90">{c.symbol}</td>
+                          <td className="px-2 py-1 font-mono text-white/50">{fmtDate(c.generated_at)}</td>
                           <td className="px-2 py-1 text-right font-mono">{c.max_loss != null ? fmtMoney(-Number(c.max_loss)) : '—'}</td>
-                          <td className={themed(`px-2 py-1 text-right font-mono font-semibold ${pl == null ? 'text-text-faint' : Number(pl) >= 0 ? 'text-brand-green' : 'text-brand-red'}`, dk)}>
+                          <td className={`px-2 py-1 text-right font-mono font-semibold ${pl == null ? 'text-white/40' : Number(pl) >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
                             {pl == null ? 'Open' : fmtMoney(Number(pl))}
                           </td>
                           <td className="px-2 py-1 text-center font-mono">{c.link!.grade ?? '—'}</td>
