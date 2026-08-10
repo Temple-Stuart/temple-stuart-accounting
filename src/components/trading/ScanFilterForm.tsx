@@ -3,7 +3,12 @@
 import type { MutableRefObject } from 'react';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
 import { AVAILABLE_STRATEGIES } from '@/lib/convergence/filter-types';
-import { themed, type Surface } from '@/lib/ds';
+// TRADE-SEGMENTS: the DS segmented-control + chip idioms. The converted
+// controls drop their themed() wrap: both idioms are token-native dark
+// classes with zero DARKEN_MAP-eligible tokens (themed() would be an
+// identity call), and both live mounts (/trading + the app trade tab)
+// pass surface="dark". themed() stays on every other element.
+import { SEGMENT, themed, toggleChip, type Surface } from '@/lib/ds';
 
 // TRADING-PR-1/3: the scan filter form. All 18 ScannerFilters fields + universe are
 // rendered EXPANDED inline (TRADING-PR-3 removed the openPopover collapsed pills —
@@ -62,7 +67,7 @@ export default function ScanFilterForm({
           <div className="flex gap-1.5">
             {UNIVERSES.map(u => (
               <button key={u.val} type="button" onClick={() => setScannerUniverse(u.val)}
-                className={themed(`text-[11px] px-2 py-1 rounded-full border ${scannerUniverse === u.val ? 'bg-brand-purple/10 text-brand-purple border-brand-purple/30 font-medium' : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'}`, dk)}>
+                className={toggleChip(scannerUniverse === u.val)}>
                 {u.label}
               </button>
             ))}
@@ -70,10 +75,10 @@ export default function ScanFilterForm({
         </div>
         <div className="flex flex-col gap-1">
           <GroupLabel>Direction</GroupLabel>
-          <div className={themed('flex gap-px rounded overflow-hidden border border-gray-200 w-max', dk)}>
+          <div className={SEGMENT.wrap}>
             {(['ALL', 'BULLISH', 'BEARISH', 'NEUTRAL'] as const).map(d => (
               <button key={d} type="button" onClick={() => onFiltersChange({ ...f, risk: { ...f.risk, direction: d } })}
-                className={themed(`px-2 py-1 text-[11px] font-bold ${f.risk.direction === d ? 'bg-brand-purple text-white' : 'bg-white text-gray-400 hover:bg-gray-50'}`, dk)}>
+                className={SEGMENT.item(f.risk.direction === d)}>
                 {d === 'BULLISH' ? 'Bull' : d === 'BEARISH' ? 'Bear' : d === 'NEUTRAL' ? 'Ntrl' : 'All'}
               </button>
             ))}
@@ -81,10 +86,10 @@ export default function ScanFilterForm({
         </div>
         <div className="flex flex-col gap-1">
           <GroupLabel>Premium</GroupLabel>
-          <div className={themed('flex gap-px rounded overflow-hidden border border-gray-200 w-max', dk)}>
+          <div className={SEGMENT.wrap}>
             {(['SELL', 'BUY', 'BOTH'] as const).map(s => (
               <button key={s} type="button" onClick={() => onFiltersChange({ ...f, risk: { ...f.risk, premiumStance: s } })}
-                className={themed(`px-2 py-1 text-[11px] font-bold ${f.risk.premiumStance === s ? 'bg-brand-purple text-white' : 'bg-white text-gray-400 hover:bg-gray-50'}`, dk)}>
+                className={SEGMENT.item(f.risk.premiumStance === s)}>
                 {s === 'BOTH' ? 'Both' : s}
               </button>
             ))}
@@ -92,10 +97,10 @@ export default function ScanFilterForm({
         </div>
         <div className="flex flex-col gap-1">
           <GroupLabel>Risk</GroupLabel>
-          <div className={themed('flex gap-px rounded overflow-hidden border border-gray-200 w-max', dk)}>
+          <div className={SEGMENT.wrap}>
             {(['DEFINED_ONLY', 'INCLUDE_UNLIMITED'] as const).map(r => (
               <button key={r} type="button" onClick={() => onFiltersChange({ ...f, risk: { ...f.risk, riskType: r } })}
-                className={themed(`px-2 py-1 text-[11px] font-bold ${f.risk.riskType === r ? 'bg-brand-purple text-white' : 'bg-white text-gray-400 hover:bg-gray-50'}`, dk)}>
+                className={SEGMENT.item(f.risk.riskType === r)}>
                 {r === 'DEFINED_ONLY' ? 'Defined' : 'Unlimited'}
               </button>
             ))}
