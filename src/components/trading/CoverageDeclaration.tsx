@@ -36,6 +36,10 @@ export default function CoverageDeclaration() {
   const dk = true;
   const [state, setState] = useState<'loading' | 'error' | 'ok'>('loading');
   const [data, setData] = useState<Coverage | null>(null);
+  // DISCLOSURE-COMPACT: presentation-only collapse state, DEFAULT COLLAPSED.
+  // The full declaration copy stays byte-identical behind the row — nothing
+  // about the fetch, states, or wording changed. Error never collapses.
+  const [expanded, setExpanded] = useState(false);
 
   const load = useCallback(async () => {
     setState('loading');
@@ -79,15 +83,33 @@ export default function CoverageDeclaration() {
   if (!data) return null; // unreachable in 'ok', keeps types honest
 
   return (
-    <div className="rounded-lg border border-panel-border bg-white/5 px-3 py-2 font-mono text-[11px] text-white/50">
-      This tab reflects <span className={themed('font-semibold text-text-primary', dk)}>{data.investment_txn_count}</span> synced
-      transactions from <span className="font-mono">{fmtDate(data.earliest_txn_date)}</span> to{' '}
-      <span className="font-mono">{fmtDate(data.latest_txn_date)}</span>.{' '}
-      <span className={themed('font-semibold text-text-primary', dk)}>{data.unlinked_closed_count}</span> closed position
-      {data.unlinked_closed_count === 1 ? ' is' : 's are'} not linked to a card and{' '}
-      {data.unlinked_closed_count === 1 ? 'is' : 'are'} excluded from card statistics. Trades never synced from
-      your broker are not visible here — stats below describe only what has been synced (sync window starts{' '}
-      <span className="font-mono">{data.sync_window_start}</span>).
+    <div className="rounded-lg border border-panel-border bg-white/5 font-mono text-[11px] text-white/50">
+      {/* DISCLOSURE-COMPACT: the collapsed row — counts from the SAME data
+          the full copy renders (investment_txn_count / unlinked_closed_count);
+          the ▼/▲ chevron is the house bar toggle (FlightPickerView). */}
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left"
+      >
+        <span>
+          Sync coverage: {data.investment_txn_count} transactions · {data.unlinked_closed_count} unlinked — details
+        </span>
+        <span aria-hidden="true" className="shrink-0 text-white/40">{expanded ? '▲' : '▼'}</span>
+      </button>
+      {expanded && (
+        <div className="border-t border-panel-border px-3 py-2">
+          This tab reflects <span className={themed('font-semibold text-text-primary', dk)}>{data.investment_txn_count}</span> synced
+          transactions from <span className="font-mono">{fmtDate(data.earliest_txn_date)}</span> to{' '}
+          <span className="font-mono">{fmtDate(data.latest_txn_date)}</span>.{' '}
+          <span className={themed('font-semibold text-text-primary', dk)}>{data.unlinked_closed_count}</span> closed position
+          {data.unlinked_closed_count === 1 ? ' is' : 's are'} not linked to a card and{' '}
+          {data.unlinked_closed_count === 1 ? 'is' : 'are'} excluded from card statistics. Trades never synced from
+          your broker are not visible here — stats below describe only what has been synced (sync window starts{' '}
+          <span className="font-mono">{data.sync_window_start}</span>).
+        </div>
+      )}
     </div>
   );
 }
