@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { formatMoney, moneyColorClass } from '@/lib/money';
-import { chip, CHIP_VARIANTS, type ChipVariant, themed, type Surface } from '@/lib/ds';
+import { chip, CHIP_VARIANTS, type ChipVariant, SECTION_HEADER, themed, type Surface } from '@/lib/ds';
 
 interface TradeCard {
   id: string;
@@ -286,16 +286,16 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
   return (
     <div>
       {/* Header */}
-      <div className="bg-brand-purple/80 text-white px-4 py-2.5 flex items-center justify-between rounded-t-lg">
+      <div className={`${SECTION_HEADER} rounded-t-lg`}>
         <div>
-          <span className="text-sm font-semibold">Trade Lab</span>
-          <span className="text-[10px] text-purple-300 ml-2">{cards.length} card{cards.length !== 1 ? 's' : ''}</span>
+          <span>Trade Lab</span>
+          <span className={`${chip()} ml-2`}>{cards.length} card{cards.length !== 1 ? 's' : ''}</span>
         </div>
         <div className="flex items-center gap-2">
           <select
             value={filter}
             onChange={e => setFilter(e.target.value)}
-            className="bg-brand-purple-hover text-white border-0 text-xs px-2 py-1 rounded"
+            className="rounded border border-panel-border bg-panel px-2 py-1 text-xs text-white"
           >
             <option value="all">All</option>
             <option value="queued">Queued</option>
@@ -303,7 +303,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
             <option value="linked">Linked</option>
             <option value="graded">Graded</option>
           </select>
-          <button onClick={loadCards} className="text-xs bg-brand-purple-hover px-3 py-1 rounded hover:bg-brand-purple">
+          <button onClick={loadCards} className="rounded border border-white/30 px-3 py-1 text-xs hover:bg-white/10">
             Refresh
           </button>
         </div>
@@ -320,7 +320,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
       )}
 
       {/* Legacy notice */}
-      <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-800">
+      <div className="border-b border-status-warning/30 bg-status-warning/10 px-4 py-2 text-xs text-status-warning">
         {editingStartDate ? (
           <span className="inline-flex items-center gap-2">
             Scanner start date:{' '}
@@ -328,17 +328,17 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
               type="date"
               value={startDateInput}
               onChange={e => setStartDateInput(e.target.value)}
-              className={themed('border border-amber-300 rounded px-1 py-0.5 text-xs bg-white', dk)}
+              className="rounded border border-panel-border bg-panel px-1 py-0.5 text-xs text-white"
             />
             <button
               onClick={() => saveScannerStartDate(startDateInput)}
-              className="text-xs font-bold text-green-700 hover:text-green-900"
+              className="text-xs font-bold text-status-success hover:underline"
             >
               Save
             </button>
             <button
               onClick={() => setEditingStartDate(false)}
-              className={themed('text-xs text-gray-500 hover:text-gray-700', dk)}
+              className="text-xs text-white/50 hover:text-white/70"
             >
               Cancel
             </button>
@@ -351,7 +351,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                 setStartDateInput(scannerStartDate.slice(0, 10));
                 setEditingStartDate(true);
               }}
-              className="underline font-bold cursor-pointer hover:text-amber-900"
+              className="underline font-bold cursor-pointer"
             >
               {formatDate(scannerStartDate)}
             </button>
@@ -364,7 +364,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                 setStartDateInput('');
                 setEditingStartDate(true);
               }}
-              className="underline font-bold cursor-pointer hover:text-amber-900"
+              className="underline font-bold cursor-pointer"
             >
               Set your scanner start date
             </button>
@@ -428,7 +428,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                       <div className={themed('flex gap-3 text-[11px] text-text-muted mb-1 flex-wrap', dk)}>
                         {legs.map((leg, i) => (
                           <span key={i} className="font-mono">
-                            <span className={leg.side === 'sell' ? 'text-brand-red' : 'text-brand-green'}>{leg.side.toUpperCase()}</span>
+                            <span className={leg.side === 'sell' ? 'text-status-danger' : 'text-status-success'}>{leg.side.toUpperCase()}</span>
                             {' '}{leg.type.toUpperCase()}{' '}${leg.strike}{' '}@{' '}${leg.price.toFixed(2)}
                           </span>
                         ))}
@@ -439,7 +439,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                         <span>Queued {fmtDate(card.generated_at)}</span>
                         {card.dte != null && <span>{card.dte} DTE</span>}
                         {card.expiration_date && <span>Exp {fmtDateShort(card.expiration_date)}</span>}
-                        {card.link && <span className="text-brand-purple font-medium">Trade #{card.link.trade_num}</span>}
+                        {card.link && <span className="text-brand-purple-pop font-medium">Trade #{card.link.trade_num}</span>}
                         {card.link?.linked_at && <span>Linked {fmtDateShort(card.link.linked_at)}</span>}
                       </div>
                     </div>
@@ -449,7 +449,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                       {/* Actual P&L for graded cards */}
                       {card.link?.actual_pl != null && (
                         <div className="mb-1">
-                          <div className={themed('text-[9px] text-text-faint uppercase', dk)}>Actual P&L</div>
+                          <div className="text-[9px] text-white/60 uppercase">Actual P&L</div>
                           <div className={`text-terminal-lg font-mono font-black ${moneyColorClass(Number(card.link.actual_pl), 'pnl')}`}>
                             {formatMoney(Number(card.link.actual_pl), { kind: 'pnl', fractionDigits: 0 })}
                           </div>
@@ -457,16 +457,16 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                       )}
 
                       <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[11px]">
-                        <div className={themed('text-text-faint', dk)}>Max Profit</div>
+                        <div className="text-white/60">Max Profit</div>
                         <div className="font-mono font-bold text-brand-green">{fmtDollar(card.max_profit)}</div>
-                        <div className={themed('text-text-faint', dk)}>Max Loss</div>
+                        <div className="text-white/60">Max Loss</div>
                         <div className="font-mono font-bold text-brand-red">{fmtDollar(card.max_loss)}</div>
-                        <div className={themed('text-text-faint', dk)} title="Estimated Probability of Profit based on delta approximation">Est. PoP</div>
+                        <div className="text-white/60" title="Estimated Probability of Profit based on delta approximation">Est. PoP</div>
                         {/* TRADE-UX-1: the anchor leads the queue row \u2014 size +
                             weight within the grid idiom. Same field/format. */}
-                        <div className="font-mono font-black text-sm">{card.win_rate != null ? `${Number(card.win_rate).toFixed(1)}%` : '\u2014'}</div>
-                        <div className={themed('text-text-faint', dk)}>R:R</div>
-                        <div className="font-mono font-bold">{card.risk_reward != null ? Number(card.risk_reward).toFixed(2) : '\u2014'}</div>
+                        <div className="font-mono font-black text-sm text-white/80">{card.win_rate != null ? `${Number(card.win_rate).toFixed(1)}%` : '\u2014'}</div>
+                        <div className="text-white/60">R:R</div>
+                        <div className="font-mono font-bold text-white/80">{card.risk_reward != null ? Number(card.risk_reward).toFixed(2) : '\u2014'}</div>
                       </div>
 
                       {/* Actions by status */}
@@ -476,13 +476,13 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                           <>
                             <button
                               onClick={() => startLinking(card)}
-                              className="text-[10px] font-medium text-brand-purple hover:text-blue-800 transition-colors"
+                              className="text-[10px] font-medium text-brand-purple-pop hover:underline transition-colors"
                             >
                               {isLinking ? 'Cancel' : 'Link to Position'}
                             </button>
                             <button
                               onClick={() => deleteCard(card.id)}
-                              className={themed('text-[10px] text-text-faint hover:text-brand-red transition-colors', dk)}
+                              className="text-[10px] text-white/40 hover:text-status-danger transition-colors"
                             >
                               Remove
                             </button>
@@ -495,13 +495,13 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                             <button
                               onClick={() => gradeCard(card.id)}
                               disabled={isGrading}
-                              className="text-[10px] font-medium text-purple-600 hover:text-purple-800 transition-colors disabled:opacity-50"
+                              className="text-[10px] font-medium text-brand-purple-pop hover:underline transition-colors disabled:opacity-50"
                             >
                               {isGrading ? 'Grading...' : 'Check Grade'}
                             </button>
                             <button
                               onClick={() => unlinkCard(card.link!.id)}
-                              className={themed('text-[10px] text-text-faint hover:text-brand-red transition-colors', dk)}
+                              className="text-[10px] text-white/40 hover:text-status-danger transition-colors"
                             >
                               Unlink
                             </button>
@@ -512,7 +512,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                         {card.status === 'graded' && card.link && (
                           <button
                             onClick={() => unlinkCard(card.link!.id)}
-                            className={themed('text-[10px] text-text-faint hover:text-brand-red transition-colors', dk)}
+                            className="text-[10px] text-white/40 hover:text-status-danger transition-colors"
                           >
                             Unlink
                           </button>
@@ -579,25 +579,25 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                         <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2', dk)}>Predicted</div>
                         <div className="space-y-1 text-xs">
                           <div className="flex justify-between">
-                            <span className={themed('text-text-muted', dk)}>Max Profit</span>
+                            <span className="text-white/60">Max Profit</span>
                             <span className="font-mono font-bold text-brand-green">{fmtDollar(card.max_profit)}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className={themed('text-text-muted', dk)}>Max Loss</span>
+                            <span className="text-white/60">Max Loss</span>
                             <span className="font-mono font-bold text-brand-red">{fmtDollar(card.max_loss)}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className={themed('text-text-muted', dk)} title="Estimated Probability of Profit based on delta approximation">Est. PoP</span>
-                            <span className="font-mono font-bold">{card.win_rate != null ? `${Number(card.win_rate).toFixed(1)}%` : '\u2014'}</span>
+                            <span className="text-white/60" title="Estimated Probability of Profit based on delta approximation">Est. PoP</span>
+                            <span className="font-mono font-bold text-white/80">{card.win_rate != null ? `${Number(card.win_rate).toFixed(1)}%` : '\u2014'}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className={themed('text-text-muted', dk)}>R:R</span>
-                            <span className="font-mono font-bold">{card.risk_reward != null ? Number(card.risk_reward).toFixed(2) : '\u2014'}</span>
+                            <span className="text-white/60">R:R</span>
+                            <span className="font-mono font-bold text-white/80">{card.risk_reward != null ? Number(card.risk_reward).toFixed(2) : '\u2014'}</span>
                           </div>
                           {card.entry_price != null && (
                             <div className="flex justify-between">
-                              <span className={themed('text-text-muted', dk)}>Entry Price</span>
-                              <span className="font-mono font-bold">${Number(card.entry_price).toFixed(2)}</span>
+                              <span className="text-white/60">Entry Price</span>
+                              <span className="font-mono font-bold text-white/80">${Number(card.entry_price).toFixed(2)}</span>
                             </div>
                           )}
                         </div>
@@ -610,26 +610,26 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                             <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2', dk)}>Actual</div>
                             <div className="space-y-1 text-xs">
                               <div className="flex justify-between">
-                                <span className={themed('text-text-muted', dk)}>P&L</span>
+                                <span className="text-white/60">P&L</span>
                                 <span className={themed(`font-mono font-bold ${card.link.actual_pl != null ? moneyColorClass(Number(card.link.actual_pl), 'pnl') : 'text-text-secondary'}`, dk)}>
                                   {card.link.actual_pl != null ? formatMoney(Number(card.link.actual_pl), { kind: 'pnl', fractionDigits: 0 }) : 'Open'}
                                 </span>
                               </div>
                               {card.link.actual_entry_price != null && (
                                 <div className="flex justify-between">
-                                  <span className={themed('text-text-muted', dk)}>Entry Price</span>
-                                  <span className="font-mono font-bold">${Number(card.link.actual_entry_price).toFixed(2)}</span>
+                                  <span className="text-white/60">Entry Price</span>
+                                  <span className="font-mono font-bold text-white/80">${Number(card.link.actual_entry_price).toFixed(2)}</span>
                                 </div>
                               )}
                               {card.link.actual_exit_price != null && (
                                 <div className="flex justify-between">
-                                  <span className={themed('text-text-muted', dk)}>Exit Price</span>
-                                  <span className="font-mono font-bold">${Number(card.link.actual_exit_price).toFixed(2)}</span>
+                                  <span className="text-white/60">Exit Price</span>
+                                  <span className="font-mono font-bold text-white/80">${Number(card.link.actual_exit_price).toFixed(2)}</span>
                                 </div>
                               )}
                               {card.link.grade && (
                                 <div className="flex justify-between items-center mt-2">
-                                  <span className={themed('text-text-muted', dk)}>Grade</span>
+                                  <span className="text-white/60">Grade</span>
                                   {/* TRADE-CHIPS: hero grade keeps its scale,
                                       wears the chip variant colors (one map). */}
                                   <span className={`rounded px-3 py-1 text-terminal-lg font-black ${CHIP_VARIANTS[gradeVariant(card.link.grade)]}`}>
@@ -642,7 +642,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                         ) : (
                           <div>
                             <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2', dk)}>Actual</div>
-                            <div className={themed('text-xs text-text-faint italic', dk)}>Not yet linked to a position</div>
+                            <div className="text-xs text-white/40">Not yet linked to a position</div>
                           </div>
                         )}
                       </div>
