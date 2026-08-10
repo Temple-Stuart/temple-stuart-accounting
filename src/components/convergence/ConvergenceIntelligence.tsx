@@ -4818,9 +4818,9 @@ export default function ConvergenceIntelligence({
     <div className={themed('bg-white rounded border border-border shadow-sm overflow-hidden', dk)}>
 
       {/* RISK-1: user-entered account-size input for capital context (labeled not-synced). */}
-      <div className={themed('border-b border-border bg-white px-4 py-2 flex flex-wrap items-center gap-2 text-xs', dk)}>
-        <label htmlFor="ci-account-size" className={themed('text-text-muted', dk)}>Account size <span className={themed('text-text-faint', dk)}>(user-entered, not synced)</span>:</label>
-        <span className={themed('text-text-faint', dk)}>$</span>
+      <div className="border-b border-panel-border bg-white/5 px-4 py-2 flex flex-wrap items-center gap-2 font-mono text-[11px]">
+        <label htmlFor="ci-account-size" className="text-white/60">Account size <span className="text-white/40">(user-entered, not synced)</span>:</label>
+        <span className="text-white/40">$</span>
         <input
           id="ci-account-size"
           type="number"
@@ -4829,15 +4829,15 @@ export default function ConvergenceIntelligence({
           value={accountSize > 0 ? accountSize : ''}
           onChange={(e) => handleAccountSizeChange(e.target.value)}
           placeholder="Set account size for capital context"
-          className={themed('w-64 rounded border border-border px-2 py-1 text-xs font-mono', dk)}
+          className="w-64 rounded border border-panel-border bg-panel px-2 py-1 text-xs font-mono text-white"
         />
       </div>
 
       {/* Header — show controls only when not hidden */}
       {!hideControls ? (
-        <div className="bg-brand-purple/80 rounded-t-lg">
-          <div className="flex items-center justify-between px-4 py-2.5">
-            <span className="text-sm font-semibold text-white">Market Intelligence</span>
+        <div className="rounded-t-lg overflow-hidden">
+          <div className={SECTION_HEADER}>
+            <span>Market Intelligence</span>
             <div className="flex items-center gap-2">
               <select value={universe} onChange={e => setUniverse(e.target.value)} disabled={scanning || enriching}
                 className="bg-brand-purple-deep text-white text-xs font-mono px-2 py-1 border border-white/10 rounded focus:outline-none focus:ring-1 focus:ring-brand-gold disabled:opacity-50">
@@ -4874,9 +4874,9 @@ export default function ConvergenceIntelligence({
           )}
         </div>
       ) : (
-        <div className="bg-brand-purple/80 rounded-t-lg px-4 py-2.5 flex items-center justify-between">
-          <span className="text-sm font-semibold text-white">Market Intelligence</span>
-          <span className={STATE.empty}>
+        <div className={`${SECTION_HEADER} rounded-t-lg`}>
+          <span>Market Intelligence</span>
+          <span className={chip()}>
             {batchData ? `${batchData.top_9.length} results · ${(batchData.timing.total_ms / 1000).toFixed(1)}s` : scanning ? 'Scanning...' : 'Run scan from bar above'}
           </span>
         </div>
