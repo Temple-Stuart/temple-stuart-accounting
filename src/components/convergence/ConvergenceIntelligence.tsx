@@ -110,7 +110,7 @@ interface Headline {
 
 function gradeColor(s: number): string {
   if (s >= 70) return 'text-brand-green';
-  if (s >= 50) return 'text-brand-amber';
+  if (s >= 50) return 'text-status-warning';
   return 'text-brand-red';
 }
 
@@ -317,8 +317,8 @@ export function TickerChapter({ dk = false, detail, sentiment, savedCards, savin
                     {jRow.allExpirations.map((exp: any, i: number) => {
                       const isWinner = exp.expiration === (jRow.winningExpiration ?? jRow.expiration);
                       return (
-                        <tr key={i} className={isWinner ? 'bg-amber-50/50' : ''} style={isWinner ? { borderLeft: '2px solid rgb(var(--ts-warning))' } : {}}>
-                          <td className={themed(`py-0.5 pr-3 font-mono ${isWinner ? 'text-brand-amber font-bold' : 'text-text-faint'}`, dk)}>{exp.expiration}</td>
+                        <tr key={i} className={isWinner ? 'bg-status-warning/10' : ''} style={isWinner ? { borderLeft: '2px solid rgb(var(--ts-warning))' } : {}}>
+                          <td className={themed(`py-0.5 pr-3 font-mono ${isWinner ? 'text-status-warning font-bold' : 'text-text-faint'}`, dk)}>{exp.expiration}</td>
                           <td className={themed('py-0.5 pr-3 text-right font-mono text-text-faint', dk)}>{exp.dte}</td>
                           <td className={themed('py-0.5 pr-3 text-right font-mono text-text-faint', dk)}>{exp.strikeCount}</td>
                           <td className={themed('py-0.5 pr-3 text-right font-mono text-text-faint', dk)}>{exp.strategiesBuilt}</td>

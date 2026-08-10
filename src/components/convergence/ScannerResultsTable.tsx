@@ -73,7 +73,7 @@ interface ScannerResultsTableProps {
 
 function gradeColor(s: number): string {
   if (s >= 70) return 'text-brand-green';
-  if (s >= 50) return 'text-brand-amber';
+  if (s >= 50) return 'text-status-warning';
   return 'text-brand-red';
 }
 

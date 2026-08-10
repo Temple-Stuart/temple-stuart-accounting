@@ -399,7 +399,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                 <div
                   className={themed(`px-4 py-3 transition-colors cursor-pointer ${
                     card.status === 'graded' && card.link?.grade
-                      ? Number(card.link.actual_pl) >= 0 ? 'bg-green-50 hover:bg-green-100' : 'bg-red-50 hover:bg-red-100'
+                      ? Number(card.link.actual_pl) >= 0 ? 'bg-status-success/10 hover:bg-status-success/15' : 'bg-status-danger/10 hover:bg-status-danger/15'
                       : 'hover:bg-bg-row'
                   }`, dk)}
                   onClick={() => setExpandedCardId(isExpanded ? null : card.id)}
