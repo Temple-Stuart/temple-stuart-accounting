@@ -774,13 +774,13 @@ export default function TradingPage() {
               </span>
             </div>
             <div className="bg-panel-surface px-3 py-3 grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2 text-center">
-              <div className="px-2"><div className="text-[9px] text-white/50 uppercase">P&amp;L</div><div className={`text-sm font-bold font-mono truncate ${m.totalRealizedPL >= 0 ? 'text-status-success' : 'text-status-danger'}`}>{fmtPL(m.totalRealizedPL)}</div></div>
-              <div className="px-2"><div className="text-[9px] text-white/50 uppercase">WR</div><div className="text-sm font-bold font-mono text-white truncate">{m.winRate}%</div></div>
-              <div className="px-2"><div className="text-[9px] text-white/50 uppercase">PF</div><div className="text-sm font-bold font-mono text-white truncate">{m.profitFactor >= 999 ? '∞' : m.profitFactor.toFixed(2)}</div></div>
-              <div className="px-2"><div className="text-[9px] text-white/50 uppercase">Max W</div><div className="text-sm font-bold font-mono text-status-success truncate">{fmt(m.largestWin)}</div></div>
-              <div className="px-2"><div className="text-[9px] text-white/50 uppercase">Max L</div><div className="text-sm font-bold font-mono text-status-danger truncate">{fmt(Math.abs(m.largestLoss))}</div></div>
-              <div className="px-2"><div className="text-[9px] text-white/50 uppercase">Avg W</div><div className="text-sm font-bold font-mono text-status-success truncate">{fmt(m.avgWin)}</div></div>
-              <div className="px-2"><div className="text-[9px] text-white/50 uppercase">Avg L</div><div className="text-sm font-bold font-mono text-status-danger truncate">{fmt(m.avgLoss)}</div></div>
+              <div className="px-2"><div className="text-[9px] text-white/60 uppercase">P&amp;L</div><div className={`text-sm font-bold font-mono truncate ${m.totalRealizedPL >= 0 ? 'text-status-success' : 'text-status-danger'}`}>{fmtPL(m.totalRealizedPL)}</div></div>
+              <div className="px-2"><div className="text-[9px] text-white/60 uppercase">WR</div><div className="text-sm font-bold font-mono text-white truncate">{m.winRate}%</div></div>
+              <div className="px-2"><div className="text-[9px] text-white/60 uppercase">PF</div><div className="text-sm font-bold font-mono text-white truncate">{m.profitFactor >= 999 ? '∞' : m.profitFactor.toFixed(2)}</div></div>
+              <div className="px-2"><div className="text-[9px] text-white/60 uppercase">Max W</div><div className="text-sm font-bold font-mono text-status-success truncate">{fmt(m.largestWin)}</div></div>
+              <div className="px-2"><div className="text-[9px] text-white/60 uppercase">Max L</div><div className="text-sm font-bold font-mono text-status-danger truncate">{fmt(Math.abs(m.largestLoss))}</div></div>
+              <div className="px-2"><div className="text-[9px] text-white/60 uppercase">Avg W</div><div className="text-sm font-bold font-mono text-status-success truncate">{fmt(m.avgWin)}</div></div>
+              <div className="px-2"><div className="text-[9px] text-white/60 uppercase">Avg L</div><div className="text-sm font-bold font-mono text-status-danger truncate">{fmt(m.avgLoss)}</div></div>
             </div>
           </div>
           ); })()}
