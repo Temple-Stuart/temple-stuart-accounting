@@ -11,7 +11,7 @@ export default function TradingDataDisclaimer({ surface = 'light' }: { surface?:
   return (
     <p
       role="note"
-      className={themed('rounded-lg border border-border bg-white px-3 py-2 text-xs text-text-muted', dk)}
+      className="rounded-lg border border-panel-border bg-white/5 px-3 py-2 font-mono text-[11px] text-white/50"
     >
       Data and analytics only — not investment advice or a recommendation. All metrics are
       computed from market data; you make all trading decisions. Options involve substantial

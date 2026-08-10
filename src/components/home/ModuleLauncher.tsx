@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Script from 'next/script';
 import {
   Calendar, Plane, Repeat, FolderKanban, TrendingUp, BookOpen, Receipt, ShieldCheck, Clapperboard, Lock,
+  // TRADE-BAND: the trade band-mode icons + the trust-chip check.
+  Check, ClipboardCheck, Crosshair, FlaskConical,
   type LucideIcon,
 } from 'lucide-react';
 import CreateTripForm from '@/components/trips/CreateTripForm';
@@ -125,6 +127,37 @@ const TABS: { key: string; label: string; icon: LucideIcon }[] = [
   { key: 'tax',        label: 'Tax',        icon: Receipt },
   { key: 'compliance', label: 'Compliance', icon: ShieldCheck },
 ];
+// TRADE-BAND: one trust chip — check + a short verified fact, mirroring the
+// travel strip's TrustChip (travelStripModes.tsx:68-75) exactly: white/80
+// check on the band.
+function TradeTrustChip({ fact }: { fact: string }) {
+  return (
+    <span className="flex items-center gap-1">
+      <Check className="h-3.5 w-3.5 shrink-0 text-white/80" strokeWidth={2.5} aria-hidden="true" />
+      {fact}
+    </span>
+  );
+}
+
+// TRADE-BAND: the trade band's trust row — VERIFIED FACTS ONLY, the
+// TRAVEL_TRUST_CHIPS shape verbatim (travelStripModes.tsx:92-102). Per-chip
+// basis: live TastyTrade prices (tastytrade.ts client + api/tastytrade/
+// quotes), broker sync (api/tastytrade/positions — the coverage declaration
+// beneath states exactly what synced), trades commit to the ledger
+// (api/trading/commit-to-ledger), and the LANG-1 data-not-advice stance
+// (TradingDataDisclaimer, mounted below this band).
+const TRADE_TRUST_CHIPS = (
+  <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 font-mono text-[11px] text-white/80">
+    <TradeTrustChip fact="Live prices from TastyTrade" />
+    <span className="text-white/30" aria-hidden="true">|</span>
+    <TradeTrustChip fact="Synced from your broker" />
+    <span className="text-white/30" aria-hidden="true">|</span>
+    <TradeTrustChip fact="Every trade lands in your books" />
+    <span className="text-white/30" aria-hidden="true">|</span>
+    <TradeTrustChip fact="Data, not advice" />
+  </div>
+);
+
 // Which tab each module section belongs to — 1:1, every module its own tab (the
 // calendar is its own 'calendar' tab, rendered separately).
 const MODULE_TO_TAB: Record<string, string> = {
@@ -888,10 +921,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           <div className="px-4 py-4 space-y-6">
             {!tradeLocked ? (
               <>
-                {/* LANG-1: disclaimer at the top of the Trade tab (persistent, visible). */}
-                <TradingDataDisclaimer surface="dark" />
-                {/* RISK-1: coverage declaration — what has actually synced (below the disclaimer). */}
-                <CoverageDeclaration />
                 {/* TRADE-UX-1: the tab's sections consolidate on the shared
                     <ToggleStrip> (the travel/books precedent) — one phase
                     visible, ALL mounted (CSS show/hide), so a running scan and
@@ -899,14 +928,22 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                     SCAN/RESULTS merged): ScanFilterForm + ConvergenceIntelligence
                     are ONE phase — they're ref-coupled (scanTriggerRef fires the
                     scan the results render; splitting them would hide the
-                    results the Scan button produces). The disclaimers stay
-                    ABOVE the strip, persistent: they qualify the market data of
-                    EVERY phase (LANG-1 "persistent, visible" + RISK-1), so
-                    adjacency = above all three panels. Phase selection is
-                    ToggleStrip's own state — zero other semantics changed. */}
+                    results the Scan button produces). Phase selection is
+                    ToggleStrip's own state — zero other semantics changed.
+                    TRADE-BAND: the strip adopts the travel band anatomy —
+                    band + trust props (the LandingBookingSection mount
+                    mirrored), icon/headline on each mode. The disclaimers
+                    moved directly BELOW the strip (ruled this PR; they stay
+                    persistent — outside the strip, every phase — in the
+                    quiet idiom), copy byte-identical. */}
                 <ToggleStrip
+                  band
+                  trust={TRADE_TRUST_CHIPS}
                   modes={([
-                    { key: 'scan', label: 'Scan', panel: (
+                    { key: 'scan', label: 'Scan',
+                      icon: <Crosshair className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />,
+                      headline: 'Find trades worth taking — and get told when to skip.',
+                      panel: (
                       <div className="mt-3 space-y-6">
                         {/* Option A — scanner first, reconcile below. Same props the inline branch used. */}
                         <ScanFilterForm
@@ -930,14 +967,20 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                         />
                       </div>
                     ) },
-                    { key: 'lab', label: 'Lab', panel: (
+                    { key: 'lab', label: 'Lab',
+                      icon: <FlaskConical className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />,
+                      headline: 'Grade every trade you take.',
+                      panel: (
                       <div className="mt-3">
                         {/* TRADE-1: closes the loop — queue viewer + link-to-reality + grade. Self-fetches
                             /api/trade-cards + /api/trade-card-links (0 required props, TradeLabPanel.tsx:50). */}
                         <TradeLabPanel surface="dark" />
                       </div>
                     ) },
-                    { key: 'record', label: 'Record', panel: (
+                    { key: 'record', label: 'Record',
+                      icon: <ClipboardCheck className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />,
+                      headline: 'Your self-graded track record.',
+                      panel: (
                       <div className="mt-3">
                         {/* TRACK-1: the self-graded track record (claimed vs actual). */}
                         <TradeRecord />
@@ -945,6 +988,11 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                     ) },
                   ] as ToggleMode[])}
                 />
+                {/* LANG-1 + RISK-1 (TRADE-BAND relocation): the persistent
+                    disclaimer + coverage declaration, now directly below the
+                    strip — same copy, quiet idiom. */}
+                <TradingDataDisclaimer surface="dark" />
+                <CoverageDeclaration />
               </>
             ) : (
               <>
