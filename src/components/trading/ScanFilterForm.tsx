@@ -43,11 +43,11 @@ const UNIVERSES = [{ val: 'sp500', label: 'S&P 500' }, { val: 'nasdaq100', label
 // Light/secondary group label — the Travel one-purple + secondary-white inner rule.
 function GroupLabel({ children }: { children: React.ReactNode }) {
   // HOME-STYLE-PR-1: section/group headers → brand-purple, weight 600 (scannable).
-  return <div className="text-[10px] uppercase tracking-wider font-semibold text-brand-purple mb-1.5">{children}</div>;
+  return <div className="text-[10px] uppercase tracking-wider font-semibold text-white/60 mb-1.5">{children}</div>;
 }
 function FieldLabel({ dk = false, children }: { dk?: boolean; children: React.ReactNode }) {
   // HOME-STYLE-PR-1: field sub-labels → readable secondary text, weight 500.
-  return <span className={themed('text-[11px] text-text-secondary font-medium w-[88px] shrink-0', dk)}>{children}</span>;
+  return <span className="text-[11px] text-white/70 font-medium w-[88px] shrink-0">{children}</span>;
 }
 
 export default function ScanFilterForm({
