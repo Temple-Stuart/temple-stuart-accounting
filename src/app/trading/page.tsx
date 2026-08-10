@@ -900,16 +900,16 @@ export default function TradingPage() {
                     <table className="w-full text-xs">
                       <thead className="bg-white/5">
                         <tr>
-                          <th className="px-3 py-2 text-left font-medium">Trade #</th>
-                          <th className="px-3 py-2 text-left font-medium">Date</th>
-                          <th className="px-3 py-2 text-left font-medium">Ticker</th>
-                          <th className="px-3 py-2 text-left font-medium">Strategy</th>
-                          <th className="px-3 py-2 text-center font-medium">Type</th>
-                          <th className="px-3 py-2 text-center font-medium">Status</th>
-                          <th className="px-3 py-2 text-right font-medium">P&L</th>
-                          <th className="px-3 py-2 text-center font-medium">Rating</th>
-                          <th className="px-3 py-2 text-center font-medium">Journal</th>
-                          <th className="px-3 py-2 text-center font-medium"></th>
+                          <th className="px-2 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-white/50">Trade #</th>
+                          <th className="px-2 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-white/50">Date</th>
+                          <th className="px-2 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-white/50">Ticker</th>
+                          <th className="px-2 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-white/50">Strategy</th>
+                          <th className="px-2 py-2 text-center font-mono text-[10px] uppercase tracking-wider text-white/50">Type</th>
+                          <th className="px-2 py-2 text-center font-mono text-[10px] uppercase tracking-wider text-white/50">Status</th>
+                          <th className="px-2 py-2 text-right font-mono text-[10px] uppercase tracking-wider text-white/50">P&L</th>
+                          <th className="px-2 py-2 text-center font-mono text-[10px] uppercase tracking-wider text-white/50">Rating</th>
+                          <th className="px-2 py-2 text-center font-mono text-[10px] uppercase tracking-wider text-white/50">Journal</th>
+                          <th className="px-2 py-2 text-center font-mono text-[10px] uppercase tracking-wider text-white/50"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-panel-border">
@@ -919,34 +919,34 @@ export default function TradingPage() {
 
                           return (
                             <>
-                              <tr key={trade.tradeNum} className={`hover:bg-panel-hover ${isExpanded ? 'bg-brand-purple/5' : ''}`}>
-                                <td className="px-3 py-2 font-mono text-white/60">#{trade.tradeNum}</td>
-                                <td className="px-3 py-2 text-white/60">{new Date(trade.openDate).toLocaleDateString()}</td>
-                                <td className="px-3 py-2 font-mono font-semibold">{trade.underlying}</td>
-                                <td className="px-3 py-2">
+                              <tr key={trade.tradeNum} className={`transition-colors hover:bg-white/5 ${isExpanded ? 'bg-brand-purple-pop/10' : ''}`}>
+                                <td className="px-2 py-2 font-mono text-white/60">#{trade.tradeNum}</td>
+                                <td className="px-2 py-2 text-white/60">{new Date(trade.openDate).toLocaleDateString()}</td>
+                                <td className="px-2 py-2 font-mono font-semibold">{trade.underlying}</td>
+                                <td className="px-2 py-2">
                                   <span className={chip('accent')}>{trade.strategy}</span>
                                 </td>
-                                <td className="px-3 py-2 text-center">
+                                <td className="px-2 py-2 text-center">
                                   <span className={chip(trade.type === 'option' ? 'info' : 'neutral')}>
                                     {trade.type}
                                   </span>
                                 </td>
-                                <td className="px-3 py-2 text-center">
+                                <td className="px-2 py-2 text-center">
                                   <span className={chip(
                                     trade.status === 'OPEN' || trade.status === 'PARTIAL' ? 'warning' : 'success'
                                   )}>{trade.status}</span>
                                 </td>
-                                <td className={`px-3 py-2 text-right font-mono font-semibold ${
+                                <td className={`px-2 py-2 text-right font-mono font-semibold ${
                                   trade.status === 'CLOSED' ? (trade.realizedPL >= 0 ? 'text-status-success' : 'text-status-danger') : 'text-white/40'
                                 }`}>
                                   {trade.status === 'CLOSED' ? fmtPL(trade.realizedPL) : '—'}
                                 </td>
-                                <td className="px-3 py-2 text-center">
+                                <td className="px-2 py-2 text-center">
                                   {journal?.rating ? (
                                     <span className="text-amber-500">{'★'.repeat(journal.rating)}{'☆'.repeat(5 - journal.rating)}</span>
                                   ) : <span className="text-white/40">—</span>}
                                 </td>
-                                <td className="px-3 py-2 text-center">
+                                <td className="px-2 py-2 text-center">
                                   {journal ? (
                                     <span className={chip(
                                       journal.emotion === 'confident' ? 'success' :
@@ -956,7 +956,7 @@ export default function TradingPage() {
                                     )}>{journal.emotion}</span>
                                   ) : <span className="text-white/40">—</span>}
                                 </td>
-                                <td className="px-3 py-2 text-center">
+                                <td className="px-2 py-2 text-center">
                                   <div className="flex items-center gap-1 justify-center">
                                     <button onClick={() => openJournalModal(trade)}
                                       className="px-2 py-1 text-[10px] bg-brand-purple text-white hover:bg-brand-purple-hover">
@@ -1014,7 +1014,7 @@ export default function TradingPage() {
                           );
                         })}
                         {filteredTrades.length === 0 && (
-                          <tr><td colSpan={10} className="px-3 py-8 text-center text-white/40">No trades in selected period</td></tr>
+                          <tr><td colSpan={10} className="px-2 py-8 text-center text-white/40">No trades in selected period</td></tr>
                         )}
                       </tbody>
                     </table>
