@@ -714,7 +714,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                         info_edge_score). Letter chip wears the slice-2
                         grade mapping; +/− modifiers strip for variant
                         lookup only (display keeps the exact grade). */}
-                    {(card.letter_grade || card.composite_score != null || (Array.isArray(card.risk_flags) && card.risk_flags.length > 0) || card.full_card_json?.setup?.has_wide_spread || card.full_card_json?.setup?.is_unlimited_risk) && (
+                    {(card.letter_grade || card.composite_score != null || card.convergence_gate || (Array.isArray(card.risk_flags) && card.risk_flags.length > 0) || card.full_card_json?.setup?.has_wide_spread || card.full_card_json?.setup?.is_unlimited_risk) && (
                       <div className={themed('mt-3 pt-3 border-t border-border', dk)}>
                         <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5', dk)}>Scanner scores</div>
                         <div className="flex flex-wrap items-center gap-1.5">
@@ -725,6 +725,14 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                           )}
                           {([['VOL', card.vol_edge_score], ['QUALITY', card.quality_score], ['REGIME', card.regime_score], ['INFO', card.info_edge_score]] as const).map(([name, v]) => (
                             v != null ? <span key={name} className={chip()}>{name} {Number(v).toFixed(0)}</span> : null
+                          ))}
+                          {/* GATE-ROW: the convergence gate verdict — one
+                              chip per ' | ' token (composite.ts builds one
+                              sentence, optionally + the survival-brake
+                              declaration behind ' | '); GATE prefixes the
+                              verdict token only. */}
+                          {card.convergence_gate && card.convergence_gate.split(' | ').map((tok, i) => (
+                            <span key={`gate-${i}`} className={chip()}>{i === 0 ? `GATE ${tok}` : tok}</span>
                           ))}
                           {/* CARD-100-RENDER: flags PROMOTED from the collapse
                               — always visible with the scores. */}
