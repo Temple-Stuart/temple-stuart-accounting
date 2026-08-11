@@ -131,37 +131,31 @@ export default function TradeRecord() {
     <div className="rounded-lg border border-panel-border bg-panel-surface text-xs text-white/60">
       <div className={`${SECTION_HEADER} rounded-t-lg`}>Track record</div>
 
-      {/* (a) HEADLINE COUNTS — denominator first, always. */}
-      <div className="px-3 py-2 border-b border-panel-border">
-        Record: <span className="font-mono font-semibold text-white/90">{linked.length}</span> linked trades
-        {' · '}<span className="font-mono font-semibold text-white/90">{unlinkedClosed}</span> closed positions unlinked (excluded)
-        {' · '}<span className="font-mono font-semibold text-white/90">{queuedNotLinked}</span> cards queued, not yet linked
-      </div>
-
-      {linked.length === 0 ? (
-        // Honest zero-state — no fabricated stats.
-        <div className="px-3 py-3 text-white/50">
-          No linked trades yet — link queued cards to closed positions in Trade Lab to build your record.
-        </div>
-      ) : (
-        <>
+      {/* RECORD-BOOM: the HERO VERDICT — rows (b)/(c)/(d) at stat scale,
+          every string byte-identical (the big stats compose the same
+          dynamic values; qualifiers/sentences render beneath). */}
+      {linked.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 border-b border-panel-border">
           {/* (b) HONEST WIN RATE — never a bare percentage without n. */}
-          <div className="px-3 py-2 border-b border-panel-border">
-            <span className="font-mono font-semibold text-white/90">{wins}W – {losses}L – {breakevens}BE</span>{' '}
-            of <span className="font-mono font-semibold text-white/90">{decided.length}</span> decided
-            {openLinked > 0 && <span className="text-white/40"> ({openLinked} still open, outcome unknown)</span>}
+          <div className="rounded-lg bg-white/5 p-3">
+            <div className="font-mono text-2xl font-bold text-white">{wins}W – {losses}L – {breakevens}BE</div>
+            <div className="text-white/50">
+              of <span className="font-mono font-semibold text-white/90">{decided.length}</span> decided
+              {openLinked > 0 && <span className="text-white/40"> ({openLinked} still open, outcome unknown)</span>}
+            </div>
           </div>
-
           {/* (c) NET P&L — linked trades only. */}
-          <div className="px-3 py-2 border-b border-panel-border">
-            Net P&amp;L: <span className={`font-mono font-semibold ${netPl >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>{fmtMoney(netPl)}</span>
-            <span className="text-white/40"> (linked trades only)</span>
+          <div className="rounded-lg bg-white/5 p-3">
+            <div className={`font-mono text-2xl font-bold ${netPl >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>{fmtMoney(netPl)}</div>
+            <div className="text-white/50">Net P&amp;L:<span className="text-white/40"> (linked trades only)</span></div>
           </div>
-
-          {/* (d) INTEGRITY LINE — the flagship: claimed vs actual max loss. */}
-          <div className="px-3 py-2 border-b border-panel-border">
-            Max-loss model: <span className="font-mono font-semibold text-white/90">{withinClaim}</span> of{' '}
-            <span className="font-mono font-semibold text-white/90">{withMaxLoss.length}</span> linked trades stayed within their card&rsquo;s stated max loss.
+          {/* (d) INTEGRITY — the flagship: claimed vs actual max loss. */}
+          <div className="rounded-lg bg-white/5 p-3">
+            <div className="font-mono text-2xl font-bold text-white">{withinClaim} of {withMaxLoss.length}</div>
+            <div className="text-white/50">
+              Max-loss model: <span className="font-mono font-semibold text-white/90">{withinClaim}</span> of{' '}
+              <span className="font-mono font-semibold text-white/90">{withMaxLoss.length}</span> linked trades stayed within their card&rsquo;s stated max loss.
+            </div>
             {exceeded.length > 0 && (
               <ul className="mt-1 space-y-0.5">
                 {exceeded.map((c) => (
@@ -172,17 +166,39 @@ export default function TradeRecord() {
               </ul>
             )}
           </div>
+        </div>
+      )}
 
-          {/* (e) GRADE DISTRIBUTION over linked trades that carry a grade. */}
-          <div className="px-3 py-2 border-b border-panel-border">
-            <span className="inline-flex flex-wrap items-center gap-1">Grades:{' '}
-            {(['A', 'B', 'C', 'D', 'F'] as const).map((g) => (
-              <span key={g} className={chip(g === 'A' || g === 'B' ? 'success' : g === 'C' ? 'warning' : 'danger')}>
-                {g} {gradeCounts[g]}
-              </span>
-            ))}</span>
-          </div>
+      {/* (a)+(e) — RECORD-BOOM: the supporting strip under the hero; counts
+          as neutral chips (the ' · ' separators became chip gaps), grade
+          chips as-is. Renders always — denominator honesty survives the
+          zero state. */}
+      <div className="px-3 py-2 border-b border-panel-border">
+        <span className="inline-flex flex-wrap items-center gap-1">
+          Record:{' '}
+          <span className={chip()}>{linked.length} linked trades</span>
+          <span className={chip()}>{unlinkedClosed} closed positions unlinked (excluded)</span>
+          <span className={chip()}>{queuedNotLinked} cards queued, not yet linked</span>
+          {linked.length > 0 && (
+            <>
+              Grades:{' '}
+              {(['A', 'B', 'C', 'D', 'F'] as const).map((g) => (
+                <span key={g} className={chip(g === 'A' || g === 'B' ? 'success' : g === 'C' ? 'warning' : 'danger')}>
+                  {g} {gradeCounts[g]}
+                </span>
+              ))}
+            </>
+          )}
+        </span>
+      </div>
 
+      {linked.length === 0 ? (
+        // Honest zero-state — no fabricated stats.
+        <div className="px-3 py-3 text-white/50">
+          No linked trades yet — link queued cards to closed positions in Trade Lab to build your record.
+        </div>
+      ) : (
+        <>
           {/* (f) PER-TRADE TABLE (collapsible) — losses lead. */}
           <div className="px-3 py-2">
             <button
@@ -197,11 +213,11 @@ export default function TradeRecord() {
                 <table className="w-full text-[11px]">
                   <thead className="text-white/50">
                     <tr>
-                      <th className="px-2 py-1 text-left font-medium">Symbol</th>
-                      <th className="px-2 py-1 text-left font-medium">Generated</th>
-                      <th className="px-2 py-1 text-right font-medium">Claimed max loss</th>
-                      <th className="px-2 py-1 text-right font-medium">Actual P&amp;L</th>
-                      <th className="px-2 py-1 text-center font-medium">Grade</th>
+                      <th className="px-2 py-1 text-left font-mono text-[10px] uppercase tracking-wider">Symbol</th>
+                      <th className="px-2 py-1 text-left font-mono text-[10px] uppercase tracking-wider">Generated</th>
+                      <th className="px-2 py-1 text-right font-mono text-[10px] uppercase tracking-wider">Claimed max loss</th>
+                      <th className="px-2 py-1 text-right font-mono text-[10px] uppercase tracking-wider">Actual P&amp;L</th>
+                      <th className="px-2 py-1 text-center font-mono text-[10px] uppercase tracking-wider">Grade</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-panel-border">
@@ -215,7 +231,7 @@ export default function TradeRecord() {
                           <td className={`px-2 py-1 text-right font-mono font-semibold ${pl == null ? 'text-white/40' : Number(pl) >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
                             {pl == null ? 'Open' : fmtMoney(Number(pl))}
                           </td>
-                          <td className="px-2 py-1 text-center font-mono">{c.link!.grade ?? '—'}</td>
+                          <td className="px-2 py-1 text-center">{c.link!.grade ? <span className={chip(c.link!.grade === 'A' || c.link!.grade === 'B' ? 'success' : c.link!.grade === 'C' ? 'warning' : 'danger')}>{c.link!.grade}</span> : '—'}</td>
                         </tr>
                       );
                     })}
