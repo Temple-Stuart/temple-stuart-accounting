@@ -198,8 +198,8 @@ export default function ScanFilterForm({
         {ttConnected != null && (
           <span className="flex items-center gap-1.5 text-xs font-normal">
             {ttConnected
-              ? <><span className="w-2 h-2 bg-emerald-400 rounded-full" />TT Connected</>
-              : <><span className="w-2 h-2 bg-red-400 rounded-full" />No Broker</>}
+              ? <><span className="w-2 h-2 bg-status-success rounded-full" />TT Connected</>
+              : <><span className="w-2 h-2 bg-status-danger rounded-full" />No Broker</>}
           </span>
         )}
       </div>
