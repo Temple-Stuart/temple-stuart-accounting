@@ -9,6 +9,7 @@ import ModuleLauncher, { TAB_DESCRIPTORS } from '@/components/home/ModuleLaunche
 import { ChevronDown } from 'lucide-react';
 // DS-2: the app hero uses the SAME radial-glow surface as the landing hero.
 import { HERO_BG } from '@/lib/ds';
+import CheckoutResultBanner from '@/components/CheckoutResultBanner';
 import { useExportDownload } from '@/lib/useExportDownload';
 
 // PR-Hero-Collapsible: the "How it works" steps per tab — ONE source of truth for the three
@@ -125,6 +126,9 @@ export default function HomeClient() {
     // tab body sets its OWN surface (bg-white for the still-light tabs, bg-panel
     // for travel), so nothing naked inherits this and inverts.
     <div className="min-h-screen bg-page">
+      {/* UNLOCK-BANNER: authed landing — the same checkout result card the
+          guest landing mounts (the purchase resume returns to '/'). */}
+      <CheckoutResultBanner />
       {/* Header — FD-3-2: joins the panel family, mirroring LandingHeader
           (border-b border-panel-border bg-panel text-white; mono micro sub-
           line; text-white/60 nav links). It stays distinct from the hero via
