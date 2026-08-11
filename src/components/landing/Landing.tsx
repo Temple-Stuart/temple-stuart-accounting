@@ -725,6 +725,15 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 astuart@templestuart.com
               </a>
             </p>
+            {/* SERVICES-TIER: the Work-with-me row — the same done-for-you
+                offer at hero altitude; mailto only, no commerce wiring. */}
+            <p className="mt-3 font-mono text-xs text-white/60">
+              Want it running without the setup? I do that.{' '}
+              <span className="text-[11px]">Full setup · Monthly maintenance · Custom builds</span>{' '}
+              <a href="mailto:astuart@templestuart.com?subject=Done-for-you%20setup" className="text-brand-purple-pop hover:underline">
+                Email me what you need →
+              </a>
+            </p>
             {/* EXPORT-1b: the ownership line — ships ONLY because the capability
                 now exists: GET /api/export (EXPORT-1), whose constitutional
                 header rules it NEVER paywalled (no tier gate, no entitlement
@@ -1044,6 +1053,29 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
               )}
             </div>
           )}
+
+          {/* ── SERVICES-TIER: the done-for-you tier — the bundle bar's
+                anatomy mirrored exactly (R1); mailto CTA, zero commerce
+                wiring, pricing config untouched. Renders always — the offer
+                does not depend on the selection state. ─────────────────────── */}
+          <div className="mt-5 flex flex-col gap-4 rounded-lg border border-white/30 bg-panel p-4 sm:flex-row sm:items-center">
+            <div className="flex-1">
+              <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
+                DONE-FOR-YOU
+              </span>
+              <p className="mt-2 text-xs leading-relaxed text-white/60">Your own hosted copy — every API wired, custom to your business, you own everything.</p>
+              <p className="mt-1 font-mono text-[11px] text-white/60">Full setup · Monthly maintenance · Custom builds</p>
+            </div>
+            <div className="font-mono text-lg font-bold text-white">
+              <span className="text-xs font-normal italic text-white/50">Custom pricing</span>
+            </div>
+            <a
+              href="mailto:astuart@templestuart.com?subject=Done-for-you%20setup"
+              className="border border-white/30 px-6 py-2 text-center text-xs font-medium text-white hover:bg-white/10"
+            >
+              Email me what you need →
+            </a>
+          </div>
 
           {/* ── The transparency door — the legend/total/footnote block moved
                 behind this one line (LOBBY-DECK-1); the full receipts live on
