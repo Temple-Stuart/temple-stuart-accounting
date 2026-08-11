@@ -13,6 +13,8 @@ export async function POST() {
     // just a flag that unlocks the shared session). So any caller spends/reads
     // ALEX'S brokerage. Gate to admin BEFORE any TT call or data read — 403 for
     // non-admins, 401 for guests. (Same requireAdmin pattern as /trading/convergence.)
+    // TRADE-GATE (2026-08-11): broker connection is owner-scoped pending
+    // the data-redistribution ruling.
     const adminGate = await requireAdmin();
     if (adminGate instanceof NextResponse) return adminGate;
     const userEmail = await getVerifiedEmail();

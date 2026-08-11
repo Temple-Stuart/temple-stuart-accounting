@@ -11,6 +11,10 @@ export async function GET() {
     // just a flag that unlocks the shared session). So any caller spends/reads
     // ALEX'S brokerage. Gate to admin BEFORE any TT call or data read — 403 for
     // non-admins, 401 for guests. (Same requireAdmin pattern as /trading/convergence.)
+    // TRADE-GATE HOLD (2026-08-11): this endpoint returns the SHARED FIRM
+    // account's balances/positions — i.e. the OWNER'S brokerage data.
+    // Entitlement-flipping it would expose that to customers; held on
+    // requireAdmin pending Alex's explicit ruling (reported).
     const adminGate = await requireAdmin();
     if (adminGate instanceof NextResponse) return adminGate;
     const userEmail = await getVerifiedEmail();
