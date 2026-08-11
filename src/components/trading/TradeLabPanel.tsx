@@ -16,9 +16,32 @@ interface TradeCard {
   win_rate: number | null;
   risk_reward: number | null;
   thesis_points: string[] | null;
-  key_stats: Record<string, unknown> | null;
+  // CARD-100-RENDER: key_stats' full captured sub-shape (was Record<string,
+  // unknown>) — typing only, the payload already carried it.
+  key_stats: {
+    current_price?: number | string | null; iv_rank?: number | string | null;
+    iv_percentile?: number | string | null; iv30?: number | string | null;
+    hv30?: number | string | null; iv_hv_spread?: number | string | null;
+    vol_cone?: { hv10?: number | null; hv20?: number | null; hv30?: number | null; hv60?: number | null; hv90?: number | null; current_iv?: number | null; candles_used?: number; note?: string } | null;
+    forward_vol?: { from_expiry?: string; to_expiry?: string; from_dte?: number; to_dte?: number; forward_iv?: number; note?: string } | null;
+    earnings_date?: string | null; days_to_earnings?: number | null;
+    earnings_pattern?: { beat_rate?: number | null; avg_surprise_pct?: number | null; total_quarters?: number; consecutive_beats?: number; consecutive_misses?: number; streak?: string; sue_score?: number | null; direction?: string | null } | null;
+    market_cap?: number | null; sector?: string | null; beta?: number | null;
+    spy_correlation?: number | null; pe_ratio?: number | null;
+    dividend_yield?: number | null; liquidity_rating?: number | null;
+    lendability?: string | null; borrow_rate?: number | null;
+    buzz_ratio?: number | null; sentiment_momentum?: number | null;
+    analyst_consensus?: string | null;
+  } | null;
   macro_regime: string | null;
   sentiment: string | null;
+  insider_activity: string | null;
+  convergence_gate: string | null;
+  vol_sub_scores: Record<string, number | string | null> | null;
+  social_score: number | string | null;
+  social_post_count: number | null;
+  social_themes: string[] | null;
+  social_posts: unknown[] | null;
   headlines: { title: string; source: string; sentiment: string }[] | null;
   dte: number | null;
   expiration_date: string | null;
@@ -60,8 +83,12 @@ interface TradeCard {
       net_debit?: number | null;
       ev?: number | null;
       pop_method?: string | null;
+      hv_pop?: number | null;
+      has_wide_spread?: boolean | null;
+      is_unlimited_risk?: boolean | null;
       greeks?: { theta_per_day?: number | null } | null;
     } | null;
+    why?: { plain_english_signals?: string[] | null } | null;
   } | null;
 }
 
@@ -557,17 +584,17 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
 
                 {/* Linking dropdown */}
                 {isLinking && (
-                  <div className="px-4 py-3 bg-blue-50 border-t border-blue-200" onClick={e => e.stopPropagation()}>
-                    <div className="text-xs font-medium text-blue-800 mb-2">
+                  <div className="px-4 py-3 bg-white/5 border-t border-panel-border" onClick={e => e.stopPropagation()}>
+                    <div className="text-xs font-medium text-white/70 mb-2">
                       Select a position to link to:
                     </div>
                     {linkError && (
                       <div className="text-xs text-brand-red mb-2">{linkError}</div>
                     )}
                     {loadingPositions ? (
-                      <div className={themed('text-xs text-text-muted', dk)}>Loading positions...</div>
+                      <div className="text-xs text-white/60">Loading positions...</div>
                     ) : matchablePositions.length === 0 ? (
-                      <div className={themed('text-xs text-text-muted', dk)}>
+                      <div className="text-xs text-white/60">
                         No matching positions yet &mdash; execute the trade and commit it in Books first.
                       </div>
                     ) : (
@@ -576,22 +603,22 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                           <button
                             key={pos.trade_num}
                             onClick={() => linkToPosition(card.id, pos.trade_num)}
-                            className={themed('w-full text-left px-3 py-2 rounded bg-white border border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-colors', dk)}
+                            className="w-full text-left px-3 py-2 rounded border border-panel-border bg-panel hover:border-brand-purple-pop hover:bg-white/10 transition-colors"
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2 text-xs">
-                                <span className={themed('font-mono font-bold text-text-primary', dk)}>#{pos.trade_num}</span>
-                                <span className={themed('font-medium text-text-secondary', dk)}>{pos.symbol}</span>
-                                {pos.strategy && <span className={themed('text-text-muted', dk)}>{pos.strategy}</span>}
+                                <span className="font-mono font-bold text-white/90">#{pos.trade_num}</span>
+                                <span className="font-medium text-white/70">{pos.symbol}</span>
+                                {pos.strategy && <span className="text-white/60">{pos.strategy}</span>}
                                 {pos.option_type && (
-                                  <span className={themed('text-text-faint', dk)}>
+                                  <span className="text-white/40">
                                     {pos.option_type} {pos.strike_price ? `$${pos.strike_price}` : ''}
                                   </span>
                                 )}
                               </div>
-                              <div className={themed('flex items-center gap-2 text-[10px] text-text-faint', dk)}>
+                              <div className="flex items-center gap-2 text-[10px] text-white/40">
                                 <span>{fmtDateShort(pos.open_date)}</span>
-                                <span className={themed(`px-1.5 py-0.5 rounded font-bold ${pos.status === 'OPEN' ? 'bg-green-100 text-brand-green' : 'bg-bg-row text-text-secondary'}`, dk)}>
+                                <span className={chip(pos.status === 'OPEN' ? 'success' : 'neutral')}>
                                   {pos.status}
                                 </span>
                               </div>
@@ -687,7 +714,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                         info_edge_score). Letter chip wears the slice-2
                         grade mapping; +/− modifiers strip for variant
                         lookup only (display keeps the exact grade). */}
-                    {(card.letter_grade || card.composite_score != null) && (
+                    {(card.letter_grade || card.composite_score != null || (Array.isArray(card.risk_flags) && card.risk_flags.length > 0) || card.full_card_json?.setup?.has_wide_spread || card.full_card_json?.setup?.is_unlimited_risk) && (
                       <div className={themed('mt-3 pt-3 border-t border-border', dk)}>
                         <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5', dk)}>Scanner scores</div>
                         <div className="flex flex-wrap items-center gap-1.5">
@@ -699,6 +726,13 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                           {([['VOL', card.vol_edge_score], ['QUALITY', card.quality_score], ['REGIME', card.regime_score], ['INFO', card.info_edge_score]] as const).map(([name, v]) => (
                             v != null ? <span key={name} className={chip()}>{name} {Number(v).toFixed(0)}</span> : null
                           ))}
+                          {/* CARD-100-RENDER: flags PROMOTED from the collapse
+                              — always visible with the scores. */}
+                          {Array.isArray(card.risk_flags) && card.risk_flags.map((f, i) => (
+                            <span key={`rf-${i}`} className={chip('warning')}>{String(f)}</span>
+                          ))}
+                          {card.full_card_json?.setup?.has_wide_spread ? <span className={chip('warning')}>Wide spread</span> : null}
+                          {card.full_card_json?.setup?.is_unlimited_risk ? <span className={chip('warning')}>Unlimited risk</span> : null}
                         </div>
                       </div>
                     )}
@@ -720,46 +754,191 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                       </button>
                       {intelOpen && (() => {
                         const setup = card.full_card_json?.setup ?? {};
-                        const fmtN = (v: unknown, d = 2) => (v == null ? '—' : Number(v).toFixed(d));
+                        const ks = card.key_stats ?? {};
+                        const ep = ks.earnings_pattern ?? {};
+                        const cone = ks.vol_cone ?? null;
+                        const fwd = ks.forward_vol ?? null;
+                        const fmtN = (v: unknown, d = 2) => (v == null ? '\u2014' : Number(v).toFixed(d));
+                        const pct = (v: unknown, d = 1) => (v == null ? '\u2014' : `${Number(v).toFixed(d)}%`);
+                        // Presentation-only $X.XB/T cap format (mirrors CI's fmtCap).
+                        const fmtCap = (v: number | null | undefined) => v == null ? '\u2014' : v >= 1e12 ? `$${(v / 1e12).toFixed(1)}T` : `$${(v / 1e9).toFixed(1)}B`;
                         const row = (label: string, value: string) => (
                           <div key={label} className="flex justify-between text-xs">
                             <span className="text-white/60">{label}</span>
                             <span className="text-right font-mono text-white/80">{value}</span>
                           </div>
                         );
+                        const eyebrow = (label: string) => (
+                          <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5', dk)}>{label}</div>
+                        );
+                        // NARRATIVE dedupe — pure array derivation: signals already
+                        // shown as thesis_points are filtered out (R4: thesis_points
+                        // IS why.plain_english_signals at save, so this list is
+                        // normally empty and the row omits itself — honest, not a bug).
+                        const thesisSet = new Set(card.thesis_points ?? []);
+                        const freshSignals = (card.full_card_json?.why?.plain_english_signals ?? []).filter((s) => !thesisSet.has(s));
+                        const volSubs = card.vol_sub_scores ? Object.entries(card.vol_sub_scores).filter(([, v]) => v != null) : [];
+                        const hasVol = [ks.iv_rank, ks.iv_percentile, ks.iv30, ks.hv30, ks.iv_hv_spread].some((v) => v != null) || volSubs.length > 0 || cone != null || fwd != null;
+                        const hasFund = [ks.market_cap, ks.sector, ks.pe_ratio, ks.dividend_yield, ks.beta, ks.spy_correlation, ks.liquidity_rating, ks.lendability, ks.borrow_rate].some((v) => v != null);
+                        const hasEarn = [ks.earnings_date, ks.days_to_earnings, ep.beat_rate, ep.streak, ep.sue_score, ep.avg_surprise_pct].some((v) => v != null);
+                        const hasSocial = [ks.buzz_ratio, ks.sentiment_momentum, ks.analyst_consensus, card.social_score, card.social_post_count].some((v) => v != null) || (card.social_themes?.length ?? 0) > 0 || (card.social_posts?.length ?? 0) > 0;
+                        const hasNarrative = freshSignals.length > 0 || !!card.sentiment || !!card.insider_activity;
                         return (
-                          <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                          <div className="mt-2 space-y-4">
                             <div>
-                              <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5', dk)}>Setup</div>
+                              {eyebrow('Setup math')}
                               <div className="space-y-1">
-                                {row('Breakevens', (setup.breakevens?.length ?? 0) > 0 ? setup.breakevens!.map((b) => `$${Number(b).toFixed(2)}`).join(' / ') : '—')}
-                                {row('Net credit', setup.net_credit != null ? `$${fmtN(setup.net_credit)}` : '—')}
-                                {row('Net debit', setup.net_debit != null ? `$${fmtN(setup.net_debit)}` : '—')}
-                                {row('EV', setup.ev != null ? `$${fmtN(setup.ev)}` : '—')}
-                                {row('EV/risk', card.ev_per_risk != null ? fmtN(card.ev_per_risk) : '—')}
-                                {row('Theta/day', setup.greeks?.theta_per_day != null ? `$${fmtN(setup.greeks.theta_per_day)}` : '—')}
-                                {row('PoP method', setup.pop_method ?? '—')}
+                                {row('Breakevens', (setup.breakevens?.length ?? 0) > 0 ? setup.breakevens!.map((b) => `$${Number(b).toFixed(2)}`).join(' / ') : '\u2014')}
+                                {row('Net credit', setup.net_credit != null ? `$${fmtN(setup.net_credit)}` : '\u2014')}
+                                {row('Net debit', setup.net_debit != null ? `$${fmtN(setup.net_debit)}` : '\u2014')}
+                                {row('EV', setup.ev != null ? `$${fmtN(setup.ev)}` : '\u2014')}
+                                {row('EV/risk', card.ev_per_risk != null ? fmtN(card.ev_per_risk) : '\u2014')}
+                                {row('Theta/day', setup.greeks?.theta_per_day != null ? `$${fmtN(setup.greeks.theta_per_day)}` : '\u2014')}
+                                {row('PoP method', setup.pop_method ?? '\u2014')}
+                                {row('HV PoP', setup.hv_pop != null ? `${Math.round(Number(setup.hv_pop) * 100)}%` : '\u2014')}
                               </div>
                             </div>
                             <div>
-                              <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5', dk)}>Greeks at entry</div>
+                              {eyebrow('Greeks at entry')}
                               <div className="space-y-1">
                                 {row('Delta', fmtN(card.greeks_delta))}
                                 {row('Gamma', fmtN(card.greeks_gamma, 4))}
                                 {row('Theta', fmtN(card.greeks_theta))}
                                 {row('Vega', fmtN(card.greeks_vega))}
                               </div>
-                              {Array.isArray(card.risk_flags) && card.risk_flags.length > 0 && (
-                                <div className="mt-3">
-                                  <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5', dk)}>Risk flags</div>
-                                  <div className="flex flex-wrap gap-1.5">
-                                    {card.risk_flags.map((f, i) => (
-                                      <span key={i} className={chip('warning')}>{String(f)}</span>
+                            </div>
+                            {hasVol && (
+                              <div>
+                                {eyebrow('Vol edge')}
+                                <div className="space-y-1">
+                                  {row('IV rank', fmtN(ks.iv_rank))}
+                                  {row('IV percentile', fmtN(ks.iv_percentile))}
+                                  {row('IV30', pct(ks.iv30))}
+                                  {row('HV30', pct(ks.hv30))}
+                                  {row('IV-HV spread', pct(ks.iv_hv_spread))}
+                                </div>
+                                {volSubs.length > 0 && (
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {volSubs.map(([k, v]) => (
+                                      <span key={k} className={chip()}>{k} {Number(v).toFixed(0)}</span>
                                     ))}
                                   </div>
+                                )}
+                                {cone && (
+                                  <div className="mt-2 overflow-x-auto">
+                                    <table className="w-full text-xs">
+                                      <thead>
+                                        <tr className="font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border">
+                                          <th className="px-2 py-1 text-right">HV10</th>
+                                          <th className="px-2 py-1 text-right">HV20</th>
+                                          <th className="px-2 py-1 text-right">HV30</th>
+                                          <th className="px-2 py-1 text-right">HV60</th>
+                                          <th className="px-2 py-1 text-right">HV90</th>
+                                          <th className="px-2 py-1 text-right">Current IV</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        <tr>
+                                          <td className="px-2 py-1 text-right font-mono text-white/80">{pct(cone.hv10)}</td>
+                                          <td className="px-2 py-1 text-right font-mono text-white/80">{pct(cone.hv20)}</td>
+                                          <td className="px-2 py-1 text-right font-mono text-white/80">{pct(cone.hv30)}</td>
+                                          <td className="px-2 py-1 text-right font-mono text-white/80">{pct(cone.hv60)}</td>
+                                          <td className="px-2 py-1 text-right font-mono text-white/80">{pct(cone.hv90)}</td>
+                                          <td className="px-2 py-1 text-right font-mono text-white/80">{pct(cone.current_iv)}</td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                    {cone.candles_used != null && <div className="mt-1 text-[10px] text-white/40">{cone.candles_used} candles used</div>}
+                                  </div>
+                                )}
+                                {fwd && <div className="mt-2">{row('Forward vol', `${fwd.from_expiry ?? '?'} \u2192 ${fwd.to_expiry ?? '?'} \u00b7 fwd IV ${pct(fwd.forward_iv)}`)}</div>}
+                              </div>
+                            )}
+                            {hasFund && (
+                              <div>
+                                {eyebrow('Fundamentals')}
+                                <div className="space-y-1">
+                                  {row('Market cap', fmtCap(ks.market_cap))}
+                                  {row('Sector', ks.sector ?? '\u2014')}
+                                  {row('P/E', fmtN(ks.pe_ratio, 1))}
+                                  {row('Div yield', pct(ks.dividend_yield))}
+                                  {row('Beta', fmtN(ks.beta))}
+                                  {row('SPY corr', fmtN(ks.spy_correlation))}
+                                  {row('Liquidity', ks.liquidity_rating != null ? `${ks.liquidity_rating}/5` : '\u2014')}
+                                  {row('Lendability', ks.lendability ?? '\u2014')}
+                                  {row('Borrow rate', pct(ks.borrow_rate))}
                                 </div>
-                              )}
-                            </div>
+                              </div>
+                            )}
+                            {hasEarn && (
+                              <div>
+                                {eyebrow('Earnings')}
+                                <div className="space-y-1">
+                                  {row('Date', ks.earnings_date ?? '\u2014')}
+                                  {row('Days to', ks.days_to_earnings != null ? String(ks.days_to_earnings) : '\u2014')}
+                                  {row('Beat rate', pct(ep.beat_rate, 0))}
+                                  {row('Streak', ep.streak ?? '\u2014')}
+                                  {row('SUE', fmtN(ep.sue_score))}
+                                  {row('Avg surprise', pct(ep.avg_surprise_pct))}
+                                </div>
+                              </div>
+                            )}
+                            {hasSocial && (
+                              <div>
+                                {eyebrow('Social & attention')}
+                                <div className="space-y-1">
+                                  {row('Buzz ratio', fmtN(ks.buzz_ratio))}
+                                  {row('Sentiment momentum', fmtN(ks.sentiment_momentum))}
+                                  {row('Analyst consensus', ks.analyst_consensus ?? '\u2014')}
+                                  {row('Social score', fmtN(card.social_score))}
+                                  {row('Posts', card.social_post_count != null ? `${card.social_post_count}${(card.social_posts?.length ?? 0) > 0 ? ` (${card.social_posts!.length} samples)` : ''}` : '\u2014')}
+                                </div>
+                                {(card.social_themes?.length ?? 0) > 0 && (
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {card.social_themes!.map((t, i) => (
+                                      <span key={i} className={chip()}>{t}</span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {(card.headlines?.length ?? 0) > 0 && (
+                              <div>
+                                {eyebrow('Headlines')}
+                                <div className="space-y-1.5">
+                                  {card.headlines!.map((h, i) => (
+                                    <div key={i} className="flex items-start justify-between gap-2 text-xs">
+                                      <span className="text-white/80">{h.title} <span className="text-white/50">\u2014 {h.source}</span></span>
+                                      <span className={chip(h.sentiment?.toLowerCase().includes('bull') || h.sentiment?.toLowerCase().includes('pos') ? 'success' : h.sentiment?.toLowerCase().includes('bear') || h.sentiment?.toLowerCase().includes('neg') ? 'danger' : 'neutral')}>{h.sentiment}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {hasNarrative && (
+                              <div>
+                                {eyebrow('Narrative')}
+                                {freshSignals.length > 0 && (
+                                  <div className="space-y-1 mb-2">
+                                    {freshSignals.map((s, i) => (
+                                      <div key={i} className="flex gap-2 text-xs"><span className="shrink-0 text-white/40">\u2022</span><span className="text-white/70">{s}</span></div>
+                                    ))}
+                                  </div>
+                                )}
+                                {card.sentiment && (
+                                  <div className="mb-2">
+                                    {eyebrow('Sentiment')}
+                                    <div className="text-xs text-white/70">{card.sentiment}</div>
+                                  </div>
+                                )}
+                                {card.insider_activity && (
+                                  <div>
+                                    {eyebrow('Insider activity')}
+                                    <div className="text-xs text-white/70">{card.insider_activity}</div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         );
                       })()}
