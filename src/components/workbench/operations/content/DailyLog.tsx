@@ -143,7 +143,7 @@ export default function DailyLog({ surface = 'light', date }: { surface?: Surfac
         <td className={themed('border border-border-light px-2 py-1 align-top text-center', dk)}>
           <span
             className={themed(`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] ${
-              saved ? 'bg-brand-purple text-white' : themed('border border-border text-text-muted', dk)
+              saved ? (dk ? 'bg-brand-purple-pop text-white' : 'bg-brand-purple text-white') : themed('border border-border text-text-muted', dk)
             }`, dk)}
             aria-hidden="true"
           >
@@ -194,7 +194,7 @@ export default function DailyLog({ surface = 'light', date }: { surface?: Surfac
               type="button"
               onClick={() => saveRow(s.id)}
               disabled={state === 'saving'}
-              className="px-2 py-0.5 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
+              className={`px-2 py-0.5 border text-white rounded hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
             >
               {state === 'saving' ? 'Saving…' : 'Save answer'}
             </button>
@@ -282,7 +282,7 @@ export default function DailyLog({ surface = 'light', date }: { surface?: Surfac
             type="button"
             onClick={startDay}
             disabled={starting}
-            className="px-3 py-1.5 text-xs border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
+            className={`px-3 py-1.5 text-xs border text-white rounded hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
           >
             {starting ? 'Starting…' : `Start ${date} log`}
           </button>

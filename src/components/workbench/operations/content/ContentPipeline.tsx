@@ -24,6 +24,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Calendar, ClipboardList, FileText } from 'lucide-react';
 import { useOperationsEntity } from '../EntitySelector';
 import { CONTENT_DAY_PLAN_CHANGED_EVENT, CONTENT_SCENES_CHANGED_EVENT } from './ScenifyModal';
 import ScenifyDraft from './ScenifyDraft';
@@ -31,7 +32,7 @@ import ScriptGenerator from './ScriptGenerator';
 import PieceGrid from './PieceGrid';
 import DailyLog from './DailyLog';
 import DayCalendar from './DayCalendar';
-import { themed, type Surface } from '@/lib/ds';
+import { iconTab, themed, type Surface } from '@/lib/ds';
 
 interface RoutineLite {
   id: string;
@@ -54,7 +55,7 @@ interface GridCell {
 
 const STATUS_PILL: Record<string, string> = {
   open: 'bg-gray-100 text-gray-600',
-  in_progress: 'bg-brand-purple/10 text-brand-purple',
+  in_progress: 'bg-brand-purple-pop/15 text-brand-purple-pop',
   blocked: 'bg-amber-50 text-amber-700',
 };
 
@@ -64,7 +65,8 @@ const todayLocal = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-const sectionHeader = 'text-sm font-medium tracking-wide text-brand-purple';
+// CONTENT-V2: the stage header joins the SECTION_HEADER family on dark;
+// the light /operations mount keeps its purple. Picked per-render (dk).
 
 export default function ContentPipeline({ surface = 'light' }: { surface?: Surface } = {}) {
   const dk = surface === 'dark';
@@ -78,6 +80,13 @@ export default function ContentPipeline({ surface = 'light' }: { surface?: Surfa
   const [selected, setSelected] = useState<string[]>([]);
   // Shared date — S1 (add-to-day) + S3 (the answer table) read the same day.
   const [date, setDate] = useState(todayLocal());
+  // CONTENT-V2: one presentation useState — the stage toggler (trade icon-tab
+  // anatomy, ds.iconTab byte-reused). The shared `date` stays HERE (the
+  // pipeline owns it, :80) so switching stages never loses the day.
+  const [stage, setStage] = useState<'calendar' | 'log' | 'script'>('calendar');
+  const sectionHeader = dk
+    ? 'font-mono text-xs font-semibold uppercase tracking-wider text-white/80'
+    : 'text-sm font-medium tracking-wide text-brand-purple';
   // Tasks on the selected day: task_id → { itemId, committed }. The item id lets
   // INPUTS un-assign a planned piece via DELETE; `committed` (a calendar block
   // exists) guards that toggle so it never cascade-deletes committed time.
@@ -280,10 +289,14 @@ export default function ContentPipeline({ surface = 'light' }: { surface?: Surfa
     <div className="space-y-4">
       {/* Header + truthful counts + the new-day entity selector. */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-bold text-brand-purple">
-          Content
-          <span className={themed('ml-2 text-sm font-normal text-text-muted', dk)}>inputs → script map → answer + record → script</span>
-        </h1>
+        {/* CONTENT-V2: on dark the module band already titles the tab — the
+            purple heading renders only on the light /operations mount. */}
+        {!dk && (
+          <h1 className="text-lg font-bold text-brand-purple">
+            Content
+            <span className={themed('ml-2 text-sm font-normal text-text-muted', dk)}>inputs → script map → answer + record → script</span>
+          </h1>
+        )}
         <div className="flex items-center gap-2 text-xs">
           <span className={themed('px-2 py-0.5 rounded border border-border-light bg-bg-row text-text-primary', dk)}>
             {sceneCount} scenes
@@ -317,8 +330,25 @@ export default function ContentPipeline({ surface = 'light' }: { surface?: Surfa
 
       {/* · DAY — the day's blocks as a stacked clock-order list (shares useDayFeed
           with section 3's answer timeline). Collapsed by default; sits above INPUTS. */}
-      <DayCalendar surface={surface} date={date} onDateChange={setDate} />
+      {/* CONTENT-V2: the stage toggler — one stage at a time. */}
+      <div className={dk ? 'flex items-end gap-1 border-b border-white/10' : 'flex items-end gap-1 border-b border-border'}>
+        <button type="button" onClick={() => setStage('calendar')} aria-pressed={stage === 'calendar'} className={iconTab(stage === 'calendar')}>
+          <Calendar className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
+          <span>Calendar</span>
+        </button>
+        <button type="button" onClick={() => setStage('log')} aria-pressed={stage === 'log'} className={iconTab(stage === 'log')}>
+          <ClipboardList className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
+          <span>Log</span>
+        </button>
+        <button type="button" onClick={() => setStage('script')} aria-pressed={stage === 'script'} className={iconTab(stage === 'script')}>
+          <FileText className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
+          <span>Script</span>
+        </button>
+      </div>
 
+      {stage === 'calendar' && <DayCalendar surface={surface} date={date} onDateChange={setDate} />}
+
+      {stage === 'log' && (<>
       {/* 1 · INPUTS — projects/routines are CREATED in their own tabs; here you only
           SELECT existing ones (PR-Content-2 removed the redundant in-tab create step). */}
       <section className={themed('bg-white rounded border border-border p-4 space-y-3', dk)}>
@@ -381,7 +411,7 @@ export default function ContentPipeline({ surface = 'light' }: { surface?: Surfa
                               className={`shrink-0 px-2 py-0.5 rounded border text-[11px] ${
                                 added
                                   ? 'border-brand-purple text-brand-purple hover:bg-purple-50'
-                                  : 'border-brand-purple bg-brand-purple text-white hover:opacity-90'
+                                  : dk ? 'border-brand-purple-pop bg-brand-purple-pop text-white hover:opacity-90' : 'border-brand-purple bg-brand-purple text-white hover:opacity-90'
                               } disabled:opacity-60`}
                             >
                               {added
@@ -427,7 +457,7 @@ export default function ContentPipeline({ surface = 'light' }: { surface?: Surfa
                           >
                             <span
                               className={themed(`shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] ${
-                                isSel ? 'bg-brand-purple text-white' : themed('border border-border text-text-muted', dk)
+                                isSel ? (dk ? 'bg-brand-purple-pop text-white' : 'bg-brand-purple text-white') : themed('border border-border text-text-muted', dk)
                               }`, dk)}
                               aria-hidden="true"
                             >
@@ -478,9 +508,10 @@ export default function ContentPipeline({ surface = 'light' }: { surface?: Surfa
         <DailyLog surface={surface} date={date} />
         <PieceGrid surface={surface} />
       </section>
+      </>)}
 
       {/* 4 · SCRIPT — the reel voiceover generator (CE-5). */}
-      <ScriptGenerator surface={surface} date={date} />
+      {stage === 'script' && <ScriptGenerator surface={surface} date={date} />}
     </div>
   );
 }
