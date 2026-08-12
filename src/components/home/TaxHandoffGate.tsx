@@ -8,23 +8,18 @@ import { themed } from '@/lib/ds';
 /**
  * TAX-1 — the closed-books handoff gate for the homepage Tax tab.
  *
- * "Tax begins at completed books": the wizard only opens once the user has actually
- * CLOSED at least one accounting period (closing_periods.status === 'closed'). This
- * mirrors the constitution — tax figures derive from the ledger, so they are only
- * trustworthy once a period is closed.
+ * TAX-UNLOCK (Alex's explicit override, 2026-08-12): the closed-period GATE
+ * DIED. The wizard opens for everyone with an entity — the TurboTax
+ * precedent; linking closed books is the optional enhancement, not the toll.
  *
- * Handoff rule (documented, intentionally simple for TAX-1): if ANY closed period
- * exists for the user's default entity, the handoff is satisfied and the wizard renders.
- * Refining this to per-tax-year granularity (filing year N needs year-N closes) is a
- * later PR.
- *
- * TRUTH-FIRST — three explicit states, no guessing:
+ * TRUTH-FIRST — the states that remain, no guessing:
  *   loading → neutral placeholder
- *   error   → explicit error + Retry (a FAILED closing-periods/entities fetch is neither
- *             open nor closed — we never guess a state)
- *   loaded  → NO closed period → the handoff gate screen (with a jump-to-Books button)
- *             ≥1 closed period → the bare <TaxFilingWizard surface="dark" />
- * "No entity / no closed period" is the TRUE not-yet-closed state, not a fallback.
+ *   error   → explicit error + Retry (a FAILED closing-periods/entities fetch
+ *             is neither open nor closed — we never guess a state)
+ *   gate    → NO ENTITY ONLY (the user cannot have books at all — honest
+ *             state, preserved as-is)
+ *   wizard  → entity exists, ALWAYS. When zero periods are closed, an info
+ *             banner above the wizard offers the optional Books close.
  *
  * All fetches hit existing, auth-gated, user-scoped routes (/api/entities,
  * /api/closing-periods) — no new routes.
@@ -42,6 +37,8 @@ export default function TaxHandoffGate({ onGoToBooks }: Props) {
   const dk = true;
   const [state, setState] = useState<GateState>('loading');
   const [periodCount, setPeriodCount] = useState(0);
+  // TAX-UNLOCK: kept ONLY to decide the optional-books info banner.
+  const [closedCount, setClosedCount] = useState(0);
 
   const load = useCallback(async () => {
     setState('loading');
@@ -66,7 +63,9 @@ export default function TaxHandoffGate({ onGoToBooks }: Props) {
       // Closed contract: status === 'closed'. 'reopened' and absent do NOT count.
       const closed = periods.filter((p) => p.status === 'closed').length;
       setPeriodCount(periods.length);
-      setState(closed > 0 ? 'wizard' : 'gate');
+      setClosedCount(closed);
+      // TAX-UNLOCK: entity exists → the wizard, ALWAYS (the closed>0 toll died).
+      setState('wizard');
     } catch {
       setState('error');
     }
@@ -97,6 +96,8 @@ export default function TaxHandoffGate({ onGoToBooks }: Props) {
     );
   }
 
+  // TAX-UNLOCK: 'gate' is now the NO-ENTITY state only — preserved as-is
+  // (the honest cannot-have-books state); every entity-holder gets the wizard.
   if (state === 'gate') {
     return (
       <div className="rounded-xl border-2 border-brand-gold/50 bg-brand-gold/5 px-6 py-8 text-center">
@@ -138,6 +139,25 @@ export default function TaxHandoffGate({ onGoToBooks }: Props) {
   // valueLine (ModuleLauncher tax branch). Wizard untouched.
   return (
     <>
+      {/* TAX-UNLOCK: the optional-books banner — STATE info family (the
+          errorCard idiom in status-info tokens); the existing Go-to-Books
+          button reused (layout-only: it lost mx-auto/mt-5 to sit in the
+          banner row). */}
+      {closedCount === 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-status-info/30 bg-status-info/10 p-3 text-xs text-status-info">
+          <span>
+            Optional: close an accounting period in Books and these figures auto-fill straight from your ledger.
+          </span>
+          <button
+            type="button"
+            onClick={onGoToBooks}
+            className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-brand-purple px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-purple/90"
+          >
+            <BookOpen className="h-4 w-4" aria-hidden="true" />
+            Go to Books &amp; close a period
+          </button>
+        </div>
+      )}
       <div className={themed('rounded-xl border-2 border-border bg-white px-6 py-5', dk)}>
         <p className={themed('font-mono text-[10px] font-semibold uppercase tracking-wider text-text-muted', dk)}>
           Derived from your actual closed books
