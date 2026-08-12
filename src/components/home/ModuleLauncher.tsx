@@ -585,11 +585,13 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
             </>
           ) : (
             // Guest (or auth still resolving): no personal table to fetch, but the
-            // "Your trips" header + button still show so a guest can start one — the
-            // create attempt then nudges to sign up (gateGuestCreate), unchanged.
+            // create button still shows so a guest can start one — the create
+            // attempt then nudges to sign up (gateGuestCreate), unchanged.
+            // TRAVEL-RESTRUCTURE dedupe: the inner "Your trips" heading died —
+            // the attached panel's SECTION_HEADER above already says it; the
+            // button keeps its right-side seat (justify-end).
             <div>
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <p className="text-lg font-bold text-white">Your trips</p>
+              <div className="mb-2 flex items-center justify-end gap-3">
                 {createTripButton}
               </div>
               <p className="rounded-lg border border-panel-border bg-panel-surface p-4 text-sm text-white/60">
