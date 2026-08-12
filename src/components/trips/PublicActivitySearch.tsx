@@ -26,8 +26,9 @@ import TravelSectionShell, { TravelField, TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLAS
 interface Props {
   /** Opens the existing home register/login modal (booking requires sign-in). */
   onRequireAuth: () => void;
-  /** PR-3: unified-bar fan-out. When searchNonce increments, this section runs its OWN
-   *  search for {sharedCity, sharedCountry}. Manual per-section search still works. */
+  /** PR-3 fan-out props — INERT since TRAVEL-RESTRUCTURE retired the unified
+   *  destination bar (no mount passes these anymore). Kept optional so the
+   *  contract stays available; this panel's own inputs are the search path. */
   sharedCity?: string;
   sharedCountry?: string;
   searchNonce?: number;
