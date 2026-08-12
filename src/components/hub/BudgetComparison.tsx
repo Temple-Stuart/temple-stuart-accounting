@@ -1,5 +1,5 @@
 'use client';
-import { themed } from '@/lib/ds';
+import { themed, toggleChip } from '@/lib/ds';
 
 /**
  * BudgetComparison (PR-Runway-Comparison) — the Travel-vs-Personal budget comparison,
@@ -154,11 +154,7 @@ export default function BudgetComparison({ initialYear, preview = false }: { ini
               <button
                 key={i}
                 onClick={() => setTravelMonths(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i].sort((a,b) => a-b))}
-                className={themed(`px-3 py-1.5 text-xs font-mono font-medium transition-all border ${
-                  travelMonths.includes(i)
-                    ? 'bg-brand-purple text-white border-brand-purple'
-                    : 'bg-white text-text-secondary border-border hover:bg-bg-row'
-                }`, true)}
+                className={toggleChip(travelMonths.includes(i))}
               >
                 {m}
               </button>
@@ -187,7 +183,7 @@ export default function BudgetComparison({ initialYear, preview = false }: { ini
             <div className={`text-sm font-bold font-mono ${travelSavings >= 0 ? 'text-status-success' : 'text-status-danger'}`}>{travelSavings >= 0 ? '+' : ''}{fmt(travelSavings)}</div>
             <div className={themed('text-xs text-text-muted mt-1', true)}>{travelSavings >= 0 ? 'Saved vs home' : 'Extra vs home'}</div>
           </div>
-          <div className="bg-brand-purple p-4 text-white">
+          <div className="bg-brand-purple-pop p-4 text-white">
             <div className={themed('text-xs text-text-faint font-medium mb-1', true)}>Effective Total</div>
             <div className="text-sm font-bold font-mono">{fmt(effectiveYearlyCost)}</div>
             <div className={themed('text-xs text-text-faint mt-1', true)}>{selectedYear} projected</div>
@@ -198,16 +194,16 @@ export default function BudgetComparison({ initialYear, preview = false }: { ini
         <div className={themed('border border-border bg-white overflow-x-auto', true)}>
           <table className="w-full text-xs">
             <thead>
-              <tr className="bg-brand-purple text-white">
-                <th className="text-left py-2 px-3 font-medium border-r border-brand-purple-hover w-36">Category</th>
+              <tr className="bg-white/5 text-white/80">
+                <th className="text-left py-2 px-3 font-medium border-r border-panel-border w-36">Category</th>
                 {MONTHS_SHORT.map((m, i) => (
-                  <th key={m} className={`py-2 px-2 font-medium border-r border-brand-purple-hover text-right min-w-[55px] ${travelMonths.includes(i) ? 'bg-panel-highlight' : ''}`}>{m}</th>
+                  <th key={m} className={`py-2 px-2 font-medium border-r border-panel-border text-right min-w-[55px] ${travelMonths.includes(i) ? 'bg-panel-highlight' : ''}`}>{m}</th>
                 ))}
                 <th className="py-2 px-3 font-medium text-right bg-panel-highlight min-w-[70px]">FY Total</th>
               </tr>
             </thead>
             <tbody>
-              <tr className={themed('border-b border-border bg-white hover:bg-brand-purple-wash/30', true)}>
+              <tr className={`${themed('border-b border-border bg-white', true)} hover:bg-brand-purple-pop/10`}>
                 <td className={themed('py-2 px-3 font-medium text-text-primary border-r border-border', true)}>Homebase</td>
                 {MONTHS_SHORT.map((_, i) => {
                   const val = Object.values(homebaseBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
@@ -220,7 +216,7 @@ export default function BudgetComparison({ initialYear, preview = false }: { ini
                 })}
                 <td className={themed('py-2 px-3 text-right font-mono font-semibold text-text-primary bg-bg-row', true)}>{fmt(homeMonthsHomebaseBudget)}</td>
               </tr>
-              <tr className={themed('border-b border-border bg-bg-row/50 hover:bg-brand-purple-wash/30', true)}>
+              <tr className={`${themed('border-b border-border bg-bg-row/50', true)} hover:bg-brand-purple-pop/10`}>
                 <td className={themed('py-2 px-3 font-medium text-text-primary border-r border-border', true)}>Business</td>
                 {MONTHS_SHORT.map((_, i) => {
                   const val = Object.values(businessBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
@@ -228,7 +224,7 @@ export default function BudgetComparison({ initialYear, preview = false }: { ini
                 })}
                 <td className={themed('py-2 px-3 text-right font-mono font-semibold text-text-primary bg-bg-row', true)}>{fmt(yearlyBusinessBudget)}</td>
               </tr>
-              <tr className={themed('border-b border-border bg-white hover:bg-brand-purple-wash/30', true)}>
+              <tr className={`${themed('border-b border-border bg-white', true)} hover:bg-brand-purple-pop/10`}>
                 <td className={themed('py-2 px-3 font-medium text-text-primary border-r border-border', true)}>Travel</td>
                 {MONTHS_SHORT.map((_, i) => {
                   const val = Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
@@ -238,15 +234,15 @@ export default function BudgetComparison({ initialYear, preview = false }: { ini
               </tr>
             </tbody>
             <tfoot>
-              <tr className="bg-brand-purple text-white font-semibold">
-                <td className="py-2 px-3 border-r border-brand-purple-hover">Monthly Total</td>
+              <tr className="bg-white/5 text-white font-semibold">
+                <td className="py-2 px-3 border-r border-panel-border">Monthly Total</td>
                 {MONTHS_SHORT.map((_, i) => {
                   const homebase = Object.values(homebaseBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                   const business = Object.values(businessBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                   const travel = Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                   const isTraveling = travelMonths.includes(i);
                   const effective = isTraveling ? (travel + business) : (homebase + travel + business);
-                  return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-brand-purple-hover ${isTraveling ? 'bg-panel-highlight' : ''}`}>{fmt(effective)}</td>);
+                  return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-panel-border ${isTraveling ? 'bg-panel-highlight' : ''}`}>{fmt(effective)}</td>);
                 })}
                 <td className="py-2 px-3 text-right font-mono bg-panel-highlight">{fmt(effectiveYearlyCost)}</td>
               </tr>

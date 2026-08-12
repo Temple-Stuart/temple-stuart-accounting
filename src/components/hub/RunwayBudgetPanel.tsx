@@ -1,5 +1,5 @@
 'use client';
-import { themed } from '@/lib/ds';
+import { SEGMENT, themed } from '@/lib/ds';
 
 /**
  * RunwayBudgetPanel (ONE-BUDGET-TOGGLE) — one budget panel with a Month/Year toggle.
@@ -338,19 +338,15 @@ export default function RunwayBudgetPanel({ preview = false }: { preview?: boole
                 : 'Full-year travel-vs-home comparison.'}
             </p>
           </div>
-          {/* Month / Year toggle — mirrors HubBudgetSection's Personal/Business/Travel
-              toggle styling (same tokens, no new hex). */}
-          <div className="flex gap-1.5">
+          {/* RUNWAY-DEEP: Month / Year joins the house SEGMENT (the flights-bar
+              idiom, ds.ts SEGMENT) — the legacy-purple pill retires. */}
+          <div className={SEGMENT.wrap}>
             {([['month', 'Month'], ['year', 'Year']] as const).map(([key, label]) => (
               <button
                 key={key}
                 type="button"
                 onClick={() => setView(key)}
-                className={themed(`text-xs px-3 py-1 rounded border transition-colors font-medium ${
-                  view === key
-                    ? 'bg-brand-purple text-white border-brand-purple'
-                    : 'text-text-secondary border-border hover:bg-bg-row'
-                }`, true)}
+                className={SEGMENT.item(view === key)}
               >
                 {label}
               </button>

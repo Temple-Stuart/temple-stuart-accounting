@@ -1,5 +1,5 @@
 'use client';
-import { themed } from '@/lib/ds';
+import { DATA, themed, toggleChip } from '@/lib/ds';
 
 /**
  * HubBudgetSection (PR-HB-1) — a month-scoped budget table under the hub home calendar.
@@ -146,11 +146,7 @@ export default function HubBudgetSection({ preview = false }: { preview?: boolea
           <button
             key={t.key}
             onClick={() => setToggle(t.key)}
-            className={themed(`text-xs px-3 py-1 rounded border transition-colors font-medium ${
-              toggle === t.key
-                ? 'bg-brand-purple text-white border-brand-purple'
-                : 'text-text-secondary border-border hover:bg-bg-row'
-            }`, true)}
+            className={toggleChip(toggle === t.key)}
           >
             {t.label}
           </button>
@@ -172,13 +168,13 @@ export default function HubBudgetSection({ preview = false }: { preview?: boolea
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className={themed('border-b border-border text-xs text-text-faint', true)}>
-                <th className="py-2 px-3 text-left font-medium">Category</th>
-                <th className="py-2 px-3 text-left font-medium">COA</th>
-                <th className="py-2 px-3 text-right font-medium">Budget</th>
-                <th className="py-2 px-3 text-right font-medium">Actual</th>
-                <th className="py-2 px-3 text-right font-medium">Variance</th>
-                <th className="py-2 px-3 text-right font-medium">Variance %</th>
+              <tr className="border-b border-panel-border bg-white/5">
+                <th className={`py-2 px-3 text-left ${DATA.columnHeader}`}>Category</th>
+                <th className={`py-2 px-3 text-left ${DATA.columnHeader}`}>COA</th>
+                <th className={`py-2 px-3 text-right ${DATA.columnHeader}`}>Budget</th>
+                <th className={`py-2 px-3 text-right ${DATA.columnHeader}`}>Actual</th>
+                <th className={`py-2 px-3 text-right ${DATA.columnHeader}`}>Variance</th>
+                <th className={`py-2 px-3 text-right ${DATA.columnHeader}`}>Variance %</th>
               </tr>
             </thead>
             <tbody>

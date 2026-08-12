@@ -134,7 +134,7 @@ export default function EventDetailPanel({ event, onClose, surface = 'light' }: 
         className={themed('flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-lg bg-white shadow-sm', dk)}
       >
         {/* Header */}
-        <div className="flex items-start justify-between bg-brand-purple px-5 py-4 text-white">
+        <div className={`flex items-start justify-between px-5 py-4 text-white ${dk ? 'bg-brand-purple-pop' : 'bg-brand-purple'}`}>
           <div className="min-w-0 flex-1 pr-3">
             <h3 className="break-words text-sm font-semibold">{event.title}</h3>
             <p className="mt-1 flex items-center gap-1.5 text-xs text-white/70">
