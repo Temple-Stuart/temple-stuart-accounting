@@ -32,6 +32,7 @@
 
 import { useState } from 'react';
 import Landing from './Landing';
+import CheckoutResultBanner from '@/components/CheckoutResultBanner';
 import LoginBox from '@/components/LoginBox';
 
 export default function GuestLanding({ entitlementAvailability, logoAvailability }: {
@@ -78,6 +79,9 @@ export default function GuestLanding({ entitlementAvailability, logoAvailability
 
   return (
     <>
+      {/* UNLOCK-BANNER: the checkout result card — the ?unlocked/?cancelled
+          params the purchase resume returns with land here for guests. */}
+      <CheckoutResultBanner />
       <Landing
         entitlementAvailability={entitlementAvailability}
         logoAvailability={logoAvailability}
