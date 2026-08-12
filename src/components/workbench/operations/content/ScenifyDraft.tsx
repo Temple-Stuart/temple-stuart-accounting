@@ -101,7 +101,7 @@ interface TaskView {
 const headerCellClass =
   'sticky top-0 z-10 bg-bg-row border border-border-light px-2 py-1.5 text-left text-brand-purple font-semibold uppercase tracking-wide whitespace-nowrap';
 const cellInputClass =
-  'w-full px-2 py-1 bg-white text-text-primary placeholder:text-text-muted focus:outline-none focus:bg-purple-50/40 focus:ring-1 focus:ring-inset focus:ring-brand-purple';
+  'w-full px-2 py-1 bg-white text-text-primary placeholder:text-text-muted focus:outline-none focus:bg-brand-purple-pop/10 focus:ring-1 focus:ring-inset focus:ring-brand-purple';
 // Untimed/planned task rows sink after the untimed scenes (whose order is small).
 const UNTIMED_TASK_ORDER_BASE = 100000;
 
@@ -479,7 +479,7 @@ export default function ScenifyDraft({ surface = 'light',
           {hasQuestion && (
             <div className="mb-1">
               {d.assigned_question_id ? (
-                <span className="px-1.5 py-0.5 rounded bg-brand-purple text-white text-[10px] tracking-wide">
+                <span className={`px-1.5 py-0.5 rounded text-white text-[10px] tracking-wide ${dk ? 'bg-brand-purple-pop' : 'bg-brand-purple'}`}>
                   from library
                 </span>
               ) : (
@@ -605,7 +605,7 @@ export default function ScenifyDraft({ surface = 'light',
           type="button"
           onClick={handleSubmit}
           disabled={submitting || enriching || loading || allSteps.length === 0}
-          className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
+          className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
         >
           {submitting ? 'saving…' : 'save scenes'}
         </button>

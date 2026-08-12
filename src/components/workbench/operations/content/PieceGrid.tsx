@@ -353,7 +353,7 @@ export default function PieceGrid({ surface = 'light' }: { surface?: Surface } =
                           type="button"
                           onClick={handleAddDay}
                           disabled={addDaySaving}
-                          className="px-2 py-0.5 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
+                          className={`px-2 py-0.5 border text-white rounded hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
                         >
                           {addDaySaving ? '…' : 'Add'}
                         </button>

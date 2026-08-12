@@ -37,7 +37,7 @@ export const CONTENT_DAY_PLAN_CHANGED_EVENT = 'operations:content-day-plan-chang
 const headerCellClass =
   'sticky top-0 z-10 bg-bg-row border border-border-light px-2 py-1.5 text-left text-brand-purple font-semibold uppercase tracking-wide whitespace-nowrap';
 const cellInputClass =
-  'w-full px-2 py-1 bg-white text-text-primary placeholder:text-text-faint focus:outline-none focus:bg-purple-50/40 focus:ring-1 focus:ring-inset focus:ring-brand-purple';
+  'w-full px-2 py-1 bg-white text-text-primary placeholder:text-text-faint focus:outline-none focus:bg-brand-purple-pop/10 focus:ring-1 focus:ring-inset focus:ring-brand-purple';
 
 interface StepSceneRow {
   camera_needed: string | null;
@@ -389,7 +389,7 @@ export default function ScenifyModal({ surface = 'light',
                       {hasQuestion && (
                         <div className="mb-1">
                           {d.assigned_question_id ? (
-                            <span className="px-1.5 py-0.5 rounded bg-brand-purple text-white text-[10px] tracking-wide">
+                            <span className={`px-1.5 py-0.5 rounded text-white text-[10px] tracking-wide ${dk ? 'bg-brand-purple-pop' : 'bg-brand-purple'}`}>
                               from library
                             </span>
                           ) : (

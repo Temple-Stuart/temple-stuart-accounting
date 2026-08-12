@@ -47,6 +47,7 @@ const ROW_GRID =
 
 const chipBase = 'px-2 py-0.5 rounded border text-[11px]';
 const chipOn = 'border-brand-purple bg-brand-purple text-white';
+const chipOnDark = 'border-brand-purple-pop bg-brand-purple-pop text-white';
 const chipOff = 'border-border-light text-text-muted hover:bg-bg-row';
 const navBtn =
   'w-7 h-7 flex items-center justify-center rounded text-text-muted hover:bg-bg-row';
@@ -356,7 +357,7 @@ export default function DayCalendarView({ surface = 'light',
                       key={id}
                       type="button"
                       onClick={() => toggleEntity(id)}
-                      className={themed(`${chipBase} ${activeEntities.has(id) ? chipOn : chipOff}`, dk)}
+                      className={themed(`${chipBase} ${activeEntities.has(id) ? (dk ? chipOnDark : chipOn) : chipOff}`, dk)}
                     >
                       {entityNameById.get(id) ?? id}
                     </button>
@@ -370,7 +371,7 @@ export default function DayCalendarView({ surface = 'light',
                     <button
                       type="button"
                       onClick={() => toggleSource('scene')}
-                      className={themed(`${chipBase} ${activeSources.has('scene') ? chipOn : chipOff}`, dk)}
+                      className={themed(`${chipBase} ${activeSources.has('scene') ? (dk ? chipOnDark : chipOn) : chipOff}`, dk)}
                     >
                       scenes
                     </button>
@@ -379,7 +380,7 @@ export default function DayCalendarView({ surface = 'light',
                     <button
                       type="button"
                       onClick={() => toggleSource('travel')}
-                      className={themed(`${chipBase} ${activeSources.has('travel') ? chipOn : chipOff}`, dk)}
+                      className={themed(`${chipBase} ${activeSources.has('travel') ? (dk ? chipOnDark : chipOn) : chipOff}`, dk)}
                     >
                       travel
                     </button>
@@ -388,7 +389,7 @@ export default function DayCalendarView({ surface = 'light',
                     <button
                       type="button"
                       onClick={() => toggleSource('task')}
-                      className={themed(`${chipBase} ${activeSources.has('task') ? chipOn : chipOff}`, dk)}
+                      className={themed(`${chipBase} ${activeSources.has('task') ? (dk ? chipOnDark : chipOn) : chipOff}`, dk)}
                     >
                       tasks
                     </button>
