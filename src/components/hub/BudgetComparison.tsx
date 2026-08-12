@@ -184,7 +184,7 @@ export default function BudgetComparison({ initialYear, preview = false }: { ini
           </div>
           <div className={themed('bg-white p-4', true)}>
             <div className={themed('text-xs text-text-muted font-medium mb-1', true)}>Travel Savings</div>
-            <div className={`text-sm font-bold font-mono ${travelSavings >= 0 ? 'text-emerald-700' : 'text-brand-red'}`}>{travelSavings >= 0 ? '+' : ''}{fmt(travelSavings)}</div>
+            <div className={`text-sm font-bold font-mono ${travelSavings >= 0 ? 'text-status-success' : 'text-status-danger'}`}>{travelSavings >= 0 ? '+' : ''}{fmt(travelSavings)}</div>
             <div className={themed('text-xs text-text-muted mt-1', true)}>{travelSavings >= 0 ? 'Saved vs home' : 'Extra vs home'}</div>
           </div>
           <div className="bg-brand-purple p-4 text-white">
