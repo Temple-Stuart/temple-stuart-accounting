@@ -8,6 +8,7 @@ import {
   Check, ClipboardCheck, Crosshair, FlaskConical,
   type LucideIcon,
 } from 'lucide-react';
+import { STATE } from '@/lib/ds';
 import CreateTripForm from '@/components/trips/CreateTripForm';
 import TripBookings from '@/components/trips/TripBookings';
 import UnattachedBookings from '@/components/trips/UnattachedBookings';
@@ -464,7 +465,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         <button
           type="button"
           onClick={() => setShowCreate(true)}
-          className="shrink-0 rounded-lg bg-brand-purple px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-brand-purple/90"
+          className="shrink-0 rounded-lg ts-cta-gradient px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:brightness-110"
         >
           + Create a trip
         </button>
@@ -1039,12 +1040,12 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                   </div>
                 )}
                 {booksState === 'error' && (
-                  <div role="alert" className="rounded-xl border-2 border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+                  <div role="alert" className={`${STATE.errorCard} flex items-center justify-between gap-3`}>
                     <span>Couldn&rsquo;t load your books right now. Nothing is assumed — the balance sheet is hidden until it loads.</span>
                     <button
                       type="button"
                       onClick={loadBooksCockpit}
-                      className="shrink-0 rounded-lg border border-red-400 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100"
+                      className="shrink-0 rounded-lg border border-status-danger/40 px-3 py-1.5 text-xs font-semibold text-status-danger hover:bg-status-danger/10"
                     >
                       Retry
                     </button>
