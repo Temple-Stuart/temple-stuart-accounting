@@ -577,16 +577,20 @@ const HERO_BG =
 
 // PR-ELEV-2c: the CARD variant of the glow. HERO_BG's ellipses are positioned
 // for the WIDE hero — on a small card the glow collapses into one corner and
-// the surface reads near-black (Alex, live screenshots). Same hue family
-// (--ts-purple/--ts-purple-deep/--ts-panel — existing tokens only), wider
-// ellipses + stronger stops so the glow reaches the card's center:
-//   purple:      80%×90% @ 0.65 / fade 60%  →  120%×120% @ 0.85 / fade 70%
-//   purple-deep: 60%×70% @ 0.50 / fade 55%  →   90%×90%  @ 0.70 / fade 65%
+// the surface reads near-black (Alex, live screenshots); the wider ellipses
+// below keep the glow reaching the card's center. CARD-POP: the wash migrates
+// from the legacy deep purples (--ts-purple @ 0.85 / --ts-purple-deep @ 0.70)
+// to the pop token — cards now match the CTA family (.ts-cta-gradient's start
+// stop). ALPHAS COME DOWN (0.85→0.28 primary, 0.70→0.14 secondary): pop
+// (#5b21ff, electric indigo) is far brighter than #3b2d6b/#2d1b4e — at the
+// old alphas it blooms neon and eats the white text; ~1/3 the alpha lands the
+// same perceived wash over var(--ts-panel) (#11131b) and keeps every text
+// tier (title white, desc white/60, price line) comfortably >10:1.
 // Applied to the wall cards + BOTH deck slide surfaces; the hero keeps
 // HERO_BG untouched (the smaller-blast-radius option — the hero was tuned for
 // its own scale and drew no complaint).
 const CARD_BG =
-  'radial-gradient(ellipse 120% 120% at 80% 0%, rgb(var(--ts-purple) / 0.85), transparent 70%), radial-gradient(ellipse 90% 90% at 10% 100%, rgb(var(--ts-purple-deep) / 0.7), transparent 65%), var(--ts-panel)';
+  'radial-gradient(ellipse 120% 120% at 80% 0%, rgb(var(--ts-purple-pop) / 0.28), transparent 70%), radial-gradient(ellipse 90% 90% at 10% 100%, rgb(var(--ts-purple-pop) / 0.14), transparent 65%), var(--ts-panel)';
 
 export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvailability, logoAvailability, onBuyModule }: Props) {
   const pricingByKey = new Map(TAB_PRICING.map((t) => [t.key, t]));
@@ -1139,9 +1143,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
               return (
                 // DECK-2: each slide IS a miniature explore hero — the
                 // TabShowcaseTemplate darkHero visual language (:142-148:
-                // near-black base + brand-purple radial glows), rebuilt on
-                // tokens via the FD-1c HERO_BG const (reused verbatim — the
-                // template's raw color literals never enter this file).
+                // near-black base + radial glows), rebuilt on tokens via the
+                // shared glow const (HERO_BG then; CARD_BG since ELEV-2c —
+                // the template's raw color literals never enter this file).
                 // Chip = the template's :151 eyebrow idiom (+ the
                 // landing's mono); headline = the hero's display type scaled
                 // down (text-3xl/5xl → 2xl/3xl); sub-copy white/65-70; CTA =
@@ -1207,8 +1211,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             feedback: the mono row undersold the stack; the summary deck above
             was RESTORED byte-faithfully from fec63b01 by the same ruling).
             CARD IDIOM REUSED, not invented: the pillar deck's glow-panel
-            article (rounded-lg + text-white on HERO_BG — the :723-731 slide
-            classes, compacted to p-4). WORDING LAW (locked): "Built on" /
+            article (rounded-lg + text-white on the shared glow wash — HERO_BG
+            then, CARD_BG since ELEV-2c; the :723-731 slide classes, compacted
+            to p-4). WORDING LAW (locked): "Built on" /
             "integrates with" ONLY — never "partners", "trusted by", or any
             endorsement framing. CLAIMABILITY RULE: wired clients only (each
             name has a live client file in src/lib — LANDING-ELEVATE-AUDIT-1
