@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireTabAccess } from '@/lib/auth-helpers';
 
 export async function GET() {
   try {
@@ -13,6 +14,10 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    // TRADE-GATE: this summary is trade-priced data (realized P&L, open
+    // positions, strategy breakdown) — the tab:trade entitlement gates it.
+    const tabGate = await requireTabAccess(user.id, 'tab:trade');
+    if (tabGate) return tabGate;
 
     // Get user's accounts
     const userAccounts = await prisma.accounts.findMany({

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getTastytradeSessionToken } from '@/lib/tastytrade';
-import { requireAdmin } from '@/lib/require-admin';
+import { prisma } from '@/lib/prisma';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireTabAccess } from '@/lib/auth-helpers';
 import { buildBacktestRequest, parseBacktestResponse, type BacktestConfig } from '@/lib/backtest-translator';
 
 const BACKTESTER_BASE = 'https://backtester.vast.tastyworks.com';
@@ -13,8 +15,19 @@ export async function POST(request: Request) {
     // SECURITY (PR-Trade-SEC): this route hits the PAID TastyTrade backtester. Gate to the
     // admin/owner BEFORE any session token / paid call, mirroring /api/trading/convergence
     // (route.ts:51-52). requireAdmin → 401 (guest) / 403 (non-admin) before we proceed.
-    const adminResult = await requireAdmin();
-    if (adminResult instanceof NextResponse) return adminResult;
+    // TRADE-GATE: entitlement-gated (was requireAdmin) — login, then the
+    // paid tab:trade key; admin passes via hasTabAccess's ADMIN_USER_ID
+    // bypass (entitlements.ts:48).
+    const userEmail = await getVerifiedEmail();
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    const tabGate = await requireTabAccess(user.id, 'tab:trade');
+    if (tabGate) return tabGate;
 
     const token = await getTastytradeSessionToken();
     console.log('[Backtest Run] Session token obtained, length:', token.length);

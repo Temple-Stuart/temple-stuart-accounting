@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getAuthenticatedClient } from '@/lib/tastytrade';
 import { MarketDataSubscriptionType } from '@tastytrade/api';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { requireAdmin } from '@/lib/require-admin';
+import { requireTabAccess } from '@/lib/auth-helpers';
 import { numOrNull, firstNumOrNull } from '@/lib/parse-num';
 
 export async function POST(request: Request) {
@@ -11,10 +11,8 @@ export async function POST(request: Request) {
     // SECURITY-PR-SEC4: TastyTrade uses a SHARED FIRM account (env creds via
     // getTastytradeClient — NOT per-user OAuth; the tastytrade_connections row is
     // just a flag that unlocks the shared session). So any caller spends/reads
-    // ALEX'S brokerage. Gate to admin BEFORE any TT call or data read — 403 for
-    // non-admins, 401 for guests. (Same requireAdmin pattern as /trading/convergence.)
-    const adminGate = await requireAdmin();
-    if (adminGate instanceof NextResponse) return adminGate;
+    // ALEX'S brokerage session. TRADE-GATE (2026-08-11): market-data reads are
+    // entitlement-gated below (tab:trade); the connection itself stays owner-scoped.
     const userEmail = await getVerifiedEmail();
     if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -24,6 +22,13 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    // TRADE-GATE: entitlement-gated — the paid tab:trade key (or bundle)
+    // unlocks this endpoint; admin passes via hasTabAccess's ADMIN_USER_ID
+    // bypass (entitlements.ts:48). Market/pipeline data only — the broker
+    // CONNECTION and the shared account's balances/positions stay
+    // owner-scoped (see connect/callback + balances/positions routes).
+    const tabGate = await requireTabAccess(user.id, 'tab:trade');
+    if (tabGate) return tabGate;
 
     const { symbols } = await request.json();
     if (!Array.isArray(symbols) || symbols.length === 0) {
