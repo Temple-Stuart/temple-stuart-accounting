@@ -1,7 +1,7 @@
 'use client';
 
 import { ReactNode, useState } from 'react';
-import { SECTION_HEADER, themed, type Surface } from '@/lib/ds';
+import { CARD_BG, SECTION_HEADER, themed, type Surface } from '@/lib/ds';
 
 interface BookkeepingSectionProps {
   title: string;
@@ -54,8 +54,10 @@ export default function BookkeepingSection({
           )}
         </div>
       </div>
+      {/* BOOKS-GLOW: the stage body wears the glow on dark (flat panels are
+          the anti-pattern); /dashboard's light mount keeps bg-white. */}
       {!collapsed && (
-        <div className={themed('bg-white', dk)}>
+        <div className={dk ? undefined : themed('bg-white', dk)} style={dk ? { background: CARD_BG } : undefined}>
           {children}
         </div>
       )}

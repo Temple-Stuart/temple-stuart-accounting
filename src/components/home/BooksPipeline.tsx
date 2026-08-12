@@ -17,6 +17,7 @@ import PositionReportTab from '@/components/dashboard/PositionReportTab';
 import CPAExport from '@/components/dashboard/CPAExport';
 import ToggleStrip, { type ToggleMode } from '@/components/ui/ToggleStrip';
 import { DS, themed } from '@/lib/ds';
+import { BarChart3, CalendarCheck, Download, Inbox, Scale, Tags } from 'lucide-react';
 import { useExportDownload } from '@/lib/useExportDownload';
 
 /**
@@ -207,7 +208,9 @@ export default function BooksPipeline() {
     <ToggleStrip
       className={DS.STRIP}
       modes={([
-        { key: 'feed', label: 'Feed', panel: (
+        { key: 'feed', label: 'Feed',
+          icon: <Inbox className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />,
+          panel: (
           <div className="mt-3 space-y-3">
       {/* 1. SRC — Source Accounts (dashboard :502). Linking/sync live in the cockpit above. */}
       <BookkeepingSection surface="dark" title="Source Accounts" pipelineKey="SRC"
@@ -270,7 +273,9 @@ export default function BooksPipeline() {
       </BookkeepingSection>
           </div>
         ) },
-        { key: 'code', label: 'Code', panel: (
+        { key: 'code', label: 'Code',
+          icon: <Tags className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />,
+          panel: (
           <div className="mt-3 space-y-3">
       {/* 2. CAT — Categorize (dashboard :568): the COA-assignment queue. */}
       <BookkeepingSection surface="dark" title="Categorize Transactions" pipelineKey="CAT"
@@ -319,7 +324,9 @@ export default function BooksPipeline() {
       </BookkeepingSection>
           </div>
         ) },
-        { key: 'reconcile', label: 'Reconcile', panel: (
+        { key: 'reconcile', label: 'Reconcile',
+          icon: <Scale className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />,
+          panel: (
           <div className="mt-3 space-y-3">
       {/* 6. REC — Bank Reconciliation (dashboard :620). */}
       <BookkeepingSection surface="dark" title="Bank Reconciliation" pipelineKey="REC" status="pending">
@@ -343,7 +350,9 @@ export default function BooksPipeline() {
       </BookkeepingSection>
           </div>
         ) },
-        { key: 'close', label: 'Close', panel: (
+        { key: 'close', label: 'Close',
+          icon: <CalendarCheck className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />,
+          panel: (
           <div className="mt-3 space-y-3">
       {/* 7. ADJ — Adjusting Entries (dashboard :644, self-fetching). */}
       <BookkeepingSection surface="dark" title="Adjusting Entries" pipelineKey="ADJ" status="pending">
@@ -395,7 +404,9 @@ export default function BooksPipeline() {
       </BookkeepingSection>
           </div>
         ) },
-        { key: 'reports', label: 'Reports', panel: (
+        { key: 'reports', label: 'Reports',
+          icon: <BarChart3 className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />,
+          panel: (
           <div className="mt-3 space-y-3">
       {/* 5. TB — Trial Balance (dashboard :614, self-fetching). */}
       <BookkeepingSection surface="dark" title="Trial Balance" pipelineKey="TB" status="pending">
@@ -418,7 +429,9 @@ export default function BooksPipeline() {
       </BookkeepingSection>
           </div>
         ) },
-        { key: 'export', label: 'Export', panel: (
+        { key: 'export', label: 'Export',
+          icon: <Download className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />,
+          panel: (
           <div className="mt-3 space-y-3">
       {/* 13. EXP — CPA Export (dashboard :745). The dashboard's Tax-forms link (:720) is
           intentionally omitted — Tax is its own homepage tab, not part of this pipe. */}
@@ -451,11 +464,11 @@ function ExportMyData() {
   const { busy, error, run } = useExportDownload();
 
   return (
-    <div className={themed('mt-4 pt-4 border-t border-border', true)}>
+    <div className="mt-4 border-t border-panel-border bg-white/5 p-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className={themed('text-xs font-semibold text-text-primary', true)}>Your data is yours</div>
-          <p className={themed('text-[10px] text-text-muted mt-0.5', true)}>
+          <div className="font-mono text-[11px] font-semibold text-white/80">Your data is yours</div>
+          <p className="font-mono text-[11px] text-white/60 mt-0.5">
             Every financial + travel table you own — one CSV per table, zipped. Never paywalled.
           </p>
         </div>

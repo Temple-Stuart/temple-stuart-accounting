@@ -81,7 +81,7 @@ import { Fragment, useState } from 'react';
 import { Briefcase, Check, Plane, BookOpen, TrendingUp, Settings } from 'lucide-react';
 // PR-DECK-4CAT: the category tabs reuse the ToggleStrip icon-tab idiom
 // (DS.iconTab — the trip.com tab form factor the booking strip wears).
-import { iconTab } from '@/lib/ds';
+import { CARD_BG, iconTab } from '@/lib/ds';
 import { TAB_PRICING } from '@/config/pricing-costs';
 import {
   ALLOCATION_ROWS, NO_COST_STRIP,
@@ -591,8 +591,9 @@ const HERO_BG =
 // Applied to the wall cards + BOTH deck slide surfaces; the hero keeps
 // HERO_BG untouched (the smaller-blast-radius option — the hero was tuned for
 // its own scale and drew no complaint).
-const CARD_BG =
-  'radial-gradient(ellipse 120% 120% at 80% 0%, rgb(var(--ts-purple-pop) / 0.65), transparent 70%), radial-gradient(ellipse 90% 90% at 10% 100%, rgb(var(--ts-purple-pop) / 0.32), transparent 65%), var(--ts-panel)';
+// BOOKS-GLOW: CARD_BG moved HOME to ds.ts (one source of glow for the
+// whole app) — imported above, byte-identical; the five mounts below are
+// untouched.
 
 export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvailability, logoAvailability, onBuyModule }: Props) {
   const pricingByKey = new Map(TAB_PRICING.map((t) => [t.key, t]));
