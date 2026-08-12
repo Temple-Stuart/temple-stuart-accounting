@@ -1,7 +1,7 @@
 'use client';
 
 import { ReactNode, useState } from 'react';
-import { themed, type Surface } from '@/lib/ds';
+import { SECTION_HEADER, themed, type Surface } from '@/lib/ds';
 
 interface BookkeepingSectionProps {
   title: string;
@@ -36,7 +36,10 @@ export default function BookkeepingSection({
   return (
     <div className={themed('rounded-lg overflow-hidden border border-gray-200/50 shadow-sm', dk)}>
       <div
-        className={`bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between${collapsible ? ' cursor-pointer select-none' : ''}`}
+        // BOOKS-V2: the stage bar joins SECTION_HEADER on dark (the CI
+        // precedent — collapse mechanics byte-identical); /dashboard's light
+        // mount keeps the legacy purple bar.
+        className={dk ? `${SECTION_HEADER}${collapsible ? ' cursor-pointer select-none' : ''}` : `bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between${collapsible ? ' cursor-pointer select-none' : ''}`}
         onClick={collapsible ? () => setCollapsed(c => !c) : undefined}
       >
         <div className="flex items-center gap-2">
