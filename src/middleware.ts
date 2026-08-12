@@ -49,9 +49,9 @@ async function verifyCookieEdge(cookieValue: string): Promise<string | null> {
 
 const PUBLIC_PATHS = [
   '/',
-  '/admin',
-  '/api/admin/verify',
-  '/api/admin/users',
+  // RELIC-RETIRE: '/admin', '/api/admin/verify' and '/api/admin/users' left
+  // this list when their routes were deleted — /owner (requireAdmin) is the
+  // one owner surface.
   '/api/auth',
   '/_next',
   '/favicon.ico',
