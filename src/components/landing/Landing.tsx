@@ -78,7 +78,7 @@ import { Fragment, useState } from 'react';
 // PR-DECK-CLEAN-1: the card fragments' checkmark — lucide is the house icon
 // vocabulary (TripHeader.tsx:16 already imports Check).
 // PR-DECK-4CAT: the four category-tab icons join.
-import { Check, Plane, BookOpen, TrendingUp, Settings } from 'lucide-react';
+import { Briefcase, Check, Plane, BookOpen, TrendingUp, Settings } from 'lucide-react';
 // PR-DECK-4CAT: the category tabs reuse the ToggleStrip icon-tab idiom
 // (DS.iconTab — the trip.com tab form factor the booking strip wears).
 import { iconTab } from '@/lib/ds';
@@ -179,15 +179,19 @@ interface PillarCard {
 // duplicated "A paid module —" lead the module page already states) to
 // modulePillars.ts accessNote, rendered in each page's paid block.
 
-// PR-DECK-4CAT: the four category tabs — a fixed PARTITION of the nine
-// PILLAR_CARDS ids (every id appears in exactly one category; verified in the
-// DECK-4CAT report). The active tab mounts ONLY its moduleIds cards, in this
-// order, as a static grid — the persona-filtered carousel retired.
+// PR-DECK-4CAT: the module category tabs — a fixed PARTITION of the nine
+// PILLAR_CARDS ids (every id appears in exactly one MODULE category; verified
+// in the DECK-4CAT report). The active tab mounts ONLY its moduleIds cards,
+// in this order, as a static grid — the persona-filtered carousel retired.
+// DECK-SERVICES-TAB: 'services' is EXEMPT from the partition BY DESIGN —
+// empty moduleIds; its tab renders the professional-services panel, not
+// module cards (the deck's done-for-you bar absorbed here).
 const DECK_CATEGORIES = [
   { key: 'travel',     label: 'Travel',     icon: Plane,      moduleIds: ['travel'] },
   { key: 'accounting', label: 'Accounting', icon: BookOpen,   moduleIds: ['books', 'runway', 'tax'] },
   { key: 'trading',    label: 'Trading',    icon: TrendingUp, moduleIds: ['trade'] },
   { key: 'operations', label: 'Operations', icon: Settings,   moduleIds: ['projects', 'routines', 'content', 'compliance'] },
+  { key: 'services',   label: 'Services',   icon: Briefcase,  moduleIds: [] },
 ] as const;
 
 // Funnel order — Alex's ruling. PR-DECK-CLEAN-1 fragment provenance — every
@@ -831,6 +835,41 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
               verbatim; the per-persona variants retired with the filter. */}
           <p className="mt-2 font-mono text-xs text-white/60">Search & book travel free today — no account needed. Paid modules are launching soon.</p>
 
+          {categoryKey === 'services' ? (
+            /* DECK-SERVICES-TAB: the professional-services panel — house
+               idioms only (the absorbed bar's chip/line/right-slot idioms +
+               CARD_BG offering cards). Strings REUSED from the merged
+               README Work-with-me bullets + the bar's own line; the SOW
+               mailto href byte-exact from the bar. */
+            <div className="mt-4">
+              <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
+                PROFESSIONAL SERVICES
+              </span>
+              <p className="mt-2 text-xs leading-relaxed text-white/60">Your own hosted copy — every API wired, custom to your business, you own everything.</p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {([
+                  ['Full setup', 'Your own hosted copy, every API wired, you own everything.'],
+                  ['Monthly maintenance', 'I keep it updated and running.'],
+                  ['Custom builds', 'Need a feature? I build it.'],
+                  ['Embed a module', 'Want just one piece (the booking engine, the books, the scanner) inside your existing system? I do that too.'],
+                ] as const).map(([title, desc]) => (
+                  <div key={title} className="rounded-lg p-4 text-white" style={{ background: CARD_BG }}>
+                    <div className="text-sm font-medium">{title}</div>
+                    <p className="mt-1 text-xs text-white/60">{desc}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-4">
+                <a
+                  href="mailto:astuart@templestuart.com?subject=Project%20proposal%20%E2%80%94%20Temple%20Stuart&body=What%20do%20you%20need%3F%20(setup%20%2F%20maintenance%20%2F%20custom%20build%20%2F%20embed%20a%20module)%3A%0A%0AYour%20business%20%2B%20current%20stack%3A%0A%0AWhich%20modules%20interest%20you%3A%0A%0ATimeline%3A%0A%0ABudget%20range%3A%0A%0AAnything%20else%3A"
+                  className="border border-white/30 px-6 py-2 text-center text-xs font-medium text-white hover:bg-white/10"
+                >
+                  Send a project proposal →
+                </a>
+                <span className="ml-auto font-mono text-xs italic text-white/50">Scoped by proposal</span>
+              </div>
+            </div>
+          ) : (
           <div
             role="group"
             aria-label="The nine pillars"
@@ -956,6 +995,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
               );
             })}
           </div>
+          )}
 
           {/* ── FD-1i (ruling B): the CALCULATOR strip — live selection state
                 replaced the static bundle row. Nothing selected → the bundle
@@ -1017,7 +1057,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
           {/* ── The bundle pitch — the calculator's EMPTY state (nothing
                 selected). Markup + commerce wiring verbatim from the dead
                 sheet's closer (LOBBY-DECK-1). ───────────────────────────────── */}
-          {selectedPillars.length === 0 && bundle && (
+          {categoryKey !== 'services' && selectedPillars.length === 0 && bundle && (
             <div className="mt-5 flex flex-col gap-4 rounded-lg border border-white/30 bg-panel p-4 sm:flex-row sm:items-center">
               <div className="flex-1">
                 <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
@@ -1054,28 +1094,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             </div>
           )}
 
-          {/* ── SERVICES-TIER: the done-for-you tier — the bundle bar's
-                anatomy mirrored exactly (R1); mailto CTA, zero commerce
-                wiring, pricing config untouched. Renders always — the offer
-                does not depend on the selection state. ─────────────────────── */}
-          <div className="mt-5 flex flex-col gap-4 rounded-lg border border-white/30 bg-panel p-4 sm:flex-row sm:items-center">
-            <div className="flex-1">
-              <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
-                DONE-FOR-YOU
-              </span>
-              <p className="mt-2 text-xs leading-relaxed text-white/60">Your own hosted copy — every API wired, custom to your business, you own everything.</p>
-              <p className="mt-1 font-mono text-[11px] text-white/60">Full setup · Monthly maintenance · Custom builds · Embed a module in your stack</p>
-            </div>
-            <div className="font-mono text-lg font-bold text-white">
-              <span className="text-xs font-normal italic text-white/50">Scoped by proposal</span>
-            </div>
-            <a
-              href="mailto:astuart@templestuart.com?subject=Project%20proposal%20%E2%80%94%20Temple%20Stuart&body=What%20do%20you%20need%3F%20(setup%20%2F%20maintenance%20%2F%20custom%20build%20%2F%20embed%20a%20module)%3A%0A%0AYour%20business%20%2B%20current%20stack%3A%0A%0AWhich%20modules%20interest%20you%3A%0A%0ATimeline%3A%0A%0ABudget%20range%3A%0A%0AAnything%20else%3A"
-              className="border border-white/30 px-6 py-2 text-center text-xs font-medium text-white hover:bg-white/10"
-            >
-              Send a project proposal →
-            </a>
-          </div>
+          {/* DECK-SERVICES-TAB: the SERVICES-TIER done-for-you bar was
+              ABSORBED into the Services tab's panel above — one offer, one
+              surface (the hero Work-with-me row stays). */}
 
           {/* ── The transparency door — the legend/total/footnote block moved
                 behind this one line (LOBBY-DECK-1); the full receipts live on
