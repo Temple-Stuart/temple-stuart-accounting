@@ -6,6 +6,7 @@ import ResponsiveViewController from './ResponsiveViewController';
 import { formatMoney, moneyColorClass, kindForSource } from '@/lib/money';
 import { instantToZoned } from '@/lib/time';
 import { themed, type Surface } from '@/lib/ds';
+// RUNWAY-DEEP: house toolbar treatments for the DARK mount (HubCalendar).
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -508,7 +509,14 @@ export default function CalendarGrid({
   // extra re-renders.
   const [isMobile, setIsMobile] = useState(false);
   const hubMobileToolbar = enableHubChrome && isMobile;
-  const toolbarBarClass = themed(enableHubChrome
+  // RUNWAY-DEEP (dk): the SECTION_HEADER family — bg-white/5 + hairline; the
+  // light branches are byte-identical (bg-brand-purple-wash / border-t-brand-purple
+  // never mapped on dark and read as the washed unreadable bar).
+  const toolbarBarClass = dk
+    ? (hubMobileToolbar
+        ? 'flex flex-col gap-3 px-4 py-3 border-b border-panel-border bg-white/5'
+        : 'flex items-center justify-between px-4 py-3 border-b border-panel-border bg-white/5')
+    : themed(enableHubChrome
     ? (hubMobileToolbar
         ? 'flex flex-col gap-3 px-4 py-3 border-b border-border border-t-[3px] border-t-brand-purple bg-brand-purple-wash'
         : 'flex items-center justify-between px-4 py-3 border-b border-border border-t-[3px] border-t-brand-purple bg-brand-purple-wash')
@@ -516,10 +524,18 @@ export default function CalendarGrid({
   const toolbarLeftClass = hubMobileToolbar ? 'flex flex-col gap-2' : 'flex items-center gap-4';
   const viewTrackExtra = hubMobileToolbar ? 'w-full ' : '';
   const viewBtnExtra = hubMobileToolbar ? 'flex-1 ' : '';
-  const toolbarTitleClass = themed(hubMobileToolbar ? 'text-sm font-semibold text-text-primary text-center' : 'text-sm font-semibold text-text-primary', dk);
+  const toolbarTitleClass = dk
+    ? (hubMobileToolbar ? 'text-sm font-medium text-white text-center' : 'text-sm font-medium text-white')
+    : themed(hubMobileToolbar ? 'text-sm font-semibold text-text-primary text-center' : 'text-sm font-semibold text-text-primary', dk);
   const toolbarRightClass = hubMobileToolbar ? 'flex items-center justify-center gap-2' : 'flex items-center gap-2';
-  const viewBtnActive = themed(enableHubChrome ? 'bg-brand-purple-hover text-white shadow-sm' : 'bg-white shadow-sm text-text-primary', dk);
-  const viewBtnInactive = themed(enableHubChrome ? 'text-brand-purple/70 hover:text-brand-purple' : 'text-text-muted hover:text-text-secondary', dk);
+  // dk: the SEGMENT active/inactive treatment (ds.ts SEGMENT.item) at this
+  // toolbar's existing sizing.
+  const viewBtnActive = dk
+    ? 'bg-white shadow text-brand-purple font-medium'
+    : themed(enableHubChrome ? 'bg-brand-purple-hover text-white shadow-sm' : 'bg-white shadow-sm text-text-primary', dk);
+  const viewBtnInactive = dk
+    ? 'text-white/70'
+    : themed(enableHubChrome ? 'text-brand-purple/70 hover:text-brand-purple' : 'text-text-muted hover:text-text-secondary', dk);
 
   // PR-Calendar-Native: when phone-day-only is on, hide Week/Month → keep the mobile
   // signal so the toolbar + body know to show the week strip + a single day.
@@ -599,7 +615,7 @@ export default function CalendarGrid({
               hide the WHOLE Day/Week/Month track — the lone "Day" button was dead UI eating
               a row. Desktop (a real Day/Week/Month choice) keeps it. */}
           {!phoneOnlyActive && (
-            <div className={`${viewTrackExtra}flex bg-border/70 rounded p-0.5`}>
+            <div className={`${viewTrackExtra}${dk ? 'flex items-center gap-1 rounded bg-white/10 p-0.5' : 'flex bg-border/70 rounded p-0.5'}`}>
               {enableDayView && (
                 <button onClick={() => selectView('day')} className={`${viewBtnExtra}px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'day' ? viewBtnActive : viewBtnInactive}`}>Day</button>
               )}
@@ -621,13 +637,13 @@ export default function CalendarGrid({
         </div>
         <h2 className={toolbarTitleClass}>{headerTitle}</h2>
         <div className={toolbarRightClass}>
-          <button onClick={goToToday} className={themed('px-3 py-1.5 text-sm font-medium text-text-secondary hover:bg-bg-row rounded border border-border transition-colors', dk)}>
+          <button onClick={goToToday} className={dk ? 'px-3 py-1.5 text-sm font-medium rounded border border-white/30 text-white/70 hover:bg-white/10 transition-colors' : themed('px-3 py-1.5 text-sm font-medium text-text-secondary hover:bg-bg-row rounded border border-border transition-colors', dk)}>
             {anchorDate ? 'Start' : 'Today'}
           </button>
-          <button onClick={calendarView === 'day' ? prevDay : calendarView === 'week' ? prevWeek : prevMonth} className={themed('w-8 h-8 flex items-center justify-center text-text-muted rounded hover:bg-bg-row transition-colors', dk)}>
+          <button onClick={calendarView === 'day' ? prevDay : calendarView === 'week' ? prevWeek : prevMonth} className={dk ? 'w-8 h-8 flex items-center justify-center text-white/60 hover:text-white rounded transition-colors' : themed('w-8 h-8 flex items-center justify-center text-text-muted rounded hover:bg-bg-row transition-colors', dk)}>
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           </button>
-          <button onClick={calendarView === 'day' ? nextDay : calendarView === 'week' ? nextWeek : nextMonth} className={themed('w-8 h-8 flex items-center justify-center text-text-muted rounded hover:bg-bg-row transition-colors', dk)}>
+          <button onClick={calendarView === 'day' ? nextDay : calendarView === 'week' ? nextWeek : nextMonth} className={dk ? 'w-8 h-8 flex items-center justify-center text-white/60 hover:text-white rounded transition-colors' : themed('w-8 h-8 flex items-center justify-center text-text-muted rounded hover:bg-bg-row transition-colors', dk)}>
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
           </button>
         </div>

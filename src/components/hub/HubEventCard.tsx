@@ -259,7 +259,7 @@ export default function HubEventCard({ item, block, onClose, onUpdated, surface 
         style={{ animation: 'slideInRight 0.2s ease-out' }}
       >
         {/* Header */}
-        <div className="bg-brand-purple text-white px-5 py-4 flex items-start justify-between">
+        <div className={`${dk ? 'bg-brand-purple-pop' : 'bg-brand-purple'} text-white px-5 py-4 flex items-start justify-between`}>
           <div className="min-w-0 flex-1 pr-3">
             <h3 className="text-sm font-semibold break-words">{title}</h3>
             <p className="text-xs text-white/70 mt-0.5 font-mono">
@@ -398,7 +398,7 @@ export default function HubEventCard({ item, block, onClose, onUpdated, surface 
                     </div>
                   </div>
                 ) : (
-                  <button type="button" onClick={() => submitReschedule(false)} disabled={saving} className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50">
+                  <button type="button" onClick={() => submitReschedule(false)} disabled={saving} className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}>
                     {saving ? 'saving…' : 'save new time'}
                   </button>
                 )}
@@ -441,7 +441,7 @@ export default function HubEventCard({ item, block, onClose, onUpdated, surface 
                     </>
                   )}
                 </div>
-                <button type="button" onClick={submitReconcile} disabled={saving} className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50">
+                <button type="button" onClick={submitReconcile} disabled={saving} className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}>
                   {saving ? 'saving…' : 'save actuals'}
                 </button>
               </>

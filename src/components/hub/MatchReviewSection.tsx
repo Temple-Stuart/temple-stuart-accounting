@@ -108,13 +108,13 @@ export default function MatchReviewSection() {
   if (!loading && !error && !runSummary && queue.length === 0 && reservationCount === 0) {
     return (
       <div className="mx-4 my-4">
-        <p className={themed('text-xs text-text-muted', true)}>
+        <p className="font-mono text-[11px] text-white/60">
           Booking ↔ bank matching — no bookings yet ·{' '}
           <button
             type="button"
             onClick={runPropose}
             disabled={proposing}
-            className="underline decoration-dotted hover:text-brand-purple disabled:opacity-50"
+            className="text-brand-purple-pop hover:underline disabled:opacity-50"
           >
             {proposing ? 'Scanning…' : 'Find matches'}
           </button>
@@ -136,7 +136,7 @@ export default function MatchReviewSection() {
           type="button"
           onClick={runPropose}
           disabled={proposing}
-          className="rounded bg-brand-purple px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+          className="rounded bg-brand-purple-pop px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
         >
           {proposing ? 'Scanning…' : 'Find matches'}
         </button>
