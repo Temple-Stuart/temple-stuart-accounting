@@ -80,7 +80,7 @@ export default function RRULEBuilder({ surface = 'light', form, setForm }: Props
                   className={
                     'px-2 py-1 border rounded text-xs ' +
                     (selected
-                      ? 'bg-brand-purple text-white border-brand-purple'
+                      ? (dk ? 'bg-brand-purple-pop text-white border-brand-purple-pop' : 'bg-brand-purple text-white border-brand-purple')
                       : themed('bg-white text-text-primary border-border hover:bg-bg-row', dk))
                   }
                 >

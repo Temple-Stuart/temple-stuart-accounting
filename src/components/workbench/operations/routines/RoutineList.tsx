@@ -156,7 +156,7 @@ export default function RoutineList({ surface = 'light', entities, onCommitted }
             type="button"
             onClick={startCreate}
             disabled={entities.length === 0}
-            className="px-3 py-1 rounded border border-brand-purple bg-brand-purple text-white text-xs font-medium hover:opacity-90 disabled:opacity-50"
+            className={`px-3 py-1 rounded border text-white text-xs font-medium hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
           >
             + new routine
           </button>
@@ -194,7 +194,7 @@ export default function RoutineList({ surface = 'light', entities, onCommitted }
             if (!items || items.length === 0) return null;
             return (
               <div key={g}>
-                <div className={themed('text-xs text-text-faint uppercase tracking-wide mb-1', dk)}>
+                <div className={dk ? 'font-mono text-xs font-semibold uppercase tracking-wider text-white/60 mb-1' : themed('text-xs text-text-faint uppercase tracking-wide mb-1', dk)}>
                   {CADENCE_GROUP_LABELS[g]} ({items.length})
                 </div>
                 <div className="space-y-1.5">

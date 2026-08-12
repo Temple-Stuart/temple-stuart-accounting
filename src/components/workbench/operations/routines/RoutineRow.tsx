@@ -493,7 +493,7 @@ export default function RoutineRow({ surface = 'light', routine, entities, onUpd
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
+              className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
             >
               {saving ? 'saving…' : 'save'}
             </button>
