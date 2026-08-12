@@ -133,7 +133,10 @@ export default function BudgetDrillDown({
               ))}
             </div>
           ) : error ? (
-            <div className="p-8 text-center text-brand-red text-sm">{error}</div>
+            /* RUNWAY-INK verify-pass: dark gets the status token; the /hub
+               light mount (hub/page.tsx:909, no surface prop) keeps the
+               darker light-surface red — #ef4444 fails AA on white. */
+            <div className={`p-8 text-center text-sm ${dk ? 'text-status-danger' : 'text-brand-red'}`}>{error}</div>
           ) : transactions.length === 0 ? (
             <div className={themed('p-8 text-center text-text-faint text-sm', dk)}>No transactions found for this period</div>
           ) : (
@@ -171,7 +174,7 @@ export default function BudgetDrillDown({
               <span className={themed('text-xs text-text-muted', dk)}>{count} transaction{count !== 1 ? 's' : ''}</span>
               <div className="flex items-center gap-2">
                 {totalMismatch && (
-                  <span className="text-amber-600 text-xs flex items-center gap-1" title={`Expected ${fmt(cellAmount)}, got ${fmt(total)}`}>
+                  <span className={`${dk ? 'text-status-warning' : 'text-amber-600'} text-xs flex items-center gap-1`} title={`Expected ${fmt(cellAmount)}, got ${fmt(total)}`}>
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>

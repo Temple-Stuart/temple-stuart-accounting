@@ -147,8 +147,8 @@ function RunwayWindowCard({ w }: { w: RunwayWindow }) {
         {w.entities.unattributed && (
           // A non-trading entity that is neither Personal nor Business — surfaced, never dropped.
           <div className="flex items-baseline justify-between gap-2">
-            <span className="text-[10px] text-amber-600 uppercase tracking-wide">Unattributed</span>
-            <span className="font-mono text-xs text-amber-600 tabular-nums">{entityBurnLine(w, w.entities.unattributed)}</span>
+            <span className="text-[10px] text-status-warning uppercase tracking-wide">Unattributed</span>
+            <span className="font-mono text-xs text-status-warning tabular-nums">{entityBurnLine(w, w.entities.unattributed)}</span>
           </div>
         )}
       </div>
@@ -263,8 +263,8 @@ function RunwayHeroStrip({ runway, runwayError }: { runway: RunwayData | null; r
               {w.entities.unattributed && (
                 // A non-trading entity that is neither Personal nor Business — surfaced, never dropped.
                 <div className="flex items-baseline justify-between gap-3">
-                  <span className="text-[10px] text-amber-600 uppercase tracking-wide">Unattributed</span>
-                  <span className="font-mono text-xs text-amber-600 tabular-nums">{entityBurnLine(w, w.entities.unattributed)}</span>
+                  <span className="text-[10px] text-status-warning uppercase tracking-wide">Unattributed</span>
+                  <span className="font-mono text-xs text-status-warning tabular-nums">{entityBurnLine(w, w.entities.unattributed)}</span>
                 </div>
               )}
             </div>
