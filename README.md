@@ -67,8 +67,9 @@ I built this for me — but I'll set it up for you.
 - Done-for-you setup: your own hosted copy, every API wired, you own everything.
 - Maintenance: I keep it updated and running.
 - Custom builds: need a feature? I build it.
+- Embed: want just one piece (the booking engine, the books, the scanner) inside your existing system? I do that too.
 
-Email astuart@templestuart.com with what you need.
+Email a project proposal (the template's pre-filled): [astuart@templestuart.com](mailto:astuart@templestuart.com?subject=Project%20proposal%20%E2%80%94%20Temple%20Stuart&body=What%20do%20you%20need%3F%20(setup%20%2F%20maintenance%20%2F%20custom%20build%20%2F%20embed%20a%20module)%3A%0A%0AYour%20business%20%2B%20current%20stack%3A%0A%0AWhich%20modules%20interest%20you%3A%0A%0ATimeline%3A%0A%0ABudget%20range%3A%0A%0AAnything%20else%3A)
 
 ## License
 
