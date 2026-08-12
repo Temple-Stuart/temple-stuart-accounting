@@ -664,7 +664,7 @@ export default function CalendarGrid({
             {legendItems.map(([source, config]) => (
               <label key={source} className="flex items-center gap-1.5 cursor-pointer" onClick={() => setVisibleCategories(prev => ({ ...prev, [source]: prev[source] === false ? true : false }))}>
                 <div className={`w-2.5 h-2.5 rounded-sm ${visibleCategories[source] !== false ? (config.badge || config.dot) : 'bg-border'}`} />
-                <span className={themed(`text-xs ${visibleCategories[source] !== false ? 'text-text-secondary' : 'text-text-faint line-through'}`, dk)}>{config.label}</span>
+                <span className={dk ? `font-mono text-[11px] ${visibleCategories[source] !== false ? 'text-white/60' : 'text-white/40 line-through'}` : themed(`text-xs ${visibleCategories[source] !== false ? 'text-text-secondary' : 'text-text-faint line-through'}`, dk)}>{config.label}</span>
               </label>
             ))}
           </div>
@@ -693,8 +693,8 @@ export default function CalendarGrid({
                         aria-current={isSel ? 'date' : undefined}
                         className="flex flex-1 flex-col items-center py-2"
                       >
-                        <span className={themed('text-[10px] uppercase tracking-wide text-text-muted', dk)}>{DAYS[day.getDay()][0]}</span>
-                        <span className={themed(`mt-1 flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${isSel ? 'bg-brand-purple text-white' : isToday ? 'text-red-500' : 'text-text-primary'}`, dk)}>{day.getDate()}</span>
+                        <span className={dk ? 'text-[10px] uppercase tracking-wide text-white/70' : themed('text-[10px] uppercase tracking-wide text-text-muted', dk)}>{DAYS[day.getDay()][0]}</span>
+                        <span className={dk ? `mt-1 flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${isSel ? 'bg-brand-purple-pop text-white' : isToday ? 'text-brand-purple-pop' : 'text-white'}` : themed(`mt-1 flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${isSel ? 'bg-brand-purple text-white' : isToday ? 'text-red-500' : 'text-text-primary'}`, dk)}>{day.getDate()}</span>
                       </button>
                     );
                   })}
@@ -706,9 +706,9 @@ export default function CalendarGrid({
                   const isToday = day.toDateString() === now.toDateString();
                   const hl = isInHighlight(day);
                   return (
-                    <div key={idx} className={themed(`flex-1 text-center py-2 border-l border-border-light ${isToday ? 'bg-red-50' : hl ? 'bg-purple-50/40' : ''}`, dk)}>
-                      <div className={themed('text-xs text-text-muted uppercase tracking-wide font-medium', dk)}>{DAYS[day.getDay()]}</div>
-                      <div className={themed(`text-sm font-medium mt-0.5 ${isToday ? 'bg-red-500 text-white w-7 h-7 rounded-full flex items-center justify-center mx-auto' : 'text-text-primary'}`, dk)}>{day.getDate()}</div>
+                    <div key={idx} className={dk ? `flex-1 text-center py-2 border-l border-panel-border ${isToday ? 'bg-brand-purple-pop/10' : hl ? 'bg-white/5' : ''}` : themed(`flex-1 text-center py-2 border-l border-border-light ${isToday ? 'bg-red-50' : hl ? 'bg-purple-50/40' : ''}`, dk)}>
+                      <div className={dk ? `text-xs uppercase tracking-wide ${isToday ? 'text-white font-medium' : 'text-white/70 font-medium'}` : themed('text-xs text-text-muted uppercase tracking-wide font-medium', dk)}>{DAYS[day.getDay()]}</div>
+                      <div className={dk ? `text-sm font-medium mt-0.5 ${isToday ? 'bg-brand-purple-pop text-white w-7 h-7 rounded-full flex items-center justify-center mx-auto' : 'text-white'}` : themed(`text-sm font-medium mt-0.5 ${isToday ? 'bg-red-500 text-white w-7 h-7 rounded-full flex items-center justify-center mx-auto' : 'text-text-primary'}`, dk)}>{day.getDate()}</div>
                     </div>
                   );
                 })}
@@ -758,7 +758,7 @@ export default function CalendarGrid({
                   <div className="w-16 flex-shrink-0 relative">
                     {hours.map(hour => (
                       <div key={hour} className="absolute w-full text-right pr-2" style={{ top: `${(hour - START_HOUR) * HOUR_HEIGHT}px` }}>
-                        <span className={themed('text-xs text-text-muted leading-none relative -top-1.5', dk)}>
+                        <span className={dk ? 'text-xs text-white/50 leading-none relative -top-1.5' : themed('text-xs text-text-muted leading-none relative -top-1.5', dk)}>
                           {hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}
                         </span>
                       </div>
@@ -774,13 +774,13 @@ export default function CalendarGrid({
                     const blocks = getBlocksForDay(dayKey, dayEvents, tzMode);
 
                     return (
-                      <div key={dayIdx} className={themed(`flex-1 relative border-l border-border-light ${isToday ? 'bg-red-50/20' : hl ? 'bg-purple-50/10' : ''}`, dk)}>
+                      <div key={dayIdx} className={dk ? `flex-1 relative border-l border-panel-border ${isToday ? 'bg-brand-purple-pop/10' : hl ? 'bg-white/5' : ''}` : themed(`flex-1 relative border-l border-border-light ${isToday ? 'bg-red-50/20' : hl ? 'bg-purple-50/10' : ''}`, dk)}>
                         {/* Hour grid lines */}
                         {hours.map(hour => (
-                          <div key={hour} className={themed('absolute w-full border-t border-border-light/60', dk)} style={{ top: `${(hour - START_HOUR) * HOUR_HEIGHT}px` }} />
+                          <div key={hour} className={dk ? 'absolute w-full border-t border-white/[0.08]' : themed('absolute w-full border-t border-border-light/60', dk)} style={{ top: `${(hour - START_HOUR) * HOUR_HEIGHT}px` }} />
                         ))}
                         {hours.map(hour => (
-                          <div key={`half-${hour}`} className={themed('absolute w-full border-t border-border-light/30', dk)} style={{ top: `${(hour - START_HOUR) * HOUR_HEIGHT + HOUR_HEIGHT / 2}px` }} />
+                          <div key={`half-${hour}`} className={dk ? 'absolute w-full border-t border-white/[0.04]' : themed('absolute w-full border-t border-border-light/30', dk)} style={{ top: `${(hour - START_HOUR) * HOUR_HEIGHT + HOUR_HEIGHT / 2}px` }} />
                         ))}
 
                         {/* Current time indicator — a crisp red "now" line with the
@@ -884,7 +884,7 @@ export default function CalendarGrid({
             /* Month view — unchanged */
             <div className="p-4">
               <div className="grid grid-cols-7 gap-1 mb-2">
-                {DAYS.map(day => <div key={day} className={themed('text-center text-sm font-semibold text-text-muted py-2', dk)}>{day}</div>)}
+                {DAYS.map(day => <div key={day} className={dk ? 'text-center text-sm font-semibold text-white/70 py-2' : themed('text-center text-sm font-semibold text-text-muted py-2', dk)}>{day}</div>)}
               </div>
               <div className="grid grid-cols-7 gap-1">
                 {calendarDays.map((day, idx) => {
@@ -909,10 +909,10 @@ export default function CalendarGrid({
                     cellClass = 'border-emerald-400/50 bg-emerald-50/60';
                     cellStyle = { boxShadow: '0 0 12px rgba(22,163,74,0.2)' };
                   } else if (isLoss) {
-                    cellClass = 'border-red-400/50 bg-red-50/60';
+                    cellClass = dk ? 'border-brand-purple-pop/50 bg-brand-purple-pop/10' : 'border-red-400/50 bg-red-50/60';
                     cellStyle = { boxShadow: '0 0 12px rgba(220,38,38,0.2)' };
                   } else if (hl) {
-                    cellClass = 'border-purple-300 bg-purple-50/30';
+                    cellClass = dk ? 'border-brand-purple-pop/30 bg-brand-purple-pop/5' : 'border-purple-300 bg-purple-50/30';
                   } else {
                     cellClass = themed('border-border-light bg-bg-row/50', dk);
                   }
@@ -927,7 +927,7 @@ export default function CalendarGrid({
                   return (
                     <div key={day} className={themed(`min-h-[90px] p-1.5 rounded-lg border overflow-hidden transition-all cursor-pointer hover:border-border ${cellClass}`, dk)} style={cellStyle}>
                       <div className="flex flex-col h-full">
-                        <div className={themed(`text-xs font-semibold mb-0.5 ${isToday ? 'text-brand-purple' : 'text-text-secondary'}`, dk)}>{day}</div>
+                        <div className={dk ? `text-xs font-semibold mb-0.5 ${isToday ? 'text-brand-purple-pop' : 'text-white/70'}` : themed(`text-xs font-semibold mb-0.5 ${isToday ? 'text-brand-purple' : 'text-text-secondary'}`, dk)}>{day}</div>
                         {dayEvents.length > 0 && (
                           <div className="flex-1 flex flex-col">
                             {showDayTotal && (
