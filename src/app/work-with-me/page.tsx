@@ -55,7 +55,7 @@ const START_WINDOWS = [
 
 const BUDGET_RANGES = ['<$2k', '$2–10k', '$10–50k', '$50k+', 'not sure'] as const;
 const TEAM_SIZES = ['Just me', '2–10', '11–50', '50+'] as const;
-const REFERRAL_SOURCES = ['Reddit', 'X', 'NYT', 'referral', 'other'] as const;
+const REFERRAL_SOURCES = ['Reddit', 'Instagram', 'TikTok', 'X', 'YouTube', 'Referral', 'Other'] as const;
 
 const TEXTAREA_CLASS = `${CONTROL.input} min-h-[72px] w-full resize-y`;
 
@@ -69,13 +69,17 @@ export default function WorkWithMePage() {
   const [startWindow, setStartWindow] = useState('exploring');
   const [budgetRange, setBudgetRange] = useState('not sure');
   const [notes, setNotes] = useState('');
-  // The optional block (collapsed by default — DISCLOSURE precedent).
-  const [moreOpen, setMoreOpen] = useState(false);
+  const [otherModuleText, setOtherModuleText] = useState('');
+  // FORM-V2: the detail block is EXPANDED BY DEFAULT (collapse still works,
+  // aria kept — the DISCLOSURE precedent's mechanics, inverted default).
+  const [moreOpen, setMoreOpen] = useState(true);
   const [hardDeadline, setHardDeadline] = useState('');
+  const [noDeadline, setNoDeadline] = useState(false);
   const [deadlineDriver, setDeadlineDriver] = useState('');
-  const [linksText, setLinksText] = useState('');
+  const [linkRows, setLinkRows] = useState<string[]>(['']);
   const [teamSize, setTeamSize] = useState<string | null>(null);
   const [referralSource, setReferralSource] = useState<string | null>(null);
+  const [referralDetail, setReferralDetail] = useState('');
   // Honeypot — humans never see or fill this.
   const [website, setWebsite] = useState('');
 
@@ -91,10 +95,22 @@ export default function WorkWithMePage() {
     setError(null);
     setSubmitting(true);
     try {
-      const links = linksText
-        .split('\n')
-        .map((l) => l.trim())
-        .filter(Boolean);
+      const links = linkRows.map((l) => l.trim()).filter(Boolean);
+      // FORM-V2 assembly — NO new columns. The Other-module description
+      // PREPENDS to the done-looks-like answer:
+      //   'OTHER MODULE: {text}\n\n' + notes  → notesFromThem
+      // and the referral follow-ups fold into the one referral_source string:
+      //   base token, or 'referral: {name}' / 'other: {text}'.
+      const notesAssembled =
+        modules.includes('other') && otherModuleText.trim()
+          ? `OTHER MODULE: ${otherModuleText.trim()}\n\n${notes}`
+          : notes;
+      const referralAssembled =
+        referralSource === 'Referral'
+          ? `referral: ${referralDetail.trim()}`
+          : referralSource === 'Other'
+            ? `other: ${referralDetail.trim()}`
+            : referralSource;
       const res = await fetch('/api/proposals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -102,17 +118,18 @@ export default function WorkWithMePage() {
           name,
           email,
           business,
-          currentStack,
+          ...(currentStack.trim() ? { currentStack: currentStack.trim() } : {}),
           need,
           modules,
           startWindow,
           budgetRange,
-          notesFromThem: notes,
-          ...(hardDeadline ? { hardDeadline } : {}),
+          notesFromThem: notesAssembled,
+          // The exploring toggle means an honest NULL, never a fake date.
+          ...(!noDeadline && hardDeadline ? { hardDeadline } : {}),
           ...(deadlineDriver.trim() ? { deadlineDriver: deadlineDriver.trim() } : {}),
           ...(links.length > 0 ? { links } : {}),
           ...(teamSize ? { teamSize } : {}),
-          ...(referralSource ? { referralSource } : {}),
+          ...(referralAssembled ? { referralSource: referralAssembled } : {}),
           website,
         }),
       });
@@ -198,30 +215,18 @@ export default function WorkWithMePage() {
 
               <div>
                 <label htmlFor="p-business" className={CONTROL.label}>
-                  Your business
+                  {"What's your business? (or: it's just for me)"}
                 </label>
                 <textarea
                   id="p-business"
                   required
                   maxLength={5000}
+                  placeholder="e.g. I run a 12-unit property management company in Austin — we collect rent, pay vendors, file 1099s"
                   value={business}
                   onChange={(e) => setBusiness(e.target.value)}
                   className={`${TEXTAREA_CLASS} mt-1`}
                 />
-              </div>
-
-              <div>
-                <label htmlFor="p-stack" className={CONTROL.label}>
-                  Current stack
-                </label>
-                <textarea
-                  id="p-stack"
-                  required
-                  maxLength={5000}
-                  value={currentStack}
-                  onChange={(e) => setCurrentStack(e.target.value)}
-                  className={`${TEXTAREA_CLASS} mt-1`}
-                />
+                <p className="mt-1 text-xs text-white/40">One or two sentences: what you do, who pays you.</p>
               </div>
 
               <div>
@@ -238,7 +243,37 @@ export default function WorkWithMePage() {
                       {m.label}
                     </button>
                   ))}
+                  {/* FORM-V2: the escape hatch — 'other' rides the modules
+                      array (route enum extended); its description prepends to
+                      notesFromThem at submit, no new column. */}
+                  <button
+                    type="button"
+                    onClick={() => toggleModule('other')}
+                    aria-pressed={modules.includes('other')}
+                    className={toggleChip(modules.includes('other'))}
+                  >
+                    Other
+                  </button>
                 </div>
+                <p className="mt-1 text-xs text-white/40">
+                  {"Pick Other if you need something custom-built that isn't listed."}
+                </p>
+                {modules.includes('other') && (
+                  <div className="mt-3">
+                    <label htmlFor="p-other-module" className={CONTROL.label}>
+                      What is it?
+                    </label>
+                    <textarea
+                      id="p-other-module"
+                      required
+                      maxLength={1900}
+                      placeholder="Describe what you need built."
+                      value={otherModuleText}
+                      onChange={(e) => setOtherModuleText(e.target.value)}
+                      className={`${TEXTAREA_CLASS} mt-1`}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="grid gap-5 sm:grid-cols-2">
@@ -276,15 +311,20 @@ export default function WorkWithMePage() {
 
               <div>
                 <label htmlFor="p-notes" className={CONTROL.label}>
-                  Anything else
+                  What does done look like?
                 </label>
                 <textarea
                   id="p-notes"
-                  maxLength={5000}
+                  required
+                  maxLength={3000}
+                  placeholder="e.g. By March I can see all my rentals' income in one dashboard and my CPA gets a clean export."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   className={`${TEXTAREA_CLASS} mt-1`}
                 />
+                <p className="mt-1 text-xs text-white/40">
+                  {"Describe the finish line — what's true when this project is done?"}
+                </p>
               </div>
 
               {/* Honeypot — off-screen, unreachable by keyboard, invisible to
@@ -309,10 +349,26 @@ export default function WorkWithMePage() {
                   aria-expanded={moreOpen}
                   className="font-mono text-xs text-white/60 underline decoration-white/30 hover:text-white/80"
                 >
-                  More detail — optional, helps me scope faster
+                  Project details
                 </button>
                 {moreOpen && (
                   <div className="mt-4 flex flex-col gap-5 rounded bg-white/5 p-4">
+                    <div>
+                      <label htmlFor="p-stack" className={CONTROL.label}>
+                        What tools do you use today? (optional)
+                      </label>
+                      <textarea
+                        id="p-stack"
+                        maxLength={5000}
+                        placeholder="e.g. QuickBooks, Excel, Shopify, a custom site"
+                        value={currentStack}
+                        onChange={(e) => setCurrentStack(e.target.value)}
+                        className={`${TEXTAREA_CLASS} mt-1`}
+                      />
+                      <p className="mt-1 text-xs text-white/40">
+                        {"The apps your business runs on. 'None / spreadsheets' is a real answer."}
+                      </p>
+                    </div>
                     <div className="grid gap-5 sm:grid-cols-2">
                       <div>
                         <label htmlFor="p-deadline" className={CONTROL.label}>
@@ -321,10 +377,27 @@ export default function WorkWithMePage() {
                         <input
                           id="p-deadline"
                           type="date"
+                          disabled={noDeadline}
                           value={hardDeadline}
                           onChange={(e) => setHardDeadline(e.target.value)}
-                          className={`${CONTROL.input} mt-1 w-full`}
+                          className={`${CONTROL.input} mt-1 w-full disabled:opacity-50`}
                         />
+                        {/* FORM-V2: exploring = an honest NULL — the toggle
+                            clears + disables the date; submit needs one of
+                            the two. */}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setNoDeadline((v) => {
+                              if (!v) setHardDeadline('');
+                              return !v;
+                            })
+                          }
+                          aria-pressed={noDeadline}
+                          className={`${toggleChip(noDeadline)} mt-2`}
+                        >
+                          No deadline — exploring
+                        </button>
                       </div>
                       <div>
                         <label htmlFor="p-driver" className={CONTROL.label}>
@@ -341,15 +414,43 @@ export default function WorkWithMePage() {
                       </div>
                     </div>
                     <div>
-                      <label htmlFor="p-links" className={CONTROL.label}>
-                        Links — one URL per line
-                      </label>
-                      <textarea
-                        id="p-links"
-                        value={linksText}
-                        onChange={(e) => setLinksText(e.target.value)}
-                        className={`${TEXTAREA_CLASS} mt-1`}
-                      />
+                      <span className={CONTROL.label}>Links</span>
+                      {linkRows.map((row, i) => (
+                        <div key={i} className="mt-1 flex items-center gap-2">
+                          <input
+                            type="url"
+                            maxLength={500}
+                            placeholder="https:// — your site, a Google Doc, a Loom…"
+                            value={row}
+                            onChange={(e) =>
+                              setLinkRows((prev) => prev.map((v, j) => (j === i ? e.target.value : v)))
+                            }
+                            className={`${CONTROL.input} w-full`}
+                          />
+                          {linkRows.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setLinkRows((prev) => prev.filter((_, j) => j !== i))}
+                              aria-label="Remove link"
+                              className="shrink-0 text-white/50 hover:text-white/80"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {linkRows.length < 5 && (
+                        <button
+                          type="button"
+                          onClick={() => setLinkRows((prev) => [...prev, ''])}
+                          className={`${CONTROL.ghostButton} mt-2 px-3 py-1 text-xs`}
+                        >
+                          ＋ Add link
+                        </button>
+                      )}
+                      <p className="mt-1 text-xs text-white/40">
+                        {"Anything that shows what you're working with."}
+                      </p>
                     </div>
                     <div>
                       <span className={CONTROL.label}>Team size</span>
@@ -373,13 +474,32 @@ export default function WorkWithMePage() {
                           <button
                             key={r}
                             type="button"
-                            onClick={() => setReferralSource((prev) => (prev === r ? null : r))}
+                            onClick={() => {
+                              setReferralSource((prev) => (prev === r ? null : r));
+                              setReferralDetail('');
+                            }}
                             className={SEGMENT.item(referralSource === r)}
                           >
                             {r}
                           </button>
                         ))}
                       </div>
+                      {(referralSource === 'Referral' || referralSource === 'Other') && (
+                        <div className="mt-3">
+                          <label htmlFor="p-referral-detail" className={CONTROL.label}>
+                            {referralSource === 'Referral' ? 'Who referred you? (name)' : "Where'd you find me?"}
+                          </label>
+                          <input
+                            id="p-referral-detail"
+                            type="text"
+                            required
+                            maxLength={90}
+                            value={referralDetail}
+                            onChange={(e) => setReferralDetail(e.target.value)}
+                            className={`${CONTROL.input} mt-1 w-full`}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -390,7 +510,16 @@ export default function WorkWithMePage() {
               <div className="flex items-center gap-4">
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={
+                    submitting ||
+                    // FORM-V2 client blocks: Other picked needs its description;
+                    // the deadline question needs ONE of date/exploring; a
+                    // Referral/Other source needs its follow-up.
+                    (modules.includes('other') && otherModuleText.trim() === '') ||
+                    (!noDeadline && hardDeadline === '') ||
+                    ((referralSource === 'Referral' || referralSource === 'Other') &&
+                      referralDetail.trim() === '')
+                  }
                   className="px-8 py-2 ts-cta-gradient text-white font-bold text-sm rounded transition-colors hover:brightness-110 whitespace-nowrap disabled:opacity-50"
                 >
                   {submitting ? 'Sending…' : 'Send proposal'}
