@@ -1,5 +1,7 @@
 'use client';
 
+import { CARD_BG } from '@/lib/ds';
+
 // MOD-2: the pointer-card — marketing slides live in exactly ONE home
 // (/modules/<pillar>), so the app's guest/locked tab bodies point there
 // instead of mounting full decks (Alex's ruling; ModuleLauncher sheds its
@@ -21,7 +23,7 @@ export default function ModulePointerCard({ pillarId }: { pillarId: string }) {
     throw new Error(`ModulePointerCard: unknown pillar id "${pillarId}"`);
   }
   return (
-    <div className="rounded-lg border border-panel-border bg-panel p-5">
+    <div className="rounded-lg border border-panel-border p-5" style={{ background: CARD_BG }}>
       <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
         {pillar.label}
       </p>

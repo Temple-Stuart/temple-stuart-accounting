@@ -8,7 +8,7 @@ import {
   Check, ClipboardCheck, Crosshair, FlaskConical,
   type LucideIcon,
 } from 'lucide-react';
-import { BAND_BG, SECTION_HEADER, STATE } from '@/lib/ds';
+import { BAND_BG, CARD_BG, SECTION_HEADER, STATE } from '@/lib/ds';
 import CreateTripForm from '@/components/trips/CreateTripForm';
 import TripBookings from '@/components/trips/TripBookings';
 import UnattachedBookings from '@/components/trips/UnattachedBookings';
@@ -230,8 +230,12 @@ const MODULE_BANDS = {
 // band+card anatomy (ToggleStrip.tsx:169/:178/:85). space-y-6 lives INSIDE the
 // card (a space-y PARENT would out-specificity the -mt pull and kill the
 // overlap); each band+card pair rides in one plain <div> for the same reason.
+// APP-GLOW (standing law): flat black panels are the anti-pattern — the
+// shell card wears the home-page wash. bg-panel dropped; every mount pairs
+// this className with MODULE_SHELL_STYLE.
 const MODULE_SHELL_CARD =
-  'relative -mt-6 sm:-mt-8 rounded-xl border border-panel-border bg-panel p-4 sm:p-5 space-y-6';
+  'relative -mt-6 sm:-mt-8 rounded-xl border border-panel-border p-4 sm:p-5 space-y-6';
+const MODULE_SHELL_STYLE = { background: CARD_BG } as const;
 
 // Which tab each module section belongs to — 1:1, every module its own tab (the
 // calendar is its own 'calendar' tab, rendered separately).
@@ -604,7 +608,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
               <div className="mb-2 flex items-center justify-end gap-3">
                 {createTripButton}
               </div>
-              <p className="rounded-lg border border-panel-border bg-panel-surface p-4 text-sm text-white/60">
+              <p className="rounded-lg border border-panel-border bg-white/5 p-4 text-sm text-white/60">
                 Sign up free to save trips here — tap &ldquo;+ Create a trip&rdquo; to start one.
               </p>
             </div>
@@ -765,7 +769,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
             {/* MODULE-BANDS: the deck's own words open the tab. */}
             <div className="px-4 py-4">
               <ModuleBand {...MODULE_BANDS.runway} />
-              <div className={MODULE_SHELL_CARD}>
+              <div className={MODULE_SHELL_CARD} style={MODULE_SHELL_STYLE}>
             {/* RUNWAY-UX-1 (order ruling, audit-decided shape b): hero → budget
                 tables → calendar. The zero-date HERO STRIP is the tab's
                 headline — it renders at the top of RunwayBudgetPanel (the
@@ -797,7 +801,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
             <div className="px-4 py-4 space-y-6">
               <div>
                 <ModuleBand {...MODULE_BANDS.runway} />
-                <div className={MODULE_SHELL_CARD}>
+                <div className={MODULE_SHELL_CARD} style={MODULE_SHELL_STYLE}>
                   {/* MOD-2: the Runway deck lives at /modules/runway — the guest tab
                       points there instead of mounting it. */}
                   <ModulePointerCard pillarId="runway" />
@@ -896,7 +900,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 header. The destination bar is RETIRED this PR: every panel owns
                 its city/country inputs (PublicTransferSearch:48-49 etc.), so the
                 bar was a second trigger, not the only one. */}
-            <div className="rounded-lg border border-panel-border bg-panel-surface">
+            <div className="rounded-lg border border-panel-border" style={MODULE_SHELL_STYLE}>
               <div className={`${SECTION_HEADER} rounded-t-lg`}>YOUR TRIPS</div>
               <div className="p-4">{renderBody(travelModule)}</div>
             </div>
@@ -914,7 +918,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           <div className="px-4 py-4 lg:px-8 space-y-6">
             <div>
               <ModuleBand {...MODULE_BANDS.routines} />
-              <div className={MODULE_SHELL_CARD}>{renderBody(routinesModule)}</div>
+              <div className={MODULE_SHELL_CARD} style={MODULE_SHELL_STYLE}>{renderBody(routinesModule)}</div>
             </div>
           </div>
         </div>
@@ -927,7 +931,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           <div className="px-4 py-4 lg:px-8 space-y-6">
             <div>
               <ModuleBand {...MODULE_BANDS.projects} />
-              <div className={MODULE_SHELL_CARD}>{renderBody(projectsModule)}</div>
+              <div className={MODULE_SHELL_CARD} style={MODULE_SHELL_STYLE}>{renderBody(projectsModule)}</div>
             </div>
           </div>
         </div>
@@ -940,7 +944,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           <div className="px-4 py-4 lg:px-8 space-y-6">
             <div>
               <ModuleBand {...MODULE_BANDS.content} />
-              <div className={MODULE_SHELL_CARD}>{renderBody(contentModule)}</div>
+              <div className={MODULE_SHELL_CARD} style={MODULE_SHELL_STYLE}>{renderBody(contentModule)}</div>
             </div>
           </div>
         </div>
@@ -1040,7 +1044,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
             ) : (
               <div>
                 <ModuleBand {...MODULE_BANDS.trade} />
-                <div className={MODULE_SHELL_CARD}>
+                <div className={MODULE_SHELL_CARD} style={MODULE_SHELL_STYLE}>
                 {/* MOD-2: pointer-card to /modules/trade + the surviving purchase
                     path. label/valueLine are VERBATIM lockstep copies of
                     TabShowcases' TradeShowcase cta (extraction = MOD-3). */}
@@ -1074,7 +1078,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           <div className="px-4 py-4 space-y-6">
             <div>
               <ModuleBand {...MODULE_BANDS.books} />
-              <div className={MODULE_SHELL_CARD}>
+              <div className={MODULE_SHELL_CARD} style={MODULE_SHELL_STYLE}>
             {!booksLocked ? (
               <>
                 {/* Plaid Link script — loaded only for a viewer who sees this surface (locked
@@ -1083,7 +1087,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 {/* Cockpit — TRUTH-FIRST: loading / explicit-error / real-data only. Never a
                     fake "Balanced" or zeros. */}
                 {booksState === 'loading' && (
-                  <div className="rounded-xl border-2 border-panel-border bg-panel-surface px-4 py-3 text-sm text-white/50">
+                  <div className="rounded-xl border-2 border-panel-border bg-white/5 px-4 py-3 text-sm text-white/50">
                     Loading your books…
                   </div>
                 )}
@@ -1153,7 +1157,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           <div className="px-4 py-4 space-y-6">
             <div>
               <ModuleBand {...MODULE_BANDS.tax} />
-              <div className={MODULE_SHELL_CARD}>
+              <div className={MODULE_SHELL_CARD} style={MODULE_SHELL_STYLE}>
             {!taxLocked ? (
               <TaxHandoffGate onGoToBooks={() => selectTab('books')} />
             ) : (
@@ -1189,7 +1193,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           <div className="px-4 py-4 space-y-6">
             <div>
               <ModuleBand {...MODULE_BANDS.compliance} />
-              <div className={MODULE_SHELL_CARD}>
+              <div className={MODULE_SHELL_CARD} style={MODULE_SHELL_STYLE}>
             {!complianceLocked ? (
               <ComplianceWorkbench />
             ) : (
