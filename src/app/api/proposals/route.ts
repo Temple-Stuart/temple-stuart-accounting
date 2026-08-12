@@ -43,12 +43,16 @@ const proposalSchema = z.object({
   name: z.string().trim().min(1).max(255),
   email: z.string().trim().email().max(255),
   business: z.string().trim().min(1).max(5000),
-  currentStack: z.string().trim().min(1).max(5000),
+  // FORM-V2: the stack question moved to the optional detail section.
+  currentStack: z.string().trim().max(5000).optional(),
   need: z.enum(['setup', 'maintenance', 'custom', 'embed', 'unsure']),
-  modules: z.array(z.enum(MODULE_IDS)).max(9),
+  // FORM-V2: + 'other' — the form's escape hatch; its description rides
+  // notesFromThem ('OTHER MODULE: {text}\n\n' prefix), no new column.
+  modules: z.array(z.enum([...MODULE_IDS, 'other'])).max(10),
   startWindow: z.enum(['now', '2-4wk', '1-3mo', 'exploring']),
   budgetRange: z.enum(['<$2k', '$2–10k', '$10–50k', '$50k+', 'not sure']),
-  notesFromThem: z.string().trim().max(5000),
+  // FORM-V2: required — the 'what does done look like?' answer.
+  notesFromThem: z.string().trim().min(1).max(5000),
   hardDeadline: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD')
@@ -57,7 +61,10 @@ const proposalSchema = z.object({
   deadlineDriver: z.string().trim().max(2000).optional(),
   links: z.array(z.string().trim().url().max(500)).max(5).optional(),
   teamSize: z.enum(['Just me', '2–10', '11–50', '50+']).optional(),
-  referralSource: z.enum(['Reddit', 'X', 'NYT', 'referral', 'other']).optional(),
+  // FORM-V2: free string at the DDL cap (VARCHAR(100)) — the client
+  // assembles it: a base token (Reddit/Instagram/TikTok/X/YouTube) or
+  // 'referral: {name}' / 'other: {text}'.
+  referralSource: z.string().trim().min(1).max(100).optional(),
 });
 
 export async function POST(request: Request) {
@@ -118,7 +125,11 @@ export async function POST(request: Request) {
         name: d.name,
         email: d.email,
         business: d.business,
-        currentStack: d.currentStack,
+        // FORM-V2 ruling: current_stack is NOT NULL in the DDL; an omitted
+        // optional answer stores '' — an ADMITTED-EMPTY value (the user
+        // chose not to answer), not fabricated data. Sanctioned in the
+        // envelope; flip current_stack nullable via psql to retire this.
+        currentStack: d.currentStack ?? '',
         need: d.need,
         modules: d.modules,
         startWindow: d.startWindow,
