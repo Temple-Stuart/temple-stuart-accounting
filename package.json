@@ -48,7 +48,8 @@
     "rrule": "^2.8.1",
     "stripe": "^20.3.0",
     "uuid": "^13.0.0",
-    "xai-sdk": "^1.0.0-alpha.0"
+    "xai-sdk": "^1.0.0-alpha.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.8",

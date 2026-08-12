@@ -730,13 +730,15 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
               </a>
             </p>
             {/* SERVICES-TIER: the Work-with-me row — the same done-for-you
-                offer at hero altitude; mailto only, no commerce wiring. */}
+                offer at hero altitude; no commerce wiring. PROPOSAL-FORM: the
+                CTA now routes to the /work-with-me intake form (the SOW
+                mailto retired from this row; README keeps its mailto). */}
             <p className="mt-3 font-mono text-xs text-white/60">
               Want it running without the setup? I do that.{' '}
               <span className="text-[11px]">Full setup · Monthly maintenance · Custom builds · Embed a module in your stack</span>{' '}
-              <a href="mailto:astuart@templestuart.com?subject=Project%20proposal%20%E2%80%94%20Temple%20Stuart&body=What%20do%20you%20need%3F%20(setup%20%2F%20maintenance%20%2F%20custom%20build%20%2F%20embed%20a%20module)%3A%0A%0AYour%20business%20%2B%20current%20stack%3A%0A%0AWhich%20modules%20interest%20you%3A%0A%0ATimeline%3A%0A%0ABudget%20range%3A%0A%0AAnything%20else%3A" className="text-brand-purple-pop hover:underline">
+              <Link href="/work-with-me" className="text-brand-purple-pop hover:underline">
                 Send a project proposal →
-              </a>
+              </Link>
             </p>
             {/* EXPORT-1b: the ownership line — ships ONLY because the capability
                 now exists: GET /api/export (EXPORT-1), whose constitutional
@@ -839,8 +841,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             /* DECK-SERVICES-TAB: the professional-services panel — house
                idioms only (the absorbed bar's chip/line/right-slot idioms +
                CARD_BG offering cards). Strings REUSED from the merged
-               README Work-with-me bullets + the bar's own line; the SOW
-               mailto href byte-exact from the bar. */
+               README Work-with-me bullets + the bar's own line. PROPOSAL-FORM:
+               the CTA routes to the /work-with-me intake form (the SOW mailto
+               retired from this panel; README keeps its mailto). */
             <div className="mt-4">
               <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
                 PROFESSIONAL SERVICES
@@ -860,12 +863,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 ))}
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-4">
-                <a
-                  href="mailto:astuart@templestuart.com?subject=Project%20proposal%20%E2%80%94%20Temple%20Stuart&body=What%20do%20you%20need%3F%20(setup%20%2F%20maintenance%20%2F%20custom%20build%20%2F%20embed%20a%20module)%3A%0A%0AYour%20business%20%2B%20current%20stack%3A%0A%0AWhich%20modules%20interest%20you%3A%0A%0ATimeline%3A%0A%0ABudget%20range%3A%0A%0AAnything%20else%3A"
+                <Link
+                  href="/work-with-me"
                   className="border border-white/30 px-6 py-2 text-center text-xs font-medium text-white hover:bg-white/10"
                 >
                   Send a project proposal →
-                </a>
+                </Link>
                 <span className="ml-auto font-mono text-xs italic text-white/50">Scoped by proposal</span>
               </div>
             </div>
