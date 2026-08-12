@@ -326,7 +326,7 @@ export function RoutineStepList({ surface = 'light', routine, onUpdate, onTakeif
                   type="button"
                   onClick={() => handleSave(step.id)}
                   disabled={saving}
-                  className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50 text-xs"
+                  className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 text-xs ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
                 >
                   {saving ? 'saving…' : 'save'}
                 </button>
@@ -409,7 +409,7 @@ export function RoutineStepList({ surface = 'light', routine, onUpdate, onTakeif
       ))}
 
       {openAdd && (
-        <div className="border border-brand-purple rounded p-3 bg-purple-50/30 space-y-2">
+        <div className={`rounded p-3 space-y-2 border ${dk ? 'border-brand-purple-pop/40 bg-brand-purple-pop/10' : 'border-brand-purple bg-purple-50/30'}`}>
           <div className={themed('text-xs font-bold text-text-primary', dk)}>new step</div>
           <div className="grid grid-cols-2 gap-2">
             <div className="col-span-2">
@@ -477,7 +477,7 @@ export function RoutineStepList({ surface = 'light', routine, onUpdate, onTakeif
               type="button"
               onClick={handleCreate}
               disabled={creating}
-              className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50 text-xs"
+              className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 text-xs ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
             >
               {creating ? 'creating…' : 'create step'}
             </button>

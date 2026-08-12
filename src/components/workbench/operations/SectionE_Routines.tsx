@@ -13,10 +13,11 @@
 'use client';
 
 import { useState } from 'react';
+import { ListChecks, Sun } from 'lucide-react';
 import { useOperationsEntity } from './EntitySelector';
 import TodaysStrip from './routines/TodaysStrip';
 import RoutineList from './routines/RoutineList';
-import { themed, type Surface } from '@/lib/ds';
+import { iconTab, type Surface } from '@/lib/ds';
 
 export default function SectionE_Routines({ surface = 'light' }: { surface?: Surface } = {}) {
   const dk = surface === 'dark';
@@ -26,28 +27,31 @@ export default function SectionE_Routines({ surface = 'light' }: { surface?: Sur
   // after a successful mutation.
   const [, setRefreshCounter] = useState(0);
   const bump = () => setRefreshCounter((n) => n + 1);
+  // ROUTINES-V2: one presentation useState — the icon-tab toggler (the trade
+  // Scan/Lab/Record anatomy, ds.iconTab byte-reused). Both panels stay simple
+  // conditional mounts; each still refetches via bump on mutation. The purple
+  // 'Routines' heading died (the module band above already titles the tab),
+  // and the today/all eyebrows died with it — the tabs carry those labels.
+  const [tab, setTab] = useState<'today' | 'all'>('today');
 
   return (
     <section className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-brand-purple">
-          Routines
-        </h2>
+      <div className="flex items-end gap-1 border-b border-white/10">
+        <button type="button" onClick={() => setTab('today')} aria-pressed={tab === 'today'} className={iconTab(tab === 'today')}>
+          <Sun className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
+          <span>Today</span>
+        </button>
+        <button type="button" onClick={() => setTab('all')} aria-pressed={tab === 'all'} className={iconTab(tab === 'all')}>
+          <ListChecks className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
+          <span>All routines</span>
+        </button>
       </div>
 
-      <div>
-        <div className={themed('text-xs text-text-faint uppercase tracking-wide mb-2', dk)}>
-          today
-        </div>
+      {tab === 'today' ? (
         <TodaysStrip surface={surface} onCommitted={bump} />
-      </div>
-
-      <div className={themed('pt-3 border-t border-border-light', dk)}>
-        <div className={themed('text-xs text-text-faint uppercase tracking-wide mb-2', dk)}>
-          all routines
-        </div>
+      ) : (
         <RoutineList surface={surface} entities={entities} onCommitted={bump} />
-      </div>
+      )}
     </section>
   );
 }

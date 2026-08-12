@@ -228,7 +228,7 @@ export default function RoutineCreateForm({ surface = 'light', entities, default
           type="button"
           onClick={handleCreate}
           disabled={createSaving}
-          className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
+          className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
         >
           {createSaving ? 'creating…' : 'create routine'}
         </button>
