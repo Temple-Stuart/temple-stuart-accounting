@@ -148,6 +148,14 @@ const PUBLIC_PATHS = [
   // PR-Duffel-Pay-2: the payment-intent step (returns the Card component's client_token)
   // is part of the same guest-ok checkout — public, rate-limited, TEST mode.
   '/api/flights/payment-intent',
+  // PROPOSAL-FORM: the public project-proposal form page — a static client
+  // form (zero on-load fetches, zero authed reads, zero paid calls); its only
+  // network call is the user-submitted POST below. Guests are the audience.
+  '/work-with-me',
+  // PROPOSAL-FORM: public BY RULING: DB-write only, no paid API, rate-limited
+  // + honeypot (the route's own order: honeypot → per-ip_hash rateLimit 5/hr →
+  // zod → insert; status/owner_notes never client-writable).
+  '/api/proposals',
 ];
 
 function isPublic(pathname: string): boolean {

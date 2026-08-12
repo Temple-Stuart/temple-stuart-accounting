@@ -1263,6 +1263,43 @@ model UserCategoryEntitlement {
   @@map("user_category_entitlements")
 }
 
+// ─── Public project-proposal intake (OWNER-DASH arc) ────────────────────────
+// Maps the EXISTING `proposals` table Alex created in Azure via psql (the
+// OWNER-DASH v2 audit's canonical DDL, run 2026-08-12) — this PR emits NO
+// CREATE/ALTER, only the Prisma mapping. Rows are inserted by the public
+// POST /api/proposals (rate-limited + honeypot; DB-write only BY RULING).
+// status + owner_notes are Alex's triage fields — NEVER client-writable; the
+// route omits them so the DDL defaults rule. No attachment column BY RULING:
+// public-form uploads are banned per the security mandate; files arrive via
+// the email thread post-triage. ip_hash = HMAC-SHA256 of the client IP keyed
+// by JWT_SECRET (the cookie-auth secret) — the raw IP is never stored.
+model proposals {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  name           String    @db.VarChar(255)
+  email          String    @db.VarChar(255)
+  business       String    @db.Text
+  currentStack   String    @db.Text @map("current_stack")
+  need           String    @db.VarChar(20)
+  modules        Json      @default("[]")
+  startWindow    String    @default("exploring") @db.VarChar(20) @map("start_window")
+  budgetRange    String    @db.VarChar(50) @map("budget_range")
+  notesFromThem  String    @db.Text @map("notes_from_them")
+  hardDeadline   DateTime? @db.Date @map("hard_deadline")
+  deadlineDriver String?   @db.Text @map("deadline_driver")
+  links          Json?
+  teamSize       String?   @db.VarChar(50) @map("team_size")
+  referralSource String?   @db.VarChar(100) @map("referral_source")
+  status         String    @default("new") @db.VarChar(20)
+  ownerNotes     String?   @db.Text @map("owner_notes")
+  ipHash         String    @db.VarChar(64) @map("ip_hash")
+
+  @@index([createdAt(sort: Desc)], map: "proposals_created_at_idx")
+  @@index([status], map: "proposals_status_idx")
+  @@map("proposals")
+}
+
 // ─── Per-key request rate-limiter (durable, fixed-window) ────────────────────
 // Net-new: there is no app rate-limiter today. Mirrors the durable usage-counter
 // shape so it survives deploys AND holds across serverless instances (an in-memory
