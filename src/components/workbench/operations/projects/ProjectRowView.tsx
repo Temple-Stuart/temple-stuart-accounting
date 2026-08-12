@@ -261,7 +261,7 @@ export default function ProjectRowView({ surface = 'light',
       ref={rowRef}
       className={
         themed('border rounded bg-white transition-colors ', dk) +
-        (flash ? 'border-brand-purple shadow-md' : themed('border-border', dk)) +
+        (flash ? (dk ? 'border-brand-purple-pop shadow-md' : 'border-brand-purple shadow-md') : themed('border-border', dk)) +
         (project.status === 'archived' ? ' opacity-60' : '')
       }
     >
@@ -336,7 +336,7 @@ export default function ProjectRowView({ surface = 'light',
                     onClick={onRunResearch}
                     disabled={runningResearch}
                     title="Run web research on this project's goals and fill this field for review"
-                    className="px-2 py-0.5 text-[11px] border border-brand-purple rounded text-brand-purple hover:bg-purple-100/50 disabled:opacity-50"
+                    className={`px-2 py-0.5 text-[11px] border rounded disabled:opacity-50 ${dk ? 'border-brand-purple-pop text-brand-purple-pop hover:bg-brand-purple-pop/10' : 'border-brand-purple text-brand-purple hover:bg-purple-100/50'}`}
                   >
                     {runningResearch ? 'researching…' : '✨ run deep research'}
                   </button>
@@ -562,7 +562,7 @@ export default function ProjectRowView({ surface = 'light',
                 type="button"
                 onClick={onGenerateDesign}
                 disabled={generatingDesign}
-                className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs hover:bg-purple-50 disabled:opacity-50"
+                className={`px-2 py-0.5 border rounded text-xs disabled:opacity-50 ${dk ? 'border-brand-purple-pop text-brand-purple-pop hover:bg-brand-purple-pop/10' : 'border-brand-purple text-brand-purple hover:bg-purple-50'}`}
                 title="Generate institutional-rigor design field from your goal/problem/diagnosis items"
               >
                 {generatingDesign ? 'generating…' : '↑ generate plan'}
@@ -583,7 +583,7 @@ export default function ProjectRowView({ surface = 'light',
               </div>
             )}
             {generatedDesignPreview && (
-              <div className="mt-2 border border-brand-purple rounded p-3 bg-purple-50/30 text-xs space-y-2">
+              <div className={`mt-2 rounded p-3 text-xs space-y-2 border ${dk ? 'border-brand-purple-pop/40 bg-brand-purple-pop/10' : 'border-brand-purple bg-purple-50/30'}`}>
                 <div className={themed('font-bold text-text-primary flex items-center justify-between', dk)}>
                   <span>AI-generated design (review before saving)</span>
                   {generationCost && (
@@ -615,7 +615,7 @@ export default function ProjectRowView({ surface = 'light',
                   <button
                     type="button"
                     onClick={onUseGeneratedDesign}
-                    className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90"
+                    className={`px-3 py-1 border text-white rounded hover:opacity-90 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
                   >
                     use this
                   </button>
@@ -638,7 +638,7 @@ export default function ProjectRowView({ surface = 'light',
                 type="button"
                 onClick={onGenerateTasks}
                 disabled={generatingTasks}
-                className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs hover:bg-purple-50 disabled:opacity-50"
+                className={`px-2 py-0.5 border rounded text-xs disabled:opacity-50 ${dk ? 'border-brand-purple-pop text-brand-purple-pop hover:bg-brand-purple-pop/10' : 'border-brand-purple text-brand-purple hover:bg-purple-50'}`}
                 title="Generate institutional-rigor task array (web-search verified URLs) from your goal/problem/diagnosis items"
               >
                 {generatingTasks ? 'generating…' : '↑ generate tasks'}
@@ -710,7 +710,7 @@ export default function ProjectRowView({ surface = 'light',
               type="button"
               onClick={onSave}
               disabled={saving}
-              className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
+              className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
             >
               {saving ? 'saving…' : 'save'}
             </button>

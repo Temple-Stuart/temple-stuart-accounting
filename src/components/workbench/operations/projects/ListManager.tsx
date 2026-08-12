@@ -151,7 +151,7 @@ export default function ListManager({ surface = 'light',
                 type="button"
                 onClick={commitEdit}
                 disabled={disabled}
-                className="px-2 py-0.5 border border-brand-purple bg-brand-purple text-white rounded text-xs hover:opacity-90 disabled:opacity-50"
+                className={`px-2 py-0.5 border text-white rounded text-xs hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
               >
                 save
               </button>
@@ -189,7 +189,7 @@ export default function ListManager({ surface = 'light',
 
       {draft.length > 0 ? (
         <div className="flex items-start gap-2">
-          <span className="text-brand-purple text-xs mt-1 select-none">+</span>
+          <span className={` text-xs mt-1 select-none ${dk ? 'text-brand-purple-pop' : 'text-brand-purple'}`}>+</span>
           <input
             type="text"
             value={draft}
@@ -208,7 +208,7 @@ export default function ListManager({ surface = 'light',
             type="button"
             onClick={commitAdd}
             disabled={disabled || draft.trim().length === 0}
-            className="px-2 py-0.5 border border-brand-purple bg-brand-purple text-white rounded text-xs hover:opacity-90 disabled:opacity-50"
+            className={`px-2 py-0.5 border text-white rounded text-xs hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
           >
             add
           </button>
@@ -227,7 +227,7 @@ export default function ListManager({ surface = 'light',
             type="button"
             onClick={() => startAdd(verbPrefix)}
             disabled={disabled || atLimit}
-            className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs hover:bg-purple-50 disabled:opacity-50"
+            className={`px-2 py-0.5 border rounded text-xs disabled:opacity-50 ${dk ? 'border-brand-purple-pop text-brand-purple-pop hover:bg-brand-purple-pop/10' : 'border-brand-purple text-brand-purple hover:bg-purple-50'}`}
             title={atLimit ? `Maximum ${MAX_ITEMS} items reached` : `Add a "${verbPrefix.trim()}" item`}
           >
             + {verbPrefix.trim()}...
@@ -237,7 +237,7 @@ export default function ListManager({ surface = 'light',
               type="button"
               onClick={() => startAdd(altVerbPrefix)}
               disabled={disabled || atLimit}
-              className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs hover:bg-purple-50 disabled:opacity-50"
+              className={`px-2 py-0.5 border rounded text-xs disabled:opacity-50 ${dk ? 'border-brand-purple-pop text-brand-purple-pop hover:bg-brand-purple-pop/10' : 'border-brand-purple text-brand-purple hover:bg-purple-50'}`}
               title={atLimit ? `Maximum ${MAX_ITEMS} items reached` : `Add a "${altVerbPrefix.trim()}" item`}
             >
               + {altVerbPrefix.trim()}...

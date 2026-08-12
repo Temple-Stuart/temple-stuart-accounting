@@ -185,7 +185,7 @@ export default function ProjectCreateForm({ surface = 'light', entities, default
           type="button"
           onClick={handleCreate}
           disabled={createSaving}
-          className="px-3 py-1.5 text-xs font-medium border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
+          className={`px-3 py-1.5 text-xs font-medium border text-white rounded hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
         >
           {createSaving ? 'creating…' : 'create project'}
         </button>

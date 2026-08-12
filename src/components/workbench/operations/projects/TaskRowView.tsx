@@ -172,7 +172,7 @@ export default function TaskRowView({ surface = 'light',
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
               title={task.link_url}
-              className="shrink-0 text-brand-purple hover:opacity-80"
+              className={`shrink-0  hover:opacity-80 ${dk ? 'text-brand-purple-pop' : 'text-brand-purple'}`}
             >
               <ExternalLink className="w-3.5 h-3.5" strokeWidth={2} />
             </a>
@@ -364,7 +364,7 @@ export default function TaskRowView({ surface = 'light',
                 href={task.link_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-brand-purple hover:underline break-all"
+                className={`inline-flex items-center gap-1  hover:underline break-all ${dk ? 'text-brand-purple-pop' : 'text-brand-purple'}`}
               >
                 <ExternalLink className="w-3 h-3" strokeWidth={2} />
                 <span>{task.link_url}</span>
@@ -643,7 +643,7 @@ export default function TaskRowView({ surface = 'light',
               type="button"
               onClick={onSave}
               disabled={saving}
-              className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
+              className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
             >
               {saving ? 'saving…' : 'save'}
             </button>

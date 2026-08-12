@@ -109,7 +109,7 @@ export default function DependencyListView({ surface = 'light',
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onJumpTo(linkedId); }}
-            className="text-brand-purple hover:underline truncate text-left"
+            className={` hover:underline truncate text-left ${dk ? 'text-brand-purple-pop' : 'text-brand-purple'}`}
             title={`Jump to ${linkedTitle}`}
           >
             {linkedTitle}
@@ -165,7 +165,7 @@ export default function DependencyListView({ surface = 'light',
               type="button"
               onClick={(e) => { e.stopPropagation(); onStartCreate(); }}
               disabled={targetCandidates.length === 0}
-              className="px-2 py-1 border border-brand-purple bg-brand-purple text-white rounded text-xs hover:opacity-90 disabled:opacity-50"
+              className={`px-2 py-1 border text-white rounded text-xs hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
             >
               + add dependency
             </button>
@@ -236,7 +236,7 @@ export default function DependencyListView({ surface = 'light',
               type="button"
               onClick={onCreate}
               disabled={createSaving}
-              className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
+              className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
             >
               {createSaving ? 'creating…' : 'add dependency'}
             </button>

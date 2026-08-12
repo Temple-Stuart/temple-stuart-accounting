@@ -132,11 +132,11 @@ export default function EvolutionTimelineView({ surface = 'light', loading, erro
         {versions.map((v) => (
           <div key={v.usage_id} className="relative">
             {/* node dot, centered on the spine */}
-            <span className="absolute -left-[1.3rem] top-1 w-2.5 h-2.5 rounded-full bg-brand-purple border-2 border-white" />
+            <span className={`absolute -left-[1.3rem] top-1 w-2.5 h-2.5 rounded-full border-2 ${dk ? 'bg-brand-purple-pop border-panel' : 'bg-brand-purple border-white'}`} />
             <div className={themed('border border-border-light rounded bg-white p-3', dk)}>
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="px-1.5 py-0.5 rounded bg-brand-purple text-white text-[10px] font-semibold shrink-0">
+                  <span className={`px-1.5 py-0.5 rounded text-white text-[10px] font-semibold shrink-0 ${dk ? 'bg-brand-purple-pop' : 'bg-brand-purple'}`}>
                     v{v.version_number}
                   </span>
                   <span className={themed('text-text-primary', dk)}>{formatDateTime(v.created_at)}</span>

@@ -87,7 +87,7 @@ export default function TaskListView({ surface = 'light',
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onStartCreate(); }}
-            className="px-2 py-1 border border-brand-purple bg-brand-purple text-white rounded text-xs hover:opacity-90"
+            className={`px-2 py-1 border text-white rounded text-xs hover:opacity-90 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
           >
             + add task
           </button>
@@ -190,7 +190,7 @@ export default function TaskListView({ surface = 'light',
               type="button"
               onClick={onCreate}
               disabled={createSaving}
-              className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
+              className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
             >
               {createSaving ? 'creating…' : 'create task'}
             </button>
