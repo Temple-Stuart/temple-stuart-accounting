@@ -8,7 +8,7 @@ import {
   Check, ClipboardCheck, Crosshair, FlaskConical,
   type LucideIcon,
 } from 'lucide-react';
-import { BAND_BG, STATE } from '@/lib/ds';
+import { BAND_BG, SECTION_HEADER, STATE } from '@/lib/ds';
 import CreateTripForm from '@/components/trips/CreateTripForm';
 import TripBookings from '@/components/trips/TripBookings';
 import UnattachedBookings from '@/components/trips/UnattachedBookings';
@@ -260,13 +260,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // 9 sections render locked. Loaded from the SAME auth/me effect below (no extra fetch).
   const [entitledCategories, setEntitledCategories] = useState<string[]>([]);
   const [currentUserId, setCurrentUserId] = useState('');
-  // PR-3: unified Travel-tab destination. The top "Search all" bar writes city/country here
-  // and bumps the nonce; each destination-based section (Transfers, Activities, the unlocked
-  // categories) reads them on a nonce change and runs ITS OWN search. Locked categories never
-  // mount their search child, so fan-out can't fire them (zero spend). Flights are excluded.
-  const [travelCity, setTravelCity] = useState('');
-  const [travelCountry, setTravelCountry] = useState('');
-  const [travelSearchNonce, setTravelSearchNonce] = useState(0);
   // PR-HCR-Trips1: bumped after a create so the All Trips list re-fetches in place.
   const [tripsRefresh, setTripsRefresh] = useState(0);
   // PR-HCR-Trips2: the selected trip, lifted out of AllTripsList so later budget
@@ -824,60 +817,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 review. Auth resolving (null) → no card. */}
             {authed === false && <ModulePointerCard pillarId="travel" />}
 
-            {/* DS-1: TRIP CONTEXT — the app-only trip management (create → Your
-                trips → bookings → budget; renderBody, order + logic unchanged)
-                in a DS card ABOVE the toggle strip. */}
-            <div className="rounded-lg border border-panel-border bg-panel-surface p-4">
-              {renderBody(travelModule)}
-            </div>
-
-            {/* PR-3: unified destination bar — search once, fill every destination-based
-                panel in the strip below (Transfers, Activities, the unlocked categories). On
-                "Search all" we bump a nonce; each panel reads {travelCity, travelCountry} and
-                runs its OWN search (they stay mounted in the ToggleStrip, so the fan-out still
-                reaches them). Flights stay independent (origin airport + dates). Logic
-                unchanged — this bar keeps its own state + handler. */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!travelCity.trim() || !travelCountry.trim()) return;
-                setTravelSearchNonce((n) => n + 1);
-              }}
-              className="rounded-lg border border-panel-border bg-panel-surface p-4 space-y-3"
-            >
-              <div>
-                <p className="text-lg font-bold text-white">Search your destination</p>
-                <p className="text-sm text-white/60">Search once — fill every section below for your destination.</p>
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <input
-                  type="text"
-                  value={travelCountry}
-                  onChange={(e) => setTravelCountry(e.target.value)}
-                  placeholder="Country (e.g. Portugal)"
-                  className={TRAVEL_INPUT_CLASS}
-                  aria-label="Destination country"
-                />
-                <input
-                  type="text"
-                  value={travelCity}
-                  onChange={(e) => setTravelCity(e.target.value)}
-                  placeholder="City (e.g. Lisbon)"
-                  className={`${TRAVEL_INPUT_CLASS} lg:col-span-2`}
-                  aria-label="Destination city"
-                />
-                <div className="flex items-end">
-                  <button
-                    type="submit"
-                    disabled={!travelCity.trim() || !travelCountry.trim()}
-                    className={`${TRAVEL_BUTTON_CLASS} w-full`}
-                  >
-                    Search all
-                  </button>
-                </div>
-              </div>
-            </form>
-
             {/* DS-1: the consolidated toggle — the SAME <ToggleStrip> the landing
                 consumes (LandingBookingSection). One surface visible at a time, all
                 panels mounted (results survive toggling). Five live searches +
@@ -900,9 +839,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                   authed,
                   currentTrip,
                   onCommitted: () => setTripsRefresh((n) => n + 1),
-                  sharedCity: travelCity,
-                  sharedCountry: travelCountry,
-                  searchNonce: travelSearchNonce,
                 }),
                 // PREMIUM (honest label): the paid Google-Places categories. Gate =
                 // isCategoryLocked(catKey, entitledCategories, currentUserId)
@@ -927,15 +863,25 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                         entitledCategories={entitledCategories}
                         currentUserId={currentUserId}
                         onRequireAuth={onRequireAuth}
-                        sharedCity={travelCity}
-                        sharedCountry={travelCountry}
-                        searchNonce={travelSearchNonce}
                       />
                     ))}
                   </div>
                 ) },
               ]) as ToggleMode[]}
             />
+
+            {/* TRAVEL-RESTRUCTURE: TRIP CONTEXT attaches UNDER the booking card —
+                the Market-Intelligence-under-scanner anatomy from the trade tab
+                (TradeLabPanel.tsx:349: SECTION_HEADER + rounded-t-lg on the
+                panel-surface card). renderBody(travelModule) markup is
+                byte-identical — only the wrapper moved and gained the house
+                header. The destination bar is RETIRED this PR: every panel owns
+                its city/country inputs (PublicTransferSearch:48-49 etc.), so the
+                bar was a second trigger, not the only one. */}
+            <div className="rounded-lg border border-panel-border bg-panel-surface">
+              <div className={`${SECTION_HEADER} rounded-t-lg`}>YOUR TRIPS</div>
+              <div className="p-4">{renderBody(travelModule)}</div>
+            </div>
 
             {/* PR-ELEV-1: the coming-soon tiles became badged "Soon" CHIPS inside
                 the strip above (travelStripModes) — the tile row is gone. */}

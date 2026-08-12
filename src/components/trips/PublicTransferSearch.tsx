@@ -34,8 +34,9 @@ interface Props {
    *  longer routes to sign-up: no vendor exists, so the rows render the honest
    *  disabled label instead (ruling 2). */
   onRequireAuth: () => void;
-  /** PR-3: unified-bar fan-out. When searchNonce increments, this section runs its OWN
-   *  search for {sharedCity, sharedCountry}. Manual per-section search still works. */
+  /** PR-3 fan-out props — INERT since TRAVEL-RESTRUCTURE retired the unified
+   *  destination bar (no mount passes these anymore). Kept optional so the
+   *  contract stays available; this panel's own inputs are the search path. */
   sharedCity?: string;
   sharedCountry?: string;
   searchNonce?: number;
