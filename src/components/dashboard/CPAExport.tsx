@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { themed, type Surface } from '@/lib/ds';
+import { CARD_BG, themed, type Surface } from '@/lib/ds';
 
 // ═══════════════════════════════════════════════════════════════════
 // CPAExport — Generates accountant-ready CSV reports (Trial Balance,
@@ -384,7 +384,7 @@ export default function CPAExport({ year, entityId, surface = 'light' }: CPAExpo
     : null;
 
   return (
-    <div className={themed('bg-white overflow-hidden', dk)}>
+    <div className={dk ? 'overflow-hidden' : themed('bg-white overflow-hidden', dk)} style={dk ? { background: CARD_BG } : undefined}>
       <div className={themed('px-3 py-2 border-b border-border flex items-center justify-between', dk)}>
         <span className={themed('text-terminal-sm text-text-muted font-mono', dk)}>
           Export accountant-ready reports (sourced from the general ledger)
@@ -441,11 +441,11 @@ export default function CPAExport({ year, entityId, surface = 'light' }: CPAExpo
 
       {/* Export options */}
       <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className={themed('border rounded p-4 hover:bg-bg-row', dk)}>
+        <div className={dk ? 'border border-panel-border rounded p-4' : themed('border rounded p-4 hover:bg-bg-row', dk)} style={dk ? { background: CARD_BG } : undefined}>
           <div className="flex items-start justify-between">
             <div>
               <h4 className="font-medium">📊 Trial Balance</h4>
-              <p className={themed('text-xs text-text-muted mt-1', dk)}>
+              <p className={dk ? 'text-xs text-white/70 mt-1' : themed('text-xs text-text-muted mt-1', dk)}>
                 Per-account debit/credit balances from the ledger. Debits must equal credits.
               </p>
             </div>
@@ -459,11 +459,11 @@ export default function CPAExport({ year, entityId, surface = 'light' }: CPAExpo
           </div>
         </div>
 
-        <div className={themed('border rounded p-4 hover:bg-bg-row', dk)}>
+        <div className={dk ? 'border border-panel-border rounded p-4' : themed('border rounded p-4 hover:bg-bg-row', dk)} style={dk ? { background: CARD_BG } : undefined}>
           <div className="flex items-start justify-between">
             <div>
               <h4 className="font-medium">📈 Income Statement</h4>
-              <p className={themed('text-xs text-text-muted mt-1', dk)}>
+              <p className={dk ? 'text-xs text-white/70 mt-1' : themed('text-xs text-text-muted mt-1', dk)}>
                 Revenue minus expenses. Revenue nets credits − debits; expenses net debits − credits.
               </p>
             </div>
@@ -477,11 +477,11 @@ export default function CPAExport({ year, entityId, surface = 'light' }: CPAExpo
           </div>
         </div>
 
-        <div className={themed('border rounded p-4 hover:bg-bg-row', dk)}>
+        <div className={dk ? 'border border-panel-border rounded p-4' : themed('border rounded p-4 hover:bg-bg-row', dk)} style={dk ? { background: CARD_BG } : undefined}>
           <div className="flex items-start justify-between">
             <div>
               <h4 className="font-medium">📋 Balance Sheet</h4>
-              <p className={themed('text-xs text-text-muted mt-1', dk)}>
+              <p className={dk ? 'text-xs text-white/70 mt-1' : themed('text-xs text-text-muted mt-1', dk)}>
                 Assets = Liabilities + Equity. Retained earnings rolls net income into equity.
               </p>
             </div>
@@ -495,11 +495,11 @@ export default function CPAExport({ year, entityId, surface = 'light' }: CPAExpo
           </div>
         </div>
 
-        <div className={themed('border rounded p-4 hover:bg-bg-row', dk)}>
+        <div className={dk ? 'border border-panel-border rounded p-4' : themed('border rounded p-4 hover:bg-bg-row', dk)} style={dk ? { background: CARD_BG } : undefined}>
           <div className="flex items-start justify-between">
             <div>
               <h4 className="font-medium">📒 General Ledger</h4>
-              <p className={themed('text-xs text-text-muted mt-1', dk)}>
+              <p className={dk ? 'text-xs text-white/70 mt-1' : themed('text-xs text-text-muted mt-1', dk)}>
                 Every posted ledger entry in chronological order. Full audit trail.
               </p>
             </div>
@@ -515,7 +515,7 @@ export default function CPAExport({ year, entityId, surface = 'light' }: CPAExpo
       </div>
 
       {/* Footer */}
-      <div className={themed('px-4 py-3 border-t bg-bg-row text-xs text-text-muted', dk)}>
+      <div className={dk ? 'px-4 py-3 border-t border-panel-border bg-white/5 font-mono text-[11px] text-white/60' : themed('px-4 py-3 border-t bg-bg-row text-xs text-text-muted', dk)}>
         💡 Sourced from journal_entries + ledger_entries (reversals excluded). Open CSV files in Excel or Google Sheets.
       </div>
     </div>

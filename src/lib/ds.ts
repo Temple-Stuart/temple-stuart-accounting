@@ -45,6 +45,13 @@ export const HERO_BG =
  *  gradients, no overlays, no opacity. */
 export const BAND_BG = 'rgb(var(--ts-purple-pop))';
 
+/** BOOKS-GLOW — STANDING RULE: flat black panels are the anti-pattern —
+ *  interior cards wear the glow. THE app glow (lifted byte-identical from
+ *  Landing.tsx CARD_BG, the ELEV-2c/CARD-POP-3 recipe): two pop radials over
+ *  the panel token. Apply via style={{ background: CARD_BG }}. */
+export const CARD_BG =
+  'radial-gradient(ellipse 120% 120% at 80% 0%, rgb(var(--ts-purple-pop) / 0.65), transparent 70%), radial-gradient(ellipse 90% 90% at 10% 100%, rgb(var(--ts-purple-pop) / 0.32), transparent 65%), var(--ts-panel)';
+
 /* ─── TYPE ───────────────────────────────────────────────────────────────────
  * Scale + the white-opacity ladder. Origin: the landing hero (display), the
  * deck headings (section), COMPACT-1 (micro-label), and the ladder used across
@@ -309,6 +316,7 @@ export const DS = {
   SURFACE,
   HERO_BG,
   BAND_BG,
+  CARD_BG,
   SECTION_HEADER,
   CHIP_VARIANTS,
   chip,
