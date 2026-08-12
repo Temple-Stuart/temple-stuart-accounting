@@ -444,7 +444,7 @@ export default function CPAExport({ year, entityId, surface = 'light' }: CPAExpo
         <div className={dk ? 'border border-panel-border rounded p-4' : themed('border rounded p-4 hover:bg-bg-row', dk)} style={dk ? { background: CARD_BG } : undefined}>
           <div className="flex items-start justify-between">
             <div>
-              <h4 className="font-medium">📊 Trial Balance</h4>
+              <h4 className={dk ? 'text-sm font-semibold text-white' : 'font-medium'}>📊 Trial Balance</h4>
               <p className={dk ? 'text-xs text-white/70 mt-1' : themed('text-xs text-text-muted mt-1', dk)}>
                 Per-account debit/credit balances from the ledger. Debits must equal credits.
               </p>
@@ -452,7 +452,7 @@ export default function CPAExport({ year, entityId, surface = 'light' }: CPAExpo
             <button
               onClick={exportTrialBalance}
               disabled={exporting !== null || !data}
-              className={themed('px-3 py-1.5 border rounded text-sm hover:bg-bg-row disabled:opacity-50', dk)}
+              className={dk ? 'border border-white/30 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/10 rounded-lg disabled:opacity-50' : themed('px-3 py-1.5 border rounded text-sm hover:bg-bg-row disabled:opacity-50', dk)}
             >
               {exporting === 'trial-balance' ? '...' : 'Export CSV'}
             </button>
@@ -462,7 +462,7 @@ export default function CPAExport({ year, entityId, surface = 'light' }: CPAExpo
         <div className={dk ? 'border border-panel-border rounded p-4' : themed('border rounded p-4 hover:bg-bg-row', dk)} style={dk ? { background: CARD_BG } : undefined}>
           <div className="flex items-start justify-between">
             <div>
-              <h4 className="font-medium">📈 Income Statement</h4>
+              <h4 className={dk ? 'text-sm font-semibold text-white' : 'font-medium'}>📈 Income Statement</h4>
               <p className={dk ? 'text-xs text-white/70 mt-1' : themed('text-xs text-text-muted mt-1', dk)}>
                 Revenue minus expenses. Revenue nets credits − debits; expenses net debits − credits.
               </p>
@@ -470,7 +470,7 @@ export default function CPAExport({ year, entityId, surface = 'light' }: CPAExpo
             <button
               onClick={exportIncomeStatement}
               disabled={exporting !== null || !data}
-              className={themed('px-3 py-1.5 border rounded text-sm hover:bg-bg-row disabled:opacity-50', dk)}
+              className={dk ? 'border border-white/30 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/10 rounded-lg disabled:opacity-50' : themed('px-3 py-1.5 border rounded text-sm hover:bg-bg-row disabled:opacity-50', dk)}
             >
               {exporting === 'income-statement' ? '...' : 'Export CSV'}
             </button>
@@ -480,7 +480,7 @@ export default function CPAExport({ year, entityId, surface = 'light' }: CPAExpo
         <div className={dk ? 'border border-panel-border rounded p-4' : themed('border rounded p-4 hover:bg-bg-row', dk)} style={dk ? { background: CARD_BG } : undefined}>
           <div className="flex items-start justify-between">
             <div>
-              <h4 className="font-medium">📋 Balance Sheet</h4>
+              <h4 className={dk ? 'text-sm font-semibold text-white' : 'font-medium'}>📋 Balance Sheet</h4>
               <p className={dk ? 'text-xs text-white/70 mt-1' : themed('text-xs text-text-muted mt-1', dk)}>
                 Assets = Liabilities + Equity. Retained earnings rolls net income into equity.
               </p>
@@ -488,7 +488,7 @@ export default function CPAExport({ year, entityId, surface = 'light' }: CPAExpo
             <button
               onClick={exportBalanceSheet}
               disabled={exporting !== null || !data}
-              className={themed('px-3 py-1.5 border rounded text-sm hover:bg-bg-row disabled:opacity-50', dk)}
+              className={dk ? 'border border-white/30 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/10 rounded-lg disabled:opacity-50' : themed('px-3 py-1.5 border rounded text-sm hover:bg-bg-row disabled:opacity-50', dk)}
             >
               {exporting === 'balance-sheet' ? '...' : 'Export CSV'}
             </button>
@@ -498,7 +498,7 @@ export default function CPAExport({ year, entityId, surface = 'light' }: CPAExpo
         <div className={dk ? 'border border-panel-border rounded p-4' : themed('border rounded p-4 hover:bg-bg-row', dk)} style={dk ? { background: CARD_BG } : undefined}>
           <div className="flex items-start justify-between">
             <div>
-              <h4 className="font-medium">📒 General Ledger</h4>
+              <h4 className={dk ? 'text-sm font-semibold text-white' : 'font-medium'}>📒 General Ledger</h4>
               <p className={dk ? 'text-xs text-white/70 mt-1' : themed('text-xs text-text-muted mt-1', dk)}>
                 Every posted ledger entry in chronological order. Full audit trail.
               </p>
@@ -506,7 +506,7 @@ export default function CPAExport({ year, entityId, surface = 'light' }: CPAExpo
             <button
               onClick={exportGeneralLedger}
               disabled={exporting !== null || !data}
-              className={themed('px-3 py-1.5 border rounded text-sm hover:bg-bg-row disabled:opacity-50', dk)}
+              className={dk ? 'border border-white/30 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/10 rounded-lg disabled:opacity-50' : themed('px-3 py-1.5 border rounded text-sm hover:bg-bg-row disabled:opacity-50', dk)}
             >
               {exporting === 'general-ledger' ? '...' : 'Export CSV'}
             </button>
