@@ -169,12 +169,12 @@ export default function BooksPipeline() {
   }
   if (state === 'error') {
     return (
-      <div role="alert" className="rounded-xl border-2 border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+      <div role="alert" className="rounded-lg border border-status-danger/30 bg-status-danger/10 p-3 text-xs text-status-danger flex items-center justify-between gap-3">
         <span>Couldn&rsquo;t load your books pipeline right now. Nothing is assumed — the engines stay hidden until the data loads.</span>
         <button
           type="button"
           onClick={reloadAll}
-          className="shrink-0 rounded-lg border border-red-400 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100"
+          className="shrink-0 rounded-lg border border-status-danger/40 px-3 py-1.5 text-xs font-semibold text-status-danger hover:bg-status-danger/10"
         >
           Retry
         </button>
