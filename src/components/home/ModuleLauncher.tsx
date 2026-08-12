@@ -185,6 +185,14 @@ function ModuleBand({ plain, bullets }: { plain: string; bullets: readonly [stri
 // (Landing.tsx:241-318): each card's `plain` = the headline, its 3 `bullets`
 // = the ✓ chips. ZERO new strings; a copy change in the deck re-fires here.
 const MODULE_BANDS = {
+  // TRADE-BAND-WHEN-LOCKED: used ONLY in the locked branch — unlocked keeps
+  // its ToggleStrip band (mounting this above the ternary would double the
+  // pitch for unlocked viewers; the locked-arm mount is the smaller diff AND
+  // keeps the unlocked markup byte-identical).
+  trade: {
+    plain: 'Find trades worth taking — and get told when to skip.',
+    bullets: ['Scanner on live market data', 'Trading journal & realized P&L', 'Eighteen controls, sixteen strategies'],
+  },
   runway: {
     plain: 'See how many months your money lasts.',
     bullets: ['Every system you’re juggling', 'Burn: Personal vs. Business', 'Strays surfaced, never dropped'],
@@ -1061,6 +1069,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
               </>
             ) : (
               <>
+                <ModuleBand {...MODULE_BANDS.trade} />
                 {/* MOD-2: pointer-card to /modules/trade + the surviving purchase
                     path. label/valueLine are VERBATIM lockstep copies of
                     TabShowcases' TradeShowcase cta (extraction = MOD-3). */}
