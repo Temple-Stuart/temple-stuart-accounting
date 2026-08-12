@@ -581,16 +581,18 @@ const HERO_BG =
 // below keep the glow reaching the card's center. CARD-POP: the wash migrates
 // from the legacy deep purples (--ts-purple @ 0.85 / --ts-purple-deep @ 0.70)
 // to the pop token — cards now match the CTA family (.ts-cta-gradient's start
-// stop). ALPHAS COME DOWN (0.85→0.28 primary, 0.70→0.14 secondary): pop
-// (#5b21ff, electric indigo) is far brighter than #3b2d6b/#2d1b4e — at the
-// old alphas it blooms neon and eats the white text; ~1/3 the alpha lands the
-// same perceived wash over var(--ts-panel) (#11131b) and keeps every text
-// tier (title white, desc white/60, price line) comfortably >10:1.
+// stop). CARD-POP-2 alphas (0.55 primary / 0.28 secondary): pop-1's 0.28/0.14
+// aimed at wash-PARITY with the retired deep purple and blended to a
+// near-identical corner (≈rgb(38,23,91) vs old ≈rgb(53,41,95)) — wrong
+// target. The target is 'clearly the CTA's electric family with white text
+// ≥ ~9:1 at the hottest corner (≈rgb(58,27,152))' — visibly indigo, still
+// dark enough that every text tier (title white, desc white/60, price line)
+// stays comfortably readable over var(--ts-panel) (#11131b).
 // Applied to the wall cards + BOTH deck slide surfaces; the hero keeps
 // HERO_BG untouched (the smaller-blast-radius option — the hero was tuned for
 // its own scale and drew no complaint).
 const CARD_BG =
-  'radial-gradient(ellipse 120% 120% at 80% 0%, rgb(var(--ts-purple-pop) / 0.28), transparent 70%), radial-gradient(ellipse 90% 90% at 10% 100%, rgb(var(--ts-purple-pop) / 0.14), transparent 65%), var(--ts-panel)';
+  'radial-gradient(ellipse 120% 120% at 80% 0%, rgb(var(--ts-purple-pop) / 0.55), transparent 70%), radial-gradient(ellipse 90% 90% at 10% 100%, rgb(var(--ts-purple-pop) / 0.28), transparent 65%), var(--ts-panel)';
 
 export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvailability, logoAvailability, onBuyModule }: Props) {
   const pricingByKey = new Map(TAB_PRICING.map((t) => [t.key, t]));
