@@ -245,7 +245,9 @@ const DARKEN_MAP: [RegExp, string][] = [
   // hover/prefixed variants FIRST (so the bare token regexes below don't touch them)
   [/\bhover:bg-bg-row\b(?!\/)/g, 'hover:bg-panel-hover'],
   [/\bhover:bg-white\b(?!\/)/g, 'hover:bg-white/10'],
-  [/\bhover:text-text-secondary\b/g, 'hover:text-white/60'],
+  // INK-LIFT: hover lifts in lockstep with its bare tier below (a hover
+  // state must never be darker than rest state).
+  [/\bhover:text-text-secondary\b/g, 'hover:text-white/70'],
   [/\bhover:text-text-primary\b/g, 'hover:text-white'],
   [/\bhover:border-border\b/g, 'hover:border-panel-border'],
   // BOOKS-DS-1 additions: the dashboard stack's gray-family neutrals
@@ -287,10 +289,12 @@ const DARKEN_MAP: [RegExp, string][] = [
   // borders + the text ladder (border-border-light before border-border)
   [/\bborder-border-light\b/g, 'border-panel-border'],
   [/\bborder-border\b(?!\/)/g, 'border-panel-border'],
+  // INK-LIFT: the TRADE-INK tier ruling applied at the map — dense data UIs
+  // need labels ≥/60, prose ≥/70. (primary stays full white.)
   [/\btext-text-primary\b/g, 'text-white'],
-  [/\btext-text-secondary\b/g, 'text-white/60'],
-  [/\btext-text-muted\b/g, 'text-white/50'],
-  [/\btext-text-faint\b/g, 'text-white/40'],
+  [/\btext-text-secondary\b/g, 'text-white/70'],
+  [/\btext-text-muted\b/g, 'text-white/60'],
+  [/\btext-text-faint\b/g, 'text-white/50'],
 ];
 
 export function themed(classes: string, dark: boolean): string {
