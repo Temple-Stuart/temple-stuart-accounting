@@ -88,7 +88,8 @@ export default function SectionD_ProjectBacklog({ surface = 'light' }: { surface
   return (
     <section className="space-y-5">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-bold text-brand-purple">
+        {/* PROJECTS-V2: on dark the module band already titles the tab. */}
+        <h2 className={dk ? 'hidden' : 'text-lg font-bold text-brand-purple'}>
           Projects
         </h2>
         <div className="flex items-center gap-3 text-xs">
@@ -108,7 +109,7 @@ export default function SectionD_ProjectBacklog({ surface = 'light' }: { surface
               type="button"
               onClick={startCreate}
               disabled={entities.length === 0}
-              className="px-2 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
+              className={`px-2 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
             >
               + new project
             </button>
