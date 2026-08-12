@@ -8,7 +8,7 @@ import {
   Check, ClipboardCheck, Crosshair, FlaskConical,
   type LucideIcon,
 } from 'lucide-react';
-import { STATE } from '@/lib/ds';
+import { BAND_BG, STATE } from '@/lib/ds';
 import CreateTripForm from '@/components/trips/CreateTripForm';
 import TripBookings from '@/components/trips/TripBookings';
 import UnattachedBookings from '@/components/trips/UnattachedBookings';
@@ -158,6 +158,62 @@ const TRADE_TRUST_CHIPS = (
     <TradeTrustChip fact="Data, not advice" />
   </div>
 );
+
+// MODULE-BANDS: the static band — every module tab opens like the home page.
+// The ToggleStrip band anatomy (ToggleStrip.tsx:169-177) WITHOUT the mode
+// tabs: these modules have no mode state to hoist (SHOT-READY audit). pb-6 =
+// BAND-FAT's own visible-apron math (ToggleStrip.tsx:165-168: apron = pb −
+// card overlap = 24px; no floating card here, so pb-6 IS that same 24px).
+// Chips reuse the TradeTrustChip idiom + separators byte-exact. Renders ABOVE
+// each section's lock gate BY RULING — the pitch shows even when locked.
+function ModuleBand({ plain, bullets }: { plain: string; bullets: readonly [string, string, string] }) {
+  return (
+    <div className="rounded-2xl pt-8 px-3 pb-6 sm:pt-10" style={{ background: BAND_BG }}>
+      <h3 className="text-2xl sm:text-3xl font-bold text-white text-center">{plain}</h3>
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 font-mono text-[11px] text-white/80">
+        <TradeTrustChip fact={bullets[0]} />
+        <span className="text-white/30" aria-hidden="true">|</span>
+        <TradeTrustChip fact={bullets[1]} />
+        <span className="text-white/30" aria-hidden="true">|</span>
+        <TradeTrustChip fact={bullets[2]} />
+      </div>
+    </div>
+  );
+}
+
+// MODULE-BANDS copy — byte-exact lockstep copies of the deck's PILLAR_CARDS
+// (Landing.tsx:241-318): each card's `plain` = the headline, its 3 `bullets`
+// = the ✓ chips. ZERO new strings; a copy change in the deck re-fires here.
+const MODULE_BANDS = {
+  runway: {
+    plain: 'See how many months your money lasts.',
+    bullets: ['Every system you’re juggling', 'Burn: Personal vs. Business', 'Strays surfaced, never dropped'],
+  },
+  routines: {
+    plain: 'Set up a habit once — it lands on your calendar and your budget.',
+    bullets: ['Build once, shows up everywhere', 'Executable steps you actually run', 'What’s due, done, slipped'],
+  },
+  projects: {
+    plain: 'Type a goal — get a plan you can actually run.',
+    bullets: ['Goals in, audited tasks out', 'AI planning pipeline', 'Capped at 20 runs/day'],
+  },
+  content: {
+    plain: 'Turn what you did today into a ready-to-film script.',
+    bullets: ['Your day becomes the script', 'Every step: shot, question, purpose', 'AI script generation (paid)'],
+  },
+  books: {
+    plain: 'Know where every dollar went — synced straight from your bank.',
+    bullets: ['Plaid bank sync', 'Double-entry journal & ledger', 'Hand your CPA a package'],
+  },
+  tax: {
+    plain: 'Your return builds itself from your records.',
+    bullets: ['1040 estimate from closed books', 'Wash sales + Form 8949', 'CPA export'],
+  },
+  compliance: {
+    plain: 'Every number keeps its receipt — proof you can show later.',
+    bullets: ['Regulatory corpus search', 'Citation verification', 'Tamper-evident audit registry'],
+  },
+} as const;
 
 // Which tab each module section belongs to — 1:1, every module its own tab (the
 // calendar is its own 'calendar' tab, rendered separately).
@@ -693,6 +749,10 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       {authed === true && (
         <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto">
+            {/* MODULE-BANDS: the deck's own words open the tab. */}
+            <div className="px-4 pt-4">
+              <ModuleBand {...MODULE_BANDS.runway} />
+            </div>
             {/* RUNWAY-UX-1 (order ruling, audit-decided shape b): hero → budget
                 tables → calendar. The zero-date HERO STRIP is the tab's
                 headline — it renders at the top of RunwayBudgetPanel (the
@@ -719,7 +779,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       {authed === false && (
         <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto">
-            <div className="px-4 py-4">
+            <div className="px-4 py-4 space-y-6">
+              <ModuleBand {...MODULE_BANDS.runway} />
               {/* MOD-2: the Runway deck lives at /modules/runway — the guest tab
                   points there instead of mounting it. */}
               <ModulePointerCard pillarId="runway" />
@@ -879,6 +940,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'routines' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 lg:px-8 space-y-6">
+            <ModuleBand {...MODULE_BANDS.routines} />
             {renderBody(routinesModule)}
           </div>
         </div>
@@ -889,6 +951,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'projects' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 lg:px-8 space-y-6">
+            <ModuleBand {...MODULE_BANDS.projects} />
             {renderBody(projectsModule)}
           </div>
         </div>
@@ -899,6 +962,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'content' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 lg:px-8 space-y-6">
+            <ModuleBand {...MODULE_BANDS.content} />
             {renderBody(contentModule)}
           </div>
         </div>
@@ -1027,6 +1091,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'books' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
+            <ModuleBand {...MODULE_BANDS.books} />
             {!booksLocked ? (
               <>
                 {/* Plaid Link script — loaded only for a viewer who sees this surface (locked
@@ -1101,6 +1166,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'tax' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
+            <ModuleBand {...MODULE_BANDS.tax} />
             {!taxLocked ? (
               <TaxHandoffGate onGoToBooks={() => selectTab('books')} />
             ) : (
@@ -1132,6 +1198,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'compliance' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
+            <ModuleBand {...MODULE_BANDS.compliance} />
             {!complianceLocked ? (
               <ComplianceWorkbench />
             ) : (
