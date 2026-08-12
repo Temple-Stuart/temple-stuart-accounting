@@ -729,9 +729,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 offer at hero altitude; mailto only, no commerce wiring. */}
             <p className="mt-3 font-mono text-xs text-white/60">
               Want it running without the setup? I do that.{' '}
-              <span className="text-[11px]">Full setup · Monthly maintenance · Custom builds</span>{' '}
-              <a href="mailto:astuart@templestuart.com?subject=Done-for-you%20setup" className="text-brand-purple-pop hover:underline">
-                Email me what you need →
+              <span className="text-[11px]">Full setup · Monthly maintenance · Custom builds · Embed a module in your stack</span>{' '}
+              <a href="mailto:astuart@templestuart.com?subject=Project%20proposal%20%E2%80%94%20Temple%20Stuart&body=What%20do%20you%20need%3F%20(setup%20%2F%20maintenance%20%2F%20custom%20build%20%2F%20embed%20a%20module)%3A%0A%0AYour%20business%20%2B%20current%20stack%3A%0A%0AWhich%20modules%20interest%20you%3A%0A%0ATimeline%3A%0A%0ABudget%20range%3A%0A%0AAnything%20else%3A" className="text-brand-purple-pop hover:underline">
+                Send a project proposal →
               </a>
             </p>
             {/* EXPORT-1b: the ownership line — ships ONLY because the capability
@@ -1064,16 +1064,16 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 DONE-FOR-YOU
               </span>
               <p className="mt-2 text-xs leading-relaxed text-white/60">Your own hosted copy — every API wired, custom to your business, you own everything.</p>
-              <p className="mt-1 font-mono text-[11px] text-white/60">Full setup · Monthly maintenance · Custom builds</p>
+              <p className="mt-1 font-mono text-[11px] text-white/60">Full setup · Monthly maintenance · Custom builds · Embed a module in your stack</p>
             </div>
             <div className="font-mono text-lg font-bold text-white">
-              <span className="text-xs font-normal italic text-white/50">Custom pricing</span>
+              <span className="text-xs font-normal italic text-white/50">Scoped by proposal</span>
             </div>
             <a
-              href="mailto:astuart@templestuart.com?subject=Done-for-you%20setup"
+              href="mailto:astuart@templestuart.com?subject=Project%20proposal%20%E2%80%94%20Temple%20Stuart&body=What%20do%20you%20need%3F%20(setup%20%2F%20maintenance%20%2F%20custom%20build%20%2F%20embed%20a%20module)%3A%0A%0AYour%20business%20%2B%20current%20stack%3A%0A%0AWhich%20modules%20interest%20you%3A%0A%0ATimeline%3A%0A%0ABudget%20range%3A%0A%0AAnything%20else%3A"
               className="border border-white/30 px-6 py-2 text-center text-xs font-medium text-white hover:bg-white/10"
             >
-              Email me what you need →
+              Send a project proposal →
             </a>
           </div>
 
