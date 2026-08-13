@@ -31,56 +31,73 @@ export default function LandingHeader({ onRequireLogin, onRequireAuth }: {
   onRequireAuth?: () => void;
 }) {
   return (
+    // LANDING-V3 (spec :34-47): the nav adopts the spec anatomy. Mappings:
+    // outlined TS mark (:37 — was the solid tile; the FOUNDER'S BACK OFFICE
+    // sub-line lives on the utility bar now); Live demo → /#demo and
+    // Modules → /#modules (leading slash so the anchors work from the
+    // /modules mounts too); Pricing keeps /how-pricing-works; GitHub ↗ =
+    // the repo link (:43); Log in restyles to the spec's text link, SAME
+    // dual-mode handlers; CREATE FREE ACCOUNT = the spec's mono uppercase
+    // gold button (:45 — its #2A2054 ink maps to the brand-purple-deep
+    // token), SAME dual-mode handlers. Contact kept (live mailto target)
+    // though the spec nav omits it — flagged in the report.
     <header className="border-b border-border bg-bg-terminal text-text-primary">
       <div className="max-w-7xl mx-auto px-4 lg:px-8">
-        <div className="flex items-center justify-between h-16 sm:h-20">
+        <div className="flex items-center justify-between gap-4 h-16 sm:h-20">
           <Link href="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-brand-purple flex items-center justify-center">
-              <span className="text-white font-bold text-terminal-lg">TS</span>
+            <div className="w-7 h-7 border-2 border-brand-purple flex items-center justify-center">
+              <span className="font-mono text-[10.5px] font-semibold text-brand-purple">TS</span>
             </div>
-            <div>
-              <div className="text-sm font-semibold tracking-tight">Temple Stuart</div>
-              <div className="font-mono text-[10px] uppercase tracking-wider text-text-muted">Founder&apos;s Back Office</div>
-            </div>
+            <div className="text-sm font-semibold tracking-[0.16em] text-brand-purple">TEMPLE STUART</div>
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
+            <Link href="/#demo" className="text-xs text-text-muted hover:text-text-primary hidden md:block">
+              Live demo
+            </Link>
+            <Link href="/#modules" className="text-xs text-text-muted hover:text-text-primary hidden md:block">
+              Modules
+            </Link>
             <Link href="/how-pricing-works" className="text-xs text-text-muted hover:text-text-primary hidden sm:block">
               Pricing
             </Link>
             <a href="mailto:astuart@templestuart.com" className="text-xs text-text-muted hover:text-text-primary hidden sm:block">
               Contact
             </a>
+            <a
+              href="https://github.com/Temple-Stuart/temple-stuart-accounting"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-text-muted hover:text-text-primary hidden sm:block"
+            >
+              GitHub ↗
+            </a>
             {onRequireLogin ? (
               <button
                 type="button"
                 onClick={onRequireLogin}
-                className="px-4 py-2.5 text-sm border border-brand-purple/40 text-brand-purple font-medium hover:bg-brand-purple-wash"
+                className="text-xs font-medium text-brand-purple hover:text-brand-purple-hover"
               >
                 Log in
               </button>
             ) : (
-              <Link href="/" className="px-4 py-2.5 text-sm border border-brand-purple/40 text-brand-purple font-medium hover:bg-brand-purple-wash">
+              <Link href="/" className="text-xs font-medium text-brand-purple hover:text-brand-purple-hover">
                 Log in
               </Link>
             )}
-            {/* HEADER-CTA: the gold Create-account CTA — right of Log in,
-                all breakpoints (the CTA pattern; only the nav links collapse
-                on mobile). Same dual-mode shape as Log in: the hero's
-                onRequireAuth opener when the mount provides it, else the '/'
-                ask-surface link. No rounding — the header buttons carry none.
-                REPAINT-2: the gradient died; MONEY_ACTION's gold colors at
-                the header's own geometry. */}
             {onRequireAuth ? (
               <button
                 type="button"
                 onClick={onRequireAuth}
-                className="px-4 py-2.5 text-sm font-medium bg-brand-gold text-white hover:bg-brand-gold/90"
+                className="px-4 py-2.5 bg-brand-gold font-mono text-[11px] font-semibold uppercase tracking-wider text-brand-purple-deep hover:bg-brand-gold/90"
               >
-                Create account
+                CREATE FREE ACCOUNT
               </button>
             ) : (
-              <Link href="/" className="px-4 py-2.5 text-sm font-medium bg-brand-gold text-white hover:bg-brand-gold/90">
-                Create account
+              <Link
+                href="/"
+                className="px-4 py-2.5 bg-brand-gold font-mono text-[11px] font-semibold uppercase tracking-wider text-brand-purple-deep hover:bg-brand-gold/90"
+              >
+                CREATE FREE ACCOUNT
               </Link>
             )}
           </div>

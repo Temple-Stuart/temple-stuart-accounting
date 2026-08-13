@@ -682,8 +682,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 GAAP double-entry (tab:books unlocks), and the platform spans
                 nine modules — money, calendar, travel, trading, tax in one
                 app rather than separate tools. */}
+            {/* LANDING-V3 (spec :55): the subcopy gains the spec's tail
+                sentence verbatim. */}
             <p className="mb-6 max-w-xl text-base text-white/70">
-              Track your money the way an accountant would — one app, not ten.
+              Track your money the way an accountant would — one app, not ten. Nine modules on one
+              double-entry ledger, built in public by a solo accountant on the way to CPA.
             </p>
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               {/* HERO-REPO-1 (Alex's rationale): the hosted product leads —
@@ -741,7 +744,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             aubergine band (ds.BAND_BG) reads as a band. DECLARED INTERIM:
             the strip's INTERIOR (travel pickers/results) stays dark until
             Slice 4's trips pass. */}
-      <div className="max-w-7xl mx-auto px-4 lg:px-8">
+      {/* LANDING-V3: id="demo" — the spec's :93 anchor, the nav's Live-demo
+          target. */}
+      <div id="demo" className="max-w-7xl mx-auto px-4 lg:px-8">
         {/* LANDING-V2 (spec :96-97): section 01's numbered eyebrow row —
             label verbatim; right slot = the existing /modules/travel door. */}
         <div className="flex items-baseline justify-between gap-3 pt-6">
@@ -750,6 +755,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             EXPLORE TRAVEL →
           </Link>
         </div>
+        {/* LANDING-V3 (spec :99): the demo h2, spec wording verbatim. */}
+        <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">
+          Search &amp; book travel — free today, no account needed.
+        </h2>
         <LandingBookingSection onRequireAuth={onRequireAuth} />
       </div>
       {/* PR-ELEV-1: the coming-soon tiles live INSIDE the strip above as
@@ -868,7 +877,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
           <div role="group" aria-label="The nine pillars" className="mt-4 overflow-x-auto rounded-lg border border-border bg-white">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border text-left">
+                {/* LANDING-V3 (spec :194): the header row takes the token
+                    fill — bg-bg-row (#F3EFE6, the closest token to the
+                    spec's #F5F1E5; no new hex). */}
+                <tr className="border-b border-border bg-bg-row text-left">
                   <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>No</th>
                   <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Module</th>
                   <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Category</th>
@@ -895,7 +907,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                         {p.id === 'travel' ? (
                           <span className="font-mono text-[10px] font-semibold text-brand-purple">LIVE — FREE</span>
                         ) : (
-                          <span className="font-mono text-[10px] uppercase tracking-wider text-text-muted">Launching soon</span>
+                          /* LANDING-V3 (spec :210): source-uppercase per spec. */
+                          <span className="font-mono text-[10px] tracking-wider text-text-muted">LAUNCHING SOON</span>
                         )}
                       </td>
                       <td className="px-3 py-2.5 text-right">
@@ -1051,6 +1064,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             </p>
             <p className="font-mono text-[10px] tracking-wider text-text-faint">REAL SCREENS — NOT RENDERS</p>
           </div>
+          {/* LANDING-V3 (spec :284): the section h2, spec wording verbatim. */}
+          <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">
+            The product, as it runs.
+          </h2>
 
           <div className="mt-4 space-y-6">
             {PILLAR_CARDS.map((p) => {
@@ -1234,32 +1251,52 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
           <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">
             04 / BUILT IN PUBLIC
           </p>
-          <div className="mt-4 max-w-2xl space-y-2">
-            <p className="text-sm leading-relaxed text-text-secondary">
-              The code is public —{' '}
+          {/* LANDING-V3 (spec :309-328): section 04 becomes the spec's
+              4-column mono-headed grid. Prose→column mapping (byte-identical,
+              re-seated): P1 → THE CODE (its inline repo anchor kept — plus
+              the spec's :313 mono GITHUB link, both retained per the ruling);
+              P2 → THE CHANGELOG; P3 → YOUR LEDGER. Column 4 = DONE-FOR-YOU:
+              the PROFESSIONAL SERVICES panel as shipped, byte-identical. */}
+          <div className="mt-6 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">THE CODE</p>
+              <p className="text-sm leading-relaxed text-text-secondary">
+                The code is public —{' '}
+                <a
+                  href="https://github.com/Temple-Stuart/temple-stuart-accounting"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-brand-purple underline decoration-dotted hover:text-brand-purple-hover"
+                >
+                  github.com/Temple-Stuart/temple-stuart-accounting
+                </a>{' '}
+                (source-available under BSL 1.1 — free to self-host for personal use).
+              </p>
               <a
                 href="https://github.com/Temple-Stuart/temple-stuart-accounting"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-medium text-brand-purple underline decoration-dotted hover:text-brand-purple-hover"
+                className="mt-2 inline-block font-mono text-[10px] tracking-wider font-medium text-brand-purple hover:text-brand-purple-hover"
               >
-                github.com/Temple-Stuart/temple-stuart-accounting
-              </a>{' '}
-              (source-available under BSL 1.1 — free to self-host for personal use).
-            </p>
-            <p className="text-sm leading-relaxed text-text-secondary">
-              Every change ships as a reviewed pull request — the build history is the changelog.
-            </p>
-            <p className="text-sm leading-relaxed text-text-secondary">
-              Your complete financial records export in one click — never paywalled.
-            </p>
-          </div>
-          {/* LANDING-V2 (spec :323-327): the DONE-FOR-YOU seat — the
-              PROFESSIONAL SERVICES panel relocated WHOLESALE from the deck's
-              retired services tab (DECK-SERVICES-TAB provenance carries over:
-              house idioms, strings from the merged README Work-with-me
-              bullets; the /work-with-me proposal CTA kept). Markup
-              byte-identical inside. */}
+                GITHUB.COM/TEMPLE-STUART ↗
+              </a>
+            </div>
+            <div>
+              <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">THE CHANGELOG</p>
+              <p className="text-sm leading-relaxed text-text-secondary">
+                Every change ships as a reviewed pull request — the build history is the changelog.
+              </p>
+            </div>
+            <div>
+              <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">YOUR LEDGER</p>
+              <p className="text-sm leading-relaxed text-text-secondary">
+                Your complete financial records export in one click — never paywalled.
+              </p>
+            </div>
+            <div>
+              <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">DONE-FOR-YOU</p>
+              {/* The PROFESSIONAL SERVICES panel — relocated in V2, byte-identical
+                  inside (DECK-SERVICES-TAB provenance; /work-with-me CTA kept). */}
             <div className="mt-4">
               <span className="rounded border border-border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
                 PROFESSIONAL SERVICES
@@ -1288,6 +1325,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 <span className="ml-auto font-mono text-xs italic text-text-faint">Scoped by proposal</span>
               </div>
             </div>
+            </div>
+          </div>
         </div>
       </section>
 
