@@ -425,6 +425,9 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
     } catch { return false; }
   });
   const [tradeScanMeta, setTradeScanMeta] = useState<{ completedAt: string | null; runtimeMs: number | null; results: number } | null>(null);
+  // RESULTS-ANATOMY: the results table's derived TRADE/SKIP tally (rows with
+  // a real card vs stored-rejection rows — ScannerResultsTable's own counts).
+  const [tradeTally, setTradeTally] = useState<{ trade: number; skip: number } | null>(null);
   const [tradeRecordStats, setTradeRecordStats] = useState<(RecordStats & { unlinkedClosed: number }) | null>(null);
   const [tradeCoverage, setTradeCoverage] = useState<{ investment_txn_count: number; earliest_txn_date: string | null; latest_txn_date: string | null } | null>(null);
 
@@ -1069,9 +1072,12 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                     />
                     <SectionHeader
                       kicker="02 / RESULTS"
-                      right={tradeScanMeta?.completedAt
-                        ? `COMPLETED ${new Date(tradeScanMeta.completedAt).toLocaleTimeString()}${tradeScanMeta.runtimeMs != null ? ` · ${(tradeScanMeta.runtimeMs / 1000).toFixed(1)}S` : ''}`
-                        : undefined}
+                      right={[
+                        tradeScanMeta?.completedAt
+                          ? `COMPLETED ${new Date(tradeScanMeta.completedAt).toLocaleTimeString()}${tradeScanMeta.runtimeMs != null ? ` · ${(tradeScanMeta.runtimeMs / 1000).toFixed(1)}S` : ''}`
+                          : null,
+                        tradeTally ? `${tradeTally.trade} TRADE · ${tradeTally.skip} SKIP` : null,
+                      ].filter(Boolean).join(' — ') || undefined}
                     />
                     <ConvergenceIntelligence
                       externalFilters={scannerFilters}
@@ -1082,6 +1088,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                       scanTriggerRef={scanTriggerRef}
                       scanningRef={scanningRef}
                       onScanMeta={setTradeScanMeta}
+                      onResultsTally={setTradeTally}
                     />
                   </div>
 
