@@ -78,7 +78,7 @@ import { Fragment, useState } from 'react';
 // PR-DECK-CLEAN-1: the card fragments' checkmark — lucide is the house icon
 // vocabulary (TripHeader.tsx:16 already imports Check).
 // PR-DECK-4CAT: the four category-tab icons join.
-import { Briefcase, Check, LayoutGrid, Plane, BookOpen, TrendingUp, Settings } from 'lucide-react';
+import { LayoutGrid, Plane, BookOpen, TrendingUp, Settings } from 'lucide-react';
 // PR-DECK-4CAT: the category tabs reuse the ToggleStrip icon-tab idiom
 // (DS.iconTab — the trip.com tab form factor the booking strip wears).
 // REPAINT-2 → REPAINT-3: cards are flat white/cream + hairline; the local
@@ -194,7 +194,8 @@ const DECK_CATEGORIES = [
   { key: 'accounting', label: 'Accounting', icon: BookOpen,   moduleIds: ['books', 'runway', 'tax'] },
   { key: 'trading',    label: 'Trading',    icon: TrendingUp, moduleIds: ['trade'] },
   { key: 'operations', label: 'Operations', icon: Settings,   moduleIds: ['projects', 'routines', 'content', 'compliance'] },
-  { key: 'services',   label: 'Services',   icon: Briefcase,  moduleIds: [] },
+  // LANDING-V2: the services tab left the deck (spec :323-327) — the panel
+  // lives in section 04's DONE-FOR-YOU seat now.
 ] as const;
 
 // Funnel order — Alex's ruling. PR-DECK-CLEAN-1 fragment provenance — every
@@ -633,6 +634,21 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
 
   return (
     <div className="min-h-screen bg-bg-terminal text-text-primary">
+      {/* LANDING-V2 (spec design-refs/landing-direction-c.dc.html:23-32): the
+          top UTILITY BAR — solid aubergine, mono micro-text, spec content
+          VERBATIM. Ink adaptation to house tokens (no new hex): the spec's
+          #C0B5DF lavender → text-white/70; the highlighted BUILT IN PUBLIC
+          cream #F6F1E4 → text-ts-white. */}
+      <div className="bg-brand-purple">
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 font-mono text-[10px] tracking-wider text-white/70">
+          <div>TEMPLE-STUART / FOUNDER&apos;S BACK OFFICE</div>
+          <div className="flex flex-wrap items-center gap-x-7 gap-y-1">
+            <span className="hidden sm:inline">09 MODULES · ONE LEDGER</span>
+            <span>SOURCE-AVAILABLE · BSL-1.1</span>
+            <span className="text-ts-white">▪ BUILT IN PUBLIC</span>
+          </div>
+        </div>
+      </div>
       {/* HEADER-CTA: onRequireAuth passed through so the header's Create
           account button is the SAME register opener as the hero CTA. */}
       <LandingHeader onRequireLogin={onRequireLogin} onRequireAuth={onRequireAuth} />
@@ -699,66 +715,17 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
               </a>
             </div>
 
-            {/* HERO-PRESENCE: the three trust chips — Check in the status
-                success token (the strip-chip pattern); labels only, no links.
-                Claims: free account needs no card; BSL self-hosting is
-                LICENSE-true (the block below). */}
-            <div className="flex flex-wrap items-center gap-4 mt-5 text-sm text-white/70">
-              <span className="flex items-center gap-1.5">
-                <Check className="h-4 w-4 text-status-success" strokeWidth={2.5} aria-hidden="true" />
-                No credit card
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Check className="h-4 w-4 text-status-success" strokeWidth={2.5} aria-hidden="true" />
-                Privacy first
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Check className="h-4 w-4 text-status-success" strokeWidth={2.5} aria-hidden="true" />
-                Self-hostable
-              </span>
+            {/* HERO-PRESENCE → LANDING-V2 (spec :60): the three check chips
+                compress to the spec's single mono row; the BSL + services
+                mono blocks DELETED (BSL survives on the utility bar +
+                section 04; services reseats in section 04). The ownership
+                phrase survives as the row's tail — the session's
+                spec-conflict ruling, adopted. Claims unchanged: no-card
+                signup, LICENSE-true self-hosting, never-paywalled export
+                (GET /api/export). Spec ink #9C90C2 → text-white/60. */}
+            <div className="mt-6 font-mono text-[10px] tracking-wider text-white/60">
+              NO CREDIT CARD · PRIVACY FIRST · SELF-HOSTABLE · YOU ALWAYS OWN YOUR LEDGER
             </div>
-
-            {/* ── LOBBY-FIX-1: the source-availability line moved here, directly
-                  beneath the hero CTA row (from under the selection deck). Every
-                  claim is LICENSE-true: LICENSE:1 "Business Source License 1.1";
-                  Additional Use Grant (LICENSE:13-16) = personal, non-commercial
-                  use only, commercial use requires a separate license; Change
-                  License Apache 2.0 on Change Date 2028-01-01 (LICENSE:18-21).
-                  Address = the house contact, LandingHeader.tsx:36
-                  (astuart@templestuart.com — also LICENSE:16). NO "open source"
-                  framing. ───────────────────────────────────────────────────── */}
-            <p className="mt-4 font-mono text-xs text-white/50">
-              Source-available under BSL 1.1 — free to self-host for personal use. Commercial use or a
-              done-for-you setup →{' '}
-              <a href="mailto:astuart@templestuart.com" className="text-white/70 underline hover:text-white">
-                astuart@templestuart.com
-              </a>
-            </p>
-            {/* SERVICES-TIER: the Work-with-me row — the same done-for-you
-                offer at hero altitude; no commerce wiring. PROPOSAL-FORM: the
-                CTA now routes to the /work-with-me intake form (the SOW
-                mailto retired from this row; README keeps its mailto). */}
-            <p className="mt-3 font-mono text-xs text-white/60">
-              Want it running without the setup? I do that.{' '}
-              <span className="text-[11px]">Full setup · Monthly maintenance · Custom builds · Embed a module in your stack</span>{' '}
-              {/* REPAINT-2: pop → lavender wash (pop is illegible on the
-                  aubergine band; same accent family as the headline tint). */}
-              <Link href="/work-with-me" className="text-brand-purple-wash hover:underline">
-                Send a project proposal →
-              </Link>
-            </p>
-            {/* EXPORT-1b: the ownership line — ships ONLY because the capability
-                now exists: GET /api/export (EXPORT-1), whose constitutional
-                header rules it NEVER paywalled (no tier gate, no entitlement
-                gate — verified email + user scoping only; src/app/api/export/
-                route.ts). WORDING CALL: "your complete financial records", not
-                "everything" — the EXPORT-1 enumeration covers the 27-table
-                financial spine + travel and EXCLUDES operations/content/
-                planning tables, so "everything" would overstate. "One click" =
-                the Export-my-data button (header + Books tab). */}
-            <p className="mt-1 font-mono text-xs text-white/50">
-              You always own your ledger — export your complete financial records, one click, never paywalled.
-            </p>
           </div>
 
         </div>
@@ -775,6 +742,14 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             the strip's INTERIOR (travel pickers/results) stays dark until
             Slice 4's trips pass. */}
       <div className="max-w-7xl mx-auto px-4 lg:px-8">
+        {/* LANDING-V2 (spec :96-97): section 01's numbered eyebrow row —
+            label verbatim; right slot = the existing /modules/travel door. */}
+        <div className="flex items-baseline justify-between gap-3 pt-6">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">01 / LIVE DEMO — TRAVEL</p>
+          <Link href="/modules/travel" className="font-mono text-[10px] tracking-wider text-brand-purple hover:text-brand-purple-hover">
+            EXPLORE TRAVEL →
+          </Link>
+        </div>
         <LandingBookingSection onRequireAuth={onRequireAuth} />
       </div>
       {/* PR-ELEV-1: the coming-soon tiles live INSIDE the strip above as
@@ -803,10 +778,17 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
               on purple); the demo trigger's white-on-purple button is
               byte-identical. */}
           <div className="rounded-lg bg-brand-purple px-5 py-6 flex items-center justify-between">
-            <div>
-              <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
-                The nine pillars · modules
-              </p>
+            <div className="flex-1">
+              {/* LANDING-V2 (spec :184-185): the 02 eyebrow + the cream
+                  HOW PRICING WORKS right slot, on the aubergine band. */}
+              <div className="flex flex-wrap items-baseline justify-between gap-3">
+                <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
+                  02 / THE NINE PILLARS
+                </p>
+                <Link href="/how-pricing-works" className="font-mono text-[10px] tracking-wider text-ts-white hover:text-white">
+                  HOW PRICING WORKS →
+                </Link>
+              </div>
               <h2 className="mt-1 text-lg font-light tracking-tight text-white">
                 Buy the modules you&apos;ll use. One, some, or all.
               </h2>
@@ -869,43 +851,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
               verbatim; the per-persona variants retired with the filter. */}
           <p className="mt-2 font-mono text-xs text-text-muted">Search & book travel free today — no account needed. Paid modules are launching soon.</p>
 
-          {categoryKey === 'services' ? (
-            /* DECK-SERVICES-TAB: the professional-services panel — house
-               idioms only (the absorbed bar's chip/line/right-slot idioms +
-               flat white offering cards, REPAINT-2). Strings REUSED from the merged
-               README Work-with-me bullets + the bar's own line. PROPOSAL-FORM:
-               the CTA routes to the /work-with-me intake form (the SOW mailto
-               retired from this panel; README keeps its mailto). */
-            <div className="mt-4">
-              <span className="rounded border border-border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
-                PROFESSIONAL SERVICES
-              </span>
-              <p className="mt-2 text-xs leading-relaxed text-text-muted">Your own hosted copy — every API wired, custom to your business, you own everything.</p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {([
-                  ['Full setup', 'Your own hosted copy, every API wired, you own everything.'],
-                  ['Monthly maintenance', 'I keep it updated and running.'],
-                  ['Custom builds', 'Need a feature? I build it.'],
-                  ['Embed a module', 'Want just one piece (the booking engine, the books, the scanner) inside your existing system? I do that too.'],
-                ] as const).map(([title, desc]) => (
-                  <div key={title} className="rounded-lg border border-border bg-white p-4 text-text-primary">
-                    <div className="text-sm font-medium">{title}</div>
-                    <p className="mt-1 text-xs text-text-muted">{desc}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 flex flex-wrap items-center gap-4">
-                <Link
-                  href="/work-with-me"
-                  className="border border-brand-purple/40 px-6 py-2 text-center text-xs font-medium text-brand-purple hover:bg-brand-purple-wash"
-                >
-                  Send a project proposal →
-                </Link>
-                <span className="ml-auto font-mono text-xs italic text-text-faint">Scoped by proposal</span>
-              </div>
-            </div>
-          ) : (
-          /* DECK-TABLE (Alex's ruling): the card grid became the Direction-C
+          {/* LANDING-V2 (spec :323-327): the SERVICES tab left the deck —
+              the PROFESSIONAL SERVICES panel reseated in section 04 as the
+              spec's DONE-FOR-YOU seat. The catalog renders unconditionally. */}
+          {/* DECK-TABLE (Alex's ruling): the card grid became the Direction-C
              catalog table — the toggler FILTERS the rows (same moduleIds
              wiring, presentation state only). Copy is PILLAR_CARDS
              byte-exact (label + plain); STATUS carries the two ruled labels;
@@ -915,7 +864,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
              bundle bar + calculator strip below survive byte-identical, and
              buy affordances return to rows when real prices exist. Table
              chrome = the DATA vocabulary (ds.ts) on cream: white card,
-             lavender hairlines, zebra rows, wash hover. */
+             lavender hairlines, zebra rows, wash hover. */}
           <div role="group" aria-label="The nine pillars" className="mt-4 overflow-x-auto rounded-lg border border-border bg-white">
             <table className="w-full text-sm">
               <thead>
@@ -964,7 +913,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
               </tbody>
             </table>
           </div>
-          )}
 
           {/* ── FD-1i (ruling B): the CALCULATOR strip — live selection state
                 replaced the static bundle row. Nothing selected → the bundle
@@ -1095,9 +1043,14 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             full-width text layout (today's state for all nine). ────────────── */}
       <section className="w-full border-b border-border bg-bg-terminal">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-brand-purple">
-            The pillars — in their own words
-          </p>
+          {/* LANDING-V2 (spec :281-282): the 03 eyebrow; the right slot is a
+              PLAIN mono line, not a link (spec renders it in the muted ink). */}
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">
+              03 / INSIDE THE APP
+            </p>
+            <p className="font-mono text-[10px] tracking-wider text-text-faint">REAL SCREENS — NOT RENDERS</p>
+          </div>
 
           <div className="mt-4 space-y-6">
             {PILLAR_CARDS.map((p) => {
@@ -1277,8 +1230,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             carousel exists only when real content does. ───────────────────── */}
       <section className="w-full border-b border-border bg-bg-terminal">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-brand-purple">
-            Built in public
+          {/* LANDING-V2 (spec :308): the 04 eyebrow — no right slot. */}
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">
+            04 / BUILT IN PUBLIC
           </p>
           <div className="mt-4 max-w-2xl space-y-2">
             <p className="text-sm leading-relaxed text-text-secondary">
@@ -1300,6 +1254,40 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
               Your complete financial records export in one click — never paywalled.
             </p>
           </div>
+          {/* LANDING-V2 (spec :323-327): the DONE-FOR-YOU seat — the
+              PROFESSIONAL SERVICES panel relocated WHOLESALE from the deck's
+              retired services tab (DECK-SERVICES-TAB provenance carries over:
+              house idioms, strings from the merged README Work-with-me
+              bullets; the /work-with-me proposal CTA kept). Markup
+              byte-identical inside. */}
+            <div className="mt-4">
+              <span className="rounded border border-border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
+                PROFESSIONAL SERVICES
+              </span>
+              <p className="mt-2 text-xs leading-relaxed text-text-muted">Your own hosted copy — every API wired, custom to your business, you own everything.</p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {([
+                  ['Full setup', 'Your own hosted copy, every API wired, you own everything.'],
+                  ['Monthly maintenance', 'I keep it updated and running.'],
+                  ['Custom builds', 'Need a feature? I build it.'],
+                  ['Embed a module', 'Want just one piece (the booking engine, the books, the scanner) inside your existing system? I do that too.'],
+                ] as const).map(([title, desc]) => (
+                  <div key={title} className="rounded-lg border border-border bg-white p-4 text-text-primary">
+                    <div className="text-sm font-medium">{title}</div>
+                    <p className="mt-1 text-xs text-text-muted">{desc}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-4">
+                <Link
+                  href="/work-with-me"
+                  className="border border-brand-purple/40 px-6 py-2 text-center text-xs font-medium text-brand-purple hover:bg-brand-purple-wash"
+                >
+                  Send a project proposal →
+                </Link>
+                <span className="ml-auto font-mono text-xs italic text-text-faint">Scoped by proposal</span>
+              </div>
+            </div>
         </div>
       </section>
 
