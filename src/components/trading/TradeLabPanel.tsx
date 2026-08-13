@@ -355,7 +355,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
           <select
             value={filter}
             onChange={e => setFilter(e.target.value)}
-            className="rounded border border-panel-border bg-panel px-2 py-1 text-xs text-white"
+            className="rounded border border-border bg-white px-2 py-1 text-xs text-text-primary"
           >
             <option value="all">All</option>
             <option value="queued">Queued</option>
@@ -363,7 +363,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
             <option value="linked">Linked</option>
             <option value="graded">Graded</option>
           </select>
-          <button onClick={loadCards} className="rounded border border-white/30 px-3 py-1 text-xs hover:bg-white/10">
+          <button onClick={loadCards} className="rounded border border-border px-3 py-1 text-xs hover:bg-bg-row">
             Refresh
           </button>
         </div>
@@ -388,7 +388,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
               type="date"
               value={startDateInput}
               onChange={e => setStartDateInput(e.target.value)}
-              className="rounded border border-panel-border bg-panel px-1 py-0.5 text-xs text-white"
+              className="rounded border border-border bg-white px-1 py-0.5 text-xs text-text-primary"
             />
             <button
               onClick={() => saveScannerStartDate(startDateInput)}
@@ -398,7 +398,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
             </button>
             <button
               onClick={() => setEditingStartDate(false)}
-              className="text-xs text-white/50 hover:text-white/70"
+              className="text-xs text-text-faint hover:text-text-secondary"
             >
               Cancel
             </button>
@@ -509,7 +509,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                       {/* Actual P&L for graded cards */}
                       {card.link?.actual_pl != null && (
                         <div className="mb-1">
-                          <div className="text-[9px] text-white/60 uppercase">Actual P&L</div>
+                          <div className="text-[9px] text-text-muted uppercase">Actual P&L</div>
                           <div className={`text-terminal-lg font-mono font-black ${moneyColorClass(Number(card.link.actual_pl), 'pnl')}`}>
                             {formatMoney(Number(card.link.actual_pl), { kind: 'pnl', fractionDigits: 0 })}
                           </div>
@@ -517,16 +517,16 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                       )}
 
                       <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[11px]">
-                        <div className="text-white/60">Max Profit</div>
+                        <div className="text-text-muted">Max Profit</div>
                         <div className="font-mono font-bold text-brand-green">{fmtDollar(card.max_profit)}</div>
-                        <div className="text-white/60">Max Loss</div>
+                        <div className="text-text-muted">Max Loss</div>
                         <div className="font-mono font-bold text-brand-red">{fmtDollar(card.max_loss)}</div>
-                        <div className="text-white/60" title="Estimated Probability of Profit based on delta approximation">Est. PoP</div>
+                        <div className="text-text-muted" title="Estimated Probability of Profit based on delta approximation">Est. PoP</div>
                         {/* TRADE-UX-1: the anchor leads the queue row \u2014 size +
                             weight within the grid idiom. Same field/format. */}
-                        <div className="font-mono font-black text-sm text-white/80">{card.win_rate != null ? `${Number(card.win_rate).toFixed(1)}%` : '\u2014'}</div>
-                        <div className="text-white/60">R:R</div>
-                        <div className="font-mono font-bold text-white/80">{card.risk_reward != null ? Number(card.risk_reward).toFixed(2) : '\u2014'}</div>
+                        <div className="font-mono font-black text-sm text-text-secondary">{card.win_rate != null ? `${Number(card.win_rate).toFixed(1)}%` : '\u2014'}</div>
+                        <div className="text-text-muted">R:R</div>
+                        <div className="font-mono font-bold text-text-secondary">{card.risk_reward != null ? Number(card.risk_reward).toFixed(2) : '\u2014'}</div>
                       </div>
 
                       {/* Actions by status */}
@@ -542,7 +542,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                             </button>
                             <button
                               onClick={() => deleteCard(card.id)}
-                              className="text-[10px] text-white/40 hover:text-status-danger transition-colors"
+                              className="text-[10px] text-text-faint hover:text-status-danger transition-colors"
                             >
                               Remove
                             </button>
@@ -561,7 +561,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                             </button>
                             <button
                               onClick={() => unlinkCard(card.link!.id)}
-                              className="text-[10px] text-white/40 hover:text-status-danger transition-colors"
+                              className="text-[10px] text-text-faint hover:text-status-danger transition-colors"
                             >
                               Unlink
                             </button>
@@ -572,7 +572,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                         {card.status === 'graded' && card.link && (
                           <button
                             onClick={() => unlinkCard(card.link!.id)}
-                            className="text-[10px] text-white/40 hover:text-status-danger transition-colors"
+                            className="text-[10px] text-text-faint hover:text-status-danger transition-colors"
                           >
                             Unlink
                           </button>
@@ -584,17 +584,17 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
 
                 {/* Linking dropdown */}
                 {isLinking && (
-                  <div className="px-4 py-3 bg-white/5 border-t border-panel-border" onClick={e => e.stopPropagation()}>
-                    <div className="text-xs font-medium text-white/70 mb-2">
+                  <div className="px-4 py-3 bg-bg-row border-t border-border" onClick={e => e.stopPropagation()}>
+                    <div className="text-xs font-medium text-text-secondary mb-2">
                       Select a position to link to:
                     </div>
                     {linkError && (
                       <div className="text-xs text-brand-red mb-2">{linkError}</div>
                     )}
                     {loadingPositions ? (
-                      <div className="text-xs text-white/60">Loading positions...</div>
+                      <div className="text-xs text-text-muted">Loading positions...</div>
                     ) : matchablePositions.length === 0 ? (
-                      <div className="text-xs text-white/60">
+                      <div className="text-xs text-text-muted">
                         No matching positions yet &mdash; execute the trade and commit it in Books first.
                       </div>
                     ) : (
@@ -603,20 +603,20 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                           <button
                             key={pos.trade_num}
                             onClick={() => linkToPosition(card.id, pos.trade_num)}
-                            className="w-full text-left px-3 py-2 rounded border border-panel-border bg-panel hover:border-brand-purple-pop hover:bg-white/10 transition-colors"
+                            className="w-full text-left px-3 py-2 rounded border border-border bg-white hover:border-brand-purple-pop hover:bg-bg-row transition-colors"
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2 text-xs">
-                                <span className="font-mono font-bold text-white/90">#{pos.trade_num}</span>
-                                <span className="font-medium text-white/70">{pos.symbol}</span>
-                                {pos.strategy && <span className="text-white/60">{pos.strategy}</span>}
+                                <span className="font-mono font-bold text-text-primary">#{pos.trade_num}</span>
+                                <span className="font-medium text-text-secondary">{pos.symbol}</span>
+                                {pos.strategy && <span className="text-text-muted">{pos.strategy}</span>}
                                 {pos.option_type && (
-                                  <span className="text-white/40">
+                                  <span className="text-text-faint">
                                     {pos.option_type} {pos.strike_price ? `$${pos.strike_price}` : ''}
                                   </span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-2 text-[10px] text-white/40">
+                              <div className="flex items-center gap-2 text-[10px] text-text-faint">
                                 <span>{fmtDateShort(pos.open_date)}</span>
                                 <span className={chip(pos.status === 'OPEN' ? 'success' : 'neutral')}>
                                   {pos.status}
@@ -639,25 +639,25 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                         <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2', dk)}>Predicted</div>
                         <div className="space-y-1 text-xs">
                           <div className="flex justify-between">
-                            <span className="text-white/60">Max Profit</span>
+                            <span className="text-text-muted">Max Profit</span>
                             <span className="font-mono font-bold text-brand-green">{fmtDollar(card.max_profit)}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-white/60">Max Loss</span>
+                            <span className="text-text-muted">Max Loss</span>
                             <span className="font-mono font-bold text-brand-red">{fmtDollar(card.max_loss)}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-white/60" title="Estimated Probability of Profit based on delta approximation">Est. PoP</span>
-                            <span className="font-mono font-bold text-white/80">{card.win_rate != null ? `${Number(card.win_rate).toFixed(1)}%` : '\u2014'}</span>
+                            <span className="text-text-muted" title="Estimated Probability of Profit based on delta approximation">Est. PoP</span>
+                            <span className="font-mono font-bold text-text-secondary">{card.win_rate != null ? `${Number(card.win_rate).toFixed(1)}%` : '\u2014'}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-white/60">R:R</span>
-                            <span className="font-mono font-bold text-white/80">{card.risk_reward != null ? Number(card.risk_reward).toFixed(2) : '\u2014'}</span>
+                            <span className="text-text-muted">R:R</span>
+                            <span className="font-mono font-bold text-text-secondary">{card.risk_reward != null ? Number(card.risk_reward).toFixed(2) : '\u2014'}</span>
                           </div>
                           {card.entry_price != null && (
                             <div className="flex justify-between">
-                              <span className="text-white/60">Entry Price</span>
-                              <span className="font-mono font-bold text-white/80">${Number(card.entry_price).toFixed(2)}</span>
+                              <span className="text-text-muted">Entry Price</span>
+                              <span className="font-mono font-bold text-text-secondary">${Number(card.entry_price).toFixed(2)}</span>
                             </div>
                           )}
                         </div>
@@ -670,26 +670,26 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                             <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2', dk)}>Actual</div>
                             <div className="space-y-1 text-xs">
                               <div className="flex justify-between">
-                                <span className="text-white/60">P&L</span>
+                                <span className="text-text-muted">P&L</span>
                                 <span className={themed(`font-mono font-bold ${card.link.actual_pl != null ? moneyColorClass(Number(card.link.actual_pl), 'pnl') : 'text-text-secondary'}`, dk)}>
                                   {card.link.actual_pl != null ? formatMoney(Number(card.link.actual_pl), { kind: 'pnl', fractionDigits: 0 }) : 'Open'}
                                 </span>
                               </div>
                               {card.link.actual_entry_price != null && (
                                 <div className="flex justify-between">
-                                  <span className="text-white/60">Entry Price</span>
-                                  <span className="font-mono font-bold text-white/80">${Number(card.link.actual_entry_price).toFixed(2)}</span>
+                                  <span className="text-text-muted">Entry Price</span>
+                                  <span className="font-mono font-bold text-text-secondary">${Number(card.link.actual_entry_price).toFixed(2)}</span>
                                 </div>
                               )}
                               {card.link.actual_exit_price != null && (
                                 <div className="flex justify-between">
-                                  <span className="text-white/60">Exit Price</span>
-                                  <span className="font-mono font-bold text-white/80">${Number(card.link.actual_exit_price).toFixed(2)}</span>
+                                  <span className="text-text-muted">Exit Price</span>
+                                  <span className="font-mono font-bold text-text-secondary">${Number(card.link.actual_exit_price).toFixed(2)}</span>
                                 </div>
                               )}
                               {card.link.grade && (
                                 <div className="flex justify-between items-center mt-2">
-                                  <span className="text-white/60">Grade</span>
+                                  <span className="text-text-muted">Grade</span>
                                   {/* TRADE-CHIPS: hero grade keeps its scale,
                                       wears the chip variant colors (one map). */}
                                   <span className={`rounded px-3 py-1 text-terminal-lg font-black ${CHIP_VARIANTS[gradeVariant(card.link.grade)]}`}>
@@ -702,7 +702,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                         ) : (
                           <div>
                             <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2', dk)}>Actual</div>
-                            <div className="text-xs text-white/40">Not yet linked to a position</div>
+                            <div className="text-xs text-text-faint">Not yet linked to a position</div>
                           </div>
                         )}
                       </div>
@@ -755,10 +755,10 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                         type="button"
                         onClick={() => setIntelOpen((v) => !v)}
                         aria-expanded={intelOpen}
-                        className="flex w-full items-center justify-between gap-3 rounded-lg border border-panel-border bg-white/5 px-3 py-2 text-left font-mono text-[11px] text-white/50"
+                        className="flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-bg-row px-3 py-2 text-left font-mono text-[11px] text-text-faint"
                       >
                         <span>Full scanner intel — details</span>
-                        <span aria-hidden="true" className="shrink-0 text-white/40">{intelOpen ? '▲' : '▼'}</span>
+                        <span aria-hidden="true" className="shrink-0 text-text-faint">{intelOpen ? '▲' : '▼'}</span>
                       </button>
                       {intelOpen && (() => {
                         const setup = card.full_card_json?.setup ?? {};
@@ -772,8 +772,8 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                         const fmtCap = (v: number | null | undefined) => v == null ? '\u2014' : v >= 1e12 ? `$${(v / 1e12).toFixed(1)}T` : `$${(v / 1e9).toFixed(1)}B`;
                         const row = (label: string, value: string) => (
                           <div key={label} className="flex justify-between text-xs">
-                            <span className="text-white/60">{label}</span>
-                            <span className="text-right font-mono text-white/80">{value}</span>
+                            <span className="text-text-muted">{label}</span>
+                            <span className="text-right font-mono text-text-secondary">{value}</span>
                           </div>
                         );
                         const eyebrow = (label: string) => (
@@ -836,7 +836,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                                   <div className="mt-2 overflow-x-auto">
                                     <table className="w-full text-xs">
                                       <thead>
-                                        <tr className="font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border">
+                                        <tr className="font-mono text-[10px] uppercase tracking-wider text-text-faint border-b border-border">
                                           <th className="px-2 py-1 text-right">HV10</th>
                                           <th className="px-2 py-1 text-right">HV20</th>
                                           <th className="px-2 py-1 text-right">HV30</th>
@@ -847,16 +847,16 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                                       </thead>
                                       <tbody>
                                         <tr>
-                                          <td className="px-2 py-1 text-right font-mono text-white/80">{pct(cone.hv10)}</td>
-                                          <td className="px-2 py-1 text-right font-mono text-white/80">{pct(cone.hv20)}</td>
-                                          <td className="px-2 py-1 text-right font-mono text-white/80">{pct(cone.hv30)}</td>
-                                          <td className="px-2 py-1 text-right font-mono text-white/80">{pct(cone.hv60)}</td>
-                                          <td className="px-2 py-1 text-right font-mono text-white/80">{pct(cone.hv90)}</td>
-                                          <td className="px-2 py-1 text-right font-mono text-white/80">{pct(cone.current_iv)}</td>
+                                          <td className="px-2 py-1 text-right font-mono text-text-secondary">{pct(cone.hv10)}</td>
+                                          <td className="px-2 py-1 text-right font-mono text-text-secondary">{pct(cone.hv20)}</td>
+                                          <td className="px-2 py-1 text-right font-mono text-text-secondary">{pct(cone.hv30)}</td>
+                                          <td className="px-2 py-1 text-right font-mono text-text-secondary">{pct(cone.hv60)}</td>
+                                          <td className="px-2 py-1 text-right font-mono text-text-secondary">{pct(cone.hv90)}</td>
+                                          <td className="px-2 py-1 text-right font-mono text-text-secondary">{pct(cone.current_iv)}</td>
                                         </tr>
                                       </tbody>
                                     </table>
-                                    {cone.candles_used != null && <div className="mt-1 text-[10px] text-white/40">{cone.candles_used} candles used</div>}
+                                    {cone.candles_used != null && <div className="mt-1 text-[10px] text-text-faint">{cone.candles_used} candles used</div>}
                                   </div>
                                 )}
                                 {fwd && <div className="mt-2">{row('Forward vol', `${fwd.from_expiry ?? '?'} \u2192 ${fwd.to_expiry ?? '?'} \u00b7 fwd IV ${pct(fwd.forward_iv)}`)}</div>}
@@ -916,7 +916,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                                 <div className="space-y-1.5">
                                   {card.headlines!.map((h, i) => (
                                     <div key={i} className="flex items-start justify-between gap-2 text-xs">
-                                      <span className="text-white/80">{h.title} <span className="text-white/50">\u2014 {h.source}</span></span>
+                                      <span className="text-text-secondary">{h.title} <span className="text-text-faint">\u2014 {h.source}</span></span>
                                       <span className={chip(h.sentiment?.toLowerCase().includes('bull') || h.sentiment?.toLowerCase().includes('pos') ? 'success' : h.sentiment?.toLowerCase().includes('bear') || h.sentiment?.toLowerCase().includes('neg') ? 'danger' : 'neutral')}>{h.sentiment}</span>
                                     </div>
                                   ))}
@@ -929,20 +929,20 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                                 {freshSignals.length > 0 && (
                                   <div className="space-y-1 mb-2">
                                     {freshSignals.map((s, i) => (
-                                      <div key={i} className="flex gap-2 text-xs"><span className="shrink-0 text-white/40">\u2022</span><span className="text-white/70">{s}</span></div>
+                                      <div key={i} className="flex gap-2 text-xs"><span className="shrink-0 text-text-faint">\u2022</span><span className="text-text-secondary">{s}</span></div>
                                     ))}
                                   </div>
                                 )}
                                 {card.sentiment && (
                                   <div className="mb-2">
                                     {eyebrow('Sentiment')}
-                                    <div className="text-xs text-white/70">{card.sentiment}</div>
+                                    <div className="text-xs text-text-secondary">{card.sentiment}</div>
                                   </div>
                                 )}
                                 {card.insider_activity && (
                                   <div>
                                     {eyebrow('Insider activity')}
-                                    <div className="text-xs text-white/70">{card.insider_activity}</div>
+                                    <div className="text-xs text-text-secondary">{card.insider_activity}</div>
                                   </div>
                                 )}
                               </div>

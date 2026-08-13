@@ -128,47 +128,47 @@ export default function TradeRecord() {
   });
 
   return (
-    <div className="rounded-lg border border-panel-border bg-panel-surface text-xs text-white/60">
+    <div className="rounded-lg border border-border bg-white text-xs text-text-muted">
       <div className={`${SECTION_HEADER} rounded-t-lg`}>Track record</div>
 
       {/* RECORD-BOOM: the HERO VERDICT — rows (b)/(c)/(d) at stat scale,
           every string byte-identical (the big stats compose the same
           dynamic values; qualifiers/sentences render beneath). */}
       {linked.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 border-b border-panel-border">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 border-b border-border">
           {/* (b) HONEST WIN RATE — RECORD-POLISH: label-above pattern; the
               win bar is a pure presentation division of two already-
               rendered numbers (wins / decided.length), omitted at 0. */}
-          <div className="rounded-lg bg-white/5 p-3">
-            <div className="font-mono text-[10px] uppercase tracking-wider text-white/50">RECORD</div>
-            <div className="font-mono text-3xl font-bold text-white">{wins}W – {losses}L – {breakevens}BE</div>
+          <div className="rounded-lg bg-bg-row p-3">
+            <div className="font-mono text-[10px] uppercase tracking-wider text-text-faint">RECORD</div>
+            <div className="font-mono text-3xl font-bold text-text-primary">{wins}W – {losses}L – {breakevens}BE</div>
             {decided.length > 0 && (
-              <div className="mt-1.5 h-1 rounded bg-white/10">
+              <div className="mt-1.5 h-1 rounded bg-bg-row">
                 <div className="h-1 rounded bg-status-success" style={{ width: `${(wins / decided.length) * 100}%` }} />
               </div>
             )}
-            <div className="mt-1 text-white/50">
-              of <span className="font-mono font-semibold text-white/90">{decided.length}</span> decided
-              {openLinked > 0 && <span className="text-white/40"> ({openLinked} still open, outcome unknown)</span>}
+            <div className="mt-1 text-text-faint">
+              of <span className="font-mono font-semibold text-text-primary">{decided.length}</span> decided
+              {openLinked > 0 && <span className="text-text-faint"> ({openLinked} still open, outcome unknown)</span>}
             </div>
           </div>
           {/* (c) NET P&L — RECORD-POLISH: the quoted eyebrow supersedes the
               inline "Net P&L:" label; the qualifier string is byte-identical.
               Accent: border-l in the value's own status family. */}
-          <div className={`rounded-lg bg-white/5 p-3 border-l-2 ${netPl >= 0 ? 'border-status-success/60' : 'border-status-danger/60'}`}>
-            <div className="font-mono text-[10px] uppercase tracking-wider text-white/50">NET P&amp;L</div>
+          <div className={`rounded-lg bg-bg-row p-3 border-l-2 ${netPl >= 0 ? 'border-status-success/60' : 'border-status-danger/60'}`}>
+            <div className="font-mono text-[10px] uppercase tracking-wider text-text-faint">NET P&amp;L</div>
             <div className={`font-mono text-3xl font-bold ${netPl >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>{fmtMoney(netPl)}</div>
-            <div className="text-white/50"><span className="text-white/40"> (linked trades only)</span></div>
+            <div className="text-text-faint"><span className="text-text-faint"> (linked trades only)</span></div>
           </div>
           {/* (d) INTEGRITY — RECORD-POLISH: accent conditional on the
               EXISTING exceeded list (presentation only): green when 0
               breaches, danger otherwise. */}
-          <div className={`rounded-lg bg-white/5 p-3 border-l-2 ${exceeded.length > 0 ? 'border-status-danger/60' : 'border-status-success/60'}`}>
-            <div className="font-mono text-[10px] uppercase tracking-wider text-white/50">MAX-LOSS INTEGRITY</div>
-            <div className="font-mono text-3xl font-bold text-white">{withinClaim} of {withMaxLoss.length}</div>
-            <div className="text-white/50">
-              Max-loss model: <span className="font-mono font-semibold text-white/90">{withinClaim}</span> of{' '}
-              <span className="font-mono font-semibold text-white/90">{withMaxLoss.length}</span> linked trades stayed within their card&rsquo;s stated max loss.
+          <div className={`rounded-lg bg-bg-row p-3 border-l-2 ${exceeded.length > 0 ? 'border-status-danger/60' : 'border-status-success/60'}`}>
+            <div className="font-mono text-[10px] uppercase tracking-wider text-text-faint">MAX-LOSS INTEGRITY</div>
+            <div className="font-mono text-3xl font-bold text-text-primary">{withinClaim} of {withMaxLoss.length}</div>
+            <div className="text-text-faint">
+              Max-loss model: <span className="font-mono font-semibold text-text-primary">{withinClaim}</span> of{' '}
+              <span className="font-mono font-semibold text-text-primary">{withMaxLoss.length}</span> linked trades stayed within their card&rsquo;s stated max loss.
             </div>
             {exceeded.length > 0 && (
               <ul className="mt-1 space-y-0.5">
@@ -187,12 +187,12 @@ export default function TradeRecord() {
           back to ONE quiet line with the exact original strings and ' · '
           separators; the grade chips STAY (semantic, not phrases). Renders
           always — denominator honesty survives the zero state. */}
-      <div className="px-3 py-2 border-b border-panel-border font-mono text-[11px] text-white/50">
+      <div className="px-3 py-2 border-b border-border font-mono text-[11px] text-text-faint">
         <span className="inline-flex flex-wrap items-center gap-1">
           <span>
-            Record: <span className="font-semibold text-white/90">{linked.length}</span> linked trades
-            {' · '}<span className="font-semibold text-white/90">{unlinkedClosed}</span> closed positions unlinked (excluded)
-            {' · '}<span className="font-semibold text-white/90">{queuedNotLinked}</span> cards queued, not yet linked
+            Record: <span className="font-semibold text-text-primary">{linked.length}</span> linked trades
+            {' · '}<span className="font-semibold text-text-primary">{unlinkedClosed}</span> closed positions unlinked (excluded)
+            {' · '}<span className="font-semibold text-text-primary">{queuedNotLinked}</span> cards queued, not yet linked
           </span>
           {linked.length > 0 && (
             <>
@@ -209,7 +209,7 @@ export default function TradeRecord() {
 
       {linked.length === 0 ? (
         // Honest zero-state — no fabricated stats.
-        <div className="px-3 py-3 text-white/50">
+        <div className="px-3 py-3 text-text-faint">
           No linked trades yet — link queued cards to closed positions in Trade Lab to build your record.
         </div>
       ) : (
@@ -226,7 +226,7 @@ export default function TradeRecord() {
             {showTable && (
               <div className="mt-2 overflow-x-auto">
                 <table className="w-full text-[11px]">
-                  <thead className="text-white/50">
+                  <thead className="text-text-faint">
                     <tr>
                       <th className="px-2 py-1 text-left font-mono text-[10px] uppercase tracking-wider">Symbol</th>
                       <th className="px-2 py-1 text-left font-mono text-[10px] uppercase tracking-wider">Generated</th>
@@ -235,15 +235,15 @@ export default function TradeRecord() {
                       <th className="px-2 py-1 text-center font-mono text-[10px] uppercase tracking-wider">Grade</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-panel-border">
+                  <tbody className="divide-y divide-border">
                     {tableRows.map((c) => {
                       const pl = c.link!.actual_pl;
                       return (
                         <tr key={c.id}>
-                          <td className="px-2 py-1 font-mono font-medium text-white/90">{c.symbol}</td>
-                          <td className="px-2 py-1 font-mono text-white/50">{fmtDate(c.generated_at)}</td>
+                          <td className="px-2 py-1 font-mono font-medium text-text-primary">{c.symbol}</td>
+                          <td className="px-2 py-1 font-mono text-text-faint">{fmtDate(c.generated_at)}</td>
                           <td className="px-2 py-1 text-right font-mono">{c.max_loss != null ? fmtMoney(-Number(c.max_loss)) : '—'}</td>
-                          <td className={`px-2 py-1 text-right font-mono font-semibold ${pl == null ? 'text-white/40' : Number(pl) >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
+                          <td className={`px-2 py-1 text-right font-mono font-semibold ${pl == null ? 'text-text-faint' : Number(pl) >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
                             {pl == null ? 'Open' : fmtMoney(Number(pl))}
                           </td>
                           <td className="px-2 py-1 text-center">{c.link!.grade ? <span className={chip(c.link!.grade === 'A' || c.link!.grade === 'B' ? 'success' : c.link!.grade === 'C' ? 'warning' : 'danger')}>{c.link!.grade}</span> : '—'}</td>

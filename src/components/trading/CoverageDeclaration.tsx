@@ -59,7 +59,7 @@ export default function CoverageDeclaration() {
 
   if (state === 'loading') {
     return (
-      <div className="rounded-lg border border-panel-border bg-white/5 px-3 py-2 font-mono text-[11px] text-white/50">
+      <div className="rounded-lg border border-border bg-bg-row px-3 py-2 font-mono text-[11px] text-text-faint">
         Checking synced coverage…
       </div>
     );
@@ -83,7 +83,7 @@ export default function CoverageDeclaration() {
   if (!data) return null; // unreachable in 'ok', keeps types honest
 
   return (
-    <div className="rounded-lg border border-panel-border bg-white/5 font-mono text-[11px] text-white/50">
+    <div className="rounded-lg border border-border bg-bg-row font-mono text-[11px] text-text-faint">
       {/* DISCLOSURE-COMPACT: the collapsed row — counts from the SAME data
           the full copy renders (investment_txn_count / unlinked_closed_count);
           the ▼/▲ chevron is the house bar toggle (FlightPickerView). */}
@@ -96,10 +96,10 @@ export default function CoverageDeclaration() {
         <span>
           Sync coverage: {data.investment_txn_count} transactions · {data.unlinked_closed_count} unlinked — details
         </span>
-        <span aria-hidden="true" className="shrink-0 text-white/40">{expanded ? '▲' : '▼'}</span>
+        <span aria-hidden="true" className="shrink-0 text-text-faint">{expanded ? '▲' : '▼'}</span>
       </button>
       {expanded && (
-        <div className="border-t border-panel-border px-3 py-2">
+        <div className="border-t border-border px-3 py-2">
           This tab reflects <span className={themed('font-semibold text-text-primary', dk)}>{data.investment_txn_count}</span> synced
           transactions from <span className="font-mono">{fmtDate(data.earliest_txn_date)}</span> to{' '}
           <span className="font-mono">{fmtDate(data.latest_txn_date)}</span>.{' '}

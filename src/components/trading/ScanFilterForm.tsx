@@ -43,11 +43,11 @@ const UNIVERSES = [{ val: 'sp500', label: 'S&P 500' }, { val: 'nasdaq100', label
 // Light/secondary group label — the Travel one-purple + secondary-white inner rule.
 function GroupLabel({ children }: { children: React.ReactNode }) {
   // TRADE-INK: group eyebrows → white/60 (the brand-purple ink was illegible on dark).
-  return <div className="text-[10px] uppercase tracking-wider font-semibold text-white/60 mb-1.5">{children}</div>;
+  return <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1.5">{children}</div>;
 }
 function FieldLabel({ dk = false, children }: { dk?: boolean; children: React.ReactNode }) {
   // HOME-STYLE-PR-1: field sub-labels → readable secondary text, weight 500.
-  return <span className="text-[11px] text-white/70 font-medium w-[88px] shrink-0">{children}</span>;
+  return <span className="text-[11px] text-text-secondary font-medium w-[88px] shrink-0">{children}</span>;
 }
 
 export default function ScanFilterForm({
@@ -110,20 +110,20 @@ export default function ScanFilterForm({
           <GroupLabel>DTE</GroupLabel>
           <div className="flex items-center gap-1">
             <input type="number" min={0} max={365} value={f.risk.minDte} onChange={e => onFiltersChange({ ...f, risk: { ...f.risk, minDte: +e.target.value } })}
-              className="w-14 rounded border border-panel-border bg-panel px-2 py-1 text-xs font-mono text-white text-center focus:outline-none focus:border-brand-purple-pop focus:ring-2 focus:ring-brand-purple-pop/20" />
+              className="w-14 rounded border border-border bg-white px-2 py-1 text-xs font-mono text-text-primary text-center focus:outline-none focus:border-brand-purple-pop focus:ring-2 focus:ring-brand-purple-pop/20" />
             <span className={themed('text-gray-400 text-xs', dk)}>—</span>
             <input type="number" min={0} max={365} value={f.risk.maxDte} onChange={e => onFiltersChange({ ...f, risk: { ...f.risk, maxDte: +e.target.value } })}
-              className="w-14 rounded border border-panel-border bg-panel px-2 py-1 text-xs font-mono text-white text-center focus:outline-none focus:border-brand-purple-pop focus:ring-2 focus:ring-brand-purple-pop/20" />
+              className="w-14 rounded border border-border bg-white px-2 py-1 text-xs font-mono text-text-primary text-center focus:outline-none focus:border-brand-purple-pop focus:ring-2 focus:ring-brand-purple-pop/20" />
           </div>
         </div>
         <div className="flex flex-col gap-1">
           <GroupLabel>Width $</GroupLabel>
           <div className="flex items-center gap-1">
             <input type="number" min={0} max={100} value={f.risk.minSpreadWidth} onChange={e => onFiltersChange({ ...f, risk: { ...f.risk, minSpreadWidth: +e.target.value } })}
-              className="w-14 rounded border border-panel-border bg-panel px-2 py-1 text-xs font-mono text-white text-center focus:outline-none focus:border-brand-purple-pop focus:ring-2 focus:ring-brand-purple-pop/20" />
+              className="w-14 rounded border border-border bg-white px-2 py-1 text-xs font-mono text-text-primary text-center focus:outline-none focus:border-brand-purple-pop focus:ring-2 focus:ring-brand-purple-pop/20" />
             <span className={themed('text-gray-400 text-xs', dk)}>—</span>
             <input type="number" min={0} max={100} value={f.risk.maxSpreadWidth} onChange={e => onFiltersChange({ ...f, risk: { ...f.risk, maxSpreadWidth: +e.target.value } })}
-              className="w-14 rounded border border-panel-border bg-panel px-2 py-1 text-xs font-mono text-white text-center focus:outline-none focus:border-brand-purple-pop focus:ring-2 focus:ring-brand-purple-pop/20" />
+              className="w-14 rounded border border-border bg-white px-2 py-1 text-xs font-mono text-text-primary text-center focus:outline-none focus:border-brand-purple-pop focus:ring-2 focus:ring-brand-purple-pop/20" />
           </div>
         </div>
       </div>
@@ -183,7 +183,7 @@ export default function ScanFilterForm({
       {/* Scan CTA */}
       <div className={themed('flex justify-end border-t border-gray-100 pt-3', dk)}>
         <button type="button" onClick={runScan}
-          className="px-8 py-2 ts-cta-gradient text-white font-bold text-sm rounded transition-colors hover:brightness-110 whitespace-nowrap">
+          className="px-8 py-2 bg-brand-purple text-white font-bold text-sm rounded transition-colors hover:bg-brand-purple-hover whitespace-nowrap">
           Scan
         </button>
       </div>
@@ -192,7 +192,7 @@ export default function ScanFilterForm({
 
   if (!showHeader) return formBody;
   return (
-    <div className="rounded-lg overflow-hidden border border-panel-border shadow-sm mb-3">
+    <div className="rounded-lg overflow-hidden border border-border shadow-sm mb-3">
       <div className={SECTION_HEADER}>
         <span>Scan filters</span>
         {ttConnected != null && (
@@ -203,7 +203,7 @@ export default function ScanFilterForm({
           </span>
         )}
       </div>
-      <div className="bg-panel-surface p-4">{formBody}</div>
+      <div className="bg-white p-4">{formBody}</div>
     </div>
   );
 }
