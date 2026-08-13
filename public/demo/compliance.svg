@@ -1,47 +1,59 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
-  <!-- LANDING-04-ILLOS: the Compliance pipeline, as it actually runs.
-       Stages read from the audit-tail section
-       (workbench/SectionI_AuditTail.tsx:5-7 'computes the hash chain
-       locally and reports any mismatch'; the prev_hash / content_hash
-       row shape :23-24, :167-168; GET /api/audit-log and
-       POST /api/audit-log/verify-chain :59, :81). -->
-  <!-- Canvas: ts-bg cream. Cards: ts-white on ts-border hairline.
-       Active step: ts-purple fill, ts-white ink. Accent: ts-gold.
-       Text ladder: ts-text #1a1a2e / ts-text-secondary #4a4a5a /
-       ts-text-muted #7a7488 / ts-text-faint #a8a2b0.
-       (Token names drop their CSS custom-property prefix on purpose: this
-       file is parsed as a STANDALONE XML document when it is served to an
-       img tag, and XML forbids a double hyphen inside a comment. Spelling
-       the prefix out made all nine files fail to parse - every frame
-       rendered as alt text on the Preview.)
-       -->
-  <rect width="1200" height="750" fill="#FAF8F3"/>
-  <text x="60" y="76" font-size="20" font-weight="600" letter-spacing="6" fill="#7a7488">COMPLIANCE</text>
-
-  <!-- 01 EVERY -->
-  <rect x="60" y="150" width="304" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
-  <text x="88" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">01</text>
-  <text x="88" y="330" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">EVERY</text>
-  <text x="88" y="374" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">ACTION</text>
-  <rect x="88" y="442" width="131" height="40" rx="8" fill="#F3EFE6"/>
-  <text x="103" y="468" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">AUDIT LOG</text>
-  <line x1="380" y1="385" x2="426" y2="385" stroke="#a8a2b0" stroke-width="3"/>
-  <path d="M 426 374 L 442 385 L 426 396 Z" fill="#a8a2b0"/>
-
-  <!-- 02 HASHED -->
-  <rect x="448" y="150" width="304" height="470" rx="14" fill="#3b2d6b"/>
-  <text x="476" y="202" font-size="16" letter-spacing="4" fill="#FFFDF9" opacity="0.6">02</text>
-  <text x="476" y="337" font-size="34" font-weight="700" letter-spacing="1" fill="#FFFDF9">HASHED</text>
-  <text x="476" y="385" font-size="15" letter-spacing="3" fill="#FFFDF9" opacity="0.75">&#9679; YOU ARE HERE</text>
-  <rect x="476" y="435" width="153" height="40" rx="8" fill="#ffffff"/>
-  <text x="491" y="461" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#3b2d6b">PREV + THIS</text>
-  <line x1="768" y1="385" x2="814" y2="385" stroke="#a8a2b0" stroke-width="3"/>
-  <path d="M 814 374 L 830 385 L 814 396 Z" fill="#a8a2b0"/>
-
-  <!-- 03 AUDIT TRAIL -->
-  <rect x="836" y="150" width="304" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
-  <text x="864" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">03</text>
-  <text x="864" y="352" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">AUDIT TRAIL</text>
-  <rect x="864" y="420" width="153" height="40" rx="8" fill="#16a34a"/>
-  <text x="879" y="446" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#FFFDF9">CHAIN VALID</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750">
+  <!-- LANDING-04-FRAMES-SIX: COMPLIANCE, step 03 of 03 (PROOF).
+       The panel is that step's own screen: the hash-chained audit log.
+       Rows are read from src/components/home/ComplianceShowcaseSections.tsx
+       ChainPanel (:229-244): row #1 genesis anchored constant, #4811
+       citation_verified prev 9f3a to this 7d1e, #4812 permission_granted
+       prev 7d1e to this b04c; chain verified at 4,812 rows (EX :85-88).
+       Step 01 and 02 statuses come from that file's corpus panel
+       (:147-158): four government sources on real cron schedules.
+       NOT DRAWN, declared: the handoff sketch asked for requirement rows
+       with a last-checked date. No such rows exist in the example data,
+       so the audit chain (which does) is drawn instead of inventing them.
+       No live indicator: the audit-log surface shows none (ruling 5). -->
+  <rect x="0.0" y="0.0" width="1200.0" height="750.0" fill="#FAF8F3"/>
+  <text id="t105" x="36.0" y="53.0" font-family="'IBM Plex Mono', monospace" font-size="22" fill="#7a7488" font-weight="500" letter-spacing="6.60">COMPLIANCE</text>
+  <text id="t106" x="1164.0" y="53.0" font-family="'IBM Plex Mono', monospace" font-size="20" fill="#a8a2b0" letter-spacing="3.20" text-anchor="end">STEP 03 OF 03</text>
+  <rect x="37.0" y="75.0" width="351.3" height="102.0" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text id="t107" x="56.0" y="105.6" font-family="'IBM Plex Mono', monospace" font-size="20" fill="#a8a2b0" letter-spacing="4.00">01</text>
+  <text id="t108" x="56.0" y="134.8" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="28" fill="#1a1a2e" font-weight="600">SOURCE</text>
+  <text id="t109" x="56.0" y="158.0" font-family="'IBM Plex Mono', monospace" font-size="18" fill="#a8a2b0" letter-spacing="2.16">4 GOV SOURCES</text>
+  <text id="t110" x="406.3" y="136.0" font-family="'IBM Plex Mono', monospace" font-size="30" fill="#a8a2b0" text-anchor="middle">›</text>
+  <rect x="424.3" y="75.0" width="351.3" height="102.0" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text id="t111" x="443.3" y="105.6" font-family="'IBM Plex Mono', monospace" font-size="20" fill="#a8a2b0" letter-spacing="4.00">02</text>
+  <text id="t112" x="443.3" y="134.8" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="28" fill="#1a1a2e" font-weight="600">SCHEDULE</text>
+  <text id="t113" x="443.3" y="158.0" font-family="'IBM Plex Mono', monospace" font-size="18" fill="#a8a2b0" letter-spacing="2.16">ON CRON</text>
+  <text id="t114" x="793.7" y="136.0" font-family="'IBM Plex Mono', monospace" font-size="30" fill="#a8a2b0" text-anchor="middle">›</text>
+  <rect x="810.7" y="74.0" width="353.3" height="104.0" fill="#3b2d6b"/>
+  <rect x="810.7" y="173.0" width="353.3" height="5.0" fill="#B8860B"/>
+  <text id="t115" x="830.7" y="105.6" font-family="'IBM Plex Mono', monospace" font-size="20" fill="#FFFDF9" letter-spacing="4.00" opacity="0.6">03</text>
+  <text id="t116" x="830.7" y="134.8" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="28" fill="#FFFDF9" font-weight="600">PROOF</text>
+  <text id="t117" x="830.7" y="158.0" font-family="'IBM Plex Mono', monospace" font-size="18" fill="#FFFDF9" letter-spacing="2.52" opacity="0.78">▪ YOU ARE HERE</text>
+  <rect x="984.8" y="178.0" width="5.0" height="20.0" fill="#B8860B"/>
+  <rect x="37.0" y="199.0" width="1126.0" height="518.0" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text id="t118" x="60.0" y="228.0" font-family="'IBM Plex Mono', monospace" font-size="22" fill="#4a4a5a" letter-spacing="2.64">AUDIT CHAIN — 4,812 ROWS</text>
+  <line x1="36.0" y1="244.0" x2="1164.0" y2="244.0" stroke="#DDD6E8" stroke-width="2"/>
+  <rect x="37.0" y="244.0" width="1127.0" height="38.0" fill="#F3EFE6"/>
+  <text id="t119" x="60.0" y="270.0" font-family="'IBM Plex Mono', monospace" font-size="20" fill="#7a7488" letter-spacing="2.40">ROW</text>
+  <text id="t120" x="240.0" y="270.0" font-family="'IBM Plex Mono', monospace" font-size="20" fill="#7a7488" letter-spacing="2.40">ACTION</text>
+  <text id="t121" x="700.0" y="270.0" font-family="'IBM Plex Mono', monospace" font-size="20" fill="#7a7488" letter-spacing="2.40">PREV HASH</text>
+  <text id="t122" x="950.0" y="270.0" font-family="'IBM Plex Mono', monospace" font-size="20" fill="#7a7488" letter-spacing="2.40">THIS HASH</text>
+  <text id="t123" x="60.0" y="356.3" font-family="'IBM Plex Mono', monospace" font-size="26" fill="#7a7488">#1</text>
+  <text id="t124" x="240.0" y="356.3" font-family="'IBM Plex Mono', monospace" font-size="26" fill="#1a1a2e">genesis</text>
+  <text id="t125" x="700.0" y="356.3" font-family="'IBM Plex Mono', monospace" font-size="24" fill="#a8a2b0">GENESIS</text>
+  <text id="t126" x="950.0" y="356.3" font-family="'IBM Plex Mono', monospace" font-size="24" fill="#a8a2b0">—</text>
+  <line x1="60.0" y1="412.7" x2="1140.0" y2="412.7" stroke="#EBE4F7" stroke-width="1"/>
+  <text id="t127" x="60.0" y="487.0" font-family="'IBM Plex Mono', monospace" font-size="26" fill="#7a7488">#4811</text>
+  <text id="t128" x="240.0" y="487.0" font-family="'IBM Plex Mono', monospace" font-size="26" fill="#1a1a2e">citation_verified</text>
+  <text id="t129" x="700.0" y="487.0" font-family="'IBM Plex Mono', monospace" font-size="24" fill="#a8a2b0">9f3a…c2</text>
+  <text id="t130" x="950.0" y="487.0" font-family="'IBM Plex Mono', monospace" font-size="24" fill="#a8a2b0">7d1e…a9</text>
+  <line x1="60.0" y1="543.3" x2="1140.0" y2="543.3" stroke="#EBE4F7" stroke-width="1"/>
+  <text id="t131" x="60.0" y="617.7" font-family="'IBM Plex Mono', monospace" font-size="26" fill="#7a7488">#4812</text>
+  <text id="t132" x="240.0" y="617.7" font-family="'IBM Plex Mono', monospace" font-size="26" fill="#1a1a2e">permission_granted</text>
+  <text id="t133" x="700.0" y="617.7" font-family="'IBM Plex Mono', monospace" font-size="24" fill="#a8a2b0">7d1e…a9</text>
+  <text id="t134" x="950.0" y="617.7" font-family="'IBM Plex Mono', monospace" font-size="24" fill="#a8a2b0">b04c…51</text>
+  <rect x="37.0" y="674.0" width="1126.0" height="43.0" fill="#F3EFE6"/>
+  <line x1="36.0" y1="674.0" x2="1164.0" y2="674.0" stroke="#DDD6E8" stroke-width="2"/>
+  <text id="t135" x="60.0" y="703.0" font-family="'IBM Plex Mono', monospace" font-size="22" fill="#1a1a2e" letter-spacing="2.20">CHAIN VERIFIED — 4,812 ROWS</text>
+  <text id="t136" x="1140.0" y="703.0" font-family="'IBM Plex Mono', monospace" font-size="22" fill="#7a7488" letter-spacing="2.20" text-anchor="end">RECOMPUTED, NOT DISPLAYED</text>
 </svg>
