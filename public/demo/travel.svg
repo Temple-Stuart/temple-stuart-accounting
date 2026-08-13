@@ -1,75 +1,41 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
-  <!-- PR-DEMO-1: code-drawn illustration of the live travel interface.
-       Sources: chip labels = travelStripModes.tsx:54-100; "flights found — click
-       to select:" = FlightPickerView.tsx:276; Nonstop = :109; Refundable (green)
-       = :331. Flight rows = Alex's VERIFIED live sandbox results (SGN→BKK).
-       Palette = the ds.ts dark vocabulary literals (globals.css :23-70). -->
-  <defs>
-    <radialGradient id="glowA" cx="80%" cy="0%" r="90%">
-      <stop offset="0%" stop-color="#3b2d6b" stop-opacity="0.85"/>
-      <stop offset="70%" stop-color="#3b2d6b" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="glowB" cx="10%" cy="100%" r="80%">
-      <stop offset="0%" stop-color="#2d1b4e" stop-opacity="0.7"/>
-      <stop offset="65%" stop-color="#2d1b4e" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <rect width="1200" height="800" rx="16" fill="#0d1117"/>
-  <rect width="1200" height="800" rx="16" fill="url(#glowA)"/>
-  <rect width="1200" height="800" rx="16" fill="url(#glowB)"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+  <!-- LANDING-04-ILLOS: the Travel pipeline, as it actually runs.
+       Stages read from: the live search modes (travelStripModes.tsx:104+,
+       flights/hotels/transfers/activities) -> booking on the page
+       (TRAVEL_TRUST_CHIPS 'Book on this page', travelStripModes.tsx:92-102)
+       -> the trip budget ledger's planned-vs-actual lens
+       (TripBudgetActual.tsx:4-34, GET /api/trips/[id]/actuals). -->
+  <!-- Canvas: --ts-bg cream. Cards: --ts-white on --ts-border hairline.
+       Active step: --ts-purple fill, --ts-white ink. Accent: --ts-gold.
+       Text ladder: --ts-text #1a1a2e / --ts-text-secondary #4a4a5a /
+       --ts-text-muted #7a7488 / --ts-text-faint #a8a2b0. -->
+  <rect width="1200" height="750" fill="#FAF8F3"/>
+  <text x="60" y="76" font-size="20" font-weight="600" letter-spacing="6" fill="#7a7488">TRAVEL</text>
 
-  <text x="48" y="72" font-family="ui-monospace, Menlo, monospace" font-size="15" letter-spacing="3" fill="#ffffff" opacity="0.5">TRAVEL</text>
+  <!-- 01 SEARCH -->
+  <rect x="60" y="150" width="304" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text x="88" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">01</text>
+  <text x="88" y="352" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">SEARCH</text>
+  <rect x="88" y="420" width="144" height="40" rx="8" fill="#F3EFE6"/>
+  <text x="103" y="446" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">LIVE FARES</text>
+  <line x1="380" y1="385" x2="426" y2="385" stroke="#a8a2b0" stroke-width="3"/>
+  <path d="M 426 374 L 442 385 L 426 396 Z" fill="#a8a2b0"/>
 
-  <!-- The 8-chip strip (travelStripModes.tsx labels, verbatim; Flights active) -->
-  <g font-family="ui-monospace, Menlo, monospace" font-size="15">
-    <rect x="48" y="100" width="92" height="40" rx="4" fill="#ffffff"/>
-    <text x="94" y="125" text-anchor="middle" fill="#3b2d6b" font-weight="600">Flights</text>
-    <rect x="148" y="100" width="84" height="40" rx="4" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
-    <text x="190" y="125" text-anchor="middle" fill="#ffffff" opacity="0.7">Hotels</text>
-    <rect x="240" y="100" width="152" height="40" rx="4" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
-    <text x="316" y="125" text-anchor="middle" fill="#ffffff" opacity="0.7">Getting around</text>
-    <rect x="400" y="100" width="136" height="40" rx="4" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
-    <text x="468" y="125" text-anchor="middle" fill="#ffffff" opacity="0.7">Things to do</text>
-    <rect x="544" y="100" width="64" height="40" rx="4" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
-    <text x="576" y="125" text-anchor="middle" fill="#ffffff" opacity="0.7">Visa</text>
-    <rect x="616" y="100" width="204" height="40" rx="4" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
-    <text x="700" y="125" text-anchor="middle" fill="#ffffff" opacity="0.7">Travel insurance</text>
-    <rect x="778" y="108" width="36" height="18" rx="9" fill="#3b2d6b"/>
-    <text x="796" y="121" text-anchor="middle" font-size="10" fill="#ffffff" opacity="0.9">Soon</text>
-    <rect x="828" y="100" width="190" height="40" rx="4" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
-    <text x="905" y="125" text-anchor="middle" fill="#ffffff" opacity="0.7">Stay connected</text>
-    <rect x="976" y="108" width="36" height="18" rx="9" fill="#3b2d6b"/>
-    <text x="994" y="121" text-anchor="middle" font-size="10" fill="#ffffff" opacity="0.9">Soon</text>
-    <rect x="1026" y="100" width="126" height="40" rx="4" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
-    <text x="1075" y="125" text-anchor="middle" fill="#ffffff" opacity="0.7">Events</text>
-    <rect x="1110" y="108" width="36" height="18" rx="9" fill="#3b2d6b"/>
-    <text x="1128" y="121" text-anchor="middle" font-size="10" fill="#ffffff" opacity="0.9">Soon</text>
-  </g>
+  <!-- 02 BOOK -->
+  <rect x="448" y="150" width="304" height="470" rx="14" fill="#3b2d6b"/>
+  <text x="476" y="202" font-size="16" letter-spacing="4" fill="#FFFDF9" opacity="0.6">02</text>
+  <text x="476" y="337" font-size="34" font-weight="700" letter-spacing="1" fill="#FFFDF9">BOOK</text>
+  <text x="476" y="385" font-size="15" letter-spacing="3" fill="#FFFDF9" opacity="0.75">&#9679; YOU ARE HERE</text>
+  <rect x="476" y="435" width="224" height="40" rx="8" fill="#ffffff"/>
+  <text x="491" y="461" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#3b2d6b">NO ACCOUNT NEEDED</text>
+  <line x1="768" y1="385" x2="814" y2="385" stroke="#a8a2b0" stroke-width="3"/>
+  <path d="M 814 374 L 830 385 L 814 396 Z" fill="#a8a2b0"/>
 
-  <!-- Results card: VERIFIED sandbox data (SGN → BKK probe) -->
-  <rect x="48" y="176" width="1104" height="576" rx="12" fill="#161b22" stroke="#30363d"/>
-  <text x="80" y="238" font-size="28" font-weight="300" fill="#ffffff" opacity="0.95">SGN → BKK</text>
-  <text x="80" y="270" font-family="ui-monospace, Menlo, monospace" font-size="15" fill="#ffffff" opacity="0.5">434 flights found — click to select:</text>
-
-  <line x1="80" y1="300" x2="1120" y2="300" stroke="#30363d"/>
-  <text x="80" y="356" font-size="20" fill="#ffffff" opacity="0.9">Thai AirAsia</text>
-  <text x="360" y="356" font-size="19" fill="#ffffff" opacity="0.8">15:55 → 17:35 · DMK</text>
-  <text x="700" y="356" font-size="15" fill="#ffffff" opacity="0.5">1h 40m · Nonstop</text>
-  <text x="1120" y="350" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="22" fill="#ffffff">$42.30</text>
-  <text x="1120" y="376" text-anchor="end" font-size="14" fill="#16a34a">Refundable</text>
-
-  <line x1="80" y1="420" x2="1120" y2="420" stroke="#30363d"/>
-  <text x="80" y="476" font-size="20" fill="#ffffff" opacity="0.9">Thai AirAsia</text>
-  <text x="360" y="476" font-size="19" fill="#ffffff" opacity="0.8">09:45 → 11:20</text>
-  <text x="1120" y="476" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="22" fill="#ffffff">$52.06</text>
-
-  <line x1="80" y1="540" x2="1120" y2="540" stroke="#30363d"/>
-  <text x="80" y="596" font-size="20" fill="#ffffff" opacity="0.9">Vietjet Air</text>
-  <text x="360" y="596" font-size="19" fill="#ffffff" opacity="0.8">15:05 → 16:45 · BKK</text>
-  <text x="1120" y="596" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="22" fill="#ffffff">$56.24</text>
-
-  <line x1="80" y1="660" x2="1120" y2="660" stroke="#30363d"/>
-  <rect x="80" y="684" width="200" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
-  <rect x="360" y="684" width="240" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
-  <rect x="1000" y="684" width="120" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
+  <!-- 03 LANDS IN -->
+  <rect x="836" y="150" width="304" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text x="864" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">03</text>
+  <text x="864" y="317" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">LANDS IN</text>
+  <text x="864" y="361" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">YOUR BUDGET</text>
+  <text x="864" y="463" font-size="46" font-weight="700" fill="#B8860B">$1,240</text>
+  <text x="864" y="495" font-size="15" letter-spacing="2" fill="#7a7488">PLANNED VS ACTUAL</text>
 </svg>

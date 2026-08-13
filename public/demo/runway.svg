@@ -1,67 +1,40 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
-  <!-- PR-DEMO-1: code-drawn illustration of the live Runway interface.
-       Sources: "Net burn" / "Runway" cell labels = RunwayBudgetPanel.tsx:126,:130;
-       PERSONAL / BUSINESS per-entity micro-labels = :140,:144; match-review
-       heading + "% match" + Accept/Reject = MatchReviewSection.tsx:132,:174,
-       :192,:200. Bars are GENERIC (no invented totals — dashes per the house
-       faint idiom). Palette = ds.ts dark vocabulary literals. -->
-  <defs>
-    <radialGradient id="glowA" cx="80%" cy="0%" r="90%">
-      <stop offset="0%" stop-color="#3b2d6b" stop-opacity="0.85"/>
-      <stop offset="70%" stop-color="#3b2d6b" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="glowB" cx="10%" cy="100%" r="80%">
-      <stop offset="0%" stop-color="#2d1b4e" stop-opacity="0.7"/>
-      <stop offset="65%" stop-color="#2d1b4e" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <rect width="1200" height="800" rx="16" fill="#0d1117"/>
-  <rect width="1200" height="800" rx="16" fill="url(#glowA)"/>
-  <rect width="1200" height="800" rx="16" fill="url(#glowB)"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+  <!-- LANDING-04-ILLOS: the Runway pipeline, as it actually runs.
+       Stages read from: RunwayBudgetPanel.tsx:5-13 (one budget panel,
+       month/year) + its RunwayWindow months field (:24-25) and the
+       'Net burn' / 'Runway' / zero-date cells (:71-74); planned spend
+       vs ledger actuals by the day. -->
+  <!-- Canvas: --ts-bg cream. Cards: --ts-white on --ts-border hairline.
+       Active step: --ts-purple fill, --ts-white ink. Accent: --ts-gold.
+       Text ladder: --ts-text #1a1a2e / --ts-text-secondary #4a4a5a /
+       --ts-text-muted #7a7488 / --ts-text-faint #a8a2b0. -->
+  <rect width="1200" height="750" fill="#FAF8F3"/>
+  <text x="60" y="76" font-size="20" font-weight="600" letter-spacing="6" fill="#7a7488">RUNWAY</text>
 
-  <text x="48" y="72" font-family="ui-monospace, Menlo, monospace" font-size="15" letter-spacing="3" fill="#ffffff" opacity="0.5">RUNWAY</text>
+  <!-- 01 MONEY IN -->
+  <rect x="60" y="150" width="304" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text x="88" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">01</text>
+  <text x="88" y="352" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">MONEY IN</text>
+  <rect x="88" y="420" width="178" height="40" rx="8" fill="#F3EFE6"/>
+  <text x="103" y="446" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">BANK + LEDGER</text>
+  <line x1="380" y1="385" x2="426" y2="385" stroke="#a8a2b0" stroke-width="3"/>
+  <path d="M 426 374 L 442 385 L 426 396 Z" fill="#a8a2b0"/>
 
-  <!-- Left: burn panel (RunwayBudgetPanel labels; bars generic) -->
-  <rect x="48" y="100" width="530" height="652" rx="12" fill="#161b22" stroke="#30363d"/>
-  <text x="80" y="156" font-size="15" fill="#ffffff" opacity="0.5">Net burn</text>
-  <text x="530" y="156" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="20" fill="#ffffff" opacity="0.4">— / mo</text>
-  <text x="80" y="196" font-size="15" fill="#ffffff" opacity="0.5">Runway</text>
-  <text x="530" y="196" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="20" fill="#ffffff" opacity="0.4">— months</text>
-  <line x1="80" y1="228" x2="530" y2="228" stroke="#30363d"/>
+  <!-- 02 PLANNED -->
+  <rect x="448" y="150" width="304" height="470" rx="14" fill="#3b2d6b"/>
+  <text x="476" y="202" font-size="16" letter-spacing="4" fill="#FFFDF9" opacity="0.6">02</text>
+  <text x="476" y="315" font-size="34" font-weight="700" letter-spacing="1" fill="#FFFDF9">PLANNED</text>
+  <text x="476" y="359" font-size="34" font-weight="700" letter-spacing="1" fill="#FFFDF9">VS ACTUAL</text>
+  <text x="476" y="407" font-size="15" letter-spacing="3" fill="#FFFDF9" opacity="0.75">&#9679; YOU ARE HERE</text>
+  <rect x="476" y="457" width="144" height="40" rx="8" fill="#ffffff"/>
+  <text x="491" y="483" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#3b2d6b">BY THE DAY</text>
+  <line x1="768" y1="385" x2="814" y2="385" stroke="#a8a2b0" stroke-width="3"/>
+  <path d="M 814 374 L 830 385 L 814 396 Z" fill="#a8a2b0"/>
 
-  <text x="80" y="286" font-family="ui-monospace, Menlo, monospace" font-size="13" letter-spacing="2" fill="#ffffff" opacity="0.4">PERSONAL</text>
-  <rect x="80" y="304" width="450" height="22" rx="4" fill="#ffffff" opacity="0.06"/>
-  <rect x="80" y="304" width="320" height="22" rx="4" fill="#4e3e85"/>
-
-  <text x="80" y="376" font-family="ui-monospace, Menlo, monospace" font-size="13" letter-spacing="2" fill="#ffffff" opacity="0.4">BUSINESS</text>
-  <rect x="80" y="394" width="450" height="22" rx="4" fill="#ffffff" opacity="0.06"/>
-  <rect x="80" y="394" width="196" height="22" rx="4" fill="#3b2d6b"/>
-
-  <line x1="80" y1="470" x2="530" y2="470" stroke="#30363d"/>
-  <text x="80" y="520" font-size="15" fill="#ffffff" opacity="0.5">Zero date</text>
-  <text x="530" y="520" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="20" fill="#ffffff" opacity="0.4">—</text>
-  <rect x="80" y="560" width="450" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
-  <rect x="80" y="592" width="360" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
-
-  <!-- Right: booking ↔ bank match review (MatchReviewSection) -->
-  <rect x="602" y="100" width="550" height="652" rx="12" fill="#161b22" stroke="#30363d"/>
-  <text x="634" y="156" font-family="ui-monospace, Menlo, monospace" font-size="13" letter-spacing="2" fill="#ffffff" opacity="0.5">MATCH REVIEW</text>
-  <text x="634" y="192" font-size="15" fill="#ffffff" opacity="0.6">Proposed matches between your bookings and</text>
-  <text x="634" y="216" font-size="15" fill="#ffffff" opacity="0.6">bank transactions. Nothing links until you accept it.</text>
-
-  <rect x="634" y="252" width="486" height="200" rx="8" fill="#0d1117" stroke="#30363d"/>
-  <text x="662" y="300" font-size="17" fill="#ffffff" opacity="0.9">Hotel booking ↔ bank transaction</text>
-  <rect x="662" y="322" width="110" height="26" rx="13" fill="#3b2d6b" opacity="0.5"/>
-  <text x="717" y="340" text-anchor="middle" font-family="ui-monospace, Menlo, monospace" font-size="13" fill="#ffffff" opacity="0.9">82% match</text>
-  <rect x="662" y="368" width="380" height="12" rx="6" fill="#ffffff" opacity="0.08"/>
-  <rect x="662" y="392" width="300" height="12" rx="6" fill="#ffffff" opacity="0.08"/>
-  <rect x="662" y="414" width="96" height="34" rx="4" fill="#ffffff"/>
-  <text x="710" y="436" text-anchor="middle" font-size="14" font-weight="600" fill="#3b2d6b">Accept</text>
-  <rect x="774" y="414" width="92" height="34" rx="4" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
-  <text x="820" y="436" text-anchor="middle" font-size="14" fill="#ffffff" opacity="0.7">Reject</text>
-
-  <rect x="634" y="484" width="486" height="120" rx="8" fill="#0d1117" stroke="#30363d"/>
-  <rect x="662" y="516" width="340" height="12" rx="6" fill="#ffffff" opacity="0.08"/>
-  <rect x="662" y="544" width="260" height="12" rx="6" fill="#ffffff" opacity="0.08"/>
-  <rect x="662" y="568" width="180" height="12" rx="6" fill="#ffffff" opacity="0.08"/>
+  <!-- 03 MONTHS LEFT -->
+  <rect x="836" y="150" width="304" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text x="864" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">03</text>
+  <text x="864" y="339" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">MONTHS LEFT</text>
+  <text x="864" y="441" font-size="46" font-weight="700" fill="#B8860B">7</text>
+  <text x="864" y="473" font-size="15" letter-spacing="2" fill="#7a7488">NET BURN $4,200/MO</text>
 </svg>
