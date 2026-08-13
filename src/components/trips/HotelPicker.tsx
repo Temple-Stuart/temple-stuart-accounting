@@ -131,7 +131,7 @@ export default function HotelPicker({
           <button
             onClick={(e) => { e.stopPropagation(); fetchHotels(); }}
             disabled={loading}
-            className="px-4 py-2 bg-brand-purple text-text-primary rounded text-sm hover:bg-brand-purple disabled:opacity-50"
+            className="px-4 py-2 bg-brand-purple text-white rounded text-sm hover:bg-brand-purple disabled:opacity-50"
           >
             {loading ? '⏳ Loading...' : '🔍 Search Hotels'}
           </button>
@@ -193,7 +193,7 @@ export default function HotelPicker({
               <button
                 onClick={handleManualSubmit}
                 disabled={!manualName || !manualPrice}
-                className="bg-brand-green text-text-primary rounded px-4 py-2 text-sm hover:bg-brand-green disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-brand-green text-white rounded px-4 py-2 text-sm hover:bg-brand-green disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Use This
               </button>

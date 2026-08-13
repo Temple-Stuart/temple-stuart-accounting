@@ -65,23 +65,23 @@ export default function RidesharePicker({
   };
 
   return (
-    <div className="bg-zinc-800 rounded border border-zinc-700 overflow-hidden">
+    <div className="bg-white rounded border border-border overflow-hidden">
       {/* Header */}
       <div 
-        className="p-4 cursor-pointer hover:bg-zinc-750 flex justify-between items-center"
+        className="p-4 cursor-pointer hover:bg-bg-row flex justify-between items-center"
         onClick={() => setExpanded(!expanded)}
       >
         <div>
           <div className="font-medium">{destinationName}</div>
-          <div className="text-sm text-zinc-400">
+          <div className="text-sm text-text-muted">
             From {airportCode} • {travelers} travelers • Round trip
           </div>
         </div>
         
         {selectedRideshare ? (
           <div className="text-right">
-            <div className="text-green-400 font-bold">${selectedRideshare.totalPrice.toFixed(0)}</div>
-            <div className="text-xs text-zinc-400">{selectedRideshare.notes}</div>
+            <div className="text-brand-green font-bold">${selectedRideshare.totalPrice.toFixed(0)}</div>
+            <div className="text-xs text-text-muted">{selectedRideshare.notes}</div>
           </div>
         ) : (
           <button
@@ -95,15 +95,15 @@ export default function RidesharePicker({
 
       {/* Selected Summary */}
       {selectedRideshare && !expanded && (
-        <div className="px-4 pb-3 border-t border-zinc-700">
+        <div className="px-4 pb-3 border-t border-border">
           <div className="flex justify-between items-center text-sm pt-2">
             <div>
-              <span className="text-zinc-300">${selectedRideshare.perPerson.toFixed(0)}/person</span>
-              <span className="ml-2 text-zinc-500">{selectedRideshare.notes}</span>
+              <span className="text-text-secondary">${selectedRideshare.perPerson.toFixed(0)}/person</span>
+              <span className="ml-2 text-text-faint">{selectedRideshare.notes}</span>
             </div>
             <button 
               onClick={() => setExpanded(true)}
-              className="text-xs text-blue-400 hover:text-blue-300"
+              className="text-xs text-brand-purple hover:text-brand-purple-hover"
             >
               Change
             </button>
@@ -113,9 +113,9 @@ export default function RidesharePicker({
 
       {/* Estimate Options */}
       {expanded && (
-        <div className="border-t border-zinc-700 p-4">
+        <div className="border-t border-border p-4">
           {/* Quick Estimates */}
-          <div className="text-sm text-zinc-400 mb-3">Quick estimate by distance:</div>
+          <div className="text-sm text-text-muted mb-3">Quick estimate by distance:</div>
           <div className="grid grid-cols-2 gap-2 mb-4">
             {DISTANCE_ESTIMATES.map(estimate => {
               const needsXL = travelers > 3;
@@ -127,29 +127,29 @@ export default function RidesharePicker({
                   className={`p-3 rounded border text-left transition-colors ${
                     selectedDistance === estimate.label
                       ? 'border-brand-purple bg-brand-purple/20'
-                      : 'border-zinc-600 hover:border-zinc-500'
+                      : 'border-border hover:border-brand-purple/40'
                   }`}
                 >
-                  <div className="font-medium text-white">{estimate.label}</div>
-                  <div className="text-sm text-green-400">${roundTrip.toFixed(0)} round trip</div>
-                  <div className="text-xs text-zinc-500">${(roundTrip / travelers).toFixed(0)}/person</div>
+                  <div className="font-medium text-text-primary">{estimate.label}</div>
+                  <div className="text-sm text-brand-green">${roundTrip.toFixed(0)} round trip</div>
+                  <div className="text-xs text-text-faint">${(roundTrip / travelers).toFixed(0)}/person</div>
                 </button>
               );
             })}
           </div>
 
           {/* Custom Entry */}
-          <div className="border-t border-zinc-700 pt-4">
-            <div className="text-sm text-zinc-400 mb-2">Or enter your own estimate:</div>
+          <div className="border-t border-border pt-4">
+            <div className="text-sm text-text-muted mb-2">Or enter your own estimate:</div>
             <div className="flex gap-2">
               <div className="flex items-center gap-2 flex-1">
-                <span className="text-zinc-400">$</span>
+                <span className="text-text-muted">$</span>
                 <input
                   type="number"
                   value={customPrice}
                   onChange={(e) => setCustomPrice(e.target.value)}
                   placeholder="Round trip total"
-                  className="flex-1 bg-zinc-900 border border-zinc-600 rounded px-3 py-2 text-white"
+                  className="flex-1 bg-white border border-border rounded px-3 py-2 text-text-primary"
                 />
               </div>
               <button
@@ -161,21 +161,21 @@ export default function RidesharePicker({
               </button>
             </div>
             {customPrice && (
-              <div className="text-xs text-zinc-500 mt-1">
+              <div className="text-xs text-text-faint mt-1">
                 ${(parseFloat(customPrice) / travelers).toFixed(0)}/person
               </div>
             )}
           </div>
 
           {/* Price Check Links */}
-          <div className="mt-4 pt-4 border-t border-zinc-700">
-            <div className="text-xs text-zinc-500 mb-2">Check actual prices:</div>
+          <div className="mt-4 pt-4 border-t border-border">
+            <div className="text-xs text-text-faint mb-2">Check actual prices:</div>
             <div className="flex gap-2">
               <a 
                 href="https://www.uber.com/us/en/price-estimate/" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="px-3 py-1 text-xs bg-zinc-700 text-zinc-300 rounded hover:bg-zinc-600"
+                className="px-3 py-1 text-xs bg-bg-row text-text-secondary rounded hover:bg-brand-purple-wash/40"
               >
                 Uber ↗
               </a>
@@ -183,14 +183,14 @@ export default function RidesharePicker({
                 href="https://www.lyft.com/rider/fare-estimate" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="px-3 py-1 text-xs bg-zinc-700 text-zinc-300 rounded hover:bg-zinc-600"
+                className="px-3 py-1 text-xs bg-bg-row text-text-secondary rounded hover:bg-brand-purple-wash/40"
               >
                 Lyft ↗
               </a>
             </div>
           </div>
 
-          <div className="mt-3 text-xs text-zinc-500">
+          <div className="mt-3 text-xs text-text-faint">
             💡 Estimates assume {travelers > 3 ? 'XL vehicle (4+ passengers)' : 'standard vehicle'}. 
             Prices vary by time of day and demand.
           </div>

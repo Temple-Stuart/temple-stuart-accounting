@@ -171,7 +171,7 @@ export default function TransferPicker({
           <button
             onClick={(e) => { e.stopPropagation(); fetchTransfers(); }}
             disabled={loading}
-            className="px-4 py-2 bg-brand-purple text-text-primary rounded text-sm hover:bg-brand-purple disabled:opacity-50"
+            className="px-4 py-2 bg-brand-purple text-white rounded text-sm hover:bg-brand-purple disabled:opacity-50"
           >
             {loading ? '⏳ Loading...' : '🚗 Search Transfers'}
           </button>
@@ -217,7 +217,7 @@ export default function TransferPicker({
               onClick={() => setActiveTab('arrival')}
               className={`flex-1 py-2 px-3 text-sm flex items-center justify-center gap-2 ${
                 activeTab === 'arrival'
-                  ? 'bg-brand-purple text-text-primary'
+                  ? 'bg-brand-purple text-white'
                   : 'bg-white text-text-muted hover:bg-bg-row'
               }`}
             >
@@ -228,7 +228,7 @@ export default function TransferPicker({
               onClick={() => setActiveTab('departure')}
               className={`flex-1 py-2 px-3 text-sm flex items-center justify-center gap-2 ${
                 activeTab === 'departure'
-                  ? 'bg-orange-600 text-text-primary'
+                  ? 'bg-orange-600 text-white'
                   : 'bg-white text-text-muted hover:bg-bg-row'
               }`}
             >
