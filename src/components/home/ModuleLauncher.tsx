@@ -408,7 +408,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   const [booksState, setBooksState] = useState<'loading' | 'error' | 'ok'>('loading');
   const [booksData, setBooksData] = useState<{
     totalAssets: number; totalLiabilities: number; totalEquity: number;
-    isBalanced: boolean; connectedAccounts: number; periodStatus: 'open' | 'closed';
+    isBalanced: boolean; hasActivity: boolean; connectedAccounts: number; periodStatus: 'open' | 'closed';
   } | null>(null);
   const [booksSyncing, setBooksSyncing] = useState(false);
   // Plaid Link token for onLinkAccount (fetched from the auth-gated /api/plaid/link-token).
@@ -427,9 +427,9 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       const tb = await tbRes.json();
       const acc = await accRes.json();
       const cp = await cpRes.json();
-      // isBalanced MUST come from the real trial balance — if it's absent, that's an
-      // error we surface, never a silent "true".
-      if (typeof tb?.totals?.isBalanced !== 'boolean') throw new Error('trial balance missing isBalanced');
+      // isBalanced + hasActivity MUST come from the real trial balance — if
+      // either is absent, that's an error we surface, never a silent "true".
+      if (typeof tb?.totals?.isBalanced !== 'boolean' || typeof tb?.totals?.hasActivity !== 'boolean') throw new Error('trial balance missing isBalanced/hasActivity');
       const tbAccounts: any[] = Array.isArray(tb.accounts) ? tb.accounts : []; // eslint-disable-line @typescript-eslint/no-explicit-any
       const sumBy = (type: string) =>
         tbAccounts.filter((a) => a.accountType === type)
@@ -446,6 +446,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         totalLiabilities: sumBy('liability'),
         totalEquity: sumBy('equity'),
         isBalanced: tb.totals.isBalanced,
+        hasActivity: tb.totals.hasActivity,
         connectedAccounts,
         periodStatus,
       });
@@ -1103,6 +1104,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                     totalLiabilities={booksData.totalLiabilities}
                     totalEquity={booksData.totalEquity}
                     isBalanced={booksData.isBalanced}
+                    hasActivity={booksData.hasActivity}
                     connectedAccounts={booksData.connectedAccounts}
                     periodLabel={`${new Date().toLocaleString('en-US', { month: 'long' })} ${booksYear}`}
                     periodStatus={booksData.periodStatus}

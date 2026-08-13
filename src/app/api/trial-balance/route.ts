@@ -133,6 +133,16 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // HONEST-BALANCED: gross posted activity across every account. An empty
+    // ledger sums 0 === 0 — that is proof of NO BOOKS, not balanced books,
+    // so the UI needs a distinct signal beside isBalanced. OR, not AND: a
+    // one-sided gross sum can only mean a broken ledger, which must surface
+    // as red Unbalanced — never as "No activity". isBalanced semantics
+    // untouched.
+    const grossDebits = accounts.reduce((s, a) => s + a.totalDebits, 0);
+    const grossCredits = accounts.reduce((s, a) => s + a.totalCredits, 0);
+    const hasActivity = grossDebits > 0 || grossCredits > 0;
+
     return NextResponse.json({
       asOfDate: asOfDate || null,
       startDate: startDate || null,
@@ -143,6 +153,7 @@ export async function GET(request: NextRequest) {
         totalCredits: totalCreditBalances,
         imbalance: totalDebitBalances - totalCreditBalances,
         isBalanced: totalDebitBalances === totalCreditBalances,
+        hasActivity,
       },
     });
   } catch (error) {
