@@ -47,7 +47,7 @@ export default function SectionE_Routines({ }: { } = {}) {
       </div>
 
       {tab === 'today' ? (
-        <TodaysStrip onCommitted={bump} />
+        <TodaysStrip onCommitted={bump} onCreateRequest={() => setTab('all')} />
       ) : (
         <RoutineList entities={entities} onCommitted={bump} />
       )}

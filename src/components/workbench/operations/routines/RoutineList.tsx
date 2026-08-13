@@ -151,14 +151,26 @@ export default function RoutineList({ entities, onCommitted }: Props & { }) {
           </label>
         </div>
         {!showCreate && (
-          <button
-            type="button"
-            onClick={startCreate}
-            disabled={entities.length === 0}
-            className={`px-3 py-1 rounded border text-white text-xs font-medium hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}
-          >
-            + new routine
-          </button>
+          <div className="flex items-center gap-2">
+            {/* ZERO-STATE-1: no silent disable — when no entity exists the
+                reason renders beside the button. Truth source: entities are
+                created automatically by ensureBookkeepingInitialized the
+                first time a bookkeeping route runs (ensure-bookkeeping.ts:
+                5-23) — there is no manual create-entity flow. */}
+            {entities.length === 0 && (
+              <span className="text-[11px] text-text-faint">
+                no entity yet — open the Books tab once and your default entity is created automatically.
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={startCreate}
+              disabled={entities.length === 0}
+              className={`px-3 py-1 rounded border text-white text-xs font-medium hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}
+            >
+              + new routine
+            </button>
+          </div>
         )}
       </div>
 

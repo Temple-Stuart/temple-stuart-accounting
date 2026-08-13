@@ -46,6 +46,10 @@ interface TodayEntry {
 
 interface Props {
   onCommitted?: () => void;
+  /** ZERO-STATE-1: the Today empty state's next action — the parent
+   *  (SectionE_Routines) switches the toggler to the All-routines tab,
+   *  where creation lives. Absent → the plain sentence renders alone. */
+  onCreateRequest?: () => void;
 }
 
 const STATUS_PILL: Record<TodayStatus, string> = {
@@ -70,7 +74,7 @@ function formatTime(iso: string, tz: string): string {
   });
 }
 
-export default function TodaysStrip({ onCommitted }: Props & { }) {
+export default function TodaysStrip({ onCommitted, onCreateRequest }: Props & { }) {
   const [entries, setEntries] = useState<TodayEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -131,9 +135,24 @@ export default function TodaysStrip({ onCommitted }: Props & { }) {
   }
 
   if (entries.length === 0) {
+    // ZERO-STATE-1: the dead-end dies — the empty state offers the next
+    // action (switch to All routines, where the create form lives). Button
+    // idiom = RoutineList's own "+ new routine" (RoutineList.tsx:158),
+    // byte-reused for one vocabulary.
     return (
-      <div className="text-xs text-text-muted italic">
-        no routines scheduled for today.
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-xs text-text-muted italic">
+          no routines scheduled for today.
+        </span>
+        {onCreateRequest && (
+          <button
+            type="button"
+            onClick={onCreateRequest}
+            className={`px-3 py-1 rounded border text-white text-xs font-medium hover:opacity-90 ${'border-brand-purple bg-brand-purple'}`}
+          >
+            + create a routine
+          </button>
+        )}
       </div>
     );
   }
