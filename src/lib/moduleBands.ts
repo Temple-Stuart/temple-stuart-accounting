@@ -4,12 +4,22 @@
 // without pulling ModuleLauncher's eager nine-deck import graph.
 //
 // Strings are byte-exact lockstep copies of the deck's PILLAR_CARDS
-// (Landing.tsx PILLAR_CARDS): each card's `plain` = the headline, its 3
+// (Landing.tsx PILLAR_CARDS): each card's `plain` = the headline, its
 // `bullets` = the ✓ chips. ZERO new strings; a copy change in the deck
 // re-fires here. (History: eight entries moved verbatim from ModuleLauncher's
 // MODULE_BANDS — itself the same lockstep copy — and travel was added as the
 // same byte-copy of its PILLAR_CARDS card, which ModuleLauncher never carried
 // because the travel tab's band lived on the ToggleStrip instead.)
+//
+// ONE RATIFIED DIVERGENCE — trade.bullets: NOT the deck's three. They are the
+// module's own verified-facts trust row (the retired TRADE_TRUST_CHIPS,
+// pre-4df0b06e ModuleLauncher.tsx:154-164, restored verbatim by Alex's
+// ruling). Per-chip basis as originally cited there: live TastyTrade prices
+// (tastytrade.ts client + api/tastytrade/quotes), broker sync
+// (api/tastytrade/positions), trades commit to the ledger
+// (api/trading/commit-to-ledger), and the LANG-1 data-not-advice stance
+// (TradingDataDisclaimer). A deck copy change to the trade card does NOT
+// re-fire here — trade's chips answer to the trust row, not the deck.
 //
 // `num`/`name` = the module ordinal + label from the PILLAR_CARDS funnel
 // order (travel first … content last — the numbering authority PIPE-FRAME-1
@@ -17,7 +27,10 @@
 // reports via onTabChange; Runway's tab key is 'calendar').
 export const MODULE_BANDS: Record<
   string,
-  { num: string; name: string; plain: string; bullets: readonly [string, string, string] }
+  // bullets: readonly string[] (not a fixed 3-tuple) — trade carries four
+  // (the ratified verified-facts divergence above); the other eight carry
+  // the deck's three.
+  { num: string; name: string; plain: string; bullets: readonly string[] }
 > = {
   travel: {
     num: '01', name: 'Travel',
@@ -41,7 +54,7 @@ export const MODULE_BANDS: Record<
   trade: {
     num: '04', name: 'Trade',
     plain: 'Find trades worth taking — and get told when to skip.',
-    bullets: ['Scanner on live market data', 'Trading journal & realized P&L', 'Eighteen controls, sixteen strategies'],
+    bullets: ['Live prices from TastyTrade', 'Synced from your broker', 'Every trade lands in your books', 'Data, not advice'],
   },
   tax: {
     num: '05', name: 'Tax',
