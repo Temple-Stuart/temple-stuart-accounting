@@ -16,7 +16,7 @@ import { useState } from 'react';
 import type { Routine, RoutineStep } from './types';
 import type { Take } from '../content/ContentTable';
 import TakeifyButton from '../content/TakeifyButton';
-import { themed, type Surface } from '@/lib/ds';
+
 
 const STEP_DEFAULT_INTERVAL_MINUTES = 15;
 
@@ -87,8 +87,7 @@ interface Props {
   onTakeify: (newTake: Take) => void;
 }
 
-export function RoutineStepList({ surface = 'light', routine, onUpdate, onTakeify }: Props & { surface?: Surface }) {
-  const dk = surface === 'dark';
+export function RoutineStepList({ routine, onUpdate, onTakeify }: Props & { }) {
   const steps = [...routine.steps].sort((a, b) => a.step_order - b.step_order);
 
   const [error, setError] = useState<string | null>(null);
@@ -220,16 +219,16 @@ export function RoutineStepList({ surface = 'light', routine, onUpdate, onTakeif
   };
 
   const arrowClass =
-    themed('px-1.5 py-0.5 border border-border rounded hover:bg-bg-row disabled:opacity-30 text-xs', dk);
+    'px-1.5 py-0.5 border border-border rounded hover:bg-bg-row disabled:opacity-30 text-xs';
   const actionClass =
-    themed('px-2 py-0.5 border border-border text-text-muted rounded hover:bg-bg-row disabled:opacity-50 text-xs', dk);
+    'px-2 py-0.5 border border-border text-text-muted rounded hover:bg-bg-row disabled:opacity-50 text-xs';
 
   return (
-    <div className={themed('pt-2 border-t border-border-light space-y-2', dk)}>
+    <div className="pt-2 border-t border-border-light space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className={themed(labelClass, dk)}>steps</span>
-          <span className={themed('text-text-muted text-xs', dk)}>
+          <span className={labelClass}>steps</span>
+          <span className="text-text-muted text-xs">
             {steps.length} {steps.length === 1 ? 'step' : 'steps'}
           </span>
         </div>
@@ -251,73 +250,73 @@ export function RoutineStepList({ surface = 'light', routine, onUpdate, onTakeif
       )}
 
       {steps.length === 0 && !openAdd && (
-        <div className={themed('text-text-muted italic text-xs', dk)}>no steps yet</div>
+        <div className="text-text-muted italic text-xs">no steps yet</div>
       )}
 
       {steps.map((step, index) => (
         <div
           key={step.id}
-          className={themed('border border-border-light rounded bg-white px-3 py-2 text-xs', dk)}
+          className="border border-border-light rounded bg-white px-3 py-2 text-xs"
         >
           {editingId === step.id ? (
             <div className="space-y-2">
               <div className="grid grid-cols-2 gap-2">
                 <div className="col-span-2">
-                  <div className={themed(labelClass, dk)}>activity</div>
+                  <div className={labelClass}>activity</div>
                   <input
                     type="text"
                     value={editForm.activity}
                     onChange={(e) => setEditForm({ ...editForm, activity: e.target.value })}
-                    className={themed(inputClass, dk)}
+                    className={inputClass}
                     maxLength={200}
                   />
                 </div>
                 <div>
-                  <div className={themed(labelClass, dk)}>time of day</div>
+                  <div className={labelClass}>time of day</div>
                   <input
                     type="time"
                     value={editForm.time_of_day}
                     onChange={(e) => setEditForm({ ...editForm, time_of_day: e.target.value })}
-                    className={themed(inputClass, dk)}
+                    className={inputClass}
                   />
                 </div>
                 <div>
-                  <div className={themed(labelClass, dk)}>duration (min)</div>
+                  <div className={labelClass}>duration (min)</div>
                   <input
                     type="number"
                     min={0}
                     value={editForm.duration_minutes}
                     onChange={(e) => setEditForm({ ...editForm, duration_minutes: e.target.value })}
-                    className={themed(inputClass, dk)}
+                    className={inputClass}
                   />
                 </div>
                 <div>
-                  <div className={themed(labelClass, dk)}>location</div>
+                  <div className={labelClass}>location</div>
                   <input
                     type="text"
                     value={editForm.location}
                     onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
-                    className={themed(inputClass, dk)}
+                    className={inputClass}
                     maxLength={200}
                   />
                 </div>
                 <div>
-                  <div className={themed(labelClass, dk)}>sub-activity</div>
+                  <div className={labelClass}>sub-activity</div>
                   <input
                     type="text"
                     value={editForm.sub_activity}
                     onChange={(e) => setEditForm({ ...editForm, sub_activity: e.target.value })}
-                    className={themed(inputClass, dk)}
+                    className={inputClass}
                     maxLength={200}
                   />
                 </div>
                 <div className="col-span-2">
-                  <div className={themed(labelClass, dk)}>notes</div>
+                  <div className={labelClass}>notes</div>
                   <textarea
                     value={editForm.notes}
                     onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
                     rows={2}
-                    className={themed(inputClass, dk)}
+                    className={inputClass}
                   />
                 </div>
               </div>
@@ -326,7 +325,7 @@ export function RoutineStepList({ surface = 'light', routine, onUpdate, onTakeif
                   type="button"
                   onClick={() => handleSave(step.id)}
                   disabled={saving}
-                  className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 text-xs ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
+                  className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 text-xs ${'border-brand-purple bg-brand-purple'}`}
                 >
                   {saving ? 'saving…' : 'save'}
                 </button>
@@ -334,7 +333,7 @@ export function RoutineStepList({ surface = 'light', routine, onUpdate, onTakeif
                   type="button"
                   onClick={() => setEditingId(null)}
                   disabled={saving}
-                  className={themed('px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50 text-xs', dk)}
+                  className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50 text-xs"
                 >
                   cancel
                 </button>
@@ -365,19 +364,19 @@ export function RoutineStepList({ surface = 'light', routine, onUpdate, onTakeif
                     </button>
                   </div>
                   {step.time_of_day && (
-                    <span className={themed('text-text-muted shrink-0', dk)}>
+                    <span className="text-text-muted shrink-0">
                       {step.time_of_day.slice(11, 16)}
                     </span>
                   )}
-                  <span className={themed('text-text-primary truncate', dk)}>{step.activity}</span>
+                  <span className="text-text-primary truncate">{step.activity}</span>
                   {step.sub_activity && (
-                    <span className={themed('text-text-muted truncate', dk)}>· {step.sub_activity}</span>
+                    <span className="text-text-muted truncate">· {step.sub_activity}</span>
                   )}
                   {step.location && (
-                    <span className={themed('text-text-muted shrink-0', dk)}>@ {step.location}</span>
+                    <span className="text-text-muted shrink-0">@ {step.location}</span>
                   )}
                   {step.duration_minutes !== null && (
-                    <span className={themed('text-text-muted shrink-0', dk)}>{step.duration_minutes} min</span>
+                    <span className="text-text-muted shrink-0">{step.duration_minutes} min</span>
                   )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -397,11 +396,11 @@ export function RoutineStepList({ surface = 'light', routine, onUpdate, onTakeif
                   >
                     delete
                   </button>
-                  <TakeifyButton surface={surface} step={step} onTakeify={onTakeify} />
+                  <TakeifyButton step={step} onTakeify={onTakeify} />
                 </div>
               </div>
               {step.notes && (
-                <div className={themed('text-text-muted italic whitespace-pre-wrap pl-8', dk)}>{step.notes}</div>
+                <div className="text-text-muted italic whitespace-pre-wrap pl-8">{step.notes}</div>
               )}
             </div>
           )}
@@ -409,66 +408,66 @@ export function RoutineStepList({ surface = 'light', routine, onUpdate, onTakeif
       ))}
 
       {openAdd && (
-        <div className={`rounded p-3 space-y-2 border ${dk ? 'border-brand-purple-pop/40 bg-brand-purple-pop/10' : 'border-brand-purple bg-purple-50/30'}`}>
-          <div className={themed('text-xs font-bold text-text-primary', dk)}>new step</div>
+        <div className={`rounded p-3 space-y-2 border ${'border-brand-purple bg-purple-50/30'}`}>
+          <div className="text-xs font-bold text-text-primary">new step</div>
           <div className="grid grid-cols-2 gap-2">
             <div className="col-span-2">
-              <div className={themed(labelClass, dk)}>activity</div>
+              <div className={labelClass}>activity</div>
               <input
                 type="text"
                 value={addForm.activity}
                 onChange={(e) => setAddForm({ ...addForm, activity: e.target.value })}
-                className={themed(inputClass, dk)}
+                className={inputClass}
                 maxLength={200}
                 placeholder="e.g., Shower"
               />
             </div>
             <div>
-              <div className={themed(labelClass, dk)}>time of day</div>
+              <div className={labelClass}>time of day</div>
               <input
                 type="time"
                 value={addForm.time_of_day}
                 onChange={(e) => setAddForm({ ...addForm, time_of_day: e.target.value })}
-                className={themed(inputClass, dk)}
+                className={inputClass}
               />
             </div>
             <div>
-              <div className={themed(labelClass, dk)}>duration (min)</div>
+              <div className={labelClass}>duration (min)</div>
               <input
                 type="number"
                 min={0}
                 value={addForm.duration_minutes}
                 onChange={(e) => setAddForm({ ...addForm, duration_minutes: e.target.value })}
-                className={themed(inputClass, dk)}
+                className={inputClass}
               />
             </div>
             <div>
-              <div className={themed(labelClass, dk)}>location</div>
+              <div className={labelClass}>location</div>
               <input
                 type="text"
                 value={addForm.location}
                 onChange={(e) => setAddForm({ ...addForm, location: e.target.value })}
-                className={themed(inputClass, dk)}
+                className={inputClass}
                 maxLength={200}
               />
             </div>
             <div>
-              <div className={themed(labelClass, dk)}>sub-activity</div>
+              <div className={labelClass}>sub-activity</div>
               <input
                 type="text"
                 value={addForm.sub_activity}
                 onChange={(e) => setAddForm({ ...addForm, sub_activity: e.target.value })}
-                className={themed(inputClass, dk)}
+                className={inputClass}
                 maxLength={200}
               />
             </div>
             <div className="col-span-2">
-              <div className={themed(labelClass, dk)}>notes</div>
+              <div className={labelClass}>notes</div>
               <textarea
                 value={addForm.notes}
                 onChange={(e) => setAddForm({ ...addForm, notes: e.target.value })}
                 rows={2}
-                className={themed(inputClass, dk)}
+                className={inputClass}
               />
             </div>
           </div>
@@ -477,7 +476,7 @@ export function RoutineStepList({ surface = 'light', routine, onUpdate, onTakeif
               type="button"
               onClick={handleCreate}
               disabled={creating}
-              className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 text-xs ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
+              className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 text-xs ${'border-brand-purple bg-brand-purple'}`}
             >
               {creating ? 'creating…' : 'create step'}
             </button>
@@ -489,7 +488,7 @@ export function RoutineStepList({ surface = 'light', routine, onUpdate, onTakeif
                 setError(null);
               }}
               disabled={creating}
-              className={themed('px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50 text-xs', dk)}
+              className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50 text-xs"
             >
               cancel
             </button>

@@ -26,7 +26,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useOperationsEntity } from '../EntitySelector';
 import { CONTENT_SCENES_CHANGED_EVENT } from './ScenifyModal';
 import { compareDayOrder, minuteOfDayFromTime } from '@/lib/content/dayOrder';
-import { themed, type Surface } from '@/lib/ds';
+
 
 interface RoutineStepLite {
   id: string;
@@ -79,8 +79,7 @@ const fmtTime = (t: string | null): string => {
   return m ? m[1] : '';
 };
 
-export default function PieceGrid({ surface = 'light' }: { surface?: Surface } = {}) {
-  const dk = surface === 'dark';
+export default function PieceGrid({ }: { } = {}) {
   // OPS-CE-7B: the grid is scoped by the ONE pipeline entity selector (context),
   // not its own dropdown.
   const { selectedEntityId } = useOperationsEntity();
@@ -281,31 +280,31 @@ export default function PieceGrid({ surface = 'light' }: { surface?: Surface } =
   const shotLine = (label: string, value: string | null) =>
     value && value.trim() ? (
       <div className="leading-snug">
-        <span className={themed('text-text-muted uppercase tracking-wide text-[10px] mr-1', dk)}>{label}</span>
-        <span className={themed('text-text-muted', dk)}>{value}</span>
+        <span className="text-text-muted uppercase tracking-wide text-[10px] mr-1">{label}</span>
+        <span className="text-text-muted">{value}</span>
       </div>
     ) : null;
 
   return (
-    <section className={themed('bg-white rounded border border-border p-4 space-y-4', dk)}>
+    <section className="bg-white rounded border border-border p-4 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-sm font-medium tracking-wide text-brand-purple">
           DAY-TO-DAY RECORD
-          <span className={themed('ml-2 font-normal text-text-muted', dk)}>scenes × days — the evolution record</span>
+          <span className="ml-2 font-normal text-text-muted">scenes × days — the evolution record</span>
         </h2>
       </div>
 
       {loading ? (
-        <p className={themed('text-sm text-text-muted', dk)}>Loading grid…</p>
+        <p className="text-sm text-text-muted">Loading grid…</p>
       ) : error ? (
         <div className="text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
           {error}
         </div>
       ) : visibleScenes.length === 0 ? (
-        <div className={themed('flex flex-col items-center justify-center py-8 px-4 border border-border-light rounded bg-bg-row text-center', dk)}>
+        <div className="flex flex-col items-center justify-center py-8 px-4 border border-border-light rounded bg-bg-row text-center">
           <div className="text-2xl mb-2" aria-hidden="true">🎬</div>
-          <div className={themed('text-sm font-semibold text-text-primary', dk)}>No scenes yet</div>
-          <div className={themed('text-xs text-text-muted mt-1', dk)}>
+          <div className="text-sm font-semibold text-text-primary">No scenes yet</div>
+          <div className="text-xs text-text-muted mt-1">
             Select routines above and save the Scenify draft — their steps become these rows.
           </div>
         </div>
@@ -314,21 +313,21 @@ export default function PieceGrid({ surface = 'light' }: { surface?: Surface } =
           <table className="border-collapse text-xs">
             <thead>
               <tr>
-                <th className={themed('sticky left-0 z-10 bg-bg-row border border-border-light px-3 py-2 text-left text-text-primary font-semibold min-w-[220px]', dk)}>
+                <th className="sticky left-0 z-10 bg-bg-row border border-border-light px-3 py-2 text-left text-text-primary font-semibold min-w-[220px]">
                   Scene
                 </th>
                 {visiblePieces.map((p) => (
                   <th
                     key={p.id}
-                    className={themed('border border-border-light px-3 py-2 text-left text-brand-purple font-semibold min-w-[180px] align-top', dk)}
+                    className="border border-border-light px-3 py-2 text-left text-brand-purple font-semibold min-w-[180px] align-top"
                   >
                     <div>{fmtDate(p.piece_date)}</div>
                     {p.title && (
-                      <div className={themed('font-normal text-text-muted break-words max-w-[160px]', dk)}>{p.title}</div>
+                      <div className="font-normal text-text-muted break-words max-w-[160px]">{p.title}</div>
                     )}
                     {(p.project_id || p.source_ai_usage_id) && (
                       <div
-                        className={themed('font-normal text-text-muted', dk)}
+                        className="font-normal text-text-muted"
                         title={`project ${p.project_id ?? '—'} · version ${p.source_ai_usage_id ?? '—'}`}
                       >
                         🔗 linked
@@ -336,7 +335,7 @@ export default function PieceGrid({ surface = 'light' }: { surface?: Surface } =
                     )}
                   </th>
                 ))}
-                <th className={themed('border border-border-light px-2 py-2 align-top', dk)}>
+                <th className="border border-border-light px-2 py-2 align-top">
                   {addingDay ? (
                     <div className="flex flex-col gap-1 min-w-[150px]">
                       <input
@@ -344,7 +343,7 @@ export default function PieceGrid({ surface = 'light' }: { surface?: Surface } =
                         value={newDayDate}
                         onChange={(e) => setNewDayDate(e.target.value)}
                         disabled={addDaySaving}
-                        className={themed('px-1 py-0.5 border border-border rounded text-xs focus:outline-none focus:border-brand-purple', dk)}
+                        className="px-1 py-0.5 border border-border rounded text-xs focus:outline-none focus:border-brand-purple"
                         aria-label="New day date"
                       />
                       {addDayError && <div className="text-red-700">{addDayError}</div>}
@@ -353,7 +352,7 @@ export default function PieceGrid({ surface = 'light' }: { surface?: Surface } =
                           type="button"
                           onClick={handleAddDay}
                           disabled={addDaySaving}
-                          className={`px-2 py-0.5 border text-white rounded hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
+                          className={`px-2 py-0.5 border text-white rounded hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}
                         >
                           {addDaySaving ? '…' : 'Add'}
                         </button>
@@ -365,7 +364,7 @@ export default function PieceGrid({ surface = 'light' }: { surface?: Surface } =
                             setNewDayDate('');
                           }}
                           disabled={addDaySaving}
-                          className={themed('px-2 py-0.5 border border-border rounded hover:bg-bg-row disabled:opacity-50', dk)}
+                          className="px-2 py-0.5 border border-border rounded hover:bg-bg-row disabled:opacity-50"
                         >
                           ✕
                         </button>
@@ -375,7 +374,7 @@ export default function PieceGrid({ surface = 'light' }: { surface?: Surface } =
                     <button
                       type="button"
                       onClick={() => setAddingDay(true)}
-                      className={themed('px-2 py-1 border border-border rounded text-text-primary hover:bg-bg-row whitespace-nowrap', dk)}
+                      className="px-2 py-1 border border-border rounded text-text-primary hover:bg-bg-row whitespace-nowrap"
                     >
                       + day
                     </button>
@@ -390,10 +389,10 @@ export default function PieceGrid({ surface = 'light' }: { surface?: Surface } =
                 return (
                   <tr key={s.id}>
                     {/* The full shot card — all draft data per scene, wrapped + compact. */}
-                    <th className={themed('sticky left-0 z-10 bg-white border border-border-light px-3 py-2 text-left align-top w-[300px] min-w-[260px] max-w-[320px] whitespace-normal break-words', dk)}>
-                      <div className={themed('text-text-primary font-semibold leading-snug', dk)}>
+                    <th className="sticky left-0 z-10 bg-white border border-border-light px-3 py-2 text-left align-top w-[300px] min-w-[260px] max-w-[320px] whitespace-normal break-words">
+                      <div className="text-text-primary font-semibold leading-snug">
                         {s.routine_step.step_order}. {s.routine_step.activity}
-                        {time && <span className={themed('ml-2 font-normal text-text-muted', dk)}>{time}</span>}
+                        {time && <span className="ml-2 font-normal text-text-muted">{time}</span>}
                       </div>
                       <div className="mt-1 space-y-0.5">
                         {shotLine('camera', s.camera_needed)}
@@ -404,8 +403,8 @@ export default function PieceGrid({ surface = 'light' }: { surface?: Surface } =
                       </div>
                       {/* The question, always on the surface while answering. */}
                       <div className="mt-1 leading-snug text-brand-purple">
-                        <span className={themed('text-text-muted uppercase tracking-wide text-[10px] mr-1', dk)}>Q</span>
-                        {question ?? <span className={themed('text-text-muted', dk)}>no question — set in Scenify</span>}
+                        <span className="text-text-muted uppercase tracking-wide text-[10px] mr-1">Q</span>
+                        {question ?? <span className="text-text-muted">no question — set in Scenify</span>}
                       </div>
                     </th>
                     {visiblePieces.map((p) => {
@@ -415,7 +414,7 @@ export default function PieceGrid({ surface = 'light' }: { surface?: Surface } =
                       return (
                         <td
                           key={p.id}
-                          className={themed('border border-border-light p-0 align-top min-w-[200px]', dk)}
+                          className="border border-border-light p-0 align-top min-w-[200px]"
                         >
                           {isEditing ? (
                             <div className="p-1">
@@ -436,9 +435,9 @@ export default function PieceGrid({ surface = 'light' }: { surface?: Surface } =
                                 autoFocus
                                 rows={4}
                                 placeholder="your answer for today…"
-                                className={themed('w-full resize-y border border-brand-purple rounded px-2 py-1 text-text-primary focus:outline-none disabled:opacity-50', dk)}
+                                className="w-full resize-y border border-brand-purple rounded px-2 py-1 text-text-primary focus:outline-none disabled:opacity-50"
                               />
-                              <div className={themed('mt-0.5 text-text-muted flex items-center justify-between', dk)}>
+                              <div className="mt-0.5 text-text-muted flex items-center justify-between">
                                 <span>esc cancels · blur saves</span>
                                 {cellSaving && <span className="text-brand-purple">saving…</span>}
                               </div>
@@ -448,20 +447,20 @@ export default function PieceGrid({ surface = 'light' }: { surface?: Surface } =
                             <button
                               type="button"
                               onClick={() => startEdit(s.id, p.id)}
-                              className={themed('w-full h-full text-left px-3 py-2 hover:bg-bg-row min-h-[44px]', dk)}
+                              className="w-full h-full text-left px-3 py-2 hover:bg-bg-row min-h-[44px]"
                               title="Edit answer"
                             >
                               {answer ? (
-                                <span className={themed('text-text-primary whitespace-pre-wrap line-clamp-4', dk)}>{answer}</span>
+                                <span className="text-text-primary whitespace-pre-wrap line-clamp-4">{answer}</span>
                               ) : (
-                                <span className={themed('text-text-muted', dk)}>+ answer</span>
+                                <span className="text-text-muted">+ answer</span>
                               )}
                             </button>
                           )}
                         </td>
                       );
                     })}
-                    <td className={themed('border border-border-light bg-bg-row', dk)} />
+                    <td className="border border-border-light bg-bg-row" />
                   </tr>
                 );
               })}
@@ -469,8 +468,8 @@ export default function PieceGrid({ surface = 'light' }: { surface?: Surface } =
           </table>
 
           {visiblePieces.length === 0 && (
-            <p className={themed('mt-3 text-xs text-text-muted', dk)}>
-              No days yet — use <span className={themed('text-text-primary', dk)}>+ day</span> to add the first column.
+            <p className="mt-3 text-xs text-text-muted">
+              No days yet — use <span className="text-text-primary">+ day</span> to add the first column.
             </p>
           )}
         </div>

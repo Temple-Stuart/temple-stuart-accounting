@@ -31,7 +31,7 @@ import {
   demoExecNotes,
 } from '@/components/workbench/operations/content/showroom/demoData';
 import { guardShowroomRender } from '@/lib/showroom/renderGuard';
-import { themed, type Surface } from '@/lib/ds';
+
 
 interface Props {
   /** Opens the existing home register/login modal (the same UI-only trigger the
@@ -53,8 +53,7 @@ const DEMO_DAY_AUDIT_PROMPT =
 // applied here in the wrapper, never on the shared DayCalendarView/ScriptGeneratorView.
 const SECTION_CARD = 'rounded-lg border border-brand-purple/15 bg-brand-purple-wash/40 p-4';
 
-export default function OperationsPipelineShowroom({ surface = 'light', onRequireAuth }: Props & { surface?: Surface }) {
-  const dk = surface === 'dark';
+export default function OperationsPipelineShowroom({ onRequireAuth }: Props & { }) {
   // One inert handler for every action across all three panels: it does ONLY
   // onRequireAuth() — never a fetch, never the paid generate-script call.
   const lock = () => onRequireAuth();
@@ -63,12 +62,12 @@ export default function OperationsPipelineShowroom({ surface = 'light', onRequir
     <div className="space-y-8">
       {/* ── PANEL 1 · PROJECT (scope → tasks → evolution) ─────────────────── */}
       {/* narrative beat slot — copy lands in PR F */}
-      <ProjectsPipelineShowroom surface={surface} onRequireAuth={onRequireAuth} />
+      <ProjectsPipelineShowroom onRequireAuth={onRequireAuth} />
 
       {/* ── PANEL 2 · DAY CALENDAR (her tasks mapped into the day) ────────── */}
       {/* narrative beat slot — copy lands in PR F */}
       <div className={SECTION_CARD}>
-      <DayCalendarView surface={surface}
+      <DayCalendarView
         date={demoDayDate}
         onDateChange={lock}
         timeline={demoDay}
@@ -81,7 +80,7 @@ export default function OperationsPipelineShowroom({ surface = 'light', onRequir
       {/* ── PANEL 3 · SCRIPT (AI narrates what actually happened) ─────────── */}
       {/* narrative beat slot — copy lands in PR F */}
       <div className={SECTION_CARD}>
-      <ScriptGeneratorView surface={surface}
+      <ScriptGeneratorView
         dayAuditPrompt={DEMO_DAY_AUDIT_PROMPT}
         hasPiece={true}
         disabledReason={null}

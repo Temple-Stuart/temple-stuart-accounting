@@ -22,10 +22,9 @@ import ProjectRow from './projects/ProjectRow';
 import ProjectQueueCard from './projects/ProjectQueueCard';
 import ProjectCreateForm from './projects/ProjectCreateForm';
 import type { Project } from './projects/types';
-import { themed, type Surface } from '@/lib/ds';
 
-export default function SectionD_ProjectBacklog({ surface = 'light' }: { surface?: Surface } = {}) {
-  const dk = surface === 'dark';
+
+export default function SectionD_ProjectBacklog({ }: { } = {}) {
   const { entities, selectedEntityId } = useOperationsEntity();
 
   const [projects, setProjects] = useState<Project[]>([]);
@@ -89,11 +88,11 @@ export default function SectionD_ProjectBacklog({ surface = 'light' }: { surface
     <section className="space-y-5">
       <div className="flex items-center justify-between mb-3">
         {/* PROJECTS-V2: on dark the module band already titles the tab. */}
-        <h2 className={dk ? 'hidden' : 'text-lg font-bold text-brand-purple'}>
+        <h2 className="text-lg font-bold text-brand-purple">
           Projects
         </h2>
         <div className="flex items-center gap-3 text-xs">
-          <span className={themed('text-text-muted', dk)}>
+          <span className="text-text-muted">
             {projects.length} {projects.length === 1 ? 'project' : 'projects'}
           </span>
           <label className="flex items-center gap-1 cursor-pointer">
@@ -102,14 +101,14 @@ export default function SectionD_ProjectBacklog({ surface = 'light' }: { surface
               checked={showArchived}
               onChange={(e) => setShowArchived(e.target.checked)}
             />
-            <span className={themed('text-text-muted', dk)}>show archived</span>
+            <span className="text-text-muted">show archived</span>
           </label>
           {!showCreate && (
             <button
               type="button"
               onClick={startCreate}
               disabled={entities.length === 0}
-              className={`px-2 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
+              className={`px-2 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}
             >
               + new project
             </button>
@@ -124,7 +123,7 @@ export default function SectionD_ProjectBacklog({ surface = 'light' }: { surface
       )}
 
       {showCreate && (
-        <ProjectCreateForm surface={surface}
+        <ProjectCreateForm
           entities={entities}
           defaultEntityId={createDefaultEntityId}
           onCreated={() => {
@@ -136,9 +135,9 @@ export default function SectionD_ProjectBacklog({ surface = 'light' }: { surface
       )}
 
       {loading ? (
-        <div className={themed('text-xs text-text-muted', dk)}>loading projects…</div>
+        <div className="text-xs text-text-muted">loading projects…</div>
       ) : projects.length === 0 ? (
-        <div className={themed('text-xs text-text-muted', dk)}>
+        <div className="text-xs text-text-muted">
           {selectedEntityId
             ? 'no projects for this entity yet — click "+ new project" to scope your first one.'
             : 'no projects yet — click "+ new project" to scope your first one.'}
@@ -148,14 +147,14 @@ export default function SectionD_ProjectBacklog({ surface = 'light' }: { surface
           {projects.map((p) => (
             // PD-2: the queue is separated clean cards. The card opens the existing
             // ProjectRow detail (defaultExpanded) — click→detail navigation preserved.
-            <ProjectQueueCard surface={surface}
+            <ProjectQueueCard
               key={p.id}
               project={p}
               taskCount={p.task_count ?? 0}
               runCount={p.run_count ?? 0}
               forceOpen={targetProjectId === p.id}
             >
-              <ProjectRow surface={surface}
+              <ProjectRow
                 project={p}
                 entities={entities}
                 allProjects={projects}

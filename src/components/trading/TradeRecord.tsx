@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { chip, SECTION_HEADER, STATE, themed } from '@/lib/ds';
+import { chip, SECTION_HEADER, STATE } from '@/lib/ds';
 
 /**
  * TRACK-1 — the scanner's public track record: claimed-vs-actual, honest win rate.
@@ -38,7 +38,6 @@ const fmtMoney = (n: number): string =>
 
 export default function TradeRecord() {
   // TRADE-DS-1: single-consumer (the ML Trade tab) — always dark.
-  const dk = true;
   const [state, setState] = useState<'loading' | 'error' | 'ok'>('loading');
   const [cards, setCards] = useState<Card[]>([]);
   const [unlinkedClosed, setUnlinkedClosed] = useState(0);
@@ -68,7 +67,7 @@ export default function TradeRecord() {
 
   if (state === 'loading') {
     return (
-      <div className={themed('rounded-lg border border-border bg-white px-3 py-2 text-xs text-text-muted', dk)}>
+      <div className={'rounded-lg border border-panel-border bg-panel-surface px-3 py-2 text-xs text-white/60'}>
         Building your track record…
       </div>
     );
@@ -219,7 +218,7 @@ export default function TradeRecord() {
             <button
               type="button"
               onClick={() => setShowTable((s) => !s)}
-              className="font-mono text-[11px] text-brand-purple-pop hover:underline"
+              className="font-mono text-[11px] text-brand-purple hover:underline"
             >
               {showTable ? 'Hide' : 'Show'} per-trade detail ({linked.length})
             </button>

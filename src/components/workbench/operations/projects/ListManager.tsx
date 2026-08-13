@@ -20,7 +20,7 @@
 'use client';
 
 import { useState } from 'react';
-import { themed, type Surface } from '@/lib/ds';
+
 
 interface Props {
   /** Current items (each is a complete natural-voice line with verb prefix). */
@@ -47,15 +47,13 @@ interface Props {
 const MAX_ITEMS = 20;
 const MAX_CHARS = 500;
 
-export default function ListManager({ surface = 'light',
-  items,
+export default function ListManager({ items,
   onChange,
   verbPrefix,
   altVerbPrefix,
   placeholder,
   disabled = false,
-}: Props & { surface?: Surface }) {
-  const dk = surface === 'dark';
+}: Props & { }) {
   const [draft, setDraft] = useState<string>('');
   const [draftPrefix, setDraftPrefix] = useState<string>(verbPrefix);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -119,19 +117,19 @@ export default function ListManager({ surface = 'light',
   };
 
   const inputClass =
-    themed('w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple', dk);
+    'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
 
   return (
     <div className="space-y-1">
       {items.length === 0 && draft.length === 0 && (
-        <div className={themed('text-xs text-text-muted italic px-1', dk)}>
+        <div className="text-xs text-text-muted italic px-1">
           (no items yet — click below to add)
         </div>
       )}
 
       {items.map((item, i) => (
         <div key={i} className="flex items-start gap-2 group">
-          <span className={themed('text-text-faint text-xs mt-1 select-none', dk)}>·</span>
+          <span className="text-text-faint text-xs mt-1 select-none">·</span>
           {editingIndex === i ? (
             <>
               <input
@@ -151,7 +149,7 @@ export default function ListManager({ surface = 'light',
                 type="button"
                 onClick={commitEdit}
                 disabled={disabled}
-                className={`px-2 py-0.5 border text-white rounded text-xs hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
+                className={`px-2 py-0.5 border text-white rounded text-xs hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}
               >
                 save
               </button>
@@ -159,7 +157,7 @@ export default function ListManager({ surface = 'light',
                 type="button"
                 onClick={cancelEdit}
                 disabled={disabled}
-                className={themed('px-2 py-0.5 border border-border rounded text-xs hover:bg-bg-row disabled:opacity-50', dk)}
+                className="px-2 py-0.5 border border-border rounded text-xs hover:bg-bg-row disabled:opacity-50"
               >
                 cancel
               </button>
@@ -167,7 +165,7 @@ export default function ListManager({ surface = 'light',
           ) : (
             <>
               <span
-                className={themed('flex-1 text-xs text-text-primary cursor-pointer hover:bg-bg-row rounded px-1', dk)}
+                className="flex-1 text-xs text-text-primary cursor-pointer hover:bg-bg-row rounded px-1"
                 onClick={() => !disabled && startEdit(i)}
                 title="Click to edit"
               >
@@ -177,7 +175,7 @@ export default function ListManager({ surface = 'light',
                 type="button"
                 onClick={() => removeItem(i)}
                 disabled={disabled}
-                className={themed('opacity-0 group-hover:opacity-100 px-1 text-text-faint hover:text-red-700 text-xs disabled:opacity-50', dk)}
+                className="opacity-0 group-hover:opacity-100 px-1 text-text-faint hover:text-red-700 text-xs disabled:opacity-50"
                 title="Remove item"
               >
                 ✕
@@ -189,7 +187,7 @@ export default function ListManager({ surface = 'light',
 
       {draft.length > 0 ? (
         <div className="flex items-start gap-2">
-          <span className={` text-xs mt-1 select-none ${dk ? 'text-brand-purple-pop' : 'text-brand-purple'}`}>+</span>
+          <span className={` text-xs mt-1 select-none ${'text-brand-purple'}`}>+</span>
           <input
             type="text"
             value={draft}
@@ -208,7 +206,7 @@ export default function ListManager({ surface = 'light',
             type="button"
             onClick={commitAdd}
             disabled={disabled || draft.trim().length === 0}
-            className={`px-2 py-0.5 border text-white rounded text-xs hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
+            className={`px-2 py-0.5 border text-white rounded text-xs hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}
           >
             add
           </button>
@@ -216,7 +214,7 @@ export default function ListManager({ surface = 'light',
             type="button"
             onClick={cancelAdd}
             disabled={disabled}
-            className={themed('px-2 py-0.5 border border-border rounded text-xs hover:bg-bg-row disabled:opacity-50', dk)}
+            className="px-2 py-0.5 border border-border rounded text-xs hover:bg-bg-row disabled:opacity-50"
           >
             cancel
           </button>
@@ -227,7 +225,7 @@ export default function ListManager({ surface = 'light',
             type="button"
             onClick={() => startAdd(verbPrefix)}
             disabled={disabled || atLimit}
-            className={`px-2 py-0.5 border rounded text-xs disabled:opacity-50 ${dk ? 'border-brand-purple-pop text-brand-purple-pop hover:bg-brand-purple-pop/10' : 'border-brand-purple text-brand-purple hover:bg-purple-50'}`}
+            className={`px-2 py-0.5 border rounded text-xs disabled:opacity-50 ${'border-brand-purple text-brand-purple hover:bg-purple-50'}`}
             title={atLimit ? `Maximum ${MAX_ITEMS} items reached` : `Add a "${verbPrefix.trim()}" item`}
           >
             + {verbPrefix.trim()}...
@@ -237,19 +235,19 @@ export default function ListManager({ surface = 'light',
               type="button"
               onClick={() => startAdd(altVerbPrefix)}
               disabled={disabled || atLimit}
-              className={`px-2 py-0.5 border rounded text-xs disabled:opacity-50 ${dk ? 'border-brand-purple-pop text-brand-purple-pop hover:bg-brand-purple-pop/10' : 'border-brand-purple text-brand-purple hover:bg-purple-50'}`}
+              className={`px-2 py-0.5 border rounded text-xs disabled:opacity-50 ${'border-brand-purple text-brand-purple hover:bg-purple-50'}`}
               title={atLimit ? `Maximum ${MAX_ITEMS} items reached` : `Add a "${altVerbPrefix.trim()}" item`}
             >
               + {altVerbPrefix.trim()}...
             </button>
           )}
           {atLimit && (
-            <span className={themed('text-xs text-text-muted italic', dk)}>
+            <span className="text-xs text-text-muted italic">
               (max {MAX_ITEMS} items reached)
             </span>
           )}
           {!atLimit && items.length >= MAX_ITEMS - 5 && (
-            <span className={themed('text-xs text-text-muted', dk)}>
+            <span className="text-xs text-text-muted">
               ({MAX_ITEMS - items.length} slots left)
             </span>
           )}

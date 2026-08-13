@@ -20,7 +20,7 @@ import type {
   Project,
 } from './types';
 import { DEPENDENCY_TYPE_LABELS, DEPENDENCY_TYPE_DESCRIPTIONS } from './types';
-import { themed, type Surface } from '@/lib/ds';
+
 
 const DEPENDENCY_TYPES: DependencyType[] = ['blocks', 'informs', 'derived_from'];
 
@@ -49,8 +49,7 @@ export interface DependencyListViewProps {
   onDelete: (depId: string) => void;
 }
 
-export default function DependencyListView({ surface = 'light',
-  projectId,
+export default function DependencyListView({ projectId,
   allProjects,
   outgoing,
   incoming,
@@ -69,11 +68,10 @@ export default function DependencyListView({ surface = 'light',
   onCreateFormChange,
   onCreate,
   onDelete,
-}: DependencyListViewProps & { surface?: Surface }) {
-  const dk = surface === 'dark';
+}: DependencyListViewProps & { }) {
   const inputClass =
-    themed('w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple', dk);
-  const labelClass = themed('text-text-faint uppercase tracking-wide mb-1 text-xs', dk);
+    'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
+  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
 
   // Filter to blocks-only by default; show advisory edges only when toggled.
   const outgoingBlocks = outgoing.filter((d) => d.dependency_type === 'blocks');
@@ -102,26 +100,26 @@ export default function DependencyListView({ surface = 'light',
     return (
       <div
         key={dep.id}
-        className={themed('flex items-center justify-between gap-2 py-1 px-2 hover:bg-bg-row rounded', dk)}
+        className="flex items-center justify-between gap-2 py-1 px-2 hover:bg-bg-row rounded"
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <span className={themed('text-text-faint', dk)}>▸</span>
+          <span className="text-text-faint">▸</span>
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onJumpTo(linkedId); }}
-            className={` hover:underline truncate text-left ${dk ? 'text-brand-purple-pop' : 'text-brand-purple'}`}
+            className={` hover:underline truncate text-left ${'text-brand-purple'}`}
             title={`Jump to ${linkedTitle}`}
           >
             {linkedTitle}
           </button>
-          <span className={themed('text-text-muted text-xs', dk)}>({linkedStatus.replace(/_/g, ' ')})</span>
+          <span className="text-text-muted text-xs">({linkedStatus.replace(/_/g, ' ')})</span>
           {dep.dependency_type !== 'blocks' && (
-            <span className={themed('text-text-faint italic text-xs', dk)}>
+            <span className="text-text-faint italic text-xs">
               {DEPENDENCY_TYPE_LABELS[dep.dependency_type]}
             </span>
           )}
           {dep.rationale && (
-            <span className={themed('text-text-muted truncate', dk)} title={dep.rationale}>
+            <span className="text-text-muted truncate" title={dep.rationale}>
               — {dep.rationale}
             </span>
           )}
@@ -144,7 +142,7 @@ export default function DependencyListView({ surface = 'light',
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <div className={themed('text-xs text-text-muted', dk)}>
+        <div className="text-xs text-text-muted">
           {outgoingBlocks.length + incomingBlocks.length} blocks edges
           {(outgoingAdvisory.length + incomingAdvisory.length > 0) && (
             <>, {outgoingAdvisory.length + incomingAdvisory.length} advisory</>
@@ -155,7 +153,7 @@ export default function DependencyListView({ surface = 'light',
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onToggleAdvisory(); }}
-              className={themed('px-2 py-1 border border-border rounded text-xs hover:bg-bg-row', dk)}
+              className="px-2 py-1 border border-border rounded text-xs hover:bg-bg-row"
             >
               {showAdvisory ? 'hide advisory' : 'show advisory'}
             </button>
@@ -165,7 +163,7 @@ export default function DependencyListView({ surface = 'light',
               type="button"
               onClick={(e) => { e.stopPropagation(); onStartCreate(); }}
               disabled={targetCandidates.length === 0}
-              className={`px-2 py-1 border text-white rounded text-xs hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
+              className={`px-2 py-1 border text-white rounded text-xs hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}
             >
               + add dependency
             </button>
@@ -180,8 +178,8 @@ export default function DependencyListView({ surface = 'light',
       )}
 
       {showCreate && (
-        <div className={themed('border border-border rounded p-3 bg-white text-xs space-y-3', dk)}>
-          <div className={themed('font-bold text-text-primary', dk)}>new dependency</div>
+        <div className="border border-border rounded p-3 bg-white text-xs space-y-3">
+          <div className="font-bold text-text-primary">new dependency</div>
           {createError && (
             <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
               {createError}
@@ -217,7 +215,7 @@ export default function DependencyListView({ surface = 'light',
                 </option>
               ))}
             </select>
-            <div className={themed('text-text-muted text-xs italic mt-1', dk)}>
+            <div className="text-text-muted text-xs italic mt-1">
               {DEPENDENCY_TYPE_DESCRIPTIONS[createForm.dependency_type]}
             </div>
           </div>
@@ -231,12 +229,12 @@ export default function DependencyListView({ surface = 'light',
               placeholder="why does this dependency exist?"
             />
           </div>
-          <div className={themed('flex items-center gap-2 pt-2 border-t border-border-light', dk)}>
+          <div className="flex items-center gap-2 pt-2 border-t border-border-light">
             <button
               type="button"
               onClick={onCreate}
               disabled={createSaving}
-              className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
+              className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}
             >
               {createSaving ? 'creating…' : 'add dependency'}
             </button>
@@ -244,7 +242,7 @@ export default function DependencyListView({ surface = 'light',
               type="button"
               onClick={onCancelCreate}
               disabled={createSaving}
-              className={themed('px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50', dk)}
+              className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
             >
               cancel
             </button>
@@ -253,9 +251,9 @@ export default function DependencyListView({ surface = 'light',
       )}
 
       {loading ? (
-        <div className={themed('text-xs text-text-muted', dk)}>loading dependencies…</div>
+        <div className="text-xs text-text-muted">loading dependencies…</div>
       ) : outgoingBlocks.length === 0 && incomingBlocks.length === 0 && (!showAdvisory || (outgoingAdvisory.length === 0 && incomingAdvisory.length === 0)) ? (
-        <div className={themed('text-xs text-text-muted italic', dk)}>
+        <div className="text-xs text-text-muted italic">
           no dependencies yet — click "+ add dependency" to link this project to others.
         </div>
       ) : (

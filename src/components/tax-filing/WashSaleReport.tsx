@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { themed, type Surface } from '@/lib/ds';
+
 
 // ═══════════════════════════════════════════════════════════════════
 // WashSaleReport — surface the wash-sale endpoint in the UI.
@@ -109,8 +109,7 @@ function daysBetween(iso1: string, iso2: string): number {
 
 // ─── Component ─────────────────────────────────────────────────────
 
-export default function WashSaleReport({ surface = 'light', taxYear }: Props & { surface?: Surface }) {
-  const dk = surface === 'dark';
+export default function WashSaleReport({ taxYear }: Props & { }) {
   const [data, setData] = useState<WashSalesResponse | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -203,7 +202,7 @@ export default function WashSaleReport({ surface = 'light', taxYear }: Props & {
 
   if (loading) {
     return (
-      <div className={themed('px-3 py-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded', dk)}>
+      <div className="px-3 py-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded">
         Loading wash sale data…
       </div>
     );
@@ -260,13 +259,13 @@ export default function WashSaleReport({ surface = 'light', taxYear }: Props & {
   return (
     <div className="space-y-4">
       {/* ═══ Summary card ═══ */}
-      <div className={themed('border border-gray-200 rounded-lg bg-white overflow-hidden', dk)}>
-        <div className={themed('px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between', dk)}>
+      <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
           <div>
-            <div className={themed('text-sm font-semibold text-gray-900', dk)}>
+            <div className="text-sm font-semibold text-gray-900">
               Wash sale report
             </div>
-            <div className={themed('text-xs text-gray-500', dk)}>
+            <div className="text-xs text-gray-500">
               All-time detection · per IRS Pub 550 (30-day window)
             </div>
           </div>
@@ -288,44 +287,44 @@ export default function WashSaleReport({ surface = 'light', taxYear }: Props & {
         </div>
 
         {noViolations ? (
-          <div className={themed('px-4 py-4 text-sm text-gray-600', dk)}>
+          <div className="px-4 py-4 text-sm text-gray-600">
             No wash sale violations detected for this user. Nothing to apply.
           </div>
         ) : (
           <div className="px-4 py-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-            <Metric dk={dk}
+            <Metric
               label={`Violations (${taxYear})`}
               value={yearViolations.length.toLocaleString()}
             />
-            <Metric dk={dk}
+            <Metric
               label="Total disallowed"
               value={fmtMoney(yearTotalDisallowed)}
             />
-            <Metric dk={dk}
+            <Metric
               label="Symbols affected"
               value={yearBySymMap.size.toString()}
             />
-            <Metric dk={dk}
+            <Metric
               label="Est. additional tax"
               value={fmtMoney(data.taxImpact.estimatedAdditionalTax)}
               hint={data.taxImpact.note}
             />
-            <Metric dk={dk}
+            <Metric
               label="Stock → Stock"
               value={data.summary.stockToStockCount.toString()}
               muted
             />
-            <Metric dk={dk}
+            <Metric
               label="Stock → Option"
               value={data.summary.stockToOptionCount.toString()}
               muted
             />
-            <Metric dk={dk}
+            <Metric
               label="Option → Stock"
               value={data.summary.optionToStockCount.toString()}
               muted
             />
-            <Metric dk={dk}
+            <Metric
               label="Option → Option"
               value={data.summary.optionToOptionCount.toString()}
               muted
@@ -408,7 +407,7 @@ export default function WashSaleReport({ surface = 'light', taxYear }: Props & {
       {/* ═══ By-symbol breakdown ═══ */}
       {!noViolations && (
         <div className="space-y-2">
-          <h4 className={themed('text-xs font-semibold text-gray-500 uppercase tracking-wider', dk)}>
+          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
             By symbol
           </h4>
           {yearBySymbol.map((s) => {
@@ -417,21 +416,21 @@ export default function WashSaleReport({ surface = 'light', taxYear }: Props & {
             return (
               <div
                 key={s.symbol}
-                className={themed('border border-gray-200 rounded-lg bg-white overflow-hidden', dk)}
+                className="border border-gray-200 rounded-lg bg-white overflow-hidden"
               >
                 <button
                   type="button"
                   onClick={() => toggle(symKey)}
-                  className={themed('w-full px-4 py-2 flex items-center justify-between hover:bg-gray-50', dk)}
+                  className="w-full px-4 py-2 flex items-center justify-between hover:bg-gray-50"
                 >
                   <div className="flex items-center gap-3">
-                    <span className={themed('text-xs text-gray-400 w-3', dk)}>
+                    <span className="text-xs text-gray-400 w-3">
                       {isOpen ? '▼' : '▶'}
                     </span>
-                    <span className={themed('font-mono font-semibold text-gray-900 text-sm', dk)}>
+                    <span className="font-mono font-semibold text-gray-900 text-sm">
                       {s.symbol}
                     </span>
-                    <span className={themed('text-xs text-gray-500', dk)}>
+                    <span className="text-xs text-gray-500">
                       {s.count} violation{s.count === 1 ? '' : 's'}
                     </span>
                   </div>
@@ -440,65 +439,65 @@ export default function WashSaleReport({ surface = 'light', taxYear }: Props & {
                   </span>
                 </button>
                 {isOpen && (
-                  <div className={themed('px-4 pb-3 border-t border-gray-100 divide-y divide-gray-100', dk)}>
+                  <div className="px-4 pb-3 border-t border-gray-100 divide-y divide-gray-100">
                     {s.violations.map((v, i) => {
                       const days = daysBetween(v.saleDate, v.replacementDate);
                       const before = days < 0;
                       return (
                         <div key={i} className="py-2 text-xs">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-0.5">
-                            <DetailRow dk={dk}
+                            <DetailRow
                               label="Sale date"
                               value={fmtDate(v.saleDate)}
                             />
-                            <DetailRow dk={dk}
+                            <DetailRow
                               label="Quantity sold"
                               value={String(v.quantitySold)}
                             />
-                            <DetailRow dk={dk}
+                            <DetailRow
                               label="Sale price/share"
                               value={fmtMoney(v.proceedsPerShare)}
                             />
-                            <DetailRow dk={dk}
+                            <DetailRow
                               label="Cost basis/share"
                               value={fmtMoney(v.costBasisPerShare)}
                             />
-                            <DetailRow dk={dk}
+                            <DetailRow
                               label="Realized loss"
                               value={fmtMoney(v.realizedLoss)}
                               redIfNegative
                             />
-                            <DetailRow dk={dk}
+                            <DetailRow
                               label="Disallowed amount"
                               value={fmtMoney(v.disallowedLoss)}
                               amber
                             />
-                            <DetailRow dk={dk}
+                            <DetailRow
                               label="Replacement type"
                               value={v.replacementType}
                             />
-                            <DetailRow dk={dk}
+                            <DetailRow
                               label="Replacement date"
                               value={fmtDate(v.replacementDate)}
                             />
-                            <DetailRow dk={dk}
+                            <DetailRow
                               label="Replacement qty"
                               value={String(v.replacementQuantity)}
                             />
-                            <DetailRow dk={dk}
+                            <DetailRow
                               label="Replacement price/share"
                               value={fmtMoney(v.replacementCostPerShare)}
                             />
-                            <DetailRow dk={dk}
+                            <DetailRow
                               label="Shares affected"
                               value={String(v.sharesAffected)}
                             />
-                            <DetailRow dk={dk}
+                            <DetailRow
                               label="Adjusted basis"
                               value={fmtMoney(v.adjustedCostBasis)}
                             />
                           </div>
-                          <div className={themed('mt-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-[11px] text-gray-700 font-mono', dk)}>
+                          <div className="mt-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-[11px] text-gray-700 font-mono">
                             Sale: {fmtDate(v.saleDate)} →
                             {' '}Replacement: {fmtDate(v.replacementDate)} →
                             {' '}{Math.abs(days)} day{Math.abs(days) === 1 ? '' : 's'}
@@ -517,21 +516,21 @@ export default function WashSaleReport({ surface = 'light', taxYear }: Props & {
       )}
 
       {/* ═══ Educational section ═══ */}
-      <div className={themed('border border-gray-200 rounded-lg bg-white overflow-hidden', dk)}>
+      <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
         <button
           type="button"
           onClick={() => setShowEducation((v) => !v)}
-          className={themed('w-full px-4 py-2 flex items-center justify-between hover:bg-gray-50', dk)}
+          className="w-full px-4 py-2 flex items-center justify-between hover:bg-gray-50"
         >
-          <span className={themed('text-sm font-semibold text-gray-900', dk)}>
+          <span className="text-sm font-semibold text-gray-900">
             What is a wash sale?
           </span>
-          <span className={themed('text-xs text-gray-400', dk)}>
+          <span className="text-xs text-gray-400">
             {showEducation ? '▼' : '▶'}
           </span>
         </button>
         {showEducation && (
-          <div className={themed('px-4 pb-4 border-t border-gray-100 text-sm text-gray-700 space-y-3 pt-3', dk)}>
+          <div className="px-4 pb-4 border-t border-gray-100 text-sm text-gray-700 space-y-3 pt-3">
             <p>
               A <strong>wash sale</strong> happens when you sell a security at a
               loss and buy a substantially identical security within 30 days
@@ -560,7 +559,7 @@ export default function WashSaleReport({ surface = 'light', taxYear }: Props & {
               clear guidance on every options scenario, so we err on the side
               of disallowing more rather than missing one.
             </p>
-            <p className={themed('text-xs text-gray-500 italic', dk)}>
+            <p className="text-xs text-gray-500 italic">
               See IRS Publication 550 for the official rules.
             </p>
           </div>
@@ -572,31 +571,29 @@ export default function WashSaleReport({ surface = 'light', taxYear }: Props & {
 
 // ─── Sub-components ───────────────────────────────────────────────
 
-function Metric({ dk = false,
-  label,
+function Metric({ label,
   value,
   muted,
   hint,
-}: { dk?: boolean;
-  label: string;
+}: { label: string;
   value: string;
   muted?: boolean;
   hint?: string;
 }) {
   return (
     <div
-      className={themed(`border border-gray-100 rounded px-3 py-2 ${muted ? 'bg-gray-50/60' : ''}`, dk)}
+      className={`border border-gray-100 rounded px-3 py-2 ${muted ? 'bg-gray-50/60' : ''}`}
     >
-      <div className={themed('text-[10px] text-gray-500 uppercase tracking-wider', dk)}>
+      <div className="text-[10px] text-gray-500 uppercase tracking-wider">
         {label}
       </div>
       <div
-        className={themed(`font-mono font-semibold mt-0.5 ${muted ? 'text-sm text-gray-700' : 'text-sm text-gray-900'}`, dk)}
+        className={`font-mono font-semibold mt-0.5 ${muted ? 'text-sm text-gray-700' : 'text-sm text-gray-900'}`}
       >
         {value}
       </div>
       {hint && (
-        <div className={themed('text-[10px] text-gray-400 mt-0.5 leading-tight', dk)}>
+        <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">
           {hint}
         </div>
       )}
@@ -604,23 +601,21 @@ function Metric({ dk = false,
   );
 }
 
-function DetailRow({ dk = false,
-  label,
+function DetailRow({ label,
   value,
   redIfNegative,
   amber,
-}: { dk?: boolean;
-  label: string;
+}: { label: string;
   value: string;
   redIfNegative?: boolean;
   amber?: boolean;
 }) {
-  let cls = themed('text-gray-800', dk);
+  let cls = 'text-gray-800';
   if (amber) cls = 'text-amber-900 font-semibold';
   else if (redIfNegative && value.startsWith('(')) cls = 'text-red-600';
   return (
     <div className="flex items-start justify-between gap-3 py-0.5">
-      <span className={themed('text-gray-500', dk)}>{label}</span>
+      <span className="text-gray-500">{label}</span>
       <span className={`font-mono ${cls}`}>{value}</span>
     </div>
   );

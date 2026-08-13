@@ -23,7 +23,7 @@ import RRULEBuilder from './RRULEBuilder';
 import type { RoutineForm } from './types';
 import CoaSelect from './CoaSelect';
 import { DEFAULT_ROUTINE_FORM } from './types';
-import { themed, type Surface } from '@/lib/ds';
+
 
 interface Entity {
   id: string;
@@ -40,8 +40,7 @@ interface Props {
   onCancel: () => void;
 }
 
-export default function RoutineCreateForm({ surface = 'light', entities, defaultEntityId, onCreated, onCancel }: Props & { surface?: Surface }) {
-  const dk = surface === 'dark';
+export default function RoutineCreateForm({ entities, defaultEntityId, onCreated, onCancel }: Props & { }) {
   const [createForm, setCreateForm] = useState<RoutineForm>({
     ...DEFAULT_ROUTINE_FORM,
     entity_id: defaultEntityId,
@@ -93,12 +92,12 @@ export default function RoutineCreateForm({ surface = 'light', entities, default
   };
 
   const inputClass =
-    themed('w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple', dk);
-  const labelClass = themed('text-text-faint uppercase tracking-wide mb-1 text-xs', dk);
+    'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
+  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
 
   return (
-    <div className={themed('border border-border rounded p-3 bg-white text-xs space-y-3', dk)}>
-      <div className={themed('text-sm font-semibold text-text-primary', dk)}>new routine</div>
+    <div className="border border-border rounded p-3 bg-white text-xs space-y-3">
+      <div className="text-sm font-semibold text-text-primary">new routine</div>
       {createError && (
         <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
           {createError}
@@ -157,7 +156,7 @@ export default function RoutineCreateForm({ surface = 'light', entities, default
           (the RUNWAY/TRADE/TAX precedent). Handlers/fields untouched. */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <div className={themed('font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs', dk)}>budget / occurrence (optional)</div>
+          <div className="font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs">budget / occurrence (optional)</div>
           <input
             type="number"
             min="0"
@@ -169,7 +168,7 @@ export default function RoutineCreateForm({ surface = 'light', entities, default
           />
         </div>
         <div>
-          <div className={themed('font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs', dk)}>COA (optional)</div>
+          <div className="font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs">COA (optional)</div>
           <CoaSelect
             entityId={createForm.entity_id}
             value={createForm.coa_code ?? ''}
@@ -179,7 +178,7 @@ export default function RoutineCreateForm({ surface = 'light', entities, default
         </div>
       </div>
 
-      <RRULEBuilder surface={surface} form={createForm} setForm={setCreateForm} />
+      <RRULEBuilder form={createForm} setForm={setCreateForm} />
 
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -223,12 +222,12 @@ export default function RoutineCreateForm({ surface = 'light', entities, default
         </div>
       </div>
 
-      <div className={themed('flex items-center gap-2 pt-2 border-t border-border-light', dk)}>
+      <div className="flex items-center gap-2 pt-2 border-t border-border-light">
         <button
           type="button"
           onClick={handleCreate}
           disabled={createSaving}
-          className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
+          className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}
         >
           {createSaving ? 'creating…' : 'create routine'}
         </button>
@@ -236,7 +235,7 @@ export default function RoutineCreateForm({ surface = 'light', entities, default
           type="button"
           onClick={onCancel}
           disabled={createSaving}
-          className={themed('px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50', dk)}
+          className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
         >
           cancel
         </button>

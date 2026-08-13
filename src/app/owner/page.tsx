@@ -444,7 +444,7 @@ function FragmentRow({
                           href={l}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-xs text-brand-purple-pop hover:underline break-all"
+                          className="text-xs text-brand-purple hover:underline break-all"
                         >
                           {l}
                         </a>

@@ -1,5 +1,5 @@
 'use client';
-import { themed, type Surface } from '@/lib/ds';
+
 /**
  * src/components/workbench/SectionG_CitationVerification.tsx
  *
@@ -21,12 +21,11 @@ const STEPS = [
   { n: 8, name: 'Content hash', tool: 'SHA-256 chunk text vs recorded hash' },
 ];
 
-export function SectionG_CitationVerification({ surface = 'light' }: { surface?: Surface } = {}) {
-  const dk = surface === 'dark';
+export function SectionG_CitationVerification({ }: { } = {}) {
   return (
-    <section className={themed('bg-white rounded border border-border shadow-sm p-5', dk)}>
+    <section className="bg-white rounded border border-border shadow-sm p-5">
       <div className="flex items-center justify-between mb-3">
-        <h2 className={themed('font-mono text-sm font-bold tracking-wide text-text-primary', dk)}>
+        <h2 className="font-mono text-sm font-bold tracking-wide text-text-primary">
           G · CITATION VERIFICATION
         </h2>
         <span className="text-xs font-mono text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
@@ -35,7 +34,7 @@ export function SectionG_CitationVerification({ surface = 'light' }: { surface?:
       </div>
 
       <div className="space-y-2 text-xs font-mono">
-        <div className={themed('text-text-muted leading-relaxed mb-3', dk)}>
+        <div className="text-text-muted leading-relaxed mb-3">
           The 8-step adversarial verification protocol from architecture
           doc § 3. Each citation passes only if all eight steps pass.
           Failure of any step degrades status to{' '}
@@ -45,7 +44,7 @@ export function SectionG_CitationVerification({ surface = 'light' }: { surface?:
 
         <table className="w-full">
           <thead>
-            <tr className={themed('text-text-faint uppercase tracking-wide', dk)}>
+            <tr className="text-text-faint uppercase tracking-wide">
               <th className="text-left pb-1 w-8">#</th>
               <th className="text-left pb-1">step</th>
               <th className="text-left pb-1">tool</th>
@@ -53,10 +52,10 @@ export function SectionG_CitationVerification({ surface = 'light' }: { surface?:
           </thead>
           <tbody>
             {STEPS.map((s) => (
-              <tr key={s.n} className={themed('border-t border-border-light opacity-60', dk)}>
-                <td className={themed('py-1 text-text-primary tabular-nums', dk)}>{s.n}</td>
-                <td className={themed('py-1 text-text-primary', dk)}>{s.name}</td>
-                <td className={themed('py-1 text-text-muted', dk)}>{s.tool}</td>
+              <tr key={s.n} className="border-t border-border-light opacity-60">
+                <td className="py-1 text-text-primary tabular-nums">{s.n}</td>
+                <td className="py-1 text-text-primary">{s.name}</td>
+                <td className="py-1 text-text-muted">{s.tool}</td>
               </tr>
             ))}
           </tbody>

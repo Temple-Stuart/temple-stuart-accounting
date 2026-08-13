@@ -16,7 +16,7 @@
 'use client';
 
 import { useState } from 'react';
-import { themed, type Surface } from '@/lib/ds';
+
 
 type RetrievalMode = 'keyword' | 'semantic' | 'hybrid';
 
@@ -51,8 +51,7 @@ const MODE_LABELS: Record<RetrievalMode, string> = {
   hybrid: 'Hybrid (BM25 + vectors + rerank)',
 };
 
-export function SectionH_CorpusInspector({ surface = 'light' }: { surface?: Surface } = {}) {
-  const dk = surface === 'dark';
+export function SectionH_CorpusInspector({ }: { } = {}) {
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<RetrievalMode>('hybrid');
   const [results, setResults] = useState<RetrievalResult[]>([]);
@@ -97,7 +96,7 @@ export function SectionH_CorpusInspector({ surface = 'light' }: { surface?: Surf
   }
 
   return (
-    <section className={themed('border border-border bg-white', dk)}>
+    <section className="border border-border bg-white">
       <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
         H · Corpus Inspector
       </div>
@@ -109,7 +108,7 @@ export function SectionH_CorpusInspector({ surface = 'light' }: { surface?: Surf
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="e.g. substantiation requirements for business meal expenses"
-            className={themed('w-full px-3 py-2 text-sm font-mono border border-border focus:border-brand-purple focus:outline-none', dk)}
+            className="w-full px-3 py-2 text-sm font-mono border border-border focus:border-brand-purple focus:outline-none"
             disabled={isLoading}
           />
           <div className="flex items-center gap-2">
@@ -118,11 +117,11 @@ export function SectionH_CorpusInspector({ surface = 'light' }: { surface?: Surf
                 key={m}
                 type="button"
                 onClick={() => setMode(m)}
-                className={themed(`px-3 py-1 text-[10px] uppercase tracking-wider border ${
+                className={`px-3 py-1 text-[10px] uppercase tracking-wider border ${
                   mode === m
                     ? 'bg-brand-purple text-white border-brand-purple'
-                    : themed('bg-white text-text-secondary border-border hover:border-brand-purple', dk)
-                }`, dk)}
+                    : 'bg-white text-text-secondary border-border hover:border-brand-purple'
+                }`}
                 disabled={isLoading}
               >
                 {MODE_LABELS[m]}
@@ -146,7 +145,7 @@ export function SectionH_CorpusInspector({ surface = 'light' }: { surface?: Surf
         )}
 
         {duration !== null && results.length > 0 && (
-          <div className={themed('text-[10px] text-text-muted uppercase tracking-wider', dk)}>
+          <div className="text-[10px] text-text-muted uppercase tracking-wider">
             {results.length} results · {duration}ms · mode: {mode}
           </div>
         )}
@@ -157,33 +156,33 @@ export function SectionH_CorpusInspector({ surface = 'light' }: { surface?: Surf
             return (
               <div
                 key={r.chunk_id}
-                className={themed('border border-border bg-bg-row hover:border-brand-purple', dk)}
+                className="border border-border bg-bg-row hover:border-brand-purple"
               >
                 <div className="px-3 py-2 flex items-center gap-2 text-xs">
                   <span className="px-2 py-0.5 bg-brand-purple text-white text-[9px] uppercase tracking-wider">
                     {r.doc_type}
                   </span>
-                  <span className={themed('font-mono text-text-primary', dk)}>
+                  <span className="font-mono text-text-primary">
                     {r.citation_key}
                   </span>
-                  <span className={themed('text-text-muted', dk)}>·</span>
-                  <span className={themed('text-[10px] text-text-muted', dk)}>
+                  <span className="text-text-muted">·</span>
+                  <span className="text-[10px] text-text-muted">
                     {r.source_domain}
                   </span>
                   <div className="flex-1" />
-                  <span className={themed('text-[10px] font-mono text-text-muted', dk)}>
+                  <span className="text-[10px] font-mono text-text-muted">
                     rerank: {formatScore(r.rerank_score)} · rrf: {formatScore(r.fusion_score)}
                   </span>
                 </div>
                 <div className="px-3 pb-2">
-                  <div className={themed('text-xs text-text-primary font-medium mb-1', dk)}>
+                  <div className="text-xs text-text-primary font-medium mb-1">
                     {r.title}
                   </div>
-                  <div className={themed('text-[10px] text-text-muted font-mono mb-2', dk)}>
+                  <div className="text-[10px] text-text-muted font-mono mb-2">
                     {r.structural_path}
                     {r.pinpoint ? ` · ${r.pinpoint}` : ''}
                   </div>
-                  <div className={themed('text-xs text-text-secondary leading-relaxed', dk)}>
+                  <div className="text-xs text-text-secondary leading-relaxed">
                     {isExpanded ? r.text : r.text.slice(0, 300) + (r.text.length > 300 ? '…' : '')}
                   </div>
                   <div className="mt-2 flex items-center gap-3">
@@ -200,7 +199,7 @@ export function SectionH_CorpusInspector({ surface = 'light' }: { surface?: Surf
                       href={r.canonical_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={themed('text-[10px] text-text-muted hover:text-brand-purple', dk)}
+                      className="text-[10px] text-text-muted hover:text-brand-purple"
                     >
                       source ↗
                     </a>
@@ -212,7 +211,7 @@ export function SectionH_CorpusInspector({ surface = 'light' }: { surface?: Surf
         </div>
 
         {!isLoading && results.length === 0 && query && !error && duration !== null && (
-          <div className={themed('text-xs text-text-muted text-center py-4', dk)}>
+          <div className="text-xs text-text-muted text-center py-4">
             No results for &quot;{query}&quot;.
           </div>
         )}

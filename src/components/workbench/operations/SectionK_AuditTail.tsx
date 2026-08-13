@@ -17,7 +17,7 @@
 
 import { Fragment, useEffect, useState } from 'react';
 import InspectionDrawer from './ai/InspectionDrawer';
-import { themed, type Surface } from '@/lib/ds';
+
 
 interface AuditRow {
   id: string;
@@ -71,8 +71,7 @@ function readUsageId(payload: unknown): string | null {
   return typeof id === 'string' ? id : null;
 }
 
-export default function SectionK_AuditTail({ surface = 'light' }: { surface?: Surface } = {}) {
-  const dk = surface === 'dark';
+export default function SectionK_AuditTail({ }: { } = {}) {
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
@@ -181,7 +180,7 @@ export default function SectionK_AuditTail({ surface = 'light' }: { surface?: Su
       );
     }
     if (aiUsageLoading.has(usageId)) {
-      return <div className={themed('text-text-muted text-xs font-mono', dk)}>loading AI inference details…</div>;
+      return <div className="text-text-muted text-xs font-mono">loading AI inference details…</div>;
     }
     const err = aiUsageError.get(usageId);
     if (err) {
@@ -201,7 +200,7 @@ export default function SectionK_AuditTail({ surface = 'light' }: { surface?: Su
 
     if (!hasFullPrompts) {
       return (
-        <InspectionDrawer surface={surface}
+        <InspectionDrawer
           data={null}
           legacyReason="(prompts not captured for this row — predates PR-Ops-3.6)"
         />
@@ -209,7 +208,7 @@ export default function SectionK_AuditTail({ surface = 'light' }: { surface?: Su
     }
 
     return (
-      <InspectionDrawer surface={surface}
+      <InspectionDrawer
         data={{
           model: usage.model,
           temperature: 0,
@@ -227,17 +226,17 @@ export default function SectionK_AuditTail({ surface = 'light' }: { surface?: Su
   };
 
   return (
-    <section className={themed('bg-white rounded border border-border shadow-sm p-5', dk)}>
+    <section className="bg-white rounded border border-border shadow-sm p-5">
       <div className="flex items-center justify-between mb-3">
-        <h2 className={themed('font-mono text-sm font-bold tracking-wide text-text-primary', dk)}>
+        <h2 className="font-mono text-sm font-bold tracking-wide text-text-primary">
           K · AUDIT TAIL
         </h2>
         <div className="flex items-center gap-3 text-xs font-mono">
-          <span className={themed('text-text-muted', dk)}>refresh 10s</span>
+          <span className="text-text-muted">refresh 10s</span>
           <button
             onClick={verifyChain}
             disabled={verifying}
-            className={themed('px-2 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50', dk)}
+            className="px-2 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
           >
             {verifying ? 'verifying…' : 'verify chain'}
           </button>
@@ -259,12 +258,12 @@ export default function SectionK_AuditTail({ surface = 'light' }: { surface?: Su
       )}
 
       {loading ? (
-        <div className={themed('text-xs font-mono text-text-muted', dk)}>loading…</div>
+        <div className="text-xs font-mono text-text-muted">loading…</div>
       ) : rows.length > 0 ? (
         <div className="text-xs font-mono max-h-96 overflow-y-auto">
           <table className="w-full">
-            <thead className={themed('sticky top-0 bg-white', dk)}>
-              <tr className={themed('text-text-faint uppercase tracking-wide', dk)}>
+            <thead className="sticky top-0 bg-white">
+              <tr className="text-text-faint uppercase tracking-wide">
                 <th className="text-left pb-1 w-20">when</th>
                 <th className="text-left pb-1">action</th>
                 <th className="text-left pb-1 w-24">target</th>
@@ -277,34 +276,34 @@ export default function SectionK_AuditTail({ surface = 'light' }: { surface?: Su
                 const isExpanded = expandedRows.has(r.id);
                 return (
                   <Fragment key={r.id}>
-                    <tr className={themed('border-t border-border-light', dk)}>
-                      <td className={themed('py-1 text-text-muted', dk)}>{relTime(r.created_at)}</td>
+                    <tr className="border-t border-border-light">
+                      <td className="py-1 text-text-muted">{relTime(r.created_at)}</td>
                       <td
-                        className={themed('py-1 text-text-primary cursor-pointer hover:bg-bg-row', dk)}
+                        className="py-1 text-text-primary cursor-pointer hover:bg-bg-row"
                         onClick={() => toggleRow(r.id, r.action_type, r.payload)}
                         title="Click to inspect this audit row"
                       >
                         <div className="font-bold flex items-center gap-1">
-                          <span className={themed('text-text-faint', dk)}>{isExpanded ? '▾' : '▸'}</span>
+                          <span className="text-text-faint">{isExpanded ? '▾' : '▸'}</span>
                           <span>{r.action_type}</span>
                         </div>
-                        <div className={themed('text-text-muted truncate max-w-md', dk)}>
+                        <div className="text-text-muted truncate max-w-md">
                           {r.action_description}
                         </div>
                       </td>
-                      <td className={themed('py-1 text-text-muted truncate', dk)}>
+                      <td className="py-1 text-text-muted truncate">
                         {r.target_table ?? '—'}
                       </td>
-                      <td className={themed('py-1 text-text-faint', dk)}>{shortHash(r.prev_hash)}</td>
-                      <td className={themed('py-1 text-text-faint', dk)}>{shortHash(r.content_hash)}</td>
+                      <td className="py-1 text-text-faint">{shortHash(r.prev_hash)}</td>
+                      <td className="py-1 text-text-faint">{shortHash(r.content_hash)}</td>
                     </tr>
                     {isExpanded && (
                       <tr>
-                        <td colSpan={5} className={themed('bg-bg-row px-4 py-3 border-t border-border-light', dk)}>
+                        <td colSpan={5} className="bg-bg-row px-4 py-3 border-t border-border-light">
                           <div className="text-xs font-mono space-y-3">
                             <div>
-                              <div className={themed('text-text-faint uppercase tracking-wide mb-1', dk)}>payload</div>
-                              <pre className={themed('whitespace-pre-wrap p-2 bg-white border border-border-light rounded max-h-64 overflow-y-auto text-xs', dk)}>
+                              <div className="text-text-faint uppercase tracking-wide mb-1">payload</div>
+                              <pre className="whitespace-pre-wrap p-2 bg-white border border-border-light rounded max-h-64 overflow-y-auto text-xs">
                                 {JSON.stringify(r.payload, null, 2)}
                               </pre>
                             </div>
@@ -320,7 +319,7 @@ export default function SectionK_AuditTail({ surface = 'light' }: { surface?: Su
           </table>
         </div>
       ) : (
-        <div className={themed('text-xs font-mono text-text-muted', dk)}>no operations audit entries yet</div>
+        <div className="text-xs font-mono text-text-muted">no operations audit entries yet</div>
       )}
     </section>
   );

@@ -8,7 +8,7 @@ import { AVAILABLE_STRATEGIES } from '@/lib/convergence/filter-types';
 // classes with zero DARKEN_MAP-eligible tokens (themed() would be an
 // identity call), and both live mounts (/trading + the app trade tab)
 // pass. themed() stays on every other element.
-import { SECTION_HEADER, SEGMENT, themed, toggleChip, type Surface } from '@/lib/ds';
+import { SECTION_HEADER, SEGMENT, toggleChip } from '@/lib/ds';
 
 // TRADING-PR-1/3: the scan filter form. All 18 ScannerFilters fields + universe are
 // rendered EXPANDED inline (TRADING-PR-3 removed the openPopover collapsed pills —
@@ -45,15 +45,13 @@ function GroupLabel({ children }: { children: React.ReactNode }) {
   // TRADE-INK: group eyebrows → white/60 (the brand-purple ink was illegible on dark).
   return <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1.5">{children}</div>;
 }
-function FieldLabel({ dk = false, children }: { dk?: boolean; children: React.ReactNode }) {
+function FieldLabel({ children }: { children: React.ReactNode }) {
   // HOME-STYLE-PR-1: field sub-labels → readable secondary text, weight 500.
   return <span className="text-[11px] text-text-secondary font-medium w-[88px] shrink-0">{children}</span>;
 }
 
 export default function ScanFilterForm({
-  scannerUniverse, setScannerUniverse, scannerFilters, onFiltersChange, scanTriggerRef, ttConnected, showHeader = true, surface = 'light',
-}: Props & { surface?: Surface }) {
-  const dk = surface === 'dark';
+  scannerUniverse, setScannerUniverse, scannerFilters, onFiltersChange, scanTriggerRef, ttConnected, showHeader = true, }: Props & { }) {
   const f = scannerFilters;
   const runScan = () => { if (scanTriggerRef.current) scanTriggerRef.current(); };
 
@@ -110,57 +108,57 @@ export default function ScanFilterForm({
           <GroupLabel>DTE</GroupLabel>
           <div className="flex items-center gap-1">
             <input type="number" min={0} max={365} value={f.risk.minDte} onChange={e => onFiltersChange({ ...f, risk: { ...f.risk, minDte: +e.target.value } })}
-              className="w-14 rounded border border-border bg-white px-2 py-1 text-xs font-mono text-text-primary text-center focus:outline-none focus:border-brand-purple-pop focus:ring-2 focus:ring-brand-purple-pop/20" />
-            <span className={themed('text-gray-400 text-xs', dk)}>—</span>
+              className="w-14 rounded border border-border bg-white px-2 py-1 text-xs font-mono text-text-primary text-center focus:outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20" />
+            <span className="text-gray-400 text-xs">—</span>
             <input type="number" min={0} max={365} value={f.risk.maxDte} onChange={e => onFiltersChange({ ...f, risk: { ...f.risk, maxDte: +e.target.value } })}
-              className="w-14 rounded border border-border bg-white px-2 py-1 text-xs font-mono text-text-primary text-center focus:outline-none focus:border-brand-purple-pop focus:ring-2 focus:ring-brand-purple-pop/20" />
+              className="w-14 rounded border border-border bg-white px-2 py-1 text-xs font-mono text-text-primary text-center focus:outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20" />
           </div>
         </div>
         <div className="flex flex-col gap-1">
           <GroupLabel>Width $</GroupLabel>
           <div className="flex items-center gap-1">
             <input type="number" min={0} max={100} value={f.risk.minSpreadWidth} onChange={e => onFiltersChange({ ...f, risk: { ...f.risk, minSpreadWidth: +e.target.value } })}
-              className="w-14 rounded border border-border bg-white px-2 py-1 text-xs font-mono text-text-primary text-center focus:outline-none focus:border-brand-purple-pop focus:ring-2 focus:ring-brand-purple-pop/20" />
-            <span className={themed('text-gray-400 text-xs', dk)}>—</span>
+              className="w-14 rounded border border-border bg-white px-2 py-1 text-xs font-mono text-text-primary text-center focus:outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20" />
+            <span className="text-gray-400 text-xs">—</span>
             <input type="number" min={0} max={100} value={f.risk.maxSpreadWidth} onChange={e => onFiltersChange({ ...f, risk: { ...f.risk, maxSpreadWidth: +e.target.value } })}
-              className="w-14 rounded border border-border bg-white px-2 py-1 text-xs font-mono text-text-primary text-center focus:outline-none focus:border-brand-purple-pop focus:ring-2 focus:ring-brand-purple-pop/20" />
+              className="w-14 rounded border border-border bg-white px-2 py-1 text-xs font-mono text-text-primary text-center focus:outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20" />
           </div>
         </div>
       </div>
 
       {/* Liquidity gates + Edge metrics — expanded inline (was popovers) */}
-      <div className={themed('grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-4 border-t border-gray-100 pt-3', dk)}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-4 border-t border-gray-100 pt-3">
         {/* Liquidity gates (4) */}
         <div>
           <GroupLabel>Liquidity gates</GroupLabel>
           <div className="space-y-2">
-            <div className="flex items-center gap-2"><FieldLabel>Min OI</FieldLabel><input type="range" min={0} max={5000} step={50} value={f.liquidity.minOpenInterest} onChange={e => onFiltersChange({ ...f, liquidity: { ...f.liquidity, minOpenInterest: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple-pop cursor-pointer" /><span className={themed('text-[11px] font-mono font-semibold text-gray-800 w-[54px] text-right', dk)}>{f.liquidity.minOpenInterest}</span></div>
-            <div className="flex items-center gap-2"><FieldLabel>Max Spread</FieldLabel><input type="range" min={1} max={50} value={f.liquidity.maxBidAskSpreadPct} onChange={e => onFiltersChange({ ...f, liquidity: { ...f.liquidity, maxBidAskSpreadPct: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple-pop cursor-pointer" /><span className={themed('text-[11px] font-mono font-semibold text-gray-800 w-[54px] text-right', dk)}>{f.liquidity.maxBidAskSpreadPct}%</span></div>
-            <div className="flex items-center gap-2"><FieldLabel>Min Volume</FieldLabel><input type="range" min={0} max={10000000} step={100000} value={f.liquidity.minUnderlyingVolume} onChange={e => onFiltersChange({ ...f, liquidity: { ...f.liquidity, minUnderlyingVolume: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple-pop cursor-pointer" /><span className={themed('text-[11px] font-mono font-semibold text-gray-800 w-[54px] text-right', dk)}>{f.liquidity.minUnderlyingVolume >= 1e6 ? `${(f.liquidity.minUnderlyingVolume / 1e6).toFixed(1)}M` : `${(f.liquidity.minUnderlyingVolume / 1e3).toFixed(0)}K`}</span></div>
-            <div className="flex items-center gap-2"><FieldLabel>Min Rating</FieldLabel><div className="flex gap-1 flex-1">{[1,2,3,4,5].map(n => (<button key={n} type="button" onClick={() => onFiltersChange({ ...f, liquidity: { ...f.liquidity, minLiquidityRating: n } })} className={themed(`text-base ${n <= f.liquidity.minLiquidityRating ? 'text-brand-gold' : 'text-gray-300'}`, dk)}>*</button>))}</div></div>
+            <div className="flex items-center gap-2"><FieldLabel>Min OI</FieldLabel><input type="range" min={0} max={5000} step={50} value={f.liquidity.minOpenInterest} onChange={e => onFiltersChange({ ...f, liquidity: { ...f.liquidity, minOpenInterest: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[54px] text-right">{f.liquidity.minOpenInterest}</span></div>
+            <div className="flex items-center gap-2"><FieldLabel>Max Spread</FieldLabel><input type="range" min={1} max={50} value={f.liquidity.maxBidAskSpreadPct} onChange={e => onFiltersChange({ ...f, liquidity: { ...f.liquidity, maxBidAskSpreadPct: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[54px] text-right">{f.liquidity.maxBidAskSpreadPct}%</span></div>
+            <div className="flex items-center gap-2"><FieldLabel>Min Volume</FieldLabel><input type="range" min={0} max={10000000} step={100000} value={f.liquidity.minUnderlyingVolume} onChange={e => onFiltersChange({ ...f, liquidity: { ...f.liquidity, minUnderlyingVolume: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[54px] text-right">{f.liquidity.minUnderlyingVolume >= 1e6 ? `${(f.liquidity.minUnderlyingVolume / 1e6).toFixed(1)}M` : `${(f.liquidity.minUnderlyingVolume / 1e3).toFixed(0)}K`}</span></div>
+            <div className="flex items-center gap-2"><FieldLabel>Min Rating</FieldLabel><div className="flex gap-1 flex-1">{[1,2,3,4,5].map(n => (<button key={n} type="button" onClick={() => onFiltersChange({ ...f, liquidity: { ...f.liquidity, minLiquidityRating: n } })} className={`text-base ${n <= f.liquidity.minLiquidityRating ? 'text-brand-gold' : 'text-gray-300'}`}>*</button>))}</div></div>
           </div>
         </div>
         {/* Edge metrics (6) */}
         <div>
           <GroupLabel>Edge metrics</GroupLabel>
           <div className="space-y-2">
-            <div className="flex items-center gap-2"><FieldLabel>Min PoP</FieldLabel><input type="range" min={0} max={100} value={f.edge.minPop} onChange={e => onFiltersChange({ ...f, edge: { ...f.edge, minPop: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple-pop cursor-pointer" /><span className={themed('text-[11px] font-mono font-semibold text-gray-800 w-[54px] text-right', dk)}>{f.edge.minPop}%</span></div>
-            <div className="flex items-center gap-2"><FieldLabel>Min EV</FieldLabel><input type="range" min={-500} max={1000} step={10} value={f.edge.minEv} onChange={e => onFiltersChange({ ...f, edge: { ...f.edge, minEv: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple-pop cursor-pointer" /><span className={themed('text-[11px] font-mono font-semibold text-gray-800 w-[54px] text-right', dk)}>${f.edge.minEv}</span></div>
-            <div className="flex items-center gap-2"><FieldLabel>Min EV/Risk</FieldLabel><input type="range" min={-200} max={200} step={5} value={Math.round(f.edge.minEvPerRisk * 100)} onChange={e => onFiltersChange({ ...f, edge: { ...f.edge, minEvPerRisk: +e.target.value / 100 } })} className="flex-1 h-1.5 accent-brand-purple-pop cursor-pointer" /><span className={themed('text-[11px] font-mono font-semibold text-gray-800 w-[54px] text-right', dk)}>{f.edge.minEvPerRisk.toFixed(2)}</span></div>
+            <div className="flex items-center gap-2"><FieldLabel>Min PoP</FieldLabel><input type="range" min={0} max={100} value={f.edge.minPop} onChange={e => onFiltersChange({ ...f, edge: { ...f.edge, minPop: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[54px] text-right">{f.edge.minPop}%</span></div>
+            <div className="flex items-center gap-2"><FieldLabel>Min EV</FieldLabel><input type="range" min={-500} max={1000} step={10} value={f.edge.minEv} onChange={e => onFiltersChange({ ...f, edge: { ...f.edge, minEv: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[54px] text-right">${f.edge.minEv}</span></div>
+            <div className="flex items-center gap-2"><FieldLabel>Min EV/Risk</FieldLabel><input type="range" min={-200} max={200} step={5} value={Math.round(f.edge.minEvPerRisk * 100)} onChange={e => onFiltersChange({ ...f, edge: { ...f.edge, minEvPerRisk: +e.target.value / 100 } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[54px] text-right">{f.edge.minEvPerRisk.toFixed(2)}</span></div>
             <div className="flex items-center gap-2"><FieldLabel>Vol Edge</FieldLabel><div className={SEGMENT.wrap}>{(['IV_ABOVE_HV', 'IV_BELOW_HV', 'ANY'] as const).map(v => (<button key={v} type="button" onClick={() => onFiltersChange({ ...f, edge: { ...f.edge, volEdge: v } })} className={SEGMENT.item(f.edge.volEdge === v)}>{v === 'IV_ABOVE_HV' ? 'IV>HV' : v === 'IV_BELOW_HV' ? 'IV<HV' : 'Any'}</button>))}</div></div>
-            <div className="flex items-center gap-2"><FieldLabel>Min IV Rank</FieldLabel><input type="range" min={0} max={100} value={f.edge.minIvRank} onChange={e => onFiltersChange({ ...f, edge: { ...f.edge, minIvRank: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple-pop cursor-pointer" /><span className={themed('text-[11px] font-mono font-semibold text-gray-800 w-[54px] text-right', dk)}>{f.edge.minIvRank}%</span></div>
-            <div className="flex items-center gap-2"><FieldLabel>Sentiment</FieldLabel><input type="range" min={-100} max={100} value={f.edge.minSentiment} onChange={e => onFiltersChange({ ...f, edge: { ...f.edge, minSentiment: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple-pop cursor-pointer" /><span className={themed('text-[11px] font-mono font-semibold text-gray-800 w-[54px] text-right', dk)}>{(f.edge.minSentiment / 100).toFixed(1)}</span></div>
+            <div className="flex items-center gap-2"><FieldLabel>Min IV Rank</FieldLabel><input type="range" min={0} max={100} value={f.edge.minIvRank} onChange={e => onFiltersChange({ ...f, edge: { ...f.edge, minIvRank: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[54px] text-right">{f.edge.minIvRank}%</span></div>
+            <div className="flex items-center gap-2"><FieldLabel>Sentiment</FieldLabel><input type="range" min={-100} max={100} value={f.edge.minSentiment} onChange={e => onFiltersChange({ ...f, edge: { ...f.edge, minSentiment: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[54px] text-right">{(f.edge.minSentiment / 100).toFixed(1)}</span></div>
           </div>
         </div>
       </div>
 
       {/* Strategies (16) — expanded inline (was popover) */}
-      <div className={themed('border-t border-gray-100 pt-3', dk)}>
+      <div className="border-t border-gray-100 pt-3">
         <div className="flex items-center justify-between mb-1.5">
           <GroupLabel>Strategies {f.risk.strategies.length > 0 ? `(${f.risk.strategies.length}/16)` : '(all)'}</GroupLabel>
           {f.risk.strategies.length > 0 && (
             <button type="button" onClick={() => onFiltersChange({ ...f, risk: { ...f.risk, strategies: [] } })}
-              className="text-[11px] text-brand-purple-pop hover:underline">Reset all</button>
+              className="text-[11px] text-brand-purple hover:underline">Reset all</button>
           )}
         </div>
         <div className="flex flex-wrap gap-1">
@@ -181,7 +179,7 @@ export default function ScanFilterForm({
       </div>
 
       {/* Scan CTA */}
-      <div className={themed('flex justify-end border-t border-gray-100 pt-3', dk)}>
+      <div className="flex justify-end border-t border-gray-100 pt-3">
         <button type="button" onClick={runScan}
           className="px-8 py-2 bg-brand-purple text-white font-bold text-sm rounded transition-colors hover:bg-brand-purple-hover whitespace-nowrap">
           Scan

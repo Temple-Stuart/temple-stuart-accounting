@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { themed, type Surface } from '@/lib/ds';
+
 
 interface YearEndStatus {
   isClosed: boolean;
@@ -15,8 +15,7 @@ interface CloseBooksTabProps {
   selectedYear: number;
 }
 
-export default function CloseBooksTab({ entityId, selectedYear, surface = 'light' }: CloseBooksTabProps & { surface?: Surface }) {
-  const dk = surface === 'dark';
+export default function CloseBooksTab({ entityId, selectedYear }: CloseBooksTabProps & { }) {
   const [status, setStatus] = useState<YearEndStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -96,11 +95,11 @@ export default function CloseBooksTab({ entityId, selectedYear, surface = 'light
   return (
     <div className="p-4 space-y-6">
       <div className="flex items-center justify-between">
-        <span className={themed('text-terminal-sm text-text-muted font-mono', dk)}>GAAP year-end closing entries for {selectedYear}</span>
+        <span className="text-terminal-sm text-text-muted font-mono">GAAP year-end closing entries for {selectedYear}</span>
         <button
           onClick={loadStatus}
           disabled={checking}
-          className={themed('px-3 py-1 text-xs border border-border text-text-secondary rounded-lg hover:bg-bg-row transition-colors disabled:opacity-50', dk)}
+          className="px-3 py-1 text-xs border border-border text-text-secondary rounded-lg hover:bg-bg-row transition-colors disabled:opacity-50"
         >
           Refresh
         </button>
@@ -126,7 +125,7 @@ export default function CloseBooksTab({ entityId, selectedYear, surface = 'light
           </div>
         </div>
       ) : (
-        <div className={themed('bg-white border rounded p-6', dk)}>
+        <div className="bg-white border rounded p-6">
           <h3 className="text-terminal-lg font-semibold mb-4">Close Year {selectedYear}</h3>
 
           <div className="space-y-4">
@@ -144,11 +143,11 @@ export default function CloseBooksTab({ entityId, selectedYear, surface = 'light
             <button
               onClick={handleYearEndClose}
               disabled={loading || !entityId}
-              className={themed(`w-full py-3 rounded text-sm font-medium ${
+              className={`w-full py-3 rounded text-sm font-medium ${
                 !loading && entityId
                   ? 'bg-red-600 text-white hover:bg-red-700'
-                  : themed('bg-border text-text-muted cursor-not-allowed', dk)
-              }`, dk)}
+                  : 'bg-border text-text-muted cursor-not-allowed'
+              }`}
             >
               {loading ? 'Closing Year...' : `Close Books for ${selectedYear}`}
             </button>

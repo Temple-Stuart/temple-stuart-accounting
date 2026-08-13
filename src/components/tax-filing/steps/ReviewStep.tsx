@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { StepProps } from '../TaxFilingWizard';
-import { themed, type Surface } from '@/lib/ds';
+
 
 // ═══════════════════════════════════════════════════════════════════
 // Step 5 — Review (Form 1040 complete return)
@@ -121,7 +121,7 @@ const PDF_FORMS: Array<{ slug: string; label: string; description: string }> = [
 
 // ─── Source badge ──────────────────────────────────────────────────
 
-function SourceBadge({ source, dk = false }: { source: string; dk?: boolean }) {
+function SourceBadge({ source }: { source: string; }) {
   const lower = source.toLowerCase();
   const status: 'verified' | 'warning' | 'neutral' =
     lower.includes('w-2') ||
@@ -139,7 +139,7 @@ function SourceBadge({ source, dk = false }: { source: string; dk?: boolean }) {
   }[status];
   return (
     <span
-      className={themed(`inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium border rounded ${styles}`, dk)}
+      className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium border rounded ${styles}`}
     >
       {source}
     </span>
@@ -148,8 +148,7 @@ function SourceBadge({ source, dk = false }: { source: string; dk?: boolean }) {
 
 // ─── Line row ──────────────────────────────────────────────────────
 
-function LineRow({ dk = false,
-  num,
+function LineRow({ num,
   label,
   amount,
   source,
@@ -161,8 +160,7 @@ function LineRow({ dk = false,
   expanded,
   onToggle,
   children,
-}: { dk?: boolean;
-  num: string;
+}: { num: string;
   label: React.ReactNode;
   amount: number | null;
   source?: string;
@@ -176,46 +174,46 @@ function LineRow({ dk = false,
   children?: React.ReactNode;
 }) {
   const labelClass = bold
-    ? themed('font-semibold text-gray-900', dk)
+    ? 'font-semibold text-gray-900'
     : muted
-      ? themed('text-gray-500', dk)
-      : themed('text-gray-800', dk);
+      ? 'text-gray-500'
+      : 'text-gray-800';
   const amountClass = large
-    ? themed('font-mono text-lg font-bold text-gray-900', dk)
+    ? 'font-mono text-lg font-bold text-gray-900'
     : bold
-      ? themed('font-mono text-sm font-semibold text-gray-900', dk)
+      ? 'font-mono text-sm font-semibold text-gray-900'
       : muted
-        ? themed('font-mono text-sm text-gray-500', dk)
-        : themed('font-mono text-sm text-gray-900', dk);
+        ? 'font-mono text-sm text-gray-500'
+        : 'font-mono text-sm text-gray-900';
 
   return (
     <div>
       <div
-        className={themed(`flex items-start py-1.5 gap-3 ${
-          expandable ? themed('cursor-pointer hover:bg-gray-50', dk) : ''
-        }`, dk)}
+        className={`flex items-start py-1.5 gap-3 ${
+          expandable ? 'cursor-pointer hover:bg-gray-50' : ''
+        }`}
         onClick={expandable ? onToggle : undefined}
       >
         {/* chevron + line number */}
         <div className="flex items-center gap-1 shrink-0 w-16">
           {expandable && (
-            <span className={themed('text-[10px] text-gray-400 w-2', dk)}>
+            <span className="text-[10px] text-gray-400 w-2">
               {expanded ? '▼' : '▶'}
             </span>
           )}
-          <span className={themed('font-mono text-[11px] text-gray-400', dk)}>{num}</span>
+          <span className="font-mono text-[11px] text-gray-400">{num}</span>
         </div>
         {/* label + source */}
         <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
           <span className={`text-sm ${labelClass}`}>{label}</span>
-          {source && <SourceBadge dk={dk} source={source} />}
+          {source && <SourceBadge source={source} />}
         </div>
         {/* amount */}
         <div className="shrink-0 text-right">
           <div className={amountClass}>{fmtMoney(amount)}</div>
         </div>
       </div>
-      {note && <div className={themed('pl-[84px] text-[11px] text-gray-500', dk)}>{note}</div>}
+      {note && <div className="pl-[84px] text-[11px] text-gray-500">{note}</div>}
       {expanded && children && (
         <div className="pl-[84px] pr-2 pb-2">{children}</div>
       )}
@@ -223,9 +221,9 @@ function LineRow({ dk = false,
   );
 }
 
-function SectionHeader({ dk = false, title }: { dk?: boolean; title: string }) {
+function SectionHeader({ title }: { title: string }) {
   return (
-    <div className={themed('text-[10px] font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 pb-1 pt-2', dk)}>
+    <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 pb-1 pt-2">
       {title}
     </div>
   );
@@ -233,12 +231,10 @@ function SectionHeader({ dk = false, title }: { dk?: boolean; title: string }) {
 
 // ─── Component ─────────────────────────────────────────────────────
 
-export default function ReviewStep({ surface = 'light',
-  taxYear,
+export default function ReviewStep({ taxYear,
   onComplete,
   lifeEvents,
-}: StepProps & { surface?: Surface }) {
-  const dk = surface === 'dark';
+}: StepProps & { }) {
   const [calc, setCalc] = useState<CalculateResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -281,7 +277,7 @@ export default function ReviewStep({ surface = 'light',
         {[...Array(5)].map((_, i) => (
           <div
             key={i}
-            className={themed('h-16 bg-gray-50 border border-gray-200 rounded animate-pulse', dk)}
+            className="h-16 bg-gray-50 border border-gray-200 rounded animate-pulse"
           />
         ))}
       </div>
@@ -305,7 +301,7 @@ export default function ReviewStep({ surface = 'light',
 
   if (!calc?.form_1040_full) {
     return (
-      <div className={themed('px-4 py-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700', dk)}>
+      <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700">
         No tax return data for {taxYear}.
       </div>
     );
@@ -375,10 +371,10 @@ export default function ReviewStep({ surface = 'light',
       {/* ═══ Header ═══ */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className={themed('text-xl font-semibold text-gray-900', dk)}>
+          <h2 className="text-xl font-semibold text-gray-900">
             Review your {taxYear} return
           </h2>
-          <p className={themed('text-sm text-gray-500 mt-0.5', dk)}>
+          <p className="text-sm text-gray-500 mt-0.5">
             Filing status:{' '}
             <span className="capitalize">
               {f.filingStatus.replace(/_/g, ' ')}
@@ -424,14 +420,14 @@ export default function ReviewStep({ surface = 'light',
       )}
 
       {/* ═══ Form 1040 ═══ */}
-      <div className={themed('border border-gray-200 rounded-lg bg-white overflow-hidden', dk)}>
-        <div className={themed('px-4 py-3 bg-gray-50 border-b border-gray-200', dk)}>
+      <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <div className={themed('text-sm font-semibold text-gray-900', dk)}>
+              <div className="text-sm font-semibold text-gray-900">
                 Form 1040 — U.S. Individual Income Tax Return
               </div>
-              <div className={themed('text-xs text-gray-500', dk)}>
+              <div className="text-xs text-gray-500">
                 Tax year {taxYear} · line-by-line
               </div>
             </div>
@@ -439,8 +435,8 @@ export default function ReviewStep({ surface = 'light',
         </div>
         <div className="px-4 py-3 space-y-0">
           {/* ── INCOME ── */}
-          <SectionHeader dk={dk} title="Income" />
-          <LineRow dk={dk}
+          <SectionHeader title="Income" />
+          <LineRow
             num="1"
             label="Wages, salaries, tips (W-2 Box 1)"
             amount={f.line1}
@@ -448,7 +444,7 @@ export default function ReviewStep({ surface = 'light',
             note={f.line1Source && `Source: ${f.line1Source}`}
           />
           {f.line5a !== 0 && (
-            <LineRow dk={dk}
+            <LineRow
               num="5a"
               label="Pensions / annuities — gross"
               amount={f.line5a}
@@ -456,13 +452,13 @@ export default function ReviewStep({ surface = 'light',
               muted
             />
           )}
-          <LineRow dk={dk}
+          <LineRow
             num="5b"
             label="Pensions / annuities — taxable"
             amount={f.line5b}
             source={f.line5b > 0 ? '1099-R' : undefined}
           />
-          <LineRow dk={dk}
+          <LineRow
             num="7"
             label="Capital gain or (loss)"
             amount={f.line7}
@@ -476,7 +472,7 @@ export default function ReviewStep({ surface = 'light',
                 : undefined
             }
           >
-            <div className={themed('text-xs text-gray-600 border-l-2 border-blue-100 pl-3 space-y-0.5 py-1', dk)}>
+            <div className="text-xs text-gray-600 border-l-2 border-blue-100 pl-3 space-y-0.5 py-1">
               <div className="flex justify-between">
                 <span>Short-term (Schedule D Line 7)</span>
                 <span className="font-mono">{fmtMoney(f.line7_stcg)}</span>
@@ -493,7 +489,7 @@ export default function ReviewStep({ surface = 'light',
               )}
             </div>
           </LineRow>
-          <LineRow dk={dk}
+          <LineRow
             num="8"
             label="Other income (Schedule 1)"
             amount={f.line8}
@@ -507,7 +503,7 @@ export default function ReviewStep({ surface = 'light',
                 : undefined
             }
           >
-            <div className={themed('text-xs text-gray-600 border-l-2 border-blue-100 pl-3 space-y-0.5 py-1', dk)}>
+            <div className="text-xs text-gray-600 border-l-2 border-blue-100 pl-3 space-y-0.5 py-1">
               <div className="flex justify-between">
                 <span>Schedule C Line 1 — Gross receipts</span>
                 <span className="font-mono">{fmtMoney(f.scheduleC.line1)}</span>
@@ -522,8 +518,8 @@ export default function ReviewStep({ surface = 'light',
               </div>
             </div>
           </LineRow>
-          <div className={themed('pt-1 border-t border-gray-100 mt-1', dk)}>
-            <LineRow dk={dk}
+          <div className="pt-1 border-t border-gray-100 mt-1">
+            <LineRow
               num="9"
               label="Total income"
               amount={f.line9}
@@ -532,8 +528,8 @@ export default function ReviewStep({ surface = 'light',
           </div>
 
           {/* ── ADJUSTMENTS ── */}
-          <SectionHeader dk={dk} title="Adjustments to income" />
-          <LineRow dk={dk}
+          <SectionHeader title="Adjustments to income" />
+          <LineRow
             num="10"
             label="Adjustments from Schedule 1"
             amount={line10}
@@ -542,7 +538,7 @@ export default function ReviewStep({ surface = 'light',
             expanded={expanded.has('line10')}
             onToggle={() => toggle('line10')}
           >
-            <div className={themed('text-xs text-gray-600 border-l-2 border-blue-100 pl-3 space-y-0.5 py-1', dk)}>
+            <div className="text-xs text-gray-600 border-l-2 border-blue-100 pl-3 space-y-0.5 py-1">
               <div className="flex justify-between">
                 <span>Schedule 1 Line 15 — Deductible half of SE tax</span>
                 <span className="font-mono">{fmtMoney(f.seTaxDeduction)}</span>
@@ -554,14 +550,14 @@ export default function ReviewStep({ surface = 'light',
                 </span>
               </div>
               {f.studentLoanDeduction === 0 && lifeEvents.hasStudentLoan && (
-                <p className={themed('text-gray-500 italic pt-0.5', dk)}>
+                <p className="text-gray-500 italic pt-0.5">
                   Deduction may be $0 due to income phaseout or missing 1098-E.
                 </p>
               )}
             </div>
           </LineRow>
-          <div className={themed('pt-1 border-t-2 border-gray-200 mt-1 mb-2', dk)}>
-            <LineRow dk={dk}
+          <div className="pt-1 border-t-2 border-gray-200 mt-1 mb-2">
+            <LineRow
               num="11"
               label="Adjusted Gross Income (AGI)"
               amount={f.line11}
@@ -571,23 +567,23 @@ export default function ReviewStep({ surface = 'light',
           </div>
 
           {/* ── DEDUCTIONS ── */}
-          <SectionHeader dk={dk} title="Deductions" />
-          <LineRow dk={dk}
+          <SectionHeader title="Deductions" />
+          <LineRow
             num="12"
             label={`Standard deduction (${f.filingStatus.replace(/_/g, ' ')})`}
             amount={f.standardDeduction}
             source="Standard"
           />
-          <LineRow dk={dk}
+          <LineRow
             num="13"
             label="Qualified business income deduction"
             amount={qbiDeduction}
             muted
             note="QBI deduction (§199A) is not yet supported — showing $0."
           />
-          <LineRow dk={dk} num="14" label="Total deductions" amount={line14} />
-          <div className={themed('pt-1 border-t-2 border-gray-200 mt-1 mb-2', dk)}>
-            <LineRow dk={dk}
+          <LineRow num="14" label="Total deductions" amount={line14} />
+          <div className="pt-1 border-t-2 border-gray-200 mt-1 mb-2">
+            <LineRow
               num="15"
               label="Taxable income"
               amount={f.line15}
@@ -597,8 +593,8 @@ export default function ReviewStep({ surface = 'light',
           </div>
 
           {/* ── TAX ── */}
-          <SectionHeader dk={dk} title="Tax computation" />
-          <LineRow dk={dk}
+          <SectionHeader title="Tax computation" />
+          <LineRow
             num="16"
             label="Tax (from brackets)"
             amount={grossTaxLine16}
@@ -612,19 +608,19 @@ export default function ReviewStep({ surface = 'light',
                 : undefined
             }
           >
-            <div className={themed('text-xs text-gray-700 border-l-2 border-blue-100 pl-3 py-1 space-y-2', dk)}>
+            <div className="text-xs text-gray-700 border-l-2 border-blue-100 pl-3 py-1 space-y-2">
               <div>
-                <div className={themed('font-semibold text-gray-700 mb-1', dk)}>
+                <div className="font-semibold text-gray-700 mb-1">
                   Ordinary income brackets
                 </div>
                 {f.bracketBreakdown.length === 0 ? (
-                  <p className={themed('text-gray-500 italic', dk)}>
+                  <p className="text-gray-500 italic">
                     No taxable ordinary income.
                   </p>
                 ) : (
                   <table className="w-full text-[11px]">
                     <thead>
-                      <tr className={themed('text-gray-500', dk)}>
+                      <tr className="text-gray-500">
                         <th className="text-left font-medium pb-1">Bracket</th>
                         <th className="text-right font-medium pb-1">Rate</th>
                         <th className="text-right font-medium pb-1">
@@ -648,7 +644,7 @@ export default function ReviewStep({ surface = 'light',
                           </td>
                         </tr>
                       ))}
-                      <tr className={themed('border-t border-gray-200', dk)}>
+                      <tr className="border-t border-gray-200">
                         <td colSpan={3} className="py-1 text-right font-semibold">
                           Ordinary tax
                         </td>
@@ -663,12 +659,12 @@ export default function ReviewStep({ surface = 'light',
 
               {f.ltcgBracketBreakdown.length > 0 && (
                 <div>
-                  <div className={themed('font-semibold text-gray-700 mb-1', dk)}>
+                  <div className="font-semibold text-gray-700 mb-1">
                     Long-term capital gains brackets
                   </div>
                   <table className="w-full text-[11px]">
                     <thead>
-                      <tr className={themed('text-gray-500', dk)}>
+                      <tr className="text-gray-500">
                         <th className="text-left font-medium pb-1">Bracket</th>
                         <th className="text-right font-medium pb-1">Rate</th>
                         <th className="text-right font-medium pb-1">
@@ -692,7 +688,7 @@ export default function ReviewStep({ surface = 'light',
                           </td>
                         </tr>
                       ))}
-                      <tr className={themed('border-t border-gray-200', dk)}>
+                      <tr className="border-t border-gray-200">
                         <td
                           colSpan={3}
                           className="py-1 text-right font-semibold"
@@ -711,7 +707,7 @@ export default function ReviewStep({ surface = 'light',
           </LineRow>
 
           {f.selfEmploymentTax > 0 && (
-            <LineRow dk={dk}
+            <LineRow
               num="23"
               label="Self-employment tax"
               amount={f.selfEmploymentTax}
@@ -719,7 +715,7 @@ export default function ReviewStep({ surface = 'light',
             />
           )}
           {f.earlyWithdrawalPenalty > 0 && (
-            <LineRow dk={dk}
+            <LineRow
               num="Sch 2"
               label="Early withdrawal penalty (10% of 403(b))"
               amount={f.earlyWithdrawalPenalty}
@@ -727,13 +723,13 @@ export default function ReviewStep({ surface = 'light',
             />
           )}
           {additionalTaxes > 0 && (
-            <div className={themed('pl-[84px] text-[11px] text-gray-500', dk)}>
+            <div className="pl-[84px] text-[11px] text-gray-500">
               Additional taxes: {fmtMoney(additionalTaxes)}
             </div>
           )}
 
-          <div className={themed('pt-1 border-t-2 border-gray-200 mt-1 mb-2', dk)}>
-            <LineRow dk={dk}
+          <div className="pt-1 border-t-2 border-gray-200 mt-1 mb-2">
+            <LineRow
               num="24"
               label="Total tax"
               amount={f.totalTax}
@@ -748,15 +744,15 @@ export default function ReviewStep({ surface = 'light',
           </div>
 
           {/* ── PAYMENTS & CREDITS ── */}
-          <SectionHeader dk={dk} title="Payments and credits" />
-          <LineRow dk={dk}
+          <SectionHeader title="Payments and credits" />
+          <LineRow
             num="25a"
             label="Federal income tax withheld from W-2"
             amount={f.w2Withheld}
             source="W-2"
           />
           {f.retirementWithheld > 0 && (
-            <LineRow dk={dk}
+            <LineRow
               num="25b"
               label="Federal income tax withheld from 1099-R"
               amount={f.retirementWithheld}
@@ -764,7 +760,7 @@ export default function ReviewStep({ surface = 'light',
             />
           )}
           {f.estimatedPayments > 0 && (
-            <LineRow dk={dk}
+            <LineRow
               num="26"
               label="Estimated tax payments"
               amount={f.estimatedPayments}
@@ -772,15 +768,15 @@ export default function ReviewStep({ surface = 'light',
             />
           )}
           {refundableEducation > 0 && (
-            <LineRow dk={dk}
+            <LineRow
               num="29"
               label="Refundable American Opportunity Credit"
               amount={refundableEducation}
               source="Form 8863"
             />
           )}
-          <div className={themed('pt-1 border-t border-gray-200 mt-1', dk)}>
-            <LineRow dk={dk}
+          <div className="pt-1 border-t border-gray-200 mt-1">
+            <LineRow
               num="33"
               label="Total payments"
               amount={f.totalPayments}
@@ -827,11 +823,11 @@ export default function ReviewStep({ surface = 'light',
       </div>
 
       {/* ═══ PDF downloads ═══ */}
-      <div className={themed('border border-gray-200 rounded-lg bg-white p-4', dk)}>
-        <h3 className={themed('text-sm font-semibold text-gray-900', dk)}>
+      <div className="border border-gray-200 rounded-lg bg-white p-4">
+        <h3 className="text-sm font-semibold text-gray-900">
           Draft PDF downloads
         </h3>
-        <p className={themed('text-xs text-gray-500 mb-3', dk)}>
+        <p className="text-xs text-gray-500 mb-3">
           Every PDF is watermarked DRAFT — these are for review only, not for
           filing. The final export happens in the File step.
         </p>
@@ -842,12 +838,12 @@ export default function ReviewStep({ surface = 'light',
               <a
                 key={form.slug}
                 href={href}
-                className={themed('block border border-gray-200 rounded px-3 py-2 hover:bg-gray-50 hover:border-brand-purple/40', dk)}
+                className="block border border-gray-200 rounded px-3 py-2 hover:bg-gray-50 hover:border-brand-purple/40"
               >
-                <div className={themed('text-xs font-semibold text-gray-900', dk)}>
+                <div className="text-xs font-semibold text-gray-900">
                   {form.label}
                 </div>
-                <div className={themed('text-[10px] text-gray-500 mt-0.5', dk)}>
+                <div className="text-[10px] text-gray-500 mt-0.5">
                   {form.description}
                 </div>
                 <div className="text-[10px] text-brand-purple mt-1">
@@ -868,7 +864,7 @@ export default function ReviewStep({ surface = 'light',
             onChange={(e) => setConfirmed(e.target.checked)}
             className="mt-0.5 w-4 h-4 accent-brand-purple"
           />
-          <div className={themed('text-sm text-gray-800', dk)}>
+          <div className="text-sm text-gray-800">
             I have reviewed my {taxYear} return and the numbers are correct.
             {warnings.length > 0 && (
               <div className="text-xs text-amber-700 mt-1">
@@ -891,7 +887,7 @@ export default function ReviewStep({ surface = 'light',
         </div>
       </div>
 
-      <p className={themed('text-xs text-gray-400 italic', dk)}>{calc.disclaimer}</p>
+      <p className="text-xs text-gray-400 italic">{calc.disclaimer}</p>
     </div>
   );
 }

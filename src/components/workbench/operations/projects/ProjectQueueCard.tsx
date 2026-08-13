@@ -1,7 +1,7 @@
 /**
  * ProjectQueueCard (PD-2) — a single project in the QUEUE, as a clean white card with a
  * colored left-stripe (matching the merged pipe look). Shows title, real task/request
- * counts, and status; clicking opens the project's detail (the existing <ProjectRow surface={surface} />,
+ * counts, and status; clicking opens the project's detail (the existing <ProjectRow />,
  * passed as children and mounted only when open — lazy, so collapsed cards never fetch).
  *
  * Presentation only: it owns NO data/fetch. The counts arrive as props (computed by the
@@ -14,7 +14,7 @@
 import { useEffect, useState } from 'react';
 import type { Project, ProjectStatus } from './types';
 import { STATUS_LABELS, STATUS_PILL_CLASSES, formatAllocatedCents } from './types';
-import { themed, type Surface } from '@/lib/ds';
+
 
 // Left-stripe color by status — a quick visual scan of the backlog.
 const STRIPE: Record<ProjectStatus, string> = {
@@ -32,12 +32,11 @@ interface Props {
   runCount: number;
   /** When this project is a cross-project jump target, open it automatically. */
   forceOpen?: boolean;
-  /** The live detail (an existing <ProjectRow surface={surface} defaultExpanded/>), mounted only when open. */
+  /** The live detail (an existing <ProjectRow defaultExpanded/>), mounted only when open. */
   children: React.ReactNode;
 }
 
-export default function ProjectQueueCard({ surface = 'light', project, taskCount, runCount, forceOpen, children }: Props & { surface?: Surface }) {
-  const dk = surface === 'dark';
+export default function ProjectQueueCard({ project, taskCount, runCount, forceOpen, children }: Props & { }) {
   const [open, setOpen] = useState(false);
 
   // A dependency jump → open the target card so the row inside can scroll/flash.
@@ -53,7 +52,7 @@ export default function ProjectQueueCard({ surface = 'light', project, taskCount
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className={themed('text-[11px] text-gray-500 hover:text-gray-800 hover:underline', dk)}
+          className="text-[11px] text-gray-500 hover:text-gray-800 hover:underline"
         >
           ‹ back to projects
         </button>
@@ -66,12 +65,12 @@ export default function ProjectQueueCard({ surface = 'light', project, taskCount
     <button
       type="button"
       onClick={() => setOpen(true)}
-      className={themed('w-full text-left rounded-md border border-gray-200 border-l-4 bg-white p-3 sm:p-4 shadow-sm hover:shadow transition-shadow flex items-center justify-between gap-3', dk)}
+      className="w-full text-left rounded-md border border-gray-200 border-l-4 bg-white p-3 sm:p-4 shadow-sm hover:shadow transition-shadow flex items-center justify-between gap-3"
       style={{ borderLeftColor: stripe }}
     >
       <div className="min-w-0">
-        <div className={themed('text-sm font-semibold text-gray-900 truncate', dk)}>{project.title}</div>
-        <div className={themed('text-[11px] text-gray-500 mt-0.5 tabular-nums', dk)}>
+        <div className="text-sm font-semibold text-gray-900 truncate">{project.title}</div>
+        <div className="text-[11px] text-gray-500 mt-0.5 tabular-nums">
           {taskCount} {taskCount === 1 ? 'task' : 'tasks'} · {runCount} {runCount === 1 ? 'request' : 'requests'}
         </div>
       </div>
@@ -81,7 +80,7 @@ export default function ProjectQueueCard({ surface = 'light', project, taskCount
             No links / failed rollup → nothing renders. */}
         {project.ledger_allocated && (
           <span
-            className={themed('font-mono tabular-nums font-bold text-text-primary text-xs', dk)}
+            className="font-mono tabular-nums font-bold text-text-primary text-xs"
             title="allocated from ledger"
           >
             {formatAllocatedCents(project.ledger_allocated.cents)}
@@ -90,7 +89,7 @@ export default function ProjectQueueCard({ surface = 'light', project, taskCount
         <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${STATUS_PILL_CLASSES[project.status]}`}>
           {STATUS_LABELS[project.status]}
         </span>
-        <span className={themed('text-gray-300 text-sm', dk)} aria-hidden="true">›</span>
+        <span className="text-gray-300 text-sm" aria-hidden="true">›</span>
       </div>
     </button>
   );

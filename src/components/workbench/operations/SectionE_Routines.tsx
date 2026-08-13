@@ -17,10 +17,9 @@ import { ListChecks, Sun } from 'lucide-react';
 import { useOperationsEntity } from './EntitySelector';
 import TodaysStrip from './routines/TodaysStrip';
 import RoutineList from './routines/RoutineList';
-import { iconTab, type Surface } from '@/lib/ds';
+import { iconTab } from '@/lib/ds';
 
-export default function SectionE_Routines({ surface = 'light' }: { surface?: Surface } = {}) {
-  const dk = surface === 'dark';
+export default function SectionE_Routines({ }: { } = {}) {
   const { entities } = useOperationsEntity();
   // Bumping this counter forces both children to refetch. Each child
   // takes onCommitted as a stable callback that increments this counter
@@ -48,9 +47,9 @@ export default function SectionE_Routines({ surface = 'light' }: { surface?: Sur
       </div>
 
       {tab === 'today' ? (
-        <TodaysStrip surface={surface} onCommitted={bump} />
+        <TodaysStrip onCommitted={bump} />
       ) : (
-        <RoutineList surface={surface} entities={entities} onCommitted={bump} />
+        <RoutineList entities={entities} onCommitted={bump} />
       )}
     </section>
   );

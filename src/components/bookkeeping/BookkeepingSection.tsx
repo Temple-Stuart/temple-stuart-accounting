@@ -1,7 +1,7 @@
 'use client';
 
 import { ReactNode, useState } from 'react';
-import { SECTION_HEADER, themed, type Surface } from '@/lib/ds';
+import { SECTION_HEADER } from '@/lib/ds';
 
 interface BookkeepingSectionProps {
   title: string;
@@ -28,18 +28,16 @@ export default function BookkeepingSection({
   collapsible = false,
   defaultCollapsed = false,
   children,
-  surface = 'light',
-}: BookkeepingSectionProps & { surface?: Surface }) {
-  const dk = surface === 'dark';
+}: BookkeepingSectionProps & { }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
   return (
-    <div className={themed('rounded-lg overflow-hidden border border-gray-200/50 shadow-sm', dk)}>
+    <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
       <div
         // BOOKS-V2: the stage bar joins SECTION_HEADER on dark (the CI
         // precedent — collapse mechanics byte-identical); /dashboard's light
         // mount keeps the legacy purple bar.
-        className={dk ? `${SECTION_HEADER}${collapsible ? ' cursor-pointer select-none' : ''}` : `bg-brand-purple text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between${collapsible ? ' cursor-pointer select-none' : ''}`}
+        className={`bg-brand-purple text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between${collapsible ? ' cursor-pointer select-none' : ''}`}
         onClick={collapsible ? () => setCollapsed(c => !c) : undefined}
       >
         <div className="flex items-center gap-2">
@@ -48,7 +46,7 @@ export default function BookkeepingSection({
         </div>
         <div className="flex items-center gap-2">
           {subtitle && <span className="text-xs text-white/70">{subtitle}</span>}
-          {status && <div className={themed(`w-2 h-2 rounded-full ${STATUS_DOT[status]}`, dk)} />}
+          {status && <div className={`w-2 h-2 rounded-full ${STATUS_DOT[status]}`} />}
           {collapsible && (
             <span className="text-white/60 text-xs ml-1">{collapsed ? '\u25B6' : '\u25BC'}</span>
           )}
@@ -57,7 +55,7 @@ export default function BookkeepingSection({
       {/* BOOKS-GLOW: the stage body wears the glow on dark (flat panels are
           the anti-pattern); /dashboard's light mount keeps bg-white. */}
       {!collapsed && (
-        <div className={dk ? undefined : themed('bg-white', dk)}>
+        <div className={'bg-white'}>
           {children}
         </div>
       )}

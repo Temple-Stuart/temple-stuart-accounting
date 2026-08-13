@@ -28,7 +28,7 @@
 
 import { useState } from 'react';
 import InspectionDrawer, { type InspectionData } from '../ai/InspectionDrawer';
-import { themed, type Surface } from '@/lib/ds';
+
 
 export interface AIGeneratedTask {
   title: string;
@@ -76,16 +76,14 @@ function toEditable(t: AIGeneratedTask): EditableTask {
   };
 }
 
-export default function AITaskPreview({ surface = 'light',
-  tasks,
+export default function AITaskPreview({ tasks,
   sourceAiUsageId,
   projectId,
   onAccepted,
   onDiscarded,
   inspection,
   onAcceptStateless,
-}: Props & { surface?: Surface }) {
-  const dk = surface === 'dark';
+}: Props & { }) {
   const [editable, setEditable] = useState<EditableTask[]>(() =>
     tasks.map(toEditable).sort((a, b) => a.suggested_order - b.suggested_order)
   );
@@ -145,17 +143,17 @@ export default function AITaskPreview({ surface = 'light',
   };
 
   const inputClass =
-    themed('w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple', dk);
-  const labelClass = themed('text-text-faint uppercase tracking-wide mb-1 text-xs', dk);
+    'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
+  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
 
   return (
-    <div className={`space-y-3 rounded p-4 border ${dk ? 'border-brand-purple-pop/40 bg-brand-purple-pop/10' : 'border-brand-purple bg-purple-50/30'}`}>
+    <div className={`space-y-3 rounded p-4 border ${'border-brand-purple bg-purple-50/30'}`}>
       <div className="flex items-center justify-between">
-        <div className={themed('text-xs font-bold text-text-primary', dk)}>
+        <div className="text-xs font-bold text-text-primary">
           AI-generated tasks — {editable.length} {editable.length === 1 ? 'task' : 'tasks'} (review and edit before accepting)
         </div>
-        <div className={themed('text-xs text-text-muted', dk)}>
-          source: ai_usage_id <span className={themed('text-text-faint', dk)}>{sourceAiUsageId.slice(0, 8)}…</span>
+        <div className="text-xs text-text-muted">
+          source: ai_usage_id <span className="text-text-faint">{sourceAiUsageId.slice(0, 8)}…</span>
         </div>
       </div>
 
@@ -167,9 +165,9 @@ export default function AITaskPreview({ surface = 'light',
 
       <div className="space-y-3">
         {editable.map((t, i) => (
-          <div key={i} className={themed('border border-border-light rounded p-3 bg-white space-y-2 text-xs', dk)}>
+          <div key={i} className="border border-border-light rounded p-3 bg-white space-y-2 text-xs">
             <div className="flex items-center justify-between">
-              <div className={themed('text-text-faint', dk)}>
+              <div className="text-text-faint">
                 #{i + 1} · suggested_order {t.suggested_order}
               </div>
               <input
@@ -177,7 +175,7 @@ export default function AITaskPreview({ surface = 'light',
                 min={0}
                 value={t.suggested_order}
                 onChange={(e) => updateTask(i, { suggested_order: Number(e.target.value) || 0 })}
-                className={themed('w-16 px-2 py-0.5 border border-border rounded text-xs', dk)}
+                className="w-16 px-2 py-0.5 border border-border rounded text-xs"
                 title="suggested order (0-indexed)"
               />
             </div>
@@ -231,12 +229,12 @@ export default function AITaskPreview({ surface = 'light',
         ))}
       </div>
 
-      <div className={themed('flex items-center gap-2 pt-2 border-t border-border-light', dk)}>
+      <div className="flex items-center gap-2 pt-2 border-t border-border-light">
         <button
           type="button"
           onClick={handleAcceptAll}
           disabled={submitting}
-          className={`px-3 py-1 border text-white rounded text-xs hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
+          className={`px-3 py-1 border text-white rounded text-xs hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}
         >
           {submitting ? 'creating…' : `accept all ${editable.length} ${editable.length === 1 ? 'task' : 'tasks'}`}
         </button>
@@ -244,13 +242,13 @@ export default function AITaskPreview({ surface = 'light',
           type="button"
           onClick={onDiscarded}
           disabled={submitting}
-          className={themed('px-3 py-1 border border-border rounded text-xs hover:bg-bg-row disabled:opacity-50', dk)}
+          className="px-3 py-1 border border-border rounded text-xs hover:bg-bg-row disabled:opacity-50"
         >
           discard
         </button>
       </div>
 
-      {inspection && <InspectionDrawer surface={surface} data={inspection} />}
+      {inspection && <InspectionDrawer data={inspection} />}
     </div>
   );
 }

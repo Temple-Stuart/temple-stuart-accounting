@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { formatMoney, moneyColorClass } from '@/lib/money';
-import { chip, CHIP_VARIANTS, type ChipVariant, SECTION_HEADER, themed, type Surface } from '@/lib/ds';
+import { chip, CHIP_VARIANTS, type ChipVariant, SECTION_HEADER } from '@/lib/ds';
 
 interface TradeCard {
   id: string;
@@ -103,8 +103,7 @@ interface MatchablePosition {
   expiration_date: string | null;
 }
 
-export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { onCardsChange?: () => void; surface?: Surface }) {
-  const dk = surface === 'dark';
+export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () => void; }) {
   const [cards, setCards] = useState<TradeCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
@@ -372,10 +371,10 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
       {/* RISK-1: coverage stats strip — denominator always visible (no win-rate without it).
           Renders only when coverage loaded; never fabricated on failure. */}
       {coverage && (
-        <div className={themed('border-b border-border bg-white px-4 py-1.5 text-[11px] text-text-muted', dk)}>
-          Linked cards: <span className={themed('font-mono font-semibold text-text-primary', dk)}>{coverage.linked_card_count}</span>
-          {' · '}Closed positions: <span className={themed('font-mono font-semibold text-text-primary', dk)}>{coverage.closed_position_count}</span>
-          {' · '}Unlinked: <span className={themed('font-mono font-semibold text-text-primary', dk)}>{coverage.unlinked_closed_count}</span>
+        <div className="border-b border-border bg-white px-4 py-1.5 text-[11px] text-text-muted">
+          Linked cards: <span className="font-mono font-semibold text-text-primary">{coverage.linked_card_count}</span>
+          {' · '}Closed positions: <span className="font-mono font-semibold text-text-primary">{coverage.closed_position_count}</span>
+          {' · '}Unlinked: <span className="font-mono font-semibold text-text-primary">{coverage.unlinked_closed_count}</span>
         </div>
       )}
 
@@ -434,16 +433,16 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
       </div>
 
       {loading ? (
-        <div className={themed('p-8 text-center text-sm text-text-muted', dk)}>Loading trade cards...</div>
+        <div className="p-8 text-center text-sm text-text-muted">Loading trade cards...</div>
       ) : cards.length === 0 ? (
         <div className="p-12 text-center">
-          <div className={themed('text-text-faint text-sm mb-2', dk)}>No trade cards {filter !== 'all' ? `with status "${filter}"` : 'yet'}</div>
-          <div className={themed('text-text-faint text-xs', dk)}>
+          <div className="text-text-faint text-sm mb-2">No trade cards {filter !== 'all' ? `with status "${filter}"` : 'yet'}</div>
+          <div className="text-text-faint text-xs">
             Use Market Intelligence to scan for opportunities, then click &ldquo;Enter Trade&rdquo; on any strategy card to save it here.
           </div>
         </div>
       ) : (
-        <div className={themed('divide-y divide-border', dk)}>
+        <div className="divide-y divide-border">
           {cards.map(card => {
             const dir = dirVariant(card.direction);
             const badge = statusBadge(card.status);
@@ -457,19 +456,19 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
               <div key={card.id}>
                 {/* Card row */}
                 <div
-                  className={themed(`px-4 py-3 transition-colors cursor-pointer ${
+                  className={`px-4 py-3 transition-colors cursor-pointer ${
                     card.status === 'graded' && card.link?.grade
                       ? Number(card.link.actual_pl) >= 0 ? 'bg-status-success/10 hover:bg-status-success/15' : 'bg-status-danger/10 hover:bg-status-danger/15'
                       : 'hover:bg-bg-row'
-                  }`, dk)}
+                  }`}
                   onClick={() => setExpandedCardId(isExpanded ? null : card.id)}
                 >
                   <div className="flex items-start justify-between gap-4">
                     {/* Left: symbol + strategy */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className={themed('text-base font-bold font-mono text-text-primary', dk)}>{card.symbol}</span>
-                        <span className={themed('text-xs font-medium text-text-secondary', dk)}>{card.strategy_name}</span>
+                        <span className="text-base font-bold font-mono text-text-primary">{card.symbol}</span>
+                        <span className="text-xs font-medium text-text-secondary">{card.strategy_name}</span>
                         <span className={chip(dir)}>
                           {card.direction.toUpperCase()}
                         </span>
@@ -485,7 +484,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                       </div>
 
                       {/* Legs */}
-                      <div className={themed('flex gap-3 text-[11px] text-text-muted mb-1 flex-wrap', dk)}>
+                      <div className="flex gap-3 text-[11px] text-text-muted mb-1 flex-wrap">
                         {legs.map((leg, i) => (
                           <span key={i} className="font-mono">
                             <span className={leg.side === 'sell' ? 'text-status-danger' : 'text-status-success'}>{leg.side.toUpperCase()}</span>
@@ -495,11 +494,11 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                       </div>
 
                       {/* Meta row */}
-                      <div className={themed('flex items-center gap-4 text-[10px] text-text-faint flex-wrap', dk)}>
+                      <div className="flex items-center gap-4 text-[10px] text-text-faint flex-wrap">
                         <span>Queued {fmtDate(card.generated_at)}</span>
                         {card.dte != null && <span>{card.dte} DTE</span>}
                         {card.expiration_date && <span>Exp {fmtDateShort(card.expiration_date)}</span>}
-                        {card.link && <span className="text-brand-purple-pop font-medium">Trade #{card.link.trade_num}</span>}
+                        {card.link && <span className="text-brand-purple font-medium">Trade #{card.link.trade_num}</span>}
                         {card.link?.linked_at && <span>Linked {fmtDateShort(card.link.linked_at)}</span>}
                       </div>
                     </div>
@@ -536,7 +535,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                           <>
                             <button
                               onClick={() => startLinking(card)}
-                              className="text-[10px] font-medium text-brand-purple-pop hover:underline transition-colors"
+                              className="text-[10px] font-medium text-brand-purple hover:underline transition-colors"
                             >
                               {isLinking ? 'Cancel' : 'Link to Position'}
                             </button>
@@ -555,7 +554,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                             <button
                               onClick={() => gradeCard(card.id)}
                               disabled={isGrading}
-                              className="text-[10px] font-medium text-brand-purple-pop hover:underline transition-colors disabled:opacity-50"
+                              className="text-[10px] font-medium text-brand-purple hover:underline transition-colors disabled:opacity-50"
                             >
                               {isGrading ? 'Grading...' : 'Check Grade'}
                             </button>
@@ -603,7 +602,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                           <button
                             key={pos.trade_num}
                             onClick={() => linkToPosition(card.id, pos.trade_num)}
-                            className="w-full text-left px-3 py-2 rounded border border-border bg-white hover:border-brand-purple-pop hover:bg-bg-row transition-colors"
+                            className="w-full text-left px-3 py-2 rounded border border-border bg-white hover:border-brand-purple hover:bg-bg-row transition-colors"
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2 text-xs">
@@ -632,11 +631,11 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
 
                 {/* Expanded scorecard */}
                 {isExpanded && (
-                  <div className={themed('px-4 py-3 bg-bg-row border-t border-border', dk)}>
+                  <div className="px-4 py-3 bg-bg-row border-t border-border">
                     <div className="grid grid-cols-2 gap-4">
                       {/* Left: Predicted */}
                       <div>
-                        <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2', dk)}>Predicted</div>
+                        <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2">Predicted</div>
                         <div className="space-y-1 text-xs">
                           <div className="flex justify-between">
                             <span className="text-text-muted">Max Profit</span>
@@ -667,11 +666,11 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                       <div>
                         {card.link ? (
                           <>
-                            <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2', dk)}>Actual</div>
+                            <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2">Actual</div>
                             <div className="space-y-1 text-xs">
                               <div className="flex justify-between">
                                 <span className="text-text-muted">P&L</span>
-                                <span className={themed(`font-mono font-bold ${card.link.actual_pl != null ? moneyColorClass(Number(card.link.actual_pl), 'pnl') : 'text-text-secondary'}`, dk)}>
+                                <span className={`font-mono font-bold ${card.link.actual_pl != null ? moneyColorClass(Number(card.link.actual_pl), 'pnl') : 'text-text-secondary'}`}>
                                   {card.link.actual_pl != null ? formatMoney(Number(card.link.actual_pl), { kind: 'pnl', fractionDigits: 0 }) : 'Open'}
                                 </span>
                               </div>
@@ -701,7 +700,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                           </>
                         ) : (
                           <div>
-                            <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2', dk)}>Actual</div>
+                            <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2">Actual</div>
                             <div className="text-xs text-text-faint">Not yet linked to a position</div>
                           </div>
                         )}
@@ -715,8 +714,8 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                         grade mapping; +/− modifiers strip for variant
                         lookup only (display keeps the exact grade). */}
                     {(card.letter_grade || card.composite_score != null || card.convergence_gate || (Array.isArray(card.risk_flags) && card.risk_flags.length > 0) || card.full_card_json?.setup?.has_wide_spread || card.full_card_json?.setup?.is_unlimited_risk) && (
-                      <div className={themed('mt-3 pt-3 border-t border-border', dk)}>
-                        <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5', dk)}>Scanner scores</div>
+                      <div className="mt-3 pt-3 border-t border-border">
+                        <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5">Scanner scores</div>
                         <div className="flex flex-wrap items-center gap-1.5">
                           {card.letter_grade && (
                             <span className={chip(gradeVariant(card.letter_grade.replace(/[+-]/g, '')))}>
@@ -750,7 +749,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                         (a Json field: already an OBJECT on the client, so
                         the sanctioned JSON.parse was unnecessary). Every
                         toFixed below is display formatting only. */}
-                    <div className={themed('mt-3 pt-3 border-t border-border', dk)}>
+                    <div className="mt-3 pt-3 border-t border-border">
                       <button
                         type="button"
                         onClick={() => setIntelOpen((v) => !v)}
@@ -777,7 +776,7 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                           </div>
                         );
                         const eyebrow = (label: string) => (
-                          <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5', dk)}>{label}</div>
+                          <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5">{label}</div>
                         );
                         // NARRATIVE dedupe — pure array derivation: signals already
                         // shown as thesis_points are filtered out (R4: thesis_points
@@ -954,8 +953,8 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
 
                     {/* Thesis points with checkmarks */}
                     {card.thesis_points && card.thesis_points.length > 0 && (
-                      <div className={themed('mt-3 pt-3 border-t border-border', dk)}>
-                        <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5', dk)}>Thesis</div>
+                      <div className="mt-3 pt-3 border-t border-border">
+                        <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5">Thesis</div>
                         <div className="space-y-1">
                           {(card.thesis_points as string[]).map((pt, i) => {
                             const result = card.link?.thesis_results?.[i];
@@ -964,9 +963,9 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
                                 <span className="shrink-0 w-4 text-center">
                                   {result === true ? <span className="text-brand-green">&#10003;</span> :
                                    result === false ? <span className="text-brand-red">&#10005;</span> :
-                                   <span className={themed('text-text-faint', dk)}>&bull;</span>}
+                                   <span className="text-text-faint">&bull;</span>}
                                 </span>
-                                <span className={themed('text-text-secondary', dk)}>{pt}</span>
+                                <span className="text-text-secondary">{pt}</span>
                               </div>
                             );
                           })}
@@ -976,17 +975,17 @@ export default function TradeLabPanel({ onCardsChange, surface = 'light' }: { on
 
                     {/* Macro regime */}
                     {card.macro_regime && (
-                      <div className={themed('mt-3 pt-3 border-t border-border', dk)}>
-                        <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1', dk)}>Regime</div>
-                        <div className={themed('text-xs text-text-secondary', dk)}>{card.macro_regime}</div>
+                      <div className="mt-3 pt-3 border-t border-border">
+                        <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1">Regime</div>
+                        <div className="text-xs text-text-secondary">{card.macro_regime}</div>
                       </div>
                     )}
 
                     {/* Link notes */}
                     {card.link?.notes && (
-                      <div className={themed('mt-3 pt-3 border-t border-border', dk)}>
-                        <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1', dk)}>Notes</div>
-                        <div className={themed('text-xs text-text-secondary', dk)}>{card.link.notes}</div>
+                      <div className="mt-3 pt-3 border-t border-border">
+                        <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1">Notes</div>
+                        <div className="text-xs text-text-secondary">{card.link.notes}</div>
                       </div>
                     )}
                   </div>

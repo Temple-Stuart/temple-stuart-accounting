@@ -97,7 +97,7 @@ import type {
   TradeCardData,
 } from '@/lib/convergence/types';
 import type { TickerDetail } from '@/lib/convergence/filter-engine';
-import { EXPLAINER, SECTION_HEADER, STATE, chip, themed, type Surface } from '@/lib/ds';
+import { EXPLAINER, SECTION_HEADER, STATE, chip } from '@/lib/ds';
 
 interface Headline {
   datetime: number;
@@ -180,11 +180,11 @@ const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 // ── Score Bar ───────────────────────────────────────────────────────
 
-function ScoreBar({ dk = false, label, score }: { dk?: boolean; label: string; score: number }) {
+function ScoreBar({ label, score }: { label: string; score: number }) {
   return (
     <div className="flex items-center gap-2">
-      <div className={themed('w-16 text-[10px] font-medium text-text-muted text-right shrink-0', dk)}>{label}</div>
-      <div className={themed('flex-1 h-3.5 rounded-full overflow-hidden bg-bg-row', dk)}>
+      <div className="w-16 text-[10px] font-medium text-text-muted text-right shrink-0">{label}</div>
+      <div className="flex-1 h-3.5 rounded-full overflow-hidden bg-bg-row">
         <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(score, 100)}%`, background: gradeColorHex(score) }} />
       </div>
       <div className={`w-10 text-xs font-mono font-bold text-right shrink-0 ${gradeColor(score)}`}>{score.toFixed(1)}</div>
@@ -194,14 +194,14 @@ function ScoreBar({ dk = false, label, score }: { dk?: boolean; label: string; s
 
 // ── Ticker Chapter (mini-pipeline deep dive + TickerCard) ───────────
 
-function PriceSourceBadge({ dk = false, source }: { dk?: boolean; source: string }) {
+function PriceSourceBadge({ source }: { source: string }) {
   const colors: Record<string, string> = {
     live: 'text-brand-green',
     theo: 'text-status-warning',
     mixed: 'text-blue-500',
     none: 'text-brand-red',
   };
-  return <span className={themed(`font-bold ${colors[source] ?? 'text-text-muted'}`, dk)}>{source}</span>;
+  return <span className={`font-bold ${colors[source] ?? 'text-text-muted'}`}>{source}</span>;
 }
 
 // Build a unique key for a trade card: symbol|strategy|expiration|sorted_strikes
@@ -212,8 +212,7 @@ function buildCardKey(symbol: string, strategyName: string, expiration?: string 
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function TickerChapter({ dk = false, detail, sentiment, savedCards, savingCards, saveErrors, onSave, onRemove, pipelineProgress }: { dk?: boolean;
-  detail: TickerDetail;
+export function TickerChapter({ detail, sentiment, savedCards, savingCards, saveErrors, onSave, onRemove, pipelineProgress }: { detail: TickerDetail;
   sentiment?: SocialSentimentData;
   savedCards: Map<string, string>;
   savingCards: Set<string>;
@@ -242,17 +241,17 @@ export function TickerChapter({ dk = false, detail, sentiment, savedCards, savin
   const kRow = kTickers.find((t: { symbol: string }) => t.symbol === sym) ?? null;
 
   const sectionHeader = 'text-[10px] uppercase tracking-wider font-bold text-brand-purple mb-1.5 mt-3';
-  const labelStyle = themed('text-[11px] text-text-muted', dk);
-  const valueStyle = themed('text-[11px] font-mono text-text-primary', dk);
+  const labelStyle = 'text-[11px] text-text-muted';
+  const valueStyle = 'text-[11px] font-mono text-text-primary';
   const gateScore = (v: number) => v >= 50 ? 'text-brand-green font-bold' : 'text-brand-red font-bold';
   const loadingMsg = (msg: string) => <div className={STATE.loading}>{msg}</div>;
 
   return (
     <div>
       {/* Mini-pipeline panel */}
-      <div className={themed('bg-bg-terminal rounded-t border border-border px-5 py-4 font-mono', dk)}>
-        <div className={themed('text-sm font-black text-text-primary', dk)}>{sym} — DEEP DIVE</div>
-        <div className={themed('text-[10px] text-text-faint mt-0.5', dk)}>
+      <div className="bg-bg-terminal rounded-t border border-border px-5 py-4 font-mono">
+        <div className="text-sm font-black text-text-primary">{sym} — DEEP DIVE</div>
+        <div className="text-[10px] text-text-faint mt-0.5">
           How this ticker traveled through the pipeline and why this trade was selected
         </div>
 
@@ -298,13 +297,13 @@ export function TickerChapter({ dk = false, detail, sentiment, savedCards, savin
               Strikes fetched: <span className={valueStyle}>{jRow.strikeCount ?? '—'}</span>
             </div>
             <div className={labelStyle}>
-              Price source: <PriceSourceBadge dk={dk} source={jRow.priceSource ?? 'none'} />
+              Price source: <PriceSourceBadge source={jRow.priceSource ?? 'none'} />
             </div>
             {jRow.allExpirations && jRow.allExpirations.length > 0 && (
               <div className="mt-1.5 overflow-x-auto">
                 <table className="w-full text-[10px]">
                   <thead>
-                    <tr className={themed('text-text-muted uppercase tracking-wider', dk)}>
+                    <tr className="text-text-muted uppercase tracking-wider">
                       <th className="text-left font-medium py-0.5 pr-3">Expiration</th>
                       <th className="text-right font-medium py-0.5 pr-3">DTE</th>
                       <th className="text-right font-medium py-0.5 pr-3">Strikes</th>
@@ -318,11 +317,11 @@ export function TickerChapter({ dk = false, detail, sentiment, savedCards, savin
                       const isWinner = exp.expiration === (jRow.winningExpiration ?? jRow.expiration);
                       return (
                         <tr key={i} className={isWinner ? 'bg-status-warning/10' : ''} style={isWinner ? { borderLeft: '2px solid rgb(var(--ts-warning))' } : {}}>
-                          <td className={themed(`py-0.5 pr-3 font-mono ${isWinner ? 'text-status-warning font-bold' : 'text-text-faint'}`, dk)}>{exp.expiration}</td>
-                          <td className={themed('py-0.5 pr-3 text-right font-mono text-text-faint', dk)}>{exp.dte}</td>
-                          <td className={themed('py-0.5 pr-3 text-right font-mono text-text-faint', dk)}>{exp.strikeCount}</td>
-                          <td className={themed('py-0.5 pr-3 text-right font-mono text-text-faint', dk)}>{exp.strategiesBuilt}</td>
-                          <td className={themed(`py-0.5 text-right font-mono ${exp.bestScore != null ? (isWinner ? 'text-status-warning font-bold' : 'text-text-faint') : themed('text-text-muted', dk)}`, dk)}>
+                          <td className={`py-0.5 pr-3 font-mono ${isWinner ? 'text-status-warning font-bold' : 'text-text-faint'}`}>{exp.expiration}</td>
+                          <td className="py-0.5 pr-3 text-right font-mono text-text-faint">{exp.dte}</td>
+                          <td className="py-0.5 pr-3 text-right font-mono text-text-faint">{exp.strikeCount}</td>
+                          <td className="py-0.5 pr-3 text-right font-mono text-text-faint">{exp.strategiesBuilt}</td>
+                          <td className={`py-0.5 text-right font-mono ${exp.bestScore != null ? (isWinner ? 'text-status-warning font-bold' : 'text-text-faint') : 'text-text-muted'}`}>
                             {exp.bestScore != null ? exp.bestScore.toFixed(3) : '—'}
                           </td>
                         </tr>
@@ -365,21 +364,21 @@ export function TickerChapter({ dk = false, detail, sentiment, savedCards, savin
             </div>
             <div className={labelStyle}>
               Winning score: <span className={valueStyle}>{kRow.winnerScore != null ? kRow.winnerScore.toFixed(3) : '—'}</span>
-              <span className={themed('text-[9px] text-text-faint ml-1', dk)}>(EV/Risk × 50% + Theta Efficiency × 30% + Edge Ratio × 20%)</span>
+              <span className="text-[9px] text-text-faint ml-1">(EV/Risk × 50% + Theta Efficiency × 30% + Edge Ratio × 20%)</span>
             </div>
           </div>
         ) : loadingMsg('Strategy data loading...')}
 
         {/* SECTION 4 — THE TRADE */}
         <div className={sectionHeader}>THE TRADE</div>
-        <div className={themed('text-[11px] text-text-faint', dk)}>
+        <div className="text-[11px] text-text-faint">
           The full trade breakdown is shown below — every number sourced from the chain fetch and strategy scoring above.
         </div>
-        <div className={themed('mt-2 border-t border-border/50', dk)} />
+        <div className="mt-2 border-t border-border/50" />
       </div>
 
       {/* Terminal-style trade card */}
-      <TerminalTradeCard dk={dk}
+      <TerminalTradeCard
         detail={detail}
         sentiment={sentiment}
         savedCards={savedCards}
@@ -407,8 +406,7 @@ function termTruncate(s: string, max: number): string {
   return s.length > max ? s.slice(0, max - 1) + '…' : s;
 }
 
-export function TerminalTradeCard({ dk = false, detail, sentiment, savedCards, savingCards, saveErrors, onSave, onRemove }: { dk?: boolean;
-  detail: TickerDetail;
+export function TerminalTradeCard({ detail, sentiment, savedCards, savingCards, saveErrors, onSave, onRemove }: { detail: TickerDetail;
   sentiment?: SocialSentimentData;
   savedCards: Map<string, string>;
   savingCards: Set<string>;
@@ -424,7 +422,7 @@ export function TerminalTradeCard({ dk = false, detail, sentiment, savedCards, s
   const ks = cards[0]?.key_stats;
   const why = cards[0]?.why;
 
-  const divider = <div className={themed('border-t border-border my-1', dk)} />;
+  const divider = <div className="border-t border-border my-1" />;
 
   // ── Shared sections (rendered for both trade and no-trade cases) ──
 
@@ -465,14 +463,14 @@ export function TerminalTradeCard({ dk = false, detail, sentiment, savedCards, s
 
     return (
       <div>
-        <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1', dk)}>For vs Against</div>
+        <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1">For vs Against</div>
         <div className="grid grid-cols-2 gap-2">
           <div>
             <div className="text-[10px] text-brand-green font-bold mb-0.5">FOR THE TRADE</div>
             {forItems.length > 0 ? forItems.map((s, i) => (
               <div key={i} className="text-xs text-brand-green leading-relaxed">&#10003; {s}</div>
             )) : (
-              <div className={themed('text-xs text-text-faint', dk)}>No bullish signals found</div>
+              <div className="text-xs text-text-faint">No bullish signals found</div>
             )}
           </div>
           <div>
@@ -497,11 +495,11 @@ export function TerminalTradeCard({ dk = false, detail, sentiment, savedCards, s
     ];
     return (
       <div>
-        <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1', dk)}>Gate Scores</div>
+        <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1">Gate Scores</div>
         <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
           {gates.map(([label, score]) => (
             <div key={label} className="flex items-center gap-1">
-              <span className={themed('w-16 text-xs text-text-muted shrink-0', dk)}>{label}</span>
+              <span className="w-16 text-xs text-text-muted shrink-0">{label}</span>
               <span className={`text-xs font-bold w-8 text-right ${termGateColor(score)}`}>{score.toFixed(1)}</span>
               <span className={`text-xs font-mono ${termGateColor(score)}`}>{termBar(score)}</span>
             </div>
@@ -524,28 +522,28 @@ export function TerminalTradeCard({ dk = false, detail, sentiment, savedCards, s
     const vrpZ = bd.mispricing?.z_scores?.vrp_z;
     return (
       <div>
-        <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1', dk)}>Vol Detail</div>
+        <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1">Vol Detail</div>
         <div className="grid grid-cols-3 gap-x-3 gap-y-0.5">
           {subs.map(([label, score, extra]) => (
             <div key={label} className="flex items-center gap-1">
-              <span className={themed('text-xs text-text-muted', dk)}>{label}</span>
+              <span className="text-xs text-text-muted">{label}</span>
               <span className={`text-xs font-bold ${score >= 50 ? 'text-brand-green' : 'text-brand-red'}`}>{Math.round(score)}</span>
-              {extra && <span className={themed('text-xs text-text-faint', dk)}>{extra}</span>}
+              {extra && <span className="text-xs text-text-faint">{extra}</span>}
             </div>
           ))}
         </div>
         {vrpZ != null && (
-          <div className={themed('text-xs text-text-muted mt-0.5', dk)}>
-            VRP z: <span className={vrpZ > 0.5 ? 'text-brand-green' : vrpZ < -0.5 ? 'text-brand-red' : themed('text-text-muted', dk)}>{vrpZ >= 0 ? '+' : ''}{vrpZ.toFixed(1)}</span>
+          <div className="text-xs text-text-muted mt-0.5">
+            VRP z: <span className={vrpZ > 0.5 ? 'text-brand-green' : vrpZ < -0.5 ? 'text-brand-red' : 'text-text-muted'}>{vrpZ >= 0 ? '+' : ''}{vrpZ.toFixed(1)}</span>
           </div>
         )}
         {ks && (
-          <div className={themed('text-xs text-text-muted mt-0.5', dk)}>
-            <MetricInfo surface={dk ? 'dark' : 'light'} metricKey="iv_rank" values={{ iv_rank: ks.iv_rank ?? null }} hasValue={ks.iv_rank != null}>IV RANK</MetricInfo> {ks.iv_rank != null ? ks.iv_rank.toFixed(2) : '—'} · <MetricInfo surface={dk ? 'dark' : 'light'} metricKey="iv30" values={{ iv30: ks.iv30 ?? null }} hasValue={ks.iv30 != null}>IV</MetricInfo> {ks.iv30 != null ? `${ks.iv30.toFixed(1)}%` : '—'} · <MetricInfo surface={dk ? 'dark' : 'light'} metricKey="hv30" values={{ hv30: ks.hv30 ?? null }} hasValue={ks.hv30 != null}>HV30</MetricInfo> {ks.hv30 != null ? `${ks.hv30.toFixed(1)}%` : '—'}{ks.iv_hv_spread != null ? ` · VRP ${ks.iv_hv_spread > 0 ? '+' : ''}${ks.iv_hv_spread.toFixed(1)}%` : ''}
+          <div className="text-xs text-text-muted mt-0.5">
+            <MetricInfo metricKey="iv_rank" values={{ iv_rank: ks.iv_rank ?? null }} hasValue={ks.iv_rank != null}>IV RANK</MetricInfo> {ks.iv_rank != null ? ks.iv_rank.toFixed(2) : '—'} · <MetricInfo metricKey="iv30" values={{ iv30: ks.iv30 ?? null }} hasValue={ks.iv30 != null}>IV</MetricInfo> {ks.iv30 != null ? `${ks.iv30.toFixed(1)}%` : '—'} · <MetricInfo metricKey="hv30" values={{ hv30: ks.hv30 ?? null }} hasValue={ks.hv30 != null}>HV30</MetricInfo> {ks.hv30 != null ? `${ks.hv30.toFixed(1)}%` : '—'}{ks.iv_hv_spread != null ? ` · VRP ${ks.iv_hv_spread > 0 ? '+' : ''}${ks.iv_hv_spread.toFixed(1)}%` : ''}
           </div>
         )}
         {ks?.vol_cone && (
-          <div className={themed('text-xs text-text-faint mt-0.5', dk)}>
+          <div className="text-xs text-text-faint mt-0.5">
             VOL CONE: {[
               ks.vol_cone.hv10 != null && `HV10 ${ks.vol_cone.hv10}%`,
               ks.vol_cone.hv20 != null && `HV20 ${ks.vol_cone.hv20}%`,
@@ -556,7 +554,7 @@ export function TerminalTradeCard({ dk = false, detail, sentiment, savedCards, s
           </div>
         )}
         {ks?.forward_vol && (
-          <div className={themed('text-xs text-text-faint mt-0.5', dk)}>
+          <div className="text-xs text-text-faint mt-0.5">
             FWD VOL {ks.forward_vol.forward_iv}% ({ks.forward_vol.from_dte}→{ks.forward_vol.to_dte}d){ks.vol_cone?.current_iv != null ? ` vs spot IV ${ks.vol_cone.current_iv}%` : ''}
           </div>
         )}
@@ -569,27 +567,27 @@ export function TerminalTradeCard({ dk = false, detail, sentiment, savedCards, s
     const dom = detail.scores?.regime?.breakdown?.dominant_regime;
     return (
       <div>
-        <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1', dk)}>Company &amp; Macro</div>
+        <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1">Company &amp; Macro</div>
         {ks && (
           <>
-            <div className={themed('text-xs text-text-muted', dk)}>
+            <div className="text-xs text-text-muted">
               P/E {ks.pe_ratio != null ? ks.pe_ratio.toFixed(1) : '—'} · CAP {fmtMcap(ks.market_cap)} · BETA {ks.beta != null ? ks.beta.toFixed(2) : '—'} · SPY CORR {ks.spy_correlation != null ? ks.spy_correlation.toFixed(2) : '—'} · LIQ {ks.liquidity_rating != null ? `${ks.liquidity_rating}/5` : '—'} · BORROW {ks.borrow_rate != null ? `${ks.borrow_rate.toFixed(1)}%` : '—'} {ks.lendability ?? ''}
             </div>
-            <div className={themed('text-xs text-text-muted mt-0.5', dk)}>
+            <div className="text-xs text-text-muted mt-0.5">
               EARNINGS {ks.earnings_date ?? '—'}{ks.days_to_earnings != null && ks.days_to_earnings > 0 ? ` (${ks.days_to_earnings}d away)` : ''}{ks.earnings_pattern ? ` · BEAT ${ks.earnings_pattern.beat_rate ?? '—'}% (${ks.earnings_pattern.total_quarters}Q)${ks.earnings_pattern.sue_score != null ? ` · SUE ${ks.earnings_pattern.sue_score}` : ''}${ks.earnings_pattern.streak ? ` · ${ks.earnings_pattern.streak}` : ''}` : ''}
             </div>
-            <div className={themed('text-xs text-text-muted mt-0.5', dk)}>
+            <div className="text-xs text-text-muted mt-0.5">
               DIV YIELD {ks.dividend_yield != null ? `${ks.dividend_yield.toFixed(2)}%` : '—'} · IV %ILE {ks.iv_percentile != null ? ks.iv_percentile.toFixed(1) : '—'}
             </div>
           </>
         )}
         {rs && (
-          <div className={themed('text-xs text-text-muted mt-0.5', dk)}>
+          <div className="text-xs text-text-muted mt-0.5">
             REGIME: <span className="text-yellow-400 font-bold">{dom?.toUpperCase()}</span> Goldilocks {Math.round(rs.goldilocks * 100)}% Reflation {Math.round(rs.reflation * 100)}% Stagflation {Math.round(rs.stagflation * 100)}% Deflation {Math.round(rs.deflation * 100)}%
           </div>
         )}
         {why?.regime_context && (
-          <div className={themed('text-xs text-text-faint mt-0.5', dk)}>{why.regime_context}</div>
+          <div className="text-xs text-text-faint mt-0.5">{why.regime_context}</div>
         )}
       </div>
     );
@@ -603,43 +601,43 @@ export function TerminalTradeCard({ dk = false, detail, sentiment, savedCards, s
     const instOwners = bd?.institutional_ownership?.indicators?.total_holders;
     return (
       <div>
-        <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1', dk)}>Info Signals</div>
-        <div className={themed('text-xs text-text-muted', dk)}>
+        <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1">Info Signals</div>
+        <div className="text-xs text-text-muted">
           ANALYSTS: {ks?.analyst_consensus ?? '—'} · INSIDER MSPR: {mspr != null ? mspr.toFixed(2) : '—'} · NEWS SENTIMENT: {newsScore != null ? newsScore.toFixed(1) : '—'} · INST OWNERS: {instOwners ?? '—'} · BUZZ: {ks?.buzz_ratio != null ? `${ks.buzz_ratio.toFixed(1)}x` : '—'} · TREND: {ks?.sentiment_momentum != null ? ks.sentiment_momentum.toFixed(0) : '—'}
         </div>
         {sentiment && !sentiment.error && sentiment.postCount > 0 && (
           <>
             <div className="text-xs mt-0.5">
-              <span className={themed('text-text-muted', dk)}>SOCIAL: </span>
-              <span className={sentiment.score > 0.2 ? 'text-brand-green font-bold' : sentiment.score < -0.2 ? 'text-brand-red font-bold' : themed('text-text-muted font-bold', dk)}>
+              <span className="text-text-muted">SOCIAL: </span>
+              <span className={sentiment.score > 0.2 ? 'text-brand-green font-bold' : sentiment.score < -0.2 ? 'text-brand-red font-bold' : 'text-text-muted font-bold'}>
                 {sentiment.score > 0 ? '+' : ''}{sentiment.score.toFixed(2)}
               </span>
-              <span className={themed('text-text-faint', dk)}> · {sentiment.postCount} posts · {sentiment.bullishCount}B/{sentiment.bearishCount}Be/{sentiment.neutralCount}N · AGE: {sentiment.dataAge}</span>
+              <span className="text-text-faint"> · {sentiment.postCount} posts · {sentiment.bullishCount}B/{sentiment.bearishCount}Be/{sentiment.neutralCount}N · AGE: {sentiment.dataAge}</span>
             </div>
             {sentiment.themes.length > 0 && (
-              <div className={themed('text-xs text-text-faint mt-0.5', dk)}>THEMES: {sentiment.themes.join(' · ')}</div>
+              <div className="text-xs text-text-faint mt-0.5">THEMES: {sentiment.themes.join(' · ')}</div>
             )}
             {sentiment.samplePosts && sentiment.samplePosts.length > 0 && (
               <div className="mt-0.5">
                 {sentiment.samplePosts.slice(0, 2).map((post, i) => (
-                  <div key={i} className={themed('text-xs text-text-faint truncate', dk)}>&ldquo;{termTruncate(post.text, 80)}&rdquo; — {post.sentiment}</div>
+                  <div key={i} className="text-xs text-text-faint truncate">&ldquo;{termTruncate(post.text, 80)}&rdquo; — {post.sentiment}</div>
                 ))}
               </div>
             )}
           </>
         )}
         {sentiment?.error && (
-          <div className={themed('text-xs text-text-faint mt-0.5', dk)}>SOCIAL: unavailable — {sentiment.error}</div>
+          <div className="text-xs text-text-faint mt-0.5">SOCIAL: unavailable — {sentiment.error}</div>
         )}
         {!sentiment && (
-          <div className={themed('text-xs text-text-faint mt-0.5', dk)}>SOCIAL: xAI data not loaded</div>
+          <div className="text-xs text-text-faint mt-0.5">SOCIAL: xAI data not loaded</div>
         )}
         {sentiment && !sentiment.error && sentiment.postCount === 0 && (
-          <div className={themed('text-xs text-text-faint mt-0.5', dk)}>SOCIAL: 0 posts found</div>
+          <div className="text-xs text-text-faint mt-0.5">SOCIAL: 0 posts found</div>
         )}
         {/* Magnitude + data age always shown if available */}
         {sentiment && !sentiment.error && sentiment.postCount > 0 && (
-          <div className={themed('text-xs text-text-faint mt-0.5', dk)}>MAGNITUDE: {sentiment.magnitude.toFixed(2)}</div>
+          <div className="text-xs text-text-faint mt-0.5">MAGNITUDE: {sentiment.magnitude.toFixed(2)}</div>
         )}
       </div>
     );
@@ -649,12 +647,12 @@ export function TerminalTradeCard({ dk = false, detail, sentiment, savedCards, s
     if (headlines.length === 0) return null;
     return (
       <div>
-        <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1', dk)}>Headlines</div>
+        <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1">Headlines</div>
         {headlines.map((h, i) => {
-          const color = h.sentiment === 'bullish' ? 'text-brand-green' : h.sentiment === 'bearish' ? 'text-brand-red' : themed('text-text-muted', dk);
+          const color = h.sentiment === 'bullish' ? 'text-brand-green' : h.sentiment === 'bearish' ? 'text-brand-red' : 'text-text-muted';
           return (
-            <div key={i} className={themed('text-xs text-text-muted', dk)}>
-              <span className={`font-bold ${color}`}>[{h.sentiment.toUpperCase()}]</span> &ldquo;{termTruncate(h.headline, 70)}&rdquo; <span className={themed('text-text-faint', dk)}>{h.source}</span>
+            <div key={i} className="text-xs text-text-muted">
+              <span className={`font-bold ${color}`}>[{h.sentiment.toUpperCase()}]</span> &ldquo;{termTruncate(h.headline, 70)}&rdquo; <span className="text-text-faint">{h.source}</span>
             </div>
           );
         })}
@@ -666,17 +664,17 @@ export function TerminalTradeCard({ dk = false, detail, sentiment, savedCards, s
 
   if (cards.length === 0) {
     return (
-      <div className={themed('bg-bg-terminal rounded border border-border font-mono text-xs p-4', dk)}>
+      <div className="bg-bg-terminal rounded border border-border font-mono text-xs p-4">
         {/* Header */}
-        <div className={themed('text-text-primary', dk)}>
+        <div className="text-text-primary">
           <span className="font-bold">{detail.symbol}</span>
-          <span className={themed('text-text-muted', dk)}> · Score </span>
+          <span className="text-text-muted"> · Score </span>
           <span className={termGateColor(comp.score)}>{comp.score.toFixed(1)} {letterGrade(comp.score)}</span>
-          <span className={themed('text-text-muted', dk)}> · {comp.categories_above_50}/4 gates · {comp.direction}</span>
+          <span className="text-text-muted"> · {comp.categories_above_50}/4 gates · {comp.direction}</span>
         </div>
         <div className="text-brand-red mt-1">No strategies passed quality gates</div>
         {detail._fetch_errors?.chain_fetch && (
-          <div className={themed('text-text-faint mt-0.5', dk)}>{detail._fetch_errors.chain_fetch}</div>
+          <div className="text-text-faint mt-0.5">{detail._fetch_errors.chain_fetch}</div>
         )}
         {divider}
         {renderForAgainst(undefined)}
@@ -714,7 +712,7 @@ export function TerminalTradeCard({ dk = false, detail, sentiment, savedCards, s
         const vegaPt = (card.setup.greeks?.vega ?? 0) * 100;
 
         return (
-          <div key={ci} className={themed('bg-bg-terminal rounded border border-border font-mono text-xs p-4', dk)}>
+          <div key={ci} className="bg-bg-terminal rounded border border-border font-mono text-xs p-4">
 
             {/* SECTION 1 — HEADER */}
             {/* TRADE-UX-1: the dossier anchor (tastytrade's PoP-on-every-ticket) —
@@ -724,22 +722,22 @@ export function TerminalTradeCard({ dk = false, detail, sentiment, savedCards, s
                 zero new claims; structural prominence only. */}
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className={themed('text-text-primary', dk)}>
+                <div className="text-text-primary">
                   <span className="font-bold">{detail.symbol}</span>
-                  <span className={themed('text-text-muted', dk)}> · </span>
-                  <span className={themed('text-text-primary font-bold', dk)}>{card.setup.strategy_name}</span>
-                  <span className={themed('text-text-muted', dk)}> · {card.setup.expiration_date} · {card.setup.dte}DTE</span>
+                  <span className="text-text-muted"> · </span>
+                  <span className="text-text-primary font-bold">{card.setup.strategy_name}</span>
+                  <span className="text-text-muted"> · {card.setup.expiration_date} · {card.setup.dte}DTE</span>
                 </div>
-                <div className={themed('text-text-muted', dk)}>
+                <div className="text-text-muted">
                   Score <span className={termGateColor(comp.score)}>{comp.score.toFixed(1)} {letterGrade(comp.score)}</span> · {comp.categories_above_50}/4 gates · {comp.direction}{ks?.sector ? ` · ${ks.sector}` : ''}
                 </div>
               </div>
               <div className="shrink-0 text-right">
-                <div className={themed('text-[9px] text-text-muted uppercase', dk)}>Est. PoP</div>
-                <div className={themed('text-2xl tracking-tight font-mono font-black text-text-primary', dk)}>
+                <div className="text-[9px] text-text-muted uppercase">Est. PoP</div>
+                <div className="text-2xl tracking-tight font-mono font-black text-text-primary">
                   {fmtPct(card.setup.probability_of_profit)}
                 </div>
-                <div className={themed('text-[8px] font-mono text-text-faint', dk)}>
+                <div className="text-[8px] font-mono text-text-faint">
                   {card.setup.pop_method === 'breakeven_d2' ? 'N(d2)' : 'Δ approx'}
                 </div>
               </div>
@@ -748,41 +746,41 @@ export function TerminalTradeCard({ dk = false, detail, sentiment, savedCards, s
             {divider}
 
             {/* SECTION 2 — TRADE SETUP */}
-            <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1', dk)}>Trade Setup</div>
+            <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1">Trade Setup</div>
             {card.setup.legs.map((leg, j) => (
               <div key={j} className="text-xs">
                 <span className={leg.side === 'sell' ? 'text-brand-red font-bold' : 'text-brand-green font-bold'}>
                   {leg.side.toUpperCase().padEnd(4)}
                 </span>
-                <span className={themed('text-text-muted', dk)}> {leg.type.toUpperCase().padEnd(4)} </span>
-                <span className={themed('text-text-primary', dk)}>${leg.strike}</span>
-                <span className={themed('text-text-faint', dk)}>  ${leg.price.toFixed(2)}</span>
+                <span className="text-text-muted"> {leg.type.toUpperCase().padEnd(4)} </span>
+                <span className="text-text-primary">${leg.strike}</span>
+                <span className="text-text-faint">  ${leg.price.toFixed(2)}</span>
               </div>
             ))}
-            <div className={themed('text-xs text-text-primary mt-1', dk)}>
+            <div className="text-xs text-text-primary mt-1">
               {card.setup.net_credit != null && card.setup.net_credit > 0
                 ? <span className="text-brand-green font-bold">COLLECT ${(card.setup.net_credit * 100).toFixed(0)}</span>
                 : card.setup.net_debit != null
-                ? <span className={themed('text-text-primary font-bold', dk)}>PAY ${(card.setup.net_debit * 100).toFixed(0)}</span>
+                ? <span className="text-text-primary font-bold">PAY ${(card.setup.net_debit * 100).toFixed(0)}</span>
                 : null}
-              <span className={themed('text-text-muted', dk)}> · <MetricInfo surface={dk ? 'dark' : 'light'} metricKey="max_loss" values={{ max_loss: Number(card.setup.max_loss) }} hasValue={card.setup.max_loss != null}>MAX LOSS</MetricInfo> </span>
+              <span className="text-text-muted"> · <MetricInfo metricKey="max_loss" values={{ max_loss: Number(card.setup.max_loss) }} hasValue={card.setup.max_loss != null}>MAX LOSS</MetricInfo> </span>
               <span className="text-brand-red">{fmtDollar(card.setup.max_loss)}</span>
               {/* RISK-1: max loss as % of user-entered account size (only when set). */}
               {accountSize > 0 && card.setup.max_loss != null && (
-                <span className={themed('text-text-faint', dk)}> ({((Math.abs(card.setup.max_loss) / accountSize) * 100).toFixed(1)}% of acct)</span>
+                <span className="text-text-faint"> ({((Math.abs(card.setup.max_loss) / accountSize) * 100).toFixed(1)}% of acct)</span>
               )}
-              <span className={themed('text-text-muted', dk)}> · <MetricInfo surface={dk ? 'dark' : 'light'} metricKey="est_pop" values={{ pop: card.setup.probability_of_profit != null ? card.setup.probability_of_profit * 100 : null, pop_method: card.setup.pop_method === 'breakeven_d2' ? 'N(d2)' : 'delta' }} hasValue={card.setup.probability_of_profit != null}>POP</MetricInfo> </span>
-              <span className={themed('text-text-primary', dk)}>{fmtPct(card.setup.probability_of_profit)}</span>
-              <span className={themed('text-text-faint', dk)}> ({card.setup.pop_method === 'breakeven_d2' ? 'N(d2)' : 'Δ approx'})</span>
-              <span className={themed('text-text-muted', dk)}> · <MetricInfo surface={dk ? 'dark' : 'light'} metricKey="ev" values={{ ev: Number(card.setup.ev) }} hasValue={card.setup.ev != null}>EV</MetricInfo> </span>
+              <span className="text-text-muted"> · <MetricInfo metricKey="est_pop" values={{ pop: card.setup.probability_of_profit != null ? card.setup.probability_of_profit * 100 : null, pop_method: card.setup.pop_method === 'breakeven_d2' ? 'N(d2)' : 'delta' }} hasValue={card.setup.probability_of_profit != null}>POP</MetricInfo> </span>
+              <span className="text-text-primary">{fmtPct(card.setup.probability_of_profit)}</span>
+              <span className="text-text-faint"> ({card.setup.pop_method === 'breakeven_d2' ? 'N(d2)' : 'Δ approx'})</span>
+              <span className="text-text-muted"> · <MetricInfo metricKey="ev" values={{ ev: Number(card.setup.ev) }} hasValue={card.setup.ev != null}>EV</MetricInfo> </span>
               <span className={card.setup.ev >= 0 ? 'text-brand-green' : 'text-brand-red'}>{card.setup.ev >= 0 ? '+' : ''}${Math.round(card.setup.ev)}</span>
-              <span className={themed('text-text-muted', dk)}> · <MetricInfo surface={dk ? 'dark' : 'light'} metricKey="ev_per_risk" values={{ ev_per_risk: Number(card.setup.ev_per_risk) }} hasValue={card.setup.ev_per_risk != null}>EV/RISK</MetricInfo> </span>
-              <span className={themed('text-text-primary', dk)}>{card.setup.ev_per_risk.toFixed(3)}</span>
-              <span className={themed('text-text-muted', dk)}> · <MetricInfo surface={dk ? 'dark' : 'light'} metricKey="risk_reward" values={{ risk_reward: Number(card.setup.risk_reward_ratio) }} hasValue={card.setup.risk_reward_ratio != null}>R:R</MetricInfo> </span>
-              <span className={themed('text-text-primary', dk)}>{card.setup.risk_reward_ratio != null ? card.setup.risk_reward_ratio.toFixed(2) : '—'}</span>
+              <span className="text-text-muted"> · <MetricInfo metricKey="ev_per_risk" values={{ ev_per_risk: Number(card.setup.ev_per_risk) }} hasValue={card.setup.ev_per_risk != null}>EV/RISK</MetricInfo> </span>
+              <span className="text-text-primary">{card.setup.ev_per_risk.toFixed(3)}</span>
+              <span className="text-text-muted"> · <MetricInfo metricKey="risk_reward" values={{ risk_reward: Number(card.setup.risk_reward_ratio) }} hasValue={card.setup.risk_reward_ratio != null}>R:R</MetricInfo> </span>
+              <span className="text-text-primary">{card.setup.risk_reward_ratio != null ? card.setup.risk_reward_ratio.toFixed(2) : '—'}</span>
             </div>
-            <div className={themed('text-xs text-text-muted mt-0.5', dk)}>
-              <MetricInfo surface={dk ? 'dark' : 'light'} metricKey="breakevens" values={{ breakevens: (card.setup.breakevens?.length ?? 0) === 0 ? null : card.setup.breakevens.map(b => `$${b.toFixed(2)}`).join(' / ') }} hasValue={(card.setup.breakevens?.length ?? 0) > 0}>B/E</MetricInfo> {(card.setup.breakevens?.length ?? 0) === 0 ? '—' : card.setup.breakevens.map(b => `$${b.toFixed(2)}`).join(' / ')} · <MetricInfo surface={dk ? 'dark' : 'light'} metricKey="hv_pop" values={{ hv_pop: card.setup.hv_pop != null ? card.setup.hv_pop * 100 : null }} hasValue={card.setup.hv_pop != null}>HV POP</MetricInfo> {card.setup.hv_pop != null ? `${Math.round(card.setup.hv_pop * 100)}%` : '—'} · <MetricInfo surface={dk ? 'dark' : 'light'} metricKey="theta" values={{ theta: thetaPerDay }}>THETA</MetricInfo> <span className={thetaPerDay >= 0 ? 'text-brand-green' : 'text-brand-red'}>{thetaPerDay >= 0 ? '+' : ''}${thetaPerDay.toFixed(2)}/day</span> · <MetricInfo surface={dk ? 'dark' : 'light'} metricKey="vega" values={{ vega: vegaPt }}>VEGA/pt</MetricInfo> <span className={vegaPt >= 0 ? 'text-brand-green' : 'text-brand-red'}>{vegaPt >= 0 ? '+' : ''}${Math.abs(vegaPt).toFixed(2)}</span> · <MetricInfo surface={dk ? 'dark' : 'light'} metricKey="kelly" values={{ kelly: kellyPct }}>KELLY</MetricInfo> <span className={kellyPct >= 2 ? 'text-brand-green' : kellyPct >= 1 ? 'text-yellow-400' : themed('text-text-muted', dk)}>{kellyPct.toFixed(1)}%</span>
+            <div className="text-xs text-text-muted mt-0.5">
+              <MetricInfo metricKey="breakevens" values={{ breakevens: (card.setup.breakevens?.length ?? 0) === 0 ? null : card.setup.breakevens.map(b => `$${b.toFixed(2)}`).join(' / ') }} hasValue={(card.setup.breakevens?.length ?? 0) > 0}>B/E</MetricInfo> {(card.setup.breakevens?.length ?? 0) === 0 ? '—' : card.setup.breakevens.map(b => `$${b.toFixed(2)}`).join(' / ')} · <MetricInfo metricKey="hv_pop" values={{ hv_pop: card.setup.hv_pop != null ? card.setup.hv_pop * 100 : null }} hasValue={card.setup.hv_pop != null}>HV POP</MetricInfo> {card.setup.hv_pop != null ? `${Math.round(card.setup.hv_pop * 100)}%` : '—'} · <MetricInfo metricKey="theta" values={{ theta: thetaPerDay }}>THETA</MetricInfo> <span className={thetaPerDay >= 0 ? 'text-brand-green' : 'text-brand-red'}>{thetaPerDay >= 0 ? '+' : ''}${thetaPerDay.toFixed(2)}/day</span> · <MetricInfo metricKey="vega" values={{ vega: vegaPt }}>VEGA/pt</MetricInfo> <span className={vegaPt >= 0 ? 'text-brand-green' : 'text-brand-red'}>{vegaPt >= 0 ? '+' : ''}${Math.abs(vegaPt).toFixed(2)}</span> · <MetricInfo metricKey="kelly" values={{ kelly: kellyPct }}>KELLY</MetricInfo> <span className={kellyPct >= 2 ? 'text-brand-green' : kellyPct >= 1 ? 'text-yellow-400' : 'text-text-muted'}>{kellyPct.toFixed(1)}%</span>
             </div>
             {card.setup.has_wide_spread && (
               <div className="text-xs text-yellow-400 mt-0.5">&#x26A0; Wide bid-ask spread — prices estimated from theoretical model</div>
@@ -827,7 +825,7 @@ export function TerminalTradeCard({ dk = false, detail, sentiment, savedCards, s
                 <Badge variant="success" size="md">Queued &#10003;</Badge>
                 <button
                   onClick={() => onRemove(cardKey, savedId)}
-                  className={themed('text-[10px] text-text-faint hover:text-brand-red transition-colors', dk)}
+                  className="text-[10px] text-text-faint hover:text-brand-red transition-colors"
                 >
                   &#10005; Remove
                 </button>
@@ -853,8 +851,7 @@ export function TerminalTradeCard({ dk = false, detail, sentiment, savedCards, s
 
 // ── Ticker Card (the full card for one ticker) ─────────────────────
 
-export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCards, saveErrors, onSave, onRemove }: { dk?: boolean;
-  detail: TickerDetail;
+export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, onSave, onRemove }: { detail: TickerDetail;
   sentiment?: SocialSentimentData;
   savedCards: Map<string, string>; // key: "SYMBOL|strategy_name" → saved card ID
   savingCards: Set<string>;
@@ -872,44 +869,44 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
   const gate = gateLabel(comp.categories_above_50);
 
   return (
-    <div className={themed('bg-white rounded border border-border shadow-sm overflow-hidden', dk)}>
+    <div className="bg-white rounded border border-border shadow-sm overflow-hidden">
 
       {/* A) HEADER ROW */}
       <div className="px-5 py-2 flex items-center justify-between flex-wrap gap-2 bg-brand-purple-hover">
         <div className="flex items-center gap-3">
           <span className="text-sm font-black font-mono text-text-primary">{detail.symbol}</span>
-          <span className="text-sm font-black font-mono" style={{ color: gradeColorHex(comp.score) }}><MetricInfo surface={dk ? 'dark' : 'light'} metricKey="composite_score" values={{ score: comp.score }}>{comp.score.toFixed(1)}</MetricInfo></span>
-          <span className="text-terminal-lg font-black" style={{ color: gradeColorHex(comp.score) }}><MetricInfo surface={dk ? 'dark' : 'light'} metricKey="letter_grade" values={{ score: comp.score, grade: letterGrade(comp.score) }}>{letterGrade(comp.score)}</MetricInfo></span>
+          <span className="text-sm font-black font-mono" style={{ color: gradeColorHex(comp.score) }}><MetricInfo metricKey="composite_score" values={{ score: comp.score }}>{comp.score.toFixed(1)}</MetricInfo></span>
+          <span className="text-terminal-lg font-black" style={{ color: gradeColorHex(comp.score) }}><MetricInfo metricKey="letter_grade" values={{ score: comp.score, grade: letterGrade(comp.score) }}>{letterGrade(comp.score)}</MetricInfo></span>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <MetricInfo surface={dk ? 'dark' : 'light'} metricKey="direction" values={{ direction: comp.direction }}><Badge variant={dirBadgeVariant(comp.direction)} size="sm">{comp.direction}</Badge></MetricInfo>
+          <MetricInfo metricKey="direction" values={{ direction: comp.direction }}><Badge variant={dirBadgeVariant(comp.direction)} size="sm">{comp.direction}</Badge></MetricInfo>
           {ks?.sector && <span title="Stock sector from market data. Useful for concentration risk — avoid over-weighting one sector."><Badge variant="default" size="sm">{ks.sector}</Badge></span>}
-          <MetricInfo surface={dk ? 'dark' : 'light'} metricKey="gates" values={{ gates: comp.categories_above_50 }}><Badge variant={gate.variant} size="sm">
+          <MetricInfo metricKey="gates" values={{ gates: comp.categories_above_50 }}><Badge variant={gate.variant} size="sm">
             {comp.categories_above_50}/4 {gate.text}
           </Badge></MetricInfo>
         </div>
       </div>
 
       {/* B) SCORE BARS */}
-      <div className={themed('px-5 py-2 space-y-1.5 border-b border-border', dk)}>
-        <div title="Volatility Edge (0–100): measures whether options are mispriced relative to realized vol. Combines VRP z-score, IV percentile, term structure shape, skew asymmetry, and dealer gamma exposure. Above 50 = options appear expensive = edge for premium sellers."><MetricInfo surface={dk ? 'dark' : 'light'} metricKey="vol_edge" values={{ score: comp.category_scores.vol_edge }}><ScoreBar dk={dk} label="Vol Edge" score={comp.category_scores.vol_edge} /></MetricInfo></div>
-        <div title="Quality Gate (0–100): measures the fundamental health of the underlying company. Combines Piotroski F-Score safety, profitability margins, earnings quality (accrual ratio + beat rate), and growth trajectory. Above 50 = high-quality underlying."><MetricInfo surface={dk ? 'dark' : 'light'} metricKey="quality" values={{ score: comp.category_scores.quality }}><ScoreBar dk={dk} label="Quality" score={comp.category_scores.quality} /></MetricInfo></div>
-        <div title="Macro Regime Gate (0–100): measures whether the current macro environment favors the trade direction. Scored from 14 FRED macro indicators including GDP, CPI, Fed Funds, yield curve, and credit spreads. Above 50 = favorable macro backdrop."><MetricInfo surface={dk ? 'dark' : 'light'} metricKey="regime" values={{ score: comp.category_scores.regime }}><ScoreBar dk={dk} label="Regime" score={comp.category_scores.regime} /></MetricInfo></div>
-        <div title="Information Edge Gate (0–100): measures signals of informed activity. Combines insider net purchase ratio (MSPR), institutional ownership changes, analyst upgrades/downgrades, SUE earnings surprise, and FinBERT news sentiment. Above 50 = positive information asymmetry."><MetricInfo surface={dk ? 'dark' : 'light'} metricKey="info_edge" values={{ score: comp.category_scores.info_edge }}><ScoreBar dk={dk} label="Info Edge" score={comp.category_scores.info_edge} /></MetricInfo></div>
+      <div className="px-5 py-2 space-y-1.5 border-b border-border">
+        <div title="Volatility Edge (0–100): measures whether options are mispriced relative to realized vol. Combines VRP z-score, IV percentile, term structure shape, skew asymmetry, and dealer gamma exposure. Above 50 = options appear expensive = edge for premium sellers."><MetricInfo metricKey="vol_edge" values={{ score: comp.category_scores.vol_edge }}><ScoreBar label="Vol Edge" score={comp.category_scores.vol_edge} /></MetricInfo></div>
+        <div title="Quality Gate (0–100): measures the fundamental health of the underlying company. Combines Piotroski F-Score safety, profitability margins, earnings quality (accrual ratio + beat rate), and growth trajectory. Above 50 = high-quality underlying."><MetricInfo metricKey="quality" values={{ score: comp.category_scores.quality }}><ScoreBar label="Quality" score={comp.category_scores.quality} /></MetricInfo></div>
+        <div title="Macro Regime Gate (0–100): measures whether the current macro environment favors the trade direction. Scored from 14 FRED macro indicators including GDP, CPI, Fed Funds, yield curve, and credit spreads. Above 50 = favorable macro backdrop."><MetricInfo metricKey="regime" values={{ score: comp.category_scores.regime }}><ScoreBar label="Regime" score={comp.category_scores.regime} /></MetricInfo></div>
+        <div title="Information Edge Gate (0–100): measures signals of informed activity. Combines insider net purchase ratio (MSPR), institutional ownership changes, analyst upgrades/downgrades, SUE earnings surprise, and FinBERT news sentiment. Above 50 = positive information asymmetry."><MetricInfo metricKey="info_edge" values={{ score: comp.category_scores.info_edge }}><ScoreBar label="Info Edge" score={comp.category_scores.info_edge} /></MetricInfo></div>
       </div>
 
       {/* B2) SOCIAL PULSE — promoted from Key Stats */}
       {sentiment && !sentiment.error && sentiment.postCount > 0 && (
-        <div className={themed('px-5 py-2 border-b border-border bg-bg-row', dk)}>
-          <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1', dk)}>Social Pulse (xAI/Grok)</div>
+        <div className="px-5 py-2 border-b border-border bg-bg-row">
+          <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1">Social Pulse (xAI/Grok)</div>
           <div className="flex items-baseline gap-2 flex-wrap">
             <span
-              className={themed(`text-lg font-bold font-mono ${sentiment.score > 0.2 ? 'text-brand-green' : sentiment.score < -0.2 ? 'text-brand-red' : themed('text-text-muted', dk)}`, dk)}
+              className={`text-lg font-bold font-mono ${sentiment.score > 0.2 ? 'text-brand-green' : sentiment.score < -0.2 ? 'text-brand-red' : 'text-text-muted'}`}
               title="Aggregate sentiment score from real X (Twitter) posts analyzed by xAI Grok. Range -1.0 (fully bearish) to +1.0 (fully bullish). Based on actual post content, not price action."
             >
               {sentiment.score > 0 ? '+' : ''}{sentiment.score.toFixed(2)}
             </span>
-            <span className={themed('text-xs text-text-faint font-mono', dk)} title="Breakdown of post sentiment classification by xAI Grok. Each post classified as bullish, bearish, or neutral based on content analysis.">
+            <span className="text-xs text-text-faint font-mono" title="Breakdown of post sentiment classification by xAI Grok. Each post classified as bullish, bearish, or neutral based on content analysis.">
               <span title="Number of recent X/Twitter posts about this ticker analyzed by xAI Grok. Higher count = more data points = higher confidence in the sentiment reading.">{sentiment.postCount} posts</span>
               {' | '}{sentiment.bullishCount}B/{sentiment.bearishCount}b/{sentiment.neutralCount}N
             </span>
@@ -924,36 +921,36 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
           {sentiment.samplePosts && sentiment.samplePosts.length > 0 && (
             <div className="mt-1 space-y-0.5">
               {sentiment.samplePosts.slice(0, 2).map((post, i) => (
-                <div key={i} className={themed('text-[10px] text-text-secondary leading-relaxed truncate', dk)}>&ldquo;{post.text}&rdquo;</div>
+                <div key={i} className="text-[10px] text-text-secondary leading-relaxed truncate">&ldquo;{post.text}&rdquo;</div>
               ))}
             </div>
           )}
         </div>
       )}
       {sentiment?.error && (
-        <div className={themed('px-5 py-2 border-b border-border text-xs text-text-muted', dk)}>
+        <div className="px-5 py-2 border-b border-border text-xs text-text-muted">
           Social Pulse unavailable — {sentiment.error}
         </div>
       )}
       {!sentiment && (
-        <div className={themed('px-5 py-2 border-b border-border text-xs text-text-muted', dk)}>
+        <div className="px-5 py-2 border-b border-border text-xs text-text-muted">
           Social Pulse — xAI data not loaded
         </div>
       )}
 
       {/* C) THE TRADE */}
       {cards.length > 0 ? (
-        <div className={themed('border-b border-border', dk)}>
+        <div className="border-b border-border">
           {cards.map((card, ci) => (
-            <div key={ci} className={ci > 0 ? themed('border-t border-border', dk) : ''}>
+            <div key={ci} className={ci > 0 ? 'border-t border-border' : ''}>
               {/* Strategy header */}
-              <div className={themed('px-5 py-2 flex items-center justify-between bg-bg-row', dk)}>
+              <div className="px-5 py-2 flex items-center justify-between bg-bg-row">
                 <div className="flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black bg-brand-purple text-white">{card.label}</span>
-                  <span className={themed('text-sm font-bold text-text-primary', dk)}>{card.setup.strategy_name}</span>
+                  <span className="text-sm font-bold text-text-primary">{card.setup.strategy_name}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={themed('text-[10px] text-text-secondary', dk)}>{card.setup.expiration_date}</span>
+                  <span className="text-[10px] text-text-secondary">{card.setup.expiration_date}</span>
                   <Badge variant="default" size="sm">{card.setup.dte} DTE</Badge>
                 </div>
               </div>
@@ -962,7 +959,7 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
                 {/* Legs table */}
                 <table className="w-full text-xs mb-3">
                   <thead>
-                    <tr className={themed('text-text-muted text-[10px]', dk)}>
+                    <tr className="text-text-muted text-[10px]">
                       <th className="text-left font-medium pb-1 w-16">Action</th>
                       <th className="text-left font-medium pb-1 w-12">Type</th>
                       <th className="text-right font-medium pb-1">Strike</th>
@@ -973,9 +970,9 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
                     {card.setup.legs.map((leg, j) => (
                       <tr key={j}>
                         <td className={`py-0.5 font-bold ${leg.side === 'sell' ? 'text-brand-red' : 'text-brand-green'}`}>{leg.side.toUpperCase()}</td>
-                        <td className={themed('py-0.5 text-text-secondary', dk)}>{leg.type.toUpperCase()}</td>
-                        <td className={themed('py-0.5 text-right font-mono font-bold text-text-primary', dk)}>${leg.strike}</td>
-                        <td className={themed('py-0.5 text-right font-mono text-text-secondary', dk)}>${leg.price.toFixed(2)}</td>
+                        <td className="py-0.5 text-text-secondary">{leg.type.toUpperCase()}</td>
+                        <td className="py-0.5 text-right font-mono font-bold text-text-primary">${leg.strike}</td>
+                        <td className="py-0.5 text-right font-mono text-text-secondary">${leg.price.toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -984,52 +981,52 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
                 {/* Key numbers row */}
                 <div className="grid grid-cols-5 gap-3 mb-2">
                   <div className="text-center">
-                    <div className={themed('text-[9px] text-text-muted uppercase', dk)}><MetricInfo surface={dk ? 'dark' : 'light'} metricKey="max_profit" values={{ max_profit: Number(card.setup.max_profit) }} hasValue={card.setup.max_profit != null}>Max Profit</MetricInfo></div>
+                    <div className="text-[9px] text-text-muted uppercase"><MetricInfo metricKey="max_profit" values={{ max_profit: Number(card.setup.max_profit) }} hasValue={card.setup.max_profit != null}>Max Profit</MetricInfo></div>
                     <div className="text-sm font-mono font-black text-brand-green">{fmtDollar(card.setup.max_profit)}</div>
                   </div>
                   <div className="text-center">
-                    <div className={themed('text-[9px] text-text-muted uppercase', dk)}><MetricInfo surface={dk ? 'dark' : 'light'} metricKey="max_loss" values={{ max_loss: Number(card.setup.max_loss) }} hasValue={card.setup.max_loss != null}>Max Loss</MetricInfo></div>
+                    <div className="text-[9px] text-text-muted uppercase"><MetricInfo metricKey="max_loss" values={{ max_loss: Number(card.setup.max_loss) }} hasValue={card.setup.max_loss != null}>Max Loss</MetricInfo></div>
                     <div className="text-sm font-mono font-black text-brand-red">{fmtDollar(card.setup.max_loss)}</div>
                     {/* RISK-1: max loss as % of user-entered account size (only when set). */}
                     {accountSize > 0 && card.setup.max_loss != null && (
-                      <div className={themed('text-[8px] font-mono text-text-faint mt-0.5', dk)}>
+                      <div className="text-[8px] font-mono text-text-faint mt-0.5">
                         {((Math.abs(card.setup.max_loss) / accountSize) * 100).toFixed(1)}% of acct
                       </div>
                     )}
                   </div>
                   <div className="text-center">
-                    <div className={themed('text-[9px] text-text-muted uppercase', dk)} title={card.setup.pop_method === 'breakeven_d2' ? 'PoP via N(d2) at breakeven price — the standard Black-Scholes probability that the underlying closes beyond the breakeven price at expiration. More accurate than delta approx.' : 'PoP estimated from option deltas — quick approximation used when breakeven calculation is unavailable. Less precise than N(d2) method.'}><MetricInfo surface={dk ? 'dark' : 'light'} metricKey="est_pop" values={{ pop: card.setup.probability_of_profit != null ? card.setup.probability_of_profit * 100 : null, pop_method: card.setup.pop_method === 'breakeven_d2' ? 'N(d2)' : 'delta' }} hasValue={card.setup.probability_of_profit != null}>Est. PoP</MetricInfo></div>
+                    <div className="text-[9px] text-text-muted uppercase" title={card.setup.pop_method === 'breakeven_d2' ? 'PoP via N(d2) at breakeven price — the standard Black-Scholes probability that the underlying closes beyond the breakeven price at expiration. More accurate than delta approx.' : 'PoP estimated from option deltas — quick approximation used when breakeven calculation is unavailable. Less precise than N(d2) method.'}><MetricInfo metricKey="est_pop" values={{ pop: card.setup.probability_of_profit != null ? card.setup.probability_of_profit * 100 : null, pop_method: card.setup.pop_method === 'breakeven_d2' ? 'N(d2)' : 'delta' }} hasValue={card.setup.probability_of_profit != null}>Est. PoP</MetricInfo></div>
                     {/* TRADE-UX-1: the dossier anchor — PoP is the card's visual
                         headline (display-scale mono, the RUNWAY-UX numeral
                         precedent). Same field, same format — structural only. */}
-                    <div className={themed('text-2xl lg:text-3xl tracking-tight font-mono font-black text-text-primary', dk)}>{fmtPct(card.setup.probability_of_profit)}</div>
-                    <div className={themed(`text-[8px] font-mono mt-0.5 ${card.setup.pop_method === 'breakeven_d2' ? 'text-brand-green' : 'text-text-faint'}`, dk)}>
+                    <div className="text-2xl lg:text-3xl tracking-tight font-mono font-black text-text-primary">{fmtPct(card.setup.probability_of_profit)}</div>
+                    <div className={`text-[8px] font-mono mt-0.5 ${card.setup.pop_method === 'breakeven_d2' ? 'text-brand-green' : 'text-text-faint'}`}>
                       {card.setup.pop_method === 'breakeven_d2' ? 'N(d2)' : 'Δ approx'}
                     </div>
                   </div>
                   <div className="text-center">
-                    <div className={themed('text-[9px] text-text-muted uppercase', dk)} title="Expected Value estimate using three-outcome model. Not a guarantee of returns."><MetricInfo surface={dk ? 'dark' : 'light'} metricKey="ev" values={{ ev: Number(card.setup.ev) }} hasValue={card.setup.ev != null}>Est. EV</MetricInfo></div>
-                    <div className={themed(`text-sm font-mono font-black ${card.setup.ev > 0 ? 'text-brand-green' : card.setup.ev < 0 ? 'text-brand-red' : themed('text-text-muted', dk)}`, dk)}>
+                    <div className="text-[9px] text-text-muted uppercase" title="Expected Value estimate using three-outcome model. Not a guarantee of returns."><MetricInfo metricKey="ev" values={{ ev: Number(card.setup.ev) }} hasValue={card.setup.ev != null}>Est. EV</MetricInfo></div>
+                    <div className={`text-sm font-mono font-black ${card.setup.ev > 0 ? 'text-brand-green' : card.setup.ev < 0 ? 'text-brand-red' : 'text-text-muted'}`}>
                       {card.setup.ev !== 0 ? `${card.setup.ev >= 0 ? '+' : ''}$${Math.round(card.setup.ev)}` : '—'}
                     </div>
                   </div>
                   <div className="text-center">
-                    <div className={themed('text-[9px] text-text-muted uppercase', dk)}><MetricInfo surface={dk ? 'dark' : 'light'} metricKey="risk_reward" values={{ risk_reward: Number(card.setup.risk_reward_ratio) }} hasValue={card.setup.risk_reward_ratio != null}>Risk/Reward</MetricInfo></div>
-                    <div className={themed('text-sm font-mono font-black text-text-primary', dk)}>{card.setup.risk_reward_ratio != null ? card.setup.risk_reward_ratio.toFixed(2) : '—'}</div>
+                    <div className="text-[9px] text-text-muted uppercase"><MetricInfo metricKey="risk_reward" values={{ risk_reward: Number(card.setup.risk_reward_ratio) }} hasValue={card.setup.risk_reward_ratio != null}>Risk/Reward</MetricInfo></div>
+                    <div className="text-sm font-mono font-black text-text-primary">{card.setup.risk_reward_ratio != null ? card.setup.risk_reward_ratio.toFixed(2) : '—'}</div>
                   </div>
                 </div>
 
                 {/* Greeks (dollar terms) + Breakevens row */}
-                <div className={themed('border-t border-border mt-2 pt-2', dk)}>
+                <div className="border-t border-border mt-2 pt-2">
                   <div className="grid grid-cols-3 gap-3 mb-2">
                     <div className="text-center">
-                      <div className={themed('text-[9px] text-text-muted uppercase', dk)} title="Dollar delta: how much this position gains or loses if the stock moves $1. Calculated as net delta × stock price × 100."><MetricInfo surface={dk ? 'dark' : 'light'} metricKey="delta" values={{ dollar_delta: Math.round((card.setup.greeks?.delta ?? 0) * (card.key_stats?.current_price ?? 0) * 100) }} hasValue={card.setup.greeks?.delta != null}>Δ Exposure</MetricInfo></div>
-                      <div className={themed(`text-sm font-mono font-black ${(() => {
+                      <div className="text-[9px] text-text-muted uppercase" title="Dollar delta: how much this position gains or loses if the stock moves $1. Calculated as net delta × stock price × 100."><MetricInfo metricKey="delta" values={{ dollar_delta: Math.round((card.setup.greeks?.delta ?? 0) * (card.key_stats?.current_price ?? 0) * 100) }} hasValue={card.setup.greeks?.delta != null}>Δ Exposure</MetricInfo></div>
+                      <div className={`text-sm font-mono font-black ${(() => {
                         const cp = card.key_stats?.current_price;
-                        if (cp == null) return themed('text-text-muted', dk);
+                        if (cp == null) return 'text-text-muted';
                         const dd = (card.setup.greeks?.delta ?? 0) * cp * 100;
                         return dd >= 0 ? 'text-brand-green' : 'text-brand-red';
-                      })()}`, dk)}>
+                      })()}`}>
                         {(() => {
                           const cp = card.key_stats?.current_price;
                           if (cp == null) return '—';
@@ -1039,7 +1036,7 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
                       </div>
                     </div>
                     <div className="text-center">
-                      <div className={themed('text-[9px] text-text-muted uppercase', dk)} title="Dollar theta: how much this position earns (credit) or loses (debit) per calendar day from time decay alone. Already in per-contract dollar terms."><MetricInfo surface={dk ? 'dark' : 'light'} metricKey="theta" values={{ theta: card.setup.greeks?.theta_per_day != null ? Number(card.setup.greeks.theta_per_day) : null }} hasValue={card.setup.greeks?.theta_per_day != null}>Daily θ</MetricInfo></div>
+                      <div className="text-[9px] text-text-muted uppercase" title="Dollar theta: how much this position earns (credit) or loses (debit) per calendar day from time decay alone. Already in per-contract dollar terms."><MetricInfo metricKey="theta" values={{ theta: card.setup.greeks?.theta_per_day != null ? Number(card.setup.greeks.theta_per_day) : null }} hasValue={card.setup.greeks?.theta_per_day != null}>Daily θ</MetricInfo></div>
                       {(() => {
                         const t = card.setup.greeks?.theta_per_day ?? 0;
                         return (
@@ -1050,7 +1047,7 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
                       })()}
                     </div>
                     <div className="text-center">
-                      <div className={themed('text-[9px] text-text-muted uppercase', dk)} title="Dollar vega: how much this position gains or loses if implied volatility moves 1 percentage point. Per contract."><MetricInfo surface={dk ? 'dark' : 'light'} metricKey="vega" values={{ vega: card.setup.greeks?.vega != null ? Number(card.setup.greeks.vega) * 100 : null }} hasValue={card.setup.greeks?.vega != null}>Vega/pt</MetricInfo></div>
+                      <div className="text-[9px] text-text-muted uppercase" title="Dollar vega: how much this position gains or loses if implied volatility moves 1 percentage point. Per contract."><MetricInfo metricKey="vega" values={{ vega: card.setup.greeks?.vega != null ? Number(card.setup.greeks.vega) * 100 : null }} hasValue={card.setup.greeks?.vega != null}>Vega/pt</MetricInfo></div>
                       {(() => {
                         const v = (card.setup.greeks?.vega ?? 0) * 100;
                         return (
@@ -1063,8 +1060,8 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
                   </div>
                   <div className="flex items-baseline gap-4">
                     <div>
-                      <span className={themed('text-[9px] text-text-muted uppercase mr-1', dk)} title="Breakeven price(s) — the exact underlying stock price(s) where this trade breaks even at expiration. Calculated from the P&L curve.">B/E</span>
-                      <span className={themed('text-sm font-mono text-text-primary', dk)}>
+                      <span className="text-[9px] text-text-muted uppercase mr-1" title="Breakeven price(s) — the exact underlying stock price(s) where this trade breaks even at expiration. Calculated from the P&L curve.">B/E</span>
+                      <span className="text-sm font-mono text-text-primary">
                         {(card.setup.breakevens?.length ?? 0) === 0
                           ? '—'
                           : card.setup.breakevens.map(b => `$${b.toFixed(2)}`).join(' / ')}
@@ -1072,9 +1069,9 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
                     </div>
                     {card.setup.hv_pop != null && (
                       <div>
-                        <span className={themed('text-[9px] text-text-muted uppercase mr-1', dk)} title="Probability of profit recalculated using historical (realized) volatility instead of implied volatility. More conservative than Est. PoP — shows what history says vs. what options imply.">HV PoP</span>
-                        <span className={themed('text-sm font-mono text-text-secondary', dk)}>{Math.round(card.setup.hv_pop * 100)}%</span>
-                        <span className={themed('text-[9px] text-text-faint ml-1', dk)}>(hist. vol)</span>
+                        <span className="text-[9px] text-text-muted uppercase mr-1" title="Probability of profit recalculated using historical (realized) volatility instead of implied volatility. More conservative than Est. PoP — shows what history says vs. what options imply.">HV PoP</span>
+                        <span className="text-sm font-mono text-text-secondary">{Math.round(card.setup.hv_pop * 100)}%</span>
+                        <span className="text-[9px] text-text-faint ml-1">(hist. vol)</span>
                       </div>
                     )}
                   </div>
@@ -1091,26 +1088,26 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
                   const quarterKelly = Math.max(0, rawKelly * 0.25);
                   const kellyPct = Math.round(quarterKelly * 1000) / 10;
                   return (
-                    <div className={themed('border-t border-border mt-2 pt-2 flex justify-between items-start px-1', dk)}>
-                      <span className={themed('text-[9px] uppercase tracking-wider text-text-muted', dk)}>
-                        <MetricInfo surface={dk ? 'dark' : 'light'} metricKey="kelly" values={{ kelly: kellyPct }}>Kelly Size</MetricInfo>
+                    <div className="border-t border-border mt-2 pt-2 flex justify-between items-start px-1">
+                      <span className="text-[9px] uppercase tracking-wider text-text-muted">
+                        <MetricInfo metricKey="kelly" values={{ kelly: kellyPct }}>Kelly Size</MetricInfo>
                       </span>
                       <div className="text-right">
-                        <span className={themed(`text-sm font-mono font-bold ${
+                        <span className={`text-sm font-mono font-bold ${
                           kellyPct >= 2.0 ? 'text-brand-green' :
                           kellyPct >= 1.0 ? 'text-brand-gold' :
                           kellyPct > 0   ? 'text-text-secondary' :
                                            'text-text-muted'
-                        }`, dk)}>
-                          {kellyPct.toFixed(1)}% <span className={themed('text-[9px] font-normal text-text-muted', dk)}>of account</span>
+                        }`}>
+                          {kellyPct.toFixed(1)}% <span className="text-[9px] font-normal text-text-muted">of account</span>
                         </span>
                         {/* RISK-1: Quarter-Kelly % as dollars of the user-entered account size. */}
                         {accountSize > 0 && (
-                          <div className={themed('text-[9px] font-mono text-text-faint', dk)}>
+                          <div className="text-[9px] font-mono text-text-faint">
                             {kellyPct.toFixed(1)}% of ${accountSize.toLocaleString()} = ${Math.round((kellyPct / 100) * accountSize).toLocaleString()}
                           </div>
                         )}
-                        <div className={themed('text-[9px] text-text-faint mt-0.5', dk)}>
+                        <div className="text-[9px] text-text-faint mt-0.5">
                           {/* LANG-1: state the computed classification, drop the imperative. */}
                           {kellyPct >= 2.0
                             ? 'Edge: favorable'
@@ -1132,11 +1129,11 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
                 )}
 
                 {/* Premium line */}
-                <div className={themed('text-center rounded py-1.5 bg-bg-row', dk)}>
+                <div className="text-center rounded py-1.5 bg-bg-row">
                   {card.setup.net_credit != null && card.setup.net_credit > 0 ? (
                     <span className="text-xs font-bold text-brand-green">Collect ${(card.setup.net_credit * 100).toFixed(0)} premium per contract</span>
                   ) : card.setup.net_debit != null ? (
-                    <span className={themed('text-xs font-bold text-text-primary', dk)}>Pay ${(card.setup.net_debit * 100).toFixed(0)} to enter per contract</span>
+                    <span className="text-xs font-bold text-text-primary">Pay ${(card.setup.net_debit * 100).toFixed(0)} to enter per contract</span>
                   ) : null}
                 </div>
 
@@ -1152,7 +1149,7 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
                         <Badge variant="success" size="md">Queued &#10003;</Badge>
                         <button
                           onClick={() => onRemove(cardKey, savedId)}
-                          className={themed('text-[10px] text-text-muted hover:text-brand-red transition-colors', dk)}
+                          className="text-[10px] text-text-muted hover:text-brand-red transition-colors"
                         >
                           &#10005; Remove
                         </button>
@@ -1191,8 +1188,8 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
           ))}
         </div>
       ) : (
-        <div className={themed('px-5 py-4 text-center border-b border-border', dk)}>
-          <div className={themed('text-text-muted text-xs', dk)}>
+        <div className="px-5 py-4 text-center border-b border-border">
+          <div className="text-text-muted text-xs">
             {detail._fetch_errors?.chain_fetch ? `No trade cards — ${detail._fetch_errors.chain_fetch}` : 'No strategies passed quality gates for this ticker'}
           </div>
         </div>
@@ -1200,14 +1197,14 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
 
       {/* D) WHY THIS TRADE */}
       {why && (
-        <div className={themed('px-5 py-2 border-b border-border', dk)}>
-          <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2', dk)}>Why This Trade</div>
+        <div className="px-5 py-2 border-b border-border">
+          <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2">Why This Trade</div>
 
           {why.plain_english_signals.length > 0 && (
             <div className="space-y-1 mb-3">
               {why.plain_english_signals.map((sig, i) => (
-                <div key={i} className={themed('flex gap-2 text-xs text-text-secondary leading-relaxed', dk)}>
-                  <span className={themed('shrink-0 mt-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold bg-bg-row text-text-muted', dk)}>{i + 1}</span>
+                <div key={i} className="flex gap-2 text-xs text-text-secondary leading-relaxed">
+                  <span className="shrink-0 mt-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold bg-bg-row text-text-muted">{i + 1}</span>
                   <span>{sig}</span>
                 </div>
               ))}
@@ -1246,9 +1243,9 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
               neutral: { text: 'neutral \u03B3', variant: 'default' },
             };
             return (
-              <div className={themed('rounded px-3 py-1.5 mb-1 bg-bg-row', dk)}>
+              <div className="rounded px-3 py-1.5 mb-1 bg-bg-row">
                 <div
-                  className={themed('text-[10px] text-text-muted font-mono uppercase tracking-wider font-bold mb-2', dk)}
+                  className="text-[10px] text-text-muted font-mono uppercase tracking-wider font-bold mb-2"
                   title="Five independent signals scored 0–100. Mispricing compares implied vs realized vol. Term structure reads the shape of the vol surface. Technicals confirm price action. Skew detects directional positioning. GEX shows dealer gamma exposure and hedging pressure."
                 >
                   Vol Edge Breakdown
@@ -1256,19 +1253,19 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
                 <div className="space-y-1.5">
                   {subs.map(({ key, label, score }) => (
                     <div key={key} className="flex items-center gap-2" title={subTooltips[key]}>
-                      <div className={themed('w-24 shrink-0 text-[10px] font-medium text-text-secondary', dk)}>{label}</div>
+                      <div className="w-24 shrink-0 text-[10px] font-medium text-text-secondary">{label}</div>
                       <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-bg-terminal">
                         <div className="h-full rounded-full transition-all duration-500 bg-brand-purple" style={{ width: `${Math.min(Math.round(score), 100)}%` }} />
                       </div>
-                      <div className={themed('w-6 text-[10px] font-mono font-bold text-right shrink-0 text-text-secondary', dk)}>{Math.round(score)}</div>
+                      <div className="w-6 text-[10px] font-mono font-bold text-right shrink-0 text-text-secondary">{Math.round(score)}</div>
                       <div className="w-20 shrink-0">
                         {key === 'mispricing' && vrpZ != null && (
-                          <span className={themed(`text-[10px] font-mono ${vrpZ > 0.5 ? 'text-brand-green' : vrpZ < -0.5 ? 'text-brand-red' : themed('text-text-muted', dk)}`, dk)} title={`Variance Risk Premium z-score: how many standard deviations the current VRP (IV30 − HV30) is above the ticker's own historical VRP distribution (365-day scan_snapshots history${bd.mispricing?.z_scores?.vrp_z_source ? ': ' + bd.mispricing.z_scores.vrp_z_source : ''}). Above +1.5 = options historically expensive. Carr & Wu (2009, RFS).`}>
+                          <span className={`text-[10px] font-mono ${vrpZ > 0.5 ? 'text-brand-green' : vrpZ < -0.5 ? 'text-brand-red' : 'text-text-muted'}`} title={`Variance Risk Premium z-score: how many standard deviations the current VRP (IV30 − HV30) is above the ticker's own historical VRP distribution (365-day scan_snapshots history${bd.mispricing?.z_scores?.vrp_z_source ? ': ' + bd.mispricing.z_scores.vrp_z_source : ''}). Above +1.5 = options historically expensive. Carr & Wu (2009, RFS).`}>
                             VRP z: {vrpZ >= 0 ? '+' : ''}{vrpZ.toFixed(1)}
                           </span>
                         )}
                         {key === 'term_structure' && bd.term_structure?.shape && (
-                          <span className={themed('text-[10px] font-mono text-text-secondary', dk)}>{bd.term_structure.shape}</span>
+                          <span className="text-[10px] font-mono text-text-secondary">{bd.term_structure.shape}</span>
                         )}
                         {key === 'skew' && bd.skew?.skew_direction && (
                           <Badge variant={bd.skew.skew_direction === 'bullish' ? 'success' : bd.skew.skew_direction === 'bearish' ? 'danger' : 'default'} size="sm">
@@ -1283,7 +1280,7 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
                     </div>
                   ))}
                 </div>
-                <div className={themed('text-xs text-text-secondary italic px-1 mt-2', dk)}>
+                <div className="text-xs text-text-secondary italic px-1 mt-2">
                   {bestExplain[best.key] ?? ''}
                 </div>
               </div>
@@ -1307,9 +1304,9 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
               deflation: 'Growth is weak and inflation is falling \u2014 risk-off conditions. Favor defined-risk strategies.',
             };
             return (
-              <div className={themed('rounded px-3 py-1.5 mb-1 bg-bg-row', dk)}>
+              <div className="rounded px-3 py-1.5 mb-1 bg-bg-row">
                 <div
-                  className={themed('text-[10px] text-text-muted font-mono uppercase tracking-wider font-bold mb-2', dk)}
+                  className="text-[10px] text-text-muted font-mono uppercase tracking-wider font-bold mb-2"
                   title="Regime scores derived from 14 FRED macro indicators. Rule-based sigmoid scoring inspired by Hamilton (1989). Not HMM-estimated probabilities."
                 >
                   Macro Regime
@@ -1322,18 +1319,18 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
                     return (
                       <div key={key} className="flex items-center gap-2">
                         <div className="w-20 shrink-0 flex items-center gap-1">
-                          <span className={themed('text-[10px] font-medium text-text-secondary', dk)} title={desc}>{label}</span>
+                          <span className="text-[10px] font-medium text-text-secondary" title={desc}>{label}</span>
                           {isDom && <Badge variant="default" size="sm">DOMINANT</Badge>}
                         </div>
                         <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-bg-terminal">
                           <div className={`h-full rounded-full transition-all duration-500 ${barColor}`} style={{ width: `${pct}%` }} />
                         </div>
-                        <div className={themed('w-8 text-[10px] font-mono font-bold text-right shrink-0 text-text-secondary', dk)}>{pct}%</div>
+                        <div className="w-8 text-[10px] font-mono font-bold text-right shrink-0 text-text-secondary">{pct}%</div>
                       </div>
                     );
                   })}
                 </div>
-                <div className={themed('text-xs text-text-secondary italic px-1 mt-2', dk)}>
+                <div className="text-xs text-text-secondary italic px-1 mt-2">
                   {(dom !== null ? domExplain[dom] : undefined) ?? why.regime_context}
                 </div>
                 {/* EDGE-6 (STRATEGY-EVIDENCE §6): survival brake — declared state, never a silent score change */}
@@ -1370,22 +1367,22 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
 
       {/* E) KEY STATS */}
       {ks && (
-        <div className={themed('px-5 py-2 border-b border-border', dk)}>
-          <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2', dk)}>Key Stats</div>
+        <div className="px-5 py-2 border-b border-border">
+          <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2">Key Stats</div>
           <div className="space-y-1 text-xs">
             {/* Volatility row */}
             <div>
-              <span className={themed('text-text-muted font-medium', dk)}>Volatility: </span>
-              <span className={themed('text-text-secondary font-mono', dk)}>
+              <span className="text-text-muted font-medium">Volatility: </span>
+              <span className="text-text-secondary font-mono">
                 <span title="IV Rank (0–100): where current implied volatility sits relative to its 52-week range. Above 50 = IV elevated vs recent history. Formula: (IV_now - IV_low) / (IV_high - IV_low).">IV Rank {ks.iv_rank != null ? ks.iv_rank.toFixed(2) : '—'}</span>
-                {ks.iv_rank != null && <span className={themed('text-text-muted', dk)}> — {statExplain('iv_rank', ks.iv_rank)}</span>}
+                {ks.iv_rank != null && <span className="text-text-muted"> — {statExplain('iv_rank', ks.iv_rank)}</span>}
                 {' | '}<span title="30-day implied volatility: the annualized volatility the options market is currently pricing in. Derived from option prices across the chain.">IV {ks.iv30 != null ? `${ks.iv30.toFixed(1)}%` : '—'}</span>
                 {' | '}<span title="30-day historical (realized) volatility: how much the stock has actually moved over the past 30 days, annualized. Compare to IV — the gap is the variance risk premium.">HV {ks.hv30 != null ? `${ks.hv30.toFixed(1)}%` : '—'}</span>
                 {ks.iv_hv_spread != null && (
                   <>
                     {' | '}
                     <span
-                      className={ks.iv_hv_spread > 0 ? 'text-brand-green' : ks.iv_hv_spread < 0 ? 'text-brand-red' : themed('text-text-muted', dk)}
+                      className={ks.iv_hv_spread > 0 ? 'text-brand-green' : ks.iv_hv_spread < 0 ? 'text-brand-red' : 'text-text-muted'}
                       title="IV-HV Spread: implied volatility minus 30-day realized volatility. Positive means options are pricing in more movement than the stock has actually delivered — the core variance risk premium signal."
                     >
                       VRP {ks.iv_hv_spread > 0 ? '+' : ''}{ks.iv_hv_spread.toFixed(1)}%
@@ -1409,15 +1406,15 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
               return (
                 <div>
                   <span
-                    className={themed('text-text-muted font-medium', dk)}
+                    className="text-text-muted font-medium"
                     title="Realized volatility at multiple lookback windows vs current implied vol. Close-to-close log returns annualized ×√252. Shows whether current IV is high or low relative to how much the stock has actually moved at different time horizons."
                   >
                     Vol Cone:{' '}
                   </span>
-                  <span className={themed('text-text-secondary font-mono', dk)}>
+                  <span className="text-text-secondary font-mono">
                     {hvEntries.map((x, i, arr) => (
                       <span key={x.label}>
-                        <span className={themed('text-text-muted text-[9px]', dk)}>{x.label}{' '}</span>
+                        <span className="text-text-muted text-[9px]">{x.label}{' '}</span>
                         <span className={
                           cone.current_iv != null && x.val! > cone.current_iv
                             ? 'text-brand-green'
@@ -1427,11 +1424,11 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
                         }>
                           {x.val}%
                         </span>
-                        {i < arr.length - 1 && <span className={themed('text-text-muted', dk)}> | </span>}
+                        {i < arr.length - 1 && <span className="text-text-muted"> | </span>}
                       </span>
                     ))}
                     {cone.current_iv != null && (
-                      <span className={themed('text-text-muted', dk)}> vs IV {cone.current_iv}%</span>
+                      <span className="text-text-muted"> vs IV {cone.current_iv}%</span>
                     )}
                   </span>
                 </div>
@@ -1441,12 +1438,12 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
             {ks.forward_vol && (
               <div>
                 <span
-                  className={themed('text-text-muted font-medium', dk)}
+                  className="text-text-muted font-medium"
                   title="Forward implied volatility: what the options market is pricing for volatility BETWEEN two expiration dates, stripping out near-term event risk already priced in. Computed as σ_fwd=√[(σ²_far×T_far−σ²_near×T_near)÷(T_far−T_near)]. Negative forward variance (calendar arbitrage) is suppressed."
                 >
                   Fwd Vol:{' '}
                 </span>
-                <span className={themed('text-text-secondary font-mono', dk)}>
+                <span className="text-text-secondary font-mono">
                   <span
                     className={
                       ks.vol_cone?.current_iv != null
@@ -1460,11 +1457,11 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
                   >
                     {ks.forward_vol.forward_iv}%
                   </span>
-                  <span className={themed('text-text-muted', dk)}>
+                  <span className="text-text-muted">
                     {' '}({ks.forward_vol.from_dte}→{ks.forward_vol.to_dte}d)
                   </span>
                   {ks.vol_cone?.current_iv != null && (
-                    <span className={themed('text-text-muted', dk)}>
+                    <span className="text-text-muted">
                       {' '}vs spot IV {ks.vol_cone.current_iv}%
                     </span>
                   )}
@@ -1473,10 +1470,10 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
             )}
             {/* Company row */}
             <div>
-              <span className={themed('text-text-muted font-medium', dk)}>Company: </span>
-              <span className={themed('text-text-secondary font-mono', dk)}>
+              <span className="text-text-muted font-medium">Company: </span>
+              <span className="text-text-secondary font-mono">
                 <span title="Price-to-earnings ratio. Used in Quality Gate as one input to valuation context. Extreme P/E (very high or negative) increases fundamental risk score.">P/E {ks.pe_ratio != null ? ks.pe_ratio.toFixed(1) : '—'}</span>
-                {ks.pe_ratio != null && <span className={themed('text-text-muted', dk)}> — {statExplain('pe_ratio', ks.pe_ratio)}</span>}
+                {ks.pe_ratio != null && <span className="text-text-muted"> — {statExplain('pe_ratio', ks.pe_ratio)}</span>}
                 {' | '}<span title="Total market capitalization. Larger caps tend to have tighter bid-ask spreads and more liquid options chains.">Cap {fmtMcap(ks.market_cap)}</span>
                 {' | '}<span title="Next scheduled earnings announcement. Options IV typically spikes before earnings and collapses after. Know this date before entering any position.">Earnings {ks.earnings_date ?? '—'}</span>
                 {ks.days_to_earnings != null && ks.days_to_earnings > 0 && <span className="text-status-warning" title="Calendar days until next earnings. Under 21 days = elevated event risk. The scanner flags this in risk flags."> ({ks.days_to_earnings}d away)</span>}
@@ -1486,12 +1483,12 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
             {ks.earnings_pattern && ks.earnings_pattern.total_quarters >= 2 && (
               <div>
                 <span
-                  className={themed('text-text-muted font-medium', dk)}
+                  className="text-text-muted font-medium"
                   title="Historical earnings beat rate and Standardized Unexpected Earnings (SUE) from Finnhub. Beat rate = quarters beat / total quarters. SUE methodology: Bernard & Thomas (1989, JAR). Note: IV crush prediction (pre vs post-earnings IV ratio) requires historical IV data not yet collected."
                 >
                   Earnings:{' '}
                 </span>
-                <span className={themed('text-text-secondary font-mono', dk)}>
+                <span className="text-text-secondary font-mono">
                   {ks.earnings_pattern.beat_rate != null && (
                     <span
                       className={
@@ -1507,15 +1504,15 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
                     </span>
                   )}
                   {ks.earnings_pattern.avg_surprise_pct != null && (
-                    <span className={themed('text-text-muted', dk)}>
+                    <span className="text-text-muted">
                       {' '}(avg {ks.earnings_pattern.avg_surprise_pct > 0 ? '+' : ''}{ks.earnings_pattern.avg_surprise_pct.toFixed(1)}%)
                     </span>
                   )}
-                  <span className={themed('text-text-faint text-[9px]', dk)}>
+                  <span className="text-text-faint text-[9px]">
                     {' '}{ks.earnings_pattern.total_quarters}Q
                   </span>
                   {ks.earnings_pattern.streak && (
-                    <span className={themed('text-text-muted', dk)}>
+                    <span className="text-text-muted">
                       {' | '}{ks.earnings_pattern.streak}
                     </span>
                   )}
@@ -1538,24 +1535,24 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
             )}
             {/* Market row */}
             <div>
-              <span className={themed('text-text-muted font-medium', dk)}>Market: </span>
-              <span className={themed('text-text-secondary font-mono', dk)}>
+              <span className="text-text-muted font-medium">Market: </span>
+              <span className="text-text-secondary font-mono">
                 <span title="Beta measures how much this stock moves relative to the S&P 500. Beta 1.5 = stock moves ~50% more than the market on average. Higher beta = wider expected moves = higher IV.">Beta {ks.beta != null ? ks.beta.toFixed(2) : '—'}</span>
-                {ks.beta != null && <span className={themed('text-text-muted', dk)}> — {statExplain('beta', ks.beta)}</span>}
+                {ks.beta != null && <span className="text-text-muted"> — {statExplain('beta', ks.beta)}</span>}
                 {' | '}<span title="30-day rolling correlation to SPY. High correlation means the stock moves with the market — macro events affect this position. Low correlation = more idiosyncratic risk.">SPY Corr {ks.spy_correlation != null ? ks.spy_correlation.toFixed(2) : '—'}</span>
-                {ks.spy_correlation != null && <span className={themed('text-text-muted', dk)}> — {statExplain('spy_correlation', ks.spy_correlation)}</span>}
+                {ks.spy_correlation != null && <span className="text-text-muted"> — {statExplain('spy_correlation', ks.spy_correlation)}</span>}
                 {' | '}<span title="Options chain liquidity score. Combines bid-ask spreads, open interest, and daily volume across strikes. Low liquidity = wider fills = higher real cost of the trade.">Liquidity {ks.liquidity_rating != null ? `${ks.liquidity_rating}/5` : '—'}</span>
               </span>
             </div>
             {/* Sentiment row */}
             <div>
-              <span className={themed('text-text-muted font-medium', dk)}>Sentiment: </span>
-              <span className={themed('text-text-secondary font-mono', dk)}>
+              <span className="text-text-muted font-medium">Sentiment: </span>
+              <span className="text-text-secondary font-mono">
                 <span title="Aggregated analyst rating from Finnhub. Ranges from Strong Buy to Strong Sell. Used as one input to the Info Edge gate.">Analysts: {ks.analyst_consensus ?? '—'}</span>
                 {' | '}<span title="Social media activity ratio: recent mention volume vs baseline. From xAI/Grok real-time X/Twitter analysis. Elevated buzz can signal upcoming price movement.">Buzz {ks.buzz_ratio != null ? `${ks.buzz_ratio.toFixed(1)}x` : '—'}</span>
-                {ks.buzz_ratio != null && <span className={themed('text-text-muted', dk)}> — {statExplain('buzz_ratio', ks.buzz_ratio)}</span>}
+                {ks.buzz_ratio != null && <span className="text-text-muted"> — {statExplain('buzz_ratio', ks.buzz_ratio)}</span>}
                 {' | '}<span title="Rate of change in social sentiment. Positive = sentiment improving recently. Negative = sentiment deteriorating. From xAI/Grok X/Twitter analysis.">Trend {ks.sentiment_momentum != null ? ks.sentiment_momentum.toFixed(0) : '—'}</span>
-                {ks.sentiment_momentum != null && <span className={themed('text-text-muted', dk)}> — {statExplain('sentiment_momentum', ks.sentiment_momentum)}</span>}
+                {ks.sentiment_momentum != null && <span className="text-text-muted"> — {statExplain('sentiment_momentum', ks.sentiment_momentum)}</span>}
               </span>
             </div>
           </div>
@@ -1565,12 +1562,12 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
       {/* F) TOP HEADLINES */}
       {headlines.length > 0 && (
         <div className="px-5 py-2">
-          <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2', dk)}>Recent Headlines</div>
+          <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2">Recent Headlines</div>
           <div className="space-y-1.5">
             {headlines.map((h, i) => (
               <div key={i} className="flex items-start gap-2 text-xs" title="News headline from Finnhub. Sentiment scored by FinBERT — a financial-domain BERT model trained on financial phrase classification.">
-                <span className={themed('text-text-secondary leading-relaxed flex-1', dk)}>&ldquo;{h.headline}&rdquo;</span>
-                <span className={themed('shrink-0 text-[9px] text-text-muted', dk)}>{h.source}</span>
+                <span className="text-text-secondary leading-relaxed flex-1">&ldquo;{h.headline}&rdquo;</span>
+                <span className="shrink-0 text-[9px] text-text-muted">{h.source}</span>
                 <span title="FinBERT sentiment classification: positive, negative, or neutral. FinBERT outperforms general NLP models on financial text (Huang, Wang & Yang 2023)."><Badge
                   variant={h.sentiment === 'bullish' ? 'success' : h.sentiment === 'bearish' ? 'danger' : 'default'}
                   size="sm"
@@ -1589,7 +1586,7 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
 // ── Filtered Results Section ────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: boolean; result: any; progress?: Record<string, any>; universe?: string }) { // eslint-disable-line @typescript-eslint/no-explicit-any
+function PipelineFlowPanel({ result, progress, universe }: { result: any; progress?: Record<string, any>; universe?: string }) { // eslint-disable-line @typescript-eslint/no-explicit-any
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [hDrillDown, setHDrillDown] = useState<Record<string, boolean>>({});
   // Render from live progress if result not yet available
@@ -1627,41 +1624,41 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
     setExpanded(e => ({ ...e, [key]: !e[key] }));
 
   return (
-    <div className={themed('border border-panel-border rounded bg-white/5 mb-4 text-xs font-mono', dk)}>
+    <div className="border border-panel-border rounded bg-white/5 mb-4 text-xs font-mono">
       {/* Header */}
-      <div className={themed('px-4 py-2 border-b border-panel-border flex items-center justify-between', dk)}>
-        <span className={themed('text-white font-bold uppercase tracking-wider text-[10px]', dk)}>Pipeline Flow</span>
-        <span className={themed('text-white/50', dk)}>
+      <div className="px-4 py-2 border-b border-panel-border flex items-center justify-between">
+        <span className="text-white font-bold uppercase tracking-wider text-[10px]">Pipeline Flow</span>
+        <span className="text-white/50">
           {ps?.timestamp ? new Date(ps.timestamp).toLocaleTimeString() : ''}
           {' '}· {ps?.pipeline_runtime_ms ? `${(ps.pipeline_runtime_ms / 1000).toFixed(1)}s` : ''}
         </span>
       </div>
 
       {/* Step A */}
-      <div className={themed('border-b border-panel-border', dk)}>
+      <div className="border-b border-panel-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_a')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP A</span>
-            <span className={themed('text-white/70', dk)}>TT Scanner — Universe Scan</span>
+            <span className="text-white/70">TT Scanner — Universe Scan</span>
             {(ps?.total_universe ?? progress?.step_a?.data?.total_universe) ? (
               <>
                 <span className={chip('success')}>{ps?.total_universe ?? progress?.step_a?.data?.total_universe ?? 0} symbols fetched</span>
-                <span className={themed('text-white/50', dk)}>({universe})</span>
+                <span className="text-white/50">({universe})</span>
               </>
             ) : (
-              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
+              <span className="text-white/50 animate-pulse">waiting...</span>
             )}
           </div>
-          <span className={themed('text-white/50', dk)}>{expanded['step_a'] ? '▲' : '▼'}</span>
+          <span className="text-white/50">{expanded['step_a'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_a'] && (
-          <div className={themed('border-t border-panel-border bg-white/5 p-3', dk)}>
+          <div className="border-t border-panel-border bg-white/5 p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step A pulls live market data on every ticker in the universe. This is the raw material — nothing here is estimated. Every number comes directly from TastyTrade. The two columns that matter most are IV Rank and IV-HV Spread — those two drive the ranking in Step B.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
+                <table className="w-full border-collapse border border-panel-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -1716,7 +1713,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
               };
               return (
                 <>
-                <div className={themed('flex items-center gap-3 text-xs text-white/50 mb-1', dk)}>
+                <div className="flex items-center gap-3 text-xs text-white/50 mb-1">
                   <span className="font-bold">SYMBOLS FETCHED ({(progress?.step_a?.data?.symbols ?? []).length})</span>
                 </div>
                 <div className="overflow-y-auto" style={{maxHeight: '320px'}}>
@@ -1750,9 +1747,9 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                         const hasTerm = Array.isArray(s.termStructure) && s.termStructure.length > 0;
                         return (
                           <React.Fragment key={s.symbol}>
-                            <tr className={themed('border-b border-panel-border cursor-pointer hover:bg-white/5', dk)} onClick={() => toggle(detailKey)}>
-                              <td className={themed('py-1 pr-1 text-white/50 text-center', dk)}>{isOpen ? '▼' : '▶'}</td>
-                              <td className={themed('py-1 pr-2 text-white/50', dk)}>{i+1}</td>
+                            <tr className="border-b border-panel-border cursor-pointer hover:bg-white/5" onClick={() => toggle(detailKey)}>
+                              <td className="py-1 pr-1 text-white/50 text-center">{isOpen ? '▼' : '▶'}</td>
+                              <td className="py-1 pr-2 text-white/50">{i+1}</td>
                               <td className="py-1 pr-2 font-bold text-text-secondary">{s.symbol}</td>
                               <td className="py-1 pr-2 text-right text-text-secondary">{fmtPct(s.ivRank)}</td>
                               <td className="py-1 pr-2 text-right text-text-secondary">{fmtPct(s.ivPercentile)}</td>
@@ -1765,42 +1762,42 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                               <td className="py-1 pr-2 text-right text-text-secondary">{s.borrowRate != null ? s.borrowRate + '%' : '—'}</td>
                               <td className="py-1 pr-2 text-left">{s.earningsDate ?? '—'}</td>
                               <td className="py-1 pr-2 text-right text-text-secondary">{s.daysTillEarnings != null ? s.daysTillEarnings + 'd' : '—'}</td>
-                              <td className={themed('py-1 pr-2 text-white/50 text-[10px]', dk)}>TastyTrade</td>
-                              <td className={themed('py-1 pr-2 text-white/50 text-[10px]', dk)}>market-metrics</td>
-                              <td className={themed('py-1 pr-2 text-white/50 text-[10px]', dk)}>{fetchedAt ? new Date(fetchedAt).toISOString().slice(11, 19) + ' UTC' : '—'}</td>
-                              <td className={themed('py-1 text-right text-white/50 text-[10px]', dk)}>{ageSec != null ? ageSec + 's' : '—'}</td>
+                              <td className="py-1 pr-2 text-white/50 text-[10px]">TastyTrade</td>
+                              <td className="py-1 pr-2 text-white/50 text-[10px]">market-metrics</td>
+                              <td className="py-1 pr-2 text-white/50 text-[10px]">{fetchedAt ? new Date(fetchedAt).toISOString().slice(11, 19) + ' UTC' : '—'}</td>
+                              <td className="py-1 text-right text-white/50 text-[10px]">{ageSec != null ? ageSec + 's' : '—'}</td>
                             </tr>
                             {isOpen && (
-                              <tr className={themed('bg-white/5/30 border-b border-panel-border', dk)}>
+                              <tr className="bg-white/5/30 border-b border-panel-border">
                                 <td colSpan={18} className="py-2 px-4">
                                   <div className="grid grid-cols-3 gap-x-6 gap-y-1 text-xs mb-2">
-                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>HV30</span><span>{fmt1(s.hv30)}</span></div>
-                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>HV60</span><span>{fmt1(s.hv60)}</span></div>
-                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>HV90</span><span>{fmt1(s.hv90)}</span></div>
-                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>SECTOR</span><span>{s.sector ?? '—'}</span></div>
-                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>INDUSTRY</span><span>{s.industry ?? '—'}</span></div>
-                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>IMPLIED VOL</span><span>{fmtPct(s.impliedVolatility)}{s.impliedVolatility != null ? '%' : ''}</span></div>
-                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>P/E</span><span>{fmt1(s.peRatio)}</span></div>
-                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>EPS</span><span>{fmt2(s.eps)}</span></div>
-                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>DIV YIELD</span><span>{s.dividendYield != null ? (s.dividendYield * 100).toFixed(2) + '%' : '—'}</span></div>
-                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>LENDABILITY</span><span>{s.lendability ?? '—'}</span></div>
-                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>LAST EPS</span><span>{fmt2(s.earningsActualEps)}</span></div>
-                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>EPS EST</span><span>{fmt2(s.earningsEstimate)}</span></div>
-                                    <div className="flex justify-between"><span className={themed('text-white/50', dk)}>EARNINGS TOD</span><span>{s.earningsTimeOfDay ?? '—'}</span></div>
+                                    <div className="flex justify-between"><span className="text-white/50">HV30</span><span>{fmt1(s.hv30)}</span></div>
+                                    <div className="flex justify-between"><span className="text-white/50">HV60</span><span>{fmt1(s.hv60)}</span></div>
+                                    <div className="flex justify-between"><span className="text-white/50">HV90</span><span>{fmt1(s.hv90)}</span></div>
+                                    <div className="flex justify-between"><span className="text-white/50">SECTOR</span><span>{s.sector ?? '—'}</span></div>
+                                    <div className="flex justify-between"><span className="text-white/50">INDUSTRY</span><span>{s.industry ?? '—'}</span></div>
+                                    <div className="flex justify-between"><span className="text-white/50">IMPLIED VOL</span><span>{fmtPct(s.impliedVolatility)}{s.impliedVolatility != null ? '%' : ''}</span></div>
+                                    <div className="flex justify-between"><span className="text-white/50">P/E</span><span>{fmt1(s.peRatio)}</span></div>
+                                    <div className="flex justify-between"><span className="text-white/50">EPS</span><span>{fmt2(s.eps)}</span></div>
+                                    <div className="flex justify-between"><span className="text-white/50">DIV YIELD</span><span>{s.dividendYield != null ? (s.dividendYield * 100).toFixed(2) + '%' : '—'}</span></div>
+                                    <div className="flex justify-between"><span className="text-white/50">LENDABILITY</span><span>{s.lendability ?? '—'}</span></div>
+                                    <div className="flex justify-between"><span className="text-white/50">LAST EPS</span><span>{fmt2(s.earningsActualEps)}</span></div>
+                                    <div className="flex justify-between"><span className="text-white/50">EPS EST</span><span>{fmt2(s.earningsEstimate)}</span></div>
+                                    <div className="flex justify-between"><span className="text-white/50">EARNINGS TOD</span><span>{s.earningsTimeOfDay ?? '—'}</span></div>
                                   </div>
                                   {hasTerm && (
                                     <div>
-                                      <p className={themed('text-white/50 text-xs font-bold mb-1', dk)}>TERM STRUCTURE</p>
+                                      <p className="text-white/50 text-xs font-bold mb-1">TERM STRUCTURE</p>
                                       <table className="text-xs">
                                         <thead>
-                                          <tr className={themed('text-white/50', dk)}>
+                                          <tr className="text-white/50">
                                             <th className="text-left pr-4 py-0.5">EXPIRY</th>
                                             <th className="text-right py-0.5">IV</th>
                                           </tr>
                                         </thead>
                                         <tbody>
                                           {s.termStructure.map((t: any, ti: number) => (
-                                            <tr key={ti} className={themed('border-t border-panel-border/30', dk)}>
+                                            <tr key={ti} className="border-t border-panel-border/30">
                                               <td className="pr-4 py-0.5">{t.date ?? '—'}</td>
                                               <td className="text-right py-0.5">{t.iv != null ? (t.iv * 100).toFixed(1) + '%' : '—'}</td>
                                             </tr>
@@ -1826,30 +1823,30 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step A2 */}
-      <div className={themed('border-b border-panel-border', dk)}>
+      <div className="border-b border-panel-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_b')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP B</span>
-            <span className={themed('text-white/70', dk)}>Pre-Filter</span>
+            <span className="text-white/70">Pre-Filter</span>
             {progress?.step_b ? (
               <span className="text-brand-red">
                 {progress.step_b.data.input} → {progress.step_b.data.output} survived
                 {(progress.step_b.data.excluded as number) > 0 && ` (${progress.step_b.data.excluded} excluded)`}
               </span>
             ) : (
-              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
+              <span className="text-white/50 animate-pulse">waiting...</span>
             )}
           </div>
-          <span className={themed('text-white/50', dk)}>{expanded['step_b'] ? '▲' : '▼'}</span>
+          <span className="text-white/50">{expanded['step_b'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_b'] && progress?.step_b && (
-          <div className={themed('border-t border-panel-border bg-white/5 p-3', dk)}>
+          <div className="border-t border-panel-border bg-white/5 p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step B scores every ticker using only the data we already have from Step A. No new API calls. Three signals go in, one score comes out. This step ranks — it does not eliminate.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
+                <table className="w-full border-collapse border border-panel-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -1880,7 +1877,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 </table>
               </div>
             </div>
-            <p className={themed('text-white/50 text-xs font-bold mb-1', dk)}>
+            <p className="text-white/50 text-xs font-bold mb-1">
               ALL TICKERS SCORED ({(progress?.step_b?.data?.tickers as any[] ?? []).length}){/* eslint-disable-line @typescript-eslint/no-explicit-any */}
             </p>
             <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '240px'}}>
@@ -1915,13 +1912,13 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ? '—'
                       : `(${(ivRankNorm ?? 0).toFixed(3)} × 40%) + (${(ivHvNorm ?? 0).toFixed(3)} × 35%) + (${(liqNorm ?? 0).toFixed(3)} × 25%)`;
                     return (
-                      <tr key={t.symbol} className={themed('border-b border-panel-border', dk)}>
-                        <td className={themed('py-1 pr-3 text-white/50', dk)}>{i+1}</td>
+                      <tr key={t.symbol} className="border-b border-panel-border">
+                        <td className="py-1 pr-3 text-white/50">{i+1}</td>
                         <td className="py-1 pr-3 font-bold">{t.symbol}</td>
                         <td className="py-1 pr-3 text-right">{t.iv_rank != null ? (t.iv_rank * 100).toFixed(1) : '—'}</td>
                         <td className="py-1 pr-3 text-right">{ivHvSpread != null ? (ivHvSpread >= 0 ? '+' : '') + ivHvSpread.toFixed(1) : '—'}</td>
                         <td className="py-1 pr-3 text-right">{t.liquidity ?? '—'}/5</td>
-                        <td className={themed('py-1 pr-3 text-white/50 font-mono text-[10px]', dk)}>
+                        <td className="py-1 pr-3 text-white/50 font-mono text-[10px]">
                           {calcStr}
                         </td>
                         <td className="py-1 pr-3 text-right text-brand-gold font-bold">{t.pre_score ?? '—'}</td>
@@ -1933,10 +1930,10 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                             : '✓ Passed'
                           }
                         </td>
-                        <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>TastyTrade</td>
-                        <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>market-metrics</td>
-                        <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{fetchedTime}</td>
-                        <td className={themed('py-1 text-right text-white/50 text-[10px]', dk)}>{ageSec}</td>
+                        <td className="py-1 pr-3 text-white/50 text-[10px]">TastyTrade</td>
+                        <td className="py-1 pr-3 text-white/50 text-[10px]">market-metrics</td>
+                        <td className="py-1 pr-3 text-white/50 text-[10px]">{fetchedTime}</td>
+                        <td className="py-1 text-right text-white/50 text-[10px]">{ageSec}</td>
                       </tr>
                     );
                   })}
@@ -1948,29 +1945,29 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step C — Hard Exclusions */}
-      <div className={themed('border-b border-panel-border', dk)}>
+      <div className="border-b border-panel-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_c')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP C</span>
-            <span className={themed('text-white/70', dk)}>Hard Exclusions</span>
+            <span className="text-white/70">Hard Exclusions</span>
             {progress?.step_c ? (
               <span className={chip('success')}>
                 {progress.step_c.data.excluded ?? '—'} excluded — {progress.step_c.data.survivors ?? '—'} passed
               </span>
             ) : (
-              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
+              <span className="text-white/50 animate-pulse">waiting...</span>
             )}
           </div>
-          <span className={themed('text-white/50', dk)}>{expanded['step_c'] ? '▲' : '▼'}</span>
+          <span className="text-white/50">{expanded['step_c'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_c'] && (
-          <div className={themed('border-t border-panel-border bg-white/5 p-3', dk)}>
+          <div className="border-t border-panel-border bg-white/5 p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step C applies two instant disqualifiers. No partial credit. If a ticker fails either rule it is gone. This step eliminates — it does not score.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
+                <table className="w-full border-collapse border border-panel-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -2004,7 +2001,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
             <div className="grid grid-cols-2 gap-4">
               {/* LEFT TABLE — Excluded tickers */}
               <div>
-                <p className={themed('text-white font-bold text-[10px] uppercase tracking-wider mb-1', dk)}>
+                <p className="text-white font-bold text-[10px] uppercase tracking-wider mb-1">
                   EXCLUDED ({progress?.step_c?.data?.excluded ?? '—'} tickers)
                 </p>
                 {(progress?.step_c?.data?.exclusions ?? []).length > 0 ? (
@@ -2017,23 +2014,23 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       </tr></thead>
                       <tbody>
                         {(progress?.step_c?.data?.exclusions ?? []).map((e: { symbol: string; reason: string }, i: number) => (
-                          <tr key={e.symbol} className={themed('border-b border-panel-border', dk)}>
-                            <td className={themed('py-0.5 px-1 text-white/50 font-mono', dk)}>{i + 1}</td>
-                            <td className={themed('py-0.5 px-1 font-bold text-white', dk)}>{e.symbol}</td>
-                            <td className={themed('py-0.5 px-1 text-white/50', dk)}>{e.reason}</td>
+                          <tr key={e.symbol} className="border-b border-panel-border">
+                            <td className="py-0.5 px-1 text-white/50 font-mono">{i + 1}</td>
+                            <td className="py-0.5 px-1 font-bold text-white">{e.symbol}</td>
+                            <td className="py-0.5 px-1 text-white/50">{e.reason}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
                 ) : (
-                  <p className={themed('text-white/50 text-[10px] italic', dk)}>No tickers excluded</p>
+                  <p className="text-white/50 text-[10px] italic">No tickers excluded</p>
                 )}
               </div>
 
               {/* RIGHT TABLE — Earnings warnings */}
               <div>
-                <p className={themed('text-white font-bold text-[10px] uppercase tracking-wider mb-1', dk)}>
+                <p className="text-white font-bold text-[10px] uppercase tracking-wider mb-1">
                   EARNINGS WARNINGS ({(progress?.step_c?.data?.earnings_warnings ?? []).length} tickers flagged)
                 </p>
                 {(progress?.step_c?.data?.earnings_warnings ?? []).length > 0 ? (
@@ -2046,9 +2043,9 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       </tr></thead>
                       <tbody>
                         {(progress?.step_c?.data?.earnings_warnings ?? []).map((w: { symbol: string; days_to_earnings: number | null }, i: number) => (
-                          <tr key={w.symbol} className={themed('border-b border-panel-border', dk)}>
-                            <td className={themed('py-0.5 px-1 text-white/50 font-mono', dk)}>{i + 1}</td>
-                            <td className={themed('py-0.5 px-1 font-bold text-white', dk)}>{w.symbol}</td>
+                          <tr key={w.symbol} className="border-b border-panel-border">
+                            <td className="py-0.5 px-1 text-white/50 font-mono">{i + 1}</td>
+                            <td className="py-0.5 px-1 font-bold text-white">{w.symbol}</td>
                             <td className="py-0.5 px-1 text-right font-mono text-brand-gold">{w.days_to_earnings ?? '—'}</td>
                           </tr>
                         ))}
@@ -2056,15 +2053,15 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                     </table>
                   </div>
                 ) : (
-                  <p className={themed('text-white/50 text-[10px] italic', dk)}>No earnings warnings</p>
+                  <p className="text-white/50 text-[10px] italic">No earnings warnings</p>
                 )}
-                <p className={themed('text-white/50 text-[10px] mt-2', dk)}>
+                <p className="text-white/50 text-[10px] mt-2">
                   ⚠ These tickers passed but carry earnings risk. Step E will enforce the 7-day earnings exclusion.
                 </p>
               </div>
             </div>
 
-            <p className={themed('text-white/50 text-[10px] mt-3 italic', dk)}>
+            <p className="text-white/50 text-[10px] mt-3 italic">
               Source: Step B pre-filter computation — no new API calls
             </p>
           </div>
@@ -2072,27 +2069,27 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step D — Top-N Selection */}
-      <div className={themed('border-b border-panel-border', dk)}>
+      <div className="border-b border-panel-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_d')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP D</span>
-            <span className={themed('text-white/70', dk)}>Top-N Selection</span>
+            <span className="text-white/70">Top-N Selection</span>
             {progress?.step_b ? (
               <span className="text-brand-gold">{progress.step_b.data.output} → {progress?.step_e?.data?.input ?? 45} candidates for hard filters</span>
             ) : (
-              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
+              <span className="text-white/50 animate-pulse">waiting...</span>
             )}
           </div>
-          <span className={themed('text-white/50', dk)}>{expanded['step_d'] ? '▲' : '▼'}</span>
+          <span className="text-white/50">{expanded['step_d'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_d'] && progress?.step_b && (
-          <div className={themed('border-t border-panel-border bg-white/5 p-3', dk)}>
+          <div className="border-t border-panel-border bg-white/5 p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step D makes one decision: who gets checked in Step E. The hard filters in Step E cost time. We only run them on tickers most likely to survive. We take the top scorers by pre-score and send them forward. Everyone else is ranked out.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
+                <table className="w-full border-collapse border border-panel-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -2121,7 +2118,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 </table>
               </div>
             </div>
-            <p className={themed('text-white/50 text-xs font-bold mb-1', dk)}>
+            <p className="text-white/50 text-xs font-bold mb-1">
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               ALL TICKERS RANKED ({(progress?.step_b?.data?.tickers as any[] ?? []).filter((t: any) => !t.excluded).length} non-excluded)
             </p>
@@ -2152,16 +2149,16 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                     return nonExcluded.map((t: any, i: number) => { // eslint-disable-line @typescript-eslint/no-explicit-any
                       const selected = i < topN;
                       return (
-                        <tr key={t.symbol} className={themed('border-b border-panel-border', dk)}>
-                          <td className={themed('py-1 pr-3 text-white/50', dk)}>{i+1}</td>
+                        <tr key={t.symbol} className="border-b border-panel-border">
+                          <td className="py-1 pr-3 text-white/50">{i+1}</td>
                           <td className="py-1 pr-3 font-bold">{t.symbol}</td>
-                          <td className={themed(`py-1 pr-3 text-right font-bold ${selected ? 'text-brand-gold' : themed('text-white/50', dk)}`, dk)}>
+                          <td className={`py-1 pr-3 text-right font-bold ${selected ? 'text-brand-gold' : 'text-white/50'}`}>
                             {t.pre_score}
                           </td>
-                          <td className={themed('py-1 pr-3 text-right text-white/50', dk)}>
+                          <td className="py-1 pr-3 text-right text-white/50">
                             #{i+1}
                           </td>
-                          <td className={themed('py-1 pr-3 text-right text-white/50', dk)}>
+                          <td className="py-1 pr-3 text-right text-white/50">
                             {cutoffScore}
                           </td>
                           <td className={`py-1 pr-3 ${selected ? 'text-brand-green' : 'text-brand-red'}`}>
@@ -2170,10 +2167,10 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                               : `✗ Ranked #${i+1} — below top ${topN} cutoff (score ${t.pre_score} vs cutoff ${cutoffScore})`
                             }
                           </td>
-                          <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>TastyTrade</td>
-                          <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>market-metrics</td>
-                          <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{fetchedTime}</td>
-                          <td className={themed('py-1 text-right text-white/50 text-[10px]', dk)}>{ageSec}</td>
+                          <td className="py-1 pr-3 text-white/50 text-[10px]">TastyTrade</td>
+                          <td className="py-1 pr-3 text-white/50 text-[10px]">market-metrics</td>
+                          <td className="py-1 pr-3 text-white/50 text-[10px]">{fetchedTime}</td>
+                          <td className="py-1 text-right text-white/50 text-[10px]">{ageSec}</td>
                         </tr>
                       );
                     });
@@ -2186,27 +2183,27 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step E — Hard Filters */}
-      <div className={themed('border-b border-panel-border', dk)}>
+      <div className="border-b border-panel-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_e')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP E</span>
-            <span className={themed('text-white/70', dk)}>Hard Filters</span>
+            <span className="text-white/70">Hard Filters</span>
             {(hf?.output_count != null || progress?.step_e) ? (
               <span className="text-brand-red">{hf?.input_count ?? progress?.step_e?.data?.input ?? 0} → {hf?.output_count ?? progress?.step_e?.data?.output ?? 0} survived</span>
             ) : (
-              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
+              <span className="text-white/50 animate-pulse">waiting...</span>
             )}
           </div>
-          <span className={themed('text-white/50', dk)}>{expanded['step_e'] ? '▲' : '▼'}</span>
+          <span className="text-white/50">{expanded['step_e'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_e'] && (
-          <div className={themed('border-t border-panel-border bg-white/5 p-3', dk)}>
+          <div className="border-t border-panel-border bg-white/5 p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step E runs six binary rules against the candidates from Step D. Pass all six or you are out. No scores, no partial credit. Each rule has a hard threshold. The table shows the actual value for every rule on every ticker.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
+                <table className="w-full border-collapse border border-panel-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -2240,13 +2237,13 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
               </div>
             </div>
             {/* Full matrix table */}
-            <p className={themed('text-white/50 text-xs font-bold mb-1', dk)}>
+            <p className="text-white/50 text-xs font-bold mb-1">
               ALL {bData?.input ?? '?'} TICKERS — 6 FILTER MATRIX
             </p>
             <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
               <table className="w-full text-xs whitespace-nowrap">
                 <thead>
-                  <tr className={themed('text-white/50 border-b border-panel-border sticky top-0 bg-white/5', dk)}>
+                  <tr className="text-white/50 border-b border-panel-border sticky top-0 bg-white/5">
                     <th className="text-left py-1 pr-2">#</th>
                     <th className="text-left py-1 pr-2">SYMBOL</th>
                     <th className="text-right py-1 pr-2">MKT CAP<br/><span className="font-normal text-[9px]">&gt;$2B</span></th>
@@ -2301,8 +2298,8 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                         ? <td className="py-1 pr-2 text-right text-brand-gold">— ⚠</td>
                         : cell(borrowOk, d.borrow_rate != null ? d.borrow_rate+'%' : '—', ff === 'Borrow Rate');
                       return (
-                        <tr key={t.symbol} className={themed(`border-b border-panel-border ${t.rejected ? 'opacity-75' : ''}`, dk)}>
-                          <td className={themed('py-1 pr-2 text-white/50', dk)}>{i+1}</td>
+                        <tr key={t.symbol} className={`border-b border-panel-border ${t.rejected ? 'opacity-75' : ''}`}>
+                          <td className="py-1 pr-2 text-white/50">{i+1}</td>
                           <td className={`py-1 pr-2 font-bold ${t.rejected ? 'text-brand-red' : 'text-brand-green'}`}>{t.symbol}</td>
                           {cell(capOk, d.market_cap ? '$'+(d.market_cap/1e9).toFixed(1)+'B' : '—', ff === 'Market Cap')}
                           {cell(liqOk, d.liquidity_rating != null ? d.liquidity_rating+'/5' : '—', ff === 'Options Liquidity')}
@@ -2313,10 +2310,10 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                           <td className={`py-1 pr-2 font-bold ${t.rejected ? 'text-brand-red' : 'text-brand-green'}`}>
                             {t.rejected ? '✗ REJECTED' : '✓ PASSED'}
                           </td>
-                          <td className={themed('py-1 pr-2 text-white/50 text-[10px]', dk)}>TastyTrade</td>
-                          <td className={themed('py-1 pr-2 text-white/50 text-[10px]', dk)}>market-metrics</td>
-                          <td className={themed('py-1 pr-2 text-white/50 text-[10px]', dk)}>{fetchedTime}</td>
-                          <td className={themed('py-1 text-right text-white/50 text-[10px]', dk)}>{ageSec}</td>
+                          <td className="py-1 pr-2 text-white/50 text-[10px]">TastyTrade</td>
+                          <td className="py-1 pr-2 text-white/50 text-[10px]">market-metrics</td>
+                          <td className="py-1 pr-2 text-white/50 text-[10px]">{fetchedTime}</td>
+                          <td className="py-1 text-right text-white/50 text-[10px]">{ageSec}</td>
                         </tr>
                       );
                     });
@@ -2330,27 +2327,27 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step F — Peer Grouping */}
-      <div className={themed('border-b border-panel-border', dk)}>
+      <div className="border-b border-panel-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_f')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP F</span>
-            <span className={themed('text-white/70', dk)}>Peer Grouping</span>
+            <span className="text-white/70">Peer Grouping</span>
             {progress?.step_e ? (
               <span className={chip('success')}>Finnhub peer relationships mapped</span>
             ) : (
-              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
+              <span className="text-white/50 animate-pulse">waiting...</span>
             )}
           </div>
-          <span className={themed('text-white/50', dk)}>{expanded['step_f'] ? '▲' : '▼'}</span>
+          <span className="text-white/50">{expanded['step_f'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_f'] && (
-          <div className={themed('border-t border-panel-border bg-white/5 p-3', dk)}>
+          <div className="border-t border-panel-border bg-white/5 p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step F answers one question: is this stock&apos;s volatility high compared to companies just like it? We pull peer groups from Finnhub and compute z-scores — how many standard deviations each stock sits above or below its peers. Context matters more than raw numbers.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
+                <table className="w-full border-collapse border border-panel-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -2382,13 +2379,13 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 </table>
               </div>
             </div>
-            <p className={themed('text-white/50 text-xs font-bold mb-1', dk)}>
+            <p className="text-white/50 text-xs font-bold mb-1">
               PEER GROUPING — ALL {' '}{(progress?.step_f?.data?.groups ?? []).length} SURVIVORS
             </p>
             <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '280px'}}>
               <table className="w-full text-xs whitespace-nowrap">
                 <thead>
-                  <tr className={themed('text-white/50 border-b border-panel-border sticky top-0 bg-white/5', dk)}>
+                  <tr className="text-white/50 border-b border-panel-border sticky top-0 bg-white/5">
                     <th className="text-left py-1 pr-3">#</th>
                     <th className="text-left py-1 pr-3">SYMBOL</th>
                     <th className="text-left py-1 pr-3">PEER GROUP</th>
@@ -2424,24 +2421,24 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       return 'text-text-faint';
                     };
                     return (
-                      <tr key={g.symbol} className={themed('border-b border-panel-border', dk)}>
-                        <td className={themed('py-1 pr-3 text-white/50', dk)}>{i+1}</td>
+                      <tr key={g.symbol} className="border-b border-panel-border">
+                        <td className="py-1 pr-3 text-white/50">{i+1}</td>
                         <td className="py-1 pr-3 font-bold">{g.symbol}</td>
-                        <td className={themed('py-1 pr-3 text-white/50 max-w-[200px] overflow-hidden text-ellipsis', dk)}>
+                        <td className="py-1 pr-3 text-white/50 max-w-[200px] overflow-hidden text-ellipsis">
                           {g.insufficient_peers ? '⚠ '+g.peer_group : g.peer_group}
                         </td>
                         <td className="py-1 pr-3 text-right">{g.peer_count}</td>
                         <td className="py-1 pr-3 text-right">
                           {g.my_iv_percentile != null ? Number(g.my_iv_percentile).toFixed(1) : '—'}
                         </td>
-                        <td className={themed('py-1 pr-3 text-right text-white/50', dk)}>{g.peer_mean_iv ?? '—'}</td>
+                        <td className="py-1 pr-3 text-right text-white/50">{g.peer_mean_iv ?? '—'}</td>
                         <td className={`py-1 pr-3 text-right ${zColor(g.z_iv_percentile)}`}>
                           {g.z_iv_percentile != null ? (parseFloat(g.z_iv_percentile) >= 0 ? '+' : '')+g.z_iv_percentile : '—'}
                         </td>
                         <td className="py-1 pr-3 text-right">
                           {g.my_iv30 != null ? Number(g.my_iv30).toFixed(1) : '—'}
                         </td>
-                        <td className={themed('py-1 pr-3 text-right text-white/50', dk)}>{g.peer_mean_iv30 ?? '—'}</td>
+                        <td className="py-1 pr-3 text-right text-white/50">{g.peer_mean_iv30 ?? '—'}</td>
                         <td className={`py-1 pr-3 text-right ${zColor(g.z_iv30)}`}>
                           {g.z_iv30 != null ? (parseFloat(g.z_iv30) >= 0 ? '+' : '')+g.z_iv30 : '—'}
                         </td>
@@ -2457,16 +2454,16 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                             return `(${Number(my).toFixed(1)}−${mean.toFixed(1)})/${std.toFixed(2)}=${g.z_iv_percentile}`;
                           })();
                           return (
-                            <td className={themed('py-1 pr-3 text-white/50 font-mono text-[10px]', dk)}>
+                            <td className="py-1 pr-3 text-white/50 font-mono text-[10px]">
                               {ivZFormula}
                             </td>
                           );
                         })()}
-                        <td className={themed('py-1 text-white/50 text-[10px]', dk)}>{g.group_type}</td>
-                        <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>TastyTrade</td>
-                        <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>market-metrics</td>
-                        <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{fetchedTime}</td>
-                        <td className={themed('py-1 text-right text-white/50 text-[10px]', dk)}>{ageSec}</td>
+                        <td className="py-1 text-white/50 text-[10px]">{g.group_type}</td>
+                        <td className="py-1 pr-3 text-white/50 text-[10px]">TastyTrade</td>
+                        <td className="py-1 pr-3 text-white/50 text-[10px]">market-metrics</td>
+                        <td className="py-1 pr-3 text-white/50 text-[10px]">{fetchedTime}</td>
+                        <td className="py-1 text-right text-white/50 text-[10px]">{ageSec}</td>
                       </tr>
                     );
                   });
@@ -2479,27 +2476,27 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step G — Pre-Score */}
-      <div className={themed('border-b border-panel-border', dk)}>
+      <div className="border-b border-panel-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_g')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP G</span>
-            <span className={themed('text-white/70', dk)}>Pre-Score</span>
+            <span className="text-white/70">Pre-Score</span>
             {(ps?.finnhub_fetched != null || progress?.step_g) ? (
               <span className="text-brand-gold">{bData?.output ?? 0} → {ps?.finnhub_fetched ?? progress?.step_g?.data?.candidates ?? 0} selected for enrichment</span>
             ) : (
-              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
+              <span className="text-white/50 animate-pulse">waiting...</span>
             )}
           </div>
-          <span className={themed('text-white/50', dk)}>{expanded['step_g'] ? '▲' : '▼'}</span>
+          <span className="text-white/50">{expanded['step_g'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_g'] && (
-          <div className={themed('border-t border-panel-border bg-white/5 p-3', dk)}>
+          <div className="border-t border-panel-border bg-white/5 p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step G re-scores the survivors with a more precise formula now that the field is small enough to be exact. Same three signals as Step B but with different weights. The top scorers get the expensive institutional data pull in Steps H, I, and J.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
+                <table className="w-full border-collapse border border-panel-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -2530,13 +2527,13 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 </table>
               </div>
             </div>
-            <p className={themed('text-white/50 text-xs font-bold mb-1', dk)}>
+            <p className="text-white/50 text-xs font-bold mb-1">
               ALL {progress?.step_g?.data?.total ?? '—'} SURVIVORS RANKED — TOP {progress?.step_g?.data?.candidates ?? 18} SELECTED FOR ENRICHMENT
             </p>
             <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '280px'}}>
               <table className="w-full text-xs whitespace-nowrap">
                 <thead>
-                  <tr className={themed('text-white/50 border-b border-panel-border sticky top-0 bg-white/5', dk)}>
+                  <tr className="text-white/50 border-b border-panel-border sticky top-0 bg-white/5">
                     <th className="text-left py-1 pr-3">RANK</th>
                     <th className="text-left py-1 pr-3">SYMBOL</th>
                     <th className="text-right py-1 pr-3">IV%<br/><span className="font-normal text-[9px]">×40%</span></th>
@@ -2562,26 +2559,26 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                     const ivhvC = (Math.min(Math.abs(t.iv_hv_spread ?? 0) / 20 * 100, 100) * 0.3).toFixed(1);
                     const liqC = (((t.liquidity ?? 0) / 5) * 100 * 0.3).toFixed(1);
                     return (
-                      <tr key={t.symbol} className={themed(`border-b border-panel-border ${!t.selected ? 'opacity-60' : ''}`, dk)}>
-                        <td className={themed('py-1 pr-3 text-white/50', dk)}>#{t.rank}</td>
-                        <td className={themed(`py-1 pr-3 font-bold ${t.selected ? 'text-brand-green' : themed('text-white/50', dk)}`, dk)}>{t.symbol}</td>
+                      <tr key={t.symbol} className={`border-b border-panel-border ${!t.selected ? 'opacity-60' : ''}`}>
+                        <td className="py-1 pr-3 text-white/50">#{t.rank}</td>
+                        <td className={`py-1 pr-3 font-bold ${t.selected ? 'text-brand-green' : 'text-white/50'}`}>{t.symbol}</td>
                         <td className="py-1 pr-3 text-right">{t.ivp ?? '—'}</td>
                         <td className="py-1 pr-3 text-right">{t.iv_hv_spread ?? '—'}</td>
                         <td className="py-1 pr-3 text-right">{t.liquidity ?? '—'}/5</td>
-                        <td className={themed('py-1 pr-3 text-white/50 font-mono text-[10px]', dk)}>
+                        <td className="py-1 pr-3 text-white/50 font-mono text-[10px]">
                           ({t.ivp ?? 0}×40%) + (min(|{t.iv_hv_spread ?? 0}|/20×100,100)×30%) + ({t.liquidity ?? 0}/5×100×30%) = {ivpC}+{ivhvC}+{liqC}
                         </td>
-                        <td className={themed(`py-1 pr-3 text-right font-bold ${t.selected ? 'text-brand-gold' : themed('text-white/50', dk)}`, dk)}>{t.pre_score}</td>
+                        <td className={`py-1 pr-3 text-right font-bold ${t.selected ? 'text-brand-gold' : 'text-white/50'}`}>{t.pre_score}</td>
                         <td className={`py-1 ${t.selected ? 'text-brand-green' : 'text-brand-red'}`}>
                           {t.selected
                             ? '✓ Selected for enrichment'
                             : `✗ ${t.reason?.replace('✗ ', '') ?? 'Ranked out'}`
                           }
                         </td>
-                        <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>TastyTrade</td>
-                        <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>market-metrics</td>
-                        <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{fetchedTime}</td>
-                        <td className={themed('py-1 text-right text-white/50 text-[10px]', dk)}>{ageSec}</td>
+                        <td className="py-1 pr-3 text-white/50 text-[10px]">TastyTrade</td>
+                        <td className="py-1 pr-3 text-white/50 text-[10px]">market-metrics</td>
+                        <td className="py-1 pr-3 text-white/50 text-[10px]">{fetchedTime}</td>
+                        <td className="py-1 text-right text-white/50 text-[10px]">{ageSec}</td>
                       </tr>
                     );
                   });
@@ -2594,29 +2591,29 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step H — Macro & Regime Data */}
-      <div className={themed('border-b border-panel-border', dk)}>
+      <div className="border-b border-panel-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_h')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP H</span>
-            <span className={themed('text-white/70', dk)}>Macro &amp; Regime Data</span>
+            <span className="text-white/70">Macro &amp; Regime Data</span>
             {progress?.step_h ? (
               <span className={chip('success')}>
                 {(progress.step_h.data?.series as any[])?.length ?? 0} FRED series fetched
               </span>
             ) : (
-              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
+              <span className="text-white/50 animate-pulse">waiting...</span>
             )}
           </div>
-          <span className={themed('text-white/50', dk)}>{expanded['step_h'] ? '▲' : '▼'}</span>
+          <span className="text-white/50">{expanded['step_h'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_h'] && (
-          <div className={themed('border-t border-panel-border bg-white/5 p-3', dk)}>
+          <div className="border-t border-panel-border bg-white/5 p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step H pulls all macro data from FRED in a single batch. This is market-wide data — not per ticker. It tells us what the economic environment looks like right now. The Regime gate in Step K reads all of this to classify the current regime and adjust the scoring weights.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
+                <table className="w-full border-collapse border border-panel-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -2662,24 +2659,24 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
             vix_term_structure_slope: { value: number | null; formula: string; inputs: { vix: number | null; vxv: number | null }; null_reason: string | null };
           } | undefined;
           return (
-            <div className={themed('border-t border-panel-border bg-white/5 p-3 text-xs space-y-4', dk)}>
+            <div className="border-t border-panel-border bg-white/5 p-3 text-xs space-y-4">
               {/* SECTION 1 — Computed Values */}
               <div className="space-y-3">
-                <p className={themed('text-white/70 font-semibold', dk)}>Computed Values</p>
+                <p className="text-white/70 font-semibold">Computed Values</p>
                 {/* Fed Net Liquidity */}
-                <div className={themed('bg-bg-primary p-2 rounded border border-panel-border', dk)}>
+                <div className="bg-bg-primary p-2 rounded border border-panel-border">
                   <div className="flex items-center gap-2">
-                    <span className={themed('text-white font-medium', dk)}>Fed Net Liquidity</span>
-                    <span className={themed('text-white/70', dk)}>
+                    <span className="text-white font-medium">Fed Net Liquidity</span>
+                    <span className="text-white/70">
                       {computed?.fed_net_liquidity?.value != null
                         ? `$${(computed.fed_net_liquidity.value / 1e6).toFixed(0)}M`
                         : '—'}
                     </span>
                   </div>
-                  <div className={themed('text-white/50 mt-1', dk)}>
+                  <div className="text-white/50 mt-1">
                     Formula: {computed?.fed_net_liquidity?.formula ?? '—'}
                   </div>
-                  <div className={themed('text-white/50', dk)}>
+                  <div className="text-white/50">
                     Inputs: WALCL={computed?.fed_net_liquidity?.inputs?.walcl != null ? `$${(computed.fed_net_liquidity.inputs.walcl / 1e6).toFixed(0)}M` : '—'}{' '}
                     · WTREGEN={computed?.fed_net_liquidity?.inputs?.wtregen != null ? `$${(computed.fed_net_liquidity.inputs.wtregen / 1e6).toFixed(0)}M` : '—'}{' '}
                     · RRPONTSYD={computed?.fed_net_liquidity?.inputs?.rrpontsyd != null ? `$${(computed.fed_net_liquidity.inputs.rrpontsyd / 1e6).toFixed(0)}M` : '—'}
@@ -2689,10 +2686,10 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                   )}
                 </div>
                 {/* VIX Term Structure Slope */}
-                <div className={themed('bg-bg-primary p-2 rounded border border-panel-border', dk)}>
+                <div className="bg-bg-primary p-2 rounded border border-panel-border">
                   <div className="flex items-center gap-2">
-                    <span className={themed('text-white font-medium', dk)}>VIX Term Structure Slope</span>
-                    <span className={themed('text-white/70', dk)}>
+                    <span className="text-white font-medium">VIX Term Structure Slope</span>
+                    <span className="text-white/70">
                       {computed?.vix_term_structure_slope?.value != null
                         ? computed.vix_term_structure_slope.value.toFixed(3)
                         : '—'}
@@ -2705,10 +2702,10 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       </span>
                     )}
                   </div>
-                  <div className={themed('text-white/50 mt-1', dk)}>
+                  <div className="text-white/50 mt-1">
                     Formula: {computed?.vix_term_structure_slope?.formula ?? '—'}
                   </div>
-                  <div className={themed('text-white/50', dk)}>
+                  <div className="text-white/50">
                     Inputs: VIX={computed?.vix_term_structure_slope?.inputs?.vix ?? '—'}{' '}
                     · VXV={computed?.vix_term_structure_slope?.inputs?.vxv ?? '—'}
                   </div>
@@ -2720,12 +2717,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
               {/* SECTION 2 — Full FRED Series Table */}
               <div className="space-y-2">
-                <p className={themed('text-white/70 font-semibold', dk)}>FRED Series</p>
-                <p className={themed('text-white/50', dk)}>Fetched at: {hd.fetched_at as string ?? '—'}</p>
+                <p className="text-white/70 font-semibold">FRED Series</p>
+                <p className="text-white/50">Fetched at: {hd.fetched_at as string ?? '—'}</p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
-                      <tr className={themed('border-b border-panel-border text-white/50', dk)}>
+                      <tr className="border-b border-panel-border text-white/50">
                         <th className="py-1 pr-3">SERIES</th>
                         <th className="py-1 pr-3">SERIES ID</th>
                         <th className="py-1 pr-3 text-right">VALUE</th>
@@ -2735,13 +2732,13 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                     </thead>
                     <tbody>
                       {series.map((s) => (
-                        <tr key={s.key} className={themed('border-b border-panel-border/30', dk)}>
-                          <td className={themed('py-1 pr-3 text-white', dk)}>{s.name}</td>
-                          <td className={themed('py-1 pr-3 text-white/50 font-mono', dk)}>{s.series_id}</td>
-                          <td className={themed('py-1 pr-3 text-right text-white font-mono', dk)}>
+                        <tr key={s.key} className="border-b border-panel-border/30">
+                          <td className="py-1 pr-3 text-white">{s.name}</td>
+                          <td className="py-1 pr-3 text-white/50 font-mono">{s.series_id}</td>
+                          <td className="py-1 pr-3 text-right text-white font-mono">
                             {s.value != null ? (typeof s.value === 'number' && Math.abs(s.value) >= 1000 ? s.value.toLocaleString() : s.value) : '—'}
                           </td>
-                          <td className={themed('py-1 pr-3 text-white/50', dk)}>{s.source}</td>
+                          <td className="py-1 pr-3 text-white/50">{s.source}</td>
                           <td className="py-1 text-brand-red">{s.null_reason ?? ''}</td>
                         </tr>
                       ))}
@@ -2752,10 +2749,10 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
               {/* SECTION 3 — Fetch Metadata */}
               <div className="space-y-1">
-                <p className={themed('text-white/70 font-semibold', dk)}>Fetch Metadata</p>
-                <p className={themed('text-white/50', dk)}>Fetch time: {hd.fetch_ms as number}ms</p>
-                <p className={themed('text-white/50', dk)}>Cached: {hd.cached ? 'yes' : 'no'}</p>
-                <p className={themed('text-white/50', dk)}>Source: FRED API (free, commercial use permitted)</p>
+                <p className="text-white/70 font-semibold">Fetch Metadata</p>
+                <p className="text-white/50">Fetch time: {hd.fetch_ms as number}ms</p>
+                <p className="text-white/50">Cached: {hd.cached ? 'yes' : 'no'}</p>
+                <p className="text-white/50">Source: FRED API (free, commercial use permitted)</p>
               </div>
             </div>
           );
@@ -2763,32 +2760,32 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step I — Data Enrichment */}
-      <div className={themed('border-b border-panel-border', dk)}>
+      <div className="border-b border-panel-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_i')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP I</span>
-            <span className={themed('text-white/70', dk)}>Data Enrichment</span>
+            <span className="text-white/70">Data Enrichment</span>
             {(ps?.finnhub_calls_made != null || progress?.step_i) ? (
-              <span className={themed('text-white/70', dk)}>
+              <span className="text-white/70">
                 {ps?.finnhub_calls_made ?? progress?.step_i?.data?.finnhub_calls ?? 0} Finnhub calls
                 {(ps?.finnhub_errors > 0 || (progress?.step_i?.data?.finnhub_errors ?? 0) > 0) && (
                   <span className="text-brand-red"> · {ps?.finnhub_errors ?? progress?.step_i?.data?.finnhub_errors} errors</span>
                 )}
               </span>
             ) : (
-              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
+              <span className="text-white/50 animate-pulse">waiting...</span>
             )}
           </div>
-          <span className={themed('text-white/50', dk)}>{expanded['step_i'] ? '▲' : '▼'}</span>
+          <span className="text-white/50">{expanded['step_i'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_i'] && (
-          <div className={themed('border-t border-panel-border bg-white/5 p-3', dk)}>
+          <div className="border-t border-panel-border bg-white/5 p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step I is the most expensive step. Multiple data sources per ticker. The question it answers is: why is IV elevated? A high IV rank tells you options are expensive. It does not tell you whether that is an opportunity or a warning. This step finds out.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
+                <table className="w-full border-collapse border border-panel-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -2836,7 +2833,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 </div>
               )}
             </div>
-            <p className={themed('text-white/50 text-xs font-bold mb-1', dk)}>
+            <p className="text-white/50 text-xs font-bold mb-1">
               {progress?.step_i?.data?.finnhub_calls ?? '—'} FINNHUB CALLS — {progress?.step_i?.data?.tickers?.length ?? '—'} TICKERS ENRICHED
               {progress?.step_i?.data?.finnhub_errors > 0 && (
                 <span className="text-brand-red ml-2">⚠ {progress?.step_i?.data?.finnhub_errors} ERRORS</span>
@@ -2857,7 +2854,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                   <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
                     <table className="w-full text-xs whitespace-nowrap">
                       <thead>
-                        <tr className={themed('text-white/50 border-b border-panel-border sticky top-0 bg-white/5', dk)}>
+                        <tr className="text-white/50 border-b border-panel-border sticky top-0 bg-white/5">
                           <th className="text-left py-1 pr-3">#</th>
                           <th className="text-left py-1 pr-3">SYMBOL</th>
                           <th className="text-right py-1 pr-3">EARNINGS<br/><span className="font-normal text-[9px]">beat/total</span></th>
@@ -2885,8 +2882,8 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                           const insiderColor = t.insider_sentiment == null ? 'text-text-faint' : t.insider_sentiment > 10 ? 'text-brand-green' : t.insider_sentiment < -10 ? 'text-brand-red' : 'text-brand-gold';
                           const newsColor = t.news_sentiment == null ? 'text-text-faint' : t.news_sentiment > 55 ? 'text-brand-green' : t.news_sentiment < 45 ? 'text-brand-red' : 'text-brand-gold';
                           return (
-                            <tr key={t.symbol} className={themed('border-b border-panel-border', dk)}>
-                              <td className={themed('py-1 pr-3 text-white/50', dk)}>{i+1}</td>
+                            <tr key={t.symbol} className="border-b border-panel-border">
+                              <td className="py-1 pr-3 text-white/50">{i+1}</td>
                               <td className="py-1 pr-3 font-bold">{t.symbol}</td>
                               <td className="py-1 pr-3 text-right">
                                 {t.beat_count != null && t.earnings_quarters != null
@@ -2894,11 +2891,11 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                                   : '—'}
                               </td>
                               <td className={`py-1 pr-3 text-right font-bold ${beatColor}`}>{t.beat_rate != null ? t.beat_rate+'%' : '—'}</td>
-                              <td className={themed('py-1 pr-3 text-white/50', dk)}>{t.analyst_rating ?? '—'}</td>
+                              <td className="py-1 pr-3 text-white/50">{t.analyst_rating ?? '—'}</td>
                               <td className={`py-1 pr-3 text-right font-bold ${insiderColor}`}>{t.insider_sentiment != null ? t.insider_sentiment.toFixed(1) : '—'}</td>
                               <td className={`py-1 pr-3 text-right font-bold ${newsColor}`}>{t.news_sentiment != null ? t.news_sentiment.toFixed(1) : '—'}</td>
                               <td className="py-1 pr-3 text-right">{t.institutional_holders != null ? t.institutional_holders.toLocaleString() : '—'}</td>
-                              <td className={themed(`py-1 pr-3 text-right font-bold ${
+                              <td className={`py-1 pr-3 text-right font-bold ${
                                 t.earnings_quality_letter === 'A' || t.earnings_quality_letter === 'B'
                                   ? 'text-brand-green'
                                   : t.earnings_quality_letter === 'C'
@@ -2906,21 +2903,21 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                                   : t.earnings_quality_letter != null
                                   ? 'text-brand-red'
                                   : 'text-text-faint'
-                              }`, dk)}>
+                              }`}>
                                 {t.earnings_quality_letter != null && t.earnings_quality_score != null
                                   ? `${t.earnings_quality_letter} (${t.earnings_quality_score.toFixed(2)})`
                                   : '—'}
                               </td>
                               <td className="py-1 pr-3 text-right">{t.pe_ratio != null ? t.pe_ratio.toFixed(1) : '—'}</td>
                               <td className="py-1 pr-3 text-right">{t.ebitda_estimate_count != null ? t.ebitda_estimate_count : '—'}</td>
-                              <td className={themed('py-1 pr-3 text-white/50', dk)}>{t.next_ex_date ?? '—'}</td>
+                              <td className="py-1 pr-3 text-white/50">{t.next_ex_date ?? '—'}</td>
                               <td className="py-1 pr-3 text-right">{t.week52_high != null ? t.week52_high.toFixed(2) : '—'}</td>
                               <td className="py-1 pr-3 text-right">{t.week52_low != null ? t.week52_low.toFixed(2) : '—'}</td>
                               <td className="py-1 pr-3 text-left text-[10px]">{t.top_fund != null ? t.top_fund.slice(0, 12) : '—'}</td>
-                              <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>Finnhub</td>
-                              <td className={themed('py-1 pr-3 text-white/50 text-[10px] max-w-[180px] truncate', dk)}>earnings·recommendation·insider-sentiment·news-sentiment·ownership·earnings-quality·metric·ebitda-estimate·dividend·fund-ownership</td>
-                              <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{gFetchedTime}</td>
-                              <td className={themed('py-1 text-right text-white/50 text-[10px]', dk)}>{gAgeSec}</td>
+                              <td className="py-1 pr-3 text-white/50 text-[10px]">Finnhub</td>
+                              <td className="py-1 pr-3 text-white/50 text-[10px] max-w-[180px] truncate">earnings·recommendation·insider-sentiment·news-sentiment·ownership·earnings-quality·metric·ebitda-estimate·dividend·fund-ownership</td>
+                              <td className="py-1 pr-3 text-white/50 text-[10px]">{gFetchedTime}</td>
+                              <td className="py-1 text-right text-white/50 text-[10px]">{gAgeSec}</td>
                             </tr>
                           );
                         })}
@@ -2932,7 +2929,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                   <div className="overflow-x-auto overflow-y-auto mt-3" style={{maxHeight: '200px'}}>
                     <table className="text-xs whitespace-nowrap">
                       <thead>
-                        <tr className={themed('text-white/50 border-b border-panel-border sticky top-0 bg-white/5', dk)}>
+                        <tr className="text-white/50 border-b border-panel-border sticky top-0 bg-white/5">
                           <th className="text-left py-1 pr-3">#</th>
                           <th className="text-left py-1 pr-3">SYMBOL</th>
                           <th className="text-right py-1 pr-3">8-K<br/><span className="font-normal text-[9px]">30d</span></th>
@@ -2944,14 +2941,14 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       </thead>
                       <tbody>
                         {tickers.map((t: any, i: number) => (
-                          <tr key={t.symbol} className={themed('border-b border-panel-border', dk)}>
-                            <td className={themed('py-1 pr-3 text-white/50', dk)}>{i+1}</td>
+                          <tr key={t.symbol} className="border-b border-panel-border">
+                            <td className="py-1 pr-3 text-white/50">{i+1}</td>
                             <td className="py-1 pr-3 font-bold">{t.symbol}</td>
-                            <td className={themed(`py-1 pr-3 text-right font-bold ${t.edgar_8k_count != null && t.edgar_8k_count > 0 ? 'text-brand-red' : themed('text-white/50', dk)}`, dk)}>{t.edgar_8k_count != null ? t.edgar_8k_count : '—'}</td>
-                            <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>SEC EDGAR</td>
-                            <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>EFTS /search-index</td>
-                            <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{gFetchedTime}</td>
-                            <td className={themed('py-1 text-right text-white/50 text-[10px]', dk)}>{gAgeSec}</td>
+                            <td className={`py-1 pr-3 text-right font-bold ${t.edgar_8k_count != null && t.edgar_8k_count > 0 ? 'text-brand-red' : 'text-white/50'}`}>{t.edgar_8k_count != null ? t.edgar_8k_count : '—'}</td>
+                            <td className="py-1 pr-3 text-white/50 text-[10px]">SEC EDGAR</td>
+                            <td className="py-1 pr-3 text-white/50 text-[10px]">EFTS /search-index</td>
+                            <td className="py-1 pr-3 text-white/50 text-[10px]">{gFetchedTime}</td>
+                            <td className="py-1 text-right text-white/50 text-[10px]">{gAgeSec}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -2965,27 +2962,27 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step J — Candle Data & Cross-Asset Correlations */}
-      <div className={themed('border-b border-panel-border', dk)}>
+      <div className="border-b border-panel-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_j')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP J</span>
-            <span className={themed('text-white/70', dk)}>Candle Data &amp; Cross-Asset Correlations</span>
+            <span className="text-white/70">Candle Data &amp; Cross-Asset Correlations</span>
             {progress?.step_j?.data ? (
               <span className={chip('success')}>{progress.step_j.data.symbols_with_data} of {progress.step_j.data.symbols_requested} symbols have candle data</span>
             ) : (
-              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
+              <span className="text-white/50 animate-pulse">waiting...</span>
             )}
           </div>
-          <span className={themed('text-white/50', dk)}>{expanded['step_j'] ? '▲' : '▼'}</span>
+          <span className="text-white/50">{expanded['step_j'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_j'] && progress?.step_j?.data && (
-          <div className={themed('border-t border-panel-border bg-white/5 p-3', dk)}>
+          <div className="border-t border-panel-border bg-white/5 p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step J fetches price history for every finalist. This candle data powers the technical indicators in Step L and the realized volatility cone on the trade card. Cross-asset correlations are also computed here and feed into the Regime gate.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
+                <table className="w-full border-collapse border border-panel-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -3014,7 +3011,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 </table>
               </div>
             </div>
-            <p className={themed('text-white/50 text-xs font-bold mb-1', dk)}>
+            <p className="text-white/50 text-xs font-bold mb-1">
               {progress.step_j.data.total_candles} CANDLES — {progress.step_j.data.symbols_with_data}/{progress.step_j.data.symbols_requested} SYMBOLS — {progress.step_j.data.elapsed_ms}ms
               {progress.step_j.data.symbols_failed > 0 && (
                 <span className="text-brand-red ml-2">⚠ {progress.step_j.data.symbols_failed} FAILED</span>
@@ -3035,7 +3032,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
                   <table className="w-full text-xs whitespace-nowrap">
                     <thead>
-                      <tr className={themed('text-white/50 border-b border-panel-border sticky top-0 bg-white/5', dk)}>
+                      <tr className="text-white/50 border-b border-panel-border sticky top-0 bg-white/5">
                         <th className="text-left py-1 pr-3">#</th>
                         <th className="text-left py-1 pr-3">SYMBOL</th>
                         <th className="text-right py-1 pr-3">CANDLES</th>
@@ -3047,14 +3044,14 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                     </thead>
                     <tbody>
                       {candlesPerSymbol.map((c: any, i: number) => (
-                        <tr key={c.symbol} className={themed('border-b border-panel-border', dk)}>
-                          <td className={themed('py-1 pr-3 text-white/50', dk)}>{i+1}</td>
+                        <tr key={c.symbol} className="border-b border-panel-border">
+                          <td className="py-1 pr-3 text-white/50">{i+1}</td>
                           <td className="py-1 pr-3 font-bold">{c.symbol}</td>
-                          <td className={themed(`py-1 pr-3 text-right font-bold ${c.candle_count != null && c.candle_count > 0 ? 'text-brand-green' : themed('text-white/50', dk)}`, dk)}>{c.candle_count != null ? c.candle_count : '—'}</td>
-                          <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{c.source}</td>
-                          <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{c.endpoint}</td>
-                          <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{jFetchedTime}</td>
-                          <td className={themed('py-1 text-right text-white/50 text-[10px]', dk)}>{jAgeSec}</td>
+                          <td className={`py-1 pr-3 text-right font-bold ${c.candle_count != null && c.candle_count > 0 ? 'text-brand-green' : 'text-white/50'}`}>{c.candle_count != null ? c.candle_count : '—'}</td>
+                          <td className="py-1 pr-3 text-white/50 text-[10px]">{c.source}</td>
+                          <td className="py-1 pr-3 text-white/50 text-[10px]">{c.endpoint}</td>
+                          <td className="py-1 pr-3 text-white/50 text-[10px]">{jFetchedTime}</td>
+                          <td className="py-1 text-right text-white/50 text-[10px]">{jAgeSec}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -3064,8 +3061,8 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
             })()}
 
             {/* Section 2 — Cross-asset correlations */}
-            <div className={themed('mt-3 p-2 bg-white/5 rounded border border-panel-border', dk)}>
-              <p className={themed('text-white/50 text-xs font-bold mb-1', dk)}>CROSS-ASSET CORRELATIONS</p>
+            <div className="mt-3 p-2 bg-white/5 rounded border border-panel-border">
+              <p className="text-white/50 text-xs font-bold mb-1">CROSS-ASSET CORRELATIONS</p>
               {progress.step_j.data.cross_asset_correlations?.available ? (
                 <p className="text-xs text-brand-green">
                   Available — Source: {progress.step_j.data.cross_asset_correlations.source} | Endpoint: {progress.step_j.data.cross_asset_correlations.endpoint}
@@ -3081,27 +3078,27 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step K — 4-Gate Scoring */}
-      <div className={themed('border-b border-panel-border', dk)}>
+      <div className="border-b border-panel-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_k')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP K</span>
-            <span className={themed('text-white/70', dk)}>4-Gate Scoring</span>
+            <span className="text-white/70">4-Gate Scoring</span>
             {(ps?.scored != null || progress?.step_k) ? (
               <span className={chip('success')}>{ps?.scored ?? progress?.step_k?.data?.scored ?? 0} tickers scored</span>
             ) : (
-              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
+              <span className="text-white/50 animate-pulse">waiting...</span>
             )}
           </div>
-          <span className={themed('text-white/50', dk)}>{expanded['step_k'] ? '▲' : '▼'}</span>
+          <span className="text-white/50">{expanded['step_k'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_k'] && (
-          <div className={themed('border-t border-panel-border bg-white/5 p-3', dk)}>
+          <div className="border-t border-panel-border bg-white/5 p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step K scores every finalist 0 to 100 across four independent gates. Each gate looks at the stock from a completely different angle. The final score is a weighted average of all four. The weights shift based on the current macro regime.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
+                <table className="w-full border-collapse border border-panel-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -3134,13 +3131,13 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 </table>
               </div>
             </div>
-            <p className={themed('text-white/50 text-xs font-bold mb-1', dk)}>
+            <p className="text-white/50 text-xs font-bold mb-1">
               {progress?.step_k?.data?.scored ?? '—'} TICKERS SCORED — 4-GATE MATRIX
             </p>
             <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
               <table className="w-full text-xs whitespace-nowrap">
                 <thead>
-                  <tr className={themed('text-white/50 border-b border-panel-border sticky top-0 bg-white/5', dk)}>
+                  <tr className="text-white/50 border-b border-panel-border sticky top-0 bg-white/5">
                     <th className="text-left py-1 pr-3">RANK</th>
                     <th className="text-left py-1 pr-3">SYMBOL</th>
                     <th className="text-right py-1 pr-3">VOL EDGE<br/><span className="font-normal text-[9px]">{(progress?.step_k?.data?.weights as any)?.vol_edge ?? 25}% weight</span></th>
@@ -3179,31 +3176,31 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                     const eligible = r.selection_status === 'eligible';
                     return (
                       <React.Fragment key={r.symbol}>
-                      <tr className={themed(`border-b border-panel-border cursor-pointer ${!eligible ? 'opacity-60' : ''}`, dk)} onClick={() => setHDrillDown(prev => ({ ...prev, [r.symbol]: !prev[r.symbol] }))}>
-                        <td className={themed('py-1 pr-3 text-white/50', dk)}>#{i+1}</td>
-                        <td className={themed(`py-1 pr-3 font-bold ${eligible ? 'text-brand-green' : themed('text-white/50', dk)}`, dk)}>{r.symbol}</td>
+                      <tr className={`border-b border-panel-border cursor-pointer ${!eligible ? 'opacity-60' : ''}`} onClick={() => setHDrillDown(prev => ({ ...prev, [r.symbol]: !prev[r.symbol] }))}>
+                        <td className="py-1 pr-3 text-white/50">#{i+1}</td>
+                        <td className={`py-1 pr-3 font-bold ${eligible ? 'text-brand-green' : 'text-white/50'}`}>{r.symbol}</td>
                         <td className={`py-1 pr-3 text-right ${gateColor(r.vol_edge)}`}>{r.vol_edge}</td>
                         <td className={`py-1 pr-3 text-right ${gateColor(r.quality)}`}>{r.quality}</td>
                         <td className={`py-1 pr-3 text-right ${gateColor(r.regime)}`}>{r.regime}</td>
                         <td className={`py-1 pr-3 text-right ${gateColor(r.info_edge)}`}>{r.info_edge}</td>
                         <td className={`py-1 pr-3 text-right font-bold ${gatesAbove50 >= 3 ? 'text-brand-green' : gatesAbove50 === 2 ? 'text-brand-gold' : 'text-brand-red'}`}>{gatesAbove50}/4</td>
-                        <td className={themed('py-1 pr-3 text-white/50 font-mono text-[10px]', dk)}>({r.vol_edge}×{w.vol_edge}%) + ({r.quality}×{w.quality}%) + ({r.regime}×{w.regime}%) + ({r.info_edge}×{w.info_edge}%) = {veC}+{qC}+{rC}+{ieC}</td>
-                        <td className={themed(`py-1 pr-3 text-right font-bold ${r.composite >= 60 ? 'text-brand-green' : r.composite >= 50 ? 'text-brand-gold' : themed('text-white/50', dk)}`, dk)}>{r.composite}</td>
+                        <td className="py-1 pr-3 text-white/50 font-mono text-[10px]">({r.vol_edge}×{w.vol_edge}%) + ({r.quality}×{w.quality}%) + ({r.regime}×{w.regime}%) + ({r.info_edge}×{w.info_edge}%) = {veC}+{qC}+{rC}+{ieC}</td>
+                        <td className={`py-1 pr-3 text-right font-bold ${r.composite >= 60 ? 'text-brand-green' : r.composite >= 50 ? 'text-brand-gold' : 'text-white/50'}`}>{r.composite}</td>
                         <td className={`py-1 pr-3 ${eligible ? 'text-brand-green' : 'text-brand-red'}`}>{eligible ? `✓ ${gatesAbove50}/4 gates — eligible` : `✗ ${gatesAbove50}/4 gates — needs 3`}</td>
-                        <td className={themed('py-1 pr-3 text-right text-white/50', dk)}>{r.data_confidence != null ? (r.data_confidence * 100).toFixed(0) + '%' : '—'}</td>
-                        <td className={themed('py-1 pr-3 text-right text-white/50', dk)}>{r.position_size_pct != null ? r.position_size_pct + '%' : '—'}</td>
-                        <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{hFetchedTime}</td>
-                        <td className={themed('py-1 pr-3 text-right text-white/50 text-[10px]', dk)}>{hAgeSec}</td>
-                        <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>Steps A–J</td>
-                        <td className={themed('py-1 text-white/50 text-[10px]', dk)}>Composite — see Steps A–J</td>
+                        <td className="py-1 pr-3 text-right text-white/50">{r.data_confidence != null ? (r.data_confidence * 100).toFixed(0) + '%' : '—'}</td>
+                        <td className="py-1 pr-3 text-right text-white/50">{r.position_size_pct != null ? r.position_size_pct + '%' : '—'}</td>
+                        <td className="py-1 pr-3 text-white/50 text-[10px]">{hFetchedTime}</td>
+                        <td className="py-1 pr-3 text-right text-white/50 text-[10px]">{hAgeSec}</td>
+                        <td className="py-1 pr-3 text-white/50 text-[10px]">Steps A–J</td>
+                        <td className="py-1 text-white/50 text-[10px]">Composite — see Steps A–J</td>
                       </tr>
                       {hDrillDown[r.symbol] && (
                         <tr key={r.symbol + '_drill'}>
-                          <td colSpan={16} className={themed('py-2 px-3 bg-white/5 border-b border-panel-border', dk)}>
+                          <td colSpan={16} className="py-2 px-3 bg-white/5 border-b border-panel-border">
                             <div className="grid grid-cols-4 gap-3 text-xs">
                               {/* VOL EDGE */}
                               <div>
-                                <p className="text-brand-purple-pop font-bold mb-1">VOL EDGE {r.vol_edge}<span className={themed('text-white/50 font-normal ml-1', dk)}>— TastyTrade + Candles</span></p>
+                                <p className="text-brand-purple font-bold mb-1">VOL EDGE {r.vol_edge}<span className="text-white/50 font-normal ml-1">— TastyTrade + Candles</span></p>
                                 {r.vol_edge_detail && (
                                   <table className="w-full text-[10px]">
                                     <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-text-faint border-b border-border"}><th className="text-left py-0.5">COMPONENT</th><th className="text-right py-0.5">SCORE</th><th className="text-right py-0.5">WEIGHT</th><th className="text-right py-0.5">CONTRIB</th></tr></thead>
@@ -3215,21 +3212,21 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                                         ['Skew', r.vol_edge_detail.skew],
                                         ['GEX', r.vol_edge_detail.gex],
                                       ].map(([name, d]: any) => (
-                                        <tr key={name} className={themed('border-b border-panel-border/30', dk)}>
-                                          <td className={themed('py-0.5 text-white/70', dk)}>{name}</td>
+                                        <tr key={name} className="border-b border-panel-border/30">
+                                          <td className="py-0.5 text-white/70">{name}</td>
                                           <td className="py-0.5 text-right">{d.score}</td>
-                                          <td className={themed('py-0.5 text-right text-white/50', dk)}>{(d.weight * 100).toFixed(0)}%</td>
+                                          <td className="py-0.5 text-right text-white/50">{(d.weight * 100).toFixed(0)}%</td>
                                           <td className="py-0.5 text-right text-brand-gold">{(d.score * d.weight).toFixed(1)}</td>
                                         </tr>
                                       ))}
                                     </tbody>
                                   </table>
                                 )}
-                                <p className={themed('text-white/50 mt-1', dk)}>Conf: {r.vol_edge_detail ? (r.vol_edge_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.vol_edge_detail?.active_signal_count != null ? ` · computed from ${r.vol_edge_detail.active_signal_count}/${r.vol_edge_detail.total_signal_count} signals` : ''}</p>
+                                <p className="text-white/50 mt-1">Conf: {r.vol_edge_detail ? (r.vol_edge_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.vol_edge_detail?.active_signal_count != null ? ` · computed from ${r.vol_edge_detail.active_signal_count}/${r.vol_edge_detail.total_signal_count} signals` : ''}</p>
                               </div>
                               {/* QUALITY */}
                               <div>
-                                <p className="text-brand-purple-pop font-bold mb-1">QUALITY {r.quality}<span className={themed('text-white/50 font-normal ml-1', dk)}>— Finnhub</span></p>
+                                <p className="text-brand-purple font-bold mb-1">QUALITY {r.quality}<span className="text-white/50 font-normal ml-1">— Finnhub</span></p>
                                 {r.quality_detail && (
                                   <table className="w-full text-[10px]">
                                     <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-text-faint border-b border-border"}><th className="text-left py-0.5">COMPONENT</th><th className="text-right py-0.5">SCORE</th><th className="text-right py-0.5">WEIGHT</th><th className="text-right py-0.5">CONTRIB</th></tr></thead>
@@ -3240,58 +3237,58 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                                         ['Growth', r.quality_detail.growth],
                                         ['Fund. Risk', r.quality_detail.fundamental_risk],
                                       ].map(([name, d]: any) => (
-                                        <tr key={name} className={themed('border-b border-panel-border/30', dk)}>
-                                          <td className={themed('py-0.5 text-white/70', dk)}>{name}</td>
+                                        <tr key={name} className="border-b border-panel-border/30">
+                                          <td className="py-0.5 text-white/70">{name}</td>
                                           <td className="py-0.5 text-right">{d.score}</td>
-                                          <td className={themed('py-0.5 text-right text-white/50', dk)}>{(d.weight * 100).toFixed(0)}%</td>
+                                          <td className="py-0.5 text-right text-white/50">{(d.weight * 100).toFixed(0)}%</td>
                                           <td className="py-0.5 text-right text-brand-gold">{(d.score * d.weight).toFixed(1)}</td>
                                         </tr>
                                       ))}
                                       {r.quality_detail.mspr_adjustment !== 0 && (
-                                        <tr className={themed('border-b border-panel-border/30', dk)}>
-                                          <td className={themed('py-0.5 text-white/50', dk)} colSpan={3}>MSPR adj</td>
+                                        <tr className="border-b border-panel-border/30">
+                                          <td className="py-0.5 text-white/50" colSpan={3}>MSPR adj</td>
                                           <td className={`py-0.5 text-right ${r.quality_detail.mspr_adjustment > 0 ? 'text-brand-green' : 'text-brand-red'}`}>{r.quality_detail.mspr_adjustment > 0 ? '+' : ''}{r.quality_detail.mspr_adjustment}</td>
                                         </tr>
                                       )}
                                     </tbody>
                                   </table>
                                 )}
-                                <p className={themed('text-white/50 mt-1', dk)}>Conf: {r.quality_detail ? (r.quality_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.quality_detail?.active_signal_count != null ? ` · computed from ${r.quality_detail.active_signal_count}/${r.quality_detail.total_signal_count} signals` : ''}</p>
+                                <p className="text-white/50 mt-1">Conf: {r.quality_detail ? (r.quality_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.quality_detail?.active_signal_count != null ? ` · computed from ${r.quality_detail.active_signal_count}/${r.quality_detail.total_signal_count} signals` : ''}</p>
                               </div>
                               {/* REGIME */}
                               <div>
-                                <p className="text-brand-purple-pop font-bold mb-1">REGIME {r.regime}<span className={themed('text-white/50 font-normal ml-1', dk)}>— FRED</span></p>
+                                <p className="text-brand-purple font-bold mb-1">REGIME {r.regime}<span className="text-white/50 font-normal ml-1">— FRED</span></p>
                                 {r.regime_detail && (
                                   <table className="w-full text-[10px]">
                                     <tbody>
-                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Regime</td><td className="py-0.5 text-right font-bold">{r.regime_detail.dominant_regime}</td></tr>
-                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Growth Signal</td><td className="py-0.5 text-right">{r.regime_detail.growth_score}</td></tr>
-                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Inflation Signal</td><td className="py-0.5 text-right">{r.regime_detail.inflation_score}</td></tr>
-                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>SPY Multiplier</td><td className="py-0.5 text-right">{r.regime_detail.spy_multiplier}</td></tr>
-                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Base → Final</td><td className="py-0.5 text-right">{r.regime_detail.base_score} → {r.regime}</td></tr>
-                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>VIX</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.vix ?? '—'}</td></tr>
-                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>GDP</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.gdp ?? '—'}</td></tr>
-                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>CPI YoY</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.cpi_yoy ?? '—'}</td></tr>
-                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Fed Funds</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.fed_funds ?? '—'}</td></tr>
-                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Yield Curve Spread</td><td className="py-0.5 text-right">{r.regime_detail.yield_curve_spread ?? '—'}</td></tr>
-                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>HY Spread</td><td className="py-0.5 text-right">{r.regime_detail.hy_spread ?? '—'}</td></tr>
-                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Cross-Asset Corr</td><td className="py-0.5 text-right">{r.regime_detail.cross_asset_available ? 'Available' : '—'}</td></tr>
-                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>BBB Spread</td><td className="py-0.5 text-right">{r.regime_detail.bbb_spread_raw != null ? `${r.regime_detail.bbb_spread_raw}%` : '—'} → score {r.regime_detail.bbb_spread ?? '—'}</td></tr>
-                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>T10Y3M</td><td className="py-0.5 text-right">{r.regime_detail.t10y3m_raw != null ? `${r.regime_detail.t10y3m_raw}%` : '—'} → score {r.regime_detail.t10y3m ?? '—'}</td></tr>
-                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Dollar Index</td><td className="py-0.5 text-right">{r.regime_detail.dollar_index_raw ?? '—'} → score {r.regime_detail.dollar_index ?? '—'}</td></tr>
-                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Fed Net Liquidity</td><td className="py-0.5 text-right">{r.regime_detail.fed_net_liquidity_raw != null ? `$${r.regime_detail.fed_net_liquidity_raw}B` : '—'} → score {r.regime_detail.fed_net_liquidity ?? '—'}</td></tr>
+                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Regime</td><td className="py-0.5 text-right font-bold">{r.regime_detail.dominant_regime}</td></tr>
+                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Growth Signal</td><td className="py-0.5 text-right">{r.regime_detail.growth_score}</td></tr>
+                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Inflation Signal</td><td className="py-0.5 text-right">{r.regime_detail.inflation_score}</td></tr>
+                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">SPY Multiplier</td><td className="py-0.5 text-right">{r.regime_detail.spy_multiplier}</td></tr>
+                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Base → Final</td><td className="py-0.5 text-right">{r.regime_detail.base_score} → {r.regime}</td></tr>
+                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">VIX</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.vix ?? '—'}</td></tr>
+                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">GDP</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.gdp ?? '—'}</td></tr>
+                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">CPI YoY</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.cpi_yoy ?? '—'}</td></tr>
+                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Fed Funds</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.fed_funds ?? '—'}</td></tr>
+                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Yield Curve Spread</td><td className="py-0.5 text-right">{r.regime_detail.yield_curve_spread ?? '—'}</td></tr>
+                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">HY Spread</td><td className="py-0.5 text-right">{r.regime_detail.hy_spread ?? '—'}</td></tr>
+                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Cross-Asset Corr</td><td className="py-0.5 text-right">{r.regime_detail.cross_asset_available ? 'Available' : '—'}</td></tr>
+                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">BBB Spread</td><td className="py-0.5 text-right">{r.regime_detail.bbb_spread_raw != null ? `${r.regime_detail.bbb_spread_raw}%` : '—'} → score {r.regime_detail.bbb_spread ?? '—'}</td></tr>
+                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">T10Y3M</td><td className="py-0.5 text-right">{r.regime_detail.t10y3m_raw != null ? `${r.regime_detail.t10y3m_raw}%` : '—'} → score {r.regime_detail.t10y3m ?? '—'}</td></tr>
+                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Dollar Index</td><td className="py-0.5 text-right">{r.regime_detail.dollar_index_raw ?? '—'} → score {r.regime_detail.dollar_index ?? '—'}</td></tr>
+                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Fed Net Liquidity</td><td className="py-0.5 text-right">{r.regime_detail.fed_net_liquidity_raw != null ? `$${r.regime_detail.fed_net_liquidity_raw}B` : '—'} → score {r.regime_detail.fed_net_liquidity ?? '—'}</td></tr>
                                       {/* EDGE-6: wired vol-regime conditioners + survival brake */}
-                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>VIX/VIX3M (wired)</td><td className="py-0.5 text-right">{r.regime_detail.vix_term_structure_raw ?? '—'} → score {r.regime_detail.vix_term_structure ?? '—'}</td></tr>
-                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>VVIX (wired)</td><td className="py-0.5 text-right">{r.regime_detail.vvix_raw ?? '—'} → score {r.regime_detail.vvix ?? '—'}</td></tr>
-                                      <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Survival Brake</td><td className={`py-0.5 text-right font-bold ${r.regime_detail.survival_brake === 'OFF' ? 'text-brand-green' : 'text-brand-red'}`} title={r.regime_detail.survival_brake_declaration ?? ''}>{r.regime_detail.survival_brake ?? '—'}</td></tr>
+                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">VIX/VIX3M (wired)</td><td className="py-0.5 text-right">{r.regime_detail.vix_term_structure_raw ?? '—'} → score {r.regime_detail.vix_term_structure ?? '—'}</td></tr>
+                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">VVIX (wired)</td><td className="py-0.5 text-right">{r.regime_detail.vvix_raw ?? '—'} → score {r.regime_detail.vvix ?? '—'}</td></tr>
+                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Survival Brake</td><td className={`py-0.5 text-right font-bold ${r.regime_detail.survival_brake === 'OFF' ? 'text-brand-green' : 'text-brand-red'}`} title={r.regime_detail.survival_brake_declaration ?? ''}>{r.regime_detail.survival_brake ?? '—'}</td></tr>
                                     </tbody>
                                   </table>
                                 )}
-                                <p className={themed('text-white/50 mt-1', dk)}>Conf: {r.regime_detail ? (r.regime_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.regime_detail?.active_signal_count != null ? ` · computed from ${r.regime_detail.active_signal_count}/${r.regime_detail.total_signal_count} signals` : ''}</p>
+                                <p className="text-white/50 mt-1">Conf: {r.regime_detail ? (r.regime_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.regime_detail?.active_signal_count != null ? ` · computed from ${r.regime_detail.active_signal_count}/${r.regime_detail.total_signal_count} signals` : ''}</p>
                               </div>
                               {/* INFO EDGE */}
                               <div>
-                                <p className="text-brand-purple-pop font-bold mb-1">INFO EDGE {r.info_edge}<span className={themed('text-white/50 font-normal ml-1', dk)}>— Finnhub</span></p>
+                                <p className="text-brand-purple font-bold mb-1">INFO EDGE {r.info_edge}<span className="text-white/50 font-normal ml-1">— Finnhub</span></p>
                                 {r.info_edge_detail && (
                                   <table className="w-full text-[10px]">
                                     <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-text-faint border-b border-border"}><th className="text-left py-0.5">COMPONENT</th><th className="text-right py-0.5">SCORE</th><th className="text-right py-0.5">WEIGHT</th><th className="text-right py-0.5">CONTRIB</th></tr></thead>
@@ -3309,35 +3306,35 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                                         ['Material Event', r.info_edge_detail.material_event],
                                         ['Rec. Revision', r.info_edge_detail.recommendation_revision],
                                       ].map(([name, d]: any) => (
-                                        <tr key={name} className={themed('border-b border-panel-border/30', dk)}>
-                                          <td className={themed('py-0.5 text-white/70', dk)}>{name}</td>
+                                        <tr key={name} className="border-b border-panel-border/30">
+                                          <td className="py-0.5 text-white/70">{name}</td>
                                           <td className="py-0.5 text-right">{d?.score != null ? d.score : '—'}</td>
-                                          <td className={themed('py-0.5 text-right text-white/50', dk)}>{d?.weight != null ? (d.weight * 100).toFixed(0) + '%' : '—'}</td>
+                                          <td className="py-0.5 text-right text-white/50">{d?.weight != null ? (d.weight * 100).toFixed(0) + '%' : '—'}</td>
                                           <td className="py-0.5 text-right text-brand-gold">{d?.score != null && d?.weight != null ? (d.score * d.weight).toFixed(1) : '—'}</td>
                                         </tr>
                                       ))}
                                     </tbody>
                                   </table>
                                 )}
-                                <p className={themed('text-white/50 mt-1', dk)}>Conf: {r.info_edge_detail ? (r.info_edge_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.info_edge_detail?.active_signal_count != null ? ` · computed from ${r.info_edge_detail.active_signal_count}/${r.info_edge_detail.total_signal_count} signals` : ''}</p>
+                                <p className="text-white/50 mt-1">Conf: {r.info_edge_detail ? (r.info_edge_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.info_edge_detail?.active_signal_count != null ? ` · computed from ${r.info_edge_detail.active_signal_count}/${r.info_edge_detail.total_signal_count} signals` : ''}</p>
                                 {r.info_edge_detail?.filing_recency && (
-                                  <div className={themed('mt-1 pt-1 border-t border-panel-border/30', dk)}>
-                                    <p className={themed('text-white/70 font-bold', dk)}>Filing Recency</p>
+                                  <div className="mt-1 pt-1 border-t border-panel-border/30">
+                                    <p className="text-white/70 font-bold">Filing Recency</p>
                                     <table className="w-full text-[10px]">
                                       <tbody>
-                                        <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Signal Active</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_signal_active ? 'Yes' : 'No'}</td></tr>
-                                        <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Filing Type</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_type ?? '—'}</td></tr>
-                                        <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Filing Age</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_age_hours != null ? r.info_edge_detail.filing_recency.filing_age_hours + 'h' : '—'}</td></tr>
-                                        <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>EPS Surprise</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.eps_surprise_pct != null ? r.info_edge_detail.filing_recency.eps_surprise_pct + '%' : '—'}</td></tr>
-                                        <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Recency Score</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_recency_score}</td></tr>
-                                        <tr className={themed('border-b border-panel-border/30', dk)}><td className={themed('py-0.5 text-white/70', dk)}>Modifier</td><td className={`py-0.5 text-right ${r.info_edge_detail.filing_recency.filing_modifier > 0 ? 'text-brand-green' : r.info_edge_detail.filing_recency.filing_modifier < 0 ? 'text-brand-red' : ''}`}>{r.info_edge_detail.filing_recency.filing_modifier > 0 ? '+' : ''}{r.info_edge_detail.filing_recency.filing_modifier}</td></tr>
+                                        <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Signal Active</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_signal_active ? 'Yes' : 'No'}</td></tr>
+                                        <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Filing Type</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_type ?? '—'}</td></tr>
+                                        <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Filing Age</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_age_hours != null ? r.info_edge_detail.filing_recency.filing_age_hours + 'h' : '—'}</td></tr>
+                                        <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">EPS Surprise</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.eps_surprise_pct != null ? r.info_edge_detail.filing_recency.eps_surprise_pct + '%' : '—'}</td></tr>
+                                        <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Recency Score</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_recency_score}</td></tr>
+                                        <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Modifier</td><td className={`py-0.5 text-right ${r.info_edge_detail.filing_recency.filing_modifier > 0 ? 'text-brand-green' : r.info_edge_detail.filing_recency.filing_modifier < 0 ? 'text-brand-red' : ''}`}>{r.info_edge_detail.filing_recency.filing_modifier > 0 ? '+' : ''}{r.info_edge_detail.filing_recency.filing_modifier}</td></tr>
                                       </tbody>
                                     </table>
                                   </div>
                                 )}
                               </div>
                             </div>
-                            <p className={themed('text-white/50 text-[10px] mt-2', dk)}>Formula: ({r.vol_edge}×{progress?.step_k?.data?.weights?.vol_edge ?? '?'}%) + ({r.quality}×{progress?.step_k?.data?.weights?.quality ?? '?'}%) + ({r.regime}×{progress?.step_k?.data?.weights?.regime ?? '?'}%) + ({r.info_edge}×{progress?.step_k?.data?.weights?.info_edge ?? '?'}%) = {r.composite}</p>
+                            <p className="text-white/50 text-[10px] mt-2">Formula: ({r.vol_edge}×{progress?.step_k?.data?.weights?.vol_edge ?? '?'}%) + ({r.quality}×{progress?.step_k?.data?.weights?.quality ?? '?'}%) + ({r.regime}×{progress?.step_k?.data?.weights?.regime ?? '?'}%) + ({r.info_edge}×{progress?.step_k?.data?.weights?.info_edge ?? '?'}%) = {r.composite}</p>
                           </td>
                         </tr>
                       )}
@@ -3353,27 +3350,27 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step L — Re-Score With Technicals */}
-      <div className={themed('border-b border-panel-border', dk)}>
+      <div className="border-b border-panel-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_l')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP L</span>
-            <span className={themed('text-white/70', dk)}>Re-Score With Technicals</span>
+            <span className="text-white/70">Re-Score With Technicals</span>
             {progress?.step_l?.data ? (
               <span className={chip('success')}>{(progress.step_l.data as any).re_scored} of {(progress.step_l.data as any).total} tickers re-scored with candle technicals</span>
             ) : (
-              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
+              <span className="text-white/50 animate-pulse">waiting...</span>
             )}
           </div>
-          <span className={themed('text-white/50', dk)}>{expanded['step_l'] ? '▲' : '▼'}</span>
+          <span className="text-white/50">{expanded['step_l'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_l'] && progress?.step_l?.data && (
-          <div className={themed('px-8 py-2 border-t border-panel-border bg-white/5', dk)}>
+          <div className="px-8 py-2 border-t border-panel-border bg-white/5">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step K scored without technical indicators because candle computation runs separately. Step L plugs them in. RSI, Bollinger Bands, moving averages, and volume ratio are computed from the Step J candle data and added to the Vol Edge gate.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
+                <table className="w-full border-collapse border border-panel-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -3418,7 +3415,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
                   <table className="w-full text-xs whitespace-nowrap">
                     <thead>
-                      <tr className={themed('text-white/50 border-b border-panel-border sticky top-0 bg-white/5', dk)}>
+                      <tr className="text-white/50 border-b border-panel-border sticky top-0 bg-white/5">
                         <th className="text-left py-1 pr-3">#</th>
                         <th className="text-left py-1 pr-3">SYMBOL</th>
                         <th className="text-right py-1 pr-3">CANDLES</th>
@@ -3439,10 +3436,10 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                     </thead>
                     <tbody>
                       {tickers.map((t: any, i: number) => (
-                        <tr key={t.symbol} className={themed('border-b border-panel-border', dk)}>
-                          <td className={themed('py-1 pr-3 text-white/50', dk)}>{i + 1}</td>
+                        <tr key={t.symbol} className="border-b border-panel-border">
+                          <td className="py-1 pr-3 text-white/50">{i + 1}</td>
                           <td className="py-1 pr-3 font-bold">{t.symbol}</td>
-                          <td className={themed(`py-1 pr-3 text-right font-bold ${t.candles_used != null && t.candles_used > 0 ? 'text-brand-green' : themed('text-white/50', dk)}`, dk)}>{t.candles_used ?? '—'}</td>
+                          <td className={`py-1 pr-3 text-right font-bold ${t.candles_used != null && t.candles_used > 0 ? 'text-brand-green' : 'text-white/50'}`}>{t.candles_used ?? '—'}</td>
                           <td className="py-1 pr-3 text-right">{t.vol_edge_score ?? '—'}</td>
                           <td className="py-1 pr-3 text-right">{t.composite_score ?? '—'}</td>
                           <td className="py-1 pr-3 text-right">{t.technicals_score ?? '—'}</td>
@@ -3452,10 +3449,10 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                           <td className="py-1 pr-3 text-right">{t.bb_position != null ? Number(t.bb_position).toFixed(2) : '—'}</td>
                           <td className="py-1 pr-3 text-right">{t.volume_ratio != null ? Number(t.volume_ratio).toFixed(2) : '—'}</td>
                           <td className="py-1 pr-3 text-right">{t.high52w_ratio != null ? Number(t.high52w_ratio).toFixed(2) : '—'}</td>
-                          <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{t.source}</td>
-                          <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{t.endpoint}</td>
-                          <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{lFetchedTime}</td>
-                          <td className={themed('py-1 text-right text-white/50 text-[10px]', dk)}>{lAgeSec}</td>
+                          <td className="py-1 pr-3 text-white/50 text-[10px]">{t.source}</td>
+                          <td className="py-1 pr-3 text-white/50 text-[10px]">{t.endpoint}</td>
+                          <td className="py-1 pr-3 text-white/50 text-[10px]">{lFetchedTime}</td>
+                          <td className="py-1 text-right text-white/50 text-[10px]">{lAgeSec}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -3468,27 +3465,27 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step M — Final Selection */}
-      <div className={themed('border-b border-panel-border', dk)}>
+      <div className="border-b border-panel-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_m')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP M</span>
-            <span className={themed('text-white/70', dk)}>Final Selection</span>
+            <span className="text-white/70">Final Selection</span>
             {progress?.step_m?.data ? (
               <span className={chip('success')}>{(progress.step_m.data as any).selected} of {(progress.step_m.data as any).total_scored} tickers selected</span>
             ) : (
-              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
+              <span className="text-white/50 animate-pulse">waiting...</span>
             )}
           </div>
-          <span className={themed('text-white/50', dk)}>{expanded['step_m'] ? '▲' : '▼'}</span>
+          <span className="text-white/50">{expanded['step_m'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_m'] && progress?.step_m?.data && (
-          <div className={themed('px-8 py-2 border-t border-panel-border bg-white/5', dk)}>
+          <div className="px-8 py-2 border-t border-panel-border bg-white/5">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step M applies three final rules and produces the diversified set of finalists. Raw scores alone do not produce a tradeable set. Sector concentration increases correlated risk. Quality floors protect against bad setups.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
+                <table className="w-full border-collapse border border-panel-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -3538,10 +3535,10 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
               return (
                 <>
                   {/* PART 1 — Sector Distribution */}
-                  <div className={themed('mb-3 p-2 bg-white/5 rounded border border-panel-border', dk)}>
-                    <p className={themed('text-white/50 text-xs font-bold mb-1', dk)}>SECTOR DISTRIBUTION</p>
+                  <div className="mb-3 p-2 bg-white/5 rounded border border-panel-border">
+                    <p className="text-white/50 text-xs font-bold mb-1">SECTOR DISTRIBUTION</p>
                     {Object.entries(sectorDist).map(([sector, count]) => (
-                      <p key={sector} className={themed('text-xs text-white/70', dk)}>{sector}: {count as number}</p>
+                      <p key={sector} className="text-xs text-white/70">{sector}: {count as number}</p>
                     ))}
                   </div>
 
@@ -3549,7 +3546,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                   <div className="overflow-x-auto overflow-y-auto mb-3" style={{maxHeight: '300px'}}>
                     <table className="w-full text-xs whitespace-nowrap">
                       <thead>
-                        <tr className={themed('text-white/50 border-b border-panel-border sticky top-0 bg-white/5', dk)}>
+                        <tr className="text-white/50 border-b border-panel-border sticky top-0 bg-white/5">
                           <th className="text-right py-1 pr-3">RANK</th>
                           <th className="text-left py-1 pr-3">SYMBOL</th>
                           <th className="text-right py-1 pr-3">COMPOSITE</th>
@@ -3564,8 +3561,8 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       </thead>
                       <tbody>
                         {selected.map((r: any) => (
-                          <tr key={r.symbol} className={themed('border-b border-panel-border', dk)}>
-                            <td className={themed('py-1 pr-3 text-right text-white/50', dk)}>{r.rank}</td>
+                          <tr key={r.symbol} className="border-b border-panel-border">
+                            <td className="py-1 pr-3 text-right text-white/50">{r.rank}</td>
                             <td className="py-1 pr-3 font-bold">{r.symbol}</td>
                             <td className="py-1 pr-3 text-right">{r.composite ?? '—'}</td>
                             <td className="py-1 pr-3 text-right">{r.vol_edge ?? '—'}</td>
@@ -3586,7 +3583,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                     <div className="overflow-x-auto overflow-y-auto mb-3" style={{maxHeight: '300px'}}>
                       <table className="w-full text-xs whitespace-nowrap">
                         <thead>
-                          <tr className={themed('text-white/50 border-b border-panel-border sticky top-0 bg-white/5', dk)}>
+                          <tr className="text-white/50 border-b border-panel-border sticky top-0 bg-white/5">
                             <th className="text-left py-1 pr-3">SYMBOL</th>
                             <th className="text-right py-1 pr-3">COMPOSITE</th>
                             <th className="text-left py-1 pr-3">CONVERGENCE</th>
@@ -3598,13 +3595,13 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                         </thead>
                         <tbody>
                           {excluded.map((r: any) => (
-                            <tr key={r.symbol} className={themed('border-b border-panel-border', dk)}>
+                            <tr key={r.symbol} className="border-b border-panel-border">
                               <td className="py-1 pr-3 font-bold">{r.symbol}</td>
                               <td className="py-1 pr-3 text-right">{r.composite ?? '—'}</td>
                               <td className="py-1 pr-3">{r.convergence ?? '—'}</td>
                               <td className="py-1 pr-3 text-right">{r.quality ?? '—'}</td>
                               <td className="py-1 pr-3">{r.sector ?? '—'}</td>
-                              <td className={themed('py-1 pr-3 text-white/50 text-[10px]', dk)}>{r.reason}</td>
+                              <td className="py-1 pr-3 text-white/50 text-[10px]">{r.reason}</td>
                               <td className="py-1 text-brand-red font-bold">✗ EXCLUDED</td>
                             </tr>
                           ))}
@@ -3615,10 +3612,10 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
                   {/* PART 4 — Adjustments Log */}
                   {adjustments.length > 0 && (
-                    <div className={themed('p-2 bg-white/5 rounded border border-panel-border', dk)}>
-                      <p className={themed('text-white/50 text-xs font-bold mb-1', dk)}>ADJUSTMENTS LOG</p>
+                    <div className="p-2 bg-white/5 rounded border border-panel-border">
+                      <p className="text-white/50 text-xs font-bold mb-1">ADJUSTMENTS LOG</p>
                       {adjustments.map((adj: string, i: number) => (
-                        <p key={i} className={themed('text-[10px] text-white/50', dk)}>{adj}</p>
+                        <p key={i} className="text-[10px] text-white/50">{adj}</p>
                       ))}
                     </div>
                   )}
@@ -3630,27 +3627,27 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step N — Chain Fetch */}
-      <div className={themed('border-b border-panel-border', dk)}>
+      <div className="border-b border-panel-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_n')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP N</span>
-            <span className={themed('text-white/70', dk)}>Chain Fetch</span>
+            <span className="text-white/70">Chain Fetch</span>
             {jData ? (
               <span className={chip('success')}>{jData.totalStrikes} strikes fetched across {jData.tickers?.length ?? 0} tickers — {jData.greeksEvents} Greeks events received</span>
             ) : (
-              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
+              <span className="text-white/50 animate-pulse">waiting...</span>
             )}
           </div>
-          <span className={themed('text-white/50', dk)}>{expanded['step_n'] ? '▲' : '▼'}</span>
+          <span className="text-white/50">{expanded['step_n'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_n'] && (
-          <div className={themed('px-8 py-2 border-t border-panel-border bg-white/5', dk)}>
+          <div className="px-8 py-2 border-t border-panel-border bg-white/5">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step N fetches the live options chain for every finalist. Every strike, every expiration in the 15 to 60 day window. We evaluate every expiration — not just the nearest one. The expiration with the highest-scoring strategy wins.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
+                <table className="w-full border-collapse border border-panel-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -3703,16 +3700,16 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       const srcColor = t.priceSource === 'live' ? 'text-brand-green' : t.priceSource === 'theo' ? 'text-brand-gold' : t.priceSource === 'mixed' ? 'text-brand-blue' : 'text-brand-red';
                       const srcLabel = t.priceSource === 'theo' ? 'theo (market closed)' : (t.priceSource ?? '—');
                       return (
-                        <tr key={t.symbol} className={themed('border-b border-panel-border', dk)}>
-                          <td className={themed('py-0.5 px-1 font-bold text-white', dk)}>{t.symbol}</td>
-                          <td className={themed('py-0.5 px-1 text-white/70 font-mono', dk)}>{t.expiration ?? '—'}</td>
-                          <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.dte ?? '—'}</td>
-                          <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.strikeCount ?? '—'}</td>
+                        <tr key={t.symbol} className="border-b border-panel-border">
+                          <td className="py-0.5 px-1 font-bold text-white">{t.symbol}</td>
+                          <td className="py-0.5 px-1 text-white/70 font-mono">{t.expiration ?? '—'}</td>
+                          <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.dte ?? '—'}</td>
+                          <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.strikeCount ?? '—'}</td>
                           <td className={`py-0.5 px-1 font-mono ${srcColor}`}>{srcLabel}</td>
-                          <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{t.source ?? 'TastyTrade'}</td>
-                          <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{t.endpoint ?? 'options-chain'}</td>
-                          <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{nFetchedTime}</td>
-                          <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{nAgeSec != null ? `${nAgeSec}s` : '—'}</td>
+                          <td className="py-0.5 px-1 font-mono text-white/70">{t.source ?? 'TastyTrade'}</td>
+                          <td className="py-0.5 px-1 font-mono text-white/70">{t.endpoint ?? 'options-chain'}</td>
+                          <td className="py-0.5 px-1 font-mono text-white/70">{nFetchedTime}</td>
+                          <td className="py-0.5 px-1 text-right font-mono text-white/70">{nAgeSec != null ? `${nAgeSec}s` : '—'}</td>
                         </tr>
                       );
                     })}
@@ -3722,7 +3719,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
               );
             })()}
             {jData && (
-              <p className={themed('text-white/50 text-xs mt-3', dk)}>
+              <p className="text-white/50 text-xs mt-3">
                 {jData.streamerSymbols} streamer symbols subscribed · {jData.greeksEvents} Greeks events received
               </p>
             )}
@@ -3731,18 +3728,18 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step O — Live Greeks Subscription */}
-      <div className={themed('border-b border-panel-border', dk)}>
+      <div className="border-b border-panel-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_o')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP O</span>
-            <span className={themed('text-white/70', dk)}>Live Greeks Subscription</span>
+            <span className="text-white/70">Live Greeks Subscription</span>
             {progress?.step_o?.data ? (
               <span className={chip('success')}>{(progress.step_o.data as any).greeks_events_received} Greeks events received across {(progress.step_o.data as any).streamer_symbols_subscribed} symbols</span>
             ) : (
-              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
+              <span className="text-white/50 animate-pulse">waiting...</span>
             )}
           </div>
-          <span className={themed('text-white/50', dk)}>{expanded['step_o'] ? '▲' : '▼'}</span>
+          <span className="text-white/50">{expanded['step_o'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_o'] && progress?.step_o?.data && (() => {
           const od = progress.step_o.data as any;
@@ -3751,13 +3748,13 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
           const oAgeSec = oFetchedAt ? Math.round((Date.now() - oFetchedAt.getTime()) / 1000) : null;
           const tickers: any[] = od.tickers ?? [];
           return (
-            <div className={themed('px-8 py-2 border-t border-panel-border bg-white/5', dk)}>
+            <div className="px-8 py-2 border-t border-panel-border bg-white/5">
               <div className="text-xs space-y-3 mb-4">
                 <p className={EXPLAINER}>
                   Step O opens one WebSocket connection and subscribes every strike simultaneously. The system waits for the data to stabilize — no new events for 3 consecutive seconds — then closes the connection. Live Greeks power everything in Steps P and Q.
                 </p>
                 <div className="overflow-x-auto">
-                  <table className={themed('w-full border-collapse border border-panel-border', dk)}>
+                  <table className="w-full border-collapse border border-panel-border">
                     <thead>
                       <tr>
                         <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -3810,16 +3807,16 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                     </tr></thead>
                     <tbody>
                       {tickers.map((t: any, i: number) => (
-                        <tr key={t.symbol} className={themed('border-b border-panel-border', dk)}>
-                          <td className={themed('py-0.5 px-1 text-right text-white/50', dk)}>{i + 1}</td>
-                          <td className={themed('py-0.5 px-1 font-bold text-white', dk)}>{t.symbol}</td>
-                          <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.strike_count ?? '—'}</td>
-                          <td className={themed('py-0.5 px-1 text-white/70 font-mono', dk)}>{t.expiration ?? '—'}</td>
-                          <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.dte ?? '—'}</td>
-                          <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{t.source ?? 'TastyTrade'}</td>
-                          <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{t.endpoint ?? 'Greeks WebSocket'}</td>
-                          <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{oFetchedTime}</td>
-                          <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{oAgeSec != null ? `${oAgeSec}s` : '—'}</td>
+                        <tr key={t.symbol} className="border-b border-panel-border">
+                          <td className="py-0.5 px-1 text-right text-white/50">{i + 1}</td>
+                          <td className="py-0.5 px-1 font-bold text-white">{t.symbol}</td>
+                          <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.strike_count ?? '—'}</td>
+                          <td className="py-0.5 px-1 text-white/70 font-mono">{t.expiration ?? '—'}</td>
+                          <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.dte ?? '—'}</td>
+                          <td className="py-0.5 px-1 font-mono text-white/70">{t.source ?? 'TastyTrade'}</td>
+                          <td className="py-0.5 px-1 font-mono text-white/70">{t.endpoint ?? 'Greeks WebSocket'}</td>
+                          <td className="py-0.5 px-1 font-mono text-white/70">{oFetchedTime}</td>
+                          <td className="py-0.5 px-1 text-right font-mono text-white/70">{oAgeSec != null ? `${oAgeSec}s` : '—'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -3832,27 +3829,27 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       </div>
 
       {/* Step P — Strategy Scoring */}
-      <div className={themed('border-b border-panel-border', dk)}>
+      <div className="border-b border-panel-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_p')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP P</span>
-            <span className={themed('text-white/70', dk)}>Strategy Scoring</span>
+            <span className="text-white/70">Strategy Scoring</span>
             {kData ? (
               <span className={chip('success')}>{kData.totalPassed} strategies passed all 3 gates</span>
             ) : (
-              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
+              <span className="text-white/50 animate-pulse">waiting...</span>
             )}
           </div>
-          <span className={themed('text-white/50', dk)}>{expanded['step_p'] ? '▲' : '▼'}</span>
+          <span className="text-white/50">{expanded['step_p'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_p'] && (
-          <div className={themed('px-8 py-2 border-t border-panel-border bg-white/5', dk)}>
+          <div className="px-8 py-2 border-t border-panel-border bg-white/5">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 With live Greeks in hand we build actual trade structures and run them through three quality gates. Every expiration is evaluated. The highest-scoring strategy that passes all three gates becomes the selected strategy.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
+                <table className="w-full border-collapse border border-panel-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -3908,19 +3905,19 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                   </tr></thead>
                   <tbody>
                     {kData.tickers.map((t: { symbol: string; strategiesBuilt?: number; gateAFailed?: number; gateBFailed?: number; gateCFailed?: number; strategiesPassed?: number; winner?: string | null; winnerScore?: number | null; source?: string; endpoint?: string }) => (
-                      <tr key={t.symbol} className={themed('border-b border-panel-border', dk)}>
-                        <td className={themed('py-0.5 px-1 font-bold text-white', dk)}>{t.symbol}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.strategiesBuilt ?? '—'}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.gateAFailed ?? 0}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.gateBFailed ?? 0}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.gateCFailed ?? 0}</td>
+                      <tr key={t.symbol} className="border-b border-panel-border">
+                        <td className="py-0.5 px-1 font-bold text-white">{t.symbol}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.strategiesBuilt ?? '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.gateAFailed ?? 0}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.gateBFailed ?? 0}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.gateCFailed ?? 0}</td>
                         <td className={`py-0.5 px-1 text-right font-mono font-bold ${(t.strategiesPassed ?? 0) > 0 ? 'text-brand-green' : 'text-brand-red'}`}>{t.strategiesPassed ?? 0}</td>
                         <td className={`py-0.5 px-1 font-mono ${t.winner ? 'text-brand-green' : 'text-brand-red'}`}>{t.winner ?? 'none'}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.winnerScore != null ? t.winnerScore.toFixed(1) : '—'}</td>
-                        <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>TastyTrade</td>
-                        <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>Greeks WebSocket</td>
-                        <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{pFetchedTime}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{pAgeSec != null ? `${pAgeSec}s` : '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.winnerScore != null ? t.winnerScore.toFixed(1) : '—'}</td>
+                        <td className="py-0.5 px-1 font-mono text-white/70">TastyTrade</td>
+                        <td className="py-0.5 px-1 font-mono text-white/70">Greeks WebSocket</td>
+                        <td className="py-0.5 px-1 font-mono text-white/70">{pFetchedTime}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{pAgeSec != null ? `${pAgeSec}s` : '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -3934,27 +3931,27 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
       {/* Step Q — Live Options Flow & GEX */}
       {(() => { const qData: any = progress?.step_q?.data ?? null; return (
-      <div className={themed('border-b border-panel-border', dk)}>
+      <div className="border-b border-panel-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_q')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP Q</span>
-            <span className={themed('text-white/70', dk)}>Live Options Flow &amp; GEX</span>
+            <span className="text-white/70">Live Options Flow &amp; GEX</span>
             {qData ? (
               <span className={chip('success')}>{qData.tickers_with_flow} tickers with live flow data</span>
             ) : (
-              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
+              <span className="text-white/50 animate-pulse">waiting...</span>
             )}
           </div>
-          <span className={themed('text-white/50', dk)}>{expanded['step_q'] ? '▲' : '▼'}</span>
+          <span className="text-white/50">{expanded['step_q'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_q'] && (
-          <div className={themed('px-8 py-2 border-t border-panel-border bg-white/5', dk)}>
+          <div className="px-8 py-2 border-t border-panel-border bg-white/5">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step Q computes live options flow and dealer positioning from the real chain data. These signals replace the estimates used in Steps K and L when Step R re-scores.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
+                <table className="w-full border-collapse border border-panel-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -4011,21 +4008,21 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                   </tr></thead>
                   <tbody>
                     {qData.tickers.map((t: { symbol: string; put_call_ratio?: number | null; volume_bias?: number | null; unusual_activity_ratio?: number | null; total_call_volume?: number | null; total_put_volume?: number | null; total_call_oi?: number | null; total_put_oi?: number | null; strikes_analyzed?: number | null; source?: string; endpoint?: string }, idx: number) => (
-                      <tr key={t.symbol} className={themed('border-b border-panel-border', dk)}>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/50', dk)}>{idx + 1}</td>
-                        <td className={themed('py-0.5 px-1 font-bold text-white', dk)}>{t.symbol}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.put_call_ratio != null ? t.put_call_ratio.toFixed(2) : '—'}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.volume_bias != null ? t.volume_bias.toFixed(2) : '—'}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.unusual_activity_ratio != null ? t.unusual_activity_ratio.toFixed(2) : '—'}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.total_call_volume ?? '—'}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.total_put_volume ?? '—'}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.total_call_oi ?? '—'}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.total_put_oi ?? '—'}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.strikes_analyzed ?? '—'}</td>
-                        <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{t.source ?? '—'}</td>
-                        <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{t.endpoint ?? '—'}</td>
-                        <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{qFetchedTime}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{qAgeSec != null ? `${qAgeSec}s` : '—'}</td>
+                      <tr key={t.symbol} className="border-b border-panel-border">
+                        <td className="py-0.5 px-1 text-right font-mono text-white/50">{idx + 1}</td>
+                        <td className="py-0.5 px-1 font-bold text-white">{t.symbol}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.put_call_ratio != null ? t.put_call_ratio.toFixed(2) : '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.volume_bias != null ? t.volume_bias.toFixed(2) : '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.unusual_activity_ratio != null ? t.unusual_activity_ratio.toFixed(2) : '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.total_call_volume ?? '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.total_put_volume ?? '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.total_call_oi ?? '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.total_put_oi ?? '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.strikes_analyzed ?? '—'}</td>
+                        <td className="py-0.5 px-1 font-mono text-white/70">{t.source ?? '—'}</td>
+                        <td className="py-0.5 px-1 font-mono text-white/70">{t.endpoint ?? '—'}</td>
+                        <td className="py-0.5 px-1 font-mono text-white/70">{qFetchedTime}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{qAgeSec != null ? `${qAgeSec}s` : '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -4040,27 +4037,27 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
       {/* Step R — Re-Score With Live Data */}
       {(() => { const rData: any = progress?.step_r?.data ?? null; return (
-      <div className={themed('border-b border-panel-border', dk)}>
+      <div className="border-b border-panel-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_r')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP R</span>
-            <span className={themed('text-white/70', dk)}>Re-Score With Live Data</span>
+            <span className="text-white/70">Re-Score With Live Data</span>
             {rData ? (
               <span className={chip('success')}>{rData.flow_re_scored} of {rData.total} tickers re-scored with live flow data</span>
             ) : (
-              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
+              <span className="text-white/50 animate-pulse">waiting...</span>
             )}
           </div>
-          <span className={themed('text-white/50', dk)}>{expanded['step_r'] ? '▲' : '▼'}</span>
+          <span className="text-white/50">{expanded['step_r'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_r'] && (
-          <div className={themed('px-8 py-2 border-t border-panel-border bg-white/5', dk)}>
+          <div className="px-8 py-2 border-t border-panel-border bg-white/5">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Steps K and L scored using estimated flow signals. Step R replaces those estimates with real data from Step Q and re-scores. This is the final composite score.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
+                <table className="w-full border-collapse border border-panel-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -4111,17 +4108,17 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                   </tr></thead>
                   <tbody>
                     {rData.tickers.map((t: { symbol: string; composite?: number | null; vol_edge?: number | null; info_edge?: number | null; has_flow_data?: boolean; source?: string; endpoint?: string }, idx: number) => (
-                      <tr key={t.symbol} className={themed('border-b border-panel-border', dk)}>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/50', dk)}>{idx + 1}</td>
-                        <td className={themed('py-0.5 px-1 font-bold text-white', dk)}>{t.symbol}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.composite != null ? t.composite.toFixed(1) : '—'}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.vol_edge != null ? t.vol_edge.toFixed(1) : '—'}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{t.info_edge != null ? t.info_edge.toFixed(1) : '—'}</td>
+                      <tr key={t.symbol} className="border-b border-panel-border">
+                        <td className="py-0.5 px-1 text-right font-mono text-white/50">{idx + 1}</td>
+                        <td className="py-0.5 px-1 font-bold text-white">{t.symbol}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.composite != null ? t.composite.toFixed(1) : '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.vol_edge != null ? t.vol_edge.toFixed(1) : '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.info_edge != null ? t.info_edge.toFixed(1) : '—'}</td>
                         <td className={`py-0.5 px-1 font-mono font-bold ${t.has_flow_data ? 'text-brand-green' : 'text-brand-red'}`}>{t.has_flow_data ? 'YES' : 'NO'}</td>
-                        <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{t.source ?? '—'}</td>
-                        <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{t.endpoint ?? '—'}</td>
-                        <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{rFetchedTime}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{rAgeSec != null ? `${rAgeSec}s` : '—'}</td>
+                        <td className="py-0.5 px-1 font-mono text-white/70">{t.source ?? '—'}</td>
+                        <td className="py-0.5 px-1 font-mono text-white/70">{t.endpoint ?? '—'}</td>
+                        <td className="py-0.5 px-1 font-mono text-white/70">{rFetchedTime}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{rAgeSec != null ? `${rAgeSec}s` : '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -4135,27 +4132,27 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       ); })()}
 
       {/* Step S — Trade Cards */}
-      <div className={themed('border-b border-panel-border', dk)}>
+      <div className="border-b border-panel-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_s')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP S</span>
-            <span className={themed('text-white/70', dk)}>Trade Cards</span>
+            <span className="text-white/70">Trade Cards</span>
             {(ps?.total_trade_cards != null || progress?.step_s) ? (
               <span className={chip('success')}>{ps?.total_trade_cards ?? progress?.step_s?.data?.trade_cards ?? 0} strategies generated</span>
             ) : (
-              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
+              <span className="text-white/50 animate-pulse">waiting...</span>
             )}
           </div>
-          <span className={themed('text-white/50', dk)}>{expanded['step_s'] ? '▲' : '▼'}</span>
+          <span className="text-white/50">{expanded['step_s'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_s'] && (
-          <div className={themed('px-8 py-2 border-t border-panel-border bg-white/5', dk)}>
+          <div className="px-8 py-2 border-t border-panel-border bg-white/5">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step S is the last gate before the trade card. Convergence enforced. Quality floor enforced. Sector cap enforced. Every ticker that survives gets a trade card built on live data.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
+                <table className="w-full border-collapse border border-panel-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -4245,21 +4242,21 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                     }
 
                     return (
-                      <tr key={r.symbol} className={themed(`border-b border-panel-border hover:bg-white/5 ${inTop9 ? 'bg-white/50' : ''}`, dk)}>
-                        <td className={themed('py-0.5 px-1 text-white/50 font-mono', dk)}>{idx + 1}</td>
-                        <td className={themed('py-0.5 px-1 font-bold text-white', dk)}>{r.symbol}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono font-bold text-white', dk)}>{r.composite !== null ? r.composite.toFixed(1) : '—'}</td>
+                      <tr key={r.symbol} className={`border-b border-panel-border hover:bg-white/5 ${inTop9 ? 'bg-white/50' : ''}`}>
+                        <td className="py-0.5 px-1 text-white/50 font-mono">{idx + 1}</td>
+                        <td className="py-0.5 px-1 font-bold text-white">{r.symbol}</td>
+                        <td className="py-0.5 px-1 text-right font-mono font-bold text-white">{r.composite !== null ? r.composite.toFixed(1) : '—'}</td>
                         <td className="py-0.5 px-1 text-center font-mono">{r.convergence ?? `${gatesAbove50}/4`}</td>
-                        <td className={themed(`py-0.5 px-1 text-right font-mono ${r.vol_edge !== null && r.vol_edge >= 50 ? 'text-brand-green' : themed('text-white/50', dk)}`, dk)} title={r.vol_edge === null ? 'Gate excluded — zero computable signals' : undefined}>{r.vol_edge !== null ? r.vol_edge.toFixed(0) : '—'}</td>
-                        <td className={themed(`py-0.5 px-1 text-right font-mono ${r.quality !== null && r.quality >= 50 ? 'text-brand-green' : r.quality !== null && r.quality < 40 ? 'text-brand-red' : themed('text-white/50', dk)}`, dk)} title={r.quality === null ? 'Gate excluded — zero computable signals' : undefined}>{r.quality !== null ? r.quality.toFixed(0) : '—'}</td>
-                        <td className={themed(`py-0.5 px-1 text-right font-mono ${r.regime !== null && r.regime >= 50 ? 'text-brand-green' : themed('text-white/50', dk)}`, dk)} title={r.regime === null ? 'Gate excluded — zero computable signals' : undefined}>{r.regime !== null ? r.regime.toFixed(0) : '—'}</td>
-                        <td className={themed(`py-0.5 px-1 text-right font-mono ${r.info_edge !== null && r.info_edge >= 50 ? 'text-brand-green' : themed('text-white/50', dk)}`, dk)} title={r.info_edge === null ? 'Gate excluded — zero computable signals' : undefined}>{r.info_edge !== null ? r.info_edge.toFixed(0) : '—'}</td>
-                        <td className={themed('py-0.5 px-1 text-white/70', dk)}>{r.sector ?? '—'}</td>
+                        <td className={`py-0.5 px-1 text-right font-mono ${r.vol_edge !== null && r.vol_edge >= 50 ? 'text-brand-green' : 'text-white/50'}`} title={r.vol_edge === null ? 'Gate excluded — zero computable signals' : undefined}>{r.vol_edge !== null ? r.vol_edge.toFixed(0) : '—'}</td>
+                        <td className={`py-0.5 px-1 text-right font-mono ${r.quality !== null && r.quality >= 50 ? 'text-brand-green' : r.quality !== null && r.quality < 40 ? 'text-brand-red' : 'text-white/50'}`} title={r.quality === null ? 'Gate excluded — zero computable signals' : undefined}>{r.quality !== null ? r.quality.toFixed(0) : '—'}</td>
+                        <td className={`py-0.5 px-1 text-right font-mono ${r.regime !== null && r.regime >= 50 ? 'text-brand-green' : 'text-white/50'}`} title={r.regime === null ? 'Gate excluded — zero computable signals' : undefined}>{r.regime !== null ? r.regime.toFixed(0) : '—'}</td>
+                        <td className={`py-0.5 px-1 text-right font-mono ${r.info_edge !== null && r.info_edge >= 50 ? 'text-brand-green' : 'text-white/50'}`} title={r.info_edge === null ? 'Gate excluded — zero computable signals' : undefined}>{r.info_edge !== null ? r.info_edge.toFixed(0) : '—'}</td>
+                        <td className="py-0.5 px-1 text-white/70">{r.sector ?? '—'}</td>
                         <td className={`py-0.5 px-1 ${status.color}`}>{status.text}</td>
-                        <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>All prior steps</td>
-                        <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>Composite — see Steps A–J</td>
-                        <td className={themed('py-0.5 px-1 font-mono text-white/70', dk)}>{sFetchedTime}</td>
-                        <td className={themed('py-0.5 px-1 text-right font-mono text-white/70', dk)}>{sAgeSec != null ? `${sAgeSec}s` : '—'}</td>
+                        <td className="py-0.5 px-1 font-mono text-white/70">All prior steps</td>
+                        <td className="py-0.5 px-1 font-mono text-white/70">Composite — see Steps A–J</td>
+                        <td className="py-0.5 px-1 font-mono text-white/70">{sFetchedTime}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{sAgeSec != null ? `${sAgeSec}s` : '—'}</td>
                       </tr>
                     );
                   })}
@@ -4270,7 +4267,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
             })()}
 
             {/* Next steps explanation */}
-            <p className={themed('text-white/50 text-xs mt-3 italic', dk)}>
+            <p className="text-white/50 text-xs mt-3 italic">
               Step N fetches the live options chain for each of the final 9. Step P builds and scores strategy candidates.
             </p>
           </div>
@@ -4283,11 +4280,11 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
         const tFetchedTime = tFetchedAt ? tFetchedAt.toLocaleTimeString() : '—';
         const tAgeSec = tFetchedAt ? Math.round((Date.now() - tFetchedAt.getTime()) / 1000) : null;
         return (
-      <div className={themed('border-b border-panel-border', dk)}>
+      <div className="border-b border-panel-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_t')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP T</span>
-            <span className={themed('text-white/70', dk)}>Save &amp; Return</span>
+            <span className="text-white/70">Save &amp; Return</span>
             {tData ? (
               tData.saved ? (
                 <span className="text-brand-green">Scan saved — {tData.symbols_logged} tickers logged</span>
@@ -4295,19 +4292,19 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <span className="text-brand-gold">Not saved — no user session</span>
               )
             ) : (
-              <span className={themed('text-white/50 animate-pulse', dk)}>waiting...</span>
+              <span className="text-white/50 animate-pulse">waiting...</span>
             )}
           </div>
-          <span className={themed('text-white/50', dk)}>{expanded['step_t'] ? '▲' : '▼'}</span>
+          <span className="text-white/50">{expanded['step_t'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_t'] && tData && (
-          <div className={themed('px-8 py-2 border-t border-panel-border bg-white/5', dk)}>
+          <div className="px-8 py-2 border-t border-panel-border bg-white/5">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step T writes the full scan to the database and returns the result. This closes the performance loop. Every scan is logged so outcomes can be matched against the computed signals over time.
               </p>
               <div className="overflow-x-auto">
-                <table className={themed('w-full border-collapse border border-panel-border', dk)}>
+                <table className="w-full border-collapse border border-panel-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -4341,14 +4338,14 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
             </div>
             <table className="text-[10px]">
               <tbody>
-                <tr><td className={themed('py-0.5 pr-4 text-white/50 font-bold', dk)}>Pipeline Runtime</td><td className={themed('py-0.5 font-mono text-white/70', dk)}>{tData.pipeline_runtime_ms}ms</td></tr>
-                <tr><td className={themed('py-0.5 pr-4 text-white/50 font-bold', dk)}>Symbols Logged</td><td className={themed('py-0.5 font-mono text-white/70', dk)}>{tData.symbols_logged}</td></tr>
-                <tr><td className={themed('py-0.5 pr-4 text-white/50 font-bold', dk)}>Final 9</td><td className={themed('py-0.5 font-mono text-white/70', dk)}>{(tData.final_9 ?? []).join(', ')}</td></tr>
-                <tr><td className={themed('py-0.5 pr-4 text-white/50 font-bold', dk)}>Saved</td><td className={themed('py-0.5 font-mono text-white/70', dk)}>{tData.saved ? 'Yes' : 'No'}</td></tr>
-                <tr><td className={themed('py-0.5 pr-4 text-white/50 font-bold', dk)}>Source</td><td className={themed('py-0.5 font-mono text-white/70', dk)}>{tData.source}</td></tr>
-                <tr><td className={themed('py-0.5 pr-4 text-white/50 font-bold', dk)}>Endpoint</td><td className={themed('py-0.5 font-mono text-white/70', dk)}>{tData.endpoint}</td></tr>
-                <tr><td className={themed('py-0.5 pr-4 text-white/50 font-bold', dk)}>Fetched</td><td className={themed('py-0.5 font-mono text-white/70', dk)}>{tFetchedTime}</td></tr>
-                <tr><td className={themed('py-0.5 pr-4 text-white/50 font-bold', dk)}>Age</td><td className={themed('py-0.5 font-mono text-white/70', dk)}>{tAgeSec != null ? `${tAgeSec}s` : '—'}</td></tr>
+                <tr><td className="py-0.5 pr-4 text-white/50 font-bold">Pipeline Runtime</td><td className="py-0.5 font-mono text-white/70">{tData.pipeline_runtime_ms}ms</td></tr>
+                <tr><td className="py-0.5 pr-4 text-white/50 font-bold">Symbols Logged</td><td className="py-0.5 font-mono text-white/70">{tData.symbols_logged}</td></tr>
+                <tr><td className="py-0.5 pr-4 text-white/50 font-bold">Final 9</td><td className="py-0.5 font-mono text-white/70">{(tData.final_9 ?? []).join(', ')}</td></tr>
+                <tr><td className="py-0.5 pr-4 text-white/50 font-bold">Saved</td><td className="py-0.5 font-mono text-white/70">{tData.saved ? 'Yes' : 'No'}</td></tr>
+                <tr><td className="py-0.5 pr-4 text-white/50 font-bold">Source</td><td className="py-0.5 font-mono text-white/70">{tData.source}</td></tr>
+                <tr><td className="py-0.5 pr-4 text-white/50 font-bold">Endpoint</td><td className="py-0.5 font-mono text-white/70">{tData.endpoint}</td></tr>
+                <tr><td className="py-0.5 pr-4 text-white/50 font-bold">Fetched</td><td className="py-0.5 font-mono text-white/70">{tFetchedTime}</td></tr>
+                <tr><td className="py-0.5 pr-4 text-white/50 font-bold">Age</td><td className="py-0.5 font-mono text-white/70">{tAgeSec != null ? `${tAgeSec}s` : '—'}</td></tr>
               </tbody>
             </table>
           </div>
@@ -4357,7 +4354,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       ); })()}
 
       {/* Summary */}
-      <div className={themed('px-4 py-2 flex items-center gap-4 text-white/50', dk)}>
+      <div className="px-4 py-2 flex items-center gap-4 text-white/50">
         <span>{ps?.total_universe ?? progress?.step_a?.data?.total_universe ?? 0} scanned</span>
         <span>→</span>
         <span>{hf?.output_count ?? progress?.step_e?.data?.output ?? 0} filtered</span>
@@ -4367,7 +4364,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
         <span className={chip('success')}>{ps?.final_9?.length ?? progress?.step_s?.data?.top_9?.length ?? 0} selected</span>
         <span className="ml-auto">
           {isLive ? (
-            <span className="text-brand-purple-pop animate-pulse">Pipeline running...</span>
+            <span className="text-brand-purple animate-pulse">Pipeline running...</span>
           ) : (
             <>Finnhub: {ps?.finnhub_calls_made ?? 0} calls · Runtime: {ps?.pipeline_runtime_ms ? `${(ps.pipeline_runtime_ms / 1000).toFixed(1)}s` : '—'}</>
           )}
@@ -4377,12 +4374,10 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
   );
 }
 
-function FilteredResultsSection({ dk = false,
-  enriched, filters, sentimentMap, rejectionMap, onResetFilters,
+function FilteredResultsSection({ enriched, filters, sentimentMap, rejectionMap, onResetFilters,
   savedCards, savingCards, saveErrors, onSaveCard, onRemoveCard,
   pipelineProgress,
-}: { dk?: boolean;
-  enriched: TickerDetail[];
+}: { enriched: TickerDetail[];
   filters: ScannerFilters;
   sentimentMap?: Record<string, SocialSentimentData>;
   rejectionMap?: Record<string, RejectionReason[]>;
@@ -4408,9 +4403,9 @@ function FilteredResultsSection({ dk = false,
     <>
       {/* Active filter summary bar */}
       {activeCount > 0 && (
-        <div className={themed('px-5 py-1.5 flex items-center gap-3 flex-wrap text-[10px] bg-bg-row border-b border-border', dk)}>
-          <span className={themed('text-text-muted font-bold uppercase tracking-wider shrink-0', dk)}>Active:</span>
-          <span className={themed('text-text-secondary', dk)}>{activeFilters.join(' \u2022 ')}</span>
+        <div className="px-5 py-1.5 flex items-center gap-3 flex-wrap text-[10px] bg-bg-row border-b border-border">
+          <span className="text-text-muted font-bold uppercase tracking-wider shrink-0">Active:</span>
+          <span className="text-text-secondary">{activeFilters.join(' \u2022 ')}</span>
           <button onClick={onResetFilters} className="text-brand-purple hover:text-brand-purple-hover ml-auto shrink-0">
             Clear all
           </button>
@@ -4419,14 +4414,14 @@ function FilteredResultsSection({ dk = false,
 
       {/* Filter counts */}
       {totalStrategies > 0 && (
-        <div className={themed('px-5 py-1.5 flex items-center gap-3 text-[10px] bg-white border-b border-border', dk)}>
-          <span className={themed('text-text-muted', dk)}>
-            Showing <span className={themed('text-text-primary font-bold', dk)}>{passedStrategies}</span> of <span className={themed('text-text-primary font-bold', dk)}>{totalStrategies}</span> strategies across <span className={themed('text-text-primary font-bold', dk)}>{passed.length}</span> tickers
+        <div className="px-5 py-1.5 flex items-center gap-3 text-[10px] bg-white border-b border-border">
+          <span className="text-text-muted">
+            Showing <span className="text-text-primary font-bold">{passedStrategies}</span> of <span className="text-text-primary font-bold">{totalStrategies}</span> strategies across <span className="text-text-primary font-bold">{passed.length}</span> tickers
           </span>
           {filteredCount > 0 && (
             <button
               onClick={() => setShowFiltered(!showFiltered)}
-              className={themed('text-text-faint hover:text-text-secondary transition-colors', dk)}
+              className="text-text-faint hover:text-text-secondary transition-colors"
             >
               {filteredCount} filtered out {showFiltered ? '\u25B2' : '\u25BC'}
             </button>
@@ -4439,15 +4434,15 @@ function FilteredResultsSection({ dk = false,
         <div className="px-5 py-2 space-y-1 max-h-[150px] overflow-y-auto bg-bg-terminal">
           {filtered.map((f, i) => (
             <div key={i} className="text-[10px]">
-              <span className={themed('text-text-secondary font-mono font-bold', dk)}>{f.result.symbol}</span>
-              <span className={themed('text-text-faint', dk)}> — </span>
-              <span className={themed('text-text-muted', dk)}>{f.reasons.join(' | ')}</span>
+              <span className="text-text-secondary font-mono font-bold">{f.result.symbol}</span>
+              <span className="text-text-faint"> — </span>
+              <span className="text-text-muted">{f.reasons.join(' | ')}</span>
             </div>
           ))}
         </div>
       )}
 
-      <ScannerResultsTable surface={dk ? 'dark' : 'light'}
+      <ScannerResultsTable
         results={passed}
         sentimentMap={sentimentMap}
         rejectionMap={rejectionMap}
@@ -4482,9 +4477,7 @@ export default function ConvergenceIntelligence({
   hideControls = false,
   scanTriggerRef,
   scanningRef,
-  surface = 'light',
-}: ConvergenceIntelligenceProps & { surface?: Surface } = {}) {
-  const dk = surface === 'dark';
+}: ConvergenceIntelligenceProps & { } = {}) {
   // Batch scan state
   const [internalUniverse, setInternalUniverse] = useState('sp500');
   const universe = externalUniverse ?? internalUniverse;
@@ -4815,7 +4808,7 @@ export default function ConvergenceIntelligence({
 
   return (
     <AccountSizeContext.Provider value={accountSize}>
-    <div className={themed('bg-white rounded border border-border shadow-sm overflow-hidden', dk)}>
+    <div className="bg-white rounded border border-border shadow-sm overflow-hidden">
 
       {/* RISK-1: user-entered account-size input for capital context (labeled not-synced). */}
       <div className="border-b border-border bg-bg-row px-4 py-2 flex flex-wrap items-center gap-2 font-mono text-[11px]">
@@ -4885,9 +4878,9 @@ export default function ConvergenceIntelligence({
       {/* Loading state */}
       {scanning && (
         <div className="px-5 py-16 text-center">
-          <div className={themed('w-8 h-8 border-3 border-border border-t-brand-purple rounded-full animate-spin mx-auto mb-4', dk)} style={{ borderWidth: 3 }} />
-          <div className={themed('text-sm font-medium text-text-primary', dk)}>Running convergence pipeline...</div>
-          <div className={themed('text-[10px] text-text-muted mt-1', dk)}>Scanning universe, applying filters, scoring, ranking</div>
+          <div className="w-8 h-8 border-3 border-border border-t-brand-purple rounded-full animate-spin mx-auto mb-4" style={{ borderWidth: 3 }} />
+          <div className="text-sm font-medium text-text-primary">Running convergence pipeline...</div>
+          <div className="text-[10px] text-text-muted mt-1">Scanning universe, applying filters, scoring, ranking</div>
         </div>
       )}
 
@@ -4902,35 +4895,35 @@ export default function ConvergenceIntelligence({
       {/* Enrichment progress */}
       {enriching && enrichProgress.total > 0 && (
         <div className="px-5 py-2 flex items-center gap-3 bg-bg-terminal">
-          <div className={themed('flex-1 h-1.5 rounded-full overflow-hidden bg-bg-row', dk)}>
+          <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-bg-row">
             <div className="h-full rounded-full transition-all duration-300 bg-brand-purple" style={{ width: `${(enrichProgress.done / enrichProgress.total) * 100}%` }} />
           </div>
-          <div className={themed('text-[10px] text-text-muted font-mono shrink-0', dk)}>
+          <div className="text-[10px] text-text-muted font-mono shrink-0">
             {enrichProgress.done}/{enrichProgress.total} — loading {enrichProgress.current}
           </div>
         </div>
       )}
 
       {/* FILTER PANEL */}
-      {!hideControls && <FilterPanel surface={surface} filters={filters} onChange={handleFiltersChange} />}
+      {!hideControls && <FilterPanel filters={filters} onChange={handleFiltersChange} />}
 
       {/* PIPELINE FLOW PANEL */}
       {(pipelineResult || Object.keys(pipelineProgress).length > 0) && (
         <div className="px-5 py-3">
-          <PipelineFlowPanel dk={dk} result={pipelineResult} progress={pipelineProgress} universe={universe} />
+          <PipelineFlowPanel result={pipelineResult} progress={pipelineProgress} universe={universe} />
         </div>
       )}
 
       {/* LANG-1: data-not-advice disclaimer above the card results (shown whenever cards render). */}
       {enriched.length > 0 && (
         <div className="px-5 pt-4">
-          <TradingDataDisclaimer surface={surface} />
+          <TradingDataDisclaimer />
         </div>
       )}
 
       {/* SECTION 2: FULL TRADE CARDS */}
       {enriched.length > 1 && (
-        <FilteredResultsSection dk={dk}
+        <FilteredResultsSection
           enriched={enriched}
           filters={filters}
           sentimentMap={batchData?.social_sentiment}
@@ -4946,21 +4939,21 @@ export default function ConvergenceIntelligence({
       )}
       {enriched.length === 1 && (
         <div className="px-5 py-4 space-y-4">
-          <TickerChapter dk={dk} detail={enriched[0]} sentiment={batchData?.social_sentiment?.[enriched[0].symbol]} savedCards={savedCards} savingCards={savingCards} saveErrors={saveErrors} onSave={saveCard} onRemove={removeCard} pipelineProgress={pipelineProgress} />
+          <TickerChapter detail={enriched[0]} sentiment={batchData?.social_sentiment?.[enriched[0].symbol]} savedCards={savedCards} savingCards={savingCards} saveErrors={saveErrors} onSave={saveCard} onRemove={removeCard} pipelineProgress={pipelineProgress} />
         </div>
       )}
 
       {/* Empty state — no scan yet */}
       {!scanning && !batchData && !batchError && enriched.length === 0 && (
         <div className="px-5 py-16 text-center">
-          <div className={themed('text-text-muted text-sm', dk)}>{hideControls ? 'Run a scan from the bar above to see results' : 'Set your preferences above, then click Scan Market'}</div>
-          {!hideControls && <div className={themed('text-text-faint text-xs mt-1', dk)}>Filters are applied after enrichment — adjust them now or after the scan</div>}
+          <div className="text-text-muted text-sm">{hideControls ? 'Run a scan from the bar above to see results' : 'Set your preferences above, then click Scan Market'}</div>
+          {!hideControls && <div className="text-text-faint text-xs mt-1">Filters are applied after enrichment — adjust them now or after the scan</div>}
         </div>
       )}
 
       {/* SECTION 3: SINGLE TICKER LOOKUP — hidden when controls are in bar */}
-      {!hideControls && <div className={themed('px-5 py-4 border-t border-border', dk)}>
-        <div className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2', dk)}>Look Up a Specific Ticker</div>
+      {!hideControls && <div className="px-5 py-4 border-t border-border">
+        <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2">Look Up a Specific Ticker</div>
         <div className="flex items-center gap-2">
           <input
             type="text"
@@ -4968,7 +4961,7 @@ export default function ConvergenceIntelligence({
             onChange={e => setLookupTicker(e.target.value.toUpperCase())}
             onKeyDown={e => { if (e.key === 'Enter') lookupAnalyze(); }}
             placeholder="AAPL"
-            className={themed('w-28 px-3 py-1.5 rounded text-sm font-mono font-bold tracking-wider text-text-primary border border-border bg-white focus:outline-none focus:ring-1 focus:ring-brand-purple', dk)}
+            className="w-28 px-3 py-1.5 rounded text-sm font-mono font-bold tracking-wider text-text-primary border border-border bg-white focus:outline-none focus:ring-1 focus:ring-brand-purple"
           />
           <Button
             variant="primary"
@@ -4983,7 +4976,7 @@ export default function ConvergenceIntelligence({
         {lookupError && <div className="text-brand-red text-xs mt-2">{lookupError}</div>}
         {lookupData && (
           <div className="mt-3">
-            <TickerCard dk={dk} detail={lookupData} savedCards={savedCards} savingCards={savingCards} saveErrors={saveErrors} onSave={saveCard} onRemove={removeCard} />
+            <TickerCard detail={lookupData} savedCards={savedCards} savingCards={savingCards} saveErrors={saveErrors} onSave={saveCard} onRemove={removeCard} />
           </div>
         )}
       </div>}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { themed, type Surface } from '@/lib/ds';
+
 
 // ═══════════════════════════════════════════════════════════════════
 // AccountTaxMappings — assign COA accounts to Schedule C lines.
@@ -96,11 +96,9 @@ function defaultMultiplierForLine(code: string): number {
 
 // ─── Component ─────────────────────────────────────────────────────
 
-export default function AccountTaxMappings({ surface = 'light',
-  taxYear,
+export default function AccountTaxMappings({ taxYear,
   defaultEntityId,
-}: Props & { surface?: Surface }) {
-  const dk = surface === 'dark';
+}: Props & { }) {
   const [entities, setEntities] = useState<EntityOption[]>([]);
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(
     defaultEntityId ?? null
@@ -304,10 +302,10 @@ export default function AccountTaxMappings({ surface = 'light',
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h3 className={themed('text-sm font-semibold text-gray-900', dk)}>
+          <h3 className="text-sm font-semibold text-gray-900">
             Schedule C tax mappings
           </h3>
-          <p className={themed('text-xs text-gray-500', dk)}>
+          <p className="text-xs text-gray-500">
             Assign each business expense account to a Schedule C line.
             Mappings are per tax year — changes here affect your{' '}
             <strong>{taxYear}</strong> Schedule C only.
@@ -315,13 +313,13 @@ export default function AccountTaxMappings({ surface = 'light',
         </div>
         {entities.length > 1 && (
           <div className="shrink-0">
-            <label className={themed('block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1', dk)}>
+            <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">
               Entity
             </label>
             <select
               value={selectedEntityId ?? ''}
               onChange={(e) => setSelectedEntityId(e.target.value || null)}
-              className={themed('px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-brand-purple', dk)}
+              className="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-brand-purple"
             >
               {entities.map((e) => (
                 <option key={e.id} value={e.id}>
@@ -334,7 +332,7 @@ export default function AccountTaxMappings({ surface = 'light',
       </div>
 
       {loading && (
-        <div className={themed('px-3 py-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded', dk)}>
+        <div className="px-3 py-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded">
           Loading accounts and mappings…
         </div>
       )}
@@ -353,7 +351,7 @@ export default function AccountTaxMappings({ surface = 'light',
       )}
 
       {!loading && data && expenseAccounts.length === 0 && (
-        <div className={themed('px-3 py-2 text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded', dk)}>
+        <div className="px-3 py-2 text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded">
           No expense accounts found for this entity.
         </div>
       )}
@@ -368,10 +366,10 @@ export default function AccountTaxMappings({ surface = 'light',
             </div>
           )}
 
-          <div className={themed('border border-gray-200 rounded-lg bg-white overflow-hidden', dk)}>
+          <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
             <table className="w-full text-sm">
-              <thead className={themed('bg-gray-50 border-b border-gray-200', dk)}>
-                <tr className={themed('text-[10px] font-semibold text-gray-500 uppercase tracking-wider', dk)}>
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
                   <th className="text-left px-3 py-2">Code</th>
                   <th className="text-left px-3 py-2">Account name</th>
                   <th className="text-left px-3 py-2 hidden sm:table-cell">Type</th>
@@ -392,18 +390,18 @@ export default function AccountTaxMappings({ surface = 'light',
                       key={acct.id}
                       className={isUnmapped ? 'bg-amber-50/40' : ''}
                     >
-                      <td className={themed('px-3 py-2 font-mono text-xs text-gray-700', dk)}>
+                      <td className="px-3 py-2 font-mono text-xs text-gray-700">
                         {acct.code}
                       </td>
-                      <td className={themed('px-3 py-2 text-gray-900', dk)}>{acct.name}</td>
-                      <td className={themed('px-3 py-2 text-xs text-gray-500 hidden sm:table-cell capitalize', dk)}>
+                      <td className="px-3 py-2 text-gray-900">{acct.name}</td>
+                      <td className="px-3 py-2 text-xs text-gray-500 hidden sm:table-cell capitalize">
                         {acct.accountType}
                       </td>
                       <td className="px-3 py-2">
                         <select
                           value={currentCode}
                           onChange={(e) => onLineChange(acct, e.target.value)}
-                          className={themed('w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-brand-purple', dk)}
+                          className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-brand-purple"
                         >
                           <option value={UNMAPPED_VALUE}>
                             — Unmapped (Line 27a default) —
@@ -435,12 +433,12 @@ export default function AccountTaxMappings({ surface = 'light',
                               (e.target as HTMLInputElement).blur();
                             }
                           }}
-                          className={themed('w-16 px-1.5 py-0.5 text-xs text-right font-mono border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-brand-purple disabled:bg-gray-100 disabled:text-gray-400', dk)}
+                          className="w-16 px-1.5 py-0.5 text-xs text-right font-mono border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-brand-purple disabled:bg-gray-100 disabled:text-gray-400"
                         />
                       </td>
                       <td className="px-3 py-2 text-right text-xs">
                         {status === 'saving' && (
-                          <span className={themed('text-gray-500', dk)}>saving…</span>
+                          <span className="text-gray-500">saving…</span>
                         )}
                         {status === 'saved' && (
                           <span className="text-emerald-700 font-semibold">
@@ -462,7 +460,7 @@ export default function AccountTaxMappings({ surface = 'light',
         </>
       )}
 
-      <p className={themed('text-[11px] text-gray-400 italic', dk)}>
+      <p className="text-[11px] text-gray-400 italic">
         Multiplier defaults to 1.00 for everything, 0.50 for Deductible meals
         (Line 24b). Adjust only when the account contains amounts already
         netted or when the IRS rule differs.

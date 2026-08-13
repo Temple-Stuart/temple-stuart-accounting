@@ -12,7 +12,7 @@
 'use client';
 
 import { TASK_STATUS_LABELS, TASK_STATUS_PILL_CLASSES } from './types';
-import { themed, type Surface } from '@/lib/ds';
+
 
 export interface EvolutionTask {
   id: string;
@@ -58,44 +58,43 @@ function formatDateTime(iso: string): string {
 
 // Status pill, tolerant of statuses outside the TaskStatus union (e.g.
 // 'superseded') so a future status never crashes the read view.
-function StatusPill({ status, dk = false }: { status: string; dk?: boolean }) {
+function StatusPill({ status }: { status: string; }) {
   const cls =
     (TASK_STATUS_PILL_CLASSES as Record<string, string>)[status] ??
     'bg-gray-50 text-gray-500';
   const label = (TASK_STATUS_LABELS as Record<string, string>)[status] ?? status;
   return (
-    <span className={themed(`inline-block px-1.5 py-0.5 rounded-full text-[10px] font-medium shrink-0 ${cls}`, dk)}>
+    <span className={`inline-block px-1.5 py-0.5 rounded-full text-[10px] font-medium shrink-0 ${cls}`}>
       {label}
     </span>
   );
 }
 
-function TaskLines({ dk = false, tasks }: { dk?: boolean; tasks: EvolutionTask[] }) {
+function TaskLines({ tasks }: { tasks: EvolutionTask[] }) {
   return (
     <ul className="mt-2 space-y-1">
       {tasks.map((t) => (
         <li key={t.id} className="flex items-center gap-2 min-w-0">
-          <span className={themed('text-text-faint shrink-0', dk)}>+</span>
+          <span className="text-text-faint shrink-0">+</span>
           <span
             className={
               t.status === 'completed' || t.status === 'cancelled' || t.status === 'superseded'
-                ? themed('text-text-muted line-through truncate', dk)
-                : themed('text-text-primary truncate', dk)
+                ? 'text-text-muted line-through truncate'
+                : 'text-text-primary truncate'
             }
           >
             {t.title}
           </span>
-          <StatusPill dk={dk} status={t.status} />
+          <StatusPill status={t.status} />
         </li>
       ))}
     </ul>
   );
 }
 
-export default function EvolutionTimelineView({ surface = 'light', loading, error, data }: EvolutionTimelineViewProps & { surface?: Surface }) {
-  const dk = surface === 'dark';
+export default function EvolutionTimelineView({ loading, error, data }: EvolutionTimelineViewProps & { }) {
   if (loading) {
-    return <div className={themed('text-xs text-text-muted', dk)}>loading evolution…</div>;
+    return <div className="text-xs text-text-muted">loading evolution…</div>;
   }
   if (error) {
     return (
@@ -112,7 +111,7 @@ export default function EvolutionTimelineView({ surface = 'light', loading, erro
 
   if (totalTasks === 0) {
     return (
-      <div className={themed('text-xs text-text-muted italic', dk)}>
+      <div className="text-xs text-text-muted italic">
         no tasks yet — generate tasks to start this project&apos;s trajectory.
       </div>
     );
@@ -120,7 +119,7 @@ export default function EvolutionTimelineView({ surface = 'light', loading, erro
 
   return (
     <div className="text-xs space-y-3">
-      <div className={themed('text-text-muted', dk)}>
+      <div className="text-text-muted">
         {versions.length} {versions.length === 1 ? 're-run' : 're-runs'}
         {unversioned.length > 0 && ` · ${unversioned.length} unversioned`}
         {' · '}
@@ -128,30 +127,30 @@ export default function EvolutionTimelineView({ surface = 'light', loading, erro
       </div>
 
       {/* Vertical timeline. The left border is the spine; each node hangs off it. */}
-      <div className={themed('border-l-2 border-border-light pl-4 space-y-3', dk)}>
+      <div className="border-l-2 border-border-light pl-4 space-y-3">
         {versions.map((v) => (
           <div key={v.usage_id} className="relative">
             {/* node dot, centered on the spine */}
-            <span className={`absolute -left-[1.3rem] top-1 w-2.5 h-2.5 rounded-full border-2 ${dk ? 'bg-brand-purple-pop border-panel' : 'bg-brand-purple border-white'}`} />
-            <div className={themed('border border-border-light rounded bg-white p-3', dk)}>
+            <span className={`absolute -left-[1.3rem] top-1 w-2.5 h-2.5 rounded-full border-2 ${'bg-brand-purple border-white'}`} />
+            <div className="border border-border-light rounded bg-white p-3">
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className={`px-1.5 py-0.5 rounded text-white text-[10px] font-semibold shrink-0 ${dk ? 'bg-brand-purple-pop' : 'bg-brand-purple'}`}>
+                  <span className={`px-1.5 py-0.5 rounded text-white text-[10px] font-semibold shrink-0 ${'bg-brand-purple'}`}>
                     v{v.version_number}
                   </span>
-                  <span className={themed('text-text-primary', dk)}>{formatDateTime(v.created_at)}</span>
-                  <span className={themed('text-text-muted', dk)}>
+                  <span className="text-text-primary">{formatDateTime(v.created_at)}</span>
+                  <span className="text-text-muted">
                     · added {v.task_count} {v.task_count === 1 ? 'task' : 'tasks'}
                   </span>
                 </div>
-                <span className={themed('text-text-faint text-[10px]', dk)}>
+                <span className="text-text-faint text-[10px]">
                   {v.model} · ${v.cost_usd} · {v.input_tokens} in · {v.output_tokens} out
                 </span>
               </div>
               {v.tasks.length > 0 ? (
-                <TaskLines dk={dk} tasks={v.tasks} />
+                <TaskLines tasks={v.tasks} />
               ) : (
-                <div className={themed('mt-2 text-text-muted italic', dk)}>
+                <div className="mt-2 text-text-muted italic">
                   (this re-run&apos;s tasks were since deleted)
                 </div>
               )}
@@ -162,17 +161,17 @@ export default function EvolutionTimelineView({ surface = 'light', loading, erro
         {/* Honest unversioned bucket — visually distinct (gray dot, not purple). */}
         {unversioned.length > 0 && (
           <div className="relative">
-            <span className={themed('absolute -left-[1.3rem] top-1 w-2.5 h-2.5 rounded-full bg-gray-400 border-2 border-white', dk)} />
-            <div className={themed('border border-border-light rounded bg-bg-row p-3', dk)}>
+            <span className="absolute -left-[1.3rem] top-1 w-2.5 h-2.5 rounded-full bg-gray-400 border-2 border-white" />
+            <div className="border border-border-light rounded bg-bg-row p-3">
               <div className="flex items-center gap-2">
-                <span className={themed('px-1.5 py-0.5 rounded bg-gray-200 text-gray-700 text-[10px] font-semibold', dk)}>
+                <span className="px-1.5 py-0.5 rounded bg-gray-200 text-gray-700 text-[10px] font-semibold">
                   original
                 </span>
-                <span className={themed('text-text-muted', dk)}>
+                <span className="text-text-muted">
                   tasks created before versioning (no re-run on record)
                 </span>
               </div>
-              <TaskLines dk={dk} tasks={unversioned} />
+              <TaskLines tasks={unversioned} />
             </div>
           </div>
         )}

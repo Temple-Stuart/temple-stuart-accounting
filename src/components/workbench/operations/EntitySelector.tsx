@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { themed, type Surface } from '@/lib/ds';
+
 
 export interface Entity {
   id: string;
@@ -36,8 +36,7 @@ export function useOperationsEntity(): EntityContext {
   return ctx;
 }
 
-export function OperationsEntityProvider({ surface = 'light', children }: { surface?: Surface; children: ReactNode }) {
-  const dk = surface === 'dark';
+export function OperationsEntityProvider({ children }: { children: ReactNode }) {
   const [entities, setEntities] = useState<Entity[]>([]);
   const [selectedEntityId, setSelectedEntityIdState] = useState<string | null>(() => {
     try {

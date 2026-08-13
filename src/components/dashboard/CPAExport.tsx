@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { themed, type Surface } from '@/lib/ds';
+
 
 // ═══════════════════════════════════════════════════════════════════
 // CPAExport — Generates accountant-ready CSV reports (Trial Balance,
@@ -302,8 +302,7 @@ function buildGeneralLedgerCSV(data: CPAExportData): string {
 
 // ─── Component ──────────────────────────────────────────────────────
 
-export default function CPAExport({ year, entityId, surface = 'light' }: CPAExportProps & { surface?: Surface }) {
-  const dk = surface === 'dark';
+export default function CPAExport({ year, entityId }: CPAExportProps & { }) {
   const [data, setData] = useState<CPAExportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -384,9 +383,9 @@ export default function CPAExport({ year, entityId, surface = 'light' }: CPAExpo
     : null;
 
   return (
-    <div className={dk ? 'overflow-hidden' : themed('bg-white overflow-hidden', dk)}>
-      <div className={themed('px-3 py-2 border-b border-border flex items-center justify-between', dk)}>
-        <span className={themed('text-terminal-sm text-text-muted font-mono', dk)}>
+    <div className="bg-white overflow-hidden">
+      <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+        <span className="text-terminal-sm text-text-muted font-mono">
           Export accountant-ready reports (sourced from the general ledger)
         </span>
         <button
@@ -399,23 +398,23 @@ export default function CPAExport({ year, entityId, surface = 'light' }: CPAExpo
       </div>
 
       {/* Status bar */}
-      <div className={themed('px-4 py-2 border-b border-border bg-bg-row flex items-center gap-6 text-sm', dk)}>
-        <span className={themed('text-text-secondary', dk)}>
+      <div className="px-4 py-2 border-b border-border bg-bg-row flex items-center gap-6 text-sm">
+        <span className="text-text-secondary">
           Year: <strong>{year}</strong>
         </span>
         {entityId && (
-          <span className={themed('text-text-secondary', dk)}>
+          <span className="text-text-secondary">
             Entity: <strong className="font-mono text-xs">{entityId}</strong>
           </span>
         )}
-        {loading && <span className={themed('text-text-muted', dk)}>Loading ledger...</span>}
+        {loading && <span className="text-text-muted">Loading ledger...</span>}
         {error && <span className="text-brand-red">Error: {error}</span>}
         {stats && (
           <>
-            <span className={themed('text-text-secondary', dk)}>
+            <span className="text-text-secondary">
               Accounts: <strong>{stats.accounts}</strong>
             </span>
-            <span className={themed('text-text-secondary', dk)}>
+            <span className="text-text-secondary">
               Ledger lines: <strong>{stats.ledgerLines}</strong>
             </span>
             <span
@@ -432,7 +431,7 @@ export default function CPAExport({ year, entityId, surface = 'light' }: CPAExpo
             >
               {stats.sheetBalanced ? 'Balance Sheet ✓' : 'Balance Sheet ✗'}
             </span>
-            <span className={themed('text-text-secondary', dk)}>
+            <span className="text-text-secondary">
               Net Income: <strong>${fmtMoney(stats.netIncome)}</strong>
             </span>
           </>
@@ -441,72 +440,72 @@ export default function CPAExport({ year, entityId, surface = 'light' }: CPAExpo
 
       {/* Export options */}
       <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className={dk ? 'border border-panel-border rounded p-4' : themed('border rounded p-4 hover:bg-bg-row', dk)}>
+        <div className="border rounded p-4 hover:bg-bg-row">
           <div className="flex items-start justify-between">
             <div>
-              <h4 className={dk ? 'text-sm font-semibold text-white' : 'font-medium'}>📊 Trial Balance</h4>
-              <p className={dk ? 'text-xs text-white/70 mt-1' : themed('text-xs text-text-muted mt-1', dk)}>
+              <h4 className="font-medium">📊 Trial Balance</h4>
+              <p className="text-xs text-text-muted mt-1">
                 Per-account debit/credit balances from the ledger. Debits must equal credits.
               </p>
             </div>
             <button
               onClick={exportTrialBalance}
               disabled={exporting !== null || !data}
-              className={dk ? 'border border-white/30 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/10 rounded-lg disabled:opacity-50' : themed('px-3 py-1.5 border rounded text-sm hover:bg-bg-row disabled:opacity-50', dk)}
+              className="px-3 py-1.5 border rounded text-sm hover:bg-bg-row disabled:opacity-50"
             >
               {exporting === 'trial-balance' ? '...' : 'Export CSV'}
             </button>
           </div>
         </div>
 
-        <div className={dk ? 'border border-panel-border rounded p-4' : themed('border rounded p-4 hover:bg-bg-row', dk)}>
+        <div className="border rounded p-4 hover:bg-bg-row">
           <div className="flex items-start justify-between">
             <div>
-              <h4 className={dk ? 'text-sm font-semibold text-white' : 'font-medium'}>📈 Income Statement</h4>
-              <p className={dk ? 'text-xs text-white/70 mt-1' : themed('text-xs text-text-muted mt-1', dk)}>
+              <h4 className="font-medium">📈 Income Statement</h4>
+              <p className="text-xs text-text-muted mt-1">
                 Revenue minus expenses. Revenue nets credits − debits; expenses net debits − credits.
               </p>
             </div>
             <button
               onClick={exportIncomeStatement}
               disabled={exporting !== null || !data}
-              className={dk ? 'border border-white/30 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/10 rounded-lg disabled:opacity-50' : themed('px-3 py-1.5 border rounded text-sm hover:bg-bg-row disabled:opacity-50', dk)}
+              className="px-3 py-1.5 border rounded text-sm hover:bg-bg-row disabled:opacity-50"
             >
               {exporting === 'income-statement' ? '...' : 'Export CSV'}
             </button>
           </div>
         </div>
 
-        <div className={dk ? 'border border-panel-border rounded p-4' : themed('border rounded p-4 hover:bg-bg-row', dk)}>
+        <div className="border rounded p-4 hover:bg-bg-row">
           <div className="flex items-start justify-between">
             <div>
-              <h4 className={dk ? 'text-sm font-semibold text-white' : 'font-medium'}>📋 Balance Sheet</h4>
-              <p className={dk ? 'text-xs text-white/70 mt-1' : themed('text-xs text-text-muted mt-1', dk)}>
+              <h4 className="font-medium">📋 Balance Sheet</h4>
+              <p className="text-xs text-text-muted mt-1">
                 Assets = Liabilities + Equity. Retained earnings rolls net income into equity.
               </p>
             </div>
             <button
               onClick={exportBalanceSheet}
               disabled={exporting !== null || !data}
-              className={dk ? 'border border-white/30 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/10 rounded-lg disabled:opacity-50' : themed('px-3 py-1.5 border rounded text-sm hover:bg-bg-row disabled:opacity-50', dk)}
+              className="px-3 py-1.5 border rounded text-sm hover:bg-bg-row disabled:opacity-50"
             >
               {exporting === 'balance-sheet' ? '...' : 'Export CSV'}
             </button>
           </div>
         </div>
 
-        <div className={dk ? 'border border-panel-border rounded p-4' : themed('border rounded p-4 hover:bg-bg-row', dk)}>
+        <div className="border rounded p-4 hover:bg-bg-row">
           <div className="flex items-start justify-between">
             <div>
-              <h4 className={dk ? 'text-sm font-semibold text-white' : 'font-medium'}>📒 General Ledger</h4>
-              <p className={dk ? 'text-xs text-white/70 mt-1' : themed('text-xs text-text-muted mt-1', dk)}>
+              <h4 className="font-medium">📒 General Ledger</h4>
+              <p className="text-xs text-text-muted mt-1">
                 Every posted ledger entry in chronological order. Full audit trail.
               </p>
             </div>
             <button
               onClick={exportGeneralLedger}
               disabled={exporting !== null || !data}
-              className={dk ? 'border border-white/30 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/10 rounded-lg disabled:opacity-50' : themed('px-3 py-1.5 border rounded text-sm hover:bg-bg-row disabled:opacity-50', dk)}
+              className="px-3 py-1.5 border rounded text-sm hover:bg-bg-row disabled:opacity-50"
             >
               {exporting === 'general-ledger' ? '...' : 'Export CSV'}
             </button>
@@ -515,7 +514,7 @@ export default function CPAExport({ year, entityId, surface = 'light' }: CPAExpo
       </div>
 
       {/* Footer */}
-      <div className={dk ? 'px-4 py-3 border-t border-panel-border bg-white/5 font-mono text-[11px] text-white/60' : themed('px-4 py-3 border-t bg-bg-row text-xs text-text-muted', dk)}>
+      <div className="px-4 py-3 border-t bg-bg-row text-xs text-text-muted">
         💡 Sourced from journal_entries + ledger_entries (reversals excluded). Open CSV files in Excel or Google Sheets.
       </div>
     </div>

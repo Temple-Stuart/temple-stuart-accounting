@@ -1,5 +1,5 @@
 'use client';
-import { themed, type Surface } from '@/lib/ds';
+
 
 export interface BookkeepingCockpitBarProps {
   // Accounting equation
@@ -31,52 +31,50 @@ export default function BookkeepingCockpitBar({
   onSync,
   syncing,
   onLinkAccount,
-  surface = 'light',
-}: BookkeepingCockpitBarProps & { surface?: Surface }) {
-  const dk = surface === 'dark';
+}: BookkeepingCockpitBarProps & { }) {
   const imbalance = totalAssets - (totalLiabilities + totalEquity);
 
   return (
-    <div className={themed('bg-white border-2 border-brand-gold/60 rounded-xl shadow-md flex flex-col lg:flex-row', dk)}>
+    <div className="bg-white border-2 border-brand-gold/60 rounded-xl shadow-md flex flex-col lg:flex-row">
         {/* LEFT: Identity */}
-        <div className={themed('flex items-center gap-2 px-4 py-3 lg:w-[160px] lg:flex-shrink-0 lg:border-r border-b lg:border-b-0 border-gray-200', dk)}>
+        <div className="flex items-center gap-2 px-4 py-3 lg:w-[160px] lg:flex-shrink-0 lg:border-r border-b lg:border-b-0 border-gray-200">
           <div>
-            <div className={themed('text-sm font-semibold text-text-primary', dk)}>Bookkeeping</div>
+            <div className="text-sm font-semibold text-text-primary">Bookkeeping</div>
             <div className="flex items-center gap-1.5 mt-0.5">
               {connectedAccounts > 0 ? (
-                <><div className={dk ? 'w-2 h-2 bg-status-success rounded-full' : 'w-2 h-2 bg-emerald-500 rounded-full'} /><span className={dk ? 'text-xs text-status-success' : 'text-xs text-emerald-600'}>{connectedAccounts} linked</span></>
+                <><div className="w-2 h-2 bg-emerald-500 rounded-full" /><span className="text-xs text-emerald-600">{connectedAccounts} linked</span></>
               ) : (
-                <><div className={themed('w-2 h-2 bg-gray-400 rounded-full', dk)} /><span className={themed('text-xs text-text-muted', dk)}>No accounts</span></>
+                <><div className="w-2 h-2 bg-gray-400 rounded-full" /><span className="text-xs text-text-muted">No accounts</span></>
               )}
             </div>
           </div>
         </div>
 
         {/* CENTER: Accounting Equation */}
-        <div className={themed('flex-1 px-4 py-3 lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0', dk)}>
+        <div className="flex-1 px-4 py-3 lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
           <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-xs">
             <span>
-              <span className={(dk ? 'text-white/50 uppercase tracking-wider text-[10px] mr-1' : themed('text-text-muted uppercase tracking-wider text-[10px] mr-1', dk))}>Assets</span>
-              <span className={(dk ? 'font-mono font-semibold text-white/90' : themed('font-mono font-semibold text-text-primary', dk))}>{fmtDollars(totalAssets)}</span>
+              <span className={('text-text-muted uppercase tracking-wider text-[10px] mr-1')}>Assets</span>
+              <span className={('font-mono font-semibold text-text-primary')}>{fmtDollars(totalAssets)}</span>
             </span>
-            <span className={themed('text-text-faint', dk)}>|</span>
+            <span className="text-text-faint">|</span>
             <span>
-              <span className={(dk ? 'text-white/50 uppercase tracking-wider text-[10px] mr-1' : themed('text-text-muted uppercase tracking-wider text-[10px] mr-1', dk))}>Liabilities</span>
-              <span className={(dk ? 'font-mono font-semibold text-white/90' : themed('font-mono font-semibold text-text-primary', dk))}>{fmtDollars(totalLiabilities)}</span>
+              <span className={('text-text-muted uppercase tracking-wider text-[10px] mr-1')}>Liabilities</span>
+              <span className={('font-mono font-semibold text-text-primary')}>{fmtDollars(totalLiabilities)}</span>
             </span>
-            <span className={themed('text-text-faint', dk)}>|</span>
+            <span className="text-text-faint">|</span>
             <span>
-              <span className={(dk ? 'text-white/50 uppercase tracking-wider text-[10px] mr-1' : themed('text-text-muted uppercase tracking-wider text-[10px] mr-1', dk))}>Equity</span>
-              <span className={(dk ? 'font-mono font-semibold text-white/90' : themed('font-mono font-semibold text-text-primary', dk))}>{fmtDollars(totalEquity)}</span>
+              <span className={('text-text-muted uppercase tracking-wider text-[10px] mr-1')}>Equity</span>
+              <span className={('font-mono font-semibold text-text-primary')}>{fmtDollars(totalEquity)}</span>
             </span>
           </div>
           <div className="mt-1">
             {isBalanced ? (
-              <span className={dk ? 'inline-flex items-center gap-1 text-[10px] font-medium text-status-success bg-status-success/10 px-2 py-0.5 rounded-full' : 'inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full'}>
+              <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
                 A = L + E {'\u2713'} Balanced
               </span>
             ) : (
-              <span className={dk ? 'inline-flex items-center gap-1 text-[10px] font-medium text-status-danger bg-status-danger/10 px-2 py-0.5 rounded-full' : 'inline-flex items-center gap-1 text-[10px] font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full'}>
+              <span className="inline-flex items-center gap-1 text-[10px] font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
                 {'\u2717'} Unbalanced by {fmtDollars(Math.abs(imbalance))}
               </span>
             )}
@@ -84,11 +82,11 @@ export default function BookkeepingCockpitBar({
         </div>
 
         {/* RIGHT: Period + Link Account */}
-        <div className={themed('flex items-center gap-3 px-4 py-3 lg:border-r border-b lg:border-b-0 border-gray-200 lg:flex-shrink-0', dk)}>
-          <div className={themed('text-xs text-text-secondary', dk)}>
+        <div className="flex items-center gap-3 px-4 py-3 lg:border-r border-b lg:border-b-0 border-gray-200 lg:flex-shrink-0">
+          <div className="text-xs text-text-secondary">
             <span className="font-medium">{periodLabel}</span>
             <span className="mx-1">{'\u00b7'}</span>
-            <span className={periodStatus === 'open' ? (dk ? 'text-status-success font-medium' : 'text-emerald-600 font-medium') : themed('text-text-muted', dk)}>
+            <span className={periodStatus === 'open' ? ('text-emerald-600 font-medium') : 'text-text-muted'}>
               {periodStatus === 'open' ? 'Open' : 'Closed'}
             </span>
           </div>

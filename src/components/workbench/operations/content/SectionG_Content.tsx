@@ -21,15 +21,14 @@ import ContentTable, { type Scene, type Take, type Routine } from './ContentTabl
 import AvailableRoutinesList from './AvailableRoutinesList';
 import ScriptDrawer from './ScriptDrawer';
 import ContentTableSkeleton from './ContentTableSkeleton';
-import { themed, type Surface } from '@/lib/ds';
+
 
 interface EntityLite {
   id: string;
   name: string;
 }
 
-export default function SectionG_Content({ surface = 'light' }: { surface?: Surface } = {}) {
-  const dk = surface === 'dark';
+export default function SectionG_Content({ }: { } = {}) {
   const [scenes, setScenes] = useState<Scene[] | null>(null);
   const [takes, setTakes] = useState<Take[] | null>(null);
   const [routines, setRoutines] = useState<Routine[] | null>(null);
@@ -199,21 +198,21 @@ export default function SectionG_Content({ surface = 'light' }: { surface?: Surf
   };
 
   return (
-    <section className={themed('bg-white rounded border border-border shadow-sm p-5 space-y-4', dk)}>
-      <h2 className={themed('font-mono text-sm font-bold tracking-wide text-text-primary', dk)}>
+    <section className="bg-white rounded border border-border shadow-sm p-5 space-y-4">
+      <h2 className="font-mono text-sm font-bold tracking-wide text-text-primary">
         G · CONTENT
       </h2>
 
       {loading ? (
-        <ContentTableSkeleton surface={surface} />
+        <ContentTableSkeleton />
       ) : error ? (
         <div className="text-xs font-mono px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
           {error}
         </div>
       ) : !scenes || !routines || !takes || !entities ? (
-        <p className={themed('text-sm font-mono text-text-faint', dk)}>Data missing.</p>
+        <p className="text-sm font-mono text-text-faint">Data missing.</p>
       ) : (
-        <ContentSummary dk={dk}
+        <ContentSummary
           scenes={scenes}
           takes={takes}
           routines={routines}
@@ -230,7 +229,7 @@ export default function SectionG_Content({ surface = 'light' }: { surface?: Surf
       )}
 
       {scriptDrawerScene && (
-        <ScriptDrawer surface={surface}
+        <ScriptDrawer
           scene={scriptDrawerScene}
           open
           onSave={handleScriptSave}
@@ -241,8 +240,7 @@ export default function SectionG_Content({ surface = 'light' }: { surface?: Surf
   );
 }
 
-function ContentSummary({ dk = false,
-  scenes,
+function ContentSummary({ scenes,
   takes,
   routines,
   entities,
@@ -254,8 +252,7 @@ function ContentSummary({ dk = false,
   onSceneUpdate,
   onTakeUpdate,
   onScriptClick,
-}: { dk?: boolean;
-  scenes: Scene[];
+}: { scenes: Scene[];
   takes: Take[];
   routines: Routine[];
   entities: EntityLite[];
@@ -300,7 +297,7 @@ function ContentSummary({ dk = false,
       : routines.filter((r) => r.entity_id === entityFilter);
 
   const badgeClass =
-    themed('px-2 py-0.5 text-xs font-mono rounded border border-border-light bg-bg-row text-text-primary', dk);
+    'px-2 py-0.5 text-xs font-mono rounded border border-border-light bg-bg-row text-text-primary';
 
   // OPS-CE-4-flat: truthful badges read the REAL grid tables, not the legacy
   // scene_groups/scene_rows the table below renders. scenes = scene-ROW count
@@ -325,7 +322,7 @@ function ContentSummary({ dk = false,
         <select
           value={entityFilter}
           onChange={(e) => onEntityFilterChange(e.target.value)}
-          className={themed('px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple', dk)}
+          className="px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple"
           aria-label="Filter by entity"
         >
           <option value="all">All entities</option>
@@ -339,20 +336,20 @@ function ContentSummary({ dk = false,
 
       {filteredScenes.length === 0 ? (
         <>
-          <div className={themed('flex flex-col items-center justify-center py-8 px-4 border border-border-light rounded bg-bg-row text-center', dk)}>
+          <div className="flex flex-col items-center justify-center py-8 px-4 border border-border-light rounded bg-bg-row text-center">
             <div className="text-2xl mb-2" aria-hidden="true">🎬</div>
-            <div className={themed('text-sm font-mono font-semibold text-text-primary', dk)}>
+            <div className="text-sm font-mono font-semibold text-text-primary">
               No scenes yet
             </div>
-            <div className={themed('text-xs font-mono text-text-muted mt-1', dk)}>
+            <div className="text-xs font-mono text-text-muted mt-1">
               Pick a routine below to start filming.
             </div>
           </div>
-          <AvailableRoutinesList surface={dk ? 'dark' : 'light'} routines={filteredRoutines} onScenify={onScenify} />
+          <AvailableRoutinesList routines={filteredRoutines} onScenify={onScenify} />
         </>
       ) : (
         <>
-          <ContentTable surface={dk ? 'dark' : 'light'}
+          <ContentTable
             scenes={filteredScenes}
             takes={filteredTakes}
             routines={filteredRoutines}
@@ -360,7 +357,7 @@ function ContentSummary({ dk = false,
             onTakeUpdate={onTakeUpdate}
             onScriptClick={onScriptClick}
           />
-          <AvailableRoutinesList surface={dk ? 'dark' : 'light'} routines={filteredRoutines} onScenify={onScenify} />
+          <AvailableRoutinesList routines={filteredRoutines} onScenify={onScenify} />
         </>
       )}
     </div>

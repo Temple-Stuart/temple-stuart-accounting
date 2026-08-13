@@ -18,7 +18,7 @@ import {
   WEEKDAY_LABELS,
   WEEKDAY_ORDER,
 } from './types';
-import { themed, type Surface } from '@/lib/ds';
+
 
 interface Props {
   form: RoutineForm;
@@ -33,11 +33,10 @@ const CADENCE_MODES: CadenceMode[] = [
   'custom',
 ];
 
-export default function RRULEBuilder({ surface = 'light', form, setForm }: Props & { surface?: Surface }) {
-  const dk = surface === 'dark';
+export default function RRULEBuilder({ form, setForm }: Props & { }) {
   const inputClass =
-    themed('w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple', dk);
-  const labelClass = themed('text-text-faint uppercase tracking-wide mb-1 text-xs', dk);
+    'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
+  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
 
   const toggleWeekday = (d: WeekDay) => {
     const has = form.weekly_byday.includes(d);
@@ -80,8 +79,8 @@ export default function RRULEBuilder({ surface = 'light', form, setForm }: Props
                   className={
                     'px-2 py-1 border rounded text-xs ' +
                     (selected
-                      ? (dk ? 'bg-brand-purple-pop text-white border-brand-purple-pop' : 'bg-brand-purple text-white border-brand-purple')
-                      : themed('bg-white text-text-primary border-border hover:bg-bg-row', dk))
+                      ? ('bg-brand-purple text-white border-brand-purple')
+                      : 'bg-white text-text-primary border-border hover:bg-bg-row')
                   }
                 >
                   {WEEKDAY_LABELS[d]}
@@ -151,14 +150,14 @@ export default function RRULEBuilder({ surface = 'light', form, setForm }: Props
             className={`${inputClass} font-mono`}
             placeholder="FREQ=YEARLY;BYMONTH=3,6,9,12;BYMONTHDAY=15"
           />
-          <div className={themed('text-text-faint text-xs italic mt-1', dk)}>
+          <div className="text-text-faint text-xs italic mt-1">
             Escape hatch for cadences the structured form can't express
             (e.g., quarterly review on the 15th of mar/jun/sep/dec).
           </div>
         </div>
       )}
 
-      <div className={themed('grid grid-cols-3 gap-3 pt-2 border-t border-border-light', dk)}>
+      <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border-light">
         <div>
           <div className={labelClass}>hour (00–23)</div>
           <input

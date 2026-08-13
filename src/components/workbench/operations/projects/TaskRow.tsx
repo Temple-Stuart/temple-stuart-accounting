@@ -4,7 +4,7 @@
  * PR4 split: this file keeps the EXACT live behavior it had before — all 8
  * fetches (PATCH save / PATCH quick-complete / GET history / POST uncomplete /
  * POST schedule / DELETE / PATCH archive / PATCH unarchive) plus every UI toggle
- * — and now renders the pure <TaskRowView surface={surface} /> with the live data + the 8 real
+ * — and now renders the pure <TaskRowView /> with the live data + the 8 real
  * handlers wired to its callbacks. The public name + prop shape
  * ({ task, projectId, index, coaAccounts, onUpdate, onDelete }) are unchanged,
  * so the existing call site (TaskListView.tsx:212) is untouched and
@@ -21,7 +21,7 @@
 import { useState } from 'react';
 import TaskRowView, { type TaskStatusHistoryRow } from './TaskRowView';
 import type { Task, TaskForm, CoaAccountSummary } from './types';
-import { themed, type Surface } from '@/lib/ds';
+
 
 interface Props {
   task: Task;
@@ -49,8 +49,7 @@ function taskToForm(t: Task): TaskForm {
   };
 }
 
-export default function TaskRow({ surface = 'light', task, projectId, index, coaAccounts, onUpdate, onDelete }: Props & { surface?: Surface }) {
-  const dk = surface === 'dark';
+export default function TaskRow({ task, projectId, index, coaAccounts, onUpdate, onDelete }: Props & { }) {
   const [expanded, setExpanded] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -352,7 +351,7 @@ export default function TaskRow({ surface = 'light', task, projectId, index, coa
   const handleRejectPending = (e: React.MouseEvent) => patchReviewStatus(e, 'cancelled', 'reject');
 
   return (
-    <TaskRowView surface={surface}
+    <TaskRowView
       task={task}
       index={index}
       coaAccounts={coaAccounts}
