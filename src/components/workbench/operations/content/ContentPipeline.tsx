@@ -342,9 +342,14 @@ export default function ContentPipeline({ }: { } = {}) {
         </button>
       </div>
 
-      {stage === 'calendar' && <DayCalendar date={date} onDateChange={setDate} />}
+      {/* DRAFT-SURVIVAL: every stage stays MOUNTED and toggles via CSS
+          show/hide — the house ToggleStrip pattern (ToggleStrip.tsx:145;
+          ModuleLauncher tab sections), adopted here so ScenifyDraft's local
+          draft state (drafts/cameras, ScenifyDraft.tsx:138,:148) survives a
+          tab switch instead of dying with a conditional unmount. */}
+      <div className={stage === 'calendar' ? 'block' : 'hidden'}><DayCalendar date={date} onDateChange={setDate} /></div>
 
-      {stage === 'log' && (<>
+      <div className={stage === 'log' ? 'block space-y-4' : 'hidden'}>
       {/* 1 · INPUTS — projects/routines are CREATED in their own tabs; here you only
           SELECT existing ones (PR-Content-2 removed the redundant in-tab create step). */}
       <section className="bg-white rounded border border-border p-4 space-y-3">
@@ -503,10 +508,10 @@ export default function ContentPipeline({ }: { } = {}) {
         <DailyLog date={date} />
         <PieceGrid />
       </section>
-      </>)}
+      </div>
 
       {/* 4 · SCRIPT — the reel voiceover generator (CE-5). */}
-      {stage === 'script' && <ScriptGenerator date={date} />}
+      <div className={stage === 'script' ? 'block' : 'hidden'}><ScriptGenerator date={date} /></div>
     </div>
   );
 }
