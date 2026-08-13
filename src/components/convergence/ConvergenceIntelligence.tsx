@@ -4893,17 +4893,14 @@ export default function ConvergenceIntelligence({
         <div className={`${SECTION_HEADER} rounded-t-lg`}>
           <span>Market Intelligence</span>
           <span className={chip()}>
+            {scanning && !batchData && (
+              <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            )}
             {batchData ? `${batchData.top_9.length} results · ${(batchData.timing.total_ms / 1000).toFixed(1)}s` : scanning ? 'Scanning...' : 'Run scan from bar above'}
           </span>
-        </div>
-      )}
-
-      {/* Loading state */}
-      {scanning && (
-        <div className="px-5 py-16 text-center">
-          <div className="w-8 h-8 border-3 border-border border-t-brand-purple rounded-full animate-spin mx-auto mb-4" style={{ borderWidth: 3 }} />
-          <div className="text-sm font-medium text-text-primary">Running convergence pipeline...</div>
-          <div className="text-[10px] text-text-muted mt-1">Scanning universe, applying filters, scoring, ranking</div>
         </div>
       )}
 
