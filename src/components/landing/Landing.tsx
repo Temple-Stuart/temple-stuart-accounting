@@ -355,13 +355,16 @@ const PILLAR_CARDS: PillarCard[] = [
 // PR-ELEV-2c: entries MAY carry an optional demoImage — rendered as the
 // slide's framed RIGHT column (PR-DECK-CLEAN-3, Nuitée-style; absent → text
 // spans full width).
-// PR-DEMO-1: all nine slots are now filled with CODE-DRAWN SVG illustrations
-// of the live UI (public/demo/<pillar-id>.svg) — each depicts the REAL
-// interface (component labels, column headers, chip names, read from the
-// cited source component; provenance in each SVG's header comment). Sample
-// values only where a table needs content, always innocuous; never invented
-// revenue/user/performance numbers. REAL SCREENSHOTS MAY REPLACE ANY FILE AT
-// THE SAME PATH — drop the capture in, keep the filename, done.
+// PR-DEMO-1 → LANDING-04-ILLOS: all nine slots carry CODE-DRAWN SVG
+// PIPELINE illustrations (public/demo/<pillar-id>.svg) — each shows that
+// module's REAL stages left-to-right (stage names read from the module's own
+// StageStrip config or source component; provenance in each SVG's header
+// comment), in the Direction-C palette. The dark-era UI mockups and travel's
+// stale pre-repaint PNG capture retired with them. Illustrative sample values
+// only (a count, a chip, one dollar figure per frame — the eyebrow now says
+// these are illustrations); never invented revenue/user/performance numbers.
+// REAL SCREENSHOTS MAY REPLACE ANY FILE AT THE SAME PATH — drop the capture
+// in, keep the filename, and flip the eyebrow line back.
 const SUMMARY_BY_ID: Record<string, {
   eyebrow: string;
   headline: string;
@@ -376,7 +379,7 @@ const SUMMARY_BY_ID: Record<string, {
       'One trip holds everything — plans, bookings, budget.',
       'Every booking flows into your budget.',
     ],
-    demoImage: { src: '/demo/travel-real.png', alt: 'Temple Stuart flight search — the live booking form' },
+    demoImage: { src: '/demo/travel.svg', alt: 'Illustration of the Travel pipeline: search, book, it lands in your budget' },
   },
   runway: {
     eyebrow: 'Runway — the whole platform, one question',
@@ -386,7 +389,7 @@ const SUMMARY_BY_ID: Record<string, {
       'Your routines ARE the budget.',
       'Trading money ≠ living money. The wall is the feature.',
     ],
-    demoImage: { src: '/demo/runway.svg', alt: 'Illustration of the Runway interface' },
+    demoImage: { src: '/demo/runway.svg', alt: 'Illustration of the Runway pipeline: money in, planned vs actual, months left' },
   },
   books: {
     eyebrow: 'Books — double-entry bookkeeping',
@@ -396,7 +399,7 @@ const SUMMARY_BY_ID: Record<string, {
       'The trial balance must balance.',
       'Closed means closed.',
     ],
-    demoImage: { src: '/demo/books.svg', alt: 'Illustration of the Books interface' },
+    demoImage: { src: '/demo/books.svg', alt: 'Illustration of the Books pipeline: bank sync, categorize, double entry, reports' },
   },
   trade: {
     eyebrow: 'Trade — the scanner',
@@ -406,7 +409,7 @@ const SUMMARY_BY_ID: Record<string, {
       'The whole trade, written down.',
       'The grades accumulate. Denominators first.',
     ],
-    demoImage: { src: '/demo/trade.svg', alt: 'Illustration of the Trade interface' },
+    demoImage: { src: '/demo/trade.svg', alt: 'Illustration of the Trade pipeline: filters, scan, TRADE or SKIP verdicts, into your books' },
   },
   tax: {
     eyebrow: 'Tax — from closed books to a filed return',
@@ -416,7 +419,7 @@ const SUMMARY_BY_ID: Record<string, {
       'Every income line traces to its source.',
       'Every lot boxed. Every box explained.',
     ],
-    demoImage: { src: '/demo/tax.svg', alt: 'Illustration of the Tax interface' },
+    demoImage: { src: '/demo/tax.svg', alt: 'Illustration of the Tax pipeline: closed books, forms build, review, file' },
   },
   compliance: {
     eyebrow: 'Compliance — the receipts',
@@ -426,7 +429,7 @@ const SUMMARY_BY_ID: Record<string, {
       'The statute you cited is the statute you saw.',
       'Obligations tracked like engineering tickets.',
     ],
-    demoImage: { src: '/demo/compliance.svg', alt: 'Illustration of the Compliance interface' },
+    demoImage: { src: '/demo/compliance.svg', alt: 'Illustration of the Compliance pipeline: every action, hashed, audit trail' },
   },
   routines: {
     eyebrow: 'Routines — the recurrence engine',
@@ -436,7 +439,7 @@ const SUMMARY_BY_ID: Record<string, {
       'The streak counts both ways.',
       'Feed one: every occurrence lands on the one calendar, priced.',
     ],
-    demoImage: { src: '/demo/routines.svg', alt: 'Illustration of the Routines interface' },
+    demoImage: { src: '/demo/routines.svg', alt: 'Illustration of the Routines pipeline: set it once, calendar and budget, no surprises' },
   },
   projects: {
     eyebrow: 'Projects — the Truth Machine',
@@ -446,7 +449,7 @@ const SUMMARY_BY_ID: Record<string, {
       'Auto-generated work waits for your ✓.',
       'Every inference has a receipt.',
     ],
-    demoImage: { src: '/demo/projects.svg', alt: 'Illustration of the Projects interface' },
+    demoImage: { src: '/demo/projects.svg', alt: 'Illustration of the Projects pipeline: type a goal, plan with a price tag, tasks on your calendar' },
   },
   content: {
     eyebrow: 'Content — day to script',
@@ -456,7 +459,7 @@ const SUMMARY_BY_ID: Record<string, {
       'Inputs feed the map.',
       'Answer the day. Keep the record.',
     ],
-    demoImage: { src: '/demo/content.svg', alt: 'Illustration of the Content interface' },
+    demoImage: { src: '/demo/content.svg', alt: 'Illustration of the Content pipeline: what you did, scenes, script' },
   },
 };
 
@@ -1116,7 +1119,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">
               04 / INSIDE THE APP
             </p>
-            <p className="font-mono text-[10px] tracking-wider text-text-faint">REAL SCREENS — NOT RENDERS</p>
+            {/* LANDING-04-ILLOS: the old right slot read "REAL SCREENS — NOT
+                RENDERS", which was FALSE for eight of the nine frames (they
+                carried code-drawn illustrations) and for the ninth once its
+                stale pre-repaint capture retired. The line now says what the
+                frames actually are. (Ratify row — Alex judges on Preview.) */}
+            <p className="font-mono text-[10px] tracking-wider text-text-faint">ILLUSTRATED PIPELINES — NOT SCREENSHOTS</p>
           </div>
           {/* LANDING-V3 (spec :284): the section h2, spec wording verbatim. */}
           <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">

@@ -1,73 +1,41 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
-  <!-- PR-DEMO-1: code-drawn illustration of the live Compliance workbench.
-       Sources: the eight citation-check names (Existence / Currency /
-       Groundedness / Jurisdiction / Pinpoint / Source authority /
-       Supersession / Content hash) + the two method strings ('HEAD/GET to
-       canonical URL', 'SHA-256 chunk text vs recorded hash') =
-       SectionG_CitationVerification.tsx verbatim; AUDIT TAIL =
-       SectionI_AuditTail.tsx. Hash fragments are innocuous samples.
-       Palette = ds.ts dark vocabulary literals. -->
-  <defs>
-    <radialGradient id="glowA" cx="80%" cy="0%" r="90%">
-      <stop offset="0%" stop-color="#3b2d6b" stop-opacity="0.85"/>
-      <stop offset="70%" stop-color="#3b2d6b" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="glowB" cx="10%" cy="100%" r="80%">
-      <stop offset="0%" stop-color="#2d1b4e" stop-opacity="0.7"/>
-      <stop offset="65%" stop-color="#2d1b4e" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <rect width="1200" height="800" rx="16" fill="#0d1117"/>
-  <rect width="1200" height="800" rx="16" fill="url(#glowA)"/>
-  <rect width="1200" height="800" rx="16" fill="url(#glowB)"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+  <!-- LANDING-04-ILLOS: the Compliance pipeline, as it actually runs.
+       Stages read from the audit-tail section
+       (workbench/SectionI_AuditTail.tsx:5-7 'computes the hash chain
+       locally and reports any mismatch'; the prev_hash / content_hash
+       row shape :23-24, :167-168; GET /api/audit-log and
+       POST /api/audit-log/verify-chain :59, :81). -->
+  <!-- Canvas: --ts-bg cream. Cards: --ts-white on --ts-border hairline.
+       Active step: --ts-purple fill, --ts-white ink. Accent: --ts-gold.
+       Text ladder: --ts-text #1a1a2e / --ts-text-secondary #4a4a5a /
+       --ts-text-muted #7a7488 / --ts-text-faint #a8a2b0. -->
+  <rect width="1200" height="750" fill="#FAF8F3"/>
+  <text x="60" y="76" font-size="20" font-weight="600" letter-spacing="6" fill="#7a7488">COMPLIANCE</text>
 
-  <text x="48" y="72" font-family="ui-monospace, Menlo, monospace" font-size="15" letter-spacing="3" fill="#ffffff" opacity="0.5">CITATION VERIFICATION</text>
+  <!-- 01 EVERY -->
+  <rect x="60" y="150" width="304" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text x="88" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">01</text>
+  <text x="88" y="330" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">EVERY</text>
+  <text x="88" y="374" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">ACTION</text>
+  <rect x="88" y="442" width="133" height="40" rx="8" fill="#F3EFE6"/>
+  <text x="103" y="468" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">AUDIT LOG</text>
+  <line x1="380" y1="385" x2="426" y2="385" stroke="#a8a2b0" stroke-width="3"/>
+  <path d="M 426 374 L 442 385 L 426 396 Z" fill="#a8a2b0"/>
 
-  <!-- Left: the eight real checks -->
-  <rect x="48" y="100" width="530" height="652" rx="12" fill="#161b22" stroke="#30363d"/>
-  <g font-size="17">
-    <path d="M 84 148 l 6 7 l 12 -13" stroke="#16a34a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-    <text x="120" y="154" fill="#ffffff" opacity="0.9">Existence</text>
-    <path d="M 84 222 l 6 7 l 12 -13" stroke="#16a34a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-    <text x="120" y="228" fill="#ffffff" opacity="0.9">Currency</text>
-    <path d="M 84 296 l 6 7 l 12 -13" stroke="#16a34a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-    <text x="120" y="302" fill="#ffffff" opacity="0.9">Groundedness</text>
-    <path d="M 84 370 l 6 7 l 12 -13" stroke="#16a34a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-    <text x="120" y="376" fill="#ffffff" opacity="0.9">Jurisdiction</text>
-    <path d="M 84 444 l 6 7 l 12 -13" stroke="#16a34a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-    <text x="120" y="450" fill="#ffffff" opacity="0.9">Pinpoint</text>
-    <path d="M 84 518 l 6 7 l 12 -13" stroke="#16a34a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-    <text x="120" y="524" fill="#ffffff" opacity="0.9">Source authority</text>
-    <path d="M 84 592 l 6 7 l 12 -13" stroke="#16a34a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-    <text x="120" y="598" fill="#ffffff" opacity="0.9">Supersession</text>
-    <path d="M 84 666 l 6 7 l 12 -13" stroke="#16a34a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-    <text x="120" y="672" fill="#ffffff" opacity="0.9">Content hash</text>
-  </g>
-  <g font-family="ui-monospace, Menlo, monospace" font-size="12" fill="#ffffff" opacity="0.4">
-    <text x="120" y="178">HEAD/GET to canonical URL</text>
-    <text x="120" y="696">SHA-256 chunk text vs recorded hash</text>
-  </g>
+  <!-- 02 HASHED -->
+  <rect x="448" y="150" width="304" height="470" rx="14" fill="#3b2d6b"/>
+  <text x="476" y="202" font-size="16" letter-spacing="4" fill="#FFFDF9" opacity="0.6">02</text>
+  <text x="476" y="337" font-size="34" font-weight="700" letter-spacing="1" fill="#FFFDF9">HASHED</text>
+  <text x="476" y="385" font-size="15" letter-spacing="3" fill="#FFFDF9" opacity="0.75">&#9679; YOU ARE HERE</text>
+  <rect x="476" y="435" width="156" height="40" rx="8" fill="#ffffff"/>
+  <text x="491" y="461" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#3b2d6b">PREV + THIS</text>
+  <line x1="768" y1="385" x2="814" y2="385" stroke="#a8a2b0" stroke-width="3"/>
+  <path d="M 814 374 L 830 385 L 814 396 Z" fill="#a8a2b0"/>
 
-  <!-- Right: the tamper-evident audit tail (hash chain) -->
-  <rect x="602" y="100" width="550" height="652" rx="12" fill="#161b22" stroke="#30363d"/>
-  <text x="634" y="156" font-family="ui-monospace, Menlo, monospace" font-size="13" letter-spacing="2" fill="#ffffff" opacity="0.5">AUDIT TAIL</text>
-
-  <rect x="634" y="192" width="486" height="96" rx="8" fill="#0d1117" stroke="#30363d"/>
-  <text x="662" y="230" font-family="ui-monospace, Menlo, monospace" font-size="14" fill="#ffffff" opacity="0.7">sha256: a3f1…</text>
-  <rect x="662" y="248" width="380" height="12" rx="6" fill="#ffffff" opacity="0.08"/>
-  <line x1="877" y1="288" x2="877" y2="320" stroke="#4e3e85" stroke-width="2"/>
-
-  <rect x="634" y="320" width="486" height="96" rx="8" fill="#0d1117" stroke="#30363d"/>
-  <text x="662" y="358" font-family="ui-monospace, Menlo, monospace" font-size="14" fill="#ffffff" opacity="0.7">sha256: 9c40…</text>
-  <rect x="662" y="376" width="330" height="12" rx="6" fill="#ffffff" opacity="0.08"/>
-  <line x1="877" y1="416" x2="877" y2="448" stroke="#4e3e85" stroke-width="2"/>
-
-  <rect x="634" y="448" width="486" height="96" rx="8" fill="#0d1117" stroke="#30363d"/>
-  <text x="662" y="486" font-family="ui-monospace, Menlo, monospace" font-size="14" fill="#ffffff" opacity="0.7">sha256: e72b…</text>
-  <rect x="662" y="504" width="410" height="12" rx="6" fill="#ffffff" opacity="0.08"/>
-
-  <rect x="634" y="592" width="486" height="120" rx="8" fill="#0d1117" stroke="#30363d"/>
-  <rect x="662" y="624" width="340" height="12" rx="6" fill="#ffffff" opacity="0.08"/>
-  <rect x="662" y="652" width="260" height="12" rx="6" fill="#ffffff" opacity="0.08"/>
-  <rect x="662" y="680" width="300" height="12" rx="6" fill="#ffffff" opacity="0.08"/>
+  <!-- 03 AUDIT TRAIL -->
+  <rect x="836" y="150" width="304" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text x="864" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">03</text>
+  <text x="864" y="352" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">AUDIT TRAIL</text>
+  <rect x="864" y="420" width="156" height="40" rx="8" fill="#16a34a"/>
+  <text x="879" y="446" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#FFFDF9">CHAIN VALID</text>
 </svg>

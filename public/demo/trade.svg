@@ -1,75 +1,50 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
-  <!-- PR-DEMO-1: code-drawn illustration of the live Trade scanner.
-       Sources: table headers Score/Strategy/Est. PoP = ScannerResultsTable.tsx
-       :581-588 (DTE from its SortKey :153); metric labels Convergence score /
-       IV Rank / VRP (IV minus HV) / Max loss = metricExplainers.ts titles;
-       "Iron Condor" = verified house strategy vocabulary (convergence
-       components, 19 occurrences). Values neutral/innocuous; dollar cells are
-       dashes (no invented performance numbers). SPY = a real public index ETF
-       symbol. Palette = ds.ts dark vocabulary literals. -->
-  <defs>
-    <radialGradient id="glowA" cx="80%" cy="0%" r="90%">
-      <stop offset="0%" stop-color="#3b2d6b" stop-opacity="0.85"/>
-      <stop offset="70%" stop-color="#3b2d6b" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="glowB" cx="10%" cy="100%" r="80%">
-      <stop offset="0%" stop-color="#2d1b4e" stop-opacity="0.7"/>
-      <stop offset="65%" stop-color="#2d1b4e" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <rect width="1200" height="800" rx="16" fill="#0d1117"/>
-  <rect width="1200" height="800" rx="16" fill="url(#glowA)"/>
-  <rect width="1200" height="800" rx="16" fill="url(#glowB)"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+  <!-- LANDING-04-ILLOS: the Trade pipeline, as it actually runs.
+       Stages read from the Trade StageStrip phase config
+       (ModuleLauncher.tsx: 01 SETUP 'UNIVERSE + FILTERS' ->
+       02 SCAN 'RUN THE PIPELINE' -> 03 REVIEW 'PICK CANDIDATES'),
+       the TRADE/SKIP verdict rows (ScannerResultsTable.tsx verdict +
+       stored RejectionReason), and the strip's COMMIT link chip
+       ('IN BOOKS ->', selectTab('books')). -->
+  <!-- Canvas: --ts-bg cream. Cards: --ts-white on --ts-border hairline.
+       Active step: --ts-purple fill, --ts-white ink. Accent: --ts-gold.
+       Text ladder: --ts-text #1a1a2e / --ts-text-secondary #4a4a5a /
+       --ts-text-muted #7a7488 / --ts-text-faint #a8a2b0. -->
+  <rect width="1200" height="750" fill="#FAF8F3"/>
+  <text x="60" y="76" font-size="20" font-weight="600" letter-spacing="6" fill="#7a7488">TRADE</text>
 
-  <text x="48" y="72" font-family="ui-monospace, Menlo, monospace" font-size="15" letter-spacing="3" fill="#ffffff" opacity="0.5">SCANNER</text>
+  <!-- 01 FILTERS -->
+  <rect x="60" y="150" width="237" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text x="88" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">01</text>
+  <text x="88" y="355" font-size="28" font-weight="700" letter-spacing="1" fill="#1a1a2e">FILTERS</text>
+  <rect x="88" y="417" width="156" height="40" rx="8" fill="#F3EFE6"/>
+  <text x="103" y="443" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">18 CONTROLS</text>
+  <path d="M 320 374 L 335 385 L 320 396 Z" fill="#a8a2b0"/>
 
-  <!-- One strategy card -->
-  <rect x="48" y="100" width="1104" height="300" rx="12" fill="#161b22" stroke="#30363d"/>
-  <text x="80" y="164" font-size="30" font-weight="300" fill="#ffffff">SPY</text>
-  <rect x="160" y="138" width="130" height="32" rx="16" fill="#3b2d6b" opacity="0.5"/>
-  <text x="225" y="159" text-anchor="middle" font-size="14" fill="#ffffff" opacity="0.9">Iron Condor</text>
+  <!-- 02 SCAN -->
+  <rect x="341" y="150" width="237" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text x="369" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">02</text>
+  <text x="369" y="355" font-size="28" font-weight="700" letter-spacing="1" fill="#1a1a2e">SCAN</text>
+  <rect x="369" y="417" width="156" height="40" rx="8" fill="#F3EFE6"/>
+  <text x="384" y="443" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">LIVE PRICES</text>
+  <path d="M 601 374 L 616 385 L 601 396 Z" fill="#a8a2b0"/>
 
-  <g font-family="ui-monospace, Menlo, monospace">
-    <text x="80" y="230" font-size="12" letter-spacing="1.5" fill="#ffffff" opacity="0.5">CONVERGENCE SCORE</text>
-    <text x="80" y="262" font-size="24" fill="#ffffff">0.72</text>
-    <text x="360" y="230" font-size="12" letter-spacing="1.5" fill="#ffffff" opacity="0.5">IV RANK</text>
-    <text x="360" y="262" font-size="24" fill="#ffffff">54</text>
-    <text x="560" y="230" font-size="12" letter-spacing="1.5" fill="#ffffff" opacity="0.5">EST. POP</text>
-    <text x="560" y="262" font-size="24" fill="#16a34a">68%</text>
-    <text x="760" y="230" font-size="12" letter-spacing="1.5" fill="#ffffff" opacity="0.5">VRP (IV MINUS HV)</text>
-    <text x="760" y="262" font-size="24" fill="#ffffff">+3.1</text>
-    <text x="1000" y="230" font-size="12" letter-spacing="1.5" fill="#ffffff" opacity="0.5">DTE</text>
-    <text x="1000" y="262" font-size="24" fill="#ffffff">45</text>
+  <!-- 03 VERDICTS -->
+  <rect x="622" y="150" width="237" height="470" rx="14" fill="#3b2d6b"/>
+  <text x="650" y="202" font-size="16" letter-spacing="4" fill="#FFFDF9" opacity="0.6">03</text>
+  <text x="650" y="340" font-size="28" font-weight="700" letter-spacing="1" fill="#FFFDF9">VERDICTS</text>
+  <text x="650" y="382" font-size="15" letter-spacing="3" fill="#FFFDF9" opacity="0.75">&#9679; YOU ARE HERE</text>
+  <rect x="650" y="432" width="87" height="40" rx="8" fill="#16a34a"/>
+  <text x="665" y="458" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#FFFDF9">TRADE</text>
+  <rect x="749" y="432" width="76" height="40" rx="8" fill="#c53030"/>
+  <text x="764" y="458" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#FFFDF9">SKIP</text>
+  <path d="M 882 374 L 897 385 L 882 396 Z" fill="#a8a2b0"/>
 
-    <text x="80" y="322" font-size="12" letter-spacing="1.5" fill="#ffffff" opacity="0.5">MAX PROFIT</text>
-    <text x="80" y="354" font-size="24" fill="#ffffff" opacity="0.4">—</text>
-    <text x="360" y="322" font-size="12" letter-spacing="1.5" fill="#ffffff" opacity="0.5">MAX LOSS</text>
-    <text x="360" y="354" font-size="24" fill="#ffffff" opacity="0.4">—</text>
-    <text x="560" y="322" font-size="12" letter-spacing="1.5" fill="#ffffff" opacity="0.5">EXPECTED VALUE (EV)</text>
-    <text x="560" y="354" font-size="24" fill="#ffffff" opacity="0.4">—</text>
-  </g>
-
-  <!-- Results table hint (real headers; ghost rows, no values) -->
-  <rect x="48" y="432" width="1104" height="320" rx="12" fill="#161b22" stroke="#30363d"/>
-  <g font-family="ui-monospace, Menlo, monospace" font-size="13" letter-spacing="1.5" fill="#ffffff" opacity="0.5">
-    <text x="80" y="486">SYMBOL</text>
-    <text x="320" y="486">SCORE</text>
-    <text x="540" y="486">STRATEGY</text>
-    <text x="880" y="486">EST. POP</text>
-  </g>
-  <line x1="80" y1="506" x2="1120" y2="506" stroke="#30363d"/>
-  <rect x="80" y="540" width="90" height="14" rx="7" fill="#ffffff" opacity="0.12"/>
-  <rect x="320" y="540" width="70" height="14" rx="7" fill="#ffffff" opacity="0.12"/>
-  <rect x="540" y="540" width="220" height="14" rx="7" fill="#ffffff" opacity="0.12"/>
-  <rect x="880" y="540" width="70" height="14" rx="7" fill="#ffffff" opacity="0.12"/>
-  <line x1="80" y1="580" x2="1120" y2="580" stroke="#30363d"/>
-  <rect x="80" y="614" width="90" height="14" rx="7" fill="#ffffff" opacity="0.12"/>
-  <rect x="320" y="614" width="70" height="14" rx="7" fill="#ffffff" opacity="0.12"/>
-  <rect x="540" y="614" width="180" height="14" rx="7" fill="#ffffff" opacity="0.12"/>
-  <rect x="880" y="614" width="70" height="14" rx="7" fill="#ffffff" opacity="0.12"/>
-  <line x1="80" y1="654" x2="1120" y2="654" stroke="#30363d"/>
-  <rect x="80" y="688" width="90" height="14" rx="7" fill="#ffffff" opacity="0.12"/>
-  <rect x="320" y="688" width="70" height="14" rx="7" fill="#ffffff" opacity="0.12"/>
-  <rect x="540" y="688" width="240" height="14" rx="7" fill="#ffffff" opacity="0.12"/>
-  <rect x="880" y="688" width="70" height="14" rx="7" fill="#ffffff" opacity="0.12"/>
+  <!-- 04 IN YOUR -->
+  <rect x="903" y="150" width="237" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text x="931" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">04</text>
+  <text x="931" y="336" font-size="28" font-weight="700" letter-spacing="1" fill="#1a1a2e">IN YOUR</text>
+  <text x="931" y="374" font-size="28" font-weight="700" letter-spacing="1" fill="#1a1a2e">BOOKS</text>
+  <rect x="931" y="436" width="99" height="40" rx="8" fill="#F3EFE6"/>
+  <text x="946" y="462" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">COMMIT</text>
 </svg>

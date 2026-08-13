@@ -1,74 +1,49 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
-  <!-- PR-DEMO-1: code-drawn illustration of the live Books review queue.
-       Sources: column headers Date/Merchant/Amount/Predicted Category/
-       Confidence/Assign Category = ReviewQueueTab.tsx:170-175; "N transactions
-       pending review" = :139; "Commit Selected (N)" = :154. Merchants +
-       amounts are innocuous samples (unavoidable table content); category
-       chips use generic COA words. Palette = ds.ts dark vocabulary literals. -->
-  <defs>
-    <radialGradient id="glowA" cx="80%" cy="0%" r="90%">
-      <stop offset="0%" stop-color="#3b2d6b" stop-opacity="0.85"/>
-      <stop offset="70%" stop-color="#3b2d6b" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="glowB" cx="10%" cy="100%" r="80%">
-      <stop offset="0%" stop-color="#2d1b4e" stop-opacity="0.7"/>
-      <stop offset="65%" stop-color="#2d1b4e" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <rect width="1200" height="800" rx="16" fill="#0d1117"/>
-  <rect width="1200" height="800" rx="16" fill="url(#glowA)"/>
-  <rect width="1200" height="800" rx="16" fill="url(#glowB)"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+  <!-- LANDING-04-ILLOS: the Books pipeline, as it actually runs.
+       Stages read from the Books StageStrip phase config
+       (BooksPipeline.tsx: Feed / Code / Reconcile / Close / Reports /
+       Export, and its stage map comment): Feed = SRC bank sync,
+       Code = CAT -> JE -> LDG (double-entry), Reports = TB -> STMT.
+       Trial-balance truth = /api/trial-balance totals
+       (isBalanced / hasActivity). -->
+  <!-- Canvas: --ts-bg cream. Cards: --ts-white on --ts-border hairline.
+       Active step: --ts-purple fill, --ts-white ink. Accent: --ts-gold.
+       Text ladder: --ts-text #1a1a2e / --ts-text-secondary #4a4a5a /
+       --ts-text-muted #7a7488 / --ts-text-faint #a8a2b0. -->
+  <rect width="1200" height="750" fill="#FAF8F3"/>
+  <text x="60" y="76" font-size="20" font-weight="600" letter-spacing="6" fill="#7a7488">BOOKS</text>
 
-  <text x="48" y="72" font-family="ui-monospace, Menlo, monospace" font-size="15" letter-spacing="3" fill="#ffffff" opacity="0.5">REVIEW QUEUE</text>
-  <text x="48" y="112" font-size="17" fill="#ffffff" opacity="0.6">3 transactions pending review</text>
-  <rect x="944" y="84" width="208" height="40" rx="4" fill="#ffffff"/>
-  <text x="1048" y="109" text-anchor="middle" font-size="15" font-weight="600" fill="#3b2d6b">Commit Selected (3)</text>
+  <!-- 01 BANK -->
+  <rect x="60" y="150" width="237" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text x="88" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">01</text>
+  <text x="88" y="336" font-size="28" font-weight="700" letter-spacing="1" fill="#1a1a2e">BANK</text>
+  <text x="88" y="374" font-size="28" font-weight="700" letter-spacing="1" fill="#1a1a2e">SYNC</text>
+  <rect x="88" y="436" width="87" height="40" rx="8" fill="#F3EFE6"/>
+  <text x="103" y="462" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">PLAID</text>
+  <path d="M 320 374 L 335 385 L 320 396 Z" fill="#a8a2b0"/>
 
-  <rect x="48" y="152" width="1104" height="600" rx="12" fill="#161b22" stroke="#30363d"/>
-  <g font-family="ui-monospace, Menlo, monospace" font-size="13" letter-spacing="1.5" fill="#ffffff" opacity="0.5">
-    <text x="96" y="204">DATE</text>
-    <text x="212" y="204">MERCHANT</text>
-    <text x="560" y="204" text-anchor="end">AMOUNT</text>
-    <text x="608" y="204">PREDICTED CATEGORY</text>
-    <text x="856" y="204">CONFIDENCE</text>
-    <text x="992" y="204">ASSIGN CATEGORY</text>
-  </g>
-  <line x1="80" y1="224" x2="1120" y2="224" stroke="#30363d"/>
+  <!-- 02 CATEGORIZE -->
+  <rect x="341" y="150" width="237" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text x="369" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">02</text>
+  <text x="369" y="342" font-size="28" font-weight="700" letter-spacing="1" fill="#1a1a2e">CATEGORIZE</text>
+  <text x="369" y="438" font-size="46" font-weight="700" fill="#B8860B">128</text>
+  <text x="369" y="470" font-size="15" letter-spacing="2" fill="#7a7488">TO CODE</text>
+  <path d="M 601 374 L 616 385 L 601 396 Z" fill="#a8a2b0"/>
 
-  <rect x="80" y="264" width="14" height="14" rx="3" fill="none" stroke="#ffffff" stroke-opacity="0.4"/>
-  <text x="96" y="300" font-size="15" fill="#ffffff" opacity="0.6">Jul 14</text>
-  <text x="212" y="300" font-size="17" fill="#ffffff" opacity="0.9">Coffee shop</text>
-  <text x="560" y="300" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="17" fill="#ffffff">$4.85</text>
-  <rect x="608" y="278" width="84" height="30" rx="15" fill="#3b2d6b" opacity="0.5"/>
-  <text x="650" y="298" text-anchor="middle" font-size="14" fill="#ffffff" opacity="0.9">Meals</text>
-  <text x="856" y="300" font-family="ui-monospace, Menlo, monospace" font-size="15" fill="#16a34a">92%</text>
-  <rect x="992" y="276" width="128" height="34" rx="4" fill="#0d1117" stroke="#30363d"/>
-  <text x="1008" y="298" font-size="13" fill="#ffffff" opacity="0.5">Select ▾</text>
-  <line x1="80" y1="340" x2="1120" y2="340" stroke="#30363d"/>
+  <!-- 03 DOUBLE -->
+  <rect x="622" y="150" width="237" height="470" rx="14" fill="#3b2d6b"/>
+  <text x="650" y="202" font-size="16" letter-spacing="4" fill="#FFFDF9" opacity="0.6">03</text>
+  <text x="650" y="321" font-size="28" font-weight="700" letter-spacing="1" fill="#FFFDF9">DOUBLE</text>
+  <text x="650" y="359" font-size="28" font-weight="700" letter-spacing="1" fill="#FFFDF9">ENTRY</text>
+  <text x="650" y="401" font-size="15" letter-spacing="3" fill="#FFFDF9" opacity="0.75">&#9679; YOU ARE HERE</text>
+  <rect x="650" y="451" width="213" height="40" rx="8" fill="#ffffff"/>
+  <text x="665" y="477" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#3b2d6b">DEBITS = CREDITS</text>
+  <path d="M 882 374 L 897 385 L 882 396 Z" fill="#a8a2b0"/>
 
-  <rect x="80" y="380" width="14" height="14" rx="3" fill="none" stroke="#ffffff" stroke-opacity="0.4"/>
-  <text x="96" y="416" font-size="15" fill="#ffffff" opacity="0.6">Jul 15</text>
-  <text x="212" y="416" font-size="17" fill="#ffffff" opacity="0.9">Office supplies</text>
-  <text x="560" y="416" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="17" fill="#ffffff">$23.10</text>
-  <rect x="608" y="394" width="106" height="30" rx="15" fill="#3b2d6b" opacity="0.5"/>
-  <text x="661" y="414" text-anchor="middle" font-size="14" fill="#ffffff" opacity="0.9">Supplies</text>
-  <text x="856" y="416" font-family="ui-monospace, Menlo, monospace" font-size="15" fill="#16a34a">88%</text>
-  <rect x="992" y="392" width="128" height="34" rx="4" fill="#0d1117" stroke="#30363d"/>
-  <text x="1008" y="414" font-size="13" fill="#ffffff" opacity="0.5">Select ▾</text>
-  <line x1="80" y1="456" x2="1120" y2="456" stroke="#30363d"/>
-
-  <rect x="80" y="496" width="14" height="14" rx="3" fill="none" stroke="#ffffff" stroke-opacity="0.4"/>
-  <text x="96" y="532" font-size="15" fill="#ffffff" opacity="0.6">Jul 15</text>
-  <text x="212" y="532" font-size="17" fill="#ffffff" opacity="0.9">Rideshare</text>
-  <text x="560" y="532" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="17" fill="#ffffff">$12.40</text>
-  <rect x="608" y="510" width="84" height="30" rx="15" fill="#3b2d6b" opacity="0.5"/>
-  <text x="650" y="530" text-anchor="middle" font-size="14" fill="#ffffff" opacity="0.9">Travel</text>
-  <text x="856" y="532" font-family="ui-monospace, Menlo, monospace" font-size="15" fill="#d97706">75%</text>
-  <rect x="992" y="508" width="128" height="34" rx="4" fill="#0d1117" stroke="#30363d"/>
-  <text x="1008" y="530" font-size="13" fill="#ffffff" opacity="0.5">Select ▾</text>
-  <line x1="80" y1="572" x2="1120" y2="572" stroke="#30363d"/>
-
-  <rect x="96" y="612" width="280" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
-  <rect x="96" y="644" width="420" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
-  <rect x="96" y="676" width="340" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
+  <!-- 04 REPORTS -->
+  <rect x="903" y="150" width="237" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text x="931" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">04</text>
+  <text x="931" y="355" font-size="28" font-weight="700" letter-spacing="1" fill="#1a1a2e">REPORTS</text>
+  <rect x="931" y="417" width="178" height="40" rx="8" fill="#F3EFE6"/>
+  <text x="946" y="443" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">TRIAL BALANCE</text>
 </svg>

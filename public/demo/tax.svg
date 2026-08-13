@@ -1,70 +1,48 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
-  <!-- PR-DEMO-1: code-drawn illustration of the live Tax filing wizard.
-       Sources: the seven step labels (Life events / Documents / Income /
-       Deductions / Trading / Review / File) = TaxFilingWizard.tsx:62-104
-       verbatim; Schedule C / Schedule D / Form 8949 strings = tax-filing
-       components (grep-verified); Wash sales = WashSaleReport.tsx. No
-       invented amounts — value cells are dashes. Palette = ds.ts dark
-       vocabulary literals. -->
-  <defs>
-    <radialGradient id="glowA" cx="80%" cy="0%" r="90%">
-      <stop offset="0%" stop-color="#3b2d6b" stop-opacity="0.85"/>
-      <stop offset="70%" stop-color="#3b2d6b" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="glowB" cx="10%" cy="100%" r="80%">
-      <stop offset="0%" stop-color="#2d1b4e" stop-opacity="0.7"/>
-      <stop offset="65%" stop-color="#2d1b4e" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <rect width="1200" height="800" rx="16" fill="#0d1117"/>
-  <rect width="1200" height="800" rx="16" fill="url(#glowA)"/>
-  <rect width="1200" height="800" rx="16" fill="url(#glowB)"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+  <!-- LANDING-04-ILLOS: the Tax pipeline, as it actually runs.
+       Stages read from: the closed-books handoff gate
+       (home/TaxHandoffGate.tsx - the wizard opens once a period is
+       closed) and the wizard's own STEPS list
+       (tax-filing/TaxFilingWizard.tsx:58-105 - Life events, Documents,
+       Income, Deductions, Trading, Review, File = 7 steps). -->
+  <!-- Canvas: --ts-bg cream. Cards: --ts-white on --ts-border hairline.
+       Active step: --ts-purple fill, --ts-white ink. Accent: --ts-gold.
+       Text ladder: --ts-text #1a1a2e / --ts-text-secondary #4a4a5a /
+       --ts-text-muted #7a7488 / --ts-text-faint #a8a2b0. -->
+  <rect width="1200" height="750" fill="#FAF8F3"/>
+  <text x="60" y="76" font-size="20" font-weight="600" letter-spacing="6" fill="#7a7488">TAX</text>
 
-  <text x="48" y="72" font-family="ui-monospace, Menlo, monospace" font-size="15" letter-spacing="3" fill="#ffffff" opacity="0.5">TAX FILING</text>
+  <!-- 01 CLOSED -->
+  <rect x="60" y="150" width="237" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text x="88" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">01</text>
+  <text x="88" y="336" font-size="28" font-weight="700" letter-spacing="1" fill="#1a1a2e">CLOSED</text>
+  <text x="88" y="374" font-size="28" font-weight="700" letter-spacing="1" fill="#1a1a2e">BOOKS</text>
+  <rect x="88" y="436" width="178" height="40" rx="8" fill="#F3EFE6"/>
+  <text x="103" y="462" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">PERIOD CLOSED</text>
+  <path d="M 320 374 L 335 385 L 320 396 Z" fill="#a8a2b0"/>
 
-  <!-- The wizard step rail (TaxFilingWizard.tsx steps, verbatim, in order) -->
-  <g font-size="15">
-    <line x1="80" y1="132" x2="1120" y2="132" stroke="#30363d" stroke-width="2"/>
-    <circle cx="90" cy="132" r="12" fill="#16a34a"/>
-    <text x="90" y="170" text-anchor="middle" fill="#ffffff" opacity="0.6">Life events</text>
-    <circle cx="252" cy="132" r="12" fill="#16a34a"/>
-    <text x="252" y="170" text-anchor="middle" fill="#ffffff" opacity="0.6">Documents</text>
-    <circle cx="414" cy="132" r="12" fill="#16a34a"/>
-    <text x="414" y="170" text-anchor="middle" fill="#ffffff" opacity="0.6">Income</text>
-    <circle cx="576" cy="132" r="14" fill="#ffffff"/>
-    <text x="576" y="170" text-anchor="middle" fill="#ffffff" font-weight="600">Deductions</text>
-    <circle cx="738" cy="132" r="12" fill="none" stroke="#ffffff" stroke-opacity="0.3" stroke-width="2"/>
-    <text x="738" y="170" text-anchor="middle" fill="#ffffff" opacity="0.5">Trading</text>
-    <circle cx="900" cy="132" r="12" fill="none" stroke="#ffffff" stroke-opacity="0.3" stroke-width="2"/>
-    <text x="900" y="170" text-anchor="middle" fill="#ffffff" opacity="0.5">Review</text>
-    <circle cx="1062" cy="132" r="12" fill="none" stroke="#ffffff" stroke-opacity="0.3" stroke-width="2"/>
-    <text x="1062" y="170" text-anchor="middle" fill="#ffffff" opacity="0.5">File</text>
-  </g>
+  <!-- 02 FORMS -->
+  <rect x="341" y="150" width="237" height="470" rx="14" fill="#3b2d6b"/>
+  <text x="369" y="202" font-size="16" letter-spacing="4" fill="#FFFDF9" opacity="0.6">02</text>
+  <text x="369" y="321" font-size="28" font-weight="700" letter-spacing="1" fill="#FFFDF9">FORMS</text>
+  <text x="369" y="359" font-size="28" font-weight="700" letter-spacing="1" fill="#FFFDF9">BUILD</text>
+  <text x="369" y="401" font-size="15" letter-spacing="3" fill="#FFFDF9" opacity="0.75">&#9679; YOU ARE HERE</text>
+  <rect x="369" y="451" width="190" height="40" rx="8" fill="#ffffff"/>
+  <text x="384" y="477" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#3b2d6b">1040 + SCH C/D</text>
+  <path d="M 601 374 L 616 385 L 601 396 Z" fill="#a8a2b0"/>
 
-  <!-- Derived schedules (real form names; dash values, no invented numbers) -->
-  <rect x="48" y="220" width="1104" height="360" rx="12" fill="#161b22" stroke="#30363d"/>
-  <text x="80" y="276" font-size="20" font-weight="300" fill="#ffffff" opacity="0.95">1040 complete return review</text>
-  <line x1="80" y1="304" x2="1120" y2="304" stroke="#30363d"/>
+  <!-- 03 REVIEW -->
+  <rect x="622" y="150" width="237" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text x="650" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">03</text>
+  <text x="650" y="342" font-size="28" font-weight="700" letter-spacing="1" fill="#1a1a2e">REVIEW</text>
+  <text x="650" y="438" font-size="46" font-weight="700" fill="#B8860B">7</text>
+  <text x="650" y="470" font-size="15" letter-spacing="2" fill="#7a7488">WIZARD STEPS</text>
+  <path d="M 882 374 L 897 385 L 882 396 Z" fill="#a8a2b0"/>
 
-  <text x="80" y="356" font-size="17" fill="#ffffff" opacity="0.9">Schedule C</text>
-  <rect x="380" y="342" width="480" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
-  <text x="1120" y="356" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="17" fill="#ffffff" opacity="0.4">—</text>
-  <line x1="80" y1="384" x2="1120" y2="384" stroke="#30363d"/>
-
-  <text x="80" y="436" font-size="17" fill="#ffffff" opacity="0.9">Schedule D</text>
-  <rect x="380" y="422" width="420" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
-  <text x="1120" y="436" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="17" fill="#ffffff" opacity="0.4">—</text>
-  <line x1="80" y1="464" x2="1120" y2="464" stroke="#30363d"/>
-
-  <text x="80" y="516" font-size="17" fill="#ffffff" opacity="0.9">Form 8949</text>
-  <rect x="380" y="502" width="360" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
-  <text x="1120" y="516" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="17" fill="#ffffff" opacity="0.4">—</text>
-
-  <!-- Wash sales band (WashSaleReport) -->
-  <rect x="48" y="612" width="1104" height="140" rx="12" fill="#161b22" stroke="#30363d"/>
-  <text x="80" y="668" font-family="ui-monospace, Menlo, monospace" font-size="13" letter-spacing="2" fill="#ffffff" opacity="0.5">WASH SALES</text>
-  <rect x="80" y="692" width="520" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
-  <rect x="80" y="720" width="380" height="14" rx="7" fill="#ffffff" opacity="0.08"/>
-  <rect x="980" y="684" width="140" height="40" rx="4" fill="#ffffff"/>
-  <text x="1050" y="709" text-anchor="middle" font-size="14" font-weight="600" fill="#3b2d6b">CPA export</text>
+  <!-- 04 FILE -->
+  <rect x="903" y="150" width="237" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text x="931" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">04</text>
+  <text x="931" y="355" font-size="28" font-weight="700" letter-spacing="1" fill="#1a1a2e">FILE</text>
+  <rect x="931" y="417" width="133" height="40" rx="8" fill="#F3EFE6"/>
+  <text x="946" y="443" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">FORM 8949</text>
 </svg>

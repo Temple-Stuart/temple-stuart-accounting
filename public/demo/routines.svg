@@ -1,68 +1,43 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
-  <!-- PR-DEMO-1: code-drawn illustration of the live Routines builder.
-       Sources: field labels (name / description (optional) / entity /
-       start time (optional)) + placeholder "e.g., Morning reflection" =
-       RoutineCreateForm.tsx:110-216 verbatim; TODAY status words
-       pending/completed/missed/upcoming = TodaysStrip.tsx:58-63 (their pill
-       color families: green/amber/red per the component; upcoming rendered
-       neutral). Palette = ds.ts dark vocabulary literals. -->
-  <defs>
-    <radialGradient id="glowA" cx="80%" cy="0%" r="90%">
-      <stop offset="0%" stop-color="#3b2d6b" stop-opacity="0.85"/>
-      <stop offset="70%" stop-color="#3b2d6b" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="glowB" cx="10%" cy="100%" r="80%">
-      <stop offset="0%" stop-color="#2d1b4e" stop-opacity="0.7"/>
-      <stop offset="65%" stop-color="#2d1b4e" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <rect width="1200" height="800" rx="16" fill="#0d1117"/>
-  <rect width="1200" height="800" rx="16" fill="url(#glowA)"/>
-  <rect width="1200" height="800" rx="16" fill="url(#glowB)"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+  <!-- LANDING-04-ILLOS: the Routines pipeline, as it actually runs.
+       Stages read from: the routine's cadence grouping
+       (RoutineList.tsx:2-7, classifyCadence(schedule_rrule)) and the
+       create form's budget fields that make it planned spend
+       (home/RoutineCreateForm.tsx:120 budget_amount, :129 coa_code,
+       rendered as '$amount - coa' :258). -->
+  <!-- Canvas: --ts-bg cream. Cards: --ts-white on --ts-border hairline.
+       Active step: --ts-purple fill, --ts-white ink. Accent: --ts-gold.
+       Text ladder: --ts-text #1a1a2e / --ts-text-secondary #4a4a5a /
+       --ts-text-muted #7a7488 / --ts-text-faint #a8a2b0. -->
+  <rect width="1200" height="750" fill="#FAF8F3"/>
+  <text x="60" y="76" font-size="20" font-weight="600" letter-spacing="6" fill="#7a7488">ROUTINES</text>
 
-  <text x="48" y="72" font-family="ui-monospace, Menlo, monospace" font-size="15" letter-spacing="3" fill="#ffffff" opacity="0.5">ROUTINES</text>
+  <!-- 01 SET IT -->
+  <rect x="60" y="150" width="304" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text x="88" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">01</text>
+  <text x="88" y="330" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">SET IT</text>
+  <text x="88" y="374" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">ONCE</text>
+  <rect x="88" y="442" width="167" height="40" rx="8" fill="#F3EFE6"/>
+  <text x="103" y="468" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">EVERY MONDAY</text>
+  <line x1="380" y1="385" x2="426" y2="385" stroke="#a8a2b0" stroke-width="3"/>
+  <path d="M 426 374 L 442 385 L 426 396 Z" fill="#a8a2b0"/>
 
-  <!-- Left: the create form (RoutineCreateForm labels, verbatim) -->
-  <rect x="48" y="100" width="530" height="652" rx="12" fill="#161b22" stroke="#30363d"/>
-  <g font-family="ui-monospace, Menlo, monospace" font-size="13" letter-spacing="1.5" fill="#ffffff" opacity="0.5">
-    <text x="80" y="156">name</text>
-    <text x="80" y="268">description (optional)</text>
-    <text x="80" y="380">entity</text>
-    <text x="80" y="492">start time (optional)</text>
-  </g>
-  <rect x="80" y="172" width="450" height="44" rx="4" fill="#ffffff" opacity="0.1"/>
-  <text x="96" y="200" font-size="15" fill="#ffffff" opacity="0.4">e.g., Morning reflection</text>
-  <rect x="80" y="284" width="450" height="44" rx="4" fill="#ffffff" opacity="0.1"/>
-  <rect x="80" y="396" width="450" height="44" rx="4" fill="#ffffff" opacity="0.1"/>
-  <text x="510" y="424" text-anchor="end" font-size="14" fill="#ffffff" opacity="0.4">▾</text>
-  <rect x="80" y="508" width="210" height="44" rx="4" fill="#ffffff" opacity="0.1"/>
-  <rect x="80" y="600" width="150" height="42" rx="4" fill="#ffffff"/>
-  <text x="155" y="626" text-anchor="middle" font-size="14" font-weight="600" fill="#3b2d6b">Create</text>
+  <!-- 02 CALENDAR -->
+  <rect x="448" y="150" width="304" height="470" rx="14" fill="#3b2d6b"/>
+  <text x="476" y="202" font-size="16" letter-spacing="4" fill="#FFFDF9" opacity="0.6">02</text>
+  <text x="476" y="315" font-size="34" font-weight="700" letter-spacing="1" fill="#FFFDF9">CALENDAR</text>
+  <text x="476" y="359" font-size="34" font-weight="700" letter-spacing="1" fill="#FFFDF9">+ BUDGET</text>
+  <text x="476" y="407" font-size="15" letter-spacing="3" fill="#FFFDF9" opacity="0.75">&#9679; YOU ARE HERE</text>
+  <rect x="476" y="457" width="156" height="40" rx="8" fill="#ffffff"/>
+  <text x="491" y="483" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#3b2d6b">$120 - 6000</text>
+  <line x1="768" y1="385" x2="814" y2="385" stroke="#a8a2b0" stroke-width="3"/>
+  <path d="M 814 374 L 830 385 L 814 396 Z" fill="#a8a2b0"/>
 
-  <!-- Right: today's strip (TodaysStrip status labels, verbatim) -->
-  <rect x="602" y="100" width="550" height="652" rx="12" fill="#161b22" stroke="#30363d"/>
-  <text x="634" y="156" font-family="ui-monospace, Menlo, monospace" font-size="13" letter-spacing="2" fill="#ffffff" opacity="0.5">TODAY</text>
-
-  <rect x="634" y="188" width="486" height="88" rx="8" fill="#0d1117" stroke="#30363d"/>
-  <rect x="662" y="220" width="240" height="14" rx="7" fill="#ffffff" opacity="0.12"/>
-  <rect x="1006" y="214" width="98" height="26" rx="13" fill="#16a34a" opacity="0.25"/>
-  <text x="1055" y="232" text-anchor="middle" font-size="13" fill="#16a34a">completed</text>
-
-  <rect x="634" y="300" width="486" height="88" rx="8" fill="#0d1117" stroke="#30363d"/>
-  <rect x="662" y="332" width="300" height="14" rx="7" fill="#ffffff" opacity="0.12"/>
-  <rect x="1006" y="326" width="98" height="26" rx="13" fill="#d97706" opacity="0.25"/>
-  <text x="1055" y="344" text-anchor="middle" font-size="13" fill="#d97706">pending</text>
-
-  <rect x="634" y="412" width="486" height="88" rx="8" fill="#0d1117" stroke="#30363d"/>
-  <rect x="662" y="444" width="200" height="14" rx="7" fill="#ffffff" opacity="0.12"/>
-  <rect x="1006" y="438" width="98" height="26" rx="13" fill="#c53030" opacity="0.25"/>
-  <text x="1055" y="456" text-anchor="middle" font-size="13" fill="#c53030">missed</text>
-
-  <rect x="634" y="524" width="486" height="88" rx="8" fill="#0d1117" stroke="#30363d"/>
-  <rect x="662" y="556" width="260" height="14" rx="7" fill="#ffffff" opacity="0.12"/>
-  <rect x="1006" y="550" width="98" height="26" rx="13" fill="#ffffff" opacity="0.12"/>
-  <text x="1055" y="568" text-anchor="middle" font-size="13" fill="#ffffff" opacity="0.6">upcoming</text>
-
-  <rect x="634" y="648" width="486" height="72" rx="8" fill="#0d1117" stroke="#30363d"/>
-  <rect x="662" y="678" width="320" height="12" rx="6" fill="#ffffff" opacity="0.08"/>
+  <!-- 03 NO -->
+  <rect x="836" y="150" width="304" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text x="864" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">03</text>
+  <text x="864" y="317" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">NO</text>
+  <text x="864" y="361" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">SURPRISES</text>
+  <text x="864" y="463" font-size="46" font-weight="700" fill="#B8860B">$1,840</text>
+  <text x="864" y="495" font-size="15" letter-spacing="2" fill="#7a7488">PLANNED THIS MONTH</text>
 </svg>

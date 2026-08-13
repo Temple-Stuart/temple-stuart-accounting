@@ -1,84 +1,40 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
-  <!-- PR-DEMO-1: code-drawn illustration of the live Content table.
-       Sources: scene-level columns (Scene / Title / Focus / Hours / Day /
-       Loc Base / Script) = SceneHeaderRow.tsx:4-5 verbatim; take-level chips
-       Question / Answer / B-Roll / Narrative / Activity = PieceGrid.tsx
-       labels; "✨ generate script" = ScriptGeneratorView.tsx:108 verbatim.
-       All row content is skeleton bars — no invented scenes.
-       Palette = ds.ts dark vocabulary literals. -->
-  <defs>
-    <radialGradient id="glowA" cx="80%" cy="0%" r="90%">
-      <stop offset="0%" stop-color="#3b2d6b" stop-opacity="0.85"/>
-      <stop offset="70%" stop-color="#3b2d6b" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="glowB" cx="10%" cy="100%" r="80%">
-      <stop offset="0%" stop-color="#2d1b4e" stop-opacity="0.7"/>
-      <stop offset="65%" stop-color="#2d1b4e" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <rect width="1200" height="800" rx="16" fill="#0d1117"/>
-  <rect width="1200" height="800" rx="16" fill="url(#glowA)"/>
-  <rect width="1200" height="800" rx="16" fill="url(#glowB)"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+  <!-- LANDING-04-ILLOS: the Content pipeline, as it actually runs.
+       Stages read from the pipeline's own stage state
+       (workbench/operations/content/ContentPipeline.tsx:85
+       'calendar' | 'log' | 'script', the three keep-mounted surfaces
+       :350, :352, :514 - DayCalendar, the day log, ScriptGenerator). -->
+  <!-- Canvas: --ts-bg cream. Cards: --ts-white on --ts-border hairline.
+       Active step: --ts-purple fill, --ts-white ink. Accent: --ts-gold.
+       Text ladder: --ts-text #1a1a2e / --ts-text-secondary #4a4a5a /
+       --ts-text-muted #7a7488 / --ts-text-faint #a8a2b0. -->
+  <rect width="1200" height="750" fill="#FAF8F3"/>
+  <text x="60" y="76" font-size="20" font-weight="600" letter-spacing="6" fill="#7a7488">CONTENT</text>
 
-  <text x="48" y="72" font-family="ui-monospace, Menlo, monospace" font-size="15" letter-spacing="3" fill="#ffffff" opacity="0.5">CONTENT</text>
-  <rect x="944" y="52" width="208" height="40" rx="4" fill="#ffffff"/>
-  <text x="1048" y="77" text-anchor="middle" font-size="15" font-weight="600" fill="#3b2d6b">✨ generate script</text>
+  <!-- 01 WHAT -->
+  <rect x="60" y="150" width="304" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text x="88" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">01</text>
+  <text x="88" y="330" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">WHAT</text>
+  <text x="88" y="374" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">YOU DID</text>
+  <rect x="88" y="442" width="156" height="40" rx="8" fill="#F3EFE6"/>
+  <text x="103" y="468" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">TODAY'S LOG</text>
+  <line x1="380" y1="385" x2="426" y2="385" stroke="#a8a2b0" stroke-width="3"/>
+  <path d="M 426 374 L 442 385 L 426 396 Z" fill="#a8a2b0"/>
 
-  <!-- The scene table (SceneHeaderRow columns, verbatim) -->
-  <rect x="48" y="120" width="1104" height="632" rx="12" fill="#161b22" stroke="#30363d"/>
-  <g font-family="ui-monospace, Menlo, monospace" font-size="13" letter-spacing="1.5" fill="#ffffff" opacity="0.5">
-    <text x="80" y="172">SCENE</text>
-    <text x="200" y="172">TITLE</text>
-    <text x="480" y="172">FOCUS</text>
-    <text x="680" y="172">HOURS</text>
-    <text x="790" y="172">DAY</text>
-    <text x="890" y="172">LOC BASE</text>
-    <text x="1030" y="172">SCRIPT</text>
-  </g>
-  <line x1="80" y1="192" x2="1120" y2="192" stroke="#30363d"/>
+  <!-- 02 SCENES -->
+  <rect x="448" y="150" width="304" height="470" rx="14" fill="#3b2d6b"/>
+  <text x="476" y="202" font-size="16" letter-spacing="4" fill="#FFFDF9" opacity="0.6">02</text>
+  <text x="476" y="324" font-size="34" font-weight="700" letter-spacing="1" fill="#FFFDF9">SCENES</text>
+  <text x="476" y="372" font-size="15" letter-spacing="3" fill="#FFFDF9" opacity="0.75">&#9679; YOU ARE HERE</text>
+  <text x="476" y="456" font-size="46" font-weight="700" fill="#FFFDF9">5</text>
+  <text x="476" y="488" font-size="15" letter-spacing="2" fill="#FFFDF9" opacity="0.8">SHOTS PLANNED</text>
+  <line x1="768" y1="385" x2="814" y2="385" stroke="#a8a2b0" stroke-width="3"/>
+  <path d="M 814 374 L 830 385 L 814 396 Z" fill="#a8a2b0"/>
 
-  <!-- Scene header row (bold band) -->
-  <rect x="80" y="212" width="1040" height="52" rx="6" fill="#3b2d6b" opacity="0.35"/>
-  <text x="96" y="244" font-family="ui-monospace, Menlo, monospace" font-size="15" fill="#ffffff" opacity="0.9">1</text>
-  <rect x="200" y="232" width="240" height="14" rx="7" fill="#ffffff" opacity="0.25"/>
-  <rect x="480" y="232" width="150" height="14" rx="7" fill="#ffffff" opacity="0.2"/>
-  <rect x="680" y="232" width="60" height="14" rx="7" fill="#ffffff" opacity="0.2"/>
-  <rect x="790" y="232" width="60" height="14" rx="7" fill="#ffffff" opacity="0.2"/>
-  <rect x="890" y="232" width="100" height="14" rx="7" fill="#ffffff" opacity="0.2"/>
-  <rect x="1030" y="232" width="70" height="14" rx="7" fill="#ffffff" opacity="0.2"/>
-
-  <!-- Take rows with the PieceGrid chip vocabulary -->
-  <g font-size="13">
-    <rect x="120" y="296" width="86" height="26" rx="13" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
-    <text x="163" y="314" text-anchor="middle" fill="#ffffff" opacity="0.7">Question</text>
-    <rect x="120" y="296" width="0" height="0"/>
-    <rect x="230" y="298" width="560" height="12" rx="6" fill="#ffffff" opacity="0.1"/>
-    <line x1="80" y1="338" x2="1120" y2="338" stroke="#30363d"/>
-
-    <rect x="120" y="366" width="78" height="26" rx="13" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
-    <text x="159" y="384" text-anchor="middle" fill="#ffffff" opacity="0.7">Answer</text>
-    <rect x="230" y="368" width="640" height="12" rx="6" fill="#ffffff" opacity="0.1"/>
-    <line x1="80" y1="408" x2="1120" y2="408" stroke="#30363d"/>
-
-    <rect x="120" y="436" width="72" height="26" rx="13" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
-    <text x="156" y="454" text-anchor="middle" fill="#ffffff" opacity="0.7">B-Roll</text>
-    <rect x="230" y="438" width="480" height="12" rx="6" fill="#ffffff" opacity="0.1"/>
-    <line x1="80" y1="478" x2="1120" y2="478" stroke="#30363d"/>
-
-    <rect x="120" y="506" width="94" height="26" rx="13" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
-    <text x="167" y="524" text-anchor="middle" fill="#ffffff" opacity="0.7">Narrative</text>
-    <rect x="240" y="508" width="600" height="12" rx="6" fill="#ffffff" opacity="0.1"/>
-    <line x1="80" y1="548" x2="1120" y2="548" stroke="#30363d"/>
-
-    <rect x="120" y="576" width="82" height="26" rx="13" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
-    <text x="161" y="594" text-anchor="middle" fill="#ffffff" opacity="0.7">Activity</text>
-    <rect x="230" y="578" width="520" height="12" rx="6" fill="#ffffff" opacity="0.1"/>
-    <line x1="80" y1="618" x2="1120" y2="618" stroke="#30363d"/>
-  </g>
-
-  <!-- Second scene band -->
-  <rect x="80" y="648" width="1040" height="52" rx="6" fill="#3b2d6b" opacity="0.35"/>
-  <text x="96" y="680" font-family="ui-monospace, Menlo, monospace" font-size="15" fill="#ffffff" opacity="0.9">2</text>
-  <rect x="200" y="668" width="300" height="14" rx="7" fill="#ffffff" opacity="0.25"/>
-  <rect x="480" y="668" width="120" height="14" rx="7" fill="#ffffff" opacity="0.2"/>
+  <!-- 03 SCRIPT -->
+  <rect x="836" y="150" width="304" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text x="864" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">03</text>
+  <text x="864" y="352" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">SCRIPT</text>
+  <rect x="864" y="420" width="178" height="40" rx="8" fill="#F3EFE6"/>
+  <text x="879" y="446" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">READY TO FILM</text>
 </svg>
