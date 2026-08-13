@@ -39,28 +39,26 @@ import ToggleStrip, { type ToggleMode } from '@/components/ui/ToggleStrip';
 // PR-ELEV-1: the modes come from the ONE shared builder (8 chips — 5 live + 3
 // "Soon"), so the guest landing and the app travel tab render the same strip
 // and light up together as affiliate IDs land.
-import { travelStripModes, TRAVEL_TRUST_CHIPS } from '@/components/trips/travelStripModes';
+import { travelStripModes } from '@/components/trips/travelStripModes';
 
 export default function LandingBookingSection({ onRequireAuth }: { onRequireAuth: () => void }) {
   const modes: ToggleMode[] = travelStripModes({ onRequireAuth, authed: false });
 
   return (
-    // PR-STRIP-DESIGN-2: the band composition — the strip still mounts at the
-    // SAME hero insertion point (Landing.tsx, directly under the CTA row);
-    // ToggleStrip now paints the purple BAND_BG band around its floating
-    // card, so only the margin rides className here (the card chrome moved
-    // inside ToggleStrip).
-    // PR-STRIP-DESIGN-4 (Alex: the band header was overloaded — 5 text
-    // layers): the eyebrow + free-today header DELETED. The free-today truth
-    // survives on-site twice: trust chip 1 "No account required"
-    // (travelStripModes.tsx TRAVEL_TRUST_CHIPS) and the deck's green line
-    // "Free today: search & book travel, no account required."
-    // (Landing.tsx travel price slot). Band = headline + chips, nothing else.
+    // LANDING-V5 (Alex's ruling; spec :93-178): the demo section carries ZERO
+    // purple — the PR-STRIP-DESIGN-2 band + floating-card straddle die on
+    // this mount. The toggler survives, seated with its panels in ONE white
+    // hairline card on the cream page (the spec's card chrome, house
+    // rounded-lg idiom). The band headline died with the band (the section
+    // h2 above already titles the demo, spec :99); TRAVEL_TRUST_CHIPS were
+    // band furniture (white ink) — their facts survive in the spec caption
+    // row ('SEARCHING IS ALWAYS FREE', FlightPickerView) and the spec footer
+    // row Landing.tsx mounts under this strip. The app travel tab
+    // (ModuleLauncher) keeps its band — this PR reseats the LANDING mount
+    // only. Wiring untouched: same modes builder, same props.
     <ToggleStrip
-      band
-      className="mt-8"
+      className="mt-6 rounded-lg border border-border bg-white p-4"
       modes={modes}
-      trust={TRAVEL_TRUST_CHIPS}
     />
   );
 }
