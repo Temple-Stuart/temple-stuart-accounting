@@ -438,7 +438,7 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
         <div className="p-12 text-center">
           <div className="text-text-faint text-sm mb-2">No trade cards {filter !== 'all' ? `with status "${filter}"` : 'yet'}</div>
           <div className="text-text-faint text-xs">
-            Use Market Intelligence to scan for opportunities, then click &ldquo;Enter Trade&rdquo; on any strategy card to save it here.
+            Run a scan on the Scan tab, then click &ldquo;Queue Card&rdquo; on any strategy to save it here.
           </div>
         </div>
       ) : (

@@ -425,8 +425,7 @@ export default function ContentPipeline({ }: { } = {}) {
                   </ul>
                 )}
                 <p className="text-text-muted">
-                  Adds the task to the day (commit times on the{' '}
-                  <a href="/operations" className="text-brand-purple hover:underline">Daily Plan</a> tab).
+                  Adds the task to the day — commit a time inline on the task row.
                 </p>
               </div>
             </div>
