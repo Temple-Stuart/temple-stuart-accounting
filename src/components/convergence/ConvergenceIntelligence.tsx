@@ -874,7 +874,7 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
       {/* A) HEADER ROW */}
       <div className="px-5 py-2 flex items-center justify-between flex-wrap gap-2 bg-brand-purple-hover">
         <div className="flex items-center gap-3">
-          <span className="text-sm font-black font-mono text-text-primary">{detail.symbol}</span>
+          <span className="text-sm font-black font-mono text-white">{detail.symbol}</span>
           <span className="text-sm font-black font-mono" style={{ color: gradeColorHex(comp.score) }}><MetricInfo metricKey="composite_score" values={{ score: comp.score }}>{comp.score.toFixed(1)}</MetricInfo></span>
           <span className="text-terminal-lg font-black" style={{ color: gradeColorHex(comp.score) }}><MetricInfo metricKey="letter_grade" values={{ score: comp.score, grade: letterGrade(comp.score) }}>{letterGrade(comp.score)}</MetricInfo></span>
         </div>
@@ -1624,41 +1624,41 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
     setExpanded(e => ({ ...e, [key]: !e[key] }));
 
   return (
-    <div className="border border-panel-border rounded bg-white/5 mb-4 text-xs font-mono">
+    <div className="border border-border rounded bg-bg-row mb-4 text-xs font-mono">
       {/* Header */}
-      <div className="px-4 py-2 border-b border-panel-border flex items-center justify-between">
-        <span className="text-white font-bold uppercase tracking-wider text-[10px]">Pipeline Flow</span>
-        <span className="text-white/50">
+      <div className="px-4 py-2 border-b border-border flex items-center justify-between">
+        <span className="text-text-primary font-bold uppercase tracking-wider text-[10px]">Pipeline Flow</span>
+        <span className="text-text-faint">
           {ps?.timestamp ? new Date(ps.timestamp).toLocaleTimeString() : ''}
           {' '}· {ps?.pipeline_runtime_ms ? `${(ps.pipeline_runtime_ms / 1000).toFixed(1)}s` : ''}
         </span>
       </div>
 
       {/* Step A */}
-      <div className="border-b border-panel-border">
+      <div className="border-b border-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_a')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP A</span>
-            <span className="text-white/70">TT Scanner — Universe Scan</span>
+            <span className="text-text-secondary">TT Scanner — Universe Scan</span>
             {(ps?.total_universe ?? progress?.step_a?.data?.total_universe) ? (
               <>
                 <span className={chip('success')}>{ps?.total_universe ?? progress?.step_a?.data?.total_universe ?? 0} symbols fetched</span>
-                <span className="text-white/50">({universe})</span>
+                <span className="text-text-faint">({universe})</span>
               </>
             ) : (
-              <span className="text-white/50 animate-pulse">waiting...</span>
+              <span className="text-text-faint animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-white/50">{expanded['step_a'] ? '▲' : '▼'}</span>
+          <span className="text-text-faint">{expanded['step_a'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_a'] && (
-          <div className="border-t border-panel-border bg-white/5 p-3">
+          <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step A pulls live market data on every ticker in the universe. This is the raw material — nothing here is estimated. Every number comes directly from TastyTrade. The two columns that matter most are IV Rank and IV-HV Spread — those two drive the ranking in Step B.
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-panel-border">
+                <table className="w-full border-collapse border border-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -1713,7 +1713,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
               };
               return (
                 <>
-                <div className="flex items-center gap-3 text-xs text-white/50 mb-1">
+                <div className="flex items-center gap-3 text-xs text-text-faint mb-1">
                   <span className="font-bold">SYMBOLS FETCHED ({(progress?.step_a?.data?.symbols ?? []).length})</span>
                 </div>
                 <div className="overflow-y-auto" style={{maxHeight: '320px'}}>
@@ -1747,9 +1747,9 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                         const hasTerm = Array.isArray(s.termStructure) && s.termStructure.length > 0;
                         return (
                           <React.Fragment key={s.symbol}>
-                            <tr className="border-b border-panel-border cursor-pointer hover:bg-white/5" onClick={() => toggle(detailKey)}>
-                              <td className="py-1 pr-1 text-white/50 text-center">{isOpen ? '▼' : '▶'}</td>
-                              <td className="py-1 pr-2 text-white/50">{i+1}</td>
+                            <tr className="border-b border-border cursor-pointer hover:bg-bg-row" onClick={() => toggle(detailKey)}>
+                              <td className="py-1 pr-1 text-text-faint text-center">{isOpen ? '▼' : '▶'}</td>
+                              <td className="py-1 pr-2 text-text-faint">{i+1}</td>
                               <td className="py-1 pr-2 font-bold text-text-secondary">{s.symbol}</td>
                               <td className="py-1 pr-2 text-right text-text-secondary">{fmtPct(s.ivRank)}</td>
                               <td className="py-1 pr-2 text-right text-text-secondary">{fmtPct(s.ivPercentile)}</td>
@@ -1762,42 +1762,42 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                               <td className="py-1 pr-2 text-right text-text-secondary">{s.borrowRate != null ? s.borrowRate + '%' : '—'}</td>
                               <td className="py-1 pr-2 text-left">{s.earningsDate ?? '—'}</td>
                               <td className="py-1 pr-2 text-right text-text-secondary">{s.daysTillEarnings != null ? s.daysTillEarnings + 'd' : '—'}</td>
-                              <td className="py-1 pr-2 text-white/50 text-[10px]">TastyTrade</td>
-                              <td className="py-1 pr-2 text-white/50 text-[10px]">market-metrics</td>
-                              <td className="py-1 pr-2 text-white/50 text-[10px]">{fetchedAt ? new Date(fetchedAt).toISOString().slice(11, 19) + ' UTC' : '—'}</td>
-                              <td className="py-1 text-right text-white/50 text-[10px]">{ageSec != null ? ageSec + 's' : '—'}</td>
+                              <td className="py-1 pr-2 text-text-faint text-[10px]">TastyTrade</td>
+                              <td className="py-1 pr-2 text-text-faint text-[10px]">market-metrics</td>
+                              <td className="py-1 pr-2 text-text-faint text-[10px]">{fetchedAt ? new Date(fetchedAt).toISOString().slice(11, 19) + ' UTC' : '—'}</td>
+                              <td className="py-1 text-right text-text-faint text-[10px]">{ageSec != null ? ageSec + 's' : '—'}</td>
                             </tr>
                             {isOpen && (
-                              <tr className="bg-white/5/30 border-b border-panel-border">
+                              <tr className="bg-bg-row/30 border-b border-border">
                                 <td colSpan={18} className="py-2 px-4">
                                   <div className="grid grid-cols-3 gap-x-6 gap-y-1 text-xs mb-2">
-                                    <div className="flex justify-between"><span className="text-white/50">HV30</span><span>{fmt1(s.hv30)}</span></div>
-                                    <div className="flex justify-between"><span className="text-white/50">HV60</span><span>{fmt1(s.hv60)}</span></div>
-                                    <div className="flex justify-between"><span className="text-white/50">HV90</span><span>{fmt1(s.hv90)}</span></div>
-                                    <div className="flex justify-between"><span className="text-white/50">SECTOR</span><span>{s.sector ?? '—'}</span></div>
-                                    <div className="flex justify-between"><span className="text-white/50">INDUSTRY</span><span>{s.industry ?? '—'}</span></div>
-                                    <div className="flex justify-between"><span className="text-white/50">IMPLIED VOL</span><span>{fmtPct(s.impliedVolatility)}{s.impliedVolatility != null ? '%' : ''}</span></div>
-                                    <div className="flex justify-between"><span className="text-white/50">P/E</span><span>{fmt1(s.peRatio)}</span></div>
-                                    <div className="flex justify-between"><span className="text-white/50">EPS</span><span>{fmt2(s.eps)}</span></div>
-                                    <div className="flex justify-between"><span className="text-white/50">DIV YIELD</span><span>{s.dividendYield != null ? (s.dividendYield * 100).toFixed(2) + '%' : '—'}</span></div>
-                                    <div className="flex justify-between"><span className="text-white/50">LENDABILITY</span><span>{s.lendability ?? '—'}</span></div>
-                                    <div className="flex justify-between"><span className="text-white/50">LAST EPS</span><span>{fmt2(s.earningsActualEps)}</span></div>
-                                    <div className="flex justify-between"><span className="text-white/50">EPS EST</span><span>{fmt2(s.earningsEstimate)}</span></div>
-                                    <div className="flex justify-between"><span className="text-white/50">EARNINGS TOD</span><span>{s.earningsTimeOfDay ?? '—'}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-faint">HV30</span><span>{fmt1(s.hv30)}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-faint">HV60</span><span>{fmt1(s.hv60)}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-faint">HV90</span><span>{fmt1(s.hv90)}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-faint">SECTOR</span><span>{s.sector ?? '—'}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-faint">INDUSTRY</span><span>{s.industry ?? '—'}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-faint">IMPLIED VOL</span><span>{fmtPct(s.impliedVolatility)}{s.impliedVolatility != null ? '%' : ''}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-faint">P/E</span><span>{fmt1(s.peRatio)}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-faint">EPS</span><span>{fmt2(s.eps)}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-faint">DIV YIELD</span><span>{s.dividendYield != null ? (s.dividendYield * 100).toFixed(2) + '%' : '—'}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-faint">LENDABILITY</span><span>{s.lendability ?? '—'}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-faint">LAST EPS</span><span>{fmt2(s.earningsActualEps)}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-faint">EPS EST</span><span>{fmt2(s.earningsEstimate)}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-faint">EARNINGS TOD</span><span>{s.earningsTimeOfDay ?? '—'}</span></div>
                                   </div>
                                   {hasTerm && (
                                     <div>
-                                      <p className="text-white/50 text-xs font-bold mb-1">TERM STRUCTURE</p>
+                                      <p className="text-text-faint text-xs font-bold mb-1">TERM STRUCTURE</p>
                                       <table className="text-xs">
                                         <thead>
-                                          <tr className="text-white/50">
+                                          <tr className="text-text-faint">
                                             <th className="text-left pr-4 py-0.5">EXPIRY</th>
                                             <th className="text-right py-0.5">IV</th>
                                           </tr>
                                         </thead>
                                         <tbody>
                                           {s.termStructure.map((t: any, ti: number) => (
-                                            <tr key={ti} className="border-t border-panel-border/30">
+                                            <tr key={ti} className="border-t border-border/30">
                                               <td className="pr-4 py-0.5">{t.date ?? '—'}</td>
                                               <td className="text-right py-0.5">{t.iv != null ? (t.iv * 100).toFixed(1) + '%' : '—'}</td>
                                             </tr>
@@ -1823,30 +1823,30 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       </div>
 
       {/* Step A2 */}
-      <div className="border-b border-panel-border">
+      <div className="border-b border-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_b')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP B</span>
-            <span className="text-white/70">Pre-Filter</span>
+            <span className="text-text-secondary">Pre-Filter</span>
             {progress?.step_b ? (
               <span className="text-brand-red">
                 {progress.step_b.data.input} → {progress.step_b.data.output} survived
                 {(progress.step_b.data.excluded as number) > 0 && ` (${progress.step_b.data.excluded} excluded)`}
               </span>
             ) : (
-              <span className="text-white/50 animate-pulse">waiting...</span>
+              <span className="text-text-faint animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-white/50">{expanded['step_b'] ? '▲' : '▼'}</span>
+          <span className="text-text-faint">{expanded['step_b'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_b'] && progress?.step_b && (
-          <div className="border-t border-panel-border bg-white/5 p-3">
+          <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step B scores every ticker using only the data we already have from Step A. No new API calls. Three signals go in, one score comes out. This step ranks — it does not eliminate.
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-panel-border">
+                <table className="w-full border-collapse border border-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -1877,7 +1877,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 </table>
               </div>
             </div>
-            <p className="text-white/50 text-xs font-bold mb-1">
+            <p className="text-text-faint text-xs font-bold mb-1">
               ALL TICKERS SCORED ({(progress?.step_b?.data?.tickers as any[] ?? []).length}){/* eslint-disable-line @typescript-eslint/no-explicit-any */}
             </p>
             <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '240px'}}>
@@ -1912,13 +1912,13 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                       ? '—'
                       : `(${(ivRankNorm ?? 0).toFixed(3)} × 40%) + (${(ivHvNorm ?? 0).toFixed(3)} × 35%) + (${(liqNorm ?? 0).toFixed(3)} × 25%)`;
                     return (
-                      <tr key={t.symbol} className="border-b border-panel-border">
-                        <td className="py-1 pr-3 text-white/50">{i+1}</td>
+                      <tr key={t.symbol} className="border-b border-border">
+                        <td className="py-1 pr-3 text-text-faint">{i+1}</td>
                         <td className="py-1 pr-3 font-bold">{t.symbol}</td>
                         <td className="py-1 pr-3 text-right">{t.iv_rank != null ? (t.iv_rank * 100).toFixed(1) : '—'}</td>
                         <td className="py-1 pr-3 text-right">{ivHvSpread != null ? (ivHvSpread >= 0 ? '+' : '') + ivHvSpread.toFixed(1) : '—'}</td>
                         <td className="py-1 pr-3 text-right">{t.liquidity ?? '—'}/5</td>
-                        <td className="py-1 pr-3 text-white/50 font-mono text-[10px]">
+                        <td className="py-1 pr-3 text-text-faint font-mono text-[10px]">
                           {calcStr}
                         </td>
                         <td className="py-1 pr-3 text-right text-brand-gold font-bold">{t.pre_score ?? '—'}</td>
@@ -1930,10 +1930,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                             : '✓ Passed'
                           }
                         </td>
-                        <td className="py-1 pr-3 text-white/50 text-[10px]">TastyTrade</td>
-                        <td className="py-1 pr-3 text-white/50 text-[10px]">market-metrics</td>
-                        <td className="py-1 pr-3 text-white/50 text-[10px]">{fetchedTime}</td>
-                        <td className="py-1 text-right text-white/50 text-[10px]">{ageSec}</td>
+                        <td className="py-1 pr-3 text-text-faint text-[10px]">TastyTrade</td>
+                        <td className="py-1 pr-3 text-text-faint text-[10px]">market-metrics</td>
+                        <td className="py-1 pr-3 text-text-faint text-[10px]">{fetchedTime}</td>
+                        <td className="py-1 text-right text-text-faint text-[10px]">{ageSec}</td>
                       </tr>
                     );
                   })}
@@ -1945,29 +1945,29 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       </div>
 
       {/* Step C — Hard Exclusions */}
-      <div className="border-b border-panel-border">
+      <div className="border-b border-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_c')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP C</span>
-            <span className="text-white/70">Hard Exclusions</span>
+            <span className="text-text-secondary">Hard Exclusions</span>
             {progress?.step_c ? (
               <span className={chip('success')}>
                 {progress.step_c.data.excluded ?? '—'} excluded — {progress.step_c.data.survivors ?? '—'} passed
               </span>
             ) : (
-              <span className="text-white/50 animate-pulse">waiting...</span>
+              <span className="text-text-faint animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-white/50">{expanded['step_c'] ? '▲' : '▼'}</span>
+          <span className="text-text-faint">{expanded['step_c'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_c'] && (
-          <div className="border-t border-panel-border bg-white/5 p-3">
+          <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step C applies two instant disqualifiers. No partial credit. If a ticker fails either rule it is gone. This step eliminates — it does not score.
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-panel-border">
+                <table className="w-full border-collapse border border-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -2001,7 +2001,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
             <div className="grid grid-cols-2 gap-4">
               {/* LEFT TABLE — Excluded tickers */}
               <div>
-                <p className="text-white font-bold text-[10px] uppercase tracking-wider mb-1">
+                <p className="text-text-primary font-bold text-[10px] uppercase tracking-wider mb-1">
                   EXCLUDED ({progress?.step_c?.data?.excluded ?? '—'} tickers)
                 </p>
                 {(progress?.step_c?.data?.exclusions ?? []).length > 0 ? (
@@ -2014,23 +2014,23 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                       </tr></thead>
                       <tbody>
                         {(progress?.step_c?.data?.exclusions ?? []).map((e: { symbol: string; reason: string }, i: number) => (
-                          <tr key={e.symbol} className="border-b border-panel-border">
-                            <td className="py-0.5 px-1 text-white/50 font-mono">{i + 1}</td>
-                            <td className="py-0.5 px-1 font-bold text-white">{e.symbol}</td>
-                            <td className="py-0.5 px-1 text-white/50">{e.reason}</td>
+                          <tr key={e.symbol} className="border-b border-border">
+                            <td className="py-0.5 px-1 text-text-faint font-mono">{i + 1}</td>
+                            <td className="py-0.5 px-1 font-bold text-text-primary">{e.symbol}</td>
+                            <td className="py-0.5 px-1 text-text-faint">{e.reason}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
                 ) : (
-                  <p className="text-white/50 text-[10px] italic">No tickers excluded</p>
+                  <p className="text-text-faint text-[10px] italic">No tickers excluded</p>
                 )}
               </div>
 
               {/* RIGHT TABLE — Earnings warnings */}
               <div>
-                <p className="text-white font-bold text-[10px] uppercase tracking-wider mb-1">
+                <p className="text-text-primary font-bold text-[10px] uppercase tracking-wider mb-1">
                   EARNINGS WARNINGS ({(progress?.step_c?.data?.earnings_warnings ?? []).length} tickers flagged)
                 </p>
                 {(progress?.step_c?.data?.earnings_warnings ?? []).length > 0 ? (
@@ -2043,9 +2043,9 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                       </tr></thead>
                       <tbody>
                         {(progress?.step_c?.data?.earnings_warnings ?? []).map((w: { symbol: string; days_to_earnings: number | null }, i: number) => (
-                          <tr key={w.symbol} className="border-b border-panel-border">
-                            <td className="py-0.5 px-1 text-white/50 font-mono">{i + 1}</td>
-                            <td className="py-0.5 px-1 font-bold text-white">{w.symbol}</td>
+                          <tr key={w.symbol} className="border-b border-border">
+                            <td className="py-0.5 px-1 text-text-faint font-mono">{i + 1}</td>
+                            <td className="py-0.5 px-1 font-bold text-text-primary">{w.symbol}</td>
                             <td className="py-0.5 px-1 text-right font-mono text-brand-gold">{w.days_to_earnings ?? '—'}</td>
                           </tr>
                         ))}
@@ -2053,15 +2053,15 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     </table>
                   </div>
                 ) : (
-                  <p className="text-white/50 text-[10px] italic">No earnings warnings</p>
+                  <p className="text-text-faint text-[10px] italic">No earnings warnings</p>
                 )}
-                <p className="text-white/50 text-[10px] mt-2">
+                <p className="text-text-faint text-[10px] mt-2">
                   ⚠ These tickers passed but carry earnings risk. Step E will enforce the 7-day earnings exclusion.
                 </p>
               </div>
             </div>
 
-            <p className="text-white/50 text-[10px] mt-3 italic">
+            <p className="text-text-faint text-[10px] mt-3 italic">
               Source: Step B pre-filter computation — no new API calls
             </p>
           </div>
@@ -2069,27 +2069,27 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       </div>
 
       {/* Step D — Top-N Selection */}
-      <div className="border-b border-panel-border">
+      <div className="border-b border-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_d')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP D</span>
-            <span className="text-white/70">Top-N Selection</span>
+            <span className="text-text-secondary">Top-N Selection</span>
             {progress?.step_b ? (
               <span className="text-brand-gold">{progress.step_b.data.output} → {progress?.step_e?.data?.input ?? 45} candidates for hard filters</span>
             ) : (
-              <span className="text-white/50 animate-pulse">waiting...</span>
+              <span className="text-text-faint animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-white/50">{expanded['step_d'] ? '▲' : '▼'}</span>
+          <span className="text-text-faint">{expanded['step_d'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_d'] && progress?.step_b && (
-          <div className="border-t border-panel-border bg-white/5 p-3">
+          <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step D makes one decision: who gets checked in Step E. The hard filters in Step E cost time. We only run them on tickers most likely to survive. We take the top scorers by pre-score and send them forward. Everyone else is ranked out.
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-panel-border">
+                <table className="w-full border-collapse border border-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -2118,7 +2118,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 </table>
               </div>
             </div>
-            <p className="text-white/50 text-xs font-bold mb-1">
+            <p className="text-text-faint text-xs font-bold mb-1">
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               ALL TICKERS RANKED ({(progress?.step_b?.data?.tickers as any[] ?? []).filter((t: any) => !t.excluded).length} non-excluded)
             </p>
@@ -2149,16 +2149,16 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     return nonExcluded.map((t: any, i: number) => { // eslint-disable-line @typescript-eslint/no-explicit-any
                       const selected = i < topN;
                       return (
-                        <tr key={t.symbol} className="border-b border-panel-border">
-                          <td className="py-1 pr-3 text-white/50">{i+1}</td>
+                        <tr key={t.symbol} className="border-b border-border">
+                          <td className="py-1 pr-3 text-text-faint">{i+1}</td>
                           <td className="py-1 pr-3 font-bold">{t.symbol}</td>
-                          <td className={`py-1 pr-3 text-right font-bold ${selected ? 'text-brand-gold' : 'text-white/50'}`}>
+                          <td className={`py-1 pr-3 text-right font-bold ${selected ? 'text-brand-gold' : 'text-text-faint'}`}>
                             {t.pre_score}
                           </td>
-                          <td className="py-1 pr-3 text-right text-white/50">
+                          <td className="py-1 pr-3 text-right text-text-faint">
                             #{i+1}
                           </td>
-                          <td className="py-1 pr-3 text-right text-white/50">
+                          <td className="py-1 pr-3 text-right text-text-faint">
                             {cutoffScore}
                           </td>
                           <td className={`py-1 pr-3 ${selected ? 'text-brand-green' : 'text-brand-red'}`}>
@@ -2167,10 +2167,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                               : `✗ Ranked #${i+1} — below top ${topN} cutoff (score ${t.pre_score} vs cutoff ${cutoffScore})`
                             }
                           </td>
-                          <td className="py-1 pr-3 text-white/50 text-[10px]">TastyTrade</td>
-                          <td className="py-1 pr-3 text-white/50 text-[10px]">market-metrics</td>
-                          <td className="py-1 pr-3 text-white/50 text-[10px]">{fetchedTime}</td>
-                          <td className="py-1 text-right text-white/50 text-[10px]">{ageSec}</td>
+                          <td className="py-1 pr-3 text-text-faint text-[10px]">TastyTrade</td>
+                          <td className="py-1 pr-3 text-text-faint text-[10px]">market-metrics</td>
+                          <td className="py-1 pr-3 text-text-faint text-[10px]">{fetchedTime}</td>
+                          <td className="py-1 text-right text-text-faint text-[10px]">{ageSec}</td>
                         </tr>
                       );
                     });
@@ -2183,27 +2183,27 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       </div>
 
       {/* Step E — Hard Filters */}
-      <div className="border-b border-panel-border">
+      <div className="border-b border-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_e')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP E</span>
-            <span className="text-white/70">Hard Filters</span>
+            <span className="text-text-secondary">Hard Filters</span>
             {(hf?.output_count != null || progress?.step_e) ? (
               <span className="text-brand-red">{hf?.input_count ?? progress?.step_e?.data?.input ?? 0} → {hf?.output_count ?? progress?.step_e?.data?.output ?? 0} survived</span>
             ) : (
-              <span className="text-white/50 animate-pulse">waiting...</span>
+              <span className="text-text-faint animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-white/50">{expanded['step_e'] ? '▲' : '▼'}</span>
+          <span className="text-text-faint">{expanded['step_e'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_e'] && (
-          <div className="border-t border-panel-border bg-white/5 p-3">
+          <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step E runs six binary rules against the candidates from Step D. Pass all six or you are out. No scores, no partial credit. Each rule has a hard threshold. The table shows the actual value for every rule on every ticker.
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-panel-border">
+                <table className="w-full border-collapse border border-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -2237,13 +2237,13 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
               </div>
             </div>
             {/* Full matrix table */}
-            <p className="text-white/50 text-xs font-bold mb-1">
+            <p className="text-text-faint text-xs font-bold mb-1">
               ALL {bData?.input ?? '?'} TICKERS — 6 FILTER MATRIX
             </p>
             <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
               <table className="w-full text-xs whitespace-nowrap">
                 <thead>
-                  <tr className="text-white/50 border-b border-panel-border sticky top-0 bg-white/5">
+                  <tr className="text-text-faint border-b border-border sticky top-0 bg-bg-row">
                     <th className="text-left py-1 pr-2">#</th>
                     <th className="text-left py-1 pr-2">SYMBOL</th>
                     <th className="text-right py-1 pr-2">MKT CAP<br/><span className="font-normal text-[9px]">&gt;$2B</span></th>
@@ -2298,8 +2298,8 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                         ? <td className="py-1 pr-2 text-right text-brand-gold">— ⚠</td>
                         : cell(borrowOk, d.borrow_rate != null ? d.borrow_rate+'%' : '—', ff === 'Borrow Rate');
                       return (
-                        <tr key={t.symbol} className={`border-b border-panel-border ${t.rejected ? 'opacity-75' : ''}`}>
-                          <td className="py-1 pr-2 text-white/50">{i+1}</td>
+                        <tr key={t.symbol} className={`border-b border-border ${t.rejected ? 'opacity-75' : ''}`}>
+                          <td className="py-1 pr-2 text-text-faint">{i+1}</td>
                           <td className={`py-1 pr-2 font-bold ${t.rejected ? 'text-brand-red' : 'text-brand-green'}`}>{t.symbol}</td>
                           {cell(capOk, d.market_cap ? '$'+(d.market_cap/1e9).toFixed(1)+'B' : '—', ff === 'Market Cap')}
                           {cell(liqOk, d.liquidity_rating != null ? d.liquidity_rating+'/5' : '—', ff === 'Options Liquidity')}
@@ -2310,10 +2310,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                           <td className={`py-1 pr-2 font-bold ${t.rejected ? 'text-brand-red' : 'text-brand-green'}`}>
                             {t.rejected ? '✗ REJECTED' : '✓ PASSED'}
                           </td>
-                          <td className="py-1 pr-2 text-white/50 text-[10px]">TastyTrade</td>
-                          <td className="py-1 pr-2 text-white/50 text-[10px]">market-metrics</td>
-                          <td className="py-1 pr-2 text-white/50 text-[10px]">{fetchedTime}</td>
-                          <td className="py-1 text-right text-white/50 text-[10px]">{ageSec}</td>
+                          <td className="py-1 pr-2 text-text-faint text-[10px]">TastyTrade</td>
+                          <td className="py-1 pr-2 text-text-faint text-[10px]">market-metrics</td>
+                          <td className="py-1 pr-2 text-text-faint text-[10px]">{fetchedTime}</td>
+                          <td className="py-1 text-right text-text-faint text-[10px]">{ageSec}</td>
                         </tr>
                       );
                     });
@@ -2327,27 +2327,27 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       </div>
 
       {/* Step F — Peer Grouping */}
-      <div className="border-b border-panel-border">
+      <div className="border-b border-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_f')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP F</span>
-            <span className="text-white/70">Peer Grouping</span>
+            <span className="text-text-secondary">Peer Grouping</span>
             {progress?.step_e ? (
               <span className={chip('success')}>Finnhub peer relationships mapped</span>
             ) : (
-              <span className="text-white/50 animate-pulse">waiting...</span>
+              <span className="text-text-faint animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-white/50">{expanded['step_f'] ? '▲' : '▼'}</span>
+          <span className="text-text-faint">{expanded['step_f'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_f'] && (
-          <div className="border-t border-panel-border bg-white/5 p-3">
+          <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step F answers one question: is this stock&apos;s volatility high compared to companies just like it? We pull peer groups from Finnhub and compute z-scores — how many standard deviations each stock sits above or below its peers. Context matters more than raw numbers.
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-panel-border">
+                <table className="w-full border-collapse border border-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -2379,13 +2379,13 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 </table>
               </div>
             </div>
-            <p className="text-white/50 text-xs font-bold mb-1">
+            <p className="text-text-faint text-xs font-bold mb-1">
               PEER GROUPING — ALL {' '}{(progress?.step_f?.data?.groups ?? []).length} SURVIVORS
             </p>
             <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '280px'}}>
               <table className="w-full text-xs whitespace-nowrap">
                 <thead>
-                  <tr className="text-white/50 border-b border-panel-border sticky top-0 bg-white/5">
+                  <tr className="text-text-faint border-b border-border sticky top-0 bg-bg-row">
                     <th className="text-left py-1 pr-3">#</th>
                     <th className="text-left py-1 pr-3">SYMBOL</th>
                     <th className="text-left py-1 pr-3">PEER GROUP</th>
@@ -2421,24 +2421,24 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                       return 'text-text-faint';
                     };
                     return (
-                      <tr key={g.symbol} className="border-b border-panel-border">
-                        <td className="py-1 pr-3 text-white/50">{i+1}</td>
+                      <tr key={g.symbol} className="border-b border-border">
+                        <td className="py-1 pr-3 text-text-faint">{i+1}</td>
                         <td className="py-1 pr-3 font-bold">{g.symbol}</td>
-                        <td className="py-1 pr-3 text-white/50 max-w-[200px] overflow-hidden text-ellipsis">
+                        <td className="py-1 pr-3 text-text-faint max-w-[200px] overflow-hidden text-ellipsis">
                           {g.insufficient_peers ? '⚠ '+g.peer_group : g.peer_group}
                         </td>
                         <td className="py-1 pr-3 text-right">{g.peer_count}</td>
                         <td className="py-1 pr-3 text-right">
                           {g.my_iv_percentile != null ? Number(g.my_iv_percentile).toFixed(1) : '—'}
                         </td>
-                        <td className="py-1 pr-3 text-right text-white/50">{g.peer_mean_iv ?? '—'}</td>
+                        <td className="py-1 pr-3 text-right text-text-faint">{g.peer_mean_iv ?? '—'}</td>
                         <td className={`py-1 pr-3 text-right ${zColor(g.z_iv_percentile)}`}>
                           {g.z_iv_percentile != null ? (parseFloat(g.z_iv_percentile) >= 0 ? '+' : '')+g.z_iv_percentile : '—'}
                         </td>
                         <td className="py-1 pr-3 text-right">
                           {g.my_iv30 != null ? Number(g.my_iv30).toFixed(1) : '—'}
                         </td>
-                        <td className="py-1 pr-3 text-right text-white/50">{g.peer_mean_iv30 ?? '—'}</td>
+                        <td className="py-1 pr-3 text-right text-text-faint">{g.peer_mean_iv30 ?? '—'}</td>
                         <td className={`py-1 pr-3 text-right ${zColor(g.z_iv30)}`}>
                           {g.z_iv30 != null ? (parseFloat(g.z_iv30) >= 0 ? '+' : '')+g.z_iv30 : '—'}
                         </td>
@@ -2454,16 +2454,16 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                             return `(${Number(my).toFixed(1)}−${mean.toFixed(1)})/${std.toFixed(2)}=${g.z_iv_percentile}`;
                           })();
                           return (
-                            <td className="py-1 pr-3 text-white/50 font-mono text-[10px]">
+                            <td className="py-1 pr-3 text-text-faint font-mono text-[10px]">
                               {ivZFormula}
                             </td>
                           );
                         })()}
-                        <td className="py-1 text-white/50 text-[10px]">{g.group_type}</td>
-                        <td className="py-1 pr-3 text-white/50 text-[10px]">TastyTrade</td>
-                        <td className="py-1 pr-3 text-white/50 text-[10px]">market-metrics</td>
-                        <td className="py-1 pr-3 text-white/50 text-[10px]">{fetchedTime}</td>
-                        <td className="py-1 text-right text-white/50 text-[10px]">{ageSec}</td>
+                        <td className="py-1 text-text-faint text-[10px]">{g.group_type}</td>
+                        <td className="py-1 pr-3 text-text-faint text-[10px]">TastyTrade</td>
+                        <td className="py-1 pr-3 text-text-faint text-[10px]">market-metrics</td>
+                        <td className="py-1 pr-3 text-text-faint text-[10px]">{fetchedTime}</td>
+                        <td className="py-1 text-right text-text-faint text-[10px]">{ageSec}</td>
                       </tr>
                     );
                   });
@@ -2476,27 +2476,27 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       </div>
 
       {/* Step G — Pre-Score */}
-      <div className="border-b border-panel-border">
+      <div className="border-b border-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_g')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP G</span>
-            <span className="text-white/70">Pre-Score</span>
+            <span className="text-text-secondary">Pre-Score</span>
             {(ps?.finnhub_fetched != null || progress?.step_g) ? (
               <span className="text-brand-gold">{bData?.output ?? 0} → {ps?.finnhub_fetched ?? progress?.step_g?.data?.candidates ?? 0} selected for enrichment</span>
             ) : (
-              <span className="text-white/50 animate-pulse">waiting...</span>
+              <span className="text-text-faint animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-white/50">{expanded['step_g'] ? '▲' : '▼'}</span>
+          <span className="text-text-faint">{expanded['step_g'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_g'] && (
-          <div className="border-t border-panel-border bg-white/5 p-3">
+          <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step G re-scores the survivors with a more precise formula now that the field is small enough to be exact. Same three signals as Step B but with different weights. The top scorers get the expensive institutional data pull in Steps H, I, and J.
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-panel-border">
+                <table className="w-full border-collapse border border-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -2527,13 +2527,13 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 </table>
               </div>
             </div>
-            <p className="text-white/50 text-xs font-bold mb-1">
+            <p className="text-text-faint text-xs font-bold mb-1">
               ALL {progress?.step_g?.data?.total ?? '—'} SURVIVORS RANKED — TOP {progress?.step_g?.data?.candidates ?? 18} SELECTED FOR ENRICHMENT
             </p>
             <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '280px'}}>
               <table className="w-full text-xs whitespace-nowrap">
                 <thead>
-                  <tr className="text-white/50 border-b border-panel-border sticky top-0 bg-white/5">
+                  <tr className="text-text-faint border-b border-border sticky top-0 bg-bg-row">
                     <th className="text-left py-1 pr-3">RANK</th>
                     <th className="text-left py-1 pr-3">SYMBOL</th>
                     <th className="text-right py-1 pr-3">IV%<br/><span className="font-normal text-[9px]">×40%</span></th>
@@ -2559,26 +2559,26 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     const ivhvC = (Math.min(Math.abs(t.iv_hv_spread ?? 0) / 20 * 100, 100) * 0.3).toFixed(1);
                     const liqC = (((t.liquidity ?? 0) / 5) * 100 * 0.3).toFixed(1);
                     return (
-                      <tr key={t.symbol} className={`border-b border-panel-border ${!t.selected ? 'opacity-60' : ''}`}>
-                        <td className="py-1 pr-3 text-white/50">#{t.rank}</td>
-                        <td className={`py-1 pr-3 font-bold ${t.selected ? 'text-brand-green' : 'text-white/50'}`}>{t.symbol}</td>
+                      <tr key={t.symbol} className={`border-b border-border ${!t.selected ? 'opacity-60' : ''}`}>
+                        <td className="py-1 pr-3 text-text-faint">#{t.rank}</td>
+                        <td className={`py-1 pr-3 font-bold ${t.selected ? 'text-brand-green' : 'text-text-faint'}`}>{t.symbol}</td>
                         <td className="py-1 pr-3 text-right">{t.ivp ?? '—'}</td>
                         <td className="py-1 pr-3 text-right">{t.iv_hv_spread ?? '—'}</td>
                         <td className="py-1 pr-3 text-right">{t.liquidity ?? '—'}/5</td>
-                        <td className="py-1 pr-3 text-white/50 font-mono text-[10px]">
+                        <td className="py-1 pr-3 text-text-faint font-mono text-[10px]">
                           ({t.ivp ?? 0}×40%) + (min(|{t.iv_hv_spread ?? 0}|/20×100,100)×30%) + ({t.liquidity ?? 0}/5×100×30%) = {ivpC}+{ivhvC}+{liqC}
                         </td>
-                        <td className={`py-1 pr-3 text-right font-bold ${t.selected ? 'text-brand-gold' : 'text-white/50'}`}>{t.pre_score}</td>
+                        <td className={`py-1 pr-3 text-right font-bold ${t.selected ? 'text-brand-gold' : 'text-text-faint'}`}>{t.pre_score}</td>
                         <td className={`py-1 ${t.selected ? 'text-brand-green' : 'text-brand-red'}`}>
                           {t.selected
                             ? '✓ Selected for enrichment'
                             : `✗ ${t.reason?.replace('✗ ', '') ?? 'Ranked out'}`
                           }
                         </td>
-                        <td className="py-1 pr-3 text-white/50 text-[10px]">TastyTrade</td>
-                        <td className="py-1 pr-3 text-white/50 text-[10px]">market-metrics</td>
-                        <td className="py-1 pr-3 text-white/50 text-[10px]">{fetchedTime}</td>
-                        <td className="py-1 text-right text-white/50 text-[10px]">{ageSec}</td>
+                        <td className="py-1 pr-3 text-text-faint text-[10px]">TastyTrade</td>
+                        <td className="py-1 pr-3 text-text-faint text-[10px]">market-metrics</td>
+                        <td className="py-1 pr-3 text-text-faint text-[10px]">{fetchedTime}</td>
+                        <td className="py-1 text-right text-text-faint text-[10px]">{ageSec}</td>
                       </tr>
                     );
                   });
@@ -2591,29 +2591,29 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       </div>
 
       {/* Step H — Macro & Regime Data */}
-      <div className="border-b border-panel-border">
+      <div className="border-b border-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_h')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP H</span>
-            <span className="text-white/70">Macro &amp; Regime Data</span>
+            <span className="text-text-secondary">Macro &amp; Regime Data</span>
             {progress?.step_h ? (
               <span className={chip('success')}>
                 {(progress.step_h.data?.series as any[])?.length ?? 0} FRED series fetched
               </span>
             ) : (
-              <span className="text-white/50 animate-pulse">waiting...</span>
+              <span className="text-text-faint animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-white/50">{expanded['step_h'] ? '▲' : '▼'}</span>
+          <span className="text-text-faint">{expanded['step_h'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_h'] && (
-          <div className="border-t border-panel-border bg-white/5 p-3">
+          <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step H pulls all macro data from FRED in a single batch. This is market-wide data — not per ticker. It tells us what the economic environment looks like right now. The Regime gate in Step K reads all of this to classify the current regime and adjust the scoring weights.
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-panel-border">
+                <table className="w-full border-collapse border border-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -2659,24 +2659,24 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
             vix_term_structure_slope: { value: number | null; formula: string; inputs: { vix: number | null; vxv: number | null }; null_reason: string | null };
           } | undefined;
           return (
-            <div className="border-t border-panel-border bg-white/5 p-3 text-xs space-y-4">
+            <div className="border-t border-border bg-bg-row p-3 text-xs space-y-4">
               {/* SECTION 1 — Computed Values */}
               <div className="space-y-3">
-                <p className="text-white/70 font-semibold">Computed Values</p>
+                <p className="text-text-secondary font-semibold">Computed Values</p>
                 {/* Fed Net Liquidity */}
-                <div className="bg-bg-primary p-2 rounded border border-panel-border">
+                <div className="bg-bg-primary p-2 rounded border border-border">
                   <div className="flex items-center gap-2">
-                    <span className="text-white font-medium">Fed Net Liquidity</span>
-                    <span className="text-white/70">
+                    <span className="text-text-primary font-medium">Fed Net Liquidity</span>
+                    <span className="text-text-secondary">
                       {computed?.fed_net_liquidity?.value != null
                         ? `$${(computed.fed_net_liquidity.value / 1e6).toFixed(0)}M`
                         : '—'}
                     </span>
                   </div>
-                  <div className="text-white/50 mt-1">
+                  <div className="text-text-faint mt-1">
                     Formula: {computed?.fed_net_liquidity?.formula ?? '—'}
                   </div>
-                  <div className="text-white/50">
+                  <div className="text-text-faint">
                     Inputs: WALCL={computed?.fed_net_liquidity?.inputs?.walcl != null ? `$${(computed.fed_net_liquidity.inputs.walcl / 1e6).toFixed(0)}M` : '—'}{' '}
                     · WTREGEN={computed?.fed_net_liquidity?.inputs?.wtregen != null ? `$${(computed.fed_net_liquidity.inputs.wtregen / 1e6).toFixed(0)}M` : '—'}{' '}
                     · RRPONTSYD={computed?.fed_net_liquidity?.inputs?.rrpontsyd != null ? `$${(computed.fed_net_liquidity.inputs.rrpontsyd / 1e6).toFixed(0)}M` : '—'}
@@ -2686,10 +2686,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   )}
                 </div>
                 {/* VIX Term Structure Slope */}
-                <div className="bg-bg-primary p-2 rounded border border-panel-border">
+                <div className="bg-bg-primary p-2 rounded border border-border">
                   <div className="flex items-center gap-2">
-                    <span className="text-white font-medium">VIX Term Structure Slope</span>
-                    <span className="text-white/70">
+                    <span className="text-text-primary font-medium">VIX Term Structure Slope</span>
+                    <span className="text-text-secondary">
                       {computed?.vix_term_structure_slope?.value != null
                         ? computed.vix_term_structure_slope.value.toFixed(3)
                         : '—'}
@@ -2702,10 +2702,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                       </span>
                     )}
                   </div>
-                  <div className="text-white/50 mt-1">
+                  <div className="text-text-faint mt-1">
                     Formula: {computed?.vix_term_structure_slope?.formula ?? '—'}
                   </div>
-                  <div className="text-white/50">
+                  <div className="text-text-faint">
                     Inputs: VIX={computed?.vix_term_structure_slope?.inputs?.vix ?? '—'}{' '}
                     · VXV={computed?.vix_term_structure_slope?.inputs?.vxv ?? '—'}
                   </div>
@@ -2717,12 +2717,12 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
 
               {/* SECTION 2 — Full FRED Series Table */}
               <div className="space-y-2">
-                <p className="text-white/70 font-semibold">FRED Series</p>
-                <p className="text-white/50">Fetched at: {hd.fetched_at as string ?? '—'}</p>
+                <p className="text-text-secondary font-semibold">FRED Series</p>
+                <p className="text-text-faint">Fetched at: {hd.fetched_at as string ?? '—'}</p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
-                      <tr className="border-b border-panel-border text-white/50">
+                      <tr className="border-b border-border text-text-faint">
                         <th className="py-1 pr-3">SERIES</th>
                         <th className="py-1 pr-3">SERIES ID</th>
                         <th className="py-1 pr-3 text-right">VALUE</th>
@@ -2732,13 +2732,13 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     </thead>
                     <tbody>
                       {series.map((s) => (
-                        <tr key={s.key} className="border-b border-panel-border/30">
-                          <td className="py-1 pr-3 text-white">{s.name}</td>
-                          <td className="py-1 pr-3 text-white/50 font-mono">{s.series_id}</td>
-                          <td className="py-1 pr-3 text-right text-white font-mono">
+                        <tr key={s.key} className="border-b border-border/30">
+                          <td className="py-1 pr-3 text-text-primary">{s.name}</td>
+                          <td className="py-1 pr-3 text-text-faint font-mono">{s.series_id}</td>
+                          <td className="py-1 pr-3 text-right text-text-primary font-mono">
                             {s.value != null ? (typeof s.value === 'number' && Math.abs(s.value) >= 1000 ? s.value.toLocaleString() : s.value) : '—'}
                           </td>
-                          <td className="py-1 pr-3 text-white/50">{s.source}</td>
+                          <td className="py-1 pr-3 text-text-faint">{s.source}</td>
                           <td className="py-1 text-brand-red">{s.null_reason ?? ''}</td>
                         </tr>
                       ))}
@@ -2749,10 +2749,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
 
               {/* SECTION 3 — Fetch Metadata */}
               <div className="space-y-1">
-                <p className="text-white/70 font-semibold">Fetch Metadata</p>
-                <p className="text-white/50">Fetch time: {hd.fetch_ms as number}ms</p>
-                <p className="text-white/50">Cached: {hd.cached ? 'yes' : 'no'}</p>
-                <p className="text-white/50">Source: FRED API (free, commercial use permitted)</p>
+                <p className="text-text-secondary font-semibold">Fetch Metadata</p>
+                <p className="text-text-faint">Fetch time: {hd.fetch_ms as number}ms</p>
+                <p className="text-text-faint">Cached: {hd.cached ? 'yes' : 'no'}</p>
+                <p className="text-text-faint">Source: FRED API (free, commercial use permitted)</p>
               </div>
             </div>
           );
@@ -2760,32 +2760,32 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       </div>
 
       {/* Step I — Data Enrichment */}
-      <div className="border-b border-panel-border">
+      <div className="border-b border-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_i')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP I</span>
-            <span className="text-white/70">Data Enrichment</span>
+            <span className="text-text-secondary">Data Enrichment</span>
             {(ps?.finnhub_calls_made != null || progress?.step_i) ? (
-              <span className="text-white/70">
+              <span className="text-text-secondary">
                 {ps?.finnhub_calls_made ?? progress?.step_i?.data?.finnhub_calls ?? 0} Finnhub calls
                 {(ps?.finnhub_errors > 0 || (progress?.step_i?.data?.finnhub_errors ?? 0) > 0) && (
                   <span className="text-brand-red"> · {ps?.finnhub_errors ?? progress?.step_i?.data?.finnhub_errors} errors</span>
                 )}
               </span>
             ) : (
-              <span className="text-white/50 animate-pulse">waiting...</span>
+              <span className="text-text-faint animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-white/50">{expanded['step_i'] ? '▲' : '▼'}</span>
+          <span className="text-text-faint">{expanded['step_i'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_i'] && (
-          <div className="border-t border-panel-border bg-white/5 p-3">
+          <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step I is the most expensive step. Multiple data sources per ticker. The question it answers is: why is IV elevated? A high IV rank tells you options are expensive. It does not tell you whether that is an opportunity or a warning. This step finds out.
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-panel-border">
+                <table className="w-full border-collapse border border-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -2833,7 +2833,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 </div>
               )}
             </div>
-            <p className="text-white/50 text-xs font-bold mb-1">
+            <p className="text-text-faint text-xs font-bold mb-1">
               {progress?.step_i?.data?.finnhub_calls ?? '—'} FINNHUB CALLS — {progress?.step_i?.data?.tickers?.length ?? '—'} TICKERS ENRICHED
               {progress?.step_i?.data?.finnhub_errors > 0 && (
                 <span className="text-brand-red ml-2">⚠ {progress?.step_i?.data?.finnhub_errors} ERRORS</span>
@@ -2854,7 +2854,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
                     <table className="w-full text-xs whitespace-nowrap">
                       <thead>
-                        <tr className="text-white/50 border-b border-panel-border sticky top-0 bg-white/5">
+                        <tr className="text-text-faint border-b border-border sticky top-0 bg-bg-row">
                           <th className="text-left py-1 pr-3">#</th>
                           <th className="text-left py-1 pr-3">SYMBOL</th>
                           <th className="text-right py-1 pr-3">EARNINGS<br/><span className="font-normal text-[9px]">beat/total</span></th>
@@ -2882,8 +2882,8 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                           const insiderColor = t.insider_sentiment == null ? 'text-text-faint' : t.insider_sentiment > 10 ? 'text-brand-green' : t.insider_sentiment < -10 ? 'text-brand-red' : 'text-brand-gold';
                           const newsColor = t.news_sentiment == null ? 'text-text-faint' : t.news_sentiment > 55 ? 'text-brand-green' : t.news_sentiment < 45 ? 'text-brand-red' : 'text-brand-gold';
                           return (
-                            <tr key={t.symbol} className="border-b border-panel-border">
-                              <td className="py-1 pr-3 text-white/50">{i+1}</td>
+                            <tr key={t.symbol} className="border-b border-border">
+                              <td className="py-1 pr-3 text-text-faint">{i+1}</td>
                               <td className="py-1 pr-3 font-bold">{t.symbol}</td>
                               <td className="py-1 pr-3 text-right">
                                 {t.beat_count != null && t.earnings_quarters != null
@@ -2891,7 +2891,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                                   : '—'}
                               </td>
                               <td className={`py-1 pr-3 text-right font-bold ${beatColor}`}>{t.beat_rate != null ? t.beat_rate+'%' : '—'}</td>
-                              <td className="py-1 pr-3 text-white/50">{t.analyst_rating ?? '—'}</td>
+                              <td className="py-1 pr-3 text-text-faint">{t.analyst_rating ?? '—'}</td>
                               <td className={`py-1 pr-3 text-right font-bold ${insiderColor}`}>{t.insider_sentiment != null ? t.insider_sentiment.toFixed(1) : '—'}</td>
                               <td className={`py-1 pr-3 text-right font-bold ${newsColor}`}>{t.news_sentiment != null ? t.news_sentiment.toFixed(1) : '—'}</td>
                               <td className="py-1 pr-3 text-right">{t.institutional_holders != null ? t.institutional_holders.toLocaleString() : '—'}</td>
@@ -2910,14 +2910,14 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                               </td>
                               <td className="py-1 pr-3 text-right">{t.pe_ratio != null ? t.pe_ratio.toFixed(1) : '—'}</td>
                               <td className="py-1 pr-3 text-right">{t.ebitda_estimate_count != null ? t.ebitda_estimate_count : '—'}</td>
-                              <td className="py-1 pr-3 text-white/50">{t.next_ex_date ?? '—'}</td>
+                              <td className="py-1 pr-3 text-text-faint">{t.next_ex_date ?? '—'}</td>
                               <td className="py-1 pr-3 text-right">{t.week52_high != null ? t.week52_high.toFixed(2) : '—'}</td>
                               <td className="py-1 pr-3 text-right">{t.week52_low != null ? t.week52_low.toFixed(2) : '—'}</td>
                               <td className="py-1 pr-3 text-left text-[10px]">{t.top_fund != null ? t.top_fund.slice(0, 12) : '—'}</td>
-                              <td className="py-1 pr-3 text-white/50 text-[10px]">Finnhub</td>
-                              <td className="py-1 pr-3 text-white/50 text-[10px] max-w-[180px] truncate">earnings·recommendation·insider-sentiment·news-sentiment·ownership·earnings-quality·metric·ebitda-estimate·dividend·fund-ownership</td>
-                              <td className="py-1 pr-3 text-white/50 text-[10px]">{gFetchedTime}</td>
-                              <td className="py-1 text-right text-white/50 text-[10px]">{gAgeSec}</td>
+                              <td className="py-1 pr-3 text-text-faint text-[10px]">Finnhub</td>
+                              <td className="py-1 pr-3 text-text-faint text-[10px] max-w-[180px] truncate">earnings·recommendation·insider-sentiment·news-sentiment·ownership·earnings-quality·metric·ebitda-estimate·dividend·fund-ownership</td>
+                              <td className="py-1 pr-3 text-text-faint text-[10px]">{gFetchedTime}</td>
+                              <td className="py-1 text-right text-text-faint text-[10px]">{gAgeSec}</td>
                             </tr>
                           );
                         })}
@@ -2929,7 +2929,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   <div className="overflow-x-auto overflow-y-auto mt-3" style={{maxHeight: '200px'}}>
                     <table className="text-xs whitespace-nowrap">
                       <thead>
-                        <tr className="text-white/50 border-b border-panel-border sticky top-0 bg-white/5">
+                        <tr className="text-text-faint border-b border-border sticky top-0 bg-bg-row">
                           <th className="text-left py-1 pr-3">#</th>
                           <th className="text-left py-1 pr-3">SYMBOL</th>
                           <th className="text-right py-1 pr-3">8-K<br/><span className="font-normal text-[9px]">30d</span></th>
@@ -2941,14 +2941,14 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                       </thead>
                       <tbody>
                         {tickers.map((t: any, i: number) => (
-                          <tr key={t.symbol} className="border-b border-panel-border">
-                            <td className="py-1 pr-3 text-white/50">{i+1}</td>
+                          <tr key={t.symbol} className="border-b border-border">
+                            <td className="py-1 pr-3 text-text-faint">{i+1}</td>
                             <td className="py-1 pr-3 font-bold">{t.symbol}</td>
-                            <td className={`py-1 pr-3 text-right font-bold ${t.edgar_8k_count != null && t.edgar_8k_count > 0 ? 'text-brand-red' : 'text-white/50'}`}>{t.edgar_8k_count != null ? t.edgar_8k_count : '—'}</td>
-                            <td className="py-1 pr-3 text-white/50 text-[10px]">SEC EDGAR</td>
-                            <td className="py-1 pr-3 text-white/50 text-[10px]">EFTS /search-index</td>
-                            <td className="py-1 pr-3 text-white/50 text-[10px]">{gFetchedTime}</td>
-                            <td className="py-1 text-right text-white/50 text-[10px]">{gAgeSec}</td>
+                            <td className={`py-1 pr-3 text-right font-bold ${t.edgar_8k_count != null && t.edgar_8k_count > 0 ? 'text-brand-red' : 'text-text-faint'}`}>{t.edgar_8k_count != null ? t.edgar_8k_count : '—'}</td>
+                            <td className="py-1 pr-3 text-text-faint text-[10px]">SEC EDGAR</td>
+                            <td className="py-1 pr-3 text-text-faint text-[10px]">EFTS /search-index</td>
+                            <td className="py-1 pr-3 text-text-faint text-[10px]">{gFetchedTime}</td>
+                            <td className="py-1 text-right text-text-faint text-[10px]">{gAgeSec}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -2962,27 +2962,27 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       </div>
 
       {/* Step J — Candle Data & Cross-Asset Correlations */}
-      <div className="border-b border-panel-border">
+      <div className="border-b border-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_j')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP J</span>
-            <span className="text-white/70">Candle Data &amp; Cross-Asset Correlations</span>
+            <span className="text-text-secondary">Candle Data &amp; Cross-Asset Correlations</span>
             {progress?.step_j?.data ? (
               <span className={chip('success')}>{progress.step_j.data.symbols_with_data} of {progress.step_j.data.symbols_requested} symbols have candle data</span>
             ) : (
-              <span className="text-white/50 animate-pulse">waiting...</span>
+              <span className="text-text-faint animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-white/50">{expanded['step_j'] ? '▲' : '▼'}</span>
+          <span className="text-text-faint">{expanded['step_j'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_j'] && progress?.step_j?.data && (
-          <div className="border-t border-panel-border bg-white/5 p-3">
+          <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step J fetches price history for every finalist. This candle data powers the technical indicators in Step L and the realized volatility cone on the trade card. Cross-asset correlations are also computed here and feed into the Regime gate.
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-panel-border">
+                <table className="w-full border-collapse border border-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -3011,7 +3011,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 </table>
               </div>
             </div>
-            <p className="text-white/50 text-xs font-bold mb-1">
+            <p className="text-text-faint text-xs font-bold mb-1">
               {progress.step_j.data.total_candles} CANDLES — {progress.step_j.data.symbols_with_data}/{progress.step_j.data.symbols_requested} SYMBOLS — {progress.step_j.data.elapsed_ms}ms
               {progress.step_j.data.symbols_failed > 0 && (
                 <span className="text-brand-red ml-2">⚠ {progress.step_j.data.symbols_failed} FAILED</span>
@@ -3032,7 +3032,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
                   <table className="w-full text-xs whitespace-nowrap">
                     <thead>
-                      <tr className="text-white/50 border-b border-panel-border sticky top-0 bg-white/5">
+                      <tr className="text-text-faint border-b border-border sticky top-0 bg-bg-row">
                         <th className="text-left py-1 pr-3">#</th>
                         <th className="text-left py-1 pr-3">SYMBOL</th>
                         <th className="text-right py-1 pr-3">CANDLES</th>
@@ -3044,14 +3044,14 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     </thead>
                     <tbody>
                       {candlesPerSymbol.map((c: any, i: number) => (
-                        <tr key={c.symbol} className="border-b border-panel-border">
-                          <td className="py-1 pr-3 text-white/50">{i+1}</td>
+                        <tr key={c.symbol} className="border-b border-border">
+                          <td className="py-1 pr-3 text-text-faint">{i+1}</td>
                           <td className="py-1 pr-3 font-bold">{c.symbol}</td>
-                          <td className={`py-1 pr-3 text-right font-bold ${c.candle_count != null && c.candle_count > 0 ? 'text-brand-green' : 'text-white/50'}`}>{c.candle_count != null ? c.candle_count : '—'}</td>
-                          <td className="py-1 pr-3 text-white/50 text-[10px]">{c.source}</td>
-                          <td className="py-1 pr-3 text-white/50 text-[10px]">{c.endpoint}</td>
-                          <td className="py-1 pr-3 text-white/50 text-[10px]">{jFetchedTime}</td>
-                          <td className="py-1 text-right text-white/50 text-[10px]">{jAgeSec}</td>
+                          <td className={`py-1 pr-3 text-right font-bold ${c.candle_count != null && c.candle_count > 0 ? 'text-brand-green' : 'text-text-faint'}`}>{c.candle_count != null ? c.candle_count : '—'}</td>
+                          <td className="py-1 pr-3 text-text-faint text-[10px]">{c.source}</td>
+                          <td className="py-1 pr-3 text-text-faint text-[10px]">{c.endpoint}</td>
+                          <td className="py-1 pr-3 text-text-faint text-[10px]">{jFetchedTime}</td>
+                          <td className="py-1 text-right text-text-faint text-[10px]">{jAgeSec}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -3061,8 +3061,8 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
             })()}
 
             {/* Section 2 — Cross-asset correlations */}
-            <div className="mt-3 p-2 bg-white/5 rounded border border-panel-border">
-              <p className="text-white/50 text-xs font-bold mb-1">CROSS-ASSET CORRELATIONS</p>
+            <div className="mt-3 p-2 bg-bg-row rounded border border-border">
+              <p className="text-text-faint text-xs font-bold mb-1">CROSS-ASSET CORRELATIONS</p>
               {progress.step_j.data.cross_asset_correlations?.available ? (
                 <p className="text-xs text-brand-green">
                   Available — Source: {progress.step_j.data.cross_asset_correlations.source} | Endpoint: {progress.step_j.data.cross_asset_correlations.endpoint}
@@ -3078,27 +3078,27 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       </div>
 
       {/* Step K — 4-Gate Scoring */}
-      <div className="border-b border-panel-border">
+      <div className="border-b border-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_k')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP K</span>
-            <span className="text-white/70">4-Gate Scoring</span>
+            <span className="text-text-secondary">4-Gate Scoring</span>
             {(ps?.scored != null || progress?.step_k) ? (
               <span className={chip('success')}>{ps?.scored ?? progress?.step_k?.data?.scored ?? 0} tickers scored</span>
             ) : (
-              <span className="text-white/50 animate-pulse">waiting...</span>
+              <span className="text-text-faint animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-white/50">{expanded['step_k'] ? '▲' : '▼'}</span>
+          <span className="text-text-faint">{expanded['step_k'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_k'] && (
-          <div className="border-t border-panel-border bg-white/5 p-3">
+          <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step K scores every finalist 0 to 100 across four independent gates. Each gate looks at the stock from a completely different angle. The final score is a weighted average of all four. The weights shift based on the current macro regime.
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-panel-border">
+                <table className="w-full border-collapse border border-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -3131,13 +3131,13 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 </table>
               </div>
             </div>
-            <p className="text-white/50 text-xs font-bold mb-1">
+            <p className="text-text-faint text-xs font-bold mb-1">
               {progress?.step_k?.data?.scored ?? '—'} TICKERS SCORED — 4-GATE MATRIX
             </p>
             <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
               <table className="w-full text-xs whitespace-nowrap">
                 <thead>
-                  <tr className="text-white/50 border-b border-panel-border sticky top-0 bg-white/5">
+                  <tr className="text-text-faint border-b border-border sticky top-0 bg-bg-row">
                     <th className="text-left py-1 pr-3">RANK</th>
                     <th className="text-left py-1 pr-3">SYMBOL</th>
                     <th className="text-right py-1 pr-3">VOL EDGE<br/><span className="font-normal text-[9px]">{(progress?.step_k?.data?.weights as any)?.vol_edge ?? 25}% weight</span></th>
@@ -3176,31 +3176,31 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     const eligible = r.selection_status === 'eligible';
                     return (
                       <React.Fragment key={r.symbol}>
-                      <tr className={`border-b border-panel-border cursor-pointer ${!eligible ? 'opacity-60' : ''}`} onClick={() => setHDrillDown(prev => ({ ...prev, [r.symbol]: !prev[r.symbol] }))}>
-                        <td className="py-1 pr-3 text-white/50">#{i+1}</td>
-                        <td className={`py-1 pr-3 font-bold ${eligible ? 'text-brand-green' : 'text-white/50'}`}>{r.symbol}</td>
+                      <tr className={`border-b border-border cursor-pointer ${!eligible ? 'opacity-60' : ''}`} onClick={() => setHDrillDown(prev => ({ ...prev, [r.symbol]: !prev[r.symbol] }))}>
+                        <td className="py-1 pr-3 text-text-faint">#{i+1}</td>
+                        <td className={`py-1 pr-3 font-bold ${eligible ? 'text-brand-green' : 'text-text-faint'}`}>{r.symbol}</td>
                         <td className={`py-1 pr-3 text-right ${gateColor(r.vol_edge)}`}>{r.vol_edge}</td>
                         <td className={`py-1 pr-3 text-right ${gateColor(r.quality)}`}>{r.quality}</td>
                         <td className={`py-1 pr-3 text-right ${gateColor(r.regime)}`}>{r.regime}</td>
                         <td className={`py-1 pr-3 text-right ${gateColor(r.info_edge)}`}>{r.info_edge}</td>
                         <td className={`py-1 pr-3 text-right font-bold ${gatesAbove50 >= 3 ? 'text-brand-green' : gatesAbove50 === 2 ? 'text-brand-gold' : 'text-brand-red'}`}>{gatesAbove50}/4</td>
-                        <td className="py-1 pr-3 text-white/50 font-mono text-[10px]">({r.vol_edge}×{w.vol_edge}%) + ({r.quality}×{w.quality}%) + ({r.regime}×{w.regime}%) + ({r.info_edge}×{w.info_edge}%) = {veC}+{qC}+{rC}+{ieC}</td>
-                        <td className={`py-1 pr-3 text-right font-bold ${r.composite >= 60 ? 'text-brand-green' : r.composite >= 50 ? 'text-brand-gold' : 'text-white/50'}`}>{r.composite}</td>
+                        <td className="py-1 pr-3 text-text-faint font-mono text-[10px]">({r.vol_edge}×{w.vol_edge}%) + ({r.quality}×{w.quality}%) + ({r.regime}×{w.regime}%) + ({r.info_edge}×{w.info_edge}%) = {veC}+{qC}+{rC}+{ieC}</td>
+                        <td className={`py-1 pr-3 text-right font-bold ${r.composite >= 60 ? 'text-brand-green' : r.composite >= 50 ? 'text-brand-gold' : 'text-text-faint'}`}>{r.composite}</td>
                         <td className={`py-1 pr-3 ${eligible ? 'text-brand-green' : 'text-brand-red'}`}>{eligible ? `✓ ${gatesAbove50}/4 gates — eligible` : `✗ ${gatesAbove50}/4 gates — needs 3`}</td>
-                        <td className="py-1 pr-3 text-right text-white/50">{r.data_confidence != null ? (r.data_confidence * 100).toFixed(0) + '%' : '—'}</td>
-                        <td className="py-1 pr-3 text-right text-white/50">{r.position_size_pct != null ? r.position_size_pct + '%' : '—'}</td>
-                        <td className="py-1 pr-3 text-white/50 text-[10px]">{hFetchedTime}</td>
-                        <td className="py-1 pr-3 text-right text-white/50 text-[10px]">{hAgeSec}</td>
-                        <td className="py-1 pr-3 text-white/50 text-[10px]">Steps A–J</td>
-                        <td className="py-1 text-white/50 text-[10px]">Composite — see Steps A–J</td>
+                        <td className="py-1 pr-3 text-right text-text-faint">{r.data_confidence != null ? (r.data_confidence * 100).toFixed(0) + '%' : '—'}</td>
+                        <td className="py-1 pr-3 text-right text-text-faint">{r.position_size_pct != null ? r.position_size_pct + '%' : '—'}</td>
+                        <td className="py-1 pr-3 text-text-faint text-[10px]">{hFetchedTime}</td>
+                        <td className="py-1 pr-3 text-right text-text-faint text-[10px]">{hAgeSec}</td>
+                        <td className="py-1 pr-3 text-text-faint text-[10px]">Steps A–J</td>
+                        <td className="py-1 text-text-faint text-[10px]">Composite — see Steps A–J</td>
                       </tr>
                       {hDrillDown[r.symbol] && (
                         <tr key={r.symbol + '_drill'}>
-                          <td colSpan={16} className="py-2 px-3 bg-white/5 border-b border-panel-border">
+                          <td colSpan={16} className="py-2 px-3 bg-bg-row border-b border-border">
                             <div className="grid grid-cols-4 gap-3 text-xs">
                               {/* VOL EDGE */}
                               <div>
-                                <p className="text-brand-purple font-bold mb-1">VOL EDGE {r.vol_edge}<span className="text-white/50 font-normal ml-1">— TastyTrade + Candles</span></p>
+                                <p className="text-brand-purple font-bold mb-1">VOL EDGE {r.vol_edge}<span className="text-text-faint font-normal ml-1">— TastyTrade + Candles</span></p>
                                 {r.vol_edge_detail && (
                                   <table className="w-full text-[10px]">
                                     <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-text-faint border-b border-border"}><th className="text-left py-0.5">COMPONENT</th><th className="text-right py-0.5">SCORE</th><th className="text-right py-0.5">WEIGHT</th><th className="text-right py-0.5">CONTRIB</th></tr></thead>
@@ -3212,21 +3212,21 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                                         ['Skew', r.vol_edge_detail.skew],
                                         ['GEX', r.vol_edge_detail.gex],
                                       ].map(([name, d]: any) => (
-                                        <tr key={name} className="border-b border-panel-border/30">
-                                          <td className="py-0.5 text-white/70">{name}</td>
+                                        <tr key={name} className="border-b border-border/30">
+                                          <td className="py-0.5 text-text-secondary">{name}</td>
                                           <td className="py-0.5 text-right">{d.score}</td>
-                                          <td className="py-0.5 text-right text-white/50">{(d.weight * 100).toFixed(0)}%</td>
+                                          <td className="py-0.5 text-right text-text-faint">{(d.weight * 100).toFixed(0)}%</td>
                                           <td className="py-0.5 text-right text-brand-gold">{(d.score * d.weight).toFixed(1)}</td>
                                         </tr>
                                       ))}
                                     </tbody>
                                   </table>
                                 )}
-                                <p className="text-white/50 mt-1">Conf: {r.vol_edge_detail ? (r.vol_edge_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.vol_edge_detail?.active_signal_count != null ? ` · computed from ${r.vol_edge_detail.active_signal_count}/${r.vol_edge_detail.total_signal_count} signals` : ''}</p>
+                                <p className="text-text-faint mt-1">Conf: {r.vol_edge_detail ? (r.vol_edge_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.vol_edge_detail?.active_signal_count != null ? ` · computed from ${r.vol_edge_detail.active_signal_count}/${r.vol_edge_detail.total_signal_count} signals` : ''}</p>
                               </div>
                               {/* QUALITY */}
                               <div>
-                                <p className="text-brand-purple font-bold mb-1">QUALITY {r.quality}<span className="text-white/50 font-normal ml-1">— Finnhub</span></p>
+                                <p className="text-brand-purple font-bold mb-1">QUALITY {r.quality}<span className="text-text-faint font-normal ml-1">— Finnhub</span></p>
                                 {r.quality_detail && (
                                   <table className="w-full text-[10px]">
                                     <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-text-faint border-b border-border"}><th className="text-left py-0.5">COMPONENT</th><th className="text-right py-0.5">SCORE</th><th className="text-right py-0.5">WEIGHT</th><th className="text-right py-0.5">CONTRIB</th></tr></thead>
@@ -3237,58 +3237,58 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                                         ['Growth', r.quality_detail.growth],
                                         ['Fund. Risk', r.quality_detail.fundamental_risk],
                                       ].map(([name, d]: any) => (
-                                        <tr key={name} className="border-b border-panel-border/30">
-                                          <td className="py-0.5 text-white/70">{name}</td>
+                                        <tr key={name} className="border-b border-border/30">
+                                          <td className="py-0.5 text-text-secondary">{name}</td>
                                           <td className="py-0.5 text-right">{d.score}</td>
-                                          <td className="py-0.5 text-right text-white/50">{(d.weight * 100).toFixed(0)}%</td>
+                                          <td className="py-0.5 text-right text-text-faint">{(d.weight * 100).toFixed(0)}%</td>
                                           <td className="py-0.5 text-right text-brand-gold">{(d.score * d.weight).toFixed(1)}</td>
                                         </tr>
                                       ))}
                                       {r.quality_detail.mspr_adjustment !== 0 && (
-                                        <tr className="border-b border-panel-border/30">
-                                          <td className="py-0.5 text-white/50" colSpan={3}>MSPR adj</td>
+                                        <tr className="border-b border-border/30">
+                                          <td className="py-0.5 text-text-faint" colSpan={3}>MSPR adj</td>
                                           <td className={`py-0.5 text-right ${r.quality_detail.mspr_adjustment > 0 ? 'text-brand-green' : 'text-brand-red'}`}>{r.quality_detail.mspr_adjustment > 0 ? '+' : ''}{r.quality_detail.mspr_adjustment}</td>
                                         </tr>
                                       )}
                                     </tbody>
                                   </table>
                                 )}
-                                <p className="text-white/50 mt-1">Conf: {r.quality_detail ? (r.quality_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.quality_detail?.active_signal_count != null ? ` · computed from ${r.quality_detail.active_signal_count}/${r.quality_detail.total_signal_count} signals` : ''}</p>
+                                <p className="text-text-faint mt-1">Conf: {r.quality_detail ? (r.quality_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.quality_detail?.active_signal_count != null ? ` · computed from ${r.quality_detail.active_signal_count}/${r.quality_detail.total_signal_count} signals` : ''}</p>
                               </div>
                               {/* REGIME */}
                               <div>
-                                <p className="text-brand-purple font-bold mb-1">REGIME {r.regime}<span className="text-white/50 font-normal ml-1">— FRED</span></p>
+                                <p className="text-brand-purple font-bold mb-1">REGIME {r.regime}<span className="text-text-faint font-normal ml-1">— FRED</span></p>
                                 {r.regime_detail && (
                                   <table className="w-full text-[10px]">
                                     <tbody>
-                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Regime</td><td className="py-0.5 text-right font-bold">{r.regime_detail.dominant_regime}</td></tr>
-                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Growth Signal</td><td className="py-0.5 text-right">{r.regime_detail.growth_score}</td></tr>
-                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Inflation Signal</td><td className="py-0.5 text-right">{r.regime_detail.inflation_score}</td></tr>
-                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">SPY Multiplier</td><td className="py-0.5 text-right">{r.regime_detail.spy_multiplier}</td></tr>
-                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Base → Final</td><td className="py-0.5 text-right">{r.regime_detail.base_score} → {r.regime}</td></tr>
-                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">VIX</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.vix ?? '—'}</td></tr>
-                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">GDP</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.gdp ?? '—'}</td></tr>
-                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">CPI YoY</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.cpi_yoy ?? '—'}</td></tr>
-                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Fed Funds</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.fed_funds ?? '—'}</td></tr>
-                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Yield Curve Spread</td><td className="py-0.5 text-right">{r.regime_detail.yield_curve_spread ?? '—'}</td></tr>
-                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">HY Spread</td><td className="py-0.5 text-right">{r.regime_detail.hy_spread ?? '—'}</td></tr>
-                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Cross-Asset Corr</td><td className="py-0.5 text-right">{r.regime_detail.cross_asset_available ? 'Available' : '—'}</td></tr>
-                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">BBB Spread</td><td className="py-0.5 text-right">{r.regime_detail.bbb_spread_raw != null ? `${r.regime_detail.bbb_spread_raw}%` : '—'} → score {r.regime_detail.bbb_spread ?? '—'}</td></tr>
-                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">T10Y3M</td><td className="py-0.5 text-right">{r.regime_detail.t10y3m_raw != null ? `${r.regime_detail.t10y3m_raw}%` : '—'} → score {r.regime_detail.t10y3m ?? '—'}</td></tr>
-                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Dollar Index</td><td className="py-0.5 text-right">{r.regime_detail.dollar_index_raw ?? '—'} → score {r.regime_detail.dollar_index ?? '—'}</td></tr>
-                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Fed Net Liquidity</td><td className="py-0.5 text-right">{r.regime_detail.fed_net_liquidity_raw != null ? `$${r.regime_detail.fed_net_liquidity_raw}B` : '—'} → score {r.regime_detail.fed_net_liquidity ?? '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Regime</td><td className="py-0.5 text-right font-bold">{r.regime_detail.dominant_regime}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Growth Signal</td><td className="py-0.5 text-right">{r.regime_detail.growth_score}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Inflation Signal</td><td className="py-0.5 text-right">{r.regime_detail.inflation_score}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">SPY Multiplier</td><td className="py-0.5 text-right">{r.regime_detail.spy_multiplier}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Base → Final</td><td className="py-0.5 text-right">{r.regime_detail.base_score} → {r.regime}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">VIX</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.vix ?? '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">GDP</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.gdp ?? '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">CPI YoY</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.cpi_yoy ?? '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Fed Funds</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.fed_funds ?? '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Yield Curve Spread</td><td className="py-0.5 text-right">{r.regime_detail.yield_curve_spread ?? '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">HY Spread</td><td className="py-0.5 text-right">{r.regime_detail.hy_spread ?? '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Cross-Asset Corr</td><td className="py-0.5 text-right">{r.regime_detail.cross_asset_available ? 'Available' : '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">BBB Spread</td><td className="py-0.5 text-right">{r.regime_detail.bbb_spread_raw != null ? `${r.regime_detail.bbb_spread_raw}%` : '—'} → score {r.regime_detail.bbb_spread ?? '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">T10Y3M</td><td className="py-0.5 text-right">{r.regime_detail.t10y3m_raw != null ? `${r.regime_detail.t10y3m_raw}%` : '—'} → score {r.regime_detail.t10y3m ?? '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Dollar Index</td><td className="py-0.5 text-right">{r.regime_detail.dollar_index_raw ?? '—'} → score {r.regime_detail.dollar_index ?? '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Fed Net Liquidity</td><td className="py-0.5 text-right">{r.regime_detail.fed_net_liquidity_raw != null ? `$${r.regime_detail.fed_net_liquidity_raw}B` : '—'} → score {r.regime_detail.fed_net_liquidity ?? '—'}</td></tr>
                                       {/* EDGE-6: wired vol-regime conditioners + survival brake */}
-                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">VIX/VIX3M (wired)</td><td className="py-0.5 text-right">{r.regime_detail.vix_term_structure_raw ?? '—'} → score {r.regime_detail.vix_term_structure ?? '—'}</td></tr>
-                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">VVIX (wired)</td><td className="py-0.5 text-right">{r.regime_detail.vvix_raw ?? '—'} → score {r.regime_detail.vvix ?? '—'}</td></tr>
-                                      <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Survival Brake</td><td className={`py-0.5 text-right font-bold ${r.regime_detail.survival_brake === 'OFF' ? 'text-brand-green' : 'text-brand-red'}`} title={r.regime_detail.survival_brake_declaration ?? ''}>{r.regime_detail.survival_brake ?? '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">VIX/VIX3M (wired)</td><td className="py-0.5 text-right">{r.regime_detail.vix_term_structure_raw ?? '—'} → score {r.regime_detail.vix_term_structure ?? '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">VVIX (wired)</td><td className="py-0.5 text-right">{r.regime_detail.vvix_raw ?? '—'} → score {r.regime_detail.vvix ?? '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Survival Brake</td><td className={`py-0.5 text-right font-bold ${r.regime_detail.survival_brake === 'OFF' ? 'text-brand-green' : 'text-brand-red'}`} title={r.regime_detail.survival_brake_declaration ?? ''}>{r.regime_detail.survival_brake ?? '—'}</td></tr>
                                     </tbody>
                                   </table>
                                 )}
-                                <p className="text-white/50 mt-1">Conf: {r.regime_detail ? (r.regime_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.regime_detail?.active_signal_count != null ? ` · computed from ${r.regime_detail.active_signal_count}/${r.regime_detail.total_signal_count} signals` : ''}</p>
+                                <p className="text-text-faint mt-1">Conf: {r.regime_detail ? (r.regime_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.regime_detail?.active_signal_count != null ? ` · computed from ${r.regime_detail.active_signal_count}/${r.regime_detail.total_signal_count} signals` : ''}</p>
                               </div>
                               {/* INFO EDGE */}
                               <div>
-                                <p className="text-brand-purple font-bold mb-1">INFO EDGE {r.info_edge}<span className="text-white/50 font-normal ml-1">— Finnhub</span></p>
+                                <p className="text-brand-purple font-bold mb-1">INFO EDGE {r.info_edge}<span className="text-text-faint font-normal ml-1">— Finnhub</span></p>
                                 {r.info_edge_detail && (
                                   <table className="w-full text-[10px]">
                                     <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-text-faint border-b border-border"}><th className="text-left py-0.5">COMPONENT</th><th className="text-right py-0.5">SCORE</th><th className="text-right py-0.5">WEIGHT</th><th className="text-right py-0.5">CONTRIB</th></tr></thead>
@@ -3306,35 +3306,35 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                                         ['Material Event', r.info_edge_detail.material_event],
                                         ['Rec. Revision', r.info_edge_detail.recommendation_revision],
                                       ].map(([name, d]: any) => (
-                                        <tr key={name} className="border-b border-panel-border/30">
-                                          <td className="py-0.5 text-white/70">{name}</td>
+                                        <tr key={name} className="border-b border-border/30">
+                                          <td className="py-0.5 text-text-secondary">{name}</td>
                                           <td className="py-0.5 text-right">{d?.score != null ? d.score : '—'}</td>
-                                          <td className="py-0.5 text-right text-white/50">{d?.weight != null ? (d.weight * 100).toFixed(0) + '%' : '—'}</td>
+                                          <td className="py-0.5 text-right text-text-faint">{d?.weight != null ? (d.weight * 100).toFixed(0) + '%' : '—'}</td>
                                           <td className="py-0.5 text-right text-brand-gold">{d?.score != null && d?.weight != null ? (d.score * d.weight).toFixed(1) : '—'}</td>
                                         </tr>
                                       ))}
                                     </tbody>
                                   </table>
                                 )}
-                                <p className="text-white/50 mt-1">Conf: {r.info_edge_detail ? (r.info_edge_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.info_edge_detail?.active_signal_count != null ? ` · computed from ${r.info_edge_detail.active_signal_count}/${r.info_edge_detail.total_signal_count} signals` : ''}</p>
+                                <p className="text-text-faint mt-1">Conf: {r.info_edge_detail ? (r.info_edge_detail.data_confidence * 100).toFixed(0) + '%' : '—'}{r.info_edge_detail?.active_signal_count != null ? ` · computed from ${r.info_edge_detail.active_signal_count}/${r.info_edge_detail.total_signal_count} signals` : ''}</p>
                                 {r.info_edge_detail?.filing_recency && (
-                                  <div className="mt-1 pt-1 border-t border-panel-border/30">
-                                    <p className="text-white/70 font-bold">Filing Recency</p>
+                                  <div className="mt-1 pt-1 border-t border-border/30">
+                                    <p className="text-text-secondary font-bold">Filing Recency</p>
                                     <table className="w-full text-[10px]">
                                       <tbody>
-                                        <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Signal Active</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_signal_active ? 'Yes' : 'No'}</td></tr>
-                                        <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Filing Type</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_type ?? '—'}</td></tr>
-                                        <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Filing Age</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_age_hours != null ? r.info_edge_detail.filing_recency.filing_age_hours + 'h' : '—'}</td></tr>
-                                        <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">EPS Surprise</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.eps_surprise_pct != null ? r.info_edge_detail.filing_recency.eps_surprise_pct + '%' : '—'}</td></tr>
-                                        <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Recency Score</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_recency_score}</td></tr>
-                                        <tr className="border-b border-panel-border/30"><td className="py-0.5 text-white/70">Modifier</td><td className={`py-0.5 text-right ${r.info_edge_detail.filing_recency.filing_modifier > 0 ? 'text-brand-green' : r.info_edge_detail.filing_recency.filing_modifier < 0 ? 'text-brand-red' : ''}`}>{r.info_edge_detail.filing_recency.filing_modifier > 0 ? '+' : ''}{r.info_edge_detail.filing_recency.filing_modifier}</td></tr>
+                                        <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Signal Active</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_signal_active ? 'Yes' : 'No'}</td></tr>
+                                        <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Filing Type</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_type ?? '—'}</td></tr>
+                                        <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Filing Age</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_age_hours != null ? r.info_edge_detail.filing_recency.filing_age_hours + 'h' : '—'}</td></tr>
+                                        <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">EPS Surprise</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.eps_surprise_pct != null ? r.info_edge_detail.filing_recency.eps_surprise_pct + '%' : '—'}</td></tr>
+                                        <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Recency Score</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_recency_score}</td></tr>
+                                        <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Modifier</td><td className={`py-0.5 text-right ${r.info_edge_detail.filing_recency.filing_modifier > 0 ? 'text-brand-green' : r.info_edge_detail.filing_recency.filing_modifier < 0 ? 'text-brand-red' : ''}`}>{r.info_edge_detail.filing_recency.filing_modifier > 0 ? '+' : ''}{r.info_edge_detail.filing_recency.filing_modifier}</td></tr>
                                       </tbody>
                                     </table>
                                   </div>
                                 )}
                               </div>
                             </div>
-                            <p className="text-white/50 text-[10px] mt-2">Formula: ({r.vol_edge}×{progress?.step_k?.data?.weights?.vol_edge ?? '?'}%) + ({r.quality}×{progress?.step_k?.data?.weights?.quality ?? '?'}%) + ({r.regime}×{progress?.step_k?.data?.weights?.regime ?? '?'}%) + ({r.info_edge}×{progress?.step_k?.data?.weights?.info_edge ?? '?'}%) = {r.composite}</p>
+                            <p className="text-text-faint text-[10px] mt-2">Formula: ({r.vol_edge}×{progress?.step_k?.data?.weights?.vol_edge ?? '?'}%) + ({r.quality}×{progress?.step_k?.data?.weights?.quality ?? '?'}%) + ({r.regime}×{progress?.step_k?.data?.weights?.regime ?? '?'}%) + ({r.info_edge}×{progress?.step_k?.data?.weights?.info_edge ?? '?'}%) = {r.composite}</p>
                           </td>
                         </tr>
                       )}
@@ -3350,27 +3350,27 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       </div>
 
       {/* Step L — Re-Score With Technicals */}
-      <div className="border-b border-panel-border">
+      <div className="border-b border-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_l')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP L</span>
-            <span className="text-white/70">Re-Score With Technicals</span>
+            <span className="text-text-secondary">Re-Score With Technicals</span>
             {progress?.step_l?.data ? (
               <span className={chip('success')}>{(progress.step_l.data as any).re_scored} of {(progress.step_l.data as any).total} tickers re-scored with candle technicals</span>
             ) : (
-              <span className="text-white/50 animate-pulse">waiting...</span>
+              <span className="text-text-faint animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-white/50">{expanded['step_l'] ? '▲' : '▼'}</span>
+          <span className="text-text-faint">{expanded['step_l'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_l'] && progress?.step_l?.data && (
-          <div className="px-8 py-2 border-t border-panel-border bg-white/5">
+          <div className="px-8 py-2 border-t border-border bg-bg-row">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step K scored without technical indicators because candle computation runs separately. Step L plugs them in. RSI, Bollinger Bands, moving averages, and volume ratio are computed from the Step J candle data and added to the Vol Edge gate.
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-panel-border">
+                <table className="w-full border-collapse border border-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -3415,7 +3415,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
                   <table className="w-full text-xs whitespace-nowrap">
                     <thead>
-                      <tr className="text-white/50 border-b border-panel-border sticky top-0 bg-white/5">
+                      <tr className="text-text-faint border-b border-border sticky top-0 bg-bg-row">
                         <th className="text-left py-1 pr-3">#</th>
                         <th className="text-left py-1 pr-3">SYMBOL</th>
                         <th className="text-right py-1 pr-3">CANDLES</th>
@@ -3436,10 +3436,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     </thead>
                     <tbody>
                       {tickers.map((t: any, i: number) => (
-                        <tr key={t.symbol} className="border-b border-panel-border">
-                          <td className="py-1 pr-3 text-white/50">{i + 1}</td>
+                        <tr key={t.symbol} className="border-b border-border">
+                          <td className="py-1 pr-3 text-text-faint">{i + 1}</td>
                           <td className="py-1 pr-3 font-bold">{t.symbol}</td>
-                          <td className={`py-1 pr-3 text-right font-bold ${t.candles_used != null && t.candles_used > 0 ? 'text-brand-green' : 'text-white/50'}`}>{t.candles_used ?? '—'}</td>
+                          <td className={`py-1 pr-3 text-right font-bold ${t.candles_used != null && t.candles_used > 0 ? 'text-brand-green' : 'text-text-faint'}`}>{t.candles_used ?? '—'}</td>
                           <td className="py-1 pr-3 text-right">{t.vol_edge_score ?? '—'}</td>
                           <td className="py-1 pr-3 text-right">{t.composite_score ?? '—'}</td>
                           <td className="py-1 pr-3 text-right">{t.technicals_score ?? '—'}</td>
@@ -3449,10 +3449,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                           <td className="py-1 pr-3 text-right">{t.bb_position != null ? Number(t.bb_position).toFixed(2) : '—'}</td>
                           <td className="py-1 pr-3 text-right">{t.volume_ratio != null ? Number(t.volume_ratio).toFixed(2) : '—'}</td>
                           <td className="py-1 pr-3 text-right">{t.high52w_ratio != null ? Number(t.high52w_ratio).toFixed(2) : '—'}</td>
-                          <td className="py-1 pr-3 text-white/50 text-[10px]">{t.source}</td>
-                          <td className="py-1 pr-3 text-white/50 text-[10px]">{t.endpoint}</td>
-                          <td className="py-1 pr-3 text-white/50 text-[10px]">{lFetchedTime}</td>
-                          <td className="py-1 text-right text-white/50 text-[10px]">{lAgeSec}</td>
+                          <td className="py-1 pr-3 text-text-faint text-[10px]">{t.source}</td>
+                          <td className="py-1 pr-3 text-text-faint text-[10px]">{t.endpoint}</td>
+                          <td className="py-1 pr-3 text-text-faint text-[10px]">{lFetchedTime}</td>
+                          <td className="py-1 text-right text-text-faint text-[10px]">{lAgeSec}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -3465,27 +3465,27 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       </div>
 
       {/* Step M — Final Selection */}
-      <div className="border-b border-panel-border">
+      <div className="border-b border-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_m')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP M</span>
-            <span className="text-white/70">Final Selection</span>
+            <span className="text-text-secondary">Final Selection</span>
             {progress?.step_m?.data ? (
               <span className={chip('success')}>{(progress.step_m.data as any).selected} of {(progress.step_m.data as any).total_scored} tickers selected</span>
             ) : (
-              <span className="text-white/50 animate-pulse">waiting...</span>
+              <span className="text-text-faint animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-white/50">{expanded['step_m'] ? '▲' : '▼'}</span>
+          <span className="text-text-faint">{expanded['step_m'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_m'] && progress?.step_m?.data && (
-          <div className="px-8 py-2 border-t border-panel-border bg-white/5">
+          <div className="px-8 py-2 border-t border-border bg-bg-row">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step M applies three final rules and produces the diversified set of finalists. Raw scores alone do not produce a tradeable set. Sector concentration increases correlated risk. Quality floors protect against bad setups.
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-panel-border">
+                <table className="w-full border-collapse border border-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -3535,10 +3535,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
               return (
                 <>
                   {/* PART 1 — Sector Distribution */}
-                  <div className="mb-3 p-2 bg-white/5 rounded border border-panel-border">
-                    <p className="text-white/50 text-xs font-bold mb-1">SECTOR DISTRIBUTION</p>
+                  <div className="mb-3 p-2 bg-bg-row rounded border border-border">
+                    <p className="text-text-faint text-xs font-bold mb-1">SECTOR DISTRIBUTION</p>
                     {Object.entries(sectorDist).map(([sector, count]) => (
-                      <p key={sector} className="text-xs text-white/70">{sector}: {count as number}</p>
+                      <p key={sector} className="text-xs text-text-secondary">{sector}: {count as number}</p>
                     ))}
                   </div>
 
@@ -3546,7 +3546,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   <div className="overflow-x-auto overflow-y-auto mb-3" style={{maxHeight: '300px'}}>
                     <table className="w-full text-xs whitespace-nowrap">
                       <thead>
-                        <tr className="text-white/50 border-b border-panel-border sticky top-0 bg-white/5">
+                        <tr className="text-text-faint border-b border-border sticky top-0 bg-bg-row">
                           <th className="text-right py-1 pr-3">RANK</th>
                           <th className="text-left py-1 pr-3">SYMBOL</th>
                           <th className="text-right py-1 pr-3">COMPOSITE</th>
@@ -3561,8 +3561,8 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                       </thead>
                       <tbody>
                         {selected.map((r: any) => (
-                          <tr key={r.symbol} className="border-b border-panel-border">
-                            <td className="py-1 pr-3 text-right text-white/50">{r.rank}</td>
+                          <tr key={r.symbol} className="border-b border-border">
+                            <td className="py-1 pr-3 text-right text-text-faint">{r.rank}</td>
                             <td className="py-1 pr-3 font-bold">{r.symbol}</td>
                             <td className="py-1 pr-3 text-right">{r.composite ?? '—'}</td>
                             <td className="py-1 pr-3 text-right">{r.vol_edge ?? '—'}</td>
@@ -3583,7 +3583,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     <div className="overflow-x-auto overflow-y-auto mb-3" style={{maxHeight: '300px'}}>
                       <table className="w-full text-xs whitespace-nowrap">
                         <thead>
-                          <tr className="text-white/50 border-b border-panel-border sticky top-0 bg-white/5">
+                          <tr className="text-text-faint border-b border-border sticky top-0 bg-bg-row">
                             <th className="text-left py-1 pr-3">SYMBOL</th>
                             <th className="text-right py-1 pr-3">COMPOSITE</th>
                             <th className="text-left py-1 pr-3">CONVERGENCE</th>
@@ -3595,13 +3595,13 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                         </thead>
                         <tbody>
                           {excluded.map((r: any) => (
-                            <tr key={r.symbol} className="border-b border-panel-border">
+                            <tr key={r.symbol} className="border-b border-border">
                               <td className="py-1 pr-3 font-bold">{r.symbol}</td>
                               <td className="py-1 pr-3 text-right">{r.composite ?? '—'}</td>
                               <td className="py-1 pr-3">{r.convergence ?? '—'}</td>
                               <td className="py-1 pr-3 text-right">{r.quality ?? '—'}</td>
                               <td className="py-1 pr-3">{r.sector ?? '—'}</td>
-                              <td className="py-1 pr-3 text-white/50 text-[10px]">{r.reason}</td>
+                              <td className="py-1 pr-3 text-text-faint text-[10px]">{r.reason}</td>
                               <td className="py-1 text-brand-red font-bold">✗ EXCLUDED</td>
                             </tr>
                           ))}
@@ -3612,10 +3612,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
 
                   {/* PART 4 — Adjustments Log */}
                   {adjustments.length > 0 && (
-                    <div className="p-2 bg-white/5 rounded border border-panel-border">
-                      <p className="text-white/50 text-xs font-bold mb-1">ADJUSTMENTS LOG</p>
+                    <div className="p-2 bg-bg-row rounded border border-border">
+                      <p className="text-text-faint text-xs font-bold mb-1">ADJUSTMENTS LOG</p>
                       {adjustments.map((adj: string, i: number) => (
-                        <p key={i} className="text-[10px] text-white/50">{adj}</p>
+                        <p key={i} className="text-[10px] text-text-faint">{adj}</p>
                       ))}
                     </div>
                   )}
@@ -3627,27 +3627,27 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       </div>
 
       {/* Step N — Chain Fetch */}
-      <div className="border-b border-panel-border">
+      <div className="border-b border-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_n')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP N</span>
-            <span className="text-white/70">Chain Fetch</span>
+            <span className="text-text-secondary">Chain Fetch</span>
             {jData ? (
               <span className={chip('success')}>{jData.totalStrikes} strikes fetched across {jData.tickers?.length ?? 0} tickers — {jData.greeksEvents} Greeks events received</span>
             ) : (
-              <span className="text-white/50 animate-pulse">waiting...</span>
+              <span className="text-text-faint animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-white/50">{expanded['step_n'] ? '▲' : '▼'}</span>
+          <span className="text-text-faint">{expanded['step_n'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_n'] && (
-          <div className="px-8 py-2 border-t border-panel-border bg-white/5">
+          <div className="px-8 py-2 border-t border-border bg-bg-row">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step N fetches the live options chain for every finalist. Every strike, every expiration in the 15 to 60 day window. We evaluate every expiration — not just the nearest one. The expiration with the highest-scoring strategy wins.
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-panel-border">
+                <table className="w-full border-collapse border border-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -3700,16 +3700,16 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                       const srcColor = t.priceSource === 'live' ? 'text-brand-green' : t.priceSource === 'theo' ? 'text-brand-gold' : t.priceSource === 'mixed' ? 'text-brand-blue' : 'text-brand-red';
                       const srcLabel = t.priceSource === 'theo' ? 'theo (market closed)' : (t.priceSource ?? '—');
                       return (
-                        <tr key={t.symbol} className="border-b border-panel-border">
-                          <td className="py-0.5 px-1 font-bold text-white">{t.symbol}</td>
-                          <td className="py-0.5 px-1 text-white/70 font-mono">{t.expiration ?? '—'}</td>
-                          <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.dte ?? '—'}</td>
-                          <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.strikeCount ?? '—'}</td>
+                        <tr key={t.symbol} className="border-b border-border">
+                          <td className="py-0.5 px-1 font-bold text-text-primary">{t.symbol}</td>
+                          <td className="py-0.5 px-1 text-text-secondary font-mono">{t.expiration ?? '—'}</td>
+                          <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.dte ?? '—'}</td>
+                          <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.strikeCount ?? '—'}</td>
                           <td className={`py-0.5 px-1 font-mono ${srcColor}`}>{srcLabel}</td>
-                          <td className="py-0.5 px-1 font-mono text-white/70">{t.source ?? 'TastyTrade'}</td>
-                          <td className="py-0.5 px-1 font-mono text-white/70">{t.endpoint ?? 'options-chain'}</td>
-                          <td className="py-0.5 px-1 font-mono text-white/70">{nFetchedTime}</td>
-                          <td className="py-0.5 px-1 text-right font-mono text-white/70">{nAgeSec != null ? `${nAgeSec}s` : '—'}</td>
+                          <td className="py-0.5 px-1 font-mono text-text-secondary">{t.source ?? 'TastyTrade'}</td>
+                          <td className="py-0.5 px-1 font-mono text-text-secondary">{t.endpoint ?? 'options-chain'}</td>
+                          <td className="py-0.5 px-1 font-mono text-text-secondary">{nFetchedTime}</td>
+                          <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{nAgeSec != null ? `${nAgeSec}s` : '—'}</td>
                         </tr>
                       );
                     })}
@@ -3719,7 +3719,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
               );
             })()}
             {jData && (
-              <p className="text-white/50 text-xs mt-3">
+              <p className="text-text-faint text-xs mt-3">
                 {jData.streamerSymbols} streamer symbols subscribed · {jData.greeksEvents} Greeks events received
               </p>
             )}
@@ -3728,18 +3728,18 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       </div>
 
       {/* Step O — Live Greeks Subscription */}
-      <div className="border-b border-panel-border">
+      <div className="border-b border-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_o')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP O</span>
-            <span className="text-white/70">Live Greeks Subscription</span>
+            <span className="text-text-secondary">Live Greeks Subscription</span>
             {progress?.step_o?.data ? (
               <span className={chip('success')}>{(progress.step_o.data as any).greeks_events_received} Greeks events received across {(progress.step_o.data as any).streamer_symbols_subscribed} symbols</span>
             ) : (
-              <span className="text-white/50 animate-pulse">waiting...</span>
+              <span className="text-text-faint animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-white/50">{expanded['step_o'] ? '▲' : '▼'}</span>
+          <span className="text-text-faint">{expanded['step_o'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_o'] && progress?.step_o?.data && (() => {
           const od = progress.step_o.data as any;
@@ -3748,13 +3748,13 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           const oAgeSec = oFetchedAt ? Math.round((Date.now() - oFetchedAt.getTime()) / 1000) : null;
           const tickers: any[] = od.tickers ?? [];
           return (
-            <div className="px-8 py-2 border-t border-panel-border bg-white/5">
+            <div className="px-8 py-2 border-t border-border bg-bg-row">
               <div className="text-xs space-y-3 mb-4">
                 <p className={EXPLAINER}>
                   Step O opens one WebSocket connection and subscribes every strike simultaneously. The system waits for the data to stabilize — no new events for 3 consecutive seconds — then closes the connection. Live Greeks power everything in Steps P and Q.
                 </p>
                 <div className="overflow-x-auto">
-                  <table className="w-full border-collapse border border-panel-border">
+                  <table className="w-full border-collapse border border-border">
                     <thead>
                       <tr>
                         <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -3807,16 +3807,16 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     </tr></thead>
                     <tbody>
                       {tickers.map((t: any, i: number) => (
-                        <tr key={t.symbol} className="border-b border-panel-border">
-                          <td className="py-0.5 px-1 text-right text-white/50">{i + 1}</td>
-                          <td className="py-0.5 px-1 font-bold text-white">{t.symbol}</td>
-                          <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.strike_count ?? '—'}</td>
-                          <td className="py-0.5 px-1 text-white/70 font-mono">{t.expiration ?? '—'}</td>
-                          <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.dte ?? '—'}</td>
-                          <td className="py-0.5 px-1 font-mono text-white/70">{t.source ?? 'TastyTrade'}</td>
-                          <td className="py-0.5 px-1 font-mono text-white/70">{t.endpoint ?? 'Greeks WebSocket'}</td>
-                          <td className="py-0.5 px-1 font-mono text-white/70">{oFetchedTime}</td>
-                          <td className="py-0.5 px-1 text-right font-mono text-white/70">{oAgeSec != null ? `${oAgeSec}s` : '—'}</td>
+                        <tr key={t.symbol} className="border-b border-border">
+                          <td className="py-0.5 px-1 text-right text-text-faint">{i + 1}</td>
+                          <td className="py-0.5 px-1 font-bold text-text-primary">{t.symbol}</td>
+                          <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.strike_count ?? '—'}</td>
+                          <td className="py-0.5 px-1 text-text-secondary font-mono">{t.expiration ?? '—'}</td>
+                          <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.dte ?? '—'}</td>
+                          <td className="py-0.5 px-1 font-mono text-text-secondary">{t.source ?? 'TastyTrade'}</td>
+                          <td className="py-0.5 px-1 font-mono text-text-secondary">{t.endpoint ?? 'Greeks WebSocket'}</td>
+                          <td className="py-0.5 px-1 font-mono text-text-secondary">{oFetchedTime}</td>
+                          <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{oAgeSec != null ? `${oAgeSec}s` : '—'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -3829,27 +3829,27 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       </div>
 
       {/* Step P — Strategy Scoring */}
-      <div className="border-b border-panel-border">
+      <div className="border-b border-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_p')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP P</span>
-            <span className="text-white/70">Strategy Scoring</span>
+            <span className="text-text-secondary">Strategy Scoring</span>
             {kData ? (
               <span className={chip('success')}>{kData.totalPassed} strategies passed all 3 gates</span>
             ) : (
-              <span className="text-white/50 animate-pulse">waiting...</span>
+              <span className="text-text-faint animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-white/50">{expanded['step_p'] ? '▲' : '▼'}</span>
+          <span className="text-text-faint">{expanded['step_p'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_p'] && (
-          <div className="px-8 py-2 border-t border-panel-border bg-white/5">
+          <div className="px-8 py-2 border-t border-border bg-bg-row">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 With live Greeks in hand we build actual trade structures and run them through three quality gates. Every expiration is evaluated. The highest-scoring strategy that passes all three gates becomes the selected strategy.
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-panel-border">
+                <table className="w-full border-collapse border border-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -3905,19 +3905,19 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   </tr></thead>
                   <tbody>
                     {kData.tickers.map((t: { symbol: string; strategiesBuilt?: number; gateAFailed?: number; gateBFailed?: number; gateCFailed?: number; strategiesPassed?: number; winner?: string | null; winnerScore?: number | null; source?: string; endpoint?: string }) => (
-                      <tr key={t.symbol} className="border-b border-panel-border">
-                        <td className="py-0.5 px-1 font-bold text-white">{t.symbol}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.strategiesBuilt ?? '—'}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.gateAFailed ?? 0}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.gateBFailed ?? 0}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.gateCFailed ?? 0}</td>
+                      <tr key={t.symbol} className="border-b border-border">
+                        <td className="py-0.5 px-1 font-bold text-text-primary">{t.symbol}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.strategiesBuilt ?? '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.gateAFailed ?? 0}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.gateBFailed ?? 0}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.gateCFailed ?? 0}</td>
                         <td className={`py-0.5 px-1 text-right font-mono font-bold ${(t.strategiesPassed ?? 0) > 0 ? 'text-brand-green' : 'text-brand-red'}`}>{t.strategiesPassed ?? 0}</td>
                         <td className={`py-0.5 px-1 font-mono ${t.winner ? 'text-brand-green' : 'text-brand-red'}`}>{t.winner ?? 'none'}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.winnerScore != null ? t.winnerScore.toFixed(1) : '—'}</td>
-                        <td className="py-0.5 px-1 font-mono text-white/70">TastyTrade</td>
-                        <td className="py-0.5 px-1 font-mono text-white/70">Greeks WebSocket</td>
-                        <td className="py-0.5 px-1 font-mono text-white/70">{pFetchedTime}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{pAgeSec != null ? `${pAgeSec}s` : '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.winnerScore != null ? t.winnerScore.toFixed(1) : '—'}</td>
+                        <td className="py-0.5 px-1 font-mono text-text-secondary">TastyTrade</td>
+                        <td className="py-0.5 px-1 font-mono text-text-secondary">Greeks WebSocket</td>
+                        <td className="py-0.5 px-1 font-mono text-text-secondary">{pFetchedTime}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{pAgeSec != null ? `${pAgeSec}s` : '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -3931,27 +3931,27 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
 
       {/* Step Q — Live Options Flow & GEX */}
       {(() => { const qData: any = progress?.step_q?.data ?? null; return (
-      <div className="border-b border-panel-border">
+      <div className="border-b border-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_q')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP Q</span>
-            <span className="text-white/70">Live Options Flow &amp; GEX</span>
+            <span className="text-text-secondary">Live Options Flow &amp; GEX</span>
             {qData ? (
               <span className={chip('success')}>{qData.tickers_with_flow} tickers with live flow data</span>
             ) : (
-              <span className="text-white/50 animate-pulse">waiting...</span>
+              <span className="text-text-faint animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-white/50">{expanded['step_q'] ? '▲' : '▼'}</span>
+          <span className="text-text-faint">{expanded['step_q'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_q'] && (
-          <div className="px-8 py-2 border-t border-panel-border bg-white/5">
+          <div className="px-8 py-2 border-t border-border bg-bg-row">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step Q computes live options flow and dealer positioning from the real chain data. These signals replace the estimates used in Steps K and L when Step R re-scores.
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-panel-border">
+                <table className="w-full border-collapse border border-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -4008,21 +4008,21 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   </tr></thead>
                   <tbody>
                     {qData.tickers.map((t: { symbol: string; put_call_ratio?: number | null; volume_bias?: number | null; unusual_activity_ratio?: number | null; total_call_volume?: number | null; total_put_volume?: number | null; total_call_oi?: number | null; total_put_oi?: number | null; strikes_analyzed?: number | null; source?: string; endpoint?: string }, idx: number) => (
-                      <tr key={t.symbol} className="border-b border-panel-border">
-                        <td className="py-0.5 px-1 text-right font-mono text-white/50">{idx + 1}</td>
-                        <td className="py-0.5 px-1 font-bold text-white">{t.symbol}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.put_call_ratio != null ? t.put_call_ratio.toFixed(2) : '—'}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.volume_bias != null ? t.volume_bias.toFixed(2) : '—'}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.unusual_activity_ratio != null ? t.unusual_activity_ratio.toFixed(2) : '—'}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.total_call_volume ?? '—'}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.total_put_volume ?? '—'}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.total_call_oi ?? '—'}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.total_put_oi ?? '—'}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.strikes_analyzed ?? '—'}</td>
-                        <td className="py-0.5 px-1 font-mono text-white/70">{t.source ?? '—'}</td>
-                        <td className="py-0.5 px-1 font-mono text-white/70">{t.endpoint ?? '—'}</td>
-                        <td className="py-0.5 px-1 font-mono text-white/70">{qFetchedTime}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{qAgeSec != null ? `${qAgeSec}s` : '—'}</td>
+                      <tr key={t.symbol} className="border-b border-border">
+                        <td className="py-0.5 px-1 text-right font-mono text-text-faint">{idx + 1}</td>
+                        <td className="py-0.5 px-1 font-bold text-text-primary">{t.symbol}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.put_call_ratio != null ? t.put_call_ratio.toFixed(2) : '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.volume_bias != null ? t.volume_bias.toFixed(2) : '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.unusual_activity_ratio != null ? t.unusual_activity_ratio.toFixed(2) : '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.total_call_volume ?? '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.total_put_volume ?? '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.total_call_oi ?? '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.total_put_oi ?? '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.strikes_analyzed ?? '—'}</td>
+                        <td className="py-0.5 px-1 font-mono text-text-secondary">{t.source ?? '—'}</td>
+                        <td className="py-0.5 px-1 font-mono text-text-secondary">{t.endpoint ?? '—'}</td>
+                        <td className="py-0.5 px-1 font-mono text-text-secondary">{qFetchedTime}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{qAgeSec != null ? `${qAgeSec}s` : '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -4037,27 +4037,27 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
 
       {/* Step R — Re-Score With Live Data */}
       {(() => { const rData: any = progress?.step_r?.data ?? null; return (
-      <div className="border-b border-panel-border">
+      <div className="border-b border-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_r')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP R</span>
-            <span className="text-white/70">Re-Score With Live Data</span>
+            <span className="text-text-secondary">Re-Score With Live Data</span>
             {rData ? (
               <span className={chip('success')}>{rData.flow_re_scored} of {rData.total} tickers re-scored with live flow data</span>
             ) : (
-              <span className="text-white/50 animate-pulse">waiting...</span>
+              <span className="text-text-faint animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-white/50">{expanded['step_r'] ? '▲' : '▼'}</span>
+          <span className="text-text-faint">{expanded['step_r'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_r'] && (
-          <div className="px-8 py-2 border-t border-panel-border bg-white/5">
+          <div className="px-8 py-2 border-t border-border bg-bg-row">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Steps K and L scored using estimated flow signals. Step R replaces those estimates with real data from Step Q and re-scores. This is the final composite score.
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-panel-border">
+                <table className="w-full border-collapse border border-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -4108,17 +4108,17 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   </tr></thead>
                   <tbody>
                     {rData.tickers.map((t: { symbol: string; composite?: number | null; vol_edge?: number | null; info_edge?: number | null; has_flow_data?: boolean; source?: string; endpoint?: string }, idx: number) => (
-                      <tr key={t.symbol} className="border-b border-panel-border">
-                        <td className="py-0.5 px-1 text-right font-mono text-white/50">{idx + 1}</td>
-                        <td className="py-0.5 px-1 font-bold text-white">{t.symbol}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.composite != null ? t.composite.toFixed(1) : '—'}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.vol_edge != null ? t.vol_edge.toFixed(1) : '—'}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{t.info_edge != null ? t.info_edge.toFixed(1) : '—'}</td>
+                      <tr key={t.symbol} className="border-b border-border">
+                        <td className="py-0.5 px-1 text-right font-mono text-text-faint">{idx + 1}</td>
+                        <td className="py-0.5 px-1 font-bold text-text-primary">{t.symbol}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.composite != null ? t.composite.toFixed(1) : '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.vol_edge != null ? t.vol_edge.toFixed(1) : '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.info_edge != null ? t.info_edge.toFixed(1) : '—'}</td>
                         <td className={`py-0.5 px-1 font-mono font-bold ${t.has_flow_data ? 'text-brand-green' : 'text-brand-red'}`}>{t.has_flow_data ? 'YES' : 'NO'}</td>
-                        <td className="py-0.5 px-1 font-mono text-white/70">{t.source ?? '—'}</td>
-                        <td className="py-0.5 px-1 font-mono text-white/70">{t.endpoint ?? '—'}</td>
-                        <td className="py-0.5 px-1 font-mono text-white/70">{rFetchedTime}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{rAgeSec != null ? `${rAgeSec}s` : '—'}</td>
+                        <td className="py-0.5 px-1 font-mono text-text-secondary">{t.source ?? '—'}</td>
+                        <td className="py-0.5 px-1 font-mono text-text-secondary">{t.endpoint ?? '—'}</td>
+                        <td className="py-0.5 px-1 font-mono text-text-secondary">{rFetchedTime}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{rAgeSec != null ? `${rAgeSec}s` : '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -4132,27 +4132,27 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       ); })()}
 
       {/* Step S — Trade Cards */}
-      <div className="border-b border-panel-border">
+      <div className="border-b border-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_s')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP S</span>
-            <span className="text-white/70">Trade Cards</span>
+            <span className="text-text-secondary">Trade Cards</span>
             {(ps?.total_trade_cards != null || progress?.step_s) ? (
               <span className={chip('success')}>{ps?.total_trade_cards ?? progress?.step_s?.data?.trade_cards ?? 0} strategies generated</span>
             ) : (
-              <span className="text-white/50 animate-pulse">waiting...</span>
+              <span className="text-text-faint animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-white/50">{expanded['step_s'] ? '▲' : '▼'}</span>
+          <span className="text-text-faint">{expanded['step_s'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_s'] && (
-          <div className="px-8 py-2 border-t border-panel-border bg-white/5">
+          <div className="px-8 py-2 border-t border-border bg-bg-row">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step S is the last gate before the trade card. Convergence enforced. Quality floor enforced. Sector cap enforced. Every ticker that survives gets a trade card built on live data.
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-panel-border">
+                <table className="w-full border-collapse border border-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -4242,21 +4242,21 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     }
 
                     return (
-                      <tr key={r.symbol} className={`border-b border-panel-border hover:bg-white/5 ${inTop9 ? 'bg-white/50' : ''}`}>
-                        <td className="py-0.5 px-1 text-white/50 font-mono">{idx + 1}</td>
-                        <td className="py-0.5 px-1 font-bold text-white">{r.symbol}</td>
-                        <td className="py-0.5 px-1 text-right font-mono font-bold text-white">{r.composite !== null ? r.composite.toFixed(1) : '—'}</td>
+                      <tr key={r.symbol} className={`border-b border-border hover:bg-bg-row ${inTop9 ? 'bg-brand-purple-wash/40' : ''}`}>
+                        <td className="py-0.5 px-1 text-text-faint font-mono">{idx + 1}</td>
+                        <td className="py-0.5 px-1 font-bold text-text-primary">{r.symbol}</td>
+                        <td className="py-0.5 px-1 text-right font-mono font-bold text-text-primary">{r.composite !== null ? r.composite.toFixed(1) : '—'}</td>
                         <td className="py-0.5 px-1 text-center font-mono">{r.convergence ?? `${gatesAbove50}/4`}</td>
-                        <td className={`py-0.5 px-1 text-right font-mono ${r.vol_edge !== null && r.vol_edge >= 50 ? 'text-brand-green' : 'text-white/50'}`} title={r.vol_edge === null ? 'Gate excluded — zero computable signals' : undefined}>{r.vol_edge !== null ? r.vol_edge.toFixed(0) : '—'}</td>
-                        <td className={`py-0.5 px-1 text-right font-mono ${r.quality !== null && r.quality >= 50 ? 'text-brand-green' : r.quality !== null && r.quality < 40 ? 'text-brand-red' : 'text-white/50'}`} title={r.quality === null ? 'Gate excluded — zero computable signals' : undefined}>{r.quality !== null ? r.quality.toFixed(0) : '—'}</td>
-                        <td className={`py-0.5 px-1 text-right font-mono ${r.regime !== null && r.regime >= 50 ? 'text-brand-green' : 'text-white/50'}`} title={r.regime === null ? 'Gate excluded — zero computable signals' : undefined}>{r.regime !== null ? r.regime.toFixed(0) : '—'}</td>
-                        <td className={`py-0.5 px-1 text-right font-mono ${r.info_edge !== null && r.info_edge >= 50 ? 'text-brand-green' : 'text-white/50'}`} title={r.info_edge === null ? 'Gate excluded — zero computable signals' : undefined}>{r.info_edge !== null ? r.info_edge.toFixed(0) : '—'}</td>
-                        <td className="py-0.5 px-1 text-white/70">{r.sector ?? '—'}</td>
+                        <td className={`py-0.5 px-1 text-right font-mono ${r.vol_edge !== null && r.vol_edge >= 50 ? 'text-brand-green' : 'text-text-faint'}`} title={r.vol_edge === null ? 'Gate excluded — zero computable signals' : undefined}>{r.vol_edge !== null ? r.vol_edge.toFixed(0) : '—'}</td>
+                        <td className={`py-0.5 px-1 text-right font-mono ${r.quality !== null && r.quality >= 50 ? 'text-brand-green' : r.quality !== null && r.quality < 40 ? 'text-brand-red' : 'text-text-faint'}`} title={r.quality === null ? 'Gate excluded — zero computable signals' : undefined}>{r.quality !== null ? r.quality.toFixed(0) : '—'}</td>
+                        <td className={`py-0.5 px-1 text-right font-mono ${r.regime !== null && r.regime >= 50 ? 'text-brand-green' : 'text-text-faint'}`} title={r.regime === null ? 'Gate excluded — zero computable signals' : undefined}>{r.regime !== null ? r.regime.toFixed(0) : '—'}</td>
+                        <td className={`py-0.5 px-1 text-right font-mono ${r.info_edge !== null && r.info_edge >= 50 ? 'text-brand-green' : 'text-text-faint'}`} title={r.info_edge === null ? 'Gate excluded — zero computable signals' : undefined}>{r.info_edge !== null ? r.info_edge.toFixed(0) : '—'}</td>
+                        <td className="py-0.5 px-1 text-text-secondary">{r.sector ?? '—'}</td>
                         <td className={`py-0.5 px-1 ${status.color}`}>{status.text}</td>
-                        <td className="py-0.5 px-1 font-mono text-white/70">All prior steps</td>
-                        <td className="py-0.5 px-1 font-mono text-white/70">Composite — see Steps A–J</td>
-                        <td className="py-0.5 px-1 font-mono text-white/70">{sFetchedTime}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-white/70">{sAgeSec != null ? `${sAgeSec}s` : '—'}</td>
+                        <td className="py-0.5 px-1 font-mono text-text-secondary">All prior steps</td>
+                        <td className="py-0.5 px-1 font-mono text-text-secondary">Composite — see Steps A–J</td>
+                        <td className="py-0.5 px-1 font-mono text-text-secondary">{sFetchedTime}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{sAgeSec != null ? `${sAgeSec}s` : '—'}</td>
                       </tr>
                     );
                   })}
@@ -4267,7 +4267,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
             })()}
 
             {/* Next steps explanation */}
-            <p className="text-white/50 text-xs mt-3 italic">
+            <p className="text-text-faint text-xs mt-3 italic">
               Step N fetches the live options chain for each of the final 9. Step P builds and scores strategy candidates.
             </p>
           </div>
@@ -4280,11 +4280,11 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         const tFetchedTime = tFetchedAt ? tFetchedAt.toLocaleTimeString() : '—';
         const tAgeSec = tFetchedAt ? Math.round((Date.now() - tFetchedAt.getTime()) / 1000) : null;
         return (
-      <div className="border-b border-panel-border">
+      <div className="border-b border-border">
         <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_t')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP T</span>
-            <span className="text-white/70">Save &amp; Return</span>
+            <span className="text-text-secondary">Save &amp; Return</span>
             {tData ? (
               tData.saved ? (
                 <span className="text-brand-green">Scan saved — {tData.symbols_logged} tickers logged</span>
@@ -4292,19 +4292,19 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 <span className="text-brand-gold">Not saved — no user session</span>
               )
             ) : (
-              <span className="text-white/50 animate-pulse">waiting...</span>
+              <span className="text-text-faint animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-white/50">{expanded['step_t'] ? '▲' : '▼'}</span>
+          <span className="text-text-faint">{expanded['step_t'] ? '▲' : '▼'}</span>
         </div>
         {expanded['step_t'] && tData && (
-          <div className="px-8 py-2 border-t border-panel-border bg-white/5">
+          <div className="px-8 py-2 border-t border-border bg-bg-row">
             <div className="text-xs space-y-3 mb-4">
               <p className={EXPLAINER}>
                 Step T writes the full scan to the database and returns the result. This closes the performance loop. Every scan is logged so outcomes can be matched against the computed signals over time.
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-panel-border">
+                <table className="w-full border-collapse border border-border">
                   <thead>
                     <tr>
                       <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
@@ -4338,14 +4338,14 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
             </div>
             <table className="text-[10px]">
               <tbody>
-                <tr><td className="py-0.5 pr-4 text-white/50 font-bold">Pipeline Runtime</td><td className="py-0.5 font-mono text-white/70">{tData.pipeline_runtime_ms}ms</td></tr>
-                <tr><td className="py-0.5 pr-4 text-white/50 font-bold">Symbols Logged</td><td className="py-0.5 font-mono text-white/70">{tData.symbols_logged}</td></tr>
-                <tr><td className="py-0.5 pr-4 text-white/50 font-bold">Final 9</td><td className="py-0.5 font-mono text-white/70">{(tData.final_9 ?? []).join(', ')}</td></tr>
-                <tr><td className="py-0.5 pr-4 text-white/50 font-bold">Saved</td><td className="py-0.5 font-mono text-white/70">{tData.saved ? 'Yes' : 'No'}</td></tr>
-                <tr><td className="py-0.5 pr-4 text-white/50 font-bold">Source</td><td className="py-0.5 font-mono text-white/70">{tData.source}</td></tr>
-                <tr><td className="py-0.5 pr-4 text-white/50 font-bold">Endpoint</td><td className="py-0.5 font-mono text-white/70">{tData.endpoint}</td></tr>
-                <tr><td className="py-0.5 pr-4 text-white/50 font-bold">Fetched</td><td className="py-0.5 font-mono text-white/70">{tFetchedTime}</td></tr>
-                <tr><td className="py-0.5 pr-4 text-white/50 font-bold">Age</td><td className="py-0.5 font-mono text-white/70">{tAgeSec != null ? `${tAgeSec}s` : '—'}</td></tr>
+                <tr><td className="py-0.5 pr-4 text-text-faint font-bold">Pipeline Runtime</td><td className="py-0.5 font-mono text-text-secondary">{tData.pipeline_runtime_ms}ms</td></tr>
+                <tr><td className="py-0.5 pr-4 text-text-faint font-bold">Symbols Logged</td><td className="py-0.5 font-mono text-text-secondary">{tData.symbols_logged}</td></tr>
+                <tr><td className="py-0.5 pr-4 text-text-faint font-bold">Final 9</td><td className="py-0.5 font-mono text-text-secondary">{(tData.final_9 ?? []).join(', ')}</td></tr>
+                <tr><td className="py-0.5 pr-4 text-text-faint font-bold">Saved</td><td className="py-0.5 font-mono text-text-secondary">{tData.saved ? 'Yes' : 'No'}</td></tr>
+                <tr><td className="py-0.5 pr-4 text-text-faint font-bold">Source</td><td className="py-0.5 font-mono text-text-secondary">{tData.source}</td></tr>
+                <tr><td className="py-0.5 pr-4 text-text-faint font-bold">Endpoint</td><td className="py-0.5 font-mono text-text-secondary">{tData.endpoint}</td></tr>
+                <tr><td className="py-0.5 pr-4 text-text-faint font-bold">Fetched</td><td className="py-0.5 font-mono text-text-secondary">{tFetchedTime}</td></tr>
+                <tr><td className="py-0.5 pr-4 text-text-faint font-bold">Age</td><td className="py-0.5 font-mono text-text-secondary">{tAgeSec != null ? `${tAgeSec}s` : '—'}</td></tr>
               </tbody>
             </table>
           </div>
@@ -4354,7 +4354,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       ); })()}
 
       {/* Summary */}
-      <div className="px-4 py-2 flex items-center gap-4 text-white/50">
+      <div className="px-4 py-2 flex items-center gap-4 text-text-faint">
         <span>{ps?.total_universe ?? progress?.step_a?.data?.total_universe ?? 0} scanned</span>
         <span>→</span>
         <span>{hf?.output_count ?? progress?.step_e?.data?.output ?? 0} filtered</span>

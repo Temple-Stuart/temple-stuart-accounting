@@ -27,6 +27,11 @@ interface BacktestState {
 // ─── Hero Stats ───────────────────────────────────────────────────
 
 function HeroStats({ result }: { result: BacktestResult }) {
+  // DIRECTION-C (ruling 5): these hexes ARE the canonical tokens — recharts
+  // props are SVG attributes where CSS var() cannot resolve, so the literal
+  // values stay, pinned to the token registry: #16a34a=--ts-green, #c53030=
+  // --ts-red, #f59e0b=--ts-warning, #7a7488=--ts-text-muted (globals.css:74,
+  // 75,83,63). No arbitrary hex survives.
   const s = result.summary;
   const stats = [
     { label: 'Est. PoP', value: `${Math.round(s.winRate * 100)}%`, color: s.winRate >= 0.5 ? '#16a34a' : '#c53030' },
@@ -63,6 +68,12 @@ function EquityCurve({ result }: { result: BacktestResult }) {
   return (
     <div className="mb-4">
       <div className="text-xs font-semibold text-text-faint mb-2">Equity Curve</div>
+      {/* DIRECTION-C (rulings 4+5): chart chrome in CSS contexts uses the DS
+          vars (var(--ts-white), rgb(var(--ts-border)), var(--ts-text)); SVG
+          attribute props keep canonical literals — #DDD6E8=--ts-border,
+          #4a4a5a=--ts-text-secondary, #a8a2b0=--ts-text-faint, #3b2d6b=
+          --ts-purple, #16a34a/#c53030=--ts-green/--ts-red (globals.css:24,
+          62-64,70,74-75). */}
       <div className="bg-white border border-border rounded p-3">
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={data}>
@@ -78,7 +89,7 @@ function EquityCurve({ result }: { result: BacktestResult }) {
               tickFormatter={(v: number) => `$${v.toFixed(0)}`}
             />
             <Tooltip
-              contentStyle={{ background: '#FFFDF9', border: '1px solid #DDD6E8', fontSize: 11, color: '#1a1a2e' }}
+              contentStyle={{ background: 'var(--ts-white)', border: '1px solid rgb(var(--ts-border))', fontSize: 11, color: 'var(--ts-text)' }}
               formatter={(value: any) => [`$${Number(value).toFixed(2)}`, 'Equity']}
               labelFormatter={(label: any) => `Date: ${label}`}
             />
@@ -208,7 +219,7 @@ function PnlDistribution({ result }: { result: BacktestResult }) {
             <XAxis dataKey="range" tick={{ fontSize: 8, fill: '#4a4a5a' }} interval="preserveStartEnd" />
             <YAxis tick={{ fontSize: 9, fill: '#4a4a5a' }} />
             <Tooltip
-              contentStyle={{ background: '#FFFDF9', border: '1px solid #DDD6E8', fontSize: 11, color: '#1a1a2e' }}
+              contentStyle={{ background: 'var(--ts-white)', border: '1px solid rgb(var(--ts-border))', fontSize: 11, color: 'var(--ts-text)' }}
               formatter={(value: any) => [value, 'Trades']}
             />
             <Bar dataKey="count">
