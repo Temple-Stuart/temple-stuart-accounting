@@ -545,7 +545,7 @@ export default function ScannerResultsTable({
 
   // TRADE-TABLES: DATA.columnHeader layered onto the sort affordances —
   // token-native, so the themed() wrap dropped (identity on dark).
-  const thBase = 'px-2 py-2 font-mono text-[10px] uppercase tracking-wider text-white/50 cursor-pointer hover:text-white/60 select-none whitespace-nowrap';
+  const thBase = 'px-2 py-2 font-mono text-[10px] uppercase tracking-wider text-text-faint cursor-pointer hover:text-text-muted select-none whitespace-nowrap';
 
   return (
     <div className="px-4 py-3">
@@ -578,7 +578,7 @@ export default function ScannerResultsTable({
       <div className={themed('overflow-x-auto rounded border border-border overflow-y-auto', dk)}>
         <table className="w-full text-xs" style={{ minWidth: 900 }}>
           <thead className="sticky top-0 z-10">
-            <tr className="bg-white/5">
+            <tr className="bg-bg-row">
               <th className="px-2 py-2 w-8">{/* checkbox col */}</th>
               <th className={thBase + ' text-left'} onClick={() => toggleSort('symbol')}>Symbol{sortIndicator('symbol')}</th>
               <th className={thBase + ' text-center w-6'} title="Social Sentiment from X/Twitter (via xAI Grok)">X</th>
@@ -596,7 +596,7 @@ export default function ScannerResultsTable({
               <th className={thBase + ' text-right'} onClick={() => toggleSort('dte')}>DTE{sortIndicator('dte')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-panel-border">
+          <tbody className="divide-y divide-border">
             {sortedRows.map((row, idx) => {
               const isExpanded = expandedRow === row.id;
               const isQueued = row.card ? savedCards.has(row.cardKey) : false;

@@ -877,7 +877,7 @@ export function TickerCard({ dk = false, detail, sentiment, savedCards, savingCa
       {/* A) HEADER ROW */}
       <div className="px-5 py-2 flex items-center justify-between flex-wrap gap-2 bg-brand-purple-hover">
         <div className="flex items-center gap-3">
-          <span className="text-sm font-black font-mono text-white">{detail.symbol}</span>
+          <span className="text-sm font-black font-mono text-text-primary">{detail.symbol}</span>
           <span className="text-sm font-black font-mono" style={{ color: gradeColorHex(comp.score) }}><MetricInfo surface={dk ? 'dark' : 'light'} metricKey="composite_score" values={{ score: comp.score }}>{comp.score.toFixed(1)}</MetricInfo></span>
           <span className="text-terminal-lg font-black" style={{ color: gradeColorHex(comp.score) }}><MetricInfo surface={dk ? 'dark' : 'light'} metricKey="letter_grade" values={{ score: comp.score, grade: letterGrade(comp.score) }}>{letterGrade(comp.score)}</MetricInfo></span>
         </div>
@@ -1639,7 +1639,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
       {/* Step A */}
       <div className={themed('border-b border-panel-border', dk)}>
-        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_a')}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_a')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP A</span>
             <span className={themed('text-white/70', dk)}>TT Scanner — Universe Scan</span>
@@ -1664,12 +1664,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>SOURCE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHY</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1684,12 +1684,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Beta / SPY Correlation', 'TastyTrade market-metrics', 'Step A fetch', 'Step K Regime gate (SPY correlation modifier)', 'Tells us how closely this stock follows the market. High correlation amplifies regime signals', 'SPY correlation multiplied against base regime score in Step K'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
+                        <td className={"text-xs p-2 text-text-secondary font-medium border border-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1722,7 +1722,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <div className="overflow-y-auto" style={{maxHeight: '320px'}}>
                   <table className="w-full text-xs">
                     <thead>
-                      <tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}>
+                      <tr className={"font-mono text-[10px] uppercase tracking-wider text-text-faint border-b border-border"}>
                         <th className="text-left py-1 pr-1 w-4"></th>
                         <th className="text-left py-1 pr-2">#</th>
                         <th className="text-left py-1 pr-2">SYMBOL</th>
@@ -1753,18 +1753,18 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                             <tr className={themed('border-b border-panel-border cursor-pointer hover:bg-white/5', dk)} onClick={() => toggle(detailKey)}>
                               <td className={themed('py-1 pr-1 text-white/50 text-center', dk)}>{isOpen ? '▼' : '▶'}</td>
                               <td className={themed('py-1 pr-2 text-white/50', dk)}>{i+1}</td>
-                              <td className="py-1 pr-2 font-bold text-white/80">{s.symbol}</td>
-                              <td className="py-1 pr-2 text-right text-white/80">{fmtPct(s.ivRank)}</td>
-                              <td className="py-1 pr-2 text-right text-white/80">{fmtPct(s.ivPercentile)}</td>
-                              <td className="py-1 pr-2 text-right text-white/80">{fmt1(s.iv30)}</td>
-                              <td className="py-1 pr-2 text-right text-white/80">{fmtSpread(s.ivHvSpread)}</td>
-                              <td className="py-1 pr-2 text-right text-white/80">{s.liquidityRating != null ? s.liquidityRating + '/5' : '—'}</td>
-                              <td className="py-1 pr-2 text-right text-white/80">{fmtCap(s.marketCap)}</td>
-                              <td className="py-1 pr-2 text-right text-white/80">{fmt2(s.beta)}</td>
-                              <td className="py-1 pr-2 text-right text-white/80">{fmt2(s.corrSpy)}</td>
-                              <td className="py-1 pr-2 text-right text-white/80">{s.borrowRate != null ? s.borrowRate + '%' : '—'}</td>
+                              <td className="py-1 pr-2 font-bold text-text-secondary">{s.symbol}</td>
+                              <td className="py-1 pr-2 text-right text-text-secondary">{fmtPct(s.ivRank)}</td>
+                              <td className="py-1 pr-2 text-right text-text-secondary">{fmtPct(s.ivPercentile)}</td>
+                              <td className="py-1 pr-2 text-right text-text-secondary">{fmt1(s.iv30)}</td>
+                              <td className="py-1 pr-2 text-right text-text-secondary">{fmtSpread(s.ivHvSpread)}</td>
+                              <td className="py-1 pr-2 text-right text-text-secondary">{s.liquidityRating != null ? s.liquidityRating + '/5' : '—'}</td>
+                              <td className="py-1 pr-2 text-right text-text-secondary">{fmtCap(s.marketCap)}</td>
+                              <td className="py-1 pr-2 text-right text-text-secondary">{fmt2(s.beta)}</td>
+                              <td className="py-1 pr-2 text-right text-text-secondary">{fmt2(s.corrSpy)}</td>
+                              <td className="py-1 pr-2 text-right text-text-secondary">{s.borrowRate != null ? s.borrowRate + '%' : '—'}</td>
                               <td className="py-1 pr-2 text-left">{s.earningsDate ?? '—'}</td>
-                              <td className="py-1 pr-2 text-right text-white/80">{s.daysTillEarnings != null ? s.daysTillEarnings + 'd' : '—'}</td>
+                              <td className="py-1 pr-2 text-right text-text-secondary">{s.daysTillEarnings != null ? s.daysTillEarnings + 'd' : '—'}</td>
                               <td className={themed('py-1 pr-2 text-white/50 text-[10px]', dk)}>TastyTrade</td>
                               <td className={themed('py-1 pr-2 text-white/50 text-[10px]', dk)}>market-metrics</td>
                               <td className={themed('py-1 pr-2 text-white/50 text-[10px]', dk)}>{fetchedAt ? new Date(fetchedAt).toISOString().slice(11, 19) + ' UTC' : '—'}</td>
@@ -1827,7 +1827,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
       {/* Step A2 */}
       <div className={themed('border-b border-panel-border', dk)}>
-        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_b')}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_b')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP B</span>
             <span className={themed('text-white/70', dk)}>Pre-Filter</span>
@@ -1852,12 +1852,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>SOURCE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHY</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1868,12 +1868,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Pre-Score', 'Computed', 'Step B output', 'Step D Top-N cutoff', 'Single number summarizing vol selling opportunity per ticker', 'Top scorers advance to Step E. Everyone else is ranked out'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
+                        <td className={"text-xs p-2 text-text-secondary font-medium border border-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1886,7 +1886,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
             <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '240px'}}>
               <table className="w-full text-xs">
                 <thead>
-                  <tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}>
+                  <tr className={"font-mono text-[10px] uppercase tracking-wider text-text-faint border-b border-border"}>
                     <th className="text-left py-1 pr-3">#</th>
                     <th className="text-left py-1 pr-3">SYMBOL</th>
                     <th className="text-right py-1 pr-3">IV RANK</th>
@@ -1949,7 +1949,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
       {/* Step C — Hard Exclusions */}
       <div className={themed('border-b border-panel-border', dk)}>
-        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_c')}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_c')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP C</span>
             <span className={themed('text-white/70', dk)}>Hard Exclusions</span>
@@ -1973,12 +1973,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>SOURCE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHY</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1988,12 +1988,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Earnings proximity', 'Step A', 'Step C flag', 'Warning passed to Step E', 'Earnings within 3 days flagged for visibility — Step E enforces the hard 7-day rule', 'Not eliminated here — passed forward with warning'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
+                        <td className={"text-xs p-2 text-text-secondary font-medium border border-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -2010,7 +2010,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 {(progress?.step_c?.data?.exclusions ?? []).length > 0 ? (
                   <div style={{ maxHeight: 200, overflowY: 'auto' }}>
                     <table className="w-full text-[10px]">
-                      <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}>
+                      <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-text-faint border-b border-border"}>
                         <th className="text-left py-1 px-1">#</th>
                         <th className="text-left py-1 px-1">SYMBOL</th>
                         <th className="text-left py-1 px-1">REASON</th>
@@ -2039,7 +2039,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 {(progress?.step_c?.data?.earnings_warnings ?? []).length > 0 ? (
                   <div style={{ maxHeight: 200, overflowY: 'auto' }}>
                     <table className="w-full text-[10px]">
-                      <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}>
+                      <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-text-faint border-b border-border"}>
                         <th className="text-left py-1 px-1">#</th>
                         <th className="text-left py-1 px-1">SYMBOL</th>
                         <th className="text-right py-1 px-1">DAYS TO EARNINGS</th>
@@ -2073,7 +2073,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
       {/* Step D — Top-N Selection */}
       <div className={themed('border-b border-panel-border', dk)}>
-        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_d')}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_d')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP D</span>
             <span className={themed('text-white/70', dk)}>Top-N Selection</span>
@@ -2095,12 +2095,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>SOURCE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHY</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2109,12 +2109,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Rank', 'Computed', 'Step D output', 'Step E input', 'Ordered list of highest-conviction candidates before hard filters run', 'Rank determines who gets checked in Step E'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
+                        <td className={"text-xs p-2 text-text-secondary font-medium border border-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -2128,7 +2128,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
             <div className="overflow-y-auto" style={{maxHeight: '240px'}}>
               <table className="w-full text-xs">
                 <thead>
-                  <tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}>
+                  <tr className={"font-mono text-[10px] uppercase tracking-wider text-text-faint border-b border-border"}>
                     <th className="text-left py-1 pr-3">#</th>
                     <th className="text-left py-1 pr-3">SYMBOL</th>
                     <th className="text-right py-1 pr-3">PRE-SCORE</th>
@@ -2187,7 +2187,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
       {/* Step E — Hard Filters */}
       <div className={themed('border-b border-panel-border', dk)}>
-        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_e')}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_e')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP E</span>
             <span className={themed('text-white/70', dk)}>Hard Filters</span>
@@ -2209,12 +2209,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>SOURCE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHY</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2227,12 +2227,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Reg SHO Status', 'SEC FINRA daily list', 'Step E filter', 'Rule 6 — must not be on list', 'Stocks with persistent delivery failures carry elevated short squeeze risk', 'On list = eliminated'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
+                        <td className={"text-xs p-2 text-text-secondary font-medium border border-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -2331,7 +2331,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
       {/* Step F — Peer Grouping */}
       <div className={themed('border-b border-panel-border', dk)}>
-        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_f')}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_f')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP F</span>
             <span className={themed('text-white/70', dk)}>Peer Grouping</span>
@@ -2353,12 +2353,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>SOURCE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHY</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2370,12 +2370,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['GICS sector fallback', 'TastyTrade sector data', 'Step F fallback', 'Peer grouping when Finnhub peers unavailable', 'Some tickers have no Finnhub peers. Sector grouping ensures every ticker gets a peer comparison', 'Flagged with ⚠ in the TYPE column'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
+                        <td className={"text-xs p-2 text-text-secondary font-medium border border-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -2416,12 +2416,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                     const ageSec = fetchedAt ? Math.round((Date.now() - new Date(fetchedAt).getTime()) / 1000) + 's' : '—';
                     return (progress?.step_f?.data?.groups ?? []).map((g: any, i: number) => {
                     const zColor = (z: string | null) => {
-                      if (z == null) return 'text-white/50';
+                      if (z == null) return 'text-text-faint';
                       const n = parseFloat(z);
                       if (n >= 1.5) return 'text-brand-green font-bold';
                       if (n >= 0.5) return 'text-brand-gold';
                       if (n <= -1.5) return 'text-brand-red';
-                      return 'text-white/50';
+                      return 'text-text-faint';
                     };
                     return (
                       <tr key={g.symbol} className={themed('border-b border-panel-border', dk)}>
@@ -2480,7 +2480,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
       {/* Step G — Pre-Score */}
       <div className={themed('border-b border-panel-border', dk)}>
-        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_g')}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_g')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP G</span>
             <span className={themed('text-white/70', dk)}>Pre-Score</span>
@@ -2502,12 +2502,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>SOURCE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHY</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2518,12 +2518,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Step G Score', 'Computed', 'Step G output', 'Steps H I J enrichment order', 'Determines which tickers get expensive data fetches first', 'All survivors advance but ranking matters for tie-breaking'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
+                        <td className={"text-xs p-2 text-text-secondary font-medium border border-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -2595,7 +2595,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
       {/* Step H — Macro & Regime Data */}
       <div className={themed('border-b border-panel-border', dk)}>
-        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_h')}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_h')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP H</span>
             <span className={themed('text-white/70', dk)}>Macro &amp; Regime Data</span>
@@ -2619,12 +2619,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>SOURCE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHY</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2640,12 +2640,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['GDP / Unemployment / NFP', 'FRED GDPC1 / UNRATE / PAYEMS', 'Step H fetch', 'Step K Regime gate', 'Core growth signals. Determine whether we are in expansion or contraction', 'Low growth + high unemployment = Deflation or Stagflation classification'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
+                        <td className={"text-xs p-2 text-text-secondary font-medium border border-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -2764,7 +2764,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
       {/* Step I — Data Enrichment */}
       <div className={themed('border-b border-panel-border', dk)}>
-        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_i')}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_i')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP I</span>
             <span className={themed('text-white/70', dk)}>Data Enrichment</span>
@@ -2791,12 +2791,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>SOURCE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHY</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2816,19 +2816,19 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['SEC 8-K scan', 'SEC EDGAR EFTS', 'Step I fetch', 'Step K Info Edge gate (material event flag)', 'Recent 8-Ks flag M&A, leadership changes, restatements — events that explain elevated IV', 'High 8-K count = material event risk flag on trade card'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
+                        <td className={"text-xs p-2 text-text-secondary font-medium border border-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
               {progress?.step_i?.data?.data_gaps?.length > 0 && (
-                <div className="p-2 bg-white/5 rounded border border-brand-red/30">
+                <div className="p-2 bg-bg-row rounded border border-brand-red/30">
                   <p className="text-brand-red font-bold text-xs mb-1">DATA GAPS DETECTED</p>
                   {(progress?.step_i?.data?.data_gaps ?? []).map((gap: string, i: number) => (
                     <p key={i} className="text-brand-red text-xs">⚠ {gap}</p>
@@ -2881,9 +2881,9 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       </thead>
                       <tbody>
                         {tickers.map((t: any, i: number) => {
-                          const beatColor = t.beat_rate == null ? 'text-white/50' : t.beat_rate >= 60 ? 'text-brand-green' : t.beat_rate >= 40 ? 'text-brand-gold' : 'text-brand-red';
-                          const insiderColor = t.insider_sentiment == null ? 'text-white/50' : t.insider_sentiment > 10 ? 'text-brand-green' : t.insider_sentiment < -10 ? 'text-brand-red' : 'text-brand-gold';
-                          const newsColor = t.news_sentiment == null ? 'text-white/50' : t.news_sentiment > 55 ? 'text-brand-green' : t.news_sentiment < 45 ? 'text-brand-red' : 'text-brand-gold';
+                          const beatColor = t.beat_rate == null ? 'text-text-faint' : t.beat_rate >= 60 ? 'text-brand-green' : t.beat_rate >= 40 ? 'text-brand-gold' : 'text-brand-red';
+                          const insiderColor = t.insider_sentiment == null ? 'text-text-faint' : t.insider_sentiment > 10 ? 'text-brand-green' : t.insider_sentiment < -10 ? 'text-brand-red' : 'text-brand-gold';
+                          const newsColor = t.news_sentiment == null ? 'text-text-faint' : t.news_sentiment > 55 ? 'text-brand-green' : t.news_sentiment < 45 ? 'text-brand-red' : 'text-brand-gold';
                           return (
                             <tr key={t.symbol} className={themed('border-b border-panel-border', dk)}>
                               <td className={themed('py-1 pr-3 text-white/50', dk)}>{i+1}</td>
@@ -2905,7 +2905,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                                   ? 'text-brand-gold'
                                   : t.earnings_quality_letter != null
                                   ? 'text-brand-red'
-                                  : 'text-white/50'
+                                  : 'text-text-faint'
                               }`, dk)}>
                                 {t.earnings_quality_letter != null && t.earnings_quality_score != null
                                   ? `${t.earnings_quality_letter} (${t.earnings_quality_score.toFixed(2)})`
@@ -2966,7 +2966,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
       {/* Step J — Candle Data & Cross-Asset Correlations */}
       <div className={themed('border-b border-panel-border', dk)}>
-        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_j')}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_j')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP J</span>
             <span className={themed('text-white/70', dk)}>Candle Data &amp; Cross-Asset Correlations</span>
@@ -2988,12 +2988,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>SOURCE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHY</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3002,12 +3002,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Cross-asset correlations', 'FRED daily series', 'Step J computation', 'Step K Regime gate cluster modifier', 'Correlation cluster tells us whether markets are risk-on or risk-off right now', 'Adjusts Regime gate score up or down based on cluster signal'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
+                        <td className={"text-xs p-2 text-text-secondary font-medium border border-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -3082,7 +3082,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
       {/* Step K — 4-Gate Scoring */}
       <div className={themed('border-b border-panel-border', dk)}>
-        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_k')}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_k')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP K</span>
             <span className={themed('text-white/70', dk)}>4-Gate Scoring</span>
@@ -3104,12 +3104,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>SOURCE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHY</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3122,12 +3122,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Convergence requirement', 'Computed', 'Step K output', 'Step M final selection', '3 of 4 gates must score above 50. One strong gate is not enough', 'Enforces multi-dimensional agreement before any trade signal is produced'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
+                        <td className={"text-xs p-2 text-text-secondary font-medium border border-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -3206,7 +3206,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                                 <p className="text-brand-purple-pop font-bold mb-1">VOL EDGE {r.vol_edge}<span className={themed('text-white/50 font-normal ml-1', dk)}>— TastyTrade + Candles</span></p>
                                 {r.vol_edge_detail && (
                                   <table className="w-full text-[10px]">
-                                    <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}><th className="text-left py-0.5">COMPONENT</th><th className="text-right py-0.5">SCORE</th><th className="text-right py-0.5">WEIGHT</th><th className="text-right py-0.5">CONTRIB</th></tr></thead>
+                                    <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-text-faint border-b border-border"}><th className="text-left py-0.5">COMPONENT</th><th className="text-right py-0.5">SCORE</th><th className="text-right py-0.5">WEIGHT</th><th className="text-right py-0.5">CONTRIB</th></tr></thead>
                                     <tbody>
                                       {[
                                         ['Mispricing', r.vol_edge_detail.mispricing],
@@ -3232,7 +3232,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                                 <p className="text-brand-purple-pop font-bold mb-1">QUALITY {r.quality}<span className={themed('text-white/50 font-normal ml-1', dk)}>— Finnhub</span></p>
                                 {r.quality_detail && (
                                   <table className="w-full text-[10px]">
-                                    <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}><th className="text-left py-0.5">COMPONENT</th><th className="text-right py-0.5">SCORE</th><th className="text-right py-0.5">WEIGHT</th><th className="text-right py-0.5">CONTRIB</th></tr></thead>
+                                    <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-text-faint border-b border-border"}><th className="text-left py-0.5">COMPONENT</th><th className="text-right py-0.5">SCORE</th><th className="text-right py-0.5">WEIGHT</th><th className="text-right py-0.5">CONTRIB</th></tr></thead>
                                     <tbody>
                                       {[
                                         ['Safety', r.quality_detail.safety],
@@ -3294,7 +3294,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                                 <p className="text-brand-purple-pop font-bold mb-1">INFO EDGE {r.info_edge}<span className={themed('text-white/50 font-normal ml-1', dk)}>— Finnhub</span></p>
                                 {r.info_edge_detail && (
                                   <table className="w-full text-[10px]">
-                                    <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}><th className="text-left py-0.5">COMPONENT</th><th className="text-right py-0.5">SCORE</th><th className="text-right py-0.5">WEIGHT</th><th className="text-right py-0.5">CONTRIB</th></tr></thead>
+                                    <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-text-faint border-b border-border"}><th className="text-left py-0.5">COMPONENT</th><th className="text-right py-0.5">SCORE</th><th className="text-right py-0.5">WEIGHT</th><th className="text-right py-0.5">CONTRIB</th></tr></thead>
                                     <tbody>
                                       {[
                                         ['Analyst', r.info_edge_detail.analyst_consensus],
@@ -3354,7 +3354,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
       {/* Step L — Re-Score With Technicals */}
       <div className={themed('border-b border-panel-border', dk)}>
-        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_l')}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_l')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP L</span>
             <span className={themed('text-white/70', dk)}>Re-Score With Technicals</span>
@@ -3376,12 +3376,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>SOURCE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHY</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3393,12 +3393,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['52-week high ratio', 'Step A / Step I fundamentals', 'Step L computation', 'Vol Edge technicals sub-score (15% of technicals)', 'Price proximity to 52-week high is a documented momentum signal', 'Near 52-week high = elevated score'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
+                        <td className={"text-xs p-2 text-text-secondary font-medium border border-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -3469,7 +3469,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
       {/* Step M — Final Selection */}
       <div className={themed('border-b border-panel-border', dk)}>
-        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_m')}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_m')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP M</span>
             <span className={themed('text-white/70', dk)}>Final Selection</span>
@@ -3491,12 +3491,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>SOURCE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHY</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3508,12 +3508,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Adjustments log', 'Computed', 'Step M output', 'Displayed in UI', 'Full audit trail of every promotion demotion and cap relaxation', 'Every decision documented with symbol rank composite and reason'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
+                        <td className={"text-xs p-2 text-text-secondary font-medium border border-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -3631,7 +3631,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
       {/* Step N — Chain Fetch */}
       <div className={themed('border-b border-panel-border', dk)}>
-        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_n')}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_n')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP N</span>
             <span className={themed('text-white/70', dk)}>Chain Fetch</span>
@@ -3653,12 +3653,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>SOURCE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHY</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3668,12 +3668,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Streamer symbols', 'Converted from chain data', 'Step N output', 'Step O WebSocket subscription', 'Greeks subscription requires DXFeed format symbol strings', 'All symbols collected and passed to Step O WebSocket'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
+                        <td className={"text-xs p-2 text-text-secondary font-medium border border-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -3687,7 +3687,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
               return (
               <div style={{ maxHeight: 240, overflowY: 'auto' }}>
                 <table className="w-full text-[10px]">
-                  <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}>
+                  <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-text-faint border-b border-border"}>
                     <th className="text-left py-1 px-1">SYMBOL</th>
                     <th className="text-left py-1 px-1">EXPIRATION</th>
                     <th className="text-right py-1 px-1">DTE</th>
@@ -3732,7 +3732,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
       {/* Step O — Live Greeks Subscription */}
       <div className={themed('border-b border-panel-border', dk)}>
-        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_o')}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_o')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP O</span>
             <span className={themed('text-white/70', dk)}>Live Greeks Subscription</span>
@@ -3760,12 +3760,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                   <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                     <thead>
                       <tr>
-                        <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
-                        <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
-                        <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
-                        <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
-                        <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
-                        <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
+                        <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
+                        <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>SOURCE</th>
+                        <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHEN APPLIED</th>
+                        <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHERE APPLIED</th>
+                        <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHY</th>
+                        <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>HOW / VALUE</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -3776,12 +3776,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                         ['Market open / closed status', 'TastyTrade API', 'Step O check', 'Trade card pricing label', 'Closed market means theoretical pricing instead of live quotes', 'Market Closed label shown on trade card. Price source flagged as theo'],
                       ].map(([dp, src, when, where, why, how], i) => (
                         <tr key={i}>
-                          <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
-                          <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
-                          <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
-                          <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
-                          <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
-                          <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
+                          <td className={"text-xs p-2 text-text-secondary font-medium border border-border"}>{dp}</td>
+                          <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{src}</td>
+                          <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{when}</td>
+                          <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{where}</td>
+                          <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{why}</td>
+                          <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{how}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -3797,7 +3797,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
               {tickers.length > 0 && (
                 <div style={{ maxHeight: 240, overflowY: 'auto' }}>
                   <table className="w-full text-[10px]">
-                    <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}>
+                    <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-text-faint border-b border-border"}>
                       <th className="text-right py-1 px-1">#</th>
                       <th className="text-left py-1 px-1">SYMBOL</th>
                       <th className="text-right py-1 px-1">STRIKES</th>
@@ -3833,7 +3833,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
       {/* Step P — Strategy Scoring */}
       <div className={themed('border-b border-panel-border', dk)}>
-        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_p')}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_p')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP P</span>
             <span className={themed('text-white/70', dk)}>Strategy Scoring</span>
@@ -3855,12 +3855,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>SOURCE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHY</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3872,12 +3872,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['xAI social sentiment', 'xAI Grok API', 'Step P fetch (parallel)', 'Trade card For/Against section', 'Real-time social signal from Reddit Twitter and financial forums', 'Bullish sentiment adds to For column. Bearish adds to Against'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
+                        <td className={"text-xs p-2 text-text-secondary font-medium border border-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -3892,7 +3892,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
               return (
               <div style={{ maxHeight: 240, overflowY: 'auto' }}>
                 <table className="w-full text-[10px]">
-                  <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}>
+                  <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-text-faint border-b border-border"}>
                     <th className="text-left py-1 px-1">SYMBOL</th>
                     <th className="text-right py-1 px-1">BUILT</th>
                     <th className="text-right py-1 px-1">GATE A ✗</th>
@@ -3935,7 +3935,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       {/* Step Q — Live Options Flow & GEX */}
       {(() => { const qData: any = progress?.step_q?.data ?? null; return (
       <div className={themed('border-b border-panel-border', dk)}>
-        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_q')}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_q')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP Q</span>
             <span className={themed('text-white/70', dk)}>Live Options Flow &amp; GEX</span>
@@ -3957,12 +3957,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>SOURCE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHY</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3974,12 +3974,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Zero-gamma flip point', 'Step Q GEX computation', 'Step Q output', 'Trade card risk flags', 'Price level where dealer hedging flips from stabilizing to destabilizing', 'Distance to flip shown on trade card'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
+                        <td className={"text-xs p-2 text-text-secondary font-medium border border-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -3993,7 +3993,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
               return (
               <div style={{ maxHeight: 240, overflowY: 'auto' }}>
                 <table className="w-full text-[10px]">
-                  <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}>
+                  <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-text-faint border-b border-border"}>
                     <th className="text-right py-1 px-1">#</th>
                     <th className="text-left py-1 px-1">SYMBOL</th>
                     <th className="text-right py-1 px-1">PCR</th>
@@ -4041,7 +4041,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
       {/* Step R — Re-Score With Live Data */}
       {(() => { const rData: any = progress?.step_r?.data ?? null; return (
       <div className={themed('border-b border-panel-border', dk)}>
-        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_r')}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_r')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP R</span>
             <span className={themed('text-white/70', dk)}>Re-Score With Live Data</span>
@@ -4063,12 +4063,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>SOURCE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHY</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -4078,12 +4078,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Updated composite score', 'Recomputed from all four gates', 'Step R output', 'Trade card, Step S eligibility', 'Final score the trade card is built on', 'Tickers without flow data keep their Step L score unchanged'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
+                        <td className={"text-xs p-2 text-text-secondary font-medium border border-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -4097,7 +4097,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
               return (
               <div style={{ maxHeight: 240, overflowY: 'auto' }}>
                 <table className="w-full text-[10px]">
-                  <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}>
+                  <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-text-faint border-b border-border"}>
                     <th className="text-right py-1 px-1">#</th>
                     <th className="text-left py-1 px-1">SYMBOL</th>
                     <th className="text-right py-1 px-1">COMPOSITE</th>
@@ -4136,7 +4136,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
 
       {/* Step S — Trade Cards */}
       <div className={themed('border-b border-panel-border', dk)}>
-        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_s')}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_s')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP S</span>
             <span className={themed('text-white/70', dk)}>Trade Cards</span>
@@ -4158,12 +4158,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>SOURCE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHY</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -4174,12 +4174,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Trade card assembly', 'All prior steps', 'Step S output', 'User-facing card', 'Packages all signals scores strategy and risk flags into one structured card', 'Strategy legs strikes credit max loss PoP EV Greeks For/Against risk flags'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
+                        <td className={"text-xs p-2 text-text-secondary font-medium border border-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -4195,7 +4195,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
               return (
             <div style={{ maxHeight: 300, overflowY: 'auto' }}>
               <table className="w-full text-[10px]">
-                <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-white/50 border-b border-panel-border"}>
+                <thead><tr className={"font-mono text-[10px] uppercase tracking-wider text-text-faint border-b border-border"}>
                   <th className="text-left py-1 px-1">RANK</th>
                   <th className="text-left py-1 px-1">SYMBOL</th>
                   <th className="text-right py-1 px-1">COMPOSITE</th>
@@ -4284,7 +4284,7 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
         const tAgeSec = tFetchedAt ? Math.round((Date.now() - tFetchedAt.getTime()) / 1000) : null;
         return (
       <div className={themed('border-b border-panel-border', dk)}>
-        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-white/10`} onClick={() => toggle('step_t')}>
+        <div className={`${SECTION_HEADER} cursor-pointer hover:bg-bg-row`} onClick={() => toggle('step_t')}>
           <div className="flex items-center gap-3">
             <span className={chip('accent')}>STEP T</span>
             <span className={themed('text-white/70', dk)}>Save &amp; Return</span>
@@ -4310,12 +4310,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                 <table className={themed('w-full border-collapse border border-panel-border', dk)}>
                   <thead>
                     <tr>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>DATA POINT</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>SOURCE</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHEN APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHERE APPLIED</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>WHY</th>
-                      <th className={"p-2 bg-white/5 border border-panel-border font-mono text-[10px] uppercase tracking-wider text-white/50"}>HOW / VALUE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>DATA POINT</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>SOURCE</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHEN APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHERE APPLIED</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>WHY</th>
+                      <th className={"p-2 bg-bg-row border border-border font-mono text-[10px] uppercase tracking-wider text-text-faint"}>HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -4327,12 +4327,12 @@ function PipelineFlowPanel({ dk = false, result, progress, universe }: { dk?: bo
                       ['Pipeline runtime', 'Computed', 'Step T output', 'UI summary bar', 'Operational metric', 'Tracks scan performance over time'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
-                        <td className={"text-xs p-2 text-white/80 font-medium border border-panel-border"}>{dp}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{src}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{when}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{where}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{why}</td>
-                        <td className={"text-xs p-2 text-white/70 leading-relaxed border border-panel-border"}>{how}</td>
+                        <td className={"text-xs p-2 text-text-secondary font-medium border border-border"}>{dp}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{src}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{when}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{where}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{why}</td>
+                        <td className={"text-xs p-2 text-text-secondary leading-relaxed border border-border"}>{how}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -4818,9 +4818,9 @@ export default function ConvergenceIntelligence({
     <div className={themed('bg-white rounded border border-border shadow-sm overflow-hidden', dk)}>
 
       {/* RISK-1: user-entered account-size input for capital context (labeled not-synced). */}
-      <div className="border-b border-panel-border bg-white/5 px-4 py-2 flex flex-wrap items-center gap-2 font-mono text-[11px]">
-        <label htmlFor="ci-account-size" className="text-white/60">Account size <span className="text-white/40">(user-entered, not synced)</span>:</label>
-        <span className="text-white/40">$</span>
+      <div className="border-b border-border bg-bg-row px-4 py-2 flex flex-wrap items-center gap-2 font-mono text-[11px]">
+        <label htmlFor="ci-account-size" className="text-text-muted">Account size <span className="text-text-faint">(user-entered, not synced)</span>:</label>
+        <span className="text-text-faint">$</span>
         <input
           id="ci-account-size"
           type="number"
@@ -4829,7 +4829,7 @@ export default function ConvergenceIntelligence({
           value={accountSize > 0 ? accountSize : ''}
           onChange={(e) => handleAccountSizeChange(e.target.value)}
           placeholder="Set account size for capital context"
-          className="w-64 rounded border border-panel-border bg-panel px-2 py-1 text-xs font-mono text-white"
+          className="w-64 rounded border border-border bg-white px-2 py-1 text-xs font-mono text-text-primary"
         />
       </div>
 
@@ -4864,7 +4864,7 @@ export default function ConvergenceIntelligence({
             </div>
           </div>
           {batchData && (
-            <div className="px-4 pb-1.5 text-[10px] text-white/60 font-mono">
+            <div className="px-4 pb-1.5 text-[10px] text-text-muted font-mono">
               {batchData.pipeline_summary.total_universe} scanned
               {' \u2192 '}{batchData.pipeline_summary.after_hard_filters} filtered
               {' \u2192 '}{batchData.pipeline_summary.scored} scored

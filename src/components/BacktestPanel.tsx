@@ -29,20 +29,20 @@ interface BacktestState {
 function HeroStats({ result }: { result: BacktestResult }) {
   const s = result.summary;
   const stats = [
-    { label: 'Est. PoP', value: `${Math.round(s.winRate * 100)}%`, color: s.winRate >= 0.5 ? '#10B981' : '#EF4444' },
-    { label: 'Total P&L', value: `$${s.totalPnl.toLocaleString()}`, color: s.totalPnl >= 0 ? '#10B981' : '#EF4444' },
-    { label: 'Avg P&L', value: `$${s.avgPnl.toFixed(0)}`, color: s.avgPnl >= 0 ? '#10B981' : '#EF4444' },
-    { label: 'Max Drawdown', value: `$${s.maxDrawdown.toFixed(0)}`, color: '#EF4444' },
-    { label: 'Sharpe', value: s.sharpeRatio.toFixed(2), color: s.sharpeRatio >= 1 ? '#10B981' : s.sharpeRatio >= 0.5 ? '#F59E0B' : '#EF4444' },
-    { label: 'Profit Factor', value: s.profitFactor === Infinity ? '∞' : s.profitFactor.toFixed(2), color: s.profitFactor >= 1.5 ? '#10B981' : '#F59E0B' },
-    { label: 'Total Trades', value: String(s.totalTrades), color: '#9CA3AF' },
-    { label: 'Avg Days Held', value: String(s.avgHoldingDays), color: '#9CA3AF' },
+    { label: 'Est. PoP', value: `${Math.round(s.winRate * 100)}%`, color: s.winRate >= 0.5 ? '#16a34a' : '#c53030' },
+    { label: 'Total P&L', value: `$${s.totalPnl.toLocaleString()}`, color: s.totalPnl >= 0 ? '#16a34a' : '#c53030' },
+    { label: 'Avg P&L', value: `$${s.avgPnl.toFixed(0)}`, color: s.avgPnl >= 0 ? '#16a34a' : '#c53030' },
+    { label: 'Max Drawdown', value: `$${s.maxDrawdown.toFixed(0)}`, color: '#c53030' },
+    { label: 'Sharpe', value: s.sharpeRatio.toFixed(2), color: s.sharpeRatio >= 1 ? '#16a34a' : s.sharpeRatio >= 0.5 ? '#f59e0b' : '#c53030' },
+    { label: 'Profit Factor', value: s.profitFactor === Infinity ? '∞' : s.profitFactor.toFixed(2), color: s.profitFactor >= 1.5 ? '#16a34a' : '#f59e0b' },
+    { label: 'Total Trades', value: String(s.totalTrades), color: '#7a7488' },
+    { label: 'Avg Days Held', value: String(s.avgHoldingDays), color: '#7a7488' },
   ];
 
   return (
     <div className="grid grid-cols-4 gap-2 mb-4">
       {stats.map((st, i) => (
-        <div key={i} className="bg-panel-surface border border-panel-border rounded p-2 text-center">
+        <div key={i} className="bg-white border border-border rounded p-2 text-center">
           <div className="text-[10px] text-text-muted uppercase tracking-wide">{st.label}</div>
           <div className="text-sm font-bold font-mono" style={{ color: st.color }}>{st.value}</div>
         </div>
@@ -63,30 +63,30 @@ function EquityCurve({ result }: { result: BacktestResult }) {
   return (
     <div className="mb-4">
       <div className="text-xs font-semibold text-text-faint mb-2">Equity Curve</div>
-      <div className="bg-panel-surface border border-panel-border rounded p-3">
+      <div className="bg-white border border-border rounded p-3">
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#DDD6E8" />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 9, fill: '#6B7280' }}
+              tick={{ fontSize: 9, fill: '#4a4a5a' }}
               tickFormatter={(d: string) => d.slice(0, 7)}
               interval="preserveStartEnd"
             />
             <YAxis
-              tick={{ fontSize: 9, fill: '#6B7280' }}
+              tick={{ fontSize: 9, fill: '#4a4a5a' }}
               tickFormatter={(v: number) => `$${v.toFixed(0)}`}
             />
             <Tooltip
-              contentStyle={{ background: '#0d1117', border: '1px solid #30363d', fontSize: 11, color: '#c9d1d9' }}
+              contentStyle={{ background: '#FFFDF9', border: '1px solid #DDD6E8', fontSize: 11, color: '#1a1a2e' }}
               formatter={(value: any) => [`$${Number(value).toFixed(2)}`, 'Equity']}
               labelFormatter={(label: any) => `Date: ${label}`}
             />
-            <ReferenceLine y={0} stroke="#30363d" />
+            <ReferenceLine y={0} stroke="#DDD6E8" />
             <Line
               type="monotone"
               dataKey="equity"
-              stroke="#58a6ff"
+              stroke="#3b2d6b"
               strokeWidth={1.5}
               dot={false}
               activeDot={{ r: 3 }}
@@ -114,10 +114,10 @@ function MonthlyHeatmap({ result }: { result: BacktestResult }) {
   const maxAbs = Math.max(1, ...result.monthlyReturns.map(m => Math.abs(m.pnl)));
 
   function cellColor(pnl: number | undefined): string {
-    if (pnl === undefined) return '#0d1117';
+    if (pnl === undefined) return '#F3EFE6';
     const intensity = Math.min(1, Math.abs(pnl) / maxAbs);
-    if (pnl >= 0) return `rgba(16, 185, 129, ${0.15 + intensity * 0.6})`;
-    return `rgba(239, 68, 68, ${0.15 + intensity * 0.6})`;
+    if (pnl >= 0) return `rgba(22, 163, 74, ${0.15 + intensity * 0.6})`;
+    return `rgba(197, 48, 48, ${0.15 + intensity * 0.6})`;
   }
 
   if (years.length === 0) return null;
@@ -125,7 +125,7 @@ function MonthlyHeatmap({ result }: { result: BacktestResult }) {
   return (
     <div className="mb-4">
       <div className="text-xs font-semibold text-text-faint mb-2">Monthly Returns</div>
-      <div className="bg-panel-surface border border-panel-border rounded p-3 overflow-x-auto">
+      <div className="bg-white border border-border rounded p-3 overflow-x-auto">
         <table className="w-full text-[10px]">
           <thead>
             <tr>
@@ -152,7 +152,7 @@ function MonthlyHeatmap({ result }: { result: BacktestResult }) {
                         className="text-center px-1 font-mono"
                         style={{
                           backgroundColor: cellColor(pnl),
-                          color: pnl !== undefined ? (pnl >= 0 ? '#6ee7b7' : '#fca5a5') : '#374151',
+                          color: pnl !== undefined ? (pnl >= 0 ? '#16a34a' : '#c53030') : '#a8a2b0',
                         }}
                       >
                         {pnl !== undefined ? `$${Math.round(pnl)}` : '-'}
@@ -161,7 +161,7 @@ function MonthlyHeatmap({ result }: { result: BacktestResult }) {
                   })}
                   <td
                     className="text-center px-1 font-mono font-bold"
-                    style={{ color: yearTotal >= 0 ? '#10B981' : '#EF4444' }}
+                    style={{ color: yearTotal >= 0 ? '#16a34a' : '#c53030' }}
                   >
                     ${Math.round(yearTotal)}
                   </td>
@@ -201,19 +201,19 @@ function PnlDistribution({ result }: { result: BacktestResult }) {
   return (
     <div className="mb-4">
       <div className="text-xs font-semibold text-text-faint mb-2">P&L Distribution</div>
-      <div className="bg-panel-surface border border-panel-border rounded p-3">
+      <div className="bg-white border border-border rounded p-3">
         <ResponsiveContainer width="100%" height={150}>
           <BarChart data={bins}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-            <XAxis dataKey="range" tick={{ fontSize: 8, fill: '#6B7280' }} interval="preserveStartEnd" />
-            <YAxis tick={{ fontSize: 9, fill: '#6B7280' }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#DDD6E8" />
+            <XAxis dataKey="range" tick={{ fontSize: 8, fill: '#4a4a5a' }} interval="preserveStartEnd" />
+            <YAxis tick={{ fontSize: 9, fill: '#4a4a5a' }} />
             <Tooltip
-              contentStyle={{ background: '#0d1117', border: '1px solid #30363d', fontSize: 11, color: '#c9d1d9' }}
+              contentStyle={{ background: '#FFFDF9', border: '1px solid #DDD6E8', fontSize: 11, color: '#1a1a2e' }}
               formatter={(value: any) => [value, 'Trades']}
             />
             <Bar dataKey="count">
               {bins.map((b, i) => (
-                <Cell key={i} fill={b.midPnl >= 0 ? '#10B981' : '#EF4444'} />
+                <Cell key={i} fill={b.midPnl >= 0 ? '#16a34a' : '#c53030'} />
               ))}
             </Bar>
           </BarChart>
@@ -234,11 +234,11 @@ function TradeLog({ result }: { result: BacktestResult }) {
       <div className="text-xs font-semibold text-text-faint mb-2">
         Trade Log ({result.trades.length} trades)
       </div>
-      <div className="bg-panel-surface border border-panel-border rounded overflow-hidden">
+      <div className="bg-white border border-border rounded overflow-hidden">
         <div className="max-h-[300px] overflow-y-auto">
           <table className="w-full text-[10px]">
-            <thead className="sticky top-0 bg-panel-surface">
-              <tr className="border-b border-panel-border">
+            <thead className="sticky top-0 bg-white">
+              <tr className="border-b border-border">
                 <th className="text-left px-2 py-1 text-text-muted">#</th>
                 <th className="text-left px-2 py-1 text-text-muted">Entry</th>
                 <th className="text-left px-2 py-1 text-text-muted">Exit</th>
@@ -250,15 +250,15 @@ function TradeLog({ result }: { result: BacktestResult }) {
             </thead>
             <tbody>
               {trades.map((t, i) => (
-                <tr key={i} className="border-b border-panel-hover hover:bg-panel-hover">
+                <tr key={i} className="border-b border-panel-hover hover:bg-bg-row">
                   <td className="px-2 py-1 text-text-muted font-mono">{i + 1}</td>
                   <td className="px-2 py-1 text-text-faint font-mono">{t.entryDate}</td>
                   <td className="px-2 py-1 text-text-faint font-mono">{t.exitDate}</td>
                   <td className="px-2 py-1 text-text-faint font-mono text-right">{t.holdingDays}</td>
-                  <td className="px-2 py-1 font-mono text-right" style={{ color: t.pnl >= 0 ? '#10B981' : '#EF4444' }}>
+                  <td className="px-2 py-1 font-mono text-right" style={{ color: t.pnl >= 0 ? '#16a34a' : '#c53030' }}>
                     {t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(0)}
                   </td>
-                  <td className="px-2 py-1 font-mono text-right" style={{ color: t.pnlPercent >= 0 ? '#10B981' : '#EF4444' }}>
+                  <td className="px-2 py-1 font-mono text-right" style={{ color: t.pnlPercent >= 0 ? '#16a34a' : '#c53030' }}>
                     {t.pnlPercent >= 0 ? '+' : ''}{(t.pnlPercent * 100).toFixed(1)}%
                   </td>
                   <td className="px-2 py-1 text-text-muted">
@@ -272,7 +272,7 @@ function TradeLog({ result }: { result: BacktestResult }) {
         {result.trades.length > 20 && (
           <button
             onClick={() => setExpanded(!expanded)}
-            className="w-full text-[10px] text-blue-400 hover:text-blue-300 py-1 border-t border-panel-border"
+            className="w-full text-[10px] text-blue-400 hover:text-blue-300 py-1 border-t border-border"
           >
             {expanded ? 'Show less' : `Show all ${result.trades.length} trades`}
           </button>
@@ -300,14 +300,14 @@ function ConfigPanel({
   return (
     <div className="mb-4">
       <div className="text-xs font-semibold text-text-faint mb-2">Configuration</div>
-      <div className="bg-panel-surface border border-panel-border rounded p-3 grid grid-cols-2 gap-3">
+      <div className="bg-white border border-border rounded p-3 grid grid-cols-2 gap-3">
         <div>
           <label className="text-[10px] text-text-muted block mb-1">Target DTE</label>
           <input
             type="number"
             value={dte}
             onChange={e => onChange({ dte: parseInt(e.target.value) || 45 })}
-            className="w-full bg-panel border border-panel-border rounded px-2 py-1 text-xs text-text-faint font-mono"
+            className="w-full bg-white border border-border rounded px-2 py-1 text-xs text-text-faint font-mono"
           />
         </div>
         <div>
@@ -316,7 +316,7 @@ function ConfigPanel({
             type="number"
             value={management.profitTargetPercent}
             onChange={e => onChange({ management: { profitTargetPercent: parseInt(e.target.value) || 50 } })}
-            className="w-full bg-panel border border-panel-border rounded px-2 py-1 text-xs text-text-faint font-mono"
+            className="w-full bg-white border border-border rounded px-2 py-1 text-xs text-text-faint font-mono"
           />
         </div>
         <div>
@@ -325,7 +325,7 @@ function ConfigPanel({
             type="number"
             value={management.stopLossPercent}
             onChange={e => onChange({ management: { stopLossPercent: parseInt(e.target.value) || 200 } })}
-            className="w-full bg-panel border border-panel-border rounded px-2 py-1 text-xs text-text-faint font-mono"
+            className="w-full bg-white border border-border rounded px-2 py-1 text-xs text-text-faint font-mono"
           />
         </div>
         <div>
@@ -334,7 +334,7 @@ function ConfigPanel({
             type="number"
             value={management.exitDte}
             onChange={e => onChange({ management: { exitDte: parseInt(e.target.value) || 21 } })}
-            className="w-full bg-panel border border-panel-border rounded px-2 py-1 text-xs text-text-faint font-mono"
+            className="w-full bg-white border border-border rounded px-2 py-1 text-xs text-text-faint font-mono"
           />
         </div>
         <div>
@@ -343,7 +343,7 @@ function ConfigPanel({
             type="date"
             value={startDate}
             onChange={e => onChange({ startDate: e.target.value })}
-            className="w-full bg-panel border border-panel-border rounded px-2 py-1 text-xs text-text-faint font-mono"
+            className="w-full bg-white border border-border rounded px-2 py-1 text-xs text-text-faint font-mono"
           />
         </div>
         <div>
@@ -352,7 +352,7 @@ function ConfigPanel({
             type="date"
             value={endDate}
             onChange={e => onChange({ endDate: e.target.value })}
-            className="w-full bg-panel border border-panel-border rounded px-2 py-1 text-xs text-text-faint font-mono"
+            className="w-full bg-white border border-border rounded px-2 py-1 text-xs text-text-faint font-mono"
           />
         </div>
       </div>
@@ -449,13 +449,13 @@ export default function BacktestPanel({ symbol, card, onClose }: BacktestPanelPr
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div
-        className="bg-panel border border-panel-border rounded w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+        className="bg-white border border-border rounded w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-panel-surface border-b border-panel-border px-4 py-3 flex justify-between items-center">
+        <div className="bg-white border-b border-border px-4 py-3 flex justify-between items-center">
           <div>
-            <div className="text-sm font-bold text-white">
+            <div className="text-sm font-bold text-text-primary">
               Backtest: {symbol} — {card.name}
             </div>
             <div className="text-[10px] text-text-muted">
@@ -463,7 +463,7 @@ export default function BacktestPanel({ symbol, card, onClose }: BacktestPanelPr
               {' '} | {card.dte} DTE
             </div>
           </div>
-          <button onClick={onClose} className="text-text-faint hover:text-white text-sm leading-none">
+          <button onClick={onClose} className="text-text-faint hover:text-text-primary text-sm leading-none">
             &times;
           </button>
         </div>
@@ -511,7 +511,7 @@ export default function BacktestPanel({ symbol, card, onClose }: BacktestPanelPr
               {/* Leg summary */}
               <div className="mb-4">
                 <div className="text-xs font-semibold text-text-faint mb-2">Strategy Legs (delta targets)</div>
-                <div className="bg-panel-surface border border-panel-border rounded p-3 flex gap-4">
+                <div className="bg-white border border-border rounded p-3 flex gap-4">
                   {card.legs.map((leg, i) => (
                     <div key={i} className="text-[11px] font-mono">
                       <span className={leg.side === 'sell' ? 'text-emerald-400' : 'text-blue-400'}>
@@ -533,7 +533,7 @@ export default function BacktestPanel({ symbol, card, onClose }: BacktestPanelPr
                 </button>
                 <button
                   onClick={onClose}
-                  className="px-4 py-2 text-text-faint hover:text-text-faint text-sm border border-panel-border rounded"
+                  className="px-4 py-2 text-text-faint hover:text-text-faint text-sm border border-border rounded"
                 >
                   Cancel
                 </button>
@@ -564,7 +564,7 @@ export default function BacktestPanel({ symbol, card, onClose }: BacktestPanelPr
               <TradeLog result={state.result} />
 
               {/* Re-run with different params */}
-              <div className="border-t border-panel-border pt-4 mt-4">
+              <div className="border-t border-border pt-4 mt-4">
                 <ConfigPanel
                   management={management}
                   dte={dte}
@@ -588,7 +588,7 @@ export default function BacktestPanel({ symbol, card, onClose }: BacktestPanelPr
               <div className="text-red-400 text-sm mb-2">{state.error}</div>
               <button
                 onClick={checkAvailability}
-                className="px-4 py-2 text-text-faint hover:text-text-faint text-sm border border-panel-border rounded"
+                className="px-4 py-2 text-text-faint hover:text-text-faint text-sm border border-border rounded"
               >
                 Try Again
               </button>
