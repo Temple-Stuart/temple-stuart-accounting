@@ -36,7 +36,49 @@ const fmtDate = (iso: string): string => (iso ? iso.slice(0, 10) : '—');
 const fmtMoney = (n: number): string =>
   (n < 0 ? '-' : '') + '$' + Math.abs(Math.round(n)).toLocaleString('en-US');
 
-export default function TradeRecord() {
+/** PIPE-FRAME-1: the reported subset of the deterministic stats. LOCKSTEP
+ *  LAW: every formula here is a byte-copy of the render body's own lines
+ *  (the "Deterministic stats" block below) — the two MUST move together, the
+ *  same way a prompt's string builder moves with its *Segments() twin. */
+export interface RecordStats {
+  cardsTotal: number;
+  linkedCount: number;
+  queuedNotLinked: number;
+  decidedCount: number;
+  openLinked: number;
+  wins: number;
+  losses: number;
+  breakevens: number;
+  netPl: number;
+}
+function computeRecordStats(cards: Card[]): RecordStats {
+  const linked = cards.filter((c) => c.link != null);
+  const queuedNotLinked = cards.length - linked.length;
+  const decided = linked.filter((c) => c.link!.actual_pl != null);
+  const openLinked = linked.length - decided.length;
+  const wins = decided.filter((c) => Number(c.link!.actual_pl) > 0).length;
+  const losses = decided.filter((c) => Number(c.link!.actual_pl) < 0).length;
+  const breakevens = decided.filter((c) => Number(c.link!.actual_pl) === 0).length;
+  const netPl = decided.reduce((s, c) => s + Number(c.link!.actual_pl), 0);
+  return {
+    cardsTotal: cards.length,
+    linkedCount: linked.length,
+    queuedNotLinked,
+    decidedCount: decided.length,
+    openLinked,
+    wins,
+    losses,
+    breakevens,
+    netPl,
+  };
+}
+
+export default function TradeRecord({ onStats }: {
+  /** PIPE-FRAME-1 (minimal state wiring): fires after each successful load
+   *  with stats computed by computeRecordStats — the lockstep twin of the
+   *  render body's own formulas. Reporting only; absent → identical. */
+  onStats?: (stats: RecordStats & { unlinkedClosed: number }) => void;
+} = {}) {
   // TRADE-DS-1: single-consumer (the ML Trade tab) — always dark.
   const [state, setState] = useState<'loading' | 'error' | 'ok'>('loading');
   const [cards, setCards] = useState<Card[]>([]);
@@ -64,6 +106,14 @@ export default function TradeRecord() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // PIPE-FRAME-1: report upward only in the ok state — an error reports
+  // nothing (never zeros), matching the fail-loud contract below.
+  useEffect(() => {
+    if (state !== 'ok' || !onStats) return;
+    onStats({ ...computeRecordStats(cards), unlinkedClosed });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, cards, unlinkedClosed]);
 
   if (state === 'loading') {
     return (
