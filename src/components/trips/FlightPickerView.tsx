@@ -4,6 +4,9 @@
 // data, no network; the pure-view contract below holds.
 import { Plane, Calendar } from 'lucide-react';
 import { TravelField } from './travelSection';
+// TRAVEL-RESULTS-TABLE: the results wear the deck-table anatomy — the
+// DATA.columnHeader micro-label is the one shared class string (ds.ts:225).
+import { DATA } from '@/lib/ds';
 
 /**
  * FlightPickerView — the PURE, props-only render of the flight picker.
@@ -315,65 +318,86 @@ export default function FlightPickerView({
                   ) : leg.offers.length > 0 ? (
                     <div className="space-y-2">
                       <div className="text-xs text-text-faint">{leg.offers.length} flights found — click to select:</div>
-                      {leg.offers.map(offer => (
-                        <div key={offer.id}
-                          onClick={() => onUpdateLeg(leg.id, { selectedOffer: offer })}
-                          className={`p-3 border rounded cursor-pointer transition-all ${
-                            leg.selectedOffer?.id === offer.id ? 'border-brand-purple bg-bg-row' : 'border-border hover:bg-bg-row'
-                          }`}>
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-4">
-                                <div className="text-center">
-                                  <div className="font-bold text-sm text-text-primary">{offer.outbound?.departure.localTime}</div>
-                                  <div className="text-[10px] text-text-faint">{offer.outbound?.departure.airport}</div>
-                                </div>
-                                <div className="flex-1 text-center">
-                                  <div className="text-[10px] text-text-faint">{offer.outbound?.duration}</div>
-                                  <div className="relative"><div className="border-t border-border my-1"></div>
-                                    {(offer.outbound?.stops || 0) > 0 && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-text-faint rounded-full"></div>}
-                                  </div>
-                                  <div className="text-[10px] text-text-faint">{formatStops(offer.outbound?.stops || 0)}</div>
-                                </div>
-                                <div className="text-center">
-                                  <div className="font-bold text-sm text-text-primary">{offer.outbound?.arrival.localTime}</div>
-                                  <div className="text-[10px] text-text-faint">{offer.outbound?.arrival.airport}</div>
-                                </div>
-                              </div>
-                              <div className="mt-0.5 text-[10px] text-text-faint">{offer.outbound?.carriers.join(', ')}</div>
-                            </div>
-                            {offer.return && (
-                              <>
-                                <div className="mx-3 h-10 border-l border-border"></div>
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-4">
-                                    <div className="text-center">
-                                      <div className="font-bold text-sm text-text-primary">{offer.return.departure.localTime}</div>
-                                      <div className="text-[10px] text-text-faint">{offer.return.departure.airport}</div>
-                                    </div>
-                                    <div className="flex-1 text-center">
-                                      <div className="text-[10px] text-text-faint">{offer.return.duration}</div>
-                                      <div className="relative"><div className="border-t border-border my-1"></div>
-                                        {offer.return.stops > 0 && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-text-faint rounded-full"></div>}
-                                      </div>
-                                      <div className="text-[10px] text-text-faint">{formatStops(offer.return.stops)}</div>
-                                    </div>
-                                    <div className="text-center">
-                                      <div className="font-bold text-sm text-text-primary">{offer.return.arrival.localTime}</div>
-                                      <div className="text-[10px] text-text-faint">{offer.return.arrival.airport}</div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </>
-                            )}
-                            <div className="ml-3 text-right">
-                              <div className="text-sm font-bold text-brand-gold">${offer.price}</div>
-                              <div className="text-[10px] text-text-faint">per person</div>
-                              {offer.conditions?.refundable && <div className="text-[10px] text-brand-green">Refundable</div>}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                      {/* TRAVEL-RESULTS-TABLE (spec design-refs/landing-direction-c
+                          .dc.html:100-170 — the 01-demo table anatomy): mono
+                          column headers on bg-bg-row, hairline rows, zebra, wash
+                          hover; fares gold right-mono. The caption names the
+                          lane-proven vendor (providerLabel, PR-FL-6a — the same
+                          no-drift rail as the two brand strings). VIA renders the
+                          REAL field (stops via formatStops) — the offer shape
+                          carries no connecting-airport code (FlightOffer :27-58).
+                          Round trips stack the return leg as the faint second
+                          line of each cell (field parity with the old two-block
+                          card). Selection: the row's onClick is the SAME
+                          setter; selected = border-l-2 border-brand-purple +
+                          bg-brand-purple-wash/40. */}
+                      <div className="font-mono text-[10px] tracking-wider text-text-faint">
+                        TRAVEL / FLIGHT SEARCH — LIVE PRICES VIA {providerLabel.toUpperCase()}
+                      </div>
+                      <div className="overflow-x-auto rounded-lg border border-border bg-white">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-border bg-bg-row text-left">
+                              <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Carrier</th>
+                              <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Dep</th>
+                              <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Arr</th>
+                              <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Via</th>
+                              <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Duration</th>
+                              <th className={`px-3 py-2 text-right font-semibold ${DATA.columnHeader}`}>Fare</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {leg.offers.map(offer => {
+                              const selected = leg.selectedOffer?.id === offer.id;
+                              return (
+                                <tr key={offer.id}
+                                  onClick={() => onUpdateLeg(leg.id, { selectedOffer: offer })}
+                                  className={`cursor-pointer transition-colors ${
+                                    selected ? 'bg-brand-purple-wash/40' : 'odd:bg-bg-row hover:bg-brand-purple-wash/40'
+                                  }`}>
+                                  <td className={`border-l-2 px-3 py-2.5 ${selected ? 'border-brand-purple' : 'border-transparent'}`}>
+                                    <div className="text-sm font-medium text-brand-purple">{offer.outbound?.carriers[0] || 'Flight'}</div>
+                                    {(offer.outbound?.carriers.length ?? 0) > 1 && (
+                                      <div className="text-[10px] text-text-faint">{offer.outbound?.carriers.slice(1).join(', ')}</div>
+                                    )}
+                                    {offer.conditions?.refundable && <div className="text-[10px] text-brand-green">Refundable</div>}
+                                  </td>
+                                  <td className="whitespace-nowrap px-3 py-2.5">
+                                    <div className="font-bold text-sm text-text-primary">{offer.outbound?.departure.localTime}</div>
+                                    <div className="text-[10px] text-text-faint">{offer.outbound?.departure.airport}</div>
+                                    {offer.return && (
+                                      <div className="mt-1 text-[10px] text-text-faint">{offer.return.departure.localTime} {offer.return.departure.airport}</div>
+                                    )}
+                                  </td>
+                                  <td className="whitespace-nowrap px-3 py-2.5">
+                                    <div className="font-bold text-sm text-text-primary">{offer.outbound?.arrival.localTime}</div>
+                                    <div className="text-[10px] text-text-faint">{offer.outbound?.arrival.airport}</div>
+                                    {offer.return && (
+                                      <div className="mt-1 text-[10px] text-text-faint">{offer.return.arrival.localTime} {offer.return.arrival.airport}</div>
+                                    )}
+                                  </td>
+                                  <td className="whitespace-nowrap px-3 py-2.5">
+                                    <div className="text-xs text-text-secondary">{formatStops(offer.outbound?.stops || 0)}</div>
+                                    {offer.return && (
+                                      <div className="mt-1 text-[10px] text-text-faint">{formatStops(offer.return.stops)}</div>
+                                    )}
+                                  </td>
+                                  <td className="whitespace-nowrap px-3 py-2.5">
+                                    <div className="text-xs text-text-secondary">{offer.outbound?.duration}</div>
+                                    {offer.return && (
+                                      <div className="mt-1 text-[10px] text-text-faint">{offer.return.duration}</div>
+                                    )}
+                                  </td>
+                                  <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                                    <div className="font-mono text-sm font-semibold text-brand-gold">${offer.price}</div>
+                                    <div className="text-[10px] text-text-faint">per person</div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
                       <div className="text-[10px] text-text-faint text-center pt-1">Powered by {providerLabel} &middot; Prices include all taxes &amp; fees</div>
                     </div>
                   ) : null}
