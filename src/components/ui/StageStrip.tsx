@@ -32,6 +32,12 @@ export interface StagePhase {
   state: StagePhaseState;
   /** blocked only: the danger sub-line's text. */
   blockedNote?: string;
+  /** R2: the descriptive micro-label under the phase name — truth-backed
+   *  copy supplied by the consumer. STATE SUB-LINES KEEP PRECEDENCE: when a
+   *  state marker occupies the sub slot (● YOU ARE HERE / ✓ DONE / a
+   *  blockedNote), the subLabel yields; it renders only on plain cells.
+   *  Idiom = the strip's own faint mono micro tier (the num line's class). */
+  subLabel?: string;
 }
 
 interface Props {
@@ -82,6 +88,9 @@ export default function StageStrip({ phases, onSelect, link }: Props) {
               )}
               {p.state === 'blocked' && p.blockedNote && (
                 <span className="font-mono text-[9px] tracking-widest text-status-danger">{p.blockedNote}</span>
+              )}
+              {p.subLabel && !active && p.state !== 'done' && !(p.state === 'blocked' && p.blockedNote) && (
+                <span className="font-mono text-[9px] tracking-widest text-text-faint">{p.subLabel}</span>
               )}
             </button>
           );
