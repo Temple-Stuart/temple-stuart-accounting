@@ -12,7 +12,7 @@ import { SectionH_CorpusInspector } from '@/components/workbench/SectionH_Corpus
 import { SectionI_AuditTail } from '@/components/workbench/SectionI_AuditTail';
 import { SectionJ_CostLedger } from '@/components/workbench/SectionJ_CostLedger';
 import ToggleStrip, { type ToggleMode } from '@/components/ui/ToggleStrip';
-import { themed } from '@/lib/ds';
+
 
 /**
  * COMP-1 — the Compliance A–J institutional workbench for the homepage Compliance tab.
@@ -40,7 +40,6 @@ const SUBPAGES: { name: string; href: string }[] = [
 
 export default function ComplianceWorkbench() {
   // FINISH-DS-1: single-consumer (ML) — always dark.
-  const dk = true;
   return (
     <div className="space-y-4">
       <SectionA_IdentityBar />

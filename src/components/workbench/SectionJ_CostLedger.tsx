@@ -1,5 +1,5 @@
 'use client';
-import { themed, type Surface } from '@/lib/ds';
+
 /**
  * src/components/workbench/SectionJ_CostLedger.tsx
  *
@@ -9,12 +9,11 @@ import { themed, type Surface } from '@/lib/ds';
  */
 
 
-export function SectionJ_CostLedger({ surface = 'light' }: { surface?: Surface } = {}) {
-  const dk = surface === 'dark';
+export function SectionJ_CostLedger({ }: { } = {}) {
   return (
-    <section className={themed('bg-white rounded border border-border shadow-sm p-5', dk)}>
+    <section className="bg-white rounded border border-border shadow-sm p-5">
       <div className="flex items-center justify-between mb-3">
-        <h2 className={themed('font-mono text-sm font-bold tracking-wide text-text-primary', dk)}>
+        <h2 className="font-mono text-sm font-bold tracking-wide text-text-primary">
           J · COST LEDGER
         </h2>
         <span className="text-xs font-mono text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
@@ -25,20 +24,20 @@ export function SectionJ_CostLedger({ surface = 'light' }: { surface?: Surface }
       <div className="space-y-3 text-xs font-mono">
         <div className="grid grid-cols-3 gap-3 opacity-50">
           <div>
-            <div className={themed('text-text-faint uppercase tracking-wide mb-1', dk)}>today</div>
-            <div className={themed('text-2xl text-text-muted tabular-nums', dk)}>$ —</div>
+            <div className="text-text-faint uppercase tracking-wide mb-1">today</div>
+            <div className="text-2xl text-text-muted tabular-nums">$ —</div>
           </div>
           <div>
-            <div className={themed('text-text-faint uppercase tracking-wide mb-1', dk)}>this week</div>
-            <div className={themed('text-2xl text-text-muted tabular-nums', dk)}>$ —</div>
+            <div className="text-text-faint uppercase tracking-wide mb-1">this week</div>
+            <div className="text-2xl text-text-muted tabular-nums">$ —</div>
           </div>
           <div>
-            <div className={themed('text-text-faint uppercase tracking-wide mb-1', dk)}>this month</div>
-            <div className={themed('text-2xl text-text-muted tabular-nums', dk)}>$ —</div>
+            <div className="text-text-faint uppercase tracking-wide mb-1">this month</div>
+            <div className="text-2xl text-text-muted tabular-nums">$ —</div>
           </div>
         </div>
 
-        <div className={themed('text-text-muted leading-relaxed pt-2 border-t border-border-light', dk)}>
+        <div className="text-text-muted leading-relaxed pt-2 border-t border-border-light">
           Per architecture doc § 4.4, every model call writes to a
           versioned <code>cost_ledger</code> table. Cost cap enforcement
           fires <code>CostCapExceeded</code> if a run exceeds its

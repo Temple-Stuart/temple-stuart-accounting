@@ -11,7 +11,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { themed, type Surface } from '@/lib/ds';
+
 
 interface CorpusContextData {
   total_documents: number;
@@ -38,8 +38,7 @@ function relTime(iso: string | null): string {
   return `${Math.floor(ms / 86_400_000)}d ago`;
 }
 
-export function SectionC_CorpusContext({ surface = 'light' }: { surface?: Surface } = {}) {
-  const dk = surface === 'dark';
+export function SectionC_CorpusContext({ }: { } = {}) {
   const [data, setData] = useState<CorpusContextData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -60,29 +59,29 @@ export function SectionC_CorpusContext({ surface = 'light' }: { surface?: Surfac
   }, []);
 
   return (
-    <section className={themed('bg-white rounded border border-border shadow-sm p-5', dk)}>
+    <section className="bg-white rounded border border-border shadow-sm p-5">
       <div className="flex items-center justify-between mb-3">
-        <h2 className={themed('font-mono text-sm font-bold tracking-wide text-text-primary', dk)}>
+        <h2 className="font-mono text-sm font-bold tracking-wide text-text-primary">
           C · CORPUS CONTEXT
         </h2>
-        <span className={themed('text-xs font-mono text-text-muted', dk)}>refresh 30s</span>
+        <span className="text-xs font-mono text-text-muted">refresh 30s</span>
       </div>
 
       {loading && !data ? (
-        <div className={themed('text-xs font-mono text-text-muted', dk)}>loading…</div>
+        <div className="text-xs font-mono text-text-muted">loading…</div>
       ) : data ? (
         <div className="space-y-4 text-xs font-mono">
           <div className="grid grid-cols-3 gap-3">
-            <Stat dk={dk} label="documents" value={data.total_documents.toLocaleString()} />
-            <Stat dk={dk} label="chunks" value={data.total_chunks.toLocaleString()} />
-            <Stat dk={dk} label="superseded" value={data.superseded_documents.toLocaleString()} />
+            <Stat label="documents" value={data.total_documents.toLocaleString()} />
+            <Stat label="chunks" value={data.total_chunks.toLocaleString()} />
+            <Stat label="superseded" value={data.superseded_documents.toLocaleString()} />
           </div>
 
           <div>
-            <div className={themed('text-text-faint uppercase tracking-wide mb-1', dk)}>
+            <div className="text-text-faint uppercase tracking-wide mb-1">
               last ingestion event
             </div>
-            <div className={themed('text-text-primary', dk)}>
+            <div className="text-text-primary">
               {data.last_ingest_event
                 ? `${data.last_ingest_event.description} · ${relTime(
                     data.last_ingest_event.timestamp
@@ -93,12 +92,12 @@ export function SectionC_CorpusContext({ surface = 'light' }: { surface?: Surfac
 
           {data.per_source.length > 0 && (
             <div>
-              <div className={themed('text-text-faint uppercase tracking-wide mb-1', dk)}>
+              <div className="text-text-faint uppercase tracking-wide mb-1">
                 per source
               </div>
               <table className="w-full">
                 <thead>
-                  <tr className={themed('text-text-muted', dk)}>
+                  <tr className="text-text-muted">
                     <th className="text-left pb-1">domain</th>
                     <th className="text-right pb-1">documents</th>
                     <th className="text-right pb-1">last fetched</th>
@@ -106,12 +105,12 @@ export function SectionC_CorpusContext({ surface = 'light' }: { surface?: Surfac
                 </thead>
                 <tbody>
                   {data.per_source.map((s) => (
-                    <tr key={s.domain} className={themed('border-t border-border-light', dk)}>
-                      <td className={themed('py-1 text-text-primary', dk)}>{s.domain}</td>
+                    <tr key={s.domain} className="border-t border-border-light">
+                      <td className="py-1 text-text-primary">{s.domain}</td>
                       <td className="py-1 text-right tabular-nums">
                         {s.document_count.toLocaleString()}
                       </td>
-                      <td className={themed('py-1 text-right text-text-muted', dk)}>
+                      <td className="py-1 text-right text-text-muted">
                         {relTime(s.last_retrieved_at)}
                       </td>
                     </tr>
@@ -122,7 +121,7 @@ export function SectionC_CorpusContext({ surface = 'light' }: { surface?: Surfac
           )}
         </div>
       ) : (
-        <div className={themed('text-xs font-mono text-text-muted', dk)}>
+        <div className="text-xs font-mono text-text-muted">
           unable to load corpus context
         </div>
       )}
@@ -130,11 +129,11 @@ export function SectionC_CorpusContext({ surface = 'light' }: { surface?: Surfac
   );
 }
 
-function Stat({ dk = false, label, value }: { dk?: boolean; label: string; value: string }) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className={themed('text-text-faint uppercase tracking-wide mb-1', dk)}>{label}</div>
-      <div className={themed('text-2xl font-mono text-text-primary tabular-nums', dk)}>{value}</div>
+      <div className="text-text-faint uppercase tracking-wide mb-1">{label}</div>
+      <div className="text-2xl font-mono text-text-primary tabular-nums">{value}</div>
     </div>
   );
 }

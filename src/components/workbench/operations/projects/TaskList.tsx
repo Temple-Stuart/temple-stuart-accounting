@@ -3,7 +3,7 @@
  *
  * PR1 split: this file keeps the EXACT live behavior it had before (self-fetch
  * tasks + COA, own the create form + POST, refresh on row mutations) and now
- * renders the pure <TaskListView surface={surface} /> with the live data + real handlers as props.
+ * renders the pure <TaskListView /> with the live data + real handlers as props.
  * The public name + prop shape ({ projectId, entity_id }) are unchanged, so the
  * existing call site (ProjectRow.tsx:517) is untouched and /operations/projects
  * behaves identically. NO new behavior, NO demo/fallback data here.
@@ -20,7 +20,7 @@ import TaskListView from './TaskListView';
 import TaskRow from './TaskRow';
 import type { Task, TaskForm, CoaAccountSummary } from './types';
 import { DEFAULT_TASK_FORM } from './types';
-import { themed, type Surface } from '@/lib/ds';
+
 
 interface Props {
   projectId: string;
@@ -31,8 +31,7 @@ interface Props {
   refreshKey?: number;
 }
 
-export default function TaskList({ surface = 'light', projectId, entity_id, refreshKey }: Props & { surface?: Surface }) {
-  const dk = surface === 'dark';
+export default function TaskList({ projectId, entity_id, refreshKey }: Props & { }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -164,7 +163,7 @@ export default function TaskList({ surface = 'light', projectId, entity_id, refr
   };
 
   return (
-    <TaskListView surface={surface}
+    <TaskListView
       tasks={tasks}
       loading={loading}
       error={error}
@@ -179,11 +178,11 @@ export default function TaskList({ surface = 'light', projectId, entity_id, refr
       onCancelCreate={cancelCreate}
       onCreateFormChange={setCreateForm}
       onCreate={handleCreate}
-      // PR7b row slot — the SAME live <TaskRow surface={surface}> container with the SAME props as
+      // PR7b row slot — the SAME live <TaskRow> container with the SAME props as
       // before (1-based index forwarded verbatim). TaskListView wraps each call
       // in a keyed Fragment, so per-row behavior is byte-for-byte identical.
       renderTaskRow={(task, index) => (
-        <TaskRow surface={surface}
+        <TaskRow
           task={task}
           projectId={projectId}
           index={index}

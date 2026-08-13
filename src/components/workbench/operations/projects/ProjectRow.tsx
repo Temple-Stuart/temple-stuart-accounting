@@ -5,7 +5,7 @@
  * fetch it fired itself (PATCH save / PATCH save-inputs / POST generate-design /
  * POST generate-tasks / DELETE / PATCH archive / PATCH unarchive) plus the
  * scroll-into-view jump effect and all UI toggles — and now renders the pure
- * <ProjectRowView surface={surface} /> with the live state + the real handlers wired to its
+ * <ProjectRowView /> with the live state + the real handlers wired to its
  * callbacks. The two PAID Anthropic AI calls (generate-design, generate-tasks)
  * are container-owned, never reachable from the pure view. The public name +
  * prop shape ({ project, entities, allProjects, onUpdate, onDelete, isJumpTarget,
@@ -34,7 +34,7 @@ import ProjectRowView, {
   type GenerationInspection,
   type TasksPreview,
 } from './ProjectRowView';
-import { themed, type Surface } from '@/lib/ds';
+
 
 interface Props {
   project: Project;
@@ -73,8 +73,7 @@ function projectToForm(p: Project): ProjectForm {
   };
 }
 
-export default function ProjectRow({ surface = 'light', project, entities, allProjects, onUpdate, onDelete, isJumpTarget, onClearTarget, onJumpTo, defaultExpanded = false }: Props & { surface?: Surface }) {
-  const dk = surface === 'dark';
+export default function ProjectRow({ project, entities, allProjects, onUpdate, onDelete, isJumpTarget, onClearTarget, onJumpTo, defaultExpanded = false }: Props & { }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<ProjectForm>(() => projectToForm(project));
@@ -97,7 +96,7 @@ export default function ProjectRow({ surface = 'light', project, entities, allPr
   const [runningPipe, setRunningPipe] = useState(false);
   const [pipeQueued, setPipeQueued] = useState(false);
   const [pipeError, setPipeError] = useState<string | null>(null);
-  // PHASE2-5: bump to force the live <TaskList surface={surface} /> to re-fetch (mirrors promptsRefresh).
+  // PHASE2-5: bump to force the live <TaskList /> to re-fetch (mirrors promptsRefresh).
   const [taskRefresh, setTaskRefresh] = useState(0);
   // EVOLVE-1: the "loop again with new goals" affordance (edit goals → re-run the pipe).
   const [evolving, setEvolving] = useState(false);
@@ -272,7 +271,7 @@ export default function ProjectRow({ surface = 'light', project, entities, allPr
   };
 
   // PAID Anthropic AI — POST generate-design. Container-owned: never reachable
-  // from the pure <ProjectRowView surface={surface} />.
+  // from the pure <ProjectRowView />.
   const handleGenerateDesign = async () => {
     setGeneratingDesign(true);
     setGenerationError(null);
@@ -313,7 +312,7 @@ export default function ProjectRow({ surface = 'light', project, entities, allPr
   };
 
   // PR-Loop-1: PAID Anthropic AI (web_search) — POST research. Container-owned: never
-  // reachable from the pure <ProjectRowView surface={surface} />. POPULATES deep_research_input for review;
+  // reachable from the pure <ProjectRowView />. POPULATES deep_research_input for review;
   // does NOT trigger fusion (generate-tasks) or insert tasks — the human checkpoint stays.
   const handleRunResearch = async () => {
     setRunningResearch(true);
@@ -412,7 +411,7 @@ export default function ProjectRow({ surface = 'light', project, entities, allPr
   };
 
   // PAID Anthropic AI — POST generate-tasks. Container-owned: never reachable
-  // from the pure <ProjectRowView surface={surface} />.
+  // from the pure <ProjectRowView />.
   const handleGenerateTasks = async () => {
     setGeneratingTasks(true);
     setTasksGenError(null);
@@ -553,7 +552,7 @@ export default function ProjectRow({ surface = 'light', project, entities, allPr
   if (pipelineMode) {
     return (
       <div ref={rowRef}>
-        <TruthMachineView surface={surface}
+        <TruthMachineView
           project={project}
           onExit={() => setPipelineMode(false)}
           prompts={prompts}
@@ -574,7 +573,7 @@ export default function ProjectRow({ surface = 'light', project, entities, allPr
           onGenerateTasks={handleGenerateTasks}
           onTasksAccepted={() => { setTasksPreview(null); setTasksGenError(null); }}
           onTasksDiscarded={() => { setTasksPreview(null); setTasksGenError(null); }}
-          taskSection={<TaskList surface={surface} projectId={project.id} entity_id={project.entity_id} refreshKey={taskRefresh} />}
+          taskSection={<TaskList projectId={project.id} entity_id={project.entity_id} refreshKey={taskRefresh} />}
           onRunPipe={handleRunPipe}
           runningPipe={runningPipe}
           pipeQueued={pipeQueued}
@@ -593,7 +592,7 @@ export default function ProjectRow({ surface = 'light', project, entities, allPr
   }
 
   return (
-    <ProjectRowView surface={surface}
+    <ProjectRowView
       project={project}
       entities={entities}
       rowRef={rowRef}
@@ -602,10 +601,10 @@ export default function ProjectRow({ surface = 'light', project, entities, allPr
       // actually renders it (taskSection/dependencySection inside the expanded
       // block, evolutionSection only when showEvolution), so the lazy-fetch
       // behavior is byte-for-byte identical to the pre-slot inline renders.
-      taskSection={<TaskList surface={surface} projectId={project.id} entity_id={project.entity_id} refreshKey={taskRefresh} />}
-      evolutionSection={<EvolutionTimeline surface={surface} projectId={project.id} />}
+      taskSection={<TaskList projectId={project.id} entity_id={project.entity_id} refreshKey={taskRefresh} />}
+      evolutionSection={<EvolutionTimeline projectId={project.id} />}
       dependencySection={
-        <DependencyList surface={surface}
+        <DependencyList
           projectId={project.id}
           allProjects={allProjects}
           onJumpTo={onJumpTo}

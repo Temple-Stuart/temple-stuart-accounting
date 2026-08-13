@@ -14,15 +14,13 @@
 import type { Scene, Routine } from './ContentTable';
 import { formatDay, formatHours, truncateScript } from './ContentTable';
 import EditableCell from './EditableCell';
-import { themed, type Surface } from '@/lib/ds';
 
-export default function SceneHeaderRow({ surface = 'light',
-  scene,
+
+export default function SceneHeaderRow({ scene,
   routine,
   onSceneUpdate,
   onScriptClick,
-}: { surface?: Surface;
-  scene: Scene;
+}: { scene: Scene;
   routine: Routine;
   onSceneUpdate: (
     sceneId: string,
@@ -31,12 +29,11 @@ export default function SceneHeaderRow({ surface = 'light',
   ) => Promise<void>;
   onScriptClick: (scene: Scene) => void;
 }) {
-  const dk = surface === 'dark';
   const cellClass = 'py-1 px-2';
   return (
-    <tr className={themed('border-t border-border-light bg-bg-row font-semibold text-text-primary', dk)}>
+    <tr className="border-t border-border-light bg-bg-row font-semibold text-text-primary">
       <td className={cellClass}>{scene.scene_number}</td>
-      <EditableCell surface={surface}
+      <EditableCell
         value={scene.scene_title}
         type="text"
         required
@@ -44,14 +41,14 @@ export default function SceneHeaderRow({ surface = 'light',
         onSave={(v) => onSceneUpdate(scene.id, 'scene_title', v)}
         cellClassName={cellClass}
       />
-      <EditableCell surface={surface}
+      <EditableCell
         value={scene.focus_category}
         type="text"
         maxLength={200}
         onSave={(v) => onSceneUpdate(scene.id, 'focus_category', v)}
         cellClassName={cellClass}
       />
-      <EditableCell surface={surface}
+      <EditableCell
         value={scene.estimated_hours}
         type="number"
         min={0.01}
@@ -62,7 +59,7 @@ export default function SceneHeaderRow({ surface = 'light',
         cellClassName={cellClass}
       />
       <td className={cellClass}>{formatDay(routine.schedule_rrule)}</td>
-      <EditableCell surface={surface}
+      <EditableCell
         value={scene.filming_location_base}
         type="text"
         maxLength={200}

@@ -32,7 +32,7 @@ import ScriptGenerator from './ScriptGenerator';
 import PieceGrid from './PieceGrid';
 import DailyLog from './DailyLog';
 import DayCalendar from './DayCalendar';
-import { iconTab, themed, type Surface } from '@/lib/ds';
+import { iconTab } from '@/lib/ds';
 
 interface RoutineLite {
   id: string;
@@ -55,7 +55,7 @@ interface GridCell {
 
 const STATUS_PILL: Record<string, string> = {
   open: 'bg-gray-100 text-gray-600',
-  in_progress: 'bg-brand-purple-pop/15 text-brand-purple-pop',
+  in_progress: 'bg-brand-purple/15 text-brand-purple',
   blocked: 'bg-amber-50 text-amber-700',
 };
 
@@ -68,8 +68,7 @@ const todayLocal = () => {
 // CONTENT-V2: the stage header joins the SECTION_HEADER family on dark;
 // the light /operations mount keeps its purple. Picked per-render (dk).
 
-export default function ContentPipeline({ surface = 'light' }: { surface?: Surface } = {}) {
-  const dk = surface === 'dark';
+export default function ContentPipeline({ }: { } = {}) {
   const { entities, selectedEntityId, setSelectedEntityId } = useOperationsEntity();
   const [routines, setRoutines] = useState<RoutineLite[]>([]);
   const [tasks, setTasks] = useState<TaskLite[]>([]);
@@ -84,9 +83,7 @@ export default function ContentPipeline({ surface = 'light' }: { surface?: Surfa
   // anatomy, ds.iconTab byte-reused). The shared `date` stays HERE (the
   // pipeline owns it, :80) so switching stages never loses the day.
   const [stage, setStage] = useState<'calendar' | 'log' | 'script'>('calendar');
-  const sectionHeader = dk
-    ? 'font-mono text-xs font-semibold uppercase tracking-wider text-white/80'
-    : 'text-sm font-medium tracking-wide text-brand-purple';
+  const sectionHeader = 'text-sm font-medium tracking-wide text-brand-purple';
   // Tasks on the selected day: task_id → { itemId, committed }. The item id lets
   // INPUTS un-assign a planned piece via DELETE; `committed` (a calendar block
   // exists) guards that toggle so it never cascade-deletes committed time.
@@ -291,24 +288,23 @@ export default function ContentPipeline({ surface = 'light' }: { surface?: Surfa
       <div className="flex flex-wrap items-center justify-between gap-3">
         {/* CONTENT-V2: on dark the module band already titles the tab — the
             purple heading renders only on the light /operations mount. */}
-        {!dk && (
-          <h1 className="text-lg font-bold text-brand-purple">
+                  <h1 className="text-lg font-bold text-brand-purple">
             Content
-            <span className={themed('ml-2 text-sm font-normal text-text-muted', dk)}>inputs → script map → answer + record → script</span>
+            <span className="ml-2 text-sm font-normal text-text-muted">inputs → script map → answer + record → script</span>
           </h1>
-        )}
+
         <div className="flex items-center gap-2 text-xs">
-          <span className={themed('px-2 py-0.5 rounded border border-border-light bg-bg-row text-text-primary', dk)}>
+          <span className="px-2 py-0.5 rounded border border-border-light bg-bg-row text-text-primary">
             {sceneCount} scenes
           </span>
-          <span className={themed('px-2 py-0.5 rounded border border-border-light bg-bg-row text-text-primary', dk)}>
+          <span className="px-2 py-0.5 rounded border border-border-light bg-bg-row text-text-primary">
             {answeredCount} answered
           </span>
           {entities.length > 0 && (
             <select
               value={selectedEntityId ?? ''}
               onChange={(e) => setSelectedEntityId(e.target.value)}
-              className={themed('px-2 py-1 bg-white border border-brand-purple/40 rounded text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple', dk)}
+              className="px-2 py-1 bg-white border border-brand-purple/40 rounded text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple"
               aria-label="New-day entity"
               title="Which entity a newly-created day is filed under (the day reads cross-entity)"
             >
@@ -331,7 +327,7 @@ export default function ContentPipeline({ surface = 'light' }: { surface?: Surfa
       {/* · DAY — the day's blocks as a stacked clock-order list (shares useDayFeed
           with section 3's answer timeline). Collapsed by default; sits above INPUTS. */}
       {/* CONTENT-V2: the stage toggler — one stage at a time. */}
-      <div className={dk ? 'flex items-end gap-1 border-b border-white/10' : 'flex items-end gap-1 border-b border-border'}>
+      <div className="flex items-end gap-1 border-b border-border">
         <button type="button" onClick={() => setStage('calendar')} aria-pressed={stage === 'calendar'} className={iconTab(stage === 'calendar')}>
           <Calendar className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
           <span>Calendar</span>
@@ -346,18 +342,18 @@ export default function ContentPipeline({ surface = 'light' }: { surface?: Surfa
         </button>
       </div>
 
-      {stage === 'calendar' && <DayCalendar surface={surface} date={date} onDateChange={setDate} />}
+      {stage === 'calendar' && <DayCalendar date={date} onDateChange={setDate} />}
 
       {stage === 'log' && (<>
       {/* 1 · INPUTS — projects/routines are CREATED in their own tabs; here you only
           SELECT existing ones (PR-Content-2 removed the redundant in-tab create step). */}
-      <section className={themed('bg-white rounded border border-border p-4 space-y-3', dk)}>
+      <section className="bg-white rounded border border-border p-4 space-y-3">
         <h2 className={sectionHeader}>
           1 · INPUTS
-          <span className={themed('ml-2 font-normal text-text-muted', dk)}>pick routines to scenify · add tasks to the day</span>
+          <span className="ml-2 font-normal text-text-muted">pick routines to scenify · add tasks to the day</span>
         </h2>
         {loading ? (
-          <p className={themed('text-sm text-text-muted', dk)}>Loading…</p>
+          <p className="text-sm text-text-muted">Loading…</p>
         ) : (
           <div className="grid grid-cols-1 gap-4 text-xs">
             {/* PR-Content-3: cues stack VERTICALLY (tasks above routines) with full data —
@@ -365,11 +361,11 @@ export default function ContentPipeline({ surface = 'light' }: { surface?: Surfa
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h3 className="text-brand-purple font-medium uppercase tracking-wide">Project tasks</h3>
-                <span className={themed('text-text-muted', dk)}>add to {date}</span>
+                <span className="text-text-muted">add to {date}</span>
               </div>
-              <div className={themed('border border-border rounded p-3 bg-white text-xs space-y-3', dk)}>
+              <div className="border border-border rounded p-3 bg-white text-xs space-y-3">
                 {tasks.length === 0 ? (
-                  <p className={themed('text-text-muted', dk)}>No unscheduled tasks.</p>
+                  <p className="text-text-muted">No unscheduled tasks.</p>
                 ) : (
                   <ul className="space-y-1 max-h-[260px] overflow-y-auto pr-1">
                     {tasks.map((t) => {
@@ -378,22 +374,22 @@ export default function ContentPipeline({ surface = 'light' }: { surface?: Surfa
                       return (
                         <li
                           key={t.id}
-                          className={themed('flex flex-col gap-1 px-2 py-1.5 rounded border border-border-light', dk)}
+                          className="flex flex-col gap-1 px-2 py-1.5 rounded border border-border-light"
                         >
-                          <span className={themed('text-text-primary', dk)}>{t.title}</span>
+                          <span className="text-text-primary">{t.title}</span>
                           {t.project?.title && (
-                            <span className={themed('text-text-muted break-words', dk)}>{t.project.title}</span>
+                            <span className="text-text-muted break-words">{t.project.title}</span>
                           )}
                           {t.project && entityNameById.get(t.project.entity_id) && (
-                            <span className={themed('text-text-muted break-words', dk)}>
+                            <span className="text-text-muted break-words">
                               {entityNameById.get(t.project.entity_id)}
                             </span>
                           )}
                           <div className="flex items-center justify-end gap-2">
                             <span
-                              className={themed(`shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide ${
-                                STATUS_PILL[t.status] ?? themed('bg-gray-100 text-gray-600', dk)
-                              }`, dk)}
+                              className={`shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide ${
+                                STATUS_PILL[t.status] ?? 'bg-gray-100 text-gray-600'
+                              }`}
                             >
                               {t.status}
                             </span>
@@ -411,7 +407,7 @@ export default function ContentPipeline({ surface = 'light' }: { surface?: Surfa
                               className={`shrink-0 px-2 py-0.5 rounded border text-[11px] ${
                                 added
                                   ? 'border-brand-purple text-brand-purple hover:bg-purple-50'
-                                  : dk ? 'border-brand-purple-pop bg-brand-purple-pop text-white hover:opacity-90' : 'border-brand-purple bg-brand-purple text-white hover:opacity-90'
+                                  : 'border-brand-purple bg-brand-purple text-white hover:opacity-90'
                               } disabled:opacity-60`}
                             >
                               {added
@@ -428,7 +424,7 @@ export default function ContentPipeline({ surface = 'light' }: { surface?: Surfa
                     })}
                   </ul>
                 )}
-                <p className={themed('text-text-muted', dk)}>
+                <p className="text-text-muted">
                   Adds the task to the day (commit times on the{' '}
                   <a href="/operations" className="text-brand-purple hover:underline">Daily Plan</a> tab).
                 </p>
@@ -438,9 +434,9 @@ export default function ContentPipeline({ surface = 'light' }: { surface?: Surfa
             {/* Right: routines (selectable, order tracked) */}
             <div className="space-y-2">
               <h3 className="text-brand-purple font-medium uppercase tracking-wide">Routines</h3>
-              <div className={themed('border border-border rounded p-3 bg-white text-xs space-y-3', dk)}>
+              <div className="border border-border rounded p-3 bg-white text-xs space-y-3">
                 {routines.length === 0 ? (
-                  <p className={themed('text-text-muted', dk)}>No routines — create one on the Routines tab.</p>
+                  <p className="text-text-muted">No routines — create one on the Routines tab.</p>
                 ) : (
                   <ul className="space-y-1">
                     {routines.map((r) => {
@@ -451,23 +447,23 @@ export default function ContentPipeline({ surface = 'light' }: { surface?: Surfa
                           <button
                             type="button"
                             onClick={() => toggle(r.id)}
-                            className={themed(`w-full flex items-center gap-2 text-left px-2 py-1.5 rounded border ${
-                              isSel ? 'border-brand-purple bg-purple-50/50' : themed('border-border-light hover:bg-bg-row', dk)
-                            }`, dk)}
+                            className={`w-full flex items-center gap-2 text-left px-2 py-1.5 rounded border ${
+                              isSel ? 'border-brand-purple bg-purple-50/50' : 'border-border-light hover:bg-bg-row'
+                            }`}
                           >
                             <span
-                              className={themed(`shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] ${
-                                isSel ? (dk ? 'bg-brand-purple-pop text-white' : 'bg-brand-purple text-white') : themed('border border-border text-text-muted', dk)
-                              }`, dk)}
+                              className={`shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] ${
+                                isSel ? ('bg-brand-purple text-white') : 'border border-border text-text-muted'
+                              }`}
                               aria-hidden="true"
                             >
                               {isSel ? order + 1 : ''}
                             </span>
-                            <span className={themed('text-text-primary font-medium flex-1', dk)}>{r.name}</span>
+                            <span className="text-text-primary font-medium flex-1">{r.name}</span>
                             {entityNameById.get(r.entity_id) && (
-                              <span className={themed('text-text-muted break-words', dk)}>{entityNameById.get(r.entity_id)}</span>
+                              <span className="text-text-muted break-words">{entityNameById.get(r.entity_id)}</span>
                             )}
-                            <span className={themed('text-text-muted', dk)}>
+                            <span className="text-text-muted">
                               {r.steps.length} step{r.steps.length === 1 ? '' : 's'}
                             </span>
                           </button>
@@ -484,15 +480,15 @@ export default function ContentPipeline({ surface = 'light' }: { surface?: Surfa
 
       {/* 2 · AI SCRIPT MAP (renders inline when ≥1 routine selected) */}
       {selectedRoutines.length > 0 && (
-        <ScenifyDraft surface={surface} routines={selectedRoutines} date={date} onSaved={loadCounts} />
+        <ScenifyDraft routines={selectedRoutines} date={date} onSaved={loadCounts} />
       )}
 
       {/* 3 · ANSWER + RECORD — date at top, the answer timeline over the record grid. */}
-      <section className={themed('bg-white rounded border border-border p-4 space-y-4', dk)}>
+      <section className="bg-white rounded border border-border p-4 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className={sectionHeader}>
             3 · ANSWER + RECORD
-            <span className={themed('ml-2 font-normal text-text-muted', dk)}>answer the day → the evolution record</span>
+            <span className="ml-2 font-normal text-text-muted">answer the day → the evolution record</span>
           </h2>
           <label className="flex items-center gap-1.5 text-xs text-brand-purple font-medium">
             day
@@ -500,18 +496,18 @@ export default function ContentPipeline({ surface = 'light' }: { surface?: Surfa
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className={themed('px-2 py-1 bg-white border border-brand-purple/40 rounded text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple', dk)}
+              className="px-2 py-1 bg-white border border-brand-purple/40 rounded text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple"
               aria-label="Day"
             />
           </label>
         </div>
-        <DailyLog surface={surface} date={date} />
-        <PieceGrid surface={surface} />
+        <DailyLog date={date} />
+        <PieceGrid />
       </section>
       </>)}
 
       {/* 4 · SCRIPT — the reel voiceover generator (CE-5). */}
-      {stage === 'script' && <ScriptGenerator surface={surface} date={date} />}
+      {stage === 'script' && <ScriptGenerator date={date} />}
     </div>
   );
 }

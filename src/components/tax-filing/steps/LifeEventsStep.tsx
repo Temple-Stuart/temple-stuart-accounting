@@ -2,7 +2,7 @@
 
 import type { StepProps } from '../TaxFilingWizard';
 import type { LifeEvents } from '../TaxFilingWizard';
-import { themed, type Surface } from '@/lib/ds';
+
 
 // Step 0 — Life events checklist. The only step that actually reads/writes
 // lifeEvents in this PR. Other steps will wire up to the data it drives.
@@ -22,29 +22,27 @@ const ITEMS: Array<{
   { key: 'hasRental', title: 'I rented out property', detail: 'Rental income and expenses (Schedule E)' },
 ];
 
-export default function LifeEventsStep({ surface = 'light',
-  lifeEvents,
+export default function LifeEventsStep({ lifeEvents,
   setLifeEvents,
   autoDetected,
-}: StepProps & { surface?: Surface }) {
-  const dk = surface === 'dark';
+}: StepProps & { }) {
   const toggle = (key: keyof LifeEvents) => {
     setLifeEvents({ ...lifeEvents, [key]: !lifeEvents[key] });
   };
 
   return (
     <div className="space-y-3">
-      <p className={themed('text-sm text-gray-600', dk)}>
+      <p className="text-sm text-gray-600">
         Check everything that happened to you this year. We'll use this to
         guide the rest of the wizard and only ask you about relevant forms.
       </p>
-      <ul className={themed('divide-y divide-gray-100 border border-gray-200 rounded-md', dk)}>
+      <ul className="divide-y divide-gray-100 border border-gray-200 rounded-md">
         {ITEMS.map((item) => {
           const checked = lifeEvents[item.key];
           const detected = autoDetected[item.key];
           return (
             <li key={item.key}>
-              <label className={themed('flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50', dk)}>
+              <label className="flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50">
                 <input
                   type="checkbox"
                   checked={checked}
@@ -53,7 +51,7 @@ export default function LifeEventsStep({ surface = 'light',
                 />
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <span className={themed('text-sm font-medium text-gray-900', dk)}>
+                    <span className="text-sm font-medium text-gray-900">
                       {item.title}
                     </span>
                     {detected && (
@@ -62,7 +60,7 @@ export default function LifeEventsStep({ surface = 'light',
                       </span>
                     )}
                   </div>
-                  <p className={themed('text-xs text-gray-500 mt-0.5', dk)}>{item.detail}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{item.detail}</p>
                 </div>
               </label>
             </li>

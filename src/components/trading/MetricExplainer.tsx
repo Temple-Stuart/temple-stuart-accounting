@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useId, useState, type ReactNode } from 'react';
 import { METRIC_EXPLAINERS, type MetricValues } from './metricExplainers';
-import { themed, type Surface } from '@/lib/ds';
+
 
 /**
  * TEACH-1 — tap-to-open, mobile-first metric explainers.
@@ -35,8 +35,7 @@ interface MetricInfoProps {
   children: ReactNode;
 }
 
-export default function MetricInfo({ metricKey, values, hasValue = true, missingReason, children, surface = 'light' }: MetricInfoProps & { surface?: Surface }) {
-  const dk = surface === 'dark';
+export default function MetricInfo({ metricKey, values, hasValue = true, missingReason, children }: MetricInfoProps & { }) {
   const id = useId();
   const ctx = useContext(ExplainerCtx);
   // Fall back to self-managed state if no provider is mounted (still works, just not
@@ -56,24 +55,24 @@ export default function MetricInfo({ metricKey, values, hasValue = true, missing
         type="button"
         onClick={toggle}
         aria-expanded={open}
-        className={themed('inline-flex items-center gap-0.5 border-b border-dotted border-text-faint text-left hover:border-brand-purple focus:outline-none focus:border-brand-purple', dk)}
+        className="inline-flex items-center gap-0.5 border-b border-dotted border-text-faint text-left hover:border-brand-purple focus:outline-none focus:border-brand-purple"
       >
         {children}
-        <span aria-hidden="true" className={themed('text-[9px] text-text-faint', dk)}>ⓘ</span>
+        <span aria-hidden="true" className="text-[9px] text-text-faint">ⓘ</span>
       </button>
 
       {open && meta && (
         <span
           role="dialog"
-          className={themed('absolute left-0 top-full z-50 mt-1 block w-72 max-w-[85vw] rounded-lg border border-border bg-white p-3 text-left shadow-lg', dk)}
+          className="absolute left-0 top-full z-50 mt-1 block w-72 max-w-[85vw] rounded-lg border border-border bg-white p-3 text-left shadow-lg"
         >
           <span className="mb-1 flex items-start justify-between gap-2">
-            <span className={themed('text-sm font-semibold text-text-primary', dk)}>{meta.title}</span>
+            <span className="text-sm font-semibold text-text-primary">{meta.title}</span>
             <button
               type="button"
               onClick={toggle}
               aria-label="Close"
-              className={themed('shrink-0 text-xs text-text-muted hover:text-text-primary', dk)}
+              className="shrink-0 text-xs text-text-muted hover:text-text-primary"
             >
               ✕
             </button>
@@ -81,25 +80,25 @@ export default function MetricInfo({ metricKey, values, hasValue = true, missing
 
           {hasValue ? (
             <>
-              <span className={themed('block space-y-1 text-xs text-text-secondary', dk)}>
+              <span className="block space-y-1 text-xs text-text-secondary">
                 {meta.explain(values).map((line, i) => (
                   <span key={i} className="block">{line}</span>
                 ))}
               </span>
-              <span className={themed('mt-2 block text-[11px] font-semibold uppercase tracking-wider text-text-muted', dk)}>How it&rsquo;s made</span>
-              <ol className={themed('mt-0.5 list-decimal space-y-0.5 pl-4 text-[11px] text-text-secondary', dk)}>
+              <span className="mt-2 block text-[11px] font-semibold uppercase tracking-wider text-text-muted">How it&rsquo;s made</span>
+              <ol className="mt-0.5 list-decimal space-y-0.5 pl-4 text-[11px] text-text-secondary">
                 {meta.pipeline.map((step, i) => (
                   <li key={i}>{step}</li>
                 ))}
               </ol>
             </>
           ) : (
-            <span className={themed('block text-xs text-text-secondary', dk)}>
+            <span className="block text-xs text-text-secondary">
               This value could not be computed for this card — {missingReason || 'data not available from source'}.
             </span>
           )}
 
-          <span className={themed('mt-2 block font-mono text-[10px] text-text-muted', dk)}>
+          <span className="mt-2 block font-mono text-[10px] text-text-muted">
             Data source: {meta.source}
           </span>
         </span>

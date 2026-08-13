@@ -16,7 +16,7 @@ import CloseBooksTab from '@/components/dashboard/CloseBooksTab';
 import PositionReportTab from '@/components/dashboard/PositionReportTab';
 import CPAExport from '@/components/dashboard/CPAExport';
 import ToggleStrip, { type ToggleMode } from '@/components/ui/ToggleStrip';
-import { DS, themed } from '@/lib/ds';
+import { DS } from '@/lib/ds';
 import { BarChart3, CalendarCheck, Download, Inbox, Scale, Tags } from 'lucide-react';
 import { useExportDownload } from '@/lib/useExportDownload';
 
@@ -48,7 +48,6 @@ const fmt = (n: number) =>
 
 export default function BooksPipeline() {
   // BOOKS-DS-1: single-consumer (the ML Books tab) — always dark.
-  const dk = true;
   const [year] = useState(new Date().getFullYear());
   const [state, setState] = useState<'loading' | 'error' | 'ok'>('loading');
 
@@ -163,7 +162,7 @@ export default function BooksPipeline() {
 
   if (state === 'loading') {
     return (
-      <div className={themed('rounded-xl border-2 border-border bg-white px-4 py-3 text-sm text-text-muted', dk)}>
+      <div className={'rounded-xl border-2 border-panel-border bg-panel-surface px-4 py-3 text-sm text-white/60'}>
         Loading your books pipeline…
       </div>
     );
@@ -220,7 +219,7 @@ export default function BooksPipeline() {
         <div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
-              <thead className={themed('bg-gray-50 text-text-secondary', dk)}>
+              <thead className={'bg-white/5 text-white/70'}>
                 <tr>
                   <th className="px-3 py-2 text-left font-medium">Institution</th>
                   <th className="px-3 py-2 text-left font-medium">Account</th>
@@ -229,7 +228,7 @@ export default function BooksPipeline() {
                   <th className="px-3 py-2 text-right font-medium">Balance</th>
                 </tr>
               </thead>
-              <tbody className={themed('divide-y divide-border', dk)}>
+              <tbody className={'divide-y divide-panel-border'}>
                 {accounts.map((acc) => {
                   const et = acc.entityType;
                   const pillColor = et === 'personal' ? 'bg-blue-100 text-blue-700'
@@ -237,10 +236,10 @@ export default function BooksPipeline() {
                     : et === 'trading' ? 'bg-green-100 text-green-700'
                     : 'bg-orange-100 text-orange-700';
                   return (
-                    <tr key={acc.id} className={themed('hover:bg-bg-row', dk)}>
-                      <td className={themed('px-3 py-2 font-medium text-text-primary', dk)}>{acc.institutionName}</td>
-                      <td className={themed('px-3 py-2 text-text-secondary font-mono', dk)}>{'••••'} {acc.mask || '----'}</td>
-                      <td className="px-3 py-2"><span className={themed('px-2 py-0.5 bg-bg-row text-text-secondary text-[10px] uppercase', dk)}>{acc.type}</span></td>
+                    <tr key={acc.id} className={'hover:bg-panel-hover'}>
+                      <td className={'px-3 py-2 font-medium text-white'}>{acc.institutionName}</td>
+                      <td className={'px-3 py-2 text-white/70 font-mono'}>{'••••'} {acc.mask || '----'}</td>
+                      <td className="px-3 py-2"><span className={'px-2 py-0.5 bg-white/5 text-white/70 text-[10px] uppercase'}>{acc.type}</span></td>
                       <td className="px-3 py-2">
                         <select
                           value={acc.entityType || ''}
@@ -258,13 +257,13 @@ export default function BooksPipeline() {
                   );
                 })}
                 {accounts.length === 0 && (
-                  <tr><td colSpan={5} className={themed('px-3 py-8 text-center text-text-faint', dk)}>No accounts connected — link one from the cockpit above.</td></tr>
+                  <tr><td colSpan={5} className={'px-3 py-8 text-center text-white/50'}>No accounts connected — link one from the cockpit above.</td></tr>
                 )}
               </tbody>
-              <tfoot className={themed('bg-bg-row border-t border-border', dk)}>
+              <tfoot className={'bg-white/5 border-t border-panel-border'}>
                 <tr>
-                  <td colSpan={4} className={themed('px-3 py-2 font-semibold text-text-primary', dk)}>Total</td>
-                  <td className={themed('px-3 py-2 text-right font-mono font-bold text-text-primary', dk)}>{fmt(totalBalance)}</td>
+                  <td colSpan={4} className={'px-3 py-2 font-semibold text-white'}>Total</td>
+                  <td className={'px-3 py-2 text-right font-mono font-bold text-white'}>{fmt(totalBalance)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -282,18 +281,18 @@ export default function BooksPipeline() {
         subtitle={`${uncommittedSpending.length + uncommittedInvestments.length} pending`}
         status={uncommittedSpending.length + uncommittedInvestments.length > 0 ? 'action-needed' : 'complete'}>
         <div>
-          <div className={themed('flex items-center gap-3 px-3 py-1.5 border-b border-border', dk)}>
-            <div className={themed('flex items-center border border-border bg-white', dk)}>
+          <div className={'flex items-center gap-3 px-3 py-1.5 border-b border-panel-border'}>
+            <div className={'flex items-center border border-panel-border bg-panel-surface'}>
               <button onClick={() => setMappingTab('spending')}
-                className={themed(`px-2 py-0.5 text-[10px] font-mono font-medium transition-colors ${
-                  mappingTab === 'spending' ? 'bg-brand-purple-wash text-brand-purple' : themed('text-text-muted hover:text-text-primary', dk)
-                }`, dk)}>
+                className={`px-2 py-0.5 text-[10px] font-mono font-medium transition-colors ${
+                  mappingTab === 'spending' ? 'bg-brand-purple-wash text-brand-purple' : 'text-white/60 hover:text-white'
+                }`}>
                 Spending <span className="font-bold text-brand-gold">{uncommittedSpending.length}</span>
               </button>
               <button onClick={() => setMappingTab('investments')}
-                className={themed(`px-2 py-0.5 text-[10px] font-mono font-medium border-l border-border transition-colors ${
-                  mappingTab === 'investments' ? 'bg-brand-purple-wash text-brand-purple' : themed('text-text-muted hover:text-text-primary', dk)
-                }`, dk)}>
+                className={`px-2 py-0.5 text-[10px] font-mono font-medium border-l border-panel-border transition-colors ${
+                  mappingTab === 'investments' ? 'bg-brand-purple-wash text-brand-purple' : 'text-white/60 hover:text-white'
+                }`}>
                 Investments <span className="font-bold text-brand-gold">{uncommittedInvestments.length}</span>
               </button>
             </div>

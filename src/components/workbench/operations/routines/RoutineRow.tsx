@@ -22,7 +22,7 @@ import CoaSelect from './CoaSelect';
 import { RoutineStepList } from './RoutineStepList';
 import ScenifyButton from '../content/ScenifyButton';
 import type { Scene, Take } from '../content/ContentTable';
-import { themed, type Surface } from '@/lib/ds';
+
 
 interface Entity {
   id: string;
@@ -95,8 +95,7 @@ function formatTime12h(hhmm: string): string {
   return `${h12}:${String(m || 0).padStart(2, '0')} ${ampm}`;
 }
 
-export default function RoutineRow({ surface = 'light', routine, entities, onUpdate, onDelete, onScenify, onTakeify }: Props & { surface?: Surface }) {
-  const dk = surface === 'dark';
+export default function RoutineRow({ routine, entities, onUpdate, onDelete, onScenify, onTakeify }: Props & { }) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<RoutineForm>(() => routineToForm(routine));
@@ -190,30 +189,30 @@ export default function RoutineRow({ surface = 'light', routine, entities, onUpd
   };
 
   const inputClass =
-    themed('w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple', dk);
-  const labelClass = themed('text-text-faint uppercase tracking-wide mb-1 text-xs', dk);
+    'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
+  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
 
   return (
     <div
       className={
-        themed('border rounded bg-white ', dk) +
-        (routine.is_active ? themed('border-border', dk) : themed('border-border-light opacity-60', dk))
+        'border rounded bg-white ' +
+        (routine.is_active ? 'border-border' : 'border-border-light opacity-60')
       }
     >
       <div
-        className={themed('flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-bg-row text-xs', dk)}
+        className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-bg-row text-xs"
         onClick={() => !editing && setExpanded((x) => !x)}
       >
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <span className={themed('text-text-faint', dk)}>{expanded ? '▾' : '▸'}</span>
-          <span className={themed('font-bold text-text-primary truncate', dk)}>{routine.name}</span>
+          <span className="text-text-faint">{expanded ? '▾' : '▸'}</span>
+          <span className="font-bold text-text-primary truncate">{routine.name}</span>
           {!routine.is_active && (
-            <span className={themed('px-2 py-0.5 border rounded text-xs bg-gray-100 text-gray-600 border-gray-300', dk)}>
+            <span className="px-2 py-0.5 border rounded text-xs bg-gray-100 text-gray-600 border-gray-300">
               inactive
             </span>
           )}
         </div>
-        <div className={themed('flex items-center gap-3 text-text-muted shrink-0', dk)}>
+        <div className="flex items-center gap-3 text-text-muted shrink-0">
           {/* ROUTINES-UX-2: the routine's money renders — display of the
               already-fetched budget_amount/coa_code (in scope since HB-4b for
               edit pre-fill, never shown). Null budget → NOTHING renders
@@ -222,14 +221,14 @@ export default function RoutineRow({ surface = 'light', routine, entities, onUpd
           {routine.budget_amount != null && (
             <>
               <span
-                className={themed('font-mono tabular-nums font-bold text-text-primary', dk)}
+                className="font-mono tabular-nums font-bold text-text-primary"
                 title="budget / occurrence"
               >
                 {formatBudgetPerOccurrence(routine.budget_amount)} / occurrence
               </span>
               {routine.coa_code && (
                 <span
-                  className={themed('font-mono text-[10px] border border-border rounded px-1.5 py-0.5', dk)}
+                  className="font-mono text-[10px] border border-border rounded px-1.5 py-0.5"
                   title="COA"
                 >
                   {routine.coa_code}
@@ -244,7 +243,7 @@ export default function RoutineRow({ surface = 'light', routine, entities, onUpd
             next: {formatDateTime(routine.next_due_at, routine.timezone)}
           </span>
           {(routine.start_date || routine.end_date) && (
-            <span className={themed('text-xs text-text-muted', dk)} title="active date window">
+            <span className="text-xs text-text-muted" title="active date window">
               {(() => {
                 const startStr = routine.start_date ? formatDate(routine.start_date) : null;
                 const endStr = routine.end_date ? formatDate(routine.end_date) : null;
@@ -256,7 +255,7 @@ export default function RoutineRow({ surface = 'light', routine, entities, onUpd
             </span>
           )}
           {(routine.start_time || routine.end_time) && (
-            <span className={themed('text-xs text-text-muted', dk)} title="intent time window">
+            <span className="text-xs text-text-muted" title="intent time window">
               {(() => {
                 const startStr = routine.start_time ? formatTime12h(routine.start_time.slice(11, 16)) : null;
                 const endStr = routine.end_time ? formatTime12h(routine.end_time.slice(11, 16)) : null;
@@ -271,7 +270,7 @@ export default function RoutineRow({ surface = 'light', routine, entities, onUpd
       </div>
 
       {expanded && !editing && (
-        <div className={themed('px-4 py-3 border-t border-border-light text-xs space-y-3', dk)}>
+        <div className="px-4 py-3 border-t border-border-light text-xs space-y-3">
           {error && (
             <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
               {error}
@@ -280,39 +279,39 @@ export default function RoutineRow({ surface = 'light', routine, entities, onUpd
           {routine.description ? (
             <div>
               <div className={labelClass}>description</div>
-              <div className={themed('text-text-primary whitespace-pre-wrap', dk)}>{routine.description}</div>
+              <div className="text-text-primary whitespace-pre-wrap">{routine.description}</div>
             </div>
           ) : (
-            <div className={themed('text-text-muted italic', dk)}>no description</div>
+            <div className="text-text-muted italic">no description</div>
           )}
 
-          <div className={themed('grid grid-cols-3 gap-3 pt-2 border-t border-border-light', dk)}>
+          <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border-light">
             <div>
               <div className={labelClass}>schedule (rrule)</div>
-              <div className={themed('text-text-primary font-mono break-all', dk)}>{routine.schedule_rrule}</div>
+              <div className="text-text-primary font-mono break-all">{routine.schedule_rrule}</div>
             </div>
             <div>
               <div className={labelClass}>timezone</div>
-              <div className={themed('text-text-primary', dk)}>{routine.timezone}</div>
+              <div className="text-text-primary">{routine.timezone}</div>
             </div>
             <div>
               <div className={labelClass}>fail threshold</div>
-              <div className={themed('text-text-primary', dk)}>{routine.fail_threshold_minutes} min</div>
+              <div className="text-text-primary">{routine.fail_threshold_minutes} min</div>
             </div>
           </div>
 
-          <div className={themed('grid grid-cols-3 gap-3 pt-2 border-t border-border-light', dk)}>
+          <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border-light">
             <div>
               <div className={labelClass}>last completed</div>
-              <div className={themed('text-text-primary', dk)}>{formatDateTime(routine.last_completed_at, routine.timezone)}</div>
+              <div className="text-text-primary">{formatDateTime(routine.last_completed_at, routine.timezone)}</div>
             </div>
             <div>
               <div className={labelClass}>last evaluated</div>
-              <div className={themed('text-text-primary', dk)}>{formatDateTime(routine.last_evaluated_at, routine.timezone)}</div>
+              <div className="text-text-primary">{formatDateTime(routine.last_evaluated_at, routine.timezone)}</div>
             </div>
             <div>
               <div className={labelClass}>ideal time</div>
-              <div className={themed('text-text-primary', dk)}>{routine.ideal_time_label ?? '—'}</div>
+              <div className="text-text-primary">{routine.ideal_time_label ?? '—'}</div>
             </div>
           </div>
 
@@ -320,11 +319,11 @@ export default function RoutineRow({ surface = 'light', routine, entities, onUpd
               label + value idiom as their neighbors; a null field renders
               nothing, and the whole block skips when both are null. */}
           {(routine.budget_amount != null || !!routine.coa_code) && (
-            <div className={themed('grid grid-cols-3 gap-3 pt-2 border-t border-border-light', dk)}>
+            <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border-light">
               {routine.budget_amount != null && (
                 <div>
                   <div className={labelClass}>budget / occurrence</div>
-                  <div className={themed('text-text-primary font-mono tabular-nums font-bold', dk)}>
+                  <div className="text-text-primary font-mono tabular-nums font-bold">
                     {formatBudgetPerOccurrence(routine.budget_amount)}
                   </div>
                 </div>
@@ -332,19 +331,19 @@ export default function RoutineRow({ surface = 'light', routine, entities, onUpd
               {!!routine.coa_code && (
                 <div>
                   <div className={labelClass}>COA</div>
-                  <div className={themed('text-text-primary font-mono', dk)}>{routine.coa_code}</div>
+                  <div className="text-text-primary font-mono">{routine.coa_code}</div>
                 </div>
               )}
             </div>
           )}
 
-          <RoutineStepList surface={surface} routine={routine} onUpdate={onUpdate} onTakeify={onTakeify} />
+          <RoutineStepList routine={routine} onUpdate={onUpdate} onTakeify={onTakeify} />
 
-          <div className={themed('flex flex-wrap items-center gap-2 pt-2 border-t border-border-light', dk)}>
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border-light">
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); enterEdit(); }}
-              className={themed('px-2 py-1 border border-border rounded hover:bg-bg-row', dk)}
+              className="px-2 py-1 border border-border rounded hover:bg-bg-row"
             >
               edit
             </button>
@@ -352,7 +351,7 @@ export default function RoutineRow({ surface = 'light', routine, entities, onUpd
               type="button"
               onClick={handleToggleActive}
               disabled={toggling}
-              className={themed('px-2 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50', dk)}
+              className="px-2 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
             >
               {toggling ? '…' : routine.is_active ? 'deactivate' : 'reactivate'}
             </button>
@@ -364,13 +363,13 @@ export default function RoutineRow({ surface = 'light', routine, entities, onUpd
             >
               {deleting ? 'deleting…' : 'delete'}
             </button>
-            <ScenifyButton surface={surface} routine={routine} onScenify={onScenify} />
+            <ScenifyButton routine={routine} onScenify={onScenify} />
           </div>
         </div>
       )}
 
       {editing && (
-        <div className={themed('px-4 py-3 border-t border-border-light text-xs space-y-3', dk)}>
+        <div className="px-4 py-3 border-t border-border-light text-xs space-y-3">
           {error && (
             <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
               {error}
@@ -422,7 +421,7 @@ export default function RoutineRow({ surface = 'light', routine, entities, onUpd
               edit form is the other of the tab's two money renders. */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <div className={themed('font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs', dk)}>budget / occurrence (optional)</div>
+              <div className="font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs">budget / occurrence (optional)</div>
               <input
                 type="number"
                 min="0"
@@ -434,7 +433,7 @@ export default function RoutineRow({ surface = 'light', routine, entities, onUpd
               />
             </div>
             <div>
-              <div className={themed('font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs', dk)}>COA (optional)</div>
+              <div className="font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs">COA (optional)</div>
               <CoaSelect
                 entityId={form.entity_id}
                 value={form.coa_code ?? ''}
@@ -444,7 +443,7 @@ export default function RoutineRow({ surface = 'light', routine, entities, onUpd
             </div>
           </div>
 
-          <RRULEBuilder surface={surface} form={form} setForm={setForm} />
+          <RRULEBuilder form={form} setForm={setForm} />
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -488,12 +487,12 @@ export default function RoutineRow({ surface = 'light', routine, entities, onUpd
             </div>
           </div>
 
-          <div className={themed('flex items-center gap-2 pt-2 border-t border-border-light', dk)}>
+          <div className="flex items-center gap-2 pt-2 border-t border-border-light">
             <button
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
+              className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}
             >
               {saving ? 'saving…' : 'save'}
             </button>
@@ -501,7 +500,7 @@ export default function RoutineRow({ surface = 'light', routine, entities, onUpd
               type="button"
               onClick={cancelEdit}
               disabled={saving}
-              className={themed('px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50', dk)}
+              className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
             >
               cancel
             </button>

@@ -4,7 +4,7 @@
  * PR B split: this file keeps the EXACT live behavior it had before — it owns
  * the day feed (`useDayFeed(date)`, the 4 fetches: content grid, projects,
  * daily-plan items, trip day-blocks) and the entity context
- * (`useOperationsEntity`) — and now renders the pure <DayCalendarView surface={surface} /> with the
+ * (`useOperationsEntity`) — and now renders the pure <DayCalendarView /> with the
  * live `timeline`/`loading`/`error` + `entities` as props. The public name +
  * prop shape ({ date, onDateChange }) are unchanged, so the existing call site
  * (ContentPipeline.tsx:344) is untouched and /operations/content renders the day
@@ -18,21 +18,18 @@
 import { useOperationsEntity } from '../EntitySelector';
 import { useDayFeed } from './useDayFeed';
 import DayCalendarView from './DayCalendarView';
-import { themed, type Surface } from '@/lib/ds';
 
-export default function DayCalendar({ surface = 'light',
-  date,
+
+export default function DayCalendar({ date,
   onDateChange,
-}: { surface?: Surface;
-  date: string;
+}: { date: string;
   onDateChange: (date: string) => void;
 }) {
-  const dk = surface === 'dark';
   const { timeline, loading, error } = useDayFeed(date);
   const { entities } = useOperationsEntity();
 
   return (
-    <DayCalendarView surface={surface}
+    <DayCalendarView
       date={date}
       onDateChange={onDateChange}
       timeline={timeline}

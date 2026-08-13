@@ -735,7 +735,7 @@ export default function TradingPage() {
     return (
       <AppLayout>
         <div className="flex items-center justify-center py-20">
-          <div className="w-6 h-6 border-2 border-brand-purple-pop border-t-transparent rounded-full animate-spin" />
+          <div className="w-6 h-6 border-2 border-brand-purple border-t-transparent rounded-full animate-spin" />
         </div>
       </AppLayout>
     );
@@ -858,7 +858,7 @@ export default function TradingPage() {
                 ) : ttDataError ? (
                   <div className={STATE.errorCard}>
                     <div className="text-sm text-status-danger mb-3">{ttDataError}</div>
-                    <button onClick={fetchTtData} className="text-xs text-brand-purple-pop hover:underline font-medium">Retry</button>
+                    <button onClick={fetchTtData} className="text-xs text-brand-purple hover:underline font-medium">Retry</button>
                   </div>
                 ) : (
                   <ConvergenceIntelligence
@@ -915,7 +915,7 @@ export default function TradingPage() {
 
                           return (
                             <>
-                              <tr key={trade.tradeNum} className={`transition-colors hover:bg-white/5 ${isExpanded ? 'bg-brand-purple-pop/10' : ''}`}>
+                              <tr key={trade.tradeNum} className={`transition-colors hover:bg-white/5 ${isExpanded ? 'bg-brand-purple/10' : ''}`}>
                                 <td className="px-2 py-2 font-mono text-text-muted">#{trade.tradeNum}</td>
                                 <td className="px-2 py-2 text-text-muted">{new Date(trade.openDate).toLocaleDateString()}</td>
                                 <td className="px-2 py-2 font-mono font-semibold">{trade.underlying}</td>

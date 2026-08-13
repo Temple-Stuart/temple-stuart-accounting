@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { StepProps } from '../TaxFilingWizard';
 import WashSaleReport from '../WashSaleReport';
-import { themed, type Surface } from '@/lib/ds';
+
 
 // ═══════════════════════════════════════════════════════════════════
 // Step 4 — Trading (Schedule D + Form 8949)
@@ -205,12 +205,10 @@ const CSV_HEADERS = [
 
 // ─── Component ─────────────────────────────────────────────────────
 
-export default function TradingStep({ surface = 'light',
-  taxYear,
+export default function TradingStep({ taxYear,
   onComplete,
   lifeEvents,
-}: StepProps & { surface?: Surface }) {
-  const dk = surface === 'dark';
+}: StepProps & { }) {
   const [report, setReport] = useState<TaxReport | null>(null);
   const [washSales, setWashSales] = useState<WashSalesResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -263,11 +261,11 @@ export default function TradingStep({ surface = 'light',
   if (!lifeEvents.hasTrading) {
     return (
       <div className="space-y-4">
-        <div className={themed('px-4 py-4 bg-gray-50 border border-gray-200 rounded', dk)}>
-          <p className={themed('text-sm text-gray-800', dk)}>
+        <div className="px-4 py-4 bg-gray-50 border border-gray-200 rounded">
+          <p className="text-sm text-gray-800">
             No trading activity for {taxYear}. Skip to the next step.
           </p>
-          <p className={themed('text-xs text-gray-500 mt-1', dk)}>
+          <p className="text-xs text-gray-500 mt-1">
             If you bought or sold investments, go back to Step 1 and check "I
             bought or sold investments".
           </p>
@@ -282,7 +280,7 @@ export default function TradingStep({ surface = 'light',
         {[...Array(4)].map((_, i) => (
           <div
             key={i}
-            className={themed('h-20 bg-gray-50 border border-gray-200 rounded animate-pulse', dk)}
+            className="h-20 bg-gray-50 border border-gray-200 rounded animate-pulse"
           />
         ))}
       </div>
@@ -306,7 +304,7 @@ export default function TradingStep({ surface = 'light',
 
   if (!report) {
     return (
-      <div className={themed('px-4 py-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700', dk)}>
+      <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700">
         No trading data available for {taxYear}.
       </div>
     );
@@ -377,19 +375,19 @@ export default function TradingStep({ surface = 'light',
 
   return (
     <div className="space-y-5">
-      <p className={themed('text-sm text-gray-600', dk)}>
+      <p className="text-sm text-gray-600">
         Review every closed position for {taxYear}. Each entry is classified by
         IRS Form 8949 box and contributes to Schedule D Parts I and II.
       </p>
 
       {/* ═══ Schedule D summary ═══ */}
-      <div className={themed('border border-gray-200 rounded-lg bg-white overflow-hidden', dk)}>
-        <div className={themed('px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between', dk)}>
+      <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
           <div>
-            <div className={themed('text-sm font-semibold text-gray-900', dk)}>
+            <div className="text-sm font-semibold text-gray-900">
               Schedule D — Capital Gains and Losses
             </div>
-            <div className={themed('text-xs text-gray-500', dk)}>Tax year {taxYear}</div>
+            <div className="text-xs text-gray-500">Tax year {taxYear}</div>
           </div>
           <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded">
             ✓ from trading positions & lot dispositions
@@ -398,14 +396,14 @@ export default function TradingStep({ surface = 'light',
         <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-200">
           {/* Part I */}
           <div className="px-4 py-3">
-            <h4 className={themed('text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2', dk)}>
+            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
               Part I — Short-term (held 1 year or less)
             </h4>
-            <ScheduleDRow dk={dk} line={scheduleD.partI.line1a} label="Line 1a — Box A" />
-            <ScheduleDRow dk={dk} line={scheduleD.partI.line1b} label="Line 1b — Box B" />
-            <ScheduleDRow dk={dk} line={scheduleD.partI.line1c} label="Line 1c — Box C" />
-            <div className={themed('pt-2 mt-2 border-t border-gray-100', dk)}>
-              <ScheduleDRow dk={dk}
+            <ScheduleDRow line={scheduleD.partI.line1a} label="Line 1a — Box A" />
+            <ScheduleDRow line={scheduleD.partI.line1b} label="Line 1b — Box B" />
+            <ScheduleDRow line={scheduleD.partI.line1c} label="Line 1c — Box C" />
+            <div className="pt-2 mt-2 border-t border-gray-100">
+              <ScheduleDRow
                 line={scheduleD.partI.line7}
                 label="Line 7 — Net ST"
                 bold
@@ -414,14 +412,14 @@ export default function TradingStep({ surface = 'light',
           </div>
           {/* Part II */}
           <div className="px-4 py-3">
-            <h4 className={themed('text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2', dk)}>
+            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
               Part II — Long-term (held more than 1 year)
             </h4>
-            <ScheduleDRow dk={dk} line={scheduleD.partII.line8a} label="Line 8a — Box D" />
-            <ScheduleDRow dk={dk} line={scheduleD.partII.line8b} label="Line 8b — Box E" />
-            <ScheduleDRow dk={dk} line={scheduleD.partII.line8c} label="Line 8c — Box F" />
-            <div className={themed('pt-2 mt-2 border-t border-gray-100', dk)}>
-              <ScheduleDRow dk={dk}
+            <ScheduleDRow line={scheduleD.partII.line8a} label="Line 8a — Box D" />
+            <ScheduleDRow line={scheduleD.partII.line8b} label="Line 8b — Box E" />
+            <ScheduleDRow line={scheduleD.partII.line8c} label="Line 8c — Box F" />
+            <div className="pt-2 mt-2 border-t border-gray-100">
+              <ScheduleDRow
                 line={scheduleD.partII.line15}
                 label="Line 15 — Net LT"
                 bold
@@ -436,9 +434,9 @@ export default function TradingStep({ surface = 'light',
               Line 16 — Net capital gain/(loss)
             </span>
             <span
-              className={themed(`font-mono text-lg font-bold ${gainLossClass(
+              className={`font-mono text-lg font-bold ${gainLossClass(
                 scheduleD.line16.gainOrLoss
-              )}`, dk)}
+              )}`}
             >
               {fmtMoney(scheduleD.line16.gainOrLoss)}
             </span>
@@ -530,24 +528,24 @@ export default function TradingStep({ surface = 'light',
 
       {/* ═══ Detailed wash sale report (toggle) ═══ */}
       {showWashReport && (
-        <div className={themed('border border-gray-200 rounded-lg bg-gray-50/40 p-4', dk)}>
-          <WashSaleReport surface={surface} taxYear={taxYear} />
+        <div className="border border-gray-200 rounded-lg bg-gray-50/40 p-4">
+          <WashSaleReport taxYear={taxYear} />
         </div>
       )}
 
       {/* ═══ Form 8949 entries by box ═══ */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className={themed('text-sm font-semibold text-gray-900', dk)}>
+          <h3 className="text-sm font-semibold text-gray-900">
             Form 8949 — Sales and Dispositions
           </h3>
-          <span className={themed('text-xs text-gray-500', dk)}>
+          <span className="text-xs text-gray-500">
             {allEntries.length} entr{allEntries.length === 1 ? 'y' : 'ies'}
           </span>
         </div>
 
         {allEntries.length === 0 && (
-          <div className={themed('px-4 py-4 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700', dk)}>
+          <div className="px-4 py-4 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700">
             No dispositions recorded for {taxYear}.
           </div>
         )}
@@ -568,15 +566,15 @@ export default function TradingStep({ surface = 'light',
           return (
             <div
               key={box}
-              className={themed('border border-gray-200 rounded-lg bg-white overflow-hidden', dk)}
+              className="border border-gray-200 rounded-lg bg-white overflow-hidden"
             >
               <button
                 type="button"
                 onClick={() => toggle(boxKey)}
-                className={themed('w-full px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between hover:bg-gray-100', dk)}
+                className="w-full px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between hover:bg-gray-100"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <span className={themed('text-xs text-gray-400 w-3', dk)}>
+                  <span className="text-xs text-gray-400 w-3">
                     {isBoxOpen ? '▼' : '▶'}
                   </span>
                   <div className="text-left min-w-0">
@@ -584,10 +582,10 @@ export default function TradingStep({ surface = 'light',
                       <span className="inline-flex items-center justify-center w-6 h-6 rounded font-mono text-xs font-bold text-white bg-blue-600">
                         {box}
                       </span>
-                      <span className={themed('text-sm font-semibold text-gray-900', dk)}>
+                      <span className="text-sm font-semibold text-gray-900">
                         Box {box}
                       </span>
-                      <span className={themed('text-xs text-gray-500', dk)}>
+                      <span className="text-xs text-gray-500">
                         {entries.length} entr{entries.length === 1 ? 'y' : 'ies'}
                       </span>
                       {washCount > 0 && (
@@ -596,17 +594,17 @@ export default function TradingStep({ surface = 'light',
                         </span>
                       )}
                     </div>
-                    <div className={themed('text-[11px] text-gray-500 mt-0.5 truncate', dk)}>
+                    <div className="text-[11px] text-gray-500 mt-0.5 truncate">
                       {BOX_DESCRIPTIONS[box]}
                     </div>
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className={themed('text-[10px] text-gray-400 font-mono uppercase tracking-wider', dk)}>
+                  <div className="text-[10px] text-gray-400 font-mono uppercase tracking-wider">
                     Gain/Loss
                   </div>
                   <div
-                    className={themed(`font-mono text-sm font-semibold ${gainLossClass(boxGL)}`, dk)}
+                    className={`font-mono text-sm font-semibold ${gainLossClass(boxGL)}`}
                   >
                     {fmtMoney(boxGL)}
                   </div>
@@ -615,7 +613,7 @@ export default function TradingStep({ surface = 'light',
 
               {isBoxOpen && (
                 <div>
-                  <div className={themed('px-4 py-2 bg-gray-50 border-b border-gray-100 grid grid-cols-12 gap-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wider', dk)}>
+                  <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 grid grid-cols-12 gap-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
                     <span className="col-span-3">Symbol / Description</span>
                     <span className="col-span-2">Acquired</span>
                     <span className="col-span-2">Sold</span>
@@ -633,15 +631,15 @@ export default function TradingStep({ surface = 'light',
                           <button
                             type="button"
                             onClick={() => toggle(entryKey)}
-                            className={themed(`w-full px-4 py-2 grid grid-cols-12 gap-2 items-center text-xs hover:bg-gray-50 ${
+                            className={`w-full px-4 py-2 grid grid-cols-12 gap-2 items-center text-xs hover:bg-gray-50 ${
                               isWash ? 'bg-amber-50/40' : ''
-                            }`, dk)}
+                            }`}
                           >
                             <span className="col-span-3 flex items-center gap-1 min-w-0">
-                              <span className={themed('text-gray-400 text-[10px]', dk)}>
+                              <span className="text-gray-400 text-[10px]">
                                 {isEntryOpen ? '▼' : '▶'}
                               </span>
-                              <span className={themed('font-mono font-semibold text-gray-900', dk)}>
+                              <span className="font-mono font-semibold text-gray-900">
                                 {entry.symbol}
                               </span>
                               {isWash && (
@@ -650,45 +648,45 @@ export default function TradingStep({ surface = 'light',
                                 </span>
                               )}
                               {entry.assetType === 'option' && (
-                                <span className={themed('text-[9px] text-gray-400', dk)}>
+                                <span className="text-[9px] text-gray-400">
                                   opt
                                 </span>
                               )}
                             </span>
-                            <span className={themed('col-span-2 font-mono text-gray-600', dk)}>
+                            <span className="col-span-2 font-mono text-gray-600">
                               {fmtDate(entry.dateAcquired)}
                             </span>
-                            <span className={themed('col-span-2 font-mono text-gray-600', dk)}>
+                            <span className="col-span-2 font-mono text-gray-600">
                               {fmtDate(entry.dateSold)}
                             </span>
-                            <span className={themed('col-span-2 text-right font-mono text-gray-700', dk)}>
+                            <span className="col-span-2 text-right font-mono text-gray-700">
                               {fmtMoney(entry.proceeds)}
                             </span>
-                            <span className={themed('col-span-2 text-right font-mono text-gray-700', dk)}>
+                            <span className="col-span-2 text-right font-mono text-gray-700">
                               {fmtMoney(entry.costBasis)}
                             </span>
                             <span
-                              className={themed(`col-span-1 text-right font-mono font-semibold ${gainLossClass(entry.gainOrLoss)}`, dk)}
+                              className={`col-span-1 text-right font-mono font-semibold ${gainLossClass(entry.gainOrLoss)}`}
                             >
                               {fmtMoney(entry.gainOrLoss)}
                             </span>
                           </button>
 
                           {isEntryOpen && (
-                            <div className={themed('px-4 pb-3 bg-gray-50/60 text-xs space-y-1', dk)}>
-                              <DetailRow dk={dk}
+                            <div className="px-4 pb-3 bg-gray-50/60 text-xs space-y-1">
+                              <DetailRow
                                 label="Description"
                                 value={entry.description}
                               />
-                              <DetailRow dk={dk}
+                              <DetailRow
                                 label="Holding period"
                                 value={`${entry.holdingDays} day${entry.holdingDays === 1 ? '' : 's'} · ${entry.isLongTerm ? 'long-term' : 'short-term'}`}
                               />
-                              <DetailRow dk={dk}
+                              <DetailRow
                                 label="Asset type"
                                 value={entry.assetType}
                               />
-                              <DetailRow dk={dk}
+                              <DetailRow
                                 label="Box reasoning"
                                 value={
                                   entry.box_reasoning ||
@@ -697,11 +695,11 @@ export default function TradingStep({ surface = 'light',
                               />
                               {isWash && (
                                 <>
-                                  <DetailRow dk={dk}
+                                  <DetailRow
                                     label="Adjustment code"
                                     value="W — Wash sale loss disallowed"
                                   />
-                                  <DetailRow dk={dk}
+                                  <DetailRow
                                     label="Adjustment amount"
                                     value={fmtMoney(entry.adjustmentAmount)}
                                   />
@@ -712,7 +710,7 @@ export default function TradingStep({ surface = 'light',
                                   </p>
                                 </>
                               )}
-                              <DetailRow dk={dk}
+                              <DetailRow
                                 label="Source"
                                 value={
                                   entry.assetType === 'option'
@@ -727,18 +725,18 @@ export default function TradingStep({ surface = 'light',
                     })}
                   </div>
 
-                  <div className={themed('px-4 py-2 bg-gray-50 border-t border-gray-100 grid grid-cols-12 gap-2 text-xs font-semibold', dk)}>
-                    <span className={themed('col-span-7 text-gray-600', dk)}>
+                  <div className="px-4 py-2 bg-gray-50 border-t border-gray-100 grid grid-cols-12 gap-2 text-xs font-semibold">
+                    <span className="col-span-7 text-gray-600">
                       Box {box} totals
                     </span>
-                    <span className={themed('col-span-2 text-right font-mono text-gray-800', dk)}>
+                    <span className="col-span-2 text-right font-mono text-gray-800">
                       {fmtMoney(boxProceeds)}
                     </span>
-                    <span className={themed('col-span-2 text-right font-mono text-gray-800', dk)}>
+                    <span className="col-span-2 text-right font-mono text-gray-800">
                       {fmtMoney(boxBasis)}
                     </span>
                     <span
-                      className={themed(`col-span-1 text-right font-mono ${gainLossClass(boxGL)}`, dk)}
+                      className={`col-span-1 text-right font-mono ${gainLossClass(boxGL)}`}
                     >
                       {fmtMoney(boxGL)}
                     </span>
@@ -752,39 +750,39 @@ export default function TradingStep({ surface = 'light',
 
       {/* ═══ Trade statistics ═══ */}
       {allEntries.length > 0 && (
-        <div className={themed('border border-gray-200 rounded-lg bg-white p-4', dk)}>
-          <h3 className={themed('text-sm font-semibold text-gray-900 mb-3', dk)}>
+        <div className="border border-gray-200 rounded-lg bg-white p-4">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">
             Trade statistics
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Metric dk={dk}
+            <Metric
               label="Transactions"
               value={summary.totalDispositions.toLocaleString()}
             />
-            <Metric dk={dk}
+            <Metric
               label="Short / Long"
               value={`${summary.shortTermCount} / ${summary.longTermCount}`}
             />
-            <Metric dk={dk} label="Win rate" value={`${winRate.toFixed(1)}%`} />
-            <Metric dk={dk}
+            <Metric label="Win rate" value={`${winRate.toFixed(1)}%`} />
+            <Metric
               label="Wins / Losses"
               value={`${winCount} / ${lossCount}`}
             />
-            <Metric dk={dk}
+            <Metric
               label="Largest gain"
               value={winCount > 0 ? fmtMoney(largestGain) : '—'}
-              valueClass={winCount > 0 ? 'text-emerald-700' : themed('text-gray-400', dk)}
+              valueClass={winCount > 0 ? 'text-emerald-700' : 'text-gray-400'}
             />
-            <Metric dk={dk}
+            <Metric
               label="Largest loss"
               value={lossCount > 0 ? fmtMoney(largestLoss) : '—'}
-              valueClass={lossCount > 0 ? 'text-red-600' : themed('text-gray-400', dk)}
+              valueClass={lossCount > 0 ? 'text-red-600' : 'text-gray-400'}
             />
-            <Metric dk={dk}
+            <Metric
               label="Total proceeds"
               value={fmtMoney(summary.totalProceeds)}
             />
-            <Metric dk={dk}
+            <Metric
               label="Total basis"
               value={fmtMoney(summary.totalCostBasis)}
             />
@@ -794,13 +792,13 @@ export default function TradingStep({ surface = 'light',
 
       {/* ═══ CSV export preview ═══ */}
       {allEntries.length > 0 && (
-        <div className={themed('border border-gray-200 rounded-lg bg-white overflow-hidden', dk)}>
-          <div className={themed('px-4 py-3 border-b border-gray-200 flex items-center justify-between', dk)}>
+        <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
             <div>
-              <div className={themed('text-sm font-semibold text-gray-900', dk)}>
+              <div className="text-sm font-semibold text-gray-900">
                 Form 8949 CSV preview
               </div>
-              <div className={themed('text-xs text-gray-500', dk)}>
+              <div className="text-xs text-gray-500">
                 First 5 rows · full CSV will be available in the File step for
                 TaxAct / TurboTax import
               </div>
@@ -808,12 +806,12 @@ export default function TradingStep({ surface = 'light',
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-[11px] font-mono">
-              <thead className={themed('bg-gray-50 border-b border-gray-200', dk)}>
+              <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   {CSV_HEADERS.map((h) => (
                     <th
                       key={h}
-                      className={themed('px-2 py-1.5 text-left text-gray-500 font-semibold whitespace-nowrap', dk)}
+                      className="px-2 py-1.5 text-left text-gray-500 font-semibold whitespace-nowrap"
                     >
                       {h}
                     </th>
@@ -822,7 +820,7 @@ export default function TradingStep({ surface = 'light',
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {allEntries.slice(0, 5).map((e, i) => (
-                  <tr key={i} className={themed('text-gray-800', dk)}>
+                  <tr key={i} className="text-gray-800">
                     <td className="px-2 py-1 whitespace-nowrap">
                       {e.description.length > 24
                         ? e.description.slice(0, 23) + '…'
@@ -845,7 +843,7 @@ export default function TradingStep({ surface = 'light',
                         : ''}
                     </td>
                     <td
-                      className={themed(`px-2 py-1 text-right ${gainLossClass(e.gainOrLoss)}`, dk)}
+                      className={`px-2 py-1 text-right ${gainLossClass(e.gainOrLoss)}`}
                     >
                       {e.gainOrLoss.toFixed(2)}
                     </td>
@@ -859,7 +857,7 @@ export default function TradingStep({ surface = 'light',
             </table>
           </div>
           {allEntries.length > 5 && (
-            <div className={themed('px-4 py-1.5 text-[11px] text-gray-400 text-center border-t border-gray-100', dk)}>
+            <div className="px-4 py-1.5 text-[11px] text-gray-400 text-center border-t border-gray-100">
               + {allEntries.length - 5} more rows
             </div>
           )}
@@ -868,7 +866,7 @@ export default function TradingStep({ surface = 'light',
 
       {/* ═══ Continue action ═══ */}
       <div className="flex items-center justify-between pt-2">
-        <div className={themed('text-xs text-gray-500', dk)}>
+        <div className="text-xs text-gray-500">
           {hasWashSaleWarning
             ? 'Wash-sale adjustments pending DB persistence.'
             : 'No warnings — Schedule D is ready.'}
@@ -891,20 +889,18 @@ function ScheduleDRow({
   line,
   label,
   bold,
-  dk = false,
-}: {
-  dk?: boolean;
+  }: {
   line: ScheduleDLine;
   label: string;
   bold?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between py-1 text-xs">
-      <span className={themed(bold ? 'font-semibold text-gray-900' : 'text-gray-600', dk)}>
+      <span className={bold ? 'font-semibold text-gray-900' : 'text-gray-600'}>
         {label}
       </span>
       <span
-        className={themed(`font-mono ${bold ? 'font-bold' : ''} ${gainLossClass(line.gainOrLoss)}`, dk)}
+        className={`font-mono ${bold ? 'font-bold' : ''} ${gainLossClass(line.gainOrLoss)}`}
       >
         {fmtMoney(line.gainOrLoss)}
       </span>
@@ -912,37 +908,33 @@ function ScheduleDRow({
   );
 }
 
-function DetailRow({ dk = false,
-  label,
+function DetailRow({ label,
   value,
-}: { dk?: boolean;
-  label: string;
+}: { label: string;
   value: React.ReactNode;
 }) {
   return (
     <div className="flex items-start justify-between gap-4 py-0.5">
-      <span className={themed('text-gray-500 shrink-0', dk)}>{label}</span>
-      <span className={themed('text-gray-800 text-right', dk)}>{value}</span>
+      <span className="text-gray-500 shrink-0">{label}</span>
+      <span className="text-gray-800 text-right">{value}</span>
     </div>
   );
 }
 
-function Metric({ dk = false,
-  label,
+function Metric({ label,
   value,
   valueClass,
-}: { dk?: boolean;
-  label: string;
+}: { label: string;
   value: string;
   valueClass?: string;
 }) {
   return (
-    <div className={themed('border border-gray-100 rounded px-3 py-2', dk)}>
-      <div className={themed('text-[10px] text-gray-500 uppercase tracking-wider', dk)}>
+    <div className="border border-gray-100 rounded px-3 py-2">
+      <div className="text-[10px] text-gray-500 uppercase tracking-wider">
         {label}
       </div>
       <div
-        className={themed(`font-mono text-sm font-semibold mt-0.5 ${valueClass || 'text-gray-900'}`, dk)}
+        className={`font-mono text-sm font-semibold mt-0.5 ${valueClass || 'text-gray-900'}`}
       >
         {value}
       </div>

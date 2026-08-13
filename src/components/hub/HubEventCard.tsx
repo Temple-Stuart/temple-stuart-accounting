@@ -37,11 +37,10 @@ interface Props {
   /** Fired after a successful reschedule/reconcile so the parent refetches. */
   onUpdated: () => void;
   /** CAL-DS-THEME: light default (byte-identical); HubCalendar passes 'dark'. */
-  surface?: Surface;
 }
 
 // CAL-DS-THEME
-import { themed, type Surface } from '@/lib/ds';
+
 
 const BLOCK_STATUSES = ['scheduled', 'in_progress', 'completed', 'missed', 'cancelled'] as const;
 
@@ -105,11 +104,10 @@ const labelClassBase = 'text-text-faint uppercase tracking-wide text-xs font-mon
 const fieldClassBase =
   'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
 
-export default function HubEventCard({ item, block, onClose, onUpdated, surface = 'light' }: Props) {
-  const dk = surface === 'dark';
-  const pillClass = themed(pillClassBase, dk);
-  const labelClass = themed(labelClassBase, dk);
-  const fieldClass = themed(fieldClassBase, dk);
+export default function HubEventCard({ item, block, onClose, onUpdated }: Props) {
+  const pillClass = pillClassBase;
+  const labelClass = labelClassBase;
+  const fieldClass = fieldClassBase;
   const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -255,11 +253,11 @@ export default function HubEventCard({ item, block, onClose, onUpdated, surface 
       {/* Panel */}
       <div
         ref={panelRef}
-        className={themed('relative w-full max-w-lg bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-200', dk)}
+        className="relative w-full max-w-lg bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-200"
         style={{ animation: 'slideInRight 0.2s ease-out' }}
       >
         {/* Header */}
-        <div className={`${dk ? 'bg-brand-purple-pop' : 'bg-brand-purple'} text-white px-5 py-4 flex items-start justify-between`}>
+        <div className={`${'bg-brand-purple'} text-white px-5 py-4 flex items-start justify-between`}>
           <div className="min-w-0 flex-1 pr-3">
             <h3 className="text-sm font-semibold break-words">{title}</h3>
             <p className="text-xs text-white/70 mt-0.5 font-mono">
@@ -283,14 +281,14 @@ export default function HubEventCard({ item, block, onClose, onUpdated, surface 
           {/* Time + status */}
           <div className="space-y-1">
             <div className={labelClass}>scheduled</div>
-            <div className={themed('font-mono text-text-primary', dk)}>
+            <div className="font-mono text-text-primary">
               {formatTime12h(block.scheduled_start)} – {formatTime12h(block.scheduled_end)}
             </div>
             <div>
               <span className={pillClass}>{block.status}</span>
             </div>
             {hasActualTimes && (
-              <div className={themed('text-xs font-mono text-text-muted', dk)}>
+              <div className="text-xs font-mono text-text-muted">
                 actually: {formatTime12h(block.actual_start as string)} – {formatTime12h(block.actual_end as string)}
               </div>
             )}
@@ -298,9 +296,9 @@ export default function HubEventCard({ item, block, onClose, onUpdated, surface 
 
           {/* Task (when not ad-hoc) */}
           {item.task && (
-            <div className={themed('space-y-1 pt-3 border-t border-border-light', dk)}>
+            <div className="space-y-1 pt-3 border-t border-border-light">
               <div className={labelClass}>task</div>
-              <div className={themed('text-text-primary', dk)}>{item.task.title}</div>
+              <div className="text-text-primary">{item.task.title}</div>
               <div>
                 <span className={pillClass}>{item.task.status}</span>
               </div>
@@ -309,33 +307,33 @@ export default function HubEventCard({ item, block, onClose, onUpdated, surface 
 
           {/* Ad-hoc description (when ad-hoc) */}
           {!item.task && item.ad_hoc_description && (
-            <div className={themed('space-y-1 pt-3 border-t border-border-light', dk)}>
+            <div className="space-y-1 pt-3 border-t border-border-light">
               <div className={labelClass}>description</div>
-              <div className={themed('text-text-primary whitespace-pre-wrap', dk)}>{item.ad_hoc_description}</div>
+              <div className="text-text-primary whitespace-pre-wrap">{item.ad_hoc_description}</div>
             </div>
           )}
 
           {/* Category */}
           {item.task?.coa_code && (
-            <div className={themed('space-y-1 pt-3 border-t border-border-light', dk)}>
+            <div className="space-y-1 pt-3 border-t border-border-light">
               <div className={labelClass}>category</div>
-              <div className={themed('font-mono text-text-primary', dk)}>{item.task.coa_code}</div>
+              <div className="font-mono text-text-primary">{item.task.coa_code}</div>
             </div>
           )}
 
           {/* Cost — render only sides that are populated */}
           {(planned || actual) && (
-            <div className={themed('space-y-1 pt-3 border-t border-border-light', dk)}>
+            <div className="space-y-1 pt-3 border-t border-border-light">
               <div className={labelClass}>cost</div>
-              <div className={themed('font-mono text-text-primary space-y-0.5', dk)}>
+              <div className="font-mono text-text-primary space-y-0.5">
                 {planned && (
                   <div>
-                    <span className={themed('text-text-muted', dk)}>Planned:</span> {planned}
+                    <span className="text-text-muted">Planned:</span> {planned}
                   </div>
                 )}
                 {actual && (
                   <div>
-                    <span className={themed('text-text-muted', dk)}>Actual:</span> {actual}
+                    <span className="text-text-muted">Actual:</span> {actual}
                   </div>
                 )}
               </div>
@@ -344,18 +342,18 @@ export default function HubEventCard({ item, block, onClose, onUpdated, surface 
 
           {/* Notes — show both block + item when present, labeled by scope */}
           {hasAnyNote && (
-            <div className={themed('space-y-2 pt-3 border-t border-border-light', dk)}>
+            <div className="space-y-2 pt-3 border-t border-border-light">
               <div className={labelClass}>notes</div>
               {block.notes && (
                 <div>
-                  <div className={themed('text-xs font-mono text-text-muted', dk)}>Block note:</div>
-                  <div className={themed('text-text-primary whitespace-pre-wrap', dk)}>{block.notes}</div>
+                  <div className="text-xs font-mono text-text-muted">Block note:</div>
+                  <div className="text-text-primary whitespace-pre-wrap">{block.notes}</div>
                 </div>
               )}
               {item.notes && (
                 <div>
-                  <div className={themed('text-xs font-mono text-text-muted', dk)}>Task note:</div>
-                  <div className={themed('text-text-primary whitespace-pre-wrap', dk)}>{item.notes}</div>
+                  <div className="text-xs font-mono text-text-muted">Task note:</div>
+                  <div className="text-text-primary whitespace-pre-wrap">{item.notes}</div>
                 </div>
               )}
             </div>
@@ -364,7 +362,7 @@ export default function HubEventCard({ item, block, onClose, onUpdated, surface 
 
         {/* Action panels (reschedule / reconcile) */}
         {mode && (
-          <div className={themed('border-t border-border px-5 py-4 space-y-3 bg-purple-50/20 text-xs font-mono', dk)}>
+          <div className="border-t border-border px-5 py-4 space-y-3 bg-purple-50/20 text-xs font-mono">
             {actionError && (
               <div className="px-2 py-1 rounded border bg-red-50 border-red-200 text-red-800">{actionError}</div>
             )}
@@ -392,13 +390,13 @@ export default function HubEventCard({ item, block, onClose, onUpdated, surface 
                       <button type="button" onClick={() => submitReschedule(true)} disabled={saving} className="px-2 py-0.5 border border-amber-500 bg-amber-500 text-white rounded hover:opacity-90 disabled:opacity-50">
                         {saving ? 'saving…' : 'reschedule anyway'}
                       </button>
-                      <button type="button" onClick={() => setConflictIds(null)} disabled={saving} className={themed('px-2 py-0.5 border border-border rounded hover:bg-white disabled:opacity-50', dk)}>
+                      <button type="button" onClick={() => setConflictIds(null)} disabled={saving} className="px-2 py-0.5 border border-border rounded hover:bg-white disabled:opacity-50">
                         pick another time
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <button type="button" onClick={() => submitReschedule(false)} disabled={saving} className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}>
+                  <button type="button" onClick={() => submitReschedule(false)} disabled={saving} className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}>
                     {saving ? 'saving…' : 'save new time'}
                   </button>
                 )}
@@ -441,7 +439,7 @@ export default function HubEventCard({ item, block, onClose, onUpdated, surface 
                     </>
                   )}
                 </div>
-                <button type="button" onClick={submitReconcile} disabled={saving} className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}>
+                <button type="button" onClick={submitReconcile} disabled={saving} className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}>
                   {saving ? 'saving…' : 'save actuals'}
                 </button>
               </>
@@ -450,25 +448,25 @@ export default function HubEventCard({ item, block, onClose, onUpdated, surface 
         )}
 
         {/* Footer — actions + LIVE dimension link-outs */}
-        <div className={themed('border-t border-border bg-bg-row/50 px-5 py-3 flex flex-wrap items-center gap-2', dk)}>
+        <div className="border-t border-border bg-bg-row/50 px-5 py-3 flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => { setMode(mode === 'reschedule' ? null : 'reschedule'); setActionError(null); setConflictIds(null); }}
-            className={themed('px-3 py-1.5 text-xs font-mono border border-border rounded hover:bg-white text-text-primary', dk)}
+            className="px-3 py-1.5 text-xs font-mono border border-border rounded hover:bg-white text-text-primary"
           >
             {mode === 'reschedule' ? 'Cancel' : 'Reschedule'}
           </button>
           <button
             type="button"
             onClick={() => { setMode(mode === 'reconcile' ? null : 'reconcile'); setActionError(null); }}
-            className={themed('px-3 py-1.5 text-xs font-mono border border-border rounded hover:bg-white text-text-primary', dk)}
+            className="px-3 py-1.5 text-xs font-mono border border-border rounded hover:bg-white text-text-primary"
           >
             {mode === 'reconcile' ? 'Cancel' : 'Reconcile'}
           </button>
           <button
             type="button"
             onClick={() => router.push('/operations/projects')}
-            className={themed('px-3 py-1.5 text-xs font-mono border border-border rounded hover:bg-white text-text-primary', dk)}
+            className="px-3 py-1.5 text-xs font-mono border border-border rounded hover:bg-white text-text-primary"
           >
             Open in Projects →
           </button>

@@ -23,7 +23,7 @@ import {
 } from '@/components/workbench/operations/routines/types';
 import SceneHeaderRow from './SceneHeaderRow';
 import TakeRow from './TakeRow';
-import { themed, type Surface } from '@/lib/ds';
+
 
 export type Step = {
   id: string;
@@ -128,15 +128,13 @@ const HEADERS = [
   'Script',
 ];
 
-export default function ContentTable({ surface = 'light',
-  scenes,
+export default function ContentTable({ scenes,
   takes,
   routines,
   onSceneUpdate,
   onTakeUpdate,
   onScriptClick,
-}: { surface?: Surface;
-  scenes: Scene[];
+}: { scenes: Scene[];
   takes: Take[];
   routines: Routine[];
   onSceneUpdate: (
@@ -151,7 +149,6 @@ export default function ContentTable({ surface = 'light',
   ) => Promise<void>;
   onScriptClick: (scene: Scene) => void;
 }) {
-  const dk = surface === 'dark';
   const routinesById = new Map(routines.map((r) => [r.id, r]));
   const takesByStepId = new Map(takes.map((t) => [t.routine_step_id, t]));
 
@@ -161,7 +158,7 @@ export default function ContentTable({ surface = 'light',
     <div className="text-xs font-mono overflow-x-auto">
       <table className="w-full">
         <thead>
-          <tr className={themed('text-text-faint uppercase tracking-wide', dk)}>
+          <tr className="text-text-faint uppercase tracking-wide">
             {HEADERS.map((h) => (
               <th key={h} className="text-left pb-1 px-2 whitespace-nowrap">
                 {h}
@@ -184,14 +181,14 @@ export default function ContentTable({ surface = 'light',
             );
             return (
               <Fragment key={scene.id}>
-                <SceneHeaderRow surface={surface}
+                <SceneHeaderRow
                   scene={scene}
                   routine={routine}
                   onSceneUpdate={onSceneUpdate}
                   onScriptClick={onScriptClick}
                 />
                 {steps.map((step) => (
-                  <TakeRow surface={surface}
+                  <TakeRow
                     key={step.id}
                     step={step}
                     take={takesByStepId.get(step.id)}

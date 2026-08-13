@@ -25,7 +25,7 @@ import {
   minuteOfDayFromInstant,
   minuteOfDayFromTime,
 } from '@/lib/content/dayOrder';
-import { themed, type Surface } from '@/lib/ds';
+
 
 interface StepSceneRow {
   camera_needed: string | null;
@@ -101,7 +101,7 @@ interface TaskView {
 const headerCellClass =
   'sticky top-0 z-10 bg-bg-row border border-border-light px-2 py-1.5 text-left text-brand-purple font-semibold uppercase tracking-wide whitespace-nowrap';
 const cellInputClass =
-  'w-full px-2 py-1 bg-white text-text-primary placeholder:text-text-muted focus:outline-none focus:bg-brand-purple-pop/10 focus:ring-1 focus:ring-inset focus:ring-brand-purple';
+  'w-full px-2 py-1 bg-white text-text-primary placeholder:text-text-muted focus:outline-none focus:bg-brand-purple/10 focus:ring-1 focus:ring-inset focus:ring-brand-purple';
 // Untimed/planned task rows sink after the untimed scenes (whose order is small).
 const UNTIMED_TASK_ORDER_BASE = 100000;
 
@@ -127,16 +127,13 @@ const fmtClock = (iso: string): string => {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
-export default function ScenifyDraft({ surface = 'light',
-  routines,
+export default function ScenifyDraft({ routines,
   date,
   onSaved,
-}: { surface?: Surface;
-  routines: { id: string; name: string }[];
+}: { routines: { id: string; name: string }[];
   date: string;
   onSaved?: () => void;
 }) {
-  const dk = surface === 'dark';
   const [groups, setGroups] = useState<Group[]>([]);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [planItems, setPlanItems] = useState<PlanItem[]>([]);
@@ -423,63 +420,63 @@ export default function ScenifyDraft({ surface = 'light',
     const hasQuestion = d.assigned_question_text.trim().length > 0;
     return (
       <tr key={`scene-${step.id}`}>
-        <td className={themed('border border-border-light px-2 py-1 align-top text-center text-text-muted', dk)}>{n}</td>
+        <td className="border border-border-light px-2 py-1 align-top text-center text-text-muted">{n}</td>
         <th
           scope="row"
-          className={themed('border border-border-light px-2 py-1 align-top text-left font-normal text-text-primary min-w-[140px]', dk)}
+          className="border border-border-light px-2 py-1 align-top text-left font-normal text-text-primary min-w-[140px]"
         >
           <div className="font-medium">{step.activity}</div>
-          {time && <div className={themed('text-text-muted', dk)}>{time}</div>}
-          <div className={themed('text-text-muted text-[10px]', dk)}>🎬 {routineName}</div>
+          {time && <div className="text-text-muted">{time}</div>}
+          <div className="text-text-muted text-[10px]">🎬 {routineName}</div>
         </th>
-        <td className={themed('border border-border-light p-0 align-top min-w-[120px]', dk)}>
+        <td className="border border-border-light p-0 align-top min-w-[120px]">
           <textarea
             maxLength={200}
             value={d.camera_needed}
             onChange={(e) => setField(step.id, 'camera_needed', e.target.value)}
             rows={2}
-            className={themed(`${cellInputClass} block resize-y`, dk)}
+            className={`${cellInputClass} block resize-y`}
           />
         </td>
-        <td className={themed('border border-border-light p-0 align-top min-w-[120px]', dk)}>
+        <td className="border border-border-light p-0 align-top min-w-[120px]">
           <textarea
             maxLength={200}
             value={d.filming_angle}
             onChange={(e) => setField(step.id, 'filming_angle', e.target.value)}
             rows={2}
-            className={themed(`${cellInputClass} block resize-y`, dk)}
+            className={`${cellInputClass} block resize-y`}
           />
         </td>
-        <td className={themed('border border-border-light p-0 align-top min-w-[120px]', dk)}>
+        <td className="border border-border-light p-0 align-top min-w-[120px]">
           <textarea
             maxLength={200}
             value={d.shot_type}
             onChange={(e) => setField(step.id, 'shot_type', e.target.value)}
             rows={2}
-            className={themed(`${cellInputClass} block resize-y`, dk)}
+            className={`${cellInputClass} block resize-y`}
           />
         </td>
-        <td className={themed('border border-border-light p-0 align-top min-w-[180px]', dk)}>
+        <td className="border border-border-light p-0 align-top min-w-[180px]">
           <textarea
             value={d.b_roll}
             onChange={(e) => setField(step.id, 'b_roll', e.target.value)}
             rows={2}
-            className={themed(`${cellInputClass} block resize-y`, dk)}
+            className={`${cellInputClass} block resize-y`}
           />
         </td>
-        <td className={themed('border border-border-light p-0 align-top min-w-[180px]', dk)}>
+        <td className="border border-border-light p-0 align-top min-w-[180px]">
           <textarea
             value={d.narrative_purpose}
             onChange={(e) => setField(step.id, 'narrative_purpose', e.target.value)}
             rows={2}
-            className={themed(`${cellInputClass} block resize-y`, dk)}
+            className={`${cellInputClass} block resize-y`}
           />
         </td>
-        <td className={themed('border border-border-light p-1 align-top min-w-[200px]', dk)}>
+        <td className="border border-border-light p-1 align-top min-w-[200px]">
           {hasQuestion && (
             <div className="mb-1">
               {d.assigned_question_id ? (
-                <span className={`px-1.5 py-0.5 rounded text-white text-[10px] tracking-wide ${dk ? 'bg-brand-purple-pop' : 'bg-brand-purple'}`}>
+                <span className={`px-1.5 py-0.5 rounded text-white text-[10px] tracking-wide ${'bg-brand-purple'}`}>
                   from library
                 </span>
               ) : (
@@ -494,7 +491,7 @@ export default function ScenifyDraft({ surface = 'light',
             onChange={(e) => setQuestionText(step.id, e.target.value)}
             rows={2}
             placeholder="the on-camera question (AI suggest assigns the best fit)"
-            className={themed(`${cellInputClass} block resize-y`, dk)}
+            className={`${cellInputClass} block resize-y`}
           />
         </td>
       </tr>
@@ -504,8 +501,8 @@ export default function ScenifyDraft({ surface = 'light',
   // Read-only task band — fully legible, labeled, wrapped (shared TaskBand).
   const renderTaskRow = (task: TaskView) => (
     <tr key={`task-${task.id}`}>
-      <td colSpan={8} className={themed('border border-border-light border-l-4 border-l-amber-400 bg-amber-50/50 px-3 py-2 align-top', dk)}>
-        <TaskBand surface={surface}
+      <td colSpan={8} className="border border-border-light border-l-4 border-l-amber-400 bg-amber-50/50 px-3 py-2 align-top">
+        <TaskBand
           date={date}
           planned={task.planned}
           itemId={task.itemId}
@@ -526,11 +523,11 @@ export default function ScenifyDraft({ surface = 'light',
   let sceneNo = 0;
 
   return (
-    <div className={themed('bg-white rounded border border-border p-4 space-y-3 text-xs', dk)}>
+    <div className="bg-white rounded border border-border p-4 space-y-3 text-xs">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-medium tracking-wide text-brand-purple text-sm">
           2 · AI SCRIPT MAP
-          <span className={themed('ml-2 font-normal text-text-muted', dk)}>
+          <span className="ml-2 font-normal text-text-muted">
             the day in order · {allSteps.length} scene{allSteps.length === 1 ? '' : 's'} · {taskCount} task{taskCount === 1 ? '' : 's'}
           </span>
         </h2>
@@ -542,7 +539,7 @@ export default function ScenifyDraft({ surface = 'light',
               value={cameras}
               onChange={(e) => setCameras(e.target.value)}
               placeholder="iPhone"
-              className={themed('w-40 px-2 py-1 bg-white border border-brand-purple/40 rounded text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple', dk)}
+              className="w-40 px-2 py-1 bg-white border border-brand-purple/40 rounded text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple"
             />
           </label>
           <button
@@ -555,38 +552,38 @@ export default function ScenifyDraft({ surface = 'light',
           </button>
         </div>
       </div>
-      <p className={themed('text-text-muted', dk)}>
+      <p className="text-text-muted">
         The whole day in clock order — routine scenes (editable) with the day&rsquo;s project tasks
         slotted between them (read-only; commit times on the Daily Plan tab). AI suggest tunes the
         scenes for virality using your cameras; everything on the scene rows stays editable.
       </p>
 
       {notice && (
-        <div className={themed('px-3 py-2 rounded border bg-purple-50 border-brand-purple/40 text-text-primary', dk)}>{notice}</div>
+        <div className="px-3 py-2 rounded border bg-purple-50 border-brand-purple/40 text-text-primary">{notice}</div>
       )}
       {error && (
         <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">{error}</div>
       )}
 
       {loading ? (
-        <p className={themed('text-text-muted', dk)}>Loading steps…</p>
+        <p className="text-text-muted">Loading steps…</p>
       ) : allSteps.length === 0 ? (
-        <p className={themed('text-text-muted', dk)}>
+        <p className="text-text-muted">
           The selected routine{groups.length === 1 ? ' has' : 's have'} no steps yet — add steps on the Routines tab first.
         </p>
       ) : (
-        <div className={themed('overflow-x-auto max-h-[520px] overflow-y-auto border border-border-light rounded', dk)}>
+        <div className="overflow-x-auto max-h-[520px] overflow-y-auto border border-border-light rounded">
           <table className="border-collapse text-xs w-full">
             <thead>
               <tr>
-                <th className={themed(`${headerCellClass} text-center`, dk)}>#</th>
-                <th className={themed(headerCellClass, dk)}>Activity</th>
-                <th className={themed(headerCellClass, dk)}>Camera</th>
-                <th className={themed(headerCellClass, dk)}>Angle</th>
-                <th className={themed(headerCellClass, dk)}>Shot Type</th>
-                <th className={themed(headerCellClass, dk)}>B-Roll</th>
-                <th className={themed(headerCellClass, dk)}>Narrative</th>
-                <th className={themed(headerCellClass, dk)}>Question</th>
+                <th className={`${headerCellClass} text-center`}>#</th>
+                <th className={headerCellClass}>Activity</th>
+                <th className={headerCellClass}>Camera</th>
+                <th className={headerCellClass}>Angle</th>
+                <th className={headerCellClass}>Shot Type</th>
+                <th className={headerCellClass}>B-Roll</th>
+                <th className={headerCellClass}>Narrative</th>
+                <th className={headerCellClass}>Question</th>
               </tr>
             </thead>
             <tbody>
@@ -600,16 +597,16 @@ export default function ScenifyDraft({ surface = 'light',
         </div>
       )}
 
-      <div className={themed('flex items-center gap-2 pt-2 border-t border-border-light', dk)}>
+      <div className="flex items-center gap-2 pt-2 border-t border-border-light">
         <button
           type="button"
           onClick={handleSubmit}
           disabled={submitting || enriching || loading || allSteps.length === 0}
-          className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
+          className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}
         >
           {submitting ? 'saving…' : 'save scenes'}
         </button>
-        <span className={themed('text-text-muted', dk)}>saved scenes appear in the confirmed grid below · task rows are read-only</span>
+        <span className="text-text-muted">saved scenes appear in the confirmed grid below · task rows are read-only</span>
       </div>
     </div>
   );

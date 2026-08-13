@@ -18,7 +18,7 @@
 
 import { useState } from 'react';
 import type { DailyPlanItem } from './types';
-import { themed, type Surface } from '@/lib/ds';
+
 
 interface Props {
   item: DailyPlanItem;
@@ -61,8 +61,7 @@ function defaultBlockWindow(item: DailyPlanItem): { start: Date; end: Date } {
   return { start, end };
 }
 
-export default function DailyPlanItemRow({ surface = 'light', item, onUpdate, onDelete }: Props & { surface?: Surface }) {
-  const dk = surface === 'dark';
+export default function DailyPlanItemRow({ item, onUpdate, onDelete }: Props & { }) {
   const isAdHoc = !item.task;
 
   const [editing, setEditing] = useState(false);
@@ -235,29 +234,29 @@ export default function DailyPlanItemRow({ surface = 'light', item, onUpdate, on
   };
 
   return (
-    <div className={themed('bg-white border border-border rounded p-3 space-y-2', dk)}>
+    <div className="bg-white border border-border rounded p-3 space-y-2">
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           {item.task ? (
             <div className="flex items-center gap-2 flex-wrap">
-              <span className={themed('text-xs font-mono text-text-muted', dk)}>[task]</span>
-              <span className={themed('font-mono text-sm text-text-primary', dk)}>{item.task.title}</span>
-              <span className={themed('px-1.5 py-0 border border-border rounded text-xs font-mono text-text-muted', dk)}>
+              <span className="text-xs font-mono text-text-muted">[task]</span>
+              <span className="font-mono text-sm text-text-primary">{item.task.title}</span>
+              <span className="px-1.5 py-0 border border-border rounded text-xs font-mono text-text-muted">
                 {item.task.status}
               </span>
             </div>
           ) : (
-            <div className={themed('font-mono text-sm text-text-primary', dk)}>{item.ad_hoc_title}</div>
+            <div className="font-mono text-sm text-text-primary">{item.ad_hoc_title}</div>
           )}
 
           {isAdHoc && item.ad_hoc_description && (
-            <div className={themed('text-xs font-mono text-text-muted mt-1 whitespace-pre-wrap', dk)}>
+            <div className="text-xs font-mono text-text-muted mt-1 whitespace-pre-wrap">
               {item.ad_hoc_description}
             </div>
           )}
 
           {item.notes && (
-            <div className={themed('text-xs font-mono text-text-muted mt-1 italic whitespace-pre-wrap', dk)}>
+            <div className="text-xs font-mono text-text-muted mt-1 italic whitespace-pre-wrap">
               {item.notes}
             </div>
           )}
@@ -268,7 +267,7 @@ export default function DailyPlanItemRow({ surface = 'light', item, onUpdate, on
             <button
               type="button"
               onClick={enterEdit}
-              className={themed('px-2 py-0.5 border border-border text-text-muted rounded hover:bg-bg-row text-xs font-mono', dk)}
+              className="px-2 py-0.5 border border-border text-text-muted rounded hover:bg-bg-row text-xs font-mono"
             >
               edit
             </button>
@@ -285,9 +284,9 @@ export default function DailyPlanItemRow({ surface = 'light', item, onUpdate, on
       </div>
 
       {item.calendar_blocks.length > 0 && (
-        <div className={themed('flex flex-wrap gap-2 pl-2 border-l-2 border-border-light', dk)}>
+        <div className="flex flex-wrap gap-2 pl-2 border-l-2 border-border-light">
           {item.calendar_blocks.map((b) => (
-            <div key={b.id} className={themed('text-xs font-mono text-text-muted', dk)}>
+            <div key={b.id} className="text-xs font-mono text-text-muted">
               {formatTime(b.scheduled_start)}–{formatTime(b.scheduled_end)} · {b.status}
             </div>
           ))}
@@ -298,7 +297,7 @@ export default function DailyPlanItemRow({ surface = 'light', item, onUpdate, on
         <button
           type="button"
           onClick={openBlockForm}
-          className={themed('px-2 py-0.5 border border-border text-text-muted rounded hover:bg-bg-row text-xs font-mono', dk)}
+          className="px-2 py-0.5 border border-border text-text-muted rounded hover:bg-bg-row text-xs font-mono"
         >
           + schedule block
         </button>
@@ -306,45 +305,45 @@ export default function DailyPlanItemRow({ surface = 'light', item, onUpdate, on
 
       {showBlockForm && (
         <div
-          className={themed('mt-1 p-2 border border-border-light rounded bg-bg-row text-xs font-mono space-y-2', dk)}
+          className="mt-1 p-2 border border-border-light rounded bg-bg-row text-xs font-mono space-y-2"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center gap-2 flex-wrap">
             <label className="flex items-center gap-1">
-              <span className={themed('text-text-muted', dk)}>start</span>
+              <span className="text-text-muted">start</span>
               <input
                 type="datetime-local"
                 value={blockStart}
                 onChange={(e) => setBlockStart(e.target.value)}
                 disabled={blockSaving}
-                className={themed('px-2 py-0.5 border border-border rounded text-text-primary disabled:opacity-50', dk)}
+                className="px-2 py-0.5 border border-border rounded text-text-primary disabled:opacity-50"
               />
             </label>
             <label className="flex items-center gap-1">
-              <span className={themed('text-text-muted', dk)}>end</span>
+              <span className="text-text-muted">end</span>
               <input
                 type="datetime-local"
                 value={blockEnd}
                 onChange={(e) => setBlockEnd(e.target.value)}
                 disabled={blockSaving}
-                className={themed('px-2 py-0.5 border border-border rounded text-text-primary disabled:opacity-50', dk)}
+                className="px-2 py-0.5 border border-border rounded text-text-primary disabled:opacity-50"
               />
             </label>
             <label className="flex items-center gap-1 flex-1 min-w-[160px]">
-              <span className={themed('text-text-muted', dk)}>notes</span>
+              <span className="text-text-muted">notes</span>
               <input
                 type="text"
                 value={blockNotes}
                 onChange={(e) => setBlockNotes(e.target.value)}
                 disabled={blockSaving}
                 placeholder="(optional)"
-                className={themed('flex-1 px-2 py-0.5 border border-border rounded text-text-primary disabled:opacity-50', dk)}
+                className="flex-1 px-2 py-0.5 border border-border rounded text-text-primary disabled:opacity-50"
               />
             </label>
           </div>
 
           {blockConflictDetected && (
-            <label className={themed('flex items-center gap-2 text-text-muted', dk)}>
+            <label className="flex items-center gap-2 text-text-muted">
               <input
                 type="checkbox"
                 checked={blockAllowConflicts}
@@ -361,7 +360,7 @@ export default function DailyPlanItemRow({ surface = 'light', item, onUpdate, on
             </div>
           )}
 
-          <div className={themed('flex items-center gap-2 pt-1 border-t border-border-light', dk)}>
+          <div className="flex items-center gap-2 pt-1 border-t border-border-light">
             <button
               type="button"
               onClick={handleScheduleBlock}
@@ -374,7 +373,7 @@ export default function DailyPlanItemRow({ surface = 'light', item, onUpdate, on
               type="button"
               onClick={closeBlockForm}
               disabled={blockSaving}
-              className={themed('px-3 py-0.5 border border-border text-text-muted rounded hover:bg-white disabled:opacity-50', dk)}
+              className="px-3 py-0.5 border border-border text-text-muted rounded hover:bg-white disabled:opacity-50"
             >
               cancel
             </button>
@@ -386,10 +385,10 @@ export default function DailyPlanItemRow({ surface = 'light', item, onUpdate, on
         <div className="border border-brand-purple rounded p-3 bg-purple-50/30 space-y-2">
           {isAdHoc && (
             <div>
-              <label className={themed('text-xs font-mono text-text-muted', dk)}>title</label>
+              <label className="text-xs font-mono text-text-muted">title</label>
               <input
                 type="text"
-                className={themed(inputClass, dk)}
+                className={inputClass}
                 value={form.ad_hoc_title}
                 onChange={(e) => setForm({ ...form, ad_hoc_title: e.target.value })}
                 maxLength={500}
@@ -398,9 +397,9 @@ export default function DailyPlanItemRow({ surface = 'light', item, onUpdate, on
           )}
           {isAdHoc && (
             <div>
-              <label className={themed('text-xs font-mono text-text-muted', dk)}>description</label>
+              <label className="text-xs font-mono text-text-muted">description</label>
               <textarea
-                className={themed(inputClass, dk)}
+                className={inputClass}
                 value={form.ad_hoc_description}
                 onChange={(e) => setForm({ ...form, ad_hoc_description: e.target.value })}
                 rows={3}
@@ -409,9 +408,9 @@ export default function DailyPlanItemRow({ surface = 'light', item, onUpdate, on
             </div>
           )}
           <div>
-            <label className={themed('text-xs font-mono text-text-muted', dk)}>notes</label>
+            <label className="text-xs font-mono text-text-muted">notes</label>
             <textarea
-              className={themed(inputClass, dk)}
+              className={inputClass}
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
               rows={3}
@@ -419,10 +418,10 @@ export default function DailyPlanItemRow({ surface = 'light', item, onUpdate, on
             />
           </div>
           <div>
-            <label className={themed('text-xs font-mono text-text-muted', dk)}>display order</label>
+            <label className="text-xs font-mono text-text-muted">display order</label>
             <input
               type="number"
-              className={themed(inputClass, dk)}
+              className={inputClass}
               value={form.display_order}
               onChange={(e) => setForm({ ...form, display_order: e.target.value })}
             />
@@ -440,7 +439,7 @@ export default function DailyPlanItemRow({ surface = 'light', item, onUpdate, on
               type="button"
               onClick={() => setEditing(false)}
               disabled={saving}
-              className={themed('px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50 text-xs font-mono', dk)}
+              className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50 text-xs font-mono"
             >
               cancel
             </button>

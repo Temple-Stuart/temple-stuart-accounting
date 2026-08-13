@@ -22,7 +22,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { themed, type Surface } from '@/lib/ds';
+
 
 export const CONTENT_SCENES_CHANGED_EVENT = 'operations:content-scenes-changed';
 // OPS-CE-8D: a task was assigned to / changed on the day's plan — the day map (S2)
@@ -37,7 +37,7 @@ export const CONTENT_DAY_PLAN_CHANGED_EVENT = 'operations:content-day-plan-chang
 const headerCellClass =
   'sticky top-0 z-10 bg-bg-row border border-border-light px-2 py-1.5 text-left text-brand-purple font-semibold uppercase tracking-wide whitespace-nowrap';
 const cellInputClass =
-  'w-full px-2 py-1 bg-white text-text-primary placeholder:text-text-faint focus:outline-none focus:bg-brand-purple-pop/10 focus:ring-1 focus:ring-inset focus:ring-brand-purple';
+  'w-full px-2 py-1 bg-white text-text-primary placeholder:text-text-faint focus:outline-none focus:bg-brand-purple/10 focus:ring-1 focus:ring-inset focus:ring-brand-purple';
 
 interface StepSceneRow {
   camera_needed: string | null;
@@ -102,18 +102,15 @@ const fmtTime = (t: string | null): string => {
   return t.length >= 5 ? t.slice(0, 5) : t;
 };
 
-export default function ScenifyModal({ surface = 'light',
-  routine,
+export default function ScenifyModal({ routine,
   open,
   onClose,
   onSuccess,
-}: { surface?: Surface;
-  routine: { id: string; name: string };
+}: { routine: { id: string; name: string };
   open: boolean;
   onClose: () => void;
   onSuccess?: () => void;
 }) {
-  const dk = surface === 'dark';
   const [steps, setSteps] = useState<RoutineStep[] | null>(null);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [loading, setLoading] = useState(true);
@@ -272,9 +269,9 @@ export default function ScenifyModal({ surface = 'light',
   };
 
   return (
-    <div className={themed('w-full border border-border rounded p-3 bg-white text-xs space-y-3', dk)}>
+    <div className="w-full border border-border rounded p-3 bg-white text-xs space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <div className={themed('font-bold text-text-primary', dk)}>🎬 Scenify &ldquo;{routine.name}&rdquo;</div>
+        <div className="font-bold text-text-primary">🎬 Scenify &ldquo;{routine.name}&rdquo;</div>
         <button
           type="button"
           onClick={handleEnrich}
@@ -284,13 +281,13 @@ export default function ScenifyModal({ surface = 'light',
           {enriching ? 'thinking…' : '✨ AI suggest'}
         </button>
       </div>
-      <p className={themed('text-text-muted', dk)}>
+      <p className="text-text-muted">
         One scene-row per step — fill the shot fields (the per-day script lives in the grid cells).
         AI suggest prefills angle / shot type / b-roll and the best-fit question; everything stays editable.
       </p>
 
       {notice && (
-        <div className={themed('px-3 py-2 rounded border bg-purple-50 border-brand-purple/40 text-text-primary', dk)}>
+        <div className="px-3 py-2 rounded border bg-purple-50 border-brand-purple/40 text-text-primary">
           {notice}
         </div>
       )}
@@ -301,27 +298,27 @@ export default function ScenifyModal({ surface = 'light',
       )}
 
       {loading ? (
-        <p className={themed('text-text-faint', dk)}>Loading steps…</p>
+        <p className="text-text-faint">Loading steps…</p>
       ) : !steps || steps.length === 0 ? (
-        <p className={themed('text-text-muted', dk)}>
+        <p className="text-text-muted">
           This routine has no steps yet — add steps on the Routines tab first.
         </p>
       ) : (
         // One ROW per step, columns for the editable shot fields — a single table
         // that reads as one family with the PieceGrid below. Horizontal scroll on
         // narrow widths rather than squashing the cells.
-        <div className={themed('overflow-x-auto max-h-[460px] overflow-y-auto border border-border-light rounded', dk)}>
+        <div className="overflow-x-auto max-h-[460px] overflow-y-auto border border-border-light rounded">
           <table className="border-collapse text-xs w-full">
             <thead>
               <tr>
-                <th className={themed(`${headerCellClass} text-center`, dk)}>#</th>
-                <th className={themed(headerCellClass, dk)}>Activity</th>
-                <th className={themed(headerCellClass, dk)}>Camera</th>
-                <th className={themed(headerCellClass, dk)}>Angle</th>
-                <th className={themed(headerCellClass, dk)}>Shot Type</th>
-                <th className={themed(headerCellClass, dk)}>B-Roll</th>
-                <th className={themed(headerCellClass, dk)}>Narrative</th>
-                <th className={themed(headerCellClass, dk)}>Question</th>
+                <th className={`${headerCellClass} text-center`}>#</th>
+                <th className={headerCellClass}>Activity</th>
+                <th className={headerCellClass}>Camera</th>
+                <th className={headerCellClass}>Angle</th>
+                <th className={headerCellClass}>Shot Type</th>
+                <th className={headerCellClass}>B-Roll</th>
+                <th className={headerCellClass}>Narrative</th>
+                <th className={headerCellClass}>Question</th>
               </tr>
             </thead>
             <tbody>
@@ -332,64 +329,64 @@ export default function ScenifyModal({ surface = 'light',
                 return (
                   <tr key={step.id}>
                     {/* # + Activity: prefilled from the step, read-only / de-emphasized */}
-                    <td className={themed('border border-border-light px-2 py-1 align-top text-center text-text-muted', dk)}>
+                    <td className="border border-border-light px-2 py-1 align-top text-center text-text-muted">
                       {step.step_order}
                     </td>
                     <th
                       scope="row"
-                      className={themed('border border-border-light px-2 py-1 align-top text-left font-normal text-text-primary min-w-[140px]', dk)}
+                      className="border border-border-light px-2 py-1 align-top text-left font-normal text-text-primary min-w-[140px]"
                     >
                       <div className="font-medium">{step.activity}</div>
-                      {time && <div className={themed('text-text-muted', dk)}>{time}</div>}
+                      {time && <div className="text-text-muted">{time}</div>}
                     </th>
-                    <td className={themed('border border-border-light p-0 align-top min-w-[110px]', dk)}>
+                    <td className="border border-border-light p-0 align-top min-w-[110px]">
                       <input
                         type="text"
                         maxLength={200}
                         value={d.camera_needed}
                         onChange={(e) => setField(step.id, 'camera_needed', e.target.value)}
-                        className={themed(cellInputClass, dk)}
+                        className={cellInputClass}
                       />
                     </td>
-                    <td className={themed('border border-border-light p-0 align-top min-w-[110px]', dk)}>
+                    <td className="border border-border-light p-0 align-top min-w-[110px]">
                       <input
                         type="text"
                         maxLength={200}
                         value={d.filming_angle}
                         onChange={(e) => setField(step.id, 'filming_angle', e.target.value)}
-                        className={themed(cellInputClass, dk)}
+                        className={cellInputClass}
                       />
                     </td>
-                    <td className={themed('border border-border-light p-0 align-top min-w-[110px]', dk)}>
+                    <td className="border border-border-light p-0 align-top min-w-[110px]">
                       <input
                         type="text"
                         maxLength={200}
                         value={d.shot_type}
                         onChange={(e) => setField(step.id, 'shot_type', e.target.value)}
-                        className={themed(cellInputClass, dk)}
+                        className={cellInputClass}
                       />
                     </td>
-                    <td className={themed('border border-border-light p-0 align-top min-w-[180px]', dk)}>
+                    <td className="border border-border-light p-0 align-top min-w-[180px]">
                       <textarea
                         value={d.b_roll}
                         onChange={(e) => setField(step.id, 'b_roll', e.target.value)}
                         rows={2}
-                        className={themed(`${cellInputClass} block resize-y`, dk)}
+                        className={`${cellInputClass} block resize-y`}
                       />
                     </td>
-                    <td className={themed('border border-border-light p-0 align-top min-w-[180px]', dk)}>
+                    <td className="border border-border-light p-0 align-top min-w-[180px]">
                       <textarea
                         value={d.narrative_purpose}
                         onChange={(e) => setField(step.id, 'narrative_purpose', e.target.value)}
                         rows={2}
-                        className={themed(`${cellInputClass} block resize-y`, dk)}
+                        className={`${cellInputClass} block resize-y`}
                       />
                     </td>
-                    <td className={themed('border border-border-light p-1 align-top min-w-[200px]', dk)}>
+                    <td className="border border-border-light p-1 align-top min-w-[200px]">
                       {hasQuestion && (
                         <div className="mb-1">
                           {d.assigned_question_id ? (
-                            <span className={`px-1.5 py-0.5 rounded text-white text-[10px] tracking-wide ${dk ? 'bg-brand-purple-pop' : 'bg-brand-purple'}`}>
+                            <span className={`px-1.5 py-0.5 rounded text-white text-[10px] tracking-wide ${'bg-brand-purple'}`}>
                               from library
                             </span>
                           ) : (
@@ -404,7 +401,7 @@ export default function ScenifyModal({ surface = 'light',
                         onChange={(e) => setQuestionText(step.id, e.target.value)}
                         rows={2}
                         placeholder="the on-camera question (AI suggest assigns the best fit)"
-                        className={themed(`${cellInputClass} block resize-y`, dk)}
+                        className={`${cellInputClass} block resize-y`}
                       />
                     </td>
                   </tr>
@@ -415,7 +412,7 @@ export default function ScenifyModal({ surface = 'light',
         </div>
       )}
 
-      <div className={themed('flex items-center gap-2 pt-2 border-t border-border-light', dk)}>
+      <div className="flex items-center gap-2 pt-2 border-t border-border-light">
         <button
           type="button"
           onClick={handleSubmit}
@@ -428,7 +425,7 @@ export default function ScenifyModal({ surface = 'light',
           type="button"
           onClick={onClose}
           disabled={submitting}
-          className={themed('px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50', dk)}
+          className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
         >
           cancel
         </button>

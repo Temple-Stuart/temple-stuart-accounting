@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { StepProps } from '../TaxFilingWizard';
-import { themed, type Surface } from '@/lib/ds';
+
 
 // ═══════════════════════════════════════════════════════════════════
 // Step 6 — File (export & filing instructions)
@@ -159,8 +159,7 @@ function generateAndDownloadTxt(filename: string, content: string) {
 
 // ─── Component ─────────────────────────────────────────────────────
 
-export default function FileStep({ surface = 'light', taxYear, onComplete, lifeEvents }: StepProps & { surface?: Surface }) {
-  const dk = surface === 'dark';
+export default function FileStep({ taxYear, onComplete, lifeEvents }: StepProps & { }) {
   const [calc, setCalc] = useState<CalculateResponse | null>(null);
   const [docs, setDocs] = useState<TaxDocument[]>([]);
   const [loading, setLoading] = useState(true);
@@ -212,7 +211,7 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
         {[...Array(4)].map((_, i) => (
           <div
             key={i}
-            className={themed('h-20 bg-gray-50 border border-gray-200 rounded animate-pulse', dk)}
+            className="h-20 bg-gray-50 border border-gray-200 rounded animate-pulse"
           />
         ))}
       </div>
@@ -353,14 +352,14 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
       )}
 
       {/* ═══ Filing summary ═══ */}
-      <div className={themed('border border-gray-200 rounded-lg bg-white overflow-hidden', dk)}>
-        <div className={themed('px-5 py-4 border-b border-gray-200', dk)}>
+      <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <div className={themed('text-lg font-semibold text-gray-900', dk)}>
+              <div className="text-lg font-semibold text-gray-900">
                 {taxYear} Federal Tax Return
               </div>
-              <div className={themed('text-xs text-gray-500 mt-0.5', dk)}>
+              <div className="text-xs text-gray-500 mt-0.5">
                 Filing status:{' '}
                 <span className="capitalize">
                   {f.filingStatus.replace(/_/g, ' ')}
@@ -404,7 +403,7 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
           </div>
         </div>
         <div className="px-5 py-3">
-          <h4 className={themed('text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2', dk)}>
+          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
             Forms included
           </h4>
           <ul className="space-y-1">
@@ -414,8 +413,8 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
                 className="flex items-center gap-2 text-sm"
               >
                 <span className="text-emerald-600">✓</span>
-                <span className={themed('font-medium text-gray-900', dk)}>{form.name}</span>
-                <span className={themed('text-gray-500 text-xs', dk)}>
+                <span className="font-medium text-gray-900">{form.name}</span>
+                <span className="text-gray-500 text-xs">
                   — {form.description}
                 </span>
               </li>
@@ -426,30 +425,30 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
 
       {/* ═══ Export tools ═══ */}
       <div>
-        <h3 className={themed('text-sm font-semibold text-gray-900 mb-2', dk)}>
+        <h3 className="text-sm font-semibold text-gray-900 mb-2">
           Export your data
         </h3>
 
         {/* Row 1 — Tax-filing exports */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
           {/* A. Form 8949 CSV */}
-          <div className={themed('border border-gray-200 rounded-lg bg-white p-4 flex flex-col', dk)}>
-            <div className={themed('text-sm font-semibold text-gray-900', dk)}>
+          <div className="border border-gray-200 rounded-lg bg-white p-4 flex flex-col">
+            <div className="text-sm font-semibold text-gray-900">
               Form 8949 CSV
             </div>
-            <div className={themed('text-[11px] text-gray-500 mt-0.5', dk)}>
+            <div className="text-[11px] text-gray-500 mt-0.5">
               For TaxAct Premier+ import.
             </div>
-            <div className={themed('mt-3 flex-1 text-[11px] text-gray-600', dk)}>
+            <div className="mt-3 flex-1 text-[11px] text-gray-600">
               <div className="font-mono">
                 {calc.form_8949.summary.total_dispositions} transaction
                 {calc.form_8949.summary.total_dispositions === 1 ? '' : 's'}
               </div>
-              <div className={themed('text-gray-500 mt-1', dk)}>
+              <div className="text-gray-500 mt-1">
                 {calc.form_8949.summary.short_term_count} short-term ·{' '}
                 {calc.form_8949.summary.long_term_count} long-term
               </div>
-              <div className={themed('text-gray-400 mt-2 leading-snug', dk)}>
+              <div className="text-gray-400 mt-2 leading-snug">
                 Columns: {csvColumns.join(', ')}
               </div>
             </div>
@@ -462,27 +461,27 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
           </div>
 
           {/* B. Schedule C Export */}
-          <div className={themed('border border-gray-200 rounded-lg bg-white p-4 flex flex-col', dk)}>
-            <div className={themed('text-sm font-semibold text-gray-900', dk)}>
+          <div className="border border-gray-200 rounded-lg bg-white p-4 flex flex-col">
+            <div className="text-sm font-semibold text-gray-900">
               Schedule C Export
             </div>
-            <div className={themed('text-[11px] text-gray-500 mt-0.5', dk)}>
+            <div className="text-[11px] text-gray-500 mt-0.5">
               Business income + expense reference for TaxAct entry.
             </div>
-            <div className={themed('mt-3 flex-1 text-[11px] text-gray-600', dk)}>
+            <div className="mt-3 flex-1 text-[11px] text-gray-600">
               {f.scheduleC.expenses.length > 0 ? (
                 <>
                   <div className="font-mono">
                     {f.scheduleC.expenses.length} expense line
                     {f.scheduleC.expenses.length === 1 ? '' : 's'}
                   </div>
-                  <div className={themed('text-gray-500 mt-1', dk)}>
+                  <div className="text-gray-500 mt-1">
                     Gross: {fmtMoney(f.scheduleC.line1)} · Net:{' '}
                     {fmtMoney(f.scheduleC.line31)}
                   </div>
                 </>
               ) : (
-                <div className={themed('text-gray-400', dk)}>No Schedule C data.</div>
+                <div className="text-gray-400">No Schedule C data.</div>
               )}
             </div>
             <div className="mt-3 grid grid-cols-2 gap-1.5">
@@ -504,14 +503,14 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
           </div>
 
           {/* C. Tax Filing Summary */}
-          <div className={themed('border border-gray-200 rounded-lg bg-white p-4 flex flex-col', dk)}>
-            <div className={themed('text-sm font-semibold text-gray-900', dk)}>
+          <div className="border border-gray-200 rounded-lg bg-white p-4 flex flex-col">
+            <div className="text-sm font-semibold text-gray-900">
               Tax Filing Summary
             </div>
-            <div className={themed('text-[11px] text-gray-500 mt-0.5', dk)}>
+            <div className="text-[11px] text-gray-500 mt-0.5">
               Every number you need for TaxAct in one document.
             </div>
-            <div className={themed('mt-3 flex-1 text-[11px] text-gray-600', dk)}>
+            <div className="mt-3 flex-1 text-[11px] text-gray-600">
               W-2, 1099-R, Schedule C lines, Schedule D totals, Form 1040 key
               lines, and warnings — all in plain text.
             </div>
@@ -530,14 +529,14 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
         {/* Row 2 — Reference exports */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {/* D. All Forms PDF */}
-          <div className={themed('border border-gray-200 rounded-lg bg-white p-4 flex flex-col', dk)}>
-            <div className={themed('text-sm font-semibold text-gray-900', dk)}>
+          <div className="border border-gray-200 rounded-lg bg-white p-4 flex flex-col">
+            <div className="text-sm font-semibold text-gray-900">
               All Forms PDF
             </div>
-            <div className={themed('text-[11px] text-gray-500 mt-0.5', dk)}>
+            <div className="text-[11px] text-gray-500 mt-0.5">
               Draft watermark — review and reference only.
             </div>
-            <div className={themed('mt-3 flex-1 text-[11px] text-gray-600', dk)}>
+            <div className="mt-3 flex-1 text-[11px] text-gray-600">
               Combined package including 1040, Schedules, Form 8949, and 8863 as
               applicable.
             </div>
@@ -550,14 +549,14 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
           </div>
 
           {/* E. CPA Export Package */}
-          <div className={themed('border border-gray-200 rounded-lg bg-white p-4 flex flex-col', dk)}>
-            <div className={themed('text-sm font-semibold text-gray-900', dk)}>
+          <div className="border border-gray-200 rounded-lg bg-white p-4 flex flex-col">
+            <div className="text-sm font-semibold text-gray-900">
               CPA Export Package
             </div>
-            <div className={themed('text-[11px] text-gray-500 mt-0.5', dk)}>
+            <div className="text-[11px] text-gray-500 mt-0.5">
               Ledger-sourced, double-entry verified.
             </div>
-            <div className={themed('mt-3 flex-1 text-[11px] text-gray-600', dk)}>
+            <div className="mt-3 flex-1 text-[11px] text-gray-600">
               Trial Balance, Income Statement, Balance Sheet, and General Ledger
               CSV files.
             </div>
@@ -582,18 +581,18 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
       </div>
 
       {/* ═══ TaxAct filing instructions ═══ */}
-      <div className={themed('border border-gray-200 rounded-lg bg-white overflow-hidden', dk)}>
-        <div className={themed('px-4 py-3 bg-gray-50 border-b border-gray-200', dk)}>
-          <div className={themed('text-sm font-semibold text-gray-900', dk)}>
+      <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+          <div className="text-sm font-semibold text-gray-900">
             How to file using TaxAct
           </div>
-          <div className={themed('text-xs text-gray-500', dk)}>
+          <div className="text-xs text-gray-500">
             Primary recommended path · TaxAct Premier+ supports Form 8949 CSV
             import
           </div>
         </div>
         <ol className="divide-y divide-gray-100">
-          <Step dk={dk} n={1}>
+          <Step n={1}>
             Go to{' '}
             <a
               href="https://www.taxact.com"
@@ -605,25 +604,25 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
             </a>{' '}
             and create an account (or sign in).
           </Step>
-          <Step dk={dk} n={2}>
+          <Step n={2}>
             Select the <strong>Premier+</strong> tier — this is required for CSV
             import of trades.
           </Step>
-          <Step dk={dk} n={3}>
+          <Step n={3}>
             Enter your personal info: name, SSN, address, and filing status
             (<span className="capitalize">{f.filingStatus.replace(/_/g, ' ')}</span>).
           </Step>
 
           {lifeEvents.hasW2 && w2Docs.length > 0 && (
-            <Step dk={dk} n={4}>
+            <Step n={4}>
               <div>Enter W-2 data from each employer:</div>
               <ul className="mt-2 space-y-1.5 text-xs">
                 {w2Docs.map((d) => (
-                  <li key={d.id} className={themed('border border-gray-100 rounded p-2', dk)}>
-                    <div className={themed('font-semibold text-gray-800', dk)}>
+                  <li key={d.id} className="border border-gray-100 rounded p-2">
+                    <div className="font-semibold text-gray-800">
                       {str(d.data, 'employer_name') || d.label || 'Employer'}
                     </div>
-                    <div className={themed('font-mono text-gray-600 mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5', dk)}>
+                    <div className="font-mono text-gray-600 mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5">
                       <span>
                         EIN: {str(d.data, 'employer_ein') || '—'}
                       </span>
@@ -666,15 +665,15 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
           )}
 
           {lifeEvents.hasRetirement && r1099Docs.length > 0 && (
-            <Step dk={dk} n={5}>
+            <Step n={5}>
               <div>Enter 1099-R data from each payer:</div>
               <ul className="mt-2 space-y-1.5 text-xs">
                 {r1099Docs.map((d) => (
-                  <li key={d.id} className={themed('border border-gray-100 rounded p-2', dk)}>
-                    <div className={themed('font-semibold text-gray-800', dk)}>
+                  <li key={d.id} className="border border-gray-100 rounded p-2">
+                    <div className="font-semibold text-gray-800">
                       {str(d.data, 'payer_name') || d.label || 'Payer'}
                     </div>
-                    <div className={themed('font-mono text-gray-600 mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5', dk)}>
+                    <div className="font-mono text-gray-600 mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5">
                       <span>
                         Box 1 (gross): {fmtMoney(num(d.data, 'gross_distribution'))}
                       </span>
@@ -697,14 +696,14 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
 
           {lifeEvents.hasTrading &&
             calc.form_8949.summary.total_dispositions > 0 && (
-              <Step dk={dk} n={6}>
+              <Step n={6}>
                 <div>
                   <strong>Import Form 8949:</strong> In TaxAct's Capital Gains
                   section, click <em>Import</em> and upload the Form 8949 CSV
                   you downloaded above. TaxAct will auto-populate Schedule D
                   from the import.
                 </div>
-                <div className={themed('mt-2 text-xs text-gray-500', dk)}>
+                <div className="mt-2 text-xs text-gray-500">
                   Total dispositions imported:{' '}
                   {calc.form_8949.summary.total_dispositions} (
                   {calc.form_8949.summary.short_term_count} short-term,{' '}
@@ -714,17 +713,17 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
             )}
 
           {lifeEvents.hasBusiness && f.scheduleC && (
-            <Step dk={dk} n={7}>
+            <Step n={7}>
               <div>Enter Schedule C business data:</div>
-              <div className={themed('mt-2 text-xs text-gray-600', dk)}>
+              <div className="mt-2 text-xs text-gray-600">
                 Business name: <strong>{f.scheduleC.businessName}</strong>
               </div>
               <ul className="mt-2 space-y-0.5 text-xs font-mono">
                 <li className="flex justify-between">
-                  <span className={themed('text-gray-600', dk)}>
+                  <span className="text-gray-600">
                     Line 1 (Gross receipts)
                   </span>
-                  <span className={themed('text-gray-900', dk)}>
+                  <span className="text-gray-900">
                     {fmtMoney(f.scheduleC.line1)}
                   </span>
                 </li>
@@ -735,30 +734,30 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
                       key={exp.line}
                       className="flex justify-between pl-3"
                     >
-                      <span className={themed('text-gray-600', dk)}>
+                      <span className="text-gray-600">
                         Line {exp.line} ({exp.label})
                       </span>
-                      <span className={themed('text-gray-900', dk)}>
+                      <span className="text-gray-900">
                         {fmtMoney(exp.amount)}
                       </span>
                     </li>
                   ))}
-                <li className={themed('flex justify-between pt-1 border-t border-gray-100', dk)}>
-                  <span className={themed('text-gray-600', dk)}>
+                <li className="flex justify-between pt-1 border-t border-gray-100">
+                  <span className="text-gray-600">
                     Line 28 (Total expenses)
                   </span>
-                  <span className={themed('text-gray-900', dk)}>
+                  <span className="text-gray-900">
                     {fmtMoney(f.scheduleC.line28)}
                   </span>
                 </li>
                 <li className="flex justify-between font-semibold">
-                  <span className={themed('text-gray-800', dk)}>Line 31 (Net profit/loss)</span>
-                  <span className={themed('text-gray-900', dk)}>
+                  <span className="text-gray-800">Line 31 (Net profit/loss)</span>
+                  <span className="text-gray-900">
                     {fmtMoney(f.scheduleC.line31)}
                   </span>
                 </li>
               </ul>
-              <p className={themed('mt-2 text-xs text-gray-500', dk)}>
+              <p className="mt-2 text-xs text-gray-500">
                 TaxAct will compute Schedule SE automatically from Schedule C
                 net profit.
               </p>
@@ -766,15 +765,15 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
           )}
 
           {lifeEvents.hasEducation && t1098Docs.length > 0 && (
-            <Step dk={dk} n={8}>
+            <Step n={8}>
               <div>Enter 1098-T education data for Form 8863:</div>
               <ul className="mt-2 space-y-1 text-xs">
                 {t1098Docs.map((d) => (
-                  <li key={d.id} className={themed('border border-gray-100 rounded p-2', dk)}>
-                    <div className={themed('font-semibold text-gray-800', dk)}>
+                  <li key={d.id} className="border border-gray-100 rounded p-2">
+                    <div className="font-semibold text-gray-800">
                       {str(d.data, 'school_name') || d.label || 'School'}
                     </div>
-                    <div className={themed('font-mono text-gray-600 mt-1', dk)}>
+                    <div className="font-mono text-gray-600 mt-1">
                       Box 1 (tuition):{' '}
                       {fmtMoney(num(d.data, 'amounts_billed'))} · Box 5
                       (scholarships):{' '}
@@ -783,7 +782,7 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
                   </li>
                 ))}
               </ul>
-              <div className={themed('mt-2 text-xs text-gray-500', dk)}>
+              <div className="mt-2 text-xs text-gray-500">
                 Estimated credit ({f.educationCreditType.toUpperCase()}):{' '}
                 {fmtMoney(f.educationCredit)}
               </div>
@@ -791,15 +790,15 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
           )}
 
           {lifeEvents.hasStudentLoan && e1098Docs.length > 0 && (
-            <Step dk={dk} n={9}>
+            <Step n={9}>
               <div>Enter 1098-E student loan interest:</div>
               <ul className="mt-2 space-y-1 text-xs">
                 {e1098Docs.map((d) => (
-                  <li key={d.id} className={themed('border border-gray-100 rounded p-2', dk)}>
-                    <div className={themed('font-semibold text-gray-800', dk)}>
+                  <li key={d.id} className="border border-gray-100 rounded p-2">
+                    <div className="font-semibold text-gray-800">
                       {str(d.data, 'lender_name') || d.label || 'Lender'}
                     </div>
-                    <div className={themed('font-mono text-gray-600 mt-1', dk)}>
+                    <div className="font-mono text-gray-600 mt-1">
                       Box 1: {fmtMoney(num(d.data, 'interest_paid'))}
                     </div>
                   </li>
@@ -809,7 +808,7 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
           )}
 
           {f.estimatedPayments > 0 && (
-            <Step dk={dk} n={10}>
+            <Step n={10}>
               Enter estimated tax payments:{' '}
               <strong className="font-mono">
                 {fmtMoney(f.estimatedPayments)}
@@ -818,9 +817,9 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
             </Step>
           )}
 
-          <Step dk={dk} n={11}>
+          <Step n={11}>
             <div>Review TaxAct's computed return.</div>
-            <p className={themed('mt-1 text-xs text-gray-600', dk)}>
+            <p className="mt-1 text-xs text-gray-600">
               TaxAct should compute {estimatedResultText}. If the number differs
               by more than <strong>$50</strong>, review each section for data-
               entry errors. Common discrepancies: state tax calculations,
@@ -828,7 +827,7 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
             </p>
           </Step>
 
-          <Step dk={dk} n={12}>
+          <Step n={12}>
             E-file through TaxAct. You'll get confirmation emails from both
             TaxAct and the IRS (typically within 24-48 hours of submission).
           </Step>
@@ -836,44 +835,44 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
       </div>
 
       {/* ═══ Alternative filing options ═══ */}
-      <div className={themed('border border-gray-200 rounded-lg bg-white p-4', dk)}>
-        <h3 className={themed('text-sm font-semibold text-gray-900 mb-2', dk)}>
+      <div className="border border-gray-200 rounded-lg bg-white p-4">
+        <h3 className="text-sm font-semibold text-gray-900 mb-2">
           Alternative filing paths
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-          <div className={themed('border border-gray-100 rounded p-3', dk)}>
-            <div className={themed('font-semibold text-gray-800', dk)}>
+          <div className="border border-gray-100 rounded p-3">
+            <div className="font-semibold text-gray-800">
               FreeTaxUSA + Form8949.com
             </div>
-            <p className={themed('text-gray-600 mt-1', dk)}>
+            <p className="text-gray-600 mt-1">
               Free federal filing. For trades, use Form8949.com to convert your
               CSV to their import format first, then enter other data manually
               in FreeTaxUSA.
             </p>
           </div>
-          <div className={themed('border border-gray-100 rounded p-3', dk)}>
-            <div className={themed('font-semibold text-gray-800', dk)}>TurboTax</div>
-            <p className={themed('text-gray-600 mt-1', dk)}>
+          <div className="border border-gray-100 rounded p-3">
+            <div className="font-semibold text-gray-800">TurboTax</div>
+            <p className="text-gray-600 mt-1">
               TurboTax Premier supports Form 8949 CSV import. More expensive
               than TaxAct but has stronger state tax support.
             </p>
           </div>
-          <div className={themed('border border-gray-100 rounded p-3', dk)}>
-            <div className={themed('font-semibold text-gray-800', dk)}>File by mail</div>
-            <p className={themed('text-gray-600 mt-1', dk)}>
+          <div className="border border-gray-100 rounded p-3">
+            <div className="font-semibold text-gray-800">File by mail</div>
+            <p className="text-gray-600 mt-1">
               Print the All Forms PDF above, attach W-2s, sign, and mail to the
               IRS address listed in the Form 1040 instructions. Allow 6-8 weeks
               for processing.
             </p>
           </div>
-          <div className={themed('border border-gray-100 rounded p-3 opacity-60', dk)}>
-            <div className={themed('font-semibold text-gray-800 flex items-center gap-2', dk)}>
+          <div className="border border-gray-100 rounded p-3 opacity-60">
+            <div className="font-semibold text-gray-800 flex items-center gap-2">
               File directly from Temple Stuart
-              <span className={themed('inline-flex items-center px-1.5 py-0.5 text-[9px] font-semibold text-gray-600 bg-gray-100 border border-gray-200 rounded', dk)}>
+              <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-semibold text-gray-600 bg-gray-100 border border-gray-200 rounded">
                 coming soon
               </span>
             </div>
-            <p className={themed('text-gray-600 mt-1', dk)}>
+            <p className="text-gray-600 mt-1">
               E-file integration via Column Tax — full MeF submission without
               leaving the app. Planned for a future release.
             </p>
@@ -882,8 +881,8 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
       </div>
 
       {/* ═══ Filing checklist ═══ */}
-      <div className={themed('border border-gray-200 rounded-lg bg-white p-4', dk)}>
-        <h3 className={themed('text-sm font-semibold text-gray-900 mb-2', dk)}>
+      <div className="border border-gray-200 rounded-lg bg-white p-4">
+        <h3 className="text-sm font-semibold text-gray-900 mb-2">
           Before filing, verify
         </h3>
         <ul className="space-y-2">
@@ -916,9 +915,9 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
                     className="mt-0.5 w-4 h-4 accent-brand-purple"
                   />
                   <span
-                    className={themed(`text-sm ${
-                      checked ? themed('text-gray-500 line-through', dk) : themed('text-gray-800', dk)
-                    }`, dk)}
+                    className={`text-sm ${
+                      checked ? 'text-gray-500 line-through' : 'text-gray-800'
+                    }`}
                   >
                     {item.label}
                   </span>
@@ -930,11 +929,11 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
       </div>
 
       {/* ═══ Post-filing ═══ */}
-      <div className={themed('border border-gray-200 rounded-lg bg-gray-50 p-4', dk)}>
-        <h3 className={themed('text-sm font-semibold text-gray-900 mb-2', dk)}>
+      <div className="border border-gray-200 rounded-lg bg-gray-50 p-4">
+        <h3 className="text-sm font-semibold text-gray-900 mb-2">
           After you file
         </h3>
-        <ul className={themed('space-y-1 text-xs text-gray-700 list-disc list-inside', dk)}>
+        <ul className="space-y-1 text-xs text-gray-700 list-disc list-inside">
           <li>
             Save your Form 8949 CSV and All Forms PDF in a safe place for your
             records (IRS recommends keeping tax records for 3 years, or 7 years
@@ -965,7 +964,7 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
 
       {/* ═══ Finish ═══ */}
       <div className="flex items-center justify-between pt-2">
-        <div className={themed('text-xs text-gray-500', dk)}>
+        <div className="text-xs text-gray-500">
           {checklist.size === 5
             ? 'Checklist complete — ready to file.'
             : `Checklist: ${checklist.size} of 5 items verified.`}
@@ -979,18 +978,16 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
         </button>
       </div>
 
-      <p className={themed('text-xs text-gray-400 italic', dk)}>{calc.disclaimer}</p>
+      <p className="text-xs text-gray-400 italic">{calc.disclaimer}</p>
     </div>
   );
 }
 
 // ─── Step list item ───────────────────────────────────────────────
 
-function Step({ dk = false,
-  n,
+function Step({ n,
   children,
-}: { dk?: boolean;
-  n: number;
+}: { n: number;
   children: React.ReactNode;
 }) {
   return (
@@ -998,7 +995,7 @@ function Step({ dk = false,
       <span className="shrink-0 w-6 h-6 rounded-full bg-brand-purple text-white font-mono text-xs font-bold flex items-center justify-center">
         {n}
       </span>
-      <div className={themed('flex-1 text-sm text-gray-800', dk)}>{children}</div>
+      <div className="flex-1 text-sm text-gray-800">{children}</div>
     </li>
   );
 }

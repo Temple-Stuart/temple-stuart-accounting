@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BookOpen, Lock } from 'lucide-react';
 import TaxFilingWizard from '@/components/tax-filing/TaxFilingWizard';
-import { themed } from '@/lib/ds';
+
 
 /**
  * TAX-1 — the closed-books handoff gate for the homepage Tax tab.
@@ -34,7 +34,6 @@ type GateState = 'loading' | 'error' | 'gate' | 'wizard';
 
 export default function TaxHandoffGate({ onGoToBooks }: Props) {
   // FINISH-DS-1: single-consumer (ML) — always dark.
-  const dk = true;
   const [state, setState] = useState<GateState>('loading');
   const [periodCount, setPeriodCount] = useState(0);
   // TAX-UNLOCK: kept ONLY to decide the optional-books info banner.
@@ -75,7 +74,7 @@ export default function TaxHandoffGate({ onGoToBooks }: Props) {
 
   if (state === 'loading') {
     return (
-      <div className={themed('rounded-xl border-2 border-border bg-white px-4 py-3 text-sm text-text-muted', dk)}>
+      <div className={'rounded-xl border-2 border-panel-border bg-panel-surface px-4 py-3 text-sm text-white/60'}>
         Checking your books…
       </div>
     );
@@ -108,8 +107,8 @@ export default function TaxHandoffGate({ onGoToBooks }: Props) {
             message IS the derivation story pre-close, so it gets the
             display-scale treatment (TYPE.display idiom; the RUNWAY/TRADE
             precedent). Same sentence, zero new copy. */}
-        <h3 className={themed('text-2xl lg:text-3xl font-light tracking-tight text-text-primary', dk)}>Tax begins at completed books</h3>
-        <p className={themed('mx-auto mt-2 max-w-md text-sm text-text-secondary', dk)}>
+        <h3 className={'text-2xl lg:text-3xl font-light tracking-tight text-white'}>Tax begins at completed books</h3>
+        <p className={'mx-auto mt-2 max-w-md text-sm text-white/70'}>
           Your tax figures come straight from your ledger, so the filing wizard opens once you&rsquo;ve
           closed at least one accounting period. {periodCount > 0
             ? `You have ${periodCount} period${periodCount === 1 ? '' : 's'} on record, but none are closed yet.`
@@ -158,11 +157,11 @@ export default function TaxHandoffGate({ onGoToBooks }: Props) {
           </button>
         </div>
       )}
-      <div className={themed('rounded-xl border-2 border-border bg-white px-6 py-5', dk)}>
-        <p className={themed('font-mono text-[10px] font-semibold uppercase tracking-wider text-text-muted', dk)}>
+      <div className={'rounded-xl border-2 border-panel-border bg-panel-surface px-6 py-5'}>
+        <p className={'font-mono text-[10px] font-semibold uppercase tracking-wider text-white/60'}>
           Derived from your actual closed books
         </p>
-        <div className={themed('mt-1 text-2xl lg:text-3xl font-light tracking-tight text-text-primary', dk)}>
+        <div className={'mt-1 text-2xl lg:text-3xl font-light tracking-tight text-white'}>
           The whole return, derived — not typed.
         </div>
       </div>

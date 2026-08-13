@@ -10,7 +10,7 @@ import DeductionsStep from './steps/DeductionsStep';
 import TradingStep from './steps/TradingStep';
 import ReviewStep from './steps/ReviewStep';
 import FileStep from './steps/FileStep';
-import { themed, type Surface } from '@/lib/ds';
+
 
 // ═══════════════════════════════════════════════════════════════════
 // Tax Filing Wizard — 7-step guided flow from life events to filing.
@@ -141,8 +141,7 @@ function availableTaxYears(): number[] {
   return [current + 1, current, current - 1, current - 2];
 }
 
-export default function TaxFilingWizard({ surface = 'light' }: { surface?: Surface } = {}) {
-  const dk = surface === 'dark';
+export default function TaxFilingWizard({ }: { } = {}) {
   const [state, setState] = useState<WizardState>({
     currentStep: 0,
     completedSteps: new Set<number>(),
@@ -298,8 +297,8 @@ export default function TaxFilingWizard({ surface = 'light' }: { surface?: Surfa
         {/* Header */}
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <h1 className={themed('text-2xl font-semibold text-gray-900', dk)}>File your taxes</h1>
-            <p className={themed('text-sm text-gray-500 mt-1', dk)}>
+            <h1 className="text-2xl font-semibold text-gray-900">File your taxes</h1>
+            <p className="text-sm text-gray-500 mt-1">
               Tax year {state.taxYear} · Step {state.currentStep + 1} of {STEPS.length} ·{' '}
               {step.label}
             </p>
@@ -307,7 +306,7 @@ export default function TaxFilingWizard({ surface = 'light' }: { surface?: Surfa
           <div className="shrink-0">
             <label
               htmlFor="wizard-tax-year"
-              className={themed('block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1 text-right', dk)}
+              className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1 text-right"
             >
               Tax year
             </label>
@@ -320,7 +319,7 @@ export default function TaxFilingWizard({ surface = 'light' }: { surface?: Surfa
                   taxYear: parseInt(e.target.value, 10),
                 }))
               }
-              className={themed('px-3 py-1.5 text-sm font-mono font-semibold border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white', dk)}
+              className="px-3 py-1.5 text-sm font-mono font-semibold border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
             >
               {availableTaxYears().map((y) => (
                 <option key={y} value={y}>
@@ -341,7 +340,7 @@ export default function TaxFilingWizard({ surface = 'light' }: { surface?: Surfa
                 ? 'bg-emerald-500'
                 : isCurrent
                   ? 'bg-blue-500'
-                  : themed('bg-gray-200', dk);
+                  : 'bg-gray-200';
               return (
                 <div
                   key={s.id}
@@ -370,7 +369,7 @@ export default function TaxFilingWizard({ surface = 'light' }: { surface?: Surfa
                 ? 'bg-emerald-500 text-white border-emerald-500'
                 : isCurrent
                   ? 'bg-blue-500 text-white border-blue-500'
-                  : themed('bg-white text-gray-400 border-gray-300', dk);
+                  : 'bg-white text-gray-400 border-gray-300';
 
               return (
                 <li key={s.id}>
@@ -391,13 +390,13 @@ export default function TaxFilingWizard({ surface = 'light' }: { surface?: Surfa
                       {isDone ? '✓' : s.id + 1}
                     </span>
                     <span
-                      className={themed(`text-[11px] text-center leading-tight ${
+                      className={`text-[11px] text-center leading-tight ${
                         isCurrent
-                          ? themed('text-gray-900 font-medium', dk)
+                          ? 'text-gray-900 font-medium'
                           : isDone
                             ? 'text-emerald-700'
-                            : themed('text-gray-500', dk)
-                      }`, dk)}
+                            : 'text-gray-500'
+                      }`}
                     >
                       {s.label}
                     </span>
@@ -410,18 +409,18 @@ export default function TaxFilingWizard({ surface = 'light' }: { surface?: Surfa
 
         {/* Auto-detect banner */}
         {autoDetectLoading && (
-          <div className={themed('mb-4 px-3 py-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded', dk)}>
+          <div className="mb-4 px-3 py-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded">
             Detecting your existing data…
           </div>
         )}
 
         {/* Current step content */}
-        <div className={themed('bg-white border border-gray-200 rounded-lg', dk)}>
-          <div className={themed('px-5 py-4 border-b border-gray-100', dk)}>
-            <h2 className={themed('text-lg font-semibold text-gray-900', dk)}>
+        <div className="bg-white border border-gray-200 rounded-lg">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <h2 className="text-lg font-semibold text-gray-900">
               {step.id + 1}. {step.label}
             </h2>
-            <p className={themed('text-sm text-gray-500 mt-0.5', dk)}>{step.description}</p>
+            <p className="text-sm text-gray-500 mt-0.5">{step.description}</p>
           </div>
           <div className="p-5">
             <StepComponent
@@ -433,12 +432,12 @@ export default function TaxFilingWizard({ surface = 'light' }: { surface?: Surfa
               autoDetected={state.autoDetected}
             />
           </div>
-          <div className={themed('px-5 py-3 border-t border-gray-100 bg-gray-50 flex items-center justify-between rounded-b-lg', dk)}>
+          <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 flex items-center justify-between rounded-b-lg">
             <button
               type="button"
               onClick={onStepBack}
               disabled={state.currentStep === 0}
-              className={themed('px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed', dk)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
             >
               ← Back
             </button>

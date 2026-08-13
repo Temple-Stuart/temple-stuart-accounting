@@ -1,5 +1,5 @@
 'use client';
-import { SEGMENT, themed } from '@/lib/ds';
+import { SEGMENT } from '@/lib/ds';
 
 /**
  * RunwayBudgetPanel (ONE-BUDGET-TOGGLE) — one budget panel with a Month/Year toggle.
@@ -118,31 +118,31 @@ function RunwayWindowCard({ w }: { w: RunwayWindow }) {
   const { burnLine, runwayLine, zeroLine } = windowStrings(w);
 
   return (
-    <div className={themed('flex-1 min-w-[180px] rounded-lg border border-border bg-bg-row/40 px-3 py-2', false)}>
-      <div className={themed('text-xs font-semibold text-text-secondary uppercase tracking-wide', false)}>
+    <div className="flex-1 min-w-[180px] rounded-lg border border-border bg-bg-row/40 px-3 py-2">
+      <div className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
         Trailing {w.months}mo
       </div>
       <div className="mt-1 flex items-baseline justify-between gap-2">
-        <span className={themed('text-xs text-text-muted', false)}>Net burn</span>
-        <span className={themed('font-mono text-sm text-text-primary tabular-nums', false)}>{burnLine}</span>
+        <span className="text-xs text-text-muted">Net burn</span>
+        <span className="font-mono text-sm text-text-primary tabular-nums">{burnLine}</span>
       </div>
       <div className="flex items-baseline justify-between gap-2">
-        <span className={themed('text-xs text-text-muted', false)}>Runway</span>
-        <span className={themed('font-mono text-sm text-text-primary tabular-nums', false)}>{runwayLine}</span>
+        <span className="text-xs text-text-muted">Runway</span>
+        <span className="font-mono text-sm text-text-primary tabular-nums">{runwayLine}</span>
       </div>
       <div className="flex items-baseline justify-between gap-2">
-        <span className={themed('text-xs text-text-muted', false)}>Zero date</span>
-        <span className={themed('font-mono text-sm text-text-primary tabular-nums', false)}>{zeroLine}</span>
+        <span className="text-xs text-text-muted">Zero date</span>
+        <span className="font-mono text-sm text-text-primary tabular-nums">{zeroLine}</span>
       </div>
       {/* Per-entity operating breakdown (additive; Personal + Business reconcile to Net burn above). */}
-      <div className={themed('mt-1.5 pt-1.5 border-t border-border-light space-y-0.5', false)}>
+      <div className="mt-1.5 pt-1.5 border-t border-border-light space-y-0.5">
         <div className="flex items-baseline justify-between gap-2">
-          <span className={themed('text-[10px] text-text-faint uppercase tracking-wide', false)}>Personal</span>
-          <span className={themed('font-mono text-xs text-text-secondary tabular-nums', false)}>{entityBurnLine(w, w.entities.personal)}</span>
+          <span className="text-[10px] text-text-faint uppercase tracking-wide">Personal</span>
+          <span className="font-mono text-xs text-text-secondary tabular-nums">{entityBurnLine(w, w.entities.personal)}</span>
         </div>
         <div className="flex items-baseline justify-between gap-2">
-          <span className={themed('text-[10px] text-text-faint uppercase tracking-wide', false)}>Business</span>
-          <span className={themed('font-mono text-xs text-text-secondary tabular-nums', false)}>{entityBurnLine(w, w.entities.business)}</span>
+          <span className="text-[10px] text-text-faint uppercase tracking-wide">Business</span>
+          <span className="font-mono text-xs text-text-secondary tabular-nums">{entityBurnLine(w, w.entities.business)}</span>
         </div>
         {w.entities.unattributed && (
           // A non-trading entity that is neither Personal nor Business — surfaced, never dropped.
@@ -199,15 +199,15 @@ const PREVIEW_TRADING: TradingData = {
  *  scale, never a fabricated date. The numeral composes the DS app display
  *  scale (TYPE.display sizes) with the mono numeral idiom. */
 function RunwayHeroStrip({ runway, runwayError }: { runway: RunwayData | null; runwayError: boolean }) {
-  const cellLabel = themed('text-xs font-semibold text-text-secondary uppercase tracking-wide', false);
-  const cellValue = themed('font-mono text-lg text-text-primary tabular-nums', false);
+  const cellLabel = 'text-xs font-semibold text-text-secondary uppercase tracking-wide';
+  const cellValue = 'font-mono text-lg text-text-primary tabular-nums';
 
   // Honest error/empty handling — the SAME declared states the readout used
   // to render (strings verbatim); never zeros, never a fake date.
   if (runwayError || !runway) {
     return (
-      <div className={themed('bg-white rounded-lg border border-border overflow-hidden', false)}>
-        <p className={themed('text-xs text-text-faint italic', false) + ' px-4 py-4 lg:px-8'}>
+      <div className="bg-white rounded-lg border border-border overflow-hidden">
+        <p className={'text-xs text-text-faint italic' + ' px-4 py-4 lg:px-8'}>
           {runwayError ? 'Runway unavailable — could not load cash + burn.' : 'Loading runway…'}
         </p>
       </div>
@@ -218,15 +218,15 @@ function RunwayHeroStrip({ runway, runwayError }: { runway: RunwayData | null; r
   const { burnLine, runwayLine, zeroLine } = windowStrings(w);
 
   return (
-    <div className={themed('bg-white rounded-lg border border-border overflow-hidden', false)}>
+    <div className="bg-white rounded-lg border border-border overflow-hidden">
       <div className="px-4 py-4 lg:px-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between lg:gap-8">
         {/* The zero date — the emotional core; the biggest thing on the screen. */}
         <div>
           <div className={cellLabel}>Zero date</div>
-          <div className={themed('mt-1 font-mono text-2xl lg:text-3xl tracking-tight tabular-nums text-text-primary', false)}>
+          <div className="mt-1 font-mono text-2xl lg:text-3xl tracking-tight tabular-nums text-text-primary">
             {zeroLine}
           </div>
-          <div className={themed('text-[10px] text-text-faint mt-0.5', false)}>
+          <div className="text-[10px] text-text-faint mt-0.5">
             the date your money runs out · trailing {w.months}-mo burn basis
           </div>
         </div>
@@ -242,7 +242,7 @@ function RunwayHeroStrip({ runway, runwayError }: { runway: RunwayData | null; r
             <div className={'mt-1 ' + cellValue}>
               {runway.cash.available ? usd(runway.cash.dollars) : 'No bank linked'}
             </div>
-            <div className={themed('text-[10px] text-text-faint mt-0.5', false)}>
+            <div className="text-[10px] text-text-faint mt-0.5">
               {runway.cash.source} · as of {niceDate(runway.asOf)}
             </div>
           </div>
@@ -253,12 +253,12 @@ function RunwayHeroStrip({ runway, runwayError }: { runway: RunwayData | null; r
                 burn). No per-entity runway/zero date — cash is not entity-split. */}
             <div className="mt-1 space-y-0.5">
               <div className="flex items-baseline justify-between gap-3">
-                <span className={themed('text-[10px] text-text-faint uppercase tracking-wide', false)}>Personal</span>
-                <span className={themed('font-mono text-xs text-text-secondary tabular-nums', false)}>{entityBurnLine(w, w.entities.personal)}</span>
+                <span className="text-[10px] text-text-faint uppercase tracking-wide">Personal</span>
+                <span className="font-mono text-xs text-text-secondary tabular-nums">{entityBurnLine(w, w.entities.personal)}</span>
               </div>
               <div className="flex items-baseline justify-between gap-3">
-                <span className={themed('text-[10px] text-text-faint uppercase tracking-wide', false)}>Business</span>
-                <span className={themed('font-mono text-xs text-text-secondary tabular-nums', false)}>{entityBurnLine(w, w.entities.business)}</span>
+                <span className="text-[10px] text-text-faint uppercase tracking-wide">Business</span>
+                <span className="font-mono text-xs text-text-secondary tabular-nums">{entityBurnLine(w, w.entities.business)}</span>
               </div>
               {w.entities.unattributed && (
                 // A non-trading entity that is neither Personal nor Business — surfaced, never dropped.
@@ -272,7 +272,7 @@ function RunwayHeroStrip({ runway, runwayError }: { runway: RunwayData | null; r
         </div>
       </div>
       {/* The methodology qualifier — verbatim, with the figures it governs. */}
-      <p className={themed('text-[10px] text-text-faint', false) + ' px-4 pb-3 lg:px-8'}>
+      <p className={'text-[10px] text-text-faint' + ' px-4 pb-3 lg:px-8'}>
         Net burn = expenses − income over the trailing full calendar months ({runway.burnSource}); runway = cash ÷ net burn/mo.
       </p>
     </div>
@@ -327,12 +327,12 @@ export default function RunwayBudgetPanel({ preview = false }: { preview?: boole
           existing /api/runway state (that fetch-locality is why the hero lives
           here: no second fetch, no state lift). */}
       <RunwayHeroStrip runway={runway} runwayError={runwayError} />
-    <div className={themed('border-t border-border bg-white rounded-lg overflow-hidden', false)}>
-      <div className={themed('px-4 py-3 lg:px-8 border-b border-border', false)}>
+    <div className="border-t border-border bg-white rounded-lg overflow-hidden">
+      <div className="px-4 py-3 lg:px-8 border-b border-border">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h2 className={themed('text-base font-bold text-text-primary tracking-tight', false)}>Runway Budget</h2>
-            <p className={themed('text-xs text-text-muted mt-0.5', false)}>
+            <h2 className="text-base font-bold text-text-primary tracking-tight">Runway Budget</h2>
+            <p className="text-xs text-text-muted mt-0.5">
               {view === 'month'
                 ? 'Month-by-month budget vs actual.'
                 : 'Full-year travel-vs-home comparison.'}
@@ -368,7 +368,7 @@ export default function RunwayBudgetPanel({ preview = false }: { preview?: boole
                 <RunwayWindowCard key={w.months} w={w} />
               ))}
             </div>
-            <p className={themed('text-[10px] text-text-faint mt-1', false)}>
+            <p className="text-[10px] text-text-faint mt-1">
               Net burn = expenses − income over the trailing full calendar months ({runway.burnSource}); runway = cash ÷ net burn/mo.
             </p>
           </div>
@@ -377,42 +377,42 @@ export default function RunwayBudgetPanel({ preview = false }: { preview?: boole
         {/* ── TRADING — a SEPARATE panel under DIFFERENT rules. Trading P&L is EXCLUDED from
             operating runway; it is realized performance, NOT months of runway and NOT a zero date.
             Capital/drawdown are declared "not tracked" (not derivable) — never fabricated. ── */}
-        <div className={themed('mt-3 pt-3 border-t-2 border-border', false)}>
+        <div className="mt-3 pt-3 border-t-2 border-border">
           <div className="flex items-baseline justify-between gap-2">
-            <h3 className={themed('text-xs font-semibold text-text-secondary uppercase tracking-wide', false)}>Trading</h3>
-            <span className={themed('text-[10px] text-text-faint', false)}>separate from operating runway</span>
+            <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Trading</h3>
+            <span className="text-[10px] text-text-faint">separate from operating runway</span>
           </div>
           {tradingLocked ? (
-            <p className={themed('text-xs text-text-muted italic mt-1', false)}>
+            <p className="text-xs text-text-muted italic mt-1">
               Trade module locked — subscribe on the Trade tab to see realized P&L here.
             </p>
           ) : tradingError ? (
-            <p className={themed('text-xs text-text-faint italic mt-1', false)}>Trading unavailable — could not load realized P&L.</p>
+            <p className="text-xs text-text-faint italic mt-1">Trading unavailable — could not load realized P&L.</p>
           ) : !trading ? (
-            <p className={themed('text-xs text-text-faint italic mt-1', false)}>Loading trading…</p>
+            <p className="text-xs text-text-faint italic mt-1">Loading trading…</p>
           ) : (
             <div className="mt-2 flex flex-col sm:flex-row gap-2">
               {/* Realized P&L — the one truthfully-derivable trading figure. */}
-              <div className={themed('flex-1 min-w-[180px] rounded-lg border border-border bg-bg-row/40 px-3 py-2', false)}>
-                <div className={themed('text-xs font-semibold text-text-secondary uppercase tracking-wide', false)}>Realized P&amp;L</div>
+              <div className="flex-1 min-w-[180px] rounded-lg border border-border bg-bg-row/40 px-3 py-2">
+                <div className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Realized P&amp;L</div>
                 <div className={`mt-1 font-mono text-lg tabular-nums ${trading.realizedPnl >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                   {trading.realizedPnl >= 0 ? '+' : '−'}{usd(Math.abs(trading.realizedPnl))}
                 </div>
-                <div className={themed('text-[10px] text-text-faint mt-0.5', false)}>
+                <div className="text-[10px] text-text-faint mt-0.5">
                   {trading.source} · {trading.period} · {trading.tradeCount} trade{trading.tradeCount === 1 ? '' : 's'}
                 </div>
               </div>
               {/* Capital — DECLARED not-tracked (not derivable); no invented number. */}
-              <div className={themed('flex-1 min-w-[180px] rounded-lg border border-dashed border-border bg-bg-row/20 px-3 py-2', false)}>
-                <div className={themed('text-xs font-semibold text-text-secondary uppercase tracking-wide', false)}>Capital</div>
-                <div className={themed('mt-1 font-mono text-sm text-text-faint italic tabular-nums', false)}>not tracked yet</div>
-                <div className={themed('text-[10px] text-text-faint mt-0.5', false)}>{trading.capital.reason}</div>
+              <div className="flex-1 min-w-[180px] rounded-lg border border-dashed border-border bg-bg-row/20 px-3 py-2">
+                <div className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Capital</div>
+                <div className="mt-1 font-mono text-sm text-text-faint italic tabular-nums">not tracked yet</div>
+                <div className="text-[10px] text-text-faint mt-0.5">{trading.capital.reason}</div>
               </div>
               {/* Drawdown — DECLARED not-tracked. */}
-              <div className={themed('flex-1 min-w-[180px] rounded-lg border border-dashed border-border bg-bg-row/20 px-3 py-2', false)}>
-                <div className={themed('text-xs font-semibold text-text-secondary uppercase tracking-wide', false)}>Max drawdown</div>
-                <div className={themed('mt-1 font-mono text-sm text-text-faint italic tabular-nums', false)}>not tracked yet</div>
-                <div className={themed('text-[10px] text-text-faint mt-0.5', false)}>{trading.drawdown.reason}</div>
+              <div className="flex-1 min-w-[180px] rounded-lg border border-dashed border-border bg-bg-row/20 px-3 py-2">
+                <div className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Max drawdown</div>
+                <div className="mt-1 font-mono text-sm text-text-faint italic tabular-nums">not tracked yet</div>
+                <div className="text-[10px] text-text-faint mt-0.5">{trading.drawdown.reason}</div>
               </div>
             </div>
           )}

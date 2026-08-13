@@ -20,7 +20,7 @@
 import { useEffect, useState } from 'react';
 import type { TodayStatus } from './types';
 import { formatBudgetPerOccurrence } from './types';
-import { themed, type Surface } from '@/lib/ds';
+
 
 interface TodayEntry {
   routine: {
@@ -70,8 +70,7 @@ function formatTime(iso: string, tz: string): string {
   });
 }
 
-export default function TodaysStrip({ surface = 'light', onCommitted }: Props & { surface?: Surface }) {
-  const dk = surface === 'dark';
+export default function TodaysStrip({ onCommitted }: Props & { }) {
   const [entries, setEntries] = useState<TodayEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -128,12 +127,12 @@ export default function TodaysStrip({ surface = 'light', onCommitted }: Props & 
   const totalMissed = entries.filter((e) => e.status === 'missed').length;
 
   if (loading) {
-    return <div className={themed('text-xs text-text-muted', dk)}>loading today's routines…</div>;
+    return <div className="text-xs text-text-muted">loading today's routines…</div>;
   }
 
   if (entries.length === 0) {
     return (
-      <div className={themed('text-xs text-text-muted italic', dk)}>
+      <div className="text-xs text-text-muted italic">
         no routines scheduled for today.
       </div>
     );
@@ -142,7 +141,7 @@ export default function TodaysStrip({ surface = 'light', onCommitted }: Props & 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between text-xs">
-        <div className={themed('text-text-muted', dk)}>
+        <div className="text-text-muted">
           {totalDone} done · {totalDue} due · {totalMissed} missed
         </div>
       </div>
@@ -160,22 +159,22 @@ export default function TodaysStrip({ surface = 'light', onCommitted }: Props & 
           return (
             <div
               key={e.routine.id}
-              className={themed('flex items-center justify-between gap-2 py-1.5 px-3 border border-border-light rounded bg-white text-xs', dk)}
+              className="flex items-center justify-between gap-2 py-1.5 px-3 border border-border-light rounded bg-white text-xs"
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
-                <span className={themed('text-text-muted shrink-0 w-14 text-right tabular-nums', dk)}>
+                <span className="text-text-muted shrink-0 w-14 text-right tabular-nums">
                   {formatTime(e.expected_at, e.routine.timezone)}
                 </span>
                 <span className={
                   e.status === 'completed'
-                    ? themed('text-text-muted line-through truncate', dk)
-                    : themed('text-text-primary truncate', dk)
+                    ? 'text-text-muted line-through truncate'
+                    : 'text-text-primary truncate'
                 }>
                   {e.routine.name}
                 </span>
                 <span className={pillClass}>{STATUS_LABEL[e.status]}</span>
                 {e.status === 'completed' && e.completion && (
-                  <span className={themed('text-text-muted', dk)}>
+                  <span className="text-text-muted">
                     Δ {e.completion.delta_minutes} min
                   </span>
                 )}
@@ -188,7 +187,7 @@ export default function TodaysStrip({ surface = 'light', onCommitted }: Props & 
                     rides the title. Null → nothing renders. */}
                 {e.routine.budget_amount != null && (
                   <span
-                    className={themed('font-mono tabular-nums font-bold text-text-primary', dk)}
+                    className="font-mono tabular-nums font-bold text-text-primary"
                     title="budget / occurrence"
                   >
                     {formatBudgetPerOccurrence(e.routine.budget_amount)}

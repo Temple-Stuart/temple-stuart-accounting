@@ -10,8 +10,8 @@
  * the exact fired string — never a regex guess.
  *
  * REUSE, no rebuild — the engines are untouched: the research agent (onRunResearch), the
- * fusion engine (onGenerateTasks → tasksPreview → <AITaskPreview surface={dk ? 'dark' : 'light'} /> human-accept gate), the
- * /prompts preview endpoint (no-drift shared builders), and the live <TaskList surface={dk ? 'dark' : 'light'} /> slot. This
+ * fusion engine (onGenerateTasks → tasksPreview → <AITaskPreview /> human-accept gate), the
+ * /prompts preview endpoint (no-drift shared builders), and the live <TaskList /> slot. This
  * view owns NO data/fetch — every action is a container callback. Mobile-first single column.
  */
 
@@ -21,7 +21,7 @@ import { useState } from 'react';
 import type { Project } from './types';
 import AITaskPreview, { type AIGeneratedTask } from './AITaskPreview';
 import { type InspectionData } from '../ai/InspectionDrawer';
-import { themed, type Surface } from '@/lib/ds';
+
 
 /** A prompt span: 'input' = user-injected (rendered red), 'template' = fixed scaffold. */
 export interface PromptSegmentDTO {
@@ -91,7 +91,7 @@ export interface TruthMachineViewProps {
   onGenerateTasks: () => void;
   onTasksAccepted: () => void;
   onTasksDiscarded: () => void;
-  /** The live <TaskList surface={dk ? 'dark' : 'light'} /> slot — same element ProjectRowView receives. */
+  /** The live <TaskList /> slot — same element ProjectRowView receives. */
   taskSection: React.ReactNode;
 }
 
@@ -111,16 +111,14 @@ function asStringArray(v: unknown): string[] {
 }
 
 /** White stage card with a 4px colored left-stripe + a small-caps colored label + badge. */
-function Stage({ dk = false,
-  n,
+function Stage({ n,
   label,
   color,
   badge,
   badgeTone,
   action,
   children,
-}: { dk?: boolean;
-  n: number;
+}: { n: number;
   label: string;
   color: string;
   badge?: string;
@@ -130,7 +128,7 @@ function Stage({ dk = false,
 }) {
   return (
     <section
-      className={themed('rounded-md border border-gray-200 bg-white p-3 sm:p-4 space-y-2.5 border-l-4 shadow-sm', dk)}
+      className="rounded-md border border-gray-200 bg-white p-3 sm:p-4 space-y-2.5 border-l-4 shadow-sm"
       style={{ borderLeftColor: color }}
     >
       <div className="flex items-center justify-between gap-2">
@@ -160,34 +158,32 @@ function Stage({ dk = false,
 const sub = 'text-gray-400 uppercase tracking-wide text-[10px] mb-1';
 
 /** Read-only display of a structured list (goal/problem/diagnosis) with legacy fallback. */
-function ItemList({ dk = false, items, legacy }: { dk?: boolean; items: string[]; legacy: string | null }) {
+function ItemList({ items, legacy }: { items: string[]; legacy: string | null }) {
   if (items.length > 0) {
     return (
-      <ul className={themed('list-disc pl-4 space-y-0.5 text-gray-900', dk)}>
+      <ul className="list-disc pl-4 space-y-0.5 text-gray-900">
         {items.map((it, i) => <li key={i}>{it}</li>)}
       </ul>
     );
   }
   const text = (legacy ?? '').trim();
-  if (text.length > 0) return <div className={themed('text-gray-900 whitespace-pre-wrap', dk)}>{text}</div>;
-  return <div className={themed('text-gray-400 italic', dk)}>(none yet)</div>;
+  if (text.length > 0) return <div className="text-gray-900 whitespace-pre-wrap">{text}</div>;
+  return <div className="text-gray-400 italic">(none yet)</div>;
 }
 
 /** ↓ flow chevron between stages. */
-function Chevron({ dk = false }: { dk?: boolean } = {}) {
-  return <div className={themed('flex justify-center text-gray-300 text-base leading-none py-0.5', dk)} aria-hidden="true">↓</div>;
+function Chevron({ }: { } = {}) {
+  return <div className="flex justify-center text-gray-300 text-base leading-none py-0.5" aria-hidden="true">↓</div>;
 }
 
 /** The PROMPT panel — black template text with user-injected spans in RED. The segments
  *  are builder-declared + server-verified (kind:'input' = the real interpolated input), so
  *  the red is truthful, not guessed. Copy yields the full real prompt string. */
-function PromptBox({ dk = false,
-  segments,
+function PromptBox({ segments,
   copyText,
   systemPrompt,
   loading,
-}: { dk?: boolean;
-  segments: PromptSegmentDTO[] | undefined;
+}: { segments: PromptSegmentDTO[] | undefined;
   copyText: string | undefined;
   systemPrompt?: string;
   loading: boolean;
@@ -205,14 +201,14 @@ function PromptBox({ dk = false,
     }
   };
   return (
-    <div className={themed('rounded-md border border-gray-200 bg-gray-50/60', dk)}>
-      <div className={themed('flex items-center justify-between gap-2 px-2 py-1.5 border-b border-gray-200', dk)}>
-        <div className={themed('text-[10px] uppercase tracking-wide text-gray-400', dk)}>
+    <div className="rounded-md border border-gray-200 bg-gray-50/60">
+      <div className="flex items-center justify-between gap-2 px-2 py-1.5 border-b border-gray-200">
+        <div className="text-[10px] uppercase tracking-wide text-gray-400">
           prompt — <span style={{ color: INPUT_RED }} className="font-semibold">your inputs in red</span>
         </div>
         <div className="flex items-center gap-2">
           {systemPrompt && (
-            <button type="button" onClick={() => setShowSystem((s) => !s)} className={themed('text-[10px] text-gray-500 hover:text-gray-800 hover:underline', dk)}>
+            <button type="button" onClick={() => setShowSystem((s) => !s)} className="text-[10px] text-gray-500 hover:text-gray-800 hover:underline">
               {showSystem ? 'hide system' : 'show system'}
             </button>
           )}
@@ -220,18 +216,18 @@ function PromptBox({ dk = false,
             type="button"
             onClick={copy}
             disabled={loading || !copyText}
-            className={themed('text-[10px] px-1.5 py-0.5 border border-gray-300 rounded text-gray-600 hover:bg-white disabled:opacity-40', dk)}
+            className="text-[10px] px-1.5 py-0.5 border border-gray-300 rounded text-gray-600 hover:bg-white disabled:opacity-40"
           >
             {copied ? 'copied ✓' : 'copy'}
           </button>
         </div>
       </div>
       {loading ? (
-        <div className={themed('px-2 py-3 text-gray-400 text-[11px] italic', dk)}>building prompt…</div>
+        <div className="px-2 py-3 text-gray-400 text-[11px] italic">building prompt…</div>
       ) : segments && segments.length > 0 ? (
-        <pre className={themed('font-mono text-[10px] leading-relaxed whitespace-pre-wrap break-words text-gray-900 p-2 max-h-72 overflow-y-auto', dk)}>
+        <pre className="font-mono text-[10px] leading-relaxed whitespace-pre-wrap break-words text-gray-900 p-2 max-h-72 overflow-y-auto">
           {showSystem && systemPrompt && (
-            <span className={themed('text-gray-400', dk)}>{systemPrompt}{'\n\n---\n\n'}</span>
+            <span className="text-gray-400">{systemPrompt}{'\n\n---\n\n'}</span>
           )}
           {segments.map((s, i) =>
             s.kind === 'input'
@@ -240,7 +236,7 @@ function PromptBox({ dk = false,
           )}
         </pre>
       ) : (
-        <div className={themed('px-2 py-3 text-gray-400 text-[11px] italic', dk)}>prompt unavailable</div>
+        <div className="px-2 py-3 text-gray-400 text-[11px] italic">prompt unavailable</div>
       )}
     </div>
   );
@@ -249,8 +245,7 @@ function PromptBox({ dk = false,
 const btn = 'px-2.5 py-1 text-[11px] font-medium rounded border disabled:opacity-50';
 const outputTextarea = 'w-full text-xs border border-gray-300 rounded px-2 py-1.5 bg-white text-gray-900 focus:outline-none focus:border-brand-purple';
 
-export default function TruthMachineView({ surface = 'light',
-  project,
+export default function TruthMachineView({ project,
   onExit,
   prompts,
   promptsLoading,
@@ -283,8 +278,7 @@ export default function TruthMachineView({ surface = 'light',
   onEvolveGoalsChange,
   onEvolveConfirm,
   onEvolveCancel,
-}: TruthMachineViewProps & { surface?: Surface }) {
-  const dk = surface === 'dark';
+}: TruthMachineViewProps & { }) {
   const goalItems = asStringArray(project.goal_items);
   const problemItems = asStringArray(project.problem_items);
   const diagnosisItems = asStringArray(project.diagnosis_items);
@@ -294,8 +288,8 @@ export default function TruthMachineView({ surface = 'light',
       {/* Header */}
       <div className="flex items-center justify-between gap-3 px-1">
         <div>
-          <div className={themed('text-sm font-bold text-gray-900', dk)}>{project.title}</div>
-          <div className={themed('text-gray-500 text-[11px]', dk)}>Truth Machine — the pipeline, end to end</div>
+          <div className="text-sm font-bold text-gray-900">{project.title}</div>
+          <div className="text-gray-500 text-[11px]">Truth Machine — the pipeline, end to end</div>
         </div>
         <div className="flex items-center gap-2">
           {/* PHASE2-4: auto-fire the whole loop — research→fusion runs automatically,
@@ -313,44 +307,44 @@ export default function TruthMachineView({ surface = 'light',
               {pipeQueued ? 'pipe running…' : runningPipe ? 'queuing…' : '⚡ run pipe (auto)'}
             </button>
           )}
-          <button type="button" onClick={onExit} className={themed('px-2 py-0.5 border border-gray-300 rounded text-gray-600 hover:bg-white text-xs', dk)}>
+          <button type="button" onClick={onExit} className="px-2 py-0.5 border border-gray-300 rounded text-gray-600 hover:bg-white text-xs">
             standard view
           </button>
         </div>
       </div>
       {pipeQueued && (
-        <div className={themed('px-1 text-[11px] text-gray-500', dk)}>
+        <div className="px-1 text-[11px] text-gray-500">
           Running research → fusion automatically. New tasks will appear below as <span className="text-purple-800 font-medium">pending review</span> — accept or reject each when they land. Refresh to check progress.
         </div>
       )}
       {pipeError && <div className="px-1 text-[11px] text-red-600">{pipeError}</div>}
 
       {/* 1 · INPUTS */}
-      <Stage dk={dk} n={1} label="inputs" color={STRIPE.inputs}>
+      <Stage n={1} label="inputs" color={STRIPE.inputs}>
         <div>
-          <div className={themed(sub, dk)}>goal</div>
-          <ItemList dk={dk} items={goalItems} legacy={project.goal} />
+          <div className={sub}>goal</div>
+          <ItemList items={goalItems} legacy={project.goal} />
         </div>
         {/* COND-INPUTS-1: problem/diagnosis render ONLY when they have content. New title+goals
             projects read clean (no "(none yet)" clutter); old projects with data still show them. */}
         {(problemItems.length > 0 || (project.problem ?? '').trim().length > 0) && (
           <div>
-            <div className={themed(sub, dk)}>problem</div>
-            <ItemList dk={dk} items={problemItems} legacy={project.problem} />
+            <div className={sub}>problem</div>
+            <ItemList items={problemItems} legacy={project.problem} />
           </div>
         )}
         {(diagnosisItems.length > 0 || (project.diagnosis ?? '').trim().length > 0) && (
           <div>
-            <div className={themed(sub, dk)}>diagnosis</div>
-            <ItemList dk={dk} items={diagnosisItems} legacy={project.diagnosis} />
+            <div className={sub}>diagnosis</div>
+            <ItemList items={diagnosisItems} legacy={project.diagnosis} />
           </div>
         )}
       </Stage>
 
-      <Chevron dk={dk} />
+      <Chevron />
 
       {/* 2 · RESEARCH */}
-      <Stage dk={dk}
+      <Stage
         n={2}
         label="research"
         color={STRIPE.research}
@@ -369,41 +363,41 @@ export default function TruthMachineView({ surface = 'light',
           </button>
         }
       >
-        <PromptBox dk={dk}
+        <PromptBox
           segments={prompts?.research.segments}
           copyText={prompts?.research.userMessage}
           systemPrompt={prompts?.research.systemPrompt}
           loading={promptsLoading}
         />
-        <div className={themed('flex justify-center text-gray-300 text-xs leading-none', dk)}>↓ output</div>
+        <div className="flex justify-center text-gray-300 text-xs leading-none">↓ output</div>
         <div>
-          <div className={themed(sub, dk)}>research output (deep_research_input — review &amp; edit)</div>
+          <div className={sub}>research output (deep_research_input — review &amp; edit)</div>
           <textarea
             value={researchInput}
             onChange={(e) => onResearchInputChange(e.target.value)}
             placeholder="Run deep research, or paste findings here…"
             rows={5}
-            className={themed(outputTextarea, dk)}
+            className={outputTextarea}
           />
           {researchError && <div className="mt-1 text-[11px] text-red-700">{researchError}</div>}
         </div>
       </Stage>
 
-      <Chevron dk={dk} />
+      <Chevron />
 
       {/* 3 · AUDIT */}
-      <Stage dk={dk} n={3} label="audit" color={STRIPE.audit} badge="paste" badgeTone="paste">
-        <div className={themed('text-gray-500 text-[11px]', dk)}>Copy this prompt → run it in Claude Code (read-only) → paste the findings into the output below. (Phase 3 automates this.)</div>
-        <PromptBox dk={dk} segments={prompts?.audit.segments} copyText={prompts?.audit.text} loading={promptsLoading} />
-        <div className={themed('flex justify-center text-gray-300 text-xs leading-none', dk)}>↓ output</div>
+      <Stage n={3} label="audit" color={STRIPE.audit} badge="paste" badgeTone="paste">
+        <div className="text-gray-500 text-[11px]">Copy this prompt → run it in Claude Code (read-only) → paste the findings into the output below. (Phase 3 automates this.)</div>
+        <PromptBox segments={prompts?.audit.segments} copyText={prompts?.audit.text} loading={promptsLoading} />
+        <div className="flex justify-center text-gray-300 text-xs leading-none">↓ output</div>
         <div>
-          <div className={themed(sub, dk)}>audit output (claude_code_audit_input — paste; Phase 3 auto-fills here)</div>
+          <div className={sub}>audit output (claude_code_audit_input — paste; Phase 3 auto-fills here)</div>
           <textarea
             value={auditInput}
             onChange={(e) => onAuditInputChange(e.target.value)}
             placeholder="Paste Claude Code audit findings here… (Phase 3 will populate this automatically)"
             rows={5}
-            className={themed(outputTextarea, dk)}
+            className={outputTextarea}
           />
         </div>
       </Stage>
@@ -414,17 +408,17 @@ export default function TruthMachineView({ surface = 'light',
           type="button"
           onClick={onSaveInputs}
           disabled={savingInputs}
-          className={themed('px-2.5 py-1 text-xs border border-gray-300 rounded text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50', dk)}
+          className="px-2.5 py-1 text-xs border border-gray-300 rounded text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
         >
           {savingInputs ? 'saving…' : 'save research + audit'}
         </button>
-        {inputsSaved && <span className={themed('text-gray-400 text-[11px]', dk)}>saved — generate tasks to use these</span>}
+        {inputsSaved && <span className="text-gray-400 text-[11px]">saved — generate tasks to use these</span>}
       </div>
 
-      <Chevron dk={dk} />
+      <Chevron />
 
       {/* 4 · FUSION → tasks */}
-      <Stage dk={dk}
+      <Stage
         n={4}
         label="fusion → tasks"
         color={STRIPE.fusion}
@@ -443,24 +437,24 @@ export default function TruthMachineView({ surface = 'light',
           </button>
         }
       >
-        <PromptBox dk={dk}
+        <PromptBox
           segments={prompts?.fusion.segments}
           copyText={prompts?.fusion.userMessage}
           systemPrompt={prompts?.fusion.systemPrompt}
           loading={promptsLoading}
         />
-        <div className={themed('flex justify-center text-gray-300 text-xs leading-none', dk)}>↓ output</div>
+        <div className="flex justify-center text-gray-300 text-xs leading-none">↓ output</div>
         {tasksGenError && (
           <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs">{tasksGenError}</div>
         )}
         {tasksPreview ? (
           <>
             {tasksPreview.costSummary && (
-              <div className={themed('text-gray-400 text-[11px] text-right', dk)}>
+              <div className="text-gray-400 text-[11px] text-right">
                 ${tasksPreview.costSummary.cost_usd} · {tasksPreview.costSummary.input_tokens} in · {tasksPreview.costSummary.output_tokens} out
               </div>
             )}
-            <AITaskPreview surface={surface}
+            <AITaskPreview
               tasks={tasksPreview.tasks}
               sourceAiUsageId={tasksPreview.sourceAiUsageId}
               projectId={project.id}
@@ -470,16 +464,16 @@ export default function TruthMachineView({ surface = 'light',
             />
           </>
         ) : (
-          <div className={themed('text-gray-500 text-[11px] italic p-2 bg-gray-50 border border-gray-200 rounded', dk)}>
+          <div className="text-gray-500 text-[11px] italic p-2 bg-gray-50 border border-gray-200 rounded">
             Click “↑ generate tasks” — proposed tasks appear here for your review. Nothing is saved until you accept.
           </div>
         )}
       </Stage>
 
-      <Chevron dk={dk} />
+      <Chevron />
 
       {/* 5 · TASK LIST (live) */}
-      <Stage dk={dk} n={5} label="plan" color={STRIPE.plan}>
+      <Stage n={5} label="plan" color={STRIPE.plan}>
         {taskSection}
       </Stage>
 
@@ -489,9 +483,9 @@ export default function TruthMachineView({ surface = 'light',
           run-pipe (no new pipe logic). Shown only when the container wires onEvolveStart. */}
       {onEvolveStart && (
         <>
-          <Chevron dk={dk} />
+          <Chevron />
           <section
-            className={themed('rounded-md border border-gray-200 bg-white p-3 sm:p-4 space-y-2.5 border-l-4 shadow-sm', dk)}
+            className="rounded-md border border-gray-200 bg-white p-3 sm:p-4 space-y-2.5 border-l-4 shadow-sm"
             style={{ borderLeftColor: STRIPE.plan }}
           >
             <div className="flex items-center justify-between gap-2">
@@ -513,23 +507,23 @@ export default function TruthMachineView({ surface = 'light',
             </div>
 
             {!evolving ? (
-              <div className={themed('text-gray-500 text-[11px]', dk)}>
+              <div className="text-gray-500 text-[11px]">
                 Finished a round? Evolve it — edit your goals and re-run research → audit → fusion on the new
-                state. This <span className={themed('font-medium text-gray-700', dk)}>appends a new version</span>; your prior
+                state. This <span className="font-medium text-gray-700">appends a new version</span>; your prior
                 tasks stay in the timeline (nothing is deleted).
               </div>
             ) : (
               <div className="space-y-2">
-                <div className={themed(sub, dk)}>new goals — one per line</div>
+                <div className={sub}>new goals — one per line</div>
                 <textarea
                   value={evolveGoalsText ?? ''}
                   onChange={(e) => onEvolveGoalsChange?.(e.target.value)}
                   rows={4}
                   placeholder="Enter your evolved goals, one per line…"
-                  className={themed('w-full rounded-md border border-gray-300 p-2 text-xs text-gray-900', dk)}
+                  className="w-full rounded-md border border-gray-300 p-2 text-xs text-gray-900"
                 />
-                <div className={themed('text-gray-500 text-[11px]', dk)}>
-                  Running evolution appends a <span className={themed('font-medium text-gray-700', dk)}>new task version</span> —
+                <div className="text-gray-500 text-[11px]">
+                  Running evolution appends a <span className="font-medium text-gray-700">new task version</span> —
                   research → audit → fusion re-run on these goals; your prior tasks are preserved in the evolution timeline.
                 </div>
                 {evolveError && <div className="text-[11px] text-red-600">{evolveError}</div>}
@@ -547,7 +541,7 @@ export default function TruthMachineView({ surface = 'light',
                     type="button"
                     onClick={onEvolveCancel}
                     disabled={evolveSaving}
-                    className={themed('px-2 py-0.5 border border-gray-300 rounded text-gray-600 hover:bg-white text-xs disabled:opacity-60', dk)}
+                    className="px-2 py-0.5 border border-gray-300 rounded text-gray-600 hover:bg-white text-xs disabled:opacity-60"
                   >
                     cancel
                   </button>

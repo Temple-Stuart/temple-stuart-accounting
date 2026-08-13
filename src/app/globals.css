@@ -35,10 +35,7 @@
      POP-DEEPEN: → #5b21ff hsl(256 100% 56%) — L 60→56, sat held,
      GPT-palette anchor. Used for active tab states, the Search button, the
      band fill, the tab-icon accent — nothing else. */
-  --ts-purple-pop:   59 45 107;    /* REPAINT-3: re-valued to #3b2d6b (= --ts-purple) —
-     the electric #5b21ff is a retired hue under Direction C; every pop
-     consumer lands on the aubergine with zero class edits. The token itself
-     dies in Slice 5. */
+  /* REPAINT-5: --ts-purple-pop deleted (was re-valued to = --ts-purple; consumers renamed). */
   --ts-purple-wash:  234 231 242;  /* #eae7f2 — replaces BOTH old wash AND Tailwind purple-50 */
 
   /* Aqua — NEW, punchier than the old teal-400. Calendar routine blocks. */
@@ -88,10 +85,7 @@
   /* TRADE-CHIPS: the consistent fourth — same Tailwind-500 ladder. */
   --ts-danger:  239 68 68;   /* #ef4444 — red-500, completes the status family */
 
-  /* PALETTE-OVERHAUL: CTA gradient stops — start = --ts-purple-pop above;
-     consumed only by .ts-cta-gradient (end of this file). */
-  --ts-grad-mid: 109 40 255;  /* #6d28ff */
-  --ts-grad-end: 168 85 247;  /* #a855f7 */
+  /* REPAINT-5: --ts-grad-mid/--ts-grad-end deleted with .ts-cta-gradient (0 consumers). */
 
   /* Gold family — REPAINT-1: relanded on the locked #B8860B money/CTA gold
      (was the #7D6B2C olive family). RULING 3: the chartreuse accent pair
@@ -109,7 +103,7 @@
      page #0b0d14 < panel #11131b < panel-surface #161b22. History:
      --ts-panel was #0d1117 (page AND cards); BG-DEPTH added --ts-page and
      lifted --ts-panel to the idea-state surface value. */
-  --ts-page:            #0b0d14;   /* idea-state page canvas */
+  /* REPAINT-5: --ts-page deleted (0 consumers — bg-page died with the dark chrome). */
   --ts-panel:           #11131b;   /* idea-state surface (was #0d1117) */
   --ts-panel-surface:   #161b22;
   --ts-panel-border:    #30363d;
@@ -144,6 +138,4 @@ body {
 /* PALETTE-OVERHAUL: the one CTA gradient — pop → grad-mid → grad-end (tokens
    above). Used as a button fill (with text-white hover:brightness-110) and as
    gradient text (with bg-clip-text text-transparent). */
-.ts-cta-gradient {
-  background-image: linear-gradient(90deg, rgb(var(--ts-purple-pop)), rgb(var(--ts-grad-mid)), rgb(var(--ts-grad-end)));
-}
+/* REPAINT-5: .ts-cta-gradient deleted — gradients are banned under Direction C. */

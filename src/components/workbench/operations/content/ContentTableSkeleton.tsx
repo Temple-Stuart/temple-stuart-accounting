@@ -1,4 +1,4 @@
-import { themed, type Surface } from '@/lib/ds';
+
 /**
  * ContentTableSkeleton — shimmer placeholder for the Content tab loading
  * state. Mirrors ContentTable's 14-column structure with animate-pulse
@@ -11,26 +11,25 @@ import { themed, type Surface } from '@/lib/ds';
 const COLUMN_COUNT = 14;
 const ROW_COUNT = 4;
 
-export default function ContentTableSkeleton({ surface = 'light' }: { surface?: Surface } = {}) {
-  const dk = surface === 'dark';
+export default function ContentTableSkeleton({ }: { } = {}) {
   return (
     <div className="text-xs font-mono overflow-x-auto" aria-busy="true" aria-label="Loading content">
       <table className="w-full">
         <thead>
-          <tr className={themed('text-text-faint uppercase tracking-wide', dk)}>
+          <tr className="text-text-faint uppercase tracking-wide">
             {Array.from({ length: COLUMN_COUNT }).map((_, i) => (
               <th key={i} className="text-left pb-1 px-2">
-                <div className={themed('h-3 w-16 bg-gray-200 rounded animate-pulse', dk)} />
+                <div className="h-3 w-16 bg-gray-200 rounded animate-pulse" />
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
           {Array.from({ length: ROW_COUNT }).map((_, r) => (
-            <tr key={r} className={themed('border-t border-border-light', dk)}>
+            <tr key={r} className="border-t border-border-light">
               {Array.from({ length: COLUMN_COUNT }).map((_, c) => (
                 <td key={c} className="py-1 px-2">
-                  <div className={themed('h-3 w-full bg-gray-200 rounded animate-pulse', dk)} />
+                  <div className="h-3 w-full bg-gray-200 rounded animate-pulse" />
                 </td>
               ))}
             </tr>

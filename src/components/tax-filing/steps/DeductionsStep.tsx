@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { StepProps } from '../TaxFilingWizard';
 import AccountTaxMappings from '../AccountTaxMappings';
-import { themed, type Surface } from '@/lib/ds';
+
 
 // ═══════════════════════════════════════════════════════════════════
 // Step 3 — Deductions (Schedule C)
@@ -109,12 +109,10 @@ function amountClass(n: number | null | undefined): string {
 
 // ─── Component ─────────────────────────────────────────────────────
 
-export default function DeductionsStep({ surface = 'light',
-  taxYear,
+export default function DeductionsStep({ taxYear,
   onComplete,
   lifeEvents,
-}: StepProps & { surface?: Surface }) {
-  const dk = surface === 'dark';
+}: StepProps & { }) {
   const [calc, setCalc] = useState<CalculateResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -161,11 +159,11 @@ export default function DeductionsStep({ surface = 'light',
   if (!lifeEvents.hasBusiness) {
     return (
       <div className="space-y-4">
-        <div className={themed('px-4 py-4 bg-gray-50 border border-gray-200 rounded', dk)}>
-          <p className={themed('text-sm text-gray-800', dk)}>
+        <div className="px-4 py-4 bg-gray-50 border border-gray-200 rounded">
+          <p className="text-sm text-gray-800">
             No business income or expenses for {taxYear}. Skip to the next step.
           </p>
-          <p className={themed('text-xs text-gray-500 mt-1', dk)}>
+          <p className="text-xs text-gray-500 mt-1">
             If you have business activity, go back to Step 1 and check "I ran a
             business or side gig".
           </p>
@@ -180,7 +178,7 @@ export default function DeductionsStep({ surface = 'light',
         {[...Array(3)].map((_, i) => (
           <div
             key={i}
-            className={themed('h-20 bg-gray-50 border border-gray-200 rounded animate-pulse', dk)}
+            className="h-20 bg-gray-50 border border-gray-200 rounded animate-pulse"
           />
         ))}
       </div>
@@ -204,7 +202,7 @@ export default function DeductionsStep({ surface = 'light',
 
   if (!calc || !calc.form_1040_full) {
     return (
-      <div className={themed('px-4 py-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700', dk)}>
+      <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700">
         No Schedule C data available for {taxYear}.
       </div>
     );
@@ -244,29 +242,29 @@ export default function DeductionsStep({ surface = 'light',
 
   return (
     <div className="space-y-5">
-      <p className={themed('text-sm text-gray-600', dk)}>
+      <p className="text-sm text-gray-600">
         Review your business income and expenses. Click any line to drill into
         the contributing accounts and individual ledger entries.
       </p>
 
       {/* ═══ Overview card ═══ */}
-      <div className={themed('border border-gray-200 rounded-lg bg-white overflow-hidden', dk)}>
-        <div className={themed('px-4 py-3 bg-gray-50 border-b border-gray-200', dk)}>
+      <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <div className={themed('text-sm font-semibold text-gray-900', dk)}>
+              <div className="text-sm font-semibold text-gray-900">
                 {scheduleC.businessName}
               </div>
-              <div className={themed('text-xs text-gray-500', dk)}>
+              <div className="text-xs text-gray-500">
                 Schedule C — Profit or Loss From Business · Tax year {taxYear}
               </div>
             </div>
             <div className="text-right">
-              <div className={themed('text-[10px] text-gray-400 font-mono uppercase tracking-wider', dk)}>
+              <div className="text-[10px] text-gray-400 font-mono uppercase tracking-wider">
                 {hasNetLoss ? 'Net Loss' : 'Net Profit'}
               </div>
               <div
-                className={themed(`text-xl font-mono font-bold ${amountClass(netProfit)}`, dk)}
+                className={`text-xl font-mono font-bold ${amountClass(netProfit)}`}
               >
                 {fmtMoney(netProfit)}
               </div>
@@ -274,27 +272,27 @@ export default function DeductionsStep({ surface = 'light',
           </div>
         </div>
         <div className="px-4 py-3 space-y-1">
-          <Row dk={dk}
+          <Row
             label="Line 1 — Gross receipts"
             value={fmtMoney(scheduleC.line1)}
           />
           {scheduleC.line2 !== 0 && (
-            <Row dk={dk}
+            <Row
               label="Line 2 — Returns and allowances"
               value={fmtMoney(scheduleC.line2)}
               muted
             />
           )}
-          <Row dk={dk}
+          <Row
             label="Line 7 — Gross profit"
             value={fmtMoney(scheduleC.line7)}
           />
-          <Row dk={dk}
+          <Row
             label="Line 28 — Total expenses"
             value={fmtMoney(scheduleC.line28)}
           />
-          <div className={themed('pt-2 border-t border-gray-100', dk)}>
-            <Row dk={dk}
+          <div className="pt-2 border-t border-gray-100">
+            <Row
               label="Line 31 — Net profit/(loss)"
               value={fmtMoney(netProfit)}
               bold
@@ -311,37 +309,37 @@ export default function DeductionsStep({ surface = 'light',
 
       {/* ═══ Gross receipts drill-down ═══ */}
       {scheduleC.revenueAccounts.length > 0 && (
-        <div className={themed('border border-gray-200 rounded-lg bg-white overflow-hidden', dk)}>
+        <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
           <button
             type="button"
             onClick={() => toggle('revenue')}
-            className={themed('w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50', dk)}
+            className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50"
           >
             <div className="flex items-center gap-2">
-              <span className={themed('text-xs text-gray-400', dk)}>
+              <span className="text-xs text-gray-400">
                 {expanded.has('revenue') ? '▼' : '▶'}
               </span>
-              <span className={themed('text-sm font-semibold text-gray-900', dk)}>
+              <span className="text-sm font-semibold text-gray-900">
                 Line 1 — Gross receipts
               </span>
-              <span className={themed('text-xs text-gray-500', dk)}>
+              <span className="text-xs text-gray-500">
                 {scheduleC.revenueAccounts.length} revenue account
                 {scheduleC.revenueAccounts.length === 1 ? '' : 's'}
               </span>
             </div>
-            <span className={themed('font-mono text-sm text-gray-900', dk)}>
+            <span className="font-mono text-sm text-gray-900">
               {fmtMoney(scheduleC.line1)}
             </span>
           </button>
           {expanded.has('revenue') && (
-            <div className={themed('px-4 pb-3 border-t border-gray-100 pt-2 space-y-0.5', dk)}>
+            <div className="px-4 pb-3 border-t border-gray-100 pt-2 space-y-0.5">
               {scheduleC.revenueAccounts.map((acct) => (
-                <Row dk={dk}
+                <Row
                   key={acct.code}
                   indent={1}
                   label={
                     <span>
-                      <span className={themed('font-mono text-xs text-gray-400', dk)}>
+                      <span className="font-mono text-xs text-gray-400">
                         {acct.code}
                       </span>{' '}
                       {acct.name}
@@ -357,18 +355,18 @@ export default function DeductionsStep({ surface = 'light',
       )}
 
       {/* ═══ Expense lines — 3-level drill-down ═══ */}
-      <div className={themed('border border-gray-200 rounded-lg bg-white overflow-hidden', dk)}>
-        <div className={themed('px-4 py-3 bg-gray-50 border-b border-gray-200', dk)}>
-          <span className={themed('text-sm font-semibold text-gray-900', dk)}>
+      <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+          <span className="text-sm font-semibold text-gray-900">
             Part II — Expenses
           </span>
-          <span className={themed('ml-2 text-xs text-gray-500', dk)}>
+          <span className="ml-2 text-xs text-gray-500">
             sorted by amount · click any line to drill down
           </span>
         </div>
         <div className="divide-y divide-gray-100">
           {sortedExpenses.length === 0 && (
-            <div className={themed('px-4 py-4 text-sm text-gray-500', dk)}>
+            <div className="px-4 py-4 text-sm text-gray-500">
               No expenses recorded for {taxYear}.
             </div>
           )}
@@ -383,20 +381,20 @@ export default function DeductionsStep({ surface = 'light',
                 <button
                   type="button"
                   onClick={() => toggle(lineKey)}
-                  className={themed('w-full px-4 py-2.5 flex items-center justify-between hover:bg-gray-50', dk)}
+                  className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-gray-50"
                 >
                   <div className="flex items-center gap-2">
-                    <span className={themed('text-xs text-gray-400 w-3', dk)}>
+                    <span className="text-xs text-gray-400 w-3">
                       {isOpen ? '▼' : '▶'}
                     </span>
-                    <span className={themed('text-sm text-gray-900', dk)}>
-                      <span className={themed('font-mono text-xs text-gray-400 mr-1', dk)}>
+                    <span className="text-sm text-gray-900">
+                      <span className="font-mono text-xs text-gray-400 mr-1">
                         Line {exp.line}
                       </span>
                       {exp.label}
                     </span>
                   </div>
-                  <span className={themed('font-mono text-sm font-semibold text-gray-900', dk)}>
+                  <span className="font-mono text-sm font-semibold text-gray-900">
                     {fmtMoney(exp.amount)}
                   </span>
                 </button>
@@ -419,34 +417,34 @@ export default function DeductionsStep({ surface = 'light',
                           <button
                             type="button"
                             onClick={() => toggle(acctKey)}
-                            className={themed('w-full py-1.5 flex items-center justify-between hover:bg-gray-50', dk)}
+                            className="w-full py-1.5 flex items-center justify-between hover:bg-gray-50"
                           >
                             <div className="flex items-center gap-2">
-                              <span className={themed('text-xs text-gray-400 w-3', dk)}>
+                              <span className="text-xs text-gray-400 w-3">
                                 {acctOpen ? '▼' : '▶'}
                               </span>
-                              <span className={themed('font-mono text-xs text-gray-400', dk)}>
+                              <span className="font-mono text-xs text-gray-400">
                                 {acct.code}
                               </span>
-                              <span className={themed('text-sm text-gray-700', dk)}>
+                              <span className="text-sm text-gray-700">
                                 {acct.name}
                               </span>
                               {entryCount > 0 && (
-                                <span className={themed('text-[10px] text-gray-400', dk)}>
+                                <span className="text-[10px] text-gray-400">
                                   {entryCount}{' '}
                                   {entryCount === 1 ? 'entry' : 'entries'}
                                 </span>
                               )}
                             </div>
-                            <span className={themed('font-mono text-sm text-gray-900', dk)}>
+                            <span className="font-mono text-sm text-gray-900">
                               {fmtMoney(acct.amount)}
                             </span>
                           </button>
 
                           {acctOpen && (
-                            <div className={themed('border-l border-dashed border-gray-200 ml-3 pl-3 pb-2 space-y-0', dk)}>
+                            <div className="border-l border-dashed border-gray-200 ml-3 pl-3 pb-2 space-y-0">
                               {entries.length === 0 ? (
-                                <p className={themed('py-1 text-xs text-gray-400 italic', dk)}>
+                                <p className="py-1 text-xs text-gray-400 italic">
                                   No individual entries available (amount was
                                   aggregated directly).
                                 </p>
@@ -461,27 +459,27 @@ export default function DeductionsStep({ surface = 'light',
                                       className="flex items-center justify-between py-0.5 text-[11px] font-mono"
                                     >
                                       <div className="flex items-center gap-2 min-w-0">
-                                        <span className={themed('text-gray-400 shrink-0', dk)}>
+                                        <span className="text-gray-400 shrink-0">
                                           {entry.date}
                                         </span>
-                                        <span className={themed('text-gray-700 truncate', dk)}>
+                                        <span className="text-gray-700 truncate">
                                           {entry.description}
                                         </span>
                                       </div>
                                       <span
-                                        className={themed(`shrink-0 ${
+                                        className={`shrink-0 ${
                                           entry.amount < 0
                                             ? 'text-red-600'
-                                            : themed('text-gray-700', dk)
-                                        }`, dk)}
+                                            : 'text-gray-700'
+                                        }`}
                                       >
                                         {fmtMoney(entry.amount)}
                                       </span>
                                     </div>
                                   ))}
-                                  <div className={themed('pt-1 mt-1 border-t border-dashed border-gray-200 flex justify-between text-[11px]', dk)}>
+                                  <div className="pt-1 mt-1 border-t border-dashed border-gray-200 flex justify-between text-[11px]">
                                     <span className="text-emerald-600">
-                                      ✓ {entries.length} entries ={' '}
+                                      ✓ {entries.length} entries =" "
                                       {fmtMoney(
                                         entries.reduce(
                                           (s, e) => s + e.amount,
@@ -559,15 +557,15 @@ export default function DeductionsStep({ surface = 'light',
               : 'Manage Schedule C tax mappings →'}
           </button>
           {!showMappings && (
-            <span className={themed('text-[11px] text-gray-500', dk)}>
+            <span className="text-[11px] text-gray-500">
               Assign each expense account to a specific Schedule C line.
             </span>
           )}
         </div>
         {showMappings && (
-          <div className={themed('mt-3 border border-gray-200 rounded-lg bg-gray-50/50 p-4', dk)}>
-            <AccountTaxMappings surface={surface} taxYear={taxYear} />
-            <p className={themed('mt-3 text-[11px] text-gray-500 italic', dk)}>
+          <div className="mt-3 border border-gray-200 rounded-lg bg-gray-50/50 p-4">
+            <AccountTaxMappings taxYear={taxYear} />
+            <p className="mt-3 text-[11px] text-gray-500 italic">
               Changes here affect Schedule C on reload. Click Retry on the
               Schedule C card above after adjusting mappings to see updated
               line totals.
@@ -610,23 +608,23 @@ export default function DeductionsStep({ surface = 'light',
         </h3>
         {seApplies ? (
           <div className="space-y-0.5">
-            <Row dk={dk}
+            <Row
               label="Line 2 — Net profit from Schedule C"
               value={fmtMoney(scheduleSE.line2)}
             />
-            <Row dk={dk}
+            <Row
               label="Line 3 — Net earnings (Line 2 × 92.35%)"
               value={fmtMoney(scheduleSE.line3)}
               muted
             />
             <div className="pt-2 border-t border-blue-200">
-              <Row dk={dk}
+              <Row
                 label="Line 12 — Self-employment tax (15.3%)"
                 value={fmtMoney(scheduleSE.line12)}
                 bold
               />
             </div>
-            <Row dk={dk}
+            <Row
               label="Line 13 — Deductible half of SE tax"
               value={fmtMoney(scheduleSE.line13)}
               muted
@@ -649,7 +647,7 @@ export default function DeductionsStep({ surface = 'light',
 
       {/* ═══ Continue action ═══ */}
       <div className="flex items-center justify-between pt-2">
-        <div className={themed('text-xs text-gray-500', dk)}>
+        <div className="text-xs text-gray-500">
           {hasWarnings
             ? `${
                 scheduleC.unmappedAccounts.length +
@@ -666,21 +664,19 @@ export default function DeductionsStep({ surface = 'light',
         </button>
       </div>
 
-      <p className={themed('text-xs text-gray-400 italic', dk)}>{calc.disclaimer}</p>
+      <p className="text-xs text-gray-400 italic">{calc.disclaimer}</p>
     </div>
   );
 }
 
 // ─── Row helper ────────────────────────────────────────────────────
 
-function Row({ dk = false,
-  label,
+function Row({ label,
   value,
   indent = 0,
   muted,
   bold,
-}: { dk?: boolean;
-  label: React.ReactNode;
+}: { label: React.ReactNode;
   value: React.ReactNode;
   indent?: number;
   muted?: boolean;
@@ -692,16 +688,16 @@ function Row({ dk = false,
       style={{ paddingLeft: indent * 12 }}
     >
       <span
-        className={themed(`${
-          muted ? themed('text-gray-500', dk) : bold ? themed('text-gray-900 font-semibold', dk) : themed('text-gray-700', dk)
-        }`, dk)}
+        className={`${
+          muted ? 'text-gray-500' : bold ? 'text-gray-900 font-semibold' : 'text-gray-700'
+        }`}
       >
         {label}
       </span>
       <span
-        className={themed(`font-mono ${
-          muted ? themed('text-gray-500', dk) : bold ? themed('text-gray-900 font-bold', dk) : themed('text-gray-900', dk)
-        }`, dk)}
+        className={`font-mono ${
+          muted ? 'text-gray-500' : bold ? 'text-gray-900 font-bold' : 'text-gray-900'
+        }`}
       >
         {value}
       </span>

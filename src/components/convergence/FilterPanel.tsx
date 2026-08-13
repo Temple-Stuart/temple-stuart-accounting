@@ -12,7 +12,7 @@ import type {
   VolEdge,
 } from '@/lib/convergence/filter-types';
 import { DEFAULT_FILTERS, AVAILABLE_STRATEGIES } from '@/lib/convergence/filter-types';
-import { themed, type Surface } from '@/lib/ds';
+
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -51,46 +51,44 @@ function countActiveFilters(filters: ScannerFilters): number {
 
 // ── Sub-components ───────────────────────────────────────────────────
 
-function SectionHeader({ dk = false, label, open, onToggle }: { dk?: boolean; label: string; open: boolean; onToggle: () => void }) {
+function SectionHeader({ label, open, onToggle }: { label: string; open: boolean; onToggle: () => void }) {
   return (
     <button onClick={onToggle} className="flex items-center gap-2 w-full text-left py-1.5">
-      <span className={themed('text-[10px] text-text-muted font-mono', dk)}>{open ? '\u25BC' : '\u25B6'}</span>
-      <span className={themed('text-[10px] text-text-muted uppercase tracking-wider font-bold', dk)}>{label}</span>
+      <span className="text-[10px] text-text-muted font-mono">{open ? '\u25BC' : '\u25B6'}</span>
+      <span className="text-[10px] text-text-muted uppercase tracking-wider font-bold">{label}</span>
     </button>
   );
 }
 
-function SliderRow({ dk = false, label, value, min, max, step, format, onChange }: { dk?: boolean;
-  label: string; value: number; min: number; max: number; step: number;
+function SliderRow({ label, value, min, max, step, format, onChange }: { label: string; value: number; min: number; max: number; step: number;
   format: (v: number) => string; onChange: (v: number) => void;
 }) {
   return (
     <div className="flex items-center gap-2">
-      <span className={themed('text-[10px] text-text-muted w-24 shrink-0 text-right', dk)}>{label}</span>
+      <span className="text-[10px] text-text-muted w-24 shrink-0 text-right">{label}</span>
       <input
         type="range" min={min} max={max} step={step} value={value}
         onChange={e => onChange(Number(e.target.value))}
         className="flex-1 h-1 cursor-pointer accent-brand-purple"
       />
-      <span className={themed('text-[10px] text-text-primary font-mono w-16 text-right shrink-0', dk)}>{format(value)}</span>
+      <span className="text-[10px] text-text-primary font-mono w-16 text-right shrink-0">{format(value)}</span>
     </div>
   );
 }
 
-function ToggleGroup<T extends string>({ options, value, onChange, dk = false }: {
-  options: { label: string; value: T }[]; value: T; onChange: (v: T) => void; dk?: boolean;
-}) {
+function ToggleGroup<T extends string>({ options, value, onChange }: {
+  options: { label: string; value: T }[]; value: T; onChange: (v: T) => void; }) {
   return (
-    <div className={themed('flex gap-0.5 rounded overflow-hidden bg-bg-terminal border border-border', dk)}>
+    <div className="flex gap-0.5 rounded overflow-hidden bg-bg-terminal border border-border">
       {options.map(opt => (
         <button
           key={opt.value}
           onClick={() => onChange(opt.value)}
-          className={themed(`px-2 py-1 text-[10px] font-bold transition-colors ${
+          className={`px-2 py-1 text-[10px] font-bold transition-colors ${
             value === opt.value
               ? 'bg-brand-purple text-white'
               : 'bg-transparent text-text-muted hover:text-text-secondary'
-          }`, dk)}
+          }`}
         >
           {opt.label}
         </button>
@@ -99,22 +97,22 @@ function ToggleGroup<T extends string>({ options, value, onChange, dk = false }:
   );
 }
 
-function LiquidityStars({ dk = false, value, onChange }: { dk?: boolean; value: number; onChange: (v: number) => void }) {
+function LiquidityStars({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
     <div className="flex items-center gap-2">
-      <span className={themed('text-[10px] text-text-muted w-24 shrink-0 text-right', dk)}>Min Liquidity</span>
+      <span className="text-[10px] text-text-muted w-24 shrink-0 text-right">Min Liquidity</span>
       <div className="flex gap-0.5">
         {[1, 2, 3, 4, 5].map(n => (
           <button
             key={n}
             onClick={() => onChange(n)}
-            className={themed(`text-sm transition-colors ${n <= value ? 'text-brand-gold' : 'text-text-faint'}`, dk)}
+            className={`text-sm transition-colors ${n <= value ? 'text-brand-gold' : 'text-text-faint'}`}
           >
             &#9733;
           </button>
         ))}
       </div>
-      <span className={themed('text-[10px] text-text-muted font-mono', dk)}>{value}/5</span>
+      <span className="text-[10px] text-text-muted font-mono">{value}/5</span>
     </div>
   );
 }
@@ -128,8 +126,7 @@ interface FilterPanelProps {
 
 // ── Main Component ───────────────────────────────────────────────────
 
-export default function FilterPanel({ filters, onChange, surface = 'light' }: FilterPanelProps & { surface?: Surface }) {
-  const dk = surface === 'dark';
+export default function FilterPanel({ filters, onChange }: FilterPanelProps & { }) {
   const [open, setOpen] = useState(false);
   const [t1Open, setT1Open] = useState(true);
   const [t2Open, setT2Open] = useState(true);
@@ -163,12 +160,12 @@ export default function FilterPanel({ filters, onChange, surface = 'light' }: Fi
   }, [onChange]);
 
   return (
-    <div className={themed('border-b border-border', dk)}>
+    <div className="border-b border-border">
       {/* Toggle bar */}
-      <div className={themed('px-4 py-2 flex items-center gap-3 bg-bg-row', dk)}>
+      <div className="px-4 py-2 flex items-center gap-3 bg-bg-row">
         <button
           onClick={() => setOpen(!open)}
-          className={themed(`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${activeCount > 0 ? 'text-brand-purple' : 'text-text-muted'}`, dk)}
+          className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${activeCount > 0 ? 'text-brand-purple' : 'text-text-muted'}`}
         >
           <span className="font-mono">{open ? '\u25BC' : '\u25B6'}</span>
           Filters
@@ -179,7 +176,7 @@ export default function FilterPanel({ filters, onChange, surface = 'light' }: Fi
           )}
         </button>
         {activeCount > 0 && (
-          <button onClick={reset} className={themed('text-[10px] text-text-faint hover:text-text-secondary transition-colors', dk)}>
+          <button onClick={reset} className="text-[10px] text-text-faint hover:text-text-secondary transition-colors">
             Reset to defaults
           </button>
         )}
@@ -187,33 +184,33 @@ export default function FilterPanel({ filters, onChange, surface = 'light' }: Fi
 
       {/* Panel body */}
       {open && (
-        <div className={themed('px-4 py-3 space-y-3 bg-bg-terminal border-t border-border', dk)}>
+        <div className="px-4 py-3 space-y-3 bg-bg-terminal border-t border-border">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
             {/* TIER 1: Liquidity Gates */}
-            <div className={themed('rounded border border-border bg-white p-3', dk)}>
-              <SectionHeader dk={dk} label="Liquidity Gates" open={t1Open} onToggle={() => setT1Open(!t1Open)} />
+            <div className="rounded border border-border bg-white p-3">
+              <SectionHeader label="Liquidity Gates" open={t1Open} onToggle={() => setT1Open(!t1Open)} />
               {t1Open && (
                 <div className="space-y-2 mt-2">
-                  <SliderRow dk={dk}
+                  <SliderRow
                     label="Min OI" value={filters.liquidity.minOpenInterest}
                     min={0} max={5000} step={50}
                     format={v => v.toLocaleString()}
                     onChange={v => setLiquidity({ minOpenInterest: v })}
                   />
-                  <SliderRow dk={dk}
+                  <SliderRow
                     label="Max Spread" value={filters.liquidity.maxBidAskSpreadPct}
                     min={1} max={50} step={1}
                     format={v => `${v}%`}
                     onChange={v => setLiquidity({ maxBidAskSpreadPct: v })}
                   />
-                  <SliderRow dk={dk}
+                  <SliderRow
                     label="Min Volume" value={filters.liquidity.minUnderlyingVolume}
                     min={0} max={10_000_000} step={100_000}
                     format={fmtVolume}
                     onChange={v => setLiquidity({ minUnderlyingVolume: v })}
                   />
-                  <LiquidityStars dk={dk}
+                  <LiquidityStars
                     value={filters.liquidity.minLiquidityRating}
                     onChange={v => setLiquidity({ minLiquidityRating: v })}
                   />
@@ -222,13 +219,13 @@ export default function FilterPanel({ filters, onChange, surface = 'light' }: Fi
             </div>
 
             {/* TIER 2: Risk Profile */}
-            <div className={themed('rounded border border-border bg-white p-3', dk)}>
-              <SectionHeader dk={dk} label="Risk Profile" open={t2Open} onToggle={() => setT2Open(!t2Open)} />
+            <div className="rounded border border-border bg-white p-3">
+              <SectionHeader label="Risk Profile" open={t2Open} onToggle={() => setT2Open(!t2Open)} />
               {t2Open && (
                 <div className="space-y-2.5 mt-2">
                   <div className="flex items-center gap-2">
-                    <span className={themed('text-[10px] text-text-muted w-24 shrink-0 text-right', dk)}>Risk Type</span>
-                    <ToggleGroup<RiskType> dk={dk}
+                    <span className="text-[10px] text-text-muted w-24 shrink-0 text-right">Risk Type</span>
+                    <ToggleGroup<RiskType>
                       options={[
                         { label: 'Defined Only', value: 'DEFINED_ONLY' },
                         { label: 'Include Unlimited', value: 'INCLUDE_UNLIMITED' },
@@ -238,8 +235,8 @@ export default function FilterPanel({ filters, onChange, surface = 'light' }: Fi
                     />
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={themed('text-[10px] text-text-muted w-24 shrink-0 text-right', dk)}>Direction</span>
-                    <ToggleGroup<Direction> dk={dk}
+                    <span className="text-[10px] text-text-muted w-24 shrink-0 text-right">Direction</span>
+                    <ToggleGroup<Direction>
                       options={[
                         { label: 'All', value: 'ALL' },
                         { label: 'Bull', value: 'BULLISH' },
@@ -251,8 +248,8 @@ export default function FilterPanel({ filters, onChange, surface = 'light' }: Fi
                     />
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={themed('text-[10px] text-text-muted w-24 shrink-0 text-right', dk)}>Premium</span>
-                    <ToggleGroup<PremiumStance> dk={dk}
+                    <span className="text-[10px] text-text-muted w-24 shrink-0 text-right">Premium</span>
+                    <ToggleGroup<PremiumStance>
                       options={[
                         { label: 'Sell', value: 'SELL' },
                         { label: 'Buy', value: 'BUY' },
@@ -262,25 +259,25 @@ export default function FilterPanel({ filters, onChange, surface = 'light' }: Fi
                       onChange={v => setRisk({ premiumStance: v })}
                     />
                   </div>
-                  <SliderRow dk={dk}
+                  <SliderRow
                     label="Min DTE" value={filters.risk.minDte}
                     min={0} max={180} step={5}
                     format={v => `${v}d`}
                     onChange={v => setRisk({ minDte: v })}
                   />
-                  <SliderRow dk={dk}
+                  <SliderRow
                     label="Max DTE" value={filters.risk.maxDte}
                     min={0} max={180} step={5}
                     format={v => `${v}d`}
                     onChange={v => setRisk({ maxDte: v })}
                   />
-                  <SliderRow dk={dk}
+                  <SliderRow
                     label="Min Width" value={filters.risk.minSpreadWidth}
                     min={0.5} max={20} step={0.5}
                     format={v => `$${v}`}
                     onChange={v => setRisk({ minSpreadWidth: v })}
                   />
-                  <SliderRow dk={dk}
+                  <SliderRow
                     label="Max Width" value={filters.risk.maxSpreadWidth}
                     min={1} max={50} step={1}
                     format={v => `$${v}`}
@@ -289,14 +286,14 @@ export default function FilterPanel({ filters, onChange, surface = 'light' }: Fi
                   {/* Strategy checkboxes */}
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className={themed('text-[10px] text-text-muted w-24 shrink-0 text-right', dk)}>Strategies</span>
+                      <span className="text-[10px] text-text-muted w-24 shrink-0 text-right">Strategies</span>
                       <button
                         onClick={() => setRisk({ strategies: [...AVAILABLE_STRATEGIES] })}
                         className="text-[9px] text-brand-purple hover:text-brand-purple-hover"
                       >
                         Select All
                       </button>
-                      <span className={themed('text-text-faint text-[9px]', dk)}>|</span>
+                      <span className="text-text-faint text-[9px]">|</span>
                       <button
                         onClick={() => setRisk({ strategies: [] })}
                         className="text-[9px] text-brand-purple hover:text-brand-purple-hover"
@@ -304,7 +301,7 @@ export default function FilterPanel({ filters, onChange, surface = 'light' }: Fi
                         Clear
                       </button>
                       {filters.risk.strategies.length > 0 && (
-                        <span className={themed('text-[9px] text-text-muted font-mono', dk)}>
+                        <span className="text-[9px] text-text-muted font-mono">
                           ({filters.risk.strategies.length})
                         </span>
                       )}
@@ -316,13 +313,13 @@ export default function FilterPanel({ filters, onChange, surface = 'light' }: Fi
                           <button
                             key={name}
                             onClick={() => toggleStrategy(name)}
-                            className={themed(`px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors border ${
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors border ${
                               filters.risk.strategies.includes(name)
                                 ? 'border-brand-purple bg-brand-purple-wash text-brand-purple'
                                 : active
                                   ? 'border-border bg-bg-row text-text-secondary'
                                   : 'border-transparent bg-bg-terminal text-text-faint'
-                            }`, dk)}
+                            }`}
                           >
                             {name}
                           </button>
@@ -335,31 +332,31 @@ export default function FilterPanel({ filters, onChange, surface = 'light' }: Fi
             </div>
 
             {/* TIER 3: Edge Metrics */}
-            <div className={themed('rounded border border-border bg-white p-3', dk)}>
-              <SectionHeader dk={dk} label="Edge Metrics" open={t3Open} onToggle={() => setT3Open(!t3Open)} />
+            <div className="rounded border border-border bg-white p-3">
+              <SectionHeader label="Edge Metrics" open={t3Open} onToggle={() => setT3Open(!t3Open)} />
               {t3Open && (
                 <div className="space-y-2 mt-2">
-                  <SliderRow dk={dk}
+                  <SliderRow
                     label="Min Est. PoP" value={filters.edge.minPop}
                     min={0} max={100} step={1}
                     format={v => `${v}%`}
                     onChange={v => setEdge({ minPop: v })}
                   />
-                  <SliderRow dk={dk}
+                  <SliderRow
                     label="Min Est. EV" value={filters.edge.minEv}
                     min={-500} max={500} step={10}
                     format={v => `$${v}`}
                     onChange={v => setEdge({ minEv: v })}
                   />
-                  <SliderRow dk={dk}
+                  <SliderRow
                     label="Min EV/Risk" value={filters.edge.minEvPerRisk}
                     min={-100} max={100} step={1}
                     format={v => (v / 100).toFixed(2)}
                     onChange={v => setEdge({ minEvPerRisk: v })}
                   />
                   <div className="flex items-center gap-2">
-                    <span className={themed('text-[10px] text-text-muted w-24 shrink-0 text-right', dk)}>Vol Edge</span>
-                    <ToggleGroup<VolEdge> dk={dk}
+                    <span className="text-[10px] text-text-muted w-24 shrink-0 text-right">Vol Edge</span>
+                    <ToggleGroup<VolEdge>
                       options={[
                         { label: 'IV > HV', value: 'IV_ABOVE_HV' },
                         { label: 'IV < HV', value: 'IV_BELOW_HV' },
@@ -369,13 +366,13 @@ export default function FilterPanel({ filters, onChange, surface = 'light' }: Fi
                       onChange={v => setEdge({ volEdge: v })}
                     />
                   </div>
-                  <SliderRow dk={dk}
+                  <SliderRow
                     label="Min IV Rank" value={filters.edge.minIvRank}
                     min={0} max={100} step={1}
                     format={v => `${v}%`}
                     onChange={v => setEdge({ minIvRank: v })}
                   />
-                  <SliderRow dk={dk}
+                  <SliderRow
                     label="Min Sentiment" value={filters.edge.minSentiment}
                     min={-100} max={100} step={10}
                     format={v => (v / 100).toFixed(1)}

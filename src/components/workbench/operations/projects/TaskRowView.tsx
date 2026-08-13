@@ -24,7 +24,7 @@
 import { ExternalLink } from 'lucide-react';
 import type { Task, TaskForm, TaskStatus, CoaAccountSummary } from './types';
 import { TASK_STATUS_LABELS, TASK_STATUS_PILL_CLASSES } from './types';
-import { themed, type Surface } from '@/lib/ds';
+
 
 export type TaskStatusHistoryRow = {
   id: string;
@@ -99,8 +99,7 @@ export interface TaskRowViewProps {
   onRejectPending?: (e: React.MouseEvent) => void;
 }
 
-export default function TaskRowView({ surface = 'light',
-  task,
+export default function TaskRowView({ task,
   index,
   coaAccounts,
   expanded,
@@ -140,27 +139,26 @@ export default function TaskRowView({ surface = 'light',
   reviewNotice,
   onAcceptPending,
   onRejectPending,
-}: TaskRowViewProps & { surface?: Surface }) {
-  const dk = surface === 'dark';
+}: TaskRowViewProps & { }) {
   const inputClass =
-    themed('w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple', dk);
-  const labelClass = themed('text-text-faint uppercase tracking-wide mb-1 text-xs', dk);
+    'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
+  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
   const pillClass = `inline-block px-2 py-0.5 rounded-full text-xs font-medium ${TASK_STATUS_PILL_CLASSES[task.status]}`;
 
   return (
-    <div className={themed(`border border-border-light rounded bg-white${task.status === 'archived' ? ' opacity-60' : ''}`, dk)}>
+    <div className={`border border-border-light rounded bg-white${task.status === 'archived' ? ' opacity-60' : ''}`}>
       <div
-        className={themed('flex items-center justify-between px-3 py-1.5 cursor-pointer hover:bg-bg-row text-xs', dk)}
+        className="flex items-center justify-between px-3 py-1.5 cursor-pointer hover:bg-bg-row text-xs"
         onClick={() => !editing && onToggleExpanded()}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <span className={themed('text-text-faint shrink-0 w-6 text-right', dk)}>{index}.</span>
-          <span className={themed('text-text-faint', dk)}>{expanded ? '▾' : '▸'}</span>
+          <span className="text-text-faint shrink-0 w-6 text-right">{index}.</span>
+          <span className="text-text-faint">{expanded ? '▾' : '▸'}</span>
           <span
             className={
               task.status === 'completed' || task.status === 'cancelled'
-                ? themed('text-text-muted line-through truncate', dk)
-                : themed('text-text-primary truncate', dk)
+                ? 'text-text-muted line-through truncate'
+                : 'text-text-primary truncate'
             }
           >
             {task.title}
@@ -172,14 +170,14 @@ export default function TaskRowView({ surface = 'light',
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
               title={task.link_url}
-              className={`shrink-0  hover:opacity-80 ${dk ? 'text-brand-purple-pop' : 'text-brand-purple'}`}
+              className={`shrink-0  hover:opacity-80 ${'text-brand-purple'}`}
             >
               <ExternalLink className="w-3.5 h-3.5" strokeWidth={2} />
             </a>
           )}
           <span className={pillClass}>{TASK_STATUS_LABELS[task.status]}</span>
           {task.deadline && (
-            <span className={themed('text-text-muted', dk)}>due {formatDate(task.deadline)}</span>
+            <span className="text-text-muted">due {formatDate(task.deadline)}</span>
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -199,7 +197,7 @@ export default function TaskRowView({ surface = 'light',
                 type="button"
                 onClick={onRejectPending}
                 disabled={reviewing}
-                className={themed('px-2 py-0.5 border border-border text-text-muted rounded hover:bg-bg-row disabled:opacity-50 text-xs', dk)}
+                className="px-2 py-0.5 border border-border text-text-muted rounded hover:bg-bg-row disabled:opacity-50 text-xs"
                 title="Reject this auto-generated task (marked cancelled)"
               >
                 {reviewing ? '…' : '✕ reject'}
@@ -221,7 +219,7 @@ export default function TaskRowView({ surface = 'light',
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onUncomplete(); }}
-              className={themed('px-2 py-0.5 border border-border text-text-muted rounded hover:bg-bg-row text-xs', dk)}
+              className="px-2 py-0.5 border border-border text-text-muted rounded hover:bg-bg-row text-xs"
               title="Revert this task to open"
             >
               ↩ uncomplete
@@ -230,7 +228,7 @@ export default function TaskRowView({ surface = 'light',
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onToggleHistory(); }}
-            className={themed('px-2 py-0.5 border border-border text-text-muted rounded hover:bg-bg-row text-xs', dk)}
+            className="px-2 py-0.5 border border-border text-text-muted rounded hover:bg-bg-row text-xs"
             title="Show status change history"
           >
             history
@@ -240,7 +238,7 @@ export default function TaskRowView({ surface = 'light',
               type="button"
               onClick={(e) => { e.stopPropagation(); onToggleScheduleMenu(); }}
               disabled={scheduling}
-              className={themed('px-2 py-0.5 border border-border text-text-muted rounded hover:bg-bg-row disabled:opacity-50 text-xs', dk)}
+              className="px-2 py-0.5 border border-border text-text-muted rounded hover:bg-bg-row disabled:opacity-50 text-xs"
               title="Schedule this task on a daily plan"
             >
               {scheduling ? '↗ scheduling…' : '↗ schedule'}
@@ -254,30 +252,30 @@ export default function TaskRowView({ surface = 'light',
 
       {scheduleMenuOpen && (
         <div
-          className={themed('mx-6 mt-2 mb-2 p-2 border border-border-light rounded bg-bg-row text-xs', dk)}
+          className="mx-6 mt-2 mb-2 p-2 border border-border-light rounded bg-bg-row text-xs"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={themed('text-text-muted', dk)}>schedule for:</span>
+            <span className="text-text-muted">schedule for:</span>
             <input
               type="date"
               value={scheduleDate}
               onChange={(e) => onScheduleDateChange(e.target.value)}
               onClick={(e) => e.stopPropagation()}
-              className={themed('px-2 py-0.5 border border-border rounded text-text-primary', dk)}
+              className="px-2 py-0.5 border border-border rounded text-text-primary"
             />
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onSchedule(scheduleDate); }}
               disabled={scheduling || !scheduleDate}
-              className={themed('px-2 py-0.5 border border-border text-text-primary rounded hover:bg-white disabled:opacity-50', dk)}
+              className="px-2 py-0.5 border border-border text-text-primary rounded hover:bg-white disabled:opacity-50"
             >
               schedule
             </button>
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onCloseScheduleMenu(); }}
-              className={themed('px-2 py-0.5 text-text-muted hover:bg-bg-row rounded', dk)}
+              className="px-2 py-0.5 text-text-muted hover:bg-bg-row rounded"
             >
               cancel
             </button>
@@ -286,30 +284,30 @@ export default function TaskRowView({ surface = 'light',
       )}
 
       {showHistory && (
-        <div className={themed('mx-6 mt-2 mb-2 p-2 border border-border-light rounded bg-bg-row text-xs', dk)}>
-          {historyLoading && <div className={themed('text-text-muted', dk)}>loading history…</div>}
+        <div className="mx-6 mt-2 mb-2 p-2 border border-border-light rounded bg-bg-row text-xs">
+          {historyLoading && <div className="text-text-muted">loading history…</div>}
           {historyError && <div className="text-red-700">{historyError}</div>}
           {!historyLoading && !historyError && history !== null && history.length === 0 && (
-            <div className={themed('text-text-muted italic', dk)}>no status changes recorded yet</div>
+            <div className="text-text-muted italic">no status changes recorded yet</div>
           )}
           {!historyLoading && !historyError && history !== null && history.length > 0 && (
             <ul className="space-y-1">
               {history.map((h) => (
                 <li key={h.id} className="flex flex-col">
                   <div>
-                    <span className={themed('text-text-muted', dk)}>
+                    <span className="text-text-muted">
                       {new Date(h.changed_at).toLocaleString()}
                     </span>
                     {' · '}
-                    <span className={themed('text-text-primary', dk)}>
+                    <span className="text-text-primary">
                       {h.previous_status ?? '—'} → {h.new_status}
                     </span>
                     {h.changed_by && (
-                      <span className={themed('text-text-muted', dk)}> · {h.changed_by}</span>
+                      <span className="text-text-muted"> · {h.changed_by}</span>
                     )}
                   </div>
                   {h.reason && (
-                    <div className={themed('text-text-muted pl-2 italic', dk)}>
+                    <div className="text-text-muted pl-2 italic">
                       &ldquo;{h.reason}&rdquo;
                     </div>
                   )}
@@ -335,7 +333,7 @@ export default function TaskRowView({ surface = 'light',
       )}
 
       {expanded && !editing && (
-        <div className={themed('px-4 py-2 border-t border-border-light text-xs space-y-2', dk)}>
+        <div className="px-4 py-2 border-t border-border-light text-xs space-y-2">
           {error && (
             <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
               {error}
@@ -344,16 +342,16 @@ export default function TaskRowView({ surface = 'light',
           {task.description ? (
             <div>
               <div className={labelClass}>description</div>
-              <div className={themed('text-text-primary whitespace-pre-wrap', dk)}>{task.description}</div>
+              <div className="text-text-primary whitespace-pre-wrap">{task.description}</div>
             </div>
           ) : (
-            <div className={themed('text-text-muted italic', dk)}>no description</div>
+            <div className="text-text-muted italic">no description</div>
           )}
 
           {task.unblocks_label && (
             <div>
               <div className={labelClass}>unblocks</div>
-              <div className={themed('text-text-primary whitespace-pre-wrap', dk)}>{task.unblocks_label}</div>
+              <div className="text-text-primary whitespace-pre-wrap">{task.unblocks_label}</div>
             </div>
           )}
 
@@ -364,7 +362,7 @@ export default function TaskRowView({ surface = 'light',
                 href={task.link_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`inline-flex items-center gap-1  hover:underline break-all ${dk ? 'text-brand-purple-pop' : 'text-brand-purple'}`}
+                className={`inline-flex items-center gap-1  hover:underline break-all ${'text-brand-purple'}`}
               >
                 <ExternalLink className="w-3 h-3" strokeWidth={2} />
                 <span>{task.link_url}</span>
@@ -377,40 +375,40 @@ export default function TaskRowView({ surface = 'light',
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onToggleNotes(); }}
-                className={themed('flex items-center gap-1 text-text-faint uppercase tracking-wide text-xs hover:text-text-primary', dk)}
+                className="flex items-center gap-1 text-text-faint uppercase tracking-wide text-xs hover:text-text-primary"
               >
                 <span>{notesOpen ? '▾' : '▸'}</span>
                 <span>notes ({task.notes.length} chars)</span>
               </button>
               {notesOpen && (
-                <div className={themed('mt-1 text-text-primary whitespace-pre-wrap', dk)}>{task.notes}</div>
+                <div className="mt-1 text-text-primary whitespace-pre-wrap">{task.notes}</div>
               )}
             </div>
           )}
 
-          <div className={themed('grid grid-cols-3 gap-3 pt-2 border-t border-border-light', dk)}>
+          <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border-light">
             <div>
               <div className={labelClass}>est. minutes</div>
-              <div className={themed('text-text-primary', dk)}>{task.estimated_minutes ?? '—'}</div>
+              <div className="text-text-primary">{task.estimated_minutes ?? '—'}</div>
             </div>
             <div>
               {/* PROJECTS-UX-1: the anchor — task cost cells get the
                   strongest-cell treatment (see ProjectRowView). */}
-              <div className={themed('font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs', dk)}>est. cost (usd)</div>
-              <div className={themed('text-text-primary font-mono tabular-nums font-bold', dk)}>{task.estimated_cost_usd ?? '—'}</div>
+              <div className="font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs">est. cost (usd)</div>
+              <div className="text-text-primary font-mono tabular-nums font-bold">{task.estimated_cost_usd ?? '—'}</div>
             </div>
             <div>
               <div className={labelClass}>category</div>
               {(() => {
                 if (task.coa_code === null) {
-                  return <div className={themed('text-text-muted', dk)}>—</div>;
+                  return <div className="text-text-muted">—</div>;
                 }
                 const match = coaAccounts.find((a) => a.code === task.coa_code);
                 if (match) {
                   return (
-                    <div className={themed('text-text-primary', dk)}>
+                    <div className="text-text-primary">
                       <span className="font-mono">{match.code}</span>
-                      <span className={themed('text-text-muted', dk)}> · {match.name}</span>
+                      <span className="text-text-muted"> · {match.name}</span>
                     </div>
                   );
                 }
@@ -427,25 +425,25 @@ export default function TaskRowView({ surface = 'light',
             </div>
             <div>
               <div className={labelClass}>actual minutes</div>
-              <div className={themed('text-text-primary', dk)}>{task.actual_minutes ?? '—'}</div>
+              <div className="text-text-primary">{task.actual_minutes ?? '—'}</div>
             </div>
             <div>
               {/* PROJECTS-UX-1: actual cost — the strongest evidence on the
                   tab (money actually spent per task) — same treatment. */}
-              <div className={themed('font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs', dk)}>actual cost (usd)</div>
-              <div className={themed('text-text-primary font-mono tabular-nums font-bold', dk)}>{task.actual_cost_usd ?? '—'}</div>
+              <div className="font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs">actual cost (usd)</div>
+              <div className="text-text-primary font-mono tabular-nums font-bold">{task.actual_cost_usd ?? '—'}</div>
             </div>
             <div>
               <div className={labelClass}>completed at</div>
-              <div className={themed('text-text-primary', dk)}>{formatDate(task.completed_at)}</div>
+              <div className="text-text-primary">{formatDate(task.completed_at)}</div>
             </div>
           </div>
 
-          <div className={themed('flex items-center gap-2 pt-2 border-t border-border-light', dk)}>
+          <div className="flex items-center gap-2 pt-2 border-t border-border-light">
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onEnterEdit(); }}
-              className={themed('px-2 py-1 border border-border rounded hover:bg-bg-row', dk)}
+              className="px-2 py-1 border border-border rounded hover:bg-bg-row"
             >
               edit
             </button>
@@ -454,7 +452,7 @@ export default function TaskRowView({ surface = 'light',
                 type="button"
                 onClick={onUnarchive}
                 disabled={archiving}
-                className={themed('px-2 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50', dk)}
+                className="px-2 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
               >
                 {archiving ? 'unarchiving…' : 'unarchive'}
               </button>
@@ -463,7 +461,7 @@ export default function TaskRowView({ surface = 'light',
                 type="button"
                 onClick={onArchive}
                 disabled={archiving}
-                className={themed('px-2 py-1 border border-border text-text-muted rounded hover:bg-bg-row disabled:opacity-50', dk)}
+                className="px-2 py-1 border border-border text-text-muted rounded hover:bg-bg-row disabled:opacity-50"
               >
                 {archiving ? 'archiving…' : 'archive'}
               </button>
@@ -481,7 +479,7 @@ export default function TaskRowView({ surface = 'light',
       )}
 
       {editing && (
-        <div className={themed('px-4 py-3 border-t border-border-light text-xs space-y-3', dk)}>
+        <div className="px-4 py-3 border-t border-border-light text-xs space-y-3">
           {error && (
             <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
               {error}
@@ -638,12 +636,12 @@ export default function TaskRowView({ surface = 'light',
             />
           </div>
 
-          <div className={themed('flex items-center gap-2 pt-2 border-t border-border-light', dk)}>
+          <div className="flex items-center gap-2 pt-2 border-t border-border-light">
             <button
               type="button"
               onClick={onSave}
               disabled={saving}
-              className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${dk ? 'border-brand-purple-pop bg-brand-purple-pop' : 'border-brand-purple bg-brand-purple'}`}
+              className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}
             >
               {saving ? 'saving…' : 'save'}
             </button>
@@ -651,7 +649,7 @@ export default function TaskRowView({ surface = 'light',
               type="button"
               onClick={onCancelEdit}
               disabled={saving}
-              className={themed('px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50', dk)}
+              className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
             >
               cancel
             </button>

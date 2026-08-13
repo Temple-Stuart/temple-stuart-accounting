@@ -1,5 +1,5 @@
 'use client';
-import { themed, type Surface } from '@/lib/ds';
+
 /**
  * ScriptGeneratorView — the PURE, props-only render of the day's reel-voiceover
  * script generator (S4 of the content pipeline).
@@ -53,8 +53,7 @@ export interface ScriptGeneratorViewProps {
   onExecNotesChange: (value: string) => void;
 }
 
-export default function ScriptGeneratorView({ surface = 'light',
-  dayAuditPrompt,
+export default function ScriptGeneratorView({ dayAuditPrompt,
   hasPiece,
   disabledReason,
   draft,
@@ -71,13 +70,12 @@ export default function ScriptGeneratorView({ surface = 'light',
   onCopyPrompt,
   onDraftChange,
   onExecNotesChange,
-}: ScriptGeneratorViewProps & { surface?: Surface }) {
-  const dk = surface === 'dark';
+}: ScriptGeneratorViewProps & { }) {
   const words = (draft ?? '').trim() ? (draft as string).trim().split(/\s+/).length : 0;
   const hasScript = draft !== null;
 
   return (
-    <section className={themed('bg-white rounded border border-border p-4 space-y-3', dk)}>
+    <section className="bg-white rounded border border-border p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         {/* CONTENT-UX-1: the dossier anchor (my real day → script) — the
             section's own mechanism line IS the tab's strongest day-log→script
@@ -88,13 +86,13 @@ export default function ScriptGeneratorView({ surface = 'light',
             tier gating are untouched — nothing here implies free generation. */}
         <h2>
           <span className="block text-sm font-medium tracking-wide text-brand-purple">4 · SCRIPT</span>
-          <span className={themed('mt-0.5 block text-2xl lg:text-3xl font-light tracking-tight text-text-primary', dk)}>
+          <span className="mt-0.5 block text-2xl lg:text-3xl font-light tracking-tight text-text-primary">
             the day&rsquo;s answers + task record → reel voiceover
           </span>
         </h2>
         <div className="flex items-center gap-2">
           {hasScript && (
-            <span className={themed('text-xs text-text-muted', dk)}>
+            <span className="text-xs text-text-muted">
               {words} words · ~{readTime(words)} read
             </span>
           )}
@@ -110,16 +108,16 @@ export default function ScriptGeneratorView({ surface = 'light',
         </div>
       </div>
 
-      {disabledReason && <p className={themed('text-xs text-text-muted', dk)}>{disabledReason}</p>}
+      {disabledReason && <p className="text-xs text-text-muted">{disabledReason}</p>}
       {notice && (
-        <div className={themed('text-xs px-3 py-2 rounded border bg-purple-50 border-brand-purple/40 text-text-primary', dk)}>{notice}</div>
+        <div className="text-xs px-3 py-2 rounded border bg-purple-50 border-brand-purple/40 text-text-primary">{notice}</div>
       )}
       {error && (
         <div className="text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">{error}</div>
       )}
 
       {/* DAY-AUDIT helper — run in Claude Code, paste the output below. Always visible. */}
-      <div className={themed('rounded border border-border-light bg-bg-row p-3 space-y-2', dk)}>
+      <div className="rounded border border-border-light bg-bg-row p-3 space-y-2">
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs text-brand-purple font-medium uppercase tracking-wide">
             Day-audit — run this in Claude Code, paste the output below
@@ -134,7 +132,7 @@ export default function ScriptGeneratorView({ surface = 'light',
         </div>
         {/* Content-style-2: the day-audit PROMPT is a code value (pasted into Claude Code) — kept
             monospace, like the rrule input. The surrounding chrome is sans. */}
-        <pre className={themed('font-mono text-[11px] leading-relaxed text-text-muted whitespace-pre-wrap break-words bg-white border border-border-light rounded p-2', dk)}>
+        <pre className="font-mono text-[11px] leading-relaxed text-text-muted whitespace-pre-wrap break-words bg-white border border-border-light rounded p-2">
 {dayAuditPrompt}
         </pre>
       </div>
@@ -144,7 +142,7 @@ export default function ScriptGeneratorView({ surface = 'light',
         <label className="text-xs text-brand-purple font-medium uppercase tracking-wide">
           Execution notes (optional)
         </label>
-        <p className={themed('text-xs text-text-muted', dk)}>
+        <p className="text-xs text-text-muted">
           what actually got built/done today, in your words — the receipts. The script grounds its work claims in this.
         </p>
         <textarea
@@ -153,7 +151,7 @@ export default function ScriptGeneratorView({ surface = 'light',
           rows={4}
           disabled={!hasPiece}
           placeholder={hasPiece ? 'paste the day-audit bullets, or jot the receipts…' : 'start the day’s log first (section 3)'}
-          className={themed('w-full resize-y bg-white border border-brand-purple/40 rounded px-3 py-2 text-xs leading-relaxed text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple disabled:opacity-50', dk)}
+          className="w-full resize-y bg-white border border-brand-purple/40 rounded px-3 py-2 text-xs leading-relaxed text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple disabled:opacity-50"
         />
         <button
           type="button"
@@ -174,7 +172,7 @@ export default function ScriptGeneratorView({ surface = 'light',
             onChange={(e) => onDraftChange(e.target.value)}
             rows={16}
             placeholder="the reel voiceover, scene-tagged…"
-            className={themed('w-full resize-y bg-white border border-brand-purple/40 rounded px-3 py-2 font-mono text-xs leading-relaxed text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple', dk)}
+            className="w-full resize-y bg-white border border-brand-purple/40 rounded px-3 py-2 font-mono text-xs leading-relaxed text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple"
           />
           <div className="flex items-center gap-2">
             <button
@@ -185,7 +183,7 @@ export default function ScriptGeneratorView({ surface = 'light',
             >
               {saving ? 'saving…' : 'save to the day'}
             </button>
-            <span className={themed('text-xs text-text-muted', dk)}>edits are yours — saving overwrites the day&rsquo;s script (every run is logged)</span>
+            <span className="text-xs text-text-muted">edits are yours — saving overwrites the day&rsquo;s script (every run is logged)</span>
           </div>
         </div>
       )}
