@@ -6,10 +6,16 @@
        the TRADE/SKIP verdict rows (ScannerResultsTable.tsx verdict +
        stored RejectionReason), and the strip's COMMIT link chip
        ('IN BOOKS ->', selectTab('books')). -->
-  <!-- Canvas: --ts-bg cream. Cards: --ts-white on --ts-border hairline.
-       Active step: --ts-purple fill, --ts-white ink. Accent: --ts-gold.
-       Text ladder: --ts-text #1a1a2e / --ts-text-secondary #4a4a5a /
-       --ts-text-muted #7a7488 / --ts-text-faint #a8a2b0. -->
+  <!-- Canvas: ts-bg cream. Cards: ts-white on ts-border hairline.
+       Active step: ts-purple fill, ts-white ink. Accent: ts-gold.
+       Text ladder: ts-text #1a1a2e / ts-text-secondary #4a4a5a /
+       ts-text-muted #7a7488 / ts-text-faint #a8a2b0.
+       (Token names drop their CSS custom-property prefix on purpose: this
+       file is parsed as a STANDALONE XML document when it is served to an
+       img tag, and XML forbids a double hyphen inside a comment. Spelling
+       the prefix out made all nine files fail to parse - every frame
+       rendered as alt text on the Preview.)
+       -->
   <rect width="1200" height="750" fill="#FAF8F3"/>
   <text x="60" y="76" font-size="20" font-weight="600" letter-spacing="6" fill="#7a7488">TRADE</text>
 
