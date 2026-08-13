@@ -4376,7 +4376,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
 
 function FilteredResultsSection({ enriched, filters, sentimentMap, rejectionMap, onResetFilters,
   savedCards, savingCards, saveErrors, onSaveCard, onRemoveCard,
-  pipelineProgress,
+  pipelineProgress, onTally,
 }: { enriched: TickerDetail[];
   filters: ScannerFilters;
   sentimentMap?: Record<string, SocialSentimentData>;
@@ -4389,6 +4389,8 @@ function FilteredResultsSection({ enriched, filters, sentimentMap, rejectionMap,
   onRemoveCard: (cardKey: string, savedId: string) => Promise<void>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pipelineProgress: Record<string, any>;
+  /** RESULTS-ANATOMY: the table's derived TRADE/SKIP tally, passed through. */
+  onTally?: (t: { trade: number; skip: number }) => void;
 }) {
   const { passed, filtered, totalStrategies, passedStrategies } = useMemo(
     () => applyFilters(enriched, filters, sentimentMap),
@@ -4452,6 +4454,7 @@ function FilteredResultsSection({ enriched, filters, sentimentMap, rejectionMap,
         onSaveCard={onSaveCard}
         onRemoveCard={onRemoveCard}
         pipelineProgress={pipelineProgress}
+        onTally={onTally}
       />
     </>
   );
@@ -4472,6 +4475,9 @@ interface ConvergenceIntelligenceProps {
    *  (the PipelineFlowPanel header's own fields) + the top_9 count. Reporting
    *  only; absent → identical behavior. */
   onScanMeta?: (meta: { completedAt: string | null; runtimeMs: number | null; results: number }) => void;
+  /** RESULTS-ANATOMY: the results table's derived TRADE/SKIP tally for the
+   *  section kicker. Reporting only. */
+  onResultsTally?: (t: { trade: number; skip: number }) => void;
 }
 
 export default function ConvergenceIntelligence({
@@ -4483,6 +4489,7 @@ export default function ConvergenceIntelligence({
   scanTriggerRef,
   scanningRef,
   onScanMeta,
+  onResultsTally,
 }: ConvergenceIntelligenceProps & { } = {}) {
   // Batch scan state
   const [internalUniverse, setInternalUniverse] = useState('sp500');
@@ -4951,6 +4958,7 @@ export default function ConvergenceIntelligence({
           onSaveCard={saveCard}
           onRemoveCard={removeCard}
           pipelineProgress={pipelineProgress}
+          onTally={onResultsTally}
         />
       )}
       {enriched.length === 1 && (
