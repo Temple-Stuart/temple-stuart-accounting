@@ -5,7 +5,7 @@ import Script from 'next/script';
 import {
   Calendar, Plane, Repeat, FolderKanban, TrendingUp, BookOpen, Receipt, ShieldCheck, Clapperboard, Lock,
   // TRADE-BAND: the trade band-mode icons + the trust-chip check.
-  Check, ClipboardCheck, Crosshair, FlaskConical,
+  Check,
   type LucideIcon,
 } from 'lucide-react';
 import { BAND_BG, SECTION_HEADER, STATE } from '@/lib/ds';
@@ -33,7 +33,11 @@ import TradingDataDisclaimer from '@/components/trading/TradingDataDisclaimer';
 import CoverageDeclaration from '@/components/trading/CoverageDeclaration';
 // TRACK-1: the scanner's public track record (claimed vs actual, honest win rate). Self-fetches
 // /api/trade-cards + /api/trading/coverage.
-import TradeRecord from '@/components/trading/TradeRecord';
+import TradeRecord, { type RecordStats } from '@/components/trading/TradeRecord';
+// PIPE-FRAME-1: the shared frame components (Trade is the first consumer).
+import StageStrip, { type StagePhase } from '@/components/ui/StageStrip';
+import SectionHeader from '@/components/ui/SectionHeader';
+import ProofStrip from '@/components/ui/ProofStrip';
 // TRADE-1: the queue viewer + reconcile/link/grade surface. Mounted BELOW the scanner on
 // the homepage Trade tab so the scan → queue → RECONCILE loop is complete here (was only on
 // standalone /trading). Reused verbatim — no restyle (that is TRADE-2).
@@ -392,8 +396,37 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
 
   const handleFiltersChange = (next: ScannerFilters) => {
     setScannerFilters(next);
+    setTradeFiltersTouched(true);
     try { localStorage.setItem('scanner-filters', JSON.stringify(next)); } catch {}
   };
+
+  // ── PIPE-FRAME-1: the Trade stage strip's derived state. Every phase state
+  //    derives from audited existing state — never hardcoded:
+  //    · SETUP done  ⇐ filters saved before (localStorage 'scanner-filters',
+  //      the :381-385 initializer's own source) or touched this session
+  //      (handleFiltersChange above);
+  //    · SCAN done   ⇐ tradeScanMeta (ConvergenceIntelligence onScanMeta —
+  //      fires on scan completion with its own pipeline_summary fields);
+  //    · REVIEW      ⇐ no "reviewed" event exists in state — DECLARED GAP:
+  //      renders pending unless selected;
+  //    · LAB done    ⇐ tradeRecordStats.linkedCount > 0 (TradeRecord
+  //      computeRecordStats — links are the lab's output);
+  //    · RECORD done ⇐ tradeRecordStats.decidedCount > 0 (graded outcomes).
+  //    Active = the user's selection, initialized from the same localStorage
+  //    presence (saved filters → land on SCAN; fresh user → SETUP). */
+  const [tradePhase, setTradePhase] = useState<'setup' | 'scan' | 'review' | 'lab' | 'record'>(() => {
+    try {
+      return typeof window !== 'undefined' && localStorage.getItem('scanner-filters') ? 'scan' : 'setup';
+    } catch { return 'setup'; }
+  });
+  const [tradeFiltersTouched, setTradeFiltersTouched] = useState<boolean>(() => {
+    try {
+      return typeof window !== 'undefined' && !!localStorage.getItem('scanner-filters');
+    } catch { return false; }
+  });
+  const [tradeScanMeta, setTradeScanMeta] = useState<{ completedAt: string | null; runtimeMs: number | null; results: number } | null>(null);
+  const [tradeRecordStats, setTradeRecordStats] = useState<(RecordStats & { unlinkedClosed: number }) | null>(null);
+  const [tradeCoverage, setTradeCoverage] = useState<{ investment_txn_count: number; earliest_txn_date: string | null; latest_txn_date: string | null } | null>(null);
 
   // ── BOOKS-1: cockpit data layer ───────────────────────────────────────────────
   // The BookkeepingCockpitBar needs 10 props, sourced from three ALREADY-AUTHED,
@@ -982,61 +1015,151 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                     moved directly BELOW the strip (ruled this PR; they stay
                     persistent — outside the strip, every phase — in the
                     quiet idiom), copy byte-identical. */}
-                <ToggleStrip
-                  band
-                  trust={TRADE_TRUST_CHIPS}
-                  modes={([
-                    { key: 'scan', label: 'Scan',
-                      icon: <Crosshair className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />,
-                      headline: 'Find trades worth taking — and get told when to skip.',
-                      panel: (
-                      <div className="mt-3 space-y-6">
-                        {/* Option A — scanner first, reconcile below. Same props the inline branch used. */}
-                        <ScanFilterForm
-                          scannerUniverse={scannerUniverse}
-                          setScannerUniverse={setScannerUniverse}
-                          scannerFilters={scannerFilters}
-                          onFiltersChange={handleFiltersChange}
-                          scanTriggerRef={scanTriggerRef}
-                          showHeader={false}
-                        />
-                        <ConvergenceIntelligence
-                          externalFilters={scannerFilters}
-                          onFiltersChange={handleFiltersChange}
-                          externalUniverse={scannerUniverse}
-                          onUniverseChange={setScannerUniverse}
-                          hideControls={true}
-                          scanTriggerRef={scanTriggerRef}
-                          scanningRef={scanningRef}
-                        />
-                      </div>
-                    ) },
-                    { key: 'lab', label: 'Lab',
-                      icon: <FlaskConical className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />,
-                      headline: 'Grade every trade you take.',
-                      panel: (
-                      <div className="mt-3">
-                        {/* TRADE-1: closes the loop — queue viewer + link-to-reality + grade. Self-fetches
-                            /api/trade-cards + /api/trade-card-links (0 required props, TradeLabPanel.tsx:50). */}
-                        <TradeLabPanel />
-                      </div>
-                    ) },
-                    { key: 'record', label: 'Record',
-                      icon: <ClipboardCheck className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />,
-                      headline: 'Your self-graded track record.',
-                      panel: (
-                      <div className="mt-3">
-                        {/* TRACK-1: the self-graded track record (claimed vs actual). */}
-                        <TradeRecord />
-                      </div>
-                    ) },
-                  ] as ToggleMode[])}
-                />
-                {/* LANG-1 + RISK-1 (TRADE-BAND relocation): the persistent
-                    disclaimer + coverage declaration, now directly below the
-                    strip — same copy, quiet idiom. */}
+                {/* PIPE-FRAME-1: the ratified Pipe Frame — the StageStrip
+                    REPLACES the 3-icon-tab ToggleStrip (one phase control,
+                    never two). Phase→surface: SETUP/SCAN/REVIEW all activate
+                    the existing scan surface (ScanFilterForm + CI, one mount,
+                    ref-coupled as before); LAB → TradeLabPanel; RECORD →
+                    TradeRecord + CoverageDeclaration. ALL surfaces stay
+                    mounted (CSS show/hide — the TRADE-UX-1 survival contract
+                    unchanged). The band keeps its exact copy: the scan
+                    headline + TRADE_TRUST_CHIPS on the ToggleStrip band
+                    anatomy (ToggleStrip.tsx:167-181 shapes, byte-reused); the
+                    lab/record per-phase headlines retire (strings in git
+                    history). COMMIT is the link chip → the existing
+                    selectTab('books') mechanism (:320) — no new routing. */}
+                <div className="rounded-2xl pt-8 px-3 pb-12 sm:pt-10 sm:pb-14" style={{ background: BAND_BG }}>
+                  <h3 className="text-center text-3xl font-bold tracking-tight text-white sm:text-4xl">
+                    Find trades worth taking — and get told when to skip.
+                  </h3>
+                  <div className="mt-4">{TRADE_TRUST_CHIPS}</div>
+                </div>
+                <div className={MODULE_SHELL_CARD}>
+                  <StageStrip
+                    phases={([
+                      { key: 'setup', num: '01', label: 'SETUP',
+                        state: tradePhase === 'setup' ? 'active' : tradeFiltersTouched ? 'done' : 'pending' },
+                      { key: 'scan', num: '02', label: 'SCAN',
+                        state: tradePhase === 'scan' ? 'active' : tradeScanMeta ? 'done' : 'pending' },
+                      { key: 'review', num: '03', label: 'REVIEW',
+                        state: tradePhase === 'review' ? 'active' : 'pending' },
+                      { key: 'lab', num: '04', label: 'LAB',
+                        state: tradePhase === 'lab' ? 'active' : (tradeRecordStats?.linkedCount ?? 0) > 0 ? 'done' : 'pending' },
+                      { key: 'record', num: '05', label: 'RECORD',
+                        state: tradePhase === 'record' ? 'active' : (tradeRecordStats?.decidedCount ?? 0) > 0 ? 'done' : 'pending' },
+                    ] as StagePhase[])}
+                    onSelect={(k) => setTradePhase(k as typeof tradePhase)}
+                    link={{ num: '06', label: 'COMMIT', chip: 'IN BOOKS →', onClick: () => selectTab('books') }}
+                  />
+
+                  {/* 01–03 → the scan surface (one mount, as-is). */}
+                  <div className={['setup', 'scan', 'review'].includes(tradePhase) ? 'block space-y-6' : 'hidden'}>
+                    <SectionHeader
+                      kicker="01 / SCAN CONTROLS"
+                      right={`PHASE ${tradePhase === 'setup' ? '01' : tradePhase === 'scan' ? '02' : '03'} OF 06 — ${tradePhase.toUpperCase()}`}
+                    />
+                    {/* Option A — scanner first, reconcile below. Same props the inline branch used. */}
+                    <ScanFilterForm
+                      scannerUniverse={scannerUniverse}
+                      setScannerUniverse={setScannerUniverse}
+                      scannerFilters={scannerFilters}
+                      onFiltersChange={handleFiltersChange}
+                      scanTriggerRef={scanTriggerRef}
+                      showHeader={false}
+                    />
+                    <SectionHeader
+                      kicker="02 / RESULTS"
+                      right={tradeScanMeta?.completedAt
+                        ? `COMPLETED ${new Date(tradeScanMeta.completedAt).toLocaleTimeString()}${tradeScanMeta.runtimeMs != null ? ` · ${(tradeScanMeta.runtimeMs / 1000).toFixed(1)}S` : ''}`
+                        : undefined}
+                    />
+                    <ConvergenceIntelligence
+                      externalFilters={scannerFilters}
+                      onFiltersChange={handleFiltersChange}
+                      externalUniverse={scannerUniverse}
+                      onUniverseChange={setScannerUniverse}
+                      hideControls={true}
+                      scanTriggerRef={scanTriggerRef}
+                      scanningRef={scanningRef}
+                      onScanMeta={setTradeScanMeta}
+                    />
+                  </div>
+
+                  {/* 04 → the lab. */}
+                  <div className={tradePhase === 'lab' ? 'block space-y-6' : 'hidden'}>
+                    <SectionHeader kicker="01 / TRADE LAB" right="PHASE 04 OF 06 — LAB" />
+                    {/* TRADE-1: closes the loop — queue viewer + link-to-reality + grade. Self-fetches
+                        /api/trade-cards + /api/trade-card-links (0 required props, TradeLabPanel.tsx:50). */}
+                    <TradeLabPanel />
+                  </div>
+
+                  {/* 05 → the record + coverage. */}
+                  <div className={tradePhase === 'record' ? 'block space-y-6' : 'hidden'}>
+                    <SectionHeader kicker="01 / TRACK RECORD" right="PHASE 05 OF 06 — RECORD" />
+                    {/* TRACK-1: the self-graded track record (claimed vs actual). */}
+                    <TradeRecord onStats={setTradeRecordStats} />
+                    <SectionHeader kicker="02 / COVERAGE" />
+                    <CoverageDeclaration onCoverage={setTradeCoverage} />
+                  </div>
+
+                  {/* PIPE-FRAME-1: the receipts rail — values ONLY from the
+                      wired child state above; absent → the honest empty
+                      treatment, never a faked value. */}
+                  <ProofStrip
+                    receipts={[
+                      {
+                        label: 'Last scan',
+                        value: tradeScanMeta?.completedAt
+                          ? `${new Date(tradeScanMeta.completedAt).toLocaleTimeString()}${tradeScanMeta.runtimeMs != null ? ` · ${(tradeScanMeta.runtimeMs / 1000).toFixed(1)}s` : ''}`
+                          : undefined,
+                        sub: 'pipeline timestamp · this session',
+                        emptyLabel: 'no scan yet this session',
+                      },
+                      {
+                        label: 'Results',
+                        value: tradeScanMeta ? String(tradeScanMeta.results) : undefined,
+                        sub: 'top-ranked tickers, last scan',
+                        emptyLabel: 'no scan yet this session',
+                      },
+                      {
+                        label: 'Queued',
+                        value: tradeRecordStats ? String(tradeRecordStats.queuedNotLinked) : undefined,
+                        sub: 'cards without a linked position',
+                        emptyLabel: 'not loaded yet',
+                      },
+                      {
+                        label: 'Realized P&L',
+                        value: tradeRecordStats
+                          ? `${tradeRecordStats.netPl < 0 ? '-' : '+'}$${Math.abs(Math.round(tradeRecordStats.netPl)).toLocaleString('en-US')}`
+                          : undefined,
+                        sub: 'decided linked trades only',
+                        emptyLabel: 'not loaded yet',
+                      },
+                      {
+                        label: 'Win rate',
+                        value: tradeRecordStats && tradeRecordStats.decidedCount > 0
+                          ? `${tradeRecordStats.wins}W–${tradeRecordStats.losses}L–${tradeRecordStats.breakevens}BE`
+                          : undefined,
+                        sub: tradeRecordStats
+                          ? `over ${tradeRecordStats.decidedCount} decided · excludes ${tradeRecordStats.openLinked} open, ${tradeRecordStats.unlinkedClosed} unlinked closed`
+                          : 'denominator: decided linked trades',
+                        emptyLabel: tradeRecordStats ? 'no decided trades yet' : 'not loaded yet',
+                      },
+                      {
+                        label: 'Coverage',
+                        value: tradeCoverage ? `${tradeCoverage.investment_txn_count} txns` : undefined,
+                        sub: tradeCoverage
+                          ? `${(tradeCoverage.earliest_txn_date || '').slice(0, 10)} → ${(tradeCoverage.latest_txn_date || '').slice(0, 10)}`
+                          : 'synced broker window',
+                        emptyLabel: 'not loaded yet',
+                      },
+                    ]}
+                  />
+                </div>
+                {/* LANG-1 (TRADE-BAND relocation): the persistent disclaimer —
+                    same copy, quiet idiom, every phase. (RISK-1's coverage
+                    declaration moved INTO phase 05 per the Pipe Frame.) */}
                 <TradingDataDisclaimer />
-                <CoverageDeclaration />
               </>
             ) : (
               <div>

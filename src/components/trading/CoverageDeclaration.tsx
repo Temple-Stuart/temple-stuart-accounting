@@ -31,7 +31,11 @@ function fmtDate(iso: string | null): string {
   return iso.slice(0, 10);
 }
 
-export default function CoverageDeclaration() {
+export default function CoverageDeclaration({ onCoverage }: {
+  /** PIPE-FRAME-1 (minimal state wiring): fires with the already-fetched
+   *  coverage payload after each successful load. Reporting only. */
+  onCoverage?: (c: Coverage) => void;
+} = {}) {
   // TRADE-DS-1: single-consumer (the ML Trade tab) — always dark.
   const [state, setState] = useState<'loading' | 'error' | 'ok'>('loading');
   const [data, setData] = useState<Coverage | null>(null);
@@ -48,6 +52,9 @@ export default function CoverageDeclaration() {
       const json: Coverage = await res.json();
       setData(json);
       setState('ok');
+      // PIPE-FRAME-1 (minimal state wiring): report the already-fetched
+      // coverage upward. Reporting only; absent → identical.
+      onCoverage?.(json);
     } catch {
       setData(null);
       setState('error');

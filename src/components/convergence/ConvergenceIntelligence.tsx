@@ -4467,6 +4467,11 @@ interface ConvergenceIntelligenceProps {
   hideControls?: boolean;
   scanTriggerRef?: React.MutableRefObject<(() => void) | null>;
   scanningRef?: React.MutableRefObject<boolean>;
+  /** PIPE-FRAME-1 (minimal state wiring): fires once per completed scan with
+   *  values the component ALREADY holds — pipeline_summary timestamp/runtime
+   *  (the PipelineFlowPanel header's own fields) + the top_9 count. Reporting
+   *  only; absent → identical behavior. */
+  onScanMeta?: (meta: { completedAt: string | null; runtimeMs: number | null; results: number }) => void;
 }
 
 export default function ConvergenceIntelligence({
@@ -4477,6 +4482,7 @@ export default function ConvergenceIntelligence({
   hideControls = false,
   scanTriggerRef,
   scanningRef,
+  onScanMeta,
 }: ConvergenceIntelligenceProps & { } = {}) {
   // Batch scan state
   const [internalUniverse, setInternalUniverse] = useState('sp500');
@@ -4733,6 +4739,16 @@ export default function ConvergenceIntelligence({
       const json: BatchResponse = await resp.json();
       setBatchData(json);
       setScanning(false);
+      // PIPE-FRAME-1: report the completed scan's own receipts upward —
+      // the same pipeline_summary fields the PipelineFlowPanel header
+      // renders (:1631-1634) + the top_9 count. Null over invented values.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const psMeta = (pipelineResults as any)?.pipeline_summary;
+      onScanMeta?.({
+        completedAt: psMeta?.timestamp ?? null,
+        runtimeMs: psMeta?.pipeline_runtime_ms ?? null,
+        results: Array.isArray(json.top_9) ? json.top_9.length : 0,
+      });
 
       // Build TickerDetail from pipeline data — single source of truth (no second chain fetch)
       const symbols = json.top_9.map((r: RankedRow) => r.symbol);
