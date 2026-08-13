@@ -78,13 +78,13 @@ import { Fragment, useState } from 'react';
 // PR-DECK-CLEAN-1: the card fragments' checkmark — lucide is the house icon
 // vocabulary (TripHeader.tsx:16 already imports Check).
 // PR-DECK-4CAT: the four category-tab icons join.
-import { Briefcase, Check, Plane, BookOpen, TrendingUp, Settings } from 'lucide-react';
+import { Briefcase, Check, LayoutGrid, Plane, BookOpen, TrendingUp, Settings } from 'lucide-react';
 // PR-DECK-4CAT: the category tabs reuse the ToggleStrip icon-tab idiom
 // (DS.iconTab — the trip.com tab form factor the booking strip wears).
 // REPAINT-2 → REPAINT-3: cards are flat white/cream + hairline; the local
 // iconTabLight twin was PROMOTED into ds.iconTab (REPAINT-3 — one tab idiom
 // again), so the shared import returns.
-import { iconTab } from '@/lib/ds';
+import { DATA, iconTab } from '@/lib/ds';
 import { TAB_PRICING } from '@/config/pricing-costs';
 import {
   ALLOCATION_ROWS, NO_COST_STRIP,
@@ -588,9 +588,15 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
   // partition the nine cards; the active tab mounts ONLY its moduleIds
   // cards, in category order (the flatMap idiom kept from the retired
   // persona filter), laid out as a static grid — no rail, no scroll state.
-  const [categoryKey, setCategoryKey] = useState('travel');
-  const category = DECK_CATEGORIES.find((c) => c.key === categoryKey)!;
-  const deckCards = category.moduleIds.flatMap((id) => PILLAR_CARDS.filter((p) => p.id === id));
+  // DECK-TABLE: 'all' is the resting state — the full nine-row catalog
+  // (declared addition); a category tab narrows the rows through the SAME
+  // moduleIds wiring. Presentation state only — commerce wiring untouched.
+  const [categoryKey, setCategoryKey] = useState('all');
+  const category = DECK_CATEGORIES.find((c) => c.key === categoryKey);
+  const deckCards =
+    categoryKey === 'all'
+      ? PILLAR_CARDS
+      : (category?.moduleIds ?? []).flatMap((id) => PILLAR_CARDS.filter((p) => p.id === id));
 
   // LOBBY-DECK-1b: the demo modal — only reachable when DEMO_VIDEO_URL is set
   // (the hero button that opens it renders only then).
@@ -821,12 +827,24 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             </div>
           </div>
 
-          {/* PR-DECK-4CAT: the category tab row — the ToggleStrip icon-tab
-              idiom (DS.iconTab, ToggleStrip.tsx icon path) above the deck.
-              A tab mounts ONLY its category's cards in the grid below.
+          {/* PR-DECK-4CAT → DECK-TABLE: the category tab row — the
+              ToggleStrip icon-tab idiom (DS.iconTab) above the catalog.
+              A tab FILTERS the table rows below; the leading All tab
+              (declared addition) is the default full-catalog view.
               Client state only — commerce wiring and selection state
               untouched. */}
           <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5" role="group" aria-label="Module categories">
+            <button
+              type="button"
+              onClick={() => setCategoryKey('all')}
+              aria-pressed={categoryKey === 'all'}
+              className={iconTab(categoryKey === 'all')}
+            >
+              <span aria-hidden="true" className={categoryKey === 'all' ? 'text-brand-purple' : undefined}>
+                <LayoutGrid className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+              </span>
+              <span className="w-min whitespace-normal text-center leading-tight">All</span>
+            </button>
             {DECK_CATEGORIES.map((c) => (
               <button
                 key={c.key}
@@ -887,131 +905,64 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
               </div>
             </div>
           ) : (
-          <div
-            role="group"
-            aria-label="The nine pillars"
-            className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 items-stretch"
-          >
-            {deckCards.map((p) => {
-              const pricing = p.entitlementKey ? pricingByKey.get(p.entitlementKey) : undefined;
-              const available = p.entitlementKey ? entitlementAvailability[p.entitlementKey] === true : false;
-              return (
-                // DECKS-3 (ruling 2): the selection slide carries the
-                // commerce (flat white card since REPAINT-2). PR-DECK-CLEAN-1 (Alex,
-                // from live comparison vs resend/plaid/stripe pricing: "too
-                // much text — even I'm confused"): the card is the 5-part
-                // scannable structure and NOTHING else — name, the one plain
-                // line, checkmark fragments, the price slot (PRICE-1/2
-                // states, logic untouched), the actions. Evicted — preserved
-                // on /modules/<id> (showcase decks + TAB_DESCRIPTORS render
-                // there; PAID_* specifics = modulePillars.ts accessNote): the
-                // descriptor paragraph, the multi-sentence bullet blocks, the
-                // "Unlocks …"/access-label prose, and the "Module" eyebrow
-                // chip. PR-DECK-CLEAN-2 (Alex: "cards uneven, too big"):
-                // UNIFORM anatomy — exactly 3 fragments, the divider+price+
-                // actions stack bottom-pinned (mt-auto) so no ragged bottoms;
-                // one step tighter (p-4/p-5, h3 text-lg/xl, subtitle text-xs).
-                // PR-DECK-CLEAN-3 ("cards still uneven"): LOCKED anatomy — no
-                // content variance moves a shared line. Subtitle = a fixed
-                // 2-line block (line-clamp-2 + min-h-8); price <p> = min-h-10
-                // (the 2-line green free-travel case). Bullets are 3×1 line
-                // (≤6-word fragments). With items-stretch equalizing card
-                // heights, every divider/price/action row sits at identical y.
-                // The dim suffix died with the remove-not-dim ruling.
-                // PR-DECK-4CAT: the slide became a GRID CELL — the rail width
-                // classes (w-[80%]/sm:w-[46%]/lg:w-[32%] + snap) died; the
-                // grid tracks size the cards. Every other class unchanged
-                // (REPAINT-2: flat white + hairline replaced the glow).
-                // The persona value line retired with the filter.
-                <article
-                  key={p.id}
-                  className="flex flex-col overflow-hidden rounded-lg border border-border bg-white p-4 text-text-primary sm:p-5"
-                >
-                  <h3 className="text-lg font-light tracking-tight sm:text-xl">{p.label}</h3>
-                  {/* LAND-MSG-1: the plain-English outcome line — the card's
-                      ONE subtitle (structure slot 2), locked to 2 lines. */}
-                  <p className="mt-1 min-h-8 text-xs font-medium text-text-secondary line-clamp-2">{p.plain}</p>
-                  {/* Slot 3: the checkmark fragments — lucide Check, the house
-                      icon vocabulary (TripHeader.tsx:16 precedent). */}
-                  <ul className="mt-2.5 mb-4 max-w-xl space-y-1">
-                    {p.bullets.map((b, i) => (
-                      <li key={i} className="flex items-start gap-2 text-xs leading-relaxed text-text-secondary">
-                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-text-muted" strokeWidth={2.5} aria-hidden="true" />
-                        {b}
-                      </li>
-                    ))}
-                  </ul>
-
-                  {/* Slot 4 — PRICE-1/2's states, LOGIC UNTOUCHED: green
-                      free-travel line on Travel; real price when config +
-                      Stripe env exist; "price shown at checkout" when only
-                      the env exists; "Launching soon" otherwise. The prose
-                      line that sat under it ("Unlocks …"/access label) was
-                      evicted — the fragments above carry those claims.
-                      PR-DECK-CLEAN-2: mt-auto pins the divider+price+actions
-                      stack to the card floor — consistent positions, no
-                      ragged bottoms. */}
-                  <div className="mt-auto max-w-xl border-t border-border pt-3">
-                    {/* PR-DECK-CLEAN-3: min-h-10 reserves the 2-line green
-                        free-travel height on every card — identical price-
-                        slot height, identical divider y. States inside are
-                        byte-identical (pricing logic untouched). REPAINT-2:
-                        the price numeral is a GOLD money number. */}
-                    <p className="min-h-10 font-mono text-sm font-bold text-brand-gold">
-                      {p.id === 'travel' ? (
-                        <span className="text-xs font-normal text-brand-green">
-                          Free today — search and book, no sign-up.
-                        </span>
-                      ) : pricing && pricing.monthlyPrice !== null ? (
-                        <>${pricing.monthlyPrice}<span className="text-xs font-normal text-text-faint">/mo</span></>
-                      ) : available ? (
-                        <span className="text-xs font-normal italic text-text-faint" title="Stripe shows the real price at checkout">
-                          price shown at checkout
-                        </span>
-                      ) : (
-                        <span className="text-xs font-normal text-text-muted">Launching soon</span>
-                      )}
-                    </p>
-                  </div>
-
-                  {/* DECKS-3 (ruling 3) × PRICE-1: selectable ONLY when a real
-                      checkout exists — an unpriced slide in the cart would put
-                      un-buyable items behind "Continue". */}
-                  {available && (
-                    <label className="mt-3 flex cursor-pointer items-center gap-2 self-start font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary transition-colors hover:text-text-primary">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(p.id)}
-                        onChange={() => toggleSelected(p.id)}
-                        className="h-3.5 w-3.5 accent-brand-purple"
-                        aria-label={`Add ${p.label} to plan`}
-                      />
-                      Add to plan
-                    </label>
-                  )}
-
-                  {/* PR-DECK-CLEAN-2: the price block above owns the bottom
-                      pin (mt-auto); the actions keep a fixed gap under it. */}
-                  <div className="mt-3 flex flex-wrap items-center gap-3">
-                    {p.entitlementKey && available && (
-                      <button
-                        type="button"
-                        onClick={() => onBuyModule(p.entitlementKey as string)}
-                        className="inline-block bg-brand-gold px-4 py-1.5 text-xs font-medium text-white hover:bg-brand-gold/90"
-                      >
-                        Select →
-                      </button>
-                    )}
-                    <Link
-                      href={`/modules/${p.id}`}
-                      className="inline-block border border-brand-purple/40 px-4 py-1.5 text-xs font-medium text-brand-purple hover:bg-brand-purple-wash"
-                    >
-                      Explore →
-                    </Link>
-                  </div>
-                </article>
-              );
-            })}
+          /* DECK-TABLE (Alex's ruling): the card grid became the Direction-C
+             catalog table — the toggler FILTERS the rows (same moduleIds
+             wiring, presentation state only). Copy is PILLAR_CARDS
+             byte-exact (label + plain); STATUS carries the two ruled labels;
+             the → column is the existing per-module Explore affordance,
+             aria-labeled. SUPERSESSION (declared): the per-card Select /
+             Add-to-plan bundle affordances retired with the cards — the
+             bundle bar + calculator strip below survive byte-identical, and
+             buy affordances return to rows when real prices exist. Table
+             chrome = the DATA vocabulary (ds.ts) on cream: white card,
+             lavender hairlines, zebra rows, wash hover. */
+          <div role="group" aria-label="The nine pillars" className="mt-4 overflow-x-auto rounded-lg border border-border bg-white">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left">
+                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>No</th>
+                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Module</th>
+                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Category</th>
+                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>In its own words</th>
+                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Status</th>
+                  <th className="px-3 py-2">
+                    <span className="sr-only">Explore</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {deckCards.map((p) => {
+                  // The catalog number is the module's seat in PILLAR_CARDS
+                  // (funnel order) — stable under filtering.
+                  const no = String(PILLAR_CARDS.findIndex((x) => x.id === p.id) + 1).padStart(2, '0');
+                  const cat = DECK_CATEGORIES.find((c) => (c.moduleIds as readonly string[]).includes(p.id));
+                  return (
+                    <tr key={p.id} className="odd:bg-bg-row transition-colors hover:bg-brand-purple-wash/40">
+                      <td className="px-3 py-2.5 font-mono text-xs text-text-faint">{no}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5 font-semibold text-brand-purple">{p.label}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[10px] uppercase tracking-wider text-text-muted">{cat?.label}</td>
+                      <td className="px-3 py-2.5 text-xs leading-relaxed text-text-secondary">{p.plain}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5">
+                        {p.id === 'travel' ? (
+                          <span className="font-mono text-[10px] font-semibold text-brand-purple">LIVE — FREE</span>
+                        ) : (
+                          <span className="font-mono text-[10px] uppercase tracking-wider text-text-muted">Launching soon</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 text-right">
+                        <Link
+                          href={`/modules/${p.id}`}
+                          aria-label={`Explore ${p.label}`}
+                          className="font-mono text-sm font-medium text-brand-purple hover:text-brand-purple-hover"
+                        >
+                          →
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
           )}
 
