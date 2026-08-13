@@ -59,8 +59,8 @@ const config: Config = {
           faint: 'var(--ts-text-faint)',           // #a8a2b0
         },
         border: {
-          DEFAULT: 'rgb(var(--ts-border) / <alpha-value>)',       // #e2e0da
-          light: 'rgb(var(--ts-border-light) / <alpha-value>)',   // #f0eee9
+          DEFAULT: 'rgb(var(--ts-border) / <alpha-value>)',       // #DDD6E8 lavender hairline (SLICE-1; was #e2e0da)
+          light: 'rgb(var(--ts-border-light) / <alpha-value>)',   // #EBE4F7 (SLICE-1; was #f0eee9)
         },
         // PALETTE-OVERHAUL: the idea-state status trio (ADDITIVE — the legacy
         // brand.green/red/amber utilities are untouched; tokens in globals.css).

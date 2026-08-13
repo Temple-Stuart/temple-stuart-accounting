@@ -63,9 +63,12 @@
   --ts-text-muted:     #7a7488;
   --ts-text-faint:     #a8a2b0;
 
-  /* Borders (unchanged values, now named) */
-  --ts-border:       226 224 218;  /* #e2e0da */
-  --ts-border-light: 240 238 233;  /* #f0eee9 */
+  /* Borders — SLICE-1 HAIRLINE: the Direction-C lavender hairline (nav
+     border-bottom + section rules in the locked design). The light sibling
+     keeps the current relative step: #e2e0da→#f0eee9 was (+14,+14,+15) RGB
+     (+5.6pp lightness); the same step above #DDD6E8 gives #EBE4F7. */
+  --ts-border:       221 214 232;  /* #DDD6E8 (was #e2e0da) */
+  --ts-border-light: 235 228 247;  /* #EBE4F7 (was #f0eee9) */
 
   /* Status (unchanged brand values, now named) */
   --ts-green: 22 163 74;    /* #16a34a */
