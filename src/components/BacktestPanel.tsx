@@ -272,7 +272,7 @@ function TradeLog({ result }: { result: BacktestResult }) {
         {result.trades.length > 20 && (
           <button
             onClick={() => setExpanded(!expanded)}
-            className="w-full text-[10px] text-blue-400 hover:text-blue-300 py-1 border-t border-border"
+            className="w-full text-[10px] text-brand-purple hover:text-brand-purple-hover py-1 border-t border-border"
           >
             {expanded ? 'Show less' : `Show all ${result.trades.length} trades`}
           </button>
@@ -482,7 +482,7 @@ export default function BacktestPanel({ symbol, card, onClose }: BacktestPanelPr
               </div>
               <button
                 onClick={checkAvailability}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded"
+                className="px-6 py-2 bg-brand-purple hover:bg-brand-purple-hover text-white text-sm font-medium rounded"
               >
                 Check Availability
               </button>
@@ -492,7 +492,7 @@ export default function BacktestPanel({ symbol, card, onClose }: BacktestPanelPr
           {/* Checking */}
           {state.status === 'checking' && (
             <div className="flex items-center justify-center py-12 gap-2 text-text-faint text-sm">
-              <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-4 h-4 border-2 border-brand-purple border-t-transparent rounded-full animate-spin" />
               Checking {symbol} backtest availability...
             </div>
           )}
@@ -527,7 +527,7 @@ export default function BacktestPanel({ symbol, card, onClose }: BacktestPanelPr
               <div className="flex gap-3">
                 <button
                   onClick={runBacktest}
-                  className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded"
+                  className="px-6 py-2 bg-brand-purple hover:bg-brand-purple-hover text-white text-sm font-medium rounded"
                 >
                   Run Backtest
                 </button>
@@ -544,7 +544,7 @@ export default function BacktestPanel({ symbol, card, onClose }: BacktestPanelPr
           {/* Running */}
           {state.status === 'running' && (
             <div className="flex flex-col items-center justify-center py-12">
-              <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4" />
+              <div className="w-8 h-8 border-2 border-brand-purple border-t-transparent rounded-full animate-spin mb-4" />
               <div className="text-sm text-text-faint">Running backtest for {symbol}...</div>
               <div className="text-[10px] text-text-secondary mt-2">
                 Testing {card.name} from {startDate} to {endDate} ({dte} DTE entries)
@@ -574,7 +574,7 @@ export default function BacktestPanel({ symbol, card, onClose }: BacktestPanelPr
                 />
                 <button
                   onClick={runBacktest}
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded"
+                  className="px-6 py-2 bg-brand-purple hover:bg-brand-purple-hover text-white text-sm font-medium rounded"
                 >
                   Re-run with New Settings
                 </button>

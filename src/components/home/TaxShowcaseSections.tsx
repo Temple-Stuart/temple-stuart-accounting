@@ -309,7 +309,7 @@ export function TradingPanel() {
   return (
     <DarkSlide title="Form 8949 — every box explained">
       <div className="space-y-1 text-text-secondary">
-        <p><span className="rounded bg-blue-600 px-1 font-bold text-white">A</span> <span className="text-white">Box A</span> · 1 entry <span className="rounded border border-brand-amber/40 bg-brand-amber/10 px-1 text-[9px] font-bold text-brand-amber">W × 1</span></p>
+        <p><span className="rounded bg-brand-purple px-1 font-bold text-white">A</span> <span className="text-white">Box A</span> · 1 entry <span className="rounded border border-brand-amber/40 bg-brand-amber/10 px-1 text-[9px] font-bold text-brand-amber">W × 1</span></p>
         <p className="text-text-faint">Short-term transactions reported on Form 1099-B showing basis was reported to the IRS</p>
         <p className="border-t border-border pt-1">
           <span className="text-text-primary">{EX_8949.description}</span> <span className="text-text-faint">{EX_8949.acquired} → {EX_8949.sold}</span>

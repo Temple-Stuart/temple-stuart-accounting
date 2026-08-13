@@ -321,7 +321,7 @@ export default function AccountTaxMappings({ surface = 'light',
             <select
               value={selectedEntityId ?? ''}
               onChange={(e) => setSelectedEntityId(e.target.value || null)}
-              className={themed('px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500', dk)}
+              className={themed('px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-brand-purple', dk)}
             >
               {entities.map((e) => (
                 <option key={e.id} value={e.id}>
@@ -403,7 +403,7 @@ export default function AccountTaxMappings({ surface = 'light',
                         <select
                           value={currentCode}
                           onChange={(e) => onLineChange(acct, e.target.value)}
-                          className={themed('w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500', dk)}
+                          className={themed('w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-brand-purple', dk)}
                         >
                           <option value={UNMAPPED_VALUE}>
                             — Unmapped (Line 27a default) —
@@ -435,7 +435,7 @@ export default function AccountTaxMappings({ surface = 'light',
                               (e.target as HTMLInputElement).blur();
                             }
                           }}
-                          className={themed('w-16 px-1.5 py-0.5 text-xs text-right font-mono border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400', dk)}
+                          className={themed('w-16 px-1.5 py-0.5 text-xs text-right font-mono border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-brand-purple disabled:bg-gray-100 disabled:text-gray-400', dk)}
                         />
                       </td>
                       <td className="px-3 py-2 text-right text-xs">

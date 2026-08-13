@@ -674,7 +674,7 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
                 {profile.includeFoods && (
                   <>
                     <div className="text-text-muted">Include:</div>
-                    <div className="font-medium text-emerald-700">{profile.includeFoods}</div>
+                    <div className="font-medium text-brand-purple">{profile.includeFoods}</div>
                   </>
                 )}
               </div>
@@ -716,7 +716,7 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
           <button 
             onClick={generatePlan} 
             disabled={loading}
-            className="flex-1 px-4 py-2 text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50"
+            className="flex-1 px-4 py-2 text-sm font-medium bg-brand-purple text-white hover:bg-brand-purple-hover transition-colors disabled:opacity-50"
           >
             {loading ? 'Generating Plan...' : `Generate ${mealsToPlan}-Meal Plan`}
           </button>
