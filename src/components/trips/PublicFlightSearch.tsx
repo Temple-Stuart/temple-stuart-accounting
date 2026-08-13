@@ -230,7 +230,7 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
   const commitLeg = async (legId: string) => {
     if (authed !== true) { onRequireAuth(); return; }
     if (!currentTrip) {
-      updateLeg(legId, { error: 'Pick or create a trip above first, then save this flight to it.' });
+      updateLeg(legId, { error: 'Pick or create a trip in Your Trips first, then save this flight to it.' });
       return;
     }
     const leg = legs.find(l => l.id === legId);

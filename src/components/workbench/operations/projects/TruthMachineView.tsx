@@ -314,7 +314,7 @@ export default function TruthMachineView({ project,
       </div>
       {pipeQueued && (
         <div className="px-1 text-[11px] text-gray-500">
-          Running research → fusion automatically. New tasks will appear below as <span className="text-purple-800 font-medium">pending review</span> — accept or reject each when they land. Refresh to check progress.
+          Running research → audit → fusion automatically. New tasks will appear below as <span className="text-purple-800 font-medium">pending review</span> — accept or reject each when they land. Progress is checked automatically every 5 seconds (gives up after 5 minutes).
         </div>
       )}
       {pipeError && <div className="px-1 text-[11px] text-red-600">{pipeError}</div>}
@@ -387,15 +387,15 @@ export default function TruthMachineView({ project,
 
       {/* 3 · AUDIT */}
       <Stage n={3} label="audit" color={STRIPE.audit} badge="paste" badgeTone="paste">
-        <div className="text-gray-500 text-[11px]">Copy this prompt → run it in Claude Code (read-only) → paste the findings into the output below. (Phase 3 automates this.)</div>
+        <div className="text-gray-500 text-[11px]">Runs automatically when you run the pipe — the audit Routine fires with the run and its findings land here. Working step-by-step instead? Copy this prompt → run it in Claude Code (read-only) → paste the findings into the output below.</div>
         <PromptBox segments={prompts?.audit.segments} copyText={prompts?.audit.text} loading={promptsLoading} />
         <div className="flex justify-center text-gray-300 text-xs leading-none">↓ output</div>
         <div>
-          <div className={sub}>audit output (claude_code_audit_input — paste; Phase 3 auto-fills here)</div>
+          <div className={sub}>audit output (claude_code_audit_input — auto-filled by the pipe run; paste here when working step-by-step)</div>
           <textarea
             value={auditInput}
             onChange={(e) => onAuditInputChange(e.target.value)}
-            placeholder="Paste Claude Code audit findings here… (Phase 3 will populate this automatically)"
+            placeholder="Auto-filled when the pipe runs — or paste Claude Code audit findings here."
             rows={5}
             className={outputTextarea}
           />
