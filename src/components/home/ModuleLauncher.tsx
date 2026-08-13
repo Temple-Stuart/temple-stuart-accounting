@@ -4,11 +4,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Script from 'next/script';
 import {
   Calendar, Plane, Repeat, FolderKanban, TrendingUp, BookOpen, Receipt, ShieldCheck, Clapperboard, Lock,
-  // TRADE-BAND: the trade band-mode icons + the trust-chip check.
-  Check,
   type LucideIcon,
 } from 'lucide-react';
-import { BAND_BG, SECTION_HEADER, STATE } from '@/lib/ds';
+import { SECTION_HEADER, STATE } from '@/lib/ds';
 import CreateTripForm from '@/components/trips/CreateTripForm';
 import TripBookings from '@/components/trips/TripBookings';
 import UnattachedBookings from '@/components/trips/UnattachedBookings';
@@ -19,7 +17,7 @@ import HubCalendar from '@/components/hub/HubCalendar';
 import RunwayDataProvider from '@/components/hub/RunwayDataProvider';
 import RunwayBudgetPanel from '@/components/hub/RunwayBudgetPanel';
 import MatchReviewSection from '@/components/hub/MatchReviewSection';
-import { travelStripModes, TRAVEL_TRUST_CHIPS } from '@/components/trips/travelStripModes';
+import { travelStripModes } from '@/components/trips/travelStripModes';
 import PublicCategorySearch from '@/components/trips/PublicCategorySearch';
 import { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS } from '@/components/trips/travelSection';
 import { HOMEPAGE_PAID_CATEGORIES } from '@/lib/categoryKeys';
@@ -132,113 +130,21 @@ const TABS: { key: string; label: string; icon: LucideIcon }[] = [
   { key: 'tax',        label: 'Tax',        icon: Receipt },
   { key: 'compliance', label: 'Compliance', icon: ShieldCheck },
 ];
-// TRADE-BAND: one trust chip — check + a short verified fact, mirroring the
-// travel strip's TrustChip (travelStripModes.tsx:68-75) exactly: white/80
-// check on the band.
-function TradeTrustChip({ fact }: { fact: string }) {
-  return (
-    <span className="flex items-center gap-1">
-      <Check className="h-3.5 w-3.5 shrink-0 text-white/80" strokeWidth={2.5} aria-hidden="true" />
-      {fact}
-    </span>
-  );
-}
+// ONE-BAND: the per-tab module band cards RETIRED from the tab sections — the
+// hero above the tab bar is the module band now (HomeClient reads the same
+// copy from the MODULE_BANDS leaf, src/lib/moduleBands.ts — the strings moved
+// there verbatim, still lockstep with the deck's PILLAR_CARDS). ModuleBand /
+// TradeTrustChip / TRADE_TRUST_CHIPS deleted with their last consumers
+// (strings + anatomy in git history).
 
-// TRADE-BAND: the trade band's trust row — VERIFIED FACTS ONLY, the
-// TRAVEL_TRUST_CHIPS shape verbatim (travelStripModes.tsx:92-102). Per-chip
-// basis: live TastyTrade prices (tastytrade.ts client + api/tastytrade/
-// quotes), broker sync (api/tastytrade/positions — the coverage declaration
-// beneath states exactly what synced), trades commit to the ledger
-// (api/trading/commit-to-ledger), and the LANG-1 data-not-advice stance
-// (TradingDataDisclaimer, mounted below this band).
-const TRADE_TRUST_CHIPS = (
-  <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 font-mono text-[11px] text-white/80">
-    <TradeTrustChip fact="Live prices from TastyTrade" />
-    <span className="text-white/30" aria-hidden="true">|</span>
-    <TradeTrustChip fact="Synced from your broker" />
-    <span className="text-white/30" aria-hidden="true">|</span>
-    <TradeTrustChip fact="Every trade lands in your books" />
-    <span className="text-white/30" aria-hidden="true">|</span>
-    <TradeTrustChip fact="Data, not advice" />
-  </div>
-);
-
-// MODULE-BANDS: the static band — every module tab opens like the home page.
-// The ToggleStrip band anatomy (ToggleStrip.tsx:169-177) WITHOUT the mode
-// tabs: these modules have no mode state to hoist (SHOT-READY audit). pb-6 =
-// BAND-FAT's own visible-apron math (ToggleStrip.tsx:165-168: apron = pb −
-// card overlap = 24px; no floating card here, so pb-6 IS that same 24px).
-// Chips reuse the TradeTrustChip idiom + separators byte-exact. Renders ABOVE
-// each section's lock gate BY RULING — the pitch shows even when locked.
-// SHELL-CONNECT: the apron went DEEP (pb-6 → pb-12 sm:pb-14, ToggleStrip.tsx:169
-// verbatim) because the content card now pulls up INTO it (MODULE_SHELL_CARD's
-// -mt-6 sm:-mt-8 — the strip's :178 overlap), leaving the same 24px visible.
-function ModuleBand({ plain, bullets }: { plain: string; bullets: readonly [string, string, string] }) {
-  return (
-    <div className="rounded-2xl pt-8 px-3 pb-12 sm:pt-10 sm:pb-14" style={{ background: BAND_BG }}>
-      <h3 className="text-2xl sm:text-3xl font-bold text-white text-center">{plain}</h3>
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 font-mono text-[11px] text-white/80">
-        <TradeTrustChip fact={bullets[0]} />
-        <span className="text-white/30" aria-hidden="true">|</span>
-        <TradeTrustChip fact={bullets[1]} />
-        <span className="text-white/30" aria-hidden="true">|</span>
-        <TradeTrustChip fact={bullets[2]} />
-      </div>
-    </div>
-  );
-}
-
-// MODULE-BANDS copy — byte-exact lockstep copies of the deck's PILLAR_CARDS
-// (Landing.tsx:241-318): each card's `plain` = the headline, its 3 `bullets`
-// = the ✓ chips. ZERO new strings; a copy change in the deck re-fires here.
-const MODULE_BANDS = {
-  // TRADE-BAND-WHEN-LOCKED: used ONLY in the locked branch — unlocked keeps
-  // its ToggleStrip band (mounting this above the ternary would double the
-  // pitch for unlocked viewers; the locked-arm mount is the smaller diff AND
-  // keeps the unlocked markup byte-identical).
-  trade: {
-    plain: 'Find trades worth taking — and get told when to skip.',
-    bullets: ['Scanner on live market data', 'Trading journal & realized P&L', 'Eighteen controls, sixteen strategies'],
-  },
-  runway: {
-    plain: 'See how many months your money lasts.',
-    bullets: ['Every system you’re juggling', 'Burn: Personal vs. Business', 'Strays surfaced, never dropped'],
-  },
-  routines: {
-    plain: 'Set up a habit once — it lands on your calendar and your budget.',
-    bullets: ['Build once, shows up everywhere', 'Executable steps you actually run', 'What’s due, done, slipped'],
-  },
-  projects: {
-    plain: 'Type a goal — get a plan you can actually run.',
-    bullets: ['Goals in, audited tasks out', 'AI planning pipeline', 'Capped at 20 runs/day'],
-  },
-  content: {
-    plain: 'Turn what you did today into a ready-to-film script.',
-    bullets: ['Your day becomes the script', 'Every step: shot, question, purpose', 'AI script generation (paid)'],
-  },
-  books: {
-    plain: 'Know where every dollar went — synced straight from your bank.',
-    bullets: ['Plaid bank sync', 'Double-entry journal & ledger', 'Hand your CPA a package'],
-  },
-  tax: {
-    plain: 'Your return builds itself from your records.',
-    bullets: ['1040 estimate from closed books', 'Wash sales + Form 8949', 'CPA export'],
-  },
-  compliance: {
-    plain: 'Every number keeps its receipt — proof you can show later.',
-    bullets: ['Regulatory corpus search', 'Citation verification', 'Tamper-evident audit registry'],
-  },
-} as const;
-
-// SHELL-CONNECT: the straddle card — every module body wears the trade/travel
-// band+card anatomy (ToggleStrip.tsx:169/:178/:85). space-y-6 lives INSIDE the
-// card (a space-y PARENT would out-specificity the -mt pull and kill the
-// overlap); each band+card pair rides in one plain <div> for the same reason.
+// SHELL-CONNECT → ONE-BAND: the shell card no longer straddles a band — the
+// -mt pull (the ToggleStrip :178 overlap) retired with the bands; each tab's
+// content now starts flush at this card. space-y-6 lives INSIDE the card.
 // APP-GLOW → REPAINT-3: the glow standing-law inverted under Direction C —
 // the shell card is FLAT card-cream + lavender hairline (MODULE_SHELL_STYLE
 // died with ds.CARD_BG).
 const MODULE_SHELL_CARD =
-  'relative -mt-6 sm:-mt-8 rounded-xl border border-border bg-ts-white p-4 sm:p-5 space-y-6';
+  'rounded-xl border border-border bg-ts-white p-4 sm:p-5 space-y-6';
 
 // Which tab each module section belongs to — 1:1, every module its own tab (the
 // calendar is its own 'calendar' tab, rendered separately).
@@ -801,9 +707,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       {authed === true && (
         <section className={`w-full bg-bg-terminal border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto">
-            {/* MODULE-BANDS: the deck's own words open the tab. */}
             <div className="px-4 py-4">
-              <ModuleBand {...MODULE_BANDS.runway} />
               <div className={MODULE_SHELL_CARD}>
             {/* RUNWAY-UX-1 (order ruling, audit-decided shape b): hero → budget
                 tables → calendar. The zero-date HERO STRIP is the tab's
@@ -835,7 +739,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           <div className="max-w-7xl mx-auto">
             <div className="px-4 py-4 space-y-6">
               <div>
-                <ModuleBand {...MODULE_BANDS.runway} />
                 <div className={MODULE_SHELL_CARD}>
                   {/* MOD-2: the Runway deck lives at /modules/runway — the guest tab
                       points there instead of mounting it. */}
@@ -880,11 +783,10 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 Premium as a sixth chip. Every panel keeps its exact props/handlers
                 from the old stacked layout — composition-only, zero logic change. */}
             <ToggleStrip
-              // PR-STRIP-DESIGN-2: the same band composition the landing
-              // strip wears — one shared component, both surfaces inherit.
-              // PR-STRIP-DESIGN-3: + the shared verified trust chips.
-              band
-              trust={TRAVEL_TRUST_CHIPS}
+              // ONE-BAND: the band + trust props retired (the LandingBookingSection
+              // V5 precedent — the strip renders its plain card form; per-mode
+              // explainers move in-card via ToggleStrip's own !band arm). The
+              // travel pitch now lives in the hero band above the tab bar.
               modes={([
                 // PR-ELEV-1: the 8 shared travel modes (5 live + 3 "Soon") from
                 // the ONE builder both surfaces consume — same keys, same
@@ -952,7 +854,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 lg:px-8 space-y-6">
             <div>
-              <ModuleBand {...MODULE_BANDS.routines} />
               <div className={MODULE_SHELL_CARD}>{renderBody(routinesModule)}</div>
             </div>
           </div>
@@ -965,7 +866,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 lg:px-8 space-y-6">
             <div>
-              <ModuleBand {...MODULE_BANDS.projects} />
               <div className={MODULE_SHELL_CARD}>{renderBody(projectsModule)}</div>
             </div>
           </div>
@@ -978,7 +878,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 lg:px-8 space-y-6">
             <div>
-              <ModuleBand {...MODULE_BANDS.content} />
               <div className={MODULE_SHELL_CARD}>{renderBody(contentModule)}</div>
             </div>
           </div>
@@ -1025,18 +924,14 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                     ref-coupled as before); LAB → TradeLabPanel; RECORD →
                     TradeRecord + CoverageDeclaration. ALL surfaces stay
                     mounted (CSS show/hide — the TRADE-UX-1 survival contract
-                    unchanged). The band keeps its exact copy: the scan
-                    headline + TRADE_TRUST_CHIPS on the ToggleStrip band
-                    anatomy (ToggleStrip.tsx:167-181 shapes, byte-reused); the
-                    lab/record per-phase headlines retire (strings in git
-                    history). COMMIT is the link chip → the existing
-                    selectTab('books') mechanism (:320) — no new routing. */}
-                <div className="rounded-2xl pt-8 px-3 pb-12 sm:pt-10 sm:pb-14" style={{ background: BAND_BG }}>
-                  <h3 className="text-center text-3xl font-bold tracking-tight text-white sm:text-4xl">
-                    Find trades worth taking — and get told when to skip.
-                  </h3>
-                  <div className="mt-4">{TRADE_TRUST_CHIPS}</div>
-                </div>
+                    unchanged). ONE-BAND: the tab's own purple band retired —
+                    the hero above the tab bar carries the trade headline +
+                    chips now (MODULE_BANDS leaf); the tab starts at this
+                    stage-strip shell card, the ratified mock's order. (The
+                    TRADE_TRUST_CHIPS verified-facts row retired with the
+                    band — strings in git history.) COMMIT is the link chip →
+                    the existing selectTab('books') mechanism — no new
+                    routing. */}
                 <div className={MODULE_SHELL_CARD}>
                   {/* R2 sub-labels — each derived FROM its surface's real
                       machinery (cites in the R2 PR report): SETUP = universe
@@ -1181,7 +1076,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
               </>
             ) : (
               <div>
-                <ModuleBand {...MODULE_BANDS.trade} />
                 <div className={MODULE_SHELL_CARD}>
                 {/* MOD-2: pointer-card to /modules/trade + the surviving purchase
                     path. label/valueLine are VERBATIM lockstep copies of
@@ -1213,7 +1107,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
             <div>
-              <ModuleBand {...MODULE_BANDS.books} />
               <div className={MODULE_SHELL_CARD}>
             {!booksLocked ? (
               <>
@@ -1291,7 +1184,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
             <div>
-              <ModuleBand {...MODULE_BANDS.tax} />
               <div className={MODULE_SHELL_CARD}>
             {!taxLocked ? (
               <TaxHandoffGate onGoToBooks={() => selectTab('books')} />
@@ -1326,7 +1218,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
             <div>
-              <ModuleBand {...MODULE_BANDS.compliance} />
               <div className={MODULE_SHELL_CARD}>
             {!complianceLocked ? (
               <ComplianceWorkbench />
