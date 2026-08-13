@@ -81,7 +81,10 @@ import { Fragment, useState } from 'react';
 import { Briefcase, Check, Plane, BookOpen, TrendingUp, Settings } from 'lucide-react';
 // PR-DECK-4CAT: the category tabs reuse the ToggleStrip icon-tab idiom
 // (DS.iconTab — the trip.com tab form factor the booking strip wears).
-import { CARD_BG, iconTab } from '@/lib/ds';
+// REPAINT-2 (Direction C): CARD_BG + iconTab imports retired with the dark
+// landing — cards are flat white/cream + hairline now, and the category tabs
+// wear the aubergine-ink iconTab twin below (ds.iconTab stays dark-native for
+// the app until its own slice).
 import { TAB_PRICING } from '@/config/pricing-costs';
 import {
   ALLOCATION_ROWS, NO_COST_STRIP,
@@ -568,32 +571,23 @@ interface Props {
   onBuyModule: (key: string) => void;
 }
 
-// The house dark-hero background — TabShowcaseTemplate.tsx:140-144's pattern
-// on token vars (no hex).
-const HERO_BG =
-  // BG-DEPTH: glow PARITY with the app hero — the same idea-state
-  // single-radial recipe as ds.ts HERO_BG, on the page canvas.
-  'radial-gradient(ellipse 80% 90% at 68% 35%, rgb(var(--ts-purple-pop) / 0.45), transparent 74%), var(--ts-page)';
+// REPAINT-2 (Direction C): the local HERO_BG radial-glow const DIED — the
+// hero is a SOLID aubergine band (bg-brand-purple) on the cream page. The
+// ELEV-2c/CARD-POP glow recipe died with it: every former CARD_BG mount in
+// this file is a flat card + lavender hairline now (deck/services = bg-white,
+// summary slides = bg-ts-white card cream, wall tiles = solid aubergine).
 
-// PR-ELEV-2c: the CARD variant of the glow. HERO_BG's ellipses are positioned
-// for the WIDE hero — on a small card the glow collapses into one corner and
-// the surface reads near-black (Alex, live screenshots); the wider ellipses
-// below keep the glow reaching the card's center. CARD-POP: the wash migrates
-// from the legacy deep purples (--ts-purple @ 0.85 / --ts-purple-deep @ 0.70)
-// to the pop token — cards now match the CTA family (.ts-cta-gradient's start
-// stop). CARD-POP-3 alphas (0.65 primary / 0.32 secondary): pop-1's 0.28/0.14
-// aimed at wash-PARITY with the retired deep purple — wrong target — and
-// pop-2's 0.55 was ruled up once more. The target: hottest corner ≈
-// 0.65×(91,33,255) + 0.35×(17,19,27) ≈ rgb(65,28,175), white text ≈8.6:1 —
-// still comfortably readable, now unambiguously the CTA hue across every
-// text tier (title white, desc white/60, price line) over var(--ts-panel)
-// (#11131b).
-// Applied to the wall cards + BOTH deck slide surfaces; the hero keeps
-// HERO_BG untouched (the smaller-blast-radius option — the hero was tuned for
-// its own scale and drew no complaint).
-// BOOKS-GLOW: CARD_BG moved HOME to ds.ts (one source of glow for the
-// whole app) — imported above, byte-identical; the five mounts below are
-// untouched.
+// The category tab — ds.iconTab's anatomy VERBATIM (ds.ts:126-130), ink
+// swapped to the aubergine-on-cream tiers (ds.ts stays dark-native this
+// slice; the app's tabs convert in their own slice). Active: aubergine
+// underline + wash fill + aubergine ink; inactive: muted ink, wash on hover.
+function iconTabLight(active: boolean): string {
+  return `flex flex-col items-center gap-1 rounded-t px-3 py-2 font-mono text-[11px] font-medium border-b-2 transition-colors ${
+    active
+      ? 'border-brand-purple bg-brand-purple-wash text-brand-purple'
+      : 'border-transparent text-text-muted hover:bg-brand-purple-wash/50 hover:text-text-primary'
+  }`;
+}
 
 export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvailability, logoAvailability, onBuyModule }: Props) {
   const pricingByKey = new Map(TAB_PRICING.map((t) => [t.key, t]));
@@ -641,27 +635,33 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
     .filter((k): k is string => typeof k === 'string');
 
   return (
-    <div className="min-h-screen bg-page text-white">
+    <div className="min-h-screen bg-bg-terminal text-text-primary">
       {/* HEADER-CTA: onRequireAuth passed through so the header's Create
           account button is the SAME register opener as the hero CTA. */}
       <LandingHeader onRequireLogin={onRequireLogin} onRequireAuth={onRequireAuth} />
 
-      {/* ── Hero — the house Bloomberg treatment; copy + CTAs verbatim ─────── */}
-      <section className="text-white pb-14 pt-12" style={{ background: HERO_BG }}>
+      {/* ── Hero — the house Bloomberg treatment; copy + CTAs verbatim.
+            REPAINT-2: a SOLID aubergine full-bleed band (the glow died). ──── */}
+      <section className="bg-brand-purple text-white pb-14 pt-12">
         <div className="max-w-7xl mx-auto px-4 lg:px-8">
           <div className="max-w-3xl">
             {/* HERO-PRESENCE: the idea-state badge pill — first element in the
                 hero; the ✦ glyph wears the pop accent. */}
             <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/80 mb-6">
-              <span className="text-brand-purple-pop" aria-hidden="true">✦</span>
+              {/* REPAINT-2: the pop glyph re-inks lavender — pop is invisible
+                  on the aubergine band. */}
+              <span className="text-brand-purple-wash" aria-hidden="true">✦</span>
               All-in-one financial operating system
             </div>
-            <h1 className="text-4xl sm:text-6xl font-bold leading-tight tracking-tight mb-6">
+            <h1 className="text-4xl sm:text-6xl font-bold leading-tight tracking-tight mb-6 text-ts-white">
               Track your money.<br />
               Plan your time.<br />
-              {/* PALETTE-OVERHAUL (E): the separable final segment carries the
-                  gradient accent — copy untouched. */}
-              <span className="ts-cta-gradient bg-clip-text text-transparent">Live smarter.</span>
+              {/* REPAINT-2 (E): the gradient clip died. The separable final
+                  segment wears the LAVENDER tint (brand-purple-wash #eae7f2)
+                  — brand-purple-hover (#4e3e85) measures ~1.4:1 against the
+                  aubergine band, illegible; the wash holds the family and
+                  reads. Copy untouched. */}
+              <span className="text-brand-purple-wash">Live smarter.</span>
             </h1>
             {/* LAND-MSG-1: the hero previously jumped tagline → CTAs with
                 nothing telling a novice what this IS. One plain sentence,
@@ -682,12 +682,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                   thesis to the code. "See how it works ↓" left the hero (the
                   booking strip sits right below anyway; the demo trigger moved
                   to the pillar-deck header). */}
-              {/* PALETTE-OVERHAUL: the primary CTA wears the one gradient
-                  (.ts-cta-gradient, globals.css) — size/padding untouched. */}
+              {/* REPAINT-2: the gradient died — the primary CTA is the
+                  MONEY_ACTION gold (bg-brand-gold + /90 hover) at the hero's
+                  own size/padding. */}
               <button
                 type="button"
                 onClick={onRequireAuth}
-                className="px-6 py-3 ts-cta-gradient text-white font-medium hover:brightness-110 text-sm text-center"
+                className="px-6 py-3 bg-brand-gold text-white font-medium hover:bg-brand-gold/90 text-sm text-center"
               >
                 Create free account
               </button>
@@ -743,7 +744,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             <p className="mt-3 font-mono text-xs text-white/60">
               Want it running without the setup? I do that.{' '}
               <span className="text-[11px]">Full setup · Monthly maintenance · Custom builds · Embed a module in your stack</span>{' '}
-              <Link href="/work-with-me" className="text-brand-purple-pop hover:underline">
+              {/* REPAINT-2: pop → lavender wash (pop is illegible on the
+                  aubergine band; same accent family as the headline tint). */}
+              <Link href="/work-with-me" className="text-brand-purple-wash hover:underline">
                 Send a project proposal →
               </Link>
             </p>
@@ -761,17 +764,26 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             </p>
           </div>
 
-          {/* ── TOGGLE-1: the lobby books — the five-way toggle strip, mounted
-                where the teaser sat (directly under the CTA row; pre-BOOK-1
-                Landing.tsx:325-328). Full content width — the strip holds
-                whole booking surfaces + result rows, not just a form. ─────── */}
-          <LandingBookingSection onRequireAuth={onRequireAuth} />
-          {/* PR-ELEV-1: the coming-soon tiles live INSIDE the strip above as
-              badged "Soon" chips (travelStripModes) — the PR-LANDING-1 tile
-              row below the strip is gone; the both-surfaces-at-once light-up
-              ruling now holds at chip level via the shared builder. */}
         </div>
       </section>
+
+      {/* ── TOGGLE-1: the lobby books — the five-way toggle strip, mounted
+            where the teaser sat (directly under the CTA row; pre-BOOK-1
+            Landing.tsx:325-328). Full content width — the strip holds
+            whole booking surfaces + result rows, not just a form.
+            REPAINT-2: the mount moved OUT of the hero section (one JSX seat
+            down, same props, zero wiring) — the hero is a solid aubergine
+            band now, so the strip sits on the cream page where its own
+            aubergine band (ds.BAND_BG) reads as a band. DECLARED INTERIM:
+            the strip's INTERIOR (travel pickers/results) stays dark until
+            Slice 4's trips pass. */}
+      <div className="max-w-7xl mx-auto px-4 lg:px-8">
+        <LandingBookingSection onRequireAuth={onRequireAuth} />
+      </div>
+      {/* PR-ELEV-1: the coming-soon tiles live INSIDE the strip above as
+          badged "Soon" chips (travelStripModes) — the PR-LANDING-1 tile
+          row below the strip is gone; the both-surfaces-at-once light-up
+          ruling now holds at chip level via the shared builder. */}
 
       {/* ── BOOK-3: the guest's session trip — renders only when records
             exist (fail-honest empty state = nothing). ─────────────────────── */}
@@ -787,9 +799,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             HERO-REPO-1: the demo trigger mounts in this header. PR-PRICE-3:
             id="modules" — THE stable anchor the /pricing permanent redirect
             (and any deep link) targets; this deck IS the pricing surface. ──── */}
-      <section id="modules" className="w-full border-b border-panel-border bg-panel">
+      <section id="modules" className="w-full border-b border-border bg-bg-terminal">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-          <div className="flex items-center justify-between">
+          {/* REPAINT-2 (edit 5): the section intro is a slim SOLID aubergine
+              band — cream heading + micro-label keep their classes (correct
+              on purple); the demo trigger's white-on-purple button is
+              byte-identical. */}
+          <div className="rounded-lg bg-brand-purple px-5 py-6 flex items-center justify-between">
             <div>
               <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
                 The nine pillars · modules
@@ -826,9 +842,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 type="button"
                 onClick={() => setCategoryKey(c.key)}
                 aria-pressed={categoryKey === c.key}
-                className={iconTab(categoryKey === c.key)}
+                className={iconTabLight(categoryKey === c.key)}
               >
-                <span aria-hidden="true" className={categoryKey === c.key ? 'text-brand-purple-pop' : undefined}>
+                <span aria-hidden="true" className={categoryKey === c.key ? 'text-brand-purple' : undefined}>
                   <c.icon className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
                 </span>
                 <span className="w-min whitespace-normal text-center leading-tight">
@@ -842,20 +858,20 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
               line — free-travel anchor + launching-soon truth, above the
               deck. STATIC now: the 'everyone' persona's string survives
               verbatim; the per-persona variants retired with the filter. */}
-          <p className="mt-2 font-mono text-xs text-white/60">Search & book travel free today — no account needed. Paid modules are launching soon.</p>
+          <p className="mt-2 font-mono text-xs text-text-muted">Search & book travel free today — no account needed. Paid modules are launching soon.</p>
 
           {categoryKey === 'services' ? (
             /* DECK-SERVICES-TAB: the professional-services panel — house
                idioms only (the absorbed bar's chip/line/right-slot idioms +
-               CARD_BG offering cards). Strings REUSED from the merged
+               flat white offering cards, REPAINT-2). Strings REUSED from the merged
                README Work-with-me bullets + the bar's own line. PROPOSAL-FORM:
                the CTA routes to the /work-with-me intake form (the SOW mailto
                retired from this panel; README keeps its mailto). */
             <div className="mt-4">
-              <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
+              <span className="rounded border border-border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
                 PROFESSIONAL SERVICES
               </span>
-              <p className="mt-2 text-xs leading-relaxed text-white/60">Your own hosted copy — every API wired, custom to your business, you own everything.</p>
+              <p className="mt-2 text-xs leading-relaxed text-text-muted">Your own hosted copy — every API wired, custom to your business, you own everything.</p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {([
                   ['Full setup', 'Your own hosted copy, every API wired, you own everything.'],
@@ -863,20 +879,20 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                   ['Custom builds', 'Need a feature? I build it.'],
                   ['Embed a module', 'Want just one piece (the booking engine, the books, the scanner) inside your existing system? I do that too.'],
                 ] as const).map(([title, desc]) => (
-                  <div key={title} className="rounded-lg p-4 text-white" style={{ background: CARD_BG }}>
+                  <div key={title} className="rounded-lg border border-border bg-white p-4 text-text-primary">
                     <div className="text-sm font-medium">{title}</div>
-                    <p className="mt-1 text-xs text-white/60">{desc}</p>
+                    <p className="mt-1 text-xs text-text-muted">{desc}</p>
                   </div>
                 ))}
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-4">
                 <Link
                   href="/work-with-me"
-                  className="border border-white/30 px-6 py-2 text-center text-xs font-medium text-white hover:bg-white/10"
+                  className="border border-brand-purple/40 px-6 py-2 text-center text-xs font-medium text-brand-purple hover:bg-brand-purple-wash"
                 >
                   Send a project proposal →
                 </Link>
-                <span className="ml-auto font-mono text-xs italic text-white/50">Scoped by proposal</span>
+                <span className="ml-auto font-mono text-xs italic text-text-faint">Scoped by proposal</span>
               </div>
             </div>
           ) : (
@@ -889,8 +905,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
               const pricing = p.entitlementKey ? pricingByKey.get(p.entitlementKey) : undefined;
               const available = p.entitlementKey ? entitlementAvailability[p.entitlementKey] === true : false;
               return (
-                // DECKS-3 (ruling 2): the selection slide is a wide GLOW HERO
-                // (CARD_BG) that carries the commerce. PR-DECK-CLEAN-1 (Alex,
+                // DECKS-3 (ruling 2): the selection slide carries the
+                // commerce (flat white card since REPAINT-2). PR-DECK-CLEAN-1 (Alex,
                 // from live comparison vs resend/plaid/stripe pricing: "too
                 // much text — even I'm confused"): the card is the 5-part
                 // scannable structure and NOTHING else — name, the one plain
@@ -913,23 +929,23 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 // The dim suffix died with the remove-not-dim ruling.
                 // PR-DECK-4CAT: the slide became a GRID CELL — the rail width
                 // classes (w-[80%]/sm:w-[46%]/lg:w-[32%] + snap) died; the
-                // grid tracks size the cards. Every other class + CARD_BG
-                // unchanged. The persona value line retired with the filter.
+                // grid tracks size the cards. Every other class unchanged
+                // (REPAINT-2: flat white + hairline replaced the glow).
+                // The persona value line retired with the filter.
                 <article
                   key={p.id}
-                  className="flex flex-col overflow-hidden rounded-lg p-4 text-white sm:p-5"
-                  style={{ background: CARD_BG }}
+                  className="flex flex-col overflow-hidden rounded-lg border border-border bg-white p-4 text-text-primary sm:p-5"
                 >
                   <h3 className="text-lg font-light tracking-tight sm:text-xl">{p.label}</h3>
                   {/* LAND-MSG-1: the plain-English outcome line — the card's
                       ONE subtitle (structure slot 2), locked to 2 lines. */}
-                  <p className="mt-1 min-h-8 text-xs font-medium text-white/90 line-clamp-2">{p.plain}</p>
+                  <p className="mt-1 min-h-8 text-xs font-medium text-text-secondary line-clamp-2">{p.plain}</p>
                   {/* Slot 3: the checkmark fragments — lucide Check, the house
                       icon vocabulary (TripHeader.tsx:16 precedent). */}
                   <ul className="mt-2.5 mb-4 max-w-xl space-y-1">
                     {p.bullets.map((b, i) => (
-                      <li key={i} className="flex items-start gap-2 text-xs leading-relaxed text-white/80">
-                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/60" strokeWidth={2.5} aria-hidden="true" />
+                      <li key={i} className="flex items-start gap-2 text-xs leading-relaxed text-text-secondary">
+                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-text-muted" strokeWidth={2.5} aria-hidden="true" />
                         {b}
                       </li>
                     ))}
@@ -944,24 +960,25 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                       PR-DECK-CLEAN-2: mt-auto pins the divider+price+actions
                       stack to the card floor — consistent positions, no
                       ragged bottoms. */}
-                  <div className="mt-auto max-w-xl border-t border-white/20 pt-3">
+                  <div className="mt-auto max-w-xl border-t border-border pt-3">
                     {/* PR-DECK-CLEAN-3: min-h-10 reserves the 2-line green
                         free-travel height on every card — identical price-
                         slot height, identical divider y. States inside are
-                        byte-identical (pricing logic untouched). */}
-                    <p className="min-h-10 font-mono text-sm font-bold text-white">
+                        byte-identical (pricing logic untouched). REPAINT-2:
+                        the price numeral is a GOLD money number. */}
+                    <p className="min-h-10 font-mono text-sm font-bold text-brand-gold">
                       {p.id === 'travel' ? (
                         <span className="text-xs font-normal text-brand-green">
                           Free today — search and book, no sign-up.
                         </span>
                       ) : pricing && pricing.monthlyPrice !== null ? (
-                        <>${pricing.monthlyPrice}<span className="text-xs font-normal text-white/50">/mo</span></>
+                        <>${pricing.monthlyPrice}<span className="text-xs font-normal text-text-faint">/mo</span></>
                       ) : available ? (
-                        <span className="text-xs font-normal italic text-white/50" title="Stripe shows the real price at checkout">
+                        <span className="text-xs font-normal italic text-text-faint" title="Stripe shows the real price at checkout">
                           price shown at checkout
                         </span>
                       ) : (
-                        <span className="text-xs font-normal text-white/60">Launching soon</span>
+                        <span className="text-xs font-normal text-text-muted">Launching soon</span>
                       )}
                     </p>
                   </div>
@@ -970,7 +987,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                       checkout exists — an unpriced slide in the cart would put
                       un-buyable items behind "Continue". */}
                   {available && (
-                    <label className="mt-3 flex cursor-pointer items-center gap-2 self-start font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70 transition-colors hover:text-white">
+                    <label className="mt-3 flex cursor-pointer items-center gap-2 self-start font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary transition-colors hover:text-text-primary">
                       <input
                         type="checkbox"
                         checked={selectedIds.has(p.id)}
@@ -989,14 +1006,14 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                       <button
                         type="button"
                         onClick={() => onBuyModule(p.entitlementKey as string)}
-                        className="inline-block bg-white px-4 py-1.5 text-xs font-medium text-brand-purple hover:bg-bg-row"
+                        className="inline-block bg-brand-gold px-4 py-1.5 text-xs font-medium text-white hover:bg-brand-gold/90"
                       >
                         Select →
                       </button>
                     )}
                     <Link
                       href={`/modules/${p.id}`}
-                      className="inline-block border border-white/30 px-4 py-1.5 text-xs font-medium text-white hover:bg-white/10"
+                      className="inline-block border border-brand-purple/40 px-4 py-1.5 text-xs font-medium text-brand-purple hover:bg-brand-purple-wash"
                     >
                       Explore →
                     </Link>
@@ -1019,30 +1036,30 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 FIRST selected key and the strip says so — the remaining
                 modules buy the same way after each checkout returns). ──────── */}
           {selectedPillars.length > 0 && (
-            <div className="mt-5 flex flex-col gap-4 rounded-lg border border-brand-purple/60 bg-panel p-4 sm:flex-row sm:items-center">
+            <div className="mt-5 flex flex-col gap-4 rounded-lg border border-brand-purple/60 bg-white p-4 sm:flex-row sm:items-center">
               <div className="flex-1">
-                <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
+                <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
                   {selectedPillars.length} module{selectedPillars.length === 1 ? '' : 's'} selected
                 </p>
-                <p className="mt-1 text-xs leading-relaxed text-white/60">
+                <p className="mt-1 text-xs leading-relaxed text-text-muted">
                   {selectedPillars.map((p) => p.label).join(' · ')}
                 </p>
                 {selectedPillars.length >= 2 && (
-                  <p className="mt-1 text-[10px] text-white/40">
+                  <p className="mt-1 text-[10px] text-text-faint">
                     One checkout per module — Continue starts with the first selected.
                   </p>
                 )}
               </div>
               <div className="sm:text-right">
-                <p className="font-mono text-lg font-bold text-white">
+                <p className="font-mono text-lg font-bold text-brand-gold">
                   {selectedSum !== null ? (
-                    <>${selectedSum}<span className="text-xs font-normal text-white/50">/mo</span></>
+                    <>${selectedSum}<span className="text-xs font-normal text-text-faint">/mo</span></>
                   ) : (
-                    <span className="text-xs font-normal italic text-white/50">prices shown at checkout</span>
+                    <span className="text-xs font-normal italic text-text-faint">prices shown at checkout</span>
                   )}
                 </p>
                 {selectedPillars.length >= 2 && bundle && (
-                  <p className="mt-0.5 text-[10px] text-white/50">
+                  <p className="mt-0.5 text-[10px] text-text-faint">
                     {bundle.monthlyPrice !== null
                       ? `Bundle: everything for $${bundle.monthlyPrice}/mo`
                       : entitlementAvailability[bundle.key] === true
@@ -1057,7 +1074,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
               <button
                 type="button"
                 onClick={() => onBuyModule(selectedSellKeys[0])}
-                className="bg-white px-6 py-2 text-center text-xs font-medium text-brand-purple hover:bg-bg-row"
+                className="bg-brand-gold px-6 py-2 text-center text-xs font-medium text-white hover:bg-brand-gold/90"
               >
                 Continue →
               </button>
@@ -1068,9 +1085,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 selected). Markup + commerce wiring verbatim from the dead
                 sheet's closer (LOBBY-DECK-1). ───────────────────────────────── */}
           {categoryKey !== 'services' && selectedPillars.length === 0 && bundle && (
-            <div className="mt-5 flex flex-col gap-4 rounded-lg border border-white/30 bg-panel p-4 sm:flex-row sm:items-center">
+            <div className="mt-5 flex flex-col gap-4 rounded-lg border border-border bg-white p-4 sm:flex-row sm:items-center">
               <div className="flex-1">
-                <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
+                <span className="rounded border border-border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
                   {bundle.label}
                 </span>
                 {/* PR-DECK-CLEAN-1 (bundle = same treatment: name, ONE line,
@@ -1078,25 +1095,25 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                     unlocks string — the full sentence stays the checkout
                     truth ("resolved at read time — one purchase unlocks all
                     tabs"). */}
-                <p className="mt-2 text-xs leading-relaxed text-white/60">Every module above — one subscription.</p>
+                <p className="mt-2 text-xs leading-relaxed text-text-muted">Every module above — one subscription.</p>
               </div>
               {/* PRICE-1: the bundle row follows the slide rule — ONE honest
                   state. Purchasable → price/italic + Select; not → "Launching
                   soon", no dead button. */}
-              <div className="font-mono text-lg font-bold text-white">
+              <div className="font-mono text-lg font-bold text-brand-gold">
                 {bundle.monthlyPrice !== null ? (
-                  <>${bundle.monthlyPrice}<span className="text-xs font-normal text-white/50">/mo</span></>
+                  <>${bundle.monthlyPrice}<span className="text-xs font-normal text-text-faint">/mo</span></>
                 ) : entitlementAvailability[bundle.key] === true ? (
-                  <span className="text-xs font-normal italic text-white/50">price shown at checkout</span>
+                  <span className="text-xs font-normal italic text-text-faint">price shown at checkout</span>
                 ) : (
-                  <span className="text-xs font-normal text-white/60">Launching soon</span>
+                  <span className="text-xs font-normal text-text-muted">Launching soon</span>
                 )}
               </div>
               {entitlementAvailability[bundle.key] === true && (
                 <button
                   type="button"
                   onClick={() => onBuyModule(bundle.key)}
-                  className="bg-white px-6 py-2 text-center text-xs font-medium text-brand-purple hover:bg-bg-row"
+                  className="bg-brand-gold px-6 py-2 text-center text-xs font-medium text-white hover:bg-brand-gold/90"
                 >
                   Select the bundle →
                 </button>
@@ -1113,7 +1130,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 /how-pricing-works. ─────────────────────────────────────────── */}
           <Link
             href="/how-pricing-works"
-            className="mt-5 inline-block font-mono text-xs font-medium text-white hover:text-white/70"
+            className="mt-5 inline-block font-mono text-xs font-medium text-brand-purple hover:text-brand-purple-hover"
           >
             Every price, traced to a real bill → see the full breakdown
           </Link>
@@ -1134,9 +1151,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             TWO-COLUMN when its SUMMARY_BY_ID entry carries a demoImage —
             text left, framed screenshot right; imageless slides keep the
             full-width text layout (today's state for all nine). ────────────── */}
-      <section className="w-full border-b border-panel-border bg-panel-surface">
+      <section className="w-full border-b border-border bg-bg-terminal">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-brand-purple">
             The pillars — in their own words
           </p>
 
@@ -1144,11 +1161,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             {PILLAR_CARDS.map((p) => {
               const s = SUMMARY_BY_ID[p.id];
               return (
-                // DECK-2: each slide IS a miniature explore hero — the
-                // TabShowcaseTemplate darkHero visual language (:142-148:
-                // near-black base + radial glows), rebuilt on tokens via the
-                // shared glow const (HERO_BG then; CARD_BG since ELEV-2c —
-                // the template's raw color literals never enter this file).
+                // DECK-2: each slide IS a miniature explore hero — REPAINT-2:
+                // the darkHero glow language died; the slide is a flat
+                // card-cream panel (bg-ts-white + lavender hairline), ink on
+                // the text tiers (the template's raw color literals never
+                // enter this file).
                 // Chip = the template's :151 eyebrow idiom (+ the
                 // landing's mono); headline = the hero's display type scaled
                 // down (text-3xl/5xl → 2xl/3xl); sub-copy white/65-70; CTA =
@@ -1163,27 +1180,26 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 // placeholder frame).
                 <article
                   key={p.id}
-                  className="flex min-h-[22rem] w-full flex-col overflow-hidden rounded-lg p-6 text-white sm:p-8"
-                  style={{ background: CARD_BG }}
+                  className="flex min-h-[22rem] w-full flex-col overflow-hidden rounded-lg border border-border bg-ts-white p-6 text-text-primary sm:p-8"
                 >
                   <div className={`flex-1${s.demoImage ? ' grid gap-6 md:grid-cols-2' : ' flex flex-col'}`}>
                     <div className="flex flex-1 flex-col">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
+                        <span className="rounded border border-border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
                           {s.eyebrow}
                         </span>
                       </div>
                       <h3 className="mt-4 text-2xl font-light tracking-tight sm:text-3xl">{s.headline}</h3>
-                      <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/65">{TAB_DESCRIPTORS[p.tab]}</p>
+                      <p className="mt-3 max-w-xl text-sm leading-relaxed text-text-secondary">{TAB_DESCRIPTORS[p.tab]}</p>
                       <ul className="mt-3 max-w-xl space-y-1">
                         {s.lines.map((l, i) => (
-                          <li key={i} className="text-sm leading-relaxed text-white/70">{l}</li>
+                          <li key={i} className="text-sm leading-relaxed text-text-secondary">{l}</li>
                         ))}
                       </ul>
                       <div className="mt-auto pt-5">
                         <Link
                           href={`/modules/${p.id}`}
-                          className="inline-block bg-white px-4 py-1.5 text-xs font-medium text-brand-purple hover:bg-bg-row"
+                          className="inline-block bg-brand-purple px-4 py-1.5 text-xs font-medium text-white hover:bg-brand-purple-hover"
                         >
                           Explore {p.label} →
                         </Link>
@@ -1196,7 +1212,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                         the column height at md+, natural ratio when stacked
                         on mobile. */}
                     {s.demoImage && (
-                      <div className="overflow-hidden rounded-lg border border-white/15 bg-black/20">
+                      <div className="overflow-hidden rounded-lg border border-border bg-bg-row">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={s.demoImage.src} alt={s.demoImage.alt} className="w-full object-cover md:h-full" />
                       </div>
@@ -1214,8 +1230,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             feedback: the mono row undersold the stack; the summary deck above
             was RESTORED byte-faithfully from fec63b01 by the same ruling).
             CARD IDIOM REUSED, not invented: the pillar deck's glow-panel
-            article (rounded-lg + text-white on the shared glow wash — HERO_BG
-            then, CARD_BG since ELEV-2c; the :723-731 slide classes, compacted
+            article (rounded-lg; the shared glow wash died in REPAINT-2 —
+            solid aubergine tiles now; the :723-731 slide classes, compacted
             to p-4). WORDING LAW (locked): "Built on" /
             "integrates with" ONLY — never "partners", "trusted by", or any
             endorsement framing. CLAIMABILITY RULE: wired clients only (each
@@ -1235,13 +1251,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             until then (the WALL-PURE "Also built on" line died);
             never-cleared marks never light by construction (verdicts in
             builtOnWall.ts). ─────────────────────────────────────────────── */}
-      <section className="w-full border-b border-panel-border bg-panel-surface">
+      <section className="w-full border-b border-border bg-bg-terminal">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-brand-purple">
             Built on
           </p>
           {/* PR-WALL-TEACH: the one plain-language intro line. */}
-          <p className="text-sm text-white/60 mt-1">Every tool this platform runs on — and what each layer does.</p>
+          <p className="text-sm text-text-secondary mt-1">Every tool this platform runs on — and what each layer does.</p>
           {/* PR-WALL-TEACH: the categorized teaching diagram — WALL_SECTIONS
               order, every card ALWAYS visible: real mark when its file is
               lit (same server fs-check), a letter tile until then. Tiles
@@ -1251,12 +1267,15 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
           <div className="mt-4">
             {WALL_SECTIONS.map((s) => (
               <Fragment key={s.key}>
-                <p className="font-mono text-[10px] uppercase tracking-wider text-white/50 mt-8 first:mt-0">{s.label}</p>
-                <p className="text-xs text-white/50 mt-1 mb-3">{s.description}</p>
+                <p className="font-mono text-[10px] uppercase tracking-wider text-brand-purple mt-8 first:mt-0">{s.label}</p>
+                <p className="text-xs text-text-secondary mt-1 mb-3">{s.description}</p>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                   {BUILT_ON.filter((e) => e.category === s.key).map((e) => {
                     const logoLive = e.logo !== undefined && logoAvailability[e.logo.slug] === true;
-                    const cardClass = 'flex flex-col items-center justify-center text-center gap-1.5 min-h-24 overflow-hidden rounded-lg p-4 text-white';
+                    // REPAINT-2 (edit 6, Alex's ruling — the stack STAYS):
+                    // SOLID aubergine tile, flat, no glow — the white marks +
+                    // letter tiles render legible on brand-purple.
+                    const cardClass = 'flex flex-col items-center justify-center text-center gap-1.5 min-h-24 overflow-hidden rounded-lg bg-brand-purple p-4 text-white';
                     const body = (
                       <>
                         {logoLive && e.logo ? (
@@ -1284,12 +1303,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                         target="_blank"
                         rel="noopener noreferrer"
                         className={cardClass}
-                        style={{ background: CARD_BG }}
                       >
                         {body}
                       </a>
                     ) : (
-                      <article key={e.name} className={cardClass} style={{ background: CARD_BG }}>
+                      <article key={e.name} className={cardClass}>
                         {body}
                       </article>
                     );
@@ -1304,7 +1322,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
               ▲ unicode mark retired with the shared infra card,
               WALL-LOGOS-2 → WALL-PURE). Exact required wording, verbatim;
               the house trace-line idiom (font-mono text-[10px] white/40). */}
-          <p className="mt-3 max-w-3xl font-mono text-[10px] leading-relaxed text-white/40">
+          <p className="mt-3 max-w-3xl font-mono text-[10px] leading-relaxed text-text-faint">
             Vercel, the Vercel design, Next.js and related marks, designs and logos are trademarks
             or registered trademarks of Vercel, Inc. or its affiliates in the US and other countries.
           </p>
@@ -1315,28 +1333,28 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             public repo, the PR-by-PR build history, the never-paywalled
             export. No invented stats, no testimonials; a news/changelog
             carousel exists only when real content does. ───────────────────── */}
-      <section className="w-full border-b border-panel-border bg-panel-surface">
+      <section className="w-full border-b border-border bg-bg-terminal">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-brand-purple">
             Built in public
           </p>
           <div className="mt-4 max-w-2xl space-y-2">
-            <p className="text-sm leading-relaxed text-white/70">
+            <p className="text-sm leading-relaxed text-text-secondary">
               The code is public —{' '}
               <a
                 href="https://github.com/Temple-Stuart/temple-stuart-accounting"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-medium text-white underline decoration-dotted hover:text-white/80"
+                className="font-medium text-brand-purple underline decoration-dotted hover:text-brand-purple-hover"
               >
                 github.com/Temple-Stuart/temple-stuart-accounting
               </a>{' '}
               (source-available under BSL 1.1 — free to self-host for personal use).
             </p>
-            <p className="text-sm leading-relaxed text-white/70">
+            <p className="text-sm leading-relaxed text-text-secondary">
               Every change ships as a reviewed pull request — the build history is the changelog.
             </p>
-            <p className="text-sm leading-relaxed text-white/70">
+            <p className="text-sm leading-relaxed text-text-secondary">
               Your complete financial records export in one click — never paywalled.
             </p>
           </div>
@@ -1355,18 +1373,18 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
           onClick={() => setShowDemo(false)}
         >
           <div
-            className="w-full max-w-3xl rounded-lg border border-panel-border bg-panel p-3"
+            className="w-full max-w-3xl rounded-lg border border-border bg-white p-3"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-2 flex items-center justify-between">
-              <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
+              <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">
                 The demo
               </p>
               <button
                 type="button"
                 aria-label="Close the demo"
                 onClick={() => setShowDemo(false)}
-                className="text-white/50 transition-colors hover:text-white"
+                className="text-text-muted transition-colors hover:text-text-primary"
               >
                 ✕
               </button>

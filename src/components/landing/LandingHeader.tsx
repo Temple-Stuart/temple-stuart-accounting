@@ -2,8 +2,11 @@
 
 /**
  * LandingHeader (FD-1d) — the Bloomberg header extracted from Landing.tsx so
- * the /modules pages share it verbatim. Token-native (panel family +
- * brand-purple), zero hex.
+ * the /modules pages share it verbatim. Token-native, zero hex. REPAINT-2
+ * (Direction C): the nav sits on cream with the lavender border-b hairline,
+ * aubergine ink; the Create-account CTA wears the MONEY_ACTION gold colors
+ * (geometry preserved — the header buttons keep their own padding and carry
+ * no rounding).
  *
  * ROUTE-1 (Alex's ruling b): the top-right CTA is now "Log in" — the hero
  * already carries "Create free account", so the header stops duplicating the
@@ -28,53 +31,55 @@ export default function LandingHeader({ onRequireLogin, onRequireAuth }: {
   onRequireAuth?: () => void;
 }) {
   return (
-    <header className="border-b border-panel-border bg-panel text-white">
+    <header className="border-b border-border bg-bg-terminal text-text-primary">
       <div className="max-w-7xl mx-auto px-4 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
           <Link href="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white flex items-center justify-center">
-              <span className="text-brand-purple font-bold text-terminal-lg">TS</span>
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-brand-purple flex items-center justify-center">
+              <span className="text-white font-bold text-terminal-lg">TS</span>
             </div>
             <div>
               <div className="text-sm font-semibold tracking-tight">Temple Stuart</div>
-              <div className="font-mono text-[10px] uppercase tracking-wider text-white/50">Founder&apos;s Back Office</div>
+              <div className="font-mono text-[10px] uppercase tracking-wider text-text-muted">Founder&apos;s Back Office</div>
             </div>
           </Link>
           <div className="flex items-center gap-3">
-            <Link href="/how-pricing-works" className="text-xs text-white/60 hover:text-white hidden sm:block">
+            <Link href="/how-pricing-works" className="text-xs text-text-muted hover:text-text-primary hidden sm:block">
               Pricing
             </Link>
-            <a href="mailto:astuart@templestuart.com" className="text-xs text-white/60 hover:text-white hidden sm:block">
+            <a href="mailto:astuart@templestuart.com" className="text-xs text-text-muted hover:text-text-primary hidden sm:block">
               Contact
             </a>
             {onRequireLogin ? (
               <button
                 type="button"
                 onClick={onRequireLogin}
-                className="px-4 py-2.5 text-sm bg-white text-brand-purple font-medium hover:bg-bg-row"
+                className="px-4 py-2.5 text-sm border border-brand-purple/40 text-brand-purple font-medium hover:bg-brand-purple-wash"
               >
                 Log in
               </button>
             ) : (
-              <Link href="/" className="px-4 py-2.5 text-sm bg-white text-brand-purple font-medium hover:bg-bg-row">
+              <Link href="/" className="px-4 py-2.5 text-sm border border-brand-purple/40 text-brand-purple font-medium hover:bg-brand-purple-wash">
                 Log in
               </Link>
             )}
-            {/* HEADER-CTA: the gradient Create-account CTA — right of Log in,
+            {/* HEADER-CTA: the gold Create-account CTA — right of Log in,
                 all breakpoints (the CTA pattern; only the nav links collapse
                 on mobile). Same dual-mode shape as Log in: the hero's
                 onRequireAuth opener when the mount provides it, else the '/'
-                ask-surface link. No rounding — the header buttons carry none. */}
+                ask-surface link. No rounding — the header buttons carry none.
+                REPAINT-2: the gradient died; MONEY_ACTION's gold colors at
+                the header's own geometry. */}
             {onRequireAuth ? (
               <button
                 type="button"
                 onClick={onRequireAuth}
-                className="px-4 py-2.5 text-sm font-medium ts-cta-gradient text-white hover:brightness-110"
+                className="px-4 py-2.5 text-sm font-medium bg-brand-gold text-white hover:bg-brand-gold/90"
               >
                 Create account
               </button>
             ) : (
-              <Link href="/" className="px-4 py-2.5 text-sm font-medium ts-cta-gradient text-white hover:brightness-110">
+              <Link href="/" className="px-4 py-2.5 text-sm font-medium bg-brand-gold text-white hover:bg-brand-gold/90">
                 Create account
               </Link>
             )}
