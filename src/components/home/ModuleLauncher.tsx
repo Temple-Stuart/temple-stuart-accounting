@@ -563,9 +563,9 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 headerAction={createTripButton}
               />
               {currentTrip && (
-                <p className="text-sm text-white/70">
-                  Selected: <span className="font-semibold text-white">{currentTrip.name}</span>
-                  <span className="text-white/50"> — hotel and flight bookings attach to this trip, and saved flights budget into it.</span>
+                <p className="text-sm text-text-secondary">
+                  Selected: <span className="font-semibold text-text-primary">{currentTrip.name}</span>
+                  <span className="text-text-faint"> — hotel and flight bookings attach to this trip, and saved flights budget into it.</span>
                 </p>
               )}
               {/* T3: the selected trip's REAL bookings (reservations read-back) —
@@ -607,7 +607,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
               <div className="mb-2 flex items-center justify-end gap-3">
                 {createTripButton}
               </div>
-              <p className="rounded-lg border border-panel-border bg-white/5 p-4 text-sm text-white/60">
+              <p className="rounded-lg border border-border bg-bg-row p-4 text-sm text-text-muted">
                 Sign up free to save trips here — tap &ldquo;+ Create a trip&rdquo; to start one.
               </p>
             </div>
@@ -723,13 +723,12 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           the mobile bottom bar (same TABS, same setActiveModule) so desktop also shows
           one module panel at a time. Sticky so it stays while a panel scrolls. The
           phone uses the bottom bar instead (md:hidden). */}
-      {/* FD-3 (installment 1): the desktop tab bar joins the dark shell —
-          bg-panel + panel-border hairline, mono uppercase labels. Active =
-          white text + brand-purple underline (the house active idiom: the
-          lobby's toggle chips read white-on-purple / bordered-ghost; a tab
-          bar's underline variant of that is white text + purple accent line).
-          Inactive = white/50 → white on hover. */}
-      <nav className="sticky top-0 z-30 hidden border-b border-panel-border bg-panel md:block">
+      {/* SHELL-SPEC (the landing is the spec): the desktop tab bar sits on the
+          light shell — bg-white + border-border hairline (HomeClient.tsx:138
+          idiom), mono uppercase labels. Active = brand-purple ink + underline;
+          inactive = text-muted → text-primary on hover (the ds.ts iconTab
+          ink pair). Structure/behavior untouched. */}
+      <nav className="sticky top-0 z-30 hidden border-b border-border bg-white md:block">
         <div className="max-w-7xl mx-auto flex px-4 lg:px-8">
           {TABS.map((t) => (
             <button
@@ -737,7 +736,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
               type="button"
               onClick={() => selectTab(t.key)}
               aria-current={activeModule === t.key ? 'page' : undefined}
-              className={`flex items-center gap-2 border-b-2 px-4 py-3 font-mono text-xs uppercase tracking-wider transition-colors ${activeModule === t.key ? 'border-brand-purple text-white' : 'border-transparent text-white/50 hover:text-white'}`}
+              className={`flex items-center gap-2 border-b-2 px-4 py-3 font-mono text-xs uppercase tracking-wider transition-colors ${activeModule === t.key ? 'border-brand-purple text-brand-purple' : 'border-transparent text-text-muted hover:text-text-primary'}`}
             >
               <t.icon className="h-4 w-4" aria-hidden="true" />
               {t.label}
@@ -763,7 +762,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           highlighted Calendar tab already says you're here). The grid toolbar sits right
           under the tab row, one continuous surface. Other modules keep their bands. */}
       {authed === true && (
-        <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
+        <section className={`w-full bg-bg-terminal border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto">
             {/* MODULE-BANDS: the deck's own words open the tab. */}
             <div className="px-4 py-4">
@@ -795,7 +794,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         </section>
       )}
       {authed === false && (
-        <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
+        <section className={`w-full bg-bg-terminal border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto">
             <div className="px-4 py-4 space-y-6">
               <div>
@@ -826,7 +825,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           TripBudgetActual/UnattachedBookings) are their own light cards and stay
           readable islands (untouched — a separate ruling if full dark parity is
           wanted). */}
-      <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'travel' ? 'block' : 'hidden'}`}>
+      <section className={`w-full bg-bg-terminal border-b border-border ${activeModule === 'travel' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
             {/* MOD-2 (TRAVEL EXCEPTION): only the deck mount is replaced by the
@@ -912,7 +911,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       {/* HB-4e-style: Routines renders in its own FLUSH block (mirrors Calendar/Travel) — out of
           the MODULES.map purple-band card, so the real builder reads as the app, not a demo card.
           renderBody handles the authed-builder / logged-out pointer-card branch (MOD-2). */}
-      <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'routines' ? 'block' : 'hidden'}`}>
+      <section className={`w-full bg-bg-terminal border-b border-border ${activeModule === 'routines' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 lg:px-8 space-y-6">
             <div>
@@ -925,7 +924,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       {/* Projects-style-1: Projects renders in its own FLUSH block (mirrors Calendar/Travel/
           Routines) — out of the MODULES.map purple-band card, so the authed builder reads as the
           app. renderBody handles the authed-builder / logged-out-showroom branch. */}
-      <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'projects' ? 'block' : 'hidden'}`}>
+      <section className={`w-full bg-bg-terminal border-b border-border ${activeModule === 'projects' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 lg:px-8 space-y-6">
             <div>
@@ -938,7 +937,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       {/* Content-mount: Content renders in its own FLUSH block (mirrors Projects/Routines) — out of
           the MODULES.map purple-band card. renderBody handles the authed-pipeline / logged-out-
           showroom branch. */}
-      <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'content' ? 'block' : 'hidden'}`}>
+      <section className={`w-full bg-bg-terminal border-b border-border ${activeModule === 'content' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 lg:px-8 space-y-6">
             <div>
@@ -962,7 +961,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       {/* TRADE-DS-1 → REPAINT-3: the dark surface passes died — the shared
           workbench components render their light defaults everywhere
           (themed()'s byte-identical light originals). */}
-      <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'trade' ? 'block' : 'hidden'}`}>
+      <section className={`w-full bg-bg-terminal border-b border-border ${activeModule === 'trade' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
             {!tradeLocked ? (
@@ -1068,7 +1067,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       {/* BOOKS-DS-1 → REPAINT-3: the dark surface passes died — the cockpit,
           pipeline, and locked card render their light defaults (themed()'s
           byte-identical light originals). */}
-      <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'books' ? 'block' : 'hidden'}`}>
+      <section className={`w-full bg-bg-terminal border-b border-border ${activeModule === 'books' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
             <div>
@@ -1082,7 +1081,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 {/* Cockpit — TRUTH-FIRST: loading / explicit-error / real-data only. Never a
                     fake "Balanced" or zeros. */}
                 {booksState === 'loading' && (
-                  <div className="rounded-xl border-2 border-panel-border bg-white/5 px-4 py-3 text-sm text-white/50">
+                  <div className="rounded-xl border-2 border-border bg-bg-row px-4 py-3 text-sm text-text-muted">
                     Loading your books…
                   </div>
                 )}
@@ -1145,7 +1144,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           gate is the tab:tax entitlement (isTabLocked — admin bypass inside). Entitled →
           the closed-books handoff gate (wizard once a period is closed, else a "close your
           books first" screen that jumps to the Books tab); locked → pointer-card + CTA (MOD-2). */}
-      <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'tax' ? 'block' : 'hidden'}`}>
+      <section className={`w-full bg-bg-terminal border-b border-border ${activeModule === 'tax' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
             <div>
@@ -1180,7 +1179,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           admin bypass inside). Entitled → the A–J workbench (Section A → sub-page link
           row → Sections B…J, bare — no AppLayout chrome inside the tab); locked →
           pointer-card + unlock CTA (MOD-2). */}
-      <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'compliance' ? 'block' : 'hidden'}`}>
+      <section className={`w-full bg-bg-terminal border-b border-border ${activeModule === 'compliance' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
             <div>
@@ -1231,7 +1230,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         return (
         <section key={m.key} className={`w-full py-10 ${i % 2 === 1 ? 'bg-bg-row' : 'bg-white'} border-b border-border ${activeModule === (MODULE_TO_TAB[m.key] ?? m.key) ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto px-4 lg:px-8 space-y-6">
-            <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+            <div className="rounded-lg overflow-hidden border border-border shadow-sm">
               <div className="bg-brand-purple text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
                 <span>{m.label}</span>
                 <span className="text-[10px] uppercase tracking-wider font-normal text-white/80">
@@ -1256,18 +1255,17 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           hidden scrollbar) so the 7 tabs stay clean and tappable on a narrow phone —
           each tab is a fixed min-w-[64px], never crushed. Desktop uses the top tab row
           instead (PR-Edge-B). Safe-area padding lifts it above the iOS home indicator. */}
-      {/* FD-3 (installment 1): the mobile bottom bar joins the dark shell —
-          bg-panel + panel-border hairline; active = white, inactive = white/50
-          (brand-purple is too dark to read on the panel, so the active state
-          is carried by white contrast, mirroring the desktop bar). */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto border-t border-panel-border bg-panel pb-[env(safe-area-inset-bottom)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:hidden">
+      {/* SHELL-SPEC: the mobile bottom bar sits on the light shell — bg-white +
+          border-border hairline; active = brand-purple, inactive = text-muted
+          (readable on white; mirrors the desktop bar). */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto border-t border-border bg-white pb-[env(safe-area-inset-bottom)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:hidden">
         {TABS.map((t) => (
           <button
             key={t.key}
             type="button"
             onClick={() => selectTab(t.key)}
             aria-current={activeModule === t.key ? 'page' : undefined}
-            className={`flex min-h-[44px] min-w-[64px] flex-1 flex-col items-center justify-center gap-0.5 py-1.5 font-mono text-[10px] uppercase tracking-wider transition-colors ${activeModule === t.key ? 'text-white' : 'text-white/50'}`}
+            className={`flex min-h-[44px] min-w-[64px] flex-1 flex-col items-center justify-center gap-0.5 py-1.5 font-mono text-[10px] uppercase tracking-wider transition-colors ${activeModule === t.key ? 'text-brand-purple' : 'text-text-muted'}`}
           >
             <t.icon className="h-5 w-5" aria-hidden="true" />
             {t.label}
