@@ -149,11 +149,11 @@ export default function WorkWithMePage() {
 
   return (
     <div className={`min-h-screen ${SURFACE.page} px-4 py-10 lg:px-8`}>
-      <div className={`mx-auto max-w-2xl ${SURFACE.card} text-white`}>
+      <div className={`mx-auto max-w-2xl ${SURFACE.card}`}>
         <div className={SECTION_HEADER}>PROFESSIONAL SERVICES</div>
         <div className="p-4 sm:p-6">
           {/* Lead line REUSED from the deck's Services panel (Landing.tsx). */}
-          <p className="text-xs leading-relaxed text-white/60">
+          <p className="text-xs leading-relaxed text-text-muted">
             Your own hosted copy — every API wired, custom to your business, you own everything.
           </p>
 
@@ -226,7 +226,7 @@ export default function WorkWithMePage() {
                   onChange={(e) => setBusiness(e.target.value)}
                   className={`${TEXTAREA_CLASS} mt-1`}
                 />
-                <p className="mt-1 text-xs text-white/40">One or two sentences: what you do, who pays you.</p>
+                <p className="mt-1 text-xs text-text-faint">One or two sentences: what you do, who pays you.</p>
               </div>
 
               <div>
@@ -255,7 +255,7 @@ export default function WorkWithMePage() {
                     Other
                   </button>
                 </div>
-                <p className="mt-1 text-xs text-white/40">
+                <p className="mt-1 text-xs text-text-faint">
                   {"Pick Other if you need something custom-built that isn't listed."}
                 </p>
                 {modules.includes('other') && (
@@ -322,7 +322,7 @@ export default function WorkWithMePage() {
                   onChange={(e) => setNotes(e.target.value)}
                   className={`${TEXTAREA_CLASS} mt-1`}
                 />
-                <p className="mt-1 text-xs text-white/40">
+                <p className="mt-1 text-xs text-text-faint">
                   {"Describe the finish line — what's true when this project is done?"}
                 </p>
               </div>
@@ -347,12 +347,12 @@ export default function WorkWithMePage() {
                   type="button"
                   onClick={() => setMoreOpen((v) => !v)}
                   aria-expanded={moreOpen}
-                  className="font-mono text-xs text-white/60 underline decoration-white/30 hover:text-white/80"
+                  className="font-mono text-xs text-text-muted underline decoration-border hover:text-text-primary"
                 >
                   Project details
                 </button>
                 {moreOpen && (
-                  <div className="mt-4 flex flex-col gap-5 rounded bg-white/5 p-4">
+                  <div className="mt-4 flex flex-col gap-5 rounded bg-bg-row p-4">
                     <div>
                       <label htmlFor="p-stack" className={CONTROL.label}>
                         What tools do you use today? (optional)
@@ -365,7 +365,7 @@ export default function WorkWithMePage() {
                         onChange={(e) => setCurrentStack(e.target.value)}
                         className={`${TEXTAREA_CLASS} mt-1`}
                       />
-                      <p className="mt-1 text-xs text-white/40">
+                      <p className="mt-1 text-xs text-text-faint">
                         {"The apps your business runs on. 'None / spreadsheets' is a real answer."}
                       </p>
                     </div>
@@ -432,7 +432,7 @@ export default function WorkWithMePage() {
                               type="button"
                               onClick={() => setLinkRows((prev) => prev.filter((_, j) => j !== i))}
                               aria-label="Remove link"
-                              className="shrink-0 text-white/50 hover:text-white/80"
+                              className="shrink-0 text-text-faint hover:text-text-primary"
                             >
                               ✕
                             </button>
@@ -448,7 +448,7 @@ export default function WorkWithMePage() {
                           ＋ Add link
                         </button>
                       )}
-                      <p className="mt-1 text-xs text-white/40">
+                      <p className="mt-1 text-xs text-text-faint">
                         {"Anything that shows what you're working with."}
                       </p>
                     </div>
@@ -520,11 +520,11 @@ export default function WorkWithMePage() {
                     ((referralSource === 'Referral' || referralSource === 'Other') &&
                       referralDetail.trim() === '')
                   }
-                  className="px-8 py-2 ts-cta-gradient text-white font-bold text-sm rounded transition-colors hover:brightness-110 whitespace-nowrap disabled:opacity-50"
+                  className="px-8 py-2 bg-brand-gold text-white font-bold text-sm rounded transition-colors hover:bg-brand-gold/90 whitespace-nowrap disabled:opacity-50"
                 >
                   {submitting ? 'Sending…' : 'Send proposal'}
                 </button>
-                <span className="ml-auto font-mono text-xs italic text-white/50">Scoped by proposal</span>
+                <span className="ml-auto font-mono text-xs italic text-text-faint">Scoped by proposal</span>
               </div>
             </form>
           )}

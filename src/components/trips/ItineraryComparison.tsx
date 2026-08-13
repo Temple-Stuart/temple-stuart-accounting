@@ -341,7 +341,7 @@ export default function ItineraryComparison({
   };
 
   if (destinations.length === 0) {
-    return <div className="text-center py-8 text-zinc-500">Select destinations above to compare costs</div>;
+    return <div className="text-center py-8 text-text-faint">Select destinations above to compare costs</div>;
   }
 
   return (
@@ -349,17 +349,17 @@ export default function ItineraryComparison({
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <div className="text-sm">
-          <span className="text-zinc-300">{travelerCount} travelers • {daysTravel} days • {daysRiding} riding</span>
+          <span className="text-text-secondary">{travelerCount} travelers • {daysTravel} days • {daysRiding} riding</span>
           {departureDate && returnDate ? (
-            <span className="ml-2 text-green-400 font-medium">📅 {departureDate} → {returnDate}</span>
+            <span className="ml-2 text-brand-green font-medium">📅 {departureDate} → {returnDate}</span>
           ) : (
-            <span className="ml-2 text-yellow-400">⚠️ Select dates above</span>
+            <span className="ml-2 text-brand-amber">⚠️ Select dates above</span>
           )}
         </div>
         <button
           onClick={fetchAllQuotes}
           disabled={Object.values(loading).some(l => l) || !departureDate}
-          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-500 disabled:opacity-50 text-sm"
+          className="px-4 py-2 bg-brand-green text-white rounded hover:bg-brand-green/90 disabled:opacity-50 text-sm"
         >
           {Object.values(loading).some(l => l) ? '⏳ Fetching...' : '🔄 Fetch Live Quotes'}
         </button>
@@ -372,28 +372,28 @@ export default function ItineraryComparison({
             const flight = destData[dest.resortId]?.flight;
             if (!flight) return null;
             return (
-              <div key={dest.id} className="bg-zinc-800 rounded p-3 border border-zinc-700">
+              <div key={dest.id} className="bg-white rounded p-3 border border-border">
                 <div className="font-medium text-sm mb-2">{dest.resort.name}</div>
                 <div className="text-xs space-y-1">
                   <div className="flex justify-between">
-                    <span className="text-zinc-400">Outbound:</span>
-                    <span className="text-white">
+                    <span className="text-text-muted">Outbound:</span>
+                    <span className="text-text-primary">
                       {formatTime(flight.outbound?.departure?.localTime || '')} → {formatTime(flight.outbound?.arrival?.localTime || '')}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-zinc-400">Duration:</span>
+                    <span className="text-text-muted">Duration:</span>
                     <span>{flight.outbound?.duration?.replace('PT', '').replace('H', 'h ').replace('M', 'm')}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-zinc-400">Stops:</span>
+                    <span className="text-text-muted">Stops:</span>
                     <span>{flight.outbound?.stops === 0 ? 'Direct ✓' : `${flight.outbound?.stops} stop`}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-zinc-400">Airline:</span>
+                    <span className="text-text-muted">Airline:</span>
                     <span>{flight.outbound?.carriers?.map(c => AIRLINE_NAMES[c] || c).join(', ')}</span>
                   </div>
-                  <div className="flex justify-between font-medium text-green-400">
+                  <div className="flex justify-between font-medium text-brand-green">
                     <span>Round Trip:</span>
                     <span>${flight.price}</span>
                   </div>
@@ -408,53 +408,53 @@ export default function ItineraryComparison({
       <div className="overflow-x-auto">
         <table className="w-full text-xs border-collapse">
           <thead>
-            <tr className="border-b border-zinc-700 bg-zinc-800">
-              <th className="text-left py-2 px-2 text-zinc-400 sticky left-0 bg-zinc-800">Day</th>
-              <th className="text-left py-2 px-2 text-zinc-400">Time</th>
-              <th className="text-left py-2 px-2 text-zinc-400">Category</th>
+            <tr className="border-b border-border bg-white">
+              <th className="text-left py-2 px-2 text-text-muted sticky left-0 bg-white">Day</th>
+              <th className="text-left py-2 px-2 text-text-muted">Time</th>
+              <th className="text-left py-2 px-2 text-text-muted">Category</th>
               {destinations.map(dest => (
                 <th key={dest.id} className="text-center py-2 px-2 min-w-[140px]" colSpan={2}>
-                  <div className="text-zinc-200 font-medium truncate">{dest.resort.name.split(' ').slice(0, 2).join(' ')}</div>
-                  <div className="text-zinc-500 font-normal">✈️ {dest.resort.nearestAirport}</div>
+                  <div className="text-text-primary font-medium truncate">{dest.resort.name.split(' ').slice(0, 2).join(' ')}</div>
+                  <div className="text-text-faint font-normal">✈️ {dest.resort.nearestAirport}</div>
                 </th>
               ))}
             </tr>
-            <tr className="border-b border-zinc-600 bg-zinc-800/50">
+            <tr className="border-b border-border bg-bg-row">
               <th colSpan={3}></th>
               {destinations.map(dest => (
                 <>
-                  <th key={`${dest.id}-v`} className="text-left py-1 px-1 text-zinc-500 text-[10px]">Vendor</th>
-                  <th key={`${dest.id}-c`} className="text-right py-1 px-1 text-zinc-500 text-[10px]">$/Person</th>
+                  <th key={`${dest.id}-v`} className="text-left py-1 px-1 text-text-faint text-[10px]">Vendor</th>
+                  <th key={`${dest.id}-c`} className="text-right py-1 px-1 text-text-faint text-[10px]">$/Person</th>
                 </>
               ))}
             </tr>
           </thead>
           <tbody>
             {tripDates && destinations[0] && buildItinerary(destinations[0].resortId).map((row, idx) => (
-              <tr key={idx} className="border-b border-zinc-800 hover:bg-zinc-800/30">
-                <td className="py-1.5 px-2 sticky left-0 bg-zinc-900 text-zinc-400 font-medium">
+              <tr key={idx} className="border-b border-border hover:bg-brand-purple-wash/40">
+                <td className="py-1.5 px-2 sticky left-0 bg-white text-text-muted font-medium">
                   {idx === 0 || buildItinerary(destinations[0].resortId)[idx - 1]?.day !== row.day 
                     ? `Day ${row.day}` 
                     : ''}
                 </td>
-                <td className="py-1.5 px-2 text-zinc-500">{formatTime(row.time)}</td>
-                <td className="py-1.5 px-2 text-zinc-300">{row.category}</td>
+                <td className="py-1.5 px-2 text-text-faint">{formatTime(row.time)}</td>
+                <td className="py-1.5 px-2 text-text-secondary">{row.category}</td>
                 {destinations.map(dest => {
                   const destItinerary = buildItinerary(dest.resortId);
                   const destRow = destItinerary[idx];
                   return (
                     <>
-                      <td key={`${dest.id}-${idx}-v`} className="py-1.5 px-1 text-zinc-400 text-[11px]">
+                      <td key={`${dest.id}-${idx}-v`} className="py-1.5 px-1 text-text-muted text-[11px]">
                         {destRow?.vendor || '—'}
                       </td>
                       <td key={`${dest.id}-${idx}-c`} className="py-1.5 px-1 text-right">
                         {destRow?.perPerson ? (
-                          <span className={destRow.perPerson > 0 ? 'text-green-400' : 'text-zinc-500'}>
+                          <span className={destRow.perPerson > 0 ? 'text-brand-green' : 'text-text-faint'}>
                             ${destRow.perPerson.toFixed(0)}
-                            {destRow.isShared && <span className="text-blue-400 ml-0.5">*</span>}
+                            {destRow.isShared && <span className="text-brand-purple ml-0.5">*</span>}
                           </span>
                         ) : (
-                          <span className="text-zinc-600">—</span>
+                          <span className="text-text-faint">—</span>
                         )}
                       </td>
                     </>
@@ -464,12 +464,12 @@ export default function ItineraryComparison({
             ))}
           </tbody>
           <tfoot>
-            <tr className="border-t-2 border-zinc-600 bg-zinc-800 font-bold">
-              <td colSpan={3} className="py-3 px-2 sticky left-0 bg-zinc-800">Per Person Total</td>
+            <tr className="border-t-2 border-border bg-white font-bold">
+              <td colSpan={3} className="py-3 px-2 sticky left-0 bg-white">Per Person Total</td>
               {destinations.map(dest => (
                 <>
                   <td key={`${dest.id}-total-l`}></td>
-                  <td key={`${dest.id}-total`} className="py-3 px-2 text-right text-lg text-green-400">
+                  <td key={`${dest.id}-total`} className="py-3 px-2 text-right text-lg text-brand-green">
                     ${calculateTotal(dest.resortId).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </td>
                 </>
@@ -479,8 +479,8 @@ export default function ItineraryComparison({
         </table>
       </div>
 
-      <div className="mt-3 text-[10px] text-zinc-500">
-        <span className="text-blue-400">*</span> = Shared cost (split by {travelerCount})
+      <div className="mt-3 text-[10px] text-text-faint">
+        <span className="text-brand-purple">*</span> = Shared cost (split by {travelerCount})
         <span className="mx-2">•</span>
         Origin: {homeAirport} (assumed home airport)
         <span className="mx-2">•</span>

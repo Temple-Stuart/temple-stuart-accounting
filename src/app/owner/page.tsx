@@ -205,8 +205,8 @@ export default function OwnerPage() {
     return (
       <div className={`min-h-screen ${SURFACE.page} flex items-center justify-center px-4`}>
         <div className={`${SURFACE.card} p-8 text-center`}>
-          <div className="font-mono text-2xl text-white/80">404</div>
-          <p className="mt-2 text-xs text-white/50">This page could not be found.</p>
+          <div className="font-mono text-2xl text-text-primary">404</div>
+          <p className="mt-2 text-xs text-text-faint">This page could not be found.</p>
         </div>
       </div>
     );
@@ -218,7 +218,7 @@ export default function OwnerPage() {
         {loadError && <div className={STATE.errorCard}>{loadError}</div>}
 
         {/* ── ACCOUNTS ── */}
-        <section className={`${SURFACE.card} overflow-hidden text-white`}>
+        <section className={`${SURFACE.card} overflow-hidden`}>
           <div className={SECTION_HEADER}>
             <span>Accounts ({accounts ? accounts.length : '…'} &amp; counting)</span>
           </div>
@@ -229,7 +229,7 @@ export default function OwnerPage() {
           ) : accounts ? (
             <div className="p-4">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-xs text-white/60">{accounts.length} accounts</span>
+                <span className="font-mono text-xs text-text-muted">{accounts.length} accounts</span>
                 {tierCounts.map(([tier, n]) => (
                   <span key={tier} className={chip(tier === 'free' ? 'neutral' : 'accent')}>
                     {tier} × {n}
@@ -262,18 +262,18 @@ export default function OwnerPage() {
                   </thead>
                   <tbody>
                     {(sortedAccounts ?? []).map((u) => (
-                      <tr key={u.id} className="border-t border-panel-border align-top">
-                        <td className="p-2 text-white/80">{u.email}</td>
-                        <td className="p-2 text-white/60">{u.name}</td>
-                        <td className="p-2 font-mono text-white/60">{dateOnly(u.createdAt)}</td>
+                      <tr key={u.id} className="border-t border-border align-top">
+                        <td className="p-2 text-text-primary">{u.email}</td>
+                        <td className="p-2 text-text-muted">{u.name}</td>
+                        <td className="p-2 font-mono text-text-muted">{dateOnly(u.createdAt)}</td>
                         <td className="p-2">
                           <span className={chip(u.tier === 'free' ? 'neutral' : 'accent')}>{u.tier}</span>
                         </td>
-                        <td className="p-2 text-white/60">{u.bookkeeping_initialized ? '✓' : '—'}</td>
-                        <td className={`${DATA.numeral} p-2 text-white/70`}>{u.counts.plaid_items}</td>
-                        <td className={`${DATA.numeral} p-2 text-white/70`}>{u.counts.trade_cards}</td>
-                        <td className={`${DATA.numeral} p-2 text-white/70`}>{u.counts.trips}</td>
-                        <td className={`${DATA.numeral} p-2 text-white/70`}>{u.counts.reservations}</td>
+                        <td className="p-2 text-text-muted">{u.bookkeeping_initialized ? '✓' : '—'}</td>
+                        <td className={`${DATA.numeral} p-2 text-text-secondary`}>{u.counts.plaid_items}</td>
+                        <td className={`${DATA.numeral} p-2 text-text-secondary`}>{u.counts.trade_cards}</td>
+                        <td className={`${DATA.numeral} p-2 text-text-secondary`}>{u.counts.trips}</td>
+                        <td className={`${DATA.numeral} p-2 text-text-secondary`}>{u.counts.reservations}</td>
                         <td className="p-2">
                           <div className="flex flex-wrap gap-1">
                             {u.entitlements.map((e) => (
@@ -296,7 +296,7 @@ export default function OwnerPage() {
         </section>
 
         {/* ── PROPOSALS ── */}
-        <section className={`${SURFACE.card} overflow-hidden text-white`}>
+        <section className={`${SURFACE.card} overflow-hidden`}>
           <div className={SECTION_HEADER}>
             <span>Proposals</span>
           </div>
@@ -392,24 +392,24 @@ function FragmentRow({
     <>
       <tr
         onClick={onToggle}
-        className="cursor-pointer border-t border-panel-border transition-colors hover:bg-white/5"
+        className="cursor-pointer border-t border-border transition-colors hover:bg-bg-row"
         aria-expanded={expanded}
       >
-        <td className="p-2 font-mono text-white/60">{dateOnly(p.createdAt)}</td>
-        <td className="p-2 text-white/80">{p.name}</td>
-        <td className="p-2 text-white/60">{p.email}</td>
+        <td className="p-2 font-mono text-text-muted">{dateOnly(p.createdAt)}</td>
+        <td className="p-2 text-text-primary">{p.name}</td>
+        <td className="p-2 text-text-muted">{p.email}</td>
         <td className="p-2">
           <span className={chip()}>{p.need}</span>
         </td>
-        <td className="p-2 text-white/70">{p.budgetRange}</td>
-        <td className="p-2 text-white/70">{p.startWindow}</td>
-        <td className="p-2 text-white/60">{p.referralSource ?? '—'}</td>
+        <td className="p-2 text-text-secondary">{p.budgetRange}</td>
+        <td className="p-2 text-text-secondary">{p.startWindow}</td>
+        <td className="p-2 text-text-muted">{p.referralSource ?? '—'}</td>
         <td className="p-2">
           <span className={chip(statusVariant)}>{p.status}</span>
         </td>
       </tr>
       {expanded && (
-        <tr className="border-t border-panel-border bg-white/5">
+        <tr className="border-t border-border bg-bg-row">
           <td colSpan={8} className="p-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="business" value={p.business} />
@@ -418,7 +418,7 @@ function FragmentRow({
                 <div className={DATA.columnHeader}>modules</div>
                 <div className="mt-1 flex flex-wrap gap-1">
                   {p.modules.length === 0 ? (
-                    <span className="text-xs text-white/40">—</span>
+                    <span className="text-xs text-text-faint">—</span>
                   ) : (
                     p.modules.map((m) => (
                       <span key={m} className={chip()}>
@@ -452,7 +452,7 @@ function FragmentRow({
                     ))}
                   </ul>
                 ) : (
-                  <div className="mt-1 text-xs text-white/40">—</div>
+                  <div className="mt-1 text-xs text-text-faint">—</div>
                 )}
               </div>
               <Field label="team size" value={p.teamSize ?? '—'} />
@@ -460,7 +460,7 @@ function FragmentRow({
               <Field label="last updated" value={dateOnly(p.updatedAt)} />
             </div>
 
-            <div className="mt-4 border-t border-panel-border pt-4">
+            <div className="mt-4 border-t border-border pt-4">
               <div className={DATA.columnHeader}>status</div>
               <div className={`${SEGMENT.wrap} mt-1`}>
                 {PROPOSAL_STATUSES.map((s) => (
@@ -507,7 +507,7 @@ function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <div className={DATA.columnHeader}>{label}</div>
-      <p className="mt-1 whitespace-pre-wrap break-words text-xs text-white/70">{value}</p>
+      <p className="mt-1 whitespace-pre-wrap break-words text-xs text-text-secondary">{value}</p>
     </div>
   );
 }

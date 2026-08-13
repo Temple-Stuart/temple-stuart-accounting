@@ -486,23 +486,23 @@ export default function Dashboard() {
               {/* Tax Filing CTA — primary tax-season action */}
               <Link
                 href="/dashboard/tax-filing"
-                className="block rounded-lg border border-blue-200 bg-gradient-to-r from-blue-50 to-white px-5 py-4 hover:border-blue-300 hover:shadow-sm transition-all"
+                className="block rounded-lg border border-border bg-white px-5 py-4 hover:border-brand-purple/40 hover:shadow-sm transition-all"
               >
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-md bg-blue-600 text-white flex items-center justify-center text-sm font-semibold">
+                    <div className="w-9 h-9 rounded-md bg-brand-purple text-white flex items-center justify-center text-sm font-semibold">
                       1040
                     </div>
                     <div>
-                      <div className="text-base font-semibold text-gray-900">
+                      <div className="text-base font-semibold text-text-primary">
                         File your taxes
                       </div>
-                      <div className="text-xs text-gray-600">
+                      <div className="text-xs text-text-muted">
                         Guided wizard — life events → documents → review → file.
                       </div>
                     </div>
                   </div>
-                  <div className="text-sm font-medium text-blue-700">
+                  <div className="text-sm font-medium text-brand-purple">
                     Start →
                   </div>
                 </div>
@@ -516,7 +516,7 @@ export default function Dashboard() {
                 <div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
-                      <thead className="bg-gray-50 text-text-secondary">
+                      <thead className="bg-bg-row text-text-secondary">
                         <tr>
                           <th className="px-3 py-2 text-left font-medium">Institution</th>
                           <th className="px-3 py-2 text-left font-medium">Account</th>
@@ -732,18 +732,18 @@ export default function Dashboard() {
                 <div className="p-4">
                   <Link
                     href="/dashboard/tax-filing"
-                    className="block rounded-lg border border-gray-200 bg-white px-5 py-4 hover:border-blue-300 hover:shadow-sm transition-all"
+                    className="block rounded-lg border border-border bg-white px-5 py-4 hover:border-brand-purple/40 hover:shadow-sm transition-all"
                   >
                     <div className="flex items-center justify-between gap-4">
                       <div>
-                        <div className="text-base font-semibold text-gray-900">
+                        <div className="text-base font-semibold text-text-primary">
                           Tax filing
                         </div>
-                        <div className="text-xs text-gray-600 mt-0.5">
+                        <div className="text-xs text-text-muted mt-0.5">
                           File your {selectedYear} taxes step by step — 7 steps covering life events, documents, income, deductions, trading, review, and file.
                         </div>
                       </div>
-                      <div className="text-sm font-medium text-blue-700 shrink-0">
+                      <div className="text-sm font-medium text-brand-purple shrink-0">
                         Open tax wizard →
                       </div>
                     </div>

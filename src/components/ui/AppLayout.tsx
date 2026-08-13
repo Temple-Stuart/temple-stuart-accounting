@@ -198,73 +198,73 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
 
         {/* Ledger Metrics Bar */}
         {ledgerMetrics && (
-          <div className="bg-gray-50 border-b border-gray-200">
+          <div className="bg-bg-row border-b border-border">
             <div className="max-w-[1800px] mx-auto flex items-center px-6 py-2 text-xs">
-              <span className="text-gray-400 uppercase tracking-wider text-[10px] font-medium mr-3">Ledger</span>
+              <span className="text-text-faint uppercase tracking-wider text-[10px] font-medium mr-3">Ledger</span>
 
-              <span className="text-gray-500 mr-1">BAL</span>
-              <span className={`font-semibold ${ledgerMetrics.balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmtDollars(ledgerMetrics.balance)}</span>
-              <span className="mx-2 w-px h-3 bg-gray-200" />
+              <span className="text-text-muted mr-1">BAL</span>
+              <span className={`font-semibold ${ledgerMetrics.balance >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>{fmtDollars(ledgerMetrics.balance)}</span>
+              <span className="mx-2 w-px h-3 bg-border" />
 
-              <span className="text-gray-500 mr-1">EXP</span>
-              <span className="text-red-600 font-medium">{fmtDollars(ledgerMetrics.expYtd)}</span>
-              <span className="mx-2 w-px h-3 bg-gray-200" />
+              <span className="text-text-muted mr-1">EXP</span>
+              <span className="text-brand-red font-medium">{fmtDollars(ledgerMetrics.expYtd)}</span>
+              <span className="mx-2 w-px h-3 bg-border" />
 
-              <span className="text-gray-500 mr-1">REV</span>
-              <span className="text-emerald-600 font-medium">{fmtDollars(ledgerMetrics.revYtd)}</span>
-              <span className="mx-2 w-px h-3 bg-gray-200" />
+              <span className="text-text-muted mr-1">REV</span>
+              <span className="text-brand-green font-medium">{fmtDollars(ledgerMetrics.revYtd)}</span>
+              <span className="mx-2 w-px h-3 bg-border" />
 
-              <span className="text-gray-500 mr-1">NET</span>
-              <span className={`font-semibold ${ledgerMetrics.net >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmtDollars(ledgerMetrics.net)}</span>
-              <span className="mx-2 w-px h-3 bg-gray-200" />
+              <span className="text-text-muted mr-1">NET</span>
+              <span className={`font-semibold ${ledgerMetrics.net >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>{fmtDollars(ledgerMetrics.net)}</span>
+              <span className="mx-2 w-px h-3 bg-border" />
 
-              <span className="text-gray-500 mr-1">BIZ</span>
+              <span className="text-text-muted mr-1">BIZ</span>
               <span className="text-brand-purple font-medium">{fmtPct(ledgerMetrics.bizPercent)}</span>
-              <span className="mx-2 w-px h-3 bg-gray-200" />
+              <span className="mx-2 w-px h-3 bg-border" />
 
-              <span className="text-gray-500 mr-1">DONE</span>
-              <span className={`font-medium ${ledgerMetrics.donePercent > 80 ? 'text-emerald-600' : ledgerMetrics.donePercent < 50 ? 'text-amber-600' : 'text-amber-500'}`}>{fmtPct(ledgerMetrics.donePercent)}</span>
-              <span className="mx-2 w-px h-3 bg-gray-200" />
+              <span className="text-text-muted mr-1">DONE</span>
+              <span className={`font-medium ${ledgerMetrics.donePercent > 80 ? 'text-brand-green' : ledgerMetrics.donePercent < 50 ? 'text-amber-600' : 'text-amber-500'}`}>{fmtPct(ledgerMetrics.donePercent)}</span>
+              <span className="mx-2 w-px h-3 bg-border" />
 
-              <span className="text-gray-500 mr-1">{'\u0394'}</span>
-              <span className={`font-medium ${ledgerMetrics.momChange <= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmtMom(ledgerMetrics.momChange)}</span>
+              <span className="text-text-muted mr-1">{'\u0394'}</span>
+              <span className={`font-medium ${ledgerMetrics.momChange <= 0 ? 'text-brand-green' : 'text-brand-red'}`}>{fmtMom(ledgerMetrics.momChange)}</span>
             </div>
           </div>
         )}
 
         {/* Engine / Tax Metrics Bar */}
         {engineMetrics && (
-          <div className="bg-white border-b border-gray-200">
+          <div className="bg-white border-b border-border">
             <div className="max-w-[1800px] mx-auto flex items-center px-6 py-2 text-xs">
-              <span className="text-gray-400 uppercase tracking-wider text-[10px] font-medium mr-3">Tax Engine</span>
+              <span className="text-text-faint uppercase tracking-wider text-[10px] font-medium mr-3">Tax Engine</span>
 
-              <span className="text-gray-500 mr-1">EST TAX</span>
+              <span className="text-text-muted mr-1">EST TAX</span>
               <span className="text-amber-600 font-semibold">{fmtDollars(engineMetrics.totalEstimatedTax)}</span>
-              <span className="mx-2 w-px h-3 bg-gray-200" />
+              <span className="mx-2 w-px h-3 bg-border" />
 
-              <span className="text-gray-500 mr-1">Q DUE</span>
+              <span className="text-text-muted mr-1">Q DUE</span>
               <span className="text-amber-600 font-medium">{fmtDollars(engineMetrics.quarterlyDue)}</span>
-              <span className="mx-2 w-px h-3 bg-gray-200" />
+              <span className="mx-2 w-px h-3 bg-border" />
 
-              <span className="text-gray-500 mr-1">EFF</span>
-              <span className="text-gray-700 font-medium">{fmtPct(engineMetrics.effectiveRate)}</span>
-              <span className="mx-2 w-px h-3 bg-gray-200" />
+              <span className="text-text-muted mr-1">EFF</span>
+              <span className="text-text-secondary font-medium">{fmtPct(engineMetrics.effectiveRate)}</span>
+              <span className="mx-2 w-px h-3 bg-border" />
 
-              <span className="text-gray-500 mr-1">DEDUCT</span>
-              <span className="text-emerald-600 font-medium">{fmtDollars(engineMetrics.totalDeductions)}</span>
-              <span className="mx-2 w-px h-3 bg-gray-200" />
+              <span className="text-text-muted mr-1">DEDUCT</span>
+              <span className="text-brand-green font-medium">{fmtDollars(engineMetrics.totalDeductions)}</span>
+              <span className="mx-2 w-px h-3 bg-border" />
 
-              <span className="text-gray-500 mr-1">SAFE</span>
-              <span className={`font-medium ${engineMetrics.safeHarborPercent >= 100 ? 'text-emerald-600' : 'text-red-600'}`}>{fmtPct(engineMetrics.safeHarborPercent)}</span>
+              <span className="text-text-muted mr-1">SAFE</span>
+              <span className={`font-medium ${engineMetrics.safeHarborPercent >= 100 ? 'text-brand-green' : 'text-brand-red'}`}>{fmtPct(engineMetrics.safeHarborPercent)}</span>
 
               {onOpenTaxSettings && (
                 <>
-                  <span className="mx-2 w-px h-3 bg-gray-200" />
-                  <button onClick={onOpenTaxSettings} className="text-gray-400 hover:text-gray-700 transition-colors" title="Tax Settings">{'\u2699'}</button>
+                  <span className="mx-2 w-px h-3 bg-border" />
+                  <button onClick={onOpenTaxSettings} className="text-text-faint hover:text-text-primary transition-colors" title="Tax Settings">{'\u2699'}</button>
                 </>
               )}
 
-              <span className="ml-auto text-gray-300 text-[10px] uppercase tracking-wider">Estimate</span>
+              <span className="ml-auto text-text-faint text-[10px] uppercase tracking-wider">Estimate</span>
             </div>
           </div>
         )}
