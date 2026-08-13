@@ -153,7 +153,7 @@ export default function PublicTransferSearch({ onRequireAuth: _onRequireAuth, sh
           Book link (the view's CHIP-1 precedence); URL-less rows render no
           action — no onBook, no disabled label, no fake CTA. */}
       {searched && (
-        <ActivityResultsView results={results} loading={loading} error={error} />
+        <ActivityResultsView results={results} loading={loading} error={error} caption="TRAVEL / TRANSFER SEARCH — LIVE PRICES VIA VIATOR" />
       )}
       {!searched && error && (
         <div className="rounded-lg border border-border bg-white p-4 text-sm text-brand-red">{error}</div>

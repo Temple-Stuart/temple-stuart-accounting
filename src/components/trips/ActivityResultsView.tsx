@@ -29,6 +29,9 @@
 import { useState } from 'react';
 import ResultsFilterBar from './ResultsFilterBar';
 import { sortAndFilterResults, type SortKey } from '@/lib/resultsSortFilter';
+// TRAVEL-RESULTS-TABLE: the results wear the deck-table anatomy — the
+// DATA.columnHeader micro-label is the one shared class string (ds.ts:225).
+import { DATA } from '@/lib/ds';
 
 /** The fields this view renders off a PR-A1 result item — the
  *  viatorProductToRecommendation shape minus `website` (still stripped).
@@ -64,6 +67,13 @@ interface Props {
    *  honest label instead of a Book action — for rails with no vendor wired
    *  (ground). Takes precedence over onBook. */
   bookDisabledLabel?: string;
+  /** TRAVEL-RESULTS-TABLE: the quiet mono caption above the table — mode +
+   *  vendor, SUPPLIED BY THE MOUNT (the providerLabel no-drift precedent,
+   *  FlightPickerView :106-110): this view is shared by the activities AND
+   *  transfers rails (both Viator-served — activities/search/route.ts:3,
+   *  transfers/search/route.ts:3 — but different modes), so the view cannot
+   *  know its own mode word. Absent → no caption renders (never guessed). */
+  caption?: string;
 }
 
 /** Route-side result cap shared by BOTH consumers of this view — the
@@ -139,7 +149,7 @@ function RatingPill({ activity }: { activity: ActivityResult }) {
   );
 }
 
-export default function ActivityResultsView({ results, loading, error, onBook, bookDisabledLabel }: Props) {
+export default function ActivityResultsView({ results, loading, error, onBook, bookDisabledLabel, caption }: Props) {
   // Client-side sort/filter over the already-fetched results — NO refetch.
   const [sort, setSort] = useState<SortKey>('price-asc');
   const [minRating, setMinRating] = useState(0);
@@ -208,87 +218,107 @@ export default function ActivityResultsView({ results, loading, error, onBook, b
           No results match these filters.
         </div>
       ) : (
-        // COMPACT-1: dense list rows (thumbnail · name/meta · price · action),
-        // replacing the horizontal photo-card scroller.
-        <div
-          aria-label="Activity results"
-          className="divide-y divide-border rounded-lg border border-border bg-white"
-        >
-          {displayed.map((activity, idx) => {
-        const duration = formatDuration(activity.durationMinutes);
-        const place = activity.address;
+        // TRAVEL-RESULTS-TABLE (spec design-refs/landing-direction-c.dc.html
+        // :100-170 — the 01-demo table anatomy): mono column headers on
+        // bg-bg-row, hairline rows, zebra, wash hover; prices gold right-mono.
+        // Columns are the REAL result fields (ActivityResult :38-53):
+        // thumbnail · name/place · rating · duration · from-price · action —
+        // every field the COMPACT-1 rows rendered still renders (field
+        // parity). The caption is mount-supplied (see the Props note). The
+        // PR-CHIP-1 action precedence block is byte-identical.
+        <div>
+          {caption && (
+            <div className="mb-1 font-mono text-[10px] tracking-wider text-text-faint">{caption}</div>
+          )}
+          <div className="overflow-x-auto rounded-lg border border-border bg-white" aria-label="Activity results">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-bg-row text-left">
+                  <th className="px-2 py-2"><span className="sr-only">Photo</span></th>
+                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Activity</th>
+                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Rating</th>
+                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Duration</th>
+                  <th className={`px-3 py-2 text-right font-semibold ${DATA.columnHeader}`}>From</th>
+                  <th className="px-3 py-2"><span className="sr-only">Book</span></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {displayed.map((activity, idx) => {
+                  const duration = formatDuration(activity.durationMinutes);
+                  const place = activity.address;
 
-        return (
-          <div
-            key={`${activity.viatorProductCode || activity.name}-${idx}`}
-            className="flex flex-wrap items-center gap-x-3 gap-y-2 p-2 transition-colors hover:bg-bg-row sm:flex-nowrap"
-          >
-            <div className="h-14 w-20 shrink-0 overflow-hidden rounded">
-              <ActivityCardImage photoUrl={activity.photoUrl} name={activity.name} />
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                <h3 className="truncate text-sm font-medium text-text-primary" title={activity.name}>
-                  {activity.name}
-                </h3>
-                <RatingPill activity={activity} />
-              </div>
-
-              {/* Meta row: place + duration chip. */}
-              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-text-faint">
-                {place && <span className="truncate">{place}</span>}
-                {duration && (
-                  <span className="inline-flex items-center rounded-full bg-bg-row px-1.5 py-0.5 text-[10px] text-text-secondary">
-                    {duration}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Price — "From $X". Mirrors the hotel row's green price emphasis. */}
-            <div className="shrink-0 text-right">
-              {typeof activity.price === 'number' ? (
-                <div className="flex items-baseline justify-end gap-1">
-                  <span className="text-[10px] text-text-faint">From</span>
-                  <span className="text-sm font-bold text-brand-gold">{money(activity.price)}</span>
-                </div>
-              ) : (
-                <div className="text-xs text-text-faint">Price on request</div>
-              )}
-            </div>
-
-            {/* PR-CHIP-1 action precedence: validated affiliate URL → real
-                outbound Book link; no URL + bookDisabledLabel → honest disabled
-                label (no vendor exists); no URL + onBook → legacy callback. */}
-            {activity.bookingUrl ? (
-              <a
-                href={activity.bookingUrl}
-                target="_blank"
-                rel="noopener noreferrer sponsored"
-                className="shrink-0 rounded bg-brand-purple px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-purple-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
-              >
-                Book
-              </a>
-            ) : bookDisabledLabel ? (
-              <span
-                aria-disabled="true"
-                className="shrink-0 cursor-default rounded bg-bg-row px-3 py-1.5 text-xs font-medium text-text-faint"
-              >
-                {bookDisabledLabel}
-              </span>
-            ) : onBook ? (
-              <button
-                type="button"
-                onClick={() => onBook(activity)}
-                className="shrink-0 rounded bg-brand-purple px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-purple-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
-              >
-                Book
-              </button>
-            ) : null}
+                  return (
+                    <tr
+                      key={`${activity.viatorProductCode || activity.name}-${idx}`}
+                      className="odd:bg-bg-row transition-colors hover:bg-brand-purple-wash/40"
+                    >
+                      <td className="px-2 py-2">
+                        <div className="h-14 w-20 overflow-hidden rounded">
+                          <ActivityCardImage photoUrl={activity.photoUrl} name={activity.name} />
+                        </div>
+                      </td>
+                      <td className="px-3 py-2">
+                        <h3 className="max-w-[16rem] truncate text-sm font-medium text-brand-purple" title={activity.name}>
+                          {activity.name}
+                        </h3>
+                        {place && (
+                          <p className="mt-0.5 max-w-[16rem] truncate text-xs text-text-faint">{place}</p>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2">
+                        <RatingPill activity={activity} />
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2">
+                        {duration && (
+                          <span className="text-xs text-text-secondary">{duration}</span>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right">
+                        {typeof activity.price === 'number' ? (
+                          <div className="flex items-baseline justify-end gap-1">
+                            <span className="text-[10px] text-text-faint">From</span>
+                            <span className="font-mono text-sm font-semibold text-brand-gold">{money(activity.price)}</span>
+                          </div>
+                        ) : (
+                          <div className="text-xs text-text-faint">Price on request</div>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right">
+                        {/* PR-CHIP-1 action precedence: validated affiliate URL → real
+                            outbound Book link; no URL + bookDisabledLabel → honest disabled
+                            label (no vendor exists); no URL + onBook → legacy callback. */}
+                        {activity.bookingUrl ? (
+                          <a
+                            href={activity.bookingUrl}
+                            target="_blank"
+                            rel="noopener noreferrer sponsored"
+                            className="shrink-0 rounded bg-brand-purple px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-purple-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+                          >
+                            Book
+                          </a>
+                        ) : bookDisabledLabel ? (
+                          <span
+                            aria-disabled="true"
+                            className="shrink-0 cursor-default rounded bg-bg-row px-3 py-1.5 text-xs font-medium text-text-faint"
+                          >
+                            {bookDisabledLabel}
+                          </span>
+                        ) : onBook ? (
+                          <button
+                            type="button"
+                            onClick={() => onBook(activity)}
+                            className="shrink-0 rounded bg-brand-purple px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-purple-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+                          >
+                            Book
+                          </button>
+                        ) : null}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        );
-          })}
         </div>
       )}
     </div>

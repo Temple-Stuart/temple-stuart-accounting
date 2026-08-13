@@ -25,6 +25,9 @@
 import { useState } from 'react';
 import ResultsFilterBar from './ResultsFilterBar';
 import { sortAndFilterResults, type SortKey } from '@/lib/resultsSortFilter';
+// TRAVEL-RESULTS-TABLE: the results wear the deck-table anatomy — the
+// DATA.columnHeader micro-label is the one shared class string (ds.ts:225).
+import { DATA } from '@/lib/ds';
 
 /** The fields this view renders off a PR-H1 result item. Typed against the
  *  liteApiHotelToRecommendation shape (liteapiClient.ts:328-389); kept local
@@ -191,89 +194,115 @@ export default function HotelResultsView({ results, loading, error, onBook, onSa
           No results match these filters.
         </div>
       ) : (
-        // COMPACT-1: dense list rows (thumbnail · name/place · price · actions),
-        // replacing the horizontal photo-card scroller.
-        <div
-          aria-label="Hotel results"
-          className="divide-y divide-border rounded-lg border border-border bg-white"
-        >
-          {displayed.map((hotel, idx) => {
-        // Per-night first (the number travelers compare on); total as support.
-        const perNight = hotel.pricePerNight;
-        const total = hotel.priceTotal ?? hotel.price ?? null;
-        const nights = hotel.nights;
-        const place = hotel.city || hotel.address;
-
-        return (
-          <div
-            key={`${hotel.liteapiHotelId}-${idx}`}
-            className="flex flex-wrap items-center gap-x-3 gap-y-2 p-2 transition-colors hover:bg-bg-row sm:flex-nowrap"
-          >
-            <div className="h-14 w-20 shrink-0 overflow-hidden rounded">
-              <HotelCardImage photoUrl={hotel.photoUrl} name={hotel.name} />
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                <h3 className="truncate text-sm font-medium text-text-primary" title={hotel.name}>
-                  {hotel.name}
-                </h3>
-                <RatingPill hotel={hotel} />
-              </div>
-              {place && (
-                <p className="mt-0.5 truncate text-xs text-text-faint">{place}</p>
-              )}
-            </div>
-
-            {/* Price block — per-night prominent, total + nights as support. */}
-            <div className="shrink-0 text-right">
-              {typeof perNight === 'number' ? (
-                <div className="flex items-baseline justify-end gap-1">
-                  <span className="text-sm font-bold text-brand-gold">
-                    {money(perNight, hotel.currency)}
-                  </span>
-                  <span className="text-[10px] text-text-faint">/ night</span>
-                </div>
-              ) : total != null ? (
-                <div className="text-sm font-bold text-brand-gold">
-                  {money(total, hotel.currency)}
-                </div>
-              ) : (
-                <div className="text-xs text-text-faint">Price on request</div>
-              )}
-              {total != null && (
-                <div className="text-[10px] text-text-faint">
-                  {money(total, hotel.currency)} total
-                  {typeof nights === 'number' && nights > 0 ? ` · ${nights} night${nights === 1 ? '' : 's'}` : ''}
-                </div>
-              )}
-            </div>
-
-            <div className="flex shrink-0 items-center gap-2">
-              <button
-                type="button"
-                onClick={() => onBook(hotel)}
-                className="rounded bg-brand-purple px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-purple-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
-              >
-                Book
-              </button>
-              {/* PR-Hotel-Commit: a second action — save the stay to a trip's budget
-                  (plan), separate from "Book" (pay now). Only shown when the container
-                  wires onSave (the home Travel tab). */}
-              {onSave && (
-                <button
-                  type="button"
-                  onClick={() => onSave(hotel)}
-                  disabled={savingId === hotel.liteapiHotelId}
-                  className="rounded border border-brand-purple bg-white px-3 py-1.5 text-xs font-semibold text-brand-purple transition-colors hover:bg-bg-row disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
-                >
-                  {savingId === hotel.liteapiHotelId ? 'Saving…' : 'Save to trip'}
-                </button>
-              )}
-            </div>
+        // TRAVEL-RESULTS-TABLE (spec design-refs/landing-direction-c.dc.html
+        // :100-170 — the 01-demo table anatomy): mono column headers on
+        // bg-bg-row, hairline rows, zebra, wash hover; prices gold right-mono.
+        // Columns are the REAL result fields (HotelResult :32-49): thumbnail ·
+        // name/place · rating · per-night · total/nights · actions — every
+        // field the COMPACT-1 rows rendered still renders (field parity). The
+        // caption names LiteAPI: this view is typed against
+        // liteApiHotelToRecommendation (liteapiClient.ts:328) and its one
+        // route is /api/travel/hotels/search (searchHotelRates, route.ts:2) —
+        // vendor proven, not assumed. Book/Save handler lines byte-identical.
+        <div>
+          <div className="mb-1 font-mono text-[10px] tracking-wider text-text-faint">
+            TRAVEL / HOTEL SEARCH — LIVE PRICES VIA LITEAPI
           </div>
-        );
-          })}
+          <div className="overflow-x-auto rounded-lg border border-border bg-white" aria-label="Hotel results">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-bg-row text-left">
+                  <th className="px-2 py-2"><span className="sr-only">Photo</span></th>
+                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Hotel</th>
+                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Rating</th>
+                  <th className={`px-3 py-2 text-right font-semibold ${DATA.columnHeader}`}>Per night</th>
+                  <th className={`px-3 py-2 text-right font-semibold ${DATA.columnHeader}`}>Total</th>
+                  <th className="px-3 py-2"><span className="sr-only">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {displayed.map((hotel, idx) => {
+                  // Per-night first (the number travelers compare on); total as support.
+                  const perNight = hotel.pricePerNight;
+                  const total = hotel.priceTotal ?? hotel.price ?? null;
+                  const nights = hotel.nights;
+                  const place = hotel.city || hotel.address;
+
+                  return (
+                    <tr
+                      key={`${hotel.liteapiHotelId}-${idx}`}
+                      className="odd:bg-bg-row transition-colors hover:bg-brand-purple-wash/40"
+                    >
+                      <td className="px-2 py-2">
+                        <div className="h-14 w-20 overflow-hidden rounded">
+                          <HotelCardImage photoUrl={hotel.photoUrl} name={hotel.name} />
+                        </div>
+                      </td>
+                      <td className="px-3 py-2">
+                        <h3 className="max-w-[16rem] truncate text-sm font-medium text-brand-purple" title={hotel.name}>
+                          {hotel.name}
+                        </h3>
+                        {place && (
+                          <p className="mt-0.5 max-w-[16rem] truncate text-xs text-text-faint">{place}</p>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2">
+                        <RatingPill hotel={hotel} />
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right">
+                        {typeof perNight === 'number' ? (
+                          <div className="flex items-baseline justify-end gap-1">
+                            <span className="font-mono text-sm font-semibold text-brand-gold">
+                              {money(perNight, hotel.currency)}
+                            </span>
+                            <span className="text-[10px] text-text-faint">/ night</span>
+                          </div>
+                        ) : total != null ? (
+                          <div className="font-mono text-sm font-semibold text-brand-gold">
+                            {money(total, hotel.currency)}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-text-faint">Price on request</div>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right">
+                        {total != null && (
+                          <div className="text-[10px] text-text-faint">
+                            {money(total, hotel.currency)} total
+                            {typeof nights === 'number' && nights > 0 ? ` · ${nights} night${nights === 1 ? '' : 's'}` : ''}
+                          </div>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => onBook(hotel)}
+                            className="rounded bg-brand-purple px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-purple-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+                          >
+                            Book
+                          </button>
+                          {/* PR-Hotel-Commit: a second action — save the stay to a trip's budget
+                              (plan), separate from "Book" (pay now). Only shown when the container
+                              wires onSave (the home Travel tab). */}
+                          {onSave && (
+                            <button
+                              type="button"
+                              onClick={() => onSave(hotel)}
+                              disabled={savingId === hotel.liteapiHotelId}
+                              className="rounded border border-brand-purple bg-white px-3 py-1.5 text-xs font-semibold text-brand-purple transition-colors hover:bg-bg-row disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+                            >
+                              {savingId === hotel.liteapiHotelId ? 'Saving…' : 'Save to trip'}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

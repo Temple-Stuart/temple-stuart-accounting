@@ -145,7 +145,7 @@ export default function PublicActivitySearch({ onRequireAuth, sharedCity, shared
 
       {/* Results: only after the first search. Empty/loading/error live in the view. */}
       {searched && (
-        <ActivityResultsView results={results} loading={loading} error={error} onBook={book} />
+        <ActivityResultsView results={results} loading={loading} error={error} onBook={book} caption="TRAVEL / ACTIVITY SEARCH — LIVE PRICES VIA VIATOR" />
       )}
       {!searched && error && (
         <div className="rounded-lg border border-border bg-white p-4 text-sm text-brand-red">{error}</div>
