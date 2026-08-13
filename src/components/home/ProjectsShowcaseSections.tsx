@@ -56,9 +56,9 @@ const CAPS_LINE = 'pipe 20/day · Routine 10/day · exec 5/day';
 
 function DarkSlide({ title, tag = 'Example project', children }: { title: string; tag?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-panel-border bg-panel p-4 font-mono text-[11px] leading-relaxed">
-      <div className="flex items-center justify-between gap-2 border-b border-panel-border pb-2">
-        <span className="font-bold uppercase tracking-wider text-white/60">{title}</span>
+    <div className="rounded-lg border border-border bg-white p-4 font-mono text-[11px] leading-relaxed">
+      <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
+        <span className="font-bold uppercase tracking-wider text-text-muted">{title}</span>
         <ExampleTag text={tag} />
       </div>
       <div className="mt-2">{children}</div>
@@ -70,22 +70,22 @@ function DarkSlide({ title, tag = 'Example project', children }: { title: string
 
 function ProjectsHeroTerminal() {
   return (
-    <div className="rounded-lg border border-panel-border bg-panel/90 p-4 font-mono text-[11px] leading-relaxed shadow-2xl">
-      <div className="flex items-center justify-between border-b border-panel-border pb-2">
-        <span className="font-bold uppercase tracking-wider text-white/60">Projects · the pipe</span>
+    <div className="rounded-lg border border-border bg-white/90 p-4 font-mono text-[11px] leading-relaxed shadow-2xl">
+      <div className="flex items-center justify-between border-b border-border pb-2">
+        <span className="font-bold uppercase tracking-wider text-text-muted">Projects · the pipe</span>
         <ExampleTag text="Example project" />
       </div>
       {/* The REAL five stages (operations-pipe-run.ts:104-248) — never the
           two-stage banner version. */}
-      <div className="mt-2 space-y-0.5 text-white/70">
-        <p><span className="text-white/40">1</span> research <span className="text-white/40">— web-grounded, paid</span></p>
-        <p><span className="text-white/40">2</span> fire audit <span className="text-white/40">— a read-only Claude Code Routine on the repo</span></p>
-        <p><span className="text-white/40">3</span> wait for the real audit <span className="text-white/40">— up to 30 min; no audit, no tasks</span></p>
-        <p><span className="text-white/40">4</span> fusion <span className="text-white/40">— goals + research + audit → tasks</span></p>
-        <p><span className="text-white/40">5</span> tasks land <span className="text-brand-amber">pending review</span> <span className="text-white/40">— you accept or reject each</span></p>
+      <div className="mt-2 space-y-0.5 text-text-secondary">
+        <p><span className="text-text-faint">1</span> research <span className="text-text-faint">— web-grounded, paid</span></p>
+        <p><span className="text-text-faint">2</span> fire audit <span className="text-text-faint">— a read-only Claude Code Routine on the repo</span></p>
+        <p><span className="text-text-faint">3</span> wait for the real audit <span className="text-text-faint">— up to 30 min; no audit, no tasks</span></p>
+        <p><span className="text-text-faint">4</span> fusion <span className="text-text-faint">— goals + research + audit → tasks</span></p>
+        <p><span className="text-text-faint">5</span> tasks land <span className="text-brand-amber">pending review</span> <span className="text-text-faint">— you accept or reject each</span></p>
       </div>
-      <p className="mt-2 border-t border-panel-border pt-2 text-white/50">
-        hard daily caps: <span className="text-white/80">{CAPS_LINE}</span>
+      <p className="mt-2 border-t border-border pt-2 text-text-faint">
+        hard daily caps: <span className="text-text-secondary">{CAPS_LINE}</span>
       </p>
     </div>
   );
@@ -99,15 +99,15 @@ function ProjectsHeroTerminal() {
 function CreatePanel() {
   return (
     <DarkSlide title="Create — title + goals, nothing else">
-      <div className="space-y-1 text-white/70">
-        <p><span className="text-white/40">title</span> <span className="text-white">Fix the food-truck site&rsquo;s online order form</span></p>
-        <p><span className="text-white/40">entity</span> Maria&rsquo;s Food Truck <span className="text-white/40">· target date optional</span></p>
-        <p className="mt-1 text-white/40">goal — what success looks like</p>
-        <p>· <span className="text-brand-amber">I WANT to</span> <span className="text-white">have customers finish an order without errors</span></p>
-        <p>· <span className="text-brand-amber">I WANT to</span> <span className="text-white">stop losing mobile orders</span></p>
-        <p className="border-t border-panel-border pt-1 text-white/50">
+      <div className="space-y-1 text-text-secondary">
+        <p><span className="text-text-faint">title</span> <span className="text-text-primary">Fix the food-truck site&rsquo;s online order form</span></p>
+        <p><span className="text-text-faint">entity</span> Maria&rsquo;s Food Truck <span className="text-text-faint">· target date optional</span></p>
+        <p className="mt-1 text-text-faint">goal — what success looks like</p>
+        <p>· <span className="text-brand-amber">I WANT to</span> <span className="text-text-primary">have customers finish an order without errors</span></p>
+        <p>· <span className="text-brand-amber">I WANT to</span> <span className="text-text-primary">stop losing mobile orders</span></p>
+        <p className="border-t border-border pt-1 text-text-faint">
           No problem statement, no diagnosis, no design required — a project is valid as
-          <span className="text-white/80"> title + goals</span>. The machine does the rest.
+          <span className="text-text-secondary"> title + goals</span>. The machine does the rest.
         </p>
       </div>
     </DarkSlide>
@@ -120,16 +120,16 @@ function CreatePanel() {
 function TruthMachinePanel() {
   return (
     <DarkSlide title="The Truth Machine — every prompt visible">
-      <div className="space-y-1 text-white/70">
-        <p><span className="text-white/40">1 · inputs</span> your goals, verbatim</p>
-        <p><span className="text-white/40">2 · research</span> <span className="rounded border border-brand-green/40 bg-brand-green/10 px-1 text-[9px] uppercase text-brand-green">auto</span> web-grounded findings → an editable output box</p>
-        <p><span className="text-white/40">3 · audit</span> <span className="rounded border border-blue-400/40 bg-blue-400/10 px-1 text-[9px] uppercase text-blue-300">paste</span> a read-only Claude Code audit of the repo</p>
-        <p><span className="text-white/40">4 · fusion</span> <span className="rounded border border-brand-green/40 bg-brand-green/10 px-1 text-[9px] uppercase text-brand-green">auto</span> goals + research + audit → proposed tasks</p>
-        <p><span className="text-white/40">5 · plan</span> the live task list</p>
-        <p className="mt-1 border-t border-panel-border pt-1 text-white/50">prompt — <span className="text-brand-red font-bold">your inputs in red</span></p>
-        <p className="text-white/80">PROJECT: <span className="text-brand-red">Fix the food-truck site&rsquo;s online order form</span></p>
-        <p className="text-white/80">GOALS: <span className="text-brand-red">I WANT customers to finish an order without errors…</span></p>
-        <p className="text-white/50">The red spans are server-declared segments, verified to rebuild the exact string that fires — never a guess.</p>
+      <div className="space-y-1 text-text-secondary">
+        <p><span className="text-text-faint">1 · inputs</span> your goals, verbatim</p>
+        <p><span className="text-text-faint">2 · research</span> <span className="rounded border border-brand-green/40 bg-brand-green/10 px-1 text-[9px] uppercase text-brand-green">auto</span> web-grounded findings → an editable output box</p>
+        <p><span className="text-text-faint">3 · audit</span> <span className="rounded border border-blue-400/40 bg-blue-400/10 px-1 text-[9px] uppercase text-blue-600">paste</span> a read-only Claude Code audit of the repo</p>
+        <p><span className="text-text-faint">4 · fusion</span> <span className="rounded border border-brand-green/40 bg-brand-green/10 px-1 text-[9px] uppercase text-brand-green">auto</span> goals + research + audit → proposed tasks</p>
+        <p><span className="text-text-faint">5 · plan</span> the live task list</p>
+        <p className="mt-1 border-t border-border pt-1 text-text-faint">prompt — <span className="text-brand-red font-bold">your inputs in red</span></p>
+        <p className="text-text-secondary">PROJECT: <span className="text-brand-red">Fix the food-truck site&rsquo;s online order form</span></p>
+        <p className="text-text-secondary">GOALS: <span className="text-brand-red">I WANT customers to finish an order without errors…</span></p>
+        <p className="text-text-faint">The red spans are server-declared segments, verified to rebuild the exact string that fires — never a guess.</p>
         <p className="text-brand-amber">&ldquo;Nothing is saved until you accept.&rdquo;</p>
       </div>
     </DarkSlide>
@@ -142,14 +142,14 @@ function TruthMachinePanel() {
 function PipePanel() {
   return (
     <DarkSlide title="⚡ run pipe — five real stages, no shortcuts">
-      <div className="space-y-1 text-white/70">
-        <p><span className="text-brand-green">✓</span> research <span className="float-right text-white/40">paid call 1 · findings saved</span></p>
-        <p><span className="text-brand-green">✓</span> fire audit <span className="float-right text-white/40">Routine fired · correlation id stored</span></p>
-        <p><span className="text-brand-amber">…</span> wait for the real audit <span className="float-right text-white/40">up to 30 min · costs nothing while waiting</span></p>
-        <p className="pl-4 text-white/50">the audit posts back through a token-guarded door: bearer secret first, and the correlation id must match the stored fire — else rejected</p>
-        <p><span className="text-brand-green">✓</span> fusion <span className="float-right text-white/40">paid call 2 · reads the REAL audit</span></p>
+      <div className="space-y-1 text-text-secondary">
+        <p><span className="text-brand-green">✓</span> research <span className="float-right text-text-faint">paid call 1 · findings saved</span></p>
+        <p><span className="text-brand-green">✓</span> fire audit <span className="float-right text-text-faint">Routine fired · correlation id stored</span></p>
+        <p><span className="text-brand-amber">…</span> wait for the real audit <span className="float-right text-text-faint">up to 30 min · costs nothing while waiting</span></p>
+        <p className="pl-4 text-text-faint">the audit posts back through a token-guarded door: bearer secret first, and the correlation id must match the stored fire — else rejected</p>
+        <p><span className="text-brand-green">✓</span> fusion <span className="float-right text-text-faint">paid call 2 · reads the REAL audit</span></p>
         <p><span className="text-brand-green">✓</span> 3 tasks land <span className="text-brand-amber">pending review</span></p>
-        <p className="border-t border-panel-border pt-1 text-white/50">
+        <p className="border-t border-border pt-1 text-text-faint">
           The audit is mandatory: if it never lands, the pipe <span className="text-brand-red">fails loud</span> —
           it never proceeds on an empty audit and never invents tasks.
         </p>
@@ -165,7 +165,7 @@ function PipePanel() {
 function PendingPanel() {
   return (
     <DarkSlide title="Tasks land as pending review — the checkpoint">
-      <div className="space-y-1 text-white/70">
+      <div className="space-y-1 text-text-secondary">
         {[
           ['Fix the mobile submit dead-zone', 'audit: order-form.tsx:214'],
           ['Widen the phone validation', 'audit: checkout.ts:88'],
@@ -173,12 +173,12 @@ function PendingPanel() {
         ].map(([title, cite]) => (
           <p key={title}>
             <span className="rounded bg-purple-400/20 px-1 text-[9px] uppercase text-purple-300">pending review</span>{' '}
-            <span className="text-white">{title}</span>
-            <span className="float-right"><span className="text-purple-300">✓ accept</span> · <span className="text-white/50">✕ reject</span></span>
-            <br /><span className="pl-4 text-white/50">{cite}</span>
+            <span className="text-text-primary">{title}</span>
+            <span className="float-right"><span className="text-purple-300">✓ accept</span> · <span className="text-text-faint">✕ reject</span></span>
+            <br /><span className="pl-4 text-text-faint">{cite}</span>
           </p>
         ))}
-        <p className="border-t border-panel-border pt-1 text-white/50">
+        <p className="border-t border-border pt-1 text-text-faint">
           Every task cites the finding it came from, and every landed task writes a hash-chained
           audit row. Auto-fired work never becomes live work without your ✓.
         </p>
@@ -194,12 +194,12 @@ function PendingPanel() {
 function AcceptPanel() {
   return (
     <DarkSlide title="✓ accept = build">
-      <div className="space-y-1 text-white/70">
-        <p><span className="text-purple-300">✓ accept</span> → the task flips to <span className="text-white">open</span> — and fires a build Routine for it</p>
+      <div className="space-y-1 text-text-secondary">
+        <p><span className="text-purple-300">✓ accept</span> → the task flips to <span className="text-text-primary">open</span> — and fires a build Routine for it</p>
         <p className="text-brand-green">building… PR incoming</p>
-        <p className="text-white/50">One task, one pull request — it lands on GitHub for review, and a human merges it. The tab tells you the build started; the PR itself lives in the repo.</p>
-        <p className="border-t border-panel-border pt-1"><span className="text-white/50">over the cap? </span><span className="text-brand-red">&ldquo;could not start execution — daily execution limit reached&rdquo;</span></p>
-        <p className="text-white/50">Execution is capped at <span className="text-white/80">5 fires/day</span> — a runaway loop cannot spend the night building.</p>
+        <p className="text-text-faint">One task, one pull request — it lands on GitHub for review, and a human merges it. The tab tells you the build started; the PR itself lives in the repo.</p>
+        <p className="border-t border-border pt-1"><span className="text-text-faint">over the cap? </span><span className="text-brand-red">&ldquo;could not start execution — daily execution limit reached&rdquo;</span></p>
+        <p className="text-text-faint">Execution is capped at <span className="text-text-secondary">5 fires/day</span> — a runaway loop cannot spend the night building.</p>
       </div>
     </DarkSlide>
   );
@@ -210,13 +210,13 @@ function AcceptPanel() {
 function EvolvePanel() {
   return (
     <DarkSlide title="Schedule it · evolve it">
-      <div className="space-y-1 text-white/70">
-        <p><span className="text-white/80">↗ schedule</span> <span className="text-white/50">→</span> <span className="text-brand-green">&ldquo;scheduled for 2026-07-16&rdquo;</span> <span className="text-white/50">— the task lands on your daily plan</span></p>
-        <p className="mt-1 border-t border-panel-border pt-1"><span className="text-white/80">↻ evolve — new goals, loop again</span></p>
-        <p className="text-white/50">Edit your goals and re-run the whole pipe. Append-only: prior tasks stay in the timeline; nothing is deleted.</p>
-        <p className="mt-1 text-white/40">EVOLUTION</p>
-        <p>v1 <span className="text-white/50">claude-sonnet-4-6 · $0.0119 · 1,420 in · 510 out · 1 task</span></p>
-        <p>v2 <span className="text-white/50">claude-sonnet-4-6 · $0.0148 · 1,730 in · 640 out · 3 tasks</span></p>
+      <div className="space-y-1 text-text-secondary">
+        <p><span className="text-text-secondary">↗ schedule</span> <span className="text-text-faint">→</span> <span className="text-brand-green">&ldquo;scheduled for 2026-07-16&rdquo;</span> <span className="text-text-faint">— the task lands on your daily plan</span></p>
+        <p className="mt-1 border-t border-border pt-1"><span className="text-text-secondary">↻ evolve — new goals, loop again</span></p>
+        <p className="text-text-faint">Edit your goals and re-run the whole pipe. Append-only: prior tasks stay in the timeline; nothing is deleted.</p>
+        <p className="mt-1 text-text-faint">EVOLUTION</p>
+        <p>v1 <span className="text-text-faint">claude-sonnet-4-6 · $0.0119 · 1,420 in · 510 out · 1 task</span></p>
+        <p>v2 <span className="text-text-faint">claude-sonnet-4-6 · $0.0148 · 1,730 in · 640 out · 3 tasks</span></p>
       </div>
     </DarkSlide>
   );
@@ -227,13 +227,13 @@ function EvolvePanel() {
 function ReceiptsPanel() {
   return (
     <DarkSlide title="🔍 inspect this inference — the receipts">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white/80">claude-sonnet-4-6 · $0.0148 · 1,730 in · 640 out</p>
-        <p className="text-white/50">model · temperature 0.3 · max tokens 16,000</p>
-        <p className="text-white/50">system prompt · user message · raw response — verbatim, no truncation</p>
-        <p><span className="text-white/40">operations_ai_usage row id</span> <span className="text-white/80">demo-usage-fusion-v2</span></p>
-        <p className="border-t border-panel-border pt-1 text-white/50">pricing: <span className="text-white/80">$3/M in · $15/M out</span> · every paid call writes an immutable usage row</p>
-        <p className="text-white/50">and the caps fail loud, verbatim: <span className="text-brand-red">&ldquo;AI pipe daily limit reached — 20/20 calls used today&rdquo;</span></p>
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-secondary">claude-sonnet-4-6 · $0.0148 · 1,730 in · 640 out</p>
+        <p className="text-text-faint">model · temperature 0.3 · max tokens 16,000</p>
+        <p className="text-text-faint">system prompt · user message · raw response — verbatim, no truncation</p>
+        <p><span className="text-text-faint">operations_ai_usage row id</span> <span className="text-text-secondary">demo-usage-fusion-v2</span></p>
+        <p className="border-t border-border pt-1 text-text-faint">pricing: <span className="text-text-secondary">$3/M in · $15/M out</span> · every paid call writes an immutable usage row</p>
+        <p className="text-text-faint">and the caps fail loud, verbatim: <span className="text-brand-red">&ldquo;AI pipe daily limit reached — 20/20 calls used today&rdquo;</span></p>
       </div>
     </DarkSlide>
   );

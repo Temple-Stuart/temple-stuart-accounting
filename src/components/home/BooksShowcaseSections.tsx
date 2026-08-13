@@ -71,9 +71,9 @@ const EX = {
 
 function DarkSlide({ title, tag = 'Example data', children }: { title: string; tag?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-panel-border bg-panel p-4 font-mono text-[11px] leading-relaxed">
-      <div className="flex items-center justify-between gap-2 border-b border-panel-border pb-2">
-        <span className="font-bold uppercase tracking-wider text-white/60">{title}</span>
+    <div className="rounded-lg border border-border bg-white p-4 font-mono text-[11px] leading-relaxed">
+      <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
+        <span className="font-bold uppercase tracking-wider text-text-muted">{title}</span>
         <ExampleTag text={tag} />
       </div>
       <div className="mt-2">{children}</div>
@@ -99,23 +99,23 @@ export function UnlockBooksButton({ currentUserId, onRequireAuth }: { currentUse
 
 export function BooksHeroTerminal() {
   return (
-    <div className="rounded-lg border border-panel-border bg-panel/90 p-4 font-mono text-[11px] leading-relaxed shadow-2xl">
-      <div className="flex items-center justify-between border-b border-panel-border pb-2">
-        <span className="font-bold uppercase tracking-wider text-white/60">Books · June 2026</span>
+    <div className="rounded-lg border border-border bg-white/90 p-4 font-mono text-[11px] leading-relaxed shadow-2xl">
+      <div className="flex items-center justify-between border-b border-border pb-2">
+        <span className="font-bold uppercase tracking-wider text-text-muted">Books · June 2026</span>
         <ExampleTag text="Example books" />
       </div>
       <p className="mt-2">
-        <span className="text-white/50">ASSETS </span><span className="text-white">{usd(EX.assets)}</span>
-        <span className="text-white/50"> · LIABILITIES </span><span className="text-white">{usd(EX.liabilities)}</span>
-        <span className="text-white/50"> · EQUITY </span><span className="text-white">{usd(EX.equity)}</span>
+        <span className="text-text-faint">ASSETS </span><span className="text-text-primary">{usd(EX.assets)}</span>
+        <span className="text-text-faint"> · LIABILITIES </span><span className="text-text-primary">{usd(EX.liabilities)}</span>
+        <span className="text-text-faint"> · EQUITY </span><span className="text-text-primary">{usd(EX.equity)}</span>
       </p>
       <p className="text-brand-green">A = L + E ✓ BALANCED — {usd(EX.assets)} = {usd(EX.liabilities)} + {usd(EX.equity)}</p>
-      <div className="mt-2 border-t border-panel-border pt-2 text-white/70">
-        <p className="text-white/50">Jun 05 · Farmers market sales</p>
-        <p><span className="text-brand-green">DR</span> 1010 Business Checking <span className="text-white">$412.00</span></p>
-        <p><span className="text-brand-red">CR</span> 4100 Product Revenue <span className="text-white">$412.00</span></p>
+      <div className="mt-2 border-t border-border pt-2 text-text-secondary">
+        <p className="text-text-faint">Jun 05 · Farmers market sales</p>
+        <p><span className="text-brand-green">DR</span> 1010 Business Checking <span className="text-text-primary">$412.00</span></p>
+        <p><span className="text-brand-red">CR</span> 4100 Product Revenue <span className="text-text-primary">$412.00</span></p>
       </div>
-      <p className="mt-2 border-t border-panel-border pt-2 text-white/50">
+      <p className="mt-2 border-t border-border pt-2 text-text-faint">
         3 linked accounts · categorize queue: <span className="text-brand-amber">3 pending</span>
       </p>
     </div>
@@ -131,14 +131,14 @@ export function BooksHeroTerminal() {
 export function SourceAccountsPanel() {
   return (
     <DarkSlide title="Source accounts — 3 connected">
-      <div className="space-y-1 text-white/70">
-        <p><span className="text-white">First Harbor Bank</span> ···· 4821 <span className="text-white/40">checking</span> <span className="rounded bg-brand-purple/40 px-1 text-[10px] text-white">BUSINESS</span> <span className="float-right text-white">{usd(EX.checking)}</span></p>
-        <p><span className="text-white">First Harbor Bank</span> ···· 4839 <span className="text-white/40">savings</span> <span className="rounded bg-brand-purple/40 px-1 text-[10px] text-white">BUSINESS</span> <span className="float-right text-white">{usd(EX.savings)}</span></p>
-        <p><span className="text-white">Meridian Card Services</span> ···· 7702 <span className="text-white/40">credit</span> <span className="rounded bg-brand-purple/40 px-1 text-[10px] text-white">BUSINESS</span> <span className="float-right text-brand-red">{usd(EX.liabilities)}</span></p>
-        <p className="mt-1 border-t border-panel-border pt-1 text-white/50">
-          Equipment (on the books, not a feed): 1400 Equipment <span className="float-right text-white/80">{usd(EX.equipment)}</span>
+      <div className="space-y-1 text-text-secondary">
+        <p><span className="text-text-primary">First Harbor Bank</span> ···· 4821 <span className="text-text-faint">checking</span> <span className="rounded bg-brand-purple-wash px-1 text-[10px] text-brand-purple">BUSINESS</span> <span className="float-right text-brand-gold">{usd(EX.checking)}</span></p>
+        <p><span className="text-text-primary">First Harbor Bank</span> ···· 4839 <span className="text-text-faint">savings</span> <span className="rounded bg-brand-purple-wash px-1 text-[10px] text-brand-purple">BUSINESS</span> <span className="float-right text-brand-gold">{usd(EX.savings)}</span></p>
+        <p><span className="text-text-primary">Meridian Card Services</span> ···· 7702 <span className="text-text-faint">credit</span> <span className="rounded bg-brand-purple-wash px-1 text-[10px] text-brand-purple">BUSINESS</span> <span className="float-right text-brand-red">{usd(EX.liabilities)}</span></p>
+        <p className="mt-1 border-t border-border pt-1 text-text-faint">
+          Equipment (on the books, not a feed): 1400 Equipment <span className="float-right text-text-secondary">{usd(EX.equipment)}</span>
         </p>
-        <p className="text-white/50">Assets {usd(EX.checking)} + {usd(EX.savings)} + {usd(EX.equipment)} = <span className="text-white">{usd(EX.assets)}</span> · every account assigned to an entity (personal / business / trading)</p>
+        <p className="text-text-faint">Assets {usd(EX.checking)} + {usd(EX.savings)} + {usd(EX.equipment)} = <span className="text-brand-gold">{usd(EX.assets)}</span> · every account assigned to an entity (personal / business / trading)</p>
       </div>
     </DarkSlide>
   );
@@ -156,16 +156,16 @@ export function CategorizePanel() {
   ];
   return (
     <DarkSlide title="Categorize — 3 pending, predictions preselected">
-      <div className="space-y-1.5 text-white/70">
+      <div className="space-y-1.5 text-text-secondary">
         {rows.map((r) => (
           <p key={r.m}>
-            <span className="text-white">{r.m}</span> <span className={r.amt.startsWith('+') ? 'text-brand-green' : 'text-white/80'}>{r.amt}</span>
+            <span className="text-text-primary">{r.m}</span> <span className={r.amt.startsWith('+') ? 'text-brand-green' : 'text-text-secondary'}>{r.amt}</span>
             <br />
-            <span className="text-white/50">predicted → </span><span className="text-brand-amber">{r.code}</span>
-            <span className="text-white/50"> · confidence </span><span className="text-white/80">{r.conf}</span>
+            <span className="text-text-faint">predicted → </span><span className="text-brand-amber">{r.code}</span>
+            <span className="text-text-faint"> · confidence </span><span className="text-text-secondary">{r.conf}</span>
           </p>
         ))}
-        <p className="border-t border-panel-border pt-1.5 text-white/50">
+        <p className="border-t border-border pt-1.5 text-text-faint">
           Predictions come from YOUR ledger — a user-scoped merchant→account table that commits
           reinforce and corrections retrain. No AI. Just your books learning your business.
         </p>
@@ -178,11 +178,11 @@ export function CategorizePanel() {
 export function JournalPanel() {
   return (
     <DarkSlide title="Journal entry — debits must equal credits">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white/50">Jun 05, 2026 · Farmers market sales · POSTED</p>
-        <p><span className="font-bold text-brand-green">DR</span> 1010 Business Checking <span className="float-right text-white">$412.00</span></p>
-        <p><span className="font-bold text-brand-red">CR</span> 4100 Product Revenue <span className="float-right text-white">$412.00</span></p>
-        <p className="border-t border-panel-border pt-1 text-white/50">Entry total: debits $412.00 = credits $412.00 ✓</p>
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-faint">Jun 05, 2026 · Farmers market sales · POSTED</p>
+        <p><span className="font-bold text-brand-green">DR</span> 1010 Business Checking <span className="float-right text-text-primary">$412.00</span></p>
+        <p><span className="font-bold text-brand-red">CR</span> 4100 Product Revenue <span className="float-right text-text-primary">$412.00</span></p>
+        <p className="border-t border-border pt-1 text-text-faint">Entry total: debits $412.00 = credits $412.00 ✓</p>
         <p className="text-brand-red">An unbalanced entry refuses to commit — &ldquo;UNBALANCED JOURNAL ENTRY&rdquo; is a hard error, not a warning.</p>
       </div>
     </DarkSlide>
@@ -207,22 +207,22 @@ export function TrialBalancePanel() {
   const credits = rows.filter(([, , , t]) => t === 'C').reduce((s, [, , v]) => s + v, 0);
   return (
     <DarkSlide title="Trial balance — June 2026">
-      <div className="space-y-0.5 text-white/70">
+      <div className="space-y-0.5 text-text-secondary">
         {rows.map(([code, name, v, t]) => (
           <p key={code}>
-            <span className="text-white/50">{code}</span> {name}
+            <span className="text-text-faint">{code}</span> {name}
             <span className="float-right">
-              {t === 'D' ? <span className="text-white">{usd(v)}</span> : <span className="text-white/40">—</span>}
-              <span className="inline-block w-16 text-right">{t === 'C' ? <span className="text-white">{usd(v)}</span> : <span className="text-white/40">—</span>}</span>
+              {t === 'D' ? <span className="text-text-primary">{usd(v)}</span> : <span className="text-text-faint">—</span>}
+              <span className="inline-block w-16 text-right">{t === 'C' ? <span className="text-text-primary">{usd(v)}</span> : <span className="text-text-faint">—</span>}</span>
             </span>
           </p>
         ))}
-        <p className="border-t border-panel-border pt-1">
-          <span className="text-white/50">Totals</span>
-          <span className="float-right text-white">{usd(debits)} <span className="inline-block w-16 text-right">{usd(credits)}</span></span>
+        <p className="border-t border-border pt-1">
+          <span className="text-text-faint">Totals</span>
+          <span className="float-right text-text-primary">{usd(debits)} <span className="inline-block w-16 text-right">{usd(credits)}</span></span>
         </p>
         <p className="text-brand-green">BALANCED ✓ — debits {usd(debits)} = credits {usd(credits)}</p>
-        <p className="text-white/50">If this can&rsquo;t be computed, the cockpit shows an error — never a silent &ldquo;balanced&rdquo;.</p>
+        <p className="text-text-faint">If this can&rsquo;t be computed, the cockpit shows an error — never a silent &ldquo;balanced&rdquo;.</p>
       </div>
     </DarkSlide>
   );
@@ -233,11 +233,11 @@ export function TrialBalancePanel() {
 export function ReconcilePanel() {
   return (
     <DarkSlide title="Bank reconciliation — Business Checking ···· 4821">
-      <div className="space-y-1 text-white/70">
-        <p>Statement balance (bank) <span className="float-right text-white">{usd(EX.checking)}.00</span></p>
-        <p>Book balance (your ledger) <span className="float-right text-white">{usd(EX.checking)}.00</span></p>
-        <p className="text-white/50">Cleared: 14 items · deposits in transit $412.00 · outstanding checks $84.12 (both cleared)</p>
-        <p className="border-t border-panel-border pt-1">Difference <span className="float-right text-brand-green">$0.00</span></p>
+      <div className="space-y-1 text-text-secondary">
+        <p>Statement balance (bank) <span className="float-right text-text-primary">{usd(EX.checking)}.00</span></p>
+        <p>Book balance (your ledger) <span className="float-right text-text-primary">{usd(EX.checking)}.00</span></p>
+        <p className="text-text-faint">Cleared: 14 items · deposits in transit $412.00 · outstanding checks $84.12 (both cleared)</p>
+        <p className="border-t border-border pt-1">Difference <span className="float-right text-brand-green">$0.00</span></p>
         <p className="text-brand-green">✓ RECONCILED</p>
       </div>
     </DarkSlide>
@@ -248,16 +248,16 @@ export function ReconcilePanel() {
 export function StatementsPanel() {
   return (
     <DarkSlide title="Financial statements — June 2026">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white/50">INCOME STATEMENT</p>
-        <p>4100 Product Revenue <span className="float-right text-white">{usd(EX.revenue)}</span></p>
-        <p>6120 Supplies <span className="float-right text-white/80">({usd(EX.expenses.supplies)})</span></p>
-        <p>6010 Car &amp; Truck Expenses <span className="float-right text-white/80">({usd(EX.expenses.carTruck)})</span></p>
-        <p>6100 Rent (Business) <span className="float-right text-white/80">({usd(EX.expenses.rent)})</span></p>
-        <p className="border-t border-panel-border pt-1">Net income <span className="float-right text-brand-green">{usd(EX.netIncome)}</span></p>
-        <p className="mt-1.5 text-white/50">BALANCE SHEET</p>
-        <p>Assets <span className="float-right text-white">{usd(EX.assets)}</span></p>
-        <p>Liabilities + Equity <span className="float-right text-white">{usd(EX.liabilities)} + {usd(EX.equity)} = {usd(EX.assets)}</span></p>
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-faint">INCOME STATEMENT</p>
+        <p>4100 Product Revenue <span className="float-right text-text-primary">{usd(EX.revenue)}</span></p>
+        <p>6120 Supplies <span className="float-right text-text-secondary">({usd(EX.expenses.supplies)})</span></p>
+        <p>6010 Car &amp; Truck Expenses <span className="float-right text-text-secondary">({usd(EX.expenses.carTruck)})</span></p>
+        <p>6100 Rent (Business) <span className="float-right text-text-secondary">({usd(EX.expenses.rent)})</span></p>
+        <p className="border-t border-border pt-1">Net income <span className="float-right text-brand-green">{usd(EX.netIncome)}</span></p>
+        <p className="mt-1.5 text-text-faint">BALANCE SHEET</p>
+        <p>Assets <span className="float-right text-text-primary">{usd(EX.assets)}</span></p>
+        <p>Liabilities + Equity <span className="float-right text-text-primary">{usd(EX.liabilities)} + {usd(EX.equity)} = {usd(EX.assets)}</span></p>
         <p className="text-brand-green">BALANCED ✓ — equity = {usd(EX.contributed)} contributed + {usd(EX.netIncome)} net income</p>
       </div>
     </DarkSlide>
@@ -269,12 +269,12 @@ export function StatementsPanel() {
 export function ClosePanel() {
   return (
     <DarkSlide title="Period close — 2026">
-      <div className="space-y-1 text-white/70">
-        <p>Jan · Feb · Mar · Apr · May · Jun <span className="text-brand-green">CLOSED ✓</span> <span className="text-white/50">· Jul</span> <span className="text-brand-amber">OPEN</span></p>
-        <p className="text-white/50">A closed month is locked — entries in it cannot change.</p>
-        <p className="border-t border-panel-border pt-1 text-white/80">Reopen June?</p>
+      <div className="space-y-1 text-text-secondary">
+        <p>Jan · Feb · Mar · Apr · May · Jun <span className="text-brand-green">CLOSED ✓</span> <span className="text-text-faint">· Jul</span> <span className="text-brand-amber">OPEN</span></p>
+        <p className="text-text-faint">A closed month is locked — entries in it cannot change.</p>
+        <p className="border-t border-border pt-1 text-text-secondary">Reopen June?</p>
         <p className="text-brand-amber">&ldquo;Reason for reopening (required for audit trail):&rdquo;</p>
-        <p className="text-white/50">No reason, no reopen. The reason lands on the record, permanently.</p>
+        <p className="text-text-faint">No reason, no reopen. The reason lands on the record, permanently.</p>
       </div>
     </DarkSlide>
   );
@@ -284,14 +284,14 @@ export function ClosePanel() {
 export function CpaExportPanel() {
   return (
     <DarkSlide title="CPA export — year to date">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white/50">PACKAGE CONTENTS</p>
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-faint">PACKAGE CONTENTS</p>
         <p>· Trial balance <span className="text-brand-green">BALANCED ✓</span></p>
-        <p>· Income statement — net income <span className="text-white">{usd(EX.netIncome)}</span></p>
+        <p>· Income statement — net income <span className="text-text-primary">{usd(EX.netIncome)}</span></p>
         <p>· Balance sheet — {usd(EX.assets)} = {usd(EX.liabilities)} + {usd(EX.equity)} <span className="text-brand-green">✓</span></p>
         <p>· General ledger + journal entries (every debit and credit)</p>
-        <p>· Closed periods: <span className="text-white">6 of 6</span> through June</p>
-        <p className="border-t border-panel-border pt-1 text-white/50">One clean package for your CPA — not a shoebox of receipts.</p>
+        <p>· Closed periods: <span className="text-text-primary">6 of 6</span> through June</p>
+        <p className="border-t border-border pt-1 text-text-faint">One clean package for your CPA — not a shoebox of receipts.</p>
       </div>
     </DarkSlide>
   );

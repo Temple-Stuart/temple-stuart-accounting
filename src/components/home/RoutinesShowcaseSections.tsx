@@ -111,9 +111,9 @@ const usd2 = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigit
 
 function DarkSlide({ title, tag = 'Example set', children }: { title: string; tag?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-panel-border bg-panel p-4 font-mono text-[11px] leading-relaxed">
-      <div className="flex items-center justify-between gap-2 border-b border-panel-border pb-2">
-        <span className="font-bold uppercase tracking-wider text-white/60">{title}</span>
+    <div className="rounded-lg border border-border bg-white p-4 font-mono text-[11px] leading-relaxed">
+      <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
+        <span className="font-bold uppercase tracking-wider text-text-muted">{title}</span>
         <ExampleTag text={tag} />
       </div>
       <div className="mt-2">{children}</div>
@@ -139,25 +139,25 @@ function Pill({ status }: { status: keyof typeof PILL }) {
 function RoutinesHeroTerminal() {
   const rent = EX.monthly[0];
   return (
-    <div className="rounded-lg border border-panel-border bg-panel/90 p-4 font-mono text-[11px] leading-relaxed shadow-2xl">
-      <div className="flex items-center justify-between border-b border-panel-border pb-2">
-        <span className="font-bold uppercase tracking-wider text-white/60">Routines · one definition, four feeds</span>
+    <div className="rounded-lg border border-border bg-white/90 p-4 font-mono text-[11px] leading-relaxed shadow-2xl">
+      <div className="flex items-center justify-between border-b border-border pb-2">
+        <span className="font-bold uppercase tracking-wider text-text-muted">Routines · one definition, four feeds</span>
         <ExampleTag text="Example set" />
       </div>
-      <div className="mt-2 space-y-0.5 text-white/70">
+      <div className="mt-2 space-y-0.5 text-text-secondary">
         <p>
-          <span className="text-white/40">ROUTINE</span> {rent.routine}
-          <span className="float-right text-white">{rent.coa} · {usd0(rent.budget)}/occ</span>
+          <span className="text-text-faint">ROUTINE</span> {rent.routine}
+          <span className="float-right text-text-primary">{rent.coa} · {usd0(rent.budget)}/occ</span>
         </p>
-        <p className="break-all text-white/50">{rent.rrule}</p>
-        <p><span className="text-white/40">→ CALENDAR</span> <span className="text-teal-300">🔁 Aug 1 · teal tile</span> <span className="float-right text-white/80">{usd0(rent.budget)} riding on it</span></p>
-        <p><span className="text-white/40">→ BUDGET</span> {rent.coaName} <span className="float-right text-white/80">planned {usd0(rent.planned)} = {usd0(rent.budget)} × 1</span></p>
-        <p><span className="text-white/40">→ CONTENT</span> scene group <span className="float-right text-white/80">one scene per step</span></p>
-        <p><span className="text-white/40">→ YOUR DAY</span> today&rsquo;s strip <span className="float-right text-white/80">read-only, beside the plan</span></p>
+        <p className="break-all text-text-faint">{rent.rrule}</p>
+        <p><span className="text-text-faint">→ CALENDAR</span> <span className="text-teal-300">🔁 Aug 1 · teal tile</span> <span className="float-right text-text-secondary">{usd0(rent.budget)} riding on it</span></p>
+        <p><span className="text-text-faint">→ BUDGET</span> {rent.coaName} <span className="float-right text-text-secondary">planned {usd0(rent.planned)} = {usd0(rent.budget)} × 1</span></p>
+        <p><span className="text-text-faint">→ CONTENT</span> scene group <span className="float-right text-text-secondary">one scene per step</span></p>
+        <p><span className="text-text-faint">→ YOUR DAY</span> today&rsquo;s strip <span className="float-right text-text-secondary">read-only, beside the plan</span></p>
       </div>
       {/* The strip line — verbatim format, TodaysStrip.tsx:135. */}
-      <p className="mt-2 border-t border-panel-border pt-2 text-white/70">
-        today · <span className="text-green-300">1 done</span> · <span className="text-amber-300">1 due</span> · <span className="text-white/60">0 missed</span>
+      <p className="mt-2 border-t border-border pt-2 text-text-secondary">
+        today · <span className="text-green-300">1 done</span> · <span className="text-amber-300">1 due</span> · <span className="text-text-muted">0 missed</span>
       </p>
     </div>
   );
@@ -172,21 +172,21 @@ function BuilderPanel() {
   const rent = EX.monthly[0];
   return (
     <DarkSlide title="The builder — what a routine is made of">
-      <div className="space-y-1 text-white/70">
-        <p><span className="text-white/40">name</span> <span className="float-right text-white">{rent.routine}</span></p>
-        <p><span className="text-white/40">entity</span> <span className="float-right text-white/80">Business</span></p>
-        <p><span className="text-white/40">budget / occurrence</span> <span className="float-right text-white">{usd0(rent.budget)}</span></p>
-        <p><span className="text-white/40">COA</span> <span className="float-right text-white/80">{rent.coa} — {rent.coaName}</span></p>
-        <p className="border-t border-panel-border pt-1"><span className="text-white/40">cadence</span> <span className="float-right text-white/80">{rent.cadence}</span></p>
+      <div className="space-y-1 text-text-secondary">
+        <p><span className="text-text-faint">name</span> <span className="float-right text-text-primary">{rent.routine}</span></p>
+        <p><span className="text-text-faint">entity</span> <span className="float-right text-text-secondary">Business</span></p>
+        <p><span className="text-text-faint">budget / occurrence</span> <span className="float-right text-text-primary">{usd0(rent.budget)}</span></p>
+        <p><span className="text-text-faint">COA</span> <span className="float-right text-text-secondary">{rent.coa} — {rent.coaName}</span></p>
+        <p className="border-t border-border pt-1"><span className="text-text-faint">cadence</span> <span className="float-right text-text-secondary">{rent.cadence}</span></p>
         {/* The five structured modes + the escape hatch (types.ts:206-212). */}
         <div className="flex flex-wrap gap-1 pt-1">
           {['daily', 'weekly', 'monthly (day of month)', 'monthly (Nth weekday)', 'custom (raw RRULE)'].map((m) => (
-            <span key={m} className={`rounded border px-1.5 py-0.5 text-[10px] ${m.startsWith('monthly (day') ? 'border-brand-purple bg-brand-purple/30 text-white' : 'border-panel-border text-white/50'}`}>{m}</span>
+            <span key={m} className={`rounded border px-1.5 py-0.5 text-[10px] ${m.startsWith('monthly (day') ? 'border-brand-purple bg-brand-purple-wash text-brand-purple' : 'border-border text-text-faint'}`}>{m}</span>
           ))}
         </div>
-        <p className="pt-1 text-white/50">compiled server-side →</p>
-        <p className="break-all text-white">{rent.rrule}</p>
-        <p className="text-[10px] italic text-white/50">You never type RRULE (custom is the labeled escape hatch — e.g. quarterly). The server compiles and validates every schedule.</p>
+        <p className="pt-1 text-text-faint">compiled server-side →</p>
+        <p className="break-all text-text-primary">{rent.rrule}</p>
+        <p className="text-[10px] italic text-text-faint">You never type RRULE (custom is the labeled escape hatch — e.g. quarterly). The server compiles and validates every schedule.</p>
       </div>
     </DarkSlide>
   );
@@ -197,16 +197,16 @@ function BuilderPanel() {
 function StepsPanel() {
   return (
     <DarkSlide title="Steps — the runbook under the routine">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white/40">Prep the truck for the lunch rush <span className="float-right">steps · {EX.steps.length}</span></p>
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-faint">Prep the truck for the lunch rush <span className="float-right">steps · {EX.steps.length}</span></p>
         {EX.steps.map((s, i) => (
-          <p key={s.time} className="border-t border-panel-border/50 pt-1">
-            <span className="text-white/40">{i + 1} ·</span> <span className="text-white/60">{s.time}</span>{' '}
-            <span className="text-white">{s.activity}</span>
-            <span className="float-right text-white/50">{s.extra} <span aria-hidden>↑↓</span></span>
+          <p key={s.time} className="border-t border-border/50 pt-1">
+            <span className="text-text-faint">{i + 1} ·</span> <span className="text-text-muted">{s.time}</span>{' '}
+            <span className="text-text-primary">{s.activity}</span>
+            <span className="float-right text-text-faint">{s.extra} <span aria-hidden>↑↓</span></span>
           </p>
         ))}
-        <p className="pt-1 text-white/50">+ add step <span className="float-right text-[10px] italic">times auto-fill 15 min apart from the start</span></p>
+        <p className="pt-1 text-text-faint">+ add step <span className="float-right text-[10px] italic">times auto-fill 15 min apart from the start</span></p>
       </div>
     </DarkSlide>
   );
@@ -219,17 +219,17 @@ function StepsPanel() {
 function TodayPanel() {
   return (
     <DarkSlide title="Today — what's due, done, slipped">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white/50"><span className="text-green-300">1 done</span> · <span className="text-amber-300">1 due</span> · 0 missed</p>
-        <p className="border-t border-panel-border pt-1">
-          <span className="text-white/60">07:00</span> <span className="text-white/50 line-through">Morning coffee and plan the day</span>{' '}
-          <Pill status="completed" /> <span className="float-right text-white/50">Δ 2 min</span>
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-faint"><span className="text-green-300">1 done</span> · <span className="text-amber-300">1 due</span> · 0 missed</p>
+        <p className="border-t border-border pt-1">
+          <span className="text-text-muted">07:00</span> <span className="text-text-faint line-through">Morning coffee and plan the day</span>{' '}
+          <Pill status="completed" /> <span className="float-right text-text-faint">Δ 2 min</span>
         </p>
         <p>
-          <span className="text-white/60">10:30</span> <span className="text-white">Prep the truck for the lunch rush</span>{' '}
+          <span className="text-text-muted">10:30</span> <span className="text-text-primary">Prep the truck for the lunch rush</span>{' '}
           <Pill status="pending" /> <span className="float-right rounded border border-green-400/40 px-1.5 text-green-300">✓ mark done</span>
         </p>
-        <p className="pt-1 text-[10px] italic text-white/50">
+        <p className="pt-1 text-[10px] italic text-text-faint">
           Past its grace window the pill turns <span className="not-italic"><Pill status="missed" /></span> on the spot; each night the evaluator writes the miss durably and the streak feels it. Nothing is forgotten.
         </p>
       </div>
@@ -242,20 +242,20 @@ function TodayPanel() {
 function StreaksPanel() {
   return (
     <DarkSlide title="The list — cadence-grouped, streaks both ways">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white/50">5 routines <span className="float-right">☐ show inactive</span></p>
-        <p className="border-t border-panel-border pt-1 text-[10px] uppercase tracking-wide text-white/40">Daily (1)</p>
-        <p><span className="text-white">Morning coffee and plan the day</span> <span className="float-right text-white/60">🔥 12 ✓ / 0 ✗</span></p>
-        <p className="text-[10px] uppercase tracking-wide text-white/40">Weekly (1)</p>
-        <p><span className="text-white">Prep the truck for the lunch rush</span> <span className="float-right text-white/60">🔥 4 ✓ / <span className="text-red-300">1 ✗</span></span></p>
-        <p className="text-[10px] uppercase tracking-wide text-white/40">Monthly (3)</p>
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-faint">5 routines <span className="float-right">☐ show inactive</span></p>
+        <p className="border-t border-border pt-1 text-[10px] uppercase tracking-wide text-text-faint">Daily (1)</p>
+        <p><span className="text-text-primary">Morning coffee and plan the day</span> <span className="float-right text-text-muted">🔥 12 ✓ / 0 ✗</span></p>
+        <p className="text-[10px] uppercase tracking-wide text-text-faint">Weekly (1)</p>
+        <p><span className="text-text-primary">Prep the truck for the lunch rush</span> <span className="float-right text-text-muted">🔥 4 ✓ / <span className="text-red-300">1 ✗</span></span></p>
+        <p className="text-[10px] uppercase tracking-wide text-text-faint">Monthly (3)</p>
         {EX.monthly.map((r) => (
           <p key={r.coa}>
-            <span className="text-white">{r.routine}</span>
-            <span className="float-right text-white/60">🔥 {r.done} ✓ / {r.missed > 0 ? <span className="text-red-300">{r.missed} ✗</span> : `${r.missed} ✗`} · next: {r.next}</span>
+            <span className="text-text-primary">{r.routine}</span>
+            <span className="float-right text-text-muted">🔥 {r.done} ✓ / {r.missed > 0 ? <span className="text-red-300">{r.missed} ✗</span> : `${r.missed} ✗`} · next: {r.next}</span>
           </p>
         ))}
-        <p className="pt-1 text-[10px] italic text-white/50">Completions increment ✓ and zero ✗; the nightly evaluator does the reverse on a miss. The counter can&rsquo;t flatter you.</p>
+        <p className="pt-1 text-[10px] italic text-text-faint">Completions increment ✓ and zero ✗; the nightly evaluator does the reverse on a miss. The counter can&rsquo;t flatter you.</p>
       </div>
     </DarkSlide>
   );
@@ -267,15 +267,15 @@ function StreaksPanel() {
 function CalendarFeedPanel() {
   return (
     <DarkSlide title="Feed 1 · the calendar — every occurrence, priced">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white/40">this week</p>
-        <p><span className="text-white/60">Mon 07:00</span> <span className="text-teal-300">🔁 Morning coffee and plan the day</span></p>
-        <p><span className="text-white/60">Mon 10:30</span> <span className="text-teal-300">🔁 Prep the truck for the lunch rush</span></p>
-        <p><span className="text-white/60">Tue 07:00</span> <span className="text-teal-300">🔁 Morning coffee and plan the day</span></p>
-        <p className="border-t border-panel-border pt-1"><span className="text-white/60">Jul 15</span> <span className="text-teal-300">🔁 Restock supplies</span> <span className="float-right text-white">6120 · {usd0(300)}</span></p>
-        <p><span className="text-white/60">Jul 20</span> <span className="text-teal-300">🔁 Service the truck</span> <span className="float-right text-white">6010 · {usd0(150)}</span></p>
-        <p><span className="text-white/60">Aug 1</span> <span className="text-teal-300">🔁 Pay the rent</span> <span className="float-right text-white">6100 · {usd0(400)}</span></p>
-        <p className="pt-1 text-[10px] italic text-white/50">The RRULE expands server-side into dated tiles; the budget and category ride on each one. Over-cap windows say &ldquo;truncated&rdquo; — never a silent drop.</p>
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-faint">this week</p>
+        <p><span className="text-text-muted">Mon 07:00</span> <span className="text-teal-300">🔁 Morning coffee and plan the day</span></p>
+        <p><span className="text-text-muted">Mon 10:30</span> <span className="text-teal-300">🔁 Prep the truck for the lunch rush</span></p>
+        <p><span className="text-text-muted">Tue 07:00</span> <span className="text-teal-300">🔁 Morning coffee and plan the day</span></p>
+        <p className="border-t border-border pt-1"><span className="text-text-muted">Jul 15</span> <span className="text-teal-300">🔁 Restock supplies</span> <span className="float-right text-text-primary">6120 · {usd0(300)}</span></p>
+        <p><span className="text-text-muted">Jul 20</span> <span className="text-teal-300">🔁 Service the truck</span> <span className="float-right text-text-primary">6010 · {usd0(150)}</span></p>
+        <p><span className="text-text-muted">Aug 1</span> <span className="text-teal-300">🔁 Pay the rent</span> <span className="float-right text-text-primary">6100 · {usd0(400)}</span></p>
+        <p className="pt-1 text-[10px] italic text-text-faint">The RRULE expands server-side into dated tiles; the budget and category ride on each one. Over-cap windows say &ldquo;truncated&rdquo; — never a silent drop.</p>
       </div>
     </DarkSlide>
   );
@@ -288,22 +288,22 @@ function CalendarFeedPanel() {
 function BudgetFeedPanel() {
   return (
     <DarkSlide title="Feed 2 · the budget — the Runway tab's planned column">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white/40">June · Business <span className="float-right">planned / actual</span></p>
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-faint">June · Business <span className="float-right">planned / actual</span></p>
         {EX.monthly.map((r) => (
-          <p key={r.coa} className="border-t border-panel-border/50 pt-1">
-            <span className="text-white">{r.coaName}</span> <span className="text-white/40">{r.coa}</span>
+          <p key={r.coa} className="border-t border-border/50 pt-1">
+            <span className="text-text-primary">{r.coaName}</span> <span className="text-text-faint">{r.coa}</span>
             <span className="float-right">
-              <span className="text-white">{usd2(r.planned)}</span>
-              <span className="text-white/50"> / {usd2(r.actual)} </span>
-              <span className={r.pct.startsWith('+') ? 'text-amber-300' : 'text-white/60'}>{r.pct}</span>
+              <span className="text-text-primary">{usd2(r.planned)}</span>
+              <span className="text-text-faint"> / {usd2(r.actual)} </span>
+              <span className={r.pct.startsWith('+') ? 'text-amber-300' : 'text-text-muted'}>{r.pct}</span>
             </span>
           </p>
         ))}
-        <p className="border-t border-panel-border pt-1 text-white">
+        <p className="border-t border-border pt-1 text-text-primary">
           total <span className="float-right">{usd2(EX.totalPlanned)} / {usd2(EX.totalActual)}</span>
         </p>
-        <p className="pt-1 text-[10px] italic text-white/50">Planned = each routine&rsquo;s amount × its real occurrence count that month — budgeted routines are the only planned source. Actuals stay the ledger&rsquo;s. These are the exact rows the Runway deck showed.</p>
+        <p className="pt-1 text-[10px] italic text-text-faint">Planned = each routine&rsquo;s amount × its real occurrence count that month — budgeted routines are the only planned source. Actuals stay the ledger&rsquo;s. These are the exact rows the Runway deck showed.</p>
       </div>
     </DarkSlide>
   );
@@ -318,16 +318,16 @@ function BudgetFeedPanel() {
 function ContentDayPanel() {
   return (
     <DarkSlide title="Feed 3 · content — steps become scenes">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white/40">INPUTS — pick routines, in order</p>
-        <p><span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-brand-purple text-[10px] text-white">1</span> <span className="text-white">Prep the truck for the lunch rush</span> <span className="float-right text-white/50">Business · 4 steps</span></p>
-        <p><span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-panel-border text-[10px] text-white/40"> </span> <span className="text-white/60">Morning coffee and plan the day</span> <span className="float-right text-white/50">Personal · 0 steps</span></p>
-        <p className="border-t border-panel-border pt-1 text-white/40">one scene per step →</p>
-        <p><span className="text-white/60">10:30</span> Stock the fridge <span className="float-right text-white/50">scene 1</span></p>
-        <p><span className="text-white/60">10:45</span> Fill the water tank <span className="float-right text-white/50">scene 2</span></p>
-        <p className="pt-1"><span className="rounded border border-panel-border px-1.5 py-0.5 text-white/40">✨ AI suggest — Pro+ · preview only</span> <span className="float-right text-[10px] italic text-white/50">prefills shot notes; nothing auto-saves</span></p>
-        <p className="border-t border-panel-border pt-1 text-white/40">and on your day plan, read-only:</p>
-        <p><span className="text-white/60">10:30</span> <span className="text-white">Prep the truck for the lunch rush</span> <Pill status="pending" /></p>
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-faint">INPUTS — pick routines, in order</p>
+        <p><span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-brand-purple text-[10px] text-white">1</span> <span className="text-text-primary">Prep the truck for the lunch rush</span> <span className="float-right text-text-faint">Business · 4 steps</span></p>
+        <p><span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-border text-[10px] text-text-faint"> </span> <span className="text-text-muted">Morning coffee and plan the day</span> <span className="float-right text-text-faint">Personal · 0 steps</span></p>
+        <p className="border-t border-border pt-1 text-text-faint">one scene per step →</p>
+        <p><span className="text-text-muted">10:30</span> Stock the fridge <span className="float-right text-text-faint">scene 1</span></p>
+        <p><span className="text-text-muted">10:45</span> Fill the water tank <span className="float-right text-text-faint">scene 2</span></p>
+        <p className="pt-1"><span className="rounded border border-border px-1.5 py-0.5 text-text-faint">✨ AI suggest — Pro+ · preview only</span> <span className="float-right text-[10px] italic text-text-faint">prefills shot notes; nothing auto-saves</span></p>
+        <p className="border-t border-border pt-1 text-text-faint">and on your day plan, read-only:</p>
+        <p><span className="text-text-muted">10:30</span> <span className="text-text-primary">Prep the truck for the lunch rush</span> <Pill status="pending" /></p>
       </div>
     </DarkSlide>
   );

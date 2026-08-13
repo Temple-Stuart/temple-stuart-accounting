@@ -108,9 +108,9 @@ const usd2 = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigit
 
 function DarkSlide({ title, tag = 'Example set', children }: { title: string; tag?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-panel-border bg-panel p-4 font-mono text-[11px] leading-relaxed">
-      <div className="flex items-center justify-between gap-2 border-b border-panel-border pb-2">
-        <span className="font-bold uppercase tracking-wider text-white/60">{title}</span>
+    <div className="rounded-lg border border-border bg-white p-4 font-mono text-[11px] leading-relaxed">
+      <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
+        <span className="font-bold uppercase tracking-wider text-text-muted">{title}</span>
         <ExampleTag text={tag} />
       </div>
       <div className="mt-2">{children}</div>
@@ -122,26 +122,26 @@ function DarkSlide({ title, tag = 'Example set', children }: { title: string; ta
 
 function RunwayHeroTerminal() {
   return (
-    <div className="rounded-lg border border-panel-border bg-panel/90 p-4 font-mono text-[11px] leading-relaxed shadow-2xl">
-      <div className="flex items-center justify-between border-b border-panel-border pb-2">
-        <span className="font-bold uppercase tracking-wider text-white/60">Runway · the linkage</span>
+    <div className="rounded-lg border border-border bg-white/90 p-4 font-mono text-[11px] leading-relaxed shadow-2xl">
+      <div className="flex items-center justify-between border-b border-border pb-2">
+        <span className="font-bold uppercase tracking-wider text-text-muted">Runway · the linkage</span>
         <ExampleTag text="Example set" />
       </div>
       {/* The linkage spine (inventory §linkage-map). */}
-      <div className="mt-2 space-y-0.5 text-white/70">
-        <p><span className="text-white/40">PLAID</span> → cash <span className="float-right text-white">{usd0(EX.cash)}</span></p>
-        <p><span className="text-white/40">BOOKS</span> → burn <span className="float-right text-white/80">committed ledger, summed</span></p>
-        <p><span className="text-white/40">ROUTINES</span> → budgets <span className="float-right text-white/80">budget × occurrences</span></p>
-        <p><span className="text-white/40">TRAVEL</span> → trips <span className="float-right text-white/80">on the calendar + budget</span></p>
-        <p><span className="text-white/40">TRADE</span> → its own strip <span className="float-right text-white/80">excluded from runway</span></p>
+      <div className="mt-2 space-y-0.5 text-text-secondary">
+        <p><span className="text-text-faint">PLAID</span> → cash <span className="float-right text-text-primary">{usd0(EX.cash)}</span></p>
+        <p><span className="text-text-faint">BOOKS</span> → burn <span className="float-right text-text-secondary">committed ledger, summed</span></p>
+        <p><span className="text-text-faint">ROUTINES</span> → budgets <span className="float-right text-text-secondary">budget × occurrences</span></p>
+        <p><span className="text-text-faint">TRAVEL</span> → trips <span className="float-right text-text-secondary">on the calendar + budget</span></p>
+        <p><span className="text-text-faint">TRADE</span> → its own strip <span className="float-right text-text-secondary">excluded from runway</span></p>
       </div>
-      <p className="mt-2 border-t border-panel-border pt-2">
-        <span className="text-white/50">trailing 3mo · </span>
+      <p className="mt-2 border-t border-border pt-2">
+        <span className="text-text-faint">trailing 3mo · </span>
         <span className="text-brand-green">Runway {EX.window3.runway} mo</span>
-        <span className="text-white/50"> · zero date </span>
-        <span className="text-white">{EX.window3.zeroDate}</span>
+        <span className="text-text-faint"> · zero date </span>
+        <span className="text-text-primary">{EX.window3.zeroDate}</span>
       </p>
-      <p className="text-[10px] italic text-white/50">{FORMULA_LINE}</p>
+      <p className="text-[10px] italic text-text-faint">{FORMULA_LINE}</p>
     </div>
   );
 }
@@ -153,17 +153,17 @@ function RunwayHeroTerminal() {
 function CashPanel() {
   return (
     <DarkSlide title="Cash — the number your banks report">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white/40">CASH</p>
-        <p className="text-lg text-white">{usd0(EX.cash)}</p>
-        <p className="text-white/50">Plaid balance · operating (excl. trading) · 3 accounts linked</p>
-        <p className="mt-1 border-t border-panel-border pt-1">First Harbor Bank ····4821 <span className="float-right text-white">$9,400</span></p>
-        <p>First Harbor Bank ····4839 <span className="float-right text-white">$2,500</span></p>
-        <p>Meridian Card Services ····7702 <span className="float-right text-white">$3,100</span></p>
-        <p className="border-t border-panel-border pt-1 text-white/50">
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-faint">CASH</p>
+        <p className="text-lg text-text-primary">{usd0(EX.cash)}</p>
+        <p className="text-text-faint">Plaid balance · operating (excl. trading) · 3 accounts linked</p>
+        <p className="mt-1 border-t border-border pt-1">First Harbor Bank ····4821 <span className="float-right text-text-primary">$9,400</span></p>
+        <p>First Harbor Bank ····4839 <span className="float-right text-text-primary">$2,500</span></p>
+        <p>Meridian Card Services ····7702 <span className="float-right text-text-primary">$3,100</span></p>
+        <p className="border-t border-border pt-1 text-text-faint">
           Summed from the same Plaid-synced balances the Books tab links. The Trading entity&rsquo;s
           cash is excluded — at-risk capital is not operating cash. No bank linked? It says
-          <span className="text-white/80"> &ldquo;No bank linked&rdquo;</span> — never a fake zero.
+          <span className="text-text-secondary"> &ldquo;No bank linked&rdquo;</span> — never a fake zero.
         </p>
       </div>
     </DarkSlide>
@@ -175,12 +175,12 @@ function CashPanel() {
 function BurnPanel() {
   return (
     <DarkSlide title="Burn — your double-entry ledger, summed">
-      <div className="space-y-1 text-white/70">
-        <p><span className="text-white/40">expenses</span> = ledger debits on expense accounts <span className="float-right text-white/80">committed, non-reversed</span></p>
-        <p><span className="text-white/40">income</span> = ledger credits on revenue accounts <span className="float-right text-white/80">same basis</span></p>
-        <p><span className="text-white/40">window</span> = trailing FULL calendar months <span className="float-right text-white/80">never year-to-date</span></p>
-        <p className="mt-1 border-t border-panel-border pt-1 text-white/80">&ldquo;{FORMULA_LINE}&rdquo;</p>
-        <p className="text-white/50">
+      <div className="space-y-1 text-text-secondary">
+        <p><span className="text-text-faint">expenses</span> = ledger debits on expense accounts <span className="float-right text-text-secondary">committed, non-reversed</span></p>
+        <p><span className="text-text-faint">income</span> = ledger credits on revenue accounts <span className="float-right text-text-secondary">same basis</span></p>
+        <p><span className="text-text-faint">window</span> = trailing FULL calendar months <span className="float-right text-text-secondary">never year-to-date</span></p>
+        <p className="mt-1 border-t border-border pt-1 text-text-secondary">&ldquo;{FORMULA_LINE}&rdquo;</p>
+        <p className="text-text-faint">
           That line renders on the real screen, under the real cards. The burn basis is the same
           committed ledger the Books tab closes — the books you keep are the burn you see.
         </p>
@@ -194,14 +194,14 @@ function BurnPanel() {
 function StatesPanel() {
   return (
     <DarkSlide title="The runway number — four honest states">
-      <div className="space-y-1 text-white/70">
-        <p><span className="text-white/40">no_cash</span> <span className="float-right text-white/80">&ldquo;No bank linked&rdquo; — no numerator, no number</span></p>
-        <p><span className="text-white/40">insufficient_history</span> <span className="float-right text-white/80">&ldquo;Need 3 full months&rdquo; · &ldquo;insufficient history&rdquo;</span></p>
-        <p><span className="text-white/40">cashflow_positive</span> <span className="float-right text-white/80">&ldquo;Cash-flow positive&rdquo; · &ldquo;no burn&rdquo;</span></p>
-        <p><span className="text-brand-green">ok</span> <span className="float-right text-white">runway {EX.window3.runway} mo · zero date {EX.window3.zeroDate}</span></p>
-        <p className="mt-1 border-t border-panel-border pt-1 text-white/50">
+      <div className="space-y-1 text-text-secondary">
+        <p><span className="text-text-faint">no_cash</span> <span className="float-right text-text-secondary">&ldquo;No bank linked&rdquo; — no numerator, no number</span></p>
+        <p><span className="text-text-faint">insufficient_history</span> <span className="float-right text-text-secondary">&ldquo;Need 3 full months&rdquo; · &ldquo;insufficient history&rdquo;</span></p>
+        <p><span className="text-text-faint">cashflow_positive</span> <span className="float-right text-text-secondary">&ldquo;Cash-flow positive&rdquo; · &ldquo;no burn&rdquo;</span></p>
+        <p><span className="text-brand-green">ok</span> <span className="float-right text-text-primary">runway {EX.window3.runway} mo · zero date {EX.window3.zeroDate}</span></p>
+        <p className="mt-1 border-t border-border pt-1 text-text-faint">
           The number renders ONLY in <span className="text-brand-green">ok</span>. And if the data
-          won&rsquo;t load, it declares it: <span className="text-white/80">&ldquo;Runway unavailable —
+          won&rsquo;t load, it declares it: <span className="text-text-secondary">&ldquo;Runway unavailable —
           could not load cash + burn.&rdquo;</span> Never zeros dressed up as an answer.
         </p>
       </div>
@@ -215,14 +215,14 @@ function StatesPanel() {
 function WindowsPanel() {
   return (
     <DarkSlide title="Two windows — and they disagree">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white/40">TRAILING 6MO <span className="float-right">Jan – Jun</span></p>
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-faint">TRAILING 6MO <span className="float-right">Jan – Jun</span></p>
         <p>expenses {usd0(EX.window6.expenses)} − income {usd0(EX.window6.income)} <span className="float-right text-brand-green">$550/mo in</span></p>
-        <p className="text-brand-green">Cash-flow positive <span className="float-right text-white/50">zero date: no burn</span></p>
-        <p className="mt-1 border-t border-panel-border pt-1 text-white/40">TRAILING 3MO <span className="float-right">Apr – Jun</span></p>
+        <p className="text-brand-green">Cash-flow positive <span className="float-right text-text-faint">zero date: no burn</span></p>
+        <p className="mt-1 border-t border-border pt-1 text-text-faint">TRAILING 3MO <span className="float-right">Apr – Jun</span></p>
         <p>expenses {usd0(EX.window3.expenses)} − income {usd0(EX.window3.income)} <span className="float-right text-brand-red">$600/mo out</span></p>
-        <p className="text-white">Runway {EX.window3.runway} mo <span className="float-right">zero date {EX.window3.zeroDate}</span></p>
-        <p className="mt-1 border-t border-panel-border pt-1 text-white/50">
+        <p className="text-text-primary">Runway {EX.window3.runway} mo <span className="float-right">zero date {EX.window3.zeroDate}</span></p>
+        <p className="mt-1 border-t border-border pt-1 text-text-faint">
           Same books, two honest answers: the half-year was profitable; the recent quarter is
           burning $600 a month. {usd0(EX.cash)} ÷ $600 = 25.0 months. That divergence is why the
           screen shows both windows.
@@ -237,12 +237,12 @@ function WindowsPanel() {
 function EntityPanel() {
   return (
     <DarkSlide title="Split by entity — nothing dropped">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white/40">TRAILING 3MO · NET BURN {`$600/mo out`}</p>
-        <p><span className="text-white/40">Personal</span> <span className="float-right text-white/80">$0/mo in</span></p>
-        <p><span className="text-white/40">Business</span> <span className="float-right text-white">$600/mo out</span></p>
-        <p><span className="text-amber-300">Unattributed</span> <span className="float-right text-white/50">— renders amber if any stray entity holds a dollar</span></p>
-        <p className="mt-1 border-t border-panel-border pt-1 text-white/50">
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-faint">TRAILING 3MO · NET BURN {`$600/mo out`}</p>
+        <p><span className="text-text-faint">Personal</span> <span className="float-right text-text-secondary">$0/mo in</span></p>
+        <p><span className="text-text-faint">Business</span> <span className="float-right text-text-primary">$600/mo out</span></p>
+        <p><span className="text-amber-300">Unattributed</span> <span className="float-right text-text-faint">— renders amber if any stray entity holds a dollar</span></p>
+        <p className="mt-1 border-t border-border pt-1 text-text-faint">
           Personal + Business + Unattributed must equal the combined burn — the same filters, grouped
           by entity. A dollar that fits neither is surfaced in amber, never silently dropped. Trading
           is excluded from all of it, by design (slide 8).
@@ -258,16 +258,16 @@ function EntityPanel() {
 function BudgetPanel() {
   return (
     <DarkSlide title="Budgets — your routines ARE the budget">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white/40">JUN 2026 · BUSINESS <span className="float-right">BUDGET · ACTUAL · VAR%</span></p>
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-faint">JUN 2026 · BUSINESS <span className="float-right">BUDGET · ACTUAL · VAR%</span></p>
         {EX.budget.rows.map((r) => (
-          <p key={r.code}><span className="text-white/50">{r.code}</span> {r.name} <span className="float-right">{usd2(r.budget)} · <span className="text-white">{usd2(r.actual)}</span> · <span className={r.variance > 0 ? 'text-brand-red' : r.variance < 0 ? 'text-brand-green' : 'text-white/60'}>{r.pct}</span></span></p>
+          <p key={r.code}><span className="text-text-faint">{r.code}</span> {r.name} <span className="float-right">{usd2(r.budget)} · <span className="text-text-primary">{usd2(r.actual)}</span> · <span className={r.variance > 0 ? 'text-brand-red' : r.variance < 0 ? 'text-brand-green' : 'text-text-muted'}>{r.pct}</span></span></p>
         ))}
-        <p className="border-t border-panel-border pt-1">Total <span className="float-right text-white">{usd2(EX.budget.totalBudget)} · {usd2(EX.budget.totalActual)} · +0.1%</span></p>
-        <p className="mt-1 text-white/50">Planned = your budgeted routines × their occurrences this month — set a $300/mo supplies routine and the budget row exists. Actuals = the committed ledger.</p>
-        <p className="mt-1 border-t border-panel-border pt-1 text-white/40">CLICK THE ACTUAL → THE RECEIPTS</p>
+        <p className="border-t border-border pt-1">Total <span className="float-right text-text-primary">{usd2(EX.budget.totalBudget)} · {usd2(EX.budget.totalActual)} · +0.1%</span></p>
+        <p className="mt-1 text-text-faint">Planned = your budgeted routines × their occurrences this month — set a $300/mo supplies routine and the budget row exists. Actuals = the committed ledger.</p>
+        <p className="mt-1 border-t border-border pt-1 text-text-faint">CLICK THE ACTUAL → THE RECEIPTS</p>
         {EX.drill.map((d) => (
-          <p key={d.date} className="text-white/50">{d.date} <span className="text-white/80">{d.merchant}</span> <span className="float-right text-white/80">{usd2(d.amount)}</span></p>
+          <p key={d.date} className="text-text-faint">{d.date} <span className="text-text-secondary">{d.merchant}</span> <span className="float-right text-text-secondary">{usd2(d.amount)}</span></p>
         ))}
         <p className="text-brand-green">✓ 3 transactions = {usd2(312.45)} — merchant names straight off the bank feed</p>
       </div>
@@ -280,14 +280,14 @@ function BudgetPanel() {
 function CalendarPanel() {
   return (
     <DarkSlide title="One calendar — everything you planned everywhere" tag="Example day">
-      <div className="space-y-1 text-white/70">
-        <p><span className="text-teal-300">🔁 07:00</span> Morning coffee and plan the day <span className="float-right text-white/40">Routines · RRULE</span></p>
-        <p><span className="text-indigo-300">🎯 08:00</span> Sort the receipts into one folder <span className="float-right text-white/40">Projects · ↗ schedule</span></p>
-        <p><span className="text-indigo-300">🎯 09:00</span> Type last week&rsquo;s sales into the app <span className="float-right text-white/40">Projects</span></p>
-        <p><span className="text-teal-300">🔁 10:30</span> Prep the truck for the lunch rush <span className="float-right text-white/40">Routines</span></p>
-        <p><span className="text-indigo-300">🎯 16:00</span> Call the bank about the business account <span className="float-right text-white/40">Content · + add to day</span></p>
-        <p><span className="text-cyan-300">✈️ +3d</span> Portland food-truck festival <span className="float-right text-white/40">Travel · itinerary</span></p>
-        <p className="mt-1 border-t border-panel-border pt-1 text-white/50">
+      <div className="space-y-1 text-text-secondary">
+        <p><span className="text-teal-300">🔁 07:00</span> Morning coffee and plan the day <span className="float-right text-text-faint">Routines · RRULE</span></p>
+        <p><span className="text-indigo-300">🎯 08:00</span> Sort the receipts into one folder <span className="float-right text-text-faint">Projects · ↗ schedule</span></p>
+        <p><span className="text-indigo-300">🎯 09:00</span> Type last week&rsquo;s sales into the app <span className="float-right text-text-faint">Projects</span></p>
+        <p><span className="text-teal-300">🔁 10:30</span> Prep the truck for the lunch rush <span className="float-right text-text-faint">Routines</span></p>
+        <p><span className="text-indigo-300">🎯 16:00</span> Call the bank about the business account <span className="float-right text-text-faint">Content · + add to day</span></p>
+        <p><span className="text-cyan-300">✈️ +3d</span> Portland food-truck festival <span className="float-right text-text-faint">Travel · itinerary</span></p>
+        <p className="mt-1 border-t border-border pt-1 text-text-faint">
           Projects&rsquo; &ldquo;↗ schedule&rdquo; and Content&rsquo;s &ldquo;+ add to day&rdquo; write the same
           daily-plan blocks; Routines expand from their real recurrence rules; Travel&rsquo;s itinerary
           lands as trip events. One day view, four systems.
@@ -303,12 +303,12 @@ function CalendarPanel() {
 function TradingWallPanel() {
   return (
     <DarkSlide title="Trading — walled off on purpose">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white/40">TRADING <span className="float-right">separate from operating runway</span></p>
-        <p>Realized P&amp;L <span className="float-right text-white/80">trading ledger, realized (4100 gains − 5100 losses)</span></p>
-        <p className="text-white/50">Every closed trade posts to the Trading entity&rsquo;s own ledger — a WIN credits 4100, a LOSS debits 5100. That P&amp;L renders here as performance…</p>
-        <p className="mt-1 border-t border-panel-border pt-1 text-white/80">…and the SAME entity is excluded from runway cash and burn, by its immutable entity id.</p>
-        <p className="text-white/50">Trading money ≠ living money. A hot month never inflates your runway; a drawdown never fakes a burn. The wall is the feature.</p>
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-faint">TRADING <span className="float-right">separate from operating runway</span></p>
+        <p>Realized P&amp;L <span className="float-right text-text-secondary">trading ledger, realized (4100 gains − 5100 losses)</span></p>
+        <p className="text-text-faint">Every closed trade posts to the Trading entity&rsquo;s own ledger — a WIN credits 4100, a LOSS debits 5100. That P&amp;L renders here as performance…</p>
+        <p className="mt-1 border-t border-border pt-1 text-text-secondary">…and the SAME entity is excluded from runway cash and burn, by its immutable entity id.</p>
+        <p className="text-text-faint">Trading money ≠ living money. A hot month never inflates your runway; a drawdown never fakes a burn. The wall is the feature.</p>
       </div>
     </DarkSlide>
   );

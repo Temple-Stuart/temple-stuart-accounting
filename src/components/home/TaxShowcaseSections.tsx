@@ -143,9 +143,9 @@ const usd2 = (n: number) =>
 
 function DarkSlide({ title, tag = 'Example return', children }: { title: string; tag?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-panel-border bg-panel p-4 font-mono text-[11px] leading-relaxed">
-      <div className="flex items-center justify-between gap-2 border-b border-panel-border pb-2">
-        <span className="font-bold uppercase tracking-wider text-white/60">{title}</span>
+    <div className="rounded-lg border border-border bg-white p-4 font-mono text-[11px] leading-relaxed">
+      <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
+        <span className="font-bold uppercase tracking-wider text-text-muted">{title}</span>
         <ExampleTag text={tag} />
       </div>
       <div className="mt-2">{children}</div>
@@ -169,22 +169,22 @@ export function UnlockTaxButton({ currentUserId, onRequireAuth }: { currentUserI
 
 export function TaxHeroTerminal() {
   return (
-    <div className="rounded-lg border border-panel-border bg-panel/90 p-4 font-mono text-[11px] leading-relaxed shadow-2xl">
-      <div className="flex items-center justify-between border-b border-panel-border pb-2">
-        <span className="font-bold uppercase tracking-wider text-white/60">Tax · Filing year 2025</span>
+    <div className="rounded-lg border border-border bg-white/90 p-4 font-mono text-[11px] leading-relaxed shadow-2xl">
+      <div className="flex items-center justify-between border-b border-border pb-2">
+        <span className="font-bold uppercase tracking-wider text-text-muted">Tax · Filing year 2025</span>
         <ExampleTag text="Example return" />
       </div>
       <p className="mt-2 text-brand-green">Tax begins at completed books — 2025: periods closed ✓</p>
       {/* The derivation spine — every figure engine-executed (header comment). */}
-      <div className="mt-2 border-t border-panel-border pt-2 text-white/70">
-        <p><span className="text-white/50">Schedule C net </span><span className="text-white">{usd2(EX.netProfit)}</span></p>
-        <p><span className="text-white/50">→ SE tax </span><span className="text-white">{usd2(EX.se.line12)}</span><span className="text-white/50"> · ½ deductible </span><span className="text-white/80">{usd2(EX.se.line13)}</span></p>
-        <p><span className="text-white/50">→ AGI </span><span className="text-white">{usd2(EX.agi)}</span><span className="text-white/50"> − standard deduction </span><span className="text-white/80">{usd2(EX.standardDeduction)}</span></p>
-        <p><span className="text-white/50">→ taxable </span><span className="text-white">{usd2(EX.taxable)}</span><span className="text-white/50"> → federal </span><span className="text-brand-amber">{usd2(EX.federal)}</span></p>
-        <p><span className="text-white/50">Total tax </span><span className="text-white">{usd2(EX.totalTax)}</span><span className="text-white/50"> · estimated amount owed </span><span className="text-brand-red">{usd2(EX.owed)}</span></p>
+      <div className="mt-2 border-t border-border pt-2 text-text-secondary">
+        <p><span className="text-text-faint">Schedule C net </span><span className="text-text-primary">{usd2(EX.netProfit)}</span></p>
+        <p><span className="text-text-faint">→ SE tax </span><span className="text-text-primary">{usd2(EX.se.line12)}</span><span className="text-text-faint"> · ½ deductible </span><span className="text-text-secondary">{usd2(EX.se.line13)}</span></p>
+        <p><span className="text-text-faint">→ AGI </span><span className="text-text-primary">{usd2(EX.agi)}</span><span className="text-text-faint"> − standard deduction </span><span className="text-text-secondary">{usd2(EX.standardDeduction)}</span></p>
+        <p><span className="text-text-faint">→ taxable </span><span className="text-text-primary">{usd2(EX.taxable)}</span><span className="text-text-faint"> → federal </span><span className="text-brand-amber">{usd2(EX.federal)}</span></p>
+        <p><span className="text-text-faint">Total tax </span><span className="text-text-primary">{usd2(EX.totalTax)}</span><span className="text-text-faint"> · estimated amount owed </span><span className="text-brand-red">{usd2(EX.owed)}</span></p>
       </div>
       {/* The calculate disclaimer INSIDE the panel — verbatim (calculate/route.ts:316). */}
-      <p className="mt-2 border-t border-panel-border pt-2 text-[10px] italic text-white/50">{DISCLAIMER}</p>
+      <p className="mt-2 border-t border-border pt-2 text-[10px] italic text-text-faint">{DISCLAIMER}</p>
     </div>
   );
 }
@@ -196,15 +196,15 @@ export function TaxHeroTerminal() {
 export function HandoffGatePanel() {
   return (
     <DarkSlide title="The handoff gate — closed books first">
-      <div className="space-y-1 text-white/70">
-        <p><span className="text-white/50">check</span> closing_periods · 2025 <span className="float-right text-brand-green">12 of 12 months closed ✓</span></p>
-        <p className="border-t border-panel-border pt-1 text-white">&ldquo;Tax begins at completed books&rdquo;</p>
-        <p className="text-white/50">
+      <div className="space-y-1 text-text-secondary">
+        <p><span className="text-text-faint">check</span> closing_periods · 2025 <span className="float-right text-brand-green">12 of 12 months closed ✓</span></p>
+        <p className="border-t border-border pt-1 text-text-primary">&ldquo;Tax begins at completed books&rdquo;</p>
+        <p className="text-text-faint">
           &ldquo;Your tax figures come straight from your ledger, so the filing wizard opens once
           you&rsquo;ve closed at least one accounting period.&rdquo;
         </p>
         <p>No closed period → the wizard stays locked, with one button: <span className="text-brand-amber">Go to Books &amp; close a period</span></p>
-        <p className="border-t border-panel-border pt-1 text-white/50">
+        <p className="border-t border-border pt-1 text-text-faint">
           And if the check itself fails: <span className="text-brand-red">&ldquo;Nothing is assumed — the tax wizard stays locked until we can confirm.&rdquo;</span>
         </p>
       </div>
@@ -218,14 +218,14 @@ export function HandoffGatePanel() {
 export function LifeEventsPanel() {
   return (
     <DarkSlide title="Life events — detected from your data">
-      <div className="space-y-1 text-white/70">
+      <div className="space-y-1 text-text-secondary">
         <p><span className="text-brand-green">☑</span> I ran a business or side gig <span className="rounded border border-brand-green/40 bg-brand-green/10 px-1 text-[9px] uppercase text-brand-green">auto-detected</span></p>
-        <p className="pl-4 text-white/50">← your sole-prop entity: {EX.business}</p>
+        <p className="pl-4 text-text-faint">← your sole-prop entity: {EX.business}</p>
         <p><span className="text-brand-green">☑</span> I bought or sold investments <span className="rounded border border-brand-green/40 bg-brand-green/10 px-1 text-[9px] uppercase text-brand-green">auto-detected</span></p>
-        <p className="pl-4 text-white/50">← your investment transactions (1 disposition in 2025)</p>
-        <p><span className="text-white/40">☐</span> I had a W-2 job</p>
-        <p><span className="text-white/40">☐</span> I contributed to or withdrew from retirement</p>
-        <p className="border-t border-panel-border pt-1 text-white/50">
+        <p className="pl-4 text-text-faint">← your investment transactions (1 disposition in 2025)</p>
+        <p><span className="text-text-faint">☐</span> I had a W-2 job</p>
+        <p><span className="text-text-faint">☐</span> I contributed to or withdrew from retirement</p>
+        <p className="border-t border-border pt-1 text-text-faint">
           Detection reads your entities, positions, and investment activity — pre-checked, never
           locked: every box stays yours to toggle.
         </p>
@@ -239,15 +239,15 @@ export function LifeEventsPanel() {
 export function DocumentsPanel() {
   return (
     <DarkSlide title="Documents — half already filled">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white/50">ALREADY CAPTURED</p>
-        <p><span className="text-white">Schedule C</span> — Profit or Loss From Business <span className="rounded border border-brand-green/40 bg-brand-green/10 px-1 text-[9px] uppercase text-brand-green">from your data</span></p>
-        <p className="pl-4 text-white/50">Auto-populated from: Your ledger (sole-prop entity)</p>
-        <p><span className="text-white">1099-B</span> — Proceeds From Broker Transactions <span className="rounded border border-brand-green/40 bg-brand-green/10 px-1 text-[9px] uppercase text-brand-green">from your data</span></p>
-        <p className="pl-4 text-white/50">Auto-populated from: Your trading positions &amp; lot dispositions</p>
-        <p className="mt-1 border-t border-panel-border pt-1 text-white/50">ENTER THESE FORMS — structured, box-labeled intake for the events you check:</p>
-        <p>W-2 <span className="text-white/50">Wage and Tax Statement</span> · 1099-R <span className="text-white/50">Retirement</span></p>
-        <p>1098-E <span className="text-white/50">Student Loan Interest</span> · 1098-T <span className="text-white/50">Tuition</span></p>
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-faint">ALREADY CAPTURED</p>
+        <p><span className="text-text-primary">Schedule C</span> — Profit or Loss From Business <span className="rounded border border-brand-green/40 bg-brand-green/10 px-1 text-[9px] uppercase text-brand-green">from your data</span></p>
+        <p className="pl-4 text-text-faint">Auto-populated from: Your ledger (sole-prop entity)</p>
+        <p><span className="text-text-primary">1099-B</span> — Proceeds From Broker Transactions <span className="rounded border border-brand-green/40 bg-brand-green/10 px-1 text-[9px] uppercase text-brand-green">from your data</span></p>
+        <p className="pl-4 text-text-faint">Auto-populated from: Your trading positions &amp; lot dispositions</p>
+        <p className="mt-1 border-t border-border pt-1 text-text-faint">ENTER THESE FORMS — structured, box-labeled intake for the events you check:</p>
+        <p>W-2 <span className="text-text-faint">Wage and Tax Statement</span> · 1099-R <span className="text-text-faint">Retirement</span></p>
+        <p>1098-E <span className="text-text-faint">Student Loan Interest</span> · 1098-T <span className="text-text-faint">Tuition</span></p>
       </div>
     </DarkSlide>
   );
@@ -258,16 +258,16 @@ export function DocumentsPanel() {
 export function IncomePanel() {
   return (
     <DarkSlide title="Income — every line traced to its source">
-      <div className="space-y-1 text-white/70">
-        <p><span className="text-white">Business Income (Schedule C)</span> <span className="float-right text-white">{usd2(EX.netProfit)}</span></p>
+      <div className="space-y-1 text-text-secondary">
+        <p><span className="text-text-primary">Business Income (Schedule C)</span> <span className="float-right text-text-primary">{usd2(EX.netProfit)}</span></p>
         <p className="pl-4 text-brand-green">✓ from your Business entity ledger</p>
-        <p><span className="text-white">Capital Gains &amp; Losses</span> · 1 disposition <span className="float-right text-white">$0.00</span></p>
+        <p><span className="text-text-primary">Capital Gains &amp; Losses</span> · 1 disposition <span className="float-right text-text-primary">$0.00</span></p>
         <p className="pl-4 text-brand-green">✓ from trading positions &amp; lot dispositions</p>
-        <p className="mt-1 border-t border-panel-border pt-1 text-white/50">FORM 1040 — INCOME SUMMARY</p>
-        <p>Line 9 — Total income <span className="float-right text-white">{usd2(EX.netProfit)}</span></p>
-        <p className="text-white/50">Less: deductible half of SE tax <span className="float-right">{usd2(EX.se.line13)}</span></p>
-        <p className="border-t border-panel-border pt-1">Line 11 — Adjusted Gross Income <span className="float-right font-bold text-white">{usd2(EX.agi)}</span></p>
-        <p className="mt-1 text-[10px] italic text-white/40">{DISCLAIMER}</p>
+        <p className="mt-1 border-t border-border pt-1 text-text-faint">FORM 1040 — INCOME SUMMARY</p>
+        <p>Line 9 — Total income <span className="float-right text-text-primary">{usd2(EX.netProfit)}</span></p>
+        <p className="text-text-faint">Less: deductible half of SE tax <span className="float-right">{usd2(EX.se.line13)}</span></p>
+        <p className="border-t border-border pt-1">Line 11 — Adjusted Gross Income <span className="float-right font-bold text-text-primary">{usd2(EX.agi)}</span></p>
+        <p className="mt-1 text-[10px] italic text-text-faint">{DISCLAIMER}</p>
       </div>
     </DarkSlide>
   );
@@ -280,22 +280,22 @@ export function IncomePanel() {
 export function DeductionsPanel() {
   return (
     <DarkSlide title="Schedule C — drill to the entry behind it">
-      <div className="space-y-1 text-white/70">
-        <p>Line 20b Rent (other business property) <span className="float-right text-white">{usd2(EX.expenses.rent)}</span></p>
-        <p>Line 9 Car and truck expenses <span className="float-right text-white">{usd2(EX.expenses.carTruck)}</span></p>
-        <p>▼ Line 22 Supplies <span className="float-right text-white">{usd2(EX.expenses.supplies)}</span></p>
-        <p className="pl-4 text-white/50">▼ 6120 Supplies · 4 entries</p>
+      <div className="space-y-1 text-text-secondary">
+        <p>Line 20b Rent (other business property) <span className="float-right text-text-primary">{usd2(EX.expenses.rent)}</span></p>
+        <p>Line 9 Car and truck expenses <span className="float-right text-text-primary">{usd2(EX.expenses.carTruck)}</span></p>
+        <p>▼ Line 22 Supplies <span className="float-right text-text-primary">{usd2(EX.expenses.supplies)}</span></p>
+        <p className="pl-4 text-text-faint">▼ 6120 Supplies · 4 entries</p>
         {EX_SUPPLIES_ENTRIES.map((e) => (
-          <p key={e.date} className="pl-8 text-white/50">{e.date} {e.desc} <span className="float-right text-white/80">{usd2(e.amount)}</span></p>
+          <p key={e.date} className="pl-8 text-text-faint">{e.date} {e.desc} <span className="float-right text-text-secondary">{usd2(e.amount)}</span></p>
         ))}
         <p className="pl-8 text-brand-green">✓ 4 entries = {usd2(EX.expenses.supplies)}</p>
-        <p className="border-t border-panel-border pt-1">Line 28 Total expenses <span className="float-right text-white">{usd2(EX.expenses.total)}</span> </p>
-        <p>Line 31 Net profit <span className="float-right font-bold text-white">{usd2(EX.netProfit)}</span></p>
-        <p className="mt-1 text-white/50">Mapper: every expense account assigned to its line — unmapped accounts default to <span className="text-brand-amber">Line 27a (Other expenses)</span> until you assign them, and the screen says so.</p>
-        <p className="mt-1 border-t border-panel-border pt-1 text-white/50">SCHEDULE SE PREVIEW</p>
-        <p>Line 12 — Self-employment tax (15.3%) <span className="float-right text-white">{usd2(EX.se.line12)}</span></p>
-        <p className="text-white/50">Line 13 — Deductible half of SE tax <span className="float-right">{usd2(EX.se.line13)}</span></p>
-        <p className="mt-1 text-[10px] italic text-white/40">{DISCLAIMER}</p>
+        <p className="border-t border-border pt-1">Line 28 Total expenses <span className="float-right text-text-primary">{usd2(EX.expenses.total)}</span> </p>
+        <p>Line 31 Net profit <span className="float-right font-bold text-text-primary">{usd2(EX.netProfit)}</span></p>
+        <p className="mt-1 text-text-faint">Mapper: every expense account assigned to its line — unmapped accounts default to <span className="text-brand-amber">Line 27a (Other expenses)</span> until you assign them, and the screen says so.</p>
+        <p className="mt-1 border-t border-border pt-1 text-text-faint">SCHEDULE SE PREVIEW</p>
+        <p>Line 12 — Self-employment tax (15.3%) <span className="float-right text-text-primary">{usd2(EX.se.line12)}</span></p>
+        <p className="text-text-faint">Line 13 — Deductible half of SE tax <span className="float-right">{usd2(EX.se.line13)}</span></p>
+        <p className="mt-1 text-[10px] italic text-text-faint">{DISCLAIMER}</p>
       </div>
     </DarkSlide>
   );
@@ -308,19 +308,19 @@ export function DeductionsPanel() {
 export function TradingPanel() {
   return (
     <DarkSlide title="Form 8949 — every box explained">
-      <div className="space-y-1 text-white/70">
+      <div className="space-y-1 text-text-secondary">
         <p><span className="rounded bg-blue-600 px-1 font-bold text-white">A</span> <span className="text-white">Box A</span> · 1 entry <span className="rounded border border-brand-amber/40 bg-brand-amber/10 px-1 text-[9px] font-bold text-brand-amber">W × 1</span></p>
-        <p className="text-white/50">Short-term transactions reported on Form 1099-B showing basis was reported to the IRS</p>
-        <p className="border-t border-panel-border pt-1">
-          <span className="text-white">{EX_8949.description}</span> <span className="text-white/50">{EX_8949.acquired} → {EX_8949.sold}</span>
+        <p className="text-text-faint">Short-term transactions reported on Form 1099-B showing basis was reported to the IRS</p>
+        <p className="border-t border-border pt-1">
+          <span className="text-text-primary">{EX_8949.description}</span> <span className="text-text-faint">{EX_8949.acquired} → {EX_8949.sold}</span>
           <span className="float-right">proceeds {usd2(EX_8949.proceeds)} · basis {usd2(EX_8949.basis)}</span>
         </p>
-        <p className="pl-4 text-white/50">box reasoning: <span className="text-white/80">{EX_8949.reasoning}</span></p>
-        <p className="pl-4">adjustment <span className="text-brand-amber">W — Wash sale loss disallowed · +{usd2(EX_8949.adjustment)}</span> <span className="float-right">reported G/L <span className="text-white">{usd2(EX_8949.gainLoss)}</span></span></p>
-        <p className="mt-1 border-t border-panel-border pt-1 text-white/50">WASH SALES · per IRS Pub 550 (30-day window)</p>
+        <p className="pl-4 text-text-faint">box reasoning: <span className="text-text-secondary">{EX_8949.reasoning}</span></p>
+        <p className="pl-4">adjustment <span className="text-brand-amber">W — Wash sale loss disallowed · +{usd2(EX_8949.adjustment)}</span> <span className="float-right">reported G/L <span className="text-text-primary">{usd2(EX_8949.gainLoss)}</span></span></p>
+        <p className="mt-1 border-t border-border pt-1 text-text-faint">WASH SALES · per IRS Pub 550 (30-day window)</p>
         <p>1 violation · <span className="text-brand-red">{usd2(EX_8949.disallowed)} disallowed</span> · est. additional tax <span className="text-brand-amber">{usd2(EX_8949.estAddlTax)}</span></p>
-        <p className="text-white/50">&ldquo;{WASH_35_NOTE}&rdquo;</p>
-        <p className="text-white/50">The disallowed loss is added to the replacement lot&rsquo;s cost basis — Schedule D nets to <span className="text-white">$0.00</span>.</p>
+        <p className="text-text-faint">&ldquo;{WASH_35_NOTE}&rdquo;</p>
+        <p className="text-text-faint">The disallowed loss is added to the replacement lot&rsquo;s cost basis — Schedule D nets to <span className="text-text-primary">$0.00</span>.</p>
       </div>
     </DarkSlide>
   );
@@ -332,19 +332,19 @@ export function TradingPanel() {
 export function Form1040Panel() {
   return (
     <DarkSlide title="Form 1040 — derived, not typed">
-      <div className="space-y-1 text-white/70">
-        <p>Line 8 — Other income (Schedule C) <span className="float-right text-white">{usd2(EX.netProfit)}</span></p>
-        <p>Line 11 — Adjusted Gross Income <span className="float-right text-white">{usd2(EX.agi)}</span></p>
-        <p>Line 12 — Standard deduction (single) <span className="float-right text-white/80">{usd2(EX.standardDeduction)}</span></p>
-        <p>Line 15 — Taxable income <span className="float-right text-white">{usd2(EX.taxable)}</span></p>
-        <p className="mt-1 border-t border-panel-border pt-1 text-white/50">ORDINARY INCOME BRACKETS <span className="float-right">RATE · IN BRACKET · TAX</span></p>
-        <p><span className="text-white/80">$0 – $11,600</span> <span className="float-right">10.0% · {usd2(EX.taxable)} · <span className="text-white">{usd2(EX.federal)}</span></span></p>
-        <p>Line 23 — Self-employment tax <span className="float-right text-white">{usd2(EX.se.line12)}</span></p>
-        <p className="border-t border-panel-border pt-1">Line 24 — Total tax <span className="float-right font-bold text-white">{usd2(EX.totalTax)}</span></p>
+      <div className="space-y-1 text-text-secondary">
+        <p>Line 8 — Other income (Schedule C) <span className="float-right text-text-primary">{usd2(EX.netProfit)}</span></p>
+        <p>Line 11 — Adjusted Gross Income <span className="float-right text-text-primary">{usd2(EX.agi)}</span></p>
+        <p>Line 12 — Standard deduction (single) <span className="float-right text-text-secondary">{usd2(EX.standardDeduction)}</span></p>
+        <p>Line 15 — Taxable income <span className="float-right text-text-primary">{usd2(EX.taxable)}</span></p>
+        <p className="mt-1 border-t border-border pt-1 text-text-faint">ORDINARY INCOME BRACKETS <span className="float-right">RATE · IN BRACKET · TAX</span></p>
+        <p><span className="text-text-secondary">$0 – $11,600</span> <span className="float-right">10.0% · {usd2(EX.taxable)} · <span className="text-text-primary">{usd2(EX.federal)}</span></span></p>
+        <p>Line 23 — Self-employment tax <span className="float-right text-text-primary">{usd2(EX.se.line12)}</span></p>
+        <p className="border-t border-border pt-1">Line 24 — Total tax <span className="float-right font-bold text-text-primary">{usd2(EX.totalTax)}</span></p>
         <p className="text-brand-red">ESTIMATED AMOUNT OWED <span className="float-right font-bold">{usd2(EX.owed)}</span></p>
-        <p className="mt-1 border-t border-panel-border pt-1 font-bold tracking-widest text-brand-amber">{DRAFT_WATERMARK}</p>
-        <p className="text-white/50">Every PDF is watermarked DRAFT — these are for review only, not for filing.</p>
-        <p className="text-[10px] italic text-white/40">{DISCLAIMER}</p>
+        <p className="mt-1 border-t border-border pt-1 font-bold tracking-widest text-brand-amber">{DRAFT_WATERMARK}</p>
+        <p className="text-text-faint">Every PDF is watermarked DRAFT — these are for review only, not for filing.</p>
+        <p className="text-[10px] italic text-text-faint">{DISCLAIMER}</p>
       </div>
     </DarkSlide>
   );
@@ -355,17 +355,17 @@ export function Form1040Panel() {
 export function FileReadyPanel() {
   return (
     <DarkSlide title="File-ready — the package">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white/50">EXPORTS</p>
-        <p>· Form 8949 CSV <span className="text-white/50">— for TaxAct Premier+ import (1 transaction)</span></p>
-        <p>· Schedule C CSVs <span className="text-white/50">— line summary + account detail</span></p>
-        <p>· Tax Filing Summary <span className="text-white/50">— every number you need for TaxAct in one document</span></p>
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-faint">EXPORTS</p>
+        <p>· Form 8949 CSV <span className="text-text-faint">— for TaxAct Premier+ import (1 transaction)</span></p>
+        <p>· Schedule C CSVs <span className="text-text-faint">— line summary + account detail</span></p>
+        <p>· Tax Filing Summary <span className="text-text-faint">— every number you need for TaxAct in one document</span></p>
         <p>· All Forms PDF <span className="text-brand-amber">{DRAFT_WATERMARK}</span></p>
-        <p>· CPA Export Package <span className="text-white/50">— trial balance · income statement · balance sheet · general ledger</span></p>
-        <p className="mt-1 border-t border-panel-border pt-1 text-white/50">THE WALKTHROUGH</p>
+        <p>· CPA Export Package <span className="text-text-faint">— trial balance · income statement · balance sheet · general ledger</span></p>
+        <p className="mt-1 border-t border-border pt-1 text-text-faint">THE WALKTHROUGH</p>
         <p>A 12-step TaxAct guide filled with YOUR numbers — and a sanity check:</p>
-        <p className="text-white/80">&ldquo;TaxAct should compute approximately {usd2(EX.owed)} owed. If the number differs by more than $50, review each section for data-entry errors.&rdquo;</p>
-        <p className="mt-1 border-t border-panel-border pt-1 text-white/50">{NOT_A_PREPARER} The wizard prepares the numbers; you file with your CPA or filing software.</p>
+        <p className="text-text-secondary">&ldquo;TaxAct should compute approximately {usd2(EX.owed)} owed. If the number differs by more than $50, review each section for data-entry errors.&rdquo;</p>
+        <p className="mt-1 border-t border-border pt-1 text-text-faint">{NOT_A_PREPARER} The wizard prepares the numbers; you file with your CPA or filing software.</p>
       </div>
     </DarkSlide>
   );
