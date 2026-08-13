@@ -23,15 +23,15 @@
   <rect x="60" y="150" width="237" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
   <text x="88" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">01</text>
   <text x="88" y="355" font-size="28" font-weight="700" letter-spacing="1" fill="#1a1a2e">FILTERS</text>
-  <rect x="88" y="417" width="156" height="40" rx="8" fill="#F3EFE6"/>
-  <text x="103" y="443" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">18 CONTROLS</text>
+  <rect x="88" y="417" width="142" height="40" rx="8" fill="#F3EFE6"/>
+  <text x="103" y="443" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">STRATEGIES</text>
   <path d="M 320 374 L 335 385 L 320 396 Z" fill="#a8a2b0"/>
 
   <!-- 02 SCAN -->
   <rect x="341" y="150" width="237" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
   <text x="369" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">02</text>
   <text x="369" y="355" font-size="28" font-weight="700" letter-spacing="1" fill="#1a1a2e">SCAN</text>
-  <rect x="369" y="417" width="156" height="40" rx="8" fill="#F3EFE6"/>
+  <rect x="369" y="417" width="153" height="40" rx="8" fill="#F3EFE6"/>
   <text x="384" y="443" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">LIVE PRICES</text>
   <path d="M 601 374 L 616 385 L 601 396 Z" fill="#a8a2b0"/>
 
@@ -40,10 +40,10 @@
   <text x="650" y="202" font-size="16" letter-spacing="4" fill="#FFFDF9" opacity="0.6">03</text>
   <text x="650" y="340" font-size="28" font-weight="700" letter-spacing="1" fill="#FFFDF9">VERDICTS</text>
   <text x="650" y="382" font-size="15" letter-spacing="3" fill="#FFFDF9" opacity="0.75">&#9679; YOU ARE HERE</text>
-  <rect x="650" y="432" width="87" height="40" rx="8" fill="#16a34a"/>
+  <rect x="650" y="432" width="86" height="40" rx="8" fill="#16a34a"/>
   <text x="665" y="458" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#FFFDF9">TRADE</text>
-  <rect x="749" y="432" width="76" height="40" rx="8" fill="#c53030"/>
-  <text x="764" y="458" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#FFFDF9">SKIP</text>
+  <rect x="748" y="432" width="75" height="40" rx="8" fill="#c53030"/>
+  <text x="763" y="458" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#FFFDF9">SKIP</text>
   <path d="M 882 374 L 897 385 L 882 396 Z" fill="#a8a2b0"/>
 
   <!-- 04 IN YOUR -->
@@ -51,6 +51,6 @@
   <text x="931" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">04</text>
   <text x="931" y="336" font-size="28" font-weight="700" letter-spacing="1" fill="#1a1a2e">IN YOUR</text>
   <text x="931" y="374" font-size="28" font-weight="700" letter-spacing="1" fill="#1a1a2e">BOOKS</text>
-  <rect x="931" y="436" width="99" height="40" rx="8" fill="#F3EFE6"/>
+  <rect x="931" y="436" width="97" height="40" rx="8" fill="#F3EFE6"/>
   <text x="946" y="462" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">COMMIT</text>
 </svg>

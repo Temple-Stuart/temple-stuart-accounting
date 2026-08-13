@@ -23,7 +23,7 @@
   <text x="88" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">01</text>
   <text x="88" y="330" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">SET IT</text>
   <text x="88" y="374" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">ONCE</text>
-  <rect x="88" y="442" width="167" height="40" rx="8" fill="#F3EFE6"/>
+  <rect x="88" y="442" width="164" height="40" rx="8" fill="#F3EFE6"/>
   <text x="103" y="468" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">EVERY MONDAY</text>
   <line x1="380" y1="385" x2="426" y2="385" stroke="#a8a2b0" stroke-width="3"/>
   <path d="M 426 374 L 442 385 L 426 396 Z" fill="#a8a2b0"/>
@@ -34,16 +34,16 @@
   <text x="476" y="315" font-size="34" font-weight="700" letter-spacing="1" fill="#FFFDF9">CALENDAR</text>
   <text x="476" y="359" font-size="34" font-weight="700" letter-spacing="1" fill="#FFFDF9">+ BUDGET</text>
   <text x="476" y="407" font-size="15" letter-spacing="3" fill="#FFFDF9" opacity="0.75">&#9679; YOU ARE HERE</text>
-  <rect x="476" y="457" width="156" height="40" rx="8" fill="#ffffff"/>
-  <text x="491" y="483" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#3b2d6b">$120 - 6000</text>
+  <rect x="476" y="457" width="220" height="40" rx="8" fill="#ffffff"/>
+  <text x="491" y="483" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#3b2d6b">AMOUNT + CATEGORY</text>
   <line x1="768" y1="385" x2="814" y2="385" stroke="#a8a2b0" stroke-width="3"/>
   <path d="M 814 374 L 830 385 L 814 396 Z" fill="#a8a2b0"/>
 
   <!-- 03 NO -->
   <rect x="836" y="150" width="304" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
   <text x="864" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">03</text>
-  <text x="864" y="317" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">NO</text>
-  <text x="864" y="361" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">SURPRISES</text>
-  <text x="864" y="463" font-size="46" font-weight="700" fill="#B8860B">$1,840</text>
-  <text x="864" y="495" font-size="15" letter-spacing="2" fill="#7a7488">PLANNED THIS MONTH</text>
+  <text x="864" y="330" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">NO</text>
+  <text x="864" y="374" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">SURPRISES</text>
+  <rect x="864" y="442" width="231" height="40" rx="8" fill="#F3EFE6"/>
+  <text x="879" y="468" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">PLANNED THIS MONTH</text>
 </svg>
