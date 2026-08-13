@@ -24,11 +24,15 @@ interface AuditRow {
   content_hash: string;
 }
 
-interface VerifyResult {
-  ok: boolean;
-  rows_checked: number;
-  message?: string;
-}
+/** VERIFY-TRUTH: three truths, discriminated — a failed request must NEVER
+ *  render as INVALID. 'invalid' may only come from the server's explicit
+ *  verdict (route.ts ok:false on a 200); anything else — non-2xx status,
+ *  network, parse — is 'failed' ("could not verify"), with the actual
+ *  error surfaced and a Retry. No fallback of any kind. */
+type VerifyResult =
+  | { state: 'valid'; rows_checked: number }
+  | { state: 'invalid'; rows_checked: number; message?: string }
+  | { state: 'failed'; detail: string };
 
 function shortHash(h: string | null): string {
   if (!h) return '—';
@@ -70,12 +74,27 @@ export function SectionI_AuditTail({ }: { } = {}) {
     setVerifying(true);
     setVerifyResult(null);
     try {
-      const res = await fetch('/api/audit-log/verify-chain');
-      if (res.ok) {
-        setVerifyResult(await res.json());
-      } else {
-        setVerifyResult({ ok: false, rows_checked: 0, message: 'request failed' });
+      // VERIFY-TRUTH: POST — the route accepts POST only (verify-chain/
+      // route.ts:6); the GET here 405'd forever and painted a false
+      // INVALID. Call shape per the working twin (operations/
+      // SectionK_AuditTail.tsx:110).
+      const res = await fetch('/api/audit-log/verify-chain', { method: 'POST' });
+      if (!res.ok) {
+        setVerifyResult({ state: 'failed', detail: `request failed (${res.status})` });
+        return;
       }
+      const body = await res.json();
+      if (typeof body?.ok !== 'boolean' || typeof body?.rows_checked !== 'number') {
+        setVerifyResult({ state: 'failed', detail: 'malformed verification response' });
+        return;
+      }
+      setVerifyResult(
+        body.ok
+          ? { state: 'valid', rows_checked: body.rows_checked }
+          : { state: 'invalid', rows_checked: body.rows_checked, message: body.message },
+      );
+    } catch (err) {
+      setVerifyResult({ state: 'failed', detail: err instanceof Error ? err.message : 'network error' });
     } finally {
       setVerifying(false);
     }
@@ -105,17 +124,33 @@ export function SectionI_AuditTail({ }: { } = {}) {
 
       {/* COMPLIANCE-UX-1: the verdict steps up one rung (text-sm bold) — the
           chain's answer should be unmissable. Strings verbatim. */}
-      {verifyResult && (
-        <div
-          className={`text-sm font-bold font-mono mb-3 px-3 py-2 rounded border ${
-            verifyResult.ok
-              ? 'bg-green-50 border-green-200 text-green-800'
-              : 'bg-red-50 border-red-200 text-red-800'
-          }`}
-        >
-          {verifyResult.ok
-            ? `chain valid · ${verifyResult.rows_checked} rows checked`
-            : `chain INVALID · ${verifyResult.message ?? 'see /compliance/audit-log'}`}
+      {/* VERIFY-TRUTH: three visually distinct verdicts. VALID + INVALID keep
+          the pre-existing chip pair; INVALID renders ONLY on the server's
+          explicit verdict and now wears the status-danger token family.
+          FAILED is the new third state — "could not verify", never a tamper
+          claim — in the DS strip family with the real error + Retry. */}
+      {verifyResult && verifyResult.state === 'valid' && (
+        <div className="text-sm font-bold font-mono mb-3 px-3 py-2 rounded border bg-green-50 border-green-200 text-green-800">
+          chain valid · {verifyResult.rows_checked} rows checked
+        </div>
+      )}
+      {verifyResult && verifyResult.state === 'invalid' && (
+        <div className="text-sm font-bold font-mono mb-3 px-3 py-2 rounded border border-status-danger/40 bg-status-danger/10 text-status-danger">
+          chain INVALID · {verifyResult.message ?? 'see /compliance/audit-log'}
+        </div>
+      )}
+      {verifyResult && verifyResult.state === 'failed' && (
+        <div className="text-sm font-mono mb-3 px-3 py-2 rounded border border-border bg-bg-row text-text-secondary flex items-center justify-between gap-3">
+          <span>
+            <span className="font-bold">could not verify</span> · {verifyResult.detail}
+          </span>
+          <button
+            onClick={verifyChain}
+            disabled={verifying}
+            className="px-2 py-0.5 text-xs border border-brand-purple/40 text-brand-purple rounded hover:bg-brand-purple-wash disabled:opacity-50"
+          >
+            Retry
+          </button>
         </div>
       )}
 
