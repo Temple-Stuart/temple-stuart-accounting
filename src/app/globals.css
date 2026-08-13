@@ -48,10 +48,14 @@
   /* Indigo — Operations source, tokenized as-is (= SOURCE_CONFIG calendarColor indigo-400). */
   --ts-indigo: #818cf8;
 
-  /* Surface */
-  --ts-white:   #fafaf9;        /* warm off-white default surface (true #ffffff for max-crisp only) */
-  --ts-bg:      247 246 243;    /* #f7f6f3 — app background (= old bg-terminal) */
-  --ts-bg-row:  240 238 233;    /* #f0eee9 — zebra / row (= old bg-row) */
+  /* Surface — REPAINT-1: the cream landing. bg moves to the locked #FAF8F3
+     family; row keeps the old row's hue (~42°) and lightness (92.7%) and
+     takes the new bg's saturation lift (19%→35%) so the bg→row contrast
+     step is preserved while the warmth follows the cream. --ts-white is
+     re-slotted as the card cream (0 consumers at re-value — audit Step 1). */
+  --ts-white:   #FFFDF9;        /* card cream (was #fafaf9; true #ffffff for max-crisp only) */
+  --ts-bg:      250 248 243;    /* #FAF8F3 — cream app background (was #f7f6f3) */
+  --ts-bg-row:  243 239 230;    /* #F3EFE6 — zebra / row (was #f0eee9) */
 
   /* Neutrals — text (unchanged values, now named) */
   --ts-text:           #1a1a2e;
@@ -83,12 +87,15 @@
   --ts-grad-mid: 109 40 255;  /* #6d28ff */
   --ts-grad-end: 168 85 247;  /* #a855f7 */
 
-  /* Gold accent family (unchanged) */
-  --ts-gold:        125 107 44;   /* #7D6B2C */
-  --ts-gold-bright: 139 125 60;   /* #8B7D3C */
-  --ts-gold-wash:   rgba(125,107,44,0.07);  /* baked 7% alpha — solid-only, NOT alpha-modified; left as rgba (see token-alpha-fix-part2) */
-  --ts-accent:      180 178 55;   /* #b4b237 */
-  --ts-accent-dark: 154 150 48;   /* #9a9630 */
+  /* Gold family — REPAINT-1: relanded on the locked #B8860B money/CTA gold
+     (was the #7D6B2C olive family). RULING 3: the chartreuse accent pair
+     folds INTO gold — accent = gold, accent-dark = the darker sibling — so
+     every brand-accent consumer moves on-palette with zero class edits. */
+  --ts-gold:        184 134 11;   /* #B8860B */
+  --ts-gold-bright: 198 152 27;   /* #C6981B — keeps the old bright step (+14,+18,+16 RGB above gold) */
+  --ts-gold-wash:   rgba(184,134,11,0.07);  /* baked 7% alpha recomputed from the new gold — solid-only, NOT alpha-modified; left as rgba (see token-alpha-fix-part2) */
+  --ts-accent:      184 134 11;   /* #B8860B = --ts-gold (RULING 3 fold) */
+  --ts-accent-dark: 158 115 9;    /* #9E7309 — keeps the old accent→dark depth (≈0.86× per channel) */
 
   /* Dark "panel / terminal" surfaces. BG-DEPTH (resolves the
      PALETTE-OVERHAUL stop-gate deliberately): the page CANVAS gets its own
@@ -119,12 +126,8 @@
   --ts-radius:      0.25rem; /* default card */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* REPAINT-1: the @media (prefers-color-scheme: dark) body flip died here —
+   the app never flips on OS-dark again (dark is retired as a default). */
 
 body {
   background: var(--background);
