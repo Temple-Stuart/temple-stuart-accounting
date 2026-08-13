@@ -15,9 +15,14 @@ import PeriodClose from '@/components/dashboard/PeriodClose';
 import CloseBooksTab from '@/components/dashboard/CloseBooksTab';
 import PositionReportTab from '@/components/dashboard/PositionReportTab';
 import CPAExport from '@/components/dashboard/CPAExport';
-import ToggleStrip, { type ToggleMode } from '@/components/ui/ToggleStrip';
-import { DS } from '@/lib/ds';
-import { BarChart3, CalendarCheck, Download, Inbox, Scale, Tags } from 'lucide-react';
+// BOOKS-PIPE-FRAME: the ratified Pipe Frame primitives (the Trade precedent) —
+// StageStrip replaces the 6-icon-tab ToggleStrip (one phase control, never
+// two); SectionHeader kickers per phase region; ProofStrip receipts at the
+// tab's bottom. The lucide phase icons retired with the ToggleStrip chips
+// (StageStrip carries no icon slot).
+import StageStrip, { type StagePhase } from '@/components/ui/StageStrip';
+import SectionHeader from '@/components/ui/SectionHeader';
+import ProofStrip from '@/components/ui/ProofStrip';
 import { useExportDownload } from '@/lib/useExportDownload';
 
 /**
@@ -47,9 +52,25 @@ const fmt = (n: number) =>
   '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
 export default function BooksPipeline() {
-  // BOOKS-DS-1: single-consumer (the ML Books tab) — always dark.
+  // BOOKS-DS-1 → BOOKS-PIPE-FRAME: the dark chrome converted to Direction C
+  // (white cards on cream, DS inks) — the census Table B hits, mapped per the
+  // established conversion (panel family → border/bg families, white inks →
+  // the text ladder).
   const [year] = useState(new Date().getFullYear());
   const [state, setState] = useState<'loading' | 'error' | 'ok'>('loading');
+  // BOOKS-PIPE-FRAME: the active phase — the ONLY state the retired
+  // ToggleStrip owned, now owned here (keep-mounted CSS show/hide survival
+  // unchanged, the house idiom). 'feed' = the strip's first phase, matching
+  // ToggleStrip's own first-mode default.
+  const [phase, setPhase] = useState<'feed' | 'code' | 'reconcile' | 'close' | 'reports' | 'export'>('feed');
+  // BOOKS-PIPE-FRAME: the T1 trial-balance totals, reported UP by
+  // TrialBalanceSection via the optional onTotals callback (the Trade
+  // reporting-callback precedent — the child owns the fetch; this is the
+  // already-fetched payload, zero new fetches). null until its fetch lands.
+  const [tbTotals, setTbTotals] = useState<{
+    totalDebits: number; totalCredits: number; imbalance: number;
+    isBalanced: boolean; hasActivity: boolean;
+  } | null>(null);
 
   const [transactions, setTransactions] = useState<Row[]>([]);
   const [accounts, setAccounts] = useState<Row[]>([]);
@@ -160,9 +181,24 @@ export default function BooksPipeline() {
   const committedCount = committedSpending.length + committedInvestments.length;
   const totalBalance = accounts.reduce((s, a) => s + (a.balance || 0), 0);
 
+  // BOOKS-PIPE-FRAME: strip-state signals — DERIVED ONLY, from state this
+  // component already holds (hardcoded states forbidden; the in-card stage
+  // dots' 9 hardcoded 'pending' props are the ledgered G2 anti-pattern, NEXT
+  // PR, untouched here).
+  const pendingCount = uncommittedSpending.length + uncommittedInvestments.length;
+  const reconciledCount = reconciliations.filter((r) => r.status === 'reconciled').length;
+  const closedThisYear = periodCloses.filter((p) => p.year === year && p.status === 'closed').length;
+  const closedPeriods = periodCloses.filter((p) => p.status === 'closed' && p.closedAt);
+  // G7: the latest close's closedAt/closedBy — fetched (loadPeriodCloses) and
+  // typed (PeriodClose.tsx PeriodCloseRecord) but never rendered until now.
+  const latestClose = closedPeriods.reduce(
+    (best: Row | null, p: Row) => (!best || new Date(p.closedAt) > new Date(best.closedAt) ? p : best),
+    null,
+  );
+
   if (state === 'loading') {
     return (
-      <div className={'rounded-xl border-2 border-panel-border bg-panel-surface px-4 py-3 text-sm text-white/60'}>
+      <div className={'rounded-xl border-2 border-border bg-bg-row px-4 py-3 text-sm text-text-muted'}>
         Loading your books pipeline…
       </div>
     );
@@ -185,32 +221,57 @@ export default function BooksPipeline() {
   // Dashboard canonical order (src/app/dashboard/page.tsx): SRC → CAT → JE → LDG →
   // TB → REC → ADJ → STMT → TAX-LOT → CLOSE → CLOSE-YE → POS → EXP.
   return (
-    // BOOKS-UX-1: the 13-stage flat stack consolidates into SIX PHASES on the
-    // shared <ToggleStrip> (the travel-tab precedent, ModuleLauncher DS-1) —
-    // one phase visible at a time, ALL phases mounted (CSS show/hide,
-    // ToggleStrip.tsx:60-64), so in-flight engine state survives switching.
-    // Stage → phase mapping (canonical order preserved WITHIN each phase):
-    //   Feed      = SRC
-    //   Code      = CAT → JE → LDG
-    //   Reconcile = REC            ← the dossier anchor: Xero-grade bank
+    // BOOKS-UX-1 → BOOKS-PIPE-FRAME: the six phases keep their exact names +
+    // stage groupings; the phase CONTROL is now the ratified StageStrip (the
+    // Trade precedent — one phase control, never two). One phase visible at a
+    // time, ALL phases mounted (CSS show/hide, the house keep-mounted idiom —
+    // ToggleStrip.tsx:145's own pattern), so in-flight engine state survives
+    // switching. Stage → phase mapping (canonical order preserved WITHIN each
+    // phase):
+    //   01 Feed      = SRC
+    //   02 Code      = CAT → JE → LDG
+    //   03 Reconcile = REC          ← the dossier anchor: Xero-grade bank
     //               reconciliation is the market's most-loved concrete feature;
-    //               it gets its OWN chip (never folded into a bigger phase),
+    //               it gets its OWN phase (never folded into a bigger phase),
     //               third of six — right after the feed+coding that produce
     //               what it checks, ahead of Close (PeriodClose consumes
     //               reconciliations) and everything downstream. Structural
     //               prominence only; zero copy claims added.
-    //   Close     = ADJ → CLOSE → CLOSE-YE
-    //   Reports   = TB → STMT → TAX-LOT → POS
-    //   Export    = EXP (CPAExport + the EXPORT-1 button — reachable, untouched)
+    //   04 Close     = ADJ → CLOSE → CLOSE-YE
+    //   05 Reports   = TB → STMT → TAX-LOT → POS
+    //   06 Export    = EXP (CPAExport + the EXPORT-1 button — reachable, untouched)
     // Every stage renders inside exactly one phase; section JSX is byte-moved,
-    // not modified. ToggleStrip owns the ONLY new state (the active phase).
-    <ToggleStrip
-      className={DS.STRIP}
-      modes={([
-        { key: 'feed', label: 'Feed',
-          icon: <Inbox className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />,
-          panel: (
-          <div className="mt-3 space-y-3">
+    // not modified. This component owns the ONLY new state (the active phase +
+    // the TB report-up).
+    <>
+      {/* BOOKS-PIPE-FRAME: strip states DERIVED ONLY from audited signals —
+          feed ⇐ connected accounts; code ⇐ all caught up AND something coded;
+          reconcile ⇐ a reconciled reconciliation exists; close ⇐ a closed
+          period exists; reports ⇐ the T1 truth (hasActivity && isBalanced,
+          reported up by TrialBalanceSection); export = DECLARED GAP — no
+          export-completion signal exists client-side, so it renders pending
+          (never hardcoded done). States are indicators, never locks — every
+          phase stays clickable (the ratified StageStrip amendment). */}
+      <StageStrip
+        phases={([
+          { key: 'feed', num: '01', label: 'Feed',
+            state: phase === 'feed' ? 'active' : accounts.length > 0 ? 'done' : 'pending' },
+          { key: 'code', num: '02', label: 'Code',
+            state: phase === 'code' ? 'active' : committedCount > 0 && pendingCount === 0 ? 'done' : 'pending' },
+          { key: 'reconcile', num: '03', label: 'Reconcile',
+            state: phase === 'reconcile' ? 'active' : reconciledCount > 0 ? 'done' : 'pending' },
+          { key: 'close', num: '04', label: 'Close',
+            state: phase === 'close' ? 'active' : closedThisYear > 0 ? 'done' : 'pending' },
+          { key: 'reports', num: '05', label: 'Reports',
+            state: phase === 'reports' ? 'active' : tbTotals?.hasActivity && tbTotals?.isBalanced ? 'done' : 'pending' },
+          { key: 'export', num: '06', label: 'Export',
+            state: phase === 'export' ? 'active' : 'pending' },
+        ] as StagePhase[])}
+        onSelect={(k) => setPhase(k as typeof phase)}
+      />
+
+      <div className={phase === 'feed' ? 'block space-y-3' : 'hidden'}>
+        <SectionHeader kicker="01 / Feed" right="PHASE 01 OF 06" />
       {/* 1. SRC — Source Accounts (dashboard :502). Linking/sync live in the cockpit above. */}
       <BookkeepingSection title="Source Accounts" pipelineKey="SRC"
         subtitle={`${accounts.length} connected`}
@@ -219,7 +280,7 @@ export default function BooksPipeline() {
         <div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
-              <thead className={'bg-white/5 text-white/70'}>
+              <thead className={'bg-bg-row text-text-secondary'}>
                 <tr>
                   <th className="px-3 py-2 text-left font-medium">Institution</th>
                   <th className="px-3 py-2 text-left font-medium">Account</th>
@@ -228,7 +289,7 @@ export default function BooksPipeline() {
                   <th className="px-3 py-2 text-right font-medium">Balance</th>
                 </tr>
               </thead>
-              <tbody className={'divide-y divide-panel-border'}>
+              <tbody className={'divide-y divide-border'}>
                 {accounts.map((acc) => {
                   const et = acc.entityType;
                   const pillColor = et === 'personal' ? 'bg-blue-100 text-blue-700'
@@ -236,10 +297,10 @@ export default function BooksPipeline() {
                     : et === 'trading' ? 'bg-green-100 text-green-700'
                     : 'bg-orange-100 text-orange-700';
                   return (
-                    <tr key={acc.id} className={'hover:bg-panel-hover'}>
-                      <td className={'px-3 py-2 font-medium text-white'}>{acc.institutionName}</td>
-                      <td className={'px-3 py-2 text-white/70 font-mono'}>{'••••'} {acc.mask || '----'}</td>
-                      <td className="px-3 py-2"><span className={'px-2 py-0.5 bg-white/5 text-white/70 text-[10px] uppercase'}>{acc.type}</span></td>
+                    <tr key={acc.id} className={'hover:bg-brand-purple-wash/40'}>
+                      <td className={'px-3 py-2 font-medium text-text-primary'}>{acc.institutionName}</td>
+                      <td className={'px-3 py-2 text-text-secondary font-mono'}>{'••••'} {acc.mask || '----'}</td>
+                      <td className="px-3 py-2"><span className={'px-2 py-0.5 bg-bg-row text-text-secondary text-[10px] uppercase'}>{acc.type}</span></td>
                       <td className="px-3 py-2">
                         <select
                           value={acc.entityType || ''}
@@ -257,41 +318,39 @@ export default function BooksPipeline() {
                   );
                 })}
                 {accounts.length === 0 && (
-                  <tr><td colSpan={5} className={'px-3 py-8 text-center text-white/50'}>No accounts connected — link one from the cockpit above.</td></tr>
+                  <tr><td colSpan={5} className={'px-3 py-8 text-center text-text-faint'}>No accounts connected — link one from the cockpit above.</td></tr>
                 )}
               </tbody>
-              <tfoot className={'bg-white/5 border-t border-panel-border'}>
+              <tfoot className={'bg-bg-row border-t border-border'}>
                 <tr>
-                  <td colSpan={4} className={'px-3 py-2 font-semibold text-white'}>Total</td>
-                  <td className={'px-3 py-2 text-right font-mono font-bold text-white'}>{fmt(totalBalance)}</td>
+                  <td colSpan={4} className={'px-3 py-2 font-semibold text-text-primary'}>Total</td>
+                  <td className={'px-3 py-2 text-right font-mono font-bold text-text-primary'}>{fmt(totalBalance)}</td>
                 </tr>
               </tfoot>
             </table>
           </div>
         </div>
       </BookkeepingSection>
-          </div>
-        ) },
-        { key: 'code', label: 'Code',
-          icon: <Tags className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />,
-          panel: (
-          <div className="mt-3 space-y-3">
+      </div>
+
+      <div className={phase === 'code' ? 'block space-y-3' : 'hidden'}>
+        <SectionHeader kicker="02 / Code" right="PHASE 02 OF 06" />
       {/* 2. CAT — Categorize (dashboard :568): the COA-assignment queue. */}
       <BookkeepingSection title="Categorize Transactions" pipelineKey="CAT"
         subtitle={`${uncommittedSpending.length + uncommittedInvestments.length} pending`}
         status={uncommittedSpending.length + uncommittedInvestments.length > 0 ? 'action-needed' : 'complete'}>
         <div>
-          <div className={'flex items-center gap-3 px-3 py-1.5 border-b border-panel-border'}>
-            <div className={'flex items-center border border-panel-border bg-panel-surface'}>
+          <div className={'flex items-center gap-3 px-3 py-1.5 border-b border-border'}>
+            <div className={'flex items-center border border-border bg-white'}>
               <button onClick={() => setMappingTab('spending')}
                 className={`px-2 py-0.5 text-[10px] font-mono font-medium transition-colors ${
-                  mappingTab === 'spending' ? 'bg-brand-purple-wash text-brand-purple' : 'text-white/60 hover:text-white'
+                  mappingTab === 'spending' ? 'bg-brand-purple-wash text-brand-purple' : 'text-text-muted hover:text-text-primary'
                 }`}>
                 Spending <span className="font-bold text-brand-gold">{uncommittedSpending.length}</span>
               </button>
               <button onClick={() => setMappingTab('investments')}
-                className={`px-2 py-0.5 text-[10px] font-mono font-medium border-l border-panel-border transition-colors ${
-                  mappingTab === 'investments' ? 'bg-brand-purple-wash text-brand-purple' : 'text-white/60 hover:text-white'
+                className={`px-2 py-0.5 text-[10px] font-mono font-medium border-l border-border transition-colors ${
+                  mappingTab === 'investments' ? 'bg-brand-purple-wash text-brand-purple' : 'text-text-muted hover:text-text-primary'
                 }`}>
                 Investments <span className="font-bold text-brand-gold">{uncommittedInvestments.length}</span>
               </button>
@@ -321,12 +380,10 @@ export default function BooksPipeline() {
           <GeneralLedger coaOptions={coaOptions} onReload={reloadAll} />
         </div>
       </BookkeepingSection>
-          </div>
-        ) },
-        { key: 'reconcile', label: 'Reconcile',
-          icon: <Scale className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />,
-          panel: (
-          <div className="mt-3 space-y-3">
+      </div>
+
+      <div className={phase === 'reconcile' ? 'block space-y-3' : 'hidden'}>
+        <SectionHeader kicker="03 / Reconcile" right="PHASE 03 OF 06" />
       {/* 6. REC — Bank Reconciliation (dashboard :620). */}
       <BookkeepingSection title="Bank Reconciliation" pipelineKey="REC" status="pending">
         <div className="p-2">
@@ -347,12 +404,10 @@ export default function BooksPipeline() {
           />
         </div>
       </BookkeepingSection>
-          </div>
-        ) },
-        { key: 'close', label: 'Close',
-          icon: <CalendarCheck className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />,
-          panel: (
-          <div className="mt-3 space-y-3">
+      </div>
+
+      <div className={phase === 'close' ? 'block space-y-3' : 'hidden'}>
+        <SectionHeader kicker="04 / Close" right="PHASE 04 OF 06" />
       {/* 7. ADJ — Adjusting Entries (dashboard :644, self-fetching). */}
       <BookkeepingSection title="Adjusting Entries" pipelineKey="ADJ" status="pending">
         <AdjustingEntriesTab />
@@ -401,15 +456,16 @@ export default function BooksPipeline() {
           <CloseBooksTab entityId={entityId} selectedYear={year} />
         </div>
       </BookkeepingSection>
-          </div>
-        ) },
-        { key: 'reports', label: 'Reports',
-          icon: <BarChart3 className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />,
-          panel: (
-          <div className="mt-3 space-y-3">
-      {/* 5. TB — Trial Balance (dashboard :614, self-fetching). */}
+      </div>
+
+      <div className={phase === 'reports' ? 'block space-y-3' : 'hidden'}>
+        <SectionHeader kicker="05 / Reports" right="PHASE 05 OF 06" />
+      {/* 5. TB — Trial Balance (dashboard :614, self-fetching). BOOKS-PIPE-FRAME:
+          onTotals reports the already-fetched T1 totals up for the strip state +
+          the ProofStrip receipt (zero new fetches; the stable setter is the
+          callback). */}
       <BookkeepingSection title="Trial Balance" pipelineKey="TB" status="pending">
-        <TrialBalanceSection />
+        <TrialBalanceSection onTotals={setTbTotals} />
       </BookkeepingSection>
 
       {/* 8. STMT — Financial Statements (dashboard :650, self-fetching). */}
@@ -426,12 +482,10 @@ export default function BooksPipeline() {
       <BookkeepingSection title="Position Report" pipelineKey="POS" status="pending">
         <PositionReportTab />
       </BookkeepingSection>
-          </div>
-        ) },
-        { key: 'export', label: 'Export',
-          icon: <Download className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />,
-          panel: (
-          <div className="mt-3 space-y-3">
+      </div>
+
+      <div className={phase === 'export' ? 'block space-y-3' : 'hidden'}>
+        <SectionHeader kicker="06 / Export" right="PHASE 06 OF 06" />
       {/* 13. EXP — CPA Export (dashboard :745). The dashboard's Tax-forms link (:720) is
           intentionally omitted — Tax is its own homepage tab, not part of this pipe. */}
       <BookkeepingSection title="CPA Export" pipelineKey="EXP" status="pending">
@@ -446,10 +500,52 @@ export default function BooksPipeline() {
           <ExportMyData />
         </div>
       </BookkeepingSection>
-          </div>
-        ) },
-      ] as ToggleMode[])}
-    />
+      </div>
+
+      {/* BOOKS-PIPE-FRAME: the receipts rail — values from state that ALREADY
+          exists (parent fetches + the TB report-up; zero new fetches).
+          Rendering closedAt/closedBy closes pipe-audit G7 — fetched
+          (loadPeriodCloses above) and typed (PeriodClose.tsx
+          PeriodCloseRecord) but never rendered until now. DECLARED for Alex's
+          Preview judgment, not resolved here: the TB receipt overlaps the
+          cockpit bar's Balanced/Unbalanced/No-activity badge (both read the
+          same /api/trial-balance truth). */}
+      <ProofStrip
+        receipts={[
+          {
+            label: 'Connected accounts',
+            value: accounts.length > 0 ? String(accounts.length) : undefined,
+            sub: 'linked via the cockpit above',
+            emptyLabel: 'none linked yet',
+          },
+          {
+            label: 'Trial balance',
+            value: tbTotals
+              ? `${(tbTotals.totalDebits / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })} D · ${(tbTotals.totalCredits / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })} C`
+              : undefined,
+            sub: tbTotals
+              ? !tbTotals.hasActivity
+                ? 'no activity yet — nothing posted'
+                : tbTotals.isBalanced
+                  ? 'balanced'
+                  : `unbalanced by ${(Math.abs(tbTotals.imbalance) / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`
+              : undefined,
+            emptyLabel: 'not loaded yet',
+          },
+          {
+            label: 'Periods closed',
+            value: `${closedThisYear} / 12 months`,
+            sub: String(year),
+          },
+          {
+            label: 'Last close',
+            value: latestClose ? new Date(latestClose.closedAt).toLocaleDateString('en-US') : undefined,
+            sub: latestClose?.closedBy ? `closed by ${latestClose.closedBy}` : undefined,
+            emptyLabel: 'no period closed yet',
+          },
+        ]}
+      />
+    </>
   );
 }
 
@@ -463,11 +559,11 @@ function ExportMyData() {
   const { busy, error, run } = useExportDownload();
 
   return (
-    <div className="mt-4 border-t border-panel-border bg-white/5 p-3">
+    <div className="mt-4 border-t border-border bg-bg-row p-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="font-mono text-[11px] font-semibold text-white/80">Your data is yours</div>
-          <p className="font-mono text-[11px] text-white/60 mt-0.5">
+          <div className="font-mono text-[11px] font-semibold text-text-secondary">Your data is yours</div>
+          <p className="font-mono text-[11px] text-text-muted mt-0.5">
             Every financial + travel table you own — one CSV per table, zipped. Never paywalled.
           </p>
         </div>
