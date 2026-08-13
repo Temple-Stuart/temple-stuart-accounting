@@ -138,7 +138,7 @@ export default function Dashboard() {
   const [reconciliations, setReconciliations] = useState<any[]>([]);
   const [periodCloses, setPeriodCloses] = useState<any[]>([]);
   const [defaultEntityId, setDefaultEntityId] = useState<string | null>(null);
-  const [trialBalance, setTrialBalance] = useState<{ totalDebits: number; totalCredits: number; isBalanced: boolean; accounts: any[] } | null>(null);
+  const [trialBalance, setTrialBalance] = useState<{ totalDebits: number; totalCredits: number; isBalanced: boolean; hasActivity: boolean; accounts: any[] } | null>(null);
 
   // Cookie is now HMAC-signed server-side (login/register/nextauth).
   // Client-side writes removed to prevent overwriting signed cookies.
@@ -470,6 +470,7 @@ export default function Dashboard() {
             totalLiabilities={trialBalance?.accounts?.filter((a: any) => a.accountType === 'liability').reduce((s: number, a: any) => s + Math.abs(a.normalBalance), 0) || 0}
             totalEquity={trialBalance?.accounts?.filter((a: any) => a.accountType === 'equity').reduce((s: number, a: any) => s + Math.abs(a.normalBalance), 0) || 0}
             isBalanced={trialBalance?.isBalanced ?? true}
+            hasActivity={trialBalance?.hasActivity === true}
             connectedAccounts={accounts.length}
             periodLabel={`${MONTHS[new Date().getMonth()]} ${selectedYear}`}
             periodStatus={periodCloses.some((p: any) => p.year === selectedYear && p.month === new Date().getMonth() + 1 && p.status === 'closed') ? 'closed' : 'open'}

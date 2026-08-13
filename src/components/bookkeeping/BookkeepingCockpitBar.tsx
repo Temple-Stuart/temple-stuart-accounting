@@ -7,6 +7,9 @@ export interface BookkeepingCockpitBarProps {
   totalLiabilities: number;
   totalEquity: number;
   isBalanced: boolean;
+  /** True only when amounts are posted — gates the Balanced badge. An empty
+   *  ledger's 0 === 0 must never paint green (HONEST-BALANCED). */
+  hasActivity: boolean;
   // Status
   connectedAccounts: number;
   periodLabel: string;
@@ -25,6 +28,7 @@ export default function BookkeepingCockpitBar({
   totalLiabilities,
   totalEquity,
   isBalanced,
+  hasActivity,
   connectedAccounts,
   periodLabel,
   periodStatus,
@@ -69,7 +73,14 @@ export default function BookkeepingCockpitBar({
             </span>
           </div>
           <div className="mt-1">
-            {isBalanced ? (
+            {/* HONEST-BALANCED three-state: no posted activity \u2192 neutral chip
+                (an empty ledger is proof of no books, not balanced books);
+                else the existing green/red pair, byte-identical. */}
+            {!hasActivity ? (
+              <span className="inline-flex items-center gap-1 text-[10px] font-medium border border-border bg-bg-row text-text-muted px-2 py-0.5 rounded-full">
+                No activity yet {'\u2014'} nothing posted
+              </span>
+            ) : isBalanced ? (
               <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
                 A = L + E {'\u2713'} Balanced
               </span>
