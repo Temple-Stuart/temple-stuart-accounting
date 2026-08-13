@@ -23,7 +23,7 @@
   <text x="88" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">01</text>
   <text x="88" y="336" font-size="28" font-weight="700" letter-spacing="1" fill="#1a1a2e">CLOSED</text>
   <text x="88" y="374" font-size="28" font-weight="700" letter-spacing="1" fill="#1a1a2e">BOOKS</text>
-  <rect x="88" y="436" width="178" height="40" rx="8" fill="#F3EFE6"/>
+  <rect x="88" y="436" width="175" height="40" rx="8" fill="#F3EFE6"/>
   <text x="103" y="462" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">PERIOD CLOSED</text>
   <path d="M 320 374 L 335 385 L 320 396 Z" fill="#a8a2b0"/>
 
@@ -33,7 +33,7 @@
   <text x="369" y="321" font-size="28" font-weight="700" letter-spacing="1" fill="#FFFDF9">FORMS</text>
   <text x="369" y="359" font-size="28" font-weight="700" letter-spacing="1" fill="#FFFDF9">BUILD</text>
   <text x="369" y="401" font-size="15" letter-spacing="3" fill="#FFFDF9" opacity="0.75">&#9679; YOU ARE HERE</text>
-  <rect x="369" y="451" width="190" height="40" rx="8" fill="#ffffff"/>
+  <rect x="369" y="451" width="187" height="40" rx="8" fill="#ffffff"/>
   <text x="384" y="477" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#3b2d6b">1040 + SCH C/D</text>
   <path d="M 601 374 L 616 385 L 601 396 Z" fill="#a8a2b0"/>
 
@@ -49,6 +49,6 @@
   <rect x="903" y="150" width="237" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
   <text x="931" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">04</text>
   <text x="931" y="355" font-size="28" font-weight="700" letter-spacing="1" fill="#1a1a2e">FILE</text>
-  <rect x="931" y="417" width="133" height="40" rx="8" fill="#F3EFE6"/>
+  <rect x="931" y="417" width="131" height="40" rx="8" fill="#F3EFE6"/>
   <text x="946" y="443" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">FORM 8949</text>
 </svg>
