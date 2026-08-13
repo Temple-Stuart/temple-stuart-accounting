@@ -150,7 +150,7 @@ export default function FlightPickerView({
         // PR-STRIP-DESIGN-1: the shell card elevated to bg-panel-surface, so
         // the leg block steps DOWN to the inset token (bg-white/5) to keep
         // its separation — same ds.ts surface family, no new colors.
-        <div key={leg.id} className="bg-white/5 border border-panel-border rounded overflow-hidden">
+        <div key={leg.id} className="bg-bg-row border border-border rounded overflow-hidden">
           {/* Leg header — BAR-COMMITTED-ONLY (the BAR-KILL gate ruling,
               variant b): the bar renders ONLY for committed legs, where it IS
               the saved-flight summary card and the toggle for the 8
@@ -167,25 +167,25 @@ export default function FlightPickerView({
               tautological and dropped. */}
           {leg.committed && (
             <div
-              className="flex items-center justify-between px-3 py-2 bg-white/5 border-b border-panel-border cursor-pointer hover:bg-white/10 transition-colors"
+              className="flex items-center justify-between px-3 py-2 bg-bg-row border-b border-border cursor-pointer hover:bg-bg-row transition-colors"
               onClick={() => onUpdateLeg(leg.id, { expanded: !leg.expanded })}
             >
               <div className="flex items-center gap-3">
                 <span className="text-lg">✈️</span>
                 <div>
-                  <div className="flex items-center gap-2 text-sm font-medium text-white">
-                    {legs.length > 1 && <span className="text-white/50">Leg {legIdx + 1}:</span>}
+                  <div className="flex items-center gap-2 text-sm font-medium text-text-primary">
+                    {legs.length > 1 && <span className="text-text-faint">Leg {legIdx + 1}:</span>}
                     {`${leg.origin} → ${leg.destination}`}
                     <span className="px-2 py-0.5 bg-brand-green/20 text-brand-green text-[10px] font-medium rounded">Saved</span>
                   </div>
-                  <div className="text-xs text-white/50">
+                  <div className="text-xs text-text-faint">
                     {leg.departureDate}{leg.tripType === 'roundtrip' && leg.returnDate ? ` — ${leg.returnDate}` : ''} • {leg.tripType === 'roundtrip' ? 'Round-trip' : 'One-way'}
                   </div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {leg.selectedOffer && <span className="text-sm font-bold text-brand-green">${leg.selectedOffer.price}</span>}
-                <span className="text-xs text-white/50">{leg.expanded ? '▲' : '▼'}</span>
+                {leg.selectedOffer && <span className="text-sm font-bold text-brand-gold">${leg.selectedOffer.price}</span>}
+                <span className="text-xs text-text-faint">{leg.expanded ? '▲' : '▼'}</span>
               </div>
             </div>
           )}
@@ -199,10 +199,10 @@ export default function FlightPickerView({
                 <div className="flex items-center justify-between">
                   <div className="text-sm">
                     <span className="font-medium">{leg.selectedOffer?.outbound?.carriers[0] || 'Flight'}</span>
-                    <span className="text-white/50 ml-2">{leg.origin} → {leg.destination}</span>
-                    <span className="ml-2 font-bold text-brand-green">${leg.selectedOffer?.price}</span>
+                    <span className="text-text-faint ml-2">{leg.origin} → {leg.destination}</span>
+                    <span className="ml-2 font-bold text-brand-gold">${leg.selectedOffer?.price}</span>
                   </div>
-                  <button onClick={(e) => { e.stopPropagation(); onUncommitLeg(leg.id); }} className="text-xs text-white/50 hover:text-red-600">Remove</button>
+                  <button onClick={(e) => { e.stopPropagation(); onUncommitLeg(leg.id); }} className="text-xs text-text-faint hover:text-red-600">Remove</button>
                 </div>
               ) : (
                 <>
@@ -210,66 +210,66 @@ export default function FlightPickerView({
                       row at desktop (FROM | ⇄ | TO | dates | trip-type |
                       Search — the Kayak form factor), stacking cleanly on
                       mobile. Existing field vocabulary only (the
-                      TRAVEL_INPUT_CLASS bg-white/10 border-white/20 text-sm
+                      TRAVEL_INPUT_CLASS bg-bg-row border-border text-sm
                       py-2 scale); same handlers, same state — chrome only.
                       The 🔍 emoji left the Search button (clean chrome). */}
                   <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-end lg:gap-3">
                     <div className="flex items-end gap-2">
                       <div className="flex-1 lg:flex-none">
-                        <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">From</label>
+                        <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">From</label>
                         <TravelField icon={<Plane className="h-4 w-4" strokeWidth={1.75} />}>
                           <input type="text" value={leg.origin} onChange={e => onUpdateLeg(leg.id, { origin: e.target.value.toUpperCase() })}
-                            className="w-full lg:w-28 pl-9 pr-2 py-3 border border-white/20 bg-white/10 text-white placeholder-white/40 rounded-lg text-sm font-mono text-center" maxLength={3} placeholder="LAX" />
+                            className="w-full lg:w-28 pl-9 pr-2 py-3 border border-border bg-bg-row text-text-primary placeholder-text-faint rounded-lg text-sm font-mono text-center" maxLength={3} placeholder="LAX" />
                         </TravelField>
                       </div>
-                      <span className="pb-2.5 text-white/50" aria-hidden="true">⇄</span>
+                      <span className="pb-2.5 text-text-faint" aria-hidden="true">⇄</span>
                       <div className="flex-1 lg:flex-none">
-                        <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">To</label>
+                        <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">To</label>
                         <TravelField icon={<Plane className="h-4 w-4" strokeWidth={1.75} />}>
                           <input type="text" value={leg.destination} onChange={e => onUpdateLeg(leg.id, { destination: e.target.value.toUpperCase() })}
-                            className="w-full lg:w-28 pl-9 pr-2 py-3 border border-white/20 bg-white/10 text-white placeholder-white/40 rounded-lg text-sm font-mono text-center" maxLength={3} placeholder="DPS" />
+                            className="w-full lg:w-28 pl-9 pr-2 py-3 border border-border bg-bg-row text-text-primary placeholder-text-faint rounded-lg text-sm font-mono text-center" maxLength={3} placeholder="DPS" />
                         </TravelField>
                       </div>
                     </div>
                     <div className="flex items-end gap-2">
                       <div className="flex-1 lg:flex-none">
-                        <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">Depart</label>
+                        <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">Depart</label>
                         <TravelField icon={<Calendar className="h-4 w-4" strokeWidth={1.75} />}>
                           <input type="date" value={leg.departureDate} onChange={e => onUpdateLeg(leg.id, { departureDate: e.target.value })}
-                            className="w-full pl-9 pr-2 py-3 border border-white/20 bg-white/10 text-white rounded-lg text-sm" />
+                            className="w-full pl-9 pr-2 py-3 border border-border bg-bg-row text-text-primary rounded-lg text-sm" />
                         </TravelField>
                       </div>
                       {leg.tripType === 'roundtrip' && (
                         <div className="flex-1 lg:flex-none">
-                          <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">Return</label>
+                          <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">Return</label>
                           <TravelField icon={<Calendar className="h-4 w-4" strokeWidth={1.75} />}>
                             <input type="date" value={leg.returnDate} onChange={e => onUpdateLeg(leg.id, { returnDate: e.target.value })}
-                              className="w-full pl-9 pr-2 py-3 border border-white/20 bg-white/10 text-white rounded-lg text-sm" />
+                              className="w-full pl-9 pr-2 py-3 border border-border bg-bg-row text-text-primary rounded-lg text-sm" />
                           </TravelField>
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-1 self-start bg-white/10 rounded p-0.5 lg:self-auto">
+                    <div className="flex items-center gap-1 self-start bg-bg-row rounded p-0.5 lg:self-auto">
                       <button onClick={() => onUpdateLeg(leg.id, { tripType: 'roundtrip' })}
-                        className={`px-2 py-1 text-xs rounded transition-colors ${leg.tripType === 'roundtrip' ? 'bg-white shadow text-brand-purple font-medium' : 'text-white/70'}`}>
+                        className={`px-2 py-1 text-xs rounded transition-colors ${leg.tripType === 'roundtrip' ? 'bg-white shadow text-brand-purple font-medium' : 'text-text-secondary'}`}>
                         Round-trip
                       </button>
                       <button onClick={() => onUpdateLeg(leg.id, { tripType: 'oneway' })}
-                        className={`px-2 py-1 text-xs rounded transition-colors ${leg.tripType === 'oneway' ? 'bg-white shadow text-brand-purple font-medium' : 'text-white/70'}`}>
+                        className={`px-2 py-1 text-xs rounded transition-colors ${leg.tripType === 'oneway' ? 'bg-white shadow text-brand-purple font-medium' : 'text-text-secondary'}`}>
                         One-way
                       </button>
                     </div>
                     <button onClick={() => onSearchLeg(leg.id)} disabled={leg.loading}
-                      className="w-full lg:w-auto px-8 py-3 ts-cta-gradient text-white text-sm font-medium rounded-lg hover:brightness-110 disabled:opacity-50">
+                      className="w-full lg:w-auto px-8 py-3 bg-brand-gold text-white text-sm font-medium rounded-lg hover:bg-brand-gold/90 disabled:opacity-50">
                       {leg.loading ? 'Searching...' : 'Search'}
                     </button>
                     {legs.length > 1 && !leg.committed && (
-                      <button onClick={() => onRemoveLeg(leg.id)} className="px-2 py-1.5 text-xs text-white/50 hover:text-red-600">✕</button>
+                      <button onClick={() => onRemoveLeg(leg.id)} className="px-2 py-1.5 text-xs text-text-faint hover:text-red-600">✕</button>
                     )}
                   </div>
 
                   {leg.error && (
-                    <div className="p-2 bg-panel-surface border border-panel-border rounded text-brand-red text-xs">{leg.error}</div>
+                    <div className="p-2 bg-white border border-border rounded text-brand-red text-xs">{leg.error}</div>
                   )}
 
                   {/* Manual entry (booked elsewhere) — PR-Travel-Cleanup: the Google
@@ -277,27 +277,27 @@ export default function FlightPickerView({
                       block is hidden on the public home (enableManualEntry={false}), kept
                       on the authed in-trip picker. */}
                   {enableManualEntry && (
-                  <div className="p-3 bg-white/5 border border-panel-border rounded">
+                  <div className="p-3 bg-bg-row border border-border rounded">
                     <div className="mb-2">
-                      <div className="text-xs text-white/70 font-medium">
+                      <div className="text-xs text-text-secondary font-medium">
                         {leg.offers.length === 0 && !leg.loading ? 'Enter flight details manually:' : 'Or enter manually (booked elsewhere):'}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <input type="text" value={leg.manualAirline} onChange={e => onUpdateLeg(leg.id, { manualAirline: e.target.value })}
-                        placeholder="Airline" className="flex-1 min-w-[100px] bg-white/10 border border-white/20 text-white rounded px-2 py-1.5 text-xs" />
+                        placeholder="Airline" className="flex-1 min-w-[100px] bg-bg-row border border-border text-text-primary rounded px-2 py-1.5 text-xs" />
                       <div className="flex items-center gap-1">
-                        <span className="text-xs text-white/50">$</span>
+                        <span className="text-xs text-text-faint">$</span>
                         <input type="number" value={leg.manualPrice} onChange={e => onUpdateLeg(leg.id, { manualPrice: e.target.value })}
-                          placeholder="Price" className="w-24 bg-white/10 border border-white/20 text-white rounded px-2 py-1.5 text-xs" />
+                          placeholder="Price" className="w-24 bg-bg-row border border-border text-text-primary rounded px-2 py-1.5 text-xs" />
                       </div>
                       <input type="time" value={leg.manualDepartTime} onChange={e => onUpdateLeg(leg.id, { manualDepartTime: e.target.value })}
-                        className="w-[100px] bg-white/10 border border-white/20 text-white rounded px-2 py-1.5 text-xs" title="Departure time" placeholder="Depart" />
+                        className="w-[100px] bg-bg-row border border-border text-text-primary rounded px-2 py-1.5 text-xs" title="Departure time" placeholder="Depart" />
                       <input type="time" value={leg.manualArriveTime} onChange={e => onUpdateLeg(leg.id, { manualArriveTime: e.target.value })}
-                        className="w-[100px] bg-white/10 border border-white/20 text-white rounded px-2 py-1.5 text-xs" title="Arrival time" placeholder="Arrive" />
+                        className="w-[100px] bg-bg-row border border-border text-text-primary rounded px-2 py-1.5 text-xs" title="Arrival time" placeholder="Arrive" />
                       <input type="date" value={leg.manualArriveDate} onChange={e => onUpdateLeg(leg.id, { manualArriveDate: e.target.value })}
                         min={leg.departureDate}
-                        className="w-[130px] bg-white/10 border border-white/20 text-white rounded px-2 py-1.5 text-xs" title="Arrival date (if next day)" />
+                        className="w-[130px] bg-bg-row border border-border text-text-primary rounded px-2 py-1.5 text-xs" title="Arrival date (if next day)" />
                       <button onClick={() => onSubmitManual?.(leg.id)} disabled={!leg.manualPrice}
                         className="px-3 py-1.5 bg-brand-green text-white text-xs rounded hover:opacity-90 disabled:opacity-50">
                         Use This
@@ -310,85 +310,85 @@ export default function FlightPickerView({
                   {leg.loading ? (
                     <div className="py-6 text-center">
                       <div className="animate-spin inline-block w-6 h-6 border-3 border-brand-purple border-t-transparent rounded-full mb-1"></div>
-                      <div className="text-xs text-white/50">Searching 300+ airlines via {providerLabel}...</div>
+                      <div className="text-xs text-text-faint">Searching 300+ airlines via {providerLabel}...</div>
                     </div>
                   ) : leg.offers.length > 0 ? (
                     <div className="space-y-2">
-                      <div className="text-xs text-white/50">{leg.offers.length} flights found — click to select:</div>
+                      <div className="text-xs text-text-faint">{leg.offers.length} flights found — click to select:</div>
                       {leg.offers.map(offer => (
                         <div key={offer.id}
                           onClick={() => onUpdateLeg(leg.id, { selectedOffer: offer })}
                           className={`p-3 border rounded cursor-pointer transition-all ${
-                            leg.selectedOffer?.id === offer.id ? 'border-brand-purple bg-white/10' : 'border-panel-border hover:bg-white/5'
+                            leg.selectedOffer?.id === offer.id ? 'border-brand-purple bg-bg-row' : 'border-border hover:bg-bg-row'
                           }`}>
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-4">
                                 <div className="text-center">
-                                  <div className="font-bold text-sm text-white">{offer.outbound?.departure.localTime}</div>
-                                  <div className="text-[10px] text-white/50">{offer.outbound?.departure.airport}</div>
+                                  <div className="font-bold text-sm text-text-primary">{offer.outbound?.departure.localTime}</div>
+                                  <div className="text-[10px] text-text-faint">{offer.outbound?.departure.airport}</div>
                                 </div>
                                 <div className="flex-1 text-center">
-                                  <div className="text-[10px] text-white/40">{offer.outbound?.duration}</div>
-                                  <div className="relative"><div className="border-t border-white/20 my-1"></div>
+                                  <div className="text-[10px] text-text-faint">{offer.outbound?.duration}</div>
+                                  <div className="relative"><div className="border-t border-border my-1"></div>
                                     {(offer.outbound?.stops || 0) > 0 && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-text-faint rounded-full"></div>}
                                   </div>
-                                  <div className="text-[10px] text-white/50">{formatStops(offer.outbound?.stops || 0)}</div>
+                                  <div className="text-[10px] text-text-faint">{formatStops(offer.outbound?.stops || 0)}</div>
                                 </div>
                                 <div className="text-center">
-                                  <div className="font-bold text-sm text-white">{offer.outbound?.arrival.localTime}</div>
-                                  <div className="text-[10px] text-white/50">{offer.outbound?.arrival.airport}</div>
+                                  <div className="font-bold text-sm text-text-primary">{offer.outbound?.arrival.localTime}</div>
+                                  <div className="text-[10px] text-text-faint">{offer.outbound?.arrival.airport}</div>
                                 </div>
                               </div>
-                              <div className="mt-0.5 text-[10px] text-white/50">{offer.outbound?.carriers.join(', ')}</div>
+                              <div className="mt-0.5 text-[10px] text-text-faint">{offer.outbound?.carriers.join(', ')}</div>
                             </div>
                             {offer.return && (
                               <>
-                                <div className="mx-3 h-10 border-l border-white/20"></div>
+                                <div className="mx-3 h-10 border-l border-border"></div>
                                 <div className="flex-1">
                                   <div className="flex items-center gap-4">
                                     <div className="text-center">
-                                      <div className="font-bold text-sm text-white">{offer.return.departure.localTime}</div>
-                                      <div className="text-[10px] text-white/50">{offer.return.departure.airport}</div>
+                                      <div className="font-bold text-sm text-text-primary">{offer.return.departure.localTime}</div>
+                                      <div className="text-[10px] text-text-faint">{offer.return.departure.airport}</div>
                                     </div>
                                     <div className="flex-1 text-center">
-                                      <div className="text-[10px] text-white/40">{offer.return.duration}</div>
-                                      <div className="relative"><div className="border-t border-white/20 my-1"></div>
+                                      <div className="text-[10px] text-text-faint">{offer.return.duration}</div>
+                                      <div className="relative"><div className="border-t border-border my-1"></div>
                                         {offer.return.stops > 0 && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-text-faint rounded-full"></div>}
                                       </div>
-                                      <div className="text-[10px] text-white/50">{formatStops(offer.return.stops)}</div>
+                                      <div className="text-[10px] text-text-faint">{formatStops(offer.return.stops)}</div>
                                     </div>
                                     <div className="text-center">
-                                      <div className="font-bold text-sm text-white">{offer.return.arrival.localTime}</div>
-                                      <div className="text-[10px] text-white/50">{offer.return.arrival.airport}</div>
+                                      <div className="font-bold text-sm text-text-primary">{offer.return.arrival.localTime}</div>
+                                      <div className="text-[10px] text-text-faint">{offer.return.arrival.airport}</div>
                                     </div>
                                   </div>
                                 </div>
                               </>
                             )}
                             <div className="ml-3 text-right">
-                              <div className="text-sm font-bold text-brand-green">${offer.price}</div>
-                              <div className="text-[10px] text-white/50">per person</div>
+                              <div className="text-sm font-bold text-brand-gold">${offer.price}</div>
+                              <div className="text-[10px] text-text-faint">per person</div>
                               {offer.conditions?.refundable && <div className="text-[10px] text-brand-green">Refundable</div>}
                             </div>
                           </div>
                         </div>
                       ))}
-                      <div className="text-[10px] text-white/40 text-center pt-1">Powered by {providerLabel} &middot; Prices include all taxes &amp; fees</div>
+                      <div className="text-[10px] text-text-faint text-center pt-1">Powered by {providerLabel} &middot; Prices include all taxes &amp; fees</div>
                     </div>
                   ) : null}
 
                   {/* Selected offer → Save button */}
                   {leg.selectedOffer && !leg.committed && (
-                    <div className="flex items-center justify-between p-3 bg-white/10 border border-white/20 rounded">
+                    <div className="flex items-center justify-between p-3 bg-bg-row border border-border rounded">
                       <div className="text-sm">
                         <span className="font-medium">{leg.selectedOffer.outbound?.carriers[0] || 'Flight'}</span>
-                        <span className="text-white/50 ml-2">{leg.origin} → {leg.destination}</span>
-                        {leg.selectedOffer.outbound?.duration && <span className="text-white/50 ml-2">{leg.selectedOffer.outbound.duration}</span>}
-                        <span className="ml-2 font-bold text-brand-green">${leg.selectedOffer.price}</span>
+                        <span className="text-text-faint ml-2">{leg.origin} → {leg.destination}</span>
+                        {leg.selectedOffer.outbound?.duration && <span className="text-text-faint ml-2">{leg.selectedOffer.outbound.duration}</span>}
+                        <span className="ml-2 font-bold text-brand-gold">${leg.selectedOffer.price}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button onClick={() => onUpdateLeg(leg.id, { selectedOffer: null })} className="px-2 py-1 text-xs border border-white/30 text-white/70 rounded hover:bg-white/10">Clear</button>
+                        <button onClick={() => onUpdateLeg(leg.id, { selectedOffer: null })} className="px-2 py-1 text-xs border border-border text-text-secondary rounded hover:bg-bg-row">Clear</button>
                         <button onClick={() => onCommitLeg(leg.id)} disabled={committing === leg.id}
                           className="px-3 py-1.5 text-xs font-semibold rounded border border-brand-purple bg-white text-brand-purple transition-colors hover:bg-bg-row disabled:opacity-50">
                           {committing === leg.id ? 'Saving…' : 'Save to trip'}
@@ -397,7 +397,7 @@ export default function FlightPickerView({
                             trip = plan it. Real Duffel offers only (not manual entries). Guest-ok. */}
                         {onBookLeg && !leg.selectedOffer.isManual && (
                           <button onClick={() => onBookLeg(leg.id)}
-                            className="px-3 py-1.5 text-xs font-semibold rounded bg-brand-purple text-white transition-colors hover:bg-brand-purple/90">
+                            className="px-3 py-1.5 text-xs font-semibold rounded bg-brand-gold text-white transition-colors hover:bg-brand-gold/90">
                             Book
                           </button>
                         )}
@@ -413,12 +413,12 @@ export default function FlightPickerView({
 
       {/* Add another leg — COMPACT-1: a small inline control, not a full-width banner. */}
       <button onClick={onAddLeg}
-        className="rounded border border-white/20 px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50 transition-colors hover:bg-white/10 hover:text-white">
+        className="rounded border border-border px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint transition-colors hover:bg-bg-row hover:text-text-primary">
         + Leg
       </button>
 
       {!liveSearchEnabled && (
-        <div className="text-[10px] text-white/40 text-center">
+        <div className="text-[10px] text-text-faint text-center">
           Note: DUFFEL_API_TOKEN must be set for live flight search. Manual entry always works.
         </div>
       )}

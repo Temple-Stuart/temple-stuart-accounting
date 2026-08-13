@@ -102,7 +102,7 @@ function ActivityCardImage({ photoUrl, name }: { photoUrl: string | null; name: 
   const showPhoto = !!photoUrl && !failed;
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-white/5">
+    <div className="relative h-full w-full overflow-hidden bg-bg-row">
       {showPhoto ? (
         <img
           src={photoUrl as string}
@@ -113,7 +113,7 @@ function ActivityCardImage({ photoUrl, name }: { photoUrl: string | null; name: 
         />
       ) : (
         // Neutral placeholder — not a broken image icon.
-        <div className="flex h-full w-full items-center justify-center text-white/40">
+        <div className="flex h-full w-full items-center justify-center text-text-faint">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="9" />
@@ -129,11 +129,11 @@ function RatingPill({ activity }: { activity: ActivityResult }) {
   // COMPACT-1: an inline chip in the row (no photo to overlay anymore).
   if (activity.googleRating <= 0) return null;
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-bg-row px-1.5 py-0.5 text-[10px] font-semibold text-text-primary">
       <span className="text-brand-amber" aria-hidden="true">★</span>
       {activity.googleRating.toFixed(1)}
       {activity.reviewCount > 0 && (
-        <span className="font-normal text-white/40">({activity.reviewCount.toLocaleString()})</span>
+        <span className="font-normal text-text-faint">({activity.reviewCount.toLocaleString()})</span>
       )}
     </span>
   );
@@ -147,15 +147,15 @@ export default function ActivityResultsView({ results, loading, error, onBook, b
   if (loading) {
     // COMPACT-1: skeleton rows, matching the dense list-row result layout.
     return (
-      <div className="divide-y divide-panel-border rounded-lg border border-panel-border bg-panel-surface" aria-busy="true">
+      <div className="divide-y divide-border rounded-lg border border-border bg-white" aria-busy="true">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="flex items-center gap-3 p-2">
-            <div className="h-14 w-20 shrink-0 animate-pulse rounded bg-white/10" />
+            <div className="h-14 w-20 shrink-0 animate-pulse rounded bg-bg-row" />
             <div className="flex-1 space-y-2">
-              <div className="h-3 w-1/2 animate-pulse rounded bg-white/10" />
-              <div className="h-3 w-1/3 animate-pulse rounded bg-white/10" />
+              <div className="h-3 w-1/2 animate-pulse rounded bg-bg-row" />
+              <div className="h-3 w-1/3 animate-pulse rounded bg-bg-row" />
             </div>
-            <div className="h-7 w-16 shrink-0 animate-pulse rounded bg-white/10" />
+            <div className="h-7 w-16 shrink-0 animate-pulse rounded bg-bg-row" />
           </div>
         ))}
       </div>
@@ -164,7 +164,7 @@ export default function ActivityResultsView({ results, loading, error, onBook, b
 
   if (error) {
     return (
-      <div className="rounded-lg border border-panel-border bg-panel-surface p-3 text-sm text-brand-red">
+      <div className="rounded-lg border border-border bg-white p-3 text-sm text-brand-red">
         {error}
       </div>
     );
@@ -172,9 +172,9 @@ export default function ActivityResultsView({ results, loading, error, onBook, b
 
   if (results.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-panel-border bg-panel-surface p-4 text-center">
-        <p className="text-sm font-medium text-white">No activities yet</p>
-        <p className="mt-1 text-xs text-white/50">
+      <div className="rounded-lg border border-dashed border-border bg-white p-4 text-center">
+        <p className="text-sm font-medium text-text-primary">No activities yet</p>
+        <p className="mt-1 text-xs text-text-faint">
           Enter a city and country to see real tours and experiences with photos and prices.
         </p>
       </div>
@@ -204,7 +204,7 @@ export default function ActivityResultsView({ results, loading, error, onBook, b
         capNote={results.length >= ROUTE_RESULT_CAP ? `Top ${ROUTE_RESULT_CAP} results` : undefined}
       />
       {displayed.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-panel-border bg-panel-surface p-4 text-center text-sm text-white/50">
+        <div className="rounded-lg border border-dashed border-border bg-white p-4 text-center text-sm text-text-faint">
           No results match these filters.
         </div>
       ) : (
@@ -212,7 +212,7 @@ export default function ActivityResultsView({ results, loading, error, onBook, b
         // replacing the horizontal photo-card scroller.
         <div
           aria-label="Activity results"
-          className="divide-y divide-panel-border rounded-lg border border-panel-border bg-panel-surface"
+          className="divide-y divide-border rounded-lg border border-border bg-white"
         >
           {displayed.map((activity, idx) => {
         const duration = formatDuration(activity.durationMinutes);
@@ -221,7 +221,7 @@ export default function ActivityResultsView({ results, loading, error, onBook, b
         return (
           <div
             key={`${activity.viatorProductCode || activity.name}-${idx}`}
-            className="flex flex-wrap items-center gap-x-3 gap-y-2 p-2 transition-colors hover:bg-panel-hover sm:flex-nowrap"
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 p-2 transition-colors hover:bg-bg-row sm:flex-nowrap"
           >
             <div className="h-14 w-20 shrink-0 overflow-hidden rounded">
               <ActivityCardImage photoUrl={activity.photoUrl} name={activity.name} />
@@ -229,17 +229,17 @@ export default function ActivityResultsView({ results, loading, error, onBook, b
 
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                <h3 className="truncate text-sm font-medium text-white" title={activity.name}>
+                <h3 className="truncate text-sm font-medium text-text-primary" title={activity.name}>
                   {activity.name}
                 </h3>
                 <RatingPill activity={activity} />
               </div>
 
               {/* Meta row: place + duration chip. */}
-              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-white/50">
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-text-faint">
                 {place && <span className="truncate">{place}</span>}
                 {duration && (
-                  <span className="inline-flex items-center rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] text-white/70">
+                  <span className="inline-flex items-center rounded-full bg-bg-row px-1.5 py-0.5 text-[10px] text-text-secondary">
                     {duration}
                   </span>
                 )}
@@ -250,11 +250,11 @@ export default function ActivityResultsView({ results, loading, error, onBook, b
             <div className="shrink-0 text-right">
               {typeof activity.price === 'number' ? (
                 <div className="flex items-baseline justify-end gap-1">
-                  <span className="text-[10px] text-white/50">From</span>
-                  <span className="text-sm font-bold text-brand-green">{money(activity.price)}</span>
+                  <span className="text-[10px] text-text-faint">From</span>
+                  <span className="text-sm font-bold text-brand-gold">{money(activity.price)}</span>
                 </div>
               ) : (
-                <div className="text-xs text-white/40">Price on request</div>
+                <div className="text-xs text-text-faint">Price on request</div>
               )}
             </div>
 
@@ -273,7 +273,7 @@ export default function ActivityResultsView({ results, loading, error, onBook, b
             ) : bookDisabledLabel ? (
               <span
                 aria-disabled="true"
-                className="shrink-0 cursor-default rounded bg-white/10 px-3 py-1.5 text-xs font-medium text-white/50"
+                className="shrink-0 cursor-default rounded bg-bg-row px-3 py-1.5 text-xs font-medium text-text-faint"
               >
                 {bookDisabledLabel}
               </span>

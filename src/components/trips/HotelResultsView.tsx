@@ -83,7 +83,7 @@ function HotelCardImage({ photoUrl, name }: { photoUrl: string | null; name: str
   const showPhoto = !!photoUrl && !failed;
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-white/5">
+    <div className="relative h-full w-full overflow-hidden bg-bg-row">
       {showPhoto ? (
         <img
           src={photoUrl as string}
@@ -94,7 +94,7 @@ function HotelCardImage({ photoUrl, name }: { photoUrl: string | null; name: str
         />
       ) : (
         // Neutral placeholder — not a broken image icon.
-        <div className="flex h-full w-full items-center justify-center text-white/40">
+        <div className="flex h-full w-full items-center justify-center text-text-faint">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-2" />
@@ -115,10 +115,10 @@ function RatingPill({ hotel }: { hotel: HotelResult }) {
   const label = has10 ? hotel.reviewScore!.toFixed(1) : hotel.googleRating.toFixed(1);
   const scale = has10 ? '/10' : '/5';
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-bg-row px-1.5 py-0.5 text-[10px] font-semibold text-text-primary">
       <span className="text-brand-amber" aria-hidden="true">★</span>
       {label}
-      <span className="font-normal text-white/40">{scale}</span>
+      <span className="font-normal text-text-faint">{scale}</span>
     </span>
   );
 }
@@ -131,15 +131,15 @@ export default function HotelResultsView({ results, loading, error, onBook, onSa
   if (loading) {
     // COMPACT-1: skeleton rows, matching the dense list-row result layout.
     return (
-      <div className="divide-y divide-panel-border rounded-lg border border-panel-border bg-panel-surface" aria-busy="true">
+      <div className="divide-y divide-border rounded-lg border border-border bg-white" aria-busy="true">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="flex items-center gap-3 p-2">
-            <div className="h-14 w-20 shrink-0 animate-pulse rounded bg-white/10" />
+            <div className="h-14 w-20 shrink-0 animate-pulse rounded bg-bg-row" />
             <div className="flex-1 space-y-2">
-              <div className="h-3 w-1/2 animate-pulse rounded bg-white/10" />
-              <div className="h-3 w-1/3 animate-pulse rounded bg-white/10" />
+              <div className="h-3 w-1/2 animate-pulse rounded bg-bg-row" />
+              <div className="h-3 w-1/3 animate-pulse rounded bg-bg-row" />
             </div>
-            <div className="h-7 w-16 shrink-0 animate-pulse rounded bg-white/10" />
+            <div className="h-7 w-16 shrink-0 animate-pulse rounded bg-bg-row" />
           </div>
         ))}
       </div>
@@ -148,7 +148,7 @@ export default function HotelResultsView({ results, loading, error, onBook, onSa
 
   if (error) {
     return (
-      <div className="rounded-lg border border-panel-border bg-panel-surface p-3 text-sm text-brand-red">
+      <div className="rounded-lg border border-border bg-white p-3 text-sm text-brand-red">
         {error}
       </div>
     );
@@ -156,9 +156,9 @@ export default function HotelResultsView({ results, loading, error, onBook, onSa
 
   if (results.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-panel-border bg-panel-surface p-4 text-center">
-        <p className="text-sm font-medium text-white">No hotels yet</p>
-        <p className="mt-1 text-xs text-white/50">
+      <div className="rounded-lg border border-dashed border-border bg-white p-4 text-center">
+        <p className="text-sm font-medium text-text-primary">No hotels yet</p>
+        <p className="mt-1 text-xs text-text-faint">
           Enter a city, country, and your dates to see real stays with photos and nightly prices.
         </p>
       </div>
@@ -187,7 +187,7 @@ export default function HotelResultsView({ results, loading, error, onBook, onSa
         totalCount={results.length}
       />
       {displayed.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-panel-border bg-panel-surface p-4 text-center text-sm text-white/50">
+        <div className="rounded-lg border border-dashed border-border bg-white p-4 text-center text-sm text-text-faint">
           No results match these filters.
         </div>
       ) : (
@@ -195,7 +195,7 @@ export default function HotelResultsView({ results, loading, error, onBook, onSa
         // replacing the horizontal photo-card scroller.
         <div
           aria-label="Hotel results"
-          className="divide-y divide-panel-border rounded-lg border border-panel-border bg-panel-surface"
+          className="divide-y divide-border rounded-lg border border-border bg-white"
         >
           {displayed.map((hotel, idx) => {
         // Per-night first (the number travelers compare on); total as support.
@@ -207,7 +207,7 @@ export default function HotelResultsView({ results, loading, error, onBook, onSa
         return (
           <div
             key={`${hotel.liteapiHotelId}-${idx}`}
-            className="flex flex-wrap items-center gap-x-3 gap-y-2 p-2 transition-colors hover:bg-panel-hover sm:flex-nowrap"
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 p-2 transition-colors hover:bg-bg-row sm:flex-nowrap"
           >
             <div className="h-14 w-20 shrink-0 overflow-hidden rounded">
               <HotelCardImage photoUrl={hotel.photoUrl} name={hotel.name} />
@@ -215,13 +215,13 @@ export default function HotelResultsView({ results, loading, error, onBook, onSa
 
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                <h3 className="truncate text-sm font-medium text-white" title={hotel.name}>
+                <h3 className="truncate text-sm font-medium text-text-primary" title={hotel.name}>
                   {hotel.name}
                 </h3>
                 <RatingPill hotel={hotel} />
               </div>
               {place && (
-                <p className="mt-0.5 truncate text-xs text-white/50">{place}</p>
+                <p className="mt-0.5 truncate text-xs text-text-faint">{place}</p>
               )}
             </div>
 
@@ -229,20 +229,20 @@ export default function HotelResultsView({ results, loading, error, onBook, onSa
             <div className="shrink-0 text-right">
               {typeof perNight === 'number' ? (
                 <div className="flex items-baseline justify-end gap-1">
-                  <span className="text-sm font-bold text-brand-green">
+                  <span className="text-sm font-bold text-brand-gold">
                     {money(perNight, hotel.currency)}
                   </span>
-                  <span className="text-[10px] text-white/50">/ night</span>
+                  <span className="text-[10px] text-text-faint">/ night</span>
                 </div>
               ) : total != null ? (
-                <div className="text-sm font-bold text-brand-green">
+                <div className="text-sm font-bold text-brand-gold">
                   {money(total, hotel.currency)}
                 </div>
               ) : (
-                <div className="text-xs text-white/40">Price on request</div>
+                <div className="text-xs text-text-faint">Price on request</div>
               )}
               {total != null && (
-                <div className="text-[10px] text-white/40">
+                <div className="text-[10px] text-text-faint">
                   {money(total, hotel.currency)} total
                   {typeof nights === 'number' && nights > 0 ? ` · ${nights} night${nights === 1 ? '' : 's'}` : ''}
                 </div>

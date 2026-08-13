@@ -1,7 +1,8 @@
 'use client';
 
 // BOOK-3: "YOUR TRIP SO FAR" — the guest's session trip, rendered under the
-// landing's booking section. Bloomberg chrome; rows + running total + the
+// landing's booking section. REPAINT-4a: Direction-C light chrome (white
+// table on cream, gold money numerals); rows + running total + the
 // honest account pitch (the ruled line, verbatim). AUTHED USERS NEVER SEE
 // THIS by construction: it mounts only inside Landing, which only the FD-2
 // verified-guest arrival branch renders (page.tsx — an authed arrival gets
@@ -32,24 +33,24 @@ export default function GuestTripStrip({ onRequireAuth }: { onRequireAuth: () =>
   }
 
   return (
-    <section className="w-full border-b border-panel-border bg-panel">
+    <section className="w-full border-b border-border bg-bg-terminal">
       <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
-        <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
+        <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-brand-purple">
           Your trip so far
         </p>
-        <div className="overflow-x-auto rounded-lg border border-panel-border bg-panel-surface">
+        <div className="overflow-x-auto rounded-lg border border-border bg-white">
           <table className="w-full min-w-[560px] text-sm">
             <tbody>
               {records.map((r) => (
-                <tr key={`${r.ts}-${r.confirmationCode ?? r.name}`} className="border-b border-panel-border">
-                  <td className="px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-white/50 whitespace-nowrap">
+                <tr key={`${r.ts}-${r.confirmationCode ?? r.name}`} className="border-b border-border">
+                  <td className="px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-text-faint whitespace-nowrap">
                     {r.type}
                   </td>
-                  <td className="px-3 py-2 text-xs text-white/80">{r.name}</td>
-                  <td className="px-3 py-2 font-mono text-xs text-white/60 whitespace-nowrap">
+                  <td className="px-3 py-2 text-xs text-text-secondary">{r.name}</td>
+                  <td className="px-3 py-2 font-mono text-xs text-text-muted whitespace-nowrap">
                     {r.confirmationCode ?? '—'}
                   </td>
-                  <td className="px-3 py-2 text-right font-mono text-xs font-semibold text-white whitespace-nowrap">
+                  <td className="px-3 py-2 text-right font-mono text-xs font-semibold text-brand-gold whitespace-nowrap">
                     {r.amountUsd !== null
                       ? `${r.currency} ${r.amountUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                       : '—'}
@@ -57,11 +58,11 @@ export default function GuestTripStrip({ onRequireAuth }: { onRequireAuth: () =>
                 </tr>
               ))}
               {[...totals.entries()].map(([cur, sum]) => (
-                <tr key={cur} className="bg-panel">
-                  <td colSpan={3} className="px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-white/60">
+                <tr key={cur} className="bg-bg-row">
+                  <td colSpan={3} className="px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-text-muted">
                     Total{totals.size > 1 ? ` (${cur})` : ''}
                   </td>
-                  <td className="px-3 py-2 text-right font-mono text-sm font-bold text-white whitespace-nowrap">
+                  <td className="px-3 py-2 text-right font-mono text-sm font-bold text-brand-gold whitespace-nowrap">
                     {cur} {sum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
                 </tr>
@@ -70,14 +71,14 @@ export default function GuestTripStrip({ onRequireAuth }: { onRequireAuth: () =>
           </table>
         </div>
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <p className="flex-1 text-xs text-white/60">
+          <p className="flex-1 text-xs text-text-muted">
             This trip lives in your browser — create a free account to save it, budget it, and map
             it to your runway.
           </p>
           <button
             type="button"
             onClick={onRequireAuth}
-            className="self-start bg-white px-5 py-2 text-xs font-medium text-brand-purple hover:bg-bg-row sm:self-auto"
+            className="self-start bg-brand-gold px-5 py-2 text-xs font-medium text-white hover:bg-brand-gold/90 sm:self-auto"
           >
             Create free account
           </button>

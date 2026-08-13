@@ -293,7 +293,7 @@ export default function VehicleOptions({ tripId, participantCount, days, onSelec
                         <>
                           {onCommitOption ? (
                             <button onClick={() => onCommitOption('vehicle', option.id, option.title || 'Vehicle')}
-                              className="flex-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded hover:bg-emerald-700">
+                              className="flex-1 px-3 py-1.5 bg-brand-gold text-white text-xs font-medium rounded hover:bg-brand-gold/90">
                               Commit
                             </button>
                           ) : (

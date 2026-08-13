@@ -316,7 +316,7 @@ export default function LodgingOptions({ tripId, participantCount, nights, onSel
                       <>
                         {onCommitOption ? (
                           <button onClick={() => onCommitOption('lodging', option.id, option.title || 'Lodging')}
-                            className="flex-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded hover:bg-emerald-700">
+                            className="flex-1 px-3 py-1.5 bg-brand-gold text-white text-xs font-medium rounded hover:bg-brand-gold/90">
                             Commit
                           </button>
                         ) : (

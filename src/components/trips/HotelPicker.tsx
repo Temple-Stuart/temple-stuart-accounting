@@ -124,7 +124,7 @@ export default function HotelPicker({
         
         {selectedHotel ? (
           <div className="text-right">
-            <div className="text-brand-green font-bold">${selectedHotel.totalPrice.toFixed(0)}</div>
+            <div className="text-brand-gold font-bold">${selectedHotel.totalPrice.toFixed(0)}</div>
             <div className="text-xs text-text-muted">{selectedHotel.name}</div>
           </div>
         ) : (
@@ -251,7 +251,7 @@ export default function HotelPicker({
                   ) : null}
                 </div>
                 <div className="ml-4 text-right">
-                  <div className="text-sm font-bold text-brand-green">${hotel.totalPrice.toFixed(0)}</div>
+                  <div className="text-sm font-bold text-brand-gold">${hotel.totalPrice.toFixed(0)}</div>
                   <div className="text-xs text-text-muted">total ({hotel.nights} nights)</div>
                   <div className="text-xs text-text-faint">${hotel.perNight.toFixed(0)}/night</div>
                   <div className="text-xs text-brand-purple">${(hotel.totalPrice / adults).toFixed(0)}/person</div>

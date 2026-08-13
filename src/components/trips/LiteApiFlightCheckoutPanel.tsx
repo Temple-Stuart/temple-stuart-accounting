@@ -65,14 +65,12 @@ interface PrebookEnvelope {
   currency: string | null;
 }
 
-// FL-6b: the panel mounts INSIDE the dark travel strip, where the app's
-// panel-theme tokens (text-text-primary on bg-panel-surface) resolve
-// dark-on-dark — typed values were invisible (live-preview screenshots). The
-// working reference is the surface's own vocabulary: TRAVEL_INPUT_CLASS
-// (travelSection.tsx:31-32 — explicit text-white on bg-white/10 with
-// placeholder-white/40), the exact classes every readable form on this
-// surface consumes (hotel/activity/transfer/visa inputs; ResultsFilterBar's
-// select). No new design language.
+// FL-6b: the panel uses the travel surface's own field vocabulary —
+// TRAVEL_INPUT_CLASS (travelSection.tsx), the exact classes every readable
+// form on this surface consumes (hotel/activity/transfer/visa inputs;
+// ResultsFilterBar's select). REPAINT-4a: that shared const is the light
+// CONTROL vocabulary now (white field, lavender hairline, aubergine ring),
+// so this form converts with it. No new design language.
 const LABEL = TRAVEL_LABEL_CLASS;
 // Same validation the route enforces (flights/prebook/route.ts) — client-side
 // mirror so a guest gets instant feedback instead of a 400 round-trip.
@@ -281,11 +279,11 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
   const displayCurrency = prebook?.currency ?? currency ?? null;
 
   return (
-    <div className="space-y-4 rounded-lg border border-panel-border bg-white/5 p-4">
+    <div className="space-y-4 rounded-lg border border-border bg-bg-row p-4">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-sm font-bold text-white">Flight checkout</h2>
+        <h2 className="text-sm font-bold text-text-primary">Flight checkout</h2>
         {displayPrice != null && (
-          <span className="text-sm font-bold text-brand-green">
+          <span className="text-sm font-bold text-brand-gold">
             {displayCurrency ?? ''} {displayPrice}
           </span>
         )}
@@ -293,7 +291,7 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
 
       {phase === 'form' || phase === 'prebooking' ? (
         <form onSubmit={submitPrebook} className="space-y-3">
-          <p className="text-xs text-white/50">Contact</p>
+          <p className="text-xs text-text-faint">Contact</p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <label className="space-y-1"><span className={LABEL}>First name</span>
               <input id="flck-co-first" className={fieldClass('flck-co-first')} value={firstName} onChange={(e) => setFirstName(e.target.value)} /></label>
@@ -306,10 +304,10 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
             <label className="space-y-1"><span className={LABEL}>Phone</span>
               <input id="flck-co-phone" className={fieldClass('flck-co-phone')} value={phone} onChange={(e) => setPhone(e.target.value)} /></label>
           </div>
-          <p className="text-xs text-white/50">Passenger</p>
+          <p className="text-xs text-text-faint">Passenger</p>
           {/* FL-4b: real-looking names required — LiteAPI's fraud filter (53099)
               rejects placeholders like 'Test'. */}
-          <p className="text-[11px] text-white/50">
+          <p className="text-[11px] text-text-faint">
             Use a real name — the provider&apos;s fraud filter rejects placeholder names like &ldquo;Test&rdquo;.
           </p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -334,7 +332,7 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
             <label className="space-y-1"><span className={LABEL}>Nationality (ISO-2)</span>
               <input id="flck-px-nationality" className={fieldClass('flck-px-nationality')} placeholder="US" maxLength={2} value={nationality} onChange={(e) => setNationality(e.target.value)} /></label>
           </div>
-          <p className="text-xs text-white/50">Travel document</p>
+          <p className="text-xs text-text-faint">Travel document</p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <label className="space-y-1"><span className={LABEL}>Type</span>
               <input id="flck-doc-type" className={fieldClass('flck-doc-type')} value={docType} onChange={(e) => setDocType(e.target.value)} /></label>
@@ -349,7 +347,7 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
           <button
             type="submit"
             disabled={phase === 'prebooking'}
-            className="rounded bg-brand-purple px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            className="rounded bg-brand-gold px-4 py-2 text-sm font-semibold text-white hover:bg-brand-gold/90 disabled:opacity-50"
           >
             {phase === 'prebooking' ? 'Holding fare…' : 'Continue to payment'}
           </button>
@@ -363,8 +361,8 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
       )}
 
       {phase === 'booking' && (
-        <div className="rounded border border-panel-border bg-white/5 p-3" aria-busy="true">
-          <p className="text-sm text-white">Payment received — completing your booking…</p>
+        <div className="rounded border border-border bg-bg-row p-3" aria-busy="true">
+          <p className="text-sm text-text-primary">Payment received — completing your booking…</p>
         </div>
       )}
 
@@ -377,16 +375,16 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
           <p className="text-sm font-semibold text-brand-green">
             Booked · ref {bookResult.bookingRef ?? bookResult.bookingId}
           </p>
-          <p className="text-xs text-white/70">
+          <p className="text-xs text-text-secondary">
             {bookResult.status === 'PENDING_CONFIRMATION' || bookResult.status === 'PENDING'
               ? 'Booking confirmed — your ticket is being issued.'
               : 'Your ticket is confirmed.'}
           </p>
           {bookResult.pnr && (
-            <p className="text-xs text-white">Airline confirmation (PNR): <span className="font-mono">{bookResult.pnr}</span></p>
+            <p className="text-xs text-text-primary">Airline confirmation (PNR): <span className="font-mono">{bookResult.pnr}</span></p>
           )}
           {bookResult.price != null && (
-            <p className="text-xs text-white/70">
+            <p className="text-xs text-text-secondary">
               Total charged: {bookResult.currency ?? ''} {bookResult.price.toFixed(2)}
             </p>
           )}
@@ -398,18 +396,18 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
           <p className="text-sm font-semibold text-brand-red">
             Your payment went through but the booking didn&apos;t complete — nothing is lost.
           </p>
-          {bookError && <p className="text-xs text-white/70">{bookError}</p>}
-          <p className="text-xs text-white/70">
+          {bookError && <p className="text-xs text-text-secondary">{bookError}</p>}
+          <p className="text-xs text-text-secondary">
             Retry below — retrying completes the SAME booking and never charges you again. If it keeps
             failing, contact support with these references:
           </p>
-          <p className="break-all font-mono text-xs text-white">booking reference: {prebook.prebookId}</p>
-          <p className="break-all font-mono text-xs text-white">payment reference: {prebook.transactionId}</p>
+          <p className="break-all font-mono text-xs text-text-primary">booking reference: {prebook.prebookId}</p>
+          <p className="break-all font-mono text-xs text-text-primary">payment reference: {prebook.transactionId}</p>
           <button
             type="button"
             onClick={() => { void completeBooking(prebook); }}
             disabled={bookingBusy}
-            className="rounded bg-brand-purple px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            className="rounded bg-brand-gold px-4 py-2 text-sm font-semibold text-white hover:bg-brand-gold/90 disabled:opacity-50"
           >
             {bookingBusy ? 'Retrying…' : 'Retry booking'}
           </button>
@@ -417,9 +415,9 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
       )}
 
       {phase === 'expired' && (
-        <div className="rounded border border-panel-border bg-white/5 p-3">
-          <p className="text-sm text-white">This fare quote expired — airlines only hold prices for a few minutes.</p>
-          <p className="mt-1 text-xs text-white/50">Run a new search and open checkout with a fresh offer.</p>
+        <div className="rounded border border-border bg-bg-row p-3">
+          <p className="text-sm text-text-primary">This fare quote expired — airlines only hold prices for a few minutes.</p>
+          <p className="mt-1 text-xs text-text-faint">Run a new search and open checkout with a fresh offer.</p>
         </div>
       )}
     </div>
@@ -465,7 +463,7 @@ function PayForm({ onSucceeded }: { onSucceeded: () => void }) {
         type="button"
         onClick={pay}
         disabled={!stripe || !elements || paying}
-        className="rounded bg-brand-purple px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+        className="rounded bg-brand-gold px-4 py-2 text-sm font-semibold text-white hover:bg-brand-gold/90 disabled:opacity-50"
       >
         {paying ? 'Paying…' : 'Pay now'}
       </button>

@@ -156,7 +156,7 @@ export default function PublicTransferSearch({ onRequireAuth: _onRequireAuth, sh
         <ActivityResultsView results={results} loading={loading} error={error} />
       )}
       {!searched && error && (
-        <div className="rounded-lg border border-panel-border bg-panel-surface p-4 text-sm text-brand-red">{error}</div>
+        <div className="rounded-lg border border-border bg-white p-4 text-sm text-brand-red">{error}</div>
       )}
     </TravelSectionShell>
   );

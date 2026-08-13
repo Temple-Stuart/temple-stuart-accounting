@@ -148,7 +148,7 @@ function EditableCell({
   const display = kind === 'date' ? fmtDate(value) : fmtTime(value);
   const inputVal = kind === 'date' ? toDateInput(value) : toTimeInput(value);
 
-  if (!editable) return <span className="text-white/40">{display}</span>;
+  if (!editable) return <span className="text-text-faint">{display}</span>;
 
   if (!editing) {
     return (
@@ -156,9 +156,9 @@ function EditableCell({
         type="button"
         onClick={() => { cancelled.current = false; setEditing(true); }}
         title="Click to edit"
-        className="rounded px-1 text-left text-white/60 transition-colors hover:bg-panel-hover hover:text-white"
+        className="rounded px-1 text-left text-text-muted transition-colors hover:bg-bg-row hover:text-text-primary"
       >
-        {value ? display : <span className="text-white underline decoration-dotted">Set</span>}
+        {value ? display : <span className="text-text-primary underline decoration-dotted">Set</span>}
       </button>
     );
   }
@@ -189,7 +189,7 @@ function EditableCell({
         if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
         if (e.key === 'Escape') { cancelled.current = true; (e.target as HTMLInputElement).blur(); }
       }}
-      className="w-32 rounded border border-brand-purple/50 bg-panel-surface px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-purple disabled:opacity-50"
+      className="w-32 rounded border border-brand-purple/50 bg-white px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-purple disabled:opacity-50"
     />
   );
 }
@@ -321,33 +321,33 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
 
   const total = items.reduce((s, it) => s + Number(it.amount || 0), 0);
 
-  const th = 'px-3 py-2 text-left font-medium text-white/40 whitespace-nowrap';
+  const th = 'px-3 py-2 text-left font-medium text-text-faint whitespace-nowrap';
   const td = 'px-3 py-2 whitespace-nowrap';
 
   return (
-    <div className="mt-4 rounded-lg border border-panel-border bg-panel-surface p-4">
+    <div className="mt-4 rounded-lg border border-border bg-white p-4">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <p className="text-sm font-bold text-white">Budget ledger</p>
+        <p className="text-sm font-bold text-text-primary">Budget ledger</p>
         {state === 'ok' && items.length > 0 && (
-          <p className="text-sm text-white/60">
+          <p className="text-sm text-text-muted">
             Total <span className={`font-mono font-bold ${moneyColorClass(total, 'expense')}`}>{formatMoney(total, { kind: 'expense' })}</span>
           </p>
         )}
       </div>
 
-      {actionError && <p className="mb-2 rounded border border-panel-border bg-panel-surface p-2 text-sm text-brand-red">{actionError}</p>}
-      {state === 'loading' && <p className="text-sm text-white/50">Loading your budget…</p>}
+      {actionError && <p className="mb-2 rounded border border-border bg-white p-2 text-sm text-brand-red">{actionError}</p>}
+      {state === 'loading' && <p className="text-sm text-text-faint">Loading your budget…</p>}
       {state === 'error' && <p className="text-sm text-brand-red">Couldn&apos;t load your budget.</p>}
-      {state === 'ok' && items.length === 0 && <p className="text-sm text-white/50">No planned budget yet.</p>}
+      {state === 'ok' && items.length === 0 && <p className="text-sm text-text-faint">No planned budget yet.</p>}
 
       {state === 'ok' && items.length > 0 && (
         // Wide statement table: on a narrow screen the whole table scrolls horizontally as
         // ONE unit (11 columns won't fit a phone). Every column stays on the surface — no
         // per-card scroll, no hidden drawers.
-        <div className="overflow-x-auto rounded-lg border border-panel-border bg-panel-surface">
+        <div className="overflow-x-auto rounded-lg border border-border bg-white">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-panel-border bg-panel-surface font-mono text-[10px] uppercase tracking-wider">
+              <tr className="border-b border-border bg-white font-mono text-[10px] uppercase tracking-wider">
                 <th className={th}>Saved / Booked</th>
                 <th className={th}>Start date</th>
                 <th className={th}>Start time</th>
@@ -364,7 +364,7 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
             </thead>
             <tbody>
               {items.map((it) => (
-                <tr key={it.id} className="border-b border-panel-border last:border-0">
+                <tr key={it.id} className="border-b border-border last:border-0">
                   {/* Every budget line is Saved (planned). Booked (paid) is not derivable
                       from budget_line_items yet — see the file header. */}
                   <td className={td}>
@@ -374,23 +374,23 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
                   <td className={td}><EditableCell kind="time" value={it.startTime} editable={!!it.itineraryId} onSave={(v) => saveCell(it, 'startTime', v)} /></td>
                   <td className={td}><EditableCell kind="date" value={it.endDate} editable={!!it.itineraryId} onSave={(v) => saveCell(it, 'endDate', v)} /></td>
                   <td className={td}><EditableCell kind="time" value={it.endTime} editable={!!it.itineraryId} onSave={(v) => saveCell(it, 'endTime', v)} /></td>
-                  <td className={`${td} text-white/60`}>{fmtCadence(it.cadence)}</td>
-                  <td className={`${td} text-white/60`}>{txt(it.coaCode)}</td>
-                  <td className={`${td} text-white/60`}>{txt(it.vendor)}</td>
-                  <td className={`${td} font-medium text-white`}>
+                  <td className={`${td} text-text-muted`}>{fmtCadence(it.cadence)}</td>
+                  <td className={`${td} text-text-muted`}>{txt(it.coaCode)}</td>
+                  <td className={`${td} text-text-muted`}>{txt(it.vendor)}</td>
+                  <td className={`${td} font-medium text-text-primary`}>
                     {it.description?.trim() ? it.description : txt(it.coaCode)}
                   </td>
                   {/* PR-Money-Convention: trip lines are EXPENSES → red, negative-signed. */}
                   <td className={`${td} text-right font-mono font-bold ${moneyColorClass(Number(it.amount || 0), 'expense')}`}>{formatMoney(Number(it.amount || 0), { kind: 'expense' })}</td>
                   {/* Project: no linkage yet (the FK is a later migration PR) → honest "—". */}
-                  <td className={`${td} text-white/40`}>{DASH}</td>
+                  <td className={`${td} text-text-faint`}>{DASH}</td>
                   <td className={`${td} text-right`}>
                     {it.vendorOptionId ? (
                       <button
                         type="button"
                         onClick={() => handleUncommit(it)}
                         disabled={uncommittingId === it.id}
-                        className="rounded border border-panel-border px-2 py-1 text-xs text-white/50 transition-colors hover:bg-panel-hover hover:text-brand-red disabled:opacity-50"
+                        className="rounded border border-border px-2 py-1 text-xs text-text-faint transition-colors hover:bg-bg-row hover:text-brand-red disabled:opacity-50"
                       >
                         {uncommittingId === it.id ? 'Removing…' : 'Remove'}
                       </button>
@@ -399,7 +399,7 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
                         type="button"
                         onClick={() => handleDeleteLine(it)}
                         disabled={deletingId === it.id}
-                        className="rounded border border-panel-border px-2 py-1 text-xs text-white/50 transition-colors hover:bg-panel-hover hover:text-brand-red disabled:opacity-50"
+                        className="rounded border border-border px-2 py-1 text-xs text-text-faint transition-colors hover:bg-bg-row hover:text-brand-red disabled:opacity-50"
                       >
                         {deletingId === it.id ? 'Deleting…' : 'Delete'}
                       </button>
@@ -421,15 +421,15 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
 
       {booked.length > 0 && (
         <div className="mt-4">
-          <p className="text-sm font-bold text-white">Booked &amp; bank-confirmed</p>
-          <p className="text-xs text-white/40">
+          <p className="text-sm font-bold text-text-primary">Booked &amp; bank-confirmed</p>
+          <p className="text-xs text-text-faint">
             Your real bookings on this trip. &ldquo;Bank actual&rdquo; comes only from matches you accepted in
             Runway&apos;s match review — nothing is matched automatically.
           </p>
-          <div className="mt-2 overflow-x-auto rounded-lg border border-panel-border bg-panel-surface">
+          <div className="mt-2 overflow-x-auto rounded-lg border border-border bg-white">
             <table className="w-full min-w-[560px] text-sm">
               <thead>
-                <tr className="border-b border-panel-border">
+                <tr className="border-b border-border">
                   <th className={th}>Booking</th>
                   <th className={th}>Booked</th>
                   <th className={`${th} text-right`}>Booked price</th>
@@ -438,16 +438,16 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
               </thead>
               <tbody>
                 {booked.map((b) => (
-                  <tr key={b.reservationId} className="border-b border-panel-border last:border-0">
-                    <td className={`${td} font-medium text-white`}>
+                  <tr key={b.reservationId} className="border-b border-border last:border-0">
+                    <td className={`${td} font-medium text-text-primary`}>
                       {b.label}
-                      <span className="ml-2 text-xs text-white/40">{b.provider}</span>
+                      <span className="ml-2 text-xs text-text-faint">{b.provider}</span>
                     </td>
                     <td className={td}>
                       {b.actual ? (
                         <span className="rounded-full bg-brand-green/10 px-2 py-0.5 text-xs font-medium text-brand-green">Booked · bank-confirmed</span>
                       ) : (
-                        <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-medium text-white/60">Booked · not bank-confirmed yet</span>
+                        <span className="rounded-full bg-bg-row px-2 py-0.5 text-xs font-medium text-text-muted">Booked · not bank-confirmed yet</span>
                       )}
                     </td>
                     {/* POLISH-1 #6: house money idiom (formatMoney/moneyColorClass —
@@ -456,7 +456,7 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
                     <td className={`${td} text-right font-mono font-bold ${moneyColorClass(b.finalPriceCents / 100, 'expense')}`}>
                       {b.currency !== 'USD' ? `${b.currency} ` : ''}{formatMoney(b.finalPriceCents / 100, { kind: 'expense' })}
                     </td>
-                    <td className={`${td} text-right font-mono font-bold ${b.actual ? moneyColorClass(b.actual.totalCents / 100, 'expense') : 'text-white/40'}`}>
+                    <td className={`${td} text-right font-mono font-bold ${b.actual ? moneyColorClass(b.actual.totalCents / 100, 'expense') : 'text-text-faint'}`}>
                       {b.actual ? formatMoney(b.actual.totalCents / 100, { kind: 'expense' }) : DASH}
                     </td>
                   </tr>
@@ -469,15 +469,15 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
 
       {unplanned.length > 0 && (
         <div className="mt-4">
-          <p className="text-sm font-bold text-white">In-trip spend not in your budget</p>
-          <p className="text-xs text-white/40">
+          <p className="text-sm font-bold text-text-primary">In-trip spend not in your budget</p>
+          <p className="text-xs text-text-faint">
             Charges inside this trip&apos;s dates with no accepted booking match — FX fees, card fees,
             extras. Display-only: nothing here is tagged to the trip yet.
           </p>
-          <div className="mt-2 overflow-x-auto rounded-lg border border-panel-border bg-panel-surface">
+          <div className="mt-2 overflow-x-auto rounded-lg border border-border bg-white">
             <table className="w-full min-w-[480px] text-sm">
               <thead>
-                <tr className="border-b border-panel-border">
+                <tr className="border-b border-border">
                   <th className={th}>Date</th>
                   <th className={th}>Transaction</th>
                   <th className={`${th} text-right`}>Amount</th>
@@ -485,12 +485,12 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
               </thead>
               <tbody>
                 {unplanned.map((u) => (
-                  <tr key={u.id} className="border-b border-panel-border last:border-0">
-                    <td className={`${td} text-white/60`}>{fmtDate(u.date)}</td>
-                    <td className={`${td} text-white`}>
+                  <tr key={u.id} className="border-b border-border last:border-0">
+                    <td className={`${td} text-text-muted`}>{fmtDate(u.date)}</td>
+                    <td className={`${td} text-text-primary`}>
                       {u.name}
-                      {u.merchantName ? <span className="ml-2 text-xs text-white/40">{u.merchantName}</span> : null}
-                      {u.pending ? <span className="ml-2 text-xs text-white/40">pending</span> : null}
+                      {u.merchantName ? <span className="ml-2 text-xs text-text-faint">{u.merchantName}</span> : null}
+                      {u.pending ? <span className="ml-2 text-xs text-text-faint">pending</span> : null}
                     </td>
                     <td className={`${td} text-right font-mono font-bold ${moneyColorClass(u.amount, 'expense')}`}>
                       {formatMoney(u.amount, { kind: 'expense' })}

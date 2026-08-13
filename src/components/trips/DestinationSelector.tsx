@@ -371,7 +371,7 @@ export default function DestinationSelector({
                       ) : (
                         <button
                           onClick={() => onSelectDestination(d.resortId, d.resort.name)}
-                          className="px-2 py-1 text-xs bg-brand-accent text-white rounded hover:bg-brand-accent-dark transition-all"
+                          className="px-2 py-1 text-xs bg-brand-accent text-text-primary rounded hover:bg-brand-accent-dark transition-all"
                         >
                           Select
                         </button>

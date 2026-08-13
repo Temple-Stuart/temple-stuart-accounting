@@ -245,12 +245,12 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
           a saved confirmation, or a save error. */}
       {saveNote && (
         <div
-          className={`rounded-lg border bg-panel-surface p-3 text-sm ${
+          className={`rounded-lg border bg-white p-3 text-sm ${
             saveNote.kind === 'ok'
               ? 'border-brand-green/40 text-brand-green'
               : saveNote.kind === 'err'
                 ? 'border-brand-red/40 text-brand-red'
-                : 'border-panel-border text-white/70'
+                : 'border-border text-text-secondary'
           }`}
         >
           {saveNote.text}
@@ -269,7 +269,7 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
         />
       )}
       {!searched && error && (
-        <div className="rounded-lg border border-panel-border bg-panel-surface p-4 text-sm text-brand-red">{error}</div>
+        <div className="rounded-lg border border-border bg-white p-4 text-sm text-brand-red">{error}</div>
       )}
 
       {/* PR-G3 + T2a: checkout opens directly on Book, guest-ok. For an AUTHED

@@ -357,7 +357,7 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
           <button
             type="button"
             onClick={() => setBooking(null)}
-            className="text-xs text-white/60 underline hover:text-white"
+            className="text-xs text-text-muted underline hover:text-text-primary"
           >
             Close checkout
           </button>

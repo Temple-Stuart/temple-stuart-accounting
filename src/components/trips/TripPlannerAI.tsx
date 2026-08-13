@@ -952,7 +952,7 @@ export function TripScanModals() {
                 <label className="text-sm font-medium block mb-2">Rate Type</label>
                 <div className="flex gap-2">
                   {(['daily', 'weekly', 'monthly'] as const).map(r => (
-                    <button key={r} onClick={() => setEditForm(p => ({...p, rateType: r}))} className={'px-4 py-2 rounded text-sm font-medium ' + (editForm.rateType === r ? 'bg-purple-500 text-white' : 'bg-bg-row')}>{r}</button>
+                    <button key={r} onClick={() => setEditForm(p => ({...p, rateType: r}))} className={'px-4 py-2 rounded text-sm font-medium ' + (editForm.rateType === r ? 'bg-brand-purple text-white' : 'bg-bg-row')}>{r}</button>
                   ))}
                 </div>
               </div>
@@ -967,7 +967,7 @@ export function TripScanModals() {
                 <div className="flex flex-wrap gap-2">
                   {tripDays.map(d => (
                     <button key={d} onClick={() => setEditForm(p => ({ ...p, days: p.days.includes(d) ? p.days.filter(x => x !== d) : [...p.days, d].sort((a,b) => a-b) }))}
-                      className={'w-9 h-9 rounded text-sm font-medium ' + (editForm.days.includes(d) ? 'bg-purple-500 text-white' : 'bg-bg-row')}>{d}</button>
+                      className={'w-9 h-9 rounded text-sm font-medium ' + (editForm.days.includes(d) ? 'bg-brand-purple text-white' : 'bg-bg-row')}>{d}</button>
                   ))}
                 </div>
               </div>
@@ -996,16 +996,16 @@ export function TripScanModals() {
       {showCustomModal && customCategory && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded max-w-lg w-full shadow-sm overflow-hidden">
-            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-5 text-white">
+            <div className="bg-brand-purple p-5 text-white">
               <h3 className="font-bold text-terminal-lg">+ Add Custom {CATEGORY_INFO[customCategory]?.label || ACTIVITY_LABELS[customCategory] || customCategory}</h3>
-              <p className="text-white/80 text-sm">Paste a URL or enter details manually</p>
+              <p className="text-text-secondary text-sm">Paste a URL or enter details manually</p>
             </div>
             <div className="p-6 space-y-4">
               <div>
                 <label className="text-sm font-medium text-text-secondary block mb-2">Paste URL (optional)</label>
                 <div className="flex gap-2">
                   <input type="url" value={customForm.url} onChange={e => setCustomForm(f => ({ ...f, url: e.target.value }))} placeholder="https://..." className="flex-1 border border-border rounded px-3 py-2.5 text-sm" />
-                  <button onClick={() => fetchUrlPreview(customForm.url)} disabled={!customForm.url || customLoading} className="px-4 py-2 bg-purple-500 text-white rounded text-sm font-medium disabled:opacity-50 hover:bg-purple-600">
+                  <button onClick={() => fetchUrlPreview(customForm.url)} disabled={!customForm.url || customLoading} className="px-4 py-2 bg-brand-purple text-white rounded text-sm font-medium disabled:opacity-50 hover:bg-brand-purple-hover">
                     {customLoading ? "..." : "Fetch"}
                   </button>
                 </div>

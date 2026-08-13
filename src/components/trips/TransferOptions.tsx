@@ -192,7 +192,7 @@ export default function TransferOptions({ tripId, participantCount, onSelect, on
               <>
                 {option.is_selected && onCommitOption ? (
                   <button onClick={() => onCommitOption('transfer', option.id, option.title || 'Transfer')}
-                    className="px-2 py-1 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700">Commit</button>
+                    className="px-2 py-1 bg-brand-gold text-white text-xs rounded hover:bg-brand-gold/90">Commit</button>
                 ) : !option.is_selected ? (
                   <button onClick={() => handleSelect(option.id)} className="px-2 py-1 bg-brand-green text-white text-xs rounded hover:bg-brand-green">Select</button>
                 ) : (
