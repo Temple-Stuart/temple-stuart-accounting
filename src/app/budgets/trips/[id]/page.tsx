@@ -525,7 +525,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             {/* ── Crew & Profiles ── (PR-31: id="travelers" is the target of
                   TripHeader's "Manage travelers" link) */}
             <div id="travelers" className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm scroll-mt-4">
-              <div className="bg-brand-purple/80 text-white px-4 py-2.5 flex justify-between items-center">
+              <div className="bg-brand-purple text-white px-4 py-2.5 flex justify-between items-center">
                 <h2 className="text-sm font-semibold">Crew ({participants.length})</h2>
                 {isOrganizer && (
                   <button
@@ -642,7 +642,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
             {/* ── Itinerary day timeline (the one view — Agenda/Grid retired) ── */}
             <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-              <div className="bg-brand-purple/80 text-white px-4 py-2.5 flex items-center justify-between">
+              <div className="bg-brand-purple text-white px-4 py-2.5 flex items-center justify-between">
                 <h2 className="text-sm font-semibold">Itinerary</h2>
               </div>
               {(trip.itinerary && trip.itinerary.length > 0) || tripDates ? (
@@ -703,7 +703,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
               return (
                 <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-                  <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Committed Budget</div>
+                  <div className="bg-brand-purple text-white px-4 py-2.5 text-sm font-semibold">Committed Budget</div>
                   {/* Destination filter pills */}
                   <div className="px-4 py-2.5 bg-white border-b border-gray-100 flex flex-wrap gap-1.5">
                     <button onClick={() => setBudgetFilter('all')}
@@ -819,7 +819,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               );
               const flightsBlock = tripDates && trip.destination ? (
               <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-                <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Flights</div>
+                <div className="bg-brand-purple text-white px-4 py-2.5 text-sm font-semibold">Flights</div>
                 <div className="bg-white p-4">
                 <FlightPicker
                   tripId={id}
@@ -838,12 +838,12 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 return (
                   <>
                     <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-                      <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Destinations &amp; Dates</div>
+                      <div className="bg-brand-purple text-white px-4 py-2.5 text-sm font-semibold">Destinations &amp; Dates</div>
                       <div className="bg-white p-4 space-y-4">{chipsBlock}</div>
                     </div>
                     {flightsBlock}
                     <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-                      <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Trip Planner</div>
+                      <div className="bg-brand-purple text-white px-4 py-2.5 text-sm font-semibold">Trip Planner</div>
                       <div className="bg-white p-4">
                         <div className="text-center py-8">
                           <div className="text-sm font-medium text-gray-900 mb-2">AI Trip Planner requires Pro+</div>
@@ -872,7 +872,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                   }}
                 >
                   <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-                    <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Destinations &amp; Dates</div>
+                    <div className="bg-brand-purple text-white px-4 py-2.5 text-sm font-semibold">Destinations &amp; Dates</div>
                     <div className="bg-white p-4 space-y-4">
                       {chipsBlock}
                       <TripScanControls />
@@ -898,7 +898,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             {/* ── Add Expense (inline) ── */}
             {showExpenseForm && (
               <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-                <div className="bg-brand-purple/80 text-white px-4 py-2.5 flex items-center justify-between">
+                <div className="bg-brand-purple text-white px-4 py-2.5 flex items-center justify-between">
                   <h2 className="text-sm font-semibold">Add Expense</h2>
                   <button onClick={() => setShowExpenseForm(false)} className="px-3 py-1 text-xs bg-white/20 hover:bg-white/30 text-white rounded font-medium">Cancel</button>
                 </div>
@@ -945,7 +945,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
             {/* ── Commit to Ledger ── */}
             <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-              <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Commit to Ledger</div>
+              <div className="bg-brand-purple text-white px-4 py-2.5 text-sm font-semibold">Commit to Ledger</div>
               <div className="bg-white p-4">
               {trip.committedAt ? (
                 <div className="text-center py-4">

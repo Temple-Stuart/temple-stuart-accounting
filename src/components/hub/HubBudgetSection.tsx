@@ -116,26 +116,26 @@ export default function HubBudgetSection({ preview = false }: { preview?: boolea
   const cellClass = 'py-1.5 px-3 text-right font-mono tabular-nums';
 
   return (
-    <div className={themed('border-t border-border bg-white px-4 py-4 lg:px-8', true)}>
+    <div className={themed('border-t border-border bg-white px-4 py-4 lg:px-8', false)}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className={themed('text-sm font-semibold text-text-primary tracking-tight', true)}>Budget</h2>
-          <p className={themed('text-xs text-text-muted mt-0.5', true)}>{MONTHS[monthIdx]} {year} · Budget vs Actual · USD</p>
+          <h2 className={themed('text-sm font-semibold text-text-primary tracking-tight', false)}>Budget</h2>
+          <p className={themed('text-xs text-text-muted mt-0.5', false)}>{MONTHS[monthIdx]} {year} · Budget vs Actual · USD</p>
         </div>
         <div className="flex items-center gap-2">
           {/* Month selector */}
           <select
             value={monthIdx}
             onChange={e => setMonthIdx(Number(e.target.value))}
-            className={themed('text-xs border border-border rounded px-2 py-1 text-text-secondary bg-white', true)}
+            className={themed('text-xs border border-border rounded px-2 py-1 text-text-secondary bg-white', false)}
           >
             {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
           </select>
           {/* Year stepper (mirrors /hub's year nav) */}
           <div className="flex items-center gap-1 text-xs">
-            <button onClick={() => setYear(y => y - 1)} className={themed('px-2 py-1 text-text-secondary hover:bg-bg-row rounded', true)}>◀</button>
-            <span className={themed('font-mono text-text-primary tabular-nums', true)}>{year}</span>
-            <button onClick={() => setYear(y => y + 1)} className={themed('px-2 py-1 text-text-secondary hover:bg-bg-row rounded', true)}>▶</button>
+            <button onClick={() => setYear(y => y - 1)} className={themed('px-2 py-1 text-text-secondary hover:bg-bg-row rounded', false)}>◀</button>
+            <span className={themed('font-mono text-text-primary tabular-nums', false)}>{year}</span>
+            <button onClick={() => setYear(y => y + 1)} className={themed('px-2 py-1 text-text-secondary hover:bg-bg-row rounded', false)}>▶</button>
           </div>
         </div>
       </div>
@@ -155,13 +155,13 @@ export default function HubBudgetSection({ preview = false }: { preview?: boolea
 
       {/* Trading has no budget route yet → honest pending state, never fabricated rows. */}
       {!active.route ? (
-        <div className={themed('rounded-lg border border-dashed border-border bg-bg-row/40 px-4 py-8 text-center text-sm text-text-muted', true)}>
+        <div className={themed('rounded-lg border border-dashed border-border bg-bg-row/40 px-4 py-8 text-center text-sm text-text-muted', false)}>
           Trading budget — route pending (HB-2). No data to show yet.
         </div>
       ) : loading ? (
-        <div className={themed('px-4 py-8 text-center text-sm text-text-faint', true)}>Loading…</div>
+        <div className={themed('px-4 py-8 text-center text-sm text-text-faint', false)}>Loading…</div>
       ) : rows.length === 0 ? (
-        <div className={themed('rounded-lg border border-border bg-bg-row/40 px-4 py-8 text-center text-sm text-text-muted', true)}>
+        <div className={themed('rounded-lg border border-border bg-bg-row/40 px-4 py-8 text-center text-sm text-text-muted', false)}>
           No budget or actual activity for {MONTHS[monthIdx]} {year}.
         </div>
       ) : (
@@ -179,15 +179,15 @@ export default function HubBudgetSection({ preview = false }: { preview?: boolea
             </thead>
             <tbody>
               {rows.map(r => (
-                <tr key={r.code} className={themed('border-b border-border-light', true)}>
-                  <td className={themed('py-1.5 px-3 text-text-primary', true)}>{r.name}</td>
-                  <td className={themed('py-1.5 px-3 font-mono text-xs text-text-muted', true)}>{r.code}</td>
+                <tr key={r.code} className={themed('border-b border-border-light', false)}>
+                  <td className={themed('py-1.5 px-3 text-text-primary', false)}>{r.name}</td>
+                  <td className={themed('py-1.5 px-3 font-mono text-xs text-text-muted', false)}>{r.code}</td>
                   {/* BUDGET cell — inert this PR (HB-3 wires budget → budget_line_items drill). */}
-                  <td className={themed(`${cellClass} text-text-secondary`, true)}>{usd(r.budget)}</td>
+                  <td className={themed(`${cellClass} text-text-secondary`, false)}>{usd(r.budget)}</td>
                   {/* ACTUAL cell — clickable → reused BudgetDrillDown (ledger transactions). */}
                   <td
                     onClick={() => openActualDrill(r.code, r.name, r.actual)}
-                    className={themed(`${cellClass} ${r.actual > 0 ? 'cursor-pointer hover:underline text-text-primary' : 'text-text-faint'}`, true)}
+                    className={themed(`${cellClass} ${r.actual > 0 ? 'cursor-pointer hover:underline text-text-primary' : 'text-text-faint'}`, false)}
                   >
                     {usd(r.actual)}
                   </td>
@@ -197,7 +197,7 @@ export default function HubBudgetSection({ preview = false }: { preview?: boolea
                     {formatMoney(r.variance, { kind: 'pnl' })}
                   </td>
                   {/* Variance % = ((actual/budget)−1)×100; null when budget=0 (zero-denominator guard). */}
-                  <td className={themed(`${cellClass} ${r.variancePct !== null ? moneyColorClass(-(r.variancePct), 'pnl') : 'text-text-faint'}`, true)}>
+                  <td className={themed(`${cellClass} ${r.variancePct !== null ? moneyColorClass(-(r.variancePct), 'pnl') : 'text-text-faint'}`, false)}>
                     {r.variancePct !== null
                       ? `${r.variancePct >= 0 ? '+' : ''}${r.variancePct.toFixed(1)}%`
                       : '—'}
@@ -206,17 +206,17 @@ export default function HubBudgetSection({ preview = false }: { preview?: boolea
               ))}
             </tbody>
             <tfoot>
-              <tr className={themed('border-t-2 border-border font-semibold', true)}>
-                <td className={themed('py-2 px-3 text-text-primary', true)} colSpan={2}>Total</td>
-                <td className={themed(`${cellClass} text-text-primary`, true)}>{usd(totalBudget)}</td>
-                <td className={themed(`${cellClass} text-text-primary`, true)}>{usd(totalActual)}</td>
+              <tr className={themed('border-t-2 border-border font-semibold', false)}>
+                <td className={themed('py-2 px-3 text-text-primary', false)} colSpan={2}>Total</td>
+                <td className={themed(`${cellClass} text-text-primary`, false)}>{usd(totalBudget)}</td>
+                <td className={themed(`${cellClass} text-text-primary`, false)}>{usd(totalActual)}</td>
                 <td className={`${cellClass} ${moneyColorClass(totalBudget - totalActual, 'pnl')}`}>
                   {formatMoney(totalActual - totalBudget, { kind: 'pnl' })}
                 </td>
                 {(() => {
                   const pct = totalBudget !== 0 ? ((totalActual / totalBudget) - 1) * 100 : null;
                   return (
-                    <td className={themed(`${cellClass} ${pct !== null ? moneyColorClass(-pct, 'pnl') : 'text-text-faint'}`, true)}>
+                    <td className={themed(`${cellClass} ${pct !== null ? moneyColorClass(-pct, 'pnl') : 'text-text-faint'}`, false)}>
                       {pct !== null ? `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%` : '—'}
                     </td>
                   );
@@ -229,7 +229,7 @@ export default function HubBudgetSection({ preview = false }: { preview?: boolea
 
       {/* Reused verbatim — self-fetches /api/hub/drill-down for the clicked COA × month. */}
       {drillDown && (
-        <BudgetDrillDown isOpen={true} onClose={() => setDrillDown(null)} {...drillDown} surface="dark" />
+        <BudgetDrillDown isOpen={true} onClose={() => setDrillDown(null)} {...drillDown} />
       )}
     </div>
   );

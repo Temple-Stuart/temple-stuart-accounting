@@ -7,7 +7,7 @@ import { AVAILABLE_STRATEGIES } from '@/lib/convergence/filter-types';
 // controls drop their themed() wrap: both idioms are token-native dark
 // classes with zero DARKEN_MAP-eligible tokens (themed() would be an
 // identity call), and both live mounts (/trading + the app trade tab)
-// pass surface="dark". themed() stays on every other element.
+// pass. themed() stays on every other element.
 import { SECTION_HEADER, SEGMENT, themed, toggleChip, type Surface } from '@/lib/ds';
 
 // TRADING-PR-1/3: the scan filter form. All 18 ScannerFilters fields + universe are

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { CARD_BG, themed, type Surface } from '@/lib/ds';
+import { themed, type Surface } from '@/lib/ds';
 
 // ═══════════════════════════════════════════════════════════════════
 // CPAExport — Generates accountant-ready CSV reports (Trial Balance,
@@ -384,7 +384,7 @@ export default function CPAExport({ year, entityId, surface = 'light' }: CPAExpo
     : null;
 
   return (
-    <div className={dk ? 'overflow-hidden' : themed('bg-white overflow-hidden', dk)} style={dk ? { background: CARD_BG } : undefined}>
+    <div className={dk ? 'overflow-hidden' : themed('bg-white overflow-hidden', dk)}>
       <div className={themed('px-3 py-2 border-b border-border flex items-center justify-between', dk)}>
         <span className={themed('text-terminal-sm text-text-muted font-mono', dk)}>
           Export accountant-ready reports (sourced from the general ledger)
@@ -441,7 +441,7 @@ export default function CPAExport({ year, entityId, surface = 'light' }: CPAExpo
 
       {/* Export options */}
       <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className={dk ? 'border border-panel-border rounded p-4' : themed('border rounded p-4 hover:bg-bg-row', dk)} style={dk ? { background: CARD_BG } : undefined}>
+        <div className={dk ? 'border border-panel-border rounded p-4' : themed('border rounded p-4 hover:bg-bg-row', dk)}>
           <div className="flex items-start justify-between">
             <div>
               <h4 className={dk ? 'text-sm font-semibold text-white' : 'font-medium'}>📊 Trial Balance</h4>
@@ -459,7 +459,7 @@ export default function CPAExport({ year, entityId, surface = 'light' }: CPAExpo
           </div>
         </div>
 
-        <div className={dk ? 'border border-panel-border rounded p-4' : themed('border rounded p-4 hover:bg-bg-row', dk)} style={dk ? { background: CARD_BG } : undefined}>
+        <div className={dk ? 'border border-panel-border rounded p-4' : themed('border rounded p-4 hover:bg-bg-row', dk)}>
           <div className="flex items-start justify-between">
             <div>
               <h4 className={dk ? 'text-sm font-semibold text-white' : 'font-medium'}>📈 Income Statement</h4>
@@ -477,7 +477,7 @@ export default function CPAExport({ year, entityId, surface = 'light' }: CPAExpo
           </div>
         </div>
 
-        <div className={dk ? 'border border-panel-border rounded p-4' : themed('border rounded p-4 hover:bg-bg-row', dk)} style={dk ? { background: CARD_BG } : undefined}>
+        <div className={dk ? 'border border-panel-border rounded p-4' : themed('border rounded p-4 hover:bg-bg-row', dk)}>
           <div className="flex items-start justify-between">
             <div>
               <h4 className={dk ? 'text-sm font-semibold text-white' : 'font-medium'}>📋 Balance Sheet</h4>
@@ -495,7 +495,7 @@ export default function CPAExport({ year, entityId, surface = 'light' }: CPAExpo
           </div>
         </div>
 
-        <div className={dk ? 'border border-panel-border rounded p-4' : themed('border rounded p-4 hover:bg-bg-row', dk)} style={dk ? { background: CARD_BG } : undefined}>
+        <div className={dk ? 'border border-panel-border rounded p-4' : themed('border rounded p-4 hover:bg-bg-row', dk)}>
           <div className="flex items-start justify-between">
             <div>
               <h4 className={dk ? 'text-sm font-semibold text-white' : 'font-medium'}>📒 General Ledger</h4>

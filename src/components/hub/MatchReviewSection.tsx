@@ -12,7 +12,7 @@
  * rows. Errors render verbatim — including the expected 500 while the
  * MATCH-0 table hasn't landed in Azure yet.
  *
- * Styling: the RunwayBudgetPanel idiom — themed(..., true) over the
+ * Styling: the RunwayBudgetPanel idiom — themed(..., false) over the
  * light-token vocabulary (RunwayBudgetPanel.tsx:121-131), dark runway surface.
  */
 
@@ -124,11 +124,11 @@ export default function MatchReviewSection() {
   }
 
   return (
-    <div className={themed('mx-4 my-4 rounded-lg border border-border bg-bg-row/40 p-4', true)}>
+    <div className={themed('mx-4 my-4 rounded-lg border border-border bg-bg-row/40 p-4', false)}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h3 className={themed('text-sm font-bold text-text-primary', true)}>Booking ↔ bank match review</h3>
-          <p className={themed('text-xs text-text-muted', true)}>
+          <h3 className={themed('text-sm font-bold text-text-primary', false)}>Booking ↔ bank match review</h3>
+          <p className={themed('text-xs text-text-muted', false)}>
             Proposed matches between your bookings and bank transactions. Nothing links until you accept it.
           </p>
         </div>
@@ -143,18 +143,18 @@ export default function MatchReviewSection() {
       </div>
 
       {runSummary && (
-        <p className={themed('mt-2 font-mono text-xs text-text-secondary', true)}>{runSummary}</p>
+        <p className={themed('mt-2 font-mono text-xs text-text-secondary', false)}>{runSummary}</p>
       )}
       {error && <p className="mt-2 text-sm text-brand-red">{error}</p>}
 
       {loading ? (
-        <div className={themed('mt-3 h-10 animate-pulse rounded bg-bg-row', true)} aria-busy="true" />
+        <div className={themed('mt-3 h-10 animate-pulse rounded bg-bg-row', false)} aria-busy="true" />
       ) : queue.length === 0 ? (
-        <p className={themed('mt-3 text-xs text-text-muted', true)}>
+        <p className={themed('mt-3 text-xs text-text-muted', false)}>
           No match proposals waiting. &ldquo;Find matches&rdquo; scans your bookings against bank transactions.
         </p>
       ) : (
-        <div className={themed('mt-3 divide-y divide-border rounded border border-border', true)}>
+        <div className={themed('mt-3 divide-y divide-border rounded border border-border', false)}>
           {queue.map((q) => {
             const resLabel = q.reservation.hotelName ?? `${q.reservation.provider} booking`;
             const resPrice = (q.reservation.finalPriceCents / 100).toFixed(2);
@@ -162,24 +162,24 @@ export default function MatchReviewSection() {
               <div key={q.id} className="space-y-1.5 p-3">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                   <div className="min-w-0">
-                    <span className={themed('font-mono text-sm text-text-primary tabular-nums', true)}>
+                    <span className={themed('font-mono text-sm text-text-primary tabular-nums', false)}>
                       ${q.transaction.amount.toFixed(2)}
                     </span>
-                    <span className={themed('ml-2 text-sm text-text-primary', true)}>{q.transaction.name}</span>
-                    <span className={themed('ml-2 text-xs text-text-muted', true)}>
+                    <span className={themed('ml-2 text-sm text-text-primary', false)}>{q.transaction.name}</span>
+                    <span className={themed('ml-2 text-xs text-text-muted', false)}>
                       {day(q.transaction.date)}{q.transaction.pending ? ' · pending' : ''}
                     </span>
                   </div>
-                  <span className={themed('text-xs font-semibold text-text-secondary', true)}>
+                  <span className={themed('text-xs font-semibold text-text-secondary', false)}>
                     {q.confidence != null ? `${Math.round(q.confidence * 100)}% match` : 'unscored'}
                   </span>
                 </div>
-                <div className={themed('text-xs text-text-secondary', true)}>
+                <div className={themed('text-xs text-text-secondary', false)}>
                   ↔ {resLabel} · {q.reservation.currency} {resPrice} · booked {day(q.reservation.createdAt)}
                   {q.reservation.checkinDate ? ` · stay ${day(q.reservation.checkinDate)}–${day(q.reservation.checkoutDate)}` : ''}
                 </div>
                 {/* The full matcher rationale — always visible (CPA bar). */}
-                <p className={themed('font-mono text-[10px] leading-relaxed text-text-muted', true)}>
+                <p className={themed('font-mono text-[10px] leading-relaxed text-text-muted', false)}>
                   {q.rationale ?? 'no rationale recorded'}
                 </p>
                 <div className="flex gap-2 pt-0.5">
@@ -195,7 +195,7 @@ export default function MatchReviewSection() {
                     type="button"
                     onClick={() => review(q.id, 'reject')}
                     disabled={busyLink === q.id}
-                    className={themed('rounded border border-border px-3 py-1 text-xs font-medium text-text-secondary disabled:opacity-50', true)}
+                    className={themed('rounded border border-border px-3 py-1 text-xs font-medium text-text-secondary disabled:opacity-50', false)}
                   >
                     Reject
                   </button>

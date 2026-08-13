@@ -743,7 +743,7 @@ export default function TradingPage() {
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-page text-white">
+      <div className="min-h-screen bg-bg-terminal text-text-primary">
         <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
 
           {/* TRADING-PR-3: the sticky/backdrop-blur "Purple Background Zone" is
@@ -757,7 +757,6 @@ export default function TradingPage() {
             onFiltersChange={handleFiltersChange}
             scanTriggerRef={scanTriggerRef}
             ttConnected={ttConnected}
-            surface="dark"
           />
 
           {/* Performance — the 7-metric row (was ROW 2 in the sticky zone). */}
@@ -845,7 +844,6 @@ export default function TradingPage() {
                   showBudgetTotals={true}
                   showCategoryLegend={false}
                   compact={true}
-                  surface="dark"
                 />
               </div>
             </div>
@@ -871,7 +869,6 @@ export default function TradingPage() {
                     hideControls={true}
                     scanTriggerRef={scanTriggerRef}
                     scanningRef={scanningRef}
-                    surface="dark"
                   />
                 )}
               </div>
@@ -880,7 +877,6 @@ export default function TradingPage() {
             {/* ── Trade Lab ── */}
             <div className="mb-4">
               <TradeLabPanel
-                surface="dark"
                 onCardsChange={() => {
                   fetch('/api/trade-cards')
                     .then(r => r.json())

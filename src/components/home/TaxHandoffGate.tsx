@@ -166,7 +166,7 @@ export default function TaxHandoffGate({ onGoToBooks }: Props) {
           The whole return, derived — not typed.
         </div>
       </div>
-      <TaxFilingWizard surface="dark" />
+      <TaxFilingWizard />
     </>
   );
 }

@@ -35,7 +35,10 @@
      POP-DEEPEN: → #5b21ff hsl(256 100% 56%) — L 60→56, sat held,
      GPT-palette anchor. Used for active tab states, the Search button, the
      band fill, the tab-icon accent — nothing else. */
-  --ts-purple-pop:   91 33 255;    /* #5b21ff — electric indigo, deep */
+  --ts-purple-pop:   59 45 107;    /* REPAINT-3: re-valued to #3b2d6b (= --ts-purple) —
+     the electric #5b21ff is a retired hue under Direction C; every pop
+     consumer lands on the aubergine with zero class edits. The token itself
+     dies in Slice 5. */
   --ts-purple-wash:  234 231 242;  /* #eae7f2 — replaces BOTH old wash AND Tailwind purple-50 */
 
   /* Aqua — NEW, punchier than the old teal-400. Calendar routine blocks. */

@@ -14,29 +14,24 @@
  * COMPACT-1 section strips (bg-white/5), the trip components (bg-panel-surface),
  * and the landing hero glow (HERO_BG).
  */
+/* REPAINT-3 (Direction C): the dark-native exports below re-pointed to the
+ * light vocabulary — cream paper, white/card-cream cards, lavender hairlines,
+ * aubergine structure ink. The dark panel-family values retire with the dk
+ * machinery in Slice 5. */
 export const SURFACE = {
-  /** The page background — BG-DEPTH: the dedicated canvas token
-   *  (HomeClient/Landing shells use `min-h-screen bg-page`). */
-  page: 'bg-page',
-  /** A raised card. Origin: the trip components + CountryCityPicker dropdown
-   *  (bg-panel-surface + border-panel-border). */
-  card: 'rounded-lg border border-panel-border bg-panel-surface',
-  /** A subtle inset / strip fill. Origin: the teaser + LandingBookingSection.tsx:65
-   *  container (`bg-white/5`) and TravelSectionShell (COMPACT-1). */
-  inset: 'bg-white/5',
-  /** Row / control hover. Origin: HotelResultsView row `hover:bg-panel-hover`. */
-  hover: 'bg-panel-hover',
+  /** The page background — the cream paper (was bg-page, REPAINT-3). */
+  page: 'bg-bg-terminal',
+  /** A raised card — flat white + lavender hairline (was panel-surface). */
+  card: 'rounded-lg border border-border bg-white',
+  /** A subtle inset / strip fill (was bg-white/5). */
+  inset: 'bg-bg-row',
+  /** Row / control hover (was bg-panel-hover). */
+  hover: 'bg-bg-row',
 } as const;
 
-/** The hero radial glow. PALETTE-OVERHAUL: the idea-state single-glow — one
- *  soft pop radial on the panel base (was the two-radial purple/purple-deep
- *  composition). NOTE: --ts-panel is stored as HEX, so the base is
- *  `var(--ts-panel)` (a `rgb(var())` wrap would emit invalid CSS). Consumer
- *  today: the APP hero (HomeClient) — Landing.tsx keeps its own LOCAL
- *  HERO_BG const (Landing.tsx:632), which this edit deliberately does not
- *  touch (no Landing hero edits in PALETTE-OVERHAUL's C scope). */
-export const HERO_BG =
-  'radial-gradient(ellipse 80% 90% at 68% 35%, rgb(var(--ts-purple-pop) / 0.45), transparent 74%), var(--ts-page)';
+/* REPAINT-3: HERO_BG DELETED — the hero radial glow died with the dark
+ * shell; both heroes (Landing + HomeClient, the HOME-HERO-PARITY pair) are
+ * solid bg-brand-purple bands now. */
 
 /** PR-STRIP-DESIGN-2 → STRIP-FLAT-BAND: the booking strip's band. The
  *  4-layer glow composition died (the STRIP-VISUAL-2 audit: the electric
@@ -47,12 +42,11 @@ export const HERO_BG =
  *  ModuleLauncher ModuleBand) goes aubergine with it by design. */
 export const BAND_BG = 'rgb(var(--ts-purple))';
 
-/** BOOKS-GLOW — STANDING RULE: flat black panels are the anti-pattern —
- *  interior cards wear the glow. THE app glow (lifted byte-identical from
- *  Landing.tsx CARD_BG, the ELEV-2c/CARD-POP-3 recipe): two pop radials over
- *  the panel token. Apply via style={{ background: CARD_BG }}. */
-export const CARD_BG =
-  'radial-gradient(ellipse 120% 120% at 80% 0%, rgb(var(--ts-purple-pop) / 0.65), transparent 70%), radial-gradient(ellipse 90% 90% at 10% 100%, rgb(var(--ts-purple-pop) / 0.32), transparent 65%), var(--ts-panel)';
+/* REPAINT-3: CARD_BG DELETED — the BOOKS-GLOW standing rule inverts under
+ * Direction C: cards are FLAT (white or bg-ts-white card-cream) with the
+ * lavender hairline; no glow anywhere. Former mounts: ModuleLauncher's
+ * MODULE_SHELL, ModulePointerCard, CPAExport, BookkeepingSection — all
+ * converted this slice. */
 
 /* ─── TYPE ───────────────────────────────────────────────────────────────────
  * Scale + the white-opacity ladder. Origin: the landing hero (display), the
@@ -63,13 +57,13 @@ export const TYPE = {
   /** Hero display. Origin: Landing.tsx hero h1 `text-4xl lg:text-5xl font-light
    *  tracking-tight`; the app hero compacts this (FD-3-1) to 2xl/3xl. */
   display: 'text-2xl lg:text-3xl font-light tracking-tight',
-  /** Section heading. Origin: the deck header h2 `text-lg font-light tracking-tight`. */
-  heading: 'text-lg font-light tracking-tight text-white',
-  /** Default body copy. */
-  body: 'text-sm text-white/70',
-  /** Mono micro-label — the signature. Origin: TRAVEL_LABEL_CLASS
-   *  (LandingSearchTeaser LABEL_CLASS, COMPACT-1) + every landing section eyebrow. */
-  microLabel: 'font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50',
+  /** Section heading (REPAINT-3: primary ink on cream). */
+  heading: 'text-lg font-light tracking-tight text-text-primary',
+  /** Default body copy (REPAINT-3: the /70 rung's light twin per DARKEN_MAP). */
+  body: 'text-sm text-text-secondary',
+  /** Mono micro-label — the signature (REPAINT-3: /50 ↔ text-text-faint,
+   *  the DARKEN_MAP pair, inverted). */
+  microLabel: 'font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint',
 } as const;
 
 /**
@@ -80,12 +74,15 @@ export const TYPE = {
  *   text-white/50    — micro-labels, muted captions, inactive-but-legible chrome.
  *   text-white/40    — faint: placeholders' cousins, "our cost:" trace lines, dashes.
  */
+/* REPAINT-3: the ladder inverts through the DARKEN_MAP pairs — primary↔white,
+ * /70↔secondary, /60↔muted, /50↔faint; the /40 rung collapses onto faint
+ * (the light ladder has four rungs to dark's five). */
 export const TEXT = {
-  primary: 'text-white',
-  body: 'text-white/70',
-  secondary: 'text-white/60',
-  muted: 'text-white/50',
-  faint: 'text-white/40',
+  primary: 'text-text-primary',
+  body: 'text-text-secondary',
+  secondary: 'text-text-muted',
+  muted: 'text-text-faint',
+  faint: 'text-text-faint',
 } as const;
 
 /* ─── CONTROLS ───────────────────────────────────────────────────────────────
@@ -95,26 +92,27 @@ export const TEXT = {
  * same strings; a later PR can point it here).
  */
 export const CONTROL = {
-  /** Dark field. Origin: travelSection TRAVEL_INPUT_CLASS. */
+  /** Field on cream (REPAINT-3): white fill, lavender hairline, aubergine
+   *  focus ring. */
   input:
-    'bg-white/10 border border-white/20 rounded px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/40',
-  /** Field micro-label (above the input). Origin: travelSection TRAVEL_LABEL_CLASS. */
-  label: 'font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50',
-  /** Primary action — white on dark. Origin: travelSection TRAVEL_BUTTON_CLASS +
-   *  the hero "Create free account". */
+    'bg-white border border-border rounded px-3 py-2 text-sm text-text-primary placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand-purple',
+  /** Field micro-label (above the input). */
+  label: 'font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint',
+  /** Primary action (REPAINT-3): the white-on-dark pill inverts to solid
+   *  aubergine — a white button has no edge on cream. */
   primaryButton:
-    'rounded bg-white px-4 py-2 text-sm font-medium text-brand-purple transition-colors hover:bg-bg-row disabled:opacity-50',
-  /** Secondary / ghost. Origin: the hero "Clone it on GitHub ↗" + FlightPicker
-   *  Clear button (`border border-white/30 text-white/70 hover:bg-white/10`). */
+    'rounded bg-brand-purple px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-purple-hover disabled:opacity-50',
+  /** Secondary / ghost (REPAINT-3): the aubergine ghost — the landing's
+   *  REPAINT-2 idiom. */
   ghostButton:
-    'rounded border border-white/30 px-4 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/10',
+    'rounded border border-brand-purple/40 px-4 py-2 text-sm font-medium text-brand-purple transition-colors hover:bg-brand-purple-wash',
 } as const;
 
-/** Toggle chip — active = white-on-purple, inactive = bordered ghost. Verbatim
- *  from LandingBookingSection.tsx:54-57 (the teaser toggle idiom). */
+/** Toggle chip (REPAINT-3) — active = solid aubergine, inactive = the
+ *  aubergine ghost on cream. */
 export function toggleChip(active: boolean): string {
   return `px-3 py-1.5 font-mono text-xs font-medium ${
-    active ? 'bg-white text-brand-purple' : 'border border-white/30 text-white/70 hover:bg-white/10'
+    active ? 'bg-brand-purple text-white' : 'border border-brand-purple/40 text-brand-purple hover:bg-brand-purple-wash'
   }`;
 }
 
@@ -124,11 +122,12 @@ export function toggleChip(active: boolean): string {
  *  the FD-1i calculator strip); inactive = transparent underline, secondary
  *  text, inset on hover. Used by ToggleStrip when a mode carries an icon. */
 export function iconTab(active: boolean): string {
-  // PR-STRIP-DESIGN-3: the active underline lifts to the pop accent.
+  // REPAINT-3: the landing's iconTabLight (REPAINT-2 donor) promoted HOME —
+  // aubergine-active-on-cream; the pop underline + dark inks died.
   return `flex flex-col items-center gap-1 rounded-t px-3 py-2 font-mono text-[11px] font-medium border-b-2 transition-colors ${
     active
-      ? 'border-brand-purple-pop bg-white/5 text-white'
-      : 'border-transparent text-white/60 hover:bg-white/5 hover:text-white'
+      ? 'border-brand-purple bg-brand-purple-wash text-brand-purple'
+      : 'border-transparent text-text-muted hover:bg-brand-purple-wash/50 hover:text-text-primary'
   }`;
 }
 
@@ -146,10 +145,12 @@ export const CHECKBOX = 'h-3.5 w-3.5 accent-brand-purple';
  *  FlightPickerView itself still carries these classes inline — its
  *  adoption of this extraction is a later travel micro-PR. */
 export const SEGMENT = {
-  wrap: 'flex w-max items-center gap-1 rounded bg-white/10 p-0.5',
+  // REPAINT-3: the track inverts to the cream row inset; the active item
+  // keeps its lifted white pill + aubergine ink (correct on cream too).
+  wrap: 'flex w-max items-center gap-1 rounded bg-bg-row p-0.5',
   item(active: boolean): string {
     return `px-2 py-1 text-xs rounded transition-colors ${
-      active ? 'bg-white shadow text-brand-purple font-medium' : 'text-white/70'
+      active ? 'bg-white shadow text-brand-purple font-medium' : 'text-text-secondary'
     }`;
   },
 } as const;
@@ -166,8 +167,9 @@ export const CHIP_VARIANTS = {
   danger: 'bg-status-danger/15 text-status-danger',
   warning: 'bg-status-warning/15 text-status-warning',
   info: 'bg-status-info/15 text-status-info',
-  accent: 'bg-brand-purple-pop/25 text-white/90',
-  neutral: 'bg-white/10 text-white/70',
+  // REPAINT-3: the two non-status variants go light (status quartet untouched).
+  accent: 'bg-brand-purple-wash text-brand-purple',
+  neutral: 'bg-bg-row text-text-secondary',
 } as const;
 export type ChipVariant = keyof typeof CHIP_VARIANTS;
 export function chip(variant: ChipVariant = 'neutral'): string {
@@ -176,7 +178,7 @@ export function chip(variant: ChipVariant = 'neutral'): string {
 
 /** CI-PIPELINE-CLARITY: the explainer idiom — educational prose set off by a
  *  pop hairline instead of italics (the pipeline panel's teaching voice). */
-export const EXPLAINER = 'border-l-2 border-brand-purple-pop/40 pl-3 text-xs leading-relaxed text-white/70';
+export const EXPLAINER = 'border-l-2 border-brand-purple/40 pl-3 text-xs leading-relaxed text-text-secondary';
 
 /** TRADE-ACTIONS-STATES: the money-action idiom — ruling: gold SURVIVES as
  *  the color reserved for money-moving actions — Commit to Ledger; Books
@@ -189,8 +191,10 @@ export const MONEY_ACTION =
 /** TRADE-ACTIONS-STATES: the one state language — loading / empty / error
  *  across the trade lane (journal, account panel, TradeRecord, CI). */
 export const STATE = {
-  loading: 'flex items-center justify-center gap-2 py-8 font-mono text-xs text-white/50',
-  empty: 'py-8 text-center font-mono text-xs text-white/40',
+  // REPAINT-3: light ink tiers; errorCard is already a light wash on white —
+  // status-danger semantics kept verbatim.
+  loading: 'flex items-center justify-center gap-2 py-8 font-mono text-xs text-text-faint',
+  empty: 'py-8 text-center font-mono text-xs text-text-faint',
   errorCard: 'rounded-lg border border-status-danger/30 bg-status-danger/10 p-3 text-xs text-status-danger',
 } as const;
 
@@ -198,26 +202,29 @@ export const STATE = {
  *  divergent `bg-brand-purple/80` header strips the TRADE-UI-DS audit found
  *  on /trading (+ DataObservatory). Dark-native: inset fill + hairline +
  *  the DATA.columnHeader micro-label voice at bar scale. */
+// REPAINT-3: the section-header bar goes light — cream row fill, lavender
+// hairline, aubergine mono ink (Direction C structure ink; the muted-ink
+// option was passed over so headers carry the aubergine hierarchy).
 export const SECTION_HEADER =
-  'flex items-center justify-between border-b border-panel-border bg-white/5 px-4 py-2.5 font-mono text-xs font-semibold uppercase tracking-wider text-white/80';
+  'flex items-center justify-between border-b border-border bg-bg-row px-4 py-2.5 font-mono text-xs font-semibold uppercase tracking-wider text-brand-purple';
 
 /* ─── DATA DISPLAY ───────────────────────────────────────────────────────────
  * List-row rhythm + numerals + table headers. Origin: HotelResultsView /
  * ActivityResultsView (COMPACT-1 list rows) and the trip tables (FD-3-2).
  */
 export const DATA = {
-  /** A list container: hairline-divided rows in one bordered card. */
-  list: 'divide-y divide-panel-border rounded-lg border border-panel-border bg-panel-surface',
+  /** A list container: hairline-divided rows in one bordered card (REPAINT-3:
+   *  white card + lavender hairlines). */
+  list: 'divide-y divide-border rounded-lg border border-border bg-white',
   /** One dense list row. Origin: HotelResultsView row `flex items-center gap-3 p-2`. */
-  row: 'flex flex-wrap items-center gap-x-3 gap-y-2 p-2 transition-colors hover:bg-panel-hover',
+  row: 'flex flex-wrap items-center gap-x-3 gap-y-2 p-2 transition-colors hover:bg-bg-row',
   /** Right-aligned mono numerals for amounts (color from @/lib/money). Origin:
    *  the trip tables' amount cells (FD-3-2). */
   numeral: 'text-right font-mono',
-  /** Table column header = a micro-label. Origin: the trip tables' theads (FD-3-2). */
-  columnHeader: 'font-mono text-[10px] uppercase tracking-wider text-white/50',
-  /** The "our cost:" / coverage trace micro-line. Origin: Landing projectCostSummary
-   *  (FD-1o) `font-mono text-[10px] text-white/40`. */
-  traceLine: 'font-mono text-[10px] text-white/40',
+  /** Table column header = a micro-label (REPAINT-3: the faint light tier). */
+  columnHeader: 'font-mono text-[10px] uppercase tracking-wider text-text-faint',
+  /** The "our cost:" / coverage trace micro-line (REPAINT-3: faint). */
+  traceLine: 'font-mono text-[10px] text-text-faint',
 } as const;
 
 /* ─── LAYOUT ─────────────────────────────────────────────────────────────────
@@ -225,9 +232,9 @@ export const DATA = {
  * container, the deck scroll-snap rail, and the DECK-2 vertical stack.
  */
 export const LAYOUT = {
-  /** The section strip — one bordered inset panel. Origin: LandingBookingSection.tsx:65
-   *  `rounded-lg border border-white/20 bg-white/5 p-4`. */
-  strip: 'rounded-lg border border-white/20 bg-white/5 p-4',
+  /** The section strip — one bordered inset panel (REPAINT-3: cream inset +
+   *  lavender hairline; origin classes were the dark white/20-white/5 pair). */
+  strip: 'rounded-lg border border-border bg-bg-row p-4',
   /** A horizontal scroll-snap rail. Origin: the pillar-deck / summary-deck track. */
   snapRail:
     'flex snap-x snap-mandatory items-stretch gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
@@ -316,9 +323,7 @@ export function themed(classes: string, dark: boolean): string {
 /** The whole system under one import for terse call sites. */
 export const DS = {
   SURFACE,
-  HERO_BG,
   BAND_BG,
-  CARD_BG,
   SECTION_HEADER,
   CHIP_VARIANTS,
   chip,
