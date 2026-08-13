@@ -755,7 +755,7 @@ function useTripScanCtx() {
 function SectionCard({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-      <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">{title}</div>
+      <div className="bg-brand-purple text-white px-4 py-2.5 text-sm font-semibold">{title}</div>
       <div className="bg-white p-4">{children}</div>
     </div>
   );

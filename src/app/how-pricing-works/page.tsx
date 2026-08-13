@@ -135,7 +135,7 @@ export default function HowPricingWorksPage() {
 
             return (
               <div key={p.id} className="rounded-lg border border-border bg-white overflow-hidden">
-                <div className="bg-brand-purple/80 px-4 py-2.5 flex items-baseline justify-between gap-3">
+                <div className="bg-brand-purple px-4 py-2.5 flex items-baseline justify-between gap-3">
                   <span className="text-sm font-semibold text-white">{p.name}</span>
                   <span className="text-[11px] text-white/80">{p.what}</span>
                 </div>

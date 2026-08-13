@@ -26,7 +26,7 @@ const config: Config = {
           purple: 'rgb(var(--ts-purple) / <alpha-value>)',              // #3b2d6b
           'purple-deep': 'rgb(var(--ts-purple-deep) / <alpha-value>)',  // #2d1b4e
           'purple-hover': 'rgb(var(--ts-purple-light) / <alpha-value>)',// #4e3e85 (locked --ts-purple-light == old hover value)
-          'purple-pop': 'rgb(var(--ts-purple-pop) / <alpha-value>)',    // #5b21ff PR-STRIP-DESIGN-3/4b + POP-ELECTRIC/DEEPEN: the one pop accent (see globals.css)
+          'purple-pop': 'rgb(var(--ts-purple-pop) / <alpha-value>)',    // #3b2d6b (REPAINT-3: re-valued to the aubergine; retired hue — token dies in Slice 5)
           // REPAINT-1: 'purple-light' (#7b6baa) retired — LEGACY, 0 refs, its own comment called for this.
           'purple-wash': 'rgb(var(--ts-purple-wash) / <alpha-value>)',  // #eae7f2
           gold: 'rgb(var(--ts-gold) / <alpha-value>)',                  // #B8860B (REPAINT-1; was #7D6B2C)

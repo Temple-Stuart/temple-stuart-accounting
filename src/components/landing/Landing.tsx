@@ -81,10 +81,10 @@ import { Fragment, useState } from 'react';
 import { Briefcase, Check, Plane, BookOpen, TrendingUp, Settings } from 'lucide-react';
 // PR-DECK-4CAT: the category tabs reuse the ToggleStrip icon-tab idiom
 // (DS.iconTab — the trip.com tab form factor the booking strip wears).
-// REPAINT-2 (Direction C): CARD_BG + iconTab imports retired with the dark
-// landing — cards are flat white/cream + hairline now, and the category tabs
-// wear the aubergine-ink iconTab twin below (ds.iconTab stays dark-native for
-// the app until its own slice).
+// REPAINT-2 → REPAINT-3: cards are flat white/cream + hairline; the local
+// iconTabLight twin was PROMOTED into ds.iconTab (REPAINT-3 — one tab idiom
+// again), so the shared import returns.
+import { iconTab } from '@/lib/ds';
 import { TAB_PRICING } from '@/config/pricing-costs';
 import {
   ALLOCATION_ROWS, NO_COST_STRIP,
@@ -577,17 +577,8 @@ interface Props {
 // this file is a flat card + lavender hairline now (deck/services = bg-white,
 // summary slides = bg-ts-white card cream, wall tiles = solid aubergine).
 
-// The category tab — ds.iconTab's anatomy VERBATIM (ds.ts:126-130), ink
-// swapped to the aubergine-on-cream tiers (ds.ts stays dark-native this
-// slice; the app's tabs convert in their own slice). Active: aubergine
-// underline + wash fill + aubergine ink; inactive: muted ink, wash on hover.
-function iconTabLight(active: boolean): string {
-  return `flex flex-col items-center gap-1 rounded-t px-3 py-2 font-mono text-[11px] font-medium border-b-2 transition-colors ${
-    active
-      ? 'border-brand-purple bg-brand-purple-wash text-brand-purple'
-      : 'border-transparent text-text-muted hover:bg-brand-purple-wash/50 hover:text-text-primary'
-  }`;
-}
+// REPAINT-3: the local iconTabLight helper moved home to ds.iconTab
+// (byte-identical ink) — imported above.
 
 export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvailability, logoAvailability, onBuyModule }: Props) {
   const pricingByKey = new Map(TAB_PRICING.map((t) => [t.key, t]));
@@ -842,7 +833,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 type="button"
                 onClick={() => setCategoryKey(c.key)}
                 aria-pressed={categoryKey === c.key}
-                className={iconTabLight(categoryKey === c.key)}
+                className={iconTab(categoryKey === c.key)}
               >
                 <span aria-hidden="true" className={categoryKey === c.key ? 'text-brand-purple' : undefined}>
                   <c.icon className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />

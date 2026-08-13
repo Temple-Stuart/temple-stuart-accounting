@@ -163,7 +163,7 @@ export default function BudgetingPage({ category, emoji, apiPath }: BudgetingPag
 
         {/* Budget Section */}
         <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-          <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
+          <div className="bg-brand-purple text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-[9px] uppercase text-white/60 font-mono tracking-wider">{category.slice(0, 4).toUpperCase()}</span>
               <span>{emoji} {category}</span>

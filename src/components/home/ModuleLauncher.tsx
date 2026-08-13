@@ -8,7 +8,7 @@ import {
   Check, ClipboardCheck, Crosshair, FlaskConical,
   type LucideIcon,
 } from 'lucide-react';
-import { BAND_BG, CARD_BG, SECTION_HEADER, STATE } from '@/lib/ds';
+import { BAND_BG, SECTION_HEADER, STATE } from '@/lib/ds';
 import CreateTripForm from '@/components/trips/CreateTripForm';
 import TripBookings from '@/components/trips/TripBookings';
 import UnattachedBookings from '@/components/trips/UnattachedBookings';
@@ -230,12 +230,11 @@ const MODULE_BANDS = {
 // band+card anatomy (ToggleStrip.tsx:169/:178/:85). space-y-6 lives INSIDE the
 // card (a space-y PARENT would out-specificity the -mt pull and kill the
 // overlap); each band+card pair rides in one plain <div> for the same reason.
-// APP-GLOW (standing law): flat black panels are the anti-pattern — the
-// shell card wears the home-page wash. bg-panel dropped; every mount pairs
-// this className with MODULE_SHELL_STYLE.
+// APP-GLOW → REPAINT-3: the glow standing-law inverted under Direction C —
+// the shell card is FLAT card-cream + lavender hairline (MODULE_SHELL_STYLE
+// died with ds.CARD_BG).
 const MODULE_SHELL_CARD =
-  'relative -mt-6 sm:-mt-8 rounded-xl border border-panel-border p-4 sm:p-5 space-y-6';
-const MODULE_SHELL_STYLE = { background: CARD_BG } as const;
+  'relative -mt-6 sm:-mt-8 rounded-xl border border-border bg-ts-white p-4 sm:p-5 space-y-6';
 
 // Which tab each module section belongs to — 1:1, every module its own tab (the
 // calendar is its own 'calendar' tab, rendered separately).
@@ -646,8 +645,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       // (Styling aligns to the homepage tab contract in PR-Projects-style — terminal for now.)
       if (authed === true) {
         return (
-          <OperationsEntityProvider surface="dark">
-            <SectionD_ProjectBacklog surface="dark" />
+          <OperationsEntityProvider>
+            <SectionD_ProjectBacklog />
           </OperationsEntityProvider>
         );
       }
@@ -666,8 +665,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       // Auth resolving → nothing. (Styling aligns in PR-Content-style — terminal for now.)
       if (authed === true) {
         return (
-          <OperationsEntityProvider surface="dark">
-            <ContentPipeline surface="dark" />
+          <OperationsEntityProvider>
+            <ContentPipeline />
           </OperationsEntityProvider>
         );
       }
@@ -685,8 +684,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       // /modules/routines (MOD-2). Auth resolving → nothing. (Authed styling reads workbench/terminal for now, intentionally.)
       if (authed === true) {
         return (
-          <OperationsEntityProvider surface="dark">
-            <SectionE_Routines surface="dark" />
+          <OperationsEntityProvider>
+            <SectionE_Routines />
           </OperationsEntityProvider>
         );
       }
@@ -769,7 +768,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
             {/* MODULE-BANDS: the deck's own words open the tab. */}
             <div className="px-4 py-4">
               <ModuleBand {...MODULE_BANDS.runway} />
-              <div className={MODULE_SHELL_CARD} style={MODULE_SHELL_STYLE}>
+              <div className={MODULE_SHELL_CARD}>
             {/* RUNWAY-UX-1 (order ruling, audit-decided shape b): hero → budget
                 tables → calendar. The zero-date HERO STRIP is the tab's
                 headline — it renders at the top of RunwayBudgetPanel (the
@@ -801,7 +800,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
             <div className="px-4 py-4 space-y-6">
               <div>
                 <ModuleBand {...MODULE_BANDS.runway} />
-                <div className={MODULE_SHELL_CARD} style={MODULE_SHELL_STYLE}>
+                <div className={MODULE_SHELL_CARD}>
                   {/* MOD-2: the Runway deck lives at /modules/runway — the guest tab
                       points there instead of mounting it. */}
                   <ModulePointerCard pillarId="runway" />
@@ -900,7 +899,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 header. The destination bar is RETIRED this PR: every panel owns
                 its city/country inputs (PublicTransferSearch:48-49 etc.), so the
                 bar was a second trigger, not the only one. */}
-            <div className="rounded-lg border border-panel-border" style={MODULE_SHELL_STYLE}>
+            <div className="rounded-lg border border-border bg-ts-white">
               <div className={`${SECTION_HEADER} rounded-t-lg`}>YOUR TRIPS</div>
               <div className="p-4">{renderBody(travelModule)}</div>
             </div>
@@ -918,7 +917,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           <div className="px-4 py-4 lg:px-8 space-y-6">
             <div>
               <ModuleBand {...MODULE_BANDS.routines} />
-              <div className={MODULE_SHELL_CARD} style={MODULE_SHELL_STYLE}>{renderBody(routinesModule)}</div>
+              <div className={MODULE_SHELL_CARD}>{renderBody(routinesModule)}</div>
             </div>
           </div>
         </div>
@@ -931,7 +930,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           <div className="px-4 py-4 lg:px-8 space-y-6">
             <div>
               <ModuleBand {...MODULE_BANDS.projects} />
-              <div className={MODULE_SHELL_CARD} style={MODULE_SHELL_STYLE}>{renderBody(projectsModule)}</div>
+              <div className={MODULE_SHELL_CARD}>{renderBody(projectsModule)}</div>
             </div>
           </div>
         </div>
@@ -944,7 +943,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           <div className="px-4 py-4 lg:px-8 space-y-6">
             <div>
               <ModuleBand {...MODULE_BANDS.content} />
-              <div className={MODULE_SHELL_CARD} style={MODULE_SHELL_STYLE}>{renderBody(contentModule)}</div>
+              <div className={MODULE_SHELL_CARD}>{renderBody(contentModule)}</div>
             </div>
           </div>
         </div>
@@ -960,9 +959,9 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           scan API is tab:trade-gated too (TAB-SERVER-GATE flipped it off requireAdmin,
           api/trading/convergence/route.ts) — an entitled non-admin's scan runs, with the
           per-user run quota from SCAN-SPEND-QUOTA on top. */}
-      {/* TRADE-DS-1: the Trade tab joins the dark shell — DS wrapper; the shared
-          workbench components get surface="dark" (their /trading mounts pass
-          nothing → light, byte-identical via themed()). */}
+      {/* TRADE-DS-1 → REPAINT-3: the dark surface passes died — the shared
+          workbench components render their light defaults everywhere
+          (themed()'s byte-identical light originals). */}
       <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'trade' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
@@ -1000,7 +999,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                           onFiltersChange={handleFiltersChange}
                           scanTriggerRef={scanTriggerRef}
                           showHeader={false}
-                          surface="dark"
                         />
                         <ConvergenceIntelligence
                           externalFilters={scannerFilters}
@@ -1010,7 +1008,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                           hideControls={true}
                           scanTriggerRef={scanTriggerRef}
                           scanningRef={scanningRef}
-                          surface="dark"
                         />
                       </div>
                     ) },
@@ -1021,7 +1018,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                       <div className="mt-3">
                         {/* TRADE-1: closes the loop — queue viewer + link-to-reality + grade. Self-fetches
                             /api/trade-cards + /api/trade-card-links (0 required props, TradeLabPanel.tsx:50). */}
-                        <TradeLabPanel surface="dark" />
+                        <TradeLabPanel />
                       </div>
                     ) },
                     { key: 'record', label: 'Record',
@@ -1038,13 +1035,13 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 {/* LANG-1 + RISK-1 (TRADE-BAND relocation): the persistent
                     disclaimer + coverage declaration, now directly below the
                     strip — same copy, quiet idiom. */}
-                <TradingDataDisclaimer surface="dark" />
+                <TradingDataDisclaimer />
                 <CoverageDeclaration />
               </>
             ) : (
               <div>
                 <ModuleBand {...MODULE_BANDS.trade} />
-                <div className={MODULE_SHELL_CARD} style={MODULE_SHELL_STYLE}>
+                <div className={MODULE_SHELL_CARD}>
                 {/* MOD-2: pointer-card to /modules/trade + the surviving purchase
                     path. label/valueLine are VERBATIM lockstep copies of
                     TabShowcases' TradeShowcase cta (extraction = MOD-3). */}
@@ -1055,7 +1052,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                   valueLine="Run live scans on real market data, with the reconcile queue and the self-graded record."
                   currentUserId={currentUserId}
                   onRequireAuth={onRequireAuth}
-                  surface="dark"
                 />
                 </div>
               </div>
@@ -1069,16 +1065,15 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           tab key). TAB-SHOW-AND-GATE: gate is the tab:books entitlement (isTabLocked —
           admin bypass inside); locked viewers get the pointer-card + unlock CTA (MOD-2).
           STRUCTURE + cockpit + drop-ins only; the parent-fed engines are BOOKS-2. */}
-      {/* BOOKS-DS-1: the Books tab joins the dark shell — DS surfaces on the
-          wrapper + loading card; the cockpit, pipeline, and locked card get
-          surface="dark" (their non-Books consumers pass nothing → light,
-          byte-identical via themed()). */}
+      {/* BOOKS-DS-1 → REPAINT-3: the dark surface passes died — the cockpit,
+          pipeline, and locked card render their light defaults (themed()'s
+          byte-identical light originals). */}
       <section className={`w-full bg-panel border-b border-panel-border ${activeModule === 'books' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
             <div>
               <ModuleBand {...MODULE_BANDS.books} />
-              <div className={MODULE_SHELL_CARD} style={MODULE_SHELL_STYLE}>
+              <div className={MODULE_SHELL_CARD}>
             {!booksLocked ? (
               <>
                 {/* Plaid Link script — loaded only for a viewer who sees this surface (locked
@@ -1115,7 +1110,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                     onSync={booksSyncAccounts}
                     syncing={booksSyncing}
                     onLinkAccount={booksLinkAccount}
-                    surface="dark"
                   />
                 )}
                 {/* BOOKS-2: the full pipe below the cockpit — import → categorize/COA →
@@ -1137,7 +1131,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                   valueLine="Your real accounts, synced and closed month after month — GAAP double-entry, not a spreadsheet."
                   currentUserId={currentUserId}
                   onRequireAuth={onRequireAuth}
-                  surface="dark"
                 />
               </>
             )}
@@ -1157,7 +1150,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           <div className="px-4 py-4 space-y-6">
             <div>
               <ModuleBand {...MODULE_BANDS.tax} />
-              <div className={MODULE_SHELL_CARD} style={MODULE_SHELL_STYLE}>
+              <div className={MODULE_SHELL_CARD}>
             {!taxLocked ? (
               <TaxHandoffGate onGoToBooks={() => selectTab('books')} />
             ) : (
@@ -1172,7 +1165,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                   valueLine="Your 1040 estimate and schedules, derived from your actual closed books — plus the CPA-ready export."
                   currentUserId={currentUserId}
                   onRequireAuth={onRequireAuth}
-                  surface="dark"
                 />
               </>
             )}
@@ -1193,7 +1185,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           <div className="px-4 py-4 space-y-6">
             <div>
               <ModuleBand {...MODULE_BANDS.compliance} />
-              <div className={MODULE_SHELL_CARD} style={MODULE_SHELL_STYLE}>
+              <div className={MODULE_SHELL_CARD}>
             {!complianceLocked ? (
               <ComplianceWorkbench />
             ) : (
@@ -1208,7 +1200,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                   valueLine="The live workbench: corpus search, citation verification, missions, and the audit registry."
                   currentUserId={currentUserId}
                   onRequireAuth={onRequireAuth}
-                  surface="dark"
                 />
               </>
             )}
@@ -1241,7 +1232,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         <section key={m.key} className={`w-full py-10 ${i % 2 === 1 ? 'bg-bg-row' : 'bg-white'} border-b border-border ${activeModule === (MODULE_TO_TAB[m.key] ?? m.key) ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto px-4 lg:px-8 space-y-6">
             <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-              <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
+              <div className="bg-brand-purple text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
                 <span>{m.label}</span>
                 <span className="text-[10px] uppercase tracking-wider font-normal text-white/80">
                   {/* HB-4e-mount + Projects-mount: an authed user on Routines OR Projects sees the

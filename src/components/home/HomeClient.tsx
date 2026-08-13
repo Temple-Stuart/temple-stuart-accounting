@@ -8,7 +8,8 @@ import LoginBox from '@/components/LoginBox';
 import ModuleLauncher, { TAB_DESCRIPTORS } from '@/components/home/ModuleLauncher';
 import { ChevronDown } from 'lucide-react';
 // DS-2: the app hero uses the SAME radial-glow surface as the landing hero.
-import { HERO_BG } from '@/lib/ds';
+// REPAINT-3: the HERO_BG import died — the hero is a solid aubergine band
+// (HOME-HERO-PARITY holds: the landing hero made the same move in REPAINT-2).
 import CheckoutResultBanner from '@/components/CheckoutResultBanner';
 import { useExportDownload } from '@/lib/useExportDownload';
 
@@ -121,11 +122,11 @@ export default function HomeClient() {
   };
 
   return (
-    // FD-3 (installment 1): the app page background joins the panel family
-    // (bg-bg-terminal → bg-panel), so the shell reads dark like the lobby. Each
-    // tab body sets its OWN surface (bg-white for the still-light tabs, bg-panel
-    // for travel), so nothing naked inherits this and inverts.
-    <div className="min-h-screen bg-page">
+    // FD-3 → REPAINT-3: the shell canvas returns to the cream paper (Direction
+    // C) — bg-page died with the dark chrome. Each tab body still sets its OWN
+    // surface; the remaining dark tab interiors are the declared Slice-4
+    // islands.
+    <div className="min-h-screen bg-bg-terminal">
       {/* UNLOCK-BANNER: authed landing — the same checkout result card the
           guest landing mounts (the purchase resume returns to '/'). */}
       <CheckoutResultBanner />
@@ -215,27 +216,26 @@ export default function HomeClient() {
         </div>
       </header>
 
-      {/* Hero — DS-2: the app hero uses the SAME HERO_BG purple radial gradient
-          the landing hero uses (src/lib/ds.ts, applied the same way:
-          style={{ background: HERO_BG }}), so the two surfaces are identical
-          (Alex's ruling). HOME-HERO-PARITY: the headline treatment now
-          matches the landing hero too — badge pill + 60px bold + gradient
-          'Live smarter.' (Landing.tsx HERO-PRESENCE block); the FD-3-1
-          text-2xl/3xl compaction died. Section padding (pb-8 pt-6) and the
-          panel-border hairline seating it against the tab bar stay. */}
-      <section className="text-white border-b border-panel-border pb-8 pt-6" style={{ background: HERO_BG }}>
+      {/* Hero — DS-2 → REPAINT-3: the app hero mirrors the landing hero's
+          Direction-C move (HOME-HERO-PARITY, Alex's ruling — the two surfaces
+          stay identical): SOLID bg-brand-purple band, cream headline
+          (text-ts-white), the 'Live smarter.' segment in the lavender wash
+          (the gradient clip died). Section padding (pb-8 pt-6) stays; the
+          panel-border hairline died with the glow (the landing hero carries
+          none). */}
+      <section className="bg-brand-purple text-white pb-8 pt-6">
         <div className="max-w-7xl mx-auto px-4 lg:px-8">
           <div className="max-w-3xl">
             {/* HOME-HERO-PARITY: the landing's badge pill, byte-exact
                 (reused copy — Landing.tsx:644-647). */}
             <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/80 mb-6">
-              <span className="text-brand-purple-pop" aria-hidden="true">✦</span>
+              <span className="text-brand-purple-wash" aria-hidden="true">✦</span>
               All-in-one financial operating system
             </div>
-            <h1 className="text-4xl sm:text-6xl font-bold leading-tight tracking-tight mb-6">
+            <h1 className="text-4xl sm:text-6xl font-bold leading-tight tracking-tight mb-6 text-ts-white">
               Track your money.<br />
               Plan your time.<br />
-              <span className="ts-cta-gradient bg-clip-text text-transparent">Live smarter.</span>
+              <span className="text-brand-purple-wash">Live smarter.</span>
             </h1>
             {/* PR-Hero-PerTab: the subhead swaps to the active tab's descriptor. min-h
                 reserves space so the Get Started button never jumps as the line changes

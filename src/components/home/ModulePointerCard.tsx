@@ -1,7 +1,5 @@
 'use client';
 
-import { CARD_BG } from '@/lib/ds';
-
 // MOD-2: the pointer-card — marketing slides live in exactly ONE home
 // (/modules/<pillar>), so the app's guest/locked tab bodies point there
 // instead of mounting full decks (Alex's ruling; ModuleLauncher sheds its
@@ -23,16 +21,19 @@ export default function ModulePointerCard({ pillarId }: { pillarId: string }) {
     throw new Error(`ModulePointerCard: unknown pillar id "${pillarId}"`);
   }
   return (
-    <div className="rounded-lg border border-panel-border p-5" style={{ background: CARD_BG }}>
-      <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
+    // REPAINT-3: the glow died — flat card-cream + lavender hairline; the
+    // pillar label is the card's heading, so it carries the aubergine
+    // structure ink.
+    <div className="rounded-lg border border-border bg-ts-white p-5">
+      <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-brand-purple">
         {pillar.label}
       </p>
-      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/70">
+      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-secondary">
         {TAB_DESCRIPTORS[pillar.tab]}
       </p>
       <Link
         href={`/modules/${pillar.id}`}
-        className="mt-4 inline-block font-mono text-xs font-medium text-white hover:text-white/70"
+        className="mt-4 inline-block font-mono text-xs font-medium text-brand-purple hover:text-brand-purple-hover"
       >
         See how {pillar.label} works →
       </Link>

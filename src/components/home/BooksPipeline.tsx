@@ -213,7 +213,7 @@ export default function BooksPipeline() {
           panel: (
           <div className="mt-3 space-y-3">
       {/* 1. SRC — Source Accounts (dashboard :502). Linking/sync live in the cockpit above. */}
-      <BookkeepingSection surface="dark" title="Source Accounts" pipelineKey="SRC"
+      <BookkeepingSection title="Source Accounts" pipelineKey="SRC"
         subtitle={`${accounts.length} connected`}
         status={accounts.length > 0 ? 'complete' : 'pending'}
         collapsible defaultCollapsed={false}>
@@ -278,7 +278,7 @@ export default function BooksPipeline() {
           panel: (
           <div className="mt-3 space-y-3">
       {/* 2. CAT — Categorize (dashboard :568): the COA-assignment queue. */}
-      <BookkeepingSection surface="dark" title="Categorize Transactions" pipelineKey="CAT"
+      <BookkeepingSection title="Categorize Transactions" pipelineKey="CAT"
         subtitle={`${uncommittedSpending.length + uncommittedInvestments.length} pending`}
         status={uncommittedSpending.length + uncommittedInvestments.length > 0 ? 'action-needed' : 'complete'}>
         <div>
@@ -299,27 +299,27 @@ export default function BooksPipeline() {
             </div>
           </div>
           <div className="p-4">
-            {mappingTab === 'spending' && <SpendingTab surface="dark" transactions={uncommittedSpending} committedTransactions={committedSpending} coaOptions={coaOptions} onReload={reloadAll} />}
-            {mappingTab === 'investments' && <InvestmentsTab surface="dark" investmentTransactions={uncommittedInvestments} committedInvestments={committedInvestments} onReload={reloadAll} />}
+            {mappingTab === 'spending' && <SpendingTab transactions={uncommittedSpending} committedTransactions={committedSpending} coaOptions={coaOptions} onReload={reloadAll} />}
+            {mappingTab === 'investments' && <InvestmentsTab investmentTransactions={uncommittedInvestments} committedInvestments={committedInvestments} onReload={reloadAll} />}
           </div>
         </div>
       </BookkeepingSection>
 
       {/* 3. JE — Journal Entries (dashboard :596). */}
-      <BookkeepingSection surface="dark" title="Journal Entries" pipelineKey="JE"
+      <BookkeepingSection title="Journal Entries" pipelineKey="JE"
         subtitle={`${journalEntries.length} entries`}
         status={journalEntries.length > 0 ? 'complete' : 'pending'}>
         <div className="p-4">
-          <JournalEntryEngine surface="dark" journalTransactions={journalEntries} coaOptions={coaOptions} onSave={saveJournalEntry} onReload={reloadAll} />
+          <JournalEntryEngine journalTransactions={journalEntries} coaOptions={coaOptions} onSave={saveJournalEntry} onReload={reloadAll} />
         </div>
       </BookkeepingSection>
 
       {/* 4. LDG — General Ledger (dashboard :605). */}
-      <BookkeepingSection surface="dark" title="General Ledger" pipelineKey="LDG"
+      <BookkeepingSection title="General Ledger" pipelineKey="LDG"
         subtitle={`${committedCount * 2} entries`}
         status={committedCount > 0 ? 'complete' : 'pending'}>
         <div className="p-4">
-          <GeneralLedger surface="dark" coaOptions={coaOptions} onReload={reloadAll} />
+          <GeneralLedger coaOptions={coaOptions} onReload={reloadAll} />
         </div>
       </BookkeepingSection>
           </div>
@@ -329,9 +329,9 @@ export default function BooksPipeline() {
           panel: (
           <div className="mt-3 space-y-3">
       {/* 6. REC — Bank Reconciliation (dashboard :620). */}
-      <BookkeepingSection surface="dark" title="Bank Reconciliation" pipelineKey="REC" status="pending">
+      <BookkeepingSection title="Bank Reconciliation" pipelineKey="REC" status="pending">
         <div className="p-2">
-          <BankReconciliation surface="dark"
+          <BankReconciliation
             accounts={accounts}
             transactions={transactions}
             reconciliations={reconciliations}
@@ -355,14 +355,14 @@ export default function BooksPipeline() {
           panel: (
           <div className="mt-3 space-y-3">
       {/* 7. ADJ — Adjusting Entries (dashboard :644, self-fetching). */}
-      <BookkeepingSection surface="dark" title="Adjusting Entries" pipelineKey="ADJ" status="pending">
-        <AdjustingEntriesTab surface="dark" />
+      <BookkeepingSection title="Adjusting Entries" pipelineKey="ADJ" status="pending">
+        <AdjustingEntriesTab />
       </BookkeepingSection>
 
       {/* 10. CLOSE — Period Close (dashboard :663). */}
-      <BookkeepingSection surface="dark" title="Period Close" pipelineKey="CLOSE" status="pending">
+      <BookkeepingSection title="Period Close" pipelineKey="CLOSE" status="pending">
         <div className="p-2">
-          <PeriodClose surface="dark"
+          <PeriodClose
             transactions={transactions}
             reconciliations={reconciliations}
             periodCloses={periodCloses}
@@ -397,9 +397,9 @@ export default function BooksPipeline() {
       </BookkeepingSection>
 
       {/* 11. CLOSE-YE — Year-End Close (dashboard :703). */}
-      <BookkeepingSection surface="dark" title="Year-End Close" pipelineKey="CLOSE-YE" status="pending">
+      <BookkeepingSection title="Year-End Close" pipelineKey="CLOSE-YE" status="pending">
         <div className="p-2">
-          <CloseBooksTab surface="dark" entityId={entityId} selectedYear={year} />
+          <CloseBooksTab entityId={entityId} selectedYear={year} />
         </div>
       </BookkeepingSection>
           </div>
@@ -409,23 +409,23 @@ export default function BooksPipeline() {
           panel: (
           <div className="mt-3 space-y-3">
       {/* 5. TB — Trial Balance (dashboard :614, self-fetching). */}
-      <BookkeepingSection surface="dark" title="Trial Balance" pipelineKey="TB" status="pending">
-        <TrialBalanceSection surface="dark" />
+      <BookkeepingSection title="Trial Balance" pipelineKey="TB" status="pending">
+        <TrialBalanceSection />
       </BookkeepingSection>
 
       {/* 8. STMT — Financial Statements (dashboard :650, self-fetching). */}
-      <BookkeepingSection surface="dark" title="Financial Statements" pipelineKey="STMT" status="pending">
-        <FinancialStatementsTab surface="dark" />
+      <BookkeepingSection title="Financial Statements" pipelineKey="STMT" status="pending">
+        <FinancialStatementsTab />
       </BookkeepingSection>
 
       {/* 9. TAX-LOT — Tax Lot Accounting & Wash Sales (dashboard :657, self-fetching). */}
-      <BookkeepingSection surface="dark" title="Tax Lot Accounting & Wash Sales" pipelineKey="TAX-LOT" status="pending">
-        <WashSaleReportTab surface="dark" />
+      <BookkeepingSection title="Tax Lot Accounting & Wash Sales" pipelineKey="TAX-LOT" status="pending">
+        <WashSaleReportTab />
       </BookkeepingSection>
 
       {/* 12. POS — Position Report (dashboard :714, self-fetching). */}
-      <BookkeepingSection surface="dark" title="Position Report" pipelineKey="POS" status="pending">
-        <PositionReportTab surface="dark" />
+      <BookkeepingSection title="Position Report" pipelineKey="POS" status="pending">
+        <PositionReportTab />
       </BookkeepingSection>
           </div>
         ) },
@@ -435,9 +435,9 @@ export default function BooksPipeline() {
           <div className="mt-3 space-y-3">
       {/* 13. EXP — CPA Export (dashboard :745). The dashboard's Tax-forms link (:720) is
           intentionally omitted — Tax is its own homepage tab, not part of this pipe. */}
-      <BookkeepingSection surface="dark" title="CPA Export" pipelineKey="EXP" status="pending">
+      <BookkeepingSection title="CPA Export" pipelineKey="EXP" status="pending">
         <div className="p-4">
-          <CPAExport surface="dark" year={year} entityId={entityId} />
+          <CPAExport year={year} entityId={entityId} />
           {/* EXPORT-1: the full-data export lives on the same management surface
               as the CPA statement exports — the anti-lock-in guarantee. The
               route (/api/export) is NEVER paywalled: verified email + user

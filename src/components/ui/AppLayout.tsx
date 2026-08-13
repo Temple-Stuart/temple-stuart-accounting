@@ -180,7 +180,7 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Travel Search Bar (only on Travel routes) */}
         {showTravelSearch && (
-          <div className="bg-brand-purple/80 border-t border-white/[.06]">
+          <div className="bg-brand-purple border-t border-white/[.06]">
             <div className="max-w-[1800px] mx-auto px-6 py-4">
               <Suspense><TripCreationBar /></Suspense>
             </div>
@@ -189,7 +189,7 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
 
         {/* ROW 3 — Bookkeeping Cockpit Bar (same pattern as Travel) */}
         {bookkeepingBar && (
-          <div className="bg-brand-purple/80 border-t border-white/[.06]">
+          <div className="bg-brand-purple border-t border-white/[.06]">
             <div className="max-w-[1600px] mx-auto px-4 lg:px-6 py-4">
               {bookkeepingBar}
             </div>

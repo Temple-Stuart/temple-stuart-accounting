@@ -119,7 +119,7 @@ export default function TripsPage() {
               purple band + bg-gray-50/text-gray-500 header), matching the
               detail-page Committed Budget/Crew tables. */}
           <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm mb-4">
-            <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">
+            <div className="bg-brand-purple text-white px-4 py-2.5 text-sm font-semibold">
               All Trips
             </div>
 

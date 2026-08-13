@@ -24,7 +24,7 @@ export default function ModulesError({
   }, [error]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-page text-white">
+    <div className="flex min-h-screen items-center justify-center bg-bg-terminal text-text-primary">
       <div className="max-w-md px-4 text-center">
         <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
           Modules

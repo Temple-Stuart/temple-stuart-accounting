@@ -43,7 +43,7 @@ export default function ComplianceWorkbench() {
   const dk = true;
   return (
     <div className="space-y-4">
-      <SectionA_IdentityBar surface="dark" />
+      <SectionA_IdentityBar />
 
       {/* Sub-page link row — replaces OpsSubNav's role, homepage-styled. Each link opens
           the existing sub-page route (which keeps its own AppLayout chrome). */}
@@ -82,35 +82,35 @@ export default function ComplianceWorkbench() {
         modes={([
           { key: 'verify', label: 'Verify', panel: (
             <div className="mt-3 space-y-4">
-              <SectionG_CitationVerification surface="dark" />
-              <SectionI_AuditTail surface="dark" />
+              <SectionG_CitationVerification />
+              <SectionI_AuditTail />
             </div>
           ) },
           { key: 'profile', label: 'Profile', panel: (
             <div className="mt-3">
-              <SectionB_FounderProfile surface="dark" />
+              <SectionB_FounderProfile />
             </div>
           ) },
           { key: 'corpus', label: 'Corpus', panel: (
             <div className="mt-3 space-y-4">
-              <SectionC_CorpusContext surface="dark" />
-              <SectionH_CorpusInspector surface="dark" />
+              <SectionC_CorpusContext />
+              <SectionH_CorpusInspector />
             </div>
           ) },
           { key: 'discovery', label: 'Discovery', panel: (
             <div className="mt-3 space-y-4">
-              <SectionD_DiscoveryLauncher surface="dark" />
-              <SectionE_LiveStream surface="dark" />
+              <SectionD_DiscoveryLauncher />
+              <SectionE_LiveStream />
             </div>
           ) },
           { key: 'missions', label: 'Missions', panel: (
             <div className="mt-3">
-              <SectionF_Roadmap surface="dark" />
+              <SectionF_Roadmap />
             </div>
           ) },
           { key: 'cost', label: 'Cost', panel: (
             <div className="mt-3">
-              <SectionJ_CostLedger surface="dark" />
+              <SectionJ_CostLedger />
             </div>
           ) },
         ] as ToggleMode[])}
