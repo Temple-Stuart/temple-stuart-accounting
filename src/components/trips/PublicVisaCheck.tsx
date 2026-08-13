@@ -112,7 +112,7 @@ export default function PublicVisaCheck() {
       // this identity — the in-card header hides (title stays, sr-only).
       hideHeader
     >
-      <form onSubmit={check} className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+      <form onSubmit={check} className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
         <label className="flex flex-col gap-1">
           <span className={TRAVEL_LABEL_CLASS}>Passport</span>
           <select value={passport} onChange={(e) => setPassport(e.target.value)} className={TRAVEL_INPUT_CLASS} aria-label="Passport country">
@@ -132,7 +132,7 @@ export default function PublicVisaCheck() {
           </select>
         </label>
 
-        <div className="col-span-2 flex items-end lg:col-span-1">
+        <div className="col-span-full flex items-end sm:col-span-2 lg:col-span-1">
           <button
             type="submit"
             // SEARCH-ALWAYS-ON: full-strength at rest — loading (which

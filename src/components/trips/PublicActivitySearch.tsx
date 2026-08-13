@@ -107,7 +107,7 @@ export default function PublicActivitySearch({ onRequireAuth, sharedCity, shared
       // this identity — the in-card header hides (title stays, sr-only).
       hideHeader
     >
-      <form onSubmit={search} className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+      <form onSubmit={search} className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <label className="flex flex-col gap-1 lg:col-span-2">
           <span className={TRAVEL_LABEL_CLASS}>City</span>
           <TravelField icon={<MapPin className="h-4 w-4" strokeWidth={1.75} />}>
@@ -132,7 +132,7 @@ export default function PublicActivitySearch({ onRequireAuth, sharedCity, shared
             aria-label="Destination country"
           />
         </label>
-        <div className="col-span-2 flex items-end lg:col-span-1">
+        <div className="col-span-full flex items-end sm:col-span-2 lg:col-span-1">
           <button
             type="submit"
             disabled={loading}
