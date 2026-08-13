@@ -22,6 +22,9 @@ interface TrialBalanceTotals {
   totalCredits: number;
   imbalance: number;
   isBalanced: boolean;
+  // T1: the route has returned hasActivity since the fake-Balanced fix
+  // (api/trial-balance/route.ts totals) — typed here for the report-up.
+  hasActivity: boolean;
 }
 
 interface TrialBalanceData {
@@ -39,7 +42,13 @@ const fmtCents = (cents: number) => {
   return cents < 0 ? `(${formatted})` : formatted;
 };
 
-export default function TrialBalanceSection({ }: { } = {}) {
+export default function TrialBalanceSection({ onTotals }: {
+  /** BOOKS-PIPE-FRAME: optional report-up of the ALREADY-FETCHED totals (the
+   *  Trade reporting-callback precedent) — fired once when the fetch lands;
+   *  never fired on error/empty, so the consumer's null state stays honest.
+   *  Pass a stable reference (a setState) — it sits in the effect deps. */
+  onTotals?: (totals: TrialBalanceTotals) => void;
+} = {}) {
   const [data, setData] = useState<TrialBalanceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +60,7 @@ export default function TrialBalanceSection({ }: { } = {}) {
         if (!res.ok) throw new Error('Failed to load trial balance');
         const json = await res.json();
         setData(json);
+        if (onTotals && json?.totals) onTotals(json.totals);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load');
       } finally {
@@ -58,7 +68,7 @@ export default function TrialBalanceSection({ }: { } = {}) {
       }
     };
     load();
-  }, []);
+  }, [onTotals]);
 
   if (loading) {
     return (
