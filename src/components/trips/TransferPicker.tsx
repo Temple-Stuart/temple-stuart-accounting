@@ -162,7 +162,7 @@ export default function TransferPicker({
         
         {(selectedArrival || selectedDeparture) ? (
           <div className="text-right">
-            <div className="text-brand-green font-bold">${totalPrice.toFixed(0)}</div>
+            <div className="text-brand-gold font-bold">${totalPrice.toFixed(0)}</div>
             <div className="text-xs text-text-muted">
               {selectedArrival && selectedDeparture ? 'Round trip' : 'One way'}
             </div>
@@ -338,7 +338,7 @@ export default function TransferPicker({
                   )}
                 </div>
                 <div className="ml-4 text-right">
-                  <div className="text-sm font-bold text-brand-green">${transfer.price.toFixed(0)}</div>
+                  <div className="text-sm font-bold text-brand-gold">${transfer.price.toFixed(0)}</div>
                   <div className="text-xs text-text-muted">{transfer.currency}</div>
                   <div className="text-xs text-brand-purple">${(transfer.price / passengers).toFixed(0)}/person</div>
                 </div>

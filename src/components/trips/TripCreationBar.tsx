@@ -323,8 +323,8 @@ export default function TripCreationBar() {
             onClick={() => setTripType(tt.value)}
             className={`text-xs px-3 py-1 rounded-full border whitespace-nowrap transition-colors ${
               tripType === tt.value
-                ? 'bg-white/20 text-white border-white/60'
-                : 'border-white/30 text-white/70 hover:bg-white/10 hover:text-white'
+                ? 'bg-brand-purple-wash text-brand-purple border-brand-purple'
+                : 'border-border text-text-secondary hover:bg-bg-row hover:text-text-primary'
             }`}
           >
             {tt.label}

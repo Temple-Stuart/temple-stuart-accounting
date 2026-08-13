@@ -333,7 +333,7 @@ export default function ActivityExpenses({ tripId, activity, participantCount, o
                             <>
                               {exp.is_selected && onCommitOption ? (
                                 <button onClick={() => onCommitOption('activity', exp.id, exp.title || 'Activity')}
-                                  className="px-2 py-0.5 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700">Commit</button>
+                                  className="px-2 py-0.5 bg-brand-gold text-white text-xs rounded hover:bg-brand-gold/90">Commit</button>
                               ) : (
                                 <button
                                   onClick={() => handleAction(exp.id, exp.is_selected ? 'deselect' : 'select')}

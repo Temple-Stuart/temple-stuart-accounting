@@ -98,7 +98,7 @@ export default function CarPicker({
         
         {selectedCar ? (
           <div className="text-right">
-            <div className="text-brand-green font-bold">${selectedCar.price.toFixed(0)}</div>
+            <div className="text-brand-gold font-bold">${selectedCar.price.toFixed(0)}</div>
             <div className="text-xs text-text-muted">{selectedCar.name}</div>
           </div>
         ) : (

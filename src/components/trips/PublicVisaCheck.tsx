@@ -152,7 +152,7 @@ export default function PublicVisaCheck() {
       {/* SEARCH-ALWAYS-ON: pre-search guard errors need a surface — the
           in-family template (PublicHotelSearch.tsx:268-270) verbatim. */}
       {!searched && error && (
-        <div className="rounded-lg border border-panel-border bg-panel-surface p-4 text-sm text-brand-red">{error}</div>
+        <div className="rounded-lg border border-border bg-white p-4 text-sm text-brand-red">{error}</div>
       )}
       {searched && <VisaResultView result={result} loading={loading} error={error} />}
     </TravelSectionShell>

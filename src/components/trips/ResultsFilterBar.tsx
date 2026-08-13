@@ -59,7 +59,7 @@ export default function ResultsFilterBar({
         <select
           value={sort}
           onChange={(e) => onSortChange(e.target.value as SortKey)}
-          className="rounded border border-white/20 bg-white/10 px-2 py-1 font-sans text-xs font-normal normal-case tracking-normal text-white focus:outline-none focus:ring-2 focus:ring-white/40"
+          className="rounded border border-border bg-bg-row px-2 py-1 font-sans text-xs font-normal normal-case tracking-normal text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple"
         >
           {SORTS.map((s) => (
             <option key={s.key} value={s.key}>{s.label}</option>
@@ -77,8 +77,8 @@ export default function ResultsFilterBar({
             aria-pressed={minRating === r.value}
             className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
               minRating === r.value
-                ? 'border-white bg-white font-medium text-brand-purple'
-                : 'border-white/30 text-white/70 hover:bg-white/10'
+                ? 'border-brand-purple bg-brand-purple-wash font-medium text-brand-purple'
+                : 'border-border text-text-secondary hover:bg-bg-row'
             }`}
           >
             {r.label}
@@ -87,7 +87,7 @@ export default function ResultsFilterBar({
       </div>
 
       {(showingHint || capNote) && (
-        <span className="ml-auto text-xs text-white/40">
+        <span className="ml-auto text-xs text-text-faint">
           {showingHint ? `Showing ${shownCount} of ${totalCount}` : ''}
           {showingHint && capNote ? ' · ' : ''}
           {capNote ?? ''}

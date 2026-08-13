@@ -76,13 +76,17 @@ export default function ToggleStrip({ modes, header, defaultKey, className, band
   const activeMode = modes.find((m) => m.key === active);
 
   // PR-STRIP-DESIGN-2: with the band, the strip content becomes a FLOATING
-  // card — solid panel surface, the stronger white/20 hairline, shadow-lg
-  // (all existing vocabulary; shadow-lg per the GuestLanding toast/pill
-  // precedents). Without the band, exactly the original container.
+  // card (shadow-lg per the GuestLanding toast/pill precedents). Without the
+  // band, exactly the original container.
+  // REPAINT-4a — the APP-GLOW guard INVERTED: the card was dark to sit on
+  // the dark landing; both its mounts (LandingBookingSection + the app
+  // travel tab via ModuleLauncher) now sit on cream pages, so the floating
+  // card is white + lavender hairline. The band above stays aubergine
+  // (DS.BAND_BG, untouched).
   // PR-STRIP-DESIGN-3: band mode centers the tab row and moves `header`
   // onto the band (rendered above the headline, below).
   const card = (
-    <div className={band ? 'rounded-lg border border-white/20 bg-panel p-4 shadow-lg' : (className ?? DS.STRIP)}>
+    <div className={band ? 'rounded-lg border border-border bg-white p-4 shadow-lg' : (className ?? DS.STRIP)}>
       {!band && header}
       {/* PR-LABEL-WRAP: items-center → items-start so 1-line and 2-line tabs
           coexist off one shared icon top line (trip.com). */}
@@ -108,7 +112,7 @@ export default function ToggleStrip({ modes, header, defaultKey, className, band
                 SOON_BADGE). */}
             {m.icon ? (
               <>
-                <span aria-hidden="true" className={active === m.key ? 'text-brand-purple-pop' : undefined}>
+                <span aria-hidden="true" className={active === m.key ? 'text-brand-purple' : undefined}>
                   {m.icon}
                 </span>
                 <span className="w-min whitespace-normal text-center leading-tight">
@@ -132,7 +136,7 @@ export default function ToggleStrip({ modes, header, defaultKey, className, band
           PR-STRIP-DESIGN-2: with the band it PROMOTES onto the band beneath
           the headline (below) — not rendered in-card there. */}
       {!band && activeMode?.explainer && (
-        <p className="mt-2 font-mono text-[11px] leading-relaxed text-white/70">
+        <p className="mt-2 font-mono text-[11px] leading-relaxed text-text-secondary">
           {activeMode.explainer}
         </p>
       )}

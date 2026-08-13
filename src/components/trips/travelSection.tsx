@@ -9,9 +9,10 @@
  * stop duplicating them (consumption happens in PR-B; this PR only adds them).
  *
  * BOOK-1b: the shell + shared input/button moved to the compact Bloomberg
- * skin (the LandingSearchTeaser reference vocabulary — dark bg-white/10
- * fields, white/brand-purple buttons, panel hairlines). The app's travel tab
- * inherits this skin — ruled-desired as FD-3's first installment. Tokens
+ * skin. REPAINT-4a (Direction C): that dark skin died — the consts below are
+ * the CONTROL-family light vocabulary (white fields, lavender hairlines,
+ * aubergine focus ring, MONEY_ACTION gold on the search CTAs) at the same
+ * geometry. Every consumer inherits from these single definitions. Tokens
  * only; nothing new is invented.
  *
  * COMPACT-1: the shell adopts the teaser's FORM FACTOR — each section is one
@@ -30,21 +31,21 @@ import type { ReactNode } from 'react';
  *  consumer inherits — the strip forms, the unified bar, the checkout
  *  panels. */
 export const TRAVEL_INPUT_CLASS =
-  'bg-white/10 border border-white/20 rounded-lg px-3 py-3 text-sm text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/40';
+  'bg-white border border-border rounded-lg px-3 py-3 text-sm text-text-primary placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand-purple';
 
 /** The shared submit-button class. PR-STRIP-DESIGN-2: the big confident
- *  Search — px-8 py-3, white text. PALETTE-OVERHAUL (D): the fill is the one
- *  CTA gradient (.ts-cta-gradient, globals.css — pop → grad-mid → grad-end)
- *  with hover:brightness-110. Consumers are the strip-family CTAs only (the
- *  five search/check buttons, the category unlock, the unified "Search all")
- *  — the checkout panels don't import it. */
+ *  Search — px-8 py-3, white text. REPAINT-4a: the gradient died — search is
+ *  a MONEY-moment CTA (locked palette), so the fill is the MONEY_ACTION gold
+ *  with the /90 hover. Consumers are the strip-family CTAs only (the five
+ *  search/check buttons, the category unlock, the unified "Search all") —
+ *  the checkout panels don't import it. */
 export const TRAVEL_BUTTON_CLASS =
-  'rounded-lg ts-cta-gradient px-8 py-3 text-sm font-medium text-white transition-colors hover:brightness-110 disabled:opacity-50';
+  'rounded-lg bg-brand-gold px-8 py-3 text-sm font-medium text-white transition-colors hover:bg-brand-gold/90 disabled:opacity-50';
 
 /** The mono micro-label rendered ABOVE each search field — the deleted teaser's
  *  LABEL_CLASS verbatim (LandingSearchTeaser.tsx@840a053b). */
 export const TRAVEL_LABEL_CLASS =
-  'font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50';
+  'font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint';
 
 /** PR-STRIP-DESIGN-2: the icon-inside-field wrapper (the trip.com field
  *  anatomy) — a muted lucide icon pinned to the field's left edge. ADDITIVE:
@@ -54,7 +55,7 @@ export const TRAVEL_LABEL_CLASS =
 export function TravelField({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   return (
     <div className="relative">
-      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/40" aria-hidden="true">
+      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-faint" aria-hidden="true">
         {icon}
       </span>
       {children}
@@ -93,14 +94,14 @@ interface TravelSectionShellProps {
  */
 export default function TravelSectionShell({ title, explainer, badge, hideHeader, children }: TravelSectionShellProps) {
   return (
-    <div className="mt-4 rounded-lg border border-panel-border bg-panel-surface p-4 space-y-3">
+    <div className="mt-4 rounded-lg border border-border bg-white p-4 space-y-3">
       {hideHeader ? (
         <p className="sr-only">{title}</p>
       ) : (
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
           <p className={TRAVEL_LABEL_CLASS}>{title}</p>
           {badge}
-          <p className="text-[10px] text-white/40">{explainer}</p>
+          <p className="text-[10px] text-text-faint">{explainer}</p>
         </div>
       )}
       {children}

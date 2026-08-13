@@ -67,19 +67,19 @@ export default function TripFormModal({ title, subtitle, onClose, children }: Pr
     >
       <div
         ref={panelRef}
-        className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-panel-border bg-panel text-white shadow-2xl"
+        className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-border bg-white text-text-primary shadow-2xl"
       >
         {/* Header — single brand-purple band. */}
-        <div className="flex items-start justify-between border-b border-panel-border bg-panel-surface px-4 py-3 text-white">
+        <div className="flex items-start justify-between border-b border-border bg-white px-4 py-3 text-text-primary">
           <div className="min-w-0 flex-1 pr-3">
             <h3 className="text-sm font-semibold">{title}</h3>
-            {subtitle && <p className="mt-1 text-xs text-white/70">{subtitle}</p>}
+            {subtitle && <p className="mt-1 text-xs text-text-secondary">{subtitle}</p>}
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="-mr-1 -mt-1 shrink-0 p-1 text-white/70 transition-colors hover:text-white"
+            className="-mr-1 -mt-1 shrink-0 p-1 text-text-secondary transition-colors hover:text-text-primary"
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

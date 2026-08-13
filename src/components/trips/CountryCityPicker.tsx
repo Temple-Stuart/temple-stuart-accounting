@@ -28,8 +28,8 @@ interface Props {
 }
 
 const inputClass =
-  'bg-white/10 border border-white/20 rounded px-3 py-2 text-sm text-white placeholder-white/40 ' +
-  'focus:outline-none focus:ring-2 focus:ring-white/40';
+  'bg-bg-row border border-border rounded px-3 py-2 text-sm text-text-primary placeholder-text-faint ' +
+  'focus:outline-none focus:ring-2 focus:ring-brand-purple';
 
 export default function CountryCityPicker({ onChange }: Props) {
   const [countries, setCountries] = useState<Country[]>([]);
@@ -163,20 +163,20 @@ export default function CountryCityPicker({ onChange }: Props) {
             aria-label="Destination city"
           />
           {showDropdown && (
-            <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[260px] overflow-y-auto rounded-lg border border-panel-border bg-panel-surface shadow-lg">
+            <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[260px] overflow-y-auto rounded-lg border border-border bg-white shadow-lg">
               {matches.length > 0 ? (
                 matches.map((c) => (
                   <button
                     key={c}
                     type="button"
                     onClick={() => onPickCity(c)}
-                    className="block w-full px-3 py-2 text-left text-sm text-white hover:bg-white/10"
+                    className="block w-full px-3 py-2 text-left text-sm text-text-primary hover:bg-bg-row"
                   >
                     {c}
                   </button>
                 ))
               ) : (
-                <div className="px-3 py-2 text-sm text-white/50">No matching cities — try a different spelling.</div>
+                <div className="px-3 py-2 text-sm text-text-faint">No matching cities — try a different spelling.</div>
               )}
             </div>
           )}
