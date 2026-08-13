@@ -1035,17 +1035,28 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                   <div className="mt-4">{TRADE_TRUST_CHIPS}</div>
                 </div>
                 <div className={MODULE_SHELL_CARD}>
+                  {/* R2 sub-labels — each derived FROM its surface's real
+                      machinery (cites in the R2 PR report): SETUP = universe
+                      + filter groups (ScanFilterForm); SCAN = fires the
+                      convergence pipeline (scanTriggerRef → scanMarket,
+                      steps A–T); REVIEW = pick candidates / queue cards
+                      (results table + Queue Card — the mock's one truthful
+                      candidate); LAB = link to position + check grade
+                      (TradeLabPanel's real actions — the mock's "PAPER-TEST"
+                      is fiction, replaced); RECORD = the graded results
+                      (TradeRecord's W–L/P&L hero — the mock's "GRADE IT"
+                      happens in LAB, replaced). */}
                   <StageStrip
                     phases={([
-                      { key: 'setup', num: '01', label: 'SETUP',
+                      { key: 'setup', num: '01', label: 'SETUP', subLabel: 'UNIVERSE + FILTERS',
                         state: tradePhase === 'setup' ? 'active' : tradeFiltersTouched ? 'done' : 'pending' },
-                      { key: 'scan', num: '02', label: 'SCAN',
+                      { key: 'scan', num: '02', label: 'SCAN', subLabel: 'RUN THE PIPELINE',
                         state: tradePhase === 'scan' ? 'active' : tradeScanMeta ? 'done' : 'pending' },
-                      { key: 'review', num: '03', label: 'REVIEW',
+                      { key: 'review', num: '03', label: 'REVIEW', subLabel: 'PICK CANDIDATES',
                         state: tradePhase === 'review' ? 'active' : 'pending' },
-                      { key: 'lab', num: '04', label: 'LAB',
+                      { key: 'lab', num: '04', label: 'LAB', subLabel: 'LINK + GRADE',
                         state: tradePhase === 'lab' ? 'active' : (tradeRecordStats?.linkedCount ?? 0) > 0 ? 'done' : 'pending' },
-                      { key: 'record', num: '05', label: 'RECORD',
+                      { key: 'record', num: '05', label: 'RECORD', subLabel: 'GRADED RESULTS',
                         state: tradePhase === 'record' ? 'active' : (tradeRecordStats?.decidedCount ?? 0) > 0 ? 'done' : 'pending' },
                     ] as StagePhase[])}
                     onSelect={(k) => setTradePhase(k as typeof tradePhase)}
