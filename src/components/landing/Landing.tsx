@@ -463,6 +463,26 @@ const SUMMARY_BY_ID: Record<string, {
   },
 };
 
+// LANDING-04-CAPTIONS: the SECOND caption line under each section-04 frame —
+// what that module hands to the rest of the platform, in plain language (a
+// reader with a bank account and no accounting background follows every line).
+// Keyed by PILLAR_CARDS id, the section's own map key. The FIRST caption line
+// is deliberately NOT here: it is the card's existing `plain` string, rendered
+// straight from PILLAR_CARDS (the source moduleBands.ts copies byte-for-byte
+// per its own header — the two were verified identical for all nine this PR),
+// so no headline copy is duplicated or retyped anywhere.
+const FRAME_LINKS: Record<string, string> = {
+  travel: 'Every booking lands in your budget and on your calendar — automatically.',
+  runway: 'Reads what you planned and what you actually spent. The number moves as you live.',
+  books: 'Real transactions, real double-entry. Feeds Runway and Tax.',
+  trade: 'Every trade lands in your books.',
+  tax: 'Derived from your closed books — not typed.',
+  compliance: 'The audit trail writes itself.',
+  routines: 'Bills stop ambushing you.',
+  projects: 'With a price tag, on your calendar.',
+  content: 'Your calendar tells the story.',
+};
+
 // FD-1n: the footnote marks ACTUALLY referenced by the allocation rows
 // (amount footnotes + the ᵉ riding split percentages) — the merged registry
 // renders only these, derived, never hardcoded.
@@ -1130,6 +1150,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
           <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">
             The product, as it runs.
           </h2>
+          {/* LANDING-04-CAPTIONS: the one intro line — how the nine modules
+              link up, in plain language. Type idiom reused verbatim from the
+              Built-on wall's intro line (:1202 text-sm text-text-secondary). */}
+          <p className="mt-2 max-w-2xl text-sm text-text-secondary">
+            Everything you plan and everything you spend lands in one place — so it can tell you how long your money lasts.
+          </p>
 
           <div className="mt-4 grid gap-6 lg:grid-cols-2">
             {PILLAR_CARDS.map((p) => {
@@ -1160,6 +1186,20 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                       <img src={s.demoImage.src} alt={s.demoImage.alt} className="h-full w-full object-contain" />
                     </div>
                   )}
+                  {/* LANDING-04-CAPTIONS: two lines under the frame. Line 1 is
+                      the module's own plain line — READ FROM THE CARD, never
+                      retyped (PILLAR_CARDS is the source moduleBands.ts copies
+                      byte-for-byte, per its own header; the two are verified
+                      identical for all nine). Line 2 says how that module
+                      connects to the rest. Block geometry mirrors the caption
+                      BAR above (:1147 px-3.5 + a border hairline); the two-line
+                      type idiom is the 03 service card's, verbatim (:1082-1083
+                      text-sm font-medium / mt-1 text-xs text-text-muted). No
+                      fixed widths — both lines wrap at 390. */}
+                  <div className="border-t border-border px-3.5 py-3 text-text-primary">
+                    <div className="text-sm font-medium">{p.plain}</div>
+                    <p className="mt-1 text-xs text-text-muted">{FRAME_LINKS[p.id]}</p>
+                  </div>
                 </div>
               );
             })}
