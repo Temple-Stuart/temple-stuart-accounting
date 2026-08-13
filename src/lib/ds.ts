@@ -41,9 +41,11 @@ export const HERO_BG =
 /** PR-STRIP-DESIGN-2 → STRIP-FLAT-BAND: the booking strip's band. The
  *  4-layer glow composition died (the STRIP-VISUAL-2 audit: the electric
  *  radial lived only in the top-left, so the band dimmed to the right) —
- *  ONE flat, fully opaque fill of the pop token, edge to edge. No
- *  gradients, no overlays, no opacity. */
-export const BAND_BG = 'rgb(var(--ts-purple-pop))';
+ *  ONE flat, fully opaque fill, edge to edge. No gradients, no overlays,
+ *  no opacity. REPAINT-2 (Direction C): the fill moves off the electric
+ *  pop onto the solid aubergine — every band consumer (ToggleStrip band,
+ *  ModuleLauncher ModuleBand) goes aubergine with it by design. */
+export const BAND_BG = 'rgb(var(--ts-purple))';
 
 /** BOOKS-GLOW — STANDING RULE: flat black panels are the anti-pattern —
  *  interior cards wear the glow. THE app glow (lifted byte-identical from
