@@ -135,26 +135,21 @@ export default function TabShowcaseTemplate({
   return (
     <div className="space-y-6">
       {darkHero ? (
-        /* ── TRADE-SHOWCASE-BLOOMBERG hero: near-black base, brand-purple
-              radial glow (rgb(59 45 107) = --ts-purple; rgb(45 27 78) =
-              --ts-purple-deep). No new palette — the brand family, deepened. ── */
-        <div
-          className="overflow-hidden rounded-lg px-6 py-10 text-white sm:px-10"
-          style={{
-            background:
-              'radial-gradient(ellipse 80% 90% at 85% 10%, rgb(59 45 107 / 0.65), transparent 60%), radial-gradient(ellipse 60% 70% at 100% 80%, rgb(45 27 78 / 0.5), transparent 55%), #0b0a14',
-          }}
-        >
+        /* ── TRADE-SHOWCASE-BLOOMBERG → REPAINT-4b: the near-black radial
+              glow frame (the stray #0b0a14 hex included) DIED — the hero is
+              a flat card-cream panel + lavender hairline, aubergine
+              structure ink (Direction C). ── */
+        <div className="overflow-hidden rounded-lg border border-border bg-ts-white px-6 py-10 text-text-primary sm:px-10">
           <div className="grid items-center gap-8 lg:grid-cols-2">
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded border border-white/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/70">
+                <span className="rounded border border-border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
                   {darkHero.eyebrow}
                 </span>
                 <ExampleTag text="Example data" />
               </div>
               <h3 className="mt-4 text-3xl font-light tracking-tight sm:text-5xl">{darkHero.headline}</h3>
-              <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/65">{darkHero.subcopy}</p>
+              <p className="mt-4 max-w-xl text-sm leading-relaxed text-text-secondary">{darkHero.subcopy}</p>
               <div className="mt-6">{darkHero.cta}</div>
             </div>
             <div>{darkHero.panel}</div>
@@ -200,10 +195,10 @@ export default function TabShowcaseTemplate({
               key={t.title}
               type="button"
               onClick={() => document.getElementById(t.anchorId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-              className="rounded-lg border border-panel-border bg-panel p-4 text-left transition-colors hover:bg-panel-hover"
+              className="rounded-lg border border-border bg-white p-4 text-left transition-colors hover:bg-bg-row"
             >
-              <p className="font-semibold text-white">{t.title}</p>
-              <p className="mt-1 text-xs leading-relaxed text-white/55">{t.line}</p>
+              <p className="font-semibold text-brand-purple">{t.title}</p>
+              <p className="mt-1 text-xs leading-relaxed text-text-muted">{t.line}</p>
               <p className="mt-2 text-[10px] font-semibold uppercase tracking-wider text-brand-amber">See it below ↓</p>
             </button>
           ))}

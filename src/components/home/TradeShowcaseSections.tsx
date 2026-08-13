@@ -70,31 +70,31 @@ export function HeroTerminalPanel() {
   const condor = SHOWCASE_DEEP_DIVE.trade_cards![0].setup;
   const initechReason = SHOWCASE_REJECTIONS.INITECH[0].reason; // the engine's own caption
   return (
-    <div className="rounded-lg border border-panel-border bg-panel/90 p-4 font-mono text-[11px] leading-relaxed shadow-2xl">
-      <div className="flex items-center justify-between border-b border-panel-border pb-2">
-        <span className="font-bold uppercase tracking-wider text-white/60">Scan · S&amp;P 500</span>
+    <div className="rounded-lg border border-border bg-white/90 p-4 font-mono text-[11px] leading-relaxed shadow-2xl">
+      <div className="flex items-center justify-between border-b border-border pb-2">
+        <span className="font-bold uppercase tracking-wider text-text-muted">Scan · S&amp;P 500</span>
         <ExampleTag text="Example scan" />
       </div>
-      <p className="mt-2 text-white/50">475 → 52 → 40 → 20 → 9 · 128 Finnhub calls · ~94s</p>
+      <p className="mt-2 text-text-faint">475 → 52 → 40 → 20 → 9 · 128 Finnhub calls · ~94s</p>
       <div className="mt-2 space-y-1.5">
         <p>
-          <span className="font-bold text-white">GLOBEX</span>{' '}
-          <span className="text-white/60">{condor.strategy_name} · {condor.dte} DTE</span>
+          <span className="font-bold text-text-primary">GLOBEX</span>{' '}
+          <span className="text-text-muted">{condor.strategy_name} · {condor.dte} DTE</span>
           <br />
           <span className="text-brand-green">COLLECT ${((condor.net_credit ?? 0) * 100).toFixed(0)}</span>
-          <span className="text-white/50"> · MAX L </span><span className="text-brand-red">${condor.max_loss}</span>
-          <span className="text-white/50"> · POP </span><span className="text-white/90">{Math.round((condor.probability_of_profit ?? 0) * 100)}%</span>
+          <span className="text-text-faint"> · MAX L </span><span className="text-brand-red">${condor.max_loss}</span>
+          <span className="text-text-faint"> · POP </span><span className="text-text-primary">{Math.round((condor.probability_of_profit ?? 0) * 100)}%</span>
         </p>
         <p>
-          <span className="font-bold text-white">ACME</span>{' '}
-          <span className="text-white/50">No strategies passed — {SHOWCASE_REJECTIONS.ACME[0].gate}</span>
+          <span className="font-bold text-text-primary">ACME</span>{' '}
+          <span className="text-text-faint">No strategies passed — {SHOWCASE_REJECTIONS.ACME[0].gate}</span>
         </p>
         <p>
-          <span className="font-bold text-white">INITECH</span>{' '}
+          <span className="font-bold text-text-primary">INITECH</span>{' '}
           <span className="text-brand-red">{initechReason}</span>
         </p>
       </div>
-      <p className="mt-2 border-t border-panel-border pt-2 text-white/40">
+      <p className="mt-2 border-t border-border pt-2 text-text-faint">
         The engine says no more often than yes — and shows its work either way.
       </p>
     </div>
@@ -131,22 +131,22 @@ const PIPE_STEPS_FULL: [string, string, string?][] = [
 
 export function PipelinePanelDark() {
   return (
-    <div className="rounded-lg border border-panel-border bg-panel p-4 font-mono text-[11px] leading-relaxed">
-      <div className="flex items-center justify-between border-b border-panel-border pb-2">
-        <span className="font-bold uppercase tracking-wider text-white/60">Hit Scan, and this runs — 20 steps, A to T</span>
+    <div className="rounded-lg border border-border bg-white p-4 font-mono text-[11px] leading-relaxed">
+      <div className="flex items-center justify-between border-b border-border pb-2">
+        <span className="font-bold uppercase tracking-wider text-text-muted">Hit Scan, and this runs — 20 steps, A to T</span>
         <ExampleTag text="Example scan" />
       </div>
       <div className="mt-2 grid gap-x-5 gap-y-1 sm:grid-cols-2">
         {PIPE_STEPS_FULL.map(([code, label, summary]) => (
           <p key={code}>
             <span className="font-bold text-brand-amber">{code}</span>{' '}
-            <span className="text-white/90">{label}</span>
-            {summary && <span className="text-white/50"> — {summary}</span>}
+            <span className="text-text-primary">{label}</span>
+            {summary && <span className="text-text-faint"> — {summary}</span>}
           </p>
         ))}
       </div>
-      <p className="mt-2 border-t border-panel-border pt-2 text-white/50">
-        Funnel (S&amp;P 500 run): <span className="text-white/90">475 → 52 → 40 → 20 → 9</span> · 128 Finnhub calls · ~94s. 475, 40, 20 and 9 are the real defaults; the rest are sample counts.
+      <p className="mt-2 border-t border-border pt-2 text-text-faint">
+        Funnel (S&amp;P 500 run): <span className="text-text-primary">475 → 52 → 40 → 20 → 9</span> · 128 Finnhub calls · ~94s. 475, 40, 20 and 9 are the real defaults; the rest are sample counts.
       </p>
     </div>
   );
@@ -156,17 +156,17 @@ export function PipelinePanelDark() {
  *  track-record mirror below carries. */
 export function RecordPanelDark() {
   return (
-    <div className="rounded-lg border border-panel-border bg-panel p-4 font-mono text-[11px] leading-relaxed">
-      <div className="flex items-center justify-between border-b border-panel-border pb-2">
-        <span className="font-bold uppercase tracking-wider text-white/60">Track record</span>
+    <div className="rounded-lg border border-border bg-white p-4 font-mono text-[11px] leading-relaxed">
+      <div className="flex items-center justify-between border-b border-border pb-2">
+        <span className="font-bold uppercase tracking-wider text-text-muted">Track record</span>
         <ExampleTag text="Example data" />
       </div>
-      <div className="mt-2 space-y-1 text-white/70">
-        <p><span className="text-white">7</span> linked · <span className="text-white">3</span> unlinked (excluded) · <span className="text-white">2</span> queued</p>
-        <p><span className="font-bold text-brand-green">7W – 0L – 0BE</span> of <span className="text-white">7</span> decided</p>
-        <p>Net P&amp;L <span className="font-bold text-brand-green">$1,284</span> <span className="text-white/40">(linked only)</span></p>
-        <p>Max-loss model: <span className="text-white">7 of 7</span> stayed within the claim</p>
-        <p>Grades A <span className="text-white">3</span> · B <span className="text-white">3</span> · C <span className="text-white">1</span> · D <span className="text-white">0</span> · F <span className="text-white">0</span></p>
+      <div className="mt-2 space-y-1 text-text-secondary">
+        <p><span className="text-text-primary">7</span> linked · <span className="text-text-primary">3</span> unlinked (excluded) · <span className="text-text-primary">2</span> queued</p>
+        <p><span className="font-bold text-brand-green">7W – 0L – 0BE</span> of <span className="text-text-primary">7</span> decided</p>
+        <p>Net P&amp;L <span className="font-bold text-brand-green">$1,284</span> <span className="text-text-faint">(linked only)</span></p>
+        <p>Max-loss model: <span className="text-text-primary">7 of 7</span> stayed within the claim</p>
+        <p>Grades A <span className="text-text-primary">3</span> · B <span className="text-text-primary">3</span> · C <span className="text-text-primary">1</span> · D <span className="text-text-primary">0</span> · F <span className="text-text-primary">0</span></p>
       </div>
     </div>
   );
@@ -207,9 +207,9 @@ const REPLICA = {
 
 function SlideShell({ title, tag, children }: { title: string; tag?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-panel-border bg-panel p-4 font-mono text-[11px] leading-relaxed">
-      <div className="flex items-center justify-between gap-2 border-b border-panel-border pb-2">
-        <span className="font-bold uppercase tracking-wider text-white/60">{title}</span>
+    <div className="rounded-lg border border-border bg-white p-4 font-mono text-[11px] leading-relaxed">
+      <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
+        <span className="font-bold uppercase tracking-wider text-text-muted">{title}</span>
         {tag && <ExampleTag text={tag} />}
       </div>
       <div className="mt-2">{children}</div>
@@ -223,14 +223,14 @@ export function ScannerPanelDark() {
   const f = DEFAULT_FILTERS;
   return (
     <SlideShell title="Scan filters — the real defaults">
-      <div className="space-y-1 text-white/70">
-        <p>Universe <span className="text-white">S&amp;P 500 | Nasdaq 100</span> · Direction <span className="text-white">All</span><span className="text-white/40">/Bull/Bear/Ntrl</span> · Premium <span className="text-white">Both</span><span className="text-white/40">/Sell/Buy</span> · Risk <span className="text-white">Defined</span><span className="text-white/40">/Unlimited</span></p>
-        <p>DTE <span className="text-white">{f.risk.minDte}–{f.risk.maxDte}</span> · Width <span className="text-white">${f.risk.minSpreadWidth}–${f.risk.maxSpreadWidth}</span></p>
-        <p className="text-white/50">Liquidity gates (4): min OI <span className="text-white/80">{f.liquidity.minOpenInterest}</span> · max bid-ask spread <span className="text-white/80">{f.liquidity.maxBidAskSpreadPct}%</span> · min volume <span className="text-white/80">{(f.liquidity.minUnderlyingVolume / 1000).toFixed(0)}K</span> · min TT rating <span className="text-white/80">{f.liquidity.minLiquidityRating}★</span></p>
-        <p className="text-white/50">Edge metrics (6): min PoP <span className="text-white/80">{f.edge.minPop}%</span> · min EV <span className="text-white/80">${f.edge.minEv}</span> · min EV/Risk <span className="text-white/80">{f.edge.minEvPerRisk.toFixed(2)}</span> · vol edge <span className="text-white/80">Any</span> · min IV rank <span className="text-white/80">{f.edge.minIvRank}%</span> · min sentiment <span className="text-white/80">{(f.edge.minSentiment / 100).toFixed(1)}</span></p>
+      <div className="space-y-1 text-text-secondary">
+        <p>Universe <span className="text-text-primary">S&amp;P 500 | Nasdaq 100</span> · Direction <span className="text-text-primary">All</span><span className="text-text-faint">/Bull/Bear/Ntrl</span> · Premium <span className="text-text-primary">Both</span><span className="text-text-faint">/Sell/Buy</span> · Risk <span className="text-text-primary">Defined</span><span className="text-text-faint">/Unlimited</span></p>
+        <p>DTE <span className="text-text-primary">{f.risk.minDte}–{f.risk.maxDte}</span> · Width <span className="text-text-primary">${f.risk.minSpreadWidth}–${f.risk.maxSpreadWidth}</span></p>
+        <p className="text-text-faint">Liquidity gates (4): min OI <span className="text-text-secondary">{f.liquidity.minOpenInterest}</span> · max bid-ask spread <span className="text-text-secondary">{f.liquidity.maxBidAskSpreadPct}%</span> · min volume <span className="text-text-secondary">{(f.liquidity.minUnderlyingVolume / 1000).toFixed(0)}K</span> · min TT rating <span className="text-text-secondary">{f.liquidity.minLiquidityRating}★</span></p>
+        <p className="text-text-faint">Edge metrics (6): min PoP <span className="text-text-secondary">{f.edge.minPop}%</span> · min EV <span className="text-text-secondary">${f.edge.minEv}</span> · min EV/Risk <span className="text-text-secondary">{f.edge.minEvPerRisk.toFixed(2)}</span> · vol edge <span className="text-text-secondary">Any</span> · min IV rank <span className="text-text-secondary">{f.edge.minIvRank}%</span> · min sentiment <span className="text-text-secondary">{(f.edge.minSentiment / 100).toFixed(1)}</span></p>
         <p className="mt-1.5 flex flex-wrap gap-1">
           {AVAILABLE_STRATEGIES.map((s) => (
-            <span key={s} className="rounded border border-panel-border bg-panel-hover px-1.5 py-0.5 text-[10px] text-white/70">{s}</span>
+            <span key={s} className="rounded border border-border bg-bg-row px-1.5 py-0.5 text-[10px] text-text-secondary">{s}</span>
           ))}
         </p>
       </div>
@@ -250,33 +250,33 @@ export function ResultsTablePanelDark() {
       <div className="space-y-2">
         <div>
           <p>
-            <span className="font-bold text-white">GLOBEX</span> <span className="text-white/50">score</span> <span className="text-white">{globex.scores.composite.score}</span>
-            <span className="text-white/50"> · </span><span className="text-white/80">{globex.scores.composite.direction}</span>
-            <span className="text-white/50"> · </span><span className="text-white/90">{condor.strategy_name}</span>
-            <span className="text-white/50"> · {condor.dte} DTE</span>
+            <span className="font-bold text-text-primary">GLOBEX</span> <span className="text-text-faint">score</span> <span className="text-text-primary">{globex.scores.composite.score}</span>
+            <span className="text-text-faint"> · </span><span className="text-text-secondary">{globex.scores.composite.direction}</span>
+            <span className="text-text-faint"> · </span><span className="text-text-primary">{condor.strategy_name}</span>
+            <span className="text-text-faint"> · {condor.dte} DTE</span>
           </p>
-          <p className="text-white/60">
+          <p className="text-text-muted">
             {condor.legs.map((l) => `${l.side.toUpperCase()} ${l.type.toUpperCase()} $${l.strike}`).join(' / ')}
           </p>
           <p>
             <span className="text-brand-green">COLLECT ${((condor.net_credit ?? 0) * 100).toFixed(0)}</span>
-            <span className="text-white/50"> · MAX P </span><span className="text-brand-green">${condor.max_profit}</span>
-            <span className="text-white/50"> · MAX L </span><span className="text-brand-red">${condor.max_loss}</span>
-            <span className="text-white/50"> · POP </span><span className="text-white/90">{Math.round((condor.probability_of_profit ?? 0) * 100)}%</span>
-            <span className="text-white/50"> · EV </span><span className="text-brand-green">+${condor.ev}</span>
-            <span className="text-white/50"> · EV/RISK </span><span className="text-white/90">{condor.ev_per_risk.toFixed(3)}</span>
-            <span className="text-white/50"> · R:R </span><span className="text-white/90">{condor.risk_reward_ratio?.toFixed(2)}</span>
+            <span className="text-text-faint"> · MAX P </span><span className="text-brand-green">${condor.max_profit}</span>
+            <span className="text-text-faint"> · MAX L </span><span className="text-brand-red">${condor.max_loss}</span>
+            <span className="text-text-faint"> · POP </span><span className="text-text-primary">{Math.round((condor.probability_of_profit ?? 0) * 100)}%</span>
+            <span className="text-text-faint"> · EV </span><span className="text-brand-green">+${condor.ev}</span>
+            <span className="text-text-faint"> · EV/RISK </span><span className="text-text-primary">{condor.ev_per_risk.toFixed(3)}</span>
+            <span className="text-text-faint"> · R:R </span><span className="text-text-primary">{condor.risk_reward_ratio?.toFixed(2)}</span>
           </p>
         </div>
         <p>
-          <span className="font-bold text-white">ACME</span> <span className="text-white/50">score</span> <span className="text-white">{acme.scores.composite.score}</span>
-          <span className="text-white/50"> · </span><span className="text-white/80">{acme.scores.composite.direction}</span>
+          <span className="font-bold text-text-primary">ACME</span> <span className="text-text-faint">score</span> <span className="text-text-primary">{acme.scores.composite.score}</span>
+          <span className="text-text-faint"> · </span><span className="text-text-secondary">{acme.scores.composite.direction}</span>
           <br />
-          <span className="text-white/50">No strategies — {SHOWCASE_REJECTIONS.ACME[0].strategy}: {SHOWCASE_REJECTIONS.ACME[0].gate}; {SHOWCASE_REJECTIONS.ACME[1].strategy}: {SHOWCASE_REJECTIONS.ACME[1].gate}</span>
+          <span className="text-text-faint">No strategies — {SHOWCASE_REJECTIONS.ACME[0].strategy}: {SHOWCASE_REJECTIONS.ACME[0].gate}; {SHOWCASE_REJECTIONS.ACME[1].strategy}: {SHOWCASE_REJECTIONS.ACME[1].gate}</span>
         </p>
         <p>
-          <span className="font-bold text-white">INITECH</span> <span className="text-white/50">score</span> <span className="text-white">{initech.scores.composite.score}</span>
-          <span className="text-white/50"> · </span><span className="text-white/80">{initech.scores.composite.direction}</span>
+          <span className="font-bold text-text-primary">INITECH</span> <span className="text-text-faint">score</span> <span className="text-text-primary">{initech.scores.composite.score}</span>
+          <span className="text-text-faint"> · </span><span className="text-text-secondary">{initech.scores.composite.direction}</span>
           <br />
           <span className="text-brand-red">{SHOWCASE_REJECTIONS.INITECH[0].reason}</span>
         </p>
@@ -308,33 +308,33 @@ export function DeepDivePanelDark() {
   const againstGates = gates.filter(([, s]) => s <= 50);
   return (
     <SlideShell title="Deep dive — GLOBEX" tag="Example data">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white/50">WHY THIS TICKER</p>
-        <p>Composite <span className="text-white">{c.score}</span> — ranked <span className="text-white">#{rankIdx + 1}</span> of all scored · Sector <span className="text-white/90">{rankRow.sector}</span> · Direction <span className="text-white/90">{c.direction}</span></p>
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-faint">WHY THIS TICKER</p>
+        <p>Composite <span className="text-text-primary">{c.score}</span> — ranked <span className="text-text-primary">#{rankIdx + 1}</span> of all scored · Sector <span className="text-text-primary">{rankRow.sector}</span> · Direction <span className="text-text-primary">{c.direction}</span></p>
         <div className="space-y-0.5">
           {gates.map(([name, score]) => (
             <p key={name}>
               <span className={score > 50 ? 'text-brand-green' : 'text-brand-red'}>{bar(score)}</span>{' '}
-              <span className="text-white/90">{score}</span> <span className="text-white/60">{name}</span>
+              <span className="text-text-primary">{score}</span> <span className="text-text-muted">{name}</span>
             </p>
           ))}
         </div>
-        <p><span className="text-white/90">&ldquo;{c.convergence_gate}&rdquo;</span></p>
-        <p className="mt-1.5 text-white/50">FOR</p>
+        <p><span className="text-text-primary">&ldquo;{c.convergence_gate}&rdquo;</span></p>
+        <p className="mt-1.5 text-text-faint">FOR</p>
         {forGates.map(([name, score]) => (
           <p key={name}>• <span className="text-brand-green">{name} {score}</span> — above 50: the gate found edge.</p>
         ))}
-        <p className="mt-1.5 text-white/50">AGAINST</p>
+        <p className="mt-1.5 text-text-faint">AGAINST</p>
         {againstGates.length > 0 ? (
           againstGates.map(([name, score]) => (
             <p key={name}>• <span className="text-brand-red">{name} {score}</span> — at or below 50: no edge claimed.</p>
           ))
         ) : (
-          <p className="text-white/50">• None — all four gates cleared 50 in this example (a marginal but unanimous 4/4).</p>
+          <p className="text-text-faint">• None — all four gates cleared 50 in this example (a marginal but unanimous 4/4).</p>
         )}
-        <p className="mt-1.5 text-white/50">AND WHY NOT THE OTHERS</p>
-        <p><span className="text-white">ACME</span> — {SHOWCASE_REJECTIONS.ACME[0].strategy}: {SHOWCASE_REJECTIONS.ACME[0].reason} ({SHOWCASE_REJECTIONS.ACME[0].gate})</p>
-        <p><span className="text-white">INITECH</span> — <span className="text-brand-red">{SHOWCASE_REJECTIONS.INITECH[0].reason}</span></p>
+        <p className="mt-1.5 text-text-faint">AND WHY NOT THE OTHERS</p>
+        <p><span className="text-text-primary">ACME</span> — {SHOWCASE_REJECTIONS.ACME[0].strategy}: {SHOWCASE_REJECTIONS.ACME[0].reason} ({SHOWCASE_REJECTIONS.ACME[0].gate})</p>
+        <p><span className="text-text-primary">INITECH</span> — <span className="text-brand-red">{SHOWCASE_REJECTIONS.INITECH[0].reason}</span></p>
       </div>
     </SlideShell>
   );
@@ -352,25 +352,25 @@ export function TradeCardPanelDark() {
   return (
     <SlideShell title="The trade card — GLOBEX Iron Condor" tag="Example data">
       <div className="space-y-0.5">
-        <p className="text-white/50">Exp <span className="text-white/80">{s.expiration_date}</span> · <span className="text-white/80">{s.dte} DTE</span></p>
+        <p className="text-text-faint">Exp <span className="text-text-secondary">{s.expiration_date}</span> · <span className="text-text-secondary">{s.dte} DTE</span></p>
         {s.legs.map((leg) => (
           <p key={`${leg.side}-${leg.type}-${leg.strike}`}>
             <span className={leg.side === 'sell' ? 'font-bold text-brand-red' : 'font-bold text-brand-green'}>{leg.side.toUpperCase().padEnd(4)}</span>
-            <span className="text-white/50"> {leg.type.toUpperCase().padEnd(4)} </span>
-            <span className="text-white">${leg.strike}</span>
-            <span className="text-white/40">  ${leg.price.toFixed(2)}</span>
+            <span className="text-text-faint"> {leg.type.toUpperCase().padEnd(4)} </span>
+            <span className="text-text-primary">${leg.strike}</span>
+            <span className="text-text-faint">  ${leg.price.toFixed(2)}</span>
           </p>
         ))}
         <p className="pt-1.5">
           <span className="font-bold text-brand-green">COLLECT ${((s.net_credit ?? 0) * 100).toFixed(0)}</span>
-          <span className="text-white/50"> · MAX LOSS </span><span className="text-brand-red">${s.max_loss}</span>
-          <span className="text-white/50"> · POP </span><span className="text-white/90">{Math.round((s.probability_of_profit ?? 0) * 100)}%</span><span className="text-white/40"> (N(d2))</span>
-          <span className="text-white/50"> · EV </span><span className="text-brand-green">+${s.ev}</span>
-          <span className="text-white/50"> · EV/RISK </span><span className="text-white/90">{s.ev_per_risk.toFixed(3)}</span>
-          <span className="text-white/50"> · R:R </span><span className="text-white/90">{s.risk_reward_ratio?.toFixed(2)}</span>
+          <span className="text-text-faint"> · MAX LOSS </span><span className="text-brand-red">${s.max_loss}</span>
+          <span className="text-text-faint"> · POP </span><span className="text-text-primary">{Math.round((s.probability_of_profit ?? 0) * 100)}%</span><span className="text-text-faint"> (N(d2))</span>
+          <span className="text-text-faint"> · EV </span><span className="text-brand-green">+${s.ev}</span>
+          <span className="text-text-faint"> · EV/RISK </span><span className="text-text-primary">{s.ev_per_risk.toFixed(3)}</span>
+          <span className="text-text-faint"> · R:R </span><span className="text-text-primary">{s.risk_reward_ratio?.toFixed(2)}</span>
         </p>
-        <p className="text-white/50">
-          B/E <span className="text-white/80">{s.breakevens.map((b) => `$${b.toFixed(2)}`).join(' / ')}</span> · HV POP <span className="text-white/80">{Math.round((s.hv_pop ?? 0) * 100)}%</span> · THETA <span className="text-brand-green">+${s.greeks.theta_per_day.toFixed(2)}/day</span> · VEGA/pt <span className="text-brand-red">-${Math.abs(s.greeks.vega * 100).toFixed(2)}</span> · KELLY <span className="text-white/80">{kellyPct.toFixed(1)}%</span>
+        <p className="text-text-faint">
+          B/E <span className="text-text-secondary">{s.breakevens.map((b) => `$${b.toFixed(2)}`).join(' / ')}</span> · HV POP <span className="text-text-secondary">{Math.round((s.hv_pop ?? 0) * 100)}%</span> · THETA <span className="text-brand-green">+${s.greeks.theta_per_day.toFixed(2)}/day</span> · VEGA/pt <span className="text-brand-red">-${Math.abs(s.greeks.vega * 100).toFixed(2)}</span> · KELLY <span className="text-text-secondary">{kellyPct.toFixed(1)}%</span>
         </p>
       </div>
     </SlideShell>
@@ -384,31 +384,31 @@ export function GradedPanelDark() {
     <SlideShell title="Graded against reality — GLOBEX" tag="Example data">
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-0.5">
-          <p className="text-white/50">PREDICTED</p>
-          <p className="text-white/70">Max Profit <span className="text-brand-green">{REPLICA.predicted.maxProfit}</span></p>
-          <p className="text-white/70">Max Loss <span className="text-brand-red">{REPLICA.predicted.maxLoss}</span></p>
-          <p className="text-white/70">Est. PoP <span className="text-white">{REPLICA.predicted.pop}</span></p>
-          <p className="text-white/70">R:R <span className="text-white">{REPLICA.predicted.rr}</span></p>
-          <p className="text-white/70">Entry <span className="text-white">{REPLICA.predicted.entry}</span></p>
+          <p className="text-text-faint">PREDICTED</p>
+          <p className="text-text-secondary">Max Profit <span className="text-brand-green">{REPLICA.predicted.maxProfit}</span></p>
+          <p className="text-text-secondary">Max Loss <span className="text-brand-red">{REPLICA.predicted.maxLoss}</span></p>
+          <p className="text-text-secondary">Est. PoP <span className="text-text-primary">{REPLICA.predicted.pop}</span></p>
+          <p className="text-text-secondary">R:R <span className="text-text-primary">{REPLICA.predicted.rr}</span></p>
+          <p className="text-text-secondary">Entry <span className="text-text-primary">{REPLICA.predicted.entry}</span></p>
         </div>
         <div className="space-y-0.5">
-          <p className="text-white/50">ACTUAL</p>
-          <p className="text-white/70">P&amp;L <span className="font-bold text-brand-green">{REPLICA.actual.pl}</span></p>
-          <p className="text-white/70">Entry <span className="text-white">{REPLICA.actual.entry}</span></p>
-          <p className="text-white/70">Exit <span className="text-white">{REPLICA.actual.exit}</span></p>
-          <p className="text-white/70">Grade <span className="rounded px-1.5 py-0.5 font-black" style={{ background: '#2563EB', color: '#EFF6FF' }}>{REPLICA.actual.grade}</span></p>
+          <p className="text-text-faint">ACTUAL</p>
+          <p className="text-text-secondary">P&amp;L <span className="font-bold text-brand-green">{REPLICA.actual.pl}</span></p>
+          <p className="text-text-secondary">Entry <span className="text-text-primary">{REPLICA.actual.entry}</span></p>
+          <p className="text-text-secondary">Exit <span className="text-text-primary">{REPLICA.actual.exit}</span></p>
+          <p className="text-text-secondary">Grade <span className="rounded px-1.5 py-0.5 font-black" style={{ background: '#2563EB', color: '#EFF6FF' }}>{REPLICA.actual.grade}</span></p>
         </div>
       </div>
-      <div className="mt-2 space-y-0.5 border-t border-panel-border pt-2">
+      <div className="mt-2 space-y-0.5 border-t border-border pt-2">
         {REPLICA.thesis.map((t) => (
           <p key={t.point}>
             {t.result ? <span className="text-brand-green">✓</span> : <span className="text-brand-red">✗</span>}{' '}
-            <span className="text-white/70">{t.point}</span>
+            <span className="text-text-secondary">{t.point}</span>
           </p>
         ))}
       </div>
       {/* Regime — the engine's own brake declaration (payload), as on the real card. */}
-      <p className="mt-2 border-t border-panel-border pt-2 text-white/50">
+      <p className="mt-2 border-t border-border pt-2 text-text-faint">
         Regime: <span className="text-brand-green">{SHOWCASE_DEEP_DIVE.scores.regime.breakdown.survival_brake.declaration}</span>
       </p>
     </SlideShell>
@@ -421,10 +421,10 @@ export function BrakePanelDark() {
   const brake = SHOWCASE_DEEP_DIVE.scores.regime.breakdown.survival_brake;
   return (
     <SlideShell title="The survival brake" tag="Example data">
-      <div className="space-y-1.5 text-white/70">
-        <p>Rule: <span className="text-white">VIX/VIX3M &gt; 1.0</span> (backwardation) <span className="text-white/50">or</span> <span className="text-white">VVIX ≥ 110</span> → short-vol suggestions cut automatically.</p>
-        <p className="text-white/50">Missing inputs → <span className="text-brand-amber">UNVERIFIED</span> — treated like ON. It never assumes safety.</p>
-        <p className="border-t border-panel-border pt-1.5 text-brand-green">{brake.declaration}</p>
+      <div className="space-y-1.5 text-text-secondary">
+        <p>Rule: <span className="text-text-primary">VIX/VIX3M &gt; 1.0</span> (backwardation) <span className="text-text-faint">or</span> <span className="text-text-primary">VVIX ≥ 110</span> → short-vol suggestions cut automatically.</p>
+        <p className="text-text-faint">Missing inputs → <span className="text-brand-amber">UNVERIFIED</span> — treated like ON. It never assumes safety.</p>
+        <p className="border-t border-border pt-1.5 text-brand-green">{brake.declaration}</p>
       </div>
     </SlideShell>
   );

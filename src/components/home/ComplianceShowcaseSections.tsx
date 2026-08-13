@@ -91,9 +91,9 @@ const EX = {
 
 function DarkSlide({ title, tag = 'Mirror · labeled', children }: { title: string; tag?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-panel-border bg-panel p-4 font-mono text-[11px] leading-relaxed">
-      <div className="flex items-center justify-between gap-2 border-b border-panel-border pb-2">
-        <span className="font-bold uppercase tracking-wider text-white/60">{title}</span>
+    <div className="rounded-lg border border-border bg-white p-4 font-mono text-[11px] leading-relaxed">
+      <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
+        <span className="font-bold uppercase tracking-wider text-text-muted">{title}</span>
         <ExampleTag text={tag} />
       </div>
       <div className="mt-2">{children}</div>
@@ -108,26 +108,26 @@ function DarkSlide({ title, tag = 'Mirror · labeled', children }: { title: stri
  *  as a DATED DECLARED SNAPSHOT (inventory §10 ruling). */
 function ComplianceHeroTerminal() {
   return (
-    <div className="rounded-lg border border-panel-border bg-panel/90 p-4 font-mono text-[11px] leading-relaxed shadow-2xl">
-      <div className="flex items-center justify-between border-b border-panel-border pb-2">
-        <span className="font-bold uppercase tracking-wider text-white/60">Compliance · the receipts</span>
+    <div className="rounded-lg border border-border bg-white/90 p-4 font-mono text-[11px] leading-relaxed shadow-2xl">
+      <div className="flex items-center justify-between border-b border-border pb-2">
+        <span className="font-bold uppercase tracking-wider text-text-muted">Compliance · the receipts</span>
         <ExampleTag text="Example set" />
       </div>
-      <div className="mt-2 space-y-1 text-white/70">
+      <div className="mt-2 space-y-1 text-text-secondary">
         <p>
           <span className="text-brand-green">Chain verified — {EX.chainRows} rows</span>
-          <span className="float-right text-white/50">genesis-anchored · SHA-256</span>
+          <span className="float-right text-text-faint">genesis-anchored · SHA-256</span>
         </p>
-        <p className="border-t border-panel-border pt-1">
-          <span className="text-white">26 U.S.C. §162(a)</span>{' '}
+        <p className="border-t border-border pt-1">
+          <span className="text-text-primary">26 U.S.C. §162(a)</span>{' '}
           <span className="rounded-full border border-green-400/40 px-1.5 text-[10px] text-green-300">verified</span>
-          <span className="float-right text-white/50">6 checks passed</span>
+          <span className="float-right text-text-faint">6 checks passed</span>
         </p>
-        <p className="border-t border-panel-border pt-1 text-white">
+        <p className="border-t border-border pt-1 text-text-primary">
           {EX.snapshot.documents} documents · {EX.snapshot.chunks} chunks
-          <span className="float-right text-white/50">4 gov sources, on cron</span>
+          <span className="float-right text-text-faint">4 gov sources, on cron</span>
         </p>
-        <p className="text-[10px] italic text-white/50">
+        <p className="text-[10px] italic text-text-faint">
           live counts, snapshotted {EX.snapshot.date} — the tab computes them fresh
         </p>
       </div>
@@ -145,17 +145,17 @@ function ComplianceHeroTerminal() {
 function CorpusPanel() {
   return (
     <DarkSlide title="The corpus — live sources, real schedules">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white">
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-primary">
           {EX.snapshot.documents} documents · {EX.snapshot.chunks} chunks
-          <span className="float-right text-[10px] text-white/50">snapshot {EX.snapshot.date}</span>
+          <span className="float-right text-[10px] text-text-faint">snapshot {EX.snapshot.date}</span>
         </p>
-        <p className="border-t border-panel-border pt-1"><span className="text-white/40">ecfr.gov</span> eCFR <span className="float-right text-white/80">daily · 06:00 UTC</span></p>
-        <p><span className="text-white/40">uscode.house.gov</span> US Code <span className="float-right text-white/80">weekly · Sun 07:00</span></p>
-        <p><span className="text-white/40">federalregister.gov</span> Fed. Register <span className="float-right text-white/80">hourly</span></p>
-        <p><span className="text-white/40">irs.gov</span> Internal Revenue Bulletin <span className="float-right text-white/80">daily · 02:00</span></p>
-        <p className="border-t border-panel-border pt-1 text-white/50">embeddings <span className="float-right text-white/80">every 6h · $10/run cap</span></p>
-        <p className="pt-1 text-[10px] italic text-white/50">
+        <p className="border-t border-border pt-1"><span className="text-text-faint">ecfr.gov</span> eCFR <span className="float-right text-text-secondary">daily · 06:00 UTC</span></p>
+        <p><span className="text-text-faint">uscode.house.gov</span> US Code <span className="float-right text-text-secondary">weekly · Sun 07:00</span></p>
+        <p><span className="text-text-faint">federalregister.gov</span> Fed. Register <span className="float-right text-text-secondary">hourly</span></p>
+        <p><span className="text-text-faint">irs.gov</span> Internal Revenue Bulletin <span className="float-right text-text-secondary">daily · 02:00</span></p>
+        <p className="border-t border-border pt-1 text-text-faint">embeddings <span className="float-right text-text-secondary">every 6h · $10/run cap</span></p>
+        <p className="pt-1 text-[10px] italic text-text-faint">
           Each ingest run writes its own audit row — the corpus&rsquo;s freshness claim is itself on the chain.
         </p>
       </div>
@@ -177,17 +177,17 @@ function ChecksPanel() {
   ];
   return (
     <DarkSlide title="Verify a citation — six live checks, two honest gaps">
-      <div className="space-y-0.5 text-white/70">
-        <p className="text-white">26 U.S.C. §162(a) <span className="float-right text-green-300">verified</span></p>
+      <div className="space-y-0.5 text-text-secondary">
+        <p className="text-text-primary">26 U.S.C. §162(a) <span className="float-right text-green-300">verified</span></p>
         {live.map(([name, what]) => (
           <p key={name}>
-            <span className="text-green-300">✓</span> <span className="text-white/80">{name}</span>
-            <span className="float-right text-white/50">{what}</span>
+            <span className="text-green-300">✓</span> <span className="text-text-secondary">{name}</span>
+            <span className="float-right text-text-faint">{what}</span>
           </p>
         ))}
-        <p><span className="text-white/40">○</span> <span className="text-white/40">groundedness</span> <span className="float-right text-white/40">not_applicable · deferred</span></p>
-        <p><span className="text-white/40">○</span> <span className="text-white/40">jurisdiction_match</span> <span className="float-right text-white/40">not_applicable · deferred</span></p>
-        <p className="pt-1 text-[10px] italic text-white/50">
+        <p><span className="text-text-faint">○</span> <span className="text-text-faint">groundedness</span> <span className="float-right text-text-faint">not_applicable · deferred</span></p>
+        <p><span className="text-text-faint">○</span> <span className="text-text-faint">jurisdiction_match</span> <span className="float-right text-text-faint">not_applicable · deferred</span></p>
+        <p className="pt-1 text-[10px] italic text-text-faint">
           All eight results are stored and audit-logged per run. The two deferred checks say so on the
           record — even the checker declares its limits.
         </p>
@@ -204,13 +204,13 @@ function ChecksPanel() {
 function VersionLockPanel() {
   return (
     <DarkSlide title="The lock — what 'cited' means here">
-      <div className="space-y-1 text-white/70">
-        <p><span className="text-white/40">stable_uri</span> <span className="float-right text-white/80">unique, permanent</span></p>
-        <p><span className="text-white/40">retrieved_at</span> <span className="float-right text-white/80">the moment you pulled it</span></p>
-        <p><span className="text-white/40">retrieved_content_hash</span> <span className="float-right text-white/80">SHA-256 of the body</span></p>
-        <p><span className="text-white/40">version_label · effective_date</span> <span className="float-right text-white/80">which version, since when</span></p>
-        <p><span className="text-white/40">superseded_by</span> <span className="float-right text-white/80">the chain of replacement</span></p>
-        <p className="border-t border-panel-border pt-1 text-white/80">
+      <div className="space-y-1 text-text-secondary">
+        <p><span className="text-text-faint">stable_uri</span> <span className="float-right text-text-secondary">unique, permanent</span></p>
+        <p><span className="text-text-faint">retrieved_at</span> <span className="float-right text-text-secondary">the moment you pulled it</span></p>
+        <p><span className="text-text-faint">retrieved_content_hash</span> <span className="float-right text-text-secondary">SHA-256 of the body</span></p>
+        <p><span className="text-text-faint">version_label · effective_date</span> <span className="float-right text-text-secondary">which version, since when</span></p>
+        <p><span className="text-text-faint">superseded_by</span> <span className="float-right text-text-secondary">the chain of replacement</span></p>
+        <p className="border-t border-border pt-1 text-text-secondary">
           version-locked at retrieval (stable URI + SHA-256 content hash) · re-verify on demand
         </p>
         <p className="text-[10px] italic text-amber-300/80">
@@ -228,12 +228,12 @@ function VersionLockPanel() {
 function ChainPanel() {
   return (
     <DarkSlide title="The audit chain — recomputed, not displayed">
-      <div className="space-y-1 text-white/70">
+      <div className="space-y-1 text-text-secondary">
         <p className="text-brand-green">Chain verified — {EX.chainRows} rows</p>
-        <p className="border-t border-panel-border pt-1"><span className="text-white/40">#1</span> genesis <span className="float-right text-white/50">prev: GENESIS · anchored constant</span></p>
-        <p><span className="text-white/40">#4811</span> citation_verified <span className="float-right text-white/50">prev: 9f3a…c2 → this: 7d1e…a9</span></p>
-        <p><span className="text-white/40">#4812</span> permission_granted <span className="float-right text-white/50">prev: 7d1e…a9 → this: b04c…51</span></p>
-        <p className="pt-1 text-white/50">
+        <p className="border-t border-border pt-1"><span className="text-text-faint">#1</span> genesis <span className="float-right text-text-faint">prev: GENESIS · anchored constant</span></p>
+        <p><span className="text-text-faint">#4811</span> citation_verified <span className="float-right text-text-faint">prev: 9f3a…c2 → this: 7d1e…a9</span></p>
+        <p><span className="text-text-faint">#4812</span> permission_granted <span className="float-right text-text-faint">prev: 7d1e…a9 → this: b04c…51</span></p>
+        <p className="pt-1 text-text-faint">
           verify = re-hash every row&rsquo;s stored input and every link, from genesis to tip
         </p>
         <p className="text-[10px] italic text-amber-300/80">
@@ -253,14 +253,14 @@ function ChainPanel() {
 function LoopPanel() {
   return (
     <DarkSlide title="The loop — the paywall's own receipt">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white/40">audit_log #4812</p>
-        <p><span className="text-white/40">action</span> <span className="text-white">permission_granted</span></p>
-        <p><span className="text-white/40">actor</span> <span className="float-right text-white/80">external_integration · stripe-webhook</span></p>
-        <p><span className="text-white/40">target</span> <span className="float-right text-white/80">user_category_entitlements</span></p>
-        <p><span className="text-white/40">after</span> <span className="float-right text-white/80">{'{ key: "tab:compliance", status: "active" }'}</span></p>
-        <p><span className="text-white/40">request_id</span> <span className="float-right text-white/80">evt_…:usr_…:tab:compliance</span></p>
-        <p className="pt-1 text-[10px] italic text-white/50">
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-faint">audit_log #4812</p>
+        <p><span className="text-text-faint">action</span> <span className="text-text-primary">permission_granted</span></p>
+        <p><span className="text-text-faint">actor</span> <span className="float-right text-text-secondary">external_integration · stripe-webhook</span></p>
+        <p><span className="text-text-faint">target</span> <span className="float-right text-text-secondary">user_category_entitlements</span></p>
+        <p><span className="text-text-faint">after</span> <span className="float-right text-text-secondary">{'{ key: "tab:compliance", status: "active" }'}</span></p>
+        <p><span className="text-text-faint">request_id</span> <span className="float-right text-text-secondary">evt_…:usr_…:tab:compliance</span></p>
+        <p className="pt-1 text-[10px] italic text-text-faint">
           Every unlock sold on the other eight tabs lands here as a hash-chained row — retries can&rsquo;t
           double-log (the id is the dedupe key). The machine audits itself.
         </p>
@@ -275,16 +275,16 @@ function LoopPanel() {
 function DiscoveryPanel() {
   return (
     <DarkSlide title="Discovery — scoped by construction">
-      <div className="space-y-1 text-white/70">
-        <p><span className="text-white/40">gate</span> <span className="float-right text-white/80">account → entitlement → profile → one run at a time</span></p>
-        <p><span className="text-white/40">model</span> <span className="float-right text-white/80">claude-sonnet-4-6 · one call per run</span></p>
-        <p><span className="text-white/40">web search</span> <span className="float-right text-white/80">restricted to the registry&rsquo;s active domains</span></p>
-        <p className="border-t border-panel-border pt-1 text-white/50">
+      <div className="space-y-1 text-text-secondary">
+        <p><span className="text-text-faint">gate</span> <span className="float-right text-text-secondary">account → entitlement → profile → one run at a time</span></p>
+        <p><span className="text-text-faint">model</span> <span className="float-right text-text-secondary">claude-sonnet-4-6 · one call per run</span></p>
+        <p><span className="text-text-faint">web search</span> <span className="float-right text-text-secondary">restricted to the registry&rsquo;s active domains</span></p>
+        <p className="border-t border-border pt-1 text-text-faint">
           initiated → web_search_running → synthesis_running → citation_verification → completed
         </p>
-        <p><span className="text-white/40">out</span> <span className="float-right text-white/80">proposals: mission → project → workstream → task</span></p>
-        <p><span className="text-white/40">cost</span> <span className="float-right text-white/80">in USD, to four decimals, on the run row</span></p>
-        <p className="pt-1 text-[10px] italic text-white/50">
+        <p><span className="text-text-faint">out</span> <span className="float-right text-text-secondary">proposals: mission → project → workstream → task</span></p>
+        <p><span className="text-text-faint">cost</span> <span className="float-right text-text-secondary">in USD, to four decimals, on the run row</span></p>
+        <p className="pt-1 text-[10px] italic text-text-faint">
           The search cannot leave the vetted sources — and the run&rsquo;s start, cost, and finish are
           themselves audit rows.
         </p>
@@ -301,15 +301,15 @@ function DiscoveryPanel() {
 function LifecyclePanel() {
   return (
     <DarkSlide title="The lifecycle — obligations as tickets">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white/40">a compliance task carries:</p>
-        <p><span className="text-white/40">status</span> <span className="float-right text-white/80">… awaiting_evidence · awaiting_attestation …</span></p>
-        <p><span className="text-white/40">risk</span> <span className="float-right text-white/80">inherent likelihood × impact · penalty</span></p>
-        <p><span className="text-white/40">attestation_frequency</span> <span className="float-right text-white/80">how often it must be re-affirmed</span></p>
-        <p><span className="text-white/40">attestation_expires_at</span> <span className="float-right text-white/80">when the last affirmation lapses</span></p>
-        <p><span className="text-white/40">evidence_freshness_days</span> <span className="float-right text-white/80">how stale proof may get</span></p>
-        <p><span className="text-white/40">citations</span> <span className="float-right text-white/80">the verified authority it rests on</span></p>
-        <p className="pt-1 text-[10px] italic text-white/50">
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-faint">a compliance task carries:</p>
+        <p><span className="text-text-faint">status</span> <span className="float-right text-text-secondary">… awaiting_evidence · awaiting_attestation …</span></p>
+        <p><span className="text-text-faint">risk</span> <span className="float-right text-text-secondary">inherent likelihood × impact · penalty</span></p>
+        <p><span className="text-text-faint">attestation_frequency</span> <span className="float-right text-text-secondary">how often it must be re-affirmed</span></p>
+        <p><span className="text-text-faint">attestation_expires_at</span> <span className="float-right text-text-secondary">when the last affirmation lapses</span></p>
+        <p><span className="text-text-faint">evidence_freshness_days</span> <span className="float-right text-text-secondary">how stale proof may get</span></p>
+        <p><span className="text-text-faint">citations</span> <span className="float-right text-text-secondary">the verified authority it rests on</span></p>
+        <p className="pt-1 text-[10px] italic text-text-faint">
           Tracked in a missions → projects → workstreams → tasks tree, with evidence and expiry
           modeled — not vibes. Evidence here means linked, verifiable citations.
         </p>

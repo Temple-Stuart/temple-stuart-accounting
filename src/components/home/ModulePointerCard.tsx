@@ -21,10 +21,10 @@ export default function ModulePointerCard({ pillarId }: { pillarId: string }) {
     throw new Error(`ModulePointerCard: unknown pillar id "${pillarId}"`);
   }
   return (
-    // REPAINT-3: the glow died — flat card-cream + lavender hairline; the
-    // pillar label is the card's heading, so it carries the aubergine
-    // structure ink.
-    <div className="rounded-lg border border-border bg-ts-white p-5">
+    // REPAINT-3 → 4b: the glow died — flat white card + lavender hairline;
+    // the pillar label is the card's heading (aubergine structure ink) and
+    // the CTA is the aubergine ghost (navigational, not money).
+    <div className="rounded-lg border border-border bg-white p-5">
       <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-brand-purple">
         {pillar.label}
       </p>
@@ -33,7 +33,7 @@ export default function ModulePointerCard({ pillarId }: { pillarId: string }) {
       </p>
       <Link
         href={`/modules/${pillar.id}`}
-        className="mt-4 inline-block font-mono text-xs font-medium text-brand-purple hover:text-brand-purple-hover"
+        className="mt-4 inline-block rounded border border-brand-purple/40 px-3 py-1.5 font-mono text-xs font-medium text-brand-purple hover:bg-brand-purple-wash"
       >
         See how {pillar.label} works →
       </Link>

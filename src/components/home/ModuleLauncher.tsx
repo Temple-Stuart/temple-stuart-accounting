@@ -535,7 +535,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         <button
           type="button"
           onClick={() => setShowCreate(true)}
-          className="shrink-0 rounded-lg ts-cta-gradient px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:brightness-110"
+          className="shrink-0 rounded-lg bg-brand-purple px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-brand-purple-hover"
         >
           + Create a trip
         </button>

@@ -98,9 +98,9 @@ const usd0 = (n: number) => `$${n.toLocaleString('en-US', { maximumFractionDigit
 
 function DarkSlide({ title, tag = 'Example / mirror', children }: { title: string; tag?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-panel-border bg-panel p-4 font-mono text-[11px] leading-relaxed">
-      <div className="flex items-center justify-between gap-2 border-b border-panel-border pb-2">
-        <span className="font-bold uppercase tracking-wider text-white/60">{title}</span>
+    <div className="rounded-lg border border-border bg-white p-4 font-mono text-[11px] leading-relaxed">
+      <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
+        <span className="font-bold uppercase tracking-wider text-text-muted">{title}</span>
         <ExampleTag text={tag} />
       </div>
       <div className="mt-2">{children}</div>
@@ -114,22 +114,22 @@ function DarkSlide({ title, tag = 'Example / mirror', children }: { title: strin
  *  All labels are the real integrations; nothing here is aspirational. */
 function TravelHeroTerminal() {
   return (
-    <div className="rounded-lg border border-panel-border bg-panel/90 p-4 font-mono text-[11px] leading-relaxed shadow-2xl">
-      <div className="flex items-center justify-between border-b border-panel-border pb-2">
-        <span className="font-bold uppercase tracking-wider text-white/60">Travel · the real product</span>
+    <div className="rounded-lg border border-border bg-white/90 p-4 font-mono text-[11px] leading-relaxed shadow-2xl">
+      <div className="flex items-center justify-between border-b border-border pb-2">
+        <span className="font-bold uppercase tracking-wider text-text-muted">Travel · the real product</span>
         <ExampleTag text="Real vendors" />
       </div>
-      <div className="mt-2 space-y-0.5 text-white/70">
-        <p><span className="text-white/40">FLIGHTS</span> real offers <span className="float-right text-white/80">Duffel</span></p>
-        <p><span className="text-white/40">HOTELS</span> search + guest booking <span className="float-right text-white/80">LiteAPI</span></p>
-        <p><span className="text-white/40">ACTIVITIES + TRANSFERS</span> real tours &amp; rides <span className="float-right text-white/80">Viator</span></p>
-        <p><span className="text-white/40">PLACES</span> premium local picks <span className="float-right text-white/80">Google</span></p>
-        <p><span className="text-white/40">VISA</span> entry rules, free <span className="float-right text-white/80">Travel Buddy</span></p>
+      <div className="mt-2 space-y-0.5 text-text-secondary">
+        <p><span className="text-text-faint">FLIGHTS</span> real offers <span className="float-right text-text-secondary">Duffel</span></p>
+        <p><span className="text-text-faint">HOTELS</span> search + guest booking <span className="float-right text-text-secondary">LiteAPI</span></p>
+        <p><span className="text-text-faint">ACTIVITIES + TRANSFERS</span> real tours &amp; rides <span className="float-right text-text-secondary">Viator</span></p>
+        <p><span className="text-text-faint">PLACES</span> premium local picks <span className="float-right text-text-secondary">Google</span></p>
+        <p><span className="text-text-faint">VISA</span> entry rules, free <span className="float-right text-text-secondary">Travel Buddy</span></p>
       </div>
-      <p className="mt-2 border-t border-panel-border pt-2 text-white/70">
+      <p className="mt-2 border-t border-border pt-2 text-text-secondary">
         13 public routes · per-IP + daily caps · <span className="text-brand-green">the searches below are REAL</span>
       </p>
-      <p className="text-[10px] italic text-white/50">
+      <p className="text-[10px] italic text-text-faint">
         Free to search — by design and by our vendor agreements. Not a trial.
       </p>
     </div>
@@ -144,15 +144,15 @@ function TravelHeroTerminal() {
 function GuardsPanel() {
   return (
     <DarkSlide title="The guardrails — capped, honest, permanent" tag="Real config">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white/40">per-IP rate limit <span className="float-right text-white/80">5 searches / 60s (default)</span></p>
-        <p className="text-white/40">daily provider caps <span className="float-right text-white/80">durable, atomic, per-vendor</span></p>
-        <p className="border-t border-panel-border pt-1">visa checks <span className="float-right text-white">5 / day</span></p>
-        <p>hotel bookings <span className="float-right text-white">25 / day</span></p>
-        <p>flight bookings <span className="float-right text-white">25 / day</span></p>
-        <p className="border-t border-panel-border pt-1 text-white/50">over the cap, the truth:</p>
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-faint">per-IP rate limit <span className="float-right text-text-secondary">5 searches / 60s (default)</span></p>
+        <p className="text-text-faint">daily provider caps <span className="float-right text-text-secondary">durable, atomic, per-vendor</span></p>
+        <p className="border-t border-border pt-1">visa checks <span className="float-right text-text-primary">5 / day</span></p>
+        <p>hotel bookings <span className="float-right text-text-primary">25 / day</span></p>
+        <p>flight bookings <span className="float-right text-text-primary">25 / day</span></p>
+        <p className="border-t border-border pt-1 text-text-faint">over the cap, the truth:</p>
         <p className="text-amber-300">&ldquo;Flight search is temporarily paused. Please try again later.&rdquo;</p>
-        <p className="pt-1 text-[10px] italic text-white/50">
+        <p className="pt-1 text-[10px] italic text-text-faint">
           Never fake results, never a silent fallback — a paused search says so. And free guest
           access is structural (our vendor agreements), not a promotion that expires.
         </p>
@@ -168,21 +168,21 @@ function GuardsPanel() {
 function HotelBookingPanel() {
   return (
     <DarkSlide title="Hotel booking — the complete flow" tag="Mirror · labeled">
-      <div className="space-y-1 text-white/70">
-        <p><span className="text-white/40">1</span> search <span className="float-right text-white/80">real LiteAPI rates</span></p>
-        <p><span className="text-white/40">2</span> prebook <span className="float-right text-white/80">locked quote</span></p>
-        <p><span className="text-white/40">3</span> hosted card <span className="float-right text-white/80">LiteAPI payment SDK — card never touches our server</span></p>
-        <p><span className="text-white/40">4</span> book <span className="float-right text-white/80">one transaction, two rows:</span></p>
-        <p className="border-t border-panel-border pt-1 text-white">
-          reservations <span className="float-right text-white/80">bookingType: &lsquo;guest&rsquo; · guestEmail · confirmation code</span>
+      <div className="space-y-1 text-text-secondary">
+        <p><span className="text-text-faint">1</span> search <span className="float-right text-text-secondary">real LiteAPI rates</span></p>
+        <p><span className="text-text-faint">2</span> prebook <span className="float-right text-text-secondary">locked quote</span></p>
+        <p><span className="text-text-faint">3</span> hosted card <span className="float-right text-text-secondary">LiteAPI payment SDK — card never touches our server</span></p>
+        <p><span className="text-text-faint">4</span> book <span className="float-right text-text-secondary">one transaction, two rows:</span></p>
+        <p className="border-t border-border pt-1 text-text-primary">
+          reservations <span className="float-right text-text-secondary">bookingType: &lsquo;guest&rsquo; · guestEmail · confirmation code</span>
         </p>
-        <p className="text-white">
-          commission_ledger <span className="float-right text-white/80">&lsquo;estimated&rsquo; on book</span>
+        <p className="text-text-primary">
+          commission_ledger <span className="float-right text-text-secondary">&lsquo;estimated&rsquo; on book</span>
         </p>
         <p className="mt-1 rounded border border-brand-amber/40 bg-brand-amber/10 px-2 py-1 text-[10px] text-brand-amber">
           Test mode — use card 4242 4242 4242 4242, any future date, any CVV. No real charge.
         </p>
-        <p className="text-[10px] italic text-white/50">
+        <p className="text-[10px] italic text-text-faint">
           The environment banner above is the real one — sandbox says test card, production says
           real charge. Booked-but-not-persisted fails loud, never silently.
         </p>
@@ -198,16 +198,16 @@ function HotelBookingPanel() {
 function FlightCheckoutMirror() {
   return (
     <DarkSlide title="Flight checkout — real card element, test rails" tag="Mirror · labeled">
-      <div className="space-y-1 text-white/70">
-        <p><span className="text-white/40">search</span> <span className="float-right text-white/80">real Duffel offers, real prices</span></p>
-        <p><span className="text-white/40">passenger</span> <span className="float-right text-white/80">name · DOB · passport (intl)</span></p>
-        <p><span className="text-white/40">payment intent</span> <span className="float-right text-white/80">→ client_token</span></p>
-        <p><span className="text-white/40">card element</span> <span className="float-right text-white/80">Duffel&rsquo;s own — PCI, never our server</span></p>
-        <p><span className="text-white/40">order</span> <span className="float-right text-white/80">server verifies intent, then books</span></p>
+      <div className="space-y-1 text-text-secondary">
+        <p><span className="text-text-faint">search</span> <span className="float-right text-text-secondary">real Duffel offers, real prices</span></p>
+        <p><span className="text-text-faint">passenger</span> <span className="float-right text-text-secondary">name · DOB · passport (intl)</span></p>
+        <p><span className="text-text-faint">payment intent</span> <span className="float-right text-text-secondary">→ client_token</span></p>
+        <p><span className="text-text-faint">card element</span> <span className="float-right text-text-secondary">Duffel&rsquo;s own — PCI, never our server</span></p>
+        <p><span className="text-text-faint">order</span> <span className="float-right text-text-secondary">server verifies intent, then books</span></p>
         <p className="mt-1 rounded border border-brand-amber/40 bg-brand-amber/10 px-2 py-1 text-[10px] text-brand-amber">
           Test mode — no real charge. Use a Duffel test card.
         </p>
-        <p className="text-[10px] italic text-white/50">
+        <p className="text-[10px] italic text-text-faint">
           Honest stops: live charging is double-flag-blocked, and orders don&rsquo;t persist to your
           account yet — the page says so instead of pretending.
         </p>
@@ -223,15 +223,15 @@ function FlightCheckoutMirror() {
 function TripContainerPanel() {
   return (
     <DarkSlide title="The trip — where finds become a plan" tag="Example set">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white">{EX.trip.name}</p>
-        <p className="text-white/50">{EX.trip.days} days · {EX.trip.location} <span className="float-right text-white">{usd0(EX.trip.budget)} budget</span></p>
-        <p className="border-t border-panel-border pt-1 text-white/40">saved into it:</p>
-        <p><span className="text-cyan-300">{EX.committedLine.icon} festival tickets</span> <span className="float-right text-white/80">{EX.committedLine.coa} · {usd0(EX.committedLine.amount)} · Saved</span></p>
-        <p className="pt-1 text-white/50">
-          guest → <span className="text-white/80">&ldquo;Sign up free to save trips here&rdquo;</span>
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-primary">{EX.trip.name}</p>
+        <p className="text-text-faint">{EX.trip.days} days · {EX.trip.location} <span className="float-right text-text-primary">{usd0(EX.trip.budget)} budget</span></p>
+        <p className="border-t border-border pt-1 text-text-faint">saved into it:</p>
+        <p><span className="text-cyan-300">{EX.committedLine.icon} festival tickets</span> <span className="float-right text-text-secondary">{EX.committedLine.coa} · {usd0(EX.committedLine.amount)} · Saved</span></p>
+        <p className="pt-1 text-text-faint">
+          guest → <span className="text-text-secondary">&ldquo;Sign up free to save trips here&rdquo;</span>
         </p>
-        <p className="text-[10px] italic text-white/50">
+        <p className="text-[10px] italic text-text-faint">
           Searching is free forever; SAVING what you found into a trip is the account line —
           honestly drawn there and nowhere earlier.
         </p>
@@ -247,16 +247,16 @@ function TripContainerPanel() {
 function CommitWiringPanel() {
   return (
     <DarkSlide title="One save, three rows" tag="Real wiring · example values">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white/40">save &ldquo;festival tickets&rdquo; to the trip →</p>
-        <p className="border-t border-panel-border pt-1"><span className="text-white/40">budget line</span> <span className="float-right text-white/80">{EX.committedLine.coa} Activities · {usd0(EX.committedLine.amount)} · source &lsquo;trip&rsquo;</span></p>
-        <p><span className="text-white/40">itinerary row</span> <span className="float-right text-white/80">day · time · vendor</span></p>
-        <p><span className="text-white/40">calendar event</span> <span className="float-right text-cyan-300">{EX.committedLine.icon} cyan tile · budget riding on it</span></p>
-        <p className="border-t border-panel-border pt-1 text-white/50">
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-faint">save &ldquo;festival tickets&rdquo; to the trip →</p>
+        <p className="border-t border-border pt-1"><span className="text-text-faint">budget line</span> <span className="float-right text-text-secondary">{EX.committedLine.coa} Activities · {usd0(EX.committedLine.amount)} · source &lsquo;trip&rsquo;</span></p>
+        <p><span className="text-text-faint">itinerary row</span> <span className="float-right text-text-secondary">day · time · vendor</span></p>
+        <p><span className="text-text-faint">calendar event</span> <span className="float-right text-cyan-300">{EX.committedLine.icon} cyan tile · budget riding on it</span></p>
+        <p className="border-t border-border pt-1 text-text-faint">
           → the Runway tab&rsquo;s travel budget reads these lines; actuals reconcile from your
           bank feed in Books.
         </p>
-        <p className="text-[10px] italic text-white/50">
+        <p className="text-[10px] italic text-text-faint">
           A booking isn&rsquo;t a receipt in your email — it&rsquo;s a budget line, an itinerary row,
           and a calendar tile. (Planned ≠ posted: the ledger fills from your real transactions.)
         </p>
@@ -272,15 +272,15 @@ function CommitWiringPanel() {
 function PremiumCategoriesPanel() {
   return (
     <DarkSlide title="Premium categories — the real paywall" tag="Mirror · labeled">
-      <div className="space-y-1 text-white/70">
-        <p className="text-white/40">🔒 Dinner spots</p>
-        <p className="text-white/60">&ldquo;Subscribe to see top-rated dinner spots with prices.&rdquo;</p>
-        <p><span className="rounded border border-panel-border px-1.5 py-0.5 text-white/50">Subscribe to unlock</span> <span className="float-right text-[10px] text-white/50">the button below is the real one</span></p>
-        <p className="border-t border-panel-border pt-1 text-white/40">behind the button:</p>
-        <p className="text-white/70">Stripe checkout <span className="float-right text-white/80">per-category subscription</span></p>
-        <p className="text-white/70">signature-verified webhook <span className="float-right text-white/80">grants the entitlement row</span></p>
-        <p className="text-white/70">locked card <span className="float-right text-white/80">mounts NO search, spends nothing</span></p>
-        <p className="pt-1 text-[10px] italic text-white/50">
+      <div className="space-y-1 text-text-secondary">
+        <p className="text-text-faint">🔒 Dinner spots</p>
+        <p className="text-text-muted">&ldquo;Subscribe to see top-rated dinner spots with prices.&rdquo;</p>
+        <p><span className="rounded border border-border px-1.5 py-0.5 text-text-faint">Subscribe to unlock</span> <span className="float-right text-[10px] text-text-faint">the button below is the real one</span></p>
+        <p className="border-t border-border pt-1 text-text-faint">behind the button:</p>
+        <p className="text-text-secondary">Stripe checkout <span className="float-right text-text-secondary">per-category subscription</span></p>
+        <p className="text-text-secondary">signature-verified webhook <span className="float-right text-text-secondary">grants the entitlement row</span></p>
+        <p className="text-text-secondary">locked card <span className="float-right text-text-secondary">mounts NO search, spends nothing</span></p>
+        <p className="pt-1 text-[10px] italic text-text-faint">
           Nine premium searches system-wide, six sold here, unlocked per category — the one tab
           where the paywall is real today, wired end to end.
         </p>
