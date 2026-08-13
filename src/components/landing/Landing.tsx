@@ -91,7 +91,8 @@ import {
   ENTITY_DIM, ACCOUNT_DIM, SUB_DIM, OBJECT_DIM, VENDOR_DIM,
   type ScheduleAllocationRow,
 } from '@/config/transparencyLedger';
-import { TAB_DESCRIPTORS } from '@/lib/tabDescriptors';
+// LANDING-V4: the TAB_DESCRIPTORS import retired with the summary slides'
+// prose — the descriptor strings still render on /modules/<id>.
 import { DEMO_VIDEO_URL } from '@/config/demoVideo';
 // PR-ELEV-2d: the Built-on wall data + per-vendor logo rules live in the
 // server-safe leaf (page.tsx fs-checks the same entries' logo files).
@@ -1040,27 +1041,70 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
         </div>
       </section>
 
-      {/* ── FD-1i (ruling E): the SUMMARY deck — a second pass beneath the
-            selection floor, same scroll-snap mechanics. Content LIFTED ONLY:
-            each pillar's dark-hero eyebrow + headline, the descriptor, and
-            three verbatim slide titles (provenance on SUMMARY_BY_ID).
-            DECK-2: the slides render as MINIATURE EXPLORE HEROES — wide,
-            tall, radial-glow panels in the darkHero language (the stage
-            changed; the script is byte-identical).
-            DECKS-3 (ruling 1): the deck is a VERTICAL STACK now — nine
-            full-width mini heroes, top to bottom. The carousel mechanics
-            (snap rail, chevrons, dots) died on this section.
-            PR-DECK-CLEAN-3 (Alex: Nuitée-style): each hero splits
-            TWO-COLUMN when its SUMMARY_BY_ID entry carries a demoImage —
-            text left, framed screenshot right; imageless slides keep the
-            full-width text layout (today's state for all nine). ────────────── */}
+      {/* ── LANDING-V4 (Alex's ruling, reversing the V2 seat): DONE-FOR-YOU is
+            its own numbered section directly below the deck — eyebrow in the
+            established grammar ('03 / DONE-FOR-YOU' is the one new label), no
+            right slot. Body = the PROFESSIONAL SERVICES panel relocated
+            WHOLESALE from the 05 grid (markup byte-identical inside), seated
+            in the deck-table's white-card container idiom. ────────────────── */}
       <section className="w-full border-b border-border bg-bg-terminal">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-          {/* LANDING-V2 (spec :281-282): the 03 eyebrow; the right slot is a
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">
+            03 / DONE-FOR-YOU
+          </p>
+          <div className="mt-4 rounded-lg border border-border bg-white p-5">
+            <div className="mt-4">
+              <span className="rounded border border-border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
+                PROFESSIONAL SERVICES
+              </span>
+              <p className="mt-2 text-xs leading-relaxed text-text-muted">Your own hosted copy — every API wired, custom to your business, you own everything.</p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {([
+                  ['Full setup', 'Your own hosted copy, every API wired, you own everything.'],
+                  ['Monthly maintenance', 'I keep it updated and running.'],
+                  ['Custom builds', 'Need a feature? I build it.'],
+                  ['Embed a module', 'Want just one piece (the booking engine, the books, the scanner) inside your existing system? I do that too.'],
+                ] as const).map(([title, desc]) => (
+                  <div key={title} className="rounded-lg border border-border bg-white p-4 text-text-primary">
+                    <div className="text-sm font-medium">{title}</div>
+                    <p className="mt-1 text-xs text-text-muted">{desc}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-4">
+                <Link
+                  href="/work-with-me"
+                  className="border border-brand-purple/40 px-6 py-2 text-center text-xs font-medium text-brand-purple hover:bg-brand-purple-wash"
+                >
+                  Send a project proposal →
+                </Link>
+                <span className="ml-auto font-mono text-xs italic text-text-faint">Scoped by proposal</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── LANDING-V4 (spec :281-302): INSIDE THE APP renumbers to 04 and
+            adopts the spec's frame-card anatomy — per module a white card
+            with a mono caption bar ('APP / {NAME}' left · the deck-table's
+            status string as the right chip, :907-911 idiom reused) and the
+            existing screenshot framed beneath (spec :290 aspect 16/10,
+            fit-contain; border-border + bg-bg-row chrome), 2-up at lg.
+            DECLARED RETIREMENT: the FD-1i/DECK-2 slide prose (eyebrow chips,
+            h3 headlines, bullet lines, Explore CTAs) leaves the page —
+            strings live in git history; the module pitch lives in the deck
+            table's IN ITS OWN WORDS column and Explore access in its arrows.
+            DECLARED INTERIM: current screenshot assets remain until the
+            Direction-C re-shoot — frames receive new images as drop-in
+            asset swaps (same src paths). ─────────────────────────────────── */}
+      <section className="w-full border-b border-border bg-bg-terminal">
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
+          {/* LANDING-V2 (spec :281-282): the eyebrow row; the right slot is a
               PLAIN mono line, not a link (spec renders it in the muted ink). */}
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">
-              03 / INSIDE THE APP
+              04 / INSIDE THE APP
             </p>
             <p className="font-mono text-[10px] tracking-wider text-text-faint">REAL SCREENS — NOT RENDERS</p>
           </div>
@@ -1069,68 +1113,36 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             The product, as it runs.
           </h2>
 
-          <div className="mt-4 space-y-6">
+          <div className="mt-4 grid gap-6 lg:grid-cols-2">
             {PILLAR_CARDS.map((p) => {
               const s = SUMMARY_BY_ID[p.id];
               return (
-                // DECK-2: each slide IS a miniature explore hero — REPAINT-2:
-                // the darkHero glow language died; the slide is a flat
-                // card-cream panel (bg-ts-white + lavender hairline), ink on
-                // the text tiers (the template's raw color literals never
-                // enter this file).
-                // Chip = the template's :151 eyebrow idiom (+ the
-                // landing's mono); headline = the hero's display type scaled
-                // down (text-3xl/5xl → 2xl/3xl); sub-copy white/65-70; CTA =
-                // the white hero-button family. Content strings byte-identical
-                // to FD-1i (SUMMARY_BY_ID + TAB_DESCRIPTORS — 0 data lines).
-                // PR-DECK-CLEAN-3 (Alex: Nuitée-style): the slide is a
-                // TWO-COLUMN grid when it carries a demoImage — text LEFT
-                // (copy byte-identical), the ELEV-2c framed screenshot RIGHT,
-                // filling the column height; mobile stacks text-then-image.
-                // No image → the grid does NOT engage and text spans full
-                // width (absence-is-honest — today's exact state; never a
-                // placeholder frame).
-                <article
-                  key={p.id}
-                  className="flex min-h-[22rem] w-full flex-col overflow-hidden rounded-lg border border-border bg-ts-white p-6 text-text-primary sm:p-8"
-                >
-                  <div className={`flex-1${s.demoImage ? ' grid gap-6 md:grid-cols-2' : ' flex flex-col'}`}>
-                    <div className="flex flex-1 flex-col">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded border border-border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
-                          {s.eyebrow}
-                        </span>
-                      </div>
-                      <h3 className="mt-4 text-2xl font-light tracking-tight sm:text-3xl">{s.headline}</h3>
-                      <p className="mt-3 max-w-xl text-sm leading-relaxed text-text-secondary">{TAB_DESCRIPTORS[p.tab]}</p>
-                      <ul className="mt-3 max-w-xl space-y-1">
-                        {s.lines.map((l, i) => (
-                          <li key={i} className="text-sm leading-relaxed text-text-secondary">{l}</li>
-                        ))}
-                      </ul>
-                      <div className="mt-auto pt-5">
-                        <Link
-                          href={`/modules/${p.id}`}
-                          className="inline-block bg-brand-purple px-4 py-1.5 text-xs font-medium text-white hover:bg-brand-purple-hover"
-                        >
-                          Explore {p.label} →
-                        </Link>
-                      </div>
-                    </div>
-                    {/* PR-ELEV-2c → PR-DECK-CLEAN-3: the framed screenshot
-                        panel, now the RIGHT column — renders ONLY when the
-                        entry carries a real image. Plain <img> per the house
-                        precedent (HotelGallery.tsx:38); object-cover fills
-                        the column height at md+, natural ratio when stacked
-                        on mobile. */}
-                    {s.demoImage && (
-                      <div className="overflow-hidden rounded-lg border border-border bg-bg-row">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={s.demoImage.src} alt={s.demoImage.alt} className="w-full object-cover md:h-full" />
-                      </div>
+                // LANDING-V4 (spec :286-301): the frame card — white card,
+                // mono caption bar (label left · status chip right), the
+                // screenshot in a 16/10 frame beneath (spec fit="contain",
+                // :291). Status strings + classes reused verbatim from the
+                // deck table's STATUS column — never invented. Plain <img>
+                // per the house precedent (HotelGallery.tsx:38); the frame
+                // renders ONLY when the entry carries a real image
+                // (absence-is-honest — today all nine do, PR-DEMO-1).
+                <div key={p.id} className="overflow-hidden rounded-lg border border-border bg-white">
+                  <div className="flex items-center justify-between gap-3 border-b border-border px-3.5 py-2">
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-text-secondary">
+                      APP / {p.label}
+                    </span>
+                    {p.id === 'travel' ? (
+                      <span className="font-mono text-[10px] font-semibold text-brand-purple">LIVE — FREE</span>
+                    ) : (
+                      <span className="font-mono text-[10px] tracking-wider text-text-muted">LAUNCHING SOON</span>
                     )}
                   </div>
-                </article>
+                  {s.demoImage && (
+                    <div className="aspect-[16/10] bg-bg-row">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={s.demoImage.src} alt={s.demoImage.alt} className="h-full w-full object-contain" />
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -1247,18 +1259,17 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             carousel exists only when real content does. ───────────────────── */}
       <section className="w-full border-b border-border bg-bg-terminal">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-          {/* LANDING-V2 (spec :308): the 04 eyebrow — no right slot. */}
+          {/* LANDING-V2 (spec :308) → LANDING-V4: the eyebrow renumbers to 05
+              — no right slot. */}
           <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">
-            04 / BUILT IN PUBLIC
+            05 / BUILT IN PUBLIC
           </p>
-          {/* LANDING-V3 (spec :309-328): section 04 becomes the spec's
-              4-column mono-headed grid. Prose→column mapping (byte-identical,
-              re-seated): P1 → THE CODE (V3 FLAGS: the inline repo anchor is
-              PLAIN TEXT now — words byte-identical, anchor removed; the
-              spec's :313 mono GITHUB link is the column's only link);
-              P2 → THE CHANGELOG; P3 → YOUR LEDGER. Column 4 = DONE-FOR-YOU:
-              the PROFESSIONAL SERVICES panel as shipped, byte-identical. */}
-          <div className="mt-6 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+          {/* LANDING-V3 (spec :309-328) → LANDING-V4: the grid is 3 columns
+              now — THE CODE (V3 FLAGS: inline repo anchor is PLAIN TEXT,
+              words byte-identical; the spec's :313 mono GITHUB link is the
+              column's only link) / THE CHANGELOG / YOUR LEDGER. The
+              DONE-FOR-YOU column died with the panel's move to section 03. */}
+          <div className="mt-6 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             <div>
               <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">THE CODE</p>
               <p className="text-sm leading-relaxed text-text-secondary">
@@ -1285,39 +1296,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
               <p className="text-sm leading-relaxed text-text-secondary">
                 Your complete financial records export in one click — never paywalled.
               </p>
-            </div>
-            <div>
-              <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">DONE-FOR-YOU</p>
-              {/* The PROFESSIONAL SERVICES panel — relocated in V2, byte-identical
-                  inside (DECK-SERVICES-TAB provenance; /work-with-me CTA kept). */}
-            <div className="mt-4">
-              <span className="rounded border border-border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
-                PROFESSIONAL SERVICES
-              </span>
-              <p className="mt-2 text-xs leading-relaxed text-text-muted">Your own hosted copy — every API wired, custom to your business, you own everything.</p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {([
-                  ['Full setup', 'Your own hosted copy, every API wired, you own everything.'],
-                  ['Monthly maintenance', 'I keep it updated and running.'],
-                  ['Custom builds', 'Need a feature? I build it.'],
-                  ['Embed a module', 'Want just one piece (the booking engine, the books, the scanner) inside your existing system? I do that too.'],
-                ] as const).map(([title, desc]) => (
-                  <div key={title} className="rounded-lg border border-border bg-white p-4 text-text-primary">
-                    <div className="text-sm font-medium">{title}</div>
-                    <p className="mt-1 text-xs text-text-muted">{desc}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 flex flex-wrap items-center gap-4">
-                <Link
-                  href="/work-with-me"
-                  className="border border-brand-purple/40 px-6 py-2 text-center text-xs font-medium text-brand-purple hover:bg-brand-purple-wash"
-                >
-                  Send a project proposal →
-                </Link>
-                <span className="ml-auto font-mono text-xs italic text-text-faint">Scoped by proposal</span>
-              </div>
-            </div>
             </div>
           </div>
         </div>
