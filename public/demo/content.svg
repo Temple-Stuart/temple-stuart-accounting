@@ -1,46 +1,62 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
-  <!-- LANDING-04-ILLOS: the Content pipeline, as it actually runs.
-       Stages read from the pipeline's own stage state
-       (workbench/operations/content/ContentPipeline.tsx:85
-       'calendar' | 'log' | 'script', the three keep-mounted surfaces
-       :350, :352, :514 - DayCalendar, the day log, ScriptGenerator). -->
-  <!-- Canvas: ts-bg cream. Cards: ts-white on ts-border hairline.
-       Active step: ts-purple fill, ts-white ink. Accent: ts-gold.
-       Text ladder: ts-text #1a1a2e / ts-text-secondary #4a4a5a /
-       ts-text-muted #7a7488 / ts-text-faint #a8a2b0.
-       (Token names drop their CSS custom-property prefix on purpose: this
-       file is parsed as a STANDALONE XML document when it is served to an
-       img tag, and XML forbids a double hyphen inside a comment. Spelling
-       the prefix out made all nine files fail to parse - every frame
-       rendered as alt text on the Preview.)
-       -->
-  <rect width="1200" height="750" fill="#FAF8F3"/>
-  <text x="60" y="76" font-size="20" font-weight="600" letter-spacing="6" fill="#7a7488">CONTENT</text>
-
-  <!-- 01 WHAT -->
-  <rect x="60" y="150" width="304" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
-  <text x="88" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">01</text>
-  <text x="88" y="330" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">WHAT</text>
-  <text x="88" y="374" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">YOU DID</text>
-  <rect x="88" y="442" width="153" height="40" rx="8" fill="#F3EFE6"/>
-  <text x="103" y="468" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">TODAY'S LOG</text>
-  <line x1="380" y1="385" x2="426" y2="385" stroke="#a8a2b0" stroke-width="3"/>
-  <path d="M 426 374 L 442 385 L 426 396 Z" fill="#a8a2b0"/>
-
-  <!-- 02 SCENES -->
-  <rect x="448" y="150" width="304" height="470" rx="14" fill="#3b2d6b"/>
-  <text x="476" y="202" font-size="16" letter-spacing="4" fill="#FFFDF9" opacity="0.6">02</text>
-  <text x="476" y="337" font-size="34" font-weight="700" letter-spacing="1" fill="#FFFDF9">SCENES</text>
-  <text x="476" y="385" font-size="15" letter-spacing="3" fill="#FFFDF9" opacity="0.75">&#9679; YOU ARE HERE</text>
-  <rect x="476" y="435" width="175" height="40" rx="8" fill="#ffffff"/>
-  <text x="491" y="461" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#3b2d6b">SHOTS PLANNED</text>
-  <line x1="768" y1="385" x2="814" y2="385" stroke="#a8a2b0" stroke-width="3"/>
-  <path d="M 814 374 L 830 385 L 814 396 Z" fill="#a8a2b0"/>
-
-  <!-- 03 SCRIPT -->
-  <rect x="836" y="150" width="304" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
-  <text x="864" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">03</text>
-  <text x="864" y="352" font-size="34" font-weight="700" letter-spacing="1" fill="#1a1a2e">SCRIPT</text>
-  <rect x="864" y="420" width="175" height="40" rx="8" fill="#F3EFE6"/>
-  <text x="879" y="446" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">READY TO FILM</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750">
+  <!-- LANDING-04-FRAMES-SIX: CONTENT, step 02 of 03 (SCENES).
+       The panel is that step's own screen: the script map, one shot per
+       scene.
+       Rows are read from src/components/home/ContentShowcaseSections.tsx
+       ScriptMapPanel (:133-148): scene 'Morning coffee and plan the day'
+       with b-roll 'coffee on the counter, notebook open', scene 'Prep the
+       truck for the lunch rush' with b-roll 'onions on the flat top, order
+       tickets', and the read-only task band 'Sort the receipts into one
+       folder'. Run times are those same scenes on the seed day feed
+       (:95, :99): 30m and 60m.
+       The SHOT cell carries the FIRST b-roll item of each scene verbatim
+       ('coffee on the counter', 'onions on the flat top'); the full list
+       does not fit the cell, so a whole item is shown rather than a
+       truncated phrase.
+       No live indicator: the content surface shows none (ruling 5). -->
+  <rect x="0.0" y="0.0" width="1200.0" height="750.0" fill="#FAF8F3"/>
+  <text id="t165" x="36.0" y="53.0" font-family="'IBM Plex Mono', monospace" font-size="22" fill="#7a7488" font-weight="500" letter-spacing="6.60">CONTENT</text>
+  <text id="t166" x="1164.0" y="53.0" font-family="'IBM Plex Mono', monospace" font-size="20" fill="#a8a2b0" letter-spacing="3.20" text-anchor="end">STEP 02 OF 03</text>
+  <rect x="37.0" y="75.0" width="351.3" height="102.0" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text id="t167" x="56.0" y="105.6" font-family="'IBM Plex Mono', monospace" font-size="20" fill="#a8a2b0" letter-spacing="4.00">01</text>
+  <text id="t168" x="56.0" y="134.8" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="28" fill="#1a1a2e" font-weight="600">YOUR DAY</text>
+  <text id="t169" x="56.0" y="158.0" font-family="'IBM Plex Mono', monospace" font-size="18" fill="#a8a2b0" letter-spacing="2.16">ONE FEED</text>
+  <text id="t170" x="406.3" y="136.0" font-family="'IBM Plex Mono', monospace" font-size="30" fill="#a8a2b0" text-anchor="middle">›</text>
+  <rect x="423.3" y="74.0" width="353.3" height="104.0" fill="#3b2d6b"/>
+  <rect x="423.3" y="173.0" width="353.3" height="5.0" fill="#B8860B"/>
+  <text id="t171" x="443.3" y="105.6" font-family="'IBM Plex Mono', monospace" font-size="20" fill="#FFFDF9" letter-spacing="4.00" opacity="0.6">02</text>
+  <text id="t172" x="443.3" y="134.8" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="28" fill="#FFFDF9" font-weight="600">SCENES</text>
+  <text id="t173" x="443.3" y="158.0" font-family="'IBM Plex Mono', monospace" font-size="18" fill="#FFFDF9" letter-spacing="2.52" opacity="0.78">▪ YOU ARE HERE</text>
+  <text id="t174" x="793.7" y="136.0" font-family="'IBM Plex Mono', monospace" font-size="30" fill="#a8a2b0" text-anchor="middle">›</text>
+  <rect x="811.7" y="75.0" width="351.3" height="102.0" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text id="t175" x="830.7" y="105.6" font-family="'IBM Plex Mono', monospace" font-size="20" fill="#a8a2b0" letter-spacing="4.00">03</text>
+  <text id="t176" x="830.7" y="134.8" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="28" fill="#1a1a2e" font-weight="600">SCRIPT</text>
+  <text id="t177" x="830.7" y="158.0" font-family="'IBM Plex Mono', monospace" font-size="18" fill="#a8a2b0" letter-spacing="2.16">READY TO FILM</text>
+  <rect x="597.5" y="178.0" width="5.0" height="20.0" fill="#B8860B"/>
+  <rect x="37.0" y="199.0" width="1126.0" height="518.0" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
+  <text id="t178" x="60.0" y="228.0" font-family="'IBM Plex Mono', monospace" font-size="22" fill="#4a4a5a" letter-spacing="2.64">THE SCRIPT MAP</text>
+  <line x1="36.0" y1="244.0" x2="1164.0" y2="244.0" stroke="#DDD6E8" stroke-width="2"/>
+  <rect x="37.0" y="244.0" width="1127.0" height="38.0" fill="#F3EFE6"/>
+  <text id="t179" x="60.0" y="270.0" font-family="'IBM Plex Mono', monospace" font-size="20" fill="#7a7488" letter-spacing="2.40">KIND</text>
+  <text id="t180" x="200.0" y="270.0" font-family="'IBM Plex Mono', monospace" font-size="20" fill="#7a7488" letter-spacing="2.40">SCENE</text>
+  <text id="t181" x="640.0" y="270.0" font-family="'IBM Plex Mono', monospace" font-size="20" fill="#7a7488" letter-spacing="2.40">SHOT</text>
+  <text id="t182" x="1140.0" y="270.0" font-family="'IBM Plex Mono', monospace" font-size="20" fill="#7a7488" letter-spacing="2.40" text-anchor="end">RUN</text>
+  <text id="t183" x="60.0" y="356.3" font-family="'IBM Plex Mono', monospace" font-size="22" fill="#4a4a5a" letter-spacing="2.64">SCENE</text>
+  <text id="t184" x="200.0" y="356.3" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="27" fill="#1a1a2e">Morning coffee and plan the day</text>
+  <text id="t185" x="640.0" y="356.3" font-family="'IBM Plex Mono', monospace" font-size="24" fill="#a8a2b0">coffee on the counter</text>
+  <text id="t186" x="1140.0" y="356.3" font-family="'IBM Plex Mono', monospace" font-size="26" fill="#7a7488" text-anchor="end">30M</text>
+  <line x1="60.0" y1="412.7" x2="1140.0" y2="412.7" stroke="#EBE4F7" stroke-width="1"/>
+  <text id="t187" x="60.0" y="487.0" font-family="'IBM Plex Mono', monospace" font-size="22" fill="#4a4a5a" letter-spacing="2.64">SCENE</text>
+  <text id="t188" x="200.0" y="487.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="27" fill="#1a1a2e">Prep the truck for the lunch rush</text>
+  <text id="t189" x="640.0" y="487.0" font-family="'IBM Plex Mono', monospace" font-size="24" fill="#a8a2b0">onions on the flat top</text>
+  <text id="t190" x="1140.0" y="487.0" font-family="'IBM Plex Mono', monospace" font-size="26" fill="#7a7488" text-anchor="end">60M</text>
+  <line x1="60.0" y1="543.3" x2="1140.0" y2="543.3" stroke="#EBE4F7" stroke-width="1"/>
+  <text id="t191" x="60.0" y="617.7" font-family="'IBM Plex Mono', monospace" font-size="22" fill="#7a7488" letter-spacing="2.64">TASK</text>
+  <text id="t192" x="200.0" y="617.7" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="27" fill="#7a7488">Sort the receipts into one folder</text>
+  <text id="t193" x="640.0" y="617.7" font-family="'IBM Plex Mono', monospace" font-size="24" fill="#a8a2b0">read-only band</text>
+  <text id="t194" x="1140.0" y="617.7" font-family="'IBM Plex Mono', monospace" font-size="26" fill="#7a7488" text-anchor="end">—</text>
+  <rect x="37.0" y="674.0" width="1126.0" height="43.0" fill="#F3EFE6"/>
+  <line x1="36.0" y1="674.0" x2="1164.0" y2="674.0" stroke="#DDD6E8" stroke-width="2"/>
+  <text id="t195" x="60.0" y="703.0" font-family="'IBM Plex Mono', monospace" font-size="22" fill="#1a1a2e" letter-spacing="2.20">30M + 60M = 90M OF SCENES</text>
+  <text id="t196" x="1140.0" y="703.0" font-family="'IBM Plex Mono', monospace" font-size="22" fill="#7a7488" letter-spacing="2.20" text-anchor="end">SCENES FROM YOUR ROUTINES</text>
 </svg>
