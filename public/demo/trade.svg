@@ -5,7 +5,12 @@
        02 SCAN 'RUN THE PIPELINE' -> 03 REVIEW 'PICK CANDIDATES'),
        the TRADE/SKIP verdict rows (ScannerResultsTable.tsx verdict +
        stored RejectionReason), and the strip's COMMIT link chip
-       ('IN BOOKS ->', selectTab('books')). -->
+       ('IN BOOKS ->', selectTab('books')). The '18 CONTROLS' chip is a
+       VERIFIED structural fact, not an illustrative figure:
+       ScanFilterForm renders all 18 ScannerFilters fields
+       (ScanFilterForm.tsx:13-15), and the deck bullet 'Eighteen
+       controls, sixteen strategies' ships on this same page
+       (Landing.tsx PILLAR_CARDS trade). -->
   <!-- Canvas: ts-bg cream. Cards: ts-white on ts-border hairline.
        Active step: ts-purple fill, ts-white ink. Accent: ts-gold.
        Text ladder: ts-text #1a1a2e / ts-text-secondary #4a4a5a /
@@ -23,8 +28,8 @@
   <rect x="60" y="150" width="237" height="470" rx="14" fill="#FFFDF9" stroke="#DDD6E8" stroke-width="2"/>
   <text x="88" y="202" font-size="16" letter-spacing="4" fill="#a8a2b0">01</text>
   <text x="88" y="355" font-size="28" font-weight="700" letter-spacing="1" fill="#1a1a2e">FILTERS</text>
-  <rect x="88" y="417" width="142" height="40" rx="8" fill="#F3EFE6"/>
-  <text x="103" y="443" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">STRATEGIES</text>
+  <rect x="88" y="417" width="153" height="40" rx="8" fill="#F3EFE6"/>
+  <text x="103" y="443" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5" fill="#4a4a5a">18 CONTROLS</text>
   <path d="M 320 374 L 335 385 L 320 396 Z" fill="#a8a2b0"/>
 
   <!-- 02 SCAN -->
