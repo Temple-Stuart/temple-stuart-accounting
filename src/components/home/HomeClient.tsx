@@ -1,12 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import Image from 'next/image';
 import LoginBox from '@/components/LoginBox';
 import ModuleLauncher, { TAB_DESCRIPTORS } from '@/components/home/ModuleLauncher';
-import { ChevronDown } from 'lucide-react';
+// ONE-BAND: the per-tab module band copy (headline + ✓ chips) — the hero IS
+// the module band now, so it reads the same single source (leaf module,
+// lockstep with the deck's PILLAR_CARDS).
+import { MODULE_BANDS } from '@/lib/moduleBands';
+import { Check, ChevronDown } from 'lucide-react';
 // DS-2: the app hero uses the SAME radial-glow surface as the landing hero.
 // REPAINT-3: the HERO_BG import died — the hero is a solid aubergine band
 // (HOME-HERO-PARITY holds: the landing hero made the same move in REPAINT-2).
@@ -216,27 +220,52 @@ export default function HomeClient() {
         </div>
       </header>
 
-      {/* Hero — DS-2 → REPAINT-3: the app hero mirrors the landing hero's
-          Direction-C move (HOME-HERO-PARITY, Alex's ruling — the two surfaces
-          stay identical): SOLID bg-brand-purple band, cream headline
-          (text-ts-white), the 'Live smarter.' segment in the lavender wash
-          (the gradient clip died). Section padding (pb-8 pt-6) stays; the
-          panel-border hairline died with the glow (the landing hero carries
-          none). */}
+      {/* Hero — DS-2 → REPAINT-3 → ONE-BAND: the app hero IS the module band
+          now (the second purple band under the tab bar retired — every tab
+          renders exactly ONE purple headline surface). SOLID bg-brand-purple
+          band, cream headline (text-ts-white); section padding (pb-8 pt-6)
+          stays. The marketing tri-line retired from the app — it remains
+          landing copy for guests (Landing.tsx hero, mounted via GuestLanding).
+          Content = the ACTIVE tab's band config (MODULE_BANDS leaf — the same
+          strings the retired ModuleBand cards rendered), swapping on tab
+          select exactly as the subtitle already does. */}
       <section className="bg-brand-purple text-white pb-8 pt-6">
         <div className="max-w-7xl mx-auto px-4 lg:px-8">
           <div className="max-w-3xl">
-            {/* HOME-HERO-PARITY: the landing's badge pill, byte-exact
-                (reused copy — Landing.tsx:644-647). */}
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/80 mb-6">
-              <span className="text-brand-purple-wash" aria-hidden="true">✦</span>
-              All-in-one financial operating system
-            </div>
+            {/* ONE-BAND eyebrow: the module kicker in the ratified mock's
+                grammar — "MODULE NN / NAME" (numbering = the deck's
+                PILLAR_CARDS funnel order). Landing eyebrow mono idiom; ink =
+                the band's own muted white tier (StageStrip's active num line,
+                StageStrip.tsx:69). The old badge pill retired with the
+                tri-line. No descriptor renders here: the band config carries
+                none (MODULE_BANDS has plain + bullets only). */}
+            {MODULE_BANDS[activeTab] && (
+              <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/60 mb-6">
+                MODULE {MODULE_BANDS[activeTab].num} / {MODULE_BANDS[activeTab].name}
+              </p>
+            )}
             <h1 className="text-4xl sm:text-6xl font-bold leading-tight tracking-tight mb-6 text-ts-white">
-              Track your money.<br />
-              Plan your time.<br />
-              <span className="text-brand-purple-wash">Live smarter.</span>
+              {MODULE_BANDS[activeTab]?.plain}
             </h1>
+            {/* ONE-BAND chips: the band's ✓ chips, same config — the
+                white-on-purple chip idiom byte-copied from the retired
+                ModuleBand (row: ModuleLauncher's :180 row classes minus
+                justify-center — the hero is left-aligned; chip span + Check:
+                TradeTrustChip verbatim). flex-wrap = the 390px contract
+                (chips wrap, no horizontal overflow). */}
+            {MODULE_BANDS[activeTab] && (
+              <div className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-white/80">
+                {MODULE_BANDS[activeTab].bullets.map((fact, i) => (
+                  <Fragment key={fact}>
+                    {i > 0 && <span className="text-white/30" aria-hidden="true">|</span>}
+                    <span className="flex items-center gap-1">
+                      <Check className="h-3.5 w-3.5 shrink-0 text-white/80" strokeWidth={2.5} aria-hidden="true" />
+                      {fact}
+                    </span>
+                  </Fragment>
+                ))}
+              </div>
+            )}
             {/* PR-Hero-PerTab: the subhead swaps to the active tab's descriptor. min-h
                 reserves space so the Get Started button never jumps as the line changes
                 length. The headline above + Get Started below are unchanged. */}
