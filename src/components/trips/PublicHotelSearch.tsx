@@ -179,7 +179,7 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
       // this identity — the in-card header hides (title stays, sr-only).
       hideHeader
     >
-      <form onSubmit={search} className="grid grid-cols-2 gap-2 lg:grid-cols-5">
+      <form onSubmit={search} className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
         {/* PR-loc-2: linked country→city picker (real LiteAPI cities only)
             replaces the free-text city + country inputs. */}
         <CountryCityPicker onChange={setPicked} />

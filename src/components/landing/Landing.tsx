@@ -835,7 +835,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
               (declared addition) is the default full-catalog view.
               Client state only — commerce wiring and selection state
               untouched. */}
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5" role="group" aria-label="Module categories">
+          <div className="mt-4 grid grid-cols-3 justify-items-center gap-1.5 sm:flex sm:flex-wrap sm:items-center sm:justify-center" role="group" aria-label="Module categories">
             <button
               type="button"
               onClick={() => setCategoryKey('all')}
@@ -886,7 +886,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
              chrome = the DATA vocabulary (ds.ts) on cream: white card,
              lavender hairlines, zebra rows, wash hover. */}
           <div role="group" aria-label="The nine pillars" className="mt-4 overflow-x-auto rounded-lg border border-border bg-white">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[560px] text-sm">
               <thead>
                 {/* LANDING-V3 (spec :194): the header row takes the token
                     fill — bg-bg-row (#F3EFE6, the closest token to the

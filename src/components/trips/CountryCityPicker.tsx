@@ -124,7 +124,7 @@ export default function CountryCityPicker({ onChange }: Props) {
   return (
     // COMPACT-1: two labelled cells in the teaser form factor — mono micro-labels
     // above each field, 2-up on mobile, spanning 3 of the hotel form's 5 lg columns.
-    <div className="col-span-2 grid grid-cols-2 gap-2 lg:col-span-3">
+    <div className="col-span-full grid grid-cols-1 gap-2 sm:col-span-2 sm:grid-cols-2 lg:col-span-3">
       {/* Country dropdown (label = name, value = code). */}
       <label className="flex flex-col gap-1">
         <span className={TRAVEL_LABEL_CLASS}>Country</span>
