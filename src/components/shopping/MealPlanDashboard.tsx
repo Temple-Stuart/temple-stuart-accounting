@@ -78,13 +78,13 @@ export default function MealPlanDashboard({ plan, onUpdatePrices, onReset, commi
         </div>
         <div className="flex items-center gap-2">
           {committedAt ? (
-            <span className="px-3 py-1.5 text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">
+            <span className="px-3 py-1.5 text-xs font-medium bg-brand-green/10 text-brand-green border border-brand-green/40">
               Committed &#10003;
             </span>
           ) : onCommit ? (
             <button
               onClick={onCommit}
-              className="px-3 py-1.5 text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+              className="px-3 py-1.5 text-xs font-medium bg-brand-gold text-white hover:bg-brand-gold/90 transition-colors"
             >
               Commit to Budget
             </button>
@@ -209,7 +209,7 @@ export default function MealPlanDashboard({ plan, onUpdatePrices, onReset, commi
                       item.actualPrice !== null
                         ? Number(item.actualPrice) > Number(item.estimatedPrice) * 1.1
                           ? 'border-red-300 bg-red-50 text-brand-red'
-                          : 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                          : 'border-brand-green/40 bg-brand-green/10 text-brand-green'
                         : 'border-border'
                     }`}
                   />
@@ -222,7 +222,7 @@ export default function MealPlanDashboard({ plan, onUpdatePrices, onReset, commi
               <td colSpan={3} className="px-3 py-2 font-semibold text-text-primary">Total</td>
               <td className="px-3 py-2 text-right font-mono font-bold text-text-primary">{fmt(metrics.totalEstimated)}</td>
               <td className="px-3 py-2 text-right font-mono font-bold">
-                <span className={metrics.totalActual > metrics.totalEstimated ? 'text-brand-red' : 'text-emerald-700'}>
+                <span className={metrics.totalActual > metrics.totalEstimated ? 'text-brand-red' : 'text-brand-green'}>
                   {metrics.totalActual > 0 ? fmt(metrics.totalActual) : '—'}
                 </span>
               </td>

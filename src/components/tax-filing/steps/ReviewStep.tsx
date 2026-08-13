@@ -842,7 +842,7 @@ export default function ReviewStep({ surface = 'light',
               <a
                 key={form.slug}
                 href={href}
-                className={themed('block border border-gray-200 rounded px-3 py-2 hover:bg-gray-50 hover:border-blue-300', dk)}
+                className={themed('block border border-gray-200 rounded px-3 py-2 hover:bg-gray-50 hover:border-brand-purple/40', dk)}
               >
                 <div className={themed('text-xs font-semibold text-gray-900', dk)}>
                   {form.label}
@@ -850,7 +850,7 @@ export default function ReviewStep({ surface = 'light',
                 <div className={themed('text-[10px] text-gray-500 mt-0.5', dk)}>
                   {form.description}
                 </div>
-                <div className="text-[10px] text-blue-600 mt-1">
+                <div className="text-[10px] text-brand-purple mt-1">
                   Download PDF →
                 </div>
               </a>
@@ -866,7 +866,7 @@ export default function ReviewStep({ surface = 'light',
             type="checkbox"
             checked={confirmed}
             onChange={(e) => setConfirmed(e.target.checked)}
-            className="mt-0.5 w-4 h-4 accent-blue-600"
+            className="mt-0.5 w-4 h-4 accent-brand-purple"
           />
           <div className={themed('text-sm text-gray-800', dk)}>
             I have reviewed my {taxYear} return and the numbers are correct.
@@ -884,7 +884,7 @@ export default function ReviewStep({ surface = 'light',
             type="button"
             onClick={onComplete}
             disabled={!canConfirm}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm font-medium text-white bg-brand-purple rounded-md hover:bg-brand-purple-hover disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Continue to File
           </button>

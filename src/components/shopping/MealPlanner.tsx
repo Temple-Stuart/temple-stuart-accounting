@@ -101,7 +101,7 @@ export default function MealPlanner() {
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[80%] rounded px-4 py-2 whitespace-pre-wrap ${
               msg.role === 'user' 
-                ? 'bg-blue-500 text-white' 
+                ? 'bg-brand-purple text-white' 
                 : 'bg-white border shadow-sm'
             }`}>
               {msg.content}
@@ -129,7 +129,7 @@ export default function MealPlanner() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
           placeholder="Type your response..."
-          className="flex-1 border rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 border rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-purple"
           disabled={loading}
         />
         <Button onClick={sendMessage} disabled={loading || !input.trim()}>

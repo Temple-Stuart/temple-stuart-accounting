@@ -455,7 +455,7 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
             </div>
             <a
               href={`/api/tax/export?year=${taxYear}`}
-              className="mt-3 inline-flex items-center justify-center px-3 py-2 text-xs font-semibold text-white bg-blue-600 rounded hover:bg-blue-700"
+              className="mt-3 inline-flex items-center justify-center px-3 py-2 text-xs font-semibold text-white bg-brand-purple rounded hover:bg-brand-purple-hover"
             >
               Download CSV
             </a>
@@ -489,14 +489,14 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
               <button
                 type="button"
                 onClick={() => downloadScheduleCLines(f.scheduleC, taxYear)}
-                className="px-2 py-1.5 text-[10px] font-semibold text-center text-blue-700 border border-blue-200 rounded hover:bg-blue-50"
+                className="px-2 py-1.5 text-[10px] font-semibold text-center text-brand-purple border border-brand-purple/40 rounded hover:bg-brand-purple-wash"
               >
                 Line Summary
               </button>
               <button
                 type="button"
                 onClick={() => downloadScheduleCDetail(f.scheduleC, taxYear)}
-                className="px-2 py-1.5 text-[10px] font-semibold text-center text-blue-700 border border-blue-200 rounded hover:bg-blue-50"
+                className="px-2 py-1.5 text-[10px] font-semibold text-center text-brand-purple border border-brand-purple/40 rounded hover:bg-brand-purple-wash"
               >
                 Account Detail
               </button>
@@ -520,7 +520,7 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
               onClick={() =>
                 downloadTaxSummary(f, calc, w2Docs, r1099Docs, e1098Docs, t1098Docs, taxYear)
               }
-              className="mt-3 inline-flex items-center justify-center px-3 py-2 text-xs font-semibold text-white bg-blue-600 rounded hover:bg-blue-700"
+              className="mt-3 inline-flex items-center justify-center px-3 py-2 text-xs font-semibold text-white bg-brand-purple rounded hover:bg-brand-purple-hover"
             >
               Download Summary
             </button>
@@ -543,7 +543,7 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
             </div>
             <a
               href={`/api/tax/generate-pdf?year=${taxYear}&form=all`}
-              className="mt-3 inline-flex items-center justify-center px-3 py-2 text-xs font-semibold text-white bg-blue-600 rounded hover:bg-blue-700"
+              className="mt-3 inline-flex items-center justify-center px-3 py-2 text-xs font-semibold text-white bg-brand-purple rounded hover:bg-brand-purple-hover"
             >
               Download PDF
             </a>
@@ -571,7 +571,7 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
                 <a
                   key={item.slug}
                   href={`/api/cpa-export?year=${taxYear}&format=${item.slug}`}
-                  className="px-2 py-1.5 text-[10px] font-semibold text-center text-blue-700 border border-blue-200 rounded hover:bg-blue-50"
+                  className="px-2 py-1.5 text-[10px] font-semibold text-center text-brand-purple border border-brand-purple/40 rounded hover:bg-brand-purple-wash"
                 >
                   {item.label}
                 </a>
@@ -599,7 +599,7 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
               href="https://www.taxact.com"
               target="_blank"
               rel="noreferrer"
-              className="text-blue-700 underline"
+              className="text-brand-purple underline"
             >
               taxact.com
             </a>{' '}
@@ -913,7 +913,7 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
                     type="checkbox"
                     checked={checked}
                     onChange={() => toggleCheck(item.key)}
-                    className="mt-0.5 w-4 h-4 accent-blue-600"
+                    className="mt-0.5 w-4 h-4 accent-brand-purple"
                   />
                   <span
                     className={themed(`text-sm ${
@@ -950,7 +950,7 @@ export default function FileStep({ surface = 'light', taxYear, onComplete, lifeE
               href="https://www.irs.gov/refunds"
               target="_blank"
               rel="noreferrer"
-              className="text-blue-700 underline"
+              className="text-brand-purple underline"
             >
               irs.gov/refunds
             </a>{' '}
@@ -995,7 +995,7 @@ function Step({ dk = false,
 }) {
   return (
     <li className="px-4 py-3 flex gap-3">
-      <span className="shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white font-mono text-xs font-bold flex items-center justify-center">
+      <span className="shrink-0 w-6 h-6 rounded-full bg-brand-purple text-white font-mono text-xs font-bold flex items-center justify-center">
         {n}
       </span>
       <div className={themed('flex-1 text-sm text-gray-800', dk)}>{children}</div>

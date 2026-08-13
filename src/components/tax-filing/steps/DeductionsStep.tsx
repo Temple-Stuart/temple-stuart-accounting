@@ -552,7 +552,7 @@ export default function DeductionsStep({ surface = 'light',
           <button
             type="button"
             onClick={() => setShowMappings((v) => !v)}
-            className="text-xs font-medium text-blue-700 hover:text-blue-900 underline"
+            className="text-xs font-medium text-brand-purple hover:text-brand-purple-hover underline"
           >
             {showMappings
               ? 'Hide Schedule C tax mappings'
@@ -660,7 +660,7 @@ export default function DeductionsStep({ surface = 'light',
         <button
           type="button"
           onClick={handleNext}
-          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+          className="px-4 py-2 text-sm font-medium text-white bg-brand-purple rounded-md hover:bg-brand-purple-hover"
         >
           {hasWarnings ? 'Continue anyway' : 'Confirm Schedule C'}
         </button>
