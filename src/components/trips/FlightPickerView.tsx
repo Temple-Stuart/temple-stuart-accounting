@@ -1,9 +1,7 @@
 'use client';
 
-// PR-STRIP-DESIGN-2: presentational-only imports (icon-inside-field) — no
-// data, no network; the pure-view contract below holds.
-import { Plane, Calendar } from 'lucide-react';
-import { TravelField } from './travelSection';
+// LANDING-V5: the trip.com icon-input imports (Plane/Calendar + TravelField)
+// retired with the form's move to the spec's segmented hairline bar.
 // TRAVEL-RESULTS-TABLE: the results wear the deck-table anatomy — the
 // DATA.columnHeader micro-label is the one shared class string (ds.ts:225).
 import { DATA } from '@/lib/ds';
@@ -153,7 +151,9 @@ export default function FlightPickerView({
         // PR-STRIP-DESIGN-1: the shell card elevated to bg-panel-surface, so
         // the leg block steps DOWN to the inset token (bg-white/5) to keep
         // its separation — same ds.ts surface family, no new colors.
-        <div key={leg.id} className="bg-bg-row border border-border rounded overflow-hidden">
+        // LANDING-V5: the leg card whitens to the spec's one-white-card
+        // surface (was the bg-bg-row inset).
+        <div key={leg.id} className="bg-white border border-border rounded-lg overflow-hidden">
           {/* Leg header — BAR-COMMITTED-ONLY (the BAR-KILL gate ruling,
               variant b): the bar renders ONLY for committed legs, where it IS
               the saved-flight summary card and the toggle for the 8
@@ -209,66 +209,69 @@ export default function FlightPickerView({
                 </div>
               ) : (
                 <>
-                  {/* Search form — PR-STRIP-DESIGN-1: the segmented bar. ONE
-                      row at desktop (FROM | ⇄ | TO | dates | trip-type |
-                      Search — the Kayak form factor), stacking cleanly on
-                      mobile. Existing field vocabulary only (the
-                      TRAVEL_INPUT_CLASS bg-bg-row border-border text-sm
-                      py-2 scale); same handlers, same state — chrome only.
-                      The 🔍 emoji left the Search button (clean chrome). */}
-                  <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-end lg:gap-3">
-                    <div className="flex items-end gap-2">
-                      <div className="flex-1 lg:flex-none">
-                        <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">From</label>
-                        <TravelField icon={<Plane className="h-4 w-4" strokeWidth={1.75} />}>
-                          <input type="text" value={leg.origin} onChange={e => onUpdateLeg(leg.id, { origin: e.target.value.toUpperCase() })}
-                            className="w-full lg:w-28 pl-9 pr-2 py-3 border border-border bg-bg-row text-text-primary placeholder-text-faint rounded-lg text-sm font-mono text-center" maxLength={3} placeholder="LAX" />
-                        </TravelField>
-                      </div>
-                      <span className="pb-2.5 text-text-faint" aria-hidden="true">⇄</span>
-                      <div className="flex-1 lg:flex-none">
-                        <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">To</label>
-                        <TravelField icon={<Plane className="h-4 w-4" strokeWidth={1.75} />}>
-                          <input type="text" value={leg.destination} onChange={e => onUpdateLeg(leg.id, { destination: e.target.value.toUpperCase() })}
-                            className="w-full lg:w-28 pl-9 pr-2 py-3 border border-border bg-bg-row text-text-primary placeholder-text-faint rounded-lg text-sm font-mono text-center" maxLength={3} placeholder="DPS" />
-                        </TravelField>
-                      </div>
+                  {/* LANDING-V5 (spec :101-124): the spec's card anatomy —
+                      the caption bar tops the card ('TRAVEL / FLIGHT SEARCH —
+                      LIVE PRICES VIA {vendor}' left · '▪ LIVE · SEARCHING IS
+                      ALWAYS FREE' right, :101-104), then the SEGMENTED
+                      hairline field bar (:105-124): mono micro-label over
+                      mono value per cell, hairline-divided, gold mono SEARCH
+                      at the right end. Same state, same handlers — chrome
+                      only. The trip.com icon-input form factor (TravelField +
+                      lucide) retired on this form; the vendor rides the
+                      lane-proven providerLabel (PR-FL-6a no-drift). */}
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 font-mono text-[10px] tracking-wider">
+                    <span className="text-text-muted">TRAVEL / FLIGHT SEARCH — LIVE PRICES VIA {providerLabel.toUpperCase()}</span>
+                    <span className="flex gap-4">
+                      <span className="font-semibold text-brand-purple">▪ LIVE</span>
+                      <span className="text-text-faint">SEARCHING IS ALWAYS FREE</span>
+                    </span>
+                  </div>
+                  <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-white lg:flex-row lg:items-stretch lg:divide-x lg:divide-border">
+                    <div className="px-4 py-2.5">
+                      <div className="mb-1 font-mono text-[9.5px] tracking-widest text-text-faint">FROM</div>
+                      <input type="text" value={leg.origin} onChange={e => onUpdateLeg(leg.id, { origin: e.target.value.toUpperCase() })}
+                        className="w-full border-0 bg-transparent p-0 font-mono text-[13px] uppercase text-brand-purple placeholder-text-faint focus:outline-none lg:w-20" maxLength={3} placeholder="LAX" />
                     </div>
-                    <div className="flex items-end gap-2">
-                      <div className="flex-1 lg:flex-none">
-                        <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">Depart</label>
-                        <TravelField icon={<Calendar className="h-4 w-4" strokeWidth={1.75} />}>
-                          <input type="date" value={leg.departureDate} onChange={e => onUpdateLeg(leg.id, { departureDate: e.target.value })}
-                            className="w-full pl-9 pr-2 py-3 border border-border bg-bg-row text-text-primary rounded-lg text-sm" />
-                        </TravelField>
+                    <div className="px-4 py-2.5">
+                      <div className="mb-1 font-mono text-[9.5px] tracking-widest text-text-faint">TO</div>
+                      <input type="text" value={leg.destination} onChange={e => onUpdateLeg(leg.id, { destination: e.target.value.toUpperCase() })}
+                        className="w-full border-0 bg-transparent p-0 font-mono text-[13px] uppercase text-brand-purple placeholder-text-faint focus:outline-none lg:w-20" maxLength={3} placeholder="DPS" />
+                    </div>
+                    <div className="px-4 py-2.5">
+                      <div className="mb-1 font-mono text-[9.5px] tracking-widest text-text-faint">DEPART</div>
+                      <input type="date" value={leg.departureDate} onChange={e => onUpdateLeg(leg.id, { departureDate: e.target.value })}
+                        className="w-full border-0 bg-transparent p-0 font-mono text-[13px] text-brand-purple focus:outline-none" />
+                    </div>
+                    {leg.tripType === 'roundtrip' && (
+                      <div className="px-4 py-2.5">
+                        <div className="mb-1 font-mono text-[9.5px] tracking-widest text-text-faint">RETURN</div>
+                        <input type="date" value={leg.returnDate} onChange={e => onUpdateLeg(leg.id, { returnDate: e.target.value })}
+                          className="w-full border-0 bg-transparent p-0 font-mono text-[13px] text-brand-purple focus:outline-none" />
                       </div>
-                      {leg.tripType === 'roundtrip' && (
-                        <div className="flex-1 lg:flex-none">
-                          <label className="block mb-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">Return</label>
-                          <TravelField icon={<Calendar className="h-4 w-4" strokeWidth={1.75} />}>
-                            <input type="date" value={leg.returnDate} onChange={e => onUpdateLeg(leg.id, { returnDate: e.target.value })}
-                              className="w-full pl-9 pr-2 py-3 border border-border bg-bg-row text-text-primary rounded-lg text-sm" />
-                          </TravelField>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1 self-start bg-bg-row rounded p-0.5 lg:self-auto">
-                      <button onClick={() => onUpdateLeg(leg.id, { tripType: 'roundtrip' })}
-                        className={`px-2 py-1 text-xs rounded transition-colors ${leg.tripType === 'roundtrip' ? 'bg-white shadow text-brand-purple font-medium' : 'text-text-secondary'}`}>
-                        Round-trip
-                      </button>
-                      <button onClick={() => onUpdateLeg(leg.id, { tripType: 'oneway' })}
-                        className={`px-2 py-1 text-xs rounded transition-colors ${leg.tripType === 'oneway' ? 'bg-white shadow text-brand-purple font-medium' : 'text-text-secondary'}`}>
-                        One-way
-                      </button>
-                    </div>
-                    <button onClick={() => onSearchLeg(leg.id)} disabled={leg.loading}
-                      className="w-full lg:w-auto px-8 py-3 bg-brand-gold text-white text-sm font-medium rounded-lg hover:bg-brand-gold/90 disabled:opacity-50">
-                      {leg.loading ? 'Searching...' : 'Search'}
-                    </button>
-                    {legs.length > 1 && !leg.committed && (
-                      <button onClick={() => onRemoveLeg(leg.id)} className="px-2 py-1.5 text-xs text-text-faint hover:text-red-600">✕</button>
                     )}
+                    <div className="px-4 py-2.5">
+                      <div className="mb-1 font-mono text-[9.5px] tracking-widest text-text-faint">TRIP</div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => onUpdateLeg(leg.id, { tripType: 'roundtrip' })}
+                          className={`font-mono text-[11px] transition-colors ${leg.tripType === 'roundtrip' ? 'font-semibold text-brand-purple' : 'text-text-faint hover:text-text-secondary'}`}>
+                          ROUND-TRIP
+                        </button>
+                        <span className="text-text-faint" aria-hidden="true">·</span>
+                        <button onClick={() => onUpdateLeg(leg.id, { tripType: 'oneway' })}
+                          className={`font-mono text-[11px] transition-colors ${leg.tripType === 'oneway' ? 'font-semibold text-brand-purple' : 'text-text-faint hover:text-text-secondary'}`}>
+                          ONE-WAY
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex flex-1 items-center justify-end gap-2 px-3 py-2.5">
+                      {legs.length > 1 && !leg.committed && (
+                        <button onClick={() => onRemoveLeg(leg.id)} className="px-2 py-1.5 text-xs text-text-faint hover:text-red-600">✕</button>
+                      )}
+                      <button onClick={() => onSearchLeg(leg.id)} disabled={leg.loading}
+                        className="bg-brand-gold px-5 py-2.5 font-mono text-[10.5px] font-semibold tracking-widest text-white hover:bg-brand-gold/90 disabled:opacity-50">
+                        {leg.loading ? 'SEARCHING…' : 'SEARCH'}
+                      </button>
+                    </div>
                   </div>
 
                   {leg.error && (
@@ -331,9 +334,9 @@ export default function FlightPickerView({
                           card). Selection: the row's onClick is the SAME
                           setter; selected = border-l-2 border-brand-purple +
                           bg-brand-purple-wash/40. */}
-                      <div className="font-mono text-[10px] tracking-wider text-text-faint">
-                        TRAVEL / FLIGHT SEARCH — LIVE PRICES VIA {providerLabel.toUpperCase()}
-                      </div>
+                      {/* LANDING-V5: the caption bar moved to the card top
+                          (spec :101 — one caption per card); the table
+                          renders beneath it uncaptioned. */}
                       <div className="overflow-x-auto rounded-lg border border-border bg-white">
                         <table className="w-full text-sm">
                           <thead>

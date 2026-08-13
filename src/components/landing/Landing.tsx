@@ -761,6 +761,14 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
           Search &amp; book travel — free today, no account needed.
         </h2>
         <LandingBookingSection onRequireAuth={onRequireAuth} />
+        {/* LANDING-V5 (spec :174-177): the demo section's footer row — the
+            spec's own strings verbatim (the left line already lives in
+            SUMMARY_BY_ID.travel.lines; NO ACCOUNT NEEDED is the spec's mono
+            right slot). */}
+        <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2 pb-2">
+          <span className="text-[13px] text-text-faint">One trip holds everything — plans, bookings, budget.</span>
+          <span className="font-mono text-[10.5px] tracking-wider text-text-faint">NO ACCOUNT NEEDED</span>
+        </div>
       </div>
       {/* PR-ELEV-1: the coming-soon tiles live INSIDE the strip above as
           badged "Soon" chips (travelStripModes) — the PR-LANDING-1 tile
@@ -782,42 +790,44 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             id="modules" — THE stable anchor the /pricing permanent redirect
             (and any deep link) targets; this deck IS the pricing surface. ──── */}
       <section id="modules" className="w-full border-b border-border bg-bg-terminal">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-          {/* REPAINT-2 (edit 5): the section intro is a slim SOLID aubergine
-              band — cream heading + micro-label keep their classes (correct
-              on purple); the demo trigger's white-on-purple button is
-              byte-identical. */}
-          <div className="rounded-lg bg-brand-purple px-5 py-6 flex items-center justify-between">
-            <div className="flex-1">
-              {/* LANDING-V2 (spec :184-185): the 02 eyebrow + the cream
-                  HOW PRICING WORKS right slot, on the aubergine band. */}
-              <div className="flex flex-wrap items-baseline justify-between gap-3">
-                <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
-                  02 / THE NINE PILLARS
-                </p>
-                <Link href="/how-pricing-works" className="font-mono text-[10px] tracking-wider text-ts-white hover:text-white">
-                  HOW PRICING WORKS →
-                </Link>
-              </div>
-              <h2 className="mt-1 text-lg font-light tracking-tight text-white">
-                Buy the modules you&apos;ll use. One, some, or all.
-              </h2>
-              {/* HERO-REPO-1: the demo trigger relocated here from the hero.
-                  Honesty-gated on DEMO_VIDEO_URL — null renders nothing (the
-                  deck is self-explanatory); non-null shows "Watch the demo 🎥"
-                  opening the existing modal (config + modal + youTubeEmbedUrl
-                  untouched — only the trigger's mount moved). */}
-              {DEMO_VIDEO_URL !== null && (
-                <button
-                  type="button"
-                  onClick={() => setShowDemo(true)}
-                  className="mt-2 inline-block bg-white px-4 py-1.5 text-xs font-medium text-brand-purple hover:bg-bg-row"
-                >
-                  Watch the demo 🎥
-                </button>
-              )}
+        {/* LANDING-V5 (Alex's ruling; spec :181-189): the 02 intro is a
+            FULL-BLEED aubergine band — background:var(--purple) runs edge to
+            edge with the content constrained inside (the hero/footer band
+            pattern), replacing the REPAINT-2 rounded floater. Contents
+            byte-identical: eyebrow, right slot, h2, the honesty-gated demo
+            trigger. */}
+        <div className="bg-brand-purple">
+          <div className="max-w-7xl mx-auto px-4 lg:px-8 py-6">
+            {/* LANDING-V2 (spec :184-185): the 02 eyebrow + the cream
+                HOW PRICING WORKS right slot, on the aubergine band. */}
+            <div className="flex flex-wrap items-baseline justify-between gap-3">
+              <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
+                02 / THE NINE PILLARS
+              </p>
+              <Link href="/how-pricing-works" className="font-mono text-[10px] tracking-wider text-ts-white hover:text-white">
+                HOW PRICING WORKS →
+              </Link>
             </div>
+            <h2 className="mt-1 text-lg font-light tracking-tight text-white">
+              Buy the modules you&apos;ll use. One, some, or all.
+            </h2>
+            {/* HERO-REPO-1: the demo trigger relocated here from the hero.
+                Honesty-gated on DEMO_VIDEO_URL — null renders nothing (the
+                deck is self-explanatory); non-null shows "Watch the demo 🎥"
+                opening the existing modal (config + modal + youTubeEmbedUrl
+                untouched — only the trigger's mount moved). */}
+            {DEMO_VIDEO_URL !== null && (
+              <button
+                type="button"
+                onClick={() => setShowDemo(true)}
+                className="mt-2 inline-block bg-white px-4 py-1.5 text-xs font-medium text-brand-purple hover:bg-bg-row"
+              >
+                Watch the demo 🎥
+              </button>
+            )}
           </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 pb-10 pt-4">
 
           {/* PR-DECK-4CAT → DECK-TABLE: the category tab row — the
               ToggleStrip icon-tab idiom (DS.iconTab) above the catalog.
