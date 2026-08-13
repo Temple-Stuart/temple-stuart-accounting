@@ -1253,23 +1253,16 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
           </p>
           {/* LANDING-V3 (spec :309-328): section 04 becomes the spec's
               4-column mono-headed grid. Prose→column mapping (byte-identical,
-              re-seated): P1 → THE CODE (its inline repo anchor kept — plus
-              the spec's :313 mono GITHUB link, both retained per the ruling);
+              re-seated): P1 → THE CODE (V3 FLAGS: the inline repo anchor is
+              PLAIN TEXT now — words byte-identical, anchor removed; the
+              spec's :313 mono GITHUB link is the column's only link);
               P2 → THE CHANGELOG; P3 → YOUR LEDGER. Column 4 = DONE-FOR-YOU:
               the PROFESSIONAL SERVICES panel as shipped, byte-identical. */}
           <div className="mt-6 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">THE CODE</p>
               <p className="text-sm leading-relaxed text-text-secondary">
-                The code is public —{' '}
-                <a
-                  href="https://github.com/Temple-Stuart/temple-stuart-accounting"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium text-brand-purple underline decoration-dotted hover:text-brand-purple-hover"
-                >
-                  github.com/Temple-Stuart/temple-stuart-accounting
-                </a>{' '}
+                The code is public — github.com/Temple-Stuart/temple-stuart-accounting
                 (source-available under BSL 1.1 — free to self-host for personal use).
               </p>
               <a

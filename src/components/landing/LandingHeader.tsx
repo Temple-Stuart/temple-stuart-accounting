@@ -39,8 +39,8 @@ export default function LandingHeader({ onRequireLogin, onRequireAuth }: {
     // the repo link (:43); Log in restyles to the spec's text link, SAME
     // dual-mode handlers; CREATE FREE ACCOUNT = the spec's mono uppercase
     // gold button (:45 — its #2A2054 ink maps to the brand-purple-deep
-    // token), SAME dual-mode handlers. Contact kept (live mailto target)
-    // though the spec nav omits it — flagged in the report.
+    // token), SAME dual-mode handlers. V3 FLAGS: Contact dropped — the spec
+    // nav (:40-45) carries no Contact; the mailto survives in the footer.
     <header className="border-b border-border bg-bg-terminal text-text-primary">
       <div className="max-w-7xl mx-auto px-4 lg:px-8">
         <div className="flex items-center justify-between gap-4 h-16 sm:h-20">
@@ -60,9 +60,6 @@ export default function LandingHeader({ onRequireLogin, onRequireAuth }: {
             <Link href="/how-pricing-works" className="text-xs text-text-muted hover:text-text-primary hidden sm:block">
               Pricing
             </Link>
-            <a href="mailto:astuart@templestuart.com" className="text-xs text-text-muted hover:text-text-primary hidden sm:block">
-              Contact
-            </a>
             <a
               href="https://github.com/Temple-Stuart/temple-stuart-accounting"
               target="_blank"
