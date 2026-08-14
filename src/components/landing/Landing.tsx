@@ -658,21 +658,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
 
   return (
     <div className="min-h-screen bg-bg-terminal text-text-primary">
-      {/* LANDING-V2 (spec design-refs/landing-direction-c.dc.html:23-32): the
-          top UTILITY BAR — solid aubergine, mono micro-text, spec content
-          VERBATIM. Ink adaptation to house tokens (no new hex): the spec's
-          #C0B5DF lavender → text-white/70; the highlighted BUILT IN PUBLIC
-          cream #F6F1E4 → text-ts-white. */}
-      <div className="bg-brand-purple">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 font-mono text-[10px] tracking-wider text-white/70">
-          <div>TEMPLE-STUART / FOUNDER&apos;S BACK OFFICE</div>
-          <div className="flex flex-wrap items-center gap-x-7 gap-y-1">
-            <span className="hidden sm:inline">09 MODULES · ONE LEDGER</span>
-            <span>SOURCE-AVAILABLE · BSL-1.1</span>
-            <span className="text-ts-white">▪ BUILT IN PUBLIC</span>
-          </div>
-        </div>
-      </div>
       {/* HEADER-CTA: onRequireAuth passed through so the header's Create
           account button is the SAME register opener as the hero CTA. */}
       <LandingHeader onRequireLogin={onRequireLogin} onRequireAuth={onRequireAuth} />
