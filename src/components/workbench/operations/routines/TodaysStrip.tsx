@@ -46,6 +46,11 @@ interface TodayEntry {
 
 interface Props {
   onCommitted?: () => void;
+  /** ROUTINES-PIPE: today's tallies reported up after each successful fetch
+   *  (the Books onTotals idiom — zero new fetches; the parent's stable
+   *  setter is the callback). Feeds the StageStrip's derived states + the
+   *  ProofStrip receipts. */
+  onTotals?: (t: { entries: number; due: number; done: number; missed: number }) => void;
   /** ZERO-STATE-1: the Today empty state's next action — the parent
    *  (SectionE_Routines) switches the toggler to the All-routines tab,
    *  where creation lives. Absent → the plain sentence renders alone. */
@@ -74,7 +79,7 @@ function formatTime(iso: string, tz: string): string {
   });
 }
 
-export default function TodaysStrip({ onCommitted, onCreateRequest }: Props & { }) {
+export default function TodaysStrip({ onCommitted, onCreateRequest, onTotals }: Props & { }) {
   const [entries, setEntries] = useState<TodayEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +96,14 @@ export default function TodaysStrip({ onCommitted, onCreateRequest }: Props & { 
         setEntries([]);
         return;
       }
-      setEntries(body.entries ?? []);
+      const list: TodayEntry[] = body.entries ?? [];
+      setEntries(list);
+      onTotals?.({
+        entries: list.length,
+        due: list.filter((e) => e.status === 'pending' || e.status === 'upcoming').length,
+        done: list.filter((e) => e.status === 'completed').length,
+        missed: list.filter((e) => e.status === 'missed').length,
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'failed to load today');
     } finally {
