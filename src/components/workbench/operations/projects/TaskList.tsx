@@ -23,6 +23,11 @@ import { DEFAULT_TASK_FORM } from './types';
 
 
 interface Props {
+  /** PROJECTS-PIPE: task tallies reported up after each successful fetch
+   *  (the Books onTotals idiom — zero new fetches). planTasks = accepted
+   *  into the plan (status open/in_progress/blocked/completed — accepting a
+   *  pending_review task lands it in these). */
+  onTotals?: (t: { pendingReview: number; planTasks: number }) => void;
   projectId: string;
   entity_id: string;
   // PHASE2-5: optional external refresh trigger. Bumping this re-fetches the task
@@ -31,7 +36,7 @@ interface Props {
   refreshKey?: number;
 }
 
-export default function TaskList({ projectId, entity_id, refreshKey }: Props & { }) {
+export default function TaskList({ projectId, entity_id, refreshKey, onTotals }: Props & { }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +68,12 @@ export default function TaskList({ projectId, entity_id, refreshKey }: Props & {
         setTasks([]);
         return;
       }
-      setTasks(body.tasks ?? []);
+      const rows = body.tasks ?? [];
+      setTasks(rows);
+      onTotals?.({
+        pendingReview: rows.filter((t: { status: string }) => t.status === 'pending_review').length,
+        planTasks: rows.filter((t: { status: string }) => ['open', 'in_progress', 'blocked', 'completed'].includes(t.status)).length,
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'failed to load tasks');
     } finally {

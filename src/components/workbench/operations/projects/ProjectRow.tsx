@@ -98,6 +98,10 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   const [pipeError, setPipeError] = useState<string | null>(null);
   // PHASE2-5: bump to force the live <TaskList /> to re-fetch (mirrors promptsRefresh).
   const [taskRefresh, setTaskRefresh] = useState(0);
+  // PROJECTS-PIPE: the live task tallies TaskList reports up (the Books
+  // onTotals idiom — TaskList's own existing fetch; zero new fetches). Feeds
+  // the truth machine's strip states + ProofStrip receipts.
+  const [taskStats, setTaskStats] = useState<{ pendingReview: number; planTasks: number } | null>(null);
   // EVOLVE-1: the "loop again with new goals" affordance (edit goals → re-run the pipe).
   const [evolving, setEvolving] = useState(false);
   const [evolveGoalsText, setEvolveGoalsText] = useState('');
@@ -573,7 +577,8 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
           onGenerateTasks={handleGenerateTasks}
           onTasksAccepted={() => { setTasksPreview(null); setTasksGenError(null); }}
           onTasksDiscarded={() => { setTasksPreview(null); setTasksGenError(null); }}
-          taskSection={<TaskList projectId={project.id} entity_id={project.entity_id} refreshKey={taskRefresh} />}
+          taskSection={<TaskList projectId={project.id} entity_id={project.entity_id} refreshKey={taskRefresh} onTotals={setTaskStats} />}
+          taskStats={taskStats}
           onRunPipe={handleRunPipe}
           runningPipe={runningPipe}
           pipeQueued={pipeQueued}
