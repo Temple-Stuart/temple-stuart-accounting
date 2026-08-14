@@ -1180,54 +1180,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── PR-ELEV-3: building in public — REAL FACTS ONLY (ruling): the
-            public repo, the PR-by-PR build history, the never-paywalled
-            export. No invented stats, no testimonials; a news/changelog
-            carousel exists only when real content does. ───────────────────── */}
-      <section className="w-full border-b border-border bg-bg-terminal">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-          {/* LANDING-V2 (spec :308) → LANDING-V4: the eyebrow renumbers to 05
-              — no right slot. */}
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">
-            04 / BUILT IN PUBLIC
-          </p>
-          {/* LANDING-V3 (spec :309-328) → LANDING-V4: the grid is 3 columns
-              now — THE CODE (V3 FLAGS: inline repo anchor is PLAIN TEXT,
-              words byte-identical; the spec's :313 mono GITHUB link is the
-              column's only link) / THE CHANGELOG / YOUR LEDGER. The
-              DONE-FOR-YOU column died with the panel's move to section 03. */}
-          <div className="mt-6 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            <div>
-              <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">THE CODE</p>
-              <p className="text-sm leading-relaxed text-text-secondary">
-                The code is public — github.com/Temple-Stuart/temple-stuart-accounting
-                (source-available under BSL 1.1 — free to self-host for personal use).
-              </p>
-              <a
-                href="https://github.com/Temple-Stuart/temple-stuart-accounting"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-block font-mono text-[10px] tracking-wider font-medium text-brand-purple hover:text-brand-purple-hover"
-              >
-                GITHUB.COM/TEMPLE-STUART ↗
-              </a>
-            </div>
-            <div>
-              <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">THE CHANGELOG</p>
-              <p className="text-sm leading-relaxed text-text-secondary">
-                Every change ships as a reviewed pull request — the build history is the changelog.
-              </p>
-            </div>
-            <div>
-              <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">YOUR LEDGER</p>
-              <p className="text-sm leading-relaxed text-text-secondary">
-                Your complete financial records export in one click — never paywalled.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ── LOBBY-DECK-1b: the demo modal — the house dialog idiom
             (CheckoutPanel.tsx:300 backdrop). YouTube URLs embed via iframe;
             any other URL plays through a native <video>. Backdrop click or
