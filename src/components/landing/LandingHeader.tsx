@@ -31,16 +31,14 @@ export default function LandingHeader({ onRequireLogin, onRequireAuth }: {
   onRequireAuth?: () => void;
 }) {
   return (
-    // LANDING-V3 (spec :34-47): the nav adopts the spec anatomy. Mappings:
-    // outlined TS mark (:37 — was the solid tile; the FOUNDER'S BACK OFFICE
-    // sub-line lives on the utility bar now); Live demo → /#demo and
-    // Modules → /#modules (leading slash so the anchors work from the
-    // /modules mounts too); Pricing keeps /how-pricing-works; GitHub ↗ =
-    // the repo link (:43); Log in restyles to the spec's text link, SAME
-    // dual-mode handlers; CREATE FREE ACCOUNT = the spec's mono uppercase
-    // gold button (:45 — its #2A2054 ink maps to the brand-purple-deep
-    // token), SAME dual-mode handlers. V3 FLAGS: Contact dropped — the spec
-    // nav (:40-45) carries no Contact; the mailto survives in the footer.
+    // LANDING-V3 (spec :34-47) → THREE-TRIMS: the nav anatomy, minus the
+    // retired anchor links (Live demo → /#demo and Modules → /#modules died
+    // — the #modules id STAYS on the merged section as the /pricing 308
+    // redirect target, app/pricing/page.tsx). Outlined TS mark (:37);
+    // Pricing keeps /how-pricing-works; GitHub ↗ = the repo link; Log in =
+    // the spec's text link, SAME dual-mode handlers; CREATE FREE ACCOUNT =
+    // the spec's mono uppercase gold button, SAME dual-mode handlers.
+    // V3 FLAGS: Contact dropped — the mailto survives in the footer.
     <header className="border-b border-border bg-bg-terminal text-text-primary">
       <div className="max-w-7xl mx-auto px-4 lg:px-8">
         <div className="flex items-center justify-between gap-4 h-16 sm:h-20">
@@ -51,12 +49,6 @@ export default function LandingHeader({ onRequireLogin, onRequireAuth }: {
             <div className="text-sm font-semibold tracking-[0.16em] text-brand-purple">TEMPLE STUART</div>
           </Link>
           <div className="flex items-center gap-4">
-            <Link href="/#demo" className="text-xs text-text-muted hover:text-text-primary hidden md:block">
-              Live demo
-            </Link>
-            <Link href="/#modules" className="text-xs text-text-muted hover:text-text-primary hidden md:block">
-              Modules
-            </Link>
             <Link href="/how-pricing-works" className="text-xs text-text-muted hover:text-text-primary hidden sm:block">
               Pricing
             </Link>

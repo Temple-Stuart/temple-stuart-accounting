@@ -922,16 +922,16 @@ export default function Landing({ onRequireAuth, onRequireLogin }: Props) {
           </div>
         </div>
 
-        {/* ACT 3 — THE MODULES: label row (honesty line MOVED from old :1117,
-            right slot), the nine chips (§3 states; Travel wears the gold LIVE
-            ▪), the truth line (MOVED verbatim from old :865), and the ONE
-            stage. Chips: contained horizontal scroll at mobile (§5 — the
+        {/* ACT 3 — THE MODULES: label row (right slot EMPTY — the honesty
+            line retired; wrapper kept so the label keeps its seat), the nine
+            chips (§3 states; Travel wears the gold LIVE ▪), the truth line
+            (MOVED verbatim from old :865), and the ONE stage. Chips:
+            contained horizontal scroll at mobile (§5 — the
             landing-mobile-viewport pattern), 9-col grid at desktop. */}
         <div className="w-full border-t border-border">
           <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10 lg:pt-[60px] pb-12 lg:pb-[76px]">
             <div className="flex flex-wrap items-baseline justify-between gap-3">
               <p className="font-mono text-xs lg:text-[10px] font-semibold tracking-[0.16em] text-text-muted">THE MODULES</p>
-              <p className="font-mono text-xs lg:text-[9.5px] tracking-[0.08em] text-text-faint">ILLUSTRATED PIPELINES — NOT SCREENSHOTS</p>
             </div>
             <div className="-mx-4 mt-4 overflow-x-auto px-4 lg:mx-0 lg:overflow-visible lg:px-0">
               <div role="group" aria-label="The nine modules" className="flex w-max gap-2 lg:grid lg:w-auto lg:grid-cols-9">
@@ -1125,13 +1125,6 @@ export default function Landing({ onRequireAuth, onRequireLogin }: Props) {
               ))}
             </div>
           </div>
-          {/* PR-ELEV-2d (re-issue) → BUILTON-MARQUEE: the Vercel attribution,
-              wording verbatim (kept per the ruling — see the section comment).
-              12px floor at mobile (the merged-section §5 law). */}
-          <p className="mt-3 max-w-3xl font-mono text-xs lg:text-[10px] leading-relaxed text-text-faint">
-            Vercel, the Vercel design, Next.js and related marks, designs and logos are trademarks
-            or registered trademarks of Vercel, Inc. or its affiliates in the US and other countries.
-          </p>
         </div>
       </section>
 
