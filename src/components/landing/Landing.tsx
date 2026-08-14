@@ -723,18 +723,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 Clone it on GitHub ↗
               </a>
             </div>
-
-            {/* HERO-PRESENCE → LANDING-V2 (spec :60): the three check chips
-                compress to the spec's single mono row; the BSL + services
-                mono blocks DELETED (BSL survives on the utility bar +
-                section 04; services reseats in section 04). The ownership
-                phrase survives as the row's tail — the session's
-                spec-conflict ruling, adopted. Claims unchanged: no-card
-                signup, LICENSE-true self-hosting, never-paywalled export
-                (GET /api/export). Spec ink #9C90C2 → text-white/60. */}
-            <div className="mt-6 font-mono text-[10px] tracking-wider text-white/60">
-              NO CREDIT CARD · PRIVACY FIRST · SELF-HOSTABLE · YOU ALWAYS OWN YOUR LEDGER
-            </div>
           </div>
 
         </div>
