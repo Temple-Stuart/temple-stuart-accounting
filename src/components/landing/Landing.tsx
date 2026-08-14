@@ -691,11 +691,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
                 GAAP double-entry (tab:books unlocks), and the platform spans
                 nine modules — money, calendar, travel, trading, tax in one
                 app rather than separate tools. */}
-            {/* LANDING-V3 (spec :55): the subcopy gains the spec's tail
-                sentence verbatim. */}
             <p className="mb-6 max-w-xl text-base text-white/70">
-              Track your money the way an accountant would — one app, not ten. Nine modules on one
-              double-entry ledger, built in public by a solo accountant on the way to CPA.
+              Track your money the way an accountant would — one app, not ten.
             </p>
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               {/* HERO-REPO-1 (Alex's rationale): the hosted product leads —
