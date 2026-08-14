@@ -19,7 +19,11 @@ interface ProfileSummary {
   entity_count: number;
 }
 
-export function SectionB_FounderProfile({ }: { } = {}) {
+export function SectionB_FounderProfile({ onTotals }: {
+  /** COMPLIANCE-PIPE: entity count reported up after each successful fetch
+   *  (the Books onTotals idiom — zero new fetches). */
+  onTotals?: (t: { entities: number }) => void;
+} = {}) {
   const [profile, setProfile] = useState<ProfileSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -35,13 +39,14 @@ export function SectionB_FounderProfile({ }: { } = {}) {
             income_types: body?.income_types ?? [],
             entity_count: body?.entity_count ?? 0,
           });
+          onTotals?.({ entities: body?.entity_count ?? 0 });
         }
       } finally {
         setLoading(false);
       }
     };
     fetchProfile();
-  }, []);
+  }, [onTotals]);
 
   return (
     <section className="bg-white rounded border border-border shadow-sm p-5">

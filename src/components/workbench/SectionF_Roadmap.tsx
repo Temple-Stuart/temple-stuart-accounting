@@ -32,7 +32,10 @@ function relTime(iso: string): string {
   return `${Math.floor(ms / 86_400_000)}d ago`;
 }
 
-export function SectionF_Roadmap({ }: { } = {}) {
+export function SectionF_Roadmap({ onTotals }: {
+  /** COMPLIANCE-PIPE: mission count reported up (same idiom). */
+  onTotals?: (t: { missions: number }) => void;
+} = {}) {
   const [data, setData] = useState<RoadmapData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -56,13 +59,14 @@ export function SectionF_Roadmap({ }: { } = {}) {
             missions,
             total_missions: body?.count ?? allMissions.length,
           });
+          onTotals?.({ missions: body?.count ?? allMissions.length });
         }
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, []);
+  }, [onTotals]);
 
   return (
     <section className="bg-white rounded border border-border shadow-sm p-5">

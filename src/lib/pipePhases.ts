@@ -101,13 +101,23 @@ export const PIPE_PHASES = {
     { num: '06', name: 'Review' },
     { num: '07', name: 'File' },
   ],
+  // COMPLIANCE-PIPE: subLabels derived from the workbench sections' own doc
+  // headers (the Trade R2 idiom), never invented: Profile ⇐ "entities,
+  // jurisdictions, income types" (SectionB:3-4); Corpus ⇐ "total documents,
+  // total chunks" (SectionC:3-4 + its Stat labels); Retrieve ⇐ "hybrid
+  // retrieval over the regulatory corpus" (SectionH:3-4); Discover ⇐
+  // "Discovery run launcher" + "Live discovery stream" (SectionD:3,
+  // SectionE:3 — SectionF missions + SectionJ cost ride this phase, the
+  // Books nesting precedent); Verify ⇐ "8-step status badges per citation"
+  // (SectionG:3-4, the honest UNBUILT placeholder); Register ⇐ the
+  // "hash chain" (SectionI:4-5).
   compliance: [
-    { num: '01', name: 'Profile' },
-    { num: '02', name: 'Corpus' },
-    { num: '03', name: 'Retrieve' },
-    { num: '04', name: 'Discover' },
-    { num: '05', name: 'Verify' },
-    { num: '06', name: 'Register' },
+    { num: '01', name: 'Profile', subLabel: 'ENTITIES + JURISDICTIONS' },
+    { num: '02', name: 'Corpus', subLabel: 'DOCUMENTS + CHUNKS' },
+    { num: '03', name: 'Retrieve', subLabel: 'HYBRID RETRIEVAL' },
+    { num: '04', name: 'Discover', subLabel: 'LAUNCH + LIVE STREAM' },
+    { num: '05', name: 'Verify', subLabel: '8-STEP BADGES' },
+    { num: '06', name: 'Register', subLabel: 'HASH CHAIN' },
   ],
   // ROUTINES-PIPE: the first of the seven future strips landed — subLabels
   // derived from the tab's own surface strings (the Trade R2 idiom), never

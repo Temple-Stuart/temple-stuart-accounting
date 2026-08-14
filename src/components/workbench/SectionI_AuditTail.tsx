@@ -47,7 +47,13 @@ function relTime(iso: string): string {
   return `${Math.floor(ms / 86_400_000)}d ago`;
 }
 
-export function SectionI_AuditTail({ }: { } = {}) {
+export function SectionI_AuditTail({ onTotals, onChain }: {
+  /** COMPLIANCE-PIPE: audit-row count reported up after each fetch, and the
+   *  chain verification's three-truth outcome after each run (the VERIFY-
+   *  TRUTH union — a failed request is 'failed', never 'invalid'). */
+  onTotals?: (t: { rows: number }) => void;
+  onChain?: (state: 'valid' | 'invalid' | 'failed') => void;
+} = {}) {
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
@@ -59,7 +65,9 @@ export function SectionI_AuditTail({ }: { } = {}) {
         const res = await fetch('/api/audit-log?limit=50');
         if (res.ok) {
           const body = await res.json();
-          setRows(body?.entries ?? body?.rows ?? []);
+          const list = body?.entries ?? body?.rows ?? [];
+          setRows(list);
+          onTotals?.({ rows: list.length });
         }
       } finally {
         setLoading(false);
@@ -68,7 +76,7 @@ export function SectionI_AuditTail({ }: { } = {}) {
     fetchData();
     const id = setInterval(fetchData, 10000);
     return () => clearInterval(id);
-  }, []);
+  }, [onTotals]);
 
   const verifyChain = async () => {
     setVerifying(true);
@@ -81,11 +89,13 @@ export function SectionI_AuditTail({ }: { } = {}) {
       const res = await fetch('/api/audit-log/verify-chain', { method: 'POST' });
       if (!res.ok) {
         setVerifyResult({ state: 'failed', detail: `request failed (${res.status})` });
+        onChain?.('failed');
         return;
       }
       const body = await res.json();
       if (typeof body?.ok !== 'boolean' || typeof body?.rows_checked !== 'number') {
         setVerifyResult({ state: 'failed', detail: 'malformed verification response' });
+        onChain?.('failed');
         return;
       }
       setVerifyResult(
@@ -93,8 +103,10 @@ export function SectionI_AuditTail({ }: { } = {}) {
           ? { state: 'valid', rows_checked: body.rows_checked }
           : { state: 'invalid', rows_checked: body.rows_checked, message: body.message },
       );
+      onChain?.(body.ok ? 'valid' : 'invalid');
     } catch (err) {
       setVerifyResult({ state: 'failed', detail: err instanceof Error ? err.message : 'network error' });
+      onChain?.('failed');
     } finally {
       setVerifying(false);
     }

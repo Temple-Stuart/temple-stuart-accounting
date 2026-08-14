@@ -38,7 +38,10 @@ function relTime(iso: string | null): string {
   return `${Math.floor(ms / 86_400_000)}d ago`;
 }
 
-export function SectionC_CorpusContext({ }: { } = {}) {
+export function SectionC_CorpusContext({ onTotals }: {
+  /** COMPLIANCE-PIPE: corpus document count reported up (same idiom). */
+  onTotals?: (t: { documents: number }) => void;
+} = {}) {
   const [data, setData] = useState<CorpusContextData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -47,7 +50,9 @@ export function SectionC_CorpusContext({ }: { } = {}) {
       try {
         const res = await fetch('/api/workbench/corpus-context');
         if (res.ok) {
-          setData(await res.json());
+          const body = await res.json();
+          setData(body);
+          onTotals?.({ documents: body?.total_documents ?? 0 });
         }
       } finally {
         setLoading(false);
@@ -56,7 +61,7 @@ export function SectionC_CorpusContext({ }: { } = {}) {
     fetchData();
     const id = setInterval(fetchData, 30000);
     return () => clearInterval(id);
-  }, []);
+  }, [onTotals]);
 
   return (
     <section className="bg-white rounded border border-border shadow-sm p-5">
