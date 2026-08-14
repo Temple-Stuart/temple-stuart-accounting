@@ -21,6 +21,13 @@ import CPAExport from '@/components/dashboard/CPAExport';
 // tab's bottom. The lucide phase icons retired with the ToggleStrip chips
 // (StageStrip carries no icon slot).
 import StageStrip, { type StagePhase } from '@/components/ui/StageStrip';
+// PIPE-PHASES-1: the six phase strings (num/name) live in the shared
+// pipe-phases config now — moved verbatim, landing/app lockstep by
+// construction. Keys, derived states, the handler, and the 13-stage →
+// 6-phase nesting map stay HERE (the config carries phase data only).
+import { PIPE_PHASES } from '@/lib/pipePhases';
+
+const [PIPE_FEED, PIPE_CODE, PIPE_RECONCILE, PIPE_CLOSE, PIPE_REPORTS, PIPE_EXPORT] = PIPE_PHASES.books;
 import SectionHeader from '@/components/ui/SectionHeader';
 import ProofStrip from '@/components/ui/ProofStrip';
 import { useExportDownload } from '@/lib/useExportDownload';
@@ -254,17 +261,17 @@ export default function BooksPipeline() {
           phase stays clickable (the ratified StageStrip amendment). */}
       <StageStrip
         phases={([
-          { key: 'feed', num: '01', label: 'Feed',
+          { key: 'feed', num: PIPE_FEED.num, label: PIPE_FEED.name,
             state: phase === 'feed' ? 'active' : accounts.length > 0 ? 'done' : 'pending' },
-          { key: 'code', num: '02', label: 'Code',
+          { key: 'code', num: PIPE_CODE.num, label: PIPE_CODE.name,
             state: phase === 'code' ? 'active' : committedCount > 0 && pendingCount === 0 ? 'done' : 'pending' },
-          { key: 'reconcile', num: '03', label: 'Reconcile',
+          { key: 'reconcile', num: PIPE_RECONCILE.num, label: PIPE_RECONCILE.name,
             state: phase === 'reconcile' ? 'active' : reconciledCount > 0 ? 'done' : 'pending' },
-          { key: 'close', num: '04', label: 'Close',
+          { key: 'close', num: PIPE_CLOSE.num, label: PIPE_CLOSE.name,
             state: phase === 'close' ? 'active' : closedThisYear > 0 ? 'done' : 'pending' },
-          { key: 'reports', num: '05', label: 'Reports',
+          { key: 'reports', num: PIPE_REPORTS.num, label: PIPE_REPORTS.name,
             state: phase === 'reports' ? 'active' : tbTotals?.hasActivity && tbTotals?.isBalanced ? 'done' : 'pending' },
-          { key: 'export', num: '06', label: 'Export',
+          { key: 'export', num: PIPE_EXPORT.num, label: PIPE_EXPORT.name,
             state: phase === 'export' ? 'active' : 'pending' },
         ] as StagePhase[])}
         onSelect={(k) => setPhase(k as typeof phase)}

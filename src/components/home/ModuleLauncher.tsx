@@ -34,6 +34,13 @@ import CoverageDeclaration from '@/components/trading/CoverageDeclaration';
 import TradeRecord, { type RecordStats } from '@/components/trading/TradeRecord';
 // PIPE-FRAME-1: the shared frame components (Trade is the first consumer).
 import StageStrip, { type StagePhase } from '@/components/ui/StageStrip';
+// PIPE-PHASES-1: the Trade phase strings (num/name/subLabel + the COMMIT
+// link chip) live in the shared pipe-phases config now — moved verbatim,
+// landing/app lockstep by construction. Keys, derived states, and handlers
+// stay HERE (the config carries data only).
+import { PIPE_PHASES } from '@/lib/pipePhases';
+
+const [PIPE_SETUP, PIPE_SCAN, PIPE_REVIEW, PIPE_LAB, PIPE_RECORD, PIPE_COMMIT] = PIPE_PHASES.trade;
 import SectionHeader from '@/components/ui/SectionHeader';
 import ProofStrip from '@/components/ui/ProofStrip';
 // TRADE-1: the queue viewer + reconcile/link/grade surface. Mounted BELOW the scanner on
@@ -946,19 +953,19 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                       happens in LAB, replaced). */}
                   <StageStrip
                     phases={([
-                      { key: 'setup', num: '01', label: 'SETUP', subLabel: 'UNIVERSE + FILTERS',
+                      { key: 'setup', num: PIPE_SETUP.num, label: PIPE_SETUP.name, subLabel: PIPE_SETUP.subLabel,
                         state: tradePhase === 'setup' ? 'active' : tradeFiltersTouched ? 'done' : 'pending' },
-                      { key: 'scan', num: '02', label: 'SCAN', subLabel: 'RUN THE PIPELINE',
+                      { key: 'scan', num: PIPE_SCAN.num, label: PIPE_SCAN.name, subLabel: PIPE_SCAN.subLabel,
                         state: tradePhase === 'scan' ? 'active' : tradeScanMeta ? 'done' : 'pending' },
-                      { key: 'review', num: '03', label: 'REVIEW', subLabel: 'PICK CANDIDATES',
+                      { key: 'review', num: PIPE_REVIEW.num, label: PIPE_REVIEW.name, subLabel: PIPE_REVIEW.subLabel,
                         state: tradePhase === 'review' ? 'active' : 'pending' },
-                      { key: 'lab', num: '04', label: 'LAB', subLabel: 'LINK + GRADE',
+                      { key: 'lab', num: PIPE_LAB.num, label: PIPE_LAB.name, subLabel: PIPE_LAB.subLabel,
                         state: tradePhase === 'lab' ? 'active' : (tradeRecordStats?.linkedCount ?? 0) > 0 ? 'done' : 'pending' },
-                      { key: 'record', num: '05', label: 'RECORD', subLabel: 'GRADED RESULTS',
+                      { key: 'record', num: PIPE_RECORD.num, label: PIPE_RECORD.name, subLabel: PIPE_RECORD.subLabel,
                         state: tradePhase === 'record' ? 'active' : (tradeRecordStats?.decidedCount ?? 0) > 0 ? 'done' : 'pending' },
                     ] as StagePhase[])}
                     onSelect={(k) => setTradePhase(k as typeof tradePhase)}
-                    link={{ num: '06', label: 'COMMIT', chip: 'IN BOOKS →', onClick: () => selectTab('books') }}
+                    link={{ num: PIPE_COMMIT.num, label: PIPE_COMMIT.name, chip: PIPE_COMMIT.link.label, onClick: () => selectTab('books') }}
                   />
 
                   {/* 01–03 → the scan surface (one mount, as-is). */}
