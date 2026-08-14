@@ -134,7 +134,6 @@ function Stage({ n,
   badgeTone,
   action,
   children,
-  id,
 }: { n: number;
   label: string;
   color: string;
@@ -142,13 +141,9 @@ function Stage({ n,
   badgeTone?: 'auto' | 'paste';
   action?: React.ReactNode;
   children: React.ReactNode;
-  /** PROJECTS-PIPE: the strip's scroll-jump anchor — an invisible DOM
-   *  attribute; the card's header stays verbatim. */
-  id?: string;
 }) {
   return (
     <section
-      id={id}
       className="rounded-md border border-gray-200 bg-white p-3 sm:p-4 space-y-2.5 border-l-4 shadow-sm"
       style={{ borderLeftColor: color }}
     >
@@ -190,11 +185,6 @@ function ItemList({ items, legacy }: { items: string[]; legacy: string | null })
   const text = (legacy ?? '').trim();
   if (text.length > 0) return <div className="text-gray-900 whitespace-pre-wrap">{text}</div>;
   return <div className="text-gray-400 italic">(none yet)</div>;
-}
-
-/** ↓ flow chevron between stages. */
-function Chevron({ }: { } = {}) {
-  return <div className="flex justify-center text-gray-300 text-base leading-none py-0.5" aria-hidden="true">↓</div>;
 }
 
 /** The PROMPT panel — black template text with user-injected spans in RED. The segments
@@ -331,14 +321,14 @@ export default function TruthMachineView({ project,
   const [activePhase, setActivePhase] = useState<ProjectPhaseKey>(
     () => PHASE_ORDER.find((k) => !doneByPhase[k]) ?? 'evolve',
   );
-  const anchorId = (k: ProjectPhaseKey) => `tm-${project.id}-${k}`;
-  const jumpTo = (k: ProjectPhaseKey) => {
-    setActivePhase(k);
-    // Jump-nav ONLY — no show/hide: the document flow is untouched. The
-    // evolve anchor is absent when the container doesn't wire onEvolveStart;
-    // the optional chain makes that click a highlight-only no-op (declared).
-    document.getElementById(anchorId(k))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
+  // PHASE-TABS: the strip is a REAL phase controller now — onSelect sets
+  // the active phase; the scroll-jump and its anchors retired (zero
+  // consumers). Surfaces are CSS show/hide, KEEP-MOUNTED (the Books/Travel
+  // idiom — the Travel strip's survival-contract precedent): the controlled
+  // research/audit textareas hold unsaved drafts across switches BY
+  // CONSTRUCTION (React state in ProjectRow :117-118, filled only via
+  // setters — :334 and the onChange chains; no DOM writes anywhere).
+  const selectPhase = (k: ProjectPhaseKey) => setActivePhase(k);
   const stripPhases: StagePhase[] = (
     [
       ['input', PIPE_INPUT], ['research', PIPE_RESEARCH], ['audit', PIPE_AUDIT],
@@ -383,7 +373,7 @@ export default function TruthMachineView({ project,
       </div>
       {/* PROJECTS-PIPE: the per-project strip — position indicator +
           scroll-jump nav (R1/R2). It never mounts or hides anything. */}
-      <StageStrip phases={stripPhases} onSelect={(k) => jumpTo(k as ProjectPhaseKey)} />
+      <StageStrip phases={stripPhases} onSelect={(k) => selectPhase(k as ProjectPhaseKey)} />
 
       {pipeQueued && (
         <div className="px-1 text-[11px] text-gray-500">
@@ -392,8 +382,9 @@ export default function TruthMachineView({ project,
       )}
       {pipeError && <div className="px-1 text-[11px] text-red-600">{pipeError}</div>}
 
-      {/* 1 · INPUTS */}
-      <Stage n={1} label="inputs" color={STRIPE.inputs} id={anchorId('input')}>
+      {/* 1 · INPUTS — the 01 phase surface (keep-mounted, CSS-hidden off-phase). */}
+      <div className={activePhase === 'input' ? 'block' : 'hidden'}>
+      <Stage n={1} label="inputs" color={STRIPE.inputs}>
         <div>
           <div className={sub}>goal</div>
           <ItemList items={goalItems} legacy={project.goal} />
@@ -413,15 +404,14 @@ export default function TruthMachineView({ project,
           </div>
         )}
       </Stage>
+      </div>
 
-      <Chevron />
-
-      {/* 2 · RESEARCH */}
+      {/* 2 · RESEARCH — the 02 phase surface. */}
+      <div className={activePhase === 'research' ? 'block' : 'hidden'}>
       <Stage
         n={2}
         label="research"
         color={STRIPE.research}
-        id={anchorId('research')}
         badge="auto"
         badgeTone="auto"
         action={
@@ -456,11 +446,13 @@ export default function TruthMachineView({ project,
           {researchError && <div className="mt-1 text-[11px] text-red-700">{researchError}</div>}
         </div>
       </Stage>
+      </div>
 
-      <Chevron />
-
-      {/* 3 · AUDIT */}
-      <Stage n={3} label="audit" color={STRIPE.audit} id={anchorId('audit')} badge="paste" badgeTone="paste">
+      {/* 3 · AUDIT — the 03 phase surface; the save-research+audit row rides
+          HERE (it persists both reality inputs and its saved-hint points
+          forward to task generation — placement declared). */}
+      <div className={activePhase === 'audit' ? 'block' : 'hidden'}>
+      <Stage n={3} label="audit" color={STRIPE.audit} badge="paste" badgeTone="paste">
         <div className="text-gray-500 text-[11px]">Runs automatically when you run the pipe — the audit Routine fires with the run and its findings land here. Working step-by-step instead? Copy this prompt → run it in Claude Code (read-only) → paste the findings into the output below.</div>
         <PromptBox segments={prompts?.audit.segments} copyText={prompts?.audit.text} loading={promptsLoading} />
         <div className="flex justify-center text-gray-300 text-xs leading-none">↓ output</div>
@@ -488,15 +480,14 @@ export default function TruthMachineView({ project,
         </button>
         {inputsSaved && <span className="text-gray-400 text-[11px]">saved — generate tasks to use these</span>}
       </div>
+      </div>
 
-      <Chevron />
-
-      {/* 4 · FUSION → tasks */}
+      {/* 4 · FUSION → tasks — the 04 phase surface. */}
+      <div className={activePhase === 'tasks' ? 'block' : 'hidden'}>
       <Stage
         n={4}
         label="fusion → tasks"
         color={STRIPE.fusion}
-        id={anchorId('tasks')}
         badge="auto"
         badgeTone="auto"
         action={
@@ -544,23 +535,25 @@ export default function TruthMachineView({ project,
           </div>
         )}
       </Stage>
+      </div>
 
-      <Chevron />
-
-      {/* 5 · TASK LIST (live) */}
-      <Stage n={5} label="plan" color={STRIPE.plan} id={anchorId('plan')}>
+      {/* 5 · TASK LIST (live) — the 05 phase surface. */}
+      <div className={activePhase === 'plan' ? 'block' : 'hidden'}>
+      <Stage n={5} label="plan" color={STRIPE.plan}>
         {taskSection}
       </Stage>
+      </div>
 
       {/* EVOLVE-1: loop the pipe again with new goals. Edit the goals → re-run the
           WHOLE pipe (research→audit→fusion) on the evolved state. Append-only — the
           prior tasks stay in the evolution timeline; this adds a new version. Reuses
           run-pipe (no new pipe logic). Shown only when the container wires onEvolveStart. */}
-      {onEvolveStart && (
-        <>
-          <Chevron />
+      {/* ↻ EVOLVE — the 06 phase surface. Unwired (no onEvolveStart) → the
+          file's own honest-empty idiom ("(none yet)", the ItemList string);
+          the strip state stays pending as-is (R4 — no invented copy). */}
+      <div className={activePhase === 'evolve' ? 'block' : 'hidden'}>
+      {onEvolveStart ? (
           <section
-            id={anchorId('evolve')}
             className="rounded-md border border-gray-200 bg-white p-3 sm:p-4 space-y-2.5 border-l-4 shadow-sm"
             style={{ borderLeftColor: STRIPE.plan }}
           >
@@ -625,8 +618,10 @@ export default function TruthMachineView({ project,
               </div>
             )}
           </section>
-        </>
+      ) : (
+        <div className="text-gray-400 italic">(none yet)</div>
       )}
+      </div>
 
       {/* PROJECTS-PIPE (R3): the per-project receipts — existing state only,
           honest empties. GOALS counts the structured items (legacy goal = 1);
