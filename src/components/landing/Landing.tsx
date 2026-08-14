@@ -205,9 +205,16 @@ const DECK_CATEGORIES = [
   // lives in section 04's DONE-FOR-YOU seat now.
 ] as const;
 
-// Funnel order — Alex's ruling. PR-DECK-CLEAN-1 fragment provenance — every
+// MODULE-ORDER: the canonical order — Alex's lifecycle ruling (plan →
+// execute → book → prove → settle → know → tell): routines, projects,
+// travel, trade, books, compliance, tax, runway, content — numbered 01-09
+// by ARRAY INDEX everywhere (spine marks, chips, stage kicker all derive;
+// no stored number). Ids and /modules/<id> routes unchanged. (Supersedes
+// the funnel order; moduleBands.ts nums + ModuleLauncher TABS move in
+// lockstep this PR.) PR-DECK-CLEAN-1 fragment provenance — every
 // bullet is a compression of ONE pre-existing verified string, zero new
-// claims (the old FD-1o / FD-1h gate cites carry over with each source):
+// claims (the old FD-1o / FD-1h gate cites carry over with each source;
+// provenance listed per module, not in display order):
 //   Travel:     ruled plain-language pass (PR-SLIDE-TRAVEL-REAL) — Alex's
 //               approved copy, not lift-quotes. The claims behind each
 //               bullet stay the verified ones: free public search
@@ -249,60 +256,6 @@ const DECK_CATEGORIES = [
 //                accessNote
 const PILLAR_CARDS: PillarCard[] = [
   {
-    id: 'travel', label: 'Travel', tab: 'travel', entitlementKey: 'tab:travel',
-    plain: 'Search, book, and budget your trips in one place.',
-    bullets: [
-      'Search and book — no account needed',
-      'Every booking saves to your trip',
-      'See planned vs. what you really spent',
-    ],
-  },
-  {
-    id: 'runway', label: 'Runway', tab: 'calendar',
-    plain: 'See how many months your money lasts.',
-    bullets: [
-      'Every system you’re juggling',
-      'Burn: Personal vs. Business',
-      'Strays surfaced, never dropped',
-    ],
-  },
-  {
-    id: 'books', label: 'Books', tab: 'books', entitlementKey: 'tab:books',
-    plain: 'Know where every dollar went — synced straight from your bank.',
-    bullets: [
-      'Plaid bank sync',
-      'Double-entry journal & ledger',
-      'Hand your CPA a package',
-    ],
-  },
-  {
-    id: 'trade', label: 'Trade', tab: 'trade', entitlementKey: 'tab:trade',
-    plain: 'Find trades worth taking — and get told when to skip.',
-    bullets: [
-      'Scanner on live market data',
-      'Trading journal & realized P&L',
-      'Eighteen controls, sixteen strategies',
-    ],
-  },
-  {
-    id: 'tax', label: 'Tax', tab: 'tax', entitlementKey: 'tab:tax',
-    plain: 'Your return builds itself from your records.',
-    bullets: [
-      '1040 estimate from closed books',
-      'Wash sales + Form 8949',
-      'CPA export',
-    ],
-  },
-  {
-    id: 'compliance', label: 'Compliance', tab: 'compliance', entitlementKey: 'tab:compliance',
-    plain: 'Every number keeps its receipt — proof you can show later.',
-    bullets: [
-      'Regulatory corpus search',
-      'Citation verification',
-      'Tamper-evident audit registry',
-    ],
-  },
-  {
     id: 'routines', label: 'Routines', tab: 'routines',
     plain: 'Set up a habit once — it lands on your calendar and your budget.',
     bullets: [
@@ -318,6 +271,60 @@ const PILLAR_CARDS: PillarCard[] = [
       'Goals in, audited tasks out',
       'AI planning pipeline',
       'Capped at 20 runs/day',
+    ],
+  },
+  {
+    id: 'travel', label: 'Travel', tab: 'travel', entitlementKey: 'tab:travel',
+    plain: 'Search, book, and budget your trips in one place.',
+    bullets: [
+      'Search and book — no account needed',
+      'Every booking saves to your trip',
+      'See planned vs. what you really spent',
+    ],
+  },
+  {
+    id: 'trade', label: 'Trade', tab: 'trade', entitlementKey: 'tab:trade',
+    plain: 'Find trades worth taking — and get told when to skip.',
+    bullets: [
+      'Scanner on live market data',
+      'Trading journal & realized P&L',
+      'Eighteen controls, sixteen strategies',
+    ],
+  },
+  {
+    id: 'books', label: 'Books', tab: 'books', entitlementKey: 'tab:books',
+    plain: 'Know where every dollar went — synced straight from your bank.',
+    bullets: [
+      'Plaid bank sync',
+      'Double-entry journal & ledger',
+      'Hand your CPA a package',
+    ],
+  },
+  {
+    id: 'compliance', label: 'Compliance', tab: 'compliance', entitlementKey: 'tab:compliance',
+    plain: 'Every number keeps its receipt — proof you can show later.',
+    bullets: [
+      'Regulatory corpus search',
+      'Citation verification',
+      'Tamper-evident audit registry',
+    ],
+  },
+  {
+    id: 'tax', label: 'Tax', tab: 'tax', entitlementKey: 'tab:tax',
+    plain: 'Your return builds itself from your records.',
+    bullets: [
+      '1040 estimate from closed books',
+      'Wash sales + Form 8949',
+      'CPA export',
+    ],
+  },
+  {
+    id: 'runway', label: 'Runway', tab: 'calendar',
+    plain: 'See how many months your money lasts.',
+    bullets: [
+      'Every system you’re juggling',
+      'Burn: Personal vs. Business',
+      'Strays surfaced, never dropped',
     ],
   },
   {
@@ -665,7 +672,7 @@ interface Props {
 export default function Landing({ onRequireAuth, onRequireLogin }: Props) {
   // MERGED-02: the merged section's ONE piece of state — which module the
   // stage shows. Default runway (the spec's ruled tweak). PILLAR_CARDS ids
-  // are exactly the PipePillarId vocabulary (funnel order, :244-318), so the
+  // are exactly the PipePillarId vocabulary (canonical lifecycle order), so the
   // set-time cast at the chip is total.
   // (The retired deck state died with the section: categoryKey/deckCards
   // fed only the segment control + table; the FD-1i selection set —
@@ -805,16 +812,6 @@ export default function Landing({ onRequireAuth, onRequireLogin }: Props) {
             exist (fail-honest empty state = nothing). ─────────────────────── */}
       <GuestTripStrip onRequireAuth={onRequireAuth} />
 
-      {/* ── LOBBY-DECK-1 → PR-DECK-CLEAN-1: the nine pillars as SCANNABLE
-            cards, funnel order. Each slide = the 5-part structure and nothing
-            else: name · one plain line · 3-4 checkmark fragments · the price
-            slot (PRICE-1/2 states) · actions (availability-honest Select →
-            direct checkout; Explore → /modules/<id>). PR-DECK-4CAT:
-            navigation is 4 category tabs over a static grid — the
-            scroll-snap rail, chevrons, and dots retired.
-            HERO-REPO-1: the demo trigger mounts in this header. PR-PRICE-3:
-            id="modules" — THE stable anchor the /pricing permanent redirect
-            (and any deep link) targets; this deck IS the pricing surface. ──── */}
       {/* ── MERGED-02 (spec design-refs/merged-modules-spec.md §1-§6): the
             merged modules section — spine, personas, chips, ONE stage, foot —
             replacing the 02 catalog table and the 04 frame grid. id="modules"
@@ -864,7 +861,7 @@ export default function Landing({ onRequireAuth, onRequireLogin }: Props) {
 
         {/* ACT 1 — SPINE (spec §2): marks → spine → the three words → spine +
             gold square → the two hubs. Marks/names derive from PILLAR_CARDS
-            (funnel order, :902's padStart idiom); uppercase is a CSS
+            (canonical lifecycle order, index-derived padStart); uppercase is a CSS
             transform of the card label, never a retyped string. */}
         <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10 lg:pt-16 pb-12 lg:pb-[76px] text-center">
           <p className="font-mono text-xs lg:text-[10px] font-semibold tracking-[0.16em] text-text-muted">

@@ -21,10 +21,12 @@
 // (TradingDataDisclaimer). A deck copy change to the trade card does NOT
 // re-fire here — trade's chips answer to the trust row, not the deck.
 //
-// `num`/`name` = the module ordinal + label from the PILLAR_CARDS funnel
-// order (travel first … content last — the numbering authority PIPE-FRAME-1
-// ratified): keyed by TAB key (the activeModule values ModuleLauncher
-// reports via onTabChange; Runway's tab key is 'calendar').
+// `num`/`name` = the module ordinal + label from the PILLAR_CARDS canonical
+// lifecycle order (MODULE-ORDER: routines 01 … content 09 — plan → execute →
+// book → prove → settle → know → tell; supersedes the funnel-order
+// numbering): keyed by TAB key (the activeModule values ModuleLauncher
+// reports via onTabChange; Runway's tab key is 'calendar'). Map layout
+// order is legacy and never renders — only `num` carries the ordinal.
 export const MODULE_BANDS: Record<
   string,
   // bullets: readonly string[] (not a fixed 3-tuple) — trade carries four
@@ -33,7 +35,7 @@ export const MODULE_BANDS: Record<
   { num: string; name: string; plain: string; bullets: readonly string[] }
 > = {
   travel: {
-    num: '01', name: 'Travel',
+    num: '03', name: 'Travel',
     plain: 'Search, book, and budget your trips in one place.',
     bullets: [
       'Search and book — no account needed',
@@ -42,12 +44,12 @@ export const MODULE_BANDS: Record<
     ],
   },
   calendar: {
-    num: '02', name: 'Runway',
+    num: '08', name: 'Runway',
     plain: 'See how many months your money lasts.',
     bullets: ['Every system you’re juggling', 'Burn: Personal vs. Business', 'Strays surfaced, never dropped'],
   },
   books: {
-    num: '03', name: 'Books',
+    num: '05', name: 'Books',
     plain: 'Know where every dollar went — synced straight from your bank.',
     bullets: ['Plaid bank sync', 'Double-entry journal & ledger', 'Hand your CPA a package'],
   },
@@ -57,7 +59,7 @@ export const MODULE_BANDS: Record<
     bullets: ['Live prices from TastyTrade', 'Synced from your broker', 'Every trade lands in your books', 'Data, not advice'],
   },
   tax: {
-    num: '05', name: 'Tax',
+    num: '07', name: 'Tax',
     plain: 'Your return builds itself from your records.',
     bullets: ['1040 estimate from closed books', 'Wash sales + Form 8949', 'CPA export'],
   },
@@ -67,12 +69,12 @@ export const MODULE_BANDS: Record<
     bullets: ['Regulatory corpus search', 'Citation verification', 'Tamper-evident audit registry'],
   },
   routines: {
-    num: '07', name: 'Routines',
+    num: '01', name: 'Routines',
     plain: 'Set up a habit once — it lands on your calendar and your budget.',
     bullets: ['Build once, shows up everywhere', 'Executable steps you actually run', 'What’s due, done, slipped'],
   },
   projects: {
-    num: '08', name: 'Projects',
+    num: '02', name: 'Projects',
     plain: 'Type a goal — get a plan you can actually run.',
     bullets: ['Goals in, audited tasks out', 'AI planning pipeline', 'Capped at 20 runs/day'],
   },

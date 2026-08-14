@@ -27,7 +27,9 @@ export interface PillarDef {
   accessNote?: string;
 }
 
-// The nine pillars — ids are the /modules/<id> route segments (funnel order).
+// The nine pillars — ids are the /modules/<id> route segments. Array order
+// never renders (every consumer is a find-by-id); the canonical display
+// order lives in Landing.tsx PILLAR_CARDS (MODULE-ORDER lifecycle ruling).
 export const PILLARS: PillarDef[] = [
   { id: 'travel', label: 'Travel', tab: 'travel' },
   { id: 'runway', label: 'Runway', tab: 'calendar',

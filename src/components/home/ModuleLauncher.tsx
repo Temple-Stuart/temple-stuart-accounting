@@ -126,16 +126,21 @@ const MODULES: ModuleDef[] = [
 // panel shows at a time (the bottom bar switches activeModule); on desktop every panel
 // stays visible (md:block) and the bar is hidden (md:hidden). The bar horizontal-scrolls
 // so 7 tabs stay clean on a narrow phone.
+// MODULE-ORDER: tab sequence = the canonical lifecycle order (PILLAR_CARDS
+// 01-09: routines, projects, travel, trade, books, compliance, tax, runway,
+// content) — the landing's numbering and the app's tab bar stay lockstep.
+// Pure order change: keys, labels, icons, and the 'calendar' default all
+// unchanged (order-insensitive consumers — TABS.some membership checks).
 const TABS: { key: string; label: string; icon: LucideIcon }[] = [
-  { key: 'calendar',   label: 'Runway',     icon: Calendar },
-  { key: 'travel',     label: 'Travel',     icon: Plane },
   { key: 'routines',   label: 'Routines',   icon: Repeat },
   { key: 'projects',   label: 'Projects',   icon: FolderKanban },
-  { key: 'content',    label: 'Content',    icon: Clapperboard },
+  { key: 'travel',     label: 'Travel',     icon: Plane },
   { key: 'trade',      label: 'Trade',      icon: TrendingUp },
   { key: 'books',      label: 'Books',      icon: BookOpen },
-  { key: 'tax',        label: 'Tax',        icon: Receipt },
   { key: 'compliance', label: 'Compliance', icon: ShieldCheck },
+  { key: 'tax',        label: 'Tax',        icon: Receipt },
+  { key: 'calendar',   label: 'Runway',     icon: Calendar },
+  { key: 'content',    label: 'Content',    icon: Clapperboard },
 ];
 // ONE-BAND: the per-tab module band cards RETIRED from the tab sections — the
 // hero above the tab bar is the module band now (HomeClient reads the same
