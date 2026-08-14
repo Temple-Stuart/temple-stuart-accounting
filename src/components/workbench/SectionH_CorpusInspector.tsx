@@ -51,7 +51,11 @@ const MODE_LABELS: Record<RetrievalMode, string> = {
   hybrid: 'Hybrid (BM25 + vectors + rerank)',
 };
 
-export function SectionH_CorpusInspector({ }: { } = {}) {
+export function SectionH_CorpusInspector({ onSearched }: {
+  /** COMPLIANCE-PIPE: fired after a successful retrieval — the session-
+   *  scoped signal behind the Retrieve phase's done state. */
+  onSearched?: () => void;
+} = {}) {
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<RetrievalMode>('hybrid');
   const [results, setResults] = useState<RetrievalResult[]>([]);
@@ -81,6 +85,7 @@ export function SectionH_CorpusInspector({ }: { } = {}) {
       const data = (await response.json()) as SearchResponse;
       setResults(data.results);
       setDuration(data.duration_ms);
+      onSearched?.();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'unknown error';
       setError(msg);
