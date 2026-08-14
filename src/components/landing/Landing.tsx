@@ -78,14 +78,16 @@ import { Fragment, useState } from 'react';
 // PR-DECK-CLEAN-1: the card fragments' checkmark — lucide is the house icon
 // vocabulary (TripHeader.tsx:16 already imports Check).
 // PR-DECK-4CAT: the four category-tab icons join.
-import { LayoutGrid, Plane, BookOpen, TrendingUp, Settings } from 'lucide-react';
-// PR-DECK-4CAT: the category tabs reuse the ToggleStrip icon-tab idiom
-// (DS.iconTab — the trip.com tab form factor the booking strip wears).
-// REPAINT-2 → REPAINT-3: cards are flat white/cream + hairline; the local
-// iconTabLight twin was PROMOTED into ds.iconTab (REPAINT-3 — one tab idiom
-// again), so the shared import returns.
-import { DATA, iconTab } from '@/lib/ds';
+import { Plane, BookOpen, TrendingUp, Settings } from 'lucide-react';
+// MERGED-02: the segment control + catalog table died with the merged
+// section — ds.iconTab/DATA and LayoutGrid left with them. The four
+// category icons stay: DECK_CATEGORIES is the ratified partition the
+// stage's group tag reads.
 import { TAB_PRICING } from '@/config/pricing-costs';
+// MERGED-02: the shared pipe-phases config — the stage's step rail reads
+// the SAME rows the in-app StageStrips render (landing/app lockstep by
+// construction, pipePhases.ts's own contract).
+import { PIPE_PHASES, type PipePhase, type PipePillarId } from '@/lib/pipePhases';
 import {
   ALLOCATION_ROWS, NO_COST_STRIP,
   ENTITY_DIM, ACCOUNT_DIM, SUB_DIM, OBJECT_DIM, VENDOR_DIM,
@@ -483,6 +485,29 @@ const FRAME_LINKS: Record<string, string> = {
   content: 'Your calendar tells the story.',
 };
 
+// MERGED-02 (spec §6 — the Design round-2 handoff, design-refs/
+// merged-modules-spec.md): the five persona rows, spec strings VERBATIM.
+// The stack fragment is split out so it can wear the mono purple idiom
+// (the spec's bolded span) without retyping the sentence.
+const PERSONAS: ReadonlyArray<{ label: string; lead: string; stack: string; tail: string }> = [
+  { label: 'FOUNDER', lead: 'Building a company? ', stack: 'Books + Runway + Projects', tail: ' is your stack.' },
+  { label: 'TRADER', lead: 'Trading your own money? ', stack: 'Trade + Books + Tax', tail: ' is your stack.' },
+  { label: 'CREATOR', lead: 'Filming what you do? ', stack: 'Content + Routines + Books', tail: ' is your stack.' },
+  { label: 'NOMAD', lead: 'Living out of a suitcase? ', stack: 'Travel + Runway + Books', tail: ' is your stack.' },
+  { label: 'SMALL BUSINESS OWNER', lead: 'Window cleaning business? ', stack: 'Books + Routines + Runway', tail: ' is your stack.' },
+];
+
+// MERGED-02 (spec §6): the per-group rationale under the stage's group tag,
+// keyed by DECK_CATEGORIES key (the ratified partition — the tag itself is
+// the category's own label, uppercased by CSS, never retyped). Spec strings
+// verbatim.
+const GROUP_RATIONALE: Record<string, string> = {
+  travel: 'Where money moves first.',
+  accounting: 'The ledger is the spine — Books writes it, Runway and Tax read it.',
+  trading: 'A money engine with receipts — every trade lands in your books.',
+  operations: 'The life around the money, on the same calendar.',
+};
+
 // FD-1n: the footnote marks ACTUALLY referenced by the allocation rows
 // (amount footnotes + the ᵉ riding split percentages) — the merged registry
 // renders only these, derived, never hardcoded.
@@ -602,59 +627,35 @@ interface Props {
 // this file is a flat card + lavender hairline now (deck/services = bg-white,
 // summary slides = bg-ts-white card cream, wall tiles = solid aubergine).
 
-// REPAINT-3: the local iconTabLight helper moved home to ds.iconTab
-// (byte-identical ink) — imported above.
-
 export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvailability, logoAvailability, onBuyModule }: Props) {
   const pricingByKey = new Map(TAB_PRICING.map((t) => [t.key, t]));
   const bundle = pricingByKey.get('bundle:all');
 
-  // PR-DECK-4CAT: category tab state (client only). The four fixed tabs
-  // partition the nine cards; the active tab mounts ONLY its moduleIds
-  // cards, in category order (the flatMap idiom kept from the retired
-  // persona filter), laid out as a static grid — no rail, no scroll state.
-  // DECK-TABLE: 'all' is the resting state — the full nine-row catalog
-  // (declared addition); a category tab narrows the rows through the SAME
-  // moduleIds wiring. Presentation state only — commerce wiring untouched.
-  const [categoryKey, setCategoryKey] = useState('all');
-  const category = DECK_CATEGORIES.find((c) => c.key === categoryKey);
-  const deckCards =
-    categoryKey === 'all'
-      ? PILLAR_CARDS
-      : (category?.moduleIds ?? []).flatMap((id) => PILLAR_CARDS.filter((p) => p.id === id));
+  // MERGED-02: the merged section's ONE piece of state — which module the
+  // stage shows. Default runway (the spec's ruled tweak). PILLAR_CARDS ids
+  // are exactly the PipePillarId vocabulary (funnel order, :244-318), so the
+  // set-time cast at the chip is total.
+  // (The retired deck state died with the section: categoryKey/deckCards
+  // fed only the segment control + table; the FD-1i selection set —
+  // selectedIds/toggleSelected/selectedPillars/selectedSum/selectedSellKeys
+  // — fed only the calculator strip, which was already UNREACHABLE dead
+  // code: toggleSelected's checkbox mounts retired with the card deck, so
+  // selectedIds was permanently empty.)
+  const [stageId, setStageId] = useState<PipePillarId>('runway');
+  const stageIndex = PILLAR_CARDS.findIndex((p) => p.id === stageId);
+  const stagePillar = PILLAR_CARDS[stageIndex];
+  const stageSummary = SUMMARY_BY_ID[stageId];
+  // Widened to the interface so the optional link (Trade's 06) type-checks
+  // across the union of literal rows.
+  const stagePhases: readonly PipePhase[] = PIPE_PHASES[stageId];
+  // The ratified partition (:186-188 — every pillar id appears in exactly
+  // one category, verified): the find is total; the assertion states that
+  // invariant, it is not a fallback.
+  const stageCategory = DECK_CATEGORIES.find((c) => (c.moduleIds as readonly string[]).includes(stageId))!;
 
   // LOBBY-DECK-1b: the demo modal — only reachable when DEMO_VIDEO_URL is set
-  // (the hero button that opens it renders only then).
+  // (the merged-section header button that opens it renders only then).
   const [showDemo, setShowDemo] = useState(false);
-
-  // FD-1i → DECKS-3: the selection set is keyed by PILLAR ID now — ALL NINE
-  // slides carry the checkbox (ruling 3). A selected pillar without a
-  // sellable entitlement key still lists in the strip; only mappable keys
-  // ride the Continue link (no invented keys, no fake checkout paths).
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const toggleSelected = (id: string) =>
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  // Stable PILLAR_CARDS order.
-  const selectedPillars = PILLAR_CARDS.filter((p) => selectedIds.has(p.id));
-  // The honest sum: ONLY when every selected pillar has a display price
-  // (TAB_PRICING — all entries are null today, pricing-costs.ts:346-370, and
-  // five pillars have no entry at all — so this stays null and the strip
-  // renders "prices shown at checkout" until Alex enters prices).
-  const selectedPrices = selectedPillars.map((p) =>
-    p.entitlementKey ? pricingByKey.get(p.entitlementKey)?.monthlyPrice ?? null : null,
-  );
-  const selectedSum =
-    selectedPillars.length > 0 && selectedPrices.every((v) => v !== null)
-      ? selectedPrices.reduce((s, v) => (s as number) + (v as number), 0)
-      : null;
-  const selectedSellKeys = selectedPillars
-    .map((p) => p.entitlementKey)
-    .filter((k): k is string => typeof k === 'string');
 
   return (
     <div className="min-h-screen bg-bg-terminal text-text-primary">
@@ -782,265 +783,269 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
             HERO-REPO-1: the demo trigger mounts in this header. PR-PRICE-3:
             id="modules" — THE stable anchor the /pricing permanent redirect
             (and any deep link) targets; this deck IS the pricing surface. ──── */}
-      <section id="modules" className="w-full border-b border-border bg-bg-terminal">
-        {/* LANDING-V5 (Alex's ruling; spec :181-189): the 02 intro is a
-            FULL-BLEED aubergine band — background:var(--purple) runs edge to
-            edge with the content constrained inside (the hero/footer band
-            pattern), replacing the REPAINT-2 rounded floater. Contents
-            byte-identical: eyebrow, right slot, h2, the honesty-gated demo
-            trigger. */}
-        <div className="bg-brand-purple">
-          <div className="max-w-7xl mx-auto px-4 lg:px-8 py-6">
-            {/* LANDING-V2 (spec :184-185): the 02 eyebrow + the cream
-                HOW PRICING WORKS right slot, on the aubergine band. */}
-            <div className="flex flex-wrap items-baseline justify-between gap-3">
-              <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
-                02 / THE NINE PILLARS
-              </p>
-              <Link href="/how-pricing-works" className="font-mono text-[10px] tracking-wider text-ts-white hover:text-white">
-                HOW PRICING WORKS →
-              </Link>
-            </div>
-            <h2 className="mt-1 text-lg font-light tracking-tight text-white">
-              Buy the modules you&apos;ll use. One, some, or all.
-            </h2>
-            {/* HERO-REPO-1: the demo trigger relocated here from the hero.
-                Honesty-gated on DEMO_VIDEO_URL — null renders nothing (the
-                deck is self-explanatory); non-null shows "Watch the demo 🎥"
-                opening the existing modal (config + modal + youTubeEmbedUrl
-                untouched — only the trigger's mount moved). */}
-            {DEMO_VIDEO_URL !== null && (
-              <button
-                type="button"
-                onClick={() => setShowDemo(true)}
-                className="mt-2 inline-block bg-white px-4 py-1.5 text-xs font-medium text-brand-purple hover:bg-bg-row"
-              >
-                Watch the demo 🎥
-              </button>
-            )}
+      {/* ── MERGED-02 (spec design-refs/merged-modules-spec.md §1-§6): the
+            merged modules section — spine, personas, chips, ONE stage, foot —
+            replacing the 02 catalog table and the 04 frame grid. id="modules"
+            KEPT: the stable anchor the /pricing permanent redirect and the
+            header's Modules link target. Geometry = the spec's px, verbatim;
+            every hex in the spec's §0 maps to an existing token (border-light
+            = #EBE4F7, ts-white = #FFFDF9 — nothing invented). Chip switching
+            is local state (default runway, the ruled tweak); inactive stages
+            are conditionally rendered, not kept mounted — static content, no
+            survival contract (declared). Frames: the house plain-<img>
+            convention (HotelGallery precedent — the override), object-contain
+            at EVERY width including mobile (zero-information-loss law; the
+            spec's §5 "may crop" is overridden). ─────────────────────────── */}
+      <section id="modules" className="w-full border-y border-border bg-bg-terminal">
+        {/* HEADER — eyebrow (spec §1: 02 / THE NINE MODULES) + the pricing
+            right slot (:800-802 idiom, purple ink on cream now) + the 04
+            h2/intro MOVED here verbatim (old :1120-1128). Act 1 flows from
+            the header — no rule between (spec §1). */}
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px]">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.12em] text-text-faint">
+              02 / THE NINE MODULES
+            </p>
+            <Link href="/how-pricing-works" className="font-mono text-xs lg:text-[10px] tracking-wider text-brand-purple hover:text-brand-purple-hover">
+              HOW PRICING WORKS →
+            </Link>
           </div>
-        </div>
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 pb-10 pt-4">
-
-          {/* PR-DECK-4CAT → DECK-TABLE: the category tab row — the
-              ToggleStrip icon-tab idiom (DS.iconTab) above the catalog.
-              A tab FILTERS the table rows below; the leading All tab
-              (declared addition) is the default full-catalog view.
-              Client state only — commerce wiring and selection state
-              untouched. */}
-          <div className="mt-4 grid grid-cols-3 justify-items-center gap-1.5 sm:flex sm:flex-wrap sm:items-center sm:justify-center" role="group" aria-label="Module categories">
+          <h2 className="mt-[18px] text-[27px] lg:text-[38px] font-medium tracking-[-0.025em] text-brand-purple">
+            The product, as it runs.
+          </h2>
+          <p className="mt-3 max-w-[680px] text-[17px] leading-[1.55] text-text-secondary">
+            Everything you plan and everything you spend lands in one place — so it can tell you how long your money lasts.
+          </p>
+          {/* HERO-REPO-1 → MERGED-02: the demo trigger keeps its seat in this
+              section's header. Honesty-gated on DEMO_VIDEO_URL — null renders
+              nothing (null today, demoVideo.ts:11); config + modal untouched. */}
+          {DEMO_VIDEO_URL !== null && (
             <button
               type="button"
-              onClick={() => setCategoryKey('all')}
-              aria-pressed={categoryKey === 'all'}
-              className={iconTab(categoryKey === 'all')}
+              onClick={() => setShowDemo(true)}
+              className="mt-3 inline-block bg-white px-4 py-1.5 text-xs font-medium text-brand-purple hover:bg-bg-row"
             >
-              <span aria-hidden="true" className={categoryKey === 'all' ? 'text-brand-purple' : undefined}>
-                <LayoutGrid className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
-              </span>
-              <span className="w-min whitespace-normal text-center leading-tight">All</span>
+              Watch the demo 🎥
             </button>
-            {DECK_CATEGORIES.map((c) => (
-              <button
-                key={c.key}
-                type="button"
-                onClick={() => setCategoryKey(c.key)}
-                aria-pressed={categoryKey === c.key}
-                className={iconTab(categoryKey === c.key)}
-              >
-                <span aria-hidden="true" className={categoryKey === c.key ? 'text-brand-purple' : undefined}>
-                  <c.icon className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
-                </span>
-                <span className="w-min whitespace-normal text-center leading-tight">
-                  {c.label}
-                </span>
-              </button>
+          )}
+        </div>
+
+        {/* ACT 1 — SPINE (spec §2): marks → spine → the three words → spine +
+            gold square → the two hubs. Marks/names derive from PILLAR_CARDS
+            (funnel order, :902's padStart idiom); uppercase is a CSS
+            transform of the card label, never a retyped string. */}
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10 lg:pt-16 pb-12 lg:pb-[76px] text-center">
+          <p className="font-mono text-xs lg:text-[10px] font-semibold tracking-[0.16em] text-text-muted">
+            NINE MODULES <span className="text-brand-gold">·</span> ONE SPINE
+          </p>
+          <div className="mx-auto mt-5 lg:mt-[22px] grid max-w-[340px] grid-cols-3 gap-y-2.5 lg:flex lg:max-w-none lg:flex-wrap lg:justify-center lg:gap-x-[26px]">
+            {PILLAR_CARDS.map((p, i) => (
+              <span key={p.id} className="flex items-baseline justify-center gap-1.5">
+                <span className="font-mono text-xs lg:text-[10px] text-text-faint">{String(i + 1).padStart(2, '0')}</span>
+                <span className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-purple">{p.label}</span>
+              </span>
             ))}
           </div>
+          <div className="mx-auto mt-6 lg:mt-[26px] h-[30px] lg:h-10 w-px bg-border" aria-hidden="true" />
+          <p className="mt-5 text-base text-text-secondary">Every module speaks the same three words —</p>
+          <p className="mt-3 font-mono text-[16.5px] lg:text-2xl font-semibold tracking-[0.1em] lg:tracking-[0.16em] text-brand-purple">
+            A DATE <span className="text-brand-gold">·</span> A TIME <span className="text-brand-gold">·</span> A DOLLAR
+          </p>
+          <p className="mt-3 text-base text-text-secondary">— and the app writes them into</p>
+          <div className="mx-auto mt-5 h-6 lg:h-8 w-px bg-border" aria-hidden="true" />
+          <div className="mx-auto h-[5px] w-[5px] bg-brand-gold" aria-hidden="true" />
+          <div className="mt-3.5 flex flex-wrap items-center justify-center gap-3 lg:gap-6">
+            <span className="border-b-4 border-brand-gold bg-brand-purple px-[18px] py-3 lg:px-[30px] lg:py-[15px] font-mono text-[12.5px] font-semibold tracking-[0.14em] text-ts-white">
+              ONE LEDGER
+            </span>
+            <span className="border border-border bg-ts-white px-[18px] py-3 lg:px-[30px] lg:py-[15px] font-mono text-[12.5px] font-semibold tracking-[0.14em] text-brand-purple">
+              ONE CALENDAR
+            </span>
+          </div>
+        </div>
 
-          {/* PRICE-1 (proposal c) → PR-DECK-4CAT: the ONE verified lead-in
-              line — free-travel anchor + launching-soon truth, above the
-              deck. STATIC now: the 'everyone' persona's string survives
-              verbatim; the per-persona variants retired with the filter. */}
-          <p className="mt-2 font-mono text-xs text-text-muted">Search & book travel free today — no account needed. Paid modules are launching soon.</p>
+        {/* ACT 2 — PERSONAS (spec §6 lines, verbatim; the stack fragment in
+            the mono purple idiom). Rows: border-light rules (§0's inner
+            hairline — the exact #EBE4F7 token). */}
+        <div className="w-full border-t border-border">
+          <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10 lg:pt-[60px] pb-12 lg:pb-[68px]">
+            <p className="text-center font-mono text-xs lg:text-[10px] font-semibold tracking-[0.16em] text-text-muted">
+              WHO IT&apos;S FOR
+            </p>
+            <div className="mx-auto mt-5 max-w-[880px]">
+              {PERSONAS.map((row) => (
+                <div key={row.label} className="border-t border-border-light py-3 first:border-t-0 lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:items-baseline lg:gap-4">
+                  <p className="font-mono text-xs font-semibold tracking-wider text-text-muted">{row.label}</p>
+                  <p className="mt-1 text-[14.5px] text-text-primary lg:mt-0">
+                    {row.lead}
+                    <span className="font-mono text-[12.5px] font-semibold text-brand-purple">{row.stack}</span>
+                    {row.tail}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
 
-          {/* LANDING-V2 (spec :323-327): the SERVICES tab left the deck —
-              the PROFESSIONAL SERVICES panel reseated in section 04 as the
-              spec's DONE-FOR-YOU seat. The catalog renders unconditionally. */}
-          {/* DECK-TABLE (Alex's ruling): the card grid became the Direction-C
-             catalog table — the toggler FILTERS the rows (same moduleIds
-             wiring, presentation state only). Copy is PILLAR_CARDS
-             byte-exact (label + plain); STATUS carries the two ruled labels;
-             the → column is the existing per-module Explore affordance,
-             aria-labeled. SUPERSESSION (declared): the per-card Select /
-             Add-to-plan bundle affordances retired with the cards — the
-             bundle bar + calculator strip below survive byte-identical, and
-             buy affordances return to rows when real prices exist. Table
-             chrome = the DATA vocabulary (ds.ts) on cream: white card,
-             lavender hairlines, zebra rows, wash hover. */}
-          <div role="group" aria-label="The nine pillars" className="mt-4 overflow-x-auto rounded-lg border border-border bg-white">
-            <table className="w-full min-w-[560px] text-sm">
-              <thead>
-                {/* LANDING-V3 (spec :194): the header row takes the token
-                    fill — bg-bg-row (#F3EFE6, the closest token to the
-                    spec's #F5F1E5; no new hex). */}
-                <tr className="border-b border-border bg-bg-row text-left">
-                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>No</th>
-                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Module</th>
-                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Category</th>
-                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>In its own words</th>
-                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Status</th>
-                  <th className="px-3 py-2">
-                    <span className="sr-only">Explore</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {deckCards.map((p) => {
-                  // The catalog number is the module's seat in PILLAR_CARDS
-                  // (funnel order) — stable under filtering.
-                  const no = String(PILLAR_CARDS.findIndex((x) => x.id === p.id) + 1).padStart(2, '0');
-                  const cat = DECK_CATEGORIES.find((c) => (c.moduleIds as readonly string[]).includes(p.id));
+        {/* ACT 3 — THE MODULES: label row (honesty line MOVED from old :1117,
+            right slot), the nine chips (§3 states; Travel wears the gold LIVE
+            ▪), the truth line (MOVED verbatim from old :865), and the ONE
+            stage. Chips: contained horizontal scroll at mobile (§5 — the
+            landing-mobile-viewport pattern), 9-col grid at desktop. */}
+        <div className="w-full border-t border-border">
+          <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10 lg:pt-[60px] pb-12 lg:pb-[76px]">
+            <div className="flex flex-wrap items-baseline justify-between gap-3">
+              <p className="font-mono text-xs lg:text-[10px] font-semibold tracking-[0.16em] text-text-muted">THE MODULES</p>
+              <p className="font-mono text-xs lg:text-[9.5px] tracking-[0.08em] text-text-faint">ILLUSTRATED PIPELINES — NOT SCREENSHOTS</p>
+            </div>
+            <div className="-mx-4 mt-4 overflow-x-auto px-4 lg:mx-0 lg:overflow-visible lg:px-0">
+              <div role="group" aria-label="The nine modules" className="flex w-max gap-2 lg:grid lg:w-auto lg:grid-cols-9">
+                {PILLAR_CARDS.map((p, i) => {
+                  const active = stageId === p.id;
                   return (
-                    <tr key={p.id} className="odd:bg-bg-row transition-colors hover:bg-brand-purple-wash/40">
-                      <td className="px-3 py-2.5 font-mono text-xs text-text-faint">{no}</td>
-                      <td className="whitespace-nowrap px-3 py-2.5 font-semibold text-brand-purple">{p.label}</td>
-                      <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[10px] uppercase tracking-wider text-text-muted">{cat?.label}</td>
-                      <td className="px-3 py-2.5 text-xs leading-relaxed text-text-secondary">{p.plain}</td>
-                      <td className="whitespace-nowrap px-3 py-2.5">
-                        {p.id === 'travel' ? (
-                          <span className="font-mono text-[10px] font-semibold text-brand-purple">LIVE — FREE</span>
-                        ) : (
-                          /* LANDING-V3 (spec :210): source-uppercase per spec. */
-                          <span className="font-mono text-[10px] tracking-wider text-text-muted">LAUNCHING SOON</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2.5 text-right">
-                        <Link
-                          href={`/modules/${p.id}`}
-                          aria-label={`Explore ${p.label}`}
-                          className="font-mono text-sm font-medium text-brand-purple hover:text-brand-purple-hover"
-                        >
-                          →
-                        </Link>
-                      </td>
-                    </tr>
+                    <button
+                      key={p.id}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setStageId(p.id as PipePillarId)}
+                      className={`flex items-baseline justify-center gap-1.5 whitespace-nowrap border border-b-[3px] px-3 pt-[10px] pb-[9px] lg:px-2 lg:pt-[9px] lg:pb-2 font-mono text-xs lg:text-[10px] tracking-[0.06em] transition-colors ${
+                        active
+                          ? 'border-brand-purple border-b-brand-gold bg-brand-purple text-ts-white'
+                          : 'border-border bg-ts-white text-text-secondary hover:bg-brand-purple-wash/40'
+                      }`}
+                    >
+                      <span className={active ? 'text-white/60' : 'text-text-faint'}>{String(i + 1).padStart(2, '0')}</span>
+                      {p.id === 'travel' && <span className="text-brand-gold" aria-hidden="true">▪</span>}
+                      <span className="uppercase">{p.label}</span>
+                    </button>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* ── FD-1i (ruling B): the CALCULATOR strip — live selection state
-                replaced the static bundle row. Nothing selected → the bundle
-                pitch below, unchanged. 1+ selected → the live strip: count,
-                the honest price area (the sum ONLY when every selected
-                TAB_PRICING monthlyPrice exists — all five are null today,
-                pricing-costs.ts:346-370, so "prices shown at checkout" is the
-                live default), the bundle comparison at 2+, and Continue →
-                onBuyModule (PR-PRICE-3: /pricing died; Stripe checkout is one
-                subscription per session, so multi-select starts with the
-                FIRST selected key and the strip says so — the remaining
-                modules buy the same way after each checkout returns). ──────── */}
-          {selectedPillars.length > 0 && (
-            <div className="mt-5 flex flex-col gap-4 rounded-lg border border-brand-purple/60 bg-white p-4 sm:flex-row sm:items-center">
-              <div className="flex-1">
-                <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
-                  {selectedPillars.length} module{selectedPillars.length === 1 ? '' : 's'} selected
-                </p>
-                <p className="mt-1 text-xs leading-relaxed text-text-muted">
-                  {selectedPillars.map((p) => p.label).join(' · ')}
-                </p>
-                {selectedPillars.length >= 2 && (
-                  <p className="mt-1 text-[10px] text-text-faint">
-                    One checkout per module — Continue starts with the first selected.
-                  </p>
-                )}
               </div>
-              <div className="sm:text-right">
-                <p className="font-mono text-lg font-bold text-brand-gold">
-                  {selectedSum !== null ? (
-                    <>${selectedSum}<span className="text-xs font-normal text-text-faint">/mo</span></>
-                  ) : (
-                    <span className="text-xs font-normal italic text-text-faint">prices shown at checkout</span>
-                  )}
-                </p>
-                {selectedPillars.length >= 2 && bundle && (
-                  <p className="mt-0.5 text-[10px] text-text-faint">
-                    {bundle.monthlyPrice !== null
-                      ? `Bundle: everything for $${bundle.monthlyPrice}/mo`
-                      : entitlementAvailability[bundle.key] === true
-                        ? 'Bundle: price shown at checkout'
-                        : 'Bundle: launching soon'}
-                  </p>
-                )}
-              </div>
-              {/* Selection requires `available` (the checkbox gate above), so
-                  every selected pillar has a sell key — selectedSellKeys is
-                  never empty while this strip renders. */}
-              <button
-                type="button"
-                onClick={() => onBuyModule(selectedSellKeys[0])}
-                className="bg-brand-gold px-6 py-2 text-center text-xs font-medium text-white hover:bg-brand-gold/90"
-              >
-                Continue →
-              </button>
             </div>
-          )}
+            <p className="mt-3 font-mono text-xs lg:text-[11px] text-text-muted">Search & book travel free today — no account needed. Paid modules are launching soon.</p>
 
-          {/* ── The bundle pitch — the calculator's EMPTY state (nothing
-                selected). Markup + commerce wiring verbatim from the dead
-                sheet's closer (LOBBY-DECK-1). ───────────────────────────────── */}
-          {categoryKey !== 'services' && selectedPillars.length === 0 && bundle && (
-            <div className="mt-5 flex flex-col gap-4 rounded-lg border border-border bg-white p-4 sm:flex-row sm:items-center">
-              <div className="flex-1">
-                <span className="rounded border border-border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
-                  {bundle.label}
+            {/* THE STAGE (spec §4) — one card, all data from cited sources:
+                bar kicker/status = the pillar seat + the deck's status
+                conditional (old :911-916, reused verbatim); frame =
+                SUMMARY_BY_ID[id].demoImage (plain <img>, object-contain —
+                the override; absence-is-honest gate kept from old :1153);
+                steps = PIPE_PHASES[id] (names as stored — the app's own
+                strings); line 1 = PILLAR_CARDS[id].plain; line 2 =
+                FRAME_LINKS[id]; group tag = DECK_CATEGORIES label (the
+                ratified partition, :186-188) + §6 rationale. Trade's 06
+                renders the link-chip STYLE but links /modules/trade like
+                every Explore — selectTab doesn't exist on the landing
+                (declared override). Mobile stack order (§5): bar → STEP
+                LIST FIRST → frame → captions → group tag → Explore. */}
+            <div className="mt-5 overflow-hidden rounded-lg border border-border bg-white">
+              <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-border px-[18px] py-2.5">
+                <span className="font-mono text-xs lg:text-[10.5px] uppercase tracking-[0.05em] text-text-secondary">
+                  {String(stageIndex + 1).padStart(2, '0')} / {stagePillar.label}
                 </span>
-                {/* PR-DECK-CLEAN-1 (bundle = same treatment: name, ONE line,
-                    price slot): compressed from the pricingModel bundle:all
-                    unlocks string — the full sentence stays the checkout
-                    truth ("resolved at read time — one purchase unlocks all
-                    tabs"). */}
-                <p className="mt-2 text-xs leading-relaxed text-text-muted">Every module above — one subscription.</p>
-              </div>
-              {/* PRICE-1: the bundle row follows the slide rule — ONE honest
-                  state. Purchasable → price/italic + Select; not → "Launching
-                  soon", no dead button. */}
-              <div className="font-mono text-lg font-bold text-brand-gold">
-                {bundle.monthlyPrice !== null ? (
-                  <>${bundle.monthlyPrice}<span className="text-xs font-normal text-text-faint">/mo</span></>
-                ) : entitlementAvailability[bundle.key] === true ? (
-                  <span className="text-xs font-normal italic text-text-faint">price shown at checkout</span>
+                {stagePillar.id === 'travel' ? (
+                  <span className="font-mono text-xs lg:text-[10.5px] font-semibold text-brand-purple">LIVE — FREE</span>
                 ) : (
-                  <span className="text-xs font-normal text-text-muted">Launching soon</span>
+                  <span className="font-mono text-xs lg:text-[10.5px] tracking-[0.05em] text-text-muted">LAUNCHING SOON</span>
                 )}
               </div>
-              {entitlementAvailability[bundle.key] === true && (
-                <button
-                  type="button"
-                  onClick={() => onBuyModule(bundle.key)}
-                  className="bg-brand-gold px-6 py-2 text-center text-xs font-medium text-white hover:bg-brand-gold/90"
-                >
-                  Select the bundle →
-                </button>
-              )}
+              <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px]">
+                <div className="order-2 lg:order-none aspect-[16/10] bg-bg-terminal">
+                  {stageSummary.demoImage && (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={stageSummary.demoImage.src} alt={stageSummary.demoImage.alt} className="h-full w-full object-contain" />
+                  )}
+                </div>
+                <div className="order-1 lg:order-none flex flex-col border-b border-border px-6 pt-[22px] pb-4 lg:border-b-0 lg:border-l lg:py-[22px]">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="font-mono text-xs lg:text-[10px] font-semibold tracking-[0.14em] text-text-muted">THE PIPELINE</span>
+                    <span className="font-mono text-xs lg:text-[10px] text-text-faint">{String(stagePhases.length).padStart(2, '0')} STEPS</span>
+                  </div>
+                  <div className="mt-2">
+                    {stagePhases.map((ph) => (
+                      <div key={ph.num} className="flex items-baseline border-t border-border-light py-[11px]">
+                        <span className="w-[22px] shrink-0 font-mono text-xs lg:text-[11px] text-text-faint">{ph.num}</span>
+                        {ph.link ? (
+                          <Link href={`/modules/${stageId}`} className="flex items-baseline gap-2">
+                            <span className="text-[15px] font-medium text-text-primary">{ph.name}</span>
+                            <span className="inline-block rounded border border-border px-1.5 font-mono text-xs lg:text-[9px] tracking-widest text-brand-purple">{ph.link.label}</span>
+                          </Link>
+                        ) : (
+                          <span className="text-[15px] font-medium text-text-primary">{ph.name}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="min-h-[14px] flex-1" aria-hidden="true" />
+                  <p className="font-mono text-xs lg:text-[9.5px] tracking-[0.08em] text-text-faint">A PREVIEW OF EXACTLY WHAT THE BUYER SEES INSIDE</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 border-t border-border lg:grid-cols-[minmax(0,1fr)_400px]">
+                <div className="p-[18px]">
+                  <p className="text-[16.5px] font-medium leading-[1.4] text-text-primary">{stagePillar.plain}</p>
+                  <p className="mt-1.5 text-[13px] leading-[1.6] text-text-muted">{FRAME_LINKS[stageId]}</p>
+                </div>
+                <div className="flex flex-col border-t border-border p-4 lg:border-t-0 lg:border-l lg:px-6">
+                  <span className="self-start rounded border border-border px-2 py-0.5 font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.08em] text-text-secondary">
+                    {stageCategory.label}
+                  </span>
+                  <p className="mt-2 text-xs leading-[1.55] text-text-muted">{GROUP_RATIONALE[stageCategory.key]}</p>
+                  <div className="flex-1" aria-hidden="true" />
+                  <Link href={`/modules/${stageId}`} className="mt-3 font-mono text-xs lg:text-[11px] font-semibold tracking-[0.06em] text-brand-purple hover:text-brand-purple-hover">
+                    EXPLORE →
+                  </Link>
+                </div>
+              </div>
             </div>
-          )}
+          </div>
+        </div>
 
-          {/* DECK-SERVICES-TAB: the SERVICES-TIER done-for-you bar was
-              ABSORBED into the Services tab's panel above — one offer, one
-              surface (the hero Work-with-me row stays). */}
-
-          {/* ── The transparency door — the legend/total/footnote block moved
-                behind this one line (LOBBY-DECK-1); the full receipts live on
-                /how-pricing-works. ─────────────────────────────────────────── */}
-          <Link
-            href="/how-pricing-works"
-            className="mt-5 inline-block font-mono text-xs font-medium text-brand-purple hover:text-brand-purple-hover"
-          >
-            Every price, traced to a real bill → see the full breakdown
-          </Link>
+        {/* ACT 4 — FOOT (spec §1): the bundle bar (markup + three-state price
+            logic MOVED from the dead 02 closer, old :994-1029 — the honest
+            state machine survives; the vestigial categoryKey/'services' and
+            empty-selection guards died with the deck) → the pricing line
+            (MOVED from old :1038-1043). */}
+        <div className="w-full border-t border-border">
+          <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10 pb-12 lg:pb-[60px]">
+            {bundle && (
+              <div className="flex flex-col gap-4 rounded-lg border border-border bg-white p-4 sm:flex-row sm:items-center">
+                <div className="flex-1">
+                  {/* §5 mobile law: nothing under 12px — the chip promotes to
+                      text-xs at mobile, keeps its 10px desktop size. */}
+                  <span className="rounded border border-border px-2 py-0.5 font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
+                    {bundle.label}
+                  </span>
+                  <p className="mt-2 text-xs leading-relaxed text-text-muted">Every module above — one subscription.</p>
+                </div>
+                {/* PRICE-1: the bundle row follows the slide rule — ONE honest
+                    state. Purchasable → price/italic + Select; not → "Launching
+                    soon", no dead button. */}
+                <div className="font-mono text-lg font-bold text-brand-gold">
+                  {bundle.monthlyPrice !== null ? (
+                    <>${bundle.monthlyPrice}<span className="text-xs font-normal text-text-faint">/mo</span></>
+                  ) : entitlementAvailability[bundle.key] === true ? (
+                    <span className="text-xs font-normal italic text-text-faint">price shown at checkout</span>
+                  ) : (
+                    <span className="text-xs font-normal text-text-muted">Launching soon</span>
+                  )}
+                </div>
+                {entitlementAvailability[bundle.key] === true && (
+                  <button
+                    type="button"
+                    onClick={() => onBuyModule(bundle.key)}
+                    className="bg-brand-gold px-6 py-2 text-center text-xs font-medium text-white hover:bg-brand-gold/90"
+                  >
+                    Select the bundle →
+                  </button>
+                )}
+              </div>
+            )}
+            <Link
+              href="/how-pricing-works"
+              className="mt-3.5 inline-block font-mono text-xs font-medium text-brand-purple hover:text-brand-purple-hover"
+            >
+              Every price, traced to a real bill → see the full breakdown
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -1085,96 +1090,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
               </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* ── LANDING-V4 (spec :281-302): INSIDE THE APP renumbers to 04 and
-            adopts the spec's frame-card anatomy — per module a white card
-            with a mono caption bar ('APP / {NAME}' left · the deck-table's
-            status string as the right chip, :907-911 idiom reused) and the
-            existing screenshot framed beneath (spec :290 aspect 16/10,
-            fit-contain; border-border + bg-bg-row chrome), 2-up at lg.
-            DECLARED RETIREMENT: the FD-1i/DECK-2 slide prose (eyebrow chips,
-            h3 headlines, bullet lines, Explore CTAs) leaves the page —
-            strings live in git history; the module pitch lives in the deck
-            table's IN ITS OWN WORDS column and Explore access in its arrows.
-            DECLARED INTERIM: current screenshot assets remain until the
-            Direction-C re-shoot — frames receive new images as drop-in
-            asset swaps (same src paths). ─────────────────────────────────── */}
-      <section className="w-full border-b border-border bg-bg-terminal">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-          {/* LANDING-V2 (spec :281-282): the eyebrow row; the right slot is a
-              PLAIN mono line, not a link (spec renders it in the muted ink). */}
-          <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">
-              04 / INSIDE THE APP
-            </p>
-            {/* LANDING-04-ILLOS: the old right slot read "REAL SCREENS — NOT
-                RENDERS", which was FALSE for eight of the nine frames (they
-                carried code-drawn illustrations) and for the ninth once its
-                stale pre-repaint capture retired. The line now says what the
-                frames actually are. (Ratify row — Alex judges on Preview.) */}
-            <p className="font-mono text-[10px] tracking-wider text-text-faint">ILLUSTRATED PIPELINES — NOT SCREENSHOTS</p>
-          </div>
-          {/* LANDING-V3 (spec :284): the section h2, spec wording verbatim. */}
-          <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">
-            The product, as it runs.
-          </h2>
-          {/* LANDING-04-CAPTIONS: the one intro line — how the nine modules
-              link up, in plain language. Type idiom reused verbatim from the
-              Built-on wall's intro line (:1202 text-sm text-text-secondary). */}
-          <p className="mt-2 max-w-2xl text-sm text-text-secondary">
-            Everything you plan and everything you spend lands in one place — so it can tell you how long your money lasts.
-          </p>
-
-          <div className="mt-4 grid gap-6 lg:grid-cols-2">
-            {PILLAR_CARDS.map((p) => {
-              const s = SUMMARY_BY_ID[p.id];
-              return (
-                // LANDING-V4 (spec :286-301): the frame card — white card,
-                // mono caption bar (label left · status chip right), the
-                // screenshot in a 16/10 frame beneath (spec fit="contain",
-                // :291). Status strings + classes reused verbatim from the
-                // deck table's STATUS column — never invented. Plain <img>
-                // per the house precedent (HotelGallery.tsx:38); the frame
-                // renders ONLY when the entry carries a real image
-                // (absence-is-honest — today all nine do, PR-DEMO-1).
-                <div key={p.id} className="overflow-hidden rounded-lg border border-border bg-white">
-                  <div className="flex items-center justify-between gap-3 border-b border-border px-3.5 py-2">
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-text-secondary">
-                      APP / {p.label}
-                    </span>
-                    {p.id === 'travel' ? (
-                      <span className="font-mono text-[10px] font-semibold text-brand-purple">LIVE — FREE</span>
-                    ) : (
-                      <span className="font-mono text-[10px] tracking-wider text-text-muted">LAUNCHING SOON</span>
-                    )}
-                  </div>
-                  {s.demoImage && (
-                    <div className="aspect-[16/10] bg-bg-row">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={s.demoImage.src} alt={s.demoImage.alt} className="h-full w-full object-contain" />
-                    </div>
-                  )}
-                  {/* LANDING-04-CAPTIONS: two lines under the frame. Line 1 is
-                      the module's own plain line — READ FROM THE CARD, never
-                      retyped (PILLAR_CARDS is the source moduleBands.ts copies
-                      byte-for-byte, per its own header; the two are verified
-                      identical for all nine). Line 2 says how that module
-                      connects to the rest. Block geometry mirrors the caption
-                      BAR above (:1147 px-3.5 + a border hairline); the two-line
-                      type idiom is the 03 service card's, verbatim (:1082-1083
-                      text-sm font-medium / mt-1 text-xs text-text-muted). No
-                      fixed widths — both lines wrap at 390. */}
-                  <div className="border-t border-border px-3.5 py-3 text-text-primary">
-                    <div className="text-sm font-medium">{p.plain}</div>
-                    <p className="mt-1 text-xs text-text-muted">{FRAME_LINKS[p.id]}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
         </div>
       </section>
 
@@ -1290,7 +1205,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
           {/* LANDING-V2 (spec :308) → LANDING-V4: the eyebrow renumbers to 05
               — no right slot. */}
           <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">
-            05 / BUILT IN PUBLIC
+            04 / BUILT IN PUBLIC
           </p>
           {/* LANDING-V3 (spec :309-328) → LANDING-V4: the grid is 3 columns
               now — THE CODE (V3 FLAGS: inline repo anchor is PLAIN TEXT,
