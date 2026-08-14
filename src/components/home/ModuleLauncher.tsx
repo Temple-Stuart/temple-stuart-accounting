@@ -38,9 +38,13 @@ import StageStrip, { type StagePhase } from '@/components/ui/StageStrip';
 // link chip) live in the shared pipe-phases config now — moved verbatim,
 // landing/app lockstep by construction. Keys, derived states, and handlers
 // stay HERE (the config carries data only).
-import { PIPE_PHASES } from '@/lib/pipePhases';
+import { PIPE_PHASES, type PipePhase } from '@/lib/pipePhases';
 
 const [PIPE_SETUP, PIPE_SCAN, PIPE_REVIEW, PIPE_LAB, PIPE_RECORD, PIPE_COMMIT] = PIPE_PHASES.trade;
+// TRAVEL-PIPE: the travel strip's five phases from the same shared config —
+// widened to the interface so the deliberately-absent Search subLabel
+// type-checks across the union of literal rows (the Landing precedent).
+const [PIPE_TRIP, PIPE_SEARCH, PIPE_BOOK, PIPE_LEDGER, PIPE_RECONCILE] = PIPE_PHASES.travel as readonly PipePhase[];
 import SectionHeader from '@/components/ui/SectionHeader';
 import ProofStrip from '@/components/ui/ProofStrip';
 // TRADE-1: the queue viewer + reconcile/link/grade surface. Mounted BELOW the scanner on
@@ -205,6 +209,17 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // table (the table is the primary view; creating is one tap → modal). This is open
   // when the "+ Create a trip" button is tapped; a successful create closes it.
   const [showCreate, setShowCreate] = useState(false);
+  // TRAVEL-PIPE: the tab-level phase control's state. Default 'search' —
+  // preserving the tab's existing lead surface (the ToggleStrip sat first
+  // in the body; the tab's live guest core is the search stack — declared).
+  // States below are the children's reported tallies (the Books onTotals
+  // idiom — zero new fetches); null = not reported yet → pending/honest
+  // empty, never imputed.
+  const [travelPhase, setTravelPhase] = useState<'trip' | 'search' | 'book' | 'ledger' | 'reconcile'>('search');
+  const [travelTrips, setTravelTrips] = useState<{ trips: number } | null>(null);
+  const [travelBookings, setTravelBookings] = useState<{ bookings: number } | null>(null);
+  const [travelLedger, setTravelLedger] = useState<{ budgetLines: number } | null>(null);
+  const [travelOrphans, setTravelOrphans] = useState<{ unattached: number } | null>(null);
   // PR-Mobile2 + PR-Edge-B: which tab is active — now on BOTH mobile (bottom bar) and
   // desktop (top tab row); one module panel shows at a time on each. Additive — does
   // not touch any existing state (authed/currentTrip/tripsRefresh/scanner). Default the
@@ -476,120 +491,22 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                   // 401 there surfaces as its inline error (fail-loud).
   };
 
+  // TRAVEL-PIPE: the "+ Create a trip" opener (the old renderBody travel
+  // branch's const, moved with its JSX — byte-identical markup).
+  const createTripButton = (
+    <button
+      type="button"
+      onClick={() => setShowCreate(true)}
+      className="shrink-0 rounded-lg bg-brand-purple px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-brand-purple-hover"
+    >
+      + Create a trip
+    </button>
+  );
+
   // One module SectionCard: purple band (name + tag) + white body. Travel's form
   // and the admin Trading form render bandless inside (showHeader={false}) so each
   // card has exactly ONE purple band (the app design rule).
   const renderBody = (m: ModuleDef) => {
-    if (m.key === 'travel') {
-      // PR-Trip-Modal: "Your trips" is the primary view — the create form moved off
-      // the top and into a modal opened by the "+ Create a trip" button in the table
-      // header (data on the surface; creating on demand). The guest gate is unchanged:
-      // gateGuestCreate (onUnauthenticated) opens the sign-up popup for logged-out
-      // guests, so a guest's "Create trip" still nudges to register instead of POSTing.
-      const createTripButton = (
-        <button
-          type="button"
-          onClick={() => setShowCreate(true)}
-          className="shrink-0 rounded-lg bg-brand-purple px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-brand-purple-hover"
-        >
-          + Create a trip
-        </button>
-      );
-      return (
-        <div className="space-y-3">
-          {/* PR-HCR-Trips1: the All Trips list is personal — only mounted when logged
-              in (same gate as the calendar), so it never fetches for a guest. A new
-              trip bumps tripsRefresh, which re-fetches the list in place. The "+ Create
-              a trip" button rides in its header (upper-right, next to the count).
-              PR-HCR-Trips2: clicking a row sets currentTrip (lifted here), so later
-              budget actions know which trip to attach to. */}
-          {authed === true ? (
-            <>
-              <AllTripsList
-                refreshSignal={tripsRefresh}
-                onSelect={setCurrentTrip}
-                selectedTripId={currentTrip?.id ?? null}
-                onDeleted={(deletedId) => {
-                  // PR-Trips3: refresh the list, and drop the selection if the
-                  // deleted trip was the current one (so nothing points at it).
-                  setTripsRefresh((n) => n + 1);
-                  setCurrentTrip((cur) => (cur?.id === deletedId ? null : cur));
-                }}
-                headerAction={createTripButton}
-              />
-              {currentTrip && (
-                <p className="text-sm text-text-secondary">
-                  Selected: <span className="font-semibold text-text-primary">{currentTrip.name}</span>
-                  <span className="text-text-faint"> — hotel and flight bookings attach to this trip, and saved flights budget into it.</span>
-                </p>
-              )}
-              {/* T3: the selected trip's REAL bookings (reservations read-back) —
-                  above the planned ledger so a user returning from a booking sees
-                  it first. Same gate (authed + currentTrip) and the same
-                  tripsRefresh key so in-tab commits refetch it; returning from
-                  /booking/confirm is a fresh mount (fetch-on-mount covers it). */}
-              {currentTrip && (
-                <TripBookings
-                  key={`bk-${tripsRefresh}`}
-                  tripId={currentTrip.id}
-                  onChanged={() => setTripsRefresh((n) => n + 1)}
-                />
-              )}
-              {/* PR-Trips5: the selected trip's Budgeted + Actual rows. Only mounted
-                  when a trip is picked, so it never fetches with no trip / no login. */}
-              {/* Keyed by tripsRefresh so a flight commit (which bumps it via
-                  onCommitted) remounts this and re-fetches the budget + actual rows. */}
-              {currentTrip && <TripBudgetActual key={tripsRefresh} trip={currentTrip} />}
-              {/* T4: the user's adoptable orphans — NOT gated on currentTrip (they
-                  exist independently of any selection; the block itself explains
-                  how to attach when no trip is picked). Hidden when zero rows.
-                  Same tripsRefresh key + bump so attach moves rows into the
-                  Booked block above in one refresh. */}
-              <UnattachedBookings
-                key={`ub-${tripsRefresh}`}
-                selectedTrip={currentTrip}
-                onChanged={() => setTripsRefresh((n) => n + 1)}
-              />
-            </>
-          ) : (
-            // Guest (or auth still resolving): no personal table to fetch, but the
-            // create button still shows so a guest can start one — the create
-            // attempt then nudges to sign up (gateGuestCreate), unchanged.
-            // TRAVEL-RESTRUCTURE dedupe: the inner "Your trips" heading died —
-            // the attached panel's SECTION_HEADER above already says it; the
-            // button keeps its right-side seat (justify-end).
-            <div>
-              <div className="mb-2 flex items-center justify-end gap-3">
-                {createTripButton}
-              </div>
-              <p className="rounded-lg border border-border bg-bg-row p-4 text-sm text-text-muted">
-                Sign up free to save trips here — tap &ldquo;+ Create a trip&rdquo; to start one.
-              </p>
-            </div>
-          )}
-
-          {/* The create form, unchanged, in a centered phone-first modal. On a
-              successful create it closes + bumps tripsRefresh so the table re-fetches. */}
-          {showCreate && (
-            <TripFormModal
-              title="Create a trip"
-              subtitle="Start a trip and we'll help you plan, book, and budget it — sign up free to save it."
-              onClose={() => setShowCreate(false)}
-            >
-              <CreateTripForm
-                onUnauthenticated={gateGuestCreate}
-                showHeader={false}
-                stacked
-                onCreated={() => {
-                  setTripsRefresh((n) => n + 1);
-                  setShowCreate(false);
-                }}
-              />
-            </TripFormModal>
-          )}
-        </div>
-      );
-    }
     if (m.key === 'projects') {
       // Projects-mount (Option B): authed users get the REAL project builder — the workbench
       // SectionD_ProjectBacklog (self-fetching project list + create form + edit) wrapped in its
@@ -660,7 +577,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
 
   // PR-TG1: the Travel ModuleDef, fed to renderBody from Travel's own dedicated block
   // (now that Travel is pulled out of MODULES.map). label/live/blurb are unchanged.
-  const travelModule = MODULES.find((m) => m.key === 'travel')!;
   const routinesModule = MODULES.find((m) => m.key === 'routines')!;
   const projectsModule = MODULES.find((m) => m.key === 'projects')!;
   const contentModule = MODULES.find((m) => m.key === 'content')!;
@@ -789,6 +705,40 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 review. Auth resolving (null) → no card. */}
             {authed === false && <ModulePointerCard pillarId="travel" />}
 
+            {/* TRAVEL-PIPE: the tab-level PHASE control — StageStrip reading
+                PIPE_PHASES.travel (the shared config; subLabel derivations
+                cited there). The MODE strip below is a CATEGORY control on a
+                different axis — it survives INSIDE the Search phase surface.
+                Phase surfaces are CSS show/hide (the Books keep-mounted idiom
+                and this section's own block/hidden pattern) — NEVER
+                conditional mounts: the ToggleStrip's survival contract (all
+                panels mounted, results survive toggling) holds across phase
+                switches. States are DERIVED INDICATORS, never locks; a signal
+                not yet reported renders pending (the Books-06 precedent).
+                Search carries no derived done-state: the search panels are the
+                FENCED shared public components — no report-up may touch them,
+                so the phase is honestly underivable (declared). */}
+            <StageStrip
+              phases={([
+                { key: 'trip', num: PIPE_TRIP.num, label: PIPE_TRIP.name, subLabel: PIPE_TRIP.subLabel,
+                  state: travelPhase === 'trip' ? 'active' : (travelTrips?.trips ?? 0) > 0 ? 'done' : 'pending' },
+                { key: 'search', num: PIPE_SEARCH.num, label: PIPE_SEARCH.name, subLabel: PIPE_SEARCH.subLabel,
+                  state: travelPhase === 'search' ? 'active' : 'pending' },
+                { key: 'book', num: PIPE_BOOK.num, label: PIPE_BOOK.name, subLabel: PIPE_BOOK.subLabel,
+                  state: travelPhase === 'book' ? 'active' : currentTrip && (travelBookings?.bookings ?? 0) > 0 ? 'done' : 'pending' },
+                { key: 'ledger', num: PIPE_LEDGER.num, label: PIPE_LEDGER.name, subLabel: PIPE_LEDGER.subLabel,
+                  state: travelPhase === 'ledger' ? 'active' : currentTrip && (travelLedger?.budgetLines ?? 0) > 0 ? 'done' : 'pending' },
+                { key: 'reconcile', num: PIPE_RECONCILE.num, label: PIPE_RECONCILE.name, subLabel: PIPE_RECONCILE.subLabel,
+                  state: travelPhase === 'reconcile' ? 'active'
+                    : travelOrphans !== null && travelOrphans.unattached === 0 && (travelBookings?.bookings ?? 0) > 0 ? 'done' : 'pending' },
+              ] as StagePhase[])}
+              onSelect={(k) => setTravelPhase(k as typeof travelPhase)}
+            />
+
+            {/* ── 02 Search — the mode strip + panels, KEPT MOUNTED (hidden,
+                  never unmounted, off-phase — the survival contract). */}
+            <div className={travelPhase === 'search' ? 'block space-y-6' : 'hidden'}>
+              <SectionHeader kicker={`${PIPE_SEARCH.num} / ${PIPE_SEARCH.name}`} right={`PHASE ${PIPE_SEARCH.num} OF 05`} />
             {/* DS-1: the consolidated toggle — the SAME <ToggleStrip> the landing
                 consumes (LandingBookingSection). One surface visible at a time, all
                 panels mounted (results survive toggling). Five live searches +
@@ -840,19 +790,126 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 ) },
               ]) as ToggleMode[]}
             />
-
-            {/* TRAVEL-RESTRUCTURE: TRIP CONTEXT attaches UNDER the booking card —
-                the Market-Intelligence-under-scanner anatomy from the trade tab
-                (TradeLabPanel.tsx:349: SECTION_HEADER + rounded-t-lg on the
-                panel-surface card). renderBody(travelModule) markup is
-                byte-identical — only the wrapper moved and gained the house
-                header. The destination bar is RETIRED this PR: every panel owns
-                its city/country inputs (PublicTransferSearch:48-49 etc.), so the
-                bar was a second trigger, not the only one. */}
-            <div className="rounded-lg border border-border bg-ts-white">
-              <div className={`${SECTION_HEADER} rounded-t-lg`}>YOUR TRIPS</div>
-              <div className="p-4">{renderBody(travelModule)}</div>
             </div>
+
+            {/* ── 01 Trip — the YOUR TRIPS card (the old renderBody travel
+                  branch's trips core, markup preserved; TripBookings /
+                  TripBudgetActual / UnattachedBookings re-seated on their own
+                  phases below, gates + keys identical). */}
+            <div className={travelPhase === 'trip' ? 'block space-y-6' : 'hidden'}>
+              <SectionHeader kicker={`${PIPE_TRIP.num} / ${PIPE_TRIP.name}`} right={`PHASE ${PIPE_TRIP.num} OF 05`} />
+              <div className="rounded-lg border border-border bg-ts-white">
+                <div className={`${SECTION_HEADER} rounded-t-lg`}>YOUR TRIPS</div>
+                <div className="p-4">
+                  <div className="space-y-3">
+                    {authed === true ? (
+                      <>
+                        <AllTripsList
+                          refreshSignal={tripsRefresh}
+                          onSelect={setCurrentTrip}
+                          selectedTripId={currentTrip?.id ?? null}
+                          onDeleted={(deletedId) => {
+                            setTripsRefresh((n) => n + 1);
+                            setCurrentTrip((cur) => (cur?.id === deletedId ? null : cur));
+                          }}
+                          headerAction={createTripButton}
+                          onTotals={setTravelTrips}
+                        />
+                        {currentTrip && (
+                          <p className="text-sm text-text-secondary">
+                            Selected: <span className="font-semibold text-text-primary">{currentTrip.name}</span>
+                            <span className="text-text-faint"> — hotel and flight bookings attach to this trip, and saved flights budget into it.</span>
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <div>
+                        <div className="mb-2 flex items-center justify-end gap-3">
+                          {createTripButton}
+                        </div>
+                        <p className="rounded-lg border border-border bg-bg-row p-4 text-sm text-text-muted">
+                          Sign up free to save trips here — tap &ldquo;+ Create a trip&rdquo; to start one.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── 03 Book — the selected trip's BOOKED reservations (gate +
+                  tripsRefresh key identical to the old mount). No trip →
+                  the honest next-action line (ZERO-STATE-1 idiom). */}
+            <div className={travelPhase === 'book' ? 'block space-y-6' : 'hidden'}>
+              <SectionHeader kicker={`${PIPE_BOOK.num} / ${PIPE_BOOK.name}`} right={`PHASE ${PIPE_BOOK.num} OF 05`} />
+              {authed === true && currentTrip ? (
+                <TripBookings
+                  key={`bk-${tripsRefresh}`}
+                  tripId={currentTrip.id}
+                  onChanged={() => setTripsRefresh((n) => n + 1)}
+                  onTotals={setTravelBookings}
+                />
+              ) : (
+                <span className="text-xs text-text-muted italic">no trip selected — pick one in 01 / Trip.</span>
+              )}
+            </div>
+
+            {/* ── 04 Ledger — the trip's budget ledger (gate + key identical). */}
+            <div className={travelPhase === 'ledger' ? 'block space-y-6' : 'hidden'}>
+              <SectionHeader kicker={`${PIPE_LEDGER.num} / ${PIPE_LEDGER.name}`} right={`PHASE ${PIPE_LEDGER.num} OF 05`} />
+              {authed === true && currentTrip ? (
+                <TripBudgetActual key={tripsRefresh} trip={currentTrip} onTotals={setTravelLedger} />
+              ) : (
+                <span className="text-xs text-text-muted italic">no trip selected — pick one in 01 / Trip.</span>
+              )}
+            </div>
+
+            {/* ── 05 Reconcile — the adoptable orphans (authed-only, exactly
+                  as before; the block hides itself at zero rows). */}
+            <div className={travelPhase === 'reconcile' ? 'block space-y-6' : 'hidden'}>
+              <SectionHeader kicker={`${PIPE_RECONCILE.num} / ${PIPE_RECONCILE.name}`} right={`PHASE ${PIPE_RECONCILE.num} OF 05`} />
+              {authed === true && (
+                <UnattachedBookings
+                  key={`ub-${tripsRefresh}`}
+                  selectedTrip={currentTrip}
+                  onChanged={() => setTripsRefresh((n) => n + 1)}
+                  onTotals={setTravelOrphans}
+                />
+              )}
+            </div>
+
+            {/* The create form modal — phase-independent (the old renderBody
+                mount, verbatim). */}
+            {showCreate && (
+              <TripFormModal
+                title="Create a trip"
+                subtitle="Start a trip and we'll help you plan, book, and budget it — sign up free to save it."
+                onClose={() => setShowCreate(false)}
+              >
+                <CreateTripForm
+                  onUnauthenticated={gateGuestCreate}
+                  showHeader={false}
+                  stacked
+                  onCreated={() => {
+                    setTripsRefresh((n) => n + 1);
+                    setShowCreate(false);
+                  }}
+                />
+              </TripFormModal>
+            )}
+
+            {/* TRAVEL-PIPE: the receipts rail — existing reported state only,
+                honest empties (trip-scoped receipts say so without a trip). */}
+            <ProofStrip
+              receipts={[
+                { label: 'TRIPS', value: travelTrips ? String(travelTrips.trips) : undefined, emptyLabel: 'not loaded yet' },
+                { label: 'BOOKED ON TRIP', value: currentTrip && travelBookings ? String(travelBookings.bookings) : undefined,
+                  emptyLabel: currentTrip ? 'not loaded yet' : 'no trip selected' },
+                { label: 'BUDGET LINES', value: currentTrip && travelLedger ? String(travelLedger.budgetLines) : undefined,
+                  emptyLabel: currentTrip ? 'not loaded yet' : 'no trip selected' },
+                { label: 'UNATTACHED', value: travelOrphans ? String(travelOrphans.unattached) : undefined, emptyLabel: 'not loaded yet' },
+              ]}
+            />
 
             {/* PR-ELEV-1: the coming-soon tiles became badged "Soon" CHIPS inside
                 the strip above (travelStripModes) — the tile row is gone. */}

@@ -45,6 +45,10 @@ interface Props {
    *  trip count) — the home Travel block passes the "+ Create a trip" button that
    *  opens the create form in a modal. */
   headerAction?: React.ReactNode;
+  /** TRAVEL-PIPE: trip count reported up after each successful fetch (the
+   *  Books onTotals idiom — zero new fetches; the parent's stable setter is
+   *  the callback). Feeds the StageStrip's derived states + ProofStrip. */
+  onTotals?: (t: { trips: number }) => void;
 }
 
 function formatRange(start: string | null, end: string | null): string {
@@ -53,7 +57,7 @@ function formatRange(start: string | null, end: string | null): string {
   return end ? `${fmt(start)} – ${fmt(end)}` : fmt(start);
 }
 
-export default function AllTripsList({ refreshSignal = 0, onSelect, selectedTripId = null, onDeleted, headerAction }: Props) {
+export default function AllTripsList({ refreshSignal = 0, onSelect, selectedTripId = null, onDeleted, headerAction, onTotals }: Props) {
   const [trips, setTrips] = useState<TripRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +94,11 @@ export default function AllTripsList({ refreshSignal = 0, onSelect, selectedTrip
       .then(async (res) => {
         if (!res.ok) throw new Error(`Could not load your trips (HTTP ${res.status})`);
         const data = await res.json();
-        if (!cancelled) setTrips((data.trips || []) as TripRow[]);
+        if (!cancelled) {
+          const rows = (data.trips || []) as TripRow[];
+          setTrips(rows);
+          onTotals?.({ trips: rows.length });
+        }
       })
       .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load your trips'); })
       .finally(() => { if (!cancelled) setLoading(false); });

@@ -54,12 +54,20 @@ export type PipePillarId =
   | 'content';
 
 export const PIPE_PHASES = {
+  // TRAVEL-PIPE: subLabels derived from the tab's own surface strings (the
+  // Trade R2 idiom), never invented: Trip ⇐ the YOUR TRIPS card header
+  // (ModuleLauncher SECTION_HEADER) + "+ Create a trip"; Search ⇐ ABSENT —
+  // no honest compression of the nine mode-chip labels exists (declared);
+  // Book ⇐ TripBookings' own "Booked (N)" header (:284) + its "BOOKED, PAID
+  // reservations" contract (:7); Ledger ⇐ TripBudgetActual's "Saved vs
+  // Booked" vocabulary (:22, the trip's BUDGET LEDGER); Reconcile ⇐
+  // UnattachedBookings' "adoptable orphans" (:5) + its attach action (:93).
   travel: [
-    { num: '01', name: 'Trip' },
+    { num: '01', name: 'Trip', subLabel: 'YOUR TRIPS + CREATE' },
     { num: '02', name: 'Search' },
-    { num: '03', name: 'Book' },
-    { num: '04', name: 'Ledger' },
-    { num: '05', name: 'Reconcile' },
+    { num: '03', name: 'Book', subLabel: 'BOOKED + PAID' },
+    { num: '04', name: 'Ledger', subLabel: 'SAVED VS BOOKED' },
+    { num: '05', name: 'Reconcile', subLabel: 'ATTACH ORPHANS' },
   ],
   runway: [
     { num: '01', name: 'Source' },

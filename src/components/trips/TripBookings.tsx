@@ -59,6 +59,9 @@ interface Props {
   /** T4: after a detach succeeds, bump the shared tripsRefresh so this block,
    *  UnattachedBookings, and the budget ledger all remount together. */
   onChanged?: () => void;
+  /** TRAVEL-PIPE: booking count reported up after each successful fetch (the
+   *  Books onTotals idiom — zero new fetches). */
+  onTotals?: (t: { bookings: number }) => void;
 }
 
 /** Exact-cents sum: per-row dollars → integer cents → sum → dollars. No float
@@ -68,7 +71,7 @@ function sumUsd(rows: BookingRow[]): string {
   return `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, '0')}`;
 }
 
-export default function TripBookings({ tripId, onChanged }: Props) {
+export default function TripBookings({ tripId, onChanged, onTotals }: Props) {
   const [state, setState] = useState<'loading' | 'error' | 'ok'>('loading');
   const [rows, setRows] = useState<BookingRow[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -100,12 +103,14 @@ export default function TripBookings({ tripId, onChanged }: Props) {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (cancelled) return;
-        setRows(Array.isArray(data.reservations) ? (data.reservations as BookingRow[]) : []);
+        const rows = Array.isArray(data.reservations) ? (data.reservations as BookingRow[]) : [];
+        setRows(rows);
+        onTotals?.({ bookings: rows.length });
         setState('ok');
       })
       .catch(() => { if (!cancelled) setState('error'); });
     return () => { cancelled = true; };
-  }, [tripId]);
+  }, [tripId, onTotals]);
 
   useEffect(() => load(), [load]);
 

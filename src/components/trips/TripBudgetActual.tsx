@@ -194,7 +194,11 @@ function EditableCell({
   );
 }
 
-export default function TripBudgetActual({ trip }: { trip: TripRow }) {
+export default function TripBudgetActual({ trip, onTotals }: { trip: TripRow;
+  /** TRAVEL-PIPE: budget-line count reported up after each successful budget
+   *  fetch (the Books onTotals idiom — zero new fetches). */
+  onTotals?: (t: { budgetLines: number }) => void;
+}) {
   const [items, setItems] = useState<LedgerItem[]>([]);
   const [state, setState] = useState<RowState>('loading');
   const [reloadKey, setReloadKey] = useState(0);
@@ -286,7 +290,9 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then((data) => {
         if (cancelled) return;
-        setItems((data.items || []) as LedgerItem[]);
+        const rows = (data.items || []) as LedgerItem[];
+        setItems(rows);
+        onTotals?.({ budgetLines: rows.length });
         setState('ok');
       })
       .catch(() => { if (!cancelled) setState('error'); });
