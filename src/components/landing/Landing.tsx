@@ -768,50 +768,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── TOGGLE-1: the lobby books — the five-way toggle strip, mounted
-            where the teaser sat (directly under the CTA row; pre-BOOK-1
-            Landing.tsx:325-328). Full content width — the strip holds
-            whole booking surfaces + result rows, not just a form.
-            REPAINT-2: the mount moved OUT of the hero section (one JSX seat
-            down, same props, zero wiring) — the hero is a solid aubergine
-            band now, so the strip sits on the cream page where its own
-            aubergine band (ds.BAND_BG) reads as a band. DECLARED INTERIM:
-            the strip's INTERIOR (travel pickers/results) stays dark until
-            Slice 4's trips pass. */}
-      {/* LANDING-V3: id="demo" — the spec's :93 anchor, the nav's Live-demo
-          target. */}
-      <div id="demo" className="max-w-7xl mx-auto px-4 lg:px-8">
-        {/* LANDING-V2 (spec :96-97): section 01's numbered eyebrow row —
-            label verbatim; right slot = the existing /modules/travel door. */}
-        <div className="flex items-baseline justify-between gap-3 pt-6">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">01 / LIVE DEMO — TRAVEL</p>
-          <Link href="/modules/travel" className="font-mono text-[10px] tracking-wider text-brand-purple hover:text-brand-purple-hover">
-            EXPLORE TRAVEL →
-          </Link>
-        </div>
-        {/* LANDING-V3 (spec :99): the demo h2, spec wording verbatim. */}
-        <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">
-          Search &amp; book travel — free today, no account needed.
-        </h2>
-        <LandingBookingSection onRequireAuth={onRequireAuth} />
-        {/* LANDING-V5 (spec :174-177): the demo section's footer row — the
-            spec's own strings verbatim (the left line already lives in
-            SUMMARY_BY_ID.travel.lines; NO ACCOUNT NEEDED is the spec's mono
-            right slot). */}
-        <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2 pb-2">
-          <span className="text-[13px] text-text-faint">One trip holds everything — plans, bookings, budget.</span>
-          <span className="font-mono text-[10.5px] tracking-wider text-text-faint">NO ACCOUNT NEEDED</span>
-        </div>
-      </div>
-      {/* PR-ELEV-1: the coming-soon tiles live INSIDE the strip above as
-          badged "Soon" chips (travelStripModes) — the PR-LANDING-1 tile
-          row below the strip is gone; the both-surfaces-at-once light-up
-          ruling now holds at chip level via the shared builder. */}
-
-      {/* ── BOOK-3: the guest's session trip — renders only when records
-            exist (fail-honest empty state = nothing). ─────────────────────── */}
-      <GuestTripStrip onRequireAuth={onRequireAuth} />
-
       {/* ── MERGED-02 (spec design-refs/merged-modules-spec.md §1-§6): the
             merged modules section — spine, personas, chips, ONE stage, foot —
             replacing the 02 catalog table and the 04 frame grid. id="modules"
@@ -826,14 +782,15 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             at EVERY width including mobile (zero-information-loss law; the
             spec's §5 "may crop" is overridden). ─────────────────────────── */}
       <section id="modules" className="w-full border-y border-border bg-bg-terminal">
-        {/* HEADER — eyebrow (spec §1: 02 / THE NINE MODULES) + the pricing
+        {/* HEADER — eyebrow (SECTION-SWAP: the modules section LEADS now —
+            01; the demo follows as 02) + the pricing
             right slot (:800-802 idiom, purple ink on cream now) + the 04
             h2/intro MOVED here verbatim (old :1120-1128). Act 1 flows from
             the header — no rule between (spec §1). */}
         <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px]">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.12em] text-text-faint">
-              02 / THE NINE MODULES
+              01 / THE NINE MODULES
             </p>
             <Link href="/how-pricing-works" className="font-mono text-xs lg:text-[10px] tracking-wider text-brand-purple hover:text-brand-purple-hover">
               HOW PRICING WORKS →
@@ -1036,13 +993,62 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
 
       </section>
 
+      {/* ── TOGGLE-1: the lobby books — the five-way toggle strip, mounted
+            where the teaser sat (directly under the CTA row; pre-BOOK-1
+            Landing.tsx:325-328). Full content width — the strip holds
+            whole booking surfaces + result rows, not just a form.
+            REPAINT-2: the mount moved OUT of the hero section (one JSX seat
+            down, same props, zero wiring) — the hero is a solid aubergine
+            band now, so the strip sits on the cream page where its own
+            aubergine band (ds.BAND_BG) reads as a band. DECLARED INTERIM:
+            the strip's INTERIOR (travel pickers/results) stays dark until
+            Slice 4's trips pass. */}
+      {/* LANDING-V3: id="demo" — the spec's :93 anchor, the nav's Live-demo
+          target. */}
+      <div id="demo" className="max-w-7xl mx-auto px-4 lg:px-8">
+        {/* LANDING-V2 (spec :96-97) → SECTION-SWAP: the demo's numbered
+            eyebrow row — 02 now (the modules section leads); label otherwise
+            verbatim; right slot = the existing /modules/travel door. */}
+        <div className="flex items-baseline justify-between gap-3 pt-6">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">02 / LIVE DEMO — TRAVEL</p>
+          <Link href="/modules/travel" className="font-mono text-[10px] tracking-wider text-brand-purple hover:text-brand-purple-hover">
+            EXPLORE TRAVEL →
+          </Link>
+        </div>
+        {/* LANDING-V3 (spec :99): the demo h2, spec wording verbatim. */}
+        <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">
+          Search &amp; book travel — free today, no account needed.
+        </h2>
+        <LandingBookingSection onRequireAuth={onRequireAuth} />
+        {/* LANDING-V5 (spec :174-177): the demo section's footer row — the
+            spec's own strings verbatim (the left line already lives in
+            SUMMARY_BY_ID.travel.lines; NO ACCOUNT NEEDED is the spec's mono
+            right slot). */}
+        <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2 pb-2">
+          <span className="text-[13px] text-text-faint">One trip holds everything — plans, bookings, budget.</span>
+          <span className="font-mono text-[10.5px] tracking-wider text-text-faint">NO ACCOUNT NEEDED</span>
+        </div>
+      </div>
+      {/* PR-ELEV-1: the coming-soon tiles live INSIDE the strip above as
+          badged "Soon" chips (travelStripModes) — the PR-LANDING-1 tile
+          row below the strip is gone; the both-surfaces-at-once light-up
+          ruling now holds at chip level via the shared builder. */}
+
+      {/* ── BOOK-3: the guest's session trip — renders only when records
+            exist (fail-honest empty state = nothing). ─────────────────────── */}
+      <GuestTripStrip onRequireAuth={onRequireAuth} />
+
       {/* ── LANDING-V4 (Alex's ruling, reversing the V2 seat): DONE-FOR-YOU is
             its own numbered section directly below the deck — eyebrow in the
             established grammar ('03 / DONE-FOR-YOU' is the one new label), no
             right slot. Body = the PROFESSIONAL SERVICES panel relocated
             WHOLESALE from the 05 grid (markup byte-identical inside), seated
-            in the deck-table's white-card container idiom. ────────────────── */}
-      <section className="w-full border-b border-border bg-bg-terminal">
+            in the deck-table's white-card container idiom. SECTION-SWAP seam
+            fix (the no-drop rule): the demo unit above carries no rules of
+            its own — the hairline that used to close its area was the
+            modules section's border-y bottom, which moved up with the swap —
+            so this section takes border-t to keep one rule at the seam. ──── */}
+      <section className="w-full border-y border-border bg-bg-terminal">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
           <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">
             03 / DONE-FOR-YOU
