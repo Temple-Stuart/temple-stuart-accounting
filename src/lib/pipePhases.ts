@@ -69,12 +69,22 @@ export const PIPE_PHASES = {
     { num: '04', name: 'Ledger', subLabel: 'SAVED VS BOOKED' },
     { num: '05', name: 'Reconcile', subLabel: 'ATTACH ORPHANS' },
   ],
+  // RUNWAY-PIPE: subLabels derived from the tab's own surface strings (the
+  // Trade R2 idiom), never invented: Source ⇐ the hero Cash cell's source
+  // label "Plaid balance · operating (excl. trading)" (runway/route.ts:243,
+  // rendered RunwayBudgetPanel.tsx:246); History ⇐ the payload's burnSource
+  // "trailing ledger actuals" (rendered in the on-screen formula line,
+  // RunwayBudgetPanel.tsx:276); Burn ⇐ the hero's own cell labels "Net burn"
+  // + "Zero date" (RunwayBudgetPanel.tsx:225,:250); Match ⇐ the section's
+  // rendered h3 "Booking ↔ bank match review" (MatchReviewSection.tsx:130);
+  // Project ⇐ the panel's own view description "Month-by-month budget vs
+  // actual." (RunwayBudgetPanel.tsx:337).
   runway: [
-    { num: '01', name: 'Source' },
-    { num: '02', name: 'History' },
-    { num: '03', name: 'Burn' },
-    { num: '04', name: 'Match' },
-    { num: '05', name: 'Project' },
+    { num: '01', name: 'Source', subLabel: 'PLAID BALANCE' },
+    { num: '02', name: 'History', subLabel: 'TRAILING LEDGER ACTUALS' },
+    { num: '03', name: 'Burn', subLabel: 'NET BURN + ZERO DATE' },
+    { num: '04', name: 'Match', subLabel: 'BOOKING ↔ BANK' },
+    { num: '05', name: 'Project', subLabel: 'BUDGET VS ACTUAL' },
   ],
   books: [
     { num: '01', name: 'Feed' },
