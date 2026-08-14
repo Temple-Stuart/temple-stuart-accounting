@@ -100,7 +100,9 @@ import {
 import { DEMO_VIDEO_URL } from '@/config/demoVideo';
 // PR-ELEV-2d: the Built-on wall data + per-vendor logo rules live in the
 // server-safe leaf (page.tsx fs-checks the same entries' logo files).
-import { BUILT_ON, WALL_SECTIONS } from '@/lib/builtOnWall';
+// BUILTON-MARQUEE: WALL_SECTIONS retired with the category blocks — the
+// marquee flattens BUILT_ON's own (already category-ordered) run.
+import { BUILT_ON } from '@/lib/builtOnWall';
 
 /** LOBBY-DECK-1b: a YouTube watch/short URL → its /embed/ form for the modal
  *  iframe. Anything else (e.g. a plain file URL) returns null and plays via a
@@ -656,7 +658,11 @@ interface Props {
 // this PR's fence) — but Landing no longer consumes them: their last
 // consumer (the Act-4 bundle bar) retired. The buy path returns with the
 // next purchase affordance; until then only what's used is destructured.
-export default function Landing({ onRequireAuth, onRequireLogin, logoAvailability }: Props) {
+// BUILTON-MARQUEE: logoAvailability joins entitlementAvailability/onBuyModule
+// as a Props field the FD-2 mount contract still passes but Landing no
+// longer consumes — its last consumer (the wall's lit-logo check) retired
+// with the card grid. Only what's used is destructured.
+export default function Landing({ onRequireAuth, onRequireLogin }: Props) {
   // MERGED-02: the merged section's ONE piece of state — which module the
   // stage shows. Default runway (the spec's ruled tweak). PILLAR_CARDS ids
   // are exactly the PipePillarId vocabulary (funnel order, :244-318), so the
@@ -1077,103 +1083,55 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── PR-ELEV-2 → ELEV-2b: the "Built on" wall — now a CARD GRID (Alex's
-            feedback: the mono row undersold the stack; the summary deck above
-            was RESTORED byte-faithfully from fec63b01 by the same ruling).
-            CARD IDIOM REUSED, not invented: the pillar deck's glow-panel
-            article (rounded-lg; the shared glow wash died in REPAINT-2 —
-            solid aubergine tiles now; the :723-731 slide classes, compacted
-            to p-4). WORDING LAW (locked): "Built on" /
-            "integrates with" ONLY — never "partners", "trusted by", or any
-            endorsement framing. CLAIMABILITY RULE: wired clients only (each
-            name has a live client file in src/lib — LANDING-ELEVATE-AUDIT-1
-            Part C); declared-not-connected vendors (Mozio/Airalo/Cover
-            Genius) never appear. (FRED graduated in WALL-LOGOS-2 — its
-            fetchers are wired, convergence/data-fetchers.ts.)
-            PR-ELEV-2d: cards are LOGO-CAPABLE — entries live in the
-            builtOnWall.ts leaf; a brand-terms-CLEARED vendor (per-vendor
-            rules + policy URLs documented there) carries a logo slot that
-            lights ONLY when its official file exists at
-            public/logos/<slug>.svg (server fs check → logoAvailability).
-            Stripe's lit card links to stripe.com (their marks mandate).
-            PR-WALL-TEACH: the wall is a categorized TEACHING DIAGRAM —
-            WALL_SECTIONS headers + plain-language explainers, EVERY card
-            visible: the real mark when its file is lit, a letter tile
-            until then (the WALL-PURE "Also built on" line died);
-            never-cleared marks never light by construction (verdicts in
-            builtOnWall.ts). ─────────────────────────────────────────────── */}
+      {/* ── BUILTON-MARQUEE: the "Built on" wall's five-category card grid
+            became ONE auto-scrolling text-mark strip (professional-site
+            style). WORDING LAW (locked): "Built on" / "integrates with"
+            ONLY — never "partners", "trusted by", or any endorsement
+            framing. CLAIMABILITY RULE unchanged: wired clients only —
+            BUILT_ON is the same leaf data, every entry a chip, none
+            invented, none dropped. TEXT-ONLY: no images, no logo assets —
+            the leaf's logo slots + marks rulings stay documented there but
+            idle here (logoAvailability keeps flowing in Props for the FD-2
+            mount contract; Landing no longer consumes it).
+            MECHANICS: CSS-only — the ts-marquee keyframes (globals.css,
+            the repo's first) slide a DOUBLED chip run by -50% in 50s;
+            hover pauses via animation-play-state; prefers-reduced-motion
+            kills the animation and the wrapper becomes a contained
+            horizontal scroll (overflow-x-auto). Hard edges — the house has
+            no CSS mask precedent (audit-cited), none invented. The second
+            run is aria-hidden (screen readers read each vendor once).
+            Vercel attribution: kept verbatim per the ruling — with
+            text-only chips no Vercel/Next.js image marks render, so the
+            line now over-attributes harmlessly (declared). ─────────────── */}
       <section className="w-full border-b border-border bg-bg-terminal">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-brand-purple">
+          <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-brand-purple">
             Built on
           </p>
-          {/* PR-WALL-TEACH: the one plain-language intro line. */}
-          <p className="text-sm text-text-secondary mt-1">Every tool this platform runs on — and what each layer does.</p>
-          {/* PR-WALL-TEACH: the categorized teaching diagram — WALL_SECTIONS
-              order, every card ALWAYS visible: real mark when its file is
-              lit (same server fs-check), a letter tile until then. Tiles
-              auto-swap to marks on a bare file drop, zero code. Sections
-              render as fragments in one container so first:mt-0 hits only
-              the first header. */}
-          <div className="mt-4">
-            {WALL_SECTIONS.map((s) => (
-              <Fragment key={s.key}>
-                <p className="font-mono text-[10px] uppercase tracking-wider text-brand-purple mt-8 first:mt-0">{s.label}</p>
-                <p className="text-xs text-text-secondary mt-1 mb-3">{s.description}</p>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                  {BUILT_ON.filter((e) => e.category === s.key).map((e) => {
-                    const logoLive = e.logo !== undefined && logoAvailability[e.logo.slug] === true;
-                    // REPAINT-2 (edit 6, Alex's ruling — the stack STAYS):
-                    // SOLID aubergine tile, flat, no glow — the white marks +
-                    // letter tiles render legible on brand-purple.
-                    const cardClass = 'flex flex-col items-center justify-center text-center gap-1.5 min-h-24 overflow-hidden rounded-lg bg-brand-purple p-4 text-white';
-                    const body = (
-                      <>
-                        {logoLive && e.logo ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={`/logos/${e.logo.slug}.svg`}
-                            alt={e.logo.alt}
-                            className="h-10 w-auto object-contain"
-                          />
-                        ) : (
-                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/10 text-lg font-semibold text-white/80">{e.name[0]}</div>
-                        )}
-                        <p className="text-xs font-medium text-white/80">{e.name}</p>
-                        <p className="font-mono text-[10px] uppercase tracking-wider text-white/40">{e.tag}</p>
-                      </>
-                    );
-                    // Stripe's marks rule: the lit logo must link to
-                    // stripe.com — the whole card becomes the outbound link.
-                    // href without a lit logo does nothing (the mandate
-                    // binds the MARK, not the name).
-                    return logoLive && e.logo?.href ? (
-                      <a
-                        key={e.name}
-                        href={e.logo.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={cardClass}
-                      >
-                        {body}
-                      </a>
-                    ) : (
-                      <article key={e.name} className={cardClass}>
-                        {body}
-                      </article>
-                    );
-                  })}
+          <p className="text-sm text-text-secondary mt-1">Every tool this platform runs on.</p>
+          <div className="group mt-6 overflow-hidden motion-reduce:overflow-x-auto">
+            <div className="flex w-max animate-[ts-marquee_50s_linear_infinite] group-hover:[animation-play-state:paused] motion-reduce:animate-none">
+              {[0, 1].map((run) => (
+                <div key={run} aria-hidden={run === 1 || undefined} className="flex w-max items-center gap-3 pr-3">
+                  {BUILT_ON.map((e) => (
+                    /* The group-tag/bundle mono chip idiom — name in mono
+                       purple, the entry's own tag as the muted descriptor. */
+                    <span
+                      key={`${run}-${e.name}`}
+                      className="flex items-baseline gap-1.5 whitespace-nowrap rounded border border-border bg-white px-3 py-1.5 font-mono text-xs"
+                    >
+                      <span className="font-semibold text-brand-purple">{e.name}</span>
+                      <span className="text-text-muted">· {e.tag}</span>
+                    </span>
+                  ))}
                 </div>
-              </Fragment>
-            ))}
+              ))}
+            </div>
           </div>
-          {/* PR-ELEV-2d (re-issue): REQUIRED attribution — mandatory under
-              vercel.com/geist/brands while their marks render above (the
-              Vercel + Next.js image marks on their split cards; the interim
-              ▲ unicode mark retired with the shared infra card,
-              WALL-LOGOS-2 → WALL-PURE). Exact required wording, verbatim;
-              the house trace-line idiom (font-mono text-[10px] white/40). */}
-          <p className="mt-3 max-w-3xl font-mono text-[10px] leading-relaxed text-text-faint">
+          {/* PR-ELEV-2d (re-issue) → BUILTON-MARQUEE: the Vercel attribution,
+              wording verbatim (kept per the ruling — see the section comment).
+              12px floor at mobile (the merged-section §5 law). */}
+          <p className="mt-3 max-w-3xl font-mono text-xs lg:text-[10px] leading-relaxed text-text-faint">
             Vercel, the Vercel design, Next.js and related marks, designs and logos are trademarks
             or registered trademarks of Vercel, Inc. or its affiliates in the US and other countries.
           </p>
