@@ -487,18 +487,38 @@ const FRAME_LINKS: Record<string, string> = {
   content: 'Your calendar tells the story.',
 };
 
-// MERGED-02 (spec §6 — the Design round-2 handoff, design-refs/
-// merged-modules-spec.md): the five persona rows, spec strings VERBATIM.
-// The stack fragment is split out so it can wear the mono purple idiom
-// (the spec's bolded span) without retyping the sentence.
-const PERSONAS: ReadonlyArray<{ label: string; lead: string; stack: string; tail: string }> = [
-  { label: 'FOUNDER', lead: 'Building a company? ', stack: 'Books + Runway + Projects', tail: ' is your stack.' },
-  { label: 'TRADER', lead: 'Trading your own money? ', stack: 'Trade + Books + Tax', tail: ' is your stack.' },
-  { label: 'CREATOR', lead: 'Filming what you do? ', stack: 'Content + Routines + Books', tail: ' is your stack.' },
-  { label: 'NOMAD', lead: 'Living out of a suitcase? ', stack: 'Travel + Runway + Books', tail: ' is your stack.' },
-  { label: 'SMALL BUSINESS OWNER', lead: 'Window cleaning business? ', stack: 'Books + Routines + Runway', tail: ' is your stack.' },
-  // PERSONAS-2: the sixth row — same anatomy as the ruled five.
-  { label: 'STUDENT', lead: 'First bank account? ', stack: 'Books + Runway + Routines', tail: ' is your stack.' },
+// PERSONAS-3 (value cases): each row = the hook question + ONE plain-language
+// outcome sentence — the module stacks and the "is your stack." grammar
+// RETIRED (strings in git history). Rows alternate prose and mono-purple
+// module fragments (the ruled idiom: max two per row, mid-sentence; rows
+// where no fragment reads naturally stay plain prose).
+const PERSONAS: ReadonlyArray<{ label: string; segments: ReadonlyArray<{ text: string; mono?: true }> }> = [
+  { label: 'FOUNDER', segments: [
+    { text: "Building a company? See how many months you've got, what the build is costing, and receipts for every dollar when investors ask." },
+  ] },
+  { label: 'TRADER', segments: [
+    { text: 'Trading your own money? Every fill lands in your ' },
+    { text: 'books', mono: true },
+    { text: ', keeps its receipt, and shows up on your ' },
+    { text: 'return', mono: true },
+    { text: ' — you just trade.' },
+  ] },
+  { label: 'CREATOR', segments: [
+    { text: 'Filming what you do? Your day plans your shoots, and your ' },
+    { text: 'calendar', mono: true },
+    { text: ' writes the script.' },
+  ] },
+  { label: 'NOMAD', segments: [
+    { text: 'Living out of a suitcase? Book the trip, and the budget, calendar, and ' },
+    { text: 'books', mono: true },
+    { text: ' update themselves — from anywhere.' },
+  ] },
+  { label: 'SMALL BUSINESS OWNER', segments: [
+    { text: "Running a small business? Know what came in, what went out, and what's left — without hiring a bookkeeper." },
+  ] },
+  { label: 'STUDENT', segments: [
+    { text: "First bank account? Learn where your money goes before it's gone — the app shows you how." },
+  ] },
 ];
 
 // MERGED-02 (spec §6): the per-group rationale under the stage's group tag,
@@ -870,22 +890,28 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           </div>
         </div>
 
-        {/* ACT 2 — PERSONAS (spec §6 lines, verbatim; the stack fragment in
-            the mono purple idiom). Rows: border-light rules (§0's inner
-            hairline — the exact #EBE4F7 token). */}
+        {/* ACT 2 — PERSONAS-3 (value cases): hook question + one outcome
+            sentence per row; module-name fragments wear the mono purple
+            idiom mid-sentence. Rows: border-light rules (§0's inner
+            hairline — the exact #EBE4F7 token). The '·' in the act label
+            wears gold — the Act 1 label's own separator idiom. */}
         <div className="w-full border-t border-border">
           <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10 lg:pt-[60px] pb-12 lg:pb-[68px]">
             <p className="text-center font-mono text-xs lg:text-[10px] font-semibold tracking-[0.16em] text-text-muted">
-              WHERE YOU&apos;D START
+              SAME NINE MODULES <span className="text-brand-gold">·</span> DIFFERENT REASONS
             </p>
             <div className="mx-auto mt-5 max-w-[880px]">
               {PERSONAS.map((row) => (
                 <div key={row.label} className="border-t border-border-light py-3 first:border-t-0 lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:items-baseline lg:gap-4">
                   <p className="font-mono text-xs font-semibold tracking-wider text-text-muted">{row.label}</p>
                   <p className="mt-1 text-[14.5px] text-text-primary lg:mt-0">
-                    {row.lead}
-                    <span className="font-mono text-[12.5px] font-semibold text-brand-purple">{row.stack}</span>
-                    {row.tail}
+                    {row.segments.map((seg, i) =>
+                      seg.mono ? (
+                        <span key={i} className="font-mono text-[12.5px] font-semibold text-brand-purple">{seg.text}</span>
+                      ) : (
+                        <Fragment key={i}>{seg.text}</Fragment>
+                      ),
+                    )}
                   </p>
                 </div>
               ))}
