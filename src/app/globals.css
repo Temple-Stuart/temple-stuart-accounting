@@ -139,3 +139,14 @@ body {
    above). Used as a button fill (with text-white hover:brightness-110) and as
    gradient text (with bg-clip-text text-transparent). */
 /* REPAINT-5: .ts-cta-gradient deleted — gradients are banned under Direction C. */
+
+/* BUILTON-MARQUEE: the Built-on strip's CSS-only infinite loop — the track
+   renders its chip run TWICE and slides half its own width, so the wrap is
+   seamless. Consumed via the Tailwind arbitrary animate value in Landing.tsx
+   (animate-[ts-marquee_50s_linear_infinite]); hover-pause and the
+   prefers-reduced-motion static fallback are utility classes at the mount.
+   The repo had no prior keyframes — this is the first (audit-cited). */
+@keyframes ts-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}

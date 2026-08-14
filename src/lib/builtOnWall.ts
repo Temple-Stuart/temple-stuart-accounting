@@ -63,28 +63,19 @@
 export interface BuiltOnEntry {
   name: string;
   tag: string;
-  /** PR-WALL-TEACH: the teaching-diagram section this card renders under
-   *  (WALL_SECTIONS below defines order, labels, and explainers). */
+  /** PR-WALL-TEACH → BUILTON-MARQUEE: the entry's grouping — the grouped
+   *  runs below fix the marquee's flattened display order. */
   category: 'banking' | 'travel' | 'markets' | 'ai' | 'infra';
   /** Present ONLY on brand-terms-cleared vendors (rules above). `href`
    *  makes the whole lit card an outbound link (Stripe's marks mandate). */
   logo?: { slug: string; alt: string; href?: string };
 }
 
-/** PR-WALL-TEACH: the wall's ordered sections — each renders as a header +
- *  plain-language explainer + that category's card grid (Landing.tsx). */
-export interface WallSection {
-  key: BuiltOnEntry['category'];
-  label: string;
-  description: string;
-}
-export const WALL_SECTIONS: WallSection[] = [
-  { key: 'banking', label: 'Banking & Payments', description: 'How money moves — bank connections in, card payments out.' },
-  { key: 'travel', label: 'Travel & Places', description: 'The services that search and book real flights, hotels, activities, and maps.' },
-  { key: 'markets', label: 'Markets & Data', description: 'Live market prices plus official government data feeds.' },
-  { key: 'ai', label: 'AI', description: 'The models that read, summarize, and plan inside the app.' },
-  { key: 'infra', label: 'Infrastructure', description: 'The code, database, and servers everything runs on.' },
-];
+// BUILTON-MARQUEE: WALL_SECTIONS (the five category headers + explainers)
+// DELETED — its only consumer was the Landing card grid, which became the
+// one marquee strip. The `category` field below stays: it documents each
+// entry's grouping and fixes the flattened display order (grouped runs,
+// WALL-TEACH ordering — unchanged).
 
 // PR-WALL-PURE: EVERY card carries a logo slot now — the grid renders
 // lit-only (file exists) and everyone else rides the auto-derived
