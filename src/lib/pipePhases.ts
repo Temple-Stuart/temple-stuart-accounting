@@ -123,13 +123,21 @@ export const PIPE_PHASES = {
     { num: '03', name: 'Run', subLabel: 'DONE · DUE · MISSED' },
     { num: '04', name: 'Proven', subLabel: 'STREAKS' },
   ],
+  // PROJECTS-PIPE (Option A ruling): subLabels derived from the truth
+  // machine's own stage-card strings (TruthMachineView.tsx), never invented:
+  // Input ⇐ the card's field labels goal/problem/diagnosis (:325-338);
+  // Research ⇐ "✨ run deep research" (:362); Audit ⇐ the "Claude Code
+  // audit" output vocabulary (:390-394); Tasks ⇐ the "fusion → tasks" card
+  // label (:423) + the human-accept gate (:13); Plan ⇐ the "TASK LIST
+  // (live)" card (:475-477); Evolve ⇐ "↻ evolve — new goals, loop again"
+  // (:504).
   projects: [
-    { num: '01', name: 'Input' },
-    { num: '02', name: 'Research' },
-    { num: '03', name: 'Audit' },
-    { num: '04', name: 'Tasks' },
-    { num: '05', name: 'Plan' },
-    { num: '06', name: 'Evolve' },
+    { num: '01', name: 'Input', subLabel: 'GOAL · PROBLEM · DIAGNOSIS' },
+    { num: '02', name: 'Research', subLabel: 'DEEP RESEARCH' },
+    { num: '03', name: 'Audit', subLabel: 'CLAUDE CODE AUDIT' },
+    { num: '04', name: 'Tasks', subLabel: 'FUSION + ACCEPT GATE' },
+    { num: '05', name: 'Plan', subLabel: 'LIVE TASK LIST' },
+    { num: '06', name: 'Evolve', subLabel: 'NEW GOALS, LOOP AGAIN' },
   ],
   content: [
     { num: '01', name: 'Inputs' },
