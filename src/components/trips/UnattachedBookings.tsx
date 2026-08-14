@@ -50,9 +50,12 @@ interface Props {
   selectedTrip: { id: string; name?: string } | null;
   /** Bumps the shared tripsRefresh so TripBookings/TripBudgetActual remount. */
   onChanged?: () => void;
+  /** TRAVEL-PIPE: orphan count reported up after each successful fetch (the
+   *  Books onTotals idiom — zero new fetches). */
+  onTotals?: (t: { unattached: number }) => void;
 }
 
-export default function UnattachedBookings({ selectedTrip, onChanged }: Props) {
+export default function UnattachedBookings({ selectedTrip, onChanged, onTotals }: Props) {
   const [state, setState] = useState<'loading' | 'error' | 'ok'>('loading');
   const [rows, setRows] = useState<BookingRow[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -81,12 +84,14 @@ export default function UnattachedBookings({ selectedTrip, onChanged }: Props) {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (cancelled) return;
-        setRows(Array.isArray(data.reservations) ? (data.reservations as BookingRow[]) : []);
+        const rows = Array.isArray(data.reservations) ? (data.reservations as BookingRow[]) : [];
+        setRows(rows);
+        onTotals?.({ unattached: rows.length });
         setState('ok');
       })
       .catch(() => { if (!cancelled) setState('error'); });
     return () => { cancelled = true; };
-  }, []);
+  }, [onTotals]);
 
   useEffect(() => load(), [load]);
 
