@@ -16,10 +16,11 @@
 // app rendered before the move. These entries are the live app's own
 // strings; the app is the authority for them.
 //
-// THE SEVEN OTHERS — the ratified spec lists their future in-app strips
-// will consume when each strip PR lands. subLabel deliberately ABSENT:
-// every strip PR derives its sub-labels from its own surface's real
+// THE OTHERS — the ratified spec lists their future in-app strips will
+// consume when each strip PR lands. subLabel deliberately ABSENT until a
+// module's own strip PR derives its sub-labels from its surface's real
 // machinery (the Trade R2 precedent) — inventing them here is forbidden.
+// Graduated so far: routines (ROUTINES-PIPE, derivations cited at the entry).
 //
 // link — a phase living in ANOTHER module (Trade's 06 COMMIT → Books):
 // target = the tab key the app's existing navigation mechanism receives
@@ -100,11 +101,19 @@ export const PIPE_PHASES = {
     { num: '05', name: 'Verify' },
     { num: '06', name: 'Register' },
   ],
+  // ROUTINES-PIPE: the first of the seven future strips landed — subLabels
+  // derived from the tab's own surface strings (the Trade R2 idiom), never
+  // invented: Define ⇐ the list's create/edit affordances ("+ new routine",
+  // RoutineList.tsx:158; "+ create a routine", TodaysStrip zero-state);
+  // Scheduled ⇐ the cadence grouping vocabulary (CADENCE_GROUP_LABELS,
+  // routines/types.ts); Run ⇐ TodaysStrip's own summary row "{done} done ·
+  // {due} due · {missed} missed"; Proven ⇐ RoutineRow's streak render + its
+  // title "completion streak / miss streak" (RoutineRow.tsx:239-240).
   routines: [
-    { num: '01', name: 'Define' },
-    { num: '02', name: 'Scheduled' },
-    { num: '03', name: 'Run' },
-    { num: '04', name: 'Proven' },
+    { num: '01', name: 'Define', subLabel: 'CREATE + EDIT' },
+    { num: '02', name: 'Scheduled', subLabel: 'CADENCE GROUPS' },
+    { num: '03', name: 'Run', subLabel: 'DONE · DUE · MISSED' },
+    { num: '04', name: 'Proven', subLabel: 'STREAKS' },
   ],
   projects: [
     { num: '01', name: 'Input' },

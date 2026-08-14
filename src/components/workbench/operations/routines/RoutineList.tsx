@@ -29,9 +29,14 @@ interface Entity {
 interface Props {
   entities: Entity[];
   onCommitted?: () => void;
+  /** ROUTINES-PIPE: the list's tallies reported up after each successful
+   *  fetch (the Books onTotals idiom — zero new fetches). activeCount is
+   *  ALWAYS the is_active subset (the fetch may include inactive rows when
+   *  the show-inactive toggle is on); hasStreak spans every fetched row. */
+  onTotals?: (t: { activeCount: number; hasStreak: boolean }) => void;
 }
 
-export default function RoutineList({ entities, onCommitted }: Props & { }) {
+export default function RoutineList({ entities, onCommitted, onTotals }: Props & { }) {
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +61,12 @@ export default function RoutineList({ entities, onCommitted }: Props & { }) {
         setRoutines([]);
         return;
       }
-      setRoutines(body.routines ?? []);
+      const rows: Routine[] = body.routines ?? [];
+      setRoutines(rows);
+      onTotals?.({
+        activeCount: rows.filter((r) => r.is_active).length,
+        hasStreak: rows.some((r) => r.consecutive_completion_streak > 0),
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'failed to load routines');
     } finally {
