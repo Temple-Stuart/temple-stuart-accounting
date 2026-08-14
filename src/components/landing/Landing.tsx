@@ -665,11 +665,11 @@ interface Props {
 // this PR's fence) — but Landing no longer consumes them: their last
 // consumer (the Act-4 bundle bar) retired. The buy path returns with the
 // next purchase affordance; until then only what's used is destructured.
-// BUILTON-MARQUEE: logoAvailability joins entitlementAvailability/onBuyModule
-// as a Props field the FD-2 mount contract still passes but Landing no
-// longer consumes — its last consumer (the wall's lit-logo check) retired
-// with the card grid. Only what's used is destructured.
-export default function Landing({ onRequireAuth, onRequireLogin }: Props) {
+// REAL-MARKS: logoAvailability is CONSUMED again — the marquee chips carry
+// the lit-logo two-state render (the wall's own logic, relocated), so the
+// server fs-check → availability → chip pipeline is live end to end.
+// (entitlementAvailability/onBuyModule remain passed-but-unconsumed.)
+export default function Landing({ onRequireAuth, onRequireLogin, logoAvailability }: Props) {
   // MERGED-02: the merged section's ONE piece of state — which module the
   // stage shows. Default runway (the spec's ruled tweak). PILLAR_CARDS ids
   // are exactly the PipePillarId vocabulary (canonical lifecycle order), so the
@@ -1086,10 +1086,13 @@ export default function Landing({ onRequireAuth, onRequireLogin }: Props) {
             ONLY — never "partners", "trusted by", or any endorsement
             framing. CLAIMABILITY RULE unchanged: wired clients only —
             BUILT_ON is the same leaf data, every entry a chip, none
-            invented, none dropped. TEXT-ONLY: no images, no logo assets —
-            the leaf's logo slots + marks rulings stay documented there but
-            idle here (logoAvailability keeps flowing in Props for the FD-2
-            mount contract; Landing no longer consumes it).
+            invented, none dropped. REAL-MARKS: each chip leads with the
+            vendor's mark on a mini aubergine plate (the wall's own ground —
+            the shipped files are white dark-bg variants, rendered AS-IS,
+            never recolored); a missing file renders the letter tile
+            (relocated two-state logic, cite at the render). The leaf's
+            marks rulings (NEVER-LIGHT / pending slots) still govern which
+            files may ever land.
             MECHANICS: CSS-only — the ts-marquee keyframes (globals.css,
             the repo's first) slide a DOUBLED chip run by -50% in 50s;
             hover pauses via animation-play-state; prefers-reduced-motion
@@ -1110,17 +1113,49 @@ export default function Landing({ onRequireAuth, onRequireLogin }: Props) {
             <div className="flex w-max animate-[ts-marquee_50s_linear_infinite] group-hover:[animation-play-state:paused] motion-reduce:animate-none">
               {[0, 1].map((run) => (
                 <div key={run} aria-hidden={run === 1 || undefined} className="flex w-max items-center gap-3 pr-3">
-                  {BUILT_ON.map((e) => (
-                    /* The group-tag/bundle mono chip idiom — name in mono
-                       purple, the entry's own tag as the muted descriptor. */
-                    <span
-                      key={`${run}-${e.name}`}
-                      className="flex items-baseline gap-1.5 whitespace-nowrap rounded border border-border bg-white px-3 py-1.5 font-mono text-xs"
-                    >
-                      <span className="font-semibold text-brand-purple">{e.name}</span>
-                      <span className="text-text-muted">· {e.tag}</span>
-                    </span>
-                  ))}
+                  {BUILT_ON.map((e) => {
+                    // REAL-MARKS: the old wall's two-state logic RELOCATED
+                    // verbatim (271d60b1 Landing.tsx:1125 — lit mark vs
+                    // letter tile; :1150 — the Stripe href-when-lit
+                    // mandate), not new fallback. The mark plate is the old
+                    // wall's own ground, miniaturized: every shipped file is
+                    // the white dark-bg variant (builtOnWall.ts drop
+                    // convention), so the mark renders AS-IS on aubergine —
+                    // never recolored. Letter tile = the old white/80 ink on
+                    // the same plate. A file dropped at
+                    // public/logos/<slug>.svg lights its chip, zero code.
+                    const logoLive = e.logo !== undefined && logoAvailability[e.logo.slug] === true;
+                    const chipClass = 'flex items-center gap-2 whitespace-nowrap rounded border border-border bg-white py-1.5 pl-1.5 pr-3 font-mono text-xs';
+                    const chipBody = (
+                      <>
+                        <span className="flex h-7 min-w-7 shrink-0 items-center justify-center rounded bg-brand-purple px-1.5">
+                          {logoLive && e.logo ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img src={`/logos/${e.logo.slug}.svg`} alt={e.logo.alt} className="h-5 w-auto max-w-[72px] object-contain" />
+                          ) : (
+                            <span className="text-xs font-semibold leading-none text-white/80">{e.name[0]}</span>
+                          )}
+                        </span>
+                        <span className="font-semibold text-brand-purple">{e.name}</span>
+                        <span className="text-text-muted">· {e.tag}</span>
+                      </>
+                    );
+                    return logoLive && e.logo?.href ? (
+                      <a
+                        key={`${run}-${e.name}`}
+                        href={e.logo.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={chipClass}
+                      >
+                        {chipBody}
+                      </a>
+                    ) : (
+                      <span key={`${run}-${e.name}`} className={chipClass}>
+                        {chipBody}
+                      </span>
+                    );
+                  })}
                 </div>
               ))}
             </div>
