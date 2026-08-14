@@ -1,6 +1,23 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+// TAX-PIPE: the ratified Pipe Frame — StageStrip REPLACES the wizard's
+// progress bar + step dots (control converted, never stacked). The wizard's
+// OWN state stays the single source of truth: the strip renders
+// currentStep/completedSteps and its onSelect calls the SAME goToStep,
+// whose internal eligibility guard (:251-263) byte-preserves the existing
+// navigation gating — an ineligible click no-ops exactly as before. Per
+// the frame's ratified amendment, cells are never disabled (states are
+// indicators; pending styling is affordance-only) — the gate is
+// BEHAVIORAL in goToStep, unchanged.
+import StageStrip, { type StagePhase } from '@/components/ui/StageStrip';
+import ProofStrip from '@/components/ui/ProofStrip';
+import { PIPE_PHASES, type PipePhase } from '@/lib/pipePhases';
+
+// Widened to the interface (the Travel precedent). The seven rows are 1:1
+// with STEPS below — same order, names verified against the step labels
+// (the pipe-phases wizard-check).
+const TAX_PIPE = PIPE_PHASES.tax as readonly PipePhase[];
 // TAX-1: AppLayout chrome moved OUT to the /dashboard/tax-filing page so this wizard is
 // bare and can also mount inside the homepage Tax tab (which supplies its own chrome).
 import LifeEventsStep from './steps/LifeEventsStep';
@@ -330,81 +347,30 @@ export default function TaxFilingWizard({ }: { } = {}) {
           </div>
         </div>
 
-        {/* Progress bar */}
-        <div className="mb-4">
-          <div className="flex gap-1.5">
-            {STEPS.map((s) => {
-              const isDone = state.completedSteps.has(s.id);
-              const isCurrent = s.id === state.currentStep;
-              const color = isDone
-                ? 'bg-emerald-500'
-                : isCurrent
-                  ? 'bg-blue-500'
-                  : 'bg-gray-200';
-              return (
-                <div
-                  key={s.id}
-                  className={`h-1.5 flex-1 rounded-full transition-colors ${color}`}
-                  aria-hidden
-                />
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Step dots with labels */}
+        {/* TAX-PIPE: the strip — driven by the wizard's own state (no
+            parallel state). done = completedSteps membership (the wizard's
+            EXPLICIT completion set — not the implicit before-current model);
+            active = currentStep; else pending. onSelect → the same goToStep
+            (its guard preserves the gating). */}
         <div className="mb-6">
-          <ol className="grid grid-cols-7 gap-2">
-            {STEPS.map((s) => {
-              const isDone = state.completedSteps.has(s.id);
-              const isCurrent = s.id === state.currentStep;
-              const clickable =
-                isDone ||
-                isCurrent ||
-                s.id === state.currentStep - 1 ||
-                (s.id === state.currentStep + 1 &&
-                  state.completedSteps.has(state.currentStep));
-
-              const dotColor = isDone
-                ? 'bg-emerald-500 text-white border-emerald-500'
-                : isCurrent
-                  ? 'bg-blue-500 text-white border-blue-500'
-                  : 'bg-white text-gray-400 border-gray-300';
-
-              return (
-                <li key={s.id}>
-                  <button
-                    type="button"
-                    onClick={() => goToStep(s.id)}
-                    disabled={!clickable}
-                    className={`w-full flex flex-col items-center gap-1.5 ${
-                      clickable
-                        ? 'cursor-pointer'
-                        : 'cursor-not-allowed opacity-60'
-                    }`}
-                    aria-current={isCurrent ? 'step' : undefined}
-                  >
-                    <span
-                      className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs font-semibold transition-colors ${dotColor}`}
-                    >
-                      {isDone ? '✓' : s.id + 1}
-                    </span>
-                    <span
-                      className={`text-[11px] text-center leading-tight ${
-                        isCurrent
-                          ? 'text-gray-900 font-medium'
-                          : isDone
-                            ? 'text-emerald-700'
-                            : 'text-gray-500'
-                      }`}
-                    >
-                      {s.label}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
+          <StageStrip
+            phases={STEPS.map((s, i) => ({
+              key: s.key,
+              num: TAX_PIPE[i].num,
+              label: TAX_PIPE[i].name,
+              subLabel: TAX_PIPE[i].subLabel,
+              state:
+                s.id === state.currentStep
+                  ? 'active'
+                  : state.completedSteps.has(s.id)
+                    ? 'done'
+                    : 'pending',
+            }) as StagePhase)}
+            onSelect={(k) => {
+              const target = STEPS.find((s) => s.key === k);
+              if (target) goToStep(target.id);
+            }}
+          />
         </div>
 
         {/* Auto-detect banner */}
@@ -451,6 +417,19 @@ export default function TaxFilingWizard({ }: { } = {}) {
                 : 'Next →'}
             </button>
           </div>
+        </div>
+
+        {/* TAX-PIPE: the receipts rail — the wizard's own client state only,
+            honest empties (auto-detect settles after its existing fetch). */}
+        <div className="mt-4">
+          <ProofStrip
+            receipts={[
+              { label: 'TAX YEAR', value: String(state.taxYear) },
+              { label: 'STEPS COMPLETED', value: `${state.completedSteps.size}/${STEPS.length}` },
+              { label: 'AUTO-DETECTED', value: autoDetectLoading ? undefined : String(Object.values(state.autoDetected).filter(Boolean).length), emptyLabel: 'detecting…' },
+              { label: 'LIFE EVENTS SELECTED', value: String(Object.values(state.lifeEvents).filter(Boolean).length) },
+            ]}
+          />
         </div>
       </div>
   );
