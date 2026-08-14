@@ -83,7 +83,9 @@ import { Plane, BookOpen, TrendingUp, Settings } from 'lucide-react';
 // section — ds.iconTab/DATA and LayoutGrid left with them. The four
 // category icons stay: DECK_CATEGORIES is the ratified partition the
 // stage's group tag reads.
-import { TAB_PRICING } from '@/config/pricing-costs';
+// PERSONAS-2: the TAB_PRICING import retired with the Act-4 bundle bar —
+// its last Landing consumer (pricingByKey/bundle). The pricing surface is
+// /how-pricing-works (header link) until buy affordances return.
 // MERGED-02: the shared pipe-phases config — the stage's step rail reads
 // the SAME rows the in-app StageStrips render (landing/app lockstep by
 // construction, pipePhases.ts's own contract).
@@ -495,6 +497,8 @@ const PERSONAS: ReadonlyArray<{ label: string; lead: string; stack: string; tail
   { label: 'CREATOR', lead: 'Filming what you do? ', stack: 'Content + Routines + Books', tail: ' is your stack.' },
   { label: 'NOMAD', lead: 'Living out of a suitcase? ', stack: 'Travel + Runway + Books', tail: ' is your stack.' },
   { label: 'SMALL BUSINESS OWNER', lead: 'Window cleaning business? ', stack: 'Books + Routines + Runway', tail: ' is your stack.' },
+  // PERSONAS-2: the sixth row — same anatomy as the ruled five.
+  { label: 'STUDENT', lead: 'First bank account? ', stack: 'Books + Runway + Routines', tail: ' is your stack.' },
 ];
 
 // MERGED-02 (spec §6): the per-group rationale under the stage's group tag,
@@ -627,10 +631,12 @@ interface Props {
 // this file is a flat card + lavender hairline now (deck/services = bg-white,
 // summary slides = bg-ts-white card cream, wall tiles = solid aubergine).
 
-export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvailability, logoAvailability, onBuyModule }: Props) {
-  const pricingByKey = new Map(TAB_PRICING.map((t) => [t.key, t]));
-  const bundle = pricingByKey.get('bundle:all');
-
+// PERSONAS-2: entitlementAvailability + onBuyModule stay in Props — the
+// FD-2 mount contract still passes them (page.tsx → GuestLanding, outside
+// this PR's fence) — but Landing no longer consumes them: their last
+// consumer (the Act-4 bundle bar) retired. The buy path returns with the
+// next purchase affordance; until then only what's used is destructured.
+export default function Landing({ onRequireAuth, onRequireLogin, logoAvailability }: Props) {
   // MERGED-02: the merged section's ONE piece of state — which module the
   // stage shows. Default runway (the spec's ruled tweak). PILLAR_CARDS ids
   // are exactly the PipePillarId vocabulary (funnel order, :244-318), so the
@@ -870,7 +876,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
         <div className="w-full border-t border-border">
           <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10 lg:pt-[60px] pb-12 lg:pb-[68px]">
             <p className="text-center font-mono text-xs lg:text-[10px] font-semibold tracking-[0.16em] text-text-muted">
-              WHO IT&apos;S FOR
+              WHERE YOU&apos;D START
             </p>
             <div className="mx-auto mt-5 max-w-[880px]">
               {PERSONAS.map((row) => (
@@ -999,54 +1005,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, entitlementAvai
           </div>
         </div>
 
-        {/* ACT 4 — FOOT (spec §1): the bundle bar (markup + three-state price
-            logic MOVED from the dead 02 closer, old :994-1029 — the honest
-            state machine survives; the vestigial categoryKey/'services' and
-            empty-selection guards died with the deck) → the pricing line
-            (MOVED from old :1038-1043). */}
-        <div className="w-full border-t border-border">
-          <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10 pb-12 lg:pb-[60px]">
-            {bundle && (
-              <div className="flex flex-col gap-4 rounded-lg border border-border bg-white p-4 sm:flex-row sm:items-center">
-                <div className="flex-1">
-                  {/* §5 mobile law: nothing under 12px — the chip promotes to
-                      text-xs at mobile, keeps its 10px desktop size. */}
-                  <span className="rounded border border-border px-2 py-0.5 font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
-                    {bundle.label}
-                  </span>
-                  <p className="mt-2 text-xs leading-relaxed text-text-muted">Every module above — one subscription.</p>
-                </div>
-                {/* PRICE-1: the bundle row follows the slide rule — ONE honest
-                    state. Purchasable → price/italic + Select; not → "Launching
-                    soon", no dead button. */}
-                <div className="font-mono text-lg font-bold text-brand-gold">
-                  {bundle.monthlyPrice !== null ? (
-                    <>${bundle.monthlyPrice}<span className="text-xs font-normal text-text-faint">/mo</span></>
-                  ) : entitlementAvailability[bundle.key] === true ? (
-                    <span className="text-xs font-normal italic text-text-faint">price shown at checkout</span>
-                  ) : (
-                    <span className="text-xs font-normal text-text-muted">Launching soon</span>
-                  )}
-                </div>
-                {entitlementAvailability[bundle.key] === true && (
-                  <button
-                    type="button"
-                    onClick={() => onBuyModule(bundle.key)}
-                    className="bg-brand-gold px-6 py-2 text-center text-xs font-medium text-white hover:bg-brand-gold/90"
-                  >
-                    Select the bundle →
-                  </button>
-                )}
-              </div>
-            )}
-            <Link
-              href="/how-pricing-works"
-              className="mt-3.5 inline-block font-mono text-xs font-medium text-brand-purple hover:text-brand-purple-hover"
-            >
-              Every price, traced to a real bill → see the full breakdown
-            </Link>
-          </div>
-        </div>
       </section>
 
       {/* ── LANDING-V4 (Alex's ruling, reversing the V2 seat): DONE-FOR-YOU is
