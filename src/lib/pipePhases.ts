@@ -92,14 +92,20 @@ export const PIPE_PHASES = {
     { num: '05', name: 'RECORD', subLabel: 'GRADED RESULTS' },
     { num: '06', name: 'COMMIT', link: { target: 'books', label: 'IN BOOKS →' } },
   ],
+  // TAX-PIPE: subLabels derived from the wizard's own step descriptions
+  // (TaxFilingWizard.tsx STEPS :58-108), never invented: "What happened
+  // this year" · "Upload or enter your tax documents" · "Review your
+  // income sources" · "Business expenses (Schedule C)" · "Capital gains
+  // and losses (Schedule D + 8949)" · "Form 1040 complete return review" ·
+  // "Export and filing options".
   tax: [
-    { num: '01', name: 'Life events' },
-    { num: '02', name: 'Documents' },
-    { num: '03', name: 'Income' },
-    { num: '04', name: 'Deductions' },
-    { num: '05', name: 'Trading' },
-    { num: '06', name: 'Review' },
-    { num: '07', name: 'File' },
+    { num: '01', name: 'Life events', subLabel: 'WHAT HAPPENED THIS YEAR' },
+    { num: '02', name: 'Documents', subLabel: 'UPLOAD OR ENTER' },
+    { num: '03', name: 'Income', subLabel: 'INCOME SOURCES' },
+    { num: '04', name: 'Deductions', subLabel: 'SCHEDULE C' },
+    { num: '05', name: 'Trading', subLabel: 'SCHEDULE D + 8949' },
+    { num: '06', name: 'Review', subLabel: 'FORM 1040' },
+    { num: '07', name: 'File', subLabel: 'EXPORT + FILING' },
   ],
   // COMPLIANCE-PIPE: subLabels derived from the workbench sections' own doc
   // headers (the Trade R2 idiom), never invented: Profile ⇐ "entities,
