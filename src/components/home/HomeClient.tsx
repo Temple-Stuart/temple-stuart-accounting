@@ -233,8 +233,9 @@ export default function HomeClient() {
         <div className="max-w-7xl mx-auto px-4 lg:px-8">
           <div className="max-w-3xl">
             {/* ONE-BAND eyebrow: the module kicker in the ratified mock's
-                grammar — "MODULE NN / NAME" (numbering = the deck's
-                PILLAR_CARDS funnel order). Landing eyebrow mono idiom; ink =
+                grammar — "MODULE NN / NAME" (numbering = PILLAR_CARDS'
+                canonical lifecycle order, MODULE-ORDER, via the moduleBands
+                nums). Landing eyebrow mono idiom; ink =
                 the band's own muted white tier (StageStrip's active num line,
                 StageStrip.tsx:69). The old badge pill retired with the
                 tri-line. No descriptor renders here: the band config carries
