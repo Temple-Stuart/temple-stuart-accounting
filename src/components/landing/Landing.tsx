@@ -74,7 +74,7 @@
  */
 
 import Link from 'next/link';
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 // PR-DECK-CLEAN-1: the card fragments' checkmark — lucide is the house icon
 // vocabulary (TripHeader.tsx:16 already imports Check).
 // PR-DECK-4CAT: the four category-tab icons join.
@@ -681,6 +681,41 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
   // code: toggleSelected's checkbox mounts retired with the card deck, so
   // selectedIds was permanently empty.)
   const [stageId, setStageId] = useState<PipePillarId>('runway');
+
+  // STAGE-AUTOPLAY: the tuning knob — ms each module holds the stage while
+  // the auto-advance runs.
+  const STAGE_AUTOPLAY_MS = 2000;
+  // Autoplay machinery — refs, not state (pause/resume must not re-render).
+  // The interval advances stageId through PILLAR_CARDS order from the
+  // ratified 'runway' default, wrapping 09 → 01 (declared: the initial
+  // state is unchanged, so the first paint is byte-identical to the static
+  // stage and the reduced-motion path is flash-free — the interval simply
+  // never starts, the merged section's motion-reduce contract in JS form
+  // via the same media query the marquee's utilities consult).
+  const userTookControl = useRef(false); // any chip activation → autoplay stops for good
+  const stageHovered = useRef(false); // pointer over stage card / chip row → paused
+  const stageInView = useRef(false); // IntersectionObserver: off-screen → paused
+  const stageSectionRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    // prefers-reduced-motion → never start; the stage stays static Runway.
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      stageInView.current = entry.isIntersecting;
+    });
+    if (stageSectionRef.current) observer.observe(stageSectionRef.current);
+    const interval = setInterval(() => {
+      if (userTookControl.current || stageHovered.current || !stageInView.current) return;
+      setStageId((prev) => {
+        const i = PILLAR_CARDS.findIndex((p) => p.id === prev);
+        return PILLAR_CARDS[(i + 1) % PILLAR_CARDS.length].id as PipePillarId;
+      });
+    }, STAGE_AUTOPLAY_MS);
+    return () => {
+      clearInterval(interval);
+      observer.disconnect();
+    };
+  }, []);
+
   const stageIndex = PILLAR_CARDS.findIndex((p) => p.id === stageId);
   const stagePillar = PILLAR_CARDS[stageIndex];
   const stageSummary = SUMMARY_BY_ID[stageId];
@@ -781,7 +816,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             convention (HotelGallery precedent — the override), object-contain
             at EVERY width including mobile (zero-information-loss law; the
             spec's §5 "may crop" is overridden). ─────────────────────────── */}
-      <section id="modules" className="w-full border-y border-border bg-bg-terminal">
+      <section id="modules" ref={stageSectionRef} className="w-full border-y border-border bg-bg-terminal">
         {/* HEADER — eyebrow (SECTION-SWAP: the modules section LEADS now —
             01; the demo follows as 02) + the pricing
             right slot (:800-802 idiom, purple ink on cream now) + the 04
@@ -890,7 +925,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             <div className="flex flex-wrap items-baseline justify-between gap-3">
               <p className="font-mono text-xs lg:text-[10px] font-semibold tracking-[0.16em] text-text-muted">THE MODULES</p>
             </div>
-            <div className="-mx-4 mt-4 overflow-x-auto px-4 lg:mx-0 lg:overflow-visible lg:px-0">
+            {/* STAGE-AUTOPLAY: pointer over the chip row pauses the advance
+                (resumes on leave, while the user hasn't taken control). */}
+            <div
+              className="-mx-4 mt-4 overflow-x-auto px-4 lg:mx-0 lg:overflow-visible lg:px-0"
+              onPointerEnter={() => { stageHovered.current = true; }}
+              onPointerLeave={() => { stageHovered.current = false; }}
+            >
               <div role="group" aria-label="The nine modules" className="flex w-max gap-2 lg:grid lg:w-auto lg:grid-cols-9">
                 {PILLAR_CARDS.map((p, i) => {
                   const active = stageId === p.id;
@@ -899,7 +940,14 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                       key={p.id}
                       type="button"
                       aria-pressed={active}
-                      onClick={() => setStageId(p.id as PipePillarId)}
+                      onClick={() => {
+                        // STAGE-AUTOPLAY: manual selection (click or the
+                        // button's native keyboard activation) takes control
+                        // for good — the interval keeps ticking but never
+                        // advances again.
+                        userTookControl.current = true;
+                        setStageId(p.id as PipePillarId);
+                      }}
                       className={`flex items-baseline justify-center gap-1.5 whitespace-nowrap border border-b-[3px] px-3 pt-[10px] pb-[9px] lg:px-2 lg:pt-[9px] lg:pb-2 font-mono text-xs lg:text-[10px] tracking-[0.06em] transition-colors ${
                         active
                           ? 'border-brand-purple border-b-brand-gold bg-brand-purple text-ts-white'
@@ -929,7 +977,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                 every Explore — selectTab doesn't exist on the landing
                 (declared override). Mobile stack order (§5): bar → STEP
                 LIST FIRST → frame → captions → group tag → Explore. */}
-            <div className="mt-5 overflow-hidden rounded-lg border border-border bg-white">
+            {/* STAGE-AUTOPLAY: pointer over the stage card pauses too. */}
+            <div
+              className="mt-5 overflow-hidden rounded-lg border border-border bg-white"
+              onPointerEnter={() => { stageHovered.current = true; }}
+              onPointerLeave={() => { stageHovered.current = false; }}
+            >
               <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-border px-[18px] py-2.5">
                 <span className="font-mono text-xs lg:text-[10.5px] uppercase tracking-[0.05em] text-text-secondary">
                   {String(stageIndex + 1).padStart(2, '0')} / {stagePillar.label}
