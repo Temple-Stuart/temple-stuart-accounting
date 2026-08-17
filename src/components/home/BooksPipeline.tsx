@@ -31,6 +31,15 @@ const [PIPE_FEED, PIPE_CODE, PIPE_RECONCILE, PIPE_CLOSE, PIPE_REPORTS, PIPE_EXPO
 import SectionHeader from '@/components/ui/SectionHeader';
 import ProofStrip from '@/components/ui/ProofStrip';
 import { useExportDownload } from '@/lib/useExportDownload';
+// MANUAL-ENTRY: the existing manual-transaction form (its only other mount is
+// /transactions), REUSED verbatim — fields and write route untouched. Audited:
+// POST /api/transactions/manual is auth-gated (getCurrentUser → 401, route.ts
+// :16-19) and user-scoped (accounts find/create WHERE userId, :41/:56); it
+// creates a RAW transaction on a source:'manual' account — no journal entry
+// (the route's :9 doc line is stale) — which lands in /api/transactions
+// (userId-scoped, source-unfiltered) and therefore in the 02 Code queue like
+// any Plaid row. The affordance copy states exactly that.
+import ManualTransactionForm from '@/components/ManualTransactionForm';
 
 /**
  * BOOKS-2 — the full bookkeeping PIPE for the homepage Books tab.
@@ -70,6 +79,10 @@ export default function BooksPipeline() {
   // unchanged, the house idiom). 'feed' = the strip's first phase, matching
   // ToggleStrip's own first-mode default.
   const [phase, setPhase] = useState<'feed' | 'code' | 'reconcile' | 'close' | 'reports' | 'export'>('feed');
+  // MANUAL-ENTRY: the no-bank path's reveal toggle (the /transactions page's
+  // own showAddForm idiom, transactions/page.tsx:140-161 — inline reveal, not
+  // a modal; the form's current design decides, declared).
+  const [showManualEntry, setShowManualEntry] = useState(false);
   // BOOKS-PIPE-FRAME: the T1 trial-balance totals, reported UP by
   // TrialBalanceSection via the optional onTotals callback (the Trade
   // reporting-callback precedent — the child owns the fetch; this is the
@@ -338,6 +351,42 @@ export default function BooksPipeline() {
           </div>
         </div>
       </BookkeepingSection>
+
+      {/* MANUAL-ENTRY (the no-bank-connection path): visible REGARDLESS of
+          Plaid state — a zero-account user (a bank Plaid can't reach) sees it
+          immediately; a Plaid user can still use it. The door line reuses the
+          feed's own vocabulary and the /transactions page's own button label
+          ("+ Add Transaction", :148). onSuccess → reloadAll: the new manual
+          account joins /api/accounts (userId-scoped, source-unfiltered) so
+          the feed's done-signal (accounts.length, :265-era) and the
+          "Connected accounts" receipt count it naturally; the transaction
+          joins the 02 Code queue (no journalProof yet). */}
+      <div className="rounded border border-border bg-white p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-text-secondary">
+            No bank connection? Add transactions manually — they join the feed and code like any other.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowManualEntry((v) => !v)}
+            className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+              showManualEntry
+                ? 'bg-border text-text-secondary hover:bg-border'
+                : 'bg-brand-purple text-white hover:bg-brand-purple-hover'
+            }`}
+          >
+            {showManualEntry ? 'Close' : '+ Add Transaction'}
+          </button>
+        </div>
+        {showManualEntry && (
+          <div className="mt-3 max-w-lg">
+            <ManualTransactionForm
+              onSuccess={() => { void reloadAll(); }}
+              onCancel={() => setShowManualEntry(false)}
+            />
+          </div>
+        )}
+      </div>
       </div>
 
       <div className={phase === 'code' ? 'block space-y-3' : 'hidden'}>
