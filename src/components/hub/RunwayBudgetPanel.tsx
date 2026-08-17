@@ -113,6 +113,39 @@ const entityBurnLine = (w: RunwayWindow, e: EntityBurn) =>
       ? `${usd(e.netBurnPerMonth)}/mo out`
       : `${usd(Math.abs(e.netBurnPerMonth))}/mo in`;
 
+// RUNWAY-PIPE: the receipts the tab's ProofStrip renders, derived from the
+// panel's OWN payload via the SAME windowStrings mapping the hero + cards use
+// (the RUNWAY-UX-1 hoist precedent — one mapping, N mounts, zero drift).
+// Basis = windows[0], the hero's own trailing-3mo window. null = the honest
+// empty (the caller renders the declared wording, never a fabricated figure).
+export interface RunwayReceipts {
+  /** usd(cash.dollars) when a bank is linked; null → "No bank linked". */
+  cash: string | null;
+  /** The hero's burn line; null when insufficient history ('—'). */
+  burnLine: string | null;
+  /** runwayLine when a real figure/state exists (ok | cashflow_positive). */
+  runwayValue: string | null;
+  /** The window's own declared wording for the no-data states. */
+  runwayEmpty: string;
+  accountsLinked: number;
+  sufficientHistory: boolean;
+  burnComputed: boolean;
+}
+export function deriveRunwayReceipts(d: RunwayData): RunwayReceipts {
+  const w = d.windows[0];
+  const { burnLine, runwayLine } = windowStrings(w);
+  const isData = w.state === 'ok' || w.state === 'cashflow_positive';
+  return {
+    cash: d.cash.available ? usd(d.cash.dollars) : null,
+    burnLine: burnLine === '—' ? null : burnLine,
+    runwayValue: isData ? runwayLine : null,
+    runwayEmpty: runwayLine,
+    accountsLinked: d.cash.accountsLinked,
+    sufficientHistory: w.sufficientHistory,
+    burnComputed: w.state !== 'insufficient_history',
+  };
+}
+
 /** One trailing-window card. Renders the window's REAL state — never a fake number. */
 function RunwayWindowCard({ w }: { w: RunwayWindow }) {
   const { burnLine, runwayLine, zeroLine } = windowStrings(w);
@@ -279,7 +312,22 @@ function RunwayHeroStrip({ runway, runwayError }: { runway: RunwayData | null; r
   );
 }
 
-export default function RunwayBudgetPanel({ preview = false }: { preview?: boolean } = {}) {
+// RUNWAY-PIPE: `show` — the Pipe Frame's phase visibility for the panel's two
+// chunks (03 Burn = hero + readout + trading; 05 Project = the budget tables).
+// Undefined → both render (the panel's pre-frame shape, back-compat). CSS
+// show/hide only — both chunks stay MOUNTED, so the panel's single /api/runway
+// + /api/trading fetches and the Month/Year view state survive phase switches
+// (the house keep-mounted contract). `onTotals` — the Books report-up idiom:
+// fired once at the EXISTING /api/runway fetch success, zero new fetches.
+export default function RunwayBudgetPanel({
+  preview = false,
+  show,
+  onTotals,
+}: {
+  preview?: boolean;
+  show?: 'burn' | 'project';
+  onTotals?: (t: RunwayReceipts) => void;
+} = {}) {
   const [view, setView] = useState<'month' | 'year'>('month');
   const [runway, setRunway] = useState<RunwayData | null>(null);
   // Honest error/empty handling — on failure we DECLARE "unavailable", never show zeros.
@@ -296,10 +344,16 @@ export default function RunwayBudgetPanel({ preview = false }: { preview?: boole
     let cancelled = false;
     fetch('/api/runway')
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`status ${r.status}`))))
-      .then((d: RunwayData) => { if (!cancelled) setRunway(d); })
+      .then((d: RunwayData) => {
+        if (cancelled) return;
+        setRunway(d);
+        // RUNWAY-PIPE report-up — the same payload, derived once; the parent
+        // passes a stable setState setter (hence the dep below, no refetch churn).
+        onTotals?.(deriveRunwayReceipts(d));
+      })
       .catch(() => { if (!cancelled) setRunwayError(true); });
     return () => { cancelled = true; };
-  }, [preview]);
+  }, [preview, onTotals]);
 
   useEffect(() => {
     // PREVIEW (guest): render the real empty shell; never call the authed route (no 401).
@@ -326,33 +380,15 @@ export default function RunwayBudgetPanel({ preview = false }: { preview?: boole
       {/* RUNWAY-UX-1: the hero strip leads the tab — its data is THIS panel's
           existing /api/runway state (that fetch-locality is why the hero lives
           here: no second fetch, no state lift). */}
+      {/* RUNWAY-PIPE — the 03 Burn chunk (hero + trailing readout + trading);
+          the 05 Project chunk (budget header + tables) follows below. CSS
+          show/hide by `show`, BOTH stay mounted — the fetches and the
+          Month/Year view state survive phase switches (the house keep-mounted
+          contract). No `show` → both render (the panel's pre-frame shape). */}
+      <div className={!show || show === 'burn' ? 'block' : 'hidden'}>
       <RunwayHeroStrip runway={runway} runwayError={runwayError} />
     <div className="border-t border-border bg-white rounded-lg overflow-hidden">
-      <div className="px-4 py-3 lg:px-8 border-b border-border">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h2 className="text-base font-bold text-text-primary tracking-tight">Runway Budget</h2>
-            <p className="text-xs text-text-muted mt-0.5">
-              {view === 'month'
-                ? 'Month-by-month budget vs actual.'
-                : 'Full-year travel-vs-home comparison.'}
-            </p>
-          </div>
-          {/* RUNWAY-DEEP: Month / Year joins the house SEGMENT (the flights-bar
-              idiom, ds.ts SEGMENT) — the legacy-purple pill retires. */}
-          <div className={SEGMENT.wrap}>
-            {([['month', 'Month'], ['year', 'Year']] as const).map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setView(key)}
-                className={SEGMENT.item(view === key)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
+      <div className="px-4 py-3 lg:px-8">
 
         {/* ── RUNWAY READOUT (RUNWAY-2 → RUNWAY-UX-1) — the HEADLINE metrics
             (the Cash card + the trailing-3mo window: zero date, runway, net
@@ -418,8 +454,43 @@ export default function RunwayBudgetPanel({ preview = false }: { preview?: boole
           )}
         </div>
       </div>
+    </div>
+      </div>
+      {/* RUNWAY-PIPE — the 05 Project chunk: the budget header + the
+          Month/Year toggle + ONE table at a time (the ONE-BUDGET-TOGGLE
+          contract byte-unchanged; the toggle travels WITH the tables it
+          selects). */}
+      <div className={!show || show === 'project' ? 'block' : 'hidden'}>
+    <div className="border-t border-border bg-white rounded-lg overflow-hidden">
+      <div className="px-4 py-3 lg:px-8 border-b border-border">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 className="text-base font-bold text-text-primary tracking-tight">Runway Budget</h2>
+            <p className="text-xs text-text-muted mt-0.5">
+              {view === 'month'
+                ? 'Month-by-month budget vs actual.'
+                : 'Full-year travel-vs-home comparison.'}
+            </p>
+          </div>
+          {/* RUNWAY-DEEP: Month / Year joins the house SEGMENT (the flights-bar
+              idiom, ds.ts SEGMENT) — the legacy-purple pill retires. */}
+          <div className={SEGMENT.wrap}>
+            {([['month', 'Month'], ['year', 'Year']] as const).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setView(key)}
+                className={SEGMENT.item(view === key)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
       {view === 'month' ? <HubBudgetSection preview={preview} /> : <BudgetComparison preview={preview} />}
     </div>
+      </div>
     </>
   );
 }

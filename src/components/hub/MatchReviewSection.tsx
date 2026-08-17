@@ -16,7 +16,7 @@
  * light-token vocabulary (RunwayBudgetPanel.tsx:121-131), dark runway surface.
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 
 interface QueueRow {
@@ -33,7 +33,15 @@ interface QueueRow {
 
 const day = (s: string | null) => (s ? s.slice(0, 10) : '—');
 
-export default function MatchReviewSection() {
+// RUNWAY-PIPE: onTotals — the Books report-up idiom: the pending-review count,
+// fired at the EXISTING queue-fetch success (mount + every reload after a
+// propose/accept/reject), zero new fetches. The parent passes a stable
+// setState setter; the strip renders it as a DERIVED INDICATOR, never a lock.
+export default function MatchReviewSection({
+  onTotals,
+}: {
+  onTotals?: (t: { pending: number }) => void;
+} = {}) {
   const [queue, setQueue] = useState<QueueRow[]>([]);
   // POLISH-4: user-scoped bookings count from the queue route — the truthful
   // basis for collapse-when-empty ("no bookings yet" is a COUNTED claim).
@@ -44,23 +52,28 @@ export default function MatchReviewSection() {
   const [runSummary, setRunSummary] = useState('');
   const [busyLink, setBusyLink] = useState<string | null>(null);
 
-  const loadQueue = async () => {
+  // RUNWAY-PIPE: useCallback on [onTotals] so the mount effect can depend on
+  // it honestly (the parent passes a stable setState setter — one run, no
+  // refetch churn; the exhaustive-deps idiom).
+  const loadQueue = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
       const res = await fetch('/api/runway/match/queue');
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `Queue failed (HTTP ${res.status})`);
-      setQueue((data.queue || []) as QueueRow[]);
+      const rows = (data.queue || []) as QueueRow[];
+      setQueue(rows);
       setReservationCount(typeof data.reservationCount === 'number' ? data.reservationCount : null);
+      onTotals?.({ pending: rows.length });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load the match queue.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [onTotals]);
 
-  useEffect(() => { void loadQueue(); }, []);
+  useEffect(() => { void loadQueue(); }, [loadQueue]);
 
   const runPropose = async () => {
     setProposing(true);
