@@ -803,8 +803,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </p>
         <p className="mt-6 text-[15px] text-text-muted">None of them can answer the questions that matter:</p>
         <p className="mt-2 font-mono text-[22px] font-semibold text-brand-gold">How long will my money last?</p>
-        <p className="mt-2 font-mono text-[15px] text-text-secondary">{"What's the right next move?"}</p>
-        <p className="mt-3 font-mono text-xs lg:text-[10px] tracking-wider text-text-faint">NOT FROM NUMBERS YOU HAVE TO TYPE — FROM YOUR REAL LIFE.</p>
+        <p className="mt-2 font-mono text-[22px] font-semibold text-text-secondary">{"What's the right next move?"}</p>
       </section>
 
       {/* ── MERGED-02 (spec design-refs/merged-modules-spec.md §1-§6): the
