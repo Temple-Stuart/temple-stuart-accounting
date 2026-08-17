@@ -368,6 +368,17 @@ const travelGlimpses: ReadonlyArray<ReactNode> = [
 // drawing; 06 RECORD adds the record line, grade chips and the per-trade
 // detail affordance (S). Gold-law additions: $270 · $730 · $1.01 · $12.78 ·
 // $11.77 (money moments).
+//
+// TRADE-REALITY-3 (reality pass 3): 06 RECORD shows the per-trade detail
+// EXPANDED — the toggle's real expanded-state string ("Hide per-trade detail
+// (8)") + the 8 per-trade rows [S] from the production Record screenshot,
+// 2026-08-18; both money columns (claimed max loss · actual P&L) wear the
+// money gold (the pass-1 precedent — max loss is money); "Open"/"—" muted.
+// The grade-chips row retired 2026-08-18 — grades now shown per-trade in the
+// expanded table's GRADE column; the app's amber grade chips normalize to
+// the bordered bg-row neutral (the declared palette rule). Mobile-yield
+// (pass-3 commit 1): every fixed/nowrap text span in this block shrinks and
+// wraps below lg (min-w-0 shrink / whitespace-normal), byte-identical at lg.
 const tradeGlimpses: ReadonlyArray<ReactNode> = [
   /* ── 01 Filter (pass-2 name; drawing unchanged) — the REAL scan form,
      miniaturized. Controls + strings ⇐
@@ -616,8 +627,10 @@ const tradeGlimpses: ReadonlyArray<ReactNode> = [
      line (CoverageDeclaration.tsx :103, drawn truncated to the spec figure;
      the real string continues "· N unlinked — details"). $82 wears the money
      gold (law). Pass 2 adds (S): the record line (the :242-244 quiet-line
-     template at the supplied figures), the five grade chips, and the
-     per-trade detail affordance row. ── */
+     template at the supplied figures). Pass 3: the per-trade detail draws
+     EXPANDED — the toggle's real expanded-state string + the 8-row table
+     [S], 9px pitch (the t1 miniature idiom); the grade-chips row retired
+     2026-08-18 — grades now shown per-trade in the GRADE column. ── */
   <div key="t4" className={SHELL}>
     <div className={HEADER}><span className={HL}>THE RECORD</span><span className={HR}>WINS AND LOSSES</span></div>
     <div className="mx-4 mt-1 grid grid-cols-3 gap-2">
@@ -635,12 +648,36 @@ const tradeGlimpses: ReadonlyArray<ReactNode> = [
     </div>
     <div className="mx-4 mt-1.5 font-mono text-[10.5px] text-text-faint">Sync coverage: 952 transactions</div>
     <div className="mx-4 mt-1 font-mono text-[9px] leading-[1.5] text-text-faint">Record: <span className="font-semibold text-text-primary">8</span> linked trades · <span className="font-semibold text-text-primary">4</span> closed positions unlinked (excluded) · <span className="font-semibold text-text-primary">4</span> cards queued, not yet linked</div>
-    <div className="mx-4 mt-1 flex flex-wrap items-center gap-1">
-      {(['A 0', 'B 0', 'C 7', 'D 0', 'F 0'] as const).map((g) => (
-        <span key={g} className={`${CHIP} border-border bg-ts-white text-text-muted`}>{g}</span>
+    <div className="mx-4 mt-1 font-mono text-[9.5px] text-brand-purple">Hide per-trade detail (8)</div>
+    <div className="mx-4 mt-[3px]">
+      <div className="flex h-[9px] items-center gap-2 font-mono text-[7.5px] uppercase tracking-wider text-text-faint">
+        <span className="w-[34px] min-w-0 shrink lg:shrink-0">Symbol</span>
+        <span className="min-w-0 flex-1 truncate">Generated</span>
+        <span className="w-[62px] min-w-0 shrink text-right lg:shrink-0">Claimed max loss</span>
+        <span className="w-[38px] min-w-0 shrink text-right lg:shrink-0">Actual P&amp;L</span>
+        <span className="w-[22px] min-w-0 shrink text-right lg:shrink-0">Grade</span>
+      </div>
+      {([
+        ['PYPL', '2026-03-23', '-$186', '$6', 'C'],
+        ['PYPL', '2026-03-20', '-$151', '$6', 'C'],
+        ['META', '2026-03-31', '-$1,035', '$7', 'C'],
+        ['NFLX', '2026-03-17', '-$144', '$10', 'C'],
+        ['CTSH', '2026-03-11', '-$175', '$10', 'C'],
+        ['MSFT', '2026-03-09', '-$316', '$18', 'C'],
+        ['MSFT', '2026-03-10', '-$482', '$25', 'C'],
+        ['MSFT', '2026-04-02', '-$321', 'Open', null],
+      ] as const).map(([sym, gen, maxLoss, pl, grade]) => (
+        <div key={`${sym}-${gen}`} className="flex h-[9px] items-center gap-2 font-mono text-[8px] leading-none">
+          <span className="w-[34px] min-w-0 shrink font-bold text-text-primary lg:shrink-0">{sym}</span>
+          <span className="min-w-0 flex-1 truncate text-text-muted">{gen}</span>
+          <span className="w-[62px] min-w-0 shrink text-right font-medium text-brand-gold lg:shrink-0">{maxLoss}</span>
+          <span className={`w-[38px] min-w-0 shrink text-right font-medium lg:shrink-0 ${pl === 'Open' ? 'text-text-muted' : 'text-brand-gold'}`}>{pl}</span>
+          <span className="w-[22px] min-w-0 shrink text-right lg:shrink-0">
+            {grade ? <span className="inline-block rounded-sm border border-border bg-bg-row px-1 font-mono text-[7px] leading-[7px] text-text-muted">{grade}</span> : <span className="text-text-muted">—</span>}
+          </span>
+        </div>
       ))}
     </div>
-    <div className="mx-4 mt-1 font-mono text-[9.5px] text-brand-purple">Show per-trade detail (8) ▾</div>
     <div className={FOOT}><span className="text-text-primary">EVERY RESULT WRITTEN DOWN</span><span className="text-text-muted">NO CHERRY-PICKING</span></div>
   </div>,
 ];
