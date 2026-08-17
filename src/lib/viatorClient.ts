@@ -5,7 +5,7 @@
 // V1 fallback host (viatorapi.viator.com) has been retired and now returns
 // HTTP 503 globally — all V1 paths were removed in PR-5 quickfix.
 
-import { VIATOR_PARTNER_ID } from '@/config/affiliates';
+import { viatorAffiliateUrl } from '@/config/affiliates';
 import { ACTIVITY_LABELS } from './activities';
 import { TRAVEL_COA } from './travelCOA';
 import { MissingViatorKeyError, ViatorApiError } from './travelErrors';
@@ -282,14 +282,12 @@ function buildSearchTerms(coaCategory: string, userInterests: string[]): string[
 }
 
 // ─── Affiliate URL Construction ──────────────────────────────────────────────
-// TILE-CFG-1: the partner id single-sources from src/config/affiliates.ts
-// (imported at top) — the same constant the emit gate validates against, so
-// builder and validator can never drift.
-const VIATOR_MCID = '42383';
-
-function buildAffiliateUrl(productCode: string): string {
-  return `https://www.viator.com/tours/${productCode}?pid=${VIATOR_PARTNER_ID}&mcid=${VIATOR_MCID}&medium=api`;
-}
+// TILE-CFG-1 → VIATOR-URL-FIX: URL construction moved to the ONE shared
+// builder in src/config/affiliates.ts (viatorAffiliateUrl, imported at top) —
+// the API's own productUrl is PRIMARY (params appended only when absent); the
+// hand-built /tours/{code} short path — the audited breakage — survives only
+// as the no-productUrl fallback. Builder and emit-gate validator live in the
+// same module now, so they can never drift.
 
 // ─── Product Search ──────────────────────────────────────────────────────────
 
@@ -629,9 +627,10 @@ export function viatorProductToRecommendation(
   const priceText = price != null ? `From $${price}` : '';
   const summaryParts = [product.description || '', durationText ? `Duration: ${durationText}` : '', priceText].filter(Boolean);
 
-  const affiliateUrl = product.productCode
-    ? buildAffiliateUrl(product.productCode)
-    : product.productUrl || null;
+  // VIATOR-URL-FIX (was: constructed-first, productUrl as fallback — the
+  // audited breakage). productUrl FIRST with our params ensured; /tours/{code}
+  // only when productUrl is missing/unparseable; null when neither exists.
+  const affiliateUrl = viatorAffiliateUrl(product.productUrl, product.productCode);
 
   console.log('[Viator] URL resolution:', JSON.stringify({
     productCode: product.productCode,
@@ -643,7 +642,9 @@ export function viatorProductToRecommendation(
   return {
     name: product.title,
     address: product.destinationName || '',
-    website: affiliateUrl || product.productUrl || null,
+    // VIATOR-URL-FIX: no raw-productUrl tail — an unparseable vendor URL must
+    // never escape (the builder already fell back or returned null, loudly).
+    website: affiliateUrl,
     photoUrl: product.thumbnailUrl || null,
     priceLevel,
     priceLevelDisplay: price != null ? `$${price}` : null,
@@ -659,7 +660,7 @@ export function viatorProductToRecommendation(
     category,
     compositeScore,
     viatorProductCode: product.productCode,
-    bookingUrl: affiliateUrl || product.productUrl || null,
+    bookingUrl: affiliateUrl,
     durationMinutes,
     price,
   };

@@ -52,6 +52,49 @@ export type AffiliateProviderKey = 'viator';
  *  URL construction; the activities route validates against it via the entry
  *  below). Was duplicated in viatorClient.ts:284 + the CHIP-1 route constant. */
 export const VIATOR_PARTNER_ID = 'P00294427';
+/** Our Viator campaign id — moved here from viatorClient.ts (VIATOR-URL-FIX)
+ *  so the ONE shared builder below is the only place both params are stamped. */
+export const VIATOR_MCID = '42383';
+
+// ─── VIATOR-URL-FIX: the ONE shared affiliate-URL builder ────────────────────
+// The audit (Viator link audit, 2026-08-17) found every rendered Viator link
+// came from a hand-built `/tours/{productCode}` short path that is NOT
+// Viator's canonical page shape (theirs: /tours/{destination}/{slug}/
+// d{destId}-{productCode}) — the reported breakage. RULING: the API's own
+// `productUrl` is PRIMARY everywhere; our affiliate params are appended to it
+// only when absent (its existing query preserved); the constructed short path
+// survives ONLY as the no-productUrl fallback. Pure + client-safe (the
+// discover page imports it); viatorClient (server) and the scanner-results
+// read-time re-map use the same function — one builder, zero drift.
+//
+// GATE LOCKSTEP (declared, no gate change required): validatedAffiliateUrl
+// checks https + viator.com host + literal pid=P00294427 via searchParams —
+// path-shape-agnostic. The builder stamps pid when absent, so every emitted
+// form passes. A productUrl arriving with a DIFFERENT pid is NOT overwritten:
+// the gate rejects it loudly (an attribution mismatch must be seen, not
+// silently rewritten — fail-loud).
+export function viatorAffiliateUrl(
+  productUrl: string | null | undefined,
+  productCode: string | null | undefined,
+): string | null {
+  if (productUrl) {
+    try {
+      const u = new URL(productUrl);
+      if (!u.searchParams.get('pid')) u.searchParams.set('pid', VIATOR_PARTNER_ID);
+      if (!u.searchParams.get('mcid')) u.searchParams.set('mcid', VIATOR_MCID);
+      if (!u.searchParams.get('medium')) u.searchParams.set('medium', 'api');
+      return u.toString();
+    } catch {
+      // Unparseable productUrl — fall through to the constructed fallback
+      // (fail-loud: a malformed vendor URL must be seen, never emitted raw).
+      console.error(`[affiliates] viator: productUrl not parseable — using constructed fallback (${productUrl.substring(0, 80)})`);
+    }
+  }
+  if (productCode) {
+    return `https://www.viator.com/tours/${productCode}?pid=${VIATOR_PARTNER_ID}&mcid=${VIATOR_MCID}&medium=api`;
+  }
+  return null;
+}
 
 export const AFFILIATE_PROVIDERS: Record<AffiliateProviderKey, AffiliateProviderConfig> = {
   // LIVE — the CHIP-1 recipe verbatim: the only host buildAffiliateUrl

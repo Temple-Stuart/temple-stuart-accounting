@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { TRAVEL_COA } from '@/lib/travelCOA';
 import { getSource, type Source } from '@/lib/travelSourceRegistry';
+import { viatorAffiliateUrl } from '@/config/affiliates';
 import { AppLayout } from '@/components/ui';
 import { AddToTripButton } from './AddToTripButton';
 import { PlaceCommitForm } from './PlaceCommitForm';
@@ -39,11 +40,16 @@ function iconForFacility(name: string): LucideIcon {
 // actually do — no fake Book buttons on Google places (Google can't take a
 // restaurant reservation).
 function externalAction(source: Source, rec: Recommendation): { label: string; url: string } | null {
-  if (source === 'viator' && (rec.viatorBookingUrl || rec.viatorProductCode)) {
-    return {
-      label: 'Book on Viator',
-      url: rec.viatorBookingUrl || `https://www.viator.com/tours/${rec.viatorProductCode}?pid=P00294427&mcid=42383&medium=api`,
-    };
+  // VIATOR-URL-FIX: the inline duplicated /tours/{code} template + the dead
+  // never-written `viatorBookingUrl` read both retire — this routes through
+  // the ONE shared builder (affiliates.ts viatorAffiliateUrl). The stored
+  // bookingUrl/website is the productUrl candidate (post-fix scans persist
+  // the API's real page URL; STALE pre-fix rows carry the old constructed
+  // shape, which the builder passes through unchanged — those recover on
+  // re-scan, declared); productCode stays the no-URL fallback.
+  if (source === 'viator') {
+    const url = viatorAffiliateUrl(rec.bookingUrl || rec.website, rec.viatorProductCode);
+    if (url) return { label: 'Book on Viator', url };
   }
   if (source === 'google' && rec.name) {
     const q = encodeURIComponent(`${rec.name} ${rec.address || ''}`.trim());
@@ -68,9 +74,9 @@ interface Recommendation {
   // bookable signal fields:
   price?: number | null;
   durationMinutes?: number | null;
-  // Viator
+  // Viator (VIATOR-URL-FIX: the dead never-written `viatorBookingUrl` field
+  // retired — zero writers existed anywhere in src/)
   viatorProductCode?: string;
-  viatorBookingUrl?: string | null;
   bookingUrl?: string | null;
   // LiteAPI
   liteapiHotelId?: string;
