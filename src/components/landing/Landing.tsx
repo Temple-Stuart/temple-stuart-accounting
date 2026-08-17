@@ -789,12 +789,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           {"Running your life takes ten apps \u2014 and they don't talk to each other."}
         </h2>
         {/* TOOLS-GRID: the gold "·" separators retire — the numbers replace
-            them. Grid + number/name idiom reused VERBATIM from the
-            nine-modules lockup (:867-873): same responsive container, faint
-            mono number + semibold purple name; text-xs = the 12px mobile
-            floor. Row 10 sits as its own full-width centered row at every
-            breakpoint. */}
-        <div className="mx-auto mt-5 lg:mt-[22px] grid max-w-[340px] grid-cols-3 gap-y-2.5 lg:flex lg:max-w-none lg:flex-wrap lg:justify-center lg:gap-x-[26px]">
+            them. Number/name idiom from the nine-modules lockup (faint mono
+            number + semibold purple name); text-xs = the 12px mobile floor.
+            Left-aligned wrap, ten entries, atomic number+name pairs
+            (whitespace-nowrap) — the centered row-10 ruling superseded
+            2026-08-18. */}
+        <div className="mt-5 lg:mt-[22px] flex flex-wrap justify-start gap-x-4 gap-y-2 lg:gap-x-6 lg:gap-y-2.5">
           {([
             ['01', 'BUDGET APP'],
             ['02', 'BOOKING SITE'],
@@ -805,16 +805,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             ['07', 'TAX APP'],
             ['08', 'FP&A'],
             ['09', 'AI WORK JOURNAL'],
+            ['10', 'SPREADSHEETS'],
           ] as const).map(([num, name]) => (
-            <span key={name} className="flex items-baseline justify-center gap-1.5">
+            <span key={name} className="flex items-baseline gap-1.5 whitespace-nowrap">
               <span className="font-mono text-xs lg:text-[10px] text-text-faint">{num}</span>
               <span className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-purple">{name}</span>
             </span>
           ))}
-        </div>
-        <div className="mt-2.5 flex items-baseline justify-center gap-1.5">
-          <span className="font-mono text-xs lg:text-[10px] text-text-faint">10</span>
-          <span className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-purple">SPREADSHEETS</span>
         </div>
         <p className="mt-4 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">
           {"Ten logins, ten subscriptions, ten copies of your life that don't connect. And to get the one answer that matters, you become the integration \u2014 copying numbers from app to app into a spreadsheet."}
