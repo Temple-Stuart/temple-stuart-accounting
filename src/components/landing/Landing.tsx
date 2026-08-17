@@ -794,33 +794,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         <h2 className="mt-[18px] text-[27px] lg:text-[38px] font-medium tracking-[-0.025em] text-brand-purple">
           {"Running your life takes ten apps \u2014 and they don't talk to each other."}
         </h2>
-        {/* TOOLS-GRID: the gold "·" separators retire — the numbers replace
-            them. Number/name idiom from the nine-modules lockup (faint mono
-            number + semibold purple name); text-xs = the 12px mobile floor.
-            Left-aligned wrap, ten entries, atomic number+name pairs
-            (whitespace-nowrap) — the centered row-10 ruling superseded
-            2026-08-18. */}
-        <div className="mt-5 lg:mt-[22px] flex flex-wrap justify-start gap-x-4 gap-y-2 lg:gap-x-6 lg:gap-y-2.5">
-          {([
-            ['01', 'BUDGET APP'],
-            ['02', 'BOOKING SITE'],
-            ['03', 'BROKER'],
-            ['04', 'TRADE LOG'],
-            ['05', 'BOOKKEEPING'],
-            ['06', 'COMPLIANCE'],
-            ['07', 'TAX APP'],
-            ['08', 'FP&A'],
-            ['09', 'AI WORK JOURNAL'],
-            ['10', 'SPREADSHEETS'],
-          ] as const).map(([num, name]) => (
-            <span key={name} className="flex items-baseline gap-1.5 whitespace-nowrap">
-              <span className="font-mono text-xs lg:text-[10px] text-text-faint">{num}</span>
-              <span className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-purple">{name}</span>
-            </span>
-          ))}
-        </div>
+        {/* Tools strip removed 2026-08-18 — the ten apps moved into the
+            paragraph prose. */}
         <p className="mt-4 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">
-          {"Ten logins, ten subscriptions, ten copies of your life that don't connect. And to get the one answer that matters, you become the integration \u2014 copying numbers from app to app into a spreadsheet."}
+          {"A budget app, a booking site, a broker, a trade log, bookkeeping, compliance, a tax app, FP&A, an AI work journal \u2014 and a spreadsheet to glue them together. Ten logins, ten subscriptions, ten copies of your life that don't connect. And to get the one answer that matters, you become the integration \u2014 copying numbers from app to app into that spreadsheet."}
         </p>
         <p className="mt-6 text-[15px] text-text-muted">None of them can answer the questions that matter:</p>
         <p className="mt-2 font-mono text-[22px] font-semibold text-brand-gold">How long will my money last?</p>
