@@ -417,14 +417,18 @@ const FRAME_LINKS: Record<string, string> = {
   content: 'Your calendar tells the story.',
 };
 
-// PERSONAS-3 (value cases): each row = the hook question + ONE plain-language
-// outcome sentence — the module stacks and the "is your stack." grammar
-// RETIRED (strings in git history). Rows alternate prose and mono-purple
-// module fragments (the ruled idiom: max two per row, mid-sentence; rows
-// where no fragment reads naturally stay plain prose).
+// PERSONAS-3 → PERSONAS-PAYOFFS (round-5): each row = the hook question +
+// ONE plain-language outcome sentence + the spec's payoff sentence (the
+// final plain segment per row — extracted PROGRAMMATICALLY from the
+// Desktop-1440 mock's personas region, whose paragraphs were verified to
+// START byte-exactly with the shipped sentences; the remainder IS the
+// payoff — never retyped). Rows alternate prose and mono-purple module
+// fragments (the ruled idiom: max two per row, mid-sentence; rows where no
+// fragment reads naturally stay plain prose).
 const PERSONAS: ReadonlyArray<{ label: string; segments: ReadonlyArray<{ text: string; mono?: true }> }> = [
   { label: 'FOUNDER', segments: [
     { text: "Building a company? See how many months you've got, what the build is costing, and receipts for every dollar when investors ask." },
+    { text: " When someone asks where the money went, the answer is one click." },
   ] },
   { label: 'TRADER', segments: [
     { text: 'Trading your own money? Every fill lands in your ' },
@@ -432,22 +436,27 @@ const PERSONAS: ReadonlyArray<{ label: string; segments: ReadonlyArray<{ text: s
     { text: ', keeps its receipt, and shows up on your ' },
     { text: 'return', mono: true },
     { text: ' — you just trade.' },
+    { text: " No April spreadsheet panic; it's been ready all year." },
   ] },
   { label: 'CREATOR', segments: [
     { text: 'Filming what you do? Your day plans your shoots, and your ' },
     { text: 'calendar', mono: true },
     { text: ' writes the script.' },
+    { text: " More posting, less planning." },
   ] },
   { label: 'NOMAD', segments: [
     { text: 'Living out of a suitcase? Book the trip, and the budget, calendar, and ' },
     { text: 'books', mono: true },
     { text: ' update themselves — from anywhere.' },
+    { text: " Change countries; your money system doesn't care." },
   ] },
   { label: 'SMALL BUSINESS OWNER', segments: [
     { text: "Running a small business? Know what came in, what went out, and what's left — without hiring a bookkeeper." },
+    { text: " You see what an accountant would see, in plain words, every day." },
   ] },
   { label: 'STUDENT', segments: [
     { text: "First bank account? Learn where your money goes before it's gone — the app shows you how." },
+    { text: " You'll pick up real accounting without ever taking the class." },
   ] },
 ];
 
