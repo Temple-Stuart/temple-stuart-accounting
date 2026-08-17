@@ -115,7 +115,7 @@ export default function ToggleStrip({ modes, header, defaultKey, className, band
                 <span aria-hidden="true" className={active === m.key ? 'text-brand-purple' : undefined}>
                   {m.icon}
                 </span>
-                <span className="w-min whitespace-normal text-center leading-tight">
+                <span className="w-min whitespace-normal text-center leading-tight text-xs lg:text-[11px]">
                   {m.label}
                 </span>
                 {m.badge}
@@ -136,7 +136,7 @@ export default function ToggleStrip({ modes, header, defaultKey, className, band
           PR-STRIP-DESIGN-2: with the band it PROMOTES onto the band beneath
           the headline (below) — not rendered in-card there. */}
       {!band && activeMode?.explainer && (
-        <p className="mt-2 font-mono text-[11px] leading-relaxed text-text-secondary">
+        <p className="mt-2 font-mono text-xs lg:text-[11px] leading-relaxed text-text-secondary">
           {activeMode.explainer}
         </p>
       )}

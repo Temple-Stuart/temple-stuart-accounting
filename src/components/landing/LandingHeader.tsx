@@ -44,11 +44,11 @@ export default function LandingHeader({ onRequireLogin, onRequireAuth }: {
         <div className="flex items-center justify-between gap-4 h-16 sm:h-20">
           <Link href="/" className="flex items-center gap-3">
             <div className="w-7 h-7 border-2 border-brand-purple flex items-center justify-center">
-              <span className="font-mono text-[10.5px] font-semibold text-brand-purple">TS</span>
+              <span className="font-mono text-xs lg:text-[10.5px] font-semibold text-brand-purple">TS</span>
             </div>
             <div className="text-sm font-semibold tracking-[0.16em] text-brand-purple">TEMPLE STUART</div>
           </Link>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <Link href="/how-pricing-works" className="text-xs text-text-muted hover:text-text-primary hidden sm:block">
               Pricing
             </Link>
@@ -64,12 +64,12 @@ export default function LandingHeader({ onRequireLogin, onRequireAuth }: {
               <button
                 type="button"
                 onClick={onRequireLogin}
-                className="text-xs font-medium text-brand-purple hover:text-brand-purple-hover"
+                className="whitespace-nowrap px-2 py-3.5 lg:px-0 lg:py-0 text-xs font-medium text-brand-purple hover:text-brand-purple-hover"
               >
                 Log in
               </button>
             ) : (
-              <Link href="/" className="text-xs font-medium text-brand-purple hover:text-brand-purple-hover">
+              <Link href="/" className="whitespace-nowrap px-2 py-3.5 lg:px-0 lg:py-0 text-xs font-medium text-brand-purple hover:text-brand-purple-hover">
                 Log in
               </Link>
             )}
@@ -77,14 +77,14 @@ export default function LandingHeader({ onRequireLogin, onRequireAuth }: {
               <button
                 type="button"
                 onClick={onRequireAuth}
-                className="px-4 py-2.5 bg-brand-gold font-mono text-[11px] font-semibold uppercase tracking-wider text-brand-purple-deep hover:bg-brand-gold/90"
+                className="whitespace-nowrap px-2.5 py-3.5 lg:px-4 lg:py-2.5 bg-brand-gold font-mono text-xs lg:text-[11px] font-semibold uppercase tracking-normal lg:tracking-wider text-brand-purple-deep hover:bg-brand-gold/90"
               >
                 CREATE FREE ACCOUNT
               </button>
             ) : (
               <Link
                 href="/"
-                className="px-4 py-2.5 bg-brand-gold font-mono text-[11px] font-semibold uppercase tracking-wider text-brand-purple-deep hover:bg-brand-gold/90"
+                className="whitespace-nowrap px-2.5 py-3.5 lg:px-4 lg:py-2.5 bg-brand-gold font-mono text-xs lg:text-[11px] font-semibold uppercase tracking-normal lg:tracking-wider text-brand-purple-deep hover:bg-brand-gold/90"
               >
                 CREATE FREE ACCOUNT
               </Link>

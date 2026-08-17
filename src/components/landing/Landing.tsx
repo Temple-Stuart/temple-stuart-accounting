@@ -1063,8 +1063,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             eyebrow row — 02 now (the modules section leads); label otherwise
             verbatim; right slot = the existing /modules/travel door. */}
         <div className="flex items-baseline justify-between gap-3 pt-6">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">02 / LIVE DEMO — TRAVEL</p>
-          <Link href="/modules/travel" className="font-mono text-[10px] tracking-wider text-brand-purple hover:text-brand-purple-hover">
+          <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">02 / LIVE DEMO — TRAVEL</p>
+          <Link href="/modules/travel" className="font-mono text-xs lg:text-[10px] tracking-wider text-brand-purple hover:text-brand-purple-hover">
             EXPLORE TRAVEL →
           </Link>
         </div>
@@ -1079,7 +1079,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             right slot). */}
         <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2 pb-2">
           <span className="text-[13px] text-text-faint">One trip holds everything — plans, bookings, budget.</span>
-          <span className="font-mono text-[10.5px] tracking-wider text-text-faint">NO ACCOUNT NEEDED</span>
+          <span className="font-mono text-xs lg:text-[10.5px] tracking-wider text-text-faint">NO ACCOUNT NEEDED</span>
         </div>
       </div>
       {/* PR-ELEV-1: the coming-soon tiles live INSIDE the strip above as
@@ -1103,12 +1103,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             so this section takes border-t to keep one rule at the seam. ──── */}
       <section className="w-full border-y border-border bg-bg-terminal">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">
+          <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">
             03 / DONE-FOR-YOU
           </p>
           <div className="mt-4 rounded-lg border border-border bg-white p-5">
             <div className="mt-4">
-              <span className="rounded border border-border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
+              <span className="rounded border border-border px-2 py-0.5 font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
                 PROFESSIONAL SERVICES
               </span>
               <p className="mt-2 text-xs leading-relaxed text-text-muted">Your own hosted copy — every API wired, custom to your business, you own everything.</p>
