@@ -1084,7 +1084,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                         type="button"
                         aria-pressed={active}
                         onClick={() => { userTookControl.current = true; setStepIndex(i); }}
-                        className={`pointer-events-none lg:pointer-events-auto flex w-full flex-col justify-center border-t px-[18px] py-[11px] text-left lg:h-[65px] lg:py-0 ${
+                        className={`pointer-events-auto flex w-full flex-col justify-center border-t px-[18px] py-[11px] text-left lg:h-[65px] lg:py-0 ${
                           active
                             ? 'border-brand-purple bg-brand-purple [box-shadow:inset_0_-3px_0_0_#B8860B]'
                             : 'border-border-light hover:bg-brand-purple-wash/40'
