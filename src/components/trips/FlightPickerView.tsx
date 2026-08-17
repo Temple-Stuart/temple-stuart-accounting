@@ -219,7 +219,7 @@ export default function FlightPickerView({
                       only. The trip.com icon-input form factor (TravelField +
                       lucide) retired on this form; the vendor rides the
                       lane-proven providerLabel (PR-FL-6a no-drift). */}
-                  <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 font-mono text-[10px] tracking-wider">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 font-mono text-xs lg:text-[10px] tracking-wider">
                     <span className="text-text-muted">TRAVEL / FLIGHT SEARCH — LIVE PRICES VIA {providerLabel.toUpperCase()}</span>
                     <span className="flex gap-4">
                       <span className="font-semibold text-brand-purple">▪ LIVE</span>
@@ -228,37 +228,37 @@ export default function FlightPickerView({
                   </div>
                   <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-white lg:flex-row lg:items-stretch lg:divide-x lg:divide-border">
                     <div className="px-4 py-2.5">
-                      <div className="mb-1 font-mono text-[9.5px] tracking-widest text-text-faint">FROM</div>
+                      <div className="mb-1 font-mono text-xs lg:text-[9.5px] tracking-widest text-text-faint">FROM</div>
                       <input type="text" value={leg.origin} onChange={e => onUpdateLeg(leg.id, { origin: e.target.value.toUpperCase() })}
-                        className="w-full border-0 bg-transparent p-0 font-mono text-[13px] uppercase text-brand-purple placeholder-text-faint focus:outline-none lg:w-20" maxLength={3} placeholder="LAX" />
+                        className="w-full border-0 bg-transparent px-0 py-2.5 lg:py-0 font-mono text-[13px] uppercase text-brand-purple placeholder-text-faint focus:outline-none lg:w-20" maxLength={3} placeholder="LAX" />
                     </div>
                     <div className="px-4 py-2.5">
-                      <div className="mb-1 font-mono text-[9.5px] tracking-widest text-text-faint">TO</div>
+                      <div className="mb-1 font-mono text-xs lg:text-[9.5px] tracking-widest text-text-faint">TO</div>
                       <input type="text" value={leg.destination} onChange={e => onUpdateLeg(leg.id, { destination: e.target.value.toUpperCase() })}
-                        className="w-full border-0 bg-transparent p-0 font-mono text-[13px] uppercase text-brand-purple placeholder-text-faint focus:outline-none lg:w-20" maxLength={3} placeholder="DPS" />
+                        className="w-full border-0 bg-transparent px-0 py-2.5 lg:py-0 font-mono text-[13px] uppercase text-brand-purple placeholder-text-faint focus:outline-none lg:w-20" maxLength={3} placeholder="DPS" />
                     </div>
                     <div className="px-4 py-2.5">
-                      <div className="mb-1 font-mono text-[9.5px] tracking-widest text-text-faint">DEPART</div>
+                      <div className="mb-1 font-mono text-xs lg:text-[9.5px] tracking-widest text-text-faint">DEPART</div>
                       <input type="date" value={leg.departureDate} onChange={e => onUpdateLeg(leg.id, { departureDate: e.target.value })}
-                        className="w-full border-0 bg-transparent p-0 font-mono text-[13px] text-brand-purple focus:outline-none" />
+                        className="w-full border-0 bg-transparent px-0 py-2.5 lg:py-0 font-mono text-[13px] text-brand-purple focus:outline-none" />
                     </div>
                     {leg.tripType === 'roundtrip' && (
                       <div className="px-4 py-2.5">
-                        <div className="mb-1 font-mono text-[9.5px] tracking-widest text-text-faint">RETURN</div>
+                        <div className="mb-1 font-mono text-xs lg:text-[9.5px] tracking-widest text-text-faint">RETURN</div>
                         <input type="date" value={leg.returnDate} onChange={e => onUpdateLeg(leg.id, { returnDate: e.target.value })}
-                          className="w-full border-0 bg-transparent p-0 font-mono text-[13px] text-brand-purple focus:outline-none" />
+                          className="w-full border-0 bg-transparent px-0 py-2.5 lg:py-0 font-mono text-[13px] text-brand-purple focus:outline-none" />
                       </div>
                     )}
                     <div className="px-4 py-2.5">
-                      <div className="mb-1 font-mono text-[9.5px] tracking-widest text-text-faint">TRIP</div>
+                      <div className="mb-1 font-mono text-xs lg:text-[9.5px] tracking-widest text-text-faint">TRIP</div>
                       <div className="flex items-center gap-2">
                         <button onClick={() => onUpdateLeg(leg.id, { tripType: 'roundtrip' })}
-                          className={`font-mono text-[11px] transition-colors ${leg.tripType === 'roundtrip' ? 'font-semibold text-brand-purple' : 'text-text-faint hover:text-text-secondary'}`}>
+                          className={`py-3.5 lg:py-0 font-mono text-xs lg:text-[11px] transition-colors ${leg.tripType === 'roundtrip' ? 'font-semibold text-brand-purple' : 'text-text-faint hover:text-text-secondary'}`}>
                           ROUND-TRIP
                         </button>
                         <span className="text-text-faint" aria-hidden="true">·</span>
                         <button onClick={() => onUpdateLeg(leg.id, { tripType: 'oneway' })}
-                          className={`font-mono text-[11px] transition-colors ${leg.tripType === 'oneway' ? 'font-semibold text-brand-purple' : 'text-text-faint hover:text-text-secondary'}`}>
+                          className={`py-3.5 lg:py-0 font-mono text-xs lg:text-[11px] transition-colors ${leg.tripType === 'oneway' ? 'font-semibold text-brand-purple' : 'text-text-faint hover:text-text-secondary'}`}>
                           ONE-WAY
                         </button>
                       </div>
@@ -268,7 +268,7 @@ export default function FlightPickerView({
                         <button onClick={() => onRemoveLeg(leg.id)} className="px-2 py-1.5 text-xs text-text-faint hover:text-red-600">✕</button>
                       )}
                       <button onClick={() => onSearchLeg(leg.id)} disabled={leg.loading}
-                        className="bg-brand-gold px-5 py-2.5 font-mono text-[10.5px] font-semibold tracking-widest text-white hover:bg-brand-gold/90 disabled:opacity-50">
+                        className="bg-brand-gold px-5 py-3.5 lg:py-2.5 font-mono text-xs lg:text-[10.5px] font-semibold tracking-widest text-white hover:bg-brand-gold/90 disabled:opacity-50">
                         {leg.loading ? 'SEARCHING…' : 'SEARCH'}
                       </button>
                     </div>
@@ -440,7 +440,7 @@ export default function FlightPickerView({
 
       {/* Add another leg — COMPACT-1: a small inline control, not a full-width banner. */}
       <button onClick={onAddLeg}
-        className="rounded border border-border px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint transition-colors hover:bg-bg-row hover:text-text-primary">
+        className="rounded border border-border px-3 py-3 lg:px-2 lg:py-1 font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint transition-colors hover:bg-bg-row hover:text-text-primary">
         + Leg
       </button>
 

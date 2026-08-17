@@ -52,7 +52,7 @@ export interface TravelStripOptions {
  *  (insurance/esim/events below) — no chip-path mode carries a badge, so
  *  that path's output is byte-identical by consumer absence. */
 const SOON_BADGE = (
-  <span className="text-[9px] font-semibold uppercase tracking-wider opacity-60">
+  <span className="text-xs lg:text-[9px] font-semibold uppercase tracking-wider opacity-60">
     Soon
   </span>
 );
