@@ -356,8 +356,21 @@ const travelGlimpses: ReadonlyArray<ReactNode> = [
 // to the cream/aubergine scale — declared, not drift. Micro type at 8–9.5px on
 // t0/t1 is the miniature tier (a ~4:1-scale form and a 20-row terminal ledger,
 // decorative) — below the file's usual 10–12px illustration tier, declared.
+//
+// TRADE-REALITY-2 (reality pass 2): the array order is the LANDING order —
+// FILTER → SCAN → REVIEW → QUEUE → COMMIT → RECORD (order-parallel with the
+// Landing.tsx LANDING-TRADE-ORDER override, NOT with pipePhases.trade, until
+// the app strip rewires). Figure tags: S = supplied spec-figure (production
+// run/screenshot), C = code-cited string, D = DEFAULT_FILTERS default. Pass-2
+// additions: t1 shows the full 20-step done state (counts S); t2 carries the
+// NTAP expanded dive (S); 05 COMMIT is the Trade Commit Workflow from the
+// Books CODE surface (S) — the IN BOOKS → chip retired with the journal-only
+// drawing; 06 RECORD adds the record line, grade chips and the per-trade
+// detail affordance (S). Gold-law additions: $270 · $730 · $1.01 · $12.78 ·
+// $11.77 (money moments).
 const tradeGlimpses: ReadonlyArray<ReactNode> = [
-  /* ── 01 Setup — the REAL scan form, miniaturized. Controls + strings ⇐
+  /* ── 01 Filter (pass-2 name; drawing unchanged) — the REAL scan form,
+     miniaturized. Controls + strings ⇐
      ScanFilterForm.tsx (:41 universes, :77-80 Direction, :88-91 Premium,
      :99-102 Risk, :108-126 DTE/Width $, :133-151 liquidity + edge rows,
      :158-178 strategies, :183-186 Scan); chip states = toggleChip/SEGMENT
@@ -366,7 +379,7 @@ const tradeGlimpses: ReadonlyArray<ReactNode> = [
      AVAILABLE_STRATEGIES (filter-types.ts :85-102), all active at the default
      empty selection (:166) hence "(all)" and no Reset all (:158-159). ── */
   <div key="t0" className={SHELL}>
-    <div className={HEADER}><span className={HL}>SETUP</span><span className={HR}>YOUR RULES</span></div>
+    <div className={HEADER}><span className={HL}>FILTER</span><span className={HR}>YOUR RULES</span></div>
     <div className="mx-4 mt-1 space-y-1">
       <div className="flex flex-wrap items-center gap-1 font-mono text-[8.5px] leading-none">
         <span className="rounded-sm bg-brand-purple px-1.5 py-[3px] text-white">S&amp;P 500</span>
@@ -457,42 +470,42 @@ const tradeGlimpses: ReadonlyArray<ReactNode> = [
     <div className={FOOT}><span className="text-text-primary">THE SCAN OBEYS THESE</span><span className="text-text-muted">ALWAYS</span></div>
   </div>,
   /* ── 02 Scan — the REAL Pipeline Flow ledger: one row per rendered step
-     section of ConvergenceIntelligence.tsx, chip + title verbatim (STEP A
-     :1641-1642 … STEP T :4286-4287 — the on-screen letters run A–T; "A2"
-     exists only in a code comment, :1825). Count strings are the sections'
-     own header templates (:1645 A, :1833 B, :1955 C, :2078 D, :2192 E,
-     :2336 F, :2485 G) at the SPEC-FIGURES; unrun steps show the sections'
-     literal "waiting..." (:1649 et al.); ▼ = the collapsed toggle (:1652).
-     Density: 20 rows × 10.5px pitch = 210px in the ≈222px body — fits. ── */
+     section of ConvergenceIntelligence.tsx, chip + title verbatim (C — STEP A
+     :1641-1642 … STEP T :4286-4287; the on-screen letters run A–T; "A2"
+     exists only in a code comment, :1825). Pass 2: the full DONE state —
+     every count line supplied verbatim (S, one production run); ▼ = the
+     collapsed toggle (:1652). Density: 20 rows × 10.5px pitch = 210px in
+     the ≈222px body — fits; counts render whole (nowrap), titles carry the
+     ellipsis guard at width. ── */
   <div key="t1" className={SHELL}>
     <div className={HEADER}><span className={HL}>SCAN</span><span className={HR}>THE PIPELINE RUNS</span></div>
     <div className="mx-4 mt-1">
       {([
-        ['STEP A', 'TT Scanner — Universe Scan', '473 symbols fetched', true],
-        ['STEP B', 'Pre-Filter', '473 → 473 survived', true],
-        ['STEP C', 'Hard Exclusions', '94 excluded — 379 passed', true],
-        ['STEP D', 'Top-N Selection', '473 → 18 candidates for hard filters', true],
-        ['STEP E', 'Hard Filters', '18 → 17 survived', true],
-        ['STEP F', 'Peer Grouping', 'Finnhub peer relationships mapped', true],
-        ['STEP G', 'Pre-Score', '17 → 17 selected for enrichment', true],
-        ['STEP H', 'Macro & Regime Data', 'waiting...', false],
-        ['STEP I', 'Data Enrichment', 'waiting...', false],
-        ['STEP J', 'Candle Data & Cross-Asset Correlations', 'waiting...', false],
-        ['STEP K', '4-Gate Scoring', 'waiting...', false],
-        ['STEP L', 'Re-Score With Technicals', 'waiting...', false],
-        ['STEP M', 'Final Selection', 'waiting...', false],
-        ['STEP N', 'Chain Fetch', 'waiting...', false],
-        ['STEP O', 'Live Greeks Subscription', 'waiting...', false],
-        ['STEP P', 'Strategy Scoring', 'waiting...', false],
-        ['STEP Q', 'Live Options Flow & GEX', 'waiting...', false],
-        ['STEP R', 'Re-Score With Live Data', 'waiting...', false],
-        ['STEP S', 'Trade Cards', 'waiting...', false],
-        ['STEP T', 'Save & Return', 'waiting...', false],
-      ] as const).map(([step, title, count, ran]) => (
+        ['STEP A', 'TT Scanner — Universe Scan', '473 symbols fetched'],
+        ['STEP B', 'Pre-Filter', '473 → 473 survived'],
+        ['STEP C', 'Hard Exclusions', '94 excluded — 379 passed'],
+        ['STEP D', 'Top-N Selection', '473 → 18 candidates for hard filters'],
+        ['STEP E', 'Hard Filters', '18 → 17 survived'],
+        ['STEP F', 'Peer Grouping', 'Finnhub peer relationships mapped'],
+        ['STEP G', 'Pre-Score', '17 → 17 selected for enrichment'],
+        ['STEP H', 'Macro & Regime Data', '10 FRED series fetched'],
+        ['STEP I', 'Data Enrichment', '136 Finnhub calls'],
+        ['STEP J', 'Candle Data & Cross-Asset Correlations', '17 of 17 symbols have candle data'],
+        ['STEP K', '4-Gate Scoring', '17 tickers scored'],
+        ['STEP L', 'Re-Score With Technicals', '17 of 17 tickers re-scored with candle technicals'],
+        ['STEP M', 'Final Selection', '8 of 17 tickers selected'],
+        ['STEP N', 'Chain Fetch', '320 strikes fetched across 8 tickers — 320 Greeks events received'],
+        ['STEP O', 'Live Greeks Subscription', '320 Greeks events received across 8 symbols'],
+        ['STEP P', 'Strategy Scoring', '4 strategies passed all 3 gates'],
+        ['STEP Q', 'Live Options Flow & GEX', '8 tickers with live flow data'],
+        ['STEP R', 'Re-Score With Live Data', '8 of 8 tickers re-scored with live flow data'],
+        ['STEP S', 'Trade Cards', '4 strategies generated'],
+        ['STEP T', 'Save & Return', 'Scan saved — 8 tickers logged'],
+      ] as const).map(([step, title, count]) => (
         <div key={step} className="flex items-baseline gap-2 font-mono text-[9px] leading-[10.5px]">
           <span className="w-[36px] shrink-0 font-semibold text-brand-purple">{step}</span>
           <span className="min-w-0 flex-1 truncate text-text-secondary">{title}</span>
-          <span className={`shrink-0 whitespace-nowrap ${ran ? 'text-text-secondary' : 'text-text-faint'}`}>{count}</span>
+          <span className="shrink-0 whitespace-nowrap text-text-secondary">{count}</span>
           <span aria-hidden="true" className="shrink-0 text-[7px] text-text-faint">▼</span>
         </div>
       ))}
@@ -506,7 +519,9 @@ const tradeGlimpses: ReadonlyArray<ReactNode> = [
      TRADE chip (:712) / SKIP chip (:714) + the stored reason uppercased
      (:717 — 'No strategies available' :446). Gate vocabulary only — the real
      scoring speaks "N/4 gates" (ConvergenceIntelligence :673, :3189), and no
-     invented "filters" phrasing appears here. ── */
+     invented "filters" phrasing appears here. Pass 2: the NTAP expanded dive
+     (S — the four gate scores, the four legs, the collect/max-loss line);
+     gold only on $270/$730/+$64 and the row's $278. ── */
   <div key="t2" className={SHELL}>
     <div className={HEADER}><span className={HL}>VERDICTS</span><span className={HR}>WITH REASONS</span></div>
     <div className={ROW}>
@@ -516,6 +531,11 @@ const tradeGlimpses: ReadonlyArray<ReactNode> = [
       <span className="shrink-0 font-mono text-[11px] font-black text-text-primary">92.0%</span>
       <span className="shrink-0 font-mono text-[11px] font-medium text-brand-gold">+$64</span>
       <span className={`${CHIP} shrink-0 border-brand-purple bg-brand-purple font-bold text-white`}>TRADE</span>
+    </div>
+    <div className="mx-4 mb-1.5 border border-border-light bg-bg-row px-2.5 py-1.5 font-mono text-[8.5px] leading-[1.7] text-text-secondary">
+      <div>VOL EDGE <span className="font-semibold text-text-primary">65.2</span> · QUALITY <span className="font-semibold text-text-primary">64.7</span> · REGIME <span className="font-semibold text-text-primary">67.7</span> · INFO <span className="font-semibold text-text-primary">48.7</span></div>
+      <div>SELL PUT $185 $5.60 / BUY PUT $175 $3.80 / SELL CALL $240 $4.20 / BUY CALL $250 $3.30</div>
+      <div>COLLECT <span className="font-semibold text-brand-gold">$270</span> · MAX LOSS <span className="font-semibold text-brand-gold">$730</span> · POP 92.0% · EV <span className="font-semibold text-brand-gold">+$64</span> · R:R 0.37</div>
     </div>
     <div className={ROW}>
       <span className="w-[44px] shrink-0 font-mono text-[13px] font-bold text-brand-purple">NWS</span>
@@ -561,12 +581,43 @@ const tradeGlimpses: ReadonlyArray<ReactNode> = [
     </div>
     <div className={FOOT}><span className="text-text-primary">GRADED BEFORE MONEY MOVES</span><span className="text-text-muted">THE SETUP, TESTED</span></div>
   </div>,
-  /* ── 05 Record — the REAL track-record heroes (TradeRecord.tsx): the three
-     tiles verbatim — RECORD "{w}W – {l}L – {be}BE" (:192-193), NET P&L +
-     "(linked trades only)" (:208-210), MAX-LOSS INTEGRITY "{x} of {y}"
-     (:216-217) — plus the sync-coverage line (CoverageDeclaration.tsx :103,
-     drawn truncated to the spec figure; the real string continues
-     "· N unlinked — details"). $82 wears the money gold (law). ── */
+  /* ── 05 Commit (pass 2 — replaces the journal-only drawing; the IN BOOKS →
+     chip retired with it): the Trade Commit Workflow from the Books CODE
+     surface (S — title row + counts, the commit bar with Net and the Open
+     Position action, the two leg rows; NO strategy dropdown drawn, per spec).
+     The DR/CR journal pair retained beneath, recaptioned WHAT IT WRITES.
+     Gold: $1.01 and the leg amounts $12.78/$11.77 (money moments); the
+     Open Position button is aubergine. ── */
+  <div key="t5" className={SHELL}>
+    <div className={HEADER}><span className={HL}>COMMIT</span><span className={HR}>ONE CLICK</span></div>
+    <div className="mx-4 mt-1 flex flex-wrap items-baseline justify-between gap-x-2">
+      <span className="font-mono text-[10px] tracking-[0.12em] text-text-secondary">Trade Commit Workflow</span>
+      <span className="font-mono text-[8.5px] text-text-faint">488 opens · 372 closes · 2 open trades</span>
+    </div>
+    <div className="mx-4 mt-1.5 flex flex-wrap items-center justify-between gap-2 border border-border bg-bg-row px-2.5 py-1.5 font-mono text-[9px]">
+      <span className="min-w-0 truncate text-text-secondary">2 legs selected · Net: <span className="font-semibold text-brand-gold">$1.01</span> DR · MSFT-0013</span>
+      <span className="shrink-0 rounded bg-brand-purple px-2 py-[3px] text-[8.5px] font-bold leading-none text-white">Open Position</span>
+    </div>
+    <div className="mx-4 mt-1 font-mono text-[9px] leading-[1.8] text-text-secondary">
+      <div className="flex items-baseline justify-between gap-2"><span className="min-w-0 truncate">Mar 1 MSFT BUY $500 CALL · 1</span><span className="shrink-0"><span className="font-medium text-brand-gold">$12.78</span> DR</span></div>
+      <div className="flex items-baseline justify-between gap-2"><span className="min-w-0 truncate">Mar 1 MSFT SELL $505 CALL · 1</span><span className="shrink-0"><span className="font-medium text-brand-gold">$11.77</span> CR</span></div>
+    </div>
+    <div className="mx-4 mt-1.5 border border-border bg-white px-4 py-2">
+      <div className="font-mono text-[10px] tracking-[0.12em] text-text-muted">WHAT IT WRITES</div>
+      <div className="mt-1.5 flex items-baseline justify-between font-mono text-[12px] text-text-secondary"><span>DR · Brokerage cash</span><span>$120.00</span></div>
+      <div className="flex items-baseline justify-between font-mono text-[12px] text-text-secondary"><span>CR · Trading gains (4100)</span><span>$120.00</span></div>
+    </div>
+    <div className={FOOT}><span className="text-text-primary">A REAL JOURNAL ENTRY</span><span className="text-text-muted">SAME LEDGER AS EVERYTHING</span></div>
+  </div>,
+  /* ── 06 Record (now terminal) — the REAL track-record heroes
+     (TradeRecord.tsx): the three tiles verbatim — RECORD "{w}W – {l}L –
+     {be}BE" (:192-193), NET P&L + "(linked trades only)" (:208-210),
+     MAX-LOSS INTEGRITY "{x} of {y}" (:216-217) — plus the sync-coverage
+     line (CoverageDeclaration.tsx :103, drawn truncated to the spec figure;
+     the real string continues "· N unlinked — details"). $82 wears the money
+     gold (law). Pass 2 adds (S): the record line (the :242-244 quiet-line
+     template at the supplied figures), the five grade chips, and the
+     per-trade detail affordance row. ── */
   <div key="t4" className={SHELL}>
     <div className={HEADER}><span className={HL}>THE RECORD</span><span className={HR}>WINS AND LOSSES</span></div>
     <div className="mx-4 mt-1 grid grid-cols-3 gap-2">
@@ -582,24 +633,15 @@ const tradeGlimpses: ReadonlyArray<ReactNode> = [
         </div>
       ))}
     </div>
-    <div className="mx-4 mt-2 font-mono text-[10.5px] text-text-faint">Sync coverage: 952 transactions</div>
+    <div className="mx-4 mt-1.5 font-mono text-[10.5px] text-text-faint">Sync coverage: 952 transactions</div>
+    <div className="mx-4 mt-1 font-mono text-[9px] leading-[1.5] text-text-faint">Record: <span className="font-semibold text-text-primary">8</span> linked trades · <span className="font-semibold text-text-primary">4</span> closed positions unlinked (excluded) · <span className="font-semibold text-text-primary">4</span> cards queued, not yet linked</div>
+    <div className="mx-4 mt-1 flex flex-wrap items-center gap-1">
+      {(['A 0', 'B 0', 'C 7', 'D 0', 'F 0'] as const).map((g) => (
+        <span key={g} className={`${CHIP} border-border bg-ts-white text-text-muted`}>{g}</span>
+      ))}
+    </div>
+    <div className="mx-4 mt-1 font-mono text-[9.5px] text-brand-purple">Show per-trade detail (8) ▾</div>
     <div className={FOOT}><span className="text-text-primary">EVERY RESULT WRITTEN DOWN</span><span className="text-text-muted">NO CHERRY-PICKING</span></div>
-  </div>,
-  /* ── 06 Commit — the terminal link cell: the chip string is the coded
-     PIPE_PHASES trade[5] link label verbatim ('IN BOOKS →', pipePhases.ts
-     :103, rendered via ModuleLauncher.tsx :1117); the journal entry retained,
-     recaptioned WHAT LANDS IN BOOKS (reality pass 1). ── */
-  <div key="t5" className={SHELL}>
-    <div className={HEADER}><span className={HL}>COMMIT</span><span className={HR}>ONE CLICK</span></div>
-    <div className="mx-4 mt-3 border border-border bg-white px-4 py-3">
-      <div className="font-mono text-[10px] tracking-[0.12em] text-text-muted">WHAT LANDS IN BOOKS</div>
-      <div className="mt-2 flex items-baseline justify-between font-mono text-[12px] text-text-secondary"><span>DR · Brokerage cash</span><span>$120.00</span></div>
-      <div className="flex items-baseline justify-between font-mono text-[12px] text-text-secondary"><span>CR · Trading gains (4100)</span><span>$120.00</span></div>
-    </div>
-    <div className="mx-4 mt-3 flex justify-center">
-      <span className="inline-block rounded border border-border px-2 py-1 font-mono text-[11px] tracking-widest text-brand-purple">IN BOOKS →</span>
-    </div>
-    <div className={FOOT}><span className="text-text-primary">A REAL JOURNAL ENTRY</span><span className="text-text-muted">SAME LEDGER AS EVERYTHING</span></div>
   </div>,
 ];
 

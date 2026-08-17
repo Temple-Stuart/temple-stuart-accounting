@@ -667,7 +667,17 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
   const stagePillar = PILLAR_CARDS[stageIndex];
   // Widened to the interface so the optional link (Trade's 06) type-checks
   // across the union of literal rows.
-  const stagePhases: readonly PipePhase[] = PIPE_PHASES[stageId];
+  // LANDING-TRADE-ORDER override — app strip rewires separately; delete this
+  // when pipePhases.trade is reordered.
+  const LANDING_TRADE_PHASES: readonly PipePhase[] = [
+    { ...PIPE_PHASES.trade[0], num: '01', name: 'FILTER', subLabel: "Pick what you're hunting" },
+    { ...PIPE_PHASES.trade[1], num: '02', name: 'SCAN', subLabel: 'Live market data runs your filters' },
+    { ...PIPE_PHASES.trade[2], num: '03', name: 'REVIEW', subLabel: 'Trades worth taking — and the skips' },
+    { ...PIPE_PHASES.trade[3], num: '04', name: 'QUEUE', subLabel: 'The card holds the prediction' },
+    { ...PIPE_PHASES.trade[5], num: '05', name: 'COMMIT', subLabel: 'Every trade lands in your books' },
+    { ...PIPE_PHASES.trade[4], num: '06', name: 'RECORD', subLabel: 'Wins and losses, written down' },
+  ];
+  const stagePhases: readonly PipePhase[] = stageId === 'trade' ? LANDING_TRADE_PHASES : PIPE_PHASES[stageId];
   // WALKTHROUGH-STAGE: the module's ledger + the active step's five clauses
   // (order-parallel; the module-scope assert guarantees the index is valid).
   const stageLedger = WALKTHROUGH_LEDGER[stageId];
