@@ -407,13 +407,13 @@ const tradeGlimpses: ReadonlyArray<ReactNode> = [
             ['Min Volume', 'w-[5%]', '500K'],
           ] as const).map(([lab, w, val]) => (
             <div key={lab} className="flex h-[11px] items-center gap-1.5">
-              <span className="w-[52px] shrink-0 text-[8.5px] font-medium text-text-secondary">{lab}</span>
+              <span className="w-[52px] min-w-0 shrink text-[8.5px] font-medium text-text-secondary lg:shrink-0">{lab}</span>
               <span className="relative h-[3px] min-w-0 flex-1 rounded bg-border-light"><span className={`absolute inset-y-0 left-0 rounded bg-brand-purple ${w}`} /></span>
-              <span className="w-[26px] shrink-0 text-right font-mono text-[8.5px] font-semibold text-text-primary">{val}</span>
+              <span className="w-[26px] min-w-0 shrink text-right font-mono text-[8.5px] font-semibold text-text-primary lg:shrink-0">{val}</span>
             </div>
           ))}
           <div className="flex h-[11px] items-center gap-1.5">
-            <span className="w-[52px] shrink-0 text-[8.5px] font-medium text-text-secondary">Min Rating</span>
+            <span className="w-[52px] min-w-0 shrink text-[8.5px] font-medium text-text-secondary lg:shrink-0">Min Rating</span>
             <span className="text-[11px] leading-none tracking-[0.1em]"><span className="text-text-secondary">**</span><span className="text-text-faint">***</span></span>
           </div>
         </div>
@@ -425,13 +425,13 @@ const tradeGlimpses: ReadonlyArray<ReactNode> = [
             ['Min EV/Risk', 'w-[50%]', '0.00'],
           ] as const).map(([lab, w, val]) => (
             <div key={lab} className="flex h-[11px] items-center gap-1.5">
-              <span className="w-[56px] shrink-0 text-[8.5px] font-medium text-text-secondary">{lab}</span>
+              <span className="w-[56px] min-w-0 shrink text-[8.5px] font-medium text-text-secondary lg:shrink-0">{lab}</span>
               <span className="relative h-[3px] min-w-0 flex-1 rounded bg-border-light"><span className={`absolute inset-y-0 left-0 rounded bg-brand-purple ${w}`} /></span>
-              <span className="w-[26px] shrink-0 text-right font-mono text-[8.5px] font-semibold text-text-primary">{val}</span>
+              <span className="w-[26px] min-w-0 shrink text-right font-mono text-[8.5px] font-semibold text-text-primary lg:shrink-0">{val}</span>
             </div>
           ))}
           <div className="flex h-[11px] items-center gap-1.5">
-            <span className="w-[56px] shrink-0 text-[8.5px] font-medium text-text-secondary">Vol Edge</span>
+            <span className="w-[56px] min-w-0 shrink text-[8.5px] font-medium text-text-secondary lg:shrink-0">Vol Edge</span>
             <span className="inline-flex items-center gap-px rounded-sm bg-bg-row p-[2px] font-mono text-[8px] leading-none">
               {(['IV>HV', 'IV<HV', 'Any'] as const).map((cell) => (
                 <span key={cell} className={`rounded-sm px-1 py-[2px] ${cell === 'Any' ? 'bg-white font-medium text-brand-purple' : 'text-text-secondary'}`}>{cell}</span>
@@ -443,9 +443,9 @@ const tradeGlimpses: ReadonlyArray<ReactNode> = [
             ['Sentiment', 'w-[2%]', '-1.0'],
           ] as const).map(([lab, w, val]) => (
             <div key={lab} className="flex h-[11px] items-center gap-1.5">
-              <span className="w-[56px] shrink-0 text-[8.5px] font-medium text-text-secondary">{lab}</span>
+              <span className="w-[56px] min-w-0 shrink text-[8.5px] font-medium text-text-secondary lg:shrink-0">{lab}</span>
               <span className="relative h-[3px] min-w-0 flex-1 rounded bg-border-light"><span className={`absolute inset-y-0 left-0 rounded bg-brand-purple ${w}`} /></span>
-              <span className="w-[26px] shrink-0 text-right font-mono text-[8.5px] font-semibold text-text-primary">{val}</span>
+              <span className="w-[26px] min-w-0 shrink text-right font-mono text-[8.5px] font-semibold text-text-primary lg:shrink-0">{val}</span>
             </div>
           ))}
         </div>
@@ -503,10 +503,10 @@ const tradeGlimpses: ReadonlyArray<ReactNode> = [
         ['STEP T', 'Save & Return', 'Scan saved — 8 tickers logged'],
       ] as const).map(([step, title, count]) => (
         <div key={step} className="flex items-baseline gap-2 font-mono text-[9px] leading-[10.5px]">
-          <span className="w-[36px] shrink-0 font-semibold text-brand-purple">{step}</span>
+          <span className="w-[36px] min-w-0 shrink font-semibold text-brand-purple lg:shrink-0">{step}</span>
           <span className="min-w-0 flex-1 truncate text-text-secondary">{title}</span>
-          <span className="shrink-0 whitespace-nowrap text-text-secondary">{count}</span>
-          <span aria-hidden="true" className="shrink-0 text-[7px] text-text-faint">▼</span>
+          <span className="min-w-0 shrink whitespace-normal text-right text-text-secondary lg:shrink-0 lg:whitespace-nowrap">{count}</span>
+          <span aria-hidden="true" className="min-w-0 shrink text-[7px] text-text-faint lg:shrink-0">▼</span>
         </div>
       ))}
     </div>
@@ -525,12 +525,12 @@ const tradeGlimpses: ReadonlyArray<ReactNode> = [
   <div key="t2" className={SHELL}>
     <div className={HEADER}><span className={HL}>VERDICTS</span><span className={HR}>WITH REASONS</span></div>
     <div className={ROW}>
-      <span className="w-[44px] shrink-0 font-mono text-[13px] font-bold text-brand-purple">NTAP</span>
+      <span className="w-[44px] min-w-0 shrink font-mono text-[13px] font-bold text-brand-purple lg:shrink-0">NTAP</span>
       <span className="min-w-0 flex-1 truncate text-[12px] text-text-secondary">Iron Condor</span>
-      <span className="shrink-0 font-mono text-[11px] font-medium text-brand-gold">Collect $278</span>
-      <span className="shrink-0 font-mono text-[11px] font-black text-text-primary">92.0%</span>
-      <span className="shrink-0 font-mono text-[11px] font-medium text-brand-gold">+$64</span>
-      <span className={`${CHIP} shrink-0 border-brand-purple bg-brand-purple font-bold text-white`}>TRADE</span>
+      <span className="min-w-0 shrink font-mono text-[11px] font-medium text-brand-gold lg:shrink-0">Collect $278</span>
+      <span className="min-w-0 shrink font-mono text-[11px] font-black text-text-primary lg:shrink-0">92.0%</span>
+      <span className="min-w-0 shrink font-mono text-[11px] font-medium text-brand-gold lg:shrink-0">+$64</span>
+      <span className={`${CHIP} min-w-0 shrink border-brand-purple bg-brand-purple font-bold text-white lg:shrink-0`}>TRADE</span>
     </div>
     <div className="mx-4 mb-1.5 border border-border-light bg-bg-row px-2.5 py-1.5 font-mono text-[8.5px] leading-[1.7] text-text-secondary">
       <div>VOL EDGE <span className="font-semibold text-text-primary">65.2</span> · QUALITY <span className="font-semibold text-text-primary">64.7</span> · REGIME <span className="font-semibold text-text-primary">67.7</span> · INFO <span className="font-semibold text-text-primary">48.7</span></div>
@@ -538,9 +538,9 @@ const tradeGlimpses: ReadonlyArray<ReactNode> = [
       <div>COLLECT <span className="font-semibold text-brand-gold">$270</span> · MAX LOSS <span className="font-semibold text-brand-gold">$730</span> · POP 92.0% · EV <span className="font-semibold text-brand-gold">+$64</span> · R:R 0.37</div>
     </div>
     <div className={ROW}>
-      <span className="w-[44px] shrink-0 font-mono text-[13px] font-bold text-brand-purple">NWS</span>
-      <span className="shrink-0 text-[12px] italic text-text-muted">—</span>
-      <span className={`${CHIP} shrink-0 border-border bg-bg-row font-bold text-text-muted`}>SKIP</span>
+      <span className="w-[44px] min-w-0 shrink font-mono text-[13px] font-bold text-brand-purple lg:shrink-0">NWS</span>
+      <span className="min-w-0 shrink text-[12px] italic text-text-muted lg:shrink-0">—</span>
+      <span className={`${CHIP} min-w-0 shrink border-border bg-bg-row font-bold text-text-muted lg:shrink-0`}>SKIP</span>
       <span className="min-w-0 flex-1 truncate font-mono text-[9px] tracking-wider text-text-faint">NO STRATEGIES AVAILABLE</span>
     </div>
     <div className={FOOT}><span className="text-text-primary">SKIPS SHOW THEIR WHY</span><span className="text-text-muted">PICK OR PASS — YOURS</span></div>
@@ -556,7 +556,7 @@ const tradeGlimpses: ReadonlyArray<ReactNode> = [
     <div className="mx-4 mt-1 border border-border bg-white px-4 py-3">
       <div className="flex items-baseline justify-between gap-3">
         <span className="min-w-0 truncate"><span className="font-mono text-[13px] font-bold text-brand-purple">META</span><span className="ml-2 text-[12px] text-text-secondary">Iron Condor</span></span>
-        <span className={`${CHIP} shrink-0 border-brand-purple bg-ts-white text-brand-purple`}>Link to Position</span>
+        <span className={`${CHIP} min-w-0 shrink border-brand-purple bg-ts-white text-brand-purple lg:shrink-0`}>Link to Position</span>
       </div>
       <div className="mt-2 grid grid-cols-2 gap-4 border-t border-border-light pt-2">
         <div>
@@ -596,11 +596,11 @@ const tradeGlimpses: ReadonlyArray<ReactNode> = [
     </div>
     <div className="mx-4 mt-1.5 flex flex-wrap items-center justify-between gap-2 border border-border bg-bg-row px-2.5 py-1.5 font-mono text-[9px]">
       <span className="min-w-0 truncate text-text-secondary">2 legs selected · Net: <span className="font-semibold text-brand-gold">$1.01</span> DR · MSFT-0013</span>
-      <span className="shrink-0 rounded bg-brand-purple px-2 py-[3px] text-[8.5px] font-bold leading-none text-white">Open Position</span>
+      <span className="min-w-0 shrink rounded bg-brand-purple px-2 py-[3px] text-[8.5px] font-bold leading-none text-white lg:shrink-0">Open Position</span>
     </div>
     <div className="mx-4 mt-1 font-mono text-[9px] leading-[1.8] text-text-secondary">
-      <div className="flex items-baseline justify-between gap-2"><span className="min-w-0 truncate">Mar 1 MSFT BUY $500 CALL · 1</span><span className="shrink-0"><span className="font-medium text-brand-gold">$12.78</span> DR</span></div>
-      <div className="flex items-baseline justify-between gap-2"><span className="min-w-0 truncate">Mar 1 MSFT SELL $505 CALL · 1</span><span className="shrink-0"><span className="font-medium text-brand-gold">$11.77</span> CR</span></div>
+      <div className="flex items-baseline justify-between gap-2"><span className="min-w-0 truncate">Mar 1 MSFT BUY $500 CALL · 1</span><span className="min-w-0 shrink lg:shrink-0"><span className="font-medium text-brand-gold">$12.78</span> DR</span></div>
+      <div className="flex items-baseline justify-between gap-2"><span className="min-w-0 truncate">Mar 1 MSFT SELL $505 CALL · 1</span><span className="min-w-0 shrink lg:shrink-0"><span className="font-medium text-brand-gold">$11.77</span> CR</span></div>
     </div>
     <div className="mx-4 mt-1.5 border border-border bg-white px-4 py-2">
       <div className="font-mono text-[10px] tracking-[0.12em] text-text-muted">WHAT IT WRITES</div>
