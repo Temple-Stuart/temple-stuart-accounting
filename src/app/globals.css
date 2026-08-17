@@ -150,3 +150,27 @@ body {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
 }
+
+/* CHIP-FADE (390 audit finding 2): edge-fade mask for the modules chip
+   scroll strip — the 968px row hides six chips in a 390px viewport with a
+   clean hard cut and zero scroll signal. The mask fades the strip's CONTENT
+   into the section's cream at both edges: the 16px left zone equals the
+   strip's pl-4, so chip 01 sits unfaded at rest and chips only fade INTO it
+   once scrolled; the 40px right zone equals the strip's mobile pr-10, so at
+   full scroll the fade eats only padding (chip 09 never fades) while at rest
+   the natural partial-chip peek sits under it — the "there's more" signal.
+   Distinct from the marquee's ruled hard edge: the marquee is an ambient
+   infinite loop with no destination to reach; this strip hides six REAL
+   navigation targets, so reachability must be signaled. No prior mask
+   precedent in the repo (grepped — this is the first, audit-cited). Off at
+   lg where all nine chips fit (the strip's own lg:overflow-visible seam). */
+.ts-chipfade {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 16px, #000 calc(100% - 40px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 16px, #000 calc(100% - 40px), transparent 100%);
+}
+@media (min-width: 1024px) {
+  .ts-chipfade {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}

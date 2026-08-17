@@ -699,6 +699,15 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
   useEffect(() => {
     // prefers-reduced-motion → never start; the stage stays static Runway.
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    // MOBILE-AUTOPLAY (390 audit finding 1, ruled): touch-class devices
+    // reuse the SAME never-start path — the only mid-read pause input is
+    // hover (onPointerEnter below), which (hover: none) devices can never
+    // fire, so on a phone the stage would flip every 2s under the reader.
+    // Static Runway instead; chip taps still switch stages (and still set
+    // userTookControl — harmless with no interval running). Evaluated once
+    // at mount, exactly like the reduced-motion line above. Desktop hover
+    // machinery byte-unchanged.
+    if (window.matchMedia('(hover: none)').matches) return;
     const observer = new IntersectionObserver(([entry]) => {
       stageInView.current = entry.isIntersecting;
     });
@@ -928,7 +937,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             {/* STAGE-AUTOPLAY: pointer over the chip row pauses the advance
                 (resumes on leave, while the user hasn't taken control). */}
             <div
-              className="-mx-4 mt-4 overflow-x-auto px-4 lg:mx-0 lg:overflow-visible lg:px-0"
+              // CHIP-FADE (390 audit finding 2): ts-chipfade (globals.css) —
+              // cream edge-fades signal the 6 off-screen chips; mobile pr-10
+              // makes the fade zone pure padding at scroll-end (chip 09 never
+              // fades) while the natural partial-chip peek at rest sits under
+              // the right fade — the "there's more" signal. lg: unchanged
+              // (all 9 chips fit; the mask turns off in the same media query).
+              className="ts-chipfade -mx-4 mt-4 overflow-x-auto pl-4 pr-10 lg:mx-0 lg:overflow-visible lg:px-0"
               onPointerEnter={() => { stageHovered.current = true; }}
               onPointerLeave={() => { stageHovered.current = false; }}
             >
@@ -1058,7 +1073,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             Slice 4's trips pass. */}
       {/* LANDING-V3: id="demo" — the spec's :93 anchor, the nav's Live-demo
           target. */}
-      <div id="demo" className="max-w-7xl mx-auto px-4 lg:px-8">
+      {/* DEMO-SECTION (390 audit finding 8): div → section + aria-label so
+          the demo region is a real landmark (the census found it outside
+          every section). Classes carried verbatim — Tailwind utilities are
+          tag-agnostic and nothing selects div#demo (the #demo anchor is an
+          href target only). */}
+      <section id="demo" aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8">
         {/* LANDING-V2 (spec :96-97) → SECTION-SWAP: the demo's numbered
             eyebrow row — 02 now (the modules section leads); label otherwise
             verbatim; right slot = the existing /modules/travel door. */}
@@ -1081,7 +1101,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <span className="text-[13px] text-text-faint">One trip holds everything — plans, bookings, budget.</span>
           <span className="font-mono text-xs lg:text-[10.5px] tracking-wider text-text-faint">NO ACCOUNT NEEDED</span>
         </div>
-      </div>
+      </section>
       {/* PR-ELEV-1: the coming-soon tiles live INSIDE the strip above as
           badged "Soon" chips (travelStripModes) — the PR-LANDING-1 tile
           row below the strip is gone; the both-surfaces-at-once light-up
