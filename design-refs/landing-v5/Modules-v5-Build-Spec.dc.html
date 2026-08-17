@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<title>Temple Stuart — Modules v5 · Build Spec</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FAF8F3;color:#1A1A2E;font-family:'Inter',-apple-system,'Helvetica Neue',sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#3B2D6B;text-decoration:none}a:hover{color:#4E3E85}
+::selection{background:#EAE7F2;color:#2D1B4E}
+</style>
+</helmet>
+<div style="max-width:1080px;margin:0 auto;padding:56px 32px 80px" data-screen-label="Modules v5 — Build Spec">
+
+  <p style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:0.16em;color:#7A7488">MODULES v5 <span style="color:#B8860B">·</span> BUILD SPEC <span style="color:#B8860B">·</span> ROUND 5 — CONSOLIDATED</p>
+  <h1 style="margin:16px 0 0;font-size:32px;font-weight:500;letter-spacing:-0.025em;color:#3B2D6B">The problem section + the walkthrough stage, final.</h1>
+  <p style="margin:12px 0 0;max-width:760px;font-size:15px;line-height:1.6;color:#4A4A5A">Treatment A locked. Truth strip replaces the handoff line. Supersedes every round-4 amendment. Step names and order from <span style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:#3B2D6B">pipePhases.ts</span>; all new strings verbatim from the round-5 truth ledger (§6).</p>
+
+  <div style="margin-top:36px;border:1px solid #DDD6E8;border-radius:8px;background:#FFFFFF;overflow:hidden">
+    <div style="border-bottom:1px solid #DDD6E8;background:#F3EFE6;padding:9px 16px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:0.14em;color:#4A4A5A">1 · KICKER RENUMBER TABLE</div>
+    <div style="padding:8px 16px 14px;font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:2.2;color:#4A4A5A">
+      <div><span style="color:#B8860B">01 / THE PROBLEM</span> — new section, between the hero and the modules</div>
+      <div>02 / THE NINE MODULES — was 01</div>
+      <div>03 / LIVE DEMO — TRAVEL — was 02</div>
+      <div>04 / DONE-FOR-YOU — was 03</div>
+    </div>
+  </div>
+
+  <div style="margin-top:24px;border:1px solid #DDD6E8;border-radius:8px;background:#FFFFFF;overflow:hidden">
+    <div style="border-bottom:1px solid #DDD6E8;background:#F3EFE6;padding:9px 16px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:0.14em;color:#4A4A5A">2 · WALKTHROUGH GRID — CARD STAYS 720PX @1440</div>
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) 360px">
+      <div style="padding:18px 20px">
+        <p style="margin:0;font-size:13.5px;line-height:1.6;color:#4A4A5A">Card outer 720 in every module and every step: border 1 + bar 36 + rule 1 + BODY 550 + rule 1 + ROW C 130 + border 1. The body's left cell: DRAWING AREA 455 + rule 1 + TRUTH STRIP 94 = 550. Rail unchanged: 65px rows (rule 1 + pad 11 + name 15/22 + gap 3 + teach 12/17 + pad 11), spacer law intact — Tax sits at the 14px minimum.</p>
+        <p style="margin:12px 0 0;font-size:13.5px;line-height:1.6;color:#4A4A5A">Rail active state: purple fill #3B2D6B, gold underline as <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#3B2D6B">inset 0 -3px #B8860B</span> (zero geometry change). Rows are buttons; module switch resets to step 01; rail is click-only — chips keep the shipped autoplay exactly.</p>
+        <p style="margin:12px 0 0;font-size:13.5px;line-height:1.6;color:#4A4A5A">Mobile 390: static; stage stacks bar → rail (leads, tappable) → panel → truth strip (stacked cells) → row C. If touch switching ever ships, lock the rail block to Tax = 564px.</p>
+      </div>
+      <div style="border-left:1px solid #DDD6E8;padding:18px 20px;background:#FFFDF9">
+        <p style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:0.14em;color:#7A7488">LEFT CELL @1440 — 550PX</p>
+        <div style="margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;line-height:2;color:#4A4A5A">
+          <div>drawing area (pad 24) <span style="float:right;color:#3B2D6B">455</span></div>
+          <div>· header row <span style="float:right;color:#3B2D6B">20</span></div>
+          <div>· gap <span style="float:right;color:#3B2D6B">12</span></div>
+          <div>· strip cells <span style="float:right;color:#3B2D6B">60</span></div>
+          <div>· gap <span style="float:right;color:#3B2D6B">16</span></div>
+          <div>· glimpse surface <span style="float:right;color:#3B2D6B">299</span></div>
+          <div>rule (#EBE4F7) <span style="float:right;color:#3B2D6B">1</span></div>
+          <div>truth strip <span style="float:right;color:#3B2D6B">94</span></div>
+          <div style="border-top:1px solid #DDD6E8;margin-top:6px;padding-top:6px;font-weight:600;color:#3B2D6B">Σ 550 — fixed, all steps</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:24px;border:1px solid #DDD6E8;border-radius:8px;background:#FFFFFF;overflow:hidden">
+    <div style="border-bottom:1px solid #DDD6E8;background:#F3EFE6;padding:9px 16px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:0.14em;color:#4A4A5A">3 · TRUTH-STRIP ANATOMY (REPLACES THE HANDOFF LINE)</div>
+    <div style="padding:14px 20px 18px">
+      <p style="margin:0;font-size:13.5px;line-height:1.6;color:#4A4A5A">Fixed 94px, grid <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#3B2D6B">1fr · 1.3fr · 1fr</span>, pad 12/24, hairline dividers #EBE4F7. Per cell: mono micro-label 10/15/600 ls .12em — <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#7A7488">YOU</span> and <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#7A7488">THE APP</span> muted, <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#B8860B">→ FEEDS 0N</span> gold (terminal steps: <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#B8860B">→ FEEDS</span>, no number) — then the clause, sans 12/17 #4A4A5A. 94 = 12 + 15 + 4 + 3×17 + 12: sized to the worst 3-line clause (Runway 01 APP), so the strip never moves. Mobile: the three cells stack with top rules, labels 12px.</p>
+    </div>
+  </div>
+
+  <div style="margin-top:24px;border:1px solid #DDD6E8;border-radius:8px;background:#FFFFFF;overflow:hidden">
+    <div style="border-bottom:1px solid #DDD6E8;background:#F3EFE6;padding:9px 16px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:0.14em;color:#4A4A5A">4 · [IN BUILD] CHIP + GLIMPSE RULES</div>
+    <div style="padding:14px 20px 18px">
+      <p style="margin:0;font-size:13.5px;line-height:1.6;color:#4A4A5A"><span style="border:1px solid #DDD6E8;background:#F3EFE6;border-radius:4px;padding:1px 8px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.12em;color:#7A7488">IN BUILD</span> — Compliance 04 Discover + 05 Verify only. Rail row: mono 9 chip after the name (muted: bg #F3EFE6, border #DDD6E8, ink #7A7488; on the active purple row: white/.12 bg, white/.3 border, white/.75 ink). Glimpse: the same chip above the panel label. Never on module chips or strip cells; never sold as live — the APP clauses say "being built now".</p>
+      <p style="margin:12px 0 0;font-size:13.5px;line-height:1.6;color:#4A4A5A">Glimpse rules: drawing area 816×455 (surface 299); frames' language only — #FFFDF9 surfaces, #DDD6E8 hairlines, #F3EFE6 strips, gold dollars, green/red inside the panel only; every glimpse depicts its manifest entry (§6) exactly — no screenshots, nothing invented. Routines ×4 drawn; the other 45 ship as striped placeholders until drawn to the same pattern. Mobile crop: M1 contain (×0.436 — sub-12px, shown, not recommended) vs M2 key region (strip collapses to a 12px text row; surface key region native, ≥12px) — <span style="font-weight:600;color:#1A1A2E">M2 recommended, Alex decides</span>.</p>
+    </div>
+  </div>
+
+  <div style="margin-top:24px;border:1px solid #DDD6E8;border-radius:8px;background:#FFFFFF;overflow:hidden">
+    <div style="border-bottom:1px solid #DDD6E8;background:#F3EFE6;padding:9px 16px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:0.14em;color:#4A4A5A">5 · THE PROBLEM SECTION — ANATOMY</div>
+    <div style="padding:14px 20px 18px">
+      <p style="margin:0;font-size:13.5px;line-height:1.6;color:#4A4A5A">Act grammar on cream, one viewport, no brand names: kicker <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#7A7488">01 / THE PROBLEM</span> · h2 38/500 purple "Running your life takes nine jobs — and the tools don't talk to each other." · THE NINE as one mono 13/600 purple row with gold dots — the accurate software-category titles, verbatim: <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#3B2D6B">BUDGET APP · BOOKING SITE · BROKER · TRADE LOG · BOOKKEEPING · COMPLIANCE · TAX APP · FP&amp;A · AI WORK JOURNAL</span> (mobile: contained mono wrap, 12px, never horizontal scroll) · the beat (verbatim: "You can buy all nine — that's the problem. Nine logins, nine subscriptions, nine copies of your life that never meet. The heavy ones — compliance, FP&amp;A — are priced for companies, not people. And to get the one answer that matters, you become the integration: copying numbers from app to app into a spreadsheet.") sans 15/1.6 secondary, max-w 680 · the close: sans lead, muted + the question mono 22/600 <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#B8860B">#B8860B</span> — the section's ONE gold moment — then the mono micro-line, muted: <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#7A7488">NOT FROM NUMBERS YOU TYPED — FROM YOUR REAL LIFE.</span></p>
+    </div>
+  </div>
+
+  <div style="margin-top:24px;border:1px solid #DDD6E8;border-radius:8px;background:#FFFFFF;overflow:hidden">
+    <div style="border-bottom:1px solid #DDD6E8;background:#F3EFE6;padding:9px 16px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:0.14em;color:#4A4A5A">6 · THE TRUTH LEDGER + GLIMPSE MANIFEST (E · VERBATIM · 49 STEPS)</div>
+    <p style="margin:0;padding:12px 16px 2px;font-size:12.5px;line-height:1.5;color:#7A7488">One row per step: TEACH (rail) · YOU / THE APP / FEEDS (truth strip) · GLIMPSE (what the panel depicts). Persona payoffs ×6 ship as mocked in the personas band.</p>
+
+    <div style="padding:6px 16px 4px">
+      <div style="padding:10px 0;border-bottom:1px solid #DDD6E8">
+        <p style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;letter-spacing:0.1em;color:#3B2D6B">01 ROUTINES <span style="color:#A8A2B0;letter-spacing:0.06em">— "Set up a habit once — it lands on your calendar and your budget."</span></p>
+        <p style="margin:6px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">01 Define</b> · TEACH "Name the habit — what it takes, what it costs" · YOU "Name it, set the cost + cadence" · APP "Prices the habit and files it" · <span style="color:#B8860B">FEEDS 02</span> "the cost + cadence" · GLIMPSE the routine create form — name · cadence · $ each time</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">02 Scheduled</b> · TEACH "It lands on your calendar" · YOU "Nothing — this one's automatic" · APP "Writes dated entries onto your calendar AND your budget" · <span style="color:#B8860B">FEEDS 03</span> "today's due list" · GLIMPSE the routines list grouped by cadence + calendar dots</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">03 Run</b> · TEACH "Check off what's due today" · YOU "Check off what you did" · APP "Marks done · due · missed — every day, no mercy" · <span style="color:#B8860B">FEEDS 04</span> "the done/missed record" · GLIMPSE the today strip — done ✓ due ○ missed ✗</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">04 Proven</b> · TEACH "Streaks show it's really happening" · YOU "Just look" · APP "Counts streaks from the record — proof, not vibes" · <span style="color:#B8860B">FEEDS</span> "the streak record" · GLIMPSE the streak counts beside each routine</p>
+      </div>
+      <div style="padding:10px 0;border-bottom:1px solid #DDD6E8">
+        <p style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;letter-spacing:0.1em;color:#3B2D6B">02 PROJECTS <span style="color:#A8A2B0;letter-spacing:0.06em">— "Type a goal — get a plan you can actually run."</span></p>
+        <p style="margin:6px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">01 Input</b> · TEACH "Type your goal in plain words" · YOU "Type the goal — plain, rambly, however it lives in your head" · APP "Holds it as the project's source of truth" · <span style="color:#B8860B">FEEDS 02</span> "your goals, verbatim" · GLIMPSE the goal input — "I WANT to…" lines</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">02 Research</b> · TEACH "AI digs up how to get it done" · YOU "Review it; add your own findings" · APP "Runs deep research on YOUR goals — the prompt shows your words in it" · <span style="color:#B8860B">FEEDS 03</span> "the research output" · GLIMPSE the research card — your inputs highlighted inside the real prompt</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">03 Audit</b> · TEACH "The plan gets fact-checked first" · YOU "Paste or run the audit" · APP "Fact-checks the plan against reality before anything runs" · <span style="color:#B8860B">FEEDS 04</span> "audited findings" · GLIMPSE the audit card + its output box</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">04 Tasks</b> · TEACH "You approve every task — nothing runs itself" · YOU "Approve or reject each task" · APP "Fuses research + audit into proposed tasks — then STOPS and waits for you" · <span style="color:#B8860B">FEEDS 05</span> "only what you approved" · GLIMPSE the task preview with the approve gate</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">05 Plan</b> · TEACH "Approved tasks hit your calendar" · YOU "Commit tasks to time blocks" · APP "Puts them on your calendar with a price tag" · <span style="color:#B8860B">FEEDS 06</span> "the live plan" · GLIMPSE the live task list</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">06 Evolve</b> · TEACH "Rerun with new goals anytime" · YOU "Add new goals, rerun" · APP "Reruns the pipe; keeps every old plan in history — nothing deleted" · <span style="color:#B8860B">FEEDS</span> "the next version" · GLIMPSE the evolve card — "new goals, loop again"</p>
+      </div>
+      <div style="padding:10px 0;border-bottom:1px solid #DDD6E8">
+        <p style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;letter-spacing:0.1em;color:#3B2D6B">03 TRAVEL <span style="color:#B8860B">[LIVE — FREE]</span> <span style="color:#A8A2B0;letter-spacing:0.06em">— "Search, book, and budget your trips in one place."</span></p>
+        <p style="margin:6px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">01 Trip</b> · TEACH "Start a trip with a budget" · YOU "Name the trip, set the budget" · APP "Opens a budget + calendar slot for it" · <span style="color:#B8860B">FEEDS 02</span> "the trip to shop for" · GLIMPSE your trips + "+ Create a trip"</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">02 Search</b> · TEACH "Live flights, hotels, things to do" · YOU "Search — free, no account" · APP "Pulls live prices: flights, stays, tours, transfers" · <span style="color:#B8860B">FEEDS 03</span> "real options, real prices" · GLIMPSE the mode strip + live results</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">03 Book</b> · TEACH "Book it right here" · YOU "Pay the provider — they're the merchant of record" · APP "Saves the booking to your trip" · <span style="color:#B8860B">FEEDS 04</span> "the booking + its receipt" · GLIMPSE booked + paid reservations</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">04 Ledger</b> · TEACH "The cost writes itself down" · YOU "Nothing — automatic" · APP "Writes each booking into the trip's budget lines" · <span style="color:#B8860B">FEEDS 05</span> "planned vs booked" · GLIMPSE the trip's budget ledger — saved vs booked</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">05 Reconcile</b> · TEACH "Match bookings to your bank" · YOU "Attach any orphan bookings" · APP "Matches trip spend against your real bank feed" · <span style="color:#B8860B">FEEDS</span> "clean, matched books" · GLIMPSE the unattached-bookings attach panel</p>
+      </div>
+      <div style="padding:10px 0;border-bottom:1px solid #DDD6E8">
+        <p style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;letter-spacing:0.1em;color:#3B2D6B">04 TRADE <span style="color:#A8A2B0;letter-spacing:0.06em">— "Find trades worth taking — and get told when to skip."</span></p>
+        <p style="margin:6px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">01 Setup</b> · TEACH "Pick what you're hunting" · YOU "Set universe, filters, risk limits" · APP "Holds your rules — the scan obeys them, always" · <span style="color:#B8860B">FEEDS 02</span> "your rules" · GLIMPSE the setup panel — universe + filters</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">02 Scan</b> · TEACH "Live market data runs your filters" · YOU "Hit scan" · APP "Pulls live broker prices + fundamentals + macro + filings and runs YOUR rules" · <span style="color:#B8860B">FEEDS 03</span> "survivors only" · GLIMPSE the pipeline flow — each step shows its counts</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">03 Review</b> · TEACH "Trades worth taking — and the skips" · YOU "Read the verdicts; pick or pass" · APP "Shows every candidate WITH the reason — including why to skip" · <span style="color:#B8860B">FEEDS 04</span> "your picks" · GLIMPSE the verdict table with reasons</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">04 Lab</b> · TEACH "Test it before you risk it" · YOU "Link a pick, grade it" · APP "Tests the setup before money moves" · <span style="color:#B8860B">FEEDS 05</span> "the graded setup" · GLIMPSE the lab panel</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">05 Record</b> · TEACH "Wins and losses, written down" · YOU "Nothing — it records" · APP "Writes every result down — wins AND losses, no cherry-picking" · <span style="color:#B8860B">FEEDS 06</span> "the record" · GLIMPSE graded results</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">06 Commit</b> · TEACH "Every trade lands in your books" · YOU "One click" · APP "Books the trade as a real journal entry — same ledger as everything else" · <span style="color:#B8860B">FEEDS</span> "your books" · GLIMPSE the IN BOOKS → chip</p>
+      </div>
+      <div style="padding:10px 0;border-bottom:1px solid #DDD6E8">
+        <p style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;letter-spacing:0.1em;color:#3B2D6B">05 BOOKS <span style="color:#A8A2B0;letter-spacing:0.06em">— "Know where every dollar went — synced straight from your bank."</span></p>
+        <p style="margin:6px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">01 Feed</b> · TEACH "Your bank feeds in every dollar" · YOU "Link your bank — or type transactions in manually (no Plaid? no problem)" · APP "Pulls every real transaction, on its own" · <span style="color:#B8860B">FEEDS 02</span> "the raw feed" · GLIMPSE source accounts + the manual-entry row</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">02 Code</b> · TEACH "Sort each dollar into its bucket" · YOU "Confirm the buckets" · APP "Proposes the account for each dollar; you stay the boss" · <span style="color:#B8860B">FEEDS 03</span> "coded books" · GLIMPSE the coding queue</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">03 Reconcile</b> · TEACH "Check the books match the bank" · YOU "Review mismatches" · APP "Checks book totals against bank totals — differences get named" · <span style="color:#B8860B">FEEDS 04</span> "books that match reality" · GLIMPSE the reconcile check</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">04 Close</b> · TEACH "Lock the month when it's right" · YOU "Close the period" · APP "Locks it — debits = credits or it refuses" · <span style="color:#B8860B">FEEDS 05</span> "a locked month" · GLIMPSE period close — debits = credits ✓</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">05 Reports</b> · TEACH "See where the money went" · YOU "Read them" · APP "Builds trial balance, income statement, balance sheet, full ledger" · <span style="color:#B8860B">FEEDS 06</span> "the statements" · GLIMPSE the reports grid</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">06 Export</b> · TEACH "Hand your accountant the package" · YOU "One click" · APP "Zips accountant-ready CSVs — your data is yours, never paywalled" · <span style="color:#B8860B">FEEDS</span> "your CPA's inbox" · GLIMPSE the CPA export — "Export All"</p>
+      </div>
+      <div style="padding:10px 0;border-bottom:1px solid #DDD6E8">
+        <p style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;letter-spacing:0.1em;color:#3B2D6B">06 COMPLIANCE <span style="color:#A8A2B0;letter-spacing:0.06em">— "Every number keeps its receipt — proof you can show later."</span></p>
+        <p style="margin:6px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">01 Profile</b> · TEACH "Who you are, where you file" · YOU "Set entities + jurisdictions" · APP "Keeps the profile every check runs against" · <span style="color:#B8860B">FEEDS 02</span> "who the rules apply to" · GLIMPSE entities + jurisdictions</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">02 Corpus</b> · TEACH "The rulebooks, collected" · YOU "Add sources" · APP "Stores the regulations — documents + searchable chunks" · <span style="color:#B8860B">FEEDS 03</span> "the library" · GLIMPSE corpus totals — documents · chunks</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">03 Retrieve</b> · TEACH "Find the rule that applies" · YOU "Ask in plain words" · APP "Searches the rulebooks and returns the passage" · <span style="color:#B8860B">FEEDS 04</span> "the applicable rule" · GLIMPSE the retrieval search</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">04 Discover</b> <span style="border:1px solid #DDD6E8;background:#F3EFE6;border-radius:4px;padding:0 6px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#7A7488">IN BUILD</span> · TEACH "Scans for what you're missing" · YOU "—" · APP "Will scan your profile against the corpus for gaps — this step is being built now" · <span style="color:#B8860B">FEEDS 05</span> "findings to verify" · GLIMPSE the launcher (marked in build)</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">05 Verify</b> <span style="border:1px solid #DDD6E8;background:#F3EFE6;border-radius:4px;padding:0 6px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#7A7488">IN BUILD</span> · TEACH "Every citation gets checked" · YOU "—" · APP "Will check each citation 8 ways before it counts — being built now" · <span style="color:#B8860B">FEEDS 06</span> "verified findings" · GLIMPSE the 8-step badge design (marked in build)</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">06 Register</b> · TEACH "A tamper-proof record of it all" · YOU "Hit verify chain" · APP "Hash-chains every action — change one record and the chain screams" · <span style="color:#B8860B">FEEDS</span> "the permanent record" · GLIMPSE the audit tail + VERIFY CHAIN → VALID</p>
+      </div>
+      <div style="padding:10px 0;border-bottom:1px solid #DDD6E8">
+        <p style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;letter-spacing:0.1em;color:#3B2D6B">07 TAX <span style="color:#B8860B;letter-spacing:0.08em">· THE HEIGHT-SETTER</span> <span style="color:#A8A2B0;letter-spacing:0.06em">— "Your return builds itself from your records."</span></p>
+        <p style="margin:6px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">01 Life events</b> · TEACH "Check what happened this year" · YOU "Tick what applies" · APP "Auto-detects what your books already prove (side gig, investments)" · <span style="color:#B8860B">FEEDS 02</span> "which forms matter" · GLIMPSE the checklist with auto-detected tags</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">02 Documents</b> · TEACH "Your forms, in one place" · YOU "Add what the app can't derive" · APP "Collects the paper trail" · <span style="color:#B8860B">FEEDS 03</span> "the evidence" · GLIMPSE the documents step</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">03 Income</b> · TEACH "What you made — from your books" · YOU "Confirm" · APP "Pulls income from your CLOSED BOOKS — derived, not typed" · <span style="color:#B8860B">FEEDS 04</span> "the income picture" · GLIMPSE the income review</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">04 Deductions</b> · TEACH "What you can write off" · YOU "Confirm" · APP "Builds Schedule C from your coded expenses" · <span style="color:#B8860B">FEEDS 05</span> "the write-offs" · GLIMPSE the deductions step</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">05 Trading</b> · TEACH "Gains, losses, wash sales — handled" · YOU "Nothing — it's your trade record" · APP "Computes gains, losses, and IRS-window wash sales from your fills" · <span style="color:#B8860B">FEEDS 06</span> "Schedule D + 8949" · GLIMPSE the trading step</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">06 Review</b> · TEACH "The whole return, checked" · YOU "Read the 1040" · APP "Assembles the full return from every step above" · <span style="color:#B8860B">FEEDS 07</span> "a return you trust" · GLIMPSE the 1040 review</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">07 File</b> · TEACH "Export it or file it" · YOU "Export — or file" · APP "Hands you the filing package" · <span style="color:#B8860B">FEEDS</span> "the IRS" · GLIMPSE the export + filing options</p>
+      </div>
+      <div style="padding:10px 0;border-bottom:1px solid #DDD6E8">
+        <p style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;letter-spacing:0.1em;color:#3B2D6B">08 RUNWAY <span style="color:#A8A2B0;letter-spacing:0.06em">— "See how many months your money lasts."</span></p>
+        <p style="margin:6px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">01 Source</b> · TEACH "Your banks feed the number" · YOU "Nothing — Books already linked them" · APP "Reads live balances — trading money EXCLUDED, that's at-risk cash, not spending cash" · <span style="color:#B8860B">FEEDS 02</span> "real operating cash" · GLIMPSE the CASH line — "excludes trading capital"</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">02 History</b> · TEACH "What you actually spent" · YOU "Nothing" · APP "Reads your real spend from the ledger — not estimates" · <span style="color:#B8860B">FEEDS 03</span> "real burn history" · GLIMPSE the trailing-months readout</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">03 Burn</b> · TEACH "Cash ÷ spend = months left" · YOU "Just look" · APP "Divides: cash ÷ burn = MONTHS LEFT + your zero date" · <span style="color:#B8860B">FEEDS 04</span> "the number that matters" · GLIMPSE the hero — MONTHS LEFT · ZERO DATE · "not a number you typed"</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">04 Match</b> · TEACH "Plans matched to real spending" · YOU "Approve the matches" · APP "Matches planned items to what actually hit the bank" · <span style="color:#B8860B">FEEDS 05</span> "plan vs reality" · GLIMPSE booking ↔ bank match review</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">05 Project</b> · TEACH "See the months ahead" · YOU "Set the budget view" · APP "Projects forward from budget vs actual" · <span style="color:#B8860B">FEEDS</span> "your future, priced" · GLIMPSE month-by-month budget vs actual</p>
+      </div>
+      <div style="padding:10px 0">
+        <p style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;letter-spacing:0.1em;color:#3B2D6B">09 CONTENT <span style="color:#A8A2B0;letter-spacing:0.08em">· SHORTEST</span> <span style="color:#A8A2B0;letter-spacing:0.06em">— "Turn what you did today into a ready-to-film script."</span></p>
+        <p style="margin:6px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">01 Inputs</b> · TEACH "Your day is the raw material" · YOU "Live your day" · APP "Pulls today's routines + tasks as the story inputs" · <span style="color:#B8860B">FEEDS 02</span> "what actually happened" · GLIMPSE today's routines + tasks band</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">02 Script map</b> · TEACH "Scenes, planned from what you did" · YOU "Adjust the scenes" · APP "Maps your day into scenes with camera notes" · <span style="color:#B8860B">FEEDS 03</span> "a shot plan" · GLIMPSE scene rows + cameras</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">03 Answer + Record</b> · TEACH "Answer prompts, film the takes" · YOU "Answer the questions, film" · APP "Turns answers into takes tied to each scene" · <span style="color:#B8860B">FEEDS 04</span> "the raw takes" · GLIMPSE the answer grid + take rows</p>
+        <p style="margin:4px 0 0;font-size:12.5px;line-height:1.75;color:#4A4A5A"><b style="color:#1A1A2E">04 Script</b> · TEACH "A ready-to-read voiceover" · YOU "Read it to camera" · APP "Writes the voiceover from YOUR answers — your words, organized" · <span style="color:#B8860B">FEEDS</span> "the finished script" · GLIMPSE the generated script view</p>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:24px;border:1px solid #B8860B;border-radius:8px;background:#FFFDF9;padding:16px 20px">
+    <p style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:0.14em;color:#B8860B">SHIP NOTE</p>
+    <p style="margin:8px 0 0;max-width:900px;font-size:13.5px;line-height:1.65;color:#4A4A5A">Chips, truth line, spine, hero untouched. Terminal FEEDS labels carry no number ("→ FEEDS"). Autoplay: 2s hold, hover pause, chip or rail click stops it, never starts on touch or reduced-motion. On Alex's approval: export the full README bundle, round-2 style (desktop + mobile + this spec + the drawn glimpse set).</p>
+  </div>
+
+  <p style="margin:20px 0 0;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.08em;color:#A8A2B0">SOURCE: TEMPLE-STUART/TEMPLE-STUART-ACCOUNTING @ MAIN · PIPEPHASES.TS · PUBLIC/DEMO/*.SVG · ROUND-5 TRUTH LEDGER</p>
+</div>
+</x-dc>
+</body>
+</html>
