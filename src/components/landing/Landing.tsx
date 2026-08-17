@@ -94,6 +94,7 @@ import { PIPE_PHASES, type PipePhase, type PipePillarId } from '@/lib/pipePhases
 // renders — order-parallel to PIPE_PHASES (the a′ contract). The dev assert
 // below fails LOUD on any drift between the two arrays' lengths.
 import { WALKTHROUGH_LEDGER } from '@/lib/walkthroughLedger';
+import { GLIMPSES } from '@/components/landing/glimpses';
 
 if (process.env.NODE_ENV !== 'production') {
   for (const pid of Object.keys(PIPE_PHASES) as PipePillarId[]) {
@@ -1029,13 +1030,23 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                         </Fragment>
                       ))}
                     </div>
-                    {/* glimpse surface 299 — THIS PR: the honest placeholder */}
-                    <div className="relative mt-4 flex min-h-[180px] flex-col items-center justify-center border border-border-light bg-bg-terminal px-6 py-8 text-center lg:h-[299px] lg:py-0">
-                      {stageStep.inBuild && (
-                        <span className="absolute right-3 top-3 rounded border border-border bg-bg-row px-1.5 font-mono text-xs lg:text-[10px] tracking-[0.1em] text-text-faint">IN BUILD</span>
+                    {/* glimpse surface 299 — GLIMPSE-ART staged rollout: a
+                        module with drawn art (glimpses.tsx — Routines ×4 this
+                        PR) renders it; every other module renders the staged
+                        placeholder below (the mock's own to-follow pattern —
+                        a VISIBLE staging state, not a silent fallback:
+                        absence of art is the declared condition, and the
+                        placeholder names the step it stands in for). */}
+                    <div className="mt-4">
+                      {GLIMPSES[stageId]?.[stepIndex] ?? (
+                        <div className="relative flex min-h-[180px] flex-col items-center justify-center border border-border-light bg-bg-terminal px-6 py-8 text-center lg:h-[299px] lg:py-0">
+                          {stageStep.inBuild && (
+                            <span className="absolute right-3 top-3 rounded border border-border bg-bg-row px-1.5 font-mono text-xs lg:text-[10px] tracking-[0.1em] text-text-faint">IN BUILD</span>
+                          )}
+                          <p className="font-mono text-xs lg:text-[11px] font-semibold tracking-[0.16em] text-text-muted">{stagePillar.label.toUpperCase()} · {stageStepPhase.num} {stageStepPhase.name.toUpperCase()}</p>
+                          <p className="mt-2 max-w-[420px] font-mono text-xs lg:text-[11px] leading-[1.6] text-text-faint">{stageStep.glimpse}</p>
+                        </div>
                       )}
-                      <p className="font-mono text-xs lg:text-[11px] font-semibold tracking-[0.16em] text-text-muted">{stagePillar.label.toUpperCase()} · {stageStepPhase.num} {stageStepPhase.name.toUpperCase()}</p>
-                      <p className="mt-2 max-w-[420px] font-mono text-xs lg:text-[11px] leading-[1.6] text-text-faint">{stageStep.glimpse}</p>
                     </div>
                   </div>
                   {/* truth strip 94 — grid 1fr · 1.3fr · 1fr */}
