@@ -90,6 +90,18 @@ import { Plane, BookOpen, TrendingUp, Settings } from 'lucide-react';
 // the SAME rows the in-app StageStrips render (landing/app lockstep by
 // construction, pipePhases.ts's own contract).
 import { PIPE_PHASES, type PipePhase, type PipePillarId } from '@/lib/pipePhases';
+// WALKTHROUGH-STAGE (round-5): the truth-ledger data the Treatment-A stage
+// renders — order-parallel to PIPE_PHASES (the a′ contract). The dev assert
+// below fails LOUD on any drift between the two arrays' lengths.
+import { WALKTHROUGH_LEDGER } from '@/lib/walkthroughLedger';
+
+if (process.env.NODE_ENV !== 'production') {
+  for (const pid of Object.keys(PIPE_PHASES) as PipePillarId[]) {
+    if (PIPE_PHASES[pid].length !== WALKTHROUGH_LEDGER[pid].steps.length) {
+      throw new Error(`walkthrough ledger drift: ${pid} has ${PIPE_PHASES[pid].length} phases but ${WALKTHROUGH_LEDGER[pid].steps.length} ledger steps`);
+    }
+  }
+}
 import {
   ALLOCATION_ROWS, NO_COST_STRIP,
   ENTITY_DIM, ACCOUNT_DIM, SUB_DIM, OBJECT_DIM, VENDOR_DIM,
@@ -378,103 +390,12 @@ const PILLAR_CARDS: PillarCard[] = [
 // these are illustrations); never invented revenue/user/performance numbers.
 // REAL SCREENSHOTS MAY REPLACE ANY FILE AT THE SAME PATH — drop the capture
 // in, keep the filename, and flip the eyebrow line back.
-const SUMMARY_BY_ID: Record<string, {
-  eyebrow: string;
-  headline: string;
-  lines: string[];
-  demoImage?: { src: string; alt: string };
-}> = {
-  travel: {
-    eyebrow: 'Travel — try it free, no account',
-    headline: 'Search it. Price it. Book it. Free to look.',
-    lines: [
-      'Searching is always free.',
-      'One trip holds everything — plans, bookings, budget.',
-      'Every booking flows into your budget.',
-    ],
-    demoImage: { src: '/demo/travel.svg', alt: 'Illustration of the Travel pipeline: search, book, it lands in your budget' },
-  },
-  runway: {
-    eyebrow: 'Runway — the whole platform, one question',
-    headline: 'Every system you’re juggling. One question answered: how long can you keep going?',
-    lines: [
-      'Not a number you typed — the number your banks report.',
-      'Your routines ARE the budget.',
-      'Trading money ≠ living money. The wall is the feature.',
-    ],
-    demoImage: { src: '/demo/runway.svg', alt: 'Illustration of the Runway pipeline: money in, planned vs actual, months left' },
-  },
-  books: {
-    eyebrow: 'Books — double-entry bookkeeping',
-    headline: 'Every transaction becomes a journal entry. Every period must balance.',
-    lines: [
-      'Link your banks. Assign every account.',
-      'The trial balance must balance.',
-      'Closed means closed.',
-    ],
-    demoImage: { src: '/demo/books.svg', alt: 'Illustration of the Books pipeline: bank sync, categorize, double entry, reports' },
-  },
-  trade: {
-    eyebrow: 'Trade — the scanner',
-    headline: 'An entire index in full focus. One decision out.',
-    lines: [
-      'Every ticker scored. Strategies only where the gates pass.',
-      'The whole trade, written down.',
-      'The grades accumulate. Denominators first.',
-    ],
-    demoImage: { src: '/demo/trade.svg', alt: 'Illustration of the Trade pipeline: filters, scan, TRADE or SKIP verdicts, into your books' },
-  },
-  tax: {
-    eyebrow: 'Tax — from closed books to a filed return',
-    headline: 'Your books are already clean. Your taxes are half-done before you start.',
-    lines: [
-      'What others type in, your ledger already knows.',
-      'Every income line traces to its source.',
-      'Every lot boxed. Every box explained.',
-    ],
-    demoImage: { src: '/demo/tax.svg', alt: 'Illustration of the Tax pipeline: closed books, forms build, review, file' },
-  },
-  compliance: {
-    eyebrow: 'Compliance — the receipts',
-    headline: 'Don’t trust us. Verify us.',
-    lines: [
-      'A real regulatory corpus, on real schedules.',
-      'The statute you cited is the statute you saw.',
-      'Obligations tracked like engineering tickets.',
-    ],
-    demoImage: { src: '/demo/compliance.svg', alt: 'Illustration of the Compliance pipeline: every action, hashed, audit trail' },
-  },
-  routines: {
-    eyebrow: 'Routines — the recurrence engine',
-    headline: 'Build it once. It shows up everywhere.',
-    lines: [
-      'You describe the rhythm. The machine writes the schedule.',
-      'The streak counts both ways.',
-      'Feed one: every occurrence lands on the one calendar, priced.',
-    ],
-    demoImage: { src: '/demo/routines.svg', alt: 'Illustration of the Routines pipeline: set it once, calendar and budget, no surprises' },
-  },
-  projects: {
-    eyebrow: 'Projects — the Truth Machine',
-    headline: 'Goals in. Audited tasks out.',
-    lines: [
-      'A project starts as goals in your own words.',
-      'Auto-generated work waits for your ✓.',
-      'Every inference has a receipt.',
-    ],
-    demoImage: { src: '/demo/projects.svg', alt: 'Illustration of the Projects pipeline: type a goal, plan with a price tag, tasks on your calendar' },
-  },
-  content: {
-    eyebrow: 'Content — day to script',
-    headline: 'Your day becomes the script.',
-    lines: [
-      'The whole day, one feed.',
-      'Inputs feed the map.',
-      'Answer the day. Keep the record.',
-    ],
-    demoImage: { src: '/demo/content.svg', alt: 'Illustration of the Content pipeline: what you did, scenes, script' },
-  },
-};
+// WALKTHROUGH-STAGE: SUMMARY_BY_ID deleted — the old deck's eyebrow/headline/
+// lines went runtime-unconsumed at the merged-modules rebuild and its last
+// live field (demoImage, the stage frame <img>) retires with Treatment A
+// (per-step glimpses supersede the single frame — README round-5 note). The
+// svg FILES stay in public/demo per the spec; the strings live in git
+// history if a surface ever wants them back.
 
 // LANDING-04-CAPTIONS: the SECOND caption line under each section-04 frame —
 // what that module hands to the rest of the platform, in plain language (a
@@ -681,6 +602,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
   // code: toggleSelected's checkbox mounts retired with the card deck, so
   // selectedIds was permanently empty.)
   const [stageId, setStageId] = useState<PipePillarId>('runway');
+  // WALKTHROUGH-STAGE: the rail's step index — CLICK-ONLY, user-paced (the
+  // spec's interaction law). Module switch resets to step 01; the reset lives
+  // in the chip handler alone, which is sufficient BY INVARIANT: autoplay can
+  // only advance while userTookControl is false, and stepIndex can only leave
+  // 0 via a rail click, which sets userTookControl — so autoplay never runs
+  // over a user-chosen step.
+  const [stepIndex, setStepIndex] = useState(0);
 
   // STAGE-AUTOPLAY: the tuning knob — ms each module holds the stage while
   // the auto-advance runs.
@@ -727,10 +655,14 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
 
   const stageIndex = PILLAR_CARDS.findIndex((p) => p.id === stageId);
   const stagePillar = PILLAR_CARDS[stageIndex];
-  const stageSummary = SUMMARY_BY_ID[stageId];
   // Widened to the interface so the optional link (Trade's 06) type-checks
   // across the union of literal rows.
   const stagePhases: readonly PipePhase[] = PIPE_PHASES[stageId];
+  // WALKTHROUGH-STAGE: the module's ledger + the active step's five clauses
+  // (order-parallel; the module-scope assert guarantees the index is valid).
+  const stageLedger = WALKTHROUGH_LEDGER[stageId];
+  const stageStep = stageLedger.steps[stepIndex];
+  const stageStepPhase = stagePhases[stepIndex];
   // The ratified partition (:186-188 — every pillar id appears in exactly
   // one category, verified): the find is total; the assertion states that
   // invariant, it is not a fallback.
@@ -998,6 +930,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                         // advances again.
                         userTookControl.current = true;
                         setStageId(p.id as PipePillarId);
+                        setStepIndex(0); // WALKTHROUGH-STAGE: module switch → step 01
+
                       }}
                       className={`flex items-baseline justify-center gap-1.5 whitespace-nowrap border border-b-[3px] px-3 pt-[10px] pb-[9px] lg:px-2 lg:pt-[9px] lg:pb-2 font-mono text-xs lg:text-[10px] tracking-[0.06em] transition-colors ${
                         active
@@ -1017,11 +951,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
 
             {/* THE STAGE (spec §4) — one card, all data from cited sources:
                 bar kicker/status = the pillar seat + the deck's status
-                conditional (old :911-916, reused verbatim); frame =
-                SUMMARY_BY_ID[id].demoImage (plain <img>, object-contain —
-                the override; absence-is-honest gate kept from old :1153);
+                conditional (old :911-916, reused verbatim); the frame img
+                RETIRED with SUMMARY_BY_ID (Treatment A glimpses supersede);
                 steps = PIPE_PHASES[id] (names as stored — the app's own
-                strings); line 1 = PILLAR_CARDS[id].plain; line 2 =
+                strings) + WALKTHROUGH_LEDGER[id] (round-5 clauses);
+                line 1 = PILLAR_CARDS[id].plain; line 2 =
                 FRAME_LINKS[id]; group tag = DECK_CATEGORIES label (the
                 ratified partition, :186-188) + §6 rationale. Trade's 06
                 renders the link-chip STYLE but links /modules/trade like
@@ -1034,7 +968,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               onPointerEnter={() => { stageHovered.current = true; }}
               onPointerLeave={() => { stageHovered.current = false; }}
             >
-              <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-border px-[18px] py-2.5">
+              <div className="flex flex-wrap items-baseline lg:items-center justify-between gap-3 border-b border-border px-[18px] py-2.5 lg:h-[37px] lg:py-0">
                 <span className="font-mono text-xs lg:text-[10.5px] uppercase tracking-[0.05em] text-text-secondary">
                   {String(stageIndex + 1).padStart(2, '0')} / {stagePillar.label}
                 </span>
@@ -1044,38 +978,113 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                   <span className="font-mono text-xs lg:text-[10.5px] tracking-[0.05em] text-text-muted">LAUNCHING SOON</span>
                 )}
               </div>
-              <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px]">
-                <div className="order-2 lg:order-none aspect-[16/10] bg-bg-terminal">
-                  {stageSummary.demoImage && (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={stageSummary.demoImage.src} alt={stageSummary.demoImage.alt} className="h-full w-full object-contain" />
-                  )}
+              {/* WALKTHROUGH-STAGE (round-5, Treatment A — README §Stage
+                  geometry + the Build-Spec anatomy; the mock's renderer DOM
+                  mirrored: panelName/stepOf header, ›-joined strip cells,
+                  glimpse surface, truth strip, 65px rail rows). UNIFORM
+                  HEIGHT LAW @lg: body 550 = drawing 455 (pad 24 + header 20 +
+                  gap 12 + strip 60 + gap 16 + glimpse 299) + rule + truth 94;
+                  with bar 36 + Row C 130 + rules/borders the card is 720 for
+                  EVERY module and EVERY step. The frame <img> retires FROM
+                  THE STAGE (per-step glimpses supersede it — README note; the
+                  svg files stay in public/demo). THIS PR renders the honest
+                  placeholder glimpse (caption + the ledger's glimpse clause —
+                  the mock's own to-follow pattern); per-step art lands in
+                  follow-up PRs. Retired stage strings, declared: THE
+                  PIPELINE / NN STEPS / A PREVIEW OF EXACTLY WHAT THE BUYER
+                  SEES INSIDE (superseded by the walkthrough anatomy) + the
+                  rail's Trade link-chip render (the chip still ships in the
+                  in-app Trade strip via pipePhases). Mobile 390 (§ mobile):
+                  STATIC — step 01 per module, rail rows non-interactive
+                  (pointer-events gate); natural heights, rail first (the
+                  shipped mobile order). */}
+              <div className="grid grid-cols-1 lg:h-[550px] lg:grid-cols-[minmax(0,1fr)_400px]">
+                {/* ── DRAWING AREA + TRUTH STRIP ── */}
+                <div className="order-2 lg:order-none flex flex-col">
+                  <div className="p-6 lg:h-[455px] lg:overflow-hidden">
+                    {/* header 20 — the mock's panelName / stepOf row */}
+                    <div className="flex items-baseline justify-between gap-3 lg:h-5">
+                      <span className="font-mono text-xs lg:text-[15px] lg:leading-5 font-medium tracking-[0.3em] text-text-faint">{stagePillar.label.toUpperCase()}</span>
+                      <span className="font-mono text-xs lg:text-[13px] lg:leading-5 tracking-[0.16em] text-text-faint">STEP {String(stepIndex + 1).padStart(2, '0')} OF {String(stagePhases.length).padStart(2, '0')}</span>
+                    </div>
+                    {/* strip cells 60 — ellipsis-guarded; the active cell alone carries the marker */}
+                    <div className="mt-3 hidden items-stretch lg:flex lg:h-[60px]">
+                      {stagePhases.map((ph, i) => (
+                        <Fragment key={ph.num}>
+                          {i > 0 && <span aria-hidden="true" className="self-center px-1 font-mono text-[11px] text-text-faint">›</span>}
+                          <div className={`min-w-0 flex-1 border px-2 py-1.5 ${i === stepIndex ? 'border-brand-purple bg-brand-purple' : 'border-border bg-ts-white'}`}>
+                            <div className={`font-mono text-[9.5px] tracking-widest ${i === stepIndex ? 'text-white/60' : 'text-text-faint'}`}>{ph.num}</div>
+                            <div className={`truncate font-mono text-[11px] font-semibold uppercase tracking-wider ${i === stepIndex ? 'text-white' : 'text-text-secondary'}`}>{ph.name}</div>
+                            {i === stepIndex && <div className="font-mono text-[9px] tracking-widest text-white/80">▪ YOU ARE HERE</div>}
+                          </div>
+                        </Fragment>
+                      ))}
+                    </div>
+                    {/* glimpse surface 299 — THIS PR: the honest placeholder */}
+                    <div className="relative mt-4 flex min-h-[180px] flex-col items-center justify-center border border-border-light bg-bg-terminal px-6 py-8 text-center lg:h-[299px] lg:py-0">
+                      {stageStep.inBuild && (
+                        <span className="absolute right-3 top-3 rounded border border-border bg-bg-row px-1.5 font-mono text-xs lg:text-[10px] tracking-[0.1em] text-text-faint">IN BUILD</span>
+                      )}
+                      <p className="font-mono text-xs lg:text-[11px] font-semibold tracking-[0.16em] text-text-muted">{stagePillar.label.toUpperCase()} · {stageStepPhase.num} {stageStepPhase.name.toUpperCase()}</p>
+                      <p className="mt-2 max-w-[420px] font-mono text-xs lg:text-[11px] leading-[1.6] text-text-faint">{stageStep.glimpse}</p>
+                    </div>
+                  </div>
+                  {/* truth strip 94 — grid 1fr · 1.3fr · 1fr */}
+                  <div className="grid grid-cols-1 gap-3 border-t border-border px-6 py-3 lg:h-[94px] lg:grid-cols-[1fr_1.3fr_1fr] lg:gap-4 lg:overflow-hidden">
+                    <div>
+                      <div className="font-mono text-xs lg:text-[11px] lg:leading-[15px] font-semibold tracking-[0.1em] text-text-muted">YOU</div>
+                      <p className="mt-1 text-xs lg:text-[12px] lg:leading-[17px] text-text-secondary">{stageStep.you}</p>
+                    </div>
+                    <div>
+                      <div className="font-mono text-xs lg:text-[11px] lg:leading-[15px] font-semibold tracking-[0.1em] text-text-muted">THE APP</div>
+                      <p className="mt-1 text-xs lg:text-[12px] lg:leading-[17px] text-text-secondary">{stageStep.app}</p>
+                    </div>
+                    <div>
+                      <div className="font-mono text-xs lg:text-[11px] lg:leading-[15px] font-semibold tracking-[0.1em] text-brand-gold">→ FEEDS{stageStep.feeds.target !== null ? ` ${String(stageStep.feeds.target).padStart(2, '0')}` : ''}</div>
+                      <p className="mt-1 text-xs lg:text-[12px] lg:leading-[17px] text-text-secondary">{stageStep.feeds.clause}</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="order-1 lg:order-none flex flex-col border-b border-border px-6 pt-[22px] pb-4 lg:border-b-0 lg:border-l lg:py-[22px]">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <span className="font-mono text-xs lg:text-[10px] font-semibold tracking-[0.14em] text-text-muted">THE PIPELINE</span>
-                    <span className="font-mono text-xs lg:text-[10px] text-text-faint">{String(stagePhases.length).padStart(2, '0')} STEPS</span>
-                  </div>
-                  <div className="mt-2">
-                    {stagePhases.map((ph) => (
-                      <div key={ph.num} className="flex items-baseline border-t border-border-light py-[11px]">
-                        <span className="w-[22px] shrink-0 font-mono text-xs lg:text-[11px] text-text-faint">{ph.num}</span>
-                        {ph.link ? (
-                          <Link href={`/modules/${stageId}`} className="flex items-baseline gap-2">
-                            <span className="text-[15px] font-medium text-text-primary">{ph.name}</span>
-                            <span className="inline-block rounded border border-border px-1.5 font-mono text-xs lg:text-[9px] tracking-widest text-brand-purple">{ph.link.label}</span>
-                          </Link>
-                        ) : (
-                          <span className="text-[15px] font-medium text-text-primary">{ph.name}</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                {/* ── THE RAIL — 65px rows; click sets the step (and takes
+                      control of autoplay: a click is a click, the shipped
+                      law); active = purple fill + gold inset underline (zero
+                      geometry change). [IN BUILD] chips per README §[IN
+                      BUILD] (tokens: bg-bg-row/border-border/text-text-faint
+                      = the spec's #F3EFE6/#DDD6E8/#7A7488; on-purple = the
+                      white/.12-.3-.75 variant). Tax (7 rows = 455) leaves the
+                      spacer at its 14px minimum by construction (flex-1
+                      min-h-[14px]). ── */}
+                <div className="order-1 lg:order-none flex flex-col border-b border-border lg:h-[550px] lg:overflow-hidden lg:border-b-0 lg:border-l">
+                  {stagePhases.map((ph, i) => {
+                    const st = stageLedger.steps[i];
+                    const active = i === stepIndex;
+                    return (
+                      <button
+                        key={ph.num}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => { userTookControl.current = true; setStepIndex(i); }}
+                        className={`pointer-events-none lg:pointer-events-auto flex w-full flex-col justify-center border-t px-[18px] py-[11px] text-left lg:h-[65px] lg:py-0 ${
+                          active
+                            ? 'border-brand-purple bg-brand-purple [box-shadow:inset_0_-3px_0_0_#B8860B]'
+                            : 'border-border-light hover:bg-brand-purple-wash/40'
+                        }`}
+                      >
+                        <span className={`text-[15px] leading-[22px] font-medium ${active ? 'text-ts-white' : 'text-text-primary'}`}>
+                          <span className={`font-mono text-xs lg:text-[11px] ${active ? 'text-white/60' : 'text-text-faint'}`}>{ph.num}</span>{' '}
+                          {ph.name}
+                          {st.inBuild && (
+                            <span className={`ml-2 inline-block rounded border px-1.5 align-middle font-mono text-xs lg:text-[9px] tracking-[0.1em] ${active ? 'border-white/30 bg-white/10 text-white/75' : 'border-border bg-bg-row text-text-faint'}`}>IN BUILD</span>
+                          )}
+                        </span>
+                        <span className={`mt-[3px] text-xs lg:text-[12px] lg:leading-[17px] ${active ? 'text-white/75' : 'text-text-muted'}`}>{st.teach}</span>
+                      </button>
+                    );
+                  })}
                   <div className="min-h-[14px] flex-1" aria-hidden="true" />
-                  <p className="font-mono text-xs lg:text-[9.5px] tracking-[0.08em] text-text-faint">A PREVIEW OF EXACTLY WHAT THE BUYER SEES INSIDE</p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 border-t border-border lg:grid-cols-[minmax(0,1fr)_400px]">
+              <div className="grid grid-cols-1 border-t border-border lg:h-[131px] lg:grid-cols-[minmax(0,1fr)_400px] lg:overflow-hidden">
                 <div className="p-[18px]">
                   <p className="text-[16.5px] font-medium leading-[1.4] text-text-primary">{stagePillar.plain}</p>
                   <p className="mt-1.5 text-[13px] leading-[1.6] text-text-muted">{FRAME_LINKS[stageId]}</p>
@@ -1131,7 +1140,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         <LandingBookingSection onRequireAuth={onRequireAuth} />
         {/* LANDING-V5 (spec :174-177): the demo section's footer row — the
             spec's own strings verbatim (the left line already lives in
-            SUMMARY_BY_ID.travel.lines; NO ACCOUNT NEEDED is the spec's mono
+            the retired SUMMARY_BY_ID's travel lines (git history); NO ACCOUNT NEEDED is the spec's mono
             right slot). */}
         <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2 pb-2">
           <span className="text-[13px] text-text-faint">One trip holds everything — plans, bookings, budget.</span>
