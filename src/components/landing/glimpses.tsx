@@ -24,7 +24,6 @@
 // Shape (declared): a ReadonlyArray of pre-built static nodes per module —
 // the drawings take no props, so component-per-step would be ceremony.
 
-import { Fragment } from 'react';
 import type { ReactNode } from 'react';
 import type { PipePillarId } from '@/lib/pipePhases';
 
@@ -347,97 +346,253 @@ const travelGlimpses: ReadonlyArray<ReactNode> = [
   </div>,
 ];
 
+// ─── TRADE-REALITY-1 (reality pass 1): module-04 redrawn from the REAL Trade
+// surfaces — every interior string ⇐ code (cites at each step); the sample
+// figures are SPEC-FIGURES (production screenshot values: the 473/94/379/18/17
+// counts, NTAP/NWS/META, $278, 92.0%, +$64, $520/$980/62.0%/0.53, 7W–0L–0BE,
+// $82, 7 of 7, 952). Color law: gold ONLY on the money moments ($278 · +$64 ·
+// $520/$980 · $82); the real UI's other accents (gold count lines, gold stars,
+// green EV / green Max Profit / red Max Loss, green success chips) normalize
+// to the cream/aubergine scale — declared, not drift. Micro type at 8–9.5px on
+// t0/t1 is the miniature tier (a ~4:1-scale form and a 20-row terminal ledger,
+// decorative) — below the file's usual 10–12px illustration tier, declared.
 const tradeGlimpses: ReadonlyArray<ReactNode> = [
-  /* 01 Setup — universe + filters */
+  /* ── 01 Setup — the REAL scan form, miniaturized. Controls + strings ⇐
+     ScanFilterForm.tsx (:41 universes, :77-80 Direction, :88-91 Premium,
+     :99-102 Risk, :108-126 DTE/Width $, :133-151 liquidity + edge rows,
+     :158-178 strategies, :183-186 Scan); chip states = toggleChip/SEGMENT
+     (ds.ts :113-117/:147-155); every value = DEFAULT_FILTERS (filter-types.ts
+     :53-78 — DTE 30—60 and Width $ 1—10 ARE the defaults); the 16 chips =
+     AVAILABLE_STRATEGIES (filter-types.ts :85-102), all active at the default
+     empty selection (:166) hence "(all)" and no Reset all (:158-159). ── */
   <div key="t0" className={SHELL}>
     <div className={HEADER}><span className={HL}>SETUP</span><span className={HR}>YOUR RULES</span></div>
-    <div className="mx-4 mt-1 border border-border bg-white px-4 py-3.5">
-      <div className="grid grid-cols-[1.2fr_1fr_0.9fr] gap-2 sm:gap-4">
+    <div className="mx-4 mt-1 space-y-1">
+      <div className="flex flex-wrap items-center gap-1 font-mono text-[8.5px] leading-none">
+        <span className="rounded-sm bg-brand-purple px-1.5 py-[3px] text-white">S&amp;P 500</span>
+        <span className="rounded-sm border border-brand-purple/40 px-1.5 py-[3px] text-brand-purple">Nasdaq 100</span>
+        {([
+          { cells: ['All', 'Bull', 'Bear', 'Ntrl'], on: 0 },
+          { cells: ['SELL', 'BUY', 'Both'], on: 2 },
+          { cells: ['Defined', 'Unlimited'], on: 0 },
+        ] as const).map((seg) => (
+          <span key={seg.cells[0]} className="inline-flex items-center gap-px rounded-sm bg-bg-row p-[2px]">
+            {seg.cells.map((cell, ci) => (
+              <span key={cell} className={`rounded-sm px-1 py-[2px] ${ci === seg.on ? 'bg-white font-medium text-brand-purple' : 'text-text-secondary'}`}>{cell}</span>
+            ))}
+          </span>
+        ))}
+        <span className="rounded-sm border border-border bg-ts-white px-1.5 py-[3px] text-text-primary"><span className="text-text-faint">DTE </span>30 — 60</span>
+        <span className="rounded-sm border border-border bg-ts-white px-1.5 py-[3px] text-text-primary"><span className="text-text-faint">Width $ </span>1 — 10</span>
+      </div>
+      <div className="grid grid-cols-2 gap-x-4">
         <div>
-          <div className="font-mono text-[10px] tracking-[0.12em] text-text-muted">UNIVERSE</div>
-          <div className="mt-1.5 truncate border border-border bg-ts-white px-2.5 py-2 font-mono text-[12px] text-text-secondary">S&P 500</div>
+          <div className="mb-[3px] font-mono text-[8.5px] uppercase tracking-wider text-text-muted">Liquidity gates</div>
+          {([
+            ['Min OI', 'w-[3%]', '100'],
+            ['Max Spread', 'w-[20%]', '10%'],
+            ['Min Volume', 'w-[5%]', '500K'],
+          ] as const).map(([lab, w, val]) => (
+            <div key={lab} className="flex h-[11px] items-center gap-1.5">
+              <span className="w-[52px] shrink-0 text-[8.5px] font-medium text-text-secondary">{lab}</span>
+              <span className="relative h-[3px] min-w-0 flex-1 rounded bg-border-light"><span className={`absolute inset-y-0 left-0 rounded bg-brand-purple ${w}`} /></span>
+              <span className="w-[26px] shrink-0 text-right font-mono text-[8.5px] font-semibold text-text-primary">{val}</span>
+            </div>
+          ))}
+          <div className="flex h-[11px] items-center gap-1.5">
+            <span className="w-[52px] shrink-0 text-[8.5px] font-medium text-text-secondary">Min Rating</span>
+            <span className="text-[11px] leading-none tracking-[0.1em]"><span className="text-text-secondary">**</span><span className="text-text-faint">***</span></span>
+          </div>
         </div>
         <div>
-          <div className="font-mono text-[10px] tracking-[0.12em] text-text-muted">FILTERS</div>
-          <div className="mt-1.5 truncate border border-border bg-ts-white px-2.5 py-2 font-mono text-[12px] text-text-secondary">4 ACTIVE</div>
+          <div className="mb-[3px] font-mono text-[8.5px] uppercase tracking-wider text-text-muted">Edge metrics</div>
+          {([
+            ['Min PoP', 'w-[50%]', '50%'],
+            ['Min EV', 'w-[33%]', '$0'],
+            ['Min EV/Risk', 'w-[50%]', '0.00'],
+          ] as const).map(([lab, w, val]) => (
+            <div key={lab} className="flex h-[11px] items-center gap-1.5">
+              <span className="w-[56px] shrink-0 text-[8.5px] font-medium text-text-secondary">{lab}</span>
+              <span className="relative h-[3px] min-w-0 flex-1 rounded bg-border-light"><span className={`absolute inset-y-0 left-0 rounded bg-brand-purple ${w}`} /></span>
+              <span className="w-[26px] shrink-0 text-right font-mono text-[8.5px] font-semibold text-text-primary">{val}</span>
+            </div>
+          ))}
+          <div className="flex h-[11px] items-center gap-1.5">
+            <span className="w-[56px] shrink-0 text-[8.5px] font-medium text-text-secondary">Vol Edge</span>
+            <span className="inline-flex items-center gap-px rounded-sm bg-bg-row p-[2px] font-mono text-[8px] leading-none">
+              {(['IV>HV', 'IV<HV', 'Any'] as const).map((cell) => (
+                <span key={cell} className={`rounded-sm px-1 py-[2px] ${cell === 'Any' ? 'bg-white font-medium text-brand-purple' : 'text-text-secondary'}`}>{cell}</span>
+              ))}
+            </span>
+          </div>
+          {([
+            ['Min IV Rank', 'w-[2%]', '0%'],
+            ['Sentiment', 'w-[2%]', '-1.0'],
+          ] as const).map(([lab, w, val]) => (
+            <div key={lab} className="flex h-[11px] items-center gap-1.5">
+              <span className="w-[56px] shrink-0 text-[8.5px] font-medium text-text-secondary">{lab}</span>
+              <span className="relative h-[3px] min-w-0 flex-1 rounded bg-border-light"><span className={`absolute inset-y-0 left-0 rounded bg-brand-purple ${w}`} /></span>
+              <span className="w-[26px] shrink-0 text-right font-mono text-[8.5px] font-semibold text-text-primary">{val}</span>
+            </div>
+          ))}
         </div>
-        <div>
-          <div className="font-mono text-[10px] tracking-[0.12em] text-text-muted">RISK CAP</div>
-          <div className="mt-1.5 border border-border bg-ts-white px-2.5 py-2 font-mono text-[12px] font-medium text-brand-gold">2%</div>
+      </div>
+      <div>
+        <div className="font-mono text-[8.5px] uppercase tracking-wider text-text-muted">Strategies (all)</div>
+        <div className="mt-[3px] flex flex-wrap gap-[3px]">
+          {([
+            'Iron Condor', 'Put Credit Spread', 'Call Credit Spread', 'Short Strangle',
+            'Short Straddle', 'Jade Lizard', 'Bull Call Spread', 'Bear Call Spread',
+            'Bear Put Spread', 'Bull Put Spread', 'Long Straddle', 'Long Strangle',
+            'Debit Spread', 'Calendar Spread', 'Diagonal Spread', 'Iron Butterfly',
+          ] as const).map((s) => (
+            <span key={s} className="rounded-sm bg-brand-purple px-1 py-[2px] font-mono text-[8px] leading-none text-white">{s}</span>
+          ))}
         </div>
+      </div>
+      <div className="flex justify-end">
+        <span className="rounded bg-brand-purple px-4 py-[3px] text-[9px] font-bold leading-none text-white">Scan</span>
       </div>
     </div>
     <div className={FOOT}><span className="text-text-primary">THE SCAN OBEYS THESE</span><span className="text-text-muted">ALWAYS</span></div>
   </div>,
-  /* 02 Scan — the pipeline flow with counts */
+  /* ── 02 Scan — the REAL Pipeline Flow ledger: one row per rendered step
+     section of ConvergenceIntelligence.tsx, chip + title verbatim (STEP A
+     :1641-1642 … STEP T :4286-4287 — the on-screen letters run A–T; "A2"
+     exists only in a code comment, :1825). Count strings are the sections'
+     own header templates (:1645 A, :1833 B, :1955 C, :2078 D, :2192 E,
+     :2336 F, :2485 G) at the SPEC-FIGURES; unrun steps show the sections'
+     literal "waiting..." (:1649 et al.); ▼ = the collapsed toggle (:1652).
+     Density: 20 rows × 10.5px pitch = 210px in the ≈222px body — fits. ── */
   <div key="t1" className={SHELL}>
     <div className={HEADER}><span className={HL}>SCAN</span><span className={HR}>THE PIPELINE RUNS</span></div>
-    <div className="mx-4 mt-3 flex flex-wrap items-center gap-2">
-      {([['UNIVERSE', '500'], ['FILTERS', '74'], ['SCORED', '12'], ['VERDICTS', '12']] as const).map(([stage, count], i) => (
-        <Fragment key={stage}>
-          {i > 0 && <span aria-hidden="true" className="font-mono text-[12px] text-text-faint">→</span>}
-          <span className="border border-border bg-white px-2.5 py-2 text-center">
-            <span className="block font-mono text-[10px] tracking-[0.12em] text-text-muted">{stage}</span>
-            <span className="block font-mono text-[15px] font-semibold text-brand-purple">{count}</span>
-          </span>
-        </Fragment>
+    <div className="mx-4 mt-1">
+      {([
+        ['STEP A', 'TT Scanner — Universe Scan', '473 symbols fetched', true],
+        ['STEP B', 'Pre-Filter', '473 → 473 survived', true],
+        ['STEP C', 'Hard Exclusions', '94 excluded — 379 passed', true],
+        ['STEP D', 'Top-N Selection', '473 → 18 candidates for hard filters', true],
+        ['STEP E', 'Hard Filters', '18 → 17 survived', true],
+        ['STEP F', 'Peer Grouping', 'Finnhub peer relationships mapped', true],
+        ['STEP G', 'Pre-Score', '17 → 17 selected for enrichment', true],
+        ['STEP H', 'Macro & Regime Data', 'waiting...', false],
+        ['STEP I', 'Data Enrichment', 'waiting...', false],
+        ['STEP J', 'Candle Data & Cross-Asset Correlations', 'waiting...', false],
+        ['STEP K', '4-Gate Scoring', 'waiting...', false],
+        ['STEP L', 'Re-Score With Technicals', 'waiting...', false],
+        ['STEP M', 'Final Selection', 'waiting...', false],
+        ['STEP N', 'Chain Fetch', 'waiting...', false],
+        ['STEP O', 'Live Greeks Subscription', 'waiting...', false],
+        ['STEP P', 'Strategy Scoring', 'waiting...', false],
+        ['STEP Q', 'Live Options Flow & GEX', 'waiting...', false],
+        ['STEP R', 'Re-Score With Live Data', 'waiting...', false],
+        ['STEP S', 'Trade Cards', 'waiting...', false],
+        ['STEP T', 'Save & Return', 'waiting...', false],
+      ] as const).map(([step, title, count, ran]) => (
+        <div key={step} className="flex items-baseline gap-2 font-mono text-[9px] leading-[10.5px]">
+          <span className="w-[36px] shrink-0 font-semibold text-brand-purple">{step}</span>
+          <span className="min-w-0 flex-1 truncate text-text-secondary">{title}</span>
+          <span className={`shrink-0 whitespace-nowrap ${ran ? 'text-text-secondary' : 'text-text-faint'}`}>{count}</span>
+          <span aria-hidden="true" className="shrink-0 text-[7px] text-text-faint">▼</span>
+        </div>
       ))}
     </div>
-    <p className="mx-4 mt-3 text-[12px] leading-[1.6] text-text-muted">Prices · fundamentals · macro · filings — pulled live, run through YOUR rules.</p>
     <div className={FOOT}><span className="text-text-primary">EVERY STEP COUNTED</span><span className="text-text-muted">NOTHING HIDDEN</span></div>
   </div>,
-  /* 03 Review — the verdict table with reasons */
+  /* ── 03 Review — the REAL results-table anatomy (ScannerResultsTable.tsx):
+     ticker cell mono-bold purple (:677); strategy (:681-682, the no-card row's
+     italic "—"); Premium = entryText "Collect $278" (:456); PoP = fmtPct
+     (:109-112 → "92.0%", the row's font-black anchor :694); EV "+$64" (:704);
+     TRADE chip (:712) / SKIP chip (:714) + the stored reason uppercased
+     (:717 — 'No strategies available' :446). Gate vocabulary only — the real
+     scoring speaks "N/4 gates" (ConvergenceIntelligence :673, :3189), and no
+     invented "filters" phrasing appears here. ── */
   <div key="t2" className={SHELL}>
     <div className={HEADER}><span className={HL}>VERDICTS</span><span className={HR}>WITH REASONS</span></div>
-    {([
-      ['NVO', 'TRADE', 'passes all 4 filters · earnings clear', true],
-      ['HD', 'SKIP', 'fails the debt filter', false],
-      ['UNH', 'SKIP', 'earnings inside the risk window', false],
-    ] as const).map(([tick, verdict, reason, isTrade]) => (
-      <div key={tick} className={ROW}>
-        <span className="w-[44px] font-mono text-[13px] font-semibold text-text-primary">{tick}</span>
-        <span className={`${CHIP} ${isTrade ? 'border-brand-purple bg-brand-purple text-white' : 'border-border bg-ts-white text-text-faint'}`}>{verdict}</span>
-        <span className="min-w-0 flex-1 truncate text-[12.5px] text-text-muted">{reason}</span>
-      </div>
-    ))}
+    <div className={ROW}>
+      <span className="w-[44px] shrink-0 font-mono text-[13px] font-bold text-brand-purple">NTAP</span>
+      <span className="min-w-0 flex-1 truncate text-[12px] text-text-secondary">Iron Condor</span>
+      <span className="shrink-0 font-mono text-[11px] font-medium text-brand-gold">Collect $278</span>
+      <span className="shrink-0 font-mono text-[11px] font-black text-text-primary">92.0%</span>
+      <span className="shrink-0 font-mono text-[11px] font-medium text-brand-gold">+$64</span>
+      <span className={`${CHIP} shrink-0 border-brand-purple bg-brand-purple font-bold text-white`}>TRADE</span>
+    </div>
+    <div className={ROW}>
+      <span className="w-[44px] shrink-0 font-mono text-[13px] font-bold text-brand-purple">NWS</span>
+      <span className="shrink-0 text-[12px] italic text-text-muted">—</span>
+      <span className={`${CHIP} shrink-0 border-border bg-bg-row font-bold text-text-muted`}>SKIP</span>
+      <span className="min-w-0 flex-1 truncate font-mono text-[9px] tracking-wider text-text-faint">NO STRATEGIES AVAILABLE</span>
+    </div>
     <div className={FOOT}><span className="text-text-primary">SKIPS SHOW THEIR WHY</span><span className="text-text-muted">PICK OR PASS — YOURS</span></div>
   </div>,
-  /* 04 Lab — link + grade */
+  /* ── 04 Lab — the REAL lab scorecard (TradeLabPanel.tsx): the Predicted
+     column labels + formats (:638-654 — Max Profit / Max Loss / Est. PoP
+     .toFixed(1)% / R:R .toFixed(2)); the unlinked Actual column verbatim
+     ("Not yet linked to a position", :703-704); the "Link to Position"
+     action (:540). $520/$980 wear the money gold (law); the real UI's
+     green/red on them is declared-normalized. ── */
   <div key="t3" className={SHELL}>
     <div className={HEADER}><span className={HL}>THE LAB</span><span className={HR}>LINK + GRADE</span></div>
-    <div className="mx-4 mt-1 border border-border bg-white px-4 py-3.5">
+    <div className="mx-4 mt-1 border border-border bg-white px-4 py-3">
       <div className="flex items-baseline justify-between gap-3">
-        <span className="font-mono text-[13px] font-semibold text-text-primary">NVO — the setup</span>
-        <span className={`${CHIP} border-brand-purple bg-brand-purple-wash text-brand-purple`}>LINKED</span>
+        <span className="min-w-0 truncate"><span className="font-mono text-[13px] font-bold text-brand-purple">META</span><span className="ml-2 text-[12px] text-text-secondary">Iron Condor</span></span>
+        <span className={`${CHIP} shrink-0 border-brand-purple bg-ts-white text-brand-purple`}>Link to Position</span>
       </div>
-      <div className="mt-2.5 flex items-baseline justify-between gap-3 border-t border-border-light pt-2.5">
-        <span className="text-[13px] text-text-muted">Entry logic · sizing · exit plan</span>
-        <span className="font-mono text-[15px] font-semibold text-brand-gold">B+</span>
+      <div className="mt-2 grid grid-cols-2 gap-4 border-t border-border-light pt-2">
+        <div>
+          <div className="font-mono text-[9px] font-bold uppercase tracking-wider text-text-muted">Predicted</div>
+          {([
+            ['Max Profit', '$520', 'text-brand-gold'],
+            ['Max Loss', '$980', 'text-brand-gold'],
+            ['Est. PoP', '62.0%', 'text-text-secondary'],
+            ['R:R', '0.53', 'text-text-secondary'],
+          ] as const).map(([lab, val, tone]) => (
+            <div key={lab} className="mt-1 flex items-baseline justify-between gap-2">
+              <span className="text-[10.5px] text-text-muted">{lab}</span>
+              <span className={`font-mono text-[11px] font-bold ${tone}`}>{val}</span>
+            </div>
+          ))}
+        </div>
+        <div>
+          <div className="font-mono text-[9px] font-bold uppercase tracking-wider text-text-muted">Actual</div>
+          <div className="mt-1 text-[10.5px] leading-[1.5] text-text-faint">Not yet linked to a position</div>
+        </div>
       </div>
     </div>
     <div className={FOOT}><span className="text-text-primary">GRADED BEFORE MONEY MOVES</span><span className="text-text-muted">THE SETUP, TESTED</span></div>
   </div>,
-  /* 05 Record — graded results, LOSS VISIBLE (no cherry-picking) */
+  /* ── 05 Record — the REAL track-record heroes (TradeRecord.tsx): the three
+     tiles verbatim — RECORD "{w}W – {l}L – {be}BE" (:192-193), NET P&L +
+     "(linked trades only)" (:208-210), MAX-LOSS INTEGRITY "{x} of {y}"
+     (:216-217) — plus the sync-coverage line (CoverageDeclaration.tsx :103,
+     drawn truncated to the spec figure; the real string continues
+     "· N unlinked — details"). $82 wears the money gold (law). ── */
   <div key="t4" className={SHELL}>
     <div className={HEADER}><span className={HL}>THE RECORD</span><span className={HR}>WINS AND LOSSES</span></div>
-    {([
-      ['NVO', 'B+', '+$120', false],
-      ['XOM', 'C', '−$85', true],
-      ['COST', 'A−', '+$40', false],
-    ] as const).map(([tick, grade, pnl, loss]) => (
-      <div key={tick} className={ROW}>
-        <span className="w-[44px] font-mono text-[13px] font-semibold text-text-primary">{tick}</span>
-        <span className="font-mono text-[12px] text-text-secondary">GRADE {grade}</span>
-        <span className={`flex-1 text-right font-mono text-[12.5px] font-medium ${loss ? 'text-[#c53030]' : 'text-[#16a34a]'}`}>{pnl}</span>
-      </div>
-    ))}
+    <div className="mx-4 mt-1 grid grid-cols-3 gap-2">
+      {([
+        ['RECORD', '7W – 0L – 0BE', 'text-text-primary', null],
+        ['NET P&L', '$82', 'text-brand-gold', '(linked trades only)'],
+        ['MAX-LOSS INTEGRITY', '7 of 7', 'text-text-primary', null],
+      ] as const).map(([lab, val, tone, sub]) => (
+        <div key={lab} className="min-w-0 rounded border border-border bg-bg-row px-2 py-2">
+          <div className="truncate font-mono text-[8px] uppercase tracking-wider text-text-faint">{lab}</div>
+          <div className={`mt-1 truncate font-mono text-[13.5px] font-bold ${tone}`}>{val}</div>
+          {sub && <div className="mt-0.5 truncate text-[8.5px] text-text-faint">{sub}</div>}
+        </div>
+      ))}
+    </div>
+    <div className="mx-4 mt-2 font-mono text-[10.5px] text-text-faint">Sync coverage: 952 transactions</div>
     <div className={FOOT}><span className="text-text-primary">EVERY RESULT WRITTEN DOWN</span><span className="text-text-muted">NO CHERRY-PICKING</span></div>
   </div>,
-  /* 06 Commit — the IN BOOKS → chip (the pipePhases link label, verbatim) */
+  /* ── 06 Commit — the terminal link cell: the chip string is the coded
+     PIPE_PHASES trade[5] link label verbatim ('IN BOOKS →', pipePhases.ts
+     :103, rendered via ModuleLauncher.tsx :1117); the journal entry retained,
+     recaptioned WHAT LANDS IN BOOKS (reality pass 1). ── */
   <div key="t5" className={SHELL}>
     <div className={HEADER}><span className={HL}>COMMIT</span><span className={HR}>ONE CLICK</span></div>
     <div className="mx-4 mt-3 border border-border bg-white px-4 py-3">
-      <div className="font-mono text-[10px] tracking-[0.12em] text-text-muted">JOURNAL ENTRY</div>
+      <div className="font-mono text-[10px] tracking-[0.12em] text-text-muted">WHAT LANDS IN BOOKS</div>
       <div className="mt-2 flex items-baseline justify-between font-mono text-[12px] text-text-secondary"><span>DR · Brokerage cash</span><span>$120.00</span></div>
       <div className="flex items-baseline justify-between font-mono text-[12px] text-text-secondary"><span>CR · Trading gains (4100)</span><span>$120.00</span></div>
     </div>
