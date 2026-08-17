@@ -812,6 +812,42 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
+      {/* ── PROBLEM-01 (spec design-refs/landing-v5/README.md §A + the
+            Build-Spec "THE PROBLEM SECTION — ANATOMY"): 01 / THE PROBLEM
+            between the hero and the modules act — every string VERBATIM
+            from the spec (extracted programmatically at build time of this
+            edit, never retyped). Act grammar REUSED from the modules header:
+            kicker (:836), h2 (:843), act padding (:834) — the beat takes the
+            spec's OWN 15/1.6 + max-w 680 (§A) and THE NINE the spec's mono
+            13/600 purple with gold dots. On the cream canvas; the modules
+            section's border-y directly below closes the seam — no new rule,
+            no new tokens. The question line is the section's ONE gold moment
+            (§A close law). Mobile: the nine row wraps as contained mono
+            lines (13px ≥ the 12px floor), never a horizontal scroll. */}
+      <section aria-label="The problem" className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px]">
+        <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.12em] text-text-faint">01 / THE PROBLEM</p>
+        <h2 className="mt-[18px] text-[27px] lg:text-[38px] font-medium tracking-[-0.025em] text-brand-purple">
+          {"Running your life takes nine jobs \u2014 and the tools don't talk to each other."}
+        </h2>
+        <p className="mt-5 font-mono text-[13px] font-semibold text-brand-purple">
+            <span key="BUDGET APP">BUDGET APP</span>
+            <span key="BOOKING SITE"><span className="text-brand-gold"> · </span>BOOKING SITE</span>
+            <span key="BROKER"><span className="text-brand-gold"> · </span>BROKER</span>
+            <span key="TRADE LOG"><span className="text-brand-gold"> · </span>TRADE LOG</span>
+            <span key="BOOKKEEPING"><span className="text-brand-gold"> · </span>BOOKKEEPING</span>
+            <span key="COMPLIANCE"><span className="text-brand-gold"> · </span>COMPLIANCE</span>
+            <span key="TAX APP"><span className="text-brand-gold"> · </span>TAX APP</span>
+            <span key="FP&A"><span className="text-brand-gold"> · </span>FP&amp;A</span>
+            <span key="AI WORK JOURNAL"><span className="text-brand-gold"> · </span>AI WORK JOURNAL</span>
+        </p>
+        <p className="mt-4 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">
+          {"You can buy all nine \u2014 that's the problem. Nine logins, nine subscriptions, nine copies of your life that never meet. The heavy ones \u2014 compliance, FP&A \u2014 are priced for companies, not people. And to get the one answer that matters, you become the integration: copying numbers from app to app into a spreadsheet."}
+        </p>
+        <p className="mt-6 text-[15px] text-text-muted">None of them can answer the only question that matters:</p>
+        <p className="mt-2 font-mono text-[22px] font-semibold text-brand-gold">How long does my money last?</p>
+        <p className="mt-3 font-mono text-xs lg:text-[10px] tracking-wider text-text-faint">NOT FROM NUMBERS YOU TYPED — FROM YOUR REAL LIFE.</p>
+      </section>
+
       {/* ── MERGED-02 (spec design-refs/merged-modules-spec.md §1-§6): the
             merged modules section — spine, personas, chips, ONE stage, foot —
             replacing the 02 catalog table and the 04 frame grid. id="modules"
@@ -826,15 +862,15 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             at EVERY width including mobile (zero-information-loss law; the
             spec's §5 "may crop" is overridden). ─────────────────────────── */}
       <section id="modules" ref={stageSectionRef} className="w-full border-y border-border bg-bg-terminal">
-        {/* HEADER — eyebrow (SECTION-SWAP: the modules section LEADS now —
-            01; the demo follows as 02) + the pricing
+        {/* HEADER — eyebrow (SECTION-SWAP → PROBLEM-01: the problem act
+            leads as 01; the modules are 02, the demo 03) + the pricing
             right slot (:800-802 idiom, purple ink on cream now) + the 04
             h2/intro MOVED here verbatim (old :1120-1128). Act 1 flows from
             the header — no rule between (spec §1). */}
         <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px]">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.12em] text-text-faint">
-              01 / THE NINE MODULES
+              02 / THE NINE MODULES
             </p>
             <Link href="/how-pricing-works" className="font-mono text-xs lg:text-[10px] tracking-wider text-brand-purple hover:text-brand-purple-hover">
               HOW PRICING WORKS →
@@ -1080,10 +1116,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           href target only). */}
       <section id="demo" aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8">
         {/* LANDING-V2 (spec :96-97) → SECTION-SWAP: the demo's numbered
-            eyebrow row — 02 now (the modules section leads); label otherwise
+            eyebrow row — 03 now (the problem act leads); label otherwise
             verbatim; right slot = the existing /modules/travel door. */}
         <div className="flex items-baseline justify-between gap-3 pt-6">
-          <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">02 / LIVE DEMO — TRAVEL</p>
+          <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">03 / LIVE DEMO — TRAVEL</p>
           <Link href="/modules/travel" className="font-mono text-xs lg:text-[10px] tracking-wider text-brand-purple hover:text-brand-purple-hover">
             EXPLORE TRAVEL →
           </Link>
@@ -1113,7 +1149,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
 
       {/* ── LANDING-V4 (Alex's ruling, reversing the V2 seat): DONE-FOR-YOU is
             its own numbered section directly below the deck — eyebrow in the
-            established grammar ('03 / DONE-FOR-YOU' is the one new label), no
+            established grammar ('04 / DONE-FOR-YOU' after PROBLEM-01), no
             right slot. Body = the PROFESSIONAL SERVICES panel relocated
             WHOLESALE from the 05 grid (markup byte-identical inside), seated
             in the deck-table's white-card container idiom. SECTION-SWAP seam
@@ -1124,7 +1160,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
       <section className="w-full border-y border-border bg-bg-terminal">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
           <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">
-            03 / DONE-FOR-YOU
+            04 / DONE-FOR-YOU
           </p>
           <div className="mt-4 rounded-lg border border-border bg-white p-5">
             <div className="mt-4">
