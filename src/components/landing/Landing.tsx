@@ -692,6 +692,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
   // (the merged-section header button that opens it renders only then).
   const [showDemo, setShowDemo] = useState(false);
 
+  // PERSONAS-MOBILE: below lg the persona rows collapse to a one-open-at-a-
+  // time accordion — FOUNDER (index 0) open by default; tapping the open row
+  // closes it. Desktop is untouched: the toggle renders as the inert label
+  // (lg:pointer-events-none) and every sentence stays lg:block.
+  const [openPersona, setOpenPersona] = useState<number | null>(0);
+
   return (
     <div className="min-h-screen bg-bg-terminal text-text-primary">
       {/* HEADER-CTA: onRequireAuth passed through so the header's Create
@@ -914,20 +920,31 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               SAME NINE MODULES <span className="text-brand-gold">·</span> DIFFERENT REASONS
             </p>
             <div className="mx-auto mt-5 max-w-[880px]">
-              {PERSONAS.map((row) => (
-                <div key={row.label} className="border-t border-border-light py-3 first:border-t-0 lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:items-baseline lg:gap-4">
-                  <p className="font-mono text-xs font-semibold tracking-wider text-text-muted">{row.label}</p>
-                  <p className="mt-1 text-[14.5px] text-text-primary lg:mt-0">
-                    {row.segments.map((seg, i) =>
-                      seg.mono ? (
-                        <span key={i} className="font-mono text-[12.5px] font-semibold text-brand-purple">{seg.text}</span>
-                      ) : (
-                        <Fragment key={i}>{seg.text}</Fragment>
-                      ),
-                    )}
-                  </p>
-                </div>
-              ))}
+              {PERSONAS.map((row, index) => {
+                const open = openPersona === index;
+                return (
+                  <div key={row.label} className="border-t border-border-light py-3 first:border-t-0 lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:items-baseline lg:gap-4">
+                    <button
+                      type="button"
+                      aria-expanded={open}
+                      onClick={() => setOpenPersona(open ? null : index)}
+                      className="flex w-full items-baseline justify-between py-3 lg:pointer-events-none lg:py-0"
+                    >
+                      <span className="font-mono text-xs font-semibold tracking-wider text-text-muted">{row.label}</span>
+                      <span aria-hidden="true" className="font-mono text-[14px] text-text-faint lg:hidden">{open ? '−' : '+'}</span>
+                    </button>
+                    <p className={`${open ? 'block' : 'hidden'} lg:block mt-1 text-[14.5px] text-text-primary lg:mt-0`}>
+                      {row.segments.map((seg, i) =>
+                        seg.mono ? (
+                          <span key={i} className="font-mono text-[12.5px] font-semibold text-brand-purple">{seg.text}</span>
+                        ) : (
+                          <Fragment key={i}>{seg.text}</Fragment>
+                        ),
+                      )}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
