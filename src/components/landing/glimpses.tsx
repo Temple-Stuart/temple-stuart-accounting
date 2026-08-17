@@ -440,9 +440,290 @@ const tradeGlimpses: ReadonlyArray<ReactNode> = [
   </div>,
 ];
 
+
+// ─── BATCH 3 (books · compliance · tax) — same law as batch 2: the ledger's
+// GLIMPSE clause is the manifest, the shared grammar above is the kit, real
+// app vocabulary where it exists (the manual-entry affordance, the coding
+// queue, debits = credits, the reports set, "Export All", entities +
+// jurisdictions, documents · chunks, VERIFY CHAIN → VALID, auto-detected
+// tags, "derived, not typed", Schedule C/D + 8949). [IN BUILD] COEXISTENCE
+// (declared, path B): the stage's surface chip lives INSIDE the placeholder
+// branch (Landing.tsx :1043) and cannot render over art — so Compliance 04 +
+// 05 carry the spec's muted chip INSIDE their drawings (same anatomy
+// classes), and their interiors are drawn in the DESIGN-INTENT register
+// (dashed previews, em-dash values) — clearly a preview, never fake live
+// data. Green/red stay drawing-internal (the token law). ──────────────────
+
+const booksGlimpses: ReadonlyArray<ReactNode> = [
+  /* 01 Feed — source accounts + the manual-entry row (the no-Plaid path) */
+  <div key="b0" className={SHELL}>
+    <div className={HEADER}><span className={HL}>SOURCE ACCOUNTS</span><span className={HR}>THE FEED</span></div>
+    <div className={ROW}>
+      <span className="min-w-0 flex-1 truncate text-[14px] text-text-primary">Chase Checking ···· 4821</span>
+      <span className="font-mono text-[11px] tracking-[0.1em] text-[#16a34a]">SYNCED ✓</span>
+    </div>
+    <div className={ROW}>
+      <span className="min-w-0 flex-1 truncate text-[13px] text-text-muted">No bank connection? Add transactions manually</span>
+      <span className={`${CHIP} border-brand-purple bg-brand-purple text-white`}>+ ADD</span>
+    </div>
+    <div className={FOOT}><span className="text-text-primary">EVERY REAL TRANSACTION</span><span className="text-text-muted">ON ITS OWN</span></div>
+  </div>,
+  /* 02 Code — the coding queue */
+  <div key="b1" className={SHELL}>
+    <div className={HEADER}><span className={HL}>THE CODING QUEUE</span><span className={HR}>YOU CONFIRM</span></div>
+    <div className={ROW}>
+      <span className="min-w-0 flex-1 truncate text-[14px] text-text-primary">TRADER JOE&apos;S · $84.12</span>
+      <span className={`${CHIP} border-brand-purple bg-brand-purple-wash text-brand-purple`}>GROCERIES ✓</span>
+    </div>
+    <div className={ROW}>
+      <span className="min-w-0 flex-1 truncate text-[14px] text-text-primary">SHELL OIL · $61.40</span>
+      <span className={`${CHIP} border-border bg-ts-white text-brand-purple`}>FUEL — CONFIRM?</span>
+    </div>
+    <div className={FOOT}><span className="text-text-primary">PROPOSED, NEVER SILENT</span><span className="text-text-muted">YOU STAY THE BOSS</span></div>
+  </div>,
+  /* 03 Reconcile — book vs bank, differences named */
+  <div key="b2" className={SHELL}>
+    <div className={HEADER}><span className={HL}>RECONCILE</span><span className={HR}>BOOK VS BANK</span></div>
+    <div className="mx-4 mt-1 grid grid-cols-2 gap-2">
+      <div className="border border-border bg-white px-3 py-2.5 text-center">
+        <div className="font-mono text-[10px] tracking-[0.12em] text-text-muted">BOOK TOTAL</div>
+        <div className="mt-1 font-mono text-[16px] font-semibold text-text-primary">$4,211.52</div>
+      </div>
+      <div className="border border-border bg-white px-3 py-2.5 text-center">
+        <div className="font-mono text-[10px] tracking-[0.12em] text-text-muted">BANK TOTAL</div>
+        <div className="mt-1 font-mono text-[16px] font-semibold text-text-primary">$4,186.52</div>
+      </div>
+    </div>
+    <div className={ROW}>
+      <span className="min-w-0 flex-1 truncate text-[13px] text-text-primary">Pending card hold · not yet posted</span>
+      <span className="font-mono text-[12.5px] font-medium text-brand-gold">$25.00</span>
+    </div>
+    <div className={FOOT}><span className="text-text-primary">DIFFERENCES GET NAMED</span><span className="text-text-muted">NEVER PAPERED OVER</span></div>
+  </div>,
+  /* 04 Close — DEBITS = CREDITS ✓ (the refuses-to-lie close) */
+  <div key="b3" className={SHELL}>
+    <div className={HEADER}><span className={HL}>PERIOD CLOSE</span><span className={HR}>JULY</span></div>
+    <div className="mx-4 mt-4 flex flex-1 flex-col items-center justify-center border border-border-light bg-ts-white px-6 py-6 text-center">
+      <span className="font-mono text-[20px] font-semibold tracking-[0.08em] text-text-primary">DEBITS = CREDITS <span className="text-[#16a34a]">✓</span></span>
+      <span className={`${CHIP} mt-3 border-brand-purple bg-brand-purple text-white`}>PERIOD LOCKED</span>
+    </div>
+    <div className={FOOT}><span className="text-text-primary">BALANCED — OR IT REFUSES</span><span className="text-text-muted">NO EXCEPTIONS</span></div>
+  </div>,
+  /* 05 Reports — the reports grid */
+  <div key="b4" className={SHELL}>
+    <div className={HEADER}><span className={HL}>REPORTS</span><span className={HR}>BUILT FROM THE LEDGER</span></div>
+    <div className="mx-4 mt-1 grid flex-1 grid-cols-2 gap-2 pb-3">
+      {['TRIAL BALANCE', 'INCOME STATEMENT', 'BALANCE SHEET', 'GENERAL LEDGER'].map((r) => (
+        <div key={r} className="flex items-center justify-center border border-border bg-white px-2 py-3 text-center font-mono text-[11px] tracking-[0.1em] text-brand-purple">{r}</div>
+      ))}
+    </div>
+    <div className={FOOT}><span className="text-text-primary">THE FULL SET</span><span className="text-text-muted">READ THEM ANYTIME</span></div>
+  </div>,
+  /* 06 Export — "Export All" */
+  <div key="b5" className={SHELL}>
+    <div className={HEADER}><span className={HL}>CPA EXPORT</span><span className={HR}>ONE CLICK</span></div>
+    <div className={ROW}>
+      <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-text-secondary">journal-entries.csv · ledger.csv · accounts.csv</span>
+    </div>
+    <div className="mx-4 mt-3 flex justify-center">
+      <span className="inline-block bg-brand-purple px-4 py-2 font-mono text-[12px] font-semibold tracking-[0.1em] text-white">EXPORT ALL</span>
+    </div>
+    <div className={FOOT}><span className="text-text-primary">ACCOUNTANT-READY CSVS</span><span className="text-text-muted">YOURS, NEVER PAYWALLED</span></div>
+  </div>,
+];
+
+const complianceGlimpses: ReadonlyArray<ReactNode> = [
+  /* 01 Profile — entities + jurisdictions */
+  <div key="c0" className={SHELL}>
+    <div className={HEADER}><span className={HL}>PROFILE</span><span className={HR}>WHO · WHERE</span></div>
+    <div className="mx-4 mt-1 border border-border bg-white px-4 py-3.5">
+      <div className="grid grid-cols-2 gap-2 sm:gap-4">
+        <div>
+          <div className="font-mono text-[10px] tracking-[0.12em] text-text-muted">ENTITIES</div>
+          <div className="mt-1.5 border border-border bg-ts-white px-2.5 py-2 text-[13px] text-text-primary">Personal · Workshop LLC</div>
+        </div>
+        <div>
+          <div className="font-mono text-[10px] tracking-[0.12em] text-text-muted">JURISDICTIONS</div>
+          <div className="mt-1.5 border border-border bg-ts-white px-2.5 py-2 font-mono text-[12px] text-text-secondary">US-OR · PT</div>
+        </div>
+      </div>
+    </div>
+    <div className={FOOT}><span className="text-text-primary">EVERY CHECK RUNS AGAINST THIS</span><span className="text-text-muted">THE PROFILE</span></div>
+  </div>,
+  /* 02 Corpus — documents · chunks */
+  <div key="c1" className={SHELL}>
+    <div className={HEADER}><span className={HL}>THE CORPUS</span><span className={HR}>THE RULEBOOKS</span></div>
+    <div className="mx-4 mt-1 grid flex-1 grid-cols-2 gap-2 pb-3">
+      <div className="flex flex-col items-center justify-center border border-border bg-white px-3 py-4">
+        <span className="font-mono text-[10px] tracking-[0.12em] text-text-muted">DOCUMENTS</span>
+        <span className="mt-1 font-mono text-[26px] font-medium text-brand-purple">128</span>
+      </div>
+      <div className="flex flex-col items-center justify-center border border-border bg-white px-3 py-4">
+        <span className="font-mono text-[10px] tracking-[0.12em] text-text-muted">CHUNKS</span>
+        <span className="mt-1 font-mono text-[26px] font-medium text-brand-purple">5,214</span>
+      </div>
+    </div>
+    <div className={FOOT}><span className="text-text-primary">STORED + SEARCHABLE</span><span className="text-text-muted">THE LIBRARY</span></div>
+  </div>,
+  /* 03 Retrieve — the retrieval search */
+  <div key="c2" className={SHELL}>
+    <div className={HEADER}><span className={HL}>RETRIEVE</span><span className={HR}>PLAIN WORDS IN</span></div>
+    <div className="mx-4 mt-1 border border-border bg-white px-3 py-2 font-mono text-[12px] text-text-secondary">do I need a license to sell furniture in Oregon?</div>
+    <div className="mx-4 mt-2 border border-border-light bg-ts-white px-3 py-2.5">
+      <p className="text-[12.5px] leading-[1.6] text-text-primary">…retail sales of finished goods do not require a state seller&apos;s permit; local business registration applies…</p>
+      <p className="mt-1 font-mono text-[10px] tracking-[0.1em] text-text-faint">OR. ADMIN. R. · CH 150 · §2</p>
+    </div>
+    <div className={FOOT}><span className="text-text-primary">THE PASSAGE, RETURNED</span><span className="text-text-muted">WITH ITS SOURCE</span></div>
+  </div>,
+  /* 04 Discover — the launcher, marked IN BUILD (path B: the chip rides
+     INSIDE the drawing; design-intent register — dashed, em-dash values) */
+  <div key="c3" className={SHELL}>
+    <div className={HEADER}><span className={HL}>DISCOVER</span><span className="flex items-baseline gap-2"><span className={HR}>THE LAUNCHER</span><span className="rounded border border-border bg-bg-row px-1.5 font-mono text-[10px] tracking-[0.1em] text-text-faint">IN BUILD</span></span></div>
+    <div className="mx-4 mt-4 flex flex-1 flex-col items-center justify-center border border-dashed border-border bg-ts-white px-6 py-6 text-center">
+      <span className="inline-block border border-dashed border-border px-4 py-2 font-mono text-[12px] tracking-[0.1em] text-text-muted">RUN DISCOVERY</span>
+      <span className="mt-3 text-[12.5px] leading-[1.6] text-text-muted">Scans your profile against the corpus for gaps — being built now.</span>
+    </div>
+    <div className={FOOT}><span className="text-text-primary">FINDINGS TO VERIFY</span><span className="text-text-muted">BEING BUILT NOW</span></div>
+  </div>,
+  /* 05 Verify — the 8-step badge design, marked IN BUILD (path B) */
+  <div key="c4" className={SHELL}>
+    <div className={HEADER}><span className={HL}>VERIFY</span><span className="flex items-baseline gap-2"><span className={HR}>8 CHECKS PER CITATION</span><span className="rounded border border-border bg-bg-row px-1.5 font-mono text-[10px] tracking-[0.1em] text-text-faint">IN BUILD</span></span></div>
+    <div className="mx-4 mt-4 flex flex-1 flex-col items-center justify-center border border-dashed border-border bg-ts-white px-6 py-6 text-center">
+      <span className="flex gap-1.5">
+        {Array.from({ length: 8 }, (_, i) => (
+          <span key={i} className="flex h-[22px] w-[22px] items-center justify-center border border-dashed border-border font-mono text-[10px] text-text-faint">{i + 1}</span>
+        ))}
+      </span>
+      <span className="mt-3 text-[12.5px] leading-[1.6] text-text-muted">Each citation checked 8 ways before it counts — being built now.</span>
+    </div>
+    <div className={FOOT}><span className="text-text-primary">VERIFIED FINDINGS ONLY</span><span className="text-text-muted">BEING BUILT NOW</span></div>
+  </div>,
+  /* 06 Register — the audit tail + VERIFY CHAIN → VALID */
+  <div key="c5" className={SHELL}>
+    <div className={HEADER}><span className={HL}>THE REGISTER</span><span className={HR}>HASH-CHAINED</span></div>
+    <div className={ROW}>
+      <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-text-secondary">a41f…9c02 · period closed · JUL 31</span>
+    </div>
+    <div className={ROW}>
+      <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-text-secondary">7be3…d114 · export issued · AUG 2</span>
+    </div>
+    <div className="mx-4 mt-3 flex items-center justify-center gap-2 border border-border-light bg-ts-white px-4 py-2.5">
+      <span className="font-mono text-[12px] tracking-[0.1em] text-text-primary">VERIFY CHAIN →</span>
+      <span className="font-mono text-[12px] font-semibold tracking-[0.1em] text-[#16a34a]">VALID</span>
+    </div>
+    <div className={FOOT}><span className="text-text-primary">CHANGE ONE RECORD</span><span className="text-text-muted">AND THE CHAIN SCREAMS</span></div>
+  </div>,
+];
+
+const taxGlimpses: ReadonlyArray<ReactNode> = [
+  /* 01 Life events — the checklist with auto-detected tags */
+  <div key="x0" className={SHELL}>
+    <div className={HEADER}><span className={HL}>LIFE EVENTS</span><span className={HR}>WHAT HAPPENED THIS YEAR</span></div>
+    <div className={ROW}>
+      <span className="w-5 font-mono text-[14px] text-[#16a34a]">✓</span>
+      <span className="min-w-0 flex-1 truncate text-[14px] text-text-primary">Side business income</span>
+      <span className={`${CHIP} border-brand-purple bg-brand-purple-wash text-brand-purple`}>AUTO-DETECTED</span>
+    </div>
+    <div className={ROW}>
+      <span className="w-5 font-mono text-[14px] text-[#16a34a]">✓</span>
+      <span className="min-w-0 flex-1 truncate text-[14px] text-text-primary">Investment activity</span>
+      <span className={`${CHIP} border-brand-purple bg-brand-purple-wash text-brand-purple`}>AUTO-DETECTED</span>
+    </div>
+    <div className={ROW}>
+      <span className="w-5 font-mono text-[14px] text-text-faint">○</span>
+      <span className="min-w-0 flex-1 truncate text-[14px] text-text-muted">Bought or sold a home</span>
+    </div>
+    <div className={FOOT}><span className="text-text-primary">YOUR BOOKS ALREADY PROVE IT</span><span className="text-text-muted">TICK THE REST</span></div>
+  </div>,
+  /* 02 Documents — the paper trail */
+  <div key="x1" className={SHELL}>
+    <div className={HEADER}><span className={HL}>DOCUMENTS</span><span className={HR}>THE PAPER TRAIL</span></div>
+    <div className={ROW}>
+      <span className="min-w-0 flex-1 truncate text-[14px] text-text-primary">W-2 · employer</span>
+      <span className="font-mono text-[11px] tracking-[0.1em] text-[#16a34a]">UPLOADED ✓</span>
+    </div>
+    <div className={ROW}>
+      <span className="min-w-0 flex-1 truncate text-[14px] text-text-muted">1099-B · broker</span>
+      <span className="font-mono text-[11px] tracking-[0.1em] text-text-faint">WAITING</span>
+    </div>
+    <div className={FOOT}><span className="text-text-primary">ONLY WHAT CAN&apos;T BE DERIVED</span><span className="text-text-muted">THE APP HOLDS THE REST</span></div>
+  </div>,
+  /* 03 Income — FROM YOUR CLOSED BOOKS — DERIVED, NOT TYPED */
+  <div key="x2" className={SHELL}>
+    <div className={HEADER}><span className={HL}>INCOME</span><span className={HR}>CONFIRM</span></div>
+    <div className="mx-4 mt-1 border border-brand-purple/30 bg-brand-purple-wash px-3 py-1.5 text-center font-mono text-[11px] tracking-[0.12em] text-brand-purple">FROM YOUR CLOSED BOOKS — DERIVED, NOT TYPED</div>
+    <div className={ROW}>
+      <span className="min-w-0 flex-1 truncate text-[14px] text-text-primary">Wages</span>
+      <span className="font-mono text-[12.5px] font-medium text-brand-gold">$52,400</span>
+    </div>
+    <div className={ROW}>
+      <span className="min-w-0 flex-1 truncate text-[14px] text-text-primary">Workshop income</span>
+      <span className="font-mono text-[12.5px] font-medium text-brand-gold">$9,180</span>
+    </div>
+    <div className={FOOT}><span className="text-text-primary">THE LEDGER IS THE SOURCE</span><span className="text-text-muted">YOU JUST CONFIRM</span></div>
+  </div>,
+  /* 04 Deductions — Schedule C from coded expenses */
+  <div key="x3" className={SHELL}>
+    <div className={HEADER}><span className={HL}>DEDUCTIONS</span><span className={HR}>SCHEDULE C</span></div>
+    <div className={ROW}>
+      <span className="min-w-0 flex-1 truncate text-[14px] text-text-primary">Supplies (coded all year)</span>
+      <span className="font-mono text-[12.5px] font-medium text-brand-gold">$2,140</span>
+    </div>
+    <div className={ROW}>
+      <span className="min-w-0 flex-1 truncate text-[14px] text-text-primary">Vehicle · service + fuel</span>
+      <span className="font-mono text-[12.5px] font-medium text-brand-gold">$1,890</span>
+    </div>
+    <div className={FOOT}><span className="text-text-primary">BUILT FROM YOUR CODED EXPENSES</span><span className="text-text-muted">NOT A SHOEBOX</span></div>
+  </div>,
+  /* 05 Trading — Schedule D + 8949 from your fills */
+  <div key="x4" className={SHELL}>
+    <div className={HEADER}><span className={HL}>TRADING</span><span className={HR}>SCHEDULE D + 8949</span></div>
+    <div className={ROW}>
+      <span className="min-w-0 flex-1 truncate text-[14px] text-text-primary">Realized gains</span>
+      <span className="font-mono text-[12.5px] font-medium text-[#16a34a]">+$1,420</span>
+    </div>
+    <div className={ROW}>
+      <span className="min-w-0 flex-1 truncate text-[14px] text-text-primary">Realized losses</span>
+      <span className="font-mono text-[12.5px] font-medium text-[#c53030]">−$610</span>
+    </div>
+    <div className={ROW}>
+      <span className="min-w-0 flex-1 truncate text-[13px] text-text-muted">Wash-sale window checked · IRS rules</span>
+      <span className="font-mono text-[11px] tracking-[0.1em] text-[#16a34a]">CLEAR ✓</span>
+    </div>
+    <div className={FOOT}><span className="text-text-primary">FROM YOUR FILLS</span><span className="text-text-muted">NOTHING RETYPED</span></div>
+  </div>,
+  /* 06 Review — the 1040 assembled */
+  <div key="x5" className={SHELL}>
+    <div className={HEADER}><span className={HL}>THE 1040</span><span className={HR}>ASSEMBLED</span></div>
+    {([
+      ['Total income', '$63,000'],
+      ['Adjusted gross income', '$61,390'],
+      ['Tax after credits', '$6,204'],
+    ] as const).map(([line, amt]) => (
+      <div key={line} className={ROW}>
+        <span className="min-w-0 flex-1 truncate text-[14px] text-text-primary">{line}</span>
+        <span className="font-mono text-[12.5px] font-medium text-brand-gold">{amt}</span>
+      </div>
+    ))}
+    <div className={FOOT}><span className="text-text-primary">FROM EVERY STEP ABOVE</span><span className="text-text-muted">READ IT WHOLE</span></div>
+  </div>,
+  /* 07 File — export + filing options */
+  <div key="x6" className={SHELL}>
+    <div className={HEADER}><span className={HL}>FILE</span><span className={HR}>YOUR CALL</span></div>
+    <div className="mx-4 mt-3 flex flex-col items-center gap-2.5">
+      <span className="inline-block bg-brand-purple px-4 py-2 font-mono text-[12px] font-semibold tracking-[0.1em] text-white">DOWNLOAD THE FILING PACKAGE</span>
+      <span className="inline-block border border-border bg-ts-white px-4 py-2 font-mono text-[12px] tracking-[0.1em] text-brand-purple">EXPORT FOR YOUR CPA</span>
+    </div>
+    <div className={FOOT}><span className="text-text-primary">EXPORT — OR FILE</span><span className="text-text-muted">VERIFIED BY A PROFESSIONAL</span></div>
+  </div>,
+];
+
 export const GLIMPSES: Partial<Record<PipePillarId, ReadonlyArray<ReactNode>>> = {
   routines: routinesGlimpses,
   projects: projectsGlimpses,
   travel: travelGlimpses,
   trade: tradeGlimpses,
+  books: booksGlimpses,
+  compliance: complianceGlimpses,
+  tax: taxGlimpses,
 };
