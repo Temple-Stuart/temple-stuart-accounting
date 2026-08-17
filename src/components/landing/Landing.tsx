@@ -779,7 +779,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             13/600 purple with gold dots. On the cream canvas; the modules
             section's border-y directly below closes the seam — no new rule,
             no new tokens. The question line is the section's ONE gold moment
-            (§A close law). Mobile: the nine row wraps as contained mono
+            (§A close law). Ruled 2026-08-18: both problem-section questions
+            render gold — deliberate exception to gold-on-money.
+            Mobile: the nine row wraps as contained mono
             lines (13px ≥ the 12px floor), never a horizontal scroll. */}
       <section aria-label="The problem" className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px]">
         <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.12em] text-text-faint">01 / THE PROBLEM</p>
@@ -803,7 +805,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </p>
         <p className="mt-6 text-[15px] text-text-muted">None of them can answer the questions that matter:</p>
         <p className="mt-2 font-mono text-[22px] font-semibold text-brand-gold">How long will my money last?</p>
-        <p className="mt-2 font-mono text-[22px] font-semibold text-text-secondary">{"What's the right next move?"}</p>
+        <p className="mt-2 font-mono text-[22px] font-semibold text-brand-gold">{"What's the right next move?"}</p>
       </section>
 
       {/* ── MERGED-02 (spec design-refs/merged-modules-spec.md §1-§6): the
