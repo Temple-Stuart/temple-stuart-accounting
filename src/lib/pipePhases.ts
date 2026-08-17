@@ -155,10 +155,18 @@ export const PIPE_PHASES = {
     { num: '05', name: 'Plan', subLabel: 'LIVE TASK LIST' },
     { num: '06', name: 'Evolve', subLabel: 'NEW GOALS, LOOP AGAIN' },
   ],
+  // CONTENT-PIPE (nine of nine): subLabels derived from the pipeline's own
+  // surface strings (the Trade R2 idiom), never invented: Inputs ⇐ the §1
+  // sub-line "pick routines to scenify · add tasks to the day"
+  // (ContentPipeline.tsx:358); Script map ⇐ ScenifyDraft's own "scene rows"
+  // vocabulary (:558) + its "cameras available" input (:536); Answer + Record
+  // ⇐ the §3 sub-line "answer the day → the evolution record"
+  // (ContentPipeline.tsx:495); Script ⇐ ScriptGeneratorView's rendered h2
+  // sub "the day's answers + task record → reel voiceover" (:90).
   content: [
-    { num: '01', name: 'Inputs' },
-    { num: '02', name: 'Script map' },
-    { num: '03', name: 'Answer + Record' },
-    { num: '04', name: 'Script' },
+    { num: '01', name: 'Inputs', subLabel: 'ROUTINES + TASKS' },
+    { num: '02', name: 'Script map', subLabel: 'SCENE ROWS + CAMERAS' },
+    { num: '03', name: 'Answer + Record', subLabel: 'ANSWER THE DAY → RECORD' },
+    { num: '04', name: 'Script', subLabel: 'ANSWERS → REEL VOICEOVER' },
   ],
 } as const satisfies Record<PipePillarId, readonly PipePhase[]>;

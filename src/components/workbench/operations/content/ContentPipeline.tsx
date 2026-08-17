@@ -24,7 +24,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Calendar, ClipboardList, FileText } from 'lucide-react';
 import { useOperationsEntity } from '../EntitySelector';
 import { CONTENT_DAY_PLAN_CHANGED_EVENT, CONTENT_SCENES_CHANGED_EVENT } from './ScenifyModal';
 import ScenifyDraft from './ScenifyDraft';
@@ -32,7 +31,18 @@ import ScriptGenerator from './ScriptGenerator';
 import PieceGrid from './PieceGrid';
 import DailyLog from './DailyLog';
 import DayCalendar from './DayCalendar';
-import { iconTab } from '@/lib/ds';
+// CONTENT-PIPE: the ratified Pipe Frame — StageStrip REPLACES the CONTENT-V2
+// 3-mode icon-tab toggler (control converted, never stacked; the lucide mode
+// icons + ds.iconTab retire with it). The four canonical phases come from the
+// shared config (landing/app lockstep by construction).
+import StageStrip, { type StagePhase } from '@/components/ui/StageStrip';
+import SectionHeader from '@/components/ui/SectionHeader';
+import ProofStrip from '@/components/ui/ProofStrip';
+import { PIPE_PHASES, type PipePhase } from '@/lib/pipePhases';
+
+// Widened to the interface (the Travel precedent).
+const [PIPE_INPUTS, PIPE_MAP, PIPE_ANSWER, PIPE_SCRIPT] =
+  PIPE_PHASES.content as readonly PipePhase[];
 
 interface RoutineLite {
   id: string;
@@ -50,6 +60,13 @@ interface GridScene {
   script?: never;
 }
 interface GridCell {
+  script: string | null;
+}
+// CONTENT-PIPE: the grid route's third array (grid/route.ts:78 returns
+// { scenes, pieces, cells }) — read from the SAME existing fetch (loadCounts)
+// for the 04 Script signal; a piece's `script` is the day's saved reel script.
+interface GridPiece {
+  piece_date: string;
   script: string | null;
 }
 
@@ -74,15 +91,20 @@ export default function ContentPipeline({ }: { } = {}) {
   const [tasks, setTasks] = useState<TaskLite[]>([]);
   const [gridScenes, setGridScenes] = useState<GridScene[]>([]);
   const [gridCells, setGridCells] = useState<GridCell[]>([]);
+  const [gridPieces, setGridPieces] = useState<GridPiece[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   // Shared date — S1 (add-to-day) + S3 (the answer table) read the same day.
   const [date, setDate] = useState(todayLocal());
-  // CONTENT-V2: one presentation useState — the stage toggler (trade icon-tab
-  // anatomy, ds.iconTab byte-reused). The shared `date` stays HERE (the
-  // pipeline owns it, :80) so switching stages never loses the day.
-  const [stage, setStage] = useState<'calendar' | 'log' | 'script'>('calendar');
+  // CONTENT-V2 → CONTENT-PIPE: one presentation useState — the PHASE control
+  // (the StageStrip replaces the 3-mode icon-tab toggler). The shared `date`
+  // stays HERE (the pipeline owns it, :80) so switching phases never loses
+  // the day. Default 'answer' — the retired toggler defaulted 'calendar'
+  // (the day view), and DayCalendar now rides the 03 Answer + Record surface
+  // (same useDayFeed as the answer timeline — DailyLog.tsx:13): the tab's
+  // first paint is preserved (the non-first-default precedent).
+  const [phase, setPhase] = useState<'inputs' | 'map' | 'answer' | 'script'>('answer');
   const sectionHeader = 'text-sm font-medium tracking-wide text-brand-purple';
   // Tasks on the selected day: task_id → { itemId, committed }. The item id lets
   // INPUTS un-assign a planned piece via DELETE; `committed` (a calendar block
@@ -99,6 +121,7 @@ export default function ContentPipeline({ }: { } = {}) {
     const body = await res.json();
     setGridScenes(body.scenes ?? []);
     setGridCells(body.cells ?? []);
+    setGridPieces(body.pieces ?? []);
   }, []);
 
   // Which tasks are ALREADY on the selected day — so "add to day" pre-marks them
@@ -192,6 +215,15 @@ export default function ContentPipeline({ }: { } = {}) {
   );
   const sceneCount = gridScenes.length;
   const answeredCount = gridCells.filter((c) => (c.script ?? '').trim().length > 0).length;
+  // CONTENT-PIPE: the 04 Script signal — a piece for the selected day with a
+  // saved script (the ScriptGenerator canonical-piece idiom, its :86-89 date
+  // match), derived from the SAME grid fetch as the counts above. Refreshes
+  // when the existing event listeners refetch — a just-saved script registers
+  // on the next grid refresh (the same live-ness the counts already have).
+  const scriptForDay = useMemo(
+    () => gridPieces.some((p) => p.piece_date.slice(0, 10) === date && (p.script ?? '').trim().length > 0),
+    [gridPieces, date]
+  );
 
   const toggle = (id: string) =>
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -324,32 +356,35 @@ export default function ContentPipeline({ }: { } = {}) {
         </div>
       )}
 
-      {/* · DAY — the day's blocks as a stacked clock-order list (shares useDayFeed
-          with section 3's answer timeline). Collapsed by default; sits above INPUTS. */}
-      {/* CONTENT-V2: the stage toggler — one stage at a time. */}
-      <div className="flex items-end gap-1 border-b border-border">
-        <button type="button" onClick={() => setStage('calendar')} aria-pressed={stage === 'calendar'} className={iconTab(stage === 'calendar')}>
-          <Calendar className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
-          <span>Calendar</span>
-        </button>
-        <button type="button" onClick={() => setStage('log')} aria-pressed={stage === 'log'} className={iconTab(stage === 'log')}>
-          <ClipboardList className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
-          <span>Log</span>
-        </button>
-        <button type="button" onClick={() => setStage('script')} aria-pressed={stage === 'script'} className={iconTab(stage === 'script')}>
-          <FileText className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
-          <span>Script</span>
-        </button>
-      </div>
+      {/* CONTENT-PIPE: the phase strip — mode → phase: the 'log' mode's three
+          sections graduate to their own surfaces (01 Inputs / 02 Script map /
+          03 Answer + Record); 'script' → 04; the 'calendar' mode's DayCalendar
+          rides 03 (it consumes the SAME useDayFeed as the answer timeline —
+          DailyLog.tsx:13 — same day, same feed, can't drift). States are
+          DERIVED INDICATORS, never locks.
+          DRAFT-SURVIVAL (T3) preserved BY CONSTRUCTION: every surface stays
+          MOUNTED and toggles via CSS show/hide — the house ToggleStrip pattern
+          (ToggleStrip.tsx:145; ModuleLauncher tab sections) — so ScenifyDraft's
+          local draft state (drafts/cameras, ScenifyDraft.tsx:138,:148) survives
+          a phase switch exactly as it survived a stage switch; its own
+          ≥1-routine conditional mount is preserved verbatim below. */}
+      <StageStrip
+        phases={([
+          { key: 'inputs', num: PIPE_INPUTS.num, label: PIPE_INPUTS.name, subLabel: PIPE_INPUTS.subLabel,
+            state: phase === 'inputs' ? 'active' : selected.length > 0 || dayByTaskId.size > 0 ? 'done' : 'pending' },
+          { key: 'map', num: PIPE_MAP.num, label: PIPE_MAP.name, subLabel: PIPE_MAP.subLabel,
+            state: phase === 'map' ? 'active' : sceneCount > 0 ? 'done' : 'pending' },
+          { key: 'answer', num: PIPE_ANSWER.num, label: PIPE_ANSWER.name, subLabel: PIPE_ANSWER.subLabel,
+            state: phase === 'answer' ? 'active' : answeredCount > 0 ? 'done' : 'pending' },
+          { key: 'script', num: PIPE_SCRIPT.num, label: PIPE_SCRIPT.name, subLabel: PIPE_SCRIPT.subLabel,
+            state: phase === 'script' ? 'active' : scriptForDay ? 'done' : 'pending' },
+        ] as StagePhase[])}
+        onSelect={(k) => setPhase(k as typeof phase)}
+      />
 
-      {/* DRAFT-SURVIVAL: every stage stays MOUNTED and toggles via CSS
-          show/hide — the house ToggleStrip pattern (ToggleStrip.tsx:145;
-          ModuleLauncher tab sections), adopted here so ScenifyDraft's local
-          draft state (drafts/cameras, ScenifyDraft.tsx:138,:148) survives a
-          tab switch instead of dying with a conditional unmount. */}
-      <div className={stage === 'calendar' ? 'block' : 'hidden'}><DayCalendar date={date} onDateChange={setDate} /></div>
-
-      <div className={stage === 'log' ? 'block space-y-4' : 'hidden'}>
+      {/* ── 01 Inputs — §1 byte-moved onto its own surface. ── */}
+      <div className={phase === 'inputs' ? 'block space-y-4' : 'hidden'}>
+      <SectionHeader kicker={`${PIPE_INPUTS.num} / ${PIPE_INPUTS.name}`} right={`PHASE ${PIPE_INPUTS.num} OF 04`} />
       {/* 1 · INPUTS — projects/routines are CREATED in their own tabs; here you only
           SELECT existing ones (PR-Content-2 removed the redundant in-tab create step). */}
       <section className="bg-white rounded border border-border p-4 space-y-3">
@@ -481,12 +516,25 @@ export default function ContentPipeline({ }: { } = {}) {
           </div>
         )}
       </section>
+      </div>
 
-      {/* 2 · AI SCRIPT MAP (renders inline when ≥1 routine selected) */}
-      {selectedRoutines.length > 0 && (
+      {/* ── 02 Script map — ScenifyDraft's ≥1-routine conditional preserved
+            verbatim; the empty wording is §1's own sub-line fragment (:358),
+            never invented. ── */}
+      <div className={phase === 'map' ? 'block space-y-4' : 'hidden'}>
+      <SectionHeader kicker={`${PIPE_MAP.num} / ${PIPE_MAP.name}`} right={`PHASE ${PIPE_MAP.num} OF 04`} />
+      {selectedRoutines.length > 0 ? (
         <ScenifyDraft routines={selectedRoutines} date={date} onSaved={loadCounts} />
+      ) : (
+        <p className="text-sm text-text-muted">pick routines to scenify</p>
       )}
+      </div>
 
+      {/* ── 03 Answer + Record — DayCalendar rides this phase (same
+            useDayFeed as the answer timeline); §3 byte-moved below it. ── */}
+      <div className={phase === 'answer' ? 'block space-y-4' : 'hidden'}>
+      <SectionHeader kicker={`${PIPE_ANSWER.num} / ${PIPE_ANSWER.name}`} right={`PHASE ${PIPE_ANSWER.num} OF 04`} />
+      <DayCalendar date={date} onDateChange={setDate} />
       {/* 3 · ANSWER + RECORD — date at top, the answer timeline over the record grid. */}
       <section className="bg-white rounded border border-border p-4 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -510,8 +558,25 @@ export default function ContentPipeline({ }: { } = {}) {
       </section>
       </div>
 
-      {/* 4 · SCRIPT — the reel voiceover generator (CE-5). */}
-      <div className={stage === 'script' ? 'block' : 'hidden'}><ScriptGenerator date={date} /></div>
+      {/* ── 04 Script — the reel voiceover generator (CE-5), kept mounted. ── */}
+      <div className={phase === 'script' ? 'block space-y-4' : 'hidden'}>
+      <SectionHeader kicker={`${PIPE_SCRIPT.num} / ${PIPE_SCRIPT.name}`} right={`PHASE ${PIPE_SCRIPT.num} OF 04`} />
+      <ScriptGenerator date={date} />
+      </div>
+
+      {/* CONTENT-PIPE: the receipts rail — the pipeline's own existing state
+          (the header chips' sources :193-194 + the shared day :81 + the grid
+          pieces): honest empties only ("no script yet" ⇐ ScriptGeneratorView's
+          "null = no script generated/loaded yet", :35; "saved" ⇐ the
+          container's PATCH save-script vocabulary, ScriptGenerator.tsx:6-7). */}
+      <ProofStrip
+        receipts={[
+          { label: 'DAY', value: date },
+          { label: 'SCENES', value: String(sceneCount) },
+          { label: 'TAKES ANSWERED', value: String(answeredCount) },
+          { label: 'REEL SCRIPT', value: scriptForDay ? 'saved' : undefined, emptyLabel: 'no script yet' },
+        ]}
+      />
     </div>
   );
 }
