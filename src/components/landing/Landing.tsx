@@ -705,12 +705,17 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <div className="max-w-3xl">
             {/* HERO-PRESENCE: the idea-state badge pill — first element in the
                 hero; the ✦ glyph wears the pop accent. */}
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/80 mb-6">
+            <a
+              href="https://github.com/Temple-Stuart/temple-stuart-accounting/blob/main/LICENSE"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/80 mb-6"
+            >
               {/* REPAINT-2: the pop glyph re-inks lavender — pop is invisible
                   on the aubergine band. */}
               <span className="text-brand-purple-wash" aria-hidden="true">✦</span>
-              All-in-one financial operating system
-            </div>
+              Source-available · BSL 1.1
+            </a>
             <h1 className="text-4xl sm:text-6xl font-bold leading-tight tracking-tight mb-6 text-ts-white">
               Track your money.<br />
               Plan your time.<br />
@@ -779,7 +784,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
       <section aria-label="The problem" className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px]">
         <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.12em] text-text-faint">01 / THE PROBLEM</p>
         <h2 className="mt-[18px] text-[27px] lg:text-[38px] font-medium tracking-[-0.025em] text-brand-purple">
-          {"Running your life takes nine jobs \u2014 and the tools don't talk to each other."}
+          {"Running your life takes ten apps \u2014 and they don't talk to each other."}
         </h2>
         <p className="mt-5 font-mono text-[13px] font-semibold text-brand-purple">
             <span key="BUDGET APP">BUDGET APP</span>
@@ -791,13 +796,15 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             <span key="TAX APP"><span className="text-brand-gold"> · </span>TAX APP</span>
             <span key="FP&A"><span className="text-brand-gold"> · </span>FP&amp;A</span>
             <span key="AI WORK JOURNAL"><span className="text-brand-gold"> · </span>AI WORK JOURNAL</span>
+            <span key="SPREADSHEETS"><span className="text-brand-gold"> · </span>SPREADSHEETS</span>
         </p>
         <p className="mt-4 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">
-          {"You can buy all nine \u2014 that's the problem. Nine logins, nine subscriptions, nine copies of your life that never meet. The heavy ones \u2014 compliance, FP&A \u2014 are priced for companies, not people. And to get the one answer that matters, you become the integration: copying numbers from app to app into a spreadsheet."}
+          {"Ten logins, ten subscriptions, ten copies of your life that don't connect. And to get the one answer that matters, you become the integration \u2014 copying numbers from app to app into a spreadsheet."}
         </p>
-        <p className="mt-6 text-[15px] text-text-muted">None of them can answer the only question that matters:</p>
-        <p className="mt-2 font-mono text-[22px] font-semibold text-brand-gold">How long does my money last?</p>
-        <p className="mt-3 font-mono text-xs lg:text-[10px] tracking-wider text-text-faint">NOT FROM NUMBERS YOU TYPED — FROM YOUR REAL LIFE.</p>
+        <p className="mt-6 text-[15px] text-text-muted">None of them can answer the questions that matter:</p>
+        <p className="mt-2 font-mono text-[22px] font-semibold text-brand-gold">How long will my money last?</p>
+        <p className="mt-2 font-mono text-[15px] text-text-secondary">{"What's the right next move?"}</p>
+        <p className="mt-3 font-mono text-xs lg:text-[10px] tracking-wider text-text-faint">NOT FROM NUMBERS YOU HAVE TO TYPE — FROM YOUR REAL LIFE.</p>
       </section>
 
       {/* ── MERGED-02 (spec design-refs/merged-modules-spec.md §1-§6): the
