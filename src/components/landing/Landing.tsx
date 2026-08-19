@@ -351,6 +351,41 @@ const PILLAR_CARDS: PillarCard[] = [
   },
 ];
 
+// ─────────────────────────────────────────────────────────────────────────
+// REPLACED_APPS — the 25 apps this product replaces, grouped into six
+// families. DELIBERATELY SEPARATE from PILLAR_CARDS and never coupled to it:
+// that list is the nine modules we BUILD (products, ids, entitlement keys, the
+// stage's data source); this one is what a user is REPLACING. The two
+// vocabularies answer different questions and must be free to diverge — no
+// shared type, no derived count, no cross-reference.
+// Numbering is 01–25 CONTINUOUS across families, derived at render from
+// FAMILY_OFFSETS below — never a retyped literal.
+// ─────────────────────────────────────────────────────────────────────────
+interface ReplacedAppFamily {
+  /** Family label — rendered uppercase via CSS, never a retyped string. */
+  family: string;
+  /** App names in display order; the array's own length feeds the numbering. */
+  apps: string[];
+}
+
+const REPLACED_APPS: ReplacedAppFamily[] = [
+  { family: 'The Work', apps: ['Calendar', 'Tasks', 'Time'] },
+  { family: 'Money In', apps: ['CRM', 'Contracts', 'Invoicing', 'Payments'] },
+  { family: 'Money Out', apps: ['Bill Pay', 'Payroll', 'Expenses', 'Travel', 'Mileage', 'Budget'] },
+  { family: 'What You Own', apps: ['Banking', 'Fixed Assets', 'Retirement', 'Brokerage', 'Trade Log'] },
+  { family: 'What You Owe', apps: ['Debt', 'Sales Tax', 'Entity Filings'] },
+  { family: 'The Proof', apps: ['Bookkeeping', 'Tax', 'Compliance', 'FP&A'] },
+];
+
+// Running index for the continuous 01–25 marks: each family's first app starts
+// after every app in the families above it. Pure derivation from the array's
+// own lengths — add or move an app and the numbering follows with no edit
+// here. (Six families; the slice/reduce cost is nil and it stays obviously
+// correct, unlike a mutating counter threaded through the render.)
+const FAMILY_OFFSETS: number[] = REPLACED_APPS.map((_, i) =>
+  REPLACED_APPS.slice(0, i).reduce((n, f) => n + f.apps.length, 0),
+);
+
 // FD-1i: the SUMMARY deck's content — LIFTED ONLY, zero invented copy (the
 // FD-1b bullet-lift precedent). PLAIN-SHOWCASE exception: the TRAVEL entry
 // now carries Alex's ruled plain-language copy (PR-SLIDE-TRAVEL-REAL) rather
@@ -875,27 +910,63 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           )}
         </div>
 
-        {/* ACT 1 — SPINE (spec §2): marks → spine → the three words → spine +
-            gold square → the two hubs. Marks/names derive from PILLAR_CARDS
-            (canonical lifecycle order, index-derived padStart); uppercase is a CSS
-            transform of the card label, never a retyped string. */}
+        {/* ACT 1 — SPINE (spec §2): the six families of replaced apps → spine
+            → the three words → the two dollar shapes → spine + gold square →
+            the two hubs → the closing count. Families, app names and the
+            CONTINUOUS 01–25 marks all derive from REPLACED_APPS +
+            FAMILY_OFFSETS (index-derived padStart); uppercase is a CSS
+            transform of the stored label, never a retyped string. */}
         <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10 lg:pt-16 pb-12 lg:pb-[76px] text-center">
           <p className="font-mono text-xs lg:text-[10px] font-semibold tracking-[0.16em] text-text-muted">
-            NINE MODULES <span className="text-brand-gold">·</span> ONE SPINE
+            TWENTY-FIVE APPS <span className="text-brand-gold">·</span> ONE SPINE
           </p>
-          <div className="mx-auto mt-5 lg:mt-[22px] grid max-w-[340px] grid-cols-3 gap-y-2.5 lg:flex lg:max-w-none lg:flex-wrap lg:justify-center lg:gap-x-[26px]">
-            {PILLAR_CARDS.map((p, i) => (
-              <span key={p.id} className="flex items-baseline justify-center gap-1.5">
-                <span className="font-mono text-xs lg:text-[10px] text-text-faint">{String(i + 1).padStart(2, '0')}</span>
-                <span className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-purple">{p.label}</span>
-              </span>
+          {/* FAMILY ROWS. text-left overrides the act's text-center for THIS
+              container only — every block below keeps the centre. @lg each row
+              is the ACT 2 two-column idiom (:1003): a fixed label column + the
+              app grid. BORDER-BOX NOTE: the label column carries no padding and
+              no border, so its content box IS its border box and the measured
+              186px transfers unchanged under Preflight; gap is between boxes in
+              either model, so 40px transfers too. Apps: 2 equal columns at
+              mobile, 6 equal columns @lg, row-major — a short family simply
+              leaves its trailing cells empty (no stretch, no centring). */}
+          <div className="mx-auto mt-5 lg:mt-[22px] max-w-[980px] text-left">
+            {REPLACED_APPS.map((fam, f) => (
+              <Fragment key={fam.family}>
+                {f > 0 && <div className="h-px bg-border" aria-hidden="true" />}
+                <div className="py-4 lg:grid lg:grid-cols-[186px_minmax(0,1fr)] lg:items-start lg:gap-x-10">
+                  <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-gold">
+                    {fam.family}
+                  </p>
+                  <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2.5 lg:mt-0 lg:grid-cols-6">
+                    {fam.apps.map((app, a) => (
+                      <span key={app} className="flex items-baseline gap-1.5">
+                        <span className="font-mono text-xs lg:text-[10px] text-text-faint">{String(FAMILY_OFFSETS[f] + a + 1).padStart(2, '0')}</span>
+                        <span className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-purple">{app}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </Fragment>
             ))}
           </div>
           <div className="mx-auto mt-6 lg:mt-[26px] h-[30px] lg:h-10 w-px bg-border" aria-hidden="true" />
-          <p className="mt-5 text-base text-text-secondary">Every module speaks the same three words —</p>
+          <p className="mt-5 text-base text-text-secondary">Every app speaks the same three words —</p>
           <p className="mt-3 font-mono text-[16.5px] lg:text-2xl font-semibold tracking-[0.1em] lg:tracking-[0.16em] text-brand-purple">
             A DATE <span className="text-brand-gold">·</span> A TIME <span className="text-brand-gold">·</span> A DOLLAR
           </p>
+          <p className="mt-3 text-base text-text-secondary">a time becomes a dollar two ways —</p>
+          {/* The two dollar shapes: stacked full-width at mobile, two EQUAL
+              columns @lg (1fr each — no measured width to convert). */}
+          <div className="mx-auto mt-3 grid max-w-[680px] gap-3 lg:grid-cols-2">
+            <div className="rounded border border-border bg-ts-white px-4 py-3">
+              <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-gold">A CADENCE</p>
+              <p className="mt-1.5 text-base text-text-secondary">every month × the amount</p>
+            </div>
+            <div className="rounded border border-border bg-ts-white px-4 py-3">
+              <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-gold">A RATE</p>
+              <p className="mt-1.5 text-base text-text-secondary">the hours × your rate</p>
+            </div>
+          </div>
           <p className="mt-3 text-base text-text-secondary">— and the app writes them into</p>
           <div className="mx-auto mt-5 h-6 lg:h-8 w-px bg-border" aria-hidden="true" />
           <div className="mx-auto h-[5px] w-[5px] bg-brand-gold" aria-hidden="true" />
@@ -907,6 +978,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               ONE CALENDAR
             </span>
           </div>
+          {/* The closing count — the eyebrow's own type idiom (:920) dropped to
+              text-text-faint so it reads as the quiet last word, not a second
+              heading. */}
+          <p className="mt-8 lg:mt-10 font-mono text-xs lg:text-[10px] font-semibold tracking-[0.16em] text-text-faint">
+            25 logins <span className="text-brand-gold">·</span> 25 passwords <span className="text-brand-gold">·</span> none of them talk to each other
+          </p>
         </div>
 
         {/* ACT 2 — PERSONAS-3 (value cases): hook question + one outcome
