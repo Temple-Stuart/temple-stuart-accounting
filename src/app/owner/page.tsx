@@ -7,17 +7,21 @@
  *   - SERVER TRUTH: every /api/owner/* route opens with requireAdmin
  *     (require-admin.ts:8-20 — OWNER_EMAIL vs the verified cookie email; the
  *     18-route precedent). A client bug can never leak data.
- *   - CLIENT COURTESY: the trading-page isOwner gate verbatim
- *     (trading/page.tsx:91-94 — NEXT_PUBLIC_OWNER_EMAIL vs the session
- *     email). A non-owner gets a plain 404-style card and NO data fetch
- *     ever fires (the defensive-404 posture: don't confirm what exists).
+ *   - CLIENT COURTESY: NEXT_PUBLIC_OWNER_EMAIL vs the email returned by
+ *     GET /api/auth/me (api/auth/me/route.ts:7 — the signed userEmail
+ *     cookie verified server-side, 401 without it). That is the app's
+ *     canonical client identity read (AppLayout.tsx:95-112,
+ *     HomeClient.tsx:69-83); the NextAuth session hook is NOT — a password
+ *     login mints only the cookie (api/auth/login/route.ts:56-62), so that
+ *     session is empty and the gate could never pass. A non-owner gets a
+ *     plain 404-style card and NO data fetch ever fires (the defensive-404
+ *     posture: don't confirm what exists).
  *
  * /owner is deliberately NOT in middleware PUBLIC_PATHS — the login wall
  * stands in front of both gates.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSession } from 'next-auth/react';
 import {
   CONTROL,
   DATA,
@@ -81,11 +85,39 @@ const STATUS_VARIANT: Record<ProposalStatus, ChipVariant> = {
 const dateOnly = (iso: string) => new Date(iso).toISOString().slice(0, 10);
 
 export default function OwnerPage() {
-  // R1: the trading-page client gate, verbatim (trading/page.tsx:91-94).
-  const { data: session, status: sessionStatus } = useSession();
-  const userEmail = session?.user?.email || null;
+  // R1: identity from the cookie-auth read the rest of the app uses
+  // (/api/auth/me), not from the NextAuth session — see the docblock above.
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [identityLoading, setIdentityLoading] = useState(true);
   const ownerEmail = process.env.NEXT_PUBLIC_OWNER_EMAIL;
   const isOwner = !!ownerEmail && userEmail?.toLowerCase() === ownerEmail.toLowerCase();
+
+  // Fail-closed, NOT a fallback: any non-200 or network error leaves the email
+  // null, so the gate denies and the 404 card renders. There is no alternate
+  // identity path and no degraded mode — the failure is logged, never swallowed.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/me', { credentials: 'include' });
+        if (!res.ok) {
+          console.error(`[owner] identity read failed (${res.status})`);
+          if (!cancelled) setUserEmail(null);
+          return;
+        }
+        const data = await res.json();
+        if (!cancelled) setUserEmail(data?.user?.email ?? null);
+      } catch (err) {
+        console.error('[owner] identity read failed (network error)', err);
+        if (!cancelled) setUserEmail(null);
+      } finally {
+        if (!cancelled) setIdentityLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const [accounts, setAccounts] = useState<AccountRow[] | null>(null);
   const [proposals, setProposals] = useState<ProposalRow[] | null>(null);
@@ -191,7 +223,7 @@ export default function OwnerPage() {
     }
   };
 
-  if (sessionStatus === 'loading') {
+  if (identityLoading) {
     return (
       <div className={`min-h-screen ${SURFACE.page}`}>
         <div className={STATE.loading}>Loading…</div>
