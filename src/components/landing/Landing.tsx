@@ -409,11 +409,14 @@ const PROBLEM_SOURCES = [
 // tailwind.config.ts is the same lesson). Values are the row centres of each
 // breakpoint's SVG, which is rendered at its viewBox size 1:1 — so these are
 // exact pixel matches to the line origins, with no scaling to reason about.
-// Desktop: 6 rows over 160px. Mobile: 6 rows of 26px.
+// Desktop: 6 rows over 224px. Mobile: 6 rows of 26px.
 // (No lg: prefix needed — each array is used inside a container that is
 // already breakpoint-gated, so the class only applies where it is visible.)
+// GRID-SCALE: the desktop values move with the desktop viewBox. Because that
+// SVG renders 1:1, these ARE the line-origin y's — scaling the drawing without
+// scaling this array would silently unpin every label from its line.
 const PROBLEM_LABEL_TOP_LG = [
-  'top-[13px]', 'top-[40px]', 'top-[67px]', 'top-[93px]', 'top-[120px]', 'top-[147px]',
+  'top-[19px]', 'top-[56px]', 'top-[93px]', 'top-[131px]', 'top-[168px]', 'top-[205px]',
 ] as const;
 const PROBLEM_LABEL_TOP_SM = [
   'top-[13px]', 'top-[39px]', 'top-[65px]', 'top-[91px]', 'top-[117px]', 'top-[143px]',
@@ -891,38 +894,48 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           Your money lives in six kinds of places. None of them talk.
         </p>
 
-        {/* DESKTOP FAN — viewBox 640×160, rendered 1:1. Origins sit at x=120,
-            clear of the label column; each line runs right to x=240 then
-            angles to one point on the sheet's left edge (400, 80). The two
+        {/* DESKTOP FAN — viewBox 900×224, rendered 1:1. Origins sit at x=168,
+            clear of the label column; each line runs right to x=336 then
+            angles to one point on the sheet's left edge (560, 112). The two
             middle lines run nearly level while the outer four angle hard —
-            that spread IS the convergence. */}
+            that spread IS the convergence.
+            GRID-SCALE / RIGHT-EDGE CLIP: the sheet used to end at x=640 in a
+            640-wide viewBox. A stroke is centred ON its path, so the outer
+            half of that right border fell outside the box and was clipped —
+            a 1px border rendering as 0.5px, which is why only that side
+            looked thin. The whole drawing is now inset: nothing is closer
+            than 4px to any viewBox edge. The 1.4x scale is applied to the
+            viewBox, every coordinate AND the CSS size together, because this
+            SVG is fixed-size (not width:100%) — scaling the viewBox alone
+            would have shrunk the drawing, not grown it. Stroke weights are
+            deliberately NOT scaled: hairlines stay hairlines. */}
         <div className="relative mt-6 hidden lg:mt-8 lg:block">
-          <svg role="img" viewBox="0 0 640 160" className="h-[160px] w-[640px]">
+          <svg role="img" viewBox="0 0 900 224" className="h-[224px] w-[900px]">
             <title>Six kinds of places, copied by hand into one spreadsheet</title>
             <g className="text-text-faint" stroke="currentColor" fill="none">
-              {[13, 40, 67, 93, 120, 147].map((y) => (
-                <path key={y} d={`M120 ${y} H240 L400 80`} strokeWidth={1} strokeDasharray="3 4" />
+              {[19, 56, 93, 131, 168, 205].map((y) => (
+                <path key={y} d={`M168 ${y} H336 L560 112`} strokeWidth={1} strokeDasharray="3 4" />
               ))}
-              <text x={330} y={22} textAnchor="middle" fontSize={9} letterSpacing={1.4} className="font-mono" fill="currentColor" stroke="none">BY HAND</text>
-              {[65, 95, 125].map((y) => (
-                <line key={y} x1={400} y1={y} x2={640} y2={y} strokeWidth={0.75} />
+              <text x={462} y={31} textAnchor="middle" fontSize={10} letterSpacing={1.4} className="font-mono" fill="currentColor" stroke="none">BY HAND</text>
+              {[91, 133, 175].map((y) => (
+                <line key={y} x1={560} y1={y} x2={896} y2={y} strokeWidth={0.75} />
               ))}
-              {[496, 544, 592].map((x) => (
-                <line key={x} x1={x} y1={5} x2={x} y2={155} strokeWidth={0.75} />
+              {[694, 761, 828].map((x) => (
+                <line key={x} x1={x} y1={7} x2={x} y2={217} strokeWidth={0.75} />
               ))}
               {([
-                [460, 476, 50], [510, 522, 50], [556, 572, 50],
-                [460, 470, 80], [556, 576, 80],
-                [508, 524, 110],
-                [460, 478, 140], [604, 620, 140],
+                [644, 666, 70], [714, 731, 70], [778, 801, 70],
+                [644, 658, 112], [778, 806, 112],
+                [711, 734, 154],
+                [644, 669, 196], [846, 868, 196],
               ] as const).map(([x1, x2, y]) => (
                 <line key={`${x1}-${y}`} x1={x1} y1={y} x2={x2} y2={y} strokeWidth={2} />
               ))}
             </g>
             <g className="text-text-muted" stroke="currentColor" fill="none" strokeWidth={1}>
-              <rect x={400} y={5} width={240} height={150} />
-              <line x1={400} y1={35} x2={640} y2={35} />
-              <line x1={448} y1={5} x2={448} y2={155} />
+              <rect x={560} y={7} width={336} height={210} />
+              <line x1={560} y1={49} x2={896} y2={49} />
+              <line x1={627} y1={7} x2={627} y2={217} />
             </g>
           </svg>
           {PROBLEM_SOURCES.map((label, i) => (
@@ -934,9 +947,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             </p>
           ))}
         </div>
-        {/* A SPREADSHEET under the sheet: the block takes the SVG's own 640px
-            width and is padded to the sheet's left edge at x=400. */}
-        <p className="mt-2 hidden w-[640px] pl-[400px] font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-purple lg:block">
+        {/* A SPREADSHEET under the sheet: the block takes the SVG's own 900px
+            width and is padded to the sheet's left edge at x=560. */}
+        <p className="mt-2 hidden w-[900px] pl-[560px] font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-purple lg:block">
           A spreadsheet
         </p>
 
