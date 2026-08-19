@@ -386,6 +386,39 @@ const FAMILY_OFFSETS: number[] = REPLACED_APPS.map((_, i) =>
   REPLACED_APPS.slice(0, i).reduce((n, f) => n + f.apps.length, 0),
 );
 
+// PROBLEM-DIAGRAM: the six kinds of places money lives, for the 01 / THE
+// PROBLEM diagram. ONE array because the diagram renders its labels TWICE —
+// once per breakpoint SVG, each at its own absolute offsets — and the same
+// six strings typed twice is exactly the drift the no-drift law forbids.
+// Stored in sentence case; the mono lockup uppercases via CSS, never a
+// retyped string. Intentionally NOT the six REPLACED_APPS family names as a
+// shared symbol: the strip groups apps you replace, this names where money
+// lives. They read alike today and must stay free to diverge.
+const PROBLEM_SOURCES = [
+  'The Work',
+  'Money In',
+  'Money Out',
+  'What You Own',
+  'What You Owe',
+  'The Proof',
+] as const;
+
+// The six label offsets, order-parallel to PROBLEM_SOURCES. LITERAL class
+// strings, never interpolated (`top-[${y}px]` would never compile — Tailwind
+// scans source text, it does not evaluate it; the REPAINT-1 landmine note in
+// tailwind.config.ts is the same lesson). Values are the row centres of each
+// breakpoint's SVG, which is rendered at its viewBox size 1:1 — so these are
+// exact pixel matches to the line origins, with no scaling to reason about.
+// Desktop: 6 rows over 160px. Mobile: 6 rows of 26px.
+// (No lg: prefix needed — each array is used inside a container that is
+// already breakpoint-gated, so the class only applies where it is visible.)
+const PROBLEM_LABEL_TOP_LG = [
+  'top-[13px]', 'top-[40px]', 'top-[67px]', 'top-[93px]', 'top-[120px]', 'top-[147px]',
+] as const;
+const PROBLEM_LABEL_TOP_SM = [
+  'top-[13px]', 'top-[39px]', 'top-[65px]', 'top-[91px]', 'top-[117px]', 'top-[143px]',
+] as const;
+
 // FD-1i: the SUMMARY deck's content — LIFTED ONLY, zero invented copy (the
 // FD-1b bullet-lift precedent). PLAIN-SHOWCASE exception: the TRAVEL entry
 // now carries Alex's ruled plain-language copy (PR-SLIDE-TRAVEL-REAL) rather
@@ -810,56 +843,154 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── PROBLEM-01 (spec design-refs/landing-v5/README.md §A + the
-            Build-Spec "THE PROBLEM SECTION — ANATOMY"): 01 / THE PROBLEM
-            between the hero and the modules act — every string VERBATIM
-            from the spec (extracted programmatically at build time of this
-            edit, never retyped). Act grammar REUSED from the modules header:
-            kicker (:836), h2 (:843), act padding (:834) — the beat takes the
-            spec's OWN 15/1.6 + max-w 680 (§A) and THE NINE the spec's mono
-            13/600 purple with gold dots. On the cream canvas; the modules
-            section's border-y directly below closes the seam — no new rule,
-            no new tokens. The question line is the section's ONE gold moment
-            (§A close law). Ruled 2026-08-18: both problem-section questions
-            render gold — deliberate exception to gold-on-money.
-            Mobile: the nine row wraps as contained mono
-            lines (13px ≥ the 12px floor), never a horizontal scroll. */}
+      {/* ── PROBLEM-01 / SIX-SOURCE DIAGRAM. Act grammar unchanged: the
+            kicker, h2 and act padding are the previous section's classes
+            verbatim, and the section still draws NO border — the modules
+            section's border-y directly below closes the seam.
+
+            GOLD RULING SUPERSEDED. The 2026-08-18 ruling ("the section's ONE
+            gold moment"; "both problem-section questions render gold") is
+            RETIRED together with the questions it governed. This act is
+            deliberately colourless: the problem carries no accent, and gold
+            first appears in the modules section below. Zero brand-gold here,
+            by design — not an oversight.
+
+            FIRST DIAGRAM SVG IN THE REPO. Every other <svg> in src/ is an
+            icon or a spinner, so there was no diagram precedent to follow and
+            this establishes one. It follows the house icon idiom
+            (HomeClient.tsx:301-305, Header.tsx:35-37): stroke/fill =
+            "currentColor", the colour supplied by a Tailwind text-* token on
+            a wrapping <g>. NO hex — BacktestPanel.tsx:80 and
+            strategy-builder.ts:1384 hardcode token values and are drift bugs,
+            not precedent. currentColor carries ONE colour per subtree, so
+            elements are grouped by COLOUR, not by meaning: the faint <g> holds
+            the dashed fan, BY HAND, the sheet's inner rules and the cell
+            marks; the muted <g> holds its outer border, header rule and
+            first-column rule.
+
+            TWO SVGs, BREAKPOINT-SWAPPED — not one responsive viewBox. These
+            are two different drawings, not one drawing at two sizes: desktop
+            runs the lines rightward and converges on the sheet's LEFT edge,
+            mobile runs them downward and converges on its TOP edge. One
+            viewBox cannot express both, and stretching either into the
+            other's aspect would skew the dash pattern and the angles — which
+            are the whole point of the figure. Each SVG renders at its viewBox
+            size 1:1 (no scaling at all), and that is what lets the six HTML
+            labels be positioned in exact pixels against the line origins.
+
+            The six labels and A SPREADSHEET are real HTML text in the mono
+            lockup (:853's idiom), never SVG <text> — selectable, findable and
+            translatable. Only BY HAND, which is part of the drawing itself,
+            lives inside the SVG. ─────────────────────────────────────────── */}
       <section aria-label="The problem" className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px]">
         <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.12em] text-text-faint">01 / THE PROBLEM</p>
         <h2 className="mt-[18px] text-[27px] lg:text-[38px] font-medium tracking-[-0.025em] text-brand-purple">
-          {"Running your life takes ten apps \u2014 and they don't talk to each other."}
+          {"No app can tell you how long your money lasts \u2014 or what to do next."}
         </h2>
-        {/* TOOLS-GRID: the gold "·" separators retire — the numbers replace
-            them. Number/name idiom from the nine-modules lockup (faint mono
-            number + semibold purple name); text-xs = the 12px mobile floor.
-            Left-aligned wrap, ten entries, atomic number+name pairs
-            (whitespace-nowrap) — the centered row-10 ruling superseded
-            2026-08-18. */}
-        <div className="mt-5 lg:mt-[22px] flex flex-wrap justify-start gap-x-4 gap-y-2 lg:gap-x-6 lg:gap-y-2.5">
-          {([
-            ['01', 'BUDGET APP'],
-            ['02', 'BOOKING SITE'],
-            ['03', 'BROKER'],
-            ['04', 'TRADE LOG'],
-            ['05', 'BOOKKEEPING'],
-            ['06', 'COMPLIANCE'],
-            ['07', 'TAX APP'],
-            ['08', 'FP&A'],
-            ['09', 'AI WORK JOURNAL'],
-            ['10', 'SPREADSHEETS'],
-          ] as const).map(([num, name]) => (
-            <span key={name} className="flex items-baseline gap-1.5 whitespace-nowrap">
-              <span className="font-mono text-xs lg:text-[10px] text-text-faint">{num}</span>
-              <span className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-purple">{name}</span>
-            </span>
+        <p className="mt-4 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">
+          Your money lives in six kinds of places. None of them talk.
+        </p>
+
+        {/* DESKTOP FAN — viewBox 640×160, rendered 1:1. Origins sit at x=120,
+            clear of the label column; each line runs right to x=240 then
+            angles to one point on the sheet's left edge (400, 80). The two
+            middle lines run nearly level while the outer four angle hard —
+            that spread IS the convergence. */}
+        <div className="relative mt-6 hidden lg:mt-8 lg:block">
+          <svg role="img" viewBox="0 0 640 160" className="h-[160px] w-[640px]">
+            <title>Six kinds of places, copied by hand into one spreadsheet</title>
+            <g className="text-text-faint" stroke="currentColor" fill="none">
+              {[13, 40, 67, 93, 120, 147].map((y) => (
+                <path key={y} d={`M120 ${y} H240 L400 80`} strokeWidth={1} strokeDasharray="3 4" />
+              ))}
+              <text x={330} y={22} textAnchor="middle" fontSize={9} letterSpacing={1.4} className="font-mono" fill="currentColor" stroke="none">BY HAND</text>
+              {[65, 95, 125].map((y) => (
+                <line key={y} x1={400} y1={y} x2={640} y2={y} strokeWidth={0.75} />
+              ))}
+              {[496, 544, 592].map((x) => (
+                <line key={x} x1={x} y1={5} x2={x} y2={155} strokeWidth={0.75} />
+              ))}
+              {([
+                [460, 476, 50], [510, 522, 50], [556, 572, 50],
+                [460, 470, 80], [556, 576, 80],
+                [508, 524, 110],
+                [460, 478, 140], [604, 620, 140],
+              ] as const).map(([x1, x2, y]) => (
+                <line key={`${x1}-${y}`} x1={x1} y1={y} x2={x2} y2={y} strokeWidth={2} />
+              ))}
+            </g>
+            <g className="text-text-muted" stroke="currentColor" fill="none" strokeWidth={1}>
+              <rect x={400} y={5} width={240} height={150} />
+              <line x1={400} y1={35} x2={640} y2={35} />
+              <line x1={448} y1={5} x2={448} y2={155} />
+            </g>
+          </svg>
+          {PROBLEM_SOURCES.map((label, i) => (
+            <p
+              key={label}
+              className={`absolute left-0 -translate-y-1/2 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-purple ${PROBLEM_LABEL_TOP_LG[i]}`}
+            >
+              {label}
+            </p>
           ))}
         </div>
-        <p className="mt-4 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">
-          {"Ten logins, ten subscriptions, ten copies of your life that don't connect. And to get the one answer that matters, you become the integration \u2014 copying numbers from app to app into a spreadsheet."}
+        {/* A SPREADSHEET under the sheet: the block takes the SVG's own 640px
+            width and is padded to the sheet's left edge at x=400. */}
+        <p className="mt-2 hidden w-[640px] pl-[400px] font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-purple lg:block">
+          A spreadsheet
         </p>
-        <p className="mt-6 text-[15px] text-text-muted">None of them can answer the questions that matter:</p>
-        <p className="mt-2 font-mono text-[22px] font-semibold text-brand-gold">How long will my money last?</p>
-        <p className="mt-2 font-mono text-[22px] font-semibold text-brand-gold">{"What's the right next move?"}</p>
+
+        {/* MOBILE FAN — viewBox 280×390, rendered 1:1 (280 clears the 288px
+            content width of a 320px viewport). Each line leaves its own label
+            at x=100 and angles DOWN to one point on the sheet's top edge
+            (140, 230). */}
+        <div className="relative mt-6 lg:hidden">
+          <svg role="img" viewBox="0 0 280 390" className="h-[390px] w-[280px]">
+            <title>Six kinds of places, copied by hand into one spreadsheet</title>
+            <g className="text-text-faint" stroke="currentColor" fill="none">
+              {[13, 39, 65, 91, 117, 143].map((y) => (
+                <path key={y} d={`M100 ${y} L140 230`} strokeWidth={1} strokeDasharray="3 4" />
+              ))}
+              <text x={200} y={185} textAnchor="middle" fontSize={10} letterSpacing={1.4} className="font-mono" fill="currentColor" stroke="none">BY HAND</text>
+              {[290, 320, 350].map((y) => (
+                <line key={y} x1={20} y1={y} x2={260} y2={y} strokeWidth={0.75} />
+              ))}
+              {[116, 164, 212].map((x) => (
+                <line key={x} x1={x} y1={230} x2={x} y2={380} strokeWidth={0.75} />
+              ))}
+              {([
+                [80, 96, 275], [130, 142, 275], [176, 192, 275],
+                [80, 90, 305], [176, 196, 305],
+                [128, 144, 335],
+                [80, 98, 365], [224, 240, 365],
+              ] as const).map(([x1, x2, y]) => (
+                <line key={`${x1}-${y}`} x1={x1} y1={y} x2={x2} y2={y} strokeWidth={2} />
+              ))}
+            </g>
+            <g className="text-text-muted" stroke="currentColor" fill="none" strokeWidth={1}>
+              <rect x={20} y={230} width={240} height={150} />
+              <line x1={20} y1={260} x2={260} y2={260} />
+              <line x1={68} y1={230} x2={68} y2={380} />
+            </g>
+          </svg>
+          {PROBLEM_SOURCES.map((label, i) => (
+            <p
+              key={label}
+              className={`absolute left-0 -translate-y-1/2 font-mono text-xs font-semibold uppercase tracking-[0.08em] text-brand-purple ${PROBLEM_LABEL_TOP_SM[i]}`}
+            >
+              {label}
+            </p>
+          ))}
+        </div>
+        <p className="mt-2 pl-[20px] font-mono text-xs font-semibold uppercase tracking-[0.08em] text-brand-purple lg:hidden">
+          A spreadsheet
+        </p>
+
+        <p className="mt-4 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">
+          What the data said, last time you typed into it.
+        </p>
+        <p className="mt-6 text-[17px] lg:text-[20px] text-brand-purple">Six kinds of places. Twenty-five apps.</p>
+        <div className="mt-4 h-[30px] lg:h-10 w-px bg-border" aria-hidden="true" />
       </section>
 
       {/* ── MERGED-02 (spec design-refs/merged-modules-spec.md §1-§6): the
