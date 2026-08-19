@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useSession } from 'next-auth/react';
 import { AppLayout } from '@/components/ui';
 import CalendarGrid, { CalendarEvent, SourceConfig } from '@/components/shared/CalendarGrid';
 import ConvergenceIntelligence from '@/components/convergence/ConvergenceIntelligence';
@@ -88,10 +87,42 @@ const EMOTIONS = ['confident', 'neutral', 'nervous', 'fomo', 'revenge', 'greedy'
 const SETUPS = ['breakout', 'pullback', 'mean-reversion', 'momentum', 'earnings', 'theta-decay', 'volatility', 'other'];
 
 export default function TradingPage() {
-  const { data: session } = useSession();
-  const userEmail = session?.user?.email || null;
+  // Identity from the cookie-auth read the rest of the app uses (/api/auth/me),
+  // not from the NextAuth session — a password login mints only the signed
+  // userEmail cookie (api/auth/login/route.ts:56-62), so that session is empty
+  // and this gate could never pass. Ported verbatim from owner/page.tsx:87-120.
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [identityLoading, setIdentityLoading] = useState(true);
   const ownerEmail = process.env.NEXT_PUBLIC_OWNER_EMAIL;
   const isOwner = !!ownerEmail && userEmail?.toLowerCase() === ownerEmail.toLowerCase();
+
+  // Fail-closed, NOT a fallback: any non-200 or network error leaves the email
+  // null, so the gate denies and the owner-only sections stay unmounted. There
+  // is no alternate identity path and no degraded mode — the failure is logged,
+  // never swallowed.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/me', { credentials: 'include' });
+        if (!res.ok) {
+          console.error(`[trading] identity read failed (${res.status})`);
+          if (!cancelled) setUserEmail(null);
+          return;
+        }
+        const data = await res.json();
+        if (!cancelled) setUserEmail(data?.user?.email ?? null);
+      } catch (err) {
+        console.error('[trading] identity read failed (network error)', err);
+        if (!cancelled) setUserEmail(null);
+      } finally {
+        if (!cancelled) setIdentityLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [tradesData, setTradesData] = useState<TradesData | null>(null);
@@ -731,7 +762,11 @@ export default function TradingPage() {
 
   const getJournalEntry = (tradeNum: string) => journalEntries.find(e => e.tradeNum === tradeNum);
 
-  if (loading) {
+  // identityLoading joins the existing guard so the owner-only sections below
+  // (Market Intelligence, Data Observatory) can never flash absent-then-present
+  // if /api/auth/me resolves after the trades fetch. Both start on mount, so
+  // this adds no serial latency.
+  if (loading || identityLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center py-20">
