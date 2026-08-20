@@ -11,15 +11,24 @@
  *   DONE-FOR-YOU        — the professional-services panel
  *   01 / THE PROBLEM    — the six-source fan + the twenty-five-tool sheet
  *   02 / THE IMPORT     — the raw import table, four arrivals, why it holds
+ *   03 / THE ROUTING    — one rule per feed, the four kinds, the three tests
  *   Built on            — the vendor marquee
  *
  * REVENUE FIRST, THEN THE TEACHING SEQUENCE. The two acts under the hero are
  * not slides — they are live surfaces a guest can transact on without an
  * account: travel search/booking is public (middleware.ts:70-94) and the
  * services panel takes a proposal. They carry NO step number for exactly that
- * reason; only the numbered pair below them is a sequence, and its numbering
+ * reason; only the numbered run below them is a sequence, and its numbering
  * starts at 01 and stays contiguous. Do not renumber the revenue acts back in,
- * and do not number a third one without deciding whether it is a step.
+ * and do not number another one without deciding whether it is a step.
+ *
+ * ADDING A TEACHING SLIDE is a three-part edit and nothing more: the next
+ * number in the run, a border-t (no act carries a border-b, so every boundary
+ * INSIDE the run is closed by the lower section — but see the seam ledger in
+ * the problem act for the one exception, 01 itself, which carries no border at
+ * all), and its data as module-scope consts beside the others. 03 / THE
+ * ROUTING was added that way — three consts, one border-t — and changed no
+ * existing border.
  *
  * MODULES-RETIRED (this PR). The nine-module deck — pillar cards, the
  * nine-row module sheet, the segment control, the personas rail and the
@@ -283,6 +292,60 @@ const IMPORT_ARRIVALS = [
   ['plaid', 'transaction', 'nkP9dLm4zQx7', '09:14:06Z', 'done'],
   ['tastytrade', 'quote', 'SPY-2026-02-19', '10:31:00Z', 'done'],
   ['sec', 'filing', '0000320193-26-14', '11:02:44Z', 'pending'],
+] as const;
+
+// ROUTING-RULES: the whole routing decision, for the 03 / THE ROUTING slide,
+// as [provider, resource, kind, landsIn]. ELEVEN ROWS IS THE ARGUMENT — the
+// slide's claim is that routing is a table you read, not code you trace, so
+// the rows have to look like a table someone maintains: eleven of them, seven
+// providers, four kinds, several providers appearing more than once because a
+// feed sends more than one shape.
+//
+// THE FOUR KINDS ARE A CLOSED SET — EVENT, REGISTRY, REFERENCE, DERIVED — and
+// they are the slide's vocabulary, not decoration. EVENT is something that
+// happened, REGISTRY is something you own, REFERENCE is world data you did not
+// author, DERIVED is a conclusion. Adding a fifth kind is a product decision,
+// not a data edit; do not invent one to fit a new feed.
+//
+// THE anthropic ROW IS THE POINT and the renderer keys off its provider name,
+// not a flag here, so this stays plain data — one filled row is a presentation
+// fact, not a property of the rule. It lands in 'never a source': a
+// classification is DERIVED, so it can be recomputed and must never be the
+// thing another table trusts. That phrase is the copy; do not normalise it to
+// a table name to make the column look uniform.
+//
+// NOT COUPLED TO IMPORT_ARRIVALS. Those four rows are things that actually
+// landed; these eleven are the standing rule that decides where anything
+// landing would go. They overlap in provider names today and must stay free to
+// diverge — a provider can be routed before it has ever sent anything.
+const ROUTING_RULES = [
+  ['stripe', 'payout', 'EVENT', 'event'],
+  ['stripe', 'charge', 'EVENT', 'event'],
+  ['plaid', 'transaction', 'EVENT', 'event'],
+  ['plaid', 'account', 'REGISTRY', 'account'],
+  ['tastytrade', 'quote', 'REFERENCE', 'reference'],
+  ['tastytrade', 'position', 'REGISTRY', 'position'],
+  ['tastytrade', 'fill', 'EVENT', 'event'],
+  ['sec', 'filing', 'REFERENCE', 'reference'],
+  ['fred', 'series', 'REFERENCE', 'reference'],
+  ['duffel', 'booking', 'EVENT', 'event'],
+  ['anthropic', 'classification', 'DERIVED', 'never a source'],
+] as const;
+
+// The provider whose row the routing table fills. Named here rather than typed
+// into the renderer so the emphasis and the data cannot drift apart — the same
+// arrangement as IMPORT_PAYLOAD_ROW above.
+const ROUTING_DERIVED_ROW = 'anthropic';
+
+// The routing slide's three closing lines, each split [opening phrase,
+// remainder] on a COLOUR boundary and nothing else — opener purple, remainder
+// faint, neither half changing weight. Same arrangement as
+// IMPORT_WHY_IT_MATTERS below; stored pre-split because the break points are
+// editorial (they fall on the test being named, not on punctuation).
+const ROUTING_TESTS = [
+  ['Delete the part.', 'One routing table, not twenty-five parsers.'],
+  ['Systemize the decision.', 'The rule is a row, not a judgment call.'],
+  ['Separate the functions.', 'World data, your data, and money never mix.'],
 ] as const;
 
 // The slide's three closing sentences, each split [opening phrase, remainder].
@@ -754,10 +817,24 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               live demo | done-for-you → the demo act's border-b
               done-for-you | 01 problem→ done-for-you's border-b
               01 problem | 02 import   → the import act's border-t
-              02 import | built on     → built-on's border-t (NEW this move —
-                                         the import act ends the teaching run
-                                         and draws no bottom rule of its own)
+              02 import | 03 routing   → the routing act's border-t
+              03 routing | built on    → built-on's border-t (the routing act
+                                         ends the teaching run and, like every
+                                         numbered act, draws no bottom rule of
+                                         its own)
               built on | footer        → built-on's border-b
+            NO ACT CARRIES A border-b, which is what makes the run extensible:
+            every boundary inside the teaching sequence is closed by the LOWER
+            section's border-t, so a slide appended to the run needs exactly one
+            class and disturbs nothing else. Adding 03 changed no existing
+            border — built-on's border-t, which used to close import|built-on,
+            now closes routing|built-on without being touched.
+            THE ONE EXCEPTION IS 01 ITSELF: this act has no border class at all,
+            because the act above it is done-for-you, a revenue surface that
+            closes its own bottom edge (see done-for-you|01 above). So 02 and 03
+            take border-t and 01 takes nothing. Do not "make it consistent" by
+            adding a border-t here — that would double the rule against
+            done-for-you's border-b.
             THE GuestTripStrip CASE, now resolved. That strip renders only for a
             guest who has session trip records, carries its OWN border-b, and
             sits between the demo and done-for-you acts. Closing the demo act
@@ -768,19 +845,27 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             done-for-you would have made strip|done-for-you the page's only
             two-rule seam. Do not add one.
             GEOMETRY, DECLARED: the content-width acts rule at content width
-            (max-w-7xl), the full-bleed acts rule edge to edge, so the demo and
-            problem/import rules are inset and the built-on ones are not.
+            (max-w-7xl), the full-bleed acts rule edge to edge. So the demo's
+            border-b and the import and routing acts' border-t are inset, and
+            done-for-you's and built-on's are not. This act draws no rule of its
+            own at all, so it contributes none.
 
             GOLD RULING SUPERSEDED. The 2026-08-18 ruling ("the section's ONE
             gold moment"; "both problem-section questions render gold") is
             RETIRED together with the questions it governed. This act is
-            deliberately colourless: the problem carries no accent, and gold
-            INK first appears in the import act directly below, on its band
-            labels. (Gold as a BUTTON FILL is older and higher up — the hero's
-            MONEY_ACTION CTA — which is a different use of the token and not
-            what this ruling is about.) The revenue acts that now sit above
-            this one carry no gold at all, so the accent still enters below.
-            Zero brand-gold here, by design — not an oversight.
+            deliberately colourless: THIS ACT CARRIES ZERO BRAND-GOLD, by
+            design and not by oversight. That is the whole of the ruling, and it
+            is the only part that is checkable from this file alone.
+            NO "FIRST GOLD ON THE PAGE" CLAIM IS MADE HERE, because every
+            version of that claim has turned out false. Gold already appears
+            ABOVE this act in three places, two of them outside this file:
+            the header's CTA fill (LandingHeader.tsx:80,87), the hero's
+            MONEY_ACTION CTA fill (this file, the hero act), and — whenever a
+            guest has trip records — GuestTripStrip's money numerals, which are
+            text-brand-gold, i.e. gold INK, not just fill
+            (GuestTripStrip.tsx:53,65). What IS true and worth recording: among
+            the NUMBERED teaching acts, gold enters at 02 and continues into 03.
+            Check the other files before writing a page-wide colour claim.
 
             FIRST DIAGRAM SVG IN THE REPO. Every other <svg> in src/ is an
             icon or a spinner, so there was no diagram precedent to follow and
@@ -1029,16 +1114,16 @@ FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
             pt-9 lg:pt-[60px] pb-9 lg:pb-[60px]. It now also draws a border-t,
             which is the page's rule for the problem|import seam.
 
-            GOLD IS DELIBERATE HERE, AND THIS IS WHERE GOLD INK ENTERS the
-            page: the four band labels, the FOUR ARRIVALS label and WHY IT
-            MATTERS. Everything above is either colourless by ruling (the
-            problem act) or carries no gold at all (the two revenue acts under
-            the hero) — verified, not assumed. The one earlier gold on the page
-            is the hero CTA's FILL (bg-brand-gold, the MONEY_ACTION idiom),
-            which is a different use of the token; this is the first gold used
-            as ink. That does not reopen the problem act's ruling — that ruling
-            is about the problem act, which is still untouched and still
-            colourless.
+            GOLD IS DELIBERATE HERE — the four band labels, the FOUR ARRIVALS
+            label and WHY IT MATTERS — and the routing act below carries it on.
+            THIS IS WHERE GOLD ENTERS THE NUMBERED RUN, which is a narrower
+            claim than it used to make and the only one that survives checking:
+            gold appears earlier on the page in the header's CTA fill
+            (LandingHeader.tsx:80,87), the hero's CTA fill, and GuestTripStrip's
+            money numerals when it renders (GuestTripStrip.tsx:53,65 — those are
+            text-brand-gold, so "first gold INK" was false too). The act
+            directly above, 01, is colourless by its own ruling. That ruling is
+            about the problem act and is not reopened here.
 
             SEAM: border-t. This act closes the problem|import boundary; see
             the seam ledger in the problem section's comment above.
@@ -1180,6 +1265,127 @@ FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
         </div>
         <div className="mt-8 lg:mt-12 h-px w-full bg-border" aria-hidden="true" />
         <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">Now — what kind of thing is each one?</p>
+      </section>
+
+      {/* ── ROUTING-03 / THE ROUTING TABLE. Act grammar copied from the import
+            act above, class for class: same max-w-7xl container, same px, same
+            pt-9 lg:pt-[60px] pb-9 lg:pb-[60px], same eyebrow/headline/support
+            sizes, and a border-t which is the page's rule for the
+            import|routing seam. Everything is weight 400 — which is why every
+            th carries an explicit font-normal: Preflight does not reset the
+            UA's `th { font-weight: bold }`, so a th without it ships at 700.
+
+            ONE TABLE, FOUR EQUAL QUARTERS, ruled horizontally only. No interior
+            verticals on this slide either — the same calm the import tables
+            read with — so cells set border-b and never border-r.
+            border-separate + border-spacing-0 rather than the house
+            border-collapse, because collapsed borders are half-inside the box
+            and make percentage columns unpredictable.
+
+            THE anthropic ROW is the emphasis and differs in EXACTLY ONE way:
+            bg-bg-row across its cells. No weight change, no size change, no
+            border accent, no gold beyond the KIND column every row already
+            has. The point lands because the row is filled, not because it
+            shouts.
+
+            MOBILE COLUMNS ARE NOT EQUAL THIRDS, deliberately: 30 / 40 / 30.
+            Equal thirds were measured and 'classification' — the longest
+            resource name, one unbreakable token — overflowed its cell by 1.1px
+            at 375. The four quarters the spec fixes are a DESKTOP measurement;
+            below lg the three surviving columns are sized to what they hold,
+            which is what a table does. Do not 'tidy' these back to 33.33%
+            without re-measuring the longest token first.
+
+            MOBILE reuses the import act's payload pattern verbatim rather than
+            inventing a second one: LANDS IN is dropped, and the derived row's
+            'never a source' follows as its own colSpan={3} row with the same
+            fill and no rule between, so the two read as one block. NO PHANTOM
+            COLUMN: the only colSpan here lives on an lg:hidden ROW, and a row
+            with display:none leaves the table model entirely, so desktop counts
+            four columns from the header and mobile counts three. The import
+            act needed two band cells because its band rows spanned at BOTH
+            breakpoints; this table has no such row and needs no such
+            trick. ────────────────────────────────────────────────────────── */}
+      <section aria-label="The routing" className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border">
+        <p className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">03 / THE ROUTING</p>
+        <h2 className="mt-[26px] text-[27px] leading-[1.2] lg:text-[38px] tracking-[-0.025em] text-brand-purple">
+          One rule per feed.<br />Written down.
+        </h2>
+        <p className="mt-[22px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
+          Not a decision made in code. A row you can read, argue with, and audit.
+        </p>
+
+        <table className="mt-10 lg:mt-[76px] w-full table-fixed border-separate border-spacing-0 border border-border">
+          <thead>
+            <tr>
+              {([
+                ['PROVIDER', 'w-[30%]'], ['RESOURCE', 'w-[40%]'], ['KIND', 'w-[30%]'], ['LANDS IN', 'hidden lg:table-cell'],
+              ] as const).map(([head, sm]) => (
+                <th
+                  key={head}
+                  scope="col"
+                  className={`${sm} lg:w-[25%] bg-bg-row px-[11px] py-[9px] lg:px-5 lg:py-3 text-left align-top font-mono text-[10px] lg:text-[11px] font-normal uppercase tracking-[0.18em] text-text-faint border-b border-b-border`}
+                >
+                  {head}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {ROUTING_RULES.map(([provider, resource, kind, landsIn], r) => {
+              const isDerived = provider === ROUTING_DERIVED_ROW;
+              const isLast = r === ROUTING_RULES.length - 1;
+              // Rule policy, copied from the import act so the two tables stay
+              // one pattern: a normal row rules at both breakpoints; a derived
+              // row keeps its rule on desktop and drops it on mobile, where
+              // LANDS IN follows as a second row the two must read as one
+              // block; the last row rules at neither, because the table's outer
+              // border closes it.
+              // THE isDerived BRANCH IS INERT TODAY and that is not a mistake:
+              // anthropic is both the derived row AND the last row, so isLast
+              // wins and this row takes no rule at either breakpoint — the
+              // correct result. It is kept rather than simplified away because
+              // the moment a rule is appended after anthropic the branch has to
+              // fire, and losing it would silently put a hairline between the
+              // derived row and its own continuation row on mobile, breaking
+              // the one-block reading with nothing to catch it. The import act's
+              // 'payload' sits mid-table, so there the branch is live.
+              const rule = isLast ? '' : isDerived ? 'lg:border-b-[0.75px] lg:border-b-text-faint' : 'border-b-[0.75px] border-b-text-faint';
+              const fill = isDerived ? 'bg-bg-row' : '';
+              const pad = 'px-[11px] py-[9px] lg:px-5 lg:py-[11px]';
+              return (
+                <Fragment key={`${provider}-${resource}`}>
+                  <tr>
+                    <td className={`${pad} ${fill} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}>{provider}</td>
+                    <td className={`${pad} ${fill} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}>{resource}</td>
+                    <td className={`${pad} ${fill} ${rule} align-top font-mono text-[11px] lg:text-[13px] uppercase text-brand-gold`}>{kind}</td>
+                    <td className={`hidden lg:table-cell ${pad} ${fill} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-text-faint`}>{landsIn}</td>
+                  </tr>
+                  {isDerived && (
+                    <tr className="lg:hidden">
+                      <td colSpan={3} className={`${fill} ${isLast ? '' : 'border-b-[0.75px] border-b-text-faint'} px-[11px] pt-0 pb-[9px] align-top font-mono text-[11px] leading-[1.4] text-text-faint`}>{landsIn}</td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+
+        <p className="mt-10 lg:mt-[76px] font-mono text-[10px] lg:text-[11px] uppercase tracking-[0.20em] text-brand-gold">THE THREE TESTS THIS SURVIVES</p>
+        <div className="mt-[14px] lg:mt-5">
+          {ROUTING_TESTS.map(([claim, rest], i) => (
+            <p key={claim} className={`${i === 0 ? '' : 'mt-3 lg:mt-[14px]'} text-[13px] leading-[1.5] lg:text-[16.5px] text-text-faint`}>
+              <span className="text-brand-purple">{claim}</span> {rest}
+            </p>
+          ))}
+        </div>
+
+        <div className="mt-8 lg:mt-12 h-px w-full bg-border" aria-hidden="true" />
+        <p className="mt-[22px] lg:mt-8 text-[12px] lg:text-[14px] text-text-faint">
+          A new feed adds rows here. It does not add code, and it does not add a table.
+        </p>
+        <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">So how many tables are there?</p>
       </section>
 
       {/* ── BUILTON-MARQUEE: the "Built on" wall's five-category card grid
