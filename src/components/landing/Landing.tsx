@@ -403,6 +403,51 @@ const PROBLEM_SOURCES = [
   'The Proof',
 ] as const;
 
+// PROBLEM-SHEET: the twenty-five tools those six places actually take, one
+// column per PROBLEM_SOURCES entry and ORDER-PARALLEL to it — index i here is
+// the sheet column belonging to fan label i. Shape: six { header, tools }.
+//
+// THE HEADERS ARE ABBREVIATED ON PURPOSE and deliberately do NOT match
+// PROBLEM_SOURCES. The fan's HTML labels on the left carry the full names
+// ('What You Own'); these are the tab names a person would actually type
+// across the top of a spreadsheet ('OWN'). That mismatch IS the drawing — the
+// left column names the place, the sheet names the tab. Do not "fix" either
+// side to the other; squaring them would flatten the whole point of the figure.
+//
+// THE COLUMNS ARE DELIBERATELY UNEQUAL — 3 / 4 / 6 / 5 / 3 / 4, twenty-five in
+// total. The ragged bottom is honest: some kinds of places take six tools and
+// some take three. NEVER pad a column to square the grid — the empty cells are
+// the finding, not a rendering defect.
+//
+// NOT COUPLED TO REPLACED_APPS, and deliberately not a shared symbol with it —
+// the same reasoning as PROBLEM_SOURCES above. The strip groups the apps you
+// replace; this names the twenty-five while they are still twenty-five separate
+// things that do not talk. They enumerate the same concepts today and must stay
+// free to diverge.
+const PROBLEM_SHEET = [
+  { header: 'WORK', tools: ['Calendar', 'Tasks', 'Time'] },
+  { header: 'IN', tools: ['CRM', 'Contracts', 'Invoicing', 'Payments'] },
+  { header: 'OUT', tools: ['Bill Pay', 'Payroll', 'Expenses', 'Travel', 'Mileage', 'Budget'] },
+  { header: 'OWN', tools: ['Banking', 'Fixed Assets', 'Retirement', 'Brokerage', 'Trade Log'] },
+  { header: 'OWE', tools: ['Debt', 'Sales Tax', 'Ent Filings'] },
+  { header: 'PROOF', tools: ['Bookkeeping', 'Tax', 'Compliance', 'FP&A'] },
+] as const;
+
+// PROBLEM-SHEET / MOBILE SPLIT: six 56px columns cannot fit a 280px viewBox, so
+// the phone draws TWO stacked grids of three columns instead of one of six.
+// DERIVED BY SLICE from PROBLEM_SHEET, never a retyped second copy of the tool
+// names (the no-drift law) — and each grid is paired here with its own `top` so
+// the split and its geometry can only move together. `top` is the y of that
+// grid's outer rect; EVERY other coordinate in the mobile sheet is computed
+// from it (header rule top+30, interior rules top+50..top+130 by 20, header
+// baseline top+18, data baselines top+43 by 20). Grid A keeps the original
+// grid's y=230 so the dashed fan's convergence point is untouched; Grid B sits
+// 30px below A's bottom edge.
+const PROBLEM_SHEET_SM = [
+  { top: 230, cols: PROBLEM_SHEET.slice(0, 3) },
+  { top: 410, cols: PROBLEM_SHEET.slice(3) },
+] as const;
+
 // The six label offsets, order-parallel to PROBLEM_SOURCES. LITERAL class
 // strings, never interpolated (`top-[${y}px]` would never compile — Tailwind
 // scans source text, it does not evaluate it; the REPAINT-1 landmine note in
@@ -866,10 +911,16 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             a wrapping <g>. NO hex — BacktestPanel.tsx:80 and
             strategy-builder.ts:1384 hardcode token values and are drift bugs,
             not precedent. currentColor carries ONE colour per subtree, so
-            elements are grouped by COLOUR, not by meaning: the faint <g> holds
-            the dashed fan, BY HAND, the sheet's inner rules and the cell
-            marks; the muted <g> holds its outer border, header rule and
-            first-column rule.
+            elements are grouped by COLOUR, not by meaning — FOUR groups, in
+            paint order: the bg-row <g> holds the header band ALONE and comes
+            first so every rule and every name draws over it; the faint <g>
+            holds the dashed fan, BY HAND, the sheet's inner rules and its
+            column headers; a brand-purple <g> holds the twenty-five tool
+            names; the muted <g> holds the sheet's outer border and its header
+            rule. The DECORATIVE CELL MARKS are gone — the sheet holds the real
+            twenty-five now, so there is nothing left for them to stand in for;
+            so is the first-column rule, which described a sheet with a wider
+            leading column and is wrong for six equal ones.
 
             TWO SVGs, BREAKPOINT-SWAPPED — not one responsive viewBox. These
             are two different drawings, not one drawing at two sizes: desktop
@@ -883,15 +934,29 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
 
             The six labels and A SPREADSHEET are real HTML text in the mono
             lockup (:853's idiom), never SVG <text> — selectable, findable and
-            translatable. Only BY HAND, which is part of the drawing itself,
-            lives inside the SVG. ─────────────────────────────────────────── */}
+            translatable. That rule is about THE SIX FAMILY LABELS specifically:
+            they are pinned in exact pixels to the fan's line origins, and only
+            HTML absolute offsets can do that pinning.
+
+            EXCEPTION, RULED — the sheet's six column headers and its
+            twenty-five tool names ARE SVG <text>. They sit INSIDE the drawn
+            grid at fixed cell coordinates, so rendering them as HTML would mean
+            absolutely positioning thirty-one more elements over the SVG in
+            exact pixels, across two breakpoints — multiplying the exact
+            label-to-line-origin coupling this figure already carries rather
+            than containing it. As SVG <text> they are children of the grid that
+            holds them and move with it by construction: change a column width
+            and the names follow, because both derive from the same arithmetic.
+            They remain real text — selectable, findable, and read aloud by
+            screen readers. BY HAND, which is part of the drawing itself, was
+            always inside the SVG. ─────────────────────────────────────────── */}
       <section aria-label="The problem" className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px]">
         <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.12em] text-text-faint">01 / THE PROBLEM</p>
         <h2 className="mt-[18px] text-[27px] lg:text-[38px] font-medium tracking-[-0.025em] text-brand-purple">
-          {"No app can tell you how long your money lasts \u2014 or what to do next."}
+          Twenty-five tools. None of them knows what the others did.
         </h2>
         <p className="mt-4 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">
-          Your money lives in six kinds of places. None of them talk.
+          Your business is one system. Your software isn&apos;t.
         </p>
 
         {/* DESKTOP FAN — viewBox 900×224, rendered 1:1. Origins sit at x=168,
@@ -908,34 +973,47 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             viewBox, every coordinate AND the CSS size together, because this
             SVG is fixed-size (not width:100%) — scaling the viewBox alone
             would have shrunk the drawing, not grown it. Stroke weights are
-            deliberately NOT scaled: hairlines stay hairlines. */}
+            deliberately NOT scaled: hairlines stay hairlines.
+            SIX EQUAL COLUMNS. The sheet spans x=560..896, so 336 / 6 = 56px a
+            column; the five interior dividers fall at 616/672/728/784/840 and
+            cell text starts 4px inside its column at 564 + c*56. The header row
+            is the band y=7..49; below it 217 - 49 = 168px divides into SIX data
+            rows of 28px (five interior rules at 77/105/133/161/189), which is
+            exactly the tallest column's tool count — OUT, at six. Baselines sit
+            2.5px under each row's centre: headers at y=31, cells at 66 + r*28.
+            Every number here derives from the rect, so the rect is the only
+            thing to change if the sheet ever moves. */}
         <div className="relative mt-6 hidden lg:mt-8 lg:block">
           <svg role="img" viewBox="0 0 900 224" className="h-[224px] w-[900px]">
             <title>Six kinds of places, copied by hand into one spreadsheet</title>
+            <g className="text-bg-row" fill="currentColor" stroke="none">
+              <rect x={560} y={7} width={336} height={42} />
+            </g>
             <g className="text-text-faint" stroke="currentColor" fill="none">
               {[19, 56, 93, 131, 168, 205].map((y) => (
                 <path key={y} d={`M168 ${y} H336 L560 112`} strokeWidth={1} strokeDasharray="3 4" />
               ))}
               <text x={462} y={31} textAnchor="middle" fontSize={10} letterSpacing={1.4} className="font-mono" fill="currentColor" stroke="none">BY HAND</text>
-              {[91, 133, 175].map((y) => (
+              {[77, 105, 133, 161, 189].map((y) => (
                 <line key={y} x1={560} y1={y} x2={896} y2={y} strokeWidth={0.75} />
               ))}
-              {[694, 761, 828].map((x) => (
+              {[616, 672, 728, 784, 840].map((x) => (
                 <line key={x} x1={x} y1={7} x2={x} y2={217} strokeWidth={0.75} />
               ))}
-              {([
-                [644, 666, 70], [714, 731, 70], [778, 801, 70],
-                [644, 658, 112], [778, 806, 112],
-                [711, 734, 154],
-                [644, 669, 196], [846, 868, 196],
-              ] as const).map(([x1, x2, y]) => (
-                <line key={`${x1}-${y}`} x1={x1} y1={y} x2={x2} y2={y} strokeWidth={2} />
+              {PROBLEM_SHEET.map((col, c) => (
+                <text key={col.header} x={564 + c * 56} y={31} fontSize={7} letterSpacing={0.6} fill="currentColor" stroke="none">{col.header}</text>
               ))}
+            </g>
+            <g className="text-brand-purple" fill="currentColor" stroke="none">
+              {PROBLEM_SHEET.flatMap((col, c) =>
+                col.tools.map((tool, r) => (
+                  <text key={`${col.header}-${tool}`} x={564 + c * 56} y={66 + r * 28} fontSize={7}>{tool}</text>
+                )),
+              )}
             </g>
             <g className="text-text-muted" stroke="currentColor" fill="none" strokeWidth={1}>
               <rect x={560} y={7} width={336} height={210} />
               <line x1={560} y1={49} x2={896} y2={49} />
-              <line x1={627} y1={7} x2={627} y2={217} />
             </g>
           </svg>
           {PROBLEM_SOURCES.map((label, i) => (
@@ -953,37 +1031,64 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           A spreadsheet
         </p>
 
-        {/* MOBILE FAN — viewBox 280×390, rendered 1:1 (280 clears the 288px
+        {/* MOBILE FAN — viewBox 280×570, rendered 1:1 (280 clears the 288px
             content width of a 320px viewport). Each line leaves its own label
             at x=100 and angles DOWN to one point on the sheet's top edge
-            (140, 230). */}
+            (140, 230). THE FAN IS UNTOUCHED by the sheet rewrite: same six
+            origins, same convergence point, same weights — only the viewBox
+            FLOOR moved, and a viewBox growing downward cannot move anything
+            already drawn above it.
+            TWO STACKED GRIDS, NOT ONE OF SIX. Six columns do not fit 280px —
+            240px of sheet would give 40px a column, under what the longer names
+            need at fontSize 7 — so the phone splits the sheet: Grid A
+            (WORK · IN · OUT) keeps the original grid's box at y=230 so the
+            convergence point still lands on a real top edge, and Grid B
+            (OWN · OWE · PROOF) sits 30px below A's bottom edge, at y=410. Each
+            is 240 / 3 = 80px a column (dividers at x=100/180, text at
+            24 + c*80), with the same header band, the same six 20px data rows
+            and the same rule weights as desktop. Both grids share x=20, so the
+            A SPREADSHEET caption's pl-[20px] still aligns to both and does not
+            move. Every coordinate derives from each grid's `top` — the split
+            and its geometry live together in PROBLEM_SHEET_SM. */}
         <div className="relative mt-6 lg:hidden">
-          <svg role="img" viewBox="0 0 280 390" className="h-[390px] w-[280px]">
+          <svg role="img" viewBox="0 0 280 570" className="h-[570px] w-[280px]">
             <title>Six kinds of places, copied by hand into one spreadsheet</title>
+            <g className="text-bg-row" fill="currentColor" stroke="none">
+              {PROBLEM_SHEET_SM.map(({ top }) => (
+                <rect key={top} x={20} y={top} width={240} height={30} />
+              ))}
+            </g>
             <g className="text-text-faint" stroke="currentColor" fill="none">
               {[13, 39, 65, 91, 117, 143].map((y) => (
                 <path key={y} d={`M100 ${y} L140 230`} strokeWidth={1} strokeDasharray="3 4" />
               ))}
               <text x={200} y={185} textAnchor="middle" fontSize={10} letterSpacing={1.4} className="font-mono" fill="currentColor" stroke="none">BY HAND</text>
-              {[290, 320, 350].map((y) => (
-                <line key={y} x1={20} y1={y} x2={260} y2={y} strokeWidth={0.75} />
-              ))}
-              {[116, 164, 212].map((x) => (
-                <line key={x} x1={x} y1={230} x2={x} y2={380} strokeWidth={0.75} />
-              ))}
-              {([
-                [80, 96, 275], [130, 142, 275], [176, 192, 275],
-                [80, 90, 305], [176, 196, 305],
-                [128, 144, 335],
-                [80, 98, 365], [224, 240, 365],
-              ] as const).map(([x1, x2, y]) => (
-                <line key={`${x1}-${y}`} x1={x1} y1={y} x2={x2} y2={y} strokeWidth={2} />
-              ))}
+              {PROBLEM_SHEET_SM.flatMap(({ top, cols }) => [
+                ...[1, 2, 3, 4, 5].map((r) => (
+                  <line key={`h${top}-${r}`} x1={20} y1={top + 30 + r * 20} x2={260} y2={top + 30 + r * 20} strokeWidth={0.75} />
+                )),
+                ...[100, 180].map((x) => (
+                  <line key={`v${top}-${x}`} x1={x} y1={top} x2={x} y2={top + 150} strokeWidth={0.75} />
+                )),
+                ...cols.map((col, c) => (
+                  <text key={`t${top}-${col.header}`} x={24 + c * 80} y={top + 18} fontSize={7} letterSpacing={0.6} fill="currentColor" stroke="none">{col.header}</text>
+                )),
+              ])}
+            </g>
+            <g className="text-brand-purple" fill="currentColor" stroke="none">
+              {PROBLEM_SHEET_SM.flatMap(({ top, cols }) =>
+                cols.flatMap((col, c) =>
+                  col.tools.map((tool, r) => (
+                    <text key={`${col.header}-${tool}`} x={24 + c * 80} y={top + 43 + r * 20} fontSize={7}>{tool}</text>
+                  )),
+                ),
+              )}
             </g>
             <g className="text-text-muted" stroke="currentColor" fill="none" strokeWidth={1}>
-              <rect x={20} y={230} width={240} height={150} />
-              <line x1={20} y1={260} x2={260} y2={260} />
-              <line x1={68} y1={230} x2={68} y2={380} />
+              {PROBLEM_SHEET_SM.flatMap(({ top }) => [
+                <rect key={`r${top}`} x={20} y={top} width={240} height={150} />,
+                <line key={`hr${top}`} x1={20} y1={top + 30} x2={260} y2={top + 30} />,
+              ])}
             </g>
           </svg>
           {PROBLEM_SOURCES.map((label, i) => (
@@ -1000,9 +1105,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </p>
 
         <p className="mt-4 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">
-          What the data said, last time you typed into it.
+          As current as the last time you typed into it.
         </p>
-        <p className="mt-6 text-[17px] lg:text-[20px] text-brand-purple">Six kinds of places. Twenty-five apps.</p>
+        <p className="mt-6 text-[17px] lg:text-[20px] text-brand-purple">So what do these twenty-five actually give you?</p>
         <div className="mt-4 h-[30px] lg:h-10 w-px bg-border" aria-hidden="true" />
       </section>
 
