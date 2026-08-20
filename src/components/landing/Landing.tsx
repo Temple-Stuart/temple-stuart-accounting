@@ -12,6 +12,8 @@
  *   01 / THE PROBLEM    — the six-source fan + the twenty-five-tool sheet
  *   02 / THE IMPORT     — the raw import table, four arrivals, why it holds
  *   03 / THE ROUTING    — one rule per feed, the four kinds, the three tests
+ *   04 / THE HANDOFF    — the kind picks the table; twenty-five apps, five
+ *                         tables
  *   Built on            — the vendor marquee
  *
  * REVENUE FIRST, THEN THE TEACHING SEQUENCE. The two acts under the hero are
@@ -27,7 +29,8 @@
  * boundary INSIDE the run is closed by the lower section — but see the seam
  * ledger in the problem act for the one exception, 01 itself, which carries no
  * border at all), and its data as module-scope consts beside the others. 03 / THE
- * ROUTING was added that way — three consts, one border-t — and changed no
+ * ROUTING was added that way — three consts, one border-t — and 04 / THE
+ * HANDOFF after it with one const and one border-t. Neither changed an
  * existing border.
  *
  * MODULES-RETIRED (this PR). The nine-module deck — pillar cards, the
@@ -301,11 +304,17 @@ const IMPORT_ARRIVALS = [
 // providers, four kinds, several providers appearing more than once because a
 // feed sends more than one shape.
 //
-// THE FOUR KINDS ARE A CLOSED SET — EVENT, REGISTRY, REFERENCE, DERIVED — and
-// they are the slide's vocabulary, not decoration. EVENT is something that
-// happened, REGISTRY is something you own, REFERENCE is world data you did not
-// author, DERIVED is a conclusion. Adding a fifth kind is a product decision,
-// not a data edit; do not invent one to fit a new feed.
+// THE FOUR ROUTABLE KINDS ARE A CLOSED SET — EVENT, REGISTRY, REFERENCE,
+// DERIVED — and they are the slide's vocabulary, not decoration. EVENT is
+// something that happened, REGISTRY is something you own, REFERENCE is world
+// data you did not author, DERIVED is a conclusion. Adding a fifth ROUTABLE
+// kind is a product decision, not a data edit; do not invent one to fit a new
+// feed.
+// FOUR HERE, FIVE IN HANDOFF_KINDS BELOW, AND THE GAP IS THE POINT: POSTING is
+// a table but never a routing target, because nothing ever arrives as a
+// posting — the system writes postings from events. A provider can only send
+// one of these four. Do not add a POSTING row here to make the two lists
+// match.
 //
 // THE anthropic ROW IS THE POINT and the renderer keys off its provider name,
 // not a flag here, so this stays plain data — one filled row is a presentation
@@ -346,6 +355,36 @@ const ROUTING_TESTS = [
   ['Delete the part.', 'One routing table, not twenty-five parsers.'],
   ['Systemize the decision.', 'The rule is a row, not a judgment call.'],
   ['Separate the functions.', 'World data, your data, and money never mix.'],
+] as const;
+
+// HANDOFF-KINDS: the five tables a kind can address, for the 04 / THE HANDOFF
+// slide, as [kind, table, whatIsInIt]. This is the payoff of the routing act
+// above — that act decides WHICH kind a thing is, this one says what each kind
+// then means, so the two must use the same words for the same concepts.
+//
+// FIVE KINDS HERE, FOUR IN ROUTING_RULES, AND THAT IS CORRECT — do not
+// "reconcile" them by adding a POSTING row to the routing table. Nothing ever
+// ARRIVES as a posting: a provider sends an event, a registry record, a
+// reference fact or a classification, and postings are what the system writes
+// from those. So POSTING is a real table with no routing rule, which is exactly
+// what you would expect of the one table the outside world cannot write to
+// directly. The routing const's own comment records the same split.
+//
+// ORDER IS THE ARGUMENT, not the alphabet: world data first (reference), then
+// who you are (registry), then what happened (event), then what that did to the
+// money (posting), then what you concluded (derived). It runs outermost to
+// innermost, so re-sorting it would flatten the point.
+//
+// NO ROW IS EMPHASISED, deliberately, unlike the import and routing acts. All
+// five kinds are peers — the slide's claim is that twenty-five apps collapse to
+// five equal tables — so a highlighted row would argue the opposite. Do not add
+// a fill here.
+const HANDOFF_KINDS = [
+  ['REFERENCE', 'reference', 'facts about the world'],
+  ['REGISTRY', 'registry', 'your accounts and people'],
+  ['EVENT', 'event', 'what happened'],
+  ['POSTING', 'posting', 'debits and credits'],
+  ['DERIVED', 'derived', 'math you did'],
 ] as const;
 
 // The slide's three closing sentences, each split [opening phrase, remainder].
@@ -837,19 +876,21 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               done-for-you | 01 problem→ done-for-you's border-b
               01 problem | 02 import   → the import act's border-t
               02 import | 03 routing   → the routing act's border-t
-              03 routing | built on    → built-on's border-t (the routing act
+              03 routing | 04 handoff  → the handoff act's border-t
+              04 handoff | built on    → built-on's border-t (the handoff act
                                          ends the teaching run and, like every
                                          numbered act, draws no bottom rule of
                                          its own)
               built on | footer        → built-on's border-b
-            NO NUMBERED ACT CARRIES A border-b — 01, 02 and 03 specifically;
+            NO NUMBERED ACT CARRIES A border-b — 01 through 04 specifically;
             done-for-you and built-on both do, which is why the run's boundaries
             behave differently from the page's. That is what makes the run
             extensible: every boundary INSIDE the teaching sequence is closed by
             the LOWER section's border-t, so a slide appended to the run needs
-            exactly one class and disturbs nothing else. Adding 03 changed no existing
-            border — built-on's border-t, which used to close import|built-on,
-            now closes routing|built-on without being touched.
+            exactly one class and disturbs nothing else. Adding 04 was the second
+            demonstration of that: like 03 before it, it added one border-t and
+            changed no existing border — built-on's border-t, which used to close
+            routing|built-on, now closes handoff|built-on without being touched.
             THE ONE EXCEPTION IS 01 ITSELF: this act has no border class at all,
             because the act above it is done-for-you, a revenue surface that
             closes its own bottom edge (see done-for-you|01 above). So 02 and 03
@@ -1407,6 +1448,92 @@ FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
           A new feed adds rows here. It does not add code, and it does not add a table.
         </p>
         <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">So how many tables are there?</p>
+      </section>
+
+      {/* ── HANDOFF-04 / THE KIND PICKS THE TABLE. Act grammar copied from the
+            routing act above, class for class: same container, same px, same
+            pt-9 lg:pt-[60px] pb-9 lg:pb-[60px], same eyebrow/headline/support
+            treatment, and a border-t which is the page's rule for the
+            routing|handoff seam. Everything is weight 400, which is why every
+            th carries an explicit font-normal — Preflight does not reset the
+            UA's `th { font-weight: bold }`.
+
+            COLUMNS ARE SIZED TO CONTENT, NOT EQUAL — 14 / 14 / 72 on desktop,
+            32 / 28 / 40 below lg. KIND and TABLE each hold one word; WHAT IS IN
+            IT holds a phrase and takes the remainder. Equal thirds would have
+            starved the only column with prose in it while leaving two
+            one-word columns half empty.
+
+            THREE COLUMNS AT EVERY WIDTH — no column is dropped and there is no
+            continuation row, because measurement said none was needed: at true
+            375 the tightest cell is REFERENCE with 12.6px to spare, and the
+            prose column wraps as prose should. The import and routing acts drop
+            a column below lg only because their widest cells are unbreakable
+            single tokens; every cell here is either one short word or a phrase
+            that can wrap, so the same trick would have cost a row and bought
+            nothing.
+
+            NO ROW IS EMPHASISED. The import act fills its payload row and the
+            routing act fills its anthropic row; this one fills nothing, because
+            its claim is that the five kinds are PEERS. A highlighted row would
+            argue against the slide.
+
+            THE ARROW IS PRESENTATION, NOT DATA — it lives in the markup, not in
+            HANDOFF_KINDS, and it is aria-hidden: it restates the kind→table
+            mapping that the column order already gives a screen reader, so
+            reading it aloud would only add noise. Right-aligned inside the KIND
+            cell so it sits against the TABLE column and the pair reads as one
+            movement. ──────────────────────────────────────────────────────── */}
+      <section aria-label="The handoff" className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border">
+        <p className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">04 / THE HANDOFF</p>
+        <h2 className="mt-[26px] text-[27px] leading-[1.2] lg:text-[38px] tracking-[-0.025em] text-brand-purple">
+          The kind picks the table.
+        </h2>
+        <p className="mt-[22px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
+          Step 3 gave every feed a kind. The kind is the address.
+        </p>
+
+        <table className="mt-10 lg:mt-[76px] w-full table-fixed border-separate border-spacing-0 border border-border">
+          <thead>
+            <tr>
+              {([
+                ['KIND', 'w-[32%] lg:w-[14%]'], ['TABLE', 'w-[28%] lg:w-[14%]'], ['WHAT IS IN IT', 'w-[40%] lg:w-[72%]'],
+              ] as const).map(([head, w]) => (
+                <th
+                  key={head}
+                  scope="col"
+                  className={`${w} bg-bg-row px-[11px] py-[9px] lg:px-5 lg:py-3 text-left align-top font-mono text-[10px] lg:text-[11px] font-normal uppercase tracking-[0.18em] text-text-faint border-b border-b-border`}
+                >
+                  {head}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {HANDOFF_KINDS.map(([kind, table, whatIsInIt], r) => {
+              const rule = r === HANDOFF_KINDS.length - 1 ? '' : 'border-b-[0.75px] border-b-text-faint';
+              const pad = 'px-[11px] py-[9px] lg:px-5 lg:py-[11px]';
+              return (
+                <tr key={kind}>
+                  <td className={`${pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] uppercase text-brand-gold`}>
+                    <span className="flex items-baseline justify-between gap-2">
+                      {kind}
+                      <span aria-hidden="true" className="text-text-muted">→</span>
+                    </span>
+                  </td>
+                  <td className={`${pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}>{table}</td>
+                  <td className={`${pad} ${rule} align-top text-[11px] leading-[1.4] lg:text-[13px] lg:leading-normal text-text-faint`}>{whatIsInIt}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        <div className="mt-10 lg:mt-[76px] h-px w-full bg-border" aria-hidden="true" />
+        <p className="mt-[22px] lg:mt-8 text-[17px] lg:text-[28px] text-brand-purple">Twenty-five apps. Five tables.</p>
+        <p className="mt-[14px] lg:mt-5 text-[12px] lg:text-[14px] text-text-faint">
+          Because you sorted by what a thing is, not by which app it came from.
+        </p>
       </section>
 
       {/* ── BUILTON-MARQUEE: the "Built on" wall's five-category card grid
