@@ -1,100 +1,68 @@
 'use client';
 
 /**
- * Landing (FD-1 → FD-1b → FD-1c → FD-1d) — the sales floor: hero → pillar
- * cards → the NINE-ROW module sheet → pricing-transparency band → footer, in
- * the house Bloomberg aesthetic (see FD-1c notes; zero new hex).
+ * Landing — the guest sales floor, mounted only by GuestLanding on bare '/'
+ * (page.tsx branches authed arrivals to HomeClient). House Bloomberg aesthetic,
+ * zero new hex; every colour is a token.
  *
- * FD-1d:
- *   • header/footer extracted to LandingHeader/LandingFooter (shared with the
- *     /modules pages); the CPA disclaimer now rides the shared footer;
- *   • descriptors import from the ONE source (src/lib/tabDescriptors.ts) —
- *     the FD-1 lockstep copy is dead;
- *   • pillar cards' "Explore →" targets the pillar's shareable info page
- *     (/modules/<id> — deck + honest access block), not the tab deep link;
- *   • the sheet lists ALL NINE pillars honestly: the four entitlement modules
- *     (TAB_PRICING data, availability-honest Select → direct checkout)
- *     PLUS the five free pillars as explicit Free rows — travel is free with
- *     NO account (its search/booking routes are public, middleware.ts:70-94);
- *     runway/routines/projects/content are free WITH a free account (their
- *     builders are auth-gated but carry no entitlement gate — isTabLocked
- *     wraps only the four, ML :259-262 — and no tier gate, tiers.ts
- *     TRUTH-LABELS :4-17). Free rows link Learn more → /modules/<id>.
+ * THE ACTS, in document order:
+ *   hero (full-bleed aubergine band)
+ *   01 / THE PROBLEM   — the six-source fan + the twenty-five-tool sheet
+ *   02 / THE IMPORT    — the raw import table, four arrivals, why it holds
+ *   03 / LIVE DEMO     — travel search/booking, real and public
+ *   04 / DONE-FOR-YOU  — the professional-services panel
+ *   Built on           — the vendor marquee
  *
- * Card bullets remain the FD-1b verbatim deck-heading lifts (provenance in
- * the PILLAR_CARDS comment).
+ * MODULES-RETIRED (this PR). The nine-module deck — pillar cards, the
+ * nine-row module sheet, the segment control, the personas rail and the
+ * merged '02 / THE NINE MODULES' stage that replaced them all — is DELETED.
+ * It was built on a superseded model and a teaching sequence replaces it. Gone
+ * with it: DECK_CATEGORIES, PILLAR_CARDS, REPLACED_APPS, FAMILY_OFFSETS,
+ * FRAME_LINKS, PERSONAS, GROUP_RATIONALE, the whole stage/autoplay state
+ * machine, and the lucide + GLIMPSES imports that served only them. Do not
+ * reconstruct any of it from this comment; read the git history instead.
  *
- * LOBBY-DECK-1 (Alex's ruling — simpler page, less packed intel, fresh,
- * cellphone-friendly): the NINE PILLARS card grid + the MODULES sheet
- * consolidate into ONE slide deck — nine slides in the funnel order, each
- * carrying its pillar card's content (chip + descriptor + verbatim bullets)
- * AND its sheet row's truth (label, price-or-Free, the FD-1o cost summary,
- * the availability-honest Select/Learn-more — commerce wiring byte-identical).
- * CSS scroll-snap, no new deps. The hero's "Try it live" CTA became "See how
- * it works ↓" (scrollIntoView to the deck). The costs ▾ expanders and the
- * legend/footnote block no longer render here — the receipt machinery
- * (ModuleCostBreakdown + helpers) is PRESERVED unmounted below (exported;
- * HPW-1 consumes it); the transparency door is the one-line link under the
- * deck. transparencyLedger is untouched.
+ * id="modules" SURVIVES THE DELETE and now lives on the 03 / LIVE DEMO
+ * section. It is a commerce contract, not decoration: the Stripe checkout
+ * cancel_url, the /pricing 308 redirect, the module page's Select link and the
+ * shopping View Plans button all resolve to it. Moving or dropping it breaks
+ * the buy path — see the ANCHOR-REHOME note on that section.
  *
- * FD-1i (the selection floor — Alex's seven rulings): the deck gains
- * checkboxes on the four PAID slides ("Add to plan" → a selection Set); the
- * bundle strip becomes a live CALCULATOR strip (0 selected = the bundle
- * pitch; 1 = single-select continue; 2+ = count + the honest sum ONLY when
- * every selected TAB_PRICING monthlyPrice exists — all five are null today,
- * so "prices shown at checkout" is the live default — vs the bundle line);
- * a visual regrade (existing token families only: brand-purple = paid,
- * brand-green = free, white opacities); and a second SUMMARY deck beneath —
- * every string lifted verbatim from the module decks (per-line provenance on
- * SUMMARY_BY_ID). (PR-ELEV-2b: the deck was cut in ELEV-2+3, then RESTORED
- * byte-faithfully from fec63b01 by Alex's ruling; the "Built on" card wall +
- * "Built in public" sections follow it.) PR-PRICE-3: /pricing is DISCONTINUED
- * — this deck is THE pricing surface. Select/Continue call the
- * checkout-entitlement flow directly (via GuestLanding's onBuyModule
- * account-first resume); multi-select is one checkout per module, starting
- * with the first selected, and the strip says so.
+ * WHAT THE DECK'S RETIREMENT DID NOT SETTLE: six other files still describe
+ * this page as THE pricing surface (ModulePageClient.tsx:19,33 ·
+ * pricingModel.ts:3 · pricing-costs.ts:329 · tiers.ts:6 · app/page.tsx:35 ·
+ * AppLayout.tsx:60). With the deck gone that claim has no surface behind it.
+ * Reported, deliberately NOT fixed here — what replaces it is a product
+ * decision, not a cleanup.
  *
- * DECKS-3 (three verbatim rulings): (1) the PILLARS deck is a VERTICAL STACK
- * of full-width mini heroes — its carousel mechanics died (PR-DECK-CLEAN-3:
- * each hero is internally TWO-COLUMN when it carries a demoImage — text
- * left, framed screenshot right); (2) the SELECTION
- * deck adopted the mini-hero glow-panel format but stays a horizontal snap
- * rail, each slide carrying the commerce (PR-DECK-CLEAN-1 re-cut the slide
- * to the 5-part scannable card: name, one line, checkmark fragments, price
- * slot, actions — the evicted prose lives on /modules/<id>); (3) NOTHING IS
- * FREE except the home-page travel search itself — every "Free…" access
- * label was reframed paid (claims stay gate-true; the PAID_* label prose
- * moved to /modules/<id> via modulePillars.ts accessNote, PR-DECK-CLEAN-1),
- * all NINE slides carry the checkbox, "Learn more" died, and Select's key
- * mapping comes from the REAL purchasable vocabulary (categoryKeys.ts:22-29 —
- * tab:travel + tab:operations exist; runway/routines/content have NO key →
- * availability-honest "Launching soon", never an invented key).
- * ENFORCEMENT of the paid framing (gates for the five former-free pillars)
- * is a separate ruled decision — no gate/tier/middleware line changes here.
+ * STILL TRUE FROM THE FD-1d SPLIT: header/footer are extracted to
+ * LandingHeader/LandingFooter (shared with the /modules pages) and the CPA
+ * disclaimer rides the shared footer; descriptors import from the ONE source
+ * (src/lib/tabDescriptors.ts).
+ *
+ * PRESERVED UNMOUNTED, exported, consumed by HPW-1 — not dead by accident:
+ * ModuleCostBreakdown + helpers, REFERENCED_MARKS, ZERO_COST_BY_MODULE.
+ * transparencyLedger is untouched. The demo modal is preserved the same way
+ * but is currently UNREACHABLE — its only opener died with the deck; see the
+ * showDemo declaration.
  */
 
 import Link from 'next/link';
-import { Fragment, useEffect, useRef, useState } from 'react';
-// PR-DECK-CLEAN-1: the card fragments' checkmark — lucide is the house icon
-// vocabulary (TripHeader.tsx:16 already imports Check).
-// PR-DECK-4CAT: the four category-tab icons join.
-import { Plane, BookOpen, TrendingUp, Settings } from 'lucide-react';
-// MERGED-02: the segment control + catalog table died with the merged
-// section — ds.iconTab/DATA and LayoutGrid left with them. The four
-// category icons stay: DECK_CATEGORIES is the ratified partition the
-// stage's group tag reads.
-// PERSONAS-2: the TAB_PRICING import retired with the Act-4 bundle bar —
-// its last Landing consumer (pricingByKey/bundle). The pricing surface is
-// /how-pricing-works (header link) until buy affordances return.
-// MERGED-02: the shared pipe-phases config — the stage's step rail reads
-// the SAME rows the in-app StageStrips render (landing/app lockstep by
-// construction, pipePhases.ts's own contract).
-import { PIPE_PHASES, type PipePhase, type PipePillarId } from '@/lib/pipePhases';
-// WALKTHROUGH-STAGE (round-5): the truth-ledger data the Treatment-A stage
-// renders — order-parallel to PIPE_PHASES (the a′ contract). The dev assert
-// below fails LOUD on any drift between the two arrays' lengths.
+import { Fragment, useState } from 'react';
+// MODULES-RETIRED: the lucide category icons left with DECK_CATEGORIES, and
+// GLIMPSES left with the stage — the merged modules section was their only
+// consumer. The TAB_PRICING import had already retired with the Act-4 bundle
+// bar; the pricing surface is /how-pricing-works until buy affordances return.
+//
+// PIPE_PHASES AND WALKTHROUGH_LEDGER STAY, and are NOT dead. The landing no
+// longer renders either — the step rail that read them is gone — but the
+// module-scope assert directly below still consults both, and it is the only
+// thing in the repo that fails loud when pipePhases.ts and walkthroughLedger.ts
+// drift out of lockstep. Removing these two imports would delete that guard by
+// accident. PipePhase went with the stage's phase array; PipePillarId stays
+// because the assert keys on it.
+import { PIPE_PHASES, type PipePillarId } from '@/lib/pipePhases';
 import { WALKTHROUGH_LEDGER } from '@/lib/walkthroughLedger';
-import { GLIMPSES } from '@/components/landing/glimpses';
 
 if (process.env.NODE_ENV !== 'production') {
   for (const pid of Object.keys(PIPE_PHASES) as PipePillarId[]) {
@@ -163,237 +131,15 @@ const LandingBookingSection = dynamic(() => import('./LandingBookingSection'), {
   ),
 });
 
-interface PillarCard {
-  id: string;
-  label: string;
-  /** TAB_DESCRIPTORS key — differs from `id` only for Runway, whose tab key
-   *  is 'calendar' (ModuleLauncher.tsx TABS :126). */
-  tab: string;
-  /** PURCHASABLE entitlement key when one exists in the real vocabulary
-   *  (categoryKeys.ts:22-29 TAB_ENTITLEMENT_KEYS — DECKS-3 added tab:travel
-   *  + tab:operations). Absent = not yet sellable (runway/routines/content):
-   *  the slide renders the availability-honest "Launching soon". A key may
-   *  exist WITHOUT a TAB_PRICING display entry — the price line then falls
-   *  back to "price shown at checkout". */
-  entitlementKey?: string;
-  /** LAND-MSG-1: ONE plain-English outcome line under the pillar name — the
-   *  card's single subtitle (PR-DECK-CLEAN-1 structure slot 2). HARD RULE:
-   *  every line is a REPHRASE of an already-verified claim — the per-line
-   *  source cites are in the LAND-MSG-1 report. Zero new claims. */
-  plain: string;
-  /** PR-DECK-CLEAN-1 (Alex, vs resend/plaid/stripe pricing: "too much
-   *  text"): CHECKMARK short fragments (aim ≤6 words; approved copy may
-   *  exceed — PLAIN-SHOWCASE) — every fragment COMPRESSED
-   *  from a pre-existing verified string (pricingModel.ts unlocks lines /
-   *  the old deck bullets / the old PAID_* access labels; per-card
-   *  provenance below). Zero new claims. The evicted long copy is preserved
-   *  on /modules/<id> — the showcase decks already carry the old bullets and
-   *  TAB_DESCRIPTORS verbatim, and the PAID_* specifics moved to
-   *  modulePillars.ts accessNote. PR-DECK-CLEAN-2 (even-card ruling):
-   *  EXACTLY 3 per card — the trimmed 4th fragments stay preserved at the
-   *  same /modules/<id> destinations (cut list in the provenance below). */
-  bullets: string[];
-}
-
-// PR-DECK-CLEAN-1: the PAID_* access labels left the deck. Their claims
-// survive, verified unchanged (FD-1o gate cites): Travel's framing already
-// lives on /modules/travel (ModulePageClient travel branch); the
-// Runway/Routines/Projects/Content specifics moved VERBATIM (minus the
-// duplicated "A paid module —" lead the module page already states) to
-// modulePillars.ts accessNote, rendered in each page's paid block.
-
-// PR-DECK-4CAT: the module category tabs — a fixed PARTITION of the nine
-// PILLAR_CARDS ids (every id appears in exactly one MODULE category; verified
-// in the DECK-4CAT report). The active tab mounts ONLY its moduleIds cards,
-// in this order, as a static grid — the persona-filtered carousel retired.
-// DECK-SERVICES-TAB: 'services' is EXEMPT from the partition BY DESIGN —
-// empty moduleIds; its tab renders the professional-services panel, not
-// module cards (the deck's done-for-you bar absorbed here).
-const DECK_CATEGORIES = [
-  { key: 'travel',     label: 'Travel',     icon: Plane,      moduleIds: ['travel'] },
-  { key: 'accounting', label: 'Accounting', icon: BookOpen,   moduleIds: ['books', 'runway', 'tax'] },
-  { key: 'trading',    label: 'Trading',    icon: TrendingUp, moduleIds: ['trade'] },
-  { key: 'operations', label: 'Operations', icon: Settings,   moduleIds: ['projects', 'routines', 'content', 'compliance'] },
-  // LANDING-V2: the services tab left the deck (spec :323-327) — the panel
-  // lives in section 04's DONE-FOR-YOU seat now.
-] as const;
-
-// MODULE-ORDER: the canonical order — Alex's lifecycle ruling (plan →
-// execute → book → prove → settle → know → tell): routines, projects,
-// travel, trade, books, compliance, tax, runway, content — numbered 01-09
-// by ARRAY INDEX everywhere (spine marks, chips, stage kicker all derive;
-// no stored number). Ids and /modules/<id> routes unchanged. (Supersedes
-// the funnel order; moduleBands.ts nums + ModuleLauncher TABS move in
-// lockstep this PR.) PR-DECK-CLEAN-1 fragment provenance — every
-// bullet is a compression of ONE pre-existing verified string, zero new
-// claims (the old FD-1o / FD-1h gate cites carry over with each source;
-// provenance listed per module, not in display order):
-//   Travel:     ruled plain-language pass (PR-SLIDE-TRAVEL-REAL) — Alex's
-//               approved copy, not lift-quotes. The claims behind each
-//               bullet stay the verified ones: free public search
-//               (middleware-verified routes), bookings persist to the trip
-//               (flights/book/route.ts:201), planned-vs-actual budget lens
-//               (TripBudgetActual.tsx)
-//   Runway:     b1 ← RunwayShowcaseSections.tsx:345 headline fragment;
-//               b2+b3 ← FD-1h claim "Burn broken out by Personal vs.
-//               Business — strays surfaced, never dropped" (runway/route.ts
-//               :146-171)
-//   Books:      b1+b2 ← pricingModel.ts tab:books unlocks fragments;
-//               b3 ← TabShowcases.tsx:296 verbatim
-//   Trade:      b1+b2 ← pricingModel.ts tab:trade unlocks fragments;
-//               b3 ← TabShowcases.tsx:148 ("Eighteen real controls.
-//               Sixteen strategies.")
-//   Tax:        b1-b3 ← pricingModel.ts tab:tax unlocks fragments
-//   Compliance: b1-b3 ← pricingModel.ts tab:compliance unlocks fragments
-//   Routines:   b1-b3 ← RoutinesShowcaseSections.tsx :367, :391, :398
-//   Projects:   b1 ← ProjectsShowcaseSections.tsx:271 ("Goals in. Audited
-//               tasks out."); b2+b3 ← old PAID_PROJECTS ("the AI planning
-//               pipeline, capped at 20 runs/day")
-//   Content:    b1 ← ContentShowcaseSections.tsx:229 verbatim; b2 ← :260
-//               fragment; b3 ← old PAID_CONTENT ("AI script generation is
-//               a paid feature")
-// PR-DECK-CLEAN-2 cuts (exactly-3 ruling) — each cut fragment's claim stays
-// preserved where DECK-CLEAN-1 already parked the full copy:
-//   Runway     − "Numbers from your ledger"      → /modules/runway accessNote
-//   Books      − "Reconciliation & period close" → tab:books unlocks,
-//                rendered on /modules/books ("Unlocks …")
-//   Trade      − "Trade cards + reconcile queue" → tab:trade unlocks,
-//                rendered on /modules/trade
-//   Tax        − "Schedule C/D/SE"               → tab:tax unlocks,
-//                rendered on /modules/tax
-//   Compliance − "Missions & tasks"              → tab:compliance unlocks,
-//                rendered on /modules/compliance
-//   Routines   − "AI scene enrichment (paid)"    → /modules/routines
-//                accessNote
-//   Content    − "Day log & planning"            → /modules/content
-//                accessNote
-const PILLAR_CARDS: PillarCard[] = [
-  {
-    id: 'routines', label: 'Routines', tab: 'routines',
-    plain: 'Set up a habit once — it lands on your calendar and your budget.',
-    bullets: [
-      'Build once, shows up everywhere',
-      'Executable steps you actually run',
-      'What’s due, done, slipped',
-    ],
-  },
-  {
-    id: 'projects', label: 'Projects', tab: 'projects', entitlementKey: 'tab:operations',
-    plain: 'Type a goal — get a plan you can actually run.',
-    bullets: [
-      'Goals in, audited tasks out',
-      'AI planning pipeline',
-      'Capped at 20 runs/day',
-    ],
-  },
-  {
-    id: 'travel', label: 'Travel', tab: 'travel', entitlementKey: 'tab:travel',
-    plain: 'Search, book, and budget your trips in one place.',
-    bullets: [
-      'Search and book — no account needed',
-      'Every booking saves to your trip',
-      'See planned vs. what you really spent',
-    ],
-  },
-  {
-    id: 'trade', label: 'Trade', tab: 'trade', entitlementKey: 'tab:trade',
-    plain: 'Find trades worth taking — and get told when to skip.',
-    bullets: [
-      'Scanner on live market data',
-      'Trading journal & realized P&L',
-      'Eighteen controls, sixteen strategies',
-    ],
-  },
-  {
-    id: 'books', label: 'Books', tab: 'books', entitlementKey: 'tab:books',
-    plain: 'Know where every dollar went — synced straight from your bank.',
-    bullets: [
-      'Plaid bank sync',
-      'Double-entry journal & ledger',
-      'Hand your CPA a package',
-    ],
-  },
-  {
-    id: 'compliance', label: 'Compliance', tab: 'compliance', entitlementKey: 'tab:compliance',
-    plain: 'Every number keeps its receipt — proof you can show later.',
-    bullets: [
-      'Regulatory corpus search',
-      'Citation verification',
-      'Tamper-evident audit registry',
-    ],
-  },
-  {
-    id: 'tax', label: 'Tax', tab: 'tax', entitlementKey: 'tab:tax',
-    plain: 'Your return builds itself from your records.',
-    bullets: [
-      '1040 estimate from closed books',
-      'Wash sales + Form 8949',
-      'CPA export',
-    ],
-  },
-  {
-    id: 'runway', label: 'Runway', tab: 'calendar',
-    plain: 'See how many months your money lasts.',
-    bullets: [
-      'Every system you’re juggling',
-      'Burn: Personal vs. Business',
-      'Strays surfaced, never dropped',
-    ],
-  },
-  {
-    id: 'content', label: 'Content', tab: 'content',
-    plain: 'Turn what you did today into a ready-to-film script.',
-    bullets: [
-      'Your day becomes the script',
-      'Every step: shot, question, purpose',
-      'AI script generation (paid)',
-    ],
-  },
-];
-
-// ─────────────────────────────────────────────────────────────────────────
-// REPLACED_APPS — the 25 apps this product replaces, grouped into six
-// families. DELIBERATELY SEPARATE from PILLAR_CARDS and never coupled to it:
-// that list is the nine modules we BUILD (products, ids, entitlement keys, the
-// stage's data source); this one is what a user is REPLACING. The two
-// vocabularies answer different questions and must be free to diverge — no
-// shared type, no derived count, no cross-reference.
-// Numbering is 01–25 CONTINUOUS across families, derived at render from
-// FAMILY_OFFSETS below — never a retyped literal.
-// ─────────────────────────────────────────────────────────────────────────
-interface ReplacedAppFamily {
-  /** Family label — rendered uppercase via CSS, never a retyped string. */
-  family: string;
-  /** App names in display order; the array's own length feeds the numbering. */
-  apps: string[];
-}
-
-const REPLACED_APPS: ReplacedAppFamily[] = [
-  { family: 'The Work', apps: ['Calendar', 'Tasks', 'Time'] },
-  { family: 'Money In', apps: ['CRM', 'Contracts', 'Invoicing', 'Payments'] },
-  { family: 'Money Out', apps: ['Bill Pay', 'Payroll', 'Expenses', 'Travel', 'Mileage', 'Budget'] },
-  { family: 'What You Own', apps: ['Banking', 'Fixed Assets', 'Retirement', 'Brokerage', 'Trade Log'] },
-  { family: 'What You Owe', apps: ['Debt', 'Sales Tax', 'Entity Filings'] },
-  { family: 'The Proof', apps: ['Bookkeeping', 'Tax', 'Compliance', 'FP&A'] },
-];
-
-// Running index for the continuous 01–25 marks: each family's first app starts
-// after every app in the families above it. Pure derivation from the array's
-// own lengths — add or move an app and the numbering follows with no edit
-// here. (Six families; the slice/reduce cost is nil and it stays obviously
-// correct, unlike a mutating counter threaded through the render.)
-const FAMILY_OFFSETS: number[] = REPLACED_APPS.map((_, i) =>
-  REPLACED_APPS.slice(0, i).reduce((n, f) => n + f.apps.length, 0),
-);
-
 // PROBLEM-DIAGRAM: the six kinds of places money lives, for the 01 / THE
 // PROBLEM diagram. ONE array because the diagram renders its labels TWICE —
 // once per breakpoint SVG, each at its own absolute offsets — and the same
 // six strings typed twice is exactly the drift the no-drift law forbids.
 // Stored in sentence case; the mono lockup uppercases via CSS, never a
-// retyped string. Intentionally NOT the six REPLACED_APPS family names as a
-// shared symbol: the strip groups apps you replace, this names where money
-// lives. They read alike today and must stay free to diverge.
+// retyped string. These six were deliberately never a shared symbol with the
+// retired REPLACED_APPS family names, which grouped the apps you replace where
+// this names where money lives; that array died with the modules section and
+// this one is now the sole owner of the vocabulary.
 const PROBLEM_SOURCES = [
   'The Work',
   'Money In',
@@ -419,11 +165,11 @@ const PROBLEM_SOURCES = [
 // some take three. NEVER pad a column to square the grid — the empty cells are
 // the finding, not a rendering defect.
 //
-// NOT COUPLED TO REPLACED_APPS, and deliberately not a shared symbol with it —
-// the same reasoning as PROBLEM_SOURCES above. The strip groups the apps you
-// replace; this names the twenty-five while they are still twenty-five separate
-// things that do not talk. They enumerate the same concepts today and must stay
-// free to diverge.
+// SOLE OWNER of the twenty-five, as of the modules retirement. This was
+// deliberately never coupled to the retired REPLACED_APPS — the same reasoning
+// as PROBLEM_SOURCES above — and that decision is why the deck could be deleted
+// without touching a line of this slide. Keep it uncoupled: a future module
+// list is a different question from what a business is replacing.
 const PROBLEM_SHEET = [
   { header: 'WORK', tools: ['Calendar', 'Tasks', 'Time'] },
   { header: 'IN', tools: ['CRM', 'Contracts', 'Invoicing', 'Payments'] },
@@ -476,10 +222,10 @@ const PROBLEM_SHEET_NOTE = 'As current as the last time you typed into it.';
 // presentation fact, not a property of the column. Its WHY is deliberately
 // shouted in caps; that IS the copy, not a style to normalise away.
 //
-// NOT COUPLED TO ANYTHING EXISTING — not PROBLEM_SHEET, not REPLACED_APPS.
-// The problem slide names the tools a business already runs; this names the
-// columns of one table this product writes. They share no vocabulary and must
-// stay free to diverge.
+// NOT COUPLED TO ANYTHING EXISTING — not PROBLEM_SHEET, and not the retired
+// REPLACED_APPS. The problem slide names the tools a business already runs;
+// this names the columns of one table this product writes. They share no
+// vocabulary and must stay free to diverge.
 const IMPORT_COLUMNS = [
   {
     band: 'WHERE IT CAME FROM',
@@ -606,8 +352,10 @@ const PROBLEM_LABEL_TOP_SM = [
 //               lines :288, :309, :330
 //   Content:    eyebrow/headline ContentShowcaseSections.tsx:228-229;
 //               lines :246, :253, :267
-// Lines were chosen to NOT repeat the selection deck's PILLAR_CARDS bullets —
-// the two decks tell different halves of each pillar's story.
+// Lines were chosen to NOT repeat the retired selection deck's PILLAR_CARDS
+// bullets — the two decks told different halves of each pillar's story. That
+// deck is gone; the constraint is recorded because these strings still read as
+// one half of a pair.
 // PR-ELEV-2c: entries MAY carry an optional demoImage — rendered as the
 // slide's framed RIGHT column (PR-DECK-CLEAN-3, Nuitée-style; absent → text
 // spans full width).
@@ -627,80 +375,6 @@ const PROBLEM_LABEL_TOP_SM = [
 // (per-step glimpses supersede the single frame — README round-5 note). The
 // svg FILES stay in public/demo per the spec; the strings live in git
 // history if a surface ever wants them back.
-
-// LANDING-04-CAPTIONS: the SECOND caption line under each section-04 frame —
-// what that module hands to the rest of the platform, in plain language (a
-// reader with a bank account and no accounting background follows every line).
-// Keyed by PILLAR_CARDS id, the section's own map key. The FIRST caption line
-// is deliberately NOT here: it is the card's existing `plain` string, rendered
-// straight from PILLAR_CARDS (the source moduleBands.ts copies byte-for-byte
-// per its own header — the two were verified identical for all nine this PR),
-// so no headline copy is duplicated or retyped anywhere.
-const FRAME_LINKS: Record<string, string> = {
-  travel: 'Every booking lands in your budget and on your calendar — automatically.',
-  runway: 'Reads what you planned and what you actually spent. The number moves as you live.',
-  books: 'Real transactions, real double-entry. Feeds Runway and Tax.',
-  trade: 'Every trade lands in your books.',
-  tax: 'Derived from your closed books — not typed.',
-  compliance: 'The audit trail writes itself.',
-  routines: 'Bills stop ambushing you.',
-  projects: 'With a price tag, on your calendar.',
-  content: 'Your calendar tells the story.',
-};
-
-// PERSONAS-3 → PERSONAS-PAYOFFS (round-5): each row = the hook question +
-// ONE plain-language outcome sentence + the spec's payoff sentence (the
-// final plain segment per row — extracted PROGRAMMATICALLY from the
-// Desktop-1440 mock's personas region, whose paragraphs were verified to
-// START byte-exactly with the shipped sentences; the remainder IS the
-// payoff — never retyped). Rows alternate prose and mono-purple module
-// fragments (the ruled idiom: max two per row, mid-sentence; rows where no
-// fragment reads naturally stay plain prose).
-const PERSONAS: ReadonlyArray<{ label: string; segments: ReadonlyArray<{ text: string; mono?: true }> }> = [
-  { label: 'FOUNDER', segments: [
-    { text: "Building a company? See how many months you've got, what the build is costing, and receipts for every dollar when investors ask." },
-    { text: " When someone asks where the money went, the answer is one click." },
-  ] },
-  { label: 'TRADER', segments: [
-    { text: 'Trading your own money? Every fill lands in your ' },
-    { text: 'books', mono: true },
-    { text: ', keeps its receipt, and shows up on your ' },
-    { text: 'return', mono: true },
-    { text: ' — you just trade.' },
-    { text: " No April spreadsheet panic; it's been ready all year." },
-  ] },
-  { label: 'CREATOR', segments: [
-    { text: 'Filming what you do? Your day plans your shoots, and your ' },
-    { text: 'calendar', mono: true },
-    { text: ' writes the script.' },
-    { text: " More posting, less planning." },
-  ] },
-  { label: 'NOMAD', segments: [
-    { text: 'Living out of a suitcase? Book the trip, and the budget, calendar, and ' },
-    { text: 'books', mono: true },
-    { text: ' update themselves — from anywhere.' },
-    { text: " Change countries; your money system doesn't care." },
-  ] },
-  { label: 'SMALL BUSINESS OWNER', segments: [
-    { text: "Running a small business? Know what came in, what went out, and what's left — without hiring a bookkeeper." },
-    { text: " You see what an accountant would see, in plain words, every day." },
-  ] },
-  { label: 'STUDENT', segments: [
-    { text: "First bank account? Learn where your money goes before it's gone — the app shows you how." },
-    { text: " You'll pick up real accounting without ever taking the class." },
-  ] },
-];
-
-// MERGED-02 (spec §6): the per-group rationale under the stage's group tag,
-// keyed by DECK_CATEGORIES key (the ratified partition — the tag itself is
-// the category's own label, uppercased by CSS, never retyped). Spec strings
-// verbatim.
-const GROUP_RATIONALE: Record<string, string> = {
-  travel: 'Where money moves first.',
-  accounting: 'The ledger is the spine — Books writes it, Runway and Tax read it.',
-  trading: 'A money engine with receipts — every trade lands in your books.',
-  operations: 'The life around the money, on the same calendar.',
-};
 
 // FD-1n: the footnote marks ACTUALLY referenced by the allocation rows
 // (amount footnotes + the ᵉ riding split percentages) — the merged registry
@@ -821,112 +495,29 @@ interface Props {
 // this file is a flat card + lavender hairline now (deck/services = bg-white,
 // summary slides = bg-ts-white card cream, wall tiles = solid aubergine).
 
-// PERSONAS-2: entitlementAvailability + onBuyModule stay in Props — the
-// FD-2 mount contract still passes them (page.tsx → GuestLanding, outside
-// this PR's fence) — but Landing no longer consumes them: their last
-// consumer (the Act-4 bundle bar) retired. The buy path returns with the
-// next purchase affordance; until then only what's used is destructured.
+// entitlementAvailability + onBuyModule stay in Props — the FD-2 mount
+// contract still passes them (page.tsx → GuestLanding, outside this PR's
+// fence) — but Landing no longer consumes them. Their last consumer was the
+// Act-4 bundle bar, and the modules retirement removed the last surface that
+// could have picked them back up, so the destructure takes only what is used.
+// The buy path returns with the next purchase affordance; the checkout links
+// that survive all leave the page (see the id="modules" note).
 // REAL-MARKS: logoAvailability is CONSUMED again — the marquee chips carry
 // the lit-logo two-state render (the wall's own logic, relocated), so the
 // server fs-check → availability → chip pipeline is live end to end.
 // (entitlementAvailability/onBuyModule remain passed-but-unconsumed.)
 export default function Landing({ onRequireAuth, onRequireLogin, logoAvailability }: Props) {
-  // MERGED-02: the merged section's ONE piece of state — which module the
-  // stage shows. Default runway (the spec's ruled tweak). PILLAR_CARDS ids
-  // are exactly the PipePillarId vocabulary (canonical lifecycle order), so the
-  // set-time cast at the chip is total.
-  // (The retired deck state died with the section: categoryKey/deckCards
-  // fed only the segment control + table; the FD-1i selection set —
-  // selectedIds/toggleSelected/selectedPillars/selectedSum/selectedSellKeys
-  // — fed only the calculator strip, which was already UNREACHABLE dead
-  // code: toggleSelected's checkbox mounts retired with the card deck, so
-  // selectedIds was permanently empty.)
-  const [stageId, setStageId] = useState<PipePillarId>('runway');
-  // WALKTHROUGH-STAGE: the rail's step index — CLICK-ONLY, user-paced (the
-  // spec's interaction law). Module switch resets to step 01; the reset lives
-  // in the chip handler alone, which is sufficient BY INVARIANT: autoplay can
-  // only advance while userTookControl is false, and stepIndex can only leave
-  // 0 via a rail click, which sets userTookControl — so autoplay never runs
-  // over a user-chosen step.
-  const [stepIndex, setStepIndex] = useState(0);
-
-  // STAGE-AUTOPLAY: the tuning knob — ms each module holds the stage while
-  // the auto-advance runs.
-  const STAGE_AUTOPLAY_MS = 2000;
-  // Autoplay machinery — refs, not state (pause/resume must not re-render).
-  // The interval advances stageId through PILLAR_CARDS order from the
-  // ratified 'runway' default, wrapping 09 → 01 (declared: the initial
-  // state is unchanged, so the first paint is byte-identical to the static
-  // stage and the reduced-motion path is flash-free — the interval simply
-  // never starts, the merged section's motion-reduce contract in JS form
-  // via the same media query the marquee's utilities consult).
-  const userTookControl = useRef(false); // any chip activation → autoplay stops for good
-  const stageHovered = useRef(false); // pointer over stage card / chip row → paused
-  const stageInView = useRef(false); // IntersectionObserver: off-screen → paused
-  const stageSectionRef = useRef<HTMLElement | null>(null);
-  useEffect(() => {
-    // prefers-reduced-motion → never start; the stage stays static Runway.
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    // MOBILE-AUTOPLAY (390 audit finding 1, ruled): touch-class devices
-    // reuse the SAME never-start path — the only mid-read pause input is
-    // hover (onPointerEnter below), which (hover: none) devices can never
-    // fire, so on a phone the stage would flip every 2s under the reader.
-    // Static Runway instead; chip taps still switch stages (and still set
-    // userTookControl — harmless with no interval running). Evaluated once
-    // at mount, exactly like the reduced-motion line above. Desktop hover
-    // machinery byte-unchanged.
-    if (window.matchMedia('(hover: none)').matches) return;
-    const observer = new IntersectionObserver(([entry]) => {
-      stageInView.current = entry.isIntersecting;
-    });
-    if (stageSectionRef.current) observer.observe(stageSectionRef.current);
-    const interval = setInterval(() => {
-      if (userTookControl.current || stageHovered.current || !stageInView.current) return;
-      setStageId((prev) => {
-        const i = PILLAR_CARDS.findIndex((p) => p.id === prev);
-        return PILLAR_CARDS[(i + 1) % PILLAR_CARDS.length].id as PipePillarId;
-      });
-    }, STAGE_AUTOPLAY_MS);
-    return () => {
-      clearInterval(interval);
-      observer.disconnect();
-    };
-  }, []);
-
-  const stageIndex = PILLAR_CARDS.findIndex((p) => p.id === stageId);
-  const stagePillar = PILLAR_CARDS[stageIndex];
-  // Widened to the interface so the optional link (Trade's 06) type-checks
-  // across the union of literal rows.
-  // LANDING-TRADE-ORDER override — app strip rewires separately; delete this
-  // when pipePhases.trade is reordered.
-  const LANDING_TRADE_PHASES: readonly PipePhase[] = [
-    { ...PIPE_PHASES.trade[0], num: '01', name: 'FILTER', subLabel: "Pick what you're hunting" },
-    { ...PIPE_PHASES.trade[1], num: '02', name: 'SCAN', subLabel: 'Live market data runs your filters' },
-    { ...PIPE_PHASES.trade[2], num: '03', name: 'REVIEW', subLabel: 'Trades worth taking — and the skips' },
-    { ...PIPE_PHASES.trade[3], num: '04', name: 'QUEUE', subLabel: 'The card holds the prediction' },
-    { ...PIPE_PHASES.trade[5], num: '05', name: 'COMMIT', subLabel: 'Every trade lands in your books' },
-    { ...PIPE_PHASES.trade[4], num: '06', name: 'RECORD', subLabel: 'Wins and losses, written down' },
-  ];
-  const stagePhases: readonly PipePhase[] = stageId === 'trade' ? LANDING_TRADE_PHASES : PIPE_PHASES[stageId];
-  // WALKTHROUGH-STAGE: the module's ledger + the active step's five clauses
-  // (order-parallel; the module-scope assert guarantees the index is valid).
-  const stageLedger = WALKTHROUGH_LEDGER[stageId];
-  const stageStep = stageLedger.steps[stepIndex];
-  const stageStepPhase = stagePhases[stepIndex];
-  // The ratified partition (:186-188 — every pillar id appears in exactly
-  // one category, verified): the find is total; the assertion states that
-  // invariant, it is not a fallback.
-  const stageCategory = DECK_CATEGORIES.find((c) => (c.moduleIds as readonly string[]).includes(stageId))!;
-
-  // LOBBY-DECK-1b: the demo modal — only reachable when DEMO_VIDEO_URL is set
-  // (the merged-section header button that opens it renders only then).
+  // LOBBY-DECK-1b: the demo modal's open flag.
+  // UNREACHABLE AS OF THE MODULES RETIREMENT, DECLARED — the only
+  // setShowDemo(true) in the file was the merged section's header button, which
+  // died with that section, so nothing can flip this to true and the modal
+  // below can no longer render. It is left mounted, not deleted, following this
+  // file's existing preserved-unmounted convention (ModuleCostBreakdown,
+  // ZERO_COST_BY_MODULE, REFERENCED_MARKS) so the next surface that wants a
+  // demo opener has it ready. It is NOT wired and NOT a fallback: whoever
+  // restores an opener restores the behaviour. Flagged rather than silently
+  // left looking live.
   const [showDemo, setShowDemo] = useState(false);
-
-  // PERSONAS-MOBILE: below lg the persona rows collapse to a one-open-at-a-
-  // time accordion — FOUNDER (index 0) open by default; tapping the open row
-  // closes it. Desktop is untouched: the toggle renders as the inert label
-  // (lg:pointer-events-none) and every sentence stays lg:block.
-  const [openPersona, setOpenPersona] = useState<number | null>(0);
 
   return (
     <div className="min-h-screen bg-bg-terminal text-text-primary">
@@ -1007,15 +598,35 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
 
       {/* ── PROBLEM-01 / SIX-SOURCE DIAGRAM. Act grammar unchanged: the
             kicker, h2 and act padding are the previous section's classes
-            verbatim, and the section still draws NO border — the modules
-            section's border-y directly below closes the seam.
+            verbatim, and the section still draws NO border of its own.
+
+            SEAM LEDGER (one rule per boundary, and exactly one). This act is
+            the only content-width section with no top rule, because the one
+            above it is the hero: a full-bleed aubergine band whose bottom edge
+            IS the boundary. A border-border hairline there would draw a pale
+            line against a dark band and read as a defect, so the colour change
+            closes that seam and nothing else does.
+            Every seam below it carries its rule on the LOWER section's
+            border-t, so no pair can collect two: problem|import → the import
+            act's border-t; import|demo → the demo act's border-t; demo|
+            done-for-you → done-for-you's border-y top. The last two seams are
+            closed from ABOVE instead — done-for-you|built-on by
+            done-for-you's border-y bottom, built-on|footer by built-on's
+            border-b — which is why neither of those two takes a border-t.
+            Adding one would double the rule.
+            GEOMETRY, DECLARED: the content-width acts rule at content width
+            (max-w-7xl), the full-bleed acts rule edge to edge. The retired
+            modules section ruled edge to edge, so the problem|import and
+            import|demo seams are now inset where that one was not.
 
             GOLD RULING SUPERSEDED. The 2026-08-18 ruling ("the section's ONE
             gold moment"; "both problem-section questions render gold") is
             RETIRED together with the questions it governed. This act is
             deliberately colourless: the problem carries no accent, and gold
-            first appears in the modules section below. Zero brand-gold here,
-            by design — not an oversight.
+            first appears in the import act directly below, on its band
+            labels — the modules section that used to hold gold's first
+            appearance is retired. Zero brand-gold here, by design — not an
+            oversight.
 
             FIRST DIAGRAM SVG IN THE REPO. Every other <svg> in src/ is an
             icon or a spinner, so there was no diagram precedent to follow and
@@ -1261,15 +872,19 @@ FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
 
       {/* ── IMPORT-02 / THE RAW IMPORT TABLE. Act grammar copied from the
             problem section above: same max-w-7xl container, same px, same
-            pt-9 lg:pt-[60px] pb-9 lg:pb-[60px], and NO border — the modules
-            section's border-y below still closes the seam.
+            pt-9 lg:pt-[60px] pb-9 lg:pb-[60px]. It now also draws a border-t,
+            which is the page's rule for the problem|import seam.
 
-            GOLD IS DELIBERATE HERE. The problem act is colourless by ruling
-            and gold "first appears in the modules section below"; this slide
-            now sits between them and takes gold for its four band labels, the
-            FOUR ARRIVALS label and WHY IT MATTERS. That does not reopen the
-            problem section's ruling — that ruling is about the problem act,
-            which is still untouched and still colourless.
+            GOLD IS DELIBERATE HERE, AND IS NOW GOLD'S FIRST APPEARANCE on the
+            page. The problem act above is colourless by ruling; the modules
+            section that used to carry gold's first appearance is retired, so
+            this slide's four band labels, its FOUR ARRIVALS label and WHY IT
+            MATTERS are where gold enters. That does not reopen the problem
+            act's ruling — that ruling is about the problem act, which is still
+            untouched and still colourless.
+
+            SEAM: border-t. This act closes the problem|import boundary; see
+            the seam ledger in the problem section's comment above.
 
             EVERYTHING IS WEIGHT 400. No bold, no semibold, no medium anywhere
             in this act, which is why the header cells carry an explicit
@@ -1298,7 +913,7 @@ FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
             label string comes from IMPORT_COLUMNS either way, so the two
             cells cannot drift; the hidden one leaves the a11y tree with its
             display:none. ─────────────────────────────────────────────── */}
-      <section aria-label="The import" className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px]">
+      <section aria-label="The import" className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border">
         <p className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">02 / THE IMPORT</p>
         <h2 className="mt-[26px] text-[27px] leading-[1.2] lg:text-[38px] tracking-[-0.025em] text-brand-purple">
           Store what arrived.<br />Then decide what it means.
@@ -1410,395 +1025,6 @@ FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
         <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">Now — what kind of thing is each one?</p>
       </section>
 
-      {/* ── MERGED-02 (spec design-refs/merged-modules-spec.md §1-§6): the
-            merged modules section — spine, personas, chips, ONE stage, foot —
-            replacing the 02 catalog table and the 04 frame grid. id="modules"
-            KEPT: the stable anchor the /pricing permanent redirect and the
-            header's Modules link target. Geometry = the spec's px, verbatim;
-            every hex in the spec's §0 maps to an existing token (border-light
-            = #EBE4F7, ts-white = #FFFDF9 — nothing invented). Chip switching
-            is local state (default runway, the ruled tweak); inactive stages
-            are conditionally rendered, not kept mounted — static content, no
-            survival contract (declared). Frames: the house plain-<img>
-            convention (HotelGallery precedent — the override), object-contain
-            at EVERY width including mobile (zero-information-loss law; the
-            spec's §5 "may crop" is overridden). ─────────────────────────── */}
-      <section id="modules" ref={stageSectionRef} className="w-full border-y border-border bg-bg-terminal">
-        {/* HEADER — eyebrow (SECTION-SWAP → PROBLEM-01: the problem act
-            leads as 01; the modules are 02, the demo 03) + the pricing
-            right slot (:800-802 idiom, purple ink on cream now) + the 04
-            h2/intro MOVED here verbatim (old :1120-1128). Act 1 flows from
-            the header — no rule between (spec §1). */}
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px]">
-          <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.12em] text-text-faint">
-              02 / THE NINE MODULES
-            </p>
-            <Link href="/how-pricing-works" className="font-mono text-xs lg:text-[10px] tracking-wider text-brand-purple hover:text-brand-purple-hover">
-              HOW PRICING WORKS →
-            </Link>
-          </div>
-          <h2 className="mt-[18px] text-[27px] lg:text-[38px] font-medium tracking-[-0.025em] text-brand-purple">
-            The product, as it runs.
-          </h2>
-          <p className="mt-3 max-w-[680px] text-[17px] leading-[1.55] text-text-secondary">
-            Everything you plan and everything you spend lands in one place — so it can tell you how long your money lasts.
-          </p>
-          {/* HERO-REPO-1 → MERGED-02: the demo trigger keeps its seat in this
-              section's header. Honesty-gated on DEMO_VIDEO_URL — null renders
-              nothing (null today, demoVideo.ts:11); config + modal untouched. */}
-          {DEMO_VIDEO_URL !== null && (
-            <button
-              type="button"
-              onClick={() => setShowDemo(true)}
-              className="mt-3 inline-block bg-white px-4 py-1.5 text-xs font-medium text-brand-purple hover:bg-bg-row"
-            >
-              Watch the demo 🎥
-            </button>
-          )}
-        </div>
-
-        {/* ACT 1 — SPINE (spec §2): the six families of replaced apps → spine
-            → the three words → the two dollar shapes → spine + gold square →
-            the two hubs → the closing count. Families, app names and the
-            CONTINUOUS 01–25 marks all derive from REPLACED_APPS +
-            FAMILY_OFFSETS (index-derived padStart); uppercase is a CSS
-            transform of the stored label, never a retyped string. */}
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10 lg:pt-16 pb-12 lg:pb-[76px] text-center">
-          <p className="font-mono text-xs lg:text-[10px] font-semibold tracking-[0.16em] text-text-muted">
-            TWENTY-FIVE APPS <span className="text-brand-gold">·</span> ONE SPINE
-          </p>
-          {/* FAMILY ROWS. text-left overrides the act's text-center for THIS
-              container only — every block below keeps the centre. @lg each row
-              is the ACT 2 two-column idiom (:1003): a fixed label column + the
-              app grid. BORDER-BOX NOTE: the label column carries no padding and
-              no border, so its content box IS its border box and the measured
-              186px transfers unchanged under Preflight; gap is between boxes in
-              either model, so 40px transfers too. Apps: 2 equal columns at
-              mobile, 6 equal columns @lg, row-major — a short family simply
-              leaves its trailing cells empty (no stretch, no centring). */}
-          <div className="mx-auto mt-5 lg:mt-[22px] max-w-[980px] text-left">
-            {REPLACED_APPS.map((fam, f) => (
-              <Fragment key={fam.family}>
-                {f > 0 && <div className="h-px bg-border" aria-hidden="true" />}
-                <div className="py-4 lg:grid lg:grid-cols-[186px_minmax(0,1fr)] lg:items-start lg:gap-x-10">
-                  <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-gold">
-                    {fam.family}
-                  </p>
-                  <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2.5 lg:mt-0 lg:grid-cols-6">
-                    {fam.apps.map((app, a) => (
-                      <span key={app} className="flex items-baseline gap-1.5">
-                        <span className="font-mono text-xs lg:text-[10px] text-text-faint">{String(FAMILY_OFFSETS[f] + a + 1).padStart(2, '0')}</span>
-                        <span className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-purple">{app}</span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </Fragment>
-            ))}
-          </div>
-          <div className="mx-auto mt-6 lg:mt-[26px] h-[30px] lg:h-10 w-px bg-border" aria-hidden="true" />
-          <p className="mt-5 text-base text-text-secondary">Every app speaks the same three words —</p>
-          <p className="mt-3 font-mono text-[16.5px] lg:text-2xl font-semibold tracking-[0.1em] lg:tracking-[0.16em] text-brand-purple">
-            A DATE <span className="text-brand-gold">·</span> A TIME <span className="text-brand-gold">·</span> A DOLLAR
-          </p>
-          <p className="mt-3 text-base text-text-secondary">a time becomes a dollar two ways —</p>
-          {/* The two dollar shapes: stacked full-width at mobile, two EQUAL
-              columns @lg (1fr each — no measured width to convert). */}
-          <div className="mx-auto mt-3 grid max-w-[680px] gap-3 lg:grid-cols-2">
-            <div className="rounded border border-border bg-ts-white px-4 py-3">
-              <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-gold">A CADENCE</p>
-              <p className="mt-1.5 text-base text-text-secondary">every month × the amount</p>
-            </div>
-            <div className="rounded border border-border bg-ts-white px-4 py-3">
-              <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-gold">A RATE</p>
-              <p className="mt-1.5 text-base text-text-secondary">the hours × your rate</p>
-            </div>
-          </div>
-          <p className="mt-3 text-base text-text-secondary">— and the app writes them into</p>
-          <div className="mx-auto mt-5 h-6 lg:h-8 w-px bg-border" aria-hidden="true" />
-          <div className="mx-auto h-[5px] w-[5px] bg-brand-gold" aria-hidden="true" />
-          <div className="mt-3.5 flex flex-wrap items-center justify-center gap-3 lg:gap-6">
-            <span className="border-b-4 border-brand-gold bg-brand-purple px-[18px] py-3 lg:px-[30px] lg:py-[15px] font-mono text-[12.5px] font-semibold tracking-[0.14em] text-ts-white">
-              ONE LEDGER
-            </span>
-            <span className="border border-border bg-ts-white px-[18px] py-3 lg:px-[30px] lg:py-[15px] font-mono text-[12.5px] font-semibold tracking-[0.14em] text-brand-purple">
-              ONE CALENDAR
-            </span>
-          </div>
-          {/* The closing count — the eyebrow's own type idiom (:920) dropped to
-              text-text-faint so it reads as the quiet last word, not a second
-              heading. */}
-          <p className="mt-8 lg:mt-10 font-mono text-xs lg:text-[10px] font-semibold tracking-[0.16em] text-text-faint">
-            25 logins <span className="text-brand-gold">·</span> 25 passwords <span className="text-brand-gold">·</span> none of them talk to each other
-          </p>
-        </div>
-
-        {/* ACT 2 — PERSONAS-3 (value cases): hook question + one outcome
-            sentence per row; module-name fragments wear the mono purple
-            idiom mid-sentence. Rows: border-light rules (§0's inner
-            hairline — the exact #EBE4F7 token). The '·' in the act label
-            wears gold — the Act 1 label's own separator idiom. */}
-        <div className="w-full border-t border-border">
-          <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10 lg:pt-[60px] pb-12 lg:pb-[68px]">
-            <p className="text-center font-mono text-xs lg:text-[10px] font-semibold tracking-[0.16em] text-text-muted">
-              SAME NINE MODULES <span className="text-brand-gold">·</span> DIFFERENT REASONS
-            </p>
-            <div className="mx-auto mt-5 max-w-[880px]">
-              {PERSONAS.map((row, index) => {
-                const open = openPersona === index;
-                return (
-                  <div key={row.label} className="border-t border-border-light py-3 first:border-t-0 lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:items-baseline lg:gap-4">
-                    <button
-                      type="button"
-                      aria-expanded={open}
-                      onClick={() => setOpenPersona(open ? null : index)}
-                      className="flex w-full items-baseline justify-between py-3 lg:pointer-events-none lg:py-0"
-                    >
-                      <span className="font-mono text-xs font-semibold tracking-wider text-text-muted">{row.label}</span>
-                      <span aria-hidden="true" className="font-mono text-[14px] text-text-faint lg:hidden">{open ? '−' : '+'}</span>
-                    </button>
-                    <p className={`${open ? 'block' : 'hidden'} lg:block mt-1 text-[14.5px] text-text-primary lg:mt-0`}>
-                      {row.segments.map((seg, i) =>
-                        seg.mono ? (
-                          <span key={i} className="font-mono text-[12.5px] font-semibold text-brand-purple">{seg.text}</span>
-                        ) : (
-                          <Fragment key={i}>{seg.text}</Fragment>
-                        ),
-                      )}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* ACT 3 — THE MODULES: label row (right slot EMPTY — the honesty
-            line retired; wrapper kept so the label keeps its seat), the nine
-            chips (§3 states; Travel wears the gold LIVE ▪), the truth line
-            (MOVED verbatim from old :865), and the ONE stage. Chips:
-            contained horizontal scroll at mobile (§5 — the
-            landing-mobile-viewport pattern), 9-col grid at desktop. */}
-        <div className="w-full border-t border-border">
-          <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10 lg:pt-[60px] pb-12 lg:pb-[76px]">
-            <div className="flex flex-wrap items-baseline justify-between gap-3">
-              <p className="font-mono text-xs lg:text-[10px] font-semibold tracking-[0.16em] text-text-muted">THE MODULES</p>
-            </div>
-            {/* STAGE-AUTOPLAY: pointer over the chip row pauses the advance
-                (resumes on leave, while the user hasn't taken control). */}
-            <div
-              // CHIP-FADE (390 audit finding 2): ts-chipfade (globals.css) —
-              // cream edge-fades signal the 6 off-screen chips; mobile pr-10
-              // makes the fade zone pure padding at scroll-end (chip 09 never
-              // fades) while the natural partial-chip peek at rest sits under
-              // the right fade — the "there's more" signal. lg: unchanged
-              // (all 9 chips fit; the mask turns off in the same media query).
-              className="ts-chipfade -mx-4 mt-4 overflow-x-auto pl-4 pr-10 lg:mx-0 lg:overflow-visible lg:px-0"
-              onPointerEnter={() => { stageHovered.current = true; }}
-              onPointerLeave={() => { stageHovered.current = false; }}
-            >
-              <div role="group" aria-label="The nine modules" className="flex w-max gap-2 lg:grid lg:w-auto lg:grid-cols-9">
-                {PILLAR_CARDS.map((p, i) => {
-                  const active = stageId === p.id;
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => {
-                        // STAGE-AUTOPLAY: manual selection (click or the
-                        // button's native keyboard activation) takes control
-                        // for good — the interval keeps ticking but never
-                        // advances again.
-                        userTookControl.current = true;
-                        setStageId(p.id as PipePillarId);
-                        setStepIndex(0); // WALKTHROUGH-STAGE: module switch → step 01
-
-                      }}
-                      className={`flex items-baseline justify-center gap-1.5 whitespace-nowrap border border-b-[3px] px-3 pt-[10px] pb-[9px] lg:px-2 lg:pt-[9px] lg:pb-2 font-mono text-xs lg:text-[10px] tracking-[0.06em] transition-colors ${
-                        active
-                          ? 'border-brand-purple border-b-brand-gold bg-brand-purple text-ts-white'
-                          : 'border-border bg-ts-white text-text-secondary hover:bg-brand-purple-wash/40'
-                      }`}
-                    >
-                      <span className={active ? 'text-white/60' : 'text-text-faint'}>{String(i + 1).padStart(2, '0')}</span>
-                      {p.id === 'travel' && <span className="text-brand-gold" aria-hidden="true">▪</span>}
-                      <span className="uppercase">{p.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <p className="mt-3 font-mono text-xs lg:text-[11px] text-text-muted">Search & book travel free today — no account needed. Paid modules are launching soon.</p>
-
-            {/* THE STAGE (spec §4) — one card, all data from cited sources:
-                bar kicker/status = the pillar seat + the deck's status
-                conditional (old :911-916, reused verbatim); the frame img
-                RETIRED with SUMMARY_BY_ID (Treatment A glimpses supersede);
-                steps = PIPE_PHASES[id] (names as stored — the app's own
-                strings) + WALKTHROUGH_LEDGER[id] (round-5 clauses);
-                line 1 = PILLAR_CARDS[id].plain; line 2 =
-                FRAME_LINKS[id]; group tag = DECK_CATEGORIES label (the
-                ratified partition, :186-188) + §6 rationale. Trade's 06
-                renders the link-chip STYLE but links /modules/trade like
-                every Explore — selectTab doesn't exist on the landing
-                (declared override). Mobile stack order (§5): bar → STEP
-                LIST FIRST → frame → captions → group tag → Explore. */}
-            {/* STAGE-AUTOPLAY: pointer over the stage card pauses too. */}
-            <div
-              className="mt-5 overflow-hidden rounded-lg border border-border bg-white"
-              onPointerEnter={() => { stageHovered.current = true; }}
-              onPointerLeave={() => { stageHovered.current = false; }}
-            >
-              <div className="flex flex-wrap items-baseline lg:items-center justify-between gap-3 border-b border-border px-[18px] py-2.5 lg:h-[37px] lg:py-0">
-                <span className="font-mono text-xs lg:text-[10.5px] uppercase tracking-[0.05em] text-text-secondary">
-                  {String(stageIndex + 1).padStart(2, '0')} / {stagePillar.label}
-                </span>
-                {stagePillar.id === 'travel' ? (
-                  <span className="font-mono text-xs lg:text-[10.5px] font-semibold text-brand-purple">LIVE — FREE</span>
-                ) : (
-                  <span className="font-mono text-xs lg:text-[10.5px] tracking-[0.05em] text-text-muted">LAUNCHING SOON</span>
-                )}
-              </div>
-              {/* WALKTHROUGH-STAGE (round-5, Treatment A — README §Stage
-                  geometry + the Build-Spec anatomy; the mock's renderer DOM
-                  mirrored: panelName/stepOf header, ›-joined strip cells,
-                  glimpse surface, truth strip, 65px rail rows). UNIFORM
-                  HEIGHT LAW @lg: body 550 = drawing 455 (pad 24 + header 20 +
-                  gap 12 + strip 60 + gap 16 + glimpse 299) + rule + truth 94;
-                  with bar 36 + Row C 130 + rules/borders the card is 720 for
-                  EVERY module and EVERY step. The frame <img> retires FROM
-                  THE STAGE (per-step glimpses supersede it — README note; the
-                  svg files stay in public/demo). THIS PR renders the honest
-                  placeholder glimpse (caption + the ledger's glimpse clause —
-                  the mock's own to-follow pattern); per-step art lands in
-                  follow-up PRs. Retired stage strings, declared: THE
-                  PIPELINE / NN STEPS / A PREVIEW OF EXACTLY WHAT THE BUYER
-                  SEES INSIDE (superseded by the walkthrough anatomy) + the
-                  rail's Trade link-chip render (the chip still ships in the
-                  in-app Trade strip via pipePhases). Mobile 390 (§ mobile):
-                  STATIC — step 01 per module, rail rows non-interactive
-                  (pointer-events gate); natural heights, rail first (the
-                  shipped mobile order). */}
-              <div className="grid grid-cols-1 lg:h-[550px] lg:grid-cols-[minmax(0,1fr)_400px]">
-                {/* ── DRAWING AREA + TRUTH STRIP ── */}
-                <div className="order-2 lg:order-none flex flex-col">
-                  <div className="p-6 lg:h-[455px] lg:overflow-hidden">
-                    {/* header 20 — the mock's panelName / stepOf row */}
-                    <div className="flex items-baseline justify-between gap-3 lg:h-5">
-                      <span className="font-mono text-xs lg:text-[15px] lg:leading-5 font-medium tracking-[0.3em] text-text-faint">{stagePillar.label.toUpperCase()}</span>
-                      <span className="font-mono text-xs lg:text-[13px] lg:leading-5 tracking-[0.16em] text-text-faint">STEP {String(stepIndex + 1).padStart(2, '0')} OF {String(stagePhases.length).padStart(2, '0')}</span>
-                    </div>
-                    {/* strip cells 60 — ellipsis-guarded; the active cell alone carries the marker */}
-                    <div className="mt-3 hidden items-stretch lg:flex lg:h-[60px]">
-                      {stagePhases.map((ph, i) => (
-                        <Fragment key={ph.num}>
-                          {i > 0 && <span aria-hidden="true" className="self-center px-1 font-mono text-[11px] text-text-faint">›</span>}
-                          <div className={`min-w-0 flex-1 border px-2 py-1.5 ${i === stepIndex ? 'border-brand-purple bg-brand-purple' : 'border-border bg-ts-white'}`}>
-                            <div className={`font-mono text-[9.5px] tracking-widest ${i === stepIndex ? 'text-white/60' : 'text-text-faint'}`}>{ph.num}</div>
-                            <div className={`truncate font-mono text-[11px] font-semibold uppercase tracking-wider ${i === stepIndex ? 'text-white' : 'text-text-secondary'}`}>{ph.name}</div>
-                            {i === stepIndex && <div className="font-mono text-[9px] tracking-widest text-white/80">▪ YOU ARE HERE</div>}
-                          </div>
-                        </Fragment>
-                      ))}
-                    </div>
-                    {/* glimpse surface 299 — GLIMPSE-ART staged rollout: a
-                        module with drawn art (glimpses.tsx — Routines ×4 this
-                        PR) renders it; every other module renders the staged
-                        placeholder below (the mock's own to-follow pattern —
-                        a VISIBLE staging state, not a silent fallback:
-                        absence of art is the declared condition, and the
-                        placeholder names the step it stands in for). */}
-                    <div className="mt-4">
-                      {GLIMPSES[stageId]?.[stepIndex] ?? (
-                        <div className="relative flex min-h-[180px] flex-col items-center justify-center border border-border-light bg-bg-terminal px-6 py-8 text-center lg:h-[299px] lg:py-0">
-                          {stageStep.inBuild && (
-                            <span className="absolute right-3 top-3 rounded border border-border bg-bg-row px-1.5 font-mono text-xs lg:text-[10px] tracking-[0.1em] text-text-faint">IN BUILD</span>
-                          )}
-                          <p className="font-mono text-xs lg:text-[11px] font-semibold tracking-[0.16em] text-text-muted">{stagePillar.label.toUpperCase()} · {stageStepPhase.num} {stageStepPhase.name.toUpperCase()}</p>
-                          <p className="mt-2 max-w-[420px] font-mono text-xs lg:text-[11px] leading-[1.6] text-text-faint">{stageStep.glimpse}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  {/* truth strip 94 — grid 1fr · 1.3fr · 1fr */}
-                  <div className="grid grid-cols-1 gap-3 border-t border-border px-6 py-3 lg:h-[94px] lg:grid-cols-[1fr_1.3fr_1fr] lg:gap-4 lg:overflow-hidden">
-                    <div>
-                      <div className="font-mono text-xs lg:text-[11px] lg:leading-[15px] font-semibold tracking-[0.1em] text-text-muted">YOU</div>
-                      <p className="mt-1 text-xs lg:text-[12px] lg:leading-[17px] text-text-secondary">{stageStep.you}</p>
-                    </div>
-                    <div>
-                      <div className="font-mono text-xs lg:text-[11px] lg:leading-[15px] font-semibold tracking-[0.1em] text-text-muted">THE APP</div>
-                      <p className="mt-1 text-xs lg:text-[12px] lg:leading-[17px] text-text-secondary">{stageStep.app}</p>
-                    </div>
-                    <div>
-                      <div className="font-mono text-xs lg:text-[11px] lg:leading-[15px] font-semibold tracking-[0.1em] text-brand-gold">→ FEEDS{stageStep.feeds.target !== null ? ` ${String(stageStep.feeds.target).padStart(2, '0')}` : ''}</div>
-                      <p className="mt-1 text-xs lg:text-[12px] lg:leading-[17px] text-text-secondary">{stageStep.feeds.clause}</p>
-                    </div>
-                  </div>
-                </div>
-                {/* ── THE RAIL — 65px rows; click sets the step (and takes
-                      control of autoplay: a click is a click, the shipped
-                      law); active = purple fill + gold inset underline (zero
-                      geometry change). [IN BUILD] chips per README §[IN
-                      BUILD] (tokens: bg-bg-row/border-border/text-text-faint
-                      = the spec's #F3EFE6/#DDD6E8/#7A7488; on-purple = the
-                      white/.12-.3-.75 variant). Tax (7 rows = 455) leaves the
-                      spacer at its 14px minimum by construction (flex-1
-                      min-h-[14px]). ── */}
-                <div className="order-1 lg:order-none flex flex-col border-b border-border lg:h-[550px] lg:overflow-hidden lg:border-b-0 lg:border-l">
-                  {stagePhases.map((ph, i) => {
-                    const st = stageLedger.steps[i];
-                    const active = i === stepIndex;
-                    return (
-                      <button
-                        key={ph.num}
-                        type="button"
-                        aria-pressed={active}
-                        onClick={() => { userTookControl.current = true; setStepIndex(i); }}
-                        className={`pointer-events-auto flex w-full flex-col justify-center border-t px-[18px] py-[11px] text-left lg:h-[65px] lg:py-0 ${
-                          active
-                            ? 'border-brand-purple bg-brand-purple [box-shadow:inset_0_-3px_0_0_#B8860B]'
-                            : 'border-border-light hover:bg-brand-purple-wash/40'
-                        }`}
-                      >
-                        <span className={`text-[15px] leading-[22px] font-medium ${active ? 'text-ts-white' : 'text-text-primary'}`}>
-                          <span className={`font-mono text-xs lg:text-[11px] ${active ? 'text-white/60' : 'text-text-faint'}`}>{ph.num}</span>{' '}
-                          {ph.name}
-                          {st.inBuild && (
-                            <span className={`ml-2 inline-block rounded border px-1.5 align-middle font-mono text-xs lg:text-[9px] tracking-[0.1em] ${active ? 'border-white/30 bg-white/10 text-white/75' : 'border-border bg-bg-row text-text-faint'}`}>IN BUILD</span>
-                          )}
-                        </span>
-                        <span className={`mt-[3px] text-xs lg:text-[12px] lg:leading-[17px] ${active ? 'text-white/75' : 'text-text-muted'}`}>{st.teach}</span>
-                      </button>
-                    );
-                  })}
-                  <div className="min-h-[14px] flex-1" aria-hidden="true" />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 border-t border-border lg:h-[131px] lg:grid-cols-[minmax(0,1fr)_400px] lg:overflow-hidden">
-                <div className="p-[18px]">
-                  <p className="text-[16.5px] font-medium leading-[1.4] text-text-primary">{stagePillar.plain}</p>
-                  <p className="mt-1.5 text-[13px] leading-[1.6] text-text-muted">{FRAME_LINKS[stageId]}</p>
-                </div>
-                <div className="flex flex-col border-t border-border p-4 lg:border-t-0 lg:border-l lg:px-6">
-                  <span className="self-start rounded border border-border px-2 py-0.5 font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.08em] text-text-secondary">
-                    {stageCategory.label}
-                  </span>
-                  <p className="mt-2 text-xs leading-[1.55] text-text-muted">{GROUP_RATIONALE[stageCategory.key]}</p>
-                  <div className="flex-1" aria-hidden="true" />
-                  <Link href={`/modules/${stageId}`} className="mt-3 font-mono text-xs lg:text-[11px] font-semibold tracking-[0.06em] text-brand-purple hover:text-brand-purple-hover">
-                    EXPLORE →
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </section>
-
       {/* ── TOGGLE-1: the lobby books — the five-way toggle strip, mounted
             where the teaser sat (directly under the CTA row; pre-BOOK-1
             Landing.tsx:325-328). Full content width — the strip holds
@@ -1809,18 +1035,32 @@ FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
             aubergine band (ds.BAND_BG) reads as a band. DECLARED INTERIM:
             the strip's INTERIOR (travel pickers/results) stays dark until
             Slice 4's trips pass. */}
-      {/* LANDING-V3: id="demo" — the spec's :93 anchor, the nav's Live-demo
-          target. */}
       {/* DEMO-SECTION (390 audit finding 8): div → section + aria-label so
-          the demo region is a real landmark (the census found it outside
-          every section). Classes carried verbatim — Tailwind utilities are
-          tag-agnostic and nothing selects div#demo (the #demo anchor is an
-          href target only). */}
-      <section id="demo" aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8">
-        {/* LANDING-V2 (spec :96-97) → SECTION-SWAP: the demo's numbered
-            eyebrow row — 03 now (the problem act leads); label otherwise
-            verbatim; right slot = the existing /modules/travel door. */}
-        <div className="flex items-baseline justify-between gap-3 pt-6">
+          the demo region is a real landmark. Classes carried verbatim —
+          Tailwind utilities are tag-agnostic and nothing selects div#demo
+          (both ids here are href targets only).
+
+          ANCHOR-REHOME: id="modules" MOVED here from the retired merged
+          section, which was its only home. It is NOT decorative — four live
+          inbound paths resolve to it and would 404-to-top without it:
+          the Stripe checkout cancel_url (api/stripe/checkout/route.ts:53),
+          the /pricing 308 permanent redirect (app/pricing/page.tsx:28), the
+          module page's Select buy link (ModulePageClient.tsx:139) and the
+          shopping View Plans button (app/shopping/page.tsx:307). This section
+          is the first thing below where the deck stood, so those links land in
+          the same place on the page they used to.
+          id="demo" is NOT dropped — an element carries one id, so it moves to
+          the eyebrow row a few px below. It has no href pointing at it in src/
+          today (the nav's Live-demo link retired, LandingHeader.tsx:35), but an
+          external bookmark costs nothing to keep alive.
+
+          SEAM: border-t — the retired section's border-y used to draw the rule
+          above this one. See the seam ledger on the import section. */}
+      <section id="modules" aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 border-t border-border">
+        {/* LANDING-V2 (spec :96-97): the demo's numbered eyebrow row — 03,
+            label otherwise verbatim; right slot = the existing /modules/travel
+            door. */}
+        <div id="demo" className="flex items-baseline justify-between gap-3 pt-6">
           <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">03 / LIVE DEMO — TRAVEL</p>
           <Link href="/modules/travel" className="font-mono text-xs lg:text-[10px] tracking-wider text-brand-purple hover:text-brand-purple-hover">
             EXPLORE TRAVEL →
@@ -1850,15 +1090,18 @@ FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
       <GuestTripStrip onRequireAuth={onRequireAuth} />
 
       {/* ── LANDING-V4 (Alex's ruling, reversing the V2 seat): DONE-FOR-YOU is
-            its own numbered section directly below the deck — eyebrow in the
-            established grammar ('04 / DONE-FOR-YOU' after PROBLEM-01), no
-            right slot. Body = the PROFESSIONAL SERVICES panel relocated
-            WHOLESALE from the 05 grid (markup byte-identical inside), seated
-            in the deck-table's white-card container idiom. SECTION-SWAP seam
-            fix (the no-drop rule): the demo unit above carries no rules of
-            its own — the hairline that used to close its area was the
-            modules section's border-y bottom, which moved up with the swap —
-            so this section takes border-t to keep one rule at the seam. ──── */}
+            its own numbered section — eyebrow in the established grammar
+            ('04 / DONE-FOR-YOU'), no right slot. Body = the PROFESSIONAL
+            SERVICES panel relocated WHOLESALE from the 05 grid (markup
+            byte-identical inside), seated in the old deck-table's white-card
+            container idiom.
+            SEAM: this section's border-y TOP closes the demo|done-for-you
+            boundary, and its border-y BOTTOM closes done-for-you|built-on.
+            The original rationale here cited the retired modules section's
+            border-y bottom as the rule this one replaced; that section is gone
+            and this border-y now stands on its own. The built-on section below
+            deliberately takes no border-t — this one's bottom edge is already
+            that seam's single rule. ─────────────────────────────────────── */}
       <section className="w-full border-y border-border bg-bg-terminal">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
           <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">
