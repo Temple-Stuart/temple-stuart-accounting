@@ -23,10 +23,10 @@
  * and do not number another one without deciding whether it is a step.
  *
  * ADDING A TEACHING SLIDE is a three-part edit and nothing more: the next
- * number in the run, a border-t (no act carries a border-b, so every boundary
- * INSIDE the run is closed by the lower section — but see the seam ledger in
- * the problem act for the one exception, 01 itself, which carries no border at
- * all), and its data as module-scope consts beside the others. 03 / THE
+ * number in the run, a border-t (no NUMBERED act carries a border-b, so every
+ * boundary INSIDE the run is closed by the lower section — but see the seam
+ * ledger in the problem act for the one exception, 01 itself, which carries no
+ * border at all), and its data as module-scope consts beside the others. 03 / THE
  * ROUTING was added that way — three consts, one border-t — and changed no
  * existing border.
  *
@@ -823,10 +823,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                                          numbered act, draws no bottom rule of
                                          its own)
               built on | footer        → built-on's border-b
-            NO ACT CARRIES A border-b, which is what makes the run extensible:
-            every boundary inside the teaching sequence is closed by the LOWER
-            section's border-t, so a slide appended to the run needs exactly one
-            class and disturbs nothing else. Adding 03 changed no existing
+            NO NUMBERED ACT CARRIES A border-b — 01, 02 and 03 specifically;
+            done-for-you and built-on both do, which is why the run's boundaries
+            behave differently from the page's. That is what makes the run
+            extensible: every boundary INSIDE the teaching sequence is closed by
+            the LOWER section's border-t, so a slide appended to the run needs
+            exactly one class and disturbs nothing else. Adding 03 changed no existing
             border — built-on's border-t, which used to close import|built-on,
             now closes routing|built-on without being touched.
             THE ONE EXCEPTION IS 01 ITSELF: this act has no border class at all,
