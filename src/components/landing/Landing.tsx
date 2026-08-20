@@ -459,6 +459,88 @@ const PROBLEM_SHEET_SM = [
 const PROBLEM_SHEET_CAPTION = 'A spreadsheet';
 const PROBLEM_SHEET_NOTE = 'As current as the last time you typed into it.';
 
+// IMPORT-COLUMNS: the eleven columns of the raw import table, for the
+// 02 / THE IMPORT slide. Four bands, each a heading plus its rows; a row is
+// the tuple [name, holds, why], read positionally by the table that renders
+// it. Order is the reading order of the slide and carries the argument —
+// where it came from, what it is, what they actually sent, when and how far —
+// so rows must never be sorted or regrouped for tidiness.
+//
+// fetched_at HAS NO WHY ON PURPOSE. Its empty string is content, not a gap
+// waiting to be filled: the row pairs with received_at directly beneath it and
+// the explanation belongs to the pair, not to either half. Do not invent copy
+// for it.
+//
+// THE PAYLOAD ROW IS THE EMPHASIS of the slide and the renderer keys off its
+// name, not a flag here, so that this stays plain data — one bolder cell is a
+// presentation fact, not a property of the column. Its WHY is deliberately
+// shouted in caps; that IS the copy, not a style to normalise away.
+//
+// NOT COUPLED TO ANYTHING EXISTING — not PROBLEM_SHEET, not REPLACED_APPS.
+// The problem slide names the tools a business already runs; this names the
+// columns of one table this product writes. They share no vocabulary and must
+// stay free to diverge.
+const IMPORT_COLUMNS = [
+  {
+    band: 'WHERE IT CAME FROM',
+    rows: [
+      ['provider', 'stripe · plaid · sec · fred', 'which system sent it'],
+      ['connection_id', 'which connection of that system', 'you may have two banks'],
+    ],
+  },
+  {
+    band: 'WHAT IT IS',
+    rows: [
+      ['resource_type', 'payout · transaction · quote', 'their word for it'],
+      ['external_id', 'po_1QmX8fK2', 'their id, so you never import it twice'],
+      ['id', 'our own key', "theirs may collide with another feed's"],
+    ],
+  },
+  {
+    band: 'WHAT THEY ACTUALLY SENT',
+    rows: [
+      ['payload', 'the response, byte for byte', 'THE REASON THIS TABLE EXISTS'],
+      ['payload_hash', 'a fingerprint of those bytes', 'proof you did not alter them'],
+    ],
+  },
+  {
+    band: 'WHEN AND HOW FAR',
+    rows: [
+      ['fetched_at', 'when you asked', ''],
+      ['received_at', 'when it arrived', 'the gap matters when a feed lags'],
+      ['parsed_at', 'when it was interpreted', 'null until step 3'],
+      ['parse_status', 'pending · done · failed', 'you can replay a failure'],
+    ],
+  },
+] as const;
+
+// The name of the one row the import table emphasises. Named here rather than
+// typed into the renderer so the emphasis and the data cannot drift apart.
+const IMPORT_PAYLOAD_ROW = 'payload';
+
+// IMPORT-ARRIVALS: four rows that actually landed, one per feed, as
+// [provider, resource, external_id, received, parse]. The point of the table is
+// that four unrelated kinds of thing — a payout, a card purchase, a stock quote
+// and a filing — are the same shape, so the four providers must stay different
+// from one another; replacing one with a second bank would lose the argument.
+const IMPORT_ARRIVALS = [
+  ['stripe', 'payout', 'po_1QmX8fK2', '09:14:02Z', 'done'],
+  ['plaid', 'transaction', 'nkP9dLm4zQx7', '09:14:06Z', 'done'],
+  ['tastytrade', 'quote', 'SPY-2026-02-19', '10:31:00Z', 'done'],
+  ['sec', 'filing', '0000320193-26-14', '11:02:44Z', 'pending'],
+] as const;
+
+// The slide's three closing sentences, each split [opening phrase, remainder].
+// The split is a COLOUR boundary and nothing else — the opener is purple, the
+// remainder faint, and neither half changes weight. Stored pre-split because
+// the break points are editorial (they fall on the claim, not on a comma) and
+// deriving them from punctuation would get them wrong.
+const IMPORT_WHY_IT_MATTERS = [
+  ['Nothing is ever edited.', 'A correction from the source is a new row, not a rewrite.'],
+  ['Nothing is ever re-asked.', 'If a parser is wrong, you re-read these rows.'],
+  ['Nothing is ever claimed.', 'The hash proves you stored what they sent — not that they were right.'],
+] as const;
+
 // PROBLEM-FAN / DESKTOP GEOMETRY. The whole desktop drawing in one object, so
 // the viewBox, the paths and the label offsets cannot drift apart. Design's
 // figures: origins at x=148, a horizontal run to the bend at x=268, then one
@@ -1175,6 +1257,157 @@ FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
         </p>
         <p className="mt-6 text-[17px] lg:text-[20px] text-brand-purple">So what do these twenty-five actually give you?</p>
         <div className="mt-4 h-[30px] lg:h-10 w-px bg-border" aria-hidden="true" />
+      </section>
+
+      {/* ── IMPORT-02 / THE RAW IMPORT TABLE. Act grammar copied from the
+            problem section above: same max-w-7xl container, same px, same
+            pt-9 lg:pt-[60px] pb-9 lg:pb-[60px], and NO border — the modules
+            section's border-y below still closes the seam.
+
+            GOLD IS DELIBERATE HERE. The problem act is colourless by ruling
+            and gold "first appears in the modules section below"; this slide
+            now sits between them and takes gold for its four band labels, the
+            FOUR ARRIVALS label and WHY IT MATTERS. That does not reopen the
+            problem section's ruling — that ruling is about the problem act,
+            which is still untouched and still colourless.
+
+            EVERYTHING IS WEIGHT 400. No bold, no semibold, no medium anywhere
+            in this act, which is why the header cells carry an explicit
+            font-normal: Preflight does not reset the UA's `th { font-weight:
+            bold }`, so a th without it would silently ship at 700.
+
+            HORIZONTAL RULES ONLY. Neither table draws interior verticals —
+            that is what makes them read calm — so cells set border-b and never
+            border-r. border-separate + border-spacing-0 rather than the house
+            border-collapse: collapsed borders are half-inside the box and make
+            percentage column widths unpredictable, the same reason the problem
+            sheet uses separate borders.
+
+            BAND ROWS CARRY NO RULE BENEATH THEM. A band label hugs the group
+            it introduces (24px above it, 9px below), so the rule that closes
+            the previous group is the previous ROW's border-b, not the band's.
+            The last data row of the table drops its border-b too — the table's
+            own outer border closes it.
+
+            TWO BAND CELLS, ONE PER BREAKPOINT. A single colSpan={3} band cell
+            would force the table model to three columns even where the WHY
+            column is display:none, leaving a phantom sliver on the right that
+            the horizontal rules would stop short of. Rendering a colSpan={2}
+            cell for mobile and a colSpan={3} cell for desktop keeps each
+            breakpoint's table exactly as wide as its visible columns. The
+            label string comes from IMPORT_COLUMNS either way, so the two
+            cells cannot drift; the hidden one leaves the a11y tree with its
+            display:none. ─────────────────────────────────────────────── */}
+      <section aria-label="The import" className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px]">
+        <p className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">02 / THE IMPORT</p>
+        <h2 className="mt-[26px] text-[27px] leading-[1.2] lg:text-[38px] tracking-[-0.025em] text-brand-purple">
+          Store what arrived.<br />Then decide what it means.
+        </h2>
+        <p className="mt-[22px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
+          One table. Every feed writes here first. Nothing is interpreted yet.
+        </p>
+
+        {/* TABLE 1 — the eleven columns. Three equal thirds on desktop; on
+            mobile the WHY column is dropped entirely and the two that remain
+            remeasure to 49.8%. Design authored 210/340/auto in a colgroup that
+            the browser ignored — the equal thirds that rendered are what was
+            approved, so table-fixed carries the widths and there is no
+            colgroup to restore. */}
+        <table className="mt-10 lg:mt-[76px] w-full table-fixed border-separate border-spacing-0 border border-border">
+          <thead>
+            <tr>
+              <th scope="col" className="w-[49.8%] lg:w-[33.33%] bg-bg-row px-[11px] py-[9px] lg:px-5 lg:py-[13px] text-left align-top font-mono text-[10px] lg:text-[11px] font-normal uppercase tracking-[0.18em] text-text-faint border-b border-b-border">NAME</th>
+              <th scope="col" className="w-[49.8%] lg:w-[33.33%] bg-bg-row px-[11px] py-[9px] lg:px-5 lg:py-[13px] text-left align-top font-mono text-[10px] lg:text-[11px] font-normal uppercase tracking-[0.18em] text-text-faint border-b border-b-border">WHAT IT HOLDS</th>
+              <th scope="col" className="hidden lg:table-cell lg:w-[33.33%] bg-bg-row px-[11px] py-[9px] lg:px-5 lg:py-[13px] text-left align-top font-mono text-[10px] lg:text-[11px] font-normal uppercase tracking-[0.18em] text-text-faint border-b border-b-border">WHY</th>
+            </tr>
+          </thead>
+          {IMPORT_COLUMNS.map((group, b) => (
+            <tbody key={group.band}>
+              <tr>
+                <td colSpan={2} className="lg:hidden px-[11px] pt-[17px] pb-[7px] align-top font-mono text-[10px] uppercase tracking-[0.20em] text-brand-gold">{group.band}</td>
+                <td colSpan={3} className="hidden lg:table-cell px-5 pt-6 pb-[9px] align-top font-mono text-[11px] uppercase tracking-[0.20em] text-brand-gold">{group.band}</td>
+              </tr>
+              {group.rows.map(([name, holds, why], r) => {
+                const isPayload = name === IMPORT_PAYLOAD_ROW;
+                const isLast = b === IMPORT_COLUMNS.length - 1 && r === group.rows.length - 1;
+                // The payload row keeps its rule on desktop but drops it on
+                // mobile, where its WHY follows as a second row that the two
+                // must read as one block: same fill, no rule between.
+                const rule = isLast ? '' : isPayload ? 'lg:border-b-[0.75px] lg:border-b-text-faint' : 'border-b-[0.75px] border-b-text-faint';
+                const fill = isPayload ? 'bg-bg-row' : '';
+                const pad = `px-[11px] py-[9px] lg:px-5 ${isPayload ? 'lg:py-[15px]' : 'lg:py-[11px]'}`;
+                return (
+                  <Fragment key={name}>
+                    <tr>
+                      <td className={`${pad} ${fill} ${rule} align-top font-mono text-[11.5px] lg:text-[14px] text-brand-purple`}>{name}</td>
+                      <td className={`${pad} ${fill} ${rule} align-top font-mono text-[11px] leading-[1.4] lg:text-[13px] lg:leading-normal text-text-faint`}>{holds}</td>
+                      <td className={`hidden lg:table-cell ${pad} ${fill} ${rule} align-top ${isPayload ? 'text-[18px] leading-[1.35] text-brand-purple' : 'text-[13.5px] leading-[1.45] text-text-faint'}`}>{why}</td>
+                    </tr>
+                    {isPayload && (
+                      <tr className="lg:hidden">
+                        <td colSpan={2} className={`${fill} border-b-[0.75px] border-b-text-faint px-[11px] pt-0 pb-[9px] align-top text-[13px] leading-[1.4] text-brand-purple`}>{why}</td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          ))}
+        </table>
+
+        <p className="mt-10 lg:mt-[76px] font-mono text-[10px] lg:text-[11px] uppercase tracking-[0.20em] text-brand-gold">FOUR ARRIVALS, ONE TABLE</p>
+
+        {/* TABLE 2 — five equal columns; mobile keeps PROVIDER, RESOURCE and
+            PARSE and drops EXTERNAL_ID and RECEIVED, the two that cannot
+            shorten. No colSpan anywhere here, so the mobile table is exactly
+            three columns wide. */}
+        <table className="mt-[14px] lg:mt-[18px] w-full table-fixed border-separate border-spacing-0 border border-border">
+          <thead>
+            <tr>
+              {([
+                ['PROVIDER', false], ['RESOURCE', false], ['EXTERNAL_ID', true], ['RECEIVED', true], ['PARSE', false],
+              ] as const).map(([head, lgOnly]) => (
+                <th
+                  key={head}
+                  scope="col"
+                  className={`${lgOnly ? 'hidden lg:table-cell lg:w-[20%]' : 'w-[33.33%] lg:w-[20%]'} bg-bg-row px-[11px] py-[9px] lg:px-5 lg:py-3 text-left align-top font-mono text-[10px] lg:text-[11px] font-normal uppercase tracking-[0.18em] text-text-faint border-b border-b-border`}
+                >
+                  {head}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {IMPORT_ARRIVALS.map((row, r) => (
+              <tr key={row[2]}>
+                {row.map((cell, c) => (
+                  <td
+                    key={cell}
+                    className={`${c === 2 || c === 3 ? 'hidden lg:table-cell' : ''} px-[11px] py-[9px] lg:px-5 lg:py-[11px] align-top font-mono text-[11px] lg:text-[13px] ${c === 0 ? 'text-brand-purple' : 'text-text-faint'} ${r === IMPORT_ARRIVALS.length - 1 ? '' : 'border-b-[0.75px] border-b-text-faint'}`}
+                  >
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <p className="mt-[14px] lg:mt-5 text-[12px] lg:text-[14px] text-text-faint">
+          A payout, a card purchase, a stock quote and an SEC filing. Same table.
+        </p>
+
+        <div className="mt-10 lg:mt-[76px] h-px w-full bg-border" aria-hidden="true" />
+        <p className="mt-[22px] lg:mt-8 font-mono text-[10px] lg:text-[11px] uppercase tracking-[0.20em] text-brand-gold">WHY IT MATTERS</p>
+        <div className="mt-[14px] lg:mt-5">
+          {IMPORT_WHY_IT_MATTERS.map(([claim, rest], i) => (
+            <p key={claim} className={`${i === 0 ? '' : 'mt-3 lg:mt-[14px]'} text-[13px] leading-[1.5] lg:text-[16.5px] text-text-faint`}>
+              <span className="text-brand-purple">{claim}</span> {rest}
+            </p>
+          ))}
+        </div>
+        <div className="mt-8 lg:mt-12 h-px w-full bg-border" aria-hidden="true" />
+        <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">Now — what kind of thing is each one?</p>
       </section>
 
       {/* ── MERGED-02 (spec design-refs/merged-modules-spec.md §1-§6): the
