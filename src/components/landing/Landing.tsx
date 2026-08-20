@@ -760,6 +760,25 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">
             DONE-FOR-YOU
           </p>
+          {/* HEADLINE: the travel act's h2 treatment, class for class —
+              mt-3 text-2xl sm:text-3xl font-medium tracking-tight
+              text-brand-purple. The two revenue acts under the hero are a
+              pair and now read as one: eyebrow, headline, then the surface.
+              WEIGHT AND BREAKPOINT, BOTH DELIBERATE. font-medium is 500, and
+              the sm: prefix is not the lg:-only idiom the numbered slides
+              keep — both are correct HERE because this act sits above the
+              teaching run and matches its sibling instead. sm: is already
+              this section's own idiom (the services grid below is
+              sm:grid-cols-2), so nothing new is introduced; swapping it for
+              lg: would leave this headline a size behind travel's between
+              640 and 1023px, which is the one thing the match exists to
+              prevent.
+              NO MARGIN BELOW, also matching: the travel h2 carries only mt-3
+              and lets the element after it supply the gap. The services card
+              below keeps its own mt-4, untouched. */}
+          <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">
+            Need help setting it up? Send a proposal.
+          </h2>
           <div className="mt-4 rounded-lg border border-border bg-white p-5">
             <div className="mt-4">
               <span className="rounded border border-border px-2 py-0.5 font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
