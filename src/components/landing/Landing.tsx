@@ -448,21 +448,53 @@ const PROBLEM_SHEET_SM = [
   { top: 410, cols: PROBLEM_SHEET.slice(3) },
 ] as const;
 
-// The six label offsets, order-parallel to PROBLEM_SOURCES. LITERAL class
-// strings, never interpolated (`top-[${y}px]` would never compile — Tailwind
-// scans source text, it does not evaluate it; the REPAINT-1 landmine note in
-// tailwind.config.ts is the same lesson). Values are the row centres of each
-// breakpoint's SVG, which is rendered at its viewBox size 1:1 — so these are
-// exact pixel matches to the line origins, with no scaling to reason about.
-// Desktop: 6 rows over 224px. Mobile: 6 rows of 26px.
-// (No lg: prefix needed — each array is used inside a container that is
-// already breakpoint-gated, so the class only applies where it is visible.)
-// GRID-SCALE: the desktop values move with the desktop viewBox. Because that
-// SVG renders 1:1, these ARE the line-origin y's — scaling the drawing without
-// scaling this array would silently unpin every label from its line.
-const PROBLEM_LABEL_TOP_LG = [
-  'top-[19px]', 'top-[56px]', 'top-[93px]', 'top-[131px]', 'top-[168px]', 'top-[205px]',
-] as const;
+// PROBLEM-CAPTION: the two lines that sit under the sheet. They are rendered
+// TWICE — on desktop INSIDE the sheet column, so they inherit the table's left
+// edge, and on mobile under the stacked grids — so the strings live here once
+// rather than being typed twice (the no-drift law). CAPTION-ANCHOR: the note
+// used to be a lone <p> child of the section with no left offset at all, so it
+// began at the page margin while A SPREADSHEET faked its alignment with a
+// pl-[560px] hand-copied from the sheet's rect x. Both magic numbers are gone:
+// on desktop the pair are simply children of the column the table fills.
+const PROBLEM_SHEET_CAPTION = 'A spreadsheet';
+const PROBLEM_SHEET_NOTE = 'As current as the last time you typed into it.';
+
+// PROBLEM-FAN / DESKTOP GEOMETRY. The whole desktop drawing in one object, so
+// the viewBox, the paths and the label offsets cannot drift apart. Design's
+// figures: origins at x=148, a horizontal run to the bend at x=268, then one
+// angle to the join at (505, 166). The join stops SHORT of the sheet on
+// purpose — the lines AIM at it, they do not land on it — and 505 also keeps
+// the 1px stroke's outer half (505.5) inside the 507 box, the right-edge clip
+// lesson from GRID-SCALE below.
+const PROBLEM_FAN_LG = { w: 507, h: 310, originX: 148, bendX: 268, joinX: 505, joinY: 166 } as const;
+
+// The six DESKTOP line-origin y values — first at 21, pitch 55. This array is
+// the SINGLE SOURCE for both the fan's six paths AND the six HTML labels
+// pinned over them: the paths read it directly, and each label's offset is
+// y / PROBLEM_FAN_LG.h expressed as a percentage. There is nothing left to
+// keep in sync by hand, which is what the old two-array arrangement asked for
+// and what the note below still asks of the MOBILE pair.
+//
+// WHY PERCENTAGES, AND WHY AN INLINE style. The desktop SVG is no longer
+// rendered 1:1 — it is fluid (w-full over a fixed viewBox), because a fixed
+// 1216px row overflows every viewport under 1280 while `lg:` starts at 1024.
+// Once the drawing scales, a px offset is only correct at one width, but
+// y / 310 is correct at EVERY width, since the wrapper's height is exactly the
+// scaled SVG's height. Percentages cannot be literal Tailwind classes here
+// (`top-[${y}%]` would never compile — Tailwind scans source text, it does not
+// evaluate it; the REPAINT-1 landmine note in tailwind.config.ts is the same
+// lesson), so the offset goes through an inline style — the house escape hatch
+// for computed positioning (CalendarGrid.tsx:747,767,779 do exactly this).
+const PROBLEM_LABEL_TOP_LG = [21, 76, 131, 186, 241, 296] as const;
+
+// The six MOBILE label offsets, order-parallel to PROBLEM_SOURCES. LITERAL
+// class strings, never interpolated (same Tailwind-scans-source lesson as
+// above). The mobile SVG IS still rendered 1:1 at its viewBox size, so these
+// stay exact pixel matches to its line origins, with no scaling to reason
+// about: 6 rows of 26px. Scaling that drawing without scaling this array would
+// silently unpin every mobile label from its line.
+// (No lg: prefix needed — the array is used inside a container that is already
+// breakpoint-gated, so the class only applies where it is visible.)
 const PROBLEM_LABEL_TOP_SM = [
   'top-[13px]', 'top-[39px]', 'top-[65px]', 'top-[91px]', 'top-[117px]', 'top-[143px]',
 ] as const;
@@ -911,16 +943,15 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             a wrapping <g>. NO hex — BacktestPanel.tsx:80 and
             strategy-builder.ts:1384 hardcode token values and are drift bugs,
             not precedent. currentColor carries ONE colour per subtree, so
-            elements are grouped by COLOUR, not by meaning — FOUR groups, in
-            paint order: the bg-row <g> holds the header band ALONE and comes
-            first so every rule and every name draws over it; the faint <g>
-            holds the dashed fan, BY HAND, the sheet's inner rules and its
-            column headers; a brand-purple <g> holds the twenty-five tool
-            names; the muted <g> holds the sheet's outer border and its header
-            rule. The DECORATIVE CELL MARKS are gone — the sheet holds the real
-            twenty-five now, so there is nothing left for them to stand in for;
-            so is the first-column rule, which described a sheet with a wider
-            leading column and is wrong for six equal ones.
+            elements are grouped by COLOUR, not by meaning. On DESKTOP that now
+            costs a single group: the SVG draws only the dashed fan and BY HAND,
+            both faint, because the sheet left the drawing entirely (see below).
+            The MOBILE SVG still draws its sheet and keeps the four-group split:
+            the bg-row <g> holds the header bands ALONE and comes first so every
+            rule and every name draws over them; the faint <g> holds the fan,
+            BY HAND, the sheets' inner rules and their column headers; a
+            brand-purple <g> holds the tool names; the muted <g> holds each
+            sheet's outer border and header rule.
 
             TWO SVGs, BREAKPOINT-SWAPPED — not one responsive viewBox. These
             are two different drawings, not one drawing at two sizes: desktop
@@ -934,26 +965,26 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
 
             The six labels and A SPREADSHEET are real HTML text in the mono
             lockup (:853's idiom), never SVG <text> — selectable, findable and
-            translatable. That rule is about THE SIX FAMILY LABELS specifically:
-            they are pinned in exact pixels to the fan's line origins, and only
-            HTML absolute offsets can do that pinning.
+            translatable.
 
-            EXCEPTION, RULED — the sheet's six column headers and its
-            twenty-five tool names ARE SVG <text>. They sit INSIDE the drawn
-            grid at fixed cell coordinates, so rendering them as HTML would mean
-            absolutely positioning thirty-one more elements over the SVG in
-            exact pixels, across two breakpoints — multiplying the exact
-            label-to-line-origin coupling this figure already carries rather
-            than containing it. As SVG <text> they are children of the grid that
-            holds them and move with it by construction: change a column width
-            and the names follow, because both derive from the same arithmetic.
-            They remain real text — selectable, findable, and read aloud by
-            screen readers. BY HAND, which is part of the drawing itself, was
-            always inside the SVG. ─────────────────────────────────────────── */}
+            THE SVG-<text> EXCEPTION IS RETIRED ON DESKTOP. It was granted
+            because thirty-one strings inside a drawn grid would have needed
+            thirty-one absolute pixel offsets over the SVG. That reasoning died
+            with the grid: the desktop sheet is a real HTML <table>, which sizes
+            itself from padding and line-height, so all thirty-one coordinates
+            disappear rather than moving into HTML. The desktop SVG is back to
+            what the rule always wanted — a drawing and nothing else — and the
+            table's contents are selectable, findable and translatable like
+            every other string in the section. The exception survives on MOBILE
+            only, where the two stacked sheets are still drawn.
+
+            The six family labels stay HTML absolutely positioned over the fan,
+            which is what the rule was written for. BY HAND, part of the drawing
+            itself, is still inside the SVG. ─────────────────────────────────────────── */}
       <section aria-label="The problem" className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px]">
         <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.12em] text-text-faint">01 / THE PROBLEM</p>
         <h2 className="mt-[18px] text-[27px] lg:text-[38px] font-medium tracking-[-0.025em] text-brand-purple">
-          Twenty-five tools. None of them knows what the others did.
+          Twenty-five tools.<br />None of them knows what the others did.
         </h2>
         <p className="mt-4 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">
           Your business is one system. Your software isn&apos;t.
@@ -964,72 +995,108 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             angles to one point on the sheet's left edge (560, 112). The two
             middle lines run nearly level while the outer four angle hard —
             that spread IS the convergence.
-            GRID-SCALE / RIGHT-EDGE CLIP: the sheet used to end at x=640 in a
-            640-wide viewBox. A stroke is centred ON its path, so the outer
-            half of that right border fell outside the box and was clipped —
-            a 1px border rendering as 0.5px, which is why only that side
-            looked thin. The whole drawing is now inset: nothing is closer
-            than 4px to any viewBox edge. The 1.4x scale is applied to the
-            viewBox, every coordinate AND the CSS size together, because this
-            SVG is fixed-size (not width:100%) — scaling the viewBox alone
-            would have shrunk the drawing, not grown it. Stroke weights are
-            deliberately NOT scaled: hairlines stay hairlines.
-            SIX EQUAL COLUMNS. The sheet spans x=560..896, so 336 / 6 = 56px a
-            column; the five interior dividers fall at 616/672/728/784/840 and
-            cell text starts 4px inside its column at 564 + c*56. The header row
-            is the band y=7..49; below it 217 - 49 = 168px divides into SIX data
-            rows of 28px (five interior rules at 77/105/133/161/189), which is
-            exactly the tallest column's tool count — OUT, at six. Baselines sit
-            2.5px under each row's centre: headers at y=31, cells at 66 + r*28.
-            Every number here derives from the rect, so the rect is the only
-            thing to change if the sheet ever moves. */}
-        <div className="relative mt-6 hidden lg:mt-8 lg:block">
-          <svg role="img" viewBox="0 0 900 224" className="h-[224px] w-[900px]">
-            <title>Six kinds of places, copied by hand into one spreadsheet</title>
-            <g className="text-bg-row" fill="currentColor" stroke="none">
-              <rect x={560} y={7} width={336} height={42} />
-            </g>
-            <g className="text-text-faint" stroke="currentColor" fill="none">
-              {[19, 56, 93, 131, 168, 205].map((y) => (
-                <path key={y} d={`M168 ${y} H336 L560 112`} strokeWidth={1} strokeDasharray="3 4" />
-              ))}
-              <text x={462} y={31} textAnchor="middle" fontSize={10} letterSpacing={1.4} className="font-mono" fill="currentColor" stroke="none">BY HAND</text>
-              {[77, 105, 133, 161, 189].map((y) => (
-                <line key={y} x1={560} y1={y} x2={896} y2={y} strokeWidth={0.75} />
-              ))}
-              {[616, 672, 728, 784, 840].map((x) => (
-                <line key={x} x1={x} y1={7} x2={x} y2={217} strokeWidth={0.75} />
-              ))}
-              {PROBLEM_SHEET.map((col, c) => (
-                <text key={col.header} x={564 + c * 56} y={31} fontSize={7} letterSpacing={0.6} fill="currentColor" stroke="none">{col.header}</text>
-              ))}
-            </g>
-            <g className="text-brand-purple" fill="currentColor" stroke="none">
-              {PROBLEM_SHEET.flatMap((col, c) =>
-                col.tools.map((tool, r) => (
-                  <text key={`${col.header}-${tool}`} x={564 + c * 56} y={66 + r * 28} fontSize={7}>{tool}</text>
-                )),
-              )}
-            </g>
-            <g className="text-text-muted" stroke="currentColor" fill="none" strokeWidth={1}>
-              <rect x={560} y={7} width={336} height={210} />
-              <line x1={560} y1={49} x2={896} y2={49} />
-            </g>
-          </svg>
-          {PROBLEM_SOURCES.map((label, i) => (
-            <p
-              key={label}
-              className={`absolute left-0 -translate-y-1/2 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-purple ${PROBLEM_LABEL_TOP_LG[i]}`}
-            >
-              {label}
+FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
+            to this site's 1216px of content that is 507 diagram + 73 gap + 636
+            sheet. But 1216px of content only exists at viewport >= 1280, while
+            `lg:` starts at 1024 — at 1024 the container is 960px, so a fixed
+            row would have scrolled sideways by 256px across the whole band.
+            The row is therefore proportional: 41.6941% / 5.8388% / 52.4671%,
+            the exact ratios of 507 / 71 / 638 over 1216, summing to 100%. At
+            the 1280 reference every part lands on Design's integer px; below
+            it the whole figure scales, diagram and sheet together.
+            TYPE SCALES WITH THE BOX. A fluid box holding fixed 11px type is
+            not fluid — measured, "Fixed Assets" stops fitting its column below
+            about 1205px of viewport, wrapping to two lines and blowing the 26px
+            row rhythm. So the sheet column is a container-query context and the
+            table's type and padding are cqw fractions of it: 11px -> 1.72414cqw,
+            9px -> 1.41066cqw, 7px -> 1.09718cqw, 10px -> 1.5674cqw, 12px ->
+            1.88088cqw, 8px -> 1.25392cqw, each x/638 as a percentage. Rule
+            weights alone stay in px, per Design's own 0.75-not-0.5 ruling.
+            THE JOIN STOPS SHORT. The fan converges at (505, 166) and the sheet
+            begins a gap away; Design leaves the lines aiming at the sheet
+            rather than landing on it, and that gap is the point. */}
+        <div className="mt-6 hidden lg:mt-8 lg:flex lg:items-start">
+          {/* DIAGRAM — 507 of the 1216 row. The SVG is fluid (w-full over a
+              fixed viewBox), so it holds Design's proportions at every width
+              and hits her exact 507x310 at the 1280 reference. */}
+          <div className="relative w-[41.6941%]">
+            <svg role="img" viewBox={`0 0 ${PROBLEM_FAN_LG.w} ${PROBLEM_FAN_LG.h}`} className="h-auto w-full">
+              <title>Six kinds of places, copied by hand into one spreadsheet</title>
+              <g className="text-text-faint" stroke="currentColor" fill="none">
+                {PROBLEM_LABEL_TOP_LG.map((y) => (
+                  <path
+                    key={y}
+                    d={`M${PROBLEM_FAN_LG.originX} ${y} H${PROBLEM_FAN_LG.bendX} L${PROBLEM_FAN_LG.joinX} ${PROBLEM_FAN_LG.joinY}`}
+                    strokeWidth={1}
+                    strokeDasharray="3 5"
+                  />
+                ))}
+                <text x={430} y={70} textAnchor="middle" fontSize={10} letterSpacing={1.4} className="font-mono" fill="currentColor" stroke="none">BY HAND</text>
+              </g>
+            </svg>
+            {PROBLEM_SOURCES.map((label, i) => (
+              <p
+                key={label}
+                className="absolute left-0 -translate-y-1/2 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-purple"
+                style={{ top: `${(PROBLEM_LABEL_TOP_LG[i] / PROBLEM_FAN_LG.h) * 100}%` }}
+              >
+                {label}
+              </p>
+            ))}
+          </div>
+
+          {/* GAP — 71 of 1216. Design's 73 less the 2px the table's border-box
+              conversion needs; whitespace is the cheapest place to find 2px and
+              it keeps the column grid at exactly 106. */}
+          <div className="w-[5.8388%]" aria-hidden="true" />
+
+          {/* SHEET — 638 of 1216 (Design's 636 CONTENT + the table's 1px left
+              and right borders, since Preflight puts every box in border-box).
+              The column is the container-query context: the table's type and
+              padding are cqw fractions of it, so the sheet scales in lockstep
+              with the diagram instead of holding 11px type inside a shrinking
+              box. Rule weights stay in px — Design's own ruling that 0.75
+              must not go sub-pixel applies at every width, not just 1280. */}
+          <div className="w-[52.4671%] [container-type:inline-size]">
+            <table className="w-full table-fixed border-separate border-spacing-0 border border-border">
+              <thead>
+                <tr>
+                  {PROBLEM_SHEET.map((col, c) => (
+                    <th
+                      key={col.header}
+                      scope="col"
+                      className={`whitespace-nowrap bg-bg-row px-[1.5674cqw] py-[1.09718cqw] text-left align-middle font-mono text-[1.41066cqw] font-semibold uppercase leading-[1.25392cqw] tracking-[0.12em] text-text-faint border-b border-b-border ${c < 5 ? 'border-r-[0.75px] border-r-text-faint' : ''}`}
+                    >
+                      {col.header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[0, 1, 2, 3, 4, 5].map((r) => (
+                  <tr key={r}>
+                    {PROBLEM_SHEET.map((col, c) => (
+                      <td
+                        key={col.header}
+                        className={`whitespace-nowrap px-[1.5674cqw] py-[1.09718cqw] align-middle font-mono text-[1.72414cqw] leading-[1.88088cqw] text-brand-purple ${r < 5 ? 'border-b-[0.75px] border-b-text-faint' : ''} ${c < 5 ? 'border-r-[0.75px] border-r-text-faint' : ''}`}
+                      >
+                        {col.tools[r] ?? '\u00A0'}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {/* CAPTION-ANCHOR: children of the sheet column, so both lines start
+                at the table's left edge with no offset of their own. */}
+            <p className="mt-5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-purple">
+              {PROBLEM_SHEET_CAPTION}
             </p>
-          ))}
+            <p className="mt-[10px] text-[15px] leading-[1.6] text-text-secondary">
+              {PROBLEM_SHEET_NOTE}
+            </p>
+          </div>
         </div>
-        {/* A SPREADSHEET under the sheet: the block takes the SVG's own 900px
-            width and is padded to the sheet's left edge at x=560. */}
-        <p className="mt-2 hidden w-[900px] pl-[560px] font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-purple lg:block">
-          A spreadsheet
-        </p>
 
         {/* MOBILE FAN — viewBox 280×570, rendered 1:1 (280 clears the 288px
             content width of a 320px viewport). Each line leaves its own label
@@ -1101,11 +1168,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           ))}
         </div>
         <p className="mt-2 pl-[20px] font-mono text-xs font-semibold uppercase tracking-[0.08em] text-brand-purple lg:hidden">
-          A spreadsheet
+          {PROBLEM_SHEET_CAPTION}
         </p>
-
-        <p className="mt-4 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">
-          As current as the last time you typed into it.
+        <p className="mt-4 max-w-[680px] pl-[20px] text-[15px] leading-[1.6] text-text-secondary lg:hidden">
+          {PROBLEM_SHEET_NOTE}
         </p>
         <p className="mt-6 text-[17px] lg:text-[20px] text-brand-purple">So what do these twenty-five actually give you?</p>
         <div className="mt-4 h-[30px] lg:h-10 w-px bg-border" aria-hidden="true" />
