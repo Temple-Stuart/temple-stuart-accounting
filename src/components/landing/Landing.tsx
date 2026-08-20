@@ -7,11 +7,19 @@
  *
  * THE ACTS, in document order:
  *   hero (full-bleed aubergine band)
- *   01 / THE PROBLEM   — the six-source fan + the twenty-five-tool sheet
- *   02 / THE IMPORT    — the raw import table, four arrivals, why it holds
- *   03 / LIVE DEMO     — travel search/booking, real and public
- *   04 / DONE-FOR-YOU  — the professional-services panel
- *   Built on           — the vendor marquee
+ *   LIVE DEMO — TRAVEL  — travel search/booking, real and public
+ *   DONE-FOR-YOU        — the professional-services panel
+ *   01 / THE PROBLEM    — the six-source fan + the twenty-five-tool sheet
+ *   02 / THE IMPORT     — the raw import table, four arrivals, why it holds
+ *   Built on            — the vendor marquee
+ *
+ * REVENUE FIRST, THEN THE TEACHING SEQUENCE. The two acts under the hero are
+ * not slides — they are live surfaces a guest can transact on without an
+ * account: travel search/booking is public (middleware.ts:70-94) and the
+ * services panel takes a proposal. They carry NO step number for exactly that
+ * reason; only the numbered pair below them is a sequence, and its numbering
+ * starts at 01 and stays contiguous. Do not renumber the revenue acts back in,
+ * and do not number a third one without deciding whether it is a step.
  *
  * MODULES-RETIRED (this PR). The nine-module deck — pillar cards, the
  * nine-row module sheet, the segment control, the personas rail and the
@@ -22,8 +30,9 @@
  * machine, and the lucide + GLIMPSES imports that served only them. Do not
  * reconstruct any of it from this comment; read the git history instead.
  *
- * id="modules" SURVIVES THE DELETE and now lives on the 03 / LIVE DEMO
- * section. It is a commerce contract, not decoration: the Stripe checkout
+ * id="modules" lives on the LIVE DEMO — TRAVEL section, and rode that
+ * section's move up the page. It is a commerce contract, not decoration: the
+ * Stripe checkout
  * cancel_url, the /pricing 308 redirect, the module page's Select link and the
  * shopping View Plans button all resolve to it. Moving or dropping it breaks
  * the buy path — see the ANCHOR-REHOME note on that section.
@@ -596,37 +605,182 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── PROBLEM-01 / SIX-SOURCE DIAGRAM. Act grammar unchanged: the
-            kicker, h2 and act padding are the previous section's classes
-            verbatim, and the section still draws NO border of its own.
+      {/* ── TOGGLE-1: the lobby books — the five-way toggle strip, mounted
+            where the teaser sat (directly under the CTA row; pre-BOOK-1
+            Landing.tsx:325-328). Full content width — the strip holds
+            whole booking surfaces + result rows, not just a form.
+            REPAINT-2: the mount moved OUT of the hero section (one JSX seat
+            down, same props, zero wiring) — the hero is a solid aubergine
+            band now, so the strip sits on the cream page where its own
+            aubergine band (ds.BAND_BG) reads as a band. DECLARED INTERIM:
+            the strip's INTERIOR (travel pickers/results) stays dark until
+            Slice 4's trips pass. */}
+      {/* DEMO-SECTION (390 audit finding 8): div → section + aria-label so
+          the demo region is a real landmark. Classes carried verbatim —
+          Tailwind utilities are tag-agnostic and nothing selects div#demo
+          (both ids here are href targets only).
 
-            SEAM LEDGER (one rule per boundary, and exactly one). This act is
-            the only content-width section with no top rule, because the one
-            above it is the hero: a full-bleed aubergine band whose bottom edge
-            IS the boundary. A border-border hairline there would draw a pale
-            line against a dark band and read as a defect, so the colour change
-            closes that seam and nothing else does.
-            Every seam below it carries its rule on the LOWER section's
-            border-t, so no pair can collect two: problem|import → the import
-            act's border-t; import|demo → the demo act's border-t; demo|
-            done-for-you → done-for-you's border-y top. The last two seams are
-            closed from ABOVE instead — done-for-you|built-on by
-            done-for-you's border-y bottom, built-on|footer by built-on's
-            border-b — which is why neither of those two takes a border-t.
-            Adding one would double the rule.
+          ANCHOR: id="modules" lives here. It is NOT decorative — four live
+          inbound paths resolve to it and would 404-to-top without it:
+          the Stripe checkout cancel_url (api/stripe/checkout/route.ts:53),
+          the /pricing 308 permanent redirect (app/pricing/page.tsx:28), the
+          module page's Select buy link (ModulePageClient.tsx:139) and the
+          shopping View Plans button (app/shopping/page.tsx:307). It travelled
+          with this section when the revenue acts moved under the hero, so those
+          links now land higher up the page than they used to — closer to the
+          fold, which is the right direction for a buy path, not a regression.
+          id="demo" is NOT dropped — an element carries one id, so it sits on
+          the eyebrow row a few px below. It has no href pointing at it in src/
+          today (the nav's Live-demo link retired, LandingHeader.tsx:35), but an
+          external bookmark costs nothing to keep alive.
+
+          UNNUMBERED BY RULING: this is a live surface, not a step in the
+          teaching sequence, so the eyebrow reads LIVE DEMO — TRAVEL with no
+          number. The numbered acts start below it at 01.
+
+          SEAM: border-b, and it closes from BELOW on purpose. Above is the
+          hero, whose aubergine-to-cream edge is the page's one deliberate
+          zero-rule boundary, so a border-t here would be the defect the seam
+          ledger warns about. Closing from below also single-rules the
+          GuestTripStrip case — see the ledger on the problem section. */}
+      <section id="modules" aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 border-b border-border">
+        {/* LANDING-V2 (spec :96-97): the demo's numbered eyebrow row — 03,
+            label otherwise verbatim; right slot = the existing /modules/travel
+            door. */}
+        <div id="demo" className="flex items-baseline justify-between gap-3 pt-6">
+          <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">LIVE DEMO — TRAVEL</p>
+          <Link href="/modules/travel" className="font-mono text-xs lg:text-[10px] tracking-wider text-brand-purple hover:text-brand-purple-hover">
+            EXPLORE TRAVEL →
+          </Link>
+        </div>
+        {/* LANDING-V3 (spec :99): the demo h2, spec wording verbatim. */}
+        <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">
+          Search &amp; book travel — free today, no account needed.
+        </h2>
+        <LandingBookingSection onRequireAuth={onRequireAuth} />
+        {/* LANDING-V5 (spec :174-177): the demo section's footer row — the
+            spec's own strings verbatim (the left line already lives in
+            the retired SUMMARY_BY_ID's travel lines (git history); NO ACCOUNT NEEDED is the spec's mono
+            right slot). */}
+        <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2 pb-2">
+          <span className="text-[13px] text-text-faint">One trip holds everything — plans, bookings, budget.</span>
+          <span className="font-mono text-xs lg:text-[10.5px] tracking-wider text-text-faint">NO ACCOUNT NEEDED</span>
+        </div>
+      </section>
+      {/* PR-ELEV-1: the coming-soon tiles live INSIDE the strip above as
+          badged "Soon" chips (travelStripModes) — the PR-LANDING-1 tile
+          row below the strip is gone; the both-surfaces-at-once light-up
+          ruling now holds at chip level via the shared builder. */}
+
+      {/* ── BOOK-3: the guest's session trip — renders only when records
+            exist (fail-honest empty state = nothing). ─────────────────────── */}
+      <GuestTripStrip onRequireAuth={onRequireAuth} />
+
+      {/* ── LANDING-V4 (Alex's ruling, reversing the V2 seat): DONE-FOR-YOU is
+            its own section — no right slot. Body = the PROFESSIONAL SERVICES
+            panel relocated WHOLESALE from the 05 grid (markup byte-identical
+            inside), seated in the old deck-table's white-card container idiom.
+
+            UNNUMBERED BY RULING: a guest can submit a proposal here without an
+            account, so this is a revenue surface, not a step. It lost its
+            '04 / ' prefix when it moved up with the demo; the numbered acts
+            below it start at 01 and the sequence is contiguous without it.
+
+            SEAM: border-b ONLY — the border-t is deliberately gone. Whatever
+            sits directly above (GuestTripStrip when a guest has trip records,
+            the demo section otherwise) already closes that boundary with its
+            own bottom edge, and a border-t here would have made it the page's
+            only two-rule seam. This section's bottom edge closes
+            done-for-you|01 THE PROBLEM. ─────────────────────────────────── */}
+      <section className="w-full border-b border-border bg-bg-terminal">
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
+          <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">
+            DONE-FOR-YOU
+          </p>
+          <div className="mt-4 rounded-lg border border-border bg-white p-5">
+            <div className="mt-4">
+              <span className="rounded border border-border px-2 py-0.5 font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
+                PROFESSIONAL SERVICES
+              </span>
+              <p className="mt-2 text-xs leading-relaxed text-text-muted">Your own hosted copy — every API wired, custom to your business, you own everything.</p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {([
+                  ['Full setup', 'Your own hosted copy, every API wired, you own everything.'],
+                  ['Monthly maintenance', 'I keep it updated and running.'],
+                  ['Custom builds', 'Need a feature? I build it.'],
+                  ['Embed a module', 'Want just one piece (the booking engine, the books, the scanner) inside your existing system? I do that too.'],
+                ] as const).map(([title, desc]) => (
+                  <div key={title} className="rounded-lg border border-border bg-white p-4 text-text-primary">
+                    <div className="text-sm font-medium">{title}</div>
+                    <p className="mt-1 text-xs text-text-muted">{desc}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-4">
+                <Link
+                  href="/work-with-me"
+                  className="border border-brand-purple/40 px-6 py-2 text-center text-xs font-medium text-brand-purple hover:bg-brand-purple-wash"
+                >
+                  Send a project proposal →
+                </Link>
+                <span className="ml-auto font-mono text-xs italic text-text-faint">Scoped by proposal</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── PROBLEM-01 / SIX-SOURCE DIAGRAM. This is where the TEACHING
+            SEQUENCE starts — the two acts above it are live revenue surfaces
+            and carry no step number, so 01 is still the first number a reader
+            meets even though it is no longer the first act on the page.
+            Act grammar unchanged: the kicker, h2 and act padding are the hero
+            act's classes verbatim, and the section still draws NO border of
+            its own — the done-for-you act above closes that seam from below.
+
+            SEAM LEDGER (one rule per boundary, and exactly one). Re-derived
+            for the revenue-first order; the previous ledger described the old
+            one and every line of it had moved.
+              header | hero            → the header's border-b
+              hero | live demo         → ZERO, BY DESIGN. The only such seam on
+                                         the page: a full-bleed aubergine band
+                                         whose bottom edge IS the boundary. A
+                                         border-border hairline against dark
+                                         reads as a defect, so the colour change
+                                         closes it and nothing else does. This
+                                         rule follows the hero, so it now
+                                         governs the demo act rather than this
+                                         one.
+              live demo | done-for-you → the demo act's border-b
+              done-for-you | 01 problem→ done-for-you's border-b
+              01 problem | 02 import   → the import act's border-t
+              02 import | built on     → built-on's border-t (NEW this move —
+                                         the import act ends the teaching run
+                                         and draws no bottom rule of its own)
+              built on | footer        → built-on's border-b
+            THE GuestTripStrip CASE, now resolved. That strip renders only for a
+            guest who has session trip records, carries its OWN border-b, and
+            sits between the demo and done-for-you acts. Closing the demo act
+            from BELOW rather than giving done-for-you a border-t is what makes
+            both cases single-ruled: with the strip, demo|strip is the demo's
+            border-b and strip|done-for-you is the strip's own; without it,
+            demo|done-for-you is the demo's border-b. A border-t on
+            done-for-you would have made strip|done-for-you the page's only
+            two-rule seam. Do not add one.
             GEOMETRY, DECLARED: the content-width acts rule at content width
-            (max-w-7xl), the full-bleed acts rule edge to edge. The retired
-            modules section ruled edge to edge, so the problem|import and
-            import|demo seams are now inset where that one was not.
+            (max-w-7xl), the full-bleed acts rule edge to edge, so the demo and
+            problem/import rules are inset and the built-on ones are not.
 
             GOLD RULING SUPERSEDED. The 2026-08-18 ruling ("the section's ONE
             gold moment"; "both problem-section questions render gold") is
             RETIRED together with the questions it governed. This act is
             deliberately colourless: the problem carries no accent, and gold
-            first appears in the import act directly below, on its band
-            labels — the modules section that used to hold gold's first
-            appearance is retired. Zero brand-gold here, by design — not an
-            oversight.
+            INK first appears in the import act directly below, on its band
+            labels. (Gold as a BUTTON FILL is older and higher up — the hero's
+            MONEY_ACTION CTA — which is a different use of the token and not
+            what this ruling is about.) The revenue acts that now sit above
+            this one carry no gold at all, so the accent still enters below.
+            Zero brand-gold here, by design — not an oversight.
 
             FIRST DIAGRAM SVG IN THE REPO. Every other <svg> in src/ is an
             icon or a spinner, so there was no diagram precedent to follow and
@@ -875,13 +1029,16 @@ FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
             pt-9 lg:pt-[60px] pb-9 lg:pb-[60px]. It now also draws a border-t,
             which is the page's rule for the problem|import seam.
 
-            GOLD IS DELIBERATE HERE, AND IS NOW GOLD'S FIRST APPEARANCE on the
-            page. The problem act above is colourless by ruling; the modules
-            section that used to carry gold's first appearance is retired, so
-            this slide's four band labels, its FOUR ARRIVALS label and WHY IT
-            MATTERS are where gold enters. That does not reopen the problem
-            act's ruling — that ruling is about the problem act, which is still
-            untouched and still colourless.
+            GOLD IS DELIBERATE HERE, AND THIS IS WHERE GOLD INK ENTERS the
+            page: the four band labels, the FOUR ARRIVALS label and WHY IT
+            MATTERS. Everything above is either colourless by ruling (the
+            problem act) or carries no gold at all (the two revenue acts under
+            the hero) — verified, not assumed. The one earlier gold on the page
+            is the hero CTA's FILL (bg-brand-gold, the MONEY_ACTION idiom),
+            which is a different use of the token; this is the first gold used
+            as ink. That does not reopen the problem act's ruling — that ruling
+            is about the problem act, which is still untouched and still
+            colourless.
 
             SEAM: border-t. This act closes the problem|import boundary; see
             the seam ledger in the problem section's comment above.
@@ -1025,121 +1182,6 @@ FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
         <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">Now — what kind of thing is each one?</p>
       </section>
 
-      {/* ── TOGGLE-1: the lobby books — the five-way toggle strip, mounted
-            where the teaser sat (directly under the CTA row; pre-BOOK-1
-            Landing.tsx:325-328). Full content width — the strip holds
-            whole booking surfaces + result rows, not just a form.
-            REPAINT-2: the mount moved OUT of the hero section (one JSX seat
-            down, same props, zero wiring) — the hero is a solid aubergine
-            band now, so the strip sits on the cream page where its own
-            aubergine band (ds.BAND_BG) reads as a band. DECLARED INTERIM:
-            the strip's INTERIOR (travel pickers/results) stays dark until
-            Slice 4's trips pass. */}
-      {/* DEMO-SECTION (390 audit finding 8): div → section + aria-label so
-          the demo region is a real landmark. Classes carried verbatim —
-          Tailwind utilities are tag-agnostic and nothing selects div#demo
-          (both ids here are href targets only).
-
-          ANCHOR-REHOME: id="modules" MOVED here from the retired merged
-          section, which was its only home. It is NOT decorative — four live
-          inbound paths resolve to it and would 404-to-top without it:
-          the Stripe checkout cancel_url (api/stripe/checkout/route.ts:53),
-          the /pricing 308 permanent redirect (app/pricing/page.tsx:28), the
-          module page's Select buy link (ModulePageClient.tsx:139) and the
-          shopping View Plans button (app/shopping/page.tsx:307). This section
-          is the first thing below where the deck stood, so those links land in
-          the same place on the page they used to.
-          id="demo" is NOT dropped — an element carries one id, so it moves to
-          the eyebrow row a few px below. It has no href pointing at it in src/
-          today (the nav's Live-demo link retired, LandingHeader.tsx:35), but an
-          external bookmark costs nothing to keep alive.
-
-          SEAM: border-t — the retired section's border-y used to draw the rule
-          above this one. See the seam ledger on the import section. */}
-      <section id="modules" aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 border-t border-border">
-        {/* LANDING-V2 (spec :96-97): the demo's numbered eyebrow row — 03,
-            label otherwise verbatim; right slot = the existing /modules/travel
-            door. */}
-        <div id="demo" className="flex items-baseline justify-between gap-3 pt-6">
-          <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">03 / LIVE DEMO — TRAVEL</p>
-          <Link href="/modules/travel" className="font-mono text-xs lg:text-[10px] tracking-wider text-brand-purple hover:text-brand-purple-hover">
-            EXPLORE TRAVEL →
-          </Link>
-        </div>
-        {/* LANDING-V3 (spec :99): the demo h2, spec wording verbatim. */}
-        <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">
-          Search &amp; book travel — free today, no account needed.
-        </h2>
-        <LandingBookingSection onRequireAuth={onRequireAuth} />
-        {/* LANDING-V5 (spec :174-177): the demo section's footer row — the
-            spec's own strings verbatim (the left line already lives in
-            the retired SUMMARY_BY_ID's travel lines (git history); NO ACCOUNT NEEDED is the spec's mono
-            right slot). */}
-        <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2 pb-2">
-          <span className="text-[13px] text-text-faint">One trip holds everything — plans, bookings, budget.</span>
-          <span className="font-mono text-xs lg:text-[10.5px] tracking-wider text-text-faint">NO ACCOUNT NEEDED</span>
-        </div>
-      </section>
-      {/* PR-ELEV-1: the coming-soon tiles live INSIDE the strip above as
-          badged "Soon" chips (travelStripModes) — the PR-LANDING-1 tile
-          row below the strip is gone; the both-surfaces-at-once light-up
-          ruling now holds at chip level via the shared builder. */}
-
-      {/* ── BOOK-3: the guest's session trip — renders only when records
-            exist (fail-honest empty state = nothing). ─────────────────────── */}
-      <GuestTripStrip onRequireAuth={onRequireAuth} />
-
-      {/* ── LANDING-V4 (Alex's ruling, reversing the V2 seat): DONE-FOR-YOU is
-            its own numbered section — eyebrow in the established grammar
-            ('04 / DONE-FOR-YOU'), no right slot. Body = the PROFESSIONAL
-            SERVICES panel relocated WHOLESALE from the 05 grid (markup
-            byte-identical inside), seated in the old deck-table's white-card
-            container idiom.
-            SEAM: this section's border-y TOP closes the demo|done-for-you
-            boundary, and its border-y BOTTOM closes done-for-you|built-on.
-            The original rationale here cited the retired modules section's
-            border-y bottom as the rule this one replaced; that section is gone
-            and this border-y now stands on its own. The built-on section below
-            deliberately takes no border-t — this one's bottom edge is already
-            that seam's single rule. ─────────────────────────────────────── */}
-      <section className="w-full border-y border-border bg-bg-terminal">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-          <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">
-            04 / DONE-FOR-YOU
-          </p>
-          <div className="mt-4 rounded-lg border border-border bg-white p-5">
-            <div className="mt-4">
-              <span className="rounded border border-border px-2 py-0.5 font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
-                PROFESSIONAL SERVICES
-              </span>
-              <p className="mt-2 text-xs leading-relaxed text-text-muted">Your own hosted copy — every API wired, custom to your business, you own everything.</p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {([
-                  ['Full setup', 'Your own hosted copy, every API wired, you own everything.'],
-                  ['Monthly maintenance', 'I keep it updated and running.'],
-                  ['Custom builds', 'Need a feature? I build it.'],
-                  ['Embed a module', 'Want just one piece (the booking engine, the books, the scanner) inside your existing system? I do that too.'],
-                ] as const).map(([title, desc]) => (
-                  <div key={title} className="rounded-lg border border-border bg-white p-4 text-text-primary">
-                    <div className="text-sm font-medium">{title}</div>
-                    <p className="mt-1 text-xs text-text-muted">{desc}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 flex flex-wrap items-center gap-4">
-                <Link
-                  href="/work-with-me"
-                  className="border border-brand-purple/40 px-6 py-2 text-center text-xs font-medium text-brand-purple hover:bg-brand-purple-wash"
-                >
-                  Send a project proposal →
-                </Link>
-                <span className="ml-auto font-mono text-xs italic text-text-faint">Scoped by proposal</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ── BUILTON-MARQUEE: the "Built on" wall's five-category card grid
             became ONE auto-scrolling text-mark strip (professional-site
             style). WORDING LAW (locked): "Built on" / "integrates with"
@@ -1163,7 +1205,7 @@ FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
             Vercel attribution: kept verbatim per the ruling — with
             text-only chips no Vercel/Next.js image marks render, so the
             line now over-attributes harmlessly (declared). ─────────────── */}
-      <section className="w-full border-b border-border bg-bg-terminal">
+      <section className="w-full border-y border-border bg-bg-terminal">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
           <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-brand-purple">
             Built on
