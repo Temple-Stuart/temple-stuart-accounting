@@ -215,16 +215,18 @@ const PROBLEM_SHEET_SM = [
   { top: 410, cols: PROBLEM_SHEET.slice(3) },
 ] as const;
 
-// PROBLEM-CAPTION: the two lines that sit under the sheet. They are rendered
-// TWICE — on desktop INSIDE the sheet column, so they inherit the table's left
-// edge, and on mobile under the stacked grids — so the strings live here once
-// rather than being typed twice (the no-drift law). CAPTION-ANCHOR: the note
-// used to be a lone <p> child of the section with no left offset at all, so it
-// began at the page margin while A SPREADSHEET faked its alignment with a
-// pl-[560px] hand-copied from the sheet's rect x. Both magic numbers are gone:
-// on desktop the pair are simply children of the column the table fills.
-const PROBLEM_SHEET_CAPTION = 'A spreadsheet';
-const PROBLEM_SHEET_NOTE = 'As current as the last time you typed into it.';
+// PROBLEM-CAPTION: the line that sits under the sheet. It is rendered TWICE —
+// on desktop INSIDE the sheet column, so it inherits the table's left edge,
+// and on mobile under the stacked grids — so the string lives here once
+// rather than being typed twice (the no-drift law). PR-D1: the deck's caption
+// is ONE sentence joined by an em dash, not the earlier A SPREADSHEET kicker +
+// note pair, so the two consts collapsed into this one. CAPTION-ANCHOR: the
+// caption used to be a lone <p> child of the section with no left offset at
+// all, so it began at the page margin while A SPREADSHEET faked its alignment
+// with a pl-[560px] hand-copied from the sheet's rect x. Both magic numbers
+// are gone: on desktop the caption is simply a child of the column the table
+// fills.
+const PROBLEM_SHEET_CAPTION = 'A spreadsheet — as current as the last time you typed into it.';
 
 // IMPORT-COLUMNS: the eleven columns of the raw import table, for the
 // 02 / THE IMPORT slide. Four bands, each a heading plus its rows; a row is
@@ -1081,13 +1083,10 @@ FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
                 ))}
               </tbody>
             </table>
-            {/* CAPTION-ANCHOR: children of the sheet column, so both lines start
-                at the table's left edge with no offset of their own. */}
-            <p className="mt-5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-purple">
+            {/* CAPTION-ANCHOR: a child of the sheet column, so the line starts
+                at the table's left edge with no offset of its own. */}
+            <p className="mt-5 text-[15px] leading-[1.6] text-text-secondary">
               {PROBLEM_SHEET_CAPTION}
-            </p>
-            <p className="mt-[10px] text-[15px] leading-[1.6] text-text-secondary">
-              {PROBLEM_SHEET_NOTE}
             </p>
           </div>
         </div>
@@ -1108,7 +1107,7 @@ FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
             is 240 / 3 = 80px a column (dividers at x=100/180, text at
             24 + c*80), with the same header band, the same six 20px data rows
             and the same rule weights as desktop. Both grids share x=20, so the
-            A SPREADSHEET caption's pl-[20px] still aligns to both and does not
+            spreadsheet caption's pl-[20px] still aligns to both and does not
             move. Every coordinate derives from each grid's `top` — the split
             and its geometry live together in PROBLEM_SHEET_SM. */}
         <div className="relative mt-6 lg:hidden">
@@ -1161,11 +1160,8 @@ FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
             </p>
           ))}
         </div>
-        <p className="mt-2 pl-[20px] font-mono text-xs font-semibold uppercase tracking-[0.08em] text-brand-purple lg:hidden">
+        <p className="mt-2 max-w-[680px] pl-[20px] text-[15px] leading-[1.6] text-text-secondary lg:hidden">
           {PROBLEM_SHEET_CAPTION}
-        </p>
-        <p className="mt-4 max-w-[680px] pl-[20px] text-[15px] leading-[1.6] text-text-secondary lg:hidden">
-          {PROBLEM_SHEET_NOTE}
         </p>
         <p className="mt-6 text-[17px] lg:text-[20px] text-brand-purple">So what do these twenty-five actually give you?</p>
         <div className="mt-4 h-[30px] lg:h-10 w-px bg-border" aria-hidden="true" />
