@@ -10,11 +10,26 @@
  *   LIVE DEMO — TRAVEL  — travel search/booking, real and public
  *   DONE-FOR-YOU        — the professional-services panel
  *   01 / THE PROBLEM    — the six-source fan + the twenty-five-tool sheet
- *   02 / THE IMPORT     — the raw import table, four arrivals, why it holds
- *   03 / THE ROUTING    — one rule per feed, the four kinds, the three tests
- *   04 / THE HANDOFF    — the kind picks the table; twenty-five apps, five
- *                         tables
+ *   02 / THE IMPORT     — the raw import table, four arrivals, the trio
+ *   03 / THE ROUTING    — one rule per feed, nine rows, four kinds
+ *   04 / THE HANDOFF    — five tables; the kind is the address
+ *   05 / THE TWO LANES  — observed vs authored
+ *   06 / THE LOOP       — discover → decide → commit → record
+ *   07 / THE MASTER TABLE — one table for everything you do
+ *   08 / THE MATCH      — the deposit meets the invoice
+ *   09 / THE POSTING    — rules write the debits and credits
+ *   10 / THE ANSWERS    — every answer is math on the lines
+ *   11 / THE TWO WINDOWS — the Ledger and the Calendar
+ *   12 / THE THREADS    — one $500 sale, then four more doors
+ *   13 / THE PROOF      — click any number, walk it back
  *   Built on            — the vendor marquee
+ *
+ * PR-DECK: 01–13 are the pipeline deck, and every rendered string in them is
+ * VERBATIM from the approved deck copy. Never rephrase in place — a copy
+ * change is a deck change first. RUST NOTE: the deck's "rust" group-label
+ * colour has no token in this palette; brand-amber (#d97706) is the mapping,
+ * chosen over inventing a hex. If Design lands a true rust token, swap
+ * text-brand-amber across the deck in one pass.
  *
  * REVENUE FIRST, THEN THE TEACHING SEQUENCE. The two acts under the hero are
  * not slides — they are live surfaces a guest can transact on without an
@@ -228,177 +243,351 @@ const PROBLEM_SHEET_SM = [
 // fills.
 const PROBLEM_SHEET_CAPTION = 'A spreadsheet — as current as the last time you typed into it.';
 
-// IMPORT-COLUMNS: the eleven columns of the raw import table, for the
-// 02 / THE IMPORT slide. Four bands, each a heading plus its rows; a row is
-// the tuple [name, holds, why], read positionally by the table that renders
-// it. Order is the reading order of the slide and carries the argument —
-// where it came from, what it is, what they actually sent, when and how far —
-// so rows must never be sorted or regrouped for tidiness.
+// IMPORT-COLUMNS (PR-DECK): the field table of the 02 / THE IMPORT slide,
+// reconciled to the deck's plain-language vocabulary (provider · connection ·
+// resource · their id · our id · payload · fingerprint · asked · arrived ·
+// read · status). Four rust-labelled bands, each row a [name, desc] pair —
+// the deck gives each field ONE description, so the old holds/why split is
+// gone. Order is the reading order of the slide and carries the argument;
+// never sort or regroup for tidiness.
 //
-// fetched_at HAS NO WHY ON PURPOSE. Its empty string is content, not a gap
-// waiting to be filled: the row pairs with received_at directly beneath it and
-// the explanation belongs to the pair, not to either half. Do not invent copy
-// for it.
+// asked / arrived / read HAVE NO DESCRIPTION ON PURPOSE — the deck leaves
+// them bare and the empty string is content, not a gap. Do not invent copy.
 //
-// THE PAYLOAD ROW IS THE EMPHASIS of the slide and the renderer keys off its
-// name, not a flag here, so that this stays plain data — one bolder cell is a
-// presentation fact, not a property of the column. Its WHY is deliberately
-// shouted in caps; that IS the copy, not a style to normalise away.
-//
-// NOT COUPLED TO ANYTHING EXISTING — not PROBLEM_SHEET, and not the retired
-// REPLACED_APPS. The problem slide names the tools a business already runs;
-// this names the columns of one table this product writes. They share no
-// vocabulary and must stay free to diverge.
-const IMPORT_COLUMNS = [
+// THE PAYLOAD ROW carries the slide's emphasis as a third tuple slot: the
+// shouted tail of its description renders in the deck's rust (brand-amber),
+// per the token note in the header comment. The caps ARE the copy.
+const IMPORT_COLUMNS: ReadonlyArray<{ band: string; rows: ReadonlyArray<readonly string[]> }> = [
   {
     band: 'WHERE IT CAME FROM',
     rows: [
-      ['provider', 'stripe · plaid · sec · fred', 'which system sent it'],
-      ['connection_id', 'which connection of that system', 'you may have two banks'],
+      ['provider', 'stripe · plaid · sec · fred — which company sent it'],
+      ['connection', 'you might have two banks'],
     ],
   },
   {
     band: 'WHAT IT IS',
     rows: [
-      ['resource_type', 'payout · transaction · quote', 'their word for it'],
-      ['external_id', 'po_1QmX8fK2', 'their id, so you never import it twice'],
-      ['id', 'our own key', "theirs may collide with another feed's"],
+      ['resource', 'their own word: payout · transaction · quote'],
+      ['their id', 'so we never import the same thing twice'],
+      ['our id', 'two providers could accidentally use the same name'],
     ],
   },
   {
     band: 'WHAT THEY ACTUALLY SENT',
     rows: [
-      ['payload', 'the response, byte for byte', 'THE REASON THIS TABLE EXISTS'],
-      ['payload_hash', 'a fingerprint of those bytes', 'proof you did not alter them'],
+      ['payload', 'saved word for word — ', 'THE REASON THIS TABLE EXISTS'],
+      ['fingerprint', 'proves we never changed it'],
     ],
   },
   {
     band: 'WHEN AND HOW FAR',
     rows: [
-      ['fetched_at', 'when you asked', ''],
-      ['received_at', 'when it arrived', 'the gap matters when a feed lags'],
-      ['parsed_at', 'when it was interpreted', 'null until step 3'],
-      ['parse_status', 'pending · done · failed', 'you can replay a failure'],
+      ['asked', ''],
+      ['arrived', ''],
+      ['read', ''],
+      ['status', 'pending · done · failed'],
     ],
   },
-] as const;
-
-// The name of the one row the import table emphasises. Named here rather than
-// typed into the renderer so the emphasis and the data cannot drift apart.
-const IMPORT_PAYLOAD_ROW = 'payload';
+];
 
 // IMPORT-ARRIVALS: four rows that actually landed, one per feed, as
 // [provider, resource, external_id, received, parse]. The point of the table is
 // that four unrelated kinds of thing — a payout, a card purchase, a stock quote
 // and a filing — are the same shape, so the four providers must stay different
 // from one another; replacing one with a second bank would lose the argument.
+// PR-DECK: parse values are UPPERCASE per the deck, and the renderer inks
+// PENDING in the deck's rust — the one live state that is not yet done.
 const IMPORT_ARRIVALS = [
-  ['stripe', 'payout', 'po_1QmX8fK2', '09:14:02Z', 'done'],
-  ['plaid', 'transaction', 'nkP9dLm4zQx7', '09:14:06Z', 'done'],
-  ['tastytrade', 'quote', 'SPY-2026-02-19', '10:31:00Z', 'done'],
-  ['sec', 'filing', '0000320193-26-14', '11:02:44Z', 'pending'],
+  ['stripe', 'payout', 'po_1QmX8fK2', '09:14:02Z', 'DONE'],
+  ['plaid', 'transaction', 'nkP9dLm4zQx7', '09:14:06Z', 'DONE'],
+  ['tastytrade', 'quote', 'SPY-2026-02-19', '10:31:00Z', 'DONE'],
+  ['sec', 'filing', '0000320193-26-14', '11:02:44Z', 'PENDING'],
 ] as const;
 
-// ROUTING-RULES: the whole routing decision, for the 03 / THE ROUTING slide,
-// as [provider, resource, kind, landsIn]. ELEVEN ROWS IS THE ARGUMENT — the
-// slide's claim is that routing is a table you read, not code you trace, so
-// the rows have to look like a table someone maintains: eleven of them, seven
-// providers, four kinds, several providers appearing more than once because a
-// feed sends more than one shape.
+// ROUTING-RULES (PR-DECK): the whole routing decision, for the 03 / THE
+// ROUTING slide, as [provider, resource, kind, means]. NINE ROWS PER THE DECK
+// — seven providers, four kinds, providers repeating because a feed sends
+// more than one shape. The MEANS column speaks only on a kind's FIRST
+// appearance ('something that happened' · 'one of your accounts' · 'a fact
+// about the world' · 'math we did — never a source'); the empty strings on
+// repeat rows are deck content, not gaps — do not fill them.
 //
 // THE FOUR ROUTABLE KINDS ARE A CLOSED SET — EVENT, REGISTRY, REFERENCE,
-// DERIVED — and they are the slide's vocabulary, not decoration. EVENT is
-// something that happened, REGISTRY is something you own, REFERENCE is world
-// data you did not author, DERIVED is a conclusion. Adding a fifth ROUTABLE
-// kind is a product decision, not a data edit; do not invent one to fit a new
-// feed.
-// FOUR HERE, FIVE IN HANDOFF_KINDS BELOW, AND THE GAP IS THE POINT: POSTING is
-// a table but never a routing target, because nothing ever arrives as a
-// posting — the system writes postings from events. A provider can only send
-// one of these four. Do not add a POSTING row here to make the two lists
-// match.
+// DERIVED. FOUR HERE, FIVE IN HANDOFF_KINDS BELOW, AND THE GAP IS THE POINT:
+// nothing ever arrives as a posting — the system writes postings from events.
+// Do not add a POSTING row here to make the two lists match.
 //
 // THE anthropic ROW IS THE POINT and the renderer keys off its provider name,
-// not a flag here, so this stays plain data — one filled row is a presentation
-// fact, not a property of the rule. It lands in 'never a source': a
-// classification is DERIVED, so it can be recomputed and must never be the
-// thing another table trusts. That phrase is the copy; do not normalise it to
-// a table name to make the column look uniform.
-//
-// NOT COUPLED TO IMPORT_ARRIVALS. Those four rows are things that actually
-// landed; these eleven are the standing rule that decides where anything
-// landing would go. They overlap in provider names today and must stay free to
-// diverge — a provider can be routed before it has ever sent anything.
+// not a flag here, so this stays plain data. Its means is the deck's warning
+// — a classification is math we did, never a source another table trusts.
 const ROUTING_RULES = [
-  ['stripe', 'payout', 'EVENT', 'event'],
-  ['stripe', 'charge', 'EVENT', 'event'],
-  ['plaid', 'transaction', 'EVENT', 'event'],
-  ['plaid', 'account', 'REGISTRY', 'account'],
-  ['tastytrade', 'quote', 'REFERENCE', 'reference'],
-  ['tastytrade', 'position', 'REGISTRY', 'position'],
-  ['tastytrade', 'fill', 'EVENT', 'event'],
-  ['sec', 'filing', 'REFERENCE', 'reference'],
-  ['fred', 'series', 'REFERENCE', 'reference'],
-  ['duffel', 'booking', 'EVENT', 'event'],
-  ['anthropic', 'classification', 'DERIVED', 'never a source'],
+  ['stripe', 'payout', 'EVENT', 'something that happened'],
+  ['plaid', 'transaction', 'EVENT', ''],
+  ['plaid', 'account', 'REGISTRY', 'one of your accounts'],
+  ['tastytrade', 'quote', 'REFERENCE', 'a fact about the world'],
+  ['tastytrade', 'fill', 'EVENT', ''],
+  ['sec', 'filing', 'REFERENCE', ''],
+  ['fred', 'series', 'REFERENCE', ''],
+  ['duffel', 'booking', 'EVENT', ''],
+  ['anthropic', 'classification', 'DERIVED', 'math we did — never a source'],
 ] as const;
 
 // The provider whose row the routing table fills. Named here rather than typed
-// into the renderer so the emphasis and the data cannot drift apart — the same
-// arrangement as IMPORT_PAYLOAD_ROW above.
+// into the renderer so the emphasis and the data cannot drift apart.
 const ROUTING_DERIVED_ROW = 'anthropic';
 
-// The routing slide's three closing lines, each split [opening phrase,
-// remainder] on a COLOUR boundary and nothing else — opener purple, remainder
-// faint, neither half changing weight. Same arrangement as
-// IMPORT_WHY_IT_MATTERS below; stored pre-split because the break points are
-// editorial (they fall on the test being named, not on punctuation).
-const ROUTING_TESTS = [
-  ['Delete the part.', 'One routing table, not twenty-five parsers.'],
-  ['Systemize the decision.', 'The rule is a row, not a judgment call.'],
-  ['Separate the functions.', 'World data, your data, and money never mix.'],
-] as const;
+// PR-DECK: ROUTING_TESTS retired — the deck's 03 closes on one statement line
+// ('When a new provider shows up, we add rows — not code, and not new
+// tables.') typed at the render, not a trio. The three tests live in git
+// history if a surface ever wants them back.
 
-// HANDOFF-KINDS: the five tables a kind can address, for the 04 / THE HANDOFF
-// slide, as [kind, table, whatIsInIt]. This is the payoff of the routing act
-// above — that act decides WHICH kind a thing is, this one says what each kind
-// then means, so the two must use the same words for the same concepts.
+// HANDOFF-KINDS (PR-DECK): the five tables a kind can address, for the
+// 04 / THE HANDOFF slide, as [kind, holds]. The deck writes the kinds
+// lowercase here — on 04 they are addresses, not shouted vocabulary — and
+// collapses the old kind/table pair into one word, since the kind IS the
+// table name. Kind words are the one non-money place gold is allowed.
 //
-// FIVE KINDS HERE, FOUR IN ROUTING_RULES, AND THAT IS CORRECT — do not
-// "reconcile" them by adding a POSTING row to the routing table. Nothing ever
-// ARRIVES as a posting: a provider sends an event, a registry record, a
-// reference fact or a classification, and postings are what the system writes
-// from those. So POSTING is a real table with no routing rule, which is exactly
-// what you would expect of the one table the outside world cannot write to
-// directly. The routing const's own comment records the same split.
+// FIVE KINDS HERE, FOUR IN ROUTING_RULES, AND THAT IS CORRECT — nothing ever
+// ARRIVES as a posting: postings are what the system writes from events. The
+// deck's notice block under the table says exactly this on screen.
 //
 // ORDER IS THE ARGUMENT, not the alphabet: world data first (reference), then
-// who you are (registry), then what happened (event), then what that did to the
-// money (posting), then what you concluded (derived). It runs outermost to
-// innermost, so re-sorting it would flatten the point.
+// who you are (registry), then what happened (event), then what that did to
+// the money (posting), then what you concluded (derived).
 //
-// NO ROW IS EMPHASISED, deliberately, unlike the import and routing acts. All
-// five kinds are peers — the slide's claim is that twenty-five apps collapse to
-// five equal tables — so a highlighted row would argue the opposite. Do not add
-// a fill here.
+// NO ROW IS EMPHASISED, deliberately — the five kinds are peers.
 const HANDOFF_KINDS = [
-  ['REFERENCE', 'reference', 'facts about the world'],
-  ['REGISTRY', 'registry', 'your accounts and people'],
-  ['EVENT', 'event', 'what happened'],
-  ['POSTING', 'posting', 'debits and credits'],
-  ['DERIVED', 'derived', 'math you did'],
+  ['reference', 'facts about the world'],
+  ['registry', 'your accounts and your people'],
+  ['event', 'what happened'],
+  ['posting', 'debits and credits'],
+  ['derived', 'math we did'],
 ] as const;
 
-// The slide's three closing sentences, each split [opening phrase, remainder].
-// The split is a COLOUR boundary and nothing else — the opener is purple, the
-// remainder faint, and neither half changes weight. Stored pre-split because
-// the break points are editorial (they fall on the claim, not on a comma) and
-// deriving them from punctuation would get them wrong.
-const IMPORT_WHY_IT_MATTERS = [
-  ['Nothing is ever edited.', 'A correction from the source is a new row, not a rewrite.'],
-  ['Nothing is ever re-asked.', 'If a parser is wrong, you re-read these rows.'],
-  ['Nothing is ever claimed.', 'The hash proves you stored what they sent — not that they were right.'],
+// PR-DECK: the import slide's closing trio, verbatim. The old [claim,
+// remainder] pairs (IMPORT_WHY_IT_MATTERS) died with the deck reconcile —
+// the deck keeps only the three claims.
+const IMPORT_TRIO = [
+  'Nothing is ever edited.',
+  'Nothing is ever asked twice.',
+  'Nothing is ever claimed.',
 ] as const;
+
+// ─────────────────────────────────────────────────────────────────────────
+// PR-DECK 05–13: the deck's back nine, all data module-scope per the house
+// convention. Every string VERBATIM from the approved deck copy. Where a
+// string carries inline gold (dollar amounts, debit/credit values — the only
+// things gold may ink besides kind words), it is stored PRE-SPLIT as
+// [text, isGold] segment pairs; the break points are the deck's, not
+// punctuation-derived.
+// ─────────────────────────────────────────────────────────────────────────
+
+// DECK-05: the two lanes. Two columns, rust headers, four nouns each.
+const LANE_COLUMNS = [
+  {
+    header: 'OBSERVED',
+    tells: 'the world tells you — it arrives finished',
+    items: 'deposits · charges · fills · quotes',
+    law: 'you can never edit the past.',
+  },
+  {
+    header: 'AUTHORED',
+    tells: 'you make it happen',
+    items: 'a booking · an invoice · a trade · a filing',
+    law: 'starts as a draft; becomes real when you commit.',
+  },
+] as const;
+
+// DECK-06: the four beats of the loop band, [beat, caption]. RECORD's
+// trailing period is the deck's own punctuation.
+const LOOP_BEATS = [
+  ['DISCOVER', 'look at your options'],
+  ['DECIDE', 'the pick becomes a draft'],
+  ['COMMIT', 'pull the trigger — the world moves'],
+  ['RECORD', 'written down forever.'],
+] as const;
+
+// DECK-06: the three-tool loop table, [beat, travel, trading, invoicing].
+const LOOP_ROWS = [
+  ['DISCOVER', 'live flight prices', 'option chains', 'invoices coming due'],
+  ['DECIDE', 'a cart', 'a trade card', 'a draft invoice'],
+  ['COMMIT', 'the flight books, a confirmation code comes back', 'the order goes to the broker', 'invoice #14 goes out the door'],
+  ['RECORD', 'booking recorded', 'order recorded', 'invoice recorded'],
+] as const;
+
+// DECK-07: the four things every document carries, [name, desc].
+const MASTER_ROWS = [
+  ['what it is', 'a booking, an invoice, a trade'],
+  ['its life story', 'draft → committed → settled — or void, if it dies'],
+  ['its pieces', 'the flights in a booking, the items on an invoice'],
+  ['who and when', 'who did it, and when.'],
+] as const;
+
+// DECK-08: the two match cards, [name, amount, date] — amounts gold.
+const MATCH_CARDS = [
+  { label: 'OBSERVED', name: 'deposit', amount: '$500.00', date: 'Sep 22' },
+  { label: 'AUTHORED', name: 'invoice #14', amount: '$500.00', date: 'due Sep 22' },
+] as const;
+
+// DECK-09: the posting rules, [event, debit, credit] — debit/credit values
+// gold at the render.
+const POSTING_RULES = [
+  ['invoice issued', 'A/R', 'Revenue'],
+  ['payment received', 'Cash', 'A/R'],
+  ['stripe payout', 'Cash + Fees', 'Clearing'],
+  ['bill paid', 'A/P', 'Cash'],
+  ['payroll run', 'Wages + employer taxes', 'Cash + withholdings'],
+] as const;
+
+// DECK-09: the worked sale — sentence segments ([text, isGold]) and the three
+// lines, [account, amount].
+const SALE_SENTENCE: ReadonlyArray<readonly [string, boolean]> = [
+  ['One sale for ', false], ['$100.00', true],
+  ['. Stripe keeps a ', false], ['$3.20', true],
+  [' fee. ', false], ['$96.80', true],
+  [' lands in the bank.', false],
+];
+const SALE_LINES = [
+  ['Revenue', '100.00'],
+  ['Fees', '3.20'],
+  ['Cash', '96.80'],
+] as const;
+
+// DECK-10: four questions and their math, the math pre-split so the deck's
+// money words ink gold. Row 3 has no money word and that is the deck's own
+// shape, not an omission.
+const ANSWER_ROWS: ReadonlyArray<readonly [string, ReadonlyArray<readonly [string, boolean]>]> = [
+  ['What do I owe in tax?', [['income', true], [' so far × the rules', false]]],
+  ['How long can I last?', [['cash', true], [' ÷ what I burn each month', false]]],
+  ['How is my trading doing?', [['wins, losses, and open risk', false]]],
+  ['How is my business doing?', [['money in', true], [' minus ', false], ['money out', true], ['.', false]]],
+];
+
+// DECK-11: the mini ledger, [date, line, debit, credit] — amounts gold, empty
+// side empty. The sale's three lines ride the deck's own Sep 22 (invoice #14's
+// date); the travel line rides the trip's Sep 20 start. CONSTRUCTED VALUE,
+// FLAGGED: the deck names the travel line but gives it no figure — 480.00 is
+// a placeholder awaiting Alex's real deck figure. Swap it here only.
+const LEDGER_ROWS = [
+  ['Sep 22', 'Revenue', '', '100.00'],
+  ['Sep 22', 'Fees', '3.20', ''],
+  ['Sep 22', 'Cash', '96.80', ''],
+  ['Sep 20', 'Travel', '480.00', ''],
+] as const;
+
+// DECK-11: the two-week calendar strip. Day numbers derive from the deck's
+// own dates — the trip bar (Sep 20–27) occupies the back 57.15% of 14 equal
+// days, so day one is Sep 14. Geometry is Design's: bars 6px aubergine at the
+// given percent offsets, dots 6px gold centred on their day column.
+const CAL_DAYS = ['14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27'] as const;
+const CAL_BARS = [
+  { label: 'Trip — Sep 20–27', left: 42.85, width: 57.15, y: 16 },
+  { label: 'Deep work — 9a–1p', left: 7.14, width: 35.7, y: 54 },
+] as const;
+const CAL_DOTS = [
+  { label: 'Estimated tax — Sep 15', day: 2 },
+  { label: 'Invoice #14 due — Sep 22', day: 9 },
+] as const;
+const CAL_DEADLINES = [
+  'Estimated tax — Apr 15 · Jun 15 · Sep 15 · Jan 15',
+  'S-corp return Mar 16',
+  '1099s & W-2s Feb 2',
+  'extended 1040 Oct 15',
+] as const;
+
+// DECK-12: the hero thread — eight beats of one $500 sale, [n, action,
+// artifactSegments]. Debit/credit values and amounts gold via the segments.
+const THREAD_ROWS: ReadonlyArray<readonly [string, string, ReadonlyArray<readonly [string, boolean]>]> = [
+  ['1', 'You sign a client', [['the contract lands in registry', false]]],
+  ['2', 'The obligation comes due', [['a draft invoice appears', false]]],
+  ['3', 'You send invoice #14 — commit', [['debit ', false], ['A/R 500.00', true], [', credit ', false], ['Revenue 500.00', true]]],
+  ['4', 'The client pays', [['a deposit arrives, stored and fingerprinted', false]]],
+  ['5', 'The system finds it', [['deposit matched to invoice #14', false]]],
+  ['6', 'Rules fire again', [['debit ', false], ['Cash 500.00', true], [', credit ', false], ['A/R 500.00', true]]],
+  ['7', 'Math runs', [['tax owed ticks up, runway ticks up', false]]],
+  ['8', 'You look', [['four lines on the Ledger, two dots on the Calendar', false]]],
+];
+
+// DECK-12: the four-door table. Row 6 (LINES WRITTEN) pre-splits its cells so
+// debit/credit VALUES ink gold while the words stay put; the PROJECTS cell is
+// the deliberate exception — 'none — no money moved' stays gray, per the deck.
+const DOOR_COLS = ['TRAVEL', 'TRADING', 'TIME → PAYROLL', 'PROJECTS'] as const;
+type DoorCell = string | ReadonlyArray<readonly [string, boolean]>;
+const DOOR_ROWS: ReadonlyArray<readonly [string, DoorCell, DoorCell, DoorCell, DoorCell]> = [
+  ['DISCOVER', 'live fares arrive', 'scan the chains', 'approved hours pile up', 'goals meet the audit'],
+  ['DECIDE', 'a cart', 'a trade card', 'a payroll run drafts', 'a task is accepted'],
+  ['COMMIT', 'book it, a confirmation code comes back', 'order goes to the broker', 'run it', 'the build fires'],
+  ['THE WORLD ANSWERS (OBSERVED)', 'the card charge arrives', 'the fill arrives', 'the bank withdrawal arrives', 'the finished build comes back'],
+  ['MATCH', 'charge ↔ booking', 'fill ↔ order', 'withdrawal ↔ payroll run', 'task ↔ finished build'],
+  ['LINES WRITTEN',
+    [['debit ', false], ['Travel', true], [', credit ', false], ['Card', true]],
+    [['debit ', false], ['Position', true], [', credit ', false], ['Cash', true]],
+    [['debit ', false], ['Wages + taxes', true], [', credit ', false], ['Cash + withholdings', true]],
+    'none — no money moved'],
+  ['MATH RUNS', 'deductible portion, runway', 'P&L, win rate, open risk', 'the true cost of labor', "progress, what's stuck"],
+  ['YOU LOOK', 'a trip bar, plus lines', 'fill dots, plus lines', 'a pay-day dot, plus lines', 'a due-date dot — no lines'],
+];
+
+// DECK-12: the trade-close strip, pre-split for its three gold values.
+const TRADE_CLOSE: ReadonlyArray<readonly [string, boolean]> = [
+  ['When a trade closes, the gain gets its own line: debit ', false],
+  ['Cash 5,300.00', true],
+  [' · credit ', false],
+  ['Position 5,000.00', true],
+  [' · credit ', false],
+  ['Gain 300.00', true],
+  ['.', false],
+];
+
+// DECK-13: the reverse walk, [layer, artifact] — labels gold mono, artifacts
+// mono aubergine.
+const PROOF_WALK = [
+  ['THE NUMBER', '$96.80 on your runway screen'],
+  ['THE LINE', 'debit Cash 96.80'],
+  ['THE MATCH', 'linked to payout po_1QmX8fK2'],
+  ['THE ARRIVAL', 'the payload, word for word — received 09:14:02Z'],
+  ['THE FINGERPRINT', 'still matches ✓'],
+] as const;
+const PROOF_TRIO = [
+  'Nothing was edited.',
+  'Nothing was asked twice.',
+  'Nothing is claimed without the fingerprint.',
+] as const;
+
+// DECK CLASS GRAMMAR — the section grammar of acts 01–04, extracted once so
+// nine new acts cannot drift from it or from each other. These are the exact
+// class strings the reconciled acts carry inline; every full class name here
+// is a literal (Tailwind scans source text — the chipClass/pad/rule locals
+// below are the precedent for string-const classes).
+const DECK = {
+  section: 'max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border',
+  eyebrow: 'font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint',
+  h2: 'mt-[26px] text-[27px] leading-[1.2] lg:text-[38px] tracking-[-0.025em] text-brand-purple',
+  sub: 'mt-[22px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary',
+  // The deck's rust group label — brand-amber per the header-comment mapping.
+  rust: 'font-mono text-[10px] lg:text-[11px] uppercase tracking-[0.20em] text-brand-amber',
+  table: 'w-full table-fixed border-separate border-spacing-0 border border-border',
+  th: 'bg-bg-row px-[11px] py-[9px] lg:px-5 lg:py-3 text-left align-top font-mono text-[10px] lg:text-[11px] font-normal uppercase tracking-[0.18em] text-text-faint border-b border-b-border',
+  pad: 'px-[11px] py-[9px] lg:px-5 lg:py-[11px]',
+  rule: 'border-b-[0.75px] border-b-text-faint',
+  statement: 'text-[12px] lg:text-[14px] text-text-faint',
+  trio: 'text-[13px] leading-[1.5] lg:text-[16.5px] text-brand-purple',
+  hairline: 'mt-10 lg:mt-[76px] h-px w-full bg-border',
+  q: 'mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple',
+} as const;
+
+/** PR-DECK: inline [text, isGold] segments — the only way gold ever enters a
+ *  sentence (amounts and debit/credit values), so the split stays data. */
+function GoldSegments({ segments }: { segments: ReadonlyArray<readonly [string, boolean]> }) {
+  return (
+    <>
+      {segments.map(([text, gold], i) => (
+        gold ? <span key={i} className="text-brand-gold">{text}</span> : <Fragment key={i}>{text}</Fragment>
+      ))}
+    </>
+  );
+}
 
 // PROBLEM-FAN / DESKTOP GEOMETRY. The whole desktop drawing in one object, so
 // the viewBox, the paths and the label offsets cannot drift apart. Design's
@@ -879,7 +1068,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               01 problem | 02 import   → the import act's border-t
               02 import | 03 routing   → the routing act's border-t
               03 routing | 04 handoff  → the handoff act's border-t
-              04 handoff | built on    → built-on's border-t (the handoff act
+              04 … 13 (the deck run)   → each act's own border-t — PR-DECK
+                                         appended 05–13 the ruled way, one
+                                         border-t per new act, no existing
+                                         border touched
+              13 proof | built on      → built-on's border-t (the proof act
                                          ends the teaching run and, like every
                                          numbered act, draws no bottom rule of
                                          its own)
@@ -1167,138 +1360,87 @@ FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
         <div className="mt-4 h-[30px] lg:h-10 w-px bg-border" aria-hidden="true" />
       </section>
 
-      {/* ── IMPORT-02 / THE RAW IMPORT TABLE. Act grammar copied from the
-            problem section above: same max-w-7xl container, same px, same
-            pt-9 lg:pt-[60px] pb-9 lg:pb-[60px]. It now also draws a border-t,
-            which is the page's rule for the problem|import seam.
+      {/* ── IMPORT-02 / THE RAW IMPORT TABLE (PR-DECK reconcile). Act grammar
+            unchanged: same container, same act padding, border-t closing the
+            problem|import seam (see the seam ledger above).
 
-            GOLD IS DELIBERATE HERE — the four band labels, the FOUR ARRIVALS
-            label and WHY IT MATTERS — and the routing act below carries it on.
-            THIS IS WHERE GOLD ENTERS THE NUMBERED RUN, which is a narrower
-            claim than it used to make and the only one that survives checking:
-            gold appears earlier on the page in the header's CTA fill
-            (LandingHeader.tsx:80,87), the hero's CTA fill, and GuestTripStrip's
-            money numerals when it renders (GuestTripStrip.tsx:53,65 — those are
-            text-brand-gold, so "first gold INK" was false too). The act
-            directly above, 01, is colourless by its own ruling. That ruling is
-            about the problem act and is not reopened here.
+            RUST REPLACES GOLD ON THE LABELS. The deck's token law — gold inks
+            dollar amounts, debit/credit values and kind words ONLY — moved the
+            band labels and FOUR ARRIVALS to the deck's rust (brand-amber; the
+            mapping is recorded in the file header). Gold still enters the
+            numbered run at this act's arrivals? No — nothing here is money, so
+            gold now first inks at 03's KIND column.
 
-            SEAM: border-t. This act closes the problem|import boundary; see
-            the seam ledger in the problem section's comment above.
+            THE FIELD TABLE IS TWO COLUMNS, NO HEADER ROW. The deck gives each
+            field one plain-language description and names no column headers,
+            so the old NAME/HOLDS/WHY thead died with the old vocabulary. The
+            colgroup carries the fixed-layout widths the thead used to.
 
-            EVERYTHING IS WEIGHT 400. No bold, no semibold, no medium anywhere
-            in this act, which is why the header cells carry an explicit
-            font-normal: Preflight does not reset the UA's `th { font-weight:
-            bold }`, so a th without it would silently ship at 700.
-
-            HORIZONTAL RULES ONLY. Neither table draws interior verticals —
-            that is what makes them read calm — so cells set border-b and never
-            border-r. border-separate + border-spacing-0 rather than the house
-            border-collapse: collapsed borders are half-inside the box and make
-            percentage column widths unpredictable, the same reason the problem
-            sheet uses separate borders.
-
-            BAND ROWS CARRY NO RULE BENEATH THEM. A band label hugs the group
-            it introduces (24px above it, 9px below), so the rule that closes
-            the previous group is the previous ROW's border-b, not the band's.
-            The last data row of the table drops its border-b too — the table's
-            own outer border closes it.
-
-            TWO BAND CELLS, ONE PER BREAKPOINT. A single colSpan={3} band cell
-            would force the table model to three columns even where the WHY
-            column is display:none, leaving a phantom sliver on the right that
-            the horizontal rules would stop short of. Rendering a colSpan={2}
-            cell for mobile and a colSpan={3} cell for desktop keeps each
-            breakpoint's table exactly as wide as its visible columns. The
-            label string comes from IMPORT_COLUMNS either way, so the two
-            cells cannot drift; the hidden one leaves the a11y tree with its
-            display:none. ─────────────────────────────────────────────── */}
+            EVERYTHING IS WEIGHT 400; HORIZONTAL RULES ONLY (border-b, never
+            border-r; border-separate + border-spacing-0 so percentage columns
+            stay predictable). BAND ROWS CARRY NO RULE BENEATH THEM — the rule
+            that closes a group is the previous ROW's border-b, and the last
+            data row drops its rule for the table's own outer border. The
+            payload row's emphasis is the rust tail of its own description
+            (IMPORT_COLUMNS third tuple slot) — no fill, no weight change. */}
       <section aria-label="The import" className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border">
         <p className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">02 / THE IMPORT</p>
         <h2 className="mt-[26px] text-[27px] leading-[1.2] lg:text-[38px] tracking-[-0.025em] text-brand-purple">
           Store what arrived.<br />Then decide what it means.
         </h2>
         <p className="mt-[22px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
-          One table. Every feed writes here first. Nothing is interpreted yet.
+          One table. Every answer a provider sends is stored as one arrival — before anyone decides what it means.
         </p>
 
-        {/* TABLE 1 — the eleven columns. Three equal thirds on desktop; on
-            mobile the WHY column is dropped entirely and the two that remain
-            remeasure to 49.8%. Design authored 210/340/auto in a colgroup that
-            the browser ignored — the equal thirds that rendered are what was
-            approved, so table-fixed carries the widths and there is no
-            colgroup to restore. */}
+        {/* TABLE 1 — the field table, two columns, no thead (the deck names no
+            headers). The colgroup carries the fixed-layout widths the thead
+            used to; band rows are full-width colSpan cells in the deck's rust.
+            The payload row's rust tail rides the row's own third tuple slot. */}
         <table className="mt-10 lg:mt-[76px] w-full table-fixed border-separate border-spacing-0 border border-border">
-          <thead>
-            <tr>
-              <th scope="col" className="w-[49.8%] lg:w-[33.33%] bg-bg-row px-[11px] py-[9px] lg:px-5 lg:py-[13px] text-left align-top font-mono text-[10px] lg:text-[11px] font-normal uppercase tracking-[0.18em] text-text-faint border-b border-b-border">NAME</th>
-              <th scope="col" className="w-[49.8%] lg:w-[33.33%] bg-bg-row px-[11px] py-[9px] lg:px-5 lg:py-[13px] text-left align-top font-mono text-[10px] lg:text-[11px] font-normal uppercase tracking-[0.18em] text-text-faint border-b border-b-border">WHAT IT HOLDS</th>
-              <th scope="col" className="hidden lg:table-cell lg:w-[33.33%] bg-bg-row px-[11px] py-[9px] lg:px-5 lg:py-[13px] text-left align-top font-mono text-[10px] lg:text-[11px] font-normal uppercase tracking-[0.18em] text-text-faint border-b border-b-border">WHY</th>
-            </tr>
-          </thead>
+          <colgroup>
+            <col className="w-[34%] lg:w-[25%]" />
+            <col />
+          </colgroup>
           {IMPORT_COLUMNS.map((group, b) => (
             <tbody key={group.band}>
               <tr>
-                <td colSpan={2} className="lg:hidden px-[11px] pt-[17px] pb-[7px] align-top font-mono text-[10px] uppercase tracking-[0.20em] text-brand-gold">{group.band}</td>
-                <td colSpan={3} className="hidden lg:table-cell px-5 pt-6 pb-[9px] align-top font-mono text-[11px] uppercase tracking-[0.20em] text-brand-gold">{group.band}</td>
+                <td colSpan={2} className="px-[11px] pt-[17px] pb-[7px] lg:px-5 lg:pt-6 lg:pb-[9px] align-top font-mono text-[10px] lg:text-[11px] uppercase tracking-[0.20em] text-brand-amber">{group.band}</td>
               </tr>
-              {group.rows.map(([name, holds, why], r) => {
-                const isPayload = name === IMPORT_PAYLOAD_ROW;
+              {group.rows.map((row, r) => {
+                const [name = '', desc = '', emphasis] = row;
                 const isLast = b === IMPORT_COLUMNS.length - 1 && r === group.rows.length - 1;
-                // The payload row keeps its rule on desktop but drops it on
-                // mobile, where its WHY follows as a second row that the two
-                // must read as one block: same fill, no rule between.
-                const rule = isLast ? '' : isPayload ? 'lg:border-b-[0.75px] lg:border-b-text-faint' : 'border-b-[0.75px] border-b-text-faint';
-                const fill = isPayload ? 'bg-bg-row' : '';
-                const pad = `px-[11px] py-[9px] lg:px-5 ${isPayload ? 'lg:py-[15px]' : 'lg:py-[11px]'}`;
+                const rule = isLast ? '' : 'border-b-[0.75px] border-b-text-faint';
+                const pad = 'px-[11px] py-[9px] lg:px-5 lg:py-[11px]';
                 return (
-                  <Fragment key={name}>
-                    <tr>
-                      <td className={`${pad} ${fill} ${rule} align-top font-mono text-[11.5px] lg:text-[14px] text-brand-purple`}>{name}</td>
-                      <td className={`${pad} ${fill} ${rule} align-top font-mono text-[11px] leading-[1.4] lg:text-[13px] lg:leading-normal text-text-faint`}>{holds}</td>
-                      <td className={`hidden lg:table-cell ${pad} ${fill} ${rule} align-top ${isPayload ? 'text-[18px] leading-[1.35] text-brand-purple' : 'text-[13.5px] leading-[1.45] text-text-faint'}`}>{why}</td>
-                    </tr>
-                    {isPayload && (
-                      <tr className="lg:hidden">
-                        <td colSpan={2} className={`${fill} border-b-[0.75px] border-b-text-faint px-[11px] pt-0 pb-[9px] align-top text-[13px] leading-[1.4] text-brand-purple`}>{why}</td>
-                      </tr>
-                    )}
-                  </Fragment>
+                  <tr key={name}>
+                    <td className={`${pad} ${rule} align-top font-mono text-[11.5px] lg:text-[14px] text-brand-purple`}>{name}</td>
+                    <td className={`${pad} ${rule} align-top text-[11px] leading-[1.4] lg:text-[13.5px] lg:leading-[1.45] text-text-faint`}>
+                      {desc}
+                      {emphasis !== undefined && <span className="font-mono text-brand-amber">{emphasis}</span>}
+                    </td>
+                  </tr>
                 );
               })}
             </tbody>
           ))}
         </table>
 
-        <p className="mt-10 lg:mt-[76px] font-mono text-[10px] lg:text-[11px] uppercase tracking-[0.20em] text-brand-gold">FOUR ARRIVALS, ONE TABLE</p>
+        <p className="mt-10 lg:mt-[76px] font-mono text-[10px] lg:text-[11px] uppercase tracking-[0.20em] text-brand-amber">FOUR ARRIVALS, ONE TABLE</p>
 
-        {/* TABLE 2 — five equal columns; mobile keeps PROVIDER, RESOURCE and
-            PARSE and drops EXTERNAL_ID and RECEIVED, the two that cannot
-            shorten. No colSpan anywhere here, so the mobile table is exactly
-            three columns wide. */}
+        {/* TABLE 2 — the four arrivals, five columns, no thead (the deck names
+            no headers here either; the rust label above is the table's name).
+            Mobile keeps provider, resource and parse and drops the two columns
+            that cannot shorten. Fixed-layout widths ride the first row's tds
+            now that there is no header row. Parse values are the deck's
+            uppercase, and PENDING inks rust — the one arrival still in flight. */}
         <table className="mt-[14px] lg:mt-[18px] w-full table-fixed border-separate border-spacing-0 border border-border">
-          <thead>
-            <tr>
-              {([
-                ['PROVIDER', false], ['RESOURCE', false], ['EXTERNAL_ID', true], ['RECEIVED', true], ['PARSE', false],
-              ] as const).map(([head, lgOnly]) => (
-                <th
-                  key={head}
-                  scope="col"
-                  className={`${lgOnly ? 'hidden lg:table-cell lg:w-[20%]' : 'w-[33.33%] lg:w-[20%]'} bg-bg-row px-[11px] py-[9px] lg:px-5 lg:py-3 text-left align-top font-mono text-[10px] lg:text-[11px] font-normal uppercase tracking-[0.18em] text-text-faint border-b border-b-border`}
-                >
-                  {head}
-                </th>
-              ))}
-            </tr>
-          </thead>
           <tbody>
             {IMPORT_ARRIVALS.map((row, r) => (
               <tr key={row[2]}>
                 {row.map((cell, c) => (
                   <td
                     key={cell}
-                    className={`${c === 2 || c === 3 ? 'hidden lg:table-cell' : ''} px-[11px] py-[9px] lg:px-5 lg:py-[11px] align-top font-mono text-[11px] lg:text-[13px] ${c === 0 ? 'text-brand-purple' : 'text-text-faint'} ${r === IMPORT_ARRIVALS.length - 1 ? '' : 'border-b-[0.75px] border-b-text-faint'}`}
+                    className={`${c === 2 || c === 3 ? 'hidden lg:table-cell lg:w-[20%]' : 'w-[33.33%] lg:w-[20%]'} px-[11px] py-[9px] lg:px-5 lg:py-[11px] align-top font-mono text-[11px] lg:text-[13px] ${c === 0 ? 'text-brand-purple' : c === 4 && cell === 'PENDING' ? 'text-brand-amber' : 'text-text-faint'} ${r === IMPORT_ARRIVALS.length - 1 ? '' : 'border-b-[0.75px] border-b-text-faint'}`}
                   >
                     {cell}
                   </td>
@@ -1308,20 +1450,12 @@ FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
           </tbody>
         </table>
 
-        <p className="mt-[14px] lg:mt-5 text-[12px] lg:text-[14px] text-text-faint">
-          A payout, a card purchase, a stock quote and an SEC filing. Same table.
-        </p>
-
         <div className="mt-10 lg:mt-[76px] h-px w-full bg-border" aria-hidden="true" />
-        <p className="mt-[22px] lg:mt-8 font-mono text-[10px] lg:text-[11px] uppercase tracking-[0.20em] text-brand-gold">WHY IT MATTERS</p>
-        <div className="mt-[14px] lg:mt-5">
-          {IMPORT_WHY_IT_MATTERS.map(([claim, rest], i) => (
-            <p key={claim} className={`${i === 0 ? '' : 'mt-3 lg:mt-[14px]'} text-[13px] leading-[1.5] lg:text-[16.5px] text-text-faint`}>
-              <span className="text-brand-purple">{claim}</span> {rest}
-            </p>
+        <div className="mt-[22px] lg:mt-8">
+          {IMPORT_TRIO.map((claim, i) => (
+            <p key={claim} className={`${i === 0 ? '' : 'mt-3 lg:mt-[14px]'} text-[13px] leading-[1.5] lg:text-[16.5px] text-brand-purple`}>{claim}</p>
           ))}
         </div>
-        <div className="mt-8 lg:mt-12 h-px w-full bg-border" aria-hidden="true" />
         <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">Now — what kind of thing is each one?</p>
       </section>
 
@@ -1354,30 +1488,29 @@ FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
             which is what a table does. Do not 'tidy' these back to 33.33%
             without re-measuring the longest token first.
 
-            MOBILE reuses the import act's payload pattern verbatim rather than
-            inventing a second one: LANDS IN is dropped, and the derived row's
-            'never a source' follows as its own colSpan={3} row with the same
-            fill and no rule between, so the two read as one block. NO PHANTOM
+            MOBILE reuses the import act's old payload pattern rather than
+            inventing a second one: MEANS is dropped, and the derived row's
+            'math we did — never a source' follows as its own colSpan={3} row
+            with the same fill and no rule between, so the two read as one
+            block. (The other kinds' first-appearance means are desktop-only —
+            the deck's own mobile treatment drops the column.) NO PHANTOM
             COLUMN: the only colSpan here lives on an lg:hidden ROW, and a row
             with display:none leaves the table model entirely, so desktop counts
-            four columns from the header and mobile counts three. The import
-            act needed two band cells because its band rows spanned at BOTH
-            breakpoints; this table has no such row and needs no such
-            trick. ────────────────────────────────────────────────────────── */}
+            four columns from the header and mobile counts three. ─────────── */}
       <section aria-label="The routing" className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border">
         <p className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">03 / THE ROUTING</p>
         <h2 className="mt-[26px] text-[27px] leading-[1.2] lg:text-[38px] tracking-[-0.025em] text-brand-purple">
           One rule per feed.<br />Written down.
         </h2>
         <p className="mt-[22px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
-          Not a decision made in code. A row you can read, argue with, and audit.
+          A rule is one written row that makes one decision — never a guess buried in code.
         </p>
 
         <table className="mt-10 lg:mt-[76px] w-full table-fixed border-separate border-spacing-0 border border-border">
           <thead>
             <tr>
               {([
-                ['PROVIDER', 'w-[30%]'], ['RESOURCE', 'w-[40%]'], ['KIND', 'w-[30%]'], ['LANDS IN', 'hidden lg:table-cell'],
+                ['PROVIDER', 'w-[30%]'], ['RESOURCE', 'w-[40%]'], ['KIND', 'w-[30%]'], ['MEANS', 'hidden lg:table-cell'],
               ] as const).map(([head, sm]) => (
                 <th
                   key={head}
@@ -1390,15 +1523,14 @@ FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
             </tr>
           </thead>
           <tbody>
-            {ROUTING_RULES.map(([provider, resource, kind, landsIn], r) => {
+            {ROUTING_RULES.map(([provider, resource, kind, means], r) => {
               const isDerived = provider === ROUTING_DERIVED_ROW;
               const isLast = r === ROUTING_RULES.length - 1;
-              // Rule policy, copied from the import act so the two tables stay
-              // one pattern: a normal row rules at both breakpoints; a derived
-              // row keeps its rule on desktop and drops it on mobile, where
-              // LANDS IN follows as a second row the two must read as one
-              // block; the last row rules at neither, because the table's outer
-              // border closes it.
+              // Rule policy, kept from the pre-deck import pattern: a normal
+              // row rules at both breakpoints; a derived row keeps its rule on
+              // desktop and drops it on mobile, where MEANS follows as a
+              // second row the two must read as one block; the last row rules
+              // at neither, because the table's outer border closes it.
               // THE isDerived BRANCH IS INERT TODAY and that is not a mistake:
               // anthropic is both the derived row AND the last row, so isLast
               // wins and this row takes no rule at either breakpoint — the
@@ -1417,11 +1549,11 @@ FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
                     <td className={`${pad} ${fill} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}>{provider}</td>
                     <td className={`${pad} ${fill} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}>{resource}</td>
                     <td className={`${pad} ${fill} ${rule} align-top font-mono text-[11px] lg:text-[13px] uppercase text-brand-gold`}>{kind}</td>
-                    <td className={`hidden lg:table-cell ${pad} ${fill} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-text-faint`}>{landsIn}</td>
+                    <td className={`hidden lg:table-cell ${pad} ${fill} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-text-faint`}>{means}</td>
                   </tr>
                   {isDerived && (
                     <tr className="lg:hidden">
-                      <td colSpan={3} className={`${fill} ${isLast ? '' : 'border-b-[0.75px] border-b-text-faint'} px-[11px] pt-0 pb-[9px] align-top font-mono text-[11px] leading-[1.4] text-text-faint`}>{landsIn}</td>
+                      <td colSpan={3} className={`${fill} ${isLast ? '' : 'border-b-[0.75px] border-b-text-faint'} px-[11px] pt-0 pb-[9px] align-top font-mono text-[11px] leading-[1.4] text-text-faint`}>{means}</td>
                     </tr>
                   )}
                 </Fragment>
@@ -1430,70 +1562,45 @@ FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
           </tbody>
         </table>
 
-        <p className="mt-10 lg:mt-[76px] font-mono text-[10px] lg:text-[11px] uppercase tracking-[0.20em] text-brand-gold">THE THREE TESTS THIS SURVIVES</p>
-        <div className="mt-[14px] lg:mt-5">
-          {ROUTING_TESTS.map(([claim, rest], i) => (
-            <p key={claim} className={`${i === 0 ? '' : 'mt-3 lg:mt-[14px]'} text-[13px] leading-[1.5] lg:text-[16.5px] text-text-faint`}>
-              <span className="text-brand-purple">{claim}</span> {rest}
-            </p>
-          ))}
-        </div>
-
         <div className="mt-8 lg:mt-12 h-px w-full bg-border" aria-hidden="true" />
         <p className="mt-[22px] lg:mt-8 text-[12px] lg:text-[14px] text-text-faint">
-          A new feed adds rows here. It does not add code, and it does not add a table.
+          When a new provider shows up, we add rows — not code, and not new tables.
         </p>
         <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">So how many tables are there?</p>
       </section>
 
-      {/* ── HANDOFF-04 / THE KIND PICKS THE TABLE. Act grammar copied from the
-            routing act above, class for class: same container, same px, same
-            pt-9 lg:pt-[60px] pb-9 lg:pb-[60px], same eyebrow/headline/support
-            treatment, and a border-t which is the page's rule for the
-            routing|handoff seam. Everything is weight 400, which is why every
-            th carries an explicit font-normal — Preflight does not reset the
-            UA's `th { font-weight: bold }`.
+      {/* ── HANDOFF-04 / FIVE. THE KIND IS THE ADDRESS (PR-DECK reconcile).
+            Act grammar unchanged: same container, act padding, border-t
+            closing the routing|handoff seam. Everything is weight 400 — every
+            th carries an explicit font-normal because Preflight does not reset
+            the UA's `th { font-weight: bold }`.
 
-            COLUMNS ARE SIZED TO CONTENT, NOT EQUAL — 14 / 14 / 72 on desktop,
-            32 / 28 / 40 below lg. KIND and TABLE each hold one word; WHAT IS IN
-            IT holds a phrase and takes the remainder. Equal thirds would have
-            starved the only column with prose in it while leaving two
-            one-word columns half empty.
+            TWO COLUMNS NOW. The deck collapsed the old kind/table pair into
+            one lowercase word (the kind IS the table's name on this slide, so
+            a second column would repeat it) and renamed the prose column
+            HOLDS. KIND stays gold — kind words are gold's one non-money
+            licence — and the aria-hidden arrow stays presentation, not data,
+            right-aligned in the KIND cell so kind→holds reads as one movement.
 
-            THREE COLUMNS AT EVERY WIDTH — no column is dropped and there is no
-            continuation row, because measurement said none was needed: at true
-            375 the tightest cell is REFERENCE with 12.6px to spare, and the
-            prose column wraps as prose should. The import and routing acts drop
-            a column below lg only because their widest cells are unbreakable
-            single tokens; every cell here is either one short word or a phrase
-            that can wrap, so the same trick would have cost a row and bought
-            nothing.
+            NO ROW IS EMPHASISED — the five kinds are peers.
 
-            NO ROW IS EMPHASISED. The import act fills its payload row and the
-            routing act fills its anthropic row; this one fills nothing, because
-            its claim is that the five kinds are PEERS. A highlighted row would
-            argue against the slide.
-
-            THE ARROW IS PRESENTATION, NOT DATA — it lives in the markup, not in
-            HANDOFF_KINDS, and it is aria-hidden: it restates the kind→table
-            mapping that the column order already gives a screen reader, so
-            reading it aloud would only add noise. Right-aligned inside the KIND
-            cell so it sits against the TABLE column and the pair reads as one
-            movement. ──────────────────────────────────────────────────────── */}
+            THE ENDING GREW A NOTICE BLOCK: statement, then three
+            statement-tier lines the deck uses to set up 05 and 09 (posting is
+            the one table nobody sends you), then the closing question. */}
       <section aria-label="The handoff" className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border">
         <p className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">04 / THE HANDOFF</p>
         <h2 className="mt-[26px] text-[27px] leading-[1.2] lg:text-[38px] tracking-[-0.025em] text-brand-purple">
-          The kind picks the table.
+          Five.<br />The kind is the address.
         </h2>
         <p className="mt-[22px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
-          Step 3 gave every feed a kind. The kind is the address.
+          Every arrival moves into the table for its kind.
         </p>
 
         <table className="mt-10 lg:mt-[76px] w-full table-fixed border-separate border-spacing-0 border border-border">
           <thead>
             <tr>
               {([
-                ['KIND', 'w-[32%] lg:w-[14%]'], ['TABLE', 'w-[28%] lg:w-[14%]'], ['WHAT IS IN IT', 'w-[40%] lg:w-[72%]'],
+                ['KIND', 'w-[32%] lg:w-[16%]'], ['HOLDS', 'w-[68%] lg:w-[84%]'],
               ] as const).map(([head, w]) => (
                 <th
                   key={head}
@@ -1506,19 +1613,18 @@ FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
             </tr>
           </thead>
           <tbody>
-            {HANDOFF_KINDS.map(([kind, table, whatIsInIt], r) => {
+            {HANDOFF_KINDS.map(([kind, holds], r) => {
               const rule = r === HANDOFF_KINDS.length - 1 ? '' : 'border-b-[0.75px] border-b-text-faint';
               const pad = 'px-[11px] py-[9px] lg:px-5 lg:py-[11px]';
               return (
                 <tr key={kind}>
-                  <td className={`${pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] uppercase text-brand-gold`}>
+                  <td className={`${pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-gold`}>
                     <span className="flex items-baseline justify-between gap-2">
                       {kind}
                       <span aria-hidden="true" className="text-text-muted">→</span>
                     </span>
                   </td>
-                  <td className={`${pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}>{table}</td>
-                  <td className={`${pad} ${rule} align-top text-[11px] leading-[1.4] lg:text-[13px] lg:leading-normal text-text-faint`}>{whatIsInIt}</td>
+                  <td className={`${pad} ${rule} align-top text-[11px] leading-[1.4] lg:text-[13px] lg:leading-normal text-text-faint`}>{holds}</td>
                 </tr>
               );
             })}
@@ -1526,10 +1632,516 @@ FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
         </table>
 
         <div className="mt-10 lg:mt-[76px] h-px w-full bg-border" aria-hidden="true" />
-        <p className="mt-[22px] lg:mt-8 text-[17px] lg:text-[28px] text-brand-purple">Twenty-five apps. Five tables.</p>
-        <p className="mt-[14px] lg:mt-5 text-[12px] lg:text-[14px] text-text-faint">
-          Because you sorted by what a thing is, not by which app it came from.
+        <p className="mt-[22px] lg:mt-8 text-[17px] lg:text-[28px] text-brand-purple">
+          Twenty-five tools, five tables — because we sorted by what a thing is, not by which tool it came from.
         </p>
+        <div className="mt-[14px] lg:mt-5">
+          <p className="text-[12px] lg:text-[14px] text-text-faint">Providers only ever fill three of the five.</p>
+          <p className="mt-2 text-[12px] lg:text-[14px] text-text-faint">Derived is filled only by our own math.</p>
+          <p className="mt-2 text-[12px] lg:text-[14px] text-text-faint">And posting? Nobody sends you debits and credits. Remember that.</p>
+        </div>
+        <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">Everything so far arrived from the world. So where do the things you do live?</p>
+      </section>
+
+      {/* ── DECK-05 / THE TWO LANES. First of the PR-DECK back nine. From
+            here down, the act grammar rides the module-scope DECK const so
+            nine acts cannot drift from 01–04 or from each other. Bare
+            two-column prose — the deck gives 05 no table. border-t closes
+            handoff|lanes per the seam ledger. */}
+      <section aria-label="The two lanes" className={DECK.section}>
+        <p className={DECK.eyebrow}>05 / THE TWO LANES</p>
+        <h2 className={DECK.h2}>
+          Some things happen to you.<br />Some things you make happen.
+        </h2>
+        <p className={DECK.sub}>
+          Every piece of data in the whole system is one of these two flavors. That&apos;s the whole trick.
+        </p>
+
+        <div className="mt-10 lg:mt-[76px] grid gap-8 lg:grid-cols-2 lg:gap-12">
+          {LANE_COLUMNS.map((lane) => (
+            <div key={lane.header}>
+              <p className={DECK.rust}>{lane.header}</p>
+              <p className="mt-[10px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">{lane.tells}</p>
+              <p className="mt-3 font-mono text-[12px] lg:text-[13px] text-brand-purple">{lane.items}</p>
+              <p className="mt-3 text-[12px] lg:text-[14px] text-text-faint">{lane.law}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className={DECK.hairline} aria-hidden="true" />
+        <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>commit = pulling the trigger — the outside world moves.</p>
+        <p className={DECK.q}>So how exactly do you make something happen?</p>
+      </section>
+
+      {/* ── DECK-06 / THE LOOP. The four-beat band is Design's spec: four
+            equal flex columns, 32px arrow slots between — a 1px lavender
+            shaft (bg-border) plus a 5×5 chevron of two 1px #B9B2C6 strokes
+            rotated 45° (no token covers #B9B2C6; exact hex per the deck's
+            token law), shaft centred on the beat-name line. Mobile stacks the
+            beats and drops the arrows. */}
+      <section aria-label="The loop" className={DECK.section}>
+        <p className={DECK.eyebrow}>06 / THE LOOP</p>
+        <h2 className={DECK.h2}>
+          Every tool runs the same four beats.<br />Discover. Decide. Commit. Record.
+        </h2>
+        <p className={DECK.sub}>
+          Book a flight, place a trade, send an invoice — same loop, different nouns.
+        </p>
+
+        <div className="mt-10 lg:mt-[76px] flex flex-col gap-6 lg:flex-row lg:gap-0">
+          {LOOP_BEATS.map(([beat, caption], i) => (
+            <Fragment key={beat}>
+              {i > 0 && (
+                <div aria-hidden="true" className="relative hidden w-8 shrink-0 lg:block">
+                  <span className="absolute left-0 right-[2px] top-[8px] h-px bg-border" />
+                  <span className="absolute right-[2px] top-[8px] h-[5px] w-[5px] -translate-y-1/2 rotate-45 border-r border-t border-[#B9B2C6]" />
+                </div>
+              )}
+              <div className="lg:flex-1">
+                <p className="font-mono text-[13px] font-semibold tracking-[0.12em] text-brand-purple">{beat}</p>
+                <p className="mt-2 text-[11px] text-text-faint">{caption}</p>
+              </div>
+            </Fragment>
+          ))}
+        </div>
+
+        <table className={`mt-10 lg:mt-[76px] ${DECK.table}`}>
+          <thead>
+            <tr>
+              <th scope="col" className={`w-[22%] lg:w-[16%] ${DECK.th}`} />
+              {(['TRAVEL', 'TRADING', 'INVOICING'] as const).map((head) => (
+                <th key={head} scope="col" className={DECK.th}>{head}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {LOOP_ROWS.map(([beat, travel, trading, invoicing], r) => {
+              const rule = r === LOOP_ROWS.length - 1 ? '' : DECK.rule;
+              return (
+                <tr key={beat}>
+                  <th scope="row" className={`${DECK.pad} ${rule} text-left align-top font-mono text-[10px] lg:text-[11px] font-normal uppercase tracking-[0.18em] text-text-faint`}>{beat}</th>
+                  {[travel, trading, invoicing].map((cell, c) => (
+                    <td key={c} className={`${DECK.pad} ${rule} align-top text-[11px] leading-[1.4] lg:text-[13px] lg:leading-normal text-text-faint`}>{cell}</td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        <div className={DECK.hairline} aria-hidden="true" />
+        <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Twenty-five tools. Twenty-five loops. One shape.</p>
+        <p className={DECK.q}>Twenty-five loops. Where do all the commits land?</p>
+      </section>
+
+      {/* ── DECK-07 / THE MASTER TABLE. The 02 field-table idiom: two
+            columns, no thead (the deck names no headers), one rust label
+            above, colgroup carrying the fixed-layout widths. */}
+      <section aria-label="The master table" className={DECK.section}>
+        <p className={DECK.eyebrow}>07 / THE MASTER TABLE</p>
+        <h2 className={DECK.h2}>
+          One table holds<br />everything you do.
+        </h2>
+        <p className={DECK.sub}>
+          A booking, an invoice, a trade, a filing, a budget — different names, same shape.
+        </p>
+
+        <p className={`mt-10 lg:mt-[76px] ${DECK.rust}`}>EVERY DOCUMENT CARRIES THE SAME FOUR THINGS</p>
+        <table className={`mt-[14px] lg:mt-[18px] ${DECK.table}`}>
+          <colgroup>
+            <col className="w-[34%] lg:w-[25%]" />
+            <col />
+          </colgroup>
+          <tbody>
+            {MASTER_ROWS.map(([name, desc], r) => {
+              const rule = r === MASTER_ROWS.length - 1 ? '' : DECK.rule;
+              return (
+                <tr key={name}>
+                  <td className={`${DECK.pad} ${rule} align-top font-mono text-[11.5px] lg:text-[14px] text-brand-purple`}>{name}</td>
+                  <td className={`${DECK.pad} ${rule} align-top text-[11px] leading-[1.4] lg:text-[13.5px] lg:leading-[1.45] text-text-faint`}>{desc}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        <div className={DECK.hairline} aria-hidden="true" />
+        <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>That&apos;s why one table can hold them all.</p>
+        <p className={DECK.q}>You committed. The world moved. But how do you know the money really landed?</p>
+      </section>
+
+      {/* ── DECK-08 / THE MATCH. Design's match visual: grid 1fr | 260px |
+            1fr. Cards are border-border (the 1px lavender) on bg-ts-white
+            (the token the spec's #FFFDF9 resolves to), 12×16 padding, three
+            mono-12 spans space-between; rust label 10px above each. Centre:
+            MATCH mono 10/600/0.12em aubergine flanked by hairlines with 10px
+            gaps; caption 11px faint centred 8px beneath. The centre column's
+            lg padding-top optically centres MATCH on the card row. Mobile
+            stacks the three cells; the flanking hairlines are desktop-only. */}
+      <section aria-label="The match" className={DECK.section}>
+        <p className={DECK.eyebrow}>08 / THE MATCH</p>
+        <h2 className={DECK.h2}>
+          The deposit meets the invoice.<br />The fill meets the order.
+        </h2>
+        <p className={DECK.sub}>
+          The system pairs what the world did with what you did — by itself.
+        </p>
+
+        <div className="mt-10 lg:mt-[76px] grid gap-6 lg:grid-cols-[1fr_260px_1fr] lg:gap-0">
+          <div>
+            <p className={DECK.rust}>{MATCH_CARDS[0].label}</p>
+            <div className="mt-[10px] flex items-baseline justify-between gap-2 border border-border bg-ts-white px-4 py-3">
+              <span className="font-mono text-[12px] text-brand-purple">{MATCH_CARDS[0].name}</span>
+              <span className="font-mono text-[12px] text-brand-gold">{MATCH_CARDS[0].amount}</span>
+              <span className="font-mono text-[12px] text-text-muted">{MATCH_CARDS[0].date}</span>
+            </div>
+          </div>
+          <div className="lg:px-[10px] lg:pt-[33px]">
+            <div className="flex items-center gap-[10px]">
+              <span className="hidden h-px flex-1 bg-border lg:block" aria-hidden="true" />
+              <span className="font-mono text-[10px] font-semibold tracking-[0.12em] text-brand-purple">MATCH</span>
+              <span className="hidden h-px flex-1 bg-border lg:block" aria-hidden="true" />
+            </div>
+            <p className="mt-2 text-[11px] text-text-faint lg:text-center">amount + date + reference → one match.</p>
+          </div>
+          <div>
+            <p className={DECK.rust}>{MATCH_CARDS[1].label}</p>
+            <div className="mt-[10px] flex items-baseline justify-between gap-2 border border-border bg-ts-white px-4 py-3">
+              <span className="font-mono text-[12px] text-brand-purple">{MATCH_CARDS[1].name}</span>
+              <span className="font-mono text-[12px] text-brand-gold">{MATCH_CARDS[1].amount}</span>
+              <span className="font-mono text-[12px] text-text-muted">{MATCH_CARDS[1].date}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className={DECK.hairline} aria-hidden="true" />
+        <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Nobody hunted through statements. Matched means real — the world just confirmed what you did.</p>
+        <p className={`mt-2 ${DECK.statement}`}>A piece of this is already alive today: card charges find their bookings on their own.</p>
+        <p className={DECK.q}>Matched and real. So who writes the debits and credits?</p>
+      </section>
+
+      {/* ── DECK-09 / THE POSTING. Definition strip (the border-y strip
+            idiom), the rules table with gold debit/credit values, the worked
+            sale, and the no-money strip. Gold here is exactly its licence:
+            dollar amounts and debit/credit values. */}
+      <section aria-label="The posting" className={DECK.section}>
+        <p className={DECK.eyebrow}>09 / THE POSTING</p>
+        <h2 className={DECK.h2}>
+          Nobody sends them.<br />Rules write them.
+        </h2>
+        <p className={DECK.sub}>
+          Same trick as the routing: a rule is one written row that makes one decision. There, rules gave kinds. Here, rules write lines.
+        </p>
+
+        <div className="mt-10 lg:mt-[76px] border-y border-border py-[14px]">
+          <p className="text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
+            Every time money moves, the rule writes two lines — a credit for where the money came from, a debit for where it went. You never type them.
+          </p>
+          <p className="mt-2 font-mono text-[11px] lg:text-[12px] text-text-faint">A/R = money owed to you · A/P = money you owe.</p>
+        </div>
+
+        <table className={`mt-10 lg:mt-[76px] ${DECK.table}`}>
+          <thead>
+            <tr>
+              {([
+                ['EVENT', 'w-[40%] lg:w-[36%]'], ['DEBIT', 'w-[30%] lg:w-[32%]'], ['CREDIT', 'w-[30%] lg:w-[32%]'],
+              ] as const).map(([head, w]) => (
+                <th key={head} scope="col" className={`${w} ${DECK.th}`}>{head}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {POSTING_RULES.map(([event, debit, credit], r) => {
+              const rule = r === POSTING_RULES.length - 1 ? '' : DECK.rule;
+              return (
+                <tr key={event}>
+                  <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}>{event}</td>
+                  <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-gold`}>{debit}</td>
+                  <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-gold`}>{credit}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        <p className={`mt-10 lg:mt-[76px] ${DECK.rust}`}>ONE SALE, THREE LINES</p>
+        <p className="mt-[14px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
+          <GoldSegments segments={SALE_SENTENCE} />
+        </p>
+        <div className="mt-[14px]">
+          {SALE_LINES.map(([account, amount]) => (
+            <p key={account} className="flex max-w-[260px] items-baseline justify-between font-mono text-[12px] leading-[1.9] lg:text-[13px]">
+              <span className="text-brand-purple">{account}</span>
+              <span className="text-brand-gold">{amount}</span>
+            </p>
+          ))}
+        </div>
+        <p className={`mt-[14px] ${DECK.statement}`}>The deposit matches the bank to the penny.</p>
+
+        <p className={`mt-10 lg:mt-[76px] ${DECK.rust}`}>WHO NEVER TOUCHES MONEY</p>
+        <p className="mt-[14px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
+          {'Calendar, Tasks, Time, CRM, Compliance, Budget, and FP&A never write a line. Your hours reach the books one way only — through Payroll.'}
+        </p>
+
+        <div className={DECK.hairline} aria-hidden="true" />
+        <p className={DECK.q}>So what do all those lines add up to?</p>
+      </section>
+
+      {/* ── DECK-10 / THE ANSWERS. QUESTION | THE MATH; the math's money
+            words ink gold via the pre-split segments. The emphasis line is
+            the deck's standalone rust. */}
+      <section aria-label="The answers" className={DECK.section}>
+        <p className={DECK.eyebrow}>10 / THE ANSWERS</p>
+        <h2 className={DECK.h2}>
+          Every answer is math<br />on the lines.
+        </h2>
+        <p className={DECK.sub}>
+          Four questions, answered at any moment. Never typed. Never stale.
+        </p>
+
+        <table className={`mt-10 lg:mt-[76px] ${DECK.table}`}>
+          <thead>
+            <tr>
+              {([
+                ['QUESTION', 'w-[46%] lg:w-[40%]'], ['THE MATH', 'w-[54%] lg:w-[60%]'],
+              ] as const).map(([head, w]) => (
+                <th key={head} scope="col" className={`${w} ${DECK.th}`}>{head}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {ANSWER_ROWS.map(([question, math], r) => {
+              const rule = r === ANSWER_ROWS.length - 1 ? '' : DECK.rule;
+              return (
+                <tr key={question}>
+                  <td className={`${DECK.pad} ${rule} align-top text-[11px] leading-[1.4] lg:text-[13px] lg:leading-normal text-brand-purple`}>{question}</td>
+                  <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-text-faint`}><GoldSegments segments={math} /></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        <p className="mt-10 lg:mt-[76px] font-mono text-[11px] lg:text-[13px] uppercase tracking-[0.20em] text-brand-amber">THIS IS THE PRODUCT.</p>
+
+        <div className={DECK.hairline} aria-hidden="true" />
+        <p className={DECK.q}>Four answers. Where do you look?</p>
+      </section>
+
+      {/* ── DECK-11 / THE TWO WINDOWS. Left: the mini ledger — the sale's
+            three lines plus the travel line (LEDGER_ROWS carries the one
+            flagged constructed figure). Right: Design's two-week calendar
+            strip, fluid percentages over the given pixel geometry: day header
+            of 14 equal columns on bg-bg-row (the header cream), 132px body
+            with day gridlines in the same cream, 6px square aubergine bars,
+            6px gold dots — the dots (here and in the deadline strip) are the
+            deck's one licensed radius. Bar/dot offsets are inline styles, the
+            house escape hatch for computed positioning (the PROBLEM fan's
+            label tops, CalendarGrid.tsx:747). The deadline strip runs full
+            width below both windows. */}
+      <section aria-label="The two windows" className={DECK.section}>
+        <p className={DECK.eyebrow}>11 / THE TWO WINDOWS</p>
+        <h2 className={DECK.h2}>
+          One Ledger. One Calendar.<br />All twenty-five.
+        </h2>
+        <p className={DECK.sub}>
+          The Ledger shows everything as a table. The Calendar shows the same truth on time.
+        </p>
+
+        <div className="mt-10 lg:mt-[76px] grid gap-10 lg:grid-cols-2 lg:gap-12">
+          <div>
+            <p className={DECK.rust}>THE LEDGER</p>
+            <table className={`mt-[10px] ${DECK.table}`}>
+              <thead>
+                <tr>
+                  {([
+                    ['DATE', 'w-[22%]'], ['LINE', 'w-[30%]'], ['DEBIT', 'w-[24%]'], ['CREDIT', 'w-[24%]'],
+                  ] as const).map(([head, w]) => (
+                    <th key={head} scope="col" className={`${w} ${DECK.th}`}>{head}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {LEDGER_ROWS.map(([date, line, debit, credit], r) => {
+                  const rule = r === LEDGER_ROWS.length - 1 ? '' : DECK.rule;
+                  return (
+                    <tr key={line}>
+                      <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[12px] text-text-muted`}>{date}</td>
+                      <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}>{line}</td>
+                      <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-gold`}>{debit}</td>
+                      <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-gold`}>{credit}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div>
+            <p className={DECK.rust}>THE CALENDAR</p>
+            <div className="mt-[10px] border border-border">
+              <div className="grid grid-cols-[repeat(14,minmax(0,1fr))] border-b border-border bg-bg-row">
+                {CAL_DAYS.map((d) => (
+                  <span key={d} className="py-1 text-center font-mono text-[9px] text-text-muted">{d}</span>
+                ))}
+              </div>
+              <div className="relative h-[132px]">
+                {Array.from({ length: 13 }, (_, i) => (
+                  <span key={i} aria-hidden="true" className="absolute top-0 h-full w-px bg-bg-row" style={{ left: `${((i + 1) / 14) * 100}%` }} />
+                ))}
+                {CAL_BARS.map((bar) => (
+                  <Fragment key={bar.label}>
+                    <span
+                      aria-hidden="true"
+                      className="absolute h-[6px] bg-brand-purple"
+                      style={{ left: `calc(${bar.left}% + 6px)`, width: `calc(${bar.width}% - 12px)`, top: bar.y }}
+                    />
+                    <span
+                      className="absolute whitespace-nowrap font-mono text-[10px] text-brand-purple"
+                      style={{ left: `calc(${bar.left}% + 6px)`, top: bar.y + 11 }}
+                    >
+                      {bar.label}
+                    </span>
+                  </Fragment>
+                ))}
+                {CAL_DOTS.map((dot) => (
+                  <Fragment key={dot.label}>
+                    <span
+                      aria-hidden="true"
+                      className="absolute h-[6px] w-[6px] rounded-full bg-brand-gold"
+                      style={{ left: `calc(${((dot.day - 0.5) / 14) * 100}% - 3px)`, top: 96 }}
+                    />
+                    <span
+                      className="absolute whitespace-nowrap font-mono text-[10px] text-text-secondary"
+                      style={{ left: `calc(${((dot.day - 0.5) / 14) * 100}% + 9px)`, top: 94 }}
+                    >
+                      {dot.label}
+                    </span>
+                  </Fragment>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p className={`mt-8 lg:mt-12 ${DECK.statement}`}>Bars are things that last. Dots are things that happen.</p>
+
+        <p className={`mt-8 lg:mt-12 ${DECK.rust}`}>THE REAL DEADLINES</p>
+        <div className="mt-[10px] flex flex-wrap items-center gap-x-[14px] gap-y-2 border-y border-border py-[14px]">
+          {CAL_DEADLINES.map((seg, i) => (
+            <Fragment key={seg}>
+              {i > 0 && <span aria-hidden="true" className="h-[5px] w-[5px] rounded-full bg-brand-gold" />}
+              <span className="font-mono text-[11px] lg:text-[12px] text-text-secondary">{seg}</span>
+            </Fragment>
+          ))}
+        </div>
+
+        <div className={DECK.hairline} aria-hidden="true" />
+        <p className={DECK.q}>Can you watch one dollar run the whole machine?</p>
+      </section>
+
+      {/* ── DECK-12 / THE THREADS. The hero thread rides Design's connector
+            grid: a 20px gutter with a 1px lavender spine at x=2 and 5×5
+            aubergine node squares; artifact cells rule with border-light (the
+            token for the spec's #EBE4F7). Mobile stacks artifact under action
+            inside the same grid via explicit col/row starts. The four-door
+            table scrolls horizontally below lg (the house overflow-x-auto
+            idiom — ModuleCostBreakdown above): dropping three of four doors
+            would lose the slide. */}
+      <section aria-label="The threads" className={DECK.section}>
+        <p className={DECK.eyebrow}>12 / THE THREADS</p>
+        <h2 className={DECK.h2}>
+          One $500 sale runs the machine.<br />Then four more doors open.
+        </h2>
+
+        <div className="relative mt-10 lg:mt-[76px]">
+          <span aria-hidden="true" className="absolute bottom-[20px] left-[2px] top-[20px] w-px bg-border" />
+          {THREAD_ROWS.map(([n, action, artifact]) => (
+            <div key={n} className="relative grid grid-cols-[20px_28px_1fr] lg:grid-cols-[20px_40px_340px_1fr]">
+              <span aria-hidden="true" className="absolute left-0 top-[19px] h-[5px] w-[5px] bg-brand-purple" />
+              <span />
+              <p className="py-[14px] font-mono text-[11px] lg:text-[12px] text-text-muted">{n}</p>
+              <p className="py-[14px] pr-4 text-[12px] leading-[1.5] lg:text-[13px] text-text-secondary">{action}</p>
+              <p className="col-start-3 row-start-2 border-b border-border-light pb-[14px] font-mono text-[11px] leading-[1.5] lg:text-[12px] text-brand-purple lg:col-start-4 lg:row-start-1 lg:py-[14px]">
+                <GoldSegments segments={artifact} />
+              </p>
+            </div>
+          ))}
+        </div>
+        <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Nobody typed a debit anywhere in this story.</p>
+
+        <p className={`mt-10 lg:mt-[76px] ${DECK.rust}`}>SAME MACHINE, SAME EIGHT BEATS</p>
+        <div className="mt-[14px] overflow-x-auto lg:mt-[18px]">
+          <table className={`min-w-[760px] ${DECK.table}`}>
+            <thead>
+              <tr>
+                <th scope="col" className={`w-[16%] ${DECK.th}`}>BEAT</th>
+                {DOOR_COLS.map((head) => (
+                  <th key={head} scope="col" className={`w-[21%] ${DECK.th}`}>{head}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {DOOR_ROWS.map(([beat, ...cells], r) => {
+                const rule = r === DOOR_ROWS.length - 1 ? '' : DECK.rule;
+                return (
+                  <tr key={beat}>
+                    <th scope="row" className={`${DECK.pad} ${rule} text-left align-top font-mono text-[10px] lg:text-[11px] font-normal uppercase tracking-[0.18em] text-text-faint`}>{beat}</th>
+                    {cells.map((cell, c) => (
+                      <td key={c} className={`${DECK.pad} ${rule} align-top text-[11px] leading-[1.4] lg:text-[13px] lg:leading-normal ${typeof cell === 'string' ? 'text-text-faint' : 'font-mono text-text-faint'}`}>
+                        {typeof cell === 'string' ? cell : <GoldSegments segments={cell} />}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <p className={`mt-[22px] lg:mt-8 ${DECK.trio}`}>The loop is bigger than money; money is just the loops that get a shadow.</p>
+        <p className="mt-[14px] border-y border-border py-[14px] font-mono text-[11px] leading-[1.6] lg:text-[12px] text-text-secondary">
+          <GoldSegments segments={TRADE_CLOSE} />
+        </p>
+
+        <div className={DECK.hairline} aria-hidden="true" />
+        <p className={DECK.q}>Beautiful. But why should you believe any of it?</p>
+      </section>
+
+      {/* ── DECK-13 / THE PROOF. The reverse walk reuses 12's connector
+            treatment on a 20px | 180px | 1fr grid; layer labels gold mono
+            with NO bottom rule (Design's exception), artifacts mono aubergine
+            ruled with border-light. Ends on the deck's closing LINE — 24px
+            roman, deliberately NOT a question and NOT the question size pair;
+            nothing on this page is italic, so roman is the default it ships
+            with. */}
+      <section aria-label="The proof" className={DECK.section}>
+        <p className={DECK.eyebrow}>13 / THE PROOF</p>
+        <h2 className={DECK.h2}>
+          Click any number.<br />Walk it back.
+        </h2>
+        <p className={DECK.sub}>
+          Every figure traces to the exact words the provider sent — and the fingerprint still matches.
+        </p>
+
+        <div className="relative mt-10 lg:mt-[76px]">
+          <span aria-hidden="true" className="absolute bottom-[20px] left-[2px] top-[20px] w-px bg-border" />
+          {PROOF_WALK.map(([layer, artifact]) => (
+            <div key={layer} className="relative grid grid-cols-[20px_1fr] lg:min-h-[49px] lg:grid-cols-[20px_180px_1fr]">
+              <span aria-hidden="true" className="absolute left-0 top-[19px] h-[5px] w-[5px] bg-brand-purple" />
+              <span />
+              <p className="pt-[14px] font-mono text-[10px] lg:text-[11px] uppercase tracking-[0.18em] text-brand-gold lg:py-[14px]">{layer}</p>
+              <p className="col-start-2 row-start-2 border-b border-border-light pb-[14px] pt-1 font-mono text-[11px] lg:text-[13px] text-brand-purple lg:col-start-3 lg:row-start-1 lg:py-[14px]">{artifact}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className={DECK.hairline} aria-hidden="true" />
+        <div className="mt-[22px] lg:mt-8">
+          {PROOF_TRIO.map((claim, i) => (
+            <p key={claim} className={`${i === 0 ? '' : 'mt-3 lg:mt-[14px]'} ${DECK.trio}`}>{claim}</p>
+          ))}
+        </div>
+        <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[24px] text-brand-purple">Twenty-five tools. And now every one knows what the others did.</p>
       </section>
 
       {/* ── BUILTON-MARQUEE: the "Built on" wall's five-category card grid
