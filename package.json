@@ -8,6 +8,7 @@
     "assert:showroom": "node scripts/assert-showroom-fetch-free.mjs",
     "build": "node scripts/assert-showroom-fetch-free.mjs && prisma generate && prisma migrate deploy && next build",
     "start": "next start",
+    "test": "tsx --test src/lib/__tests__/*.test.ts",
     "lint": "eslint .",
     "lint:strict": "eslint . --max-warnings 0",
     "postinstall": "prisma generate",

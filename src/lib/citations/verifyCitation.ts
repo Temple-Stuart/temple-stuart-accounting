@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
 import { citations, VerificationCheckResult } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { safeFetch, SsrfBlockedError } from '@/lib/url-guard';
 
 export interface VerificationResult {
   citation_id: string;
@@ -25,7 +26,10 @@ async function checkExistence(url: string): Promise<{ result: VerificationCheckR
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS);
   try {
-    const res = await fetch(url, { method: 'HEAD', signal: controller.signal, redirect: 'follow' });
+    // SEC-5: safeFetch validates the (AI/web-search-supplied) host and every
+    // redirect Location before requesting, so an internal address can never be
+    // probed here. A blocked target fails the check loudly — it never fetches.
+    const res = await safeFetch(url, { method: 'HEAD', signal: controller.signal });
     if (res.status === 200 || res.status === 301 || res.status === 302) {
       return { result: 'passed' };
     }
@@ -34,6 +38,9 @@ async function checkExistence(url: string): Promise<{ result: VerificationCheckR
     }
     return { result: 'error', note: `Existence check: unexpected HTTP ${res.status}` };
   } catch (err) {
+    if (err instanceof SsrfBlockedError) {
+      return { result: 'error', note: `Existence check: blocked non-public URL (${err.reason})` };
+    }
     return { result: 'error', note: `Existence check: ${err instanceof Error ? err.message : 'network error'}` };
   } finally {
     clearTimeout(timeout);
@@ -79,7 +86,10 @@ async function checkContentHash(url: string, expectedHash: string): Promise<{ re
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS);
   try {
-    const res = await fetch(url, { method: 'GET', signal: controller.signal, redirect: 'follow' });
+    // SEC-5: safeFetch validates the (AI/web-search-supplied) host and every
+    // redirect Location before requesting, so this body-reading GET can never be
+    // pointed at an internal endpoint. A blocked target fails the check loudly.
+    const res = await safeFetch(url, { method: 'GET', signal: controller.signal });
     if (!res.ok) {
       return { result: 'error', note: `Content hash check: HTTP ${res.status}` };
     }
@@ -90,6 +100,9 @@ async function checkContentHash(url: string, expectedHash: string): Promise<{ re
     }
     return { result: 'failed', note: 'Content hash check: hash mismatch — content may have changed' };
   } catch (err) {
+    if (err instanceof SsrfBlockedError) {
+      return { result: 'error', note: `Content hash check: blocked non-public URL (${err.reason})` };
+    }
     return { result: 'error', note: `Content hash check: ${err instanceof Error ? err.message : 'network error'}` };
   } finally {
     clearTimeout(timeout);
