@@ -8,10 +8,12 @@
  * THE ACTS, in document order:
  *   hero (full-bleed aubergine band)
  *   LIVE DEMO — TRAVEL  — travel search/booking, real and public
+ *   PERSONAS            — one system · six lives, "Who is this for?"
+ *                         (structure restored from bc1a6fef by
+ *                         PR-PERSONAS-RESTORE; copy PR-PERSONAS-COPY; seated
+ *                         here by PR-REORDER — the who-first order)
+ *   [PR-MODULES placeholder — "the what", content TBD]
  *   DONE-FOR-YOU        — the professional-services panel
- *   PERSONAS            — one system · six lives (structure restored from
- *                         bc1a6fef by PR-PERSONAS-RESTORE; copy rewritten to
- *                         the 13-step vocabulary by PR-PERSONAS-COPY)
  *   THE PIPELINE header — names the 13-step run (essay front matter, PR-CHROME)
  *   01 / IDENTIFY THE PROBLEM — the six-source fan + the twenty-five-tool sheet
  *   02 / IMPORT THE DATA      — the raw import table, four arrivals, the promises
@@ -26,6 +28,7 @@
  *   11 / OPEN THE TWO WINDOWS — the Ledger and the Calendar
  *   12 / WATCH ONE DOLLAR RUN THE WHOLE MACHINE
  *   13 / PROVE EVERY NUMBER   — click any number, walk it back
+ *   [PR-WHY placeholder — content TBD]
  *   Built on            — the vendor marquee
  *
  * PR-DECK: 01–13 are the pipeline deck. PR-VOICE reconciled every rendered
@@ -74,7 +77,8 @@
  * PERSONAS const, the openPersona accordion state, and the ACT 2 block,
  * remounted between DONE-FOR-YOU and the pipeline header with exactly one
  * adaptation — its historical border-t became border-b for the new seat
- * (see the seam ledger). GROUP_RATIONALE stays dead: only the deleted stage
+ * (see the seam ledger); PR-REORDER later moved the act ABOVE done-for-you
+ * for the who-first order, its border-b travelling with it. GROUP_RATIONALE stays dead: only the deleted stage
  * ever rendered it. PERSONAS-COPY (PR-PERSONAS-COPY) then rewrote the six
  * rows and the act label to the 13-step vocabulary per the 2026-08 persona
  * research pack — the STRUCTURE is still bc1a6fef's; the historical copy
@@ -1114,6 +1118,56 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             exist (fail-honest empty state = nothing). ─────────────────────── */}
       <GuestTripStrip onRequireAuth={onRequireAuth} />
 
+        {/* ACT 2 — PERSONAS (value cases): hook question + one outcome
+            sentence per row; module-name fragments wear the mono purple
+            idiom mid-sentence. Rows: border-light rules (§0's inner
+            hairline — the exact #EBE4F7 token). The '·' in the act label
+            wears gold. PERSONAS-CHROME: the act adopts the standard act
+            grammar — DONE-FOR-YOU's eyebrow/h2/py-10 classes verbatim,
+            left-aligned, rows full container width; the sentence tier is
+            slide 09's body tier. Row texts and the label are FROZEN; the
+            outer div's border-b (the personas|done-for-you rule since
+            PR-REORDER moved this act above DONE-FOR-YOU) is untouched. */}
+        <div className="w-full border-b border-border">
+          <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
+            <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">
+              ONE SYSTEM <span className="text-brand-gold">·</span> SIX LIVES
+            </p>
+            <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">
+              Who is this for?
+            </h2>
+            <div className="mt-5">
+              {PERSONAS.map((row, index) => {
+                const open = openPersona === index;
+                return (
+                  <div key={row.label} className="border-t border-border-light py-3 first:border-t-0 lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:items-baseline lg:gap-4">
+                    <button
+                      type="button"
+                      aria-expanded={open}
+                      onClick={() => setOpenPersona(open ? null : index)}
+                      className="flex w-full items-baseline justify-between py-3 lg:pointer-events-none lg:py-0"
+                    >
+                      <span className="font-mono text-xs font-semibold tracking-wider text-text-muted">{row.label}</span>
+                      <span aria-hidden="true" className="font-mono text-[14px] text-text-faint lg:hidden">{open ? '−' : '+'}</span>
+                    </button>
+                    <p className={`${open ? 'block' : 'hidden'} lg:block mt-1 text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary lg:mt-0`}>
+                      {row.segments.map((seg, i) =>
+                        seg.mono ? (
+                          <span key={i} className="font-mono text-[12.5px] font-semibold text-brand-purple">{seg.text}</span>
+                        ) : (
+                          <Fragment key={i}>{seg.text}</Fragment>
+                        ),
+                      )}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+      {/* MODULES ACT LANDS HERE — "the what" (PR-MODULES, content TBD) */}
+
       {/* ── LANDING-V4 (Alex's ruling, reversing the V2 seat): DONE-FOR-YOU is
             its own section — no right slot. Body = the PROFESSIONAL SERVICES
             panel relocated WHOLESALE from the 05 grid (markup byte-identical
@@ -1124,12 +1178,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             '04 / ' prefix when it moved up with the demo; the numbered acts
             below it start at 01 and the sequence is contiguous without it.
 
-            SEAM: border-b ONLY — the border-t is deliberately gone. Whatever
-            sits directly above (GuestTripStrip when a guest has trip records,
-            the demo section otherwise) already closes that boundary with its
-            own bottom edge, and a border-t here would have made it the page's
-            only two-rule seam. This section's bottom edge closes
-            done-for-you|01 THE PROBLEM. ─────────────────────────────────── */}
+            SEAM: border-b ONLY — the border-t is deliberately gone. The act
+            directly above (the personas act since PR-REORDER) already closes
+            that boundary with its own border-b, and a border-t here would
+            have made it the page's only two-rule seam. This section's bottom
+            edge closes done-for-you|pipeline header. ───────────────────── */}
       <section className="w-full border-b border-border bg-bg-terminal">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
           <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">
@@ -1187,54 +1240,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-        {/* ACT 2 — PERSONAS (value cases): hook question + one outcome
-            sentence per row; module-name fragments wear the mono purple
-            idiom mid-sentence. Rows: border-light rules (§0's inner
-            hairline — the exact #EBE4F7 token). The '·' in the act label
-            wears gold. PERSONAS-CHROME: the act adopts the standard act
-            grammar — DONE-FOR-YOU's eyebrow/h2/py-10 classes verbatim,
-            left-aligned, rows full container width; the sentence tier is
-            slide 09's body tier. Row texts and the label are FROZEN; the
-            outer div's border-b (the personas|header rule) is untouched. */}
-        <div className="w-full border-b border-border">
-          <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-            <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">
-              ONE SYSTEM <span className="text-brand-gold">·</span> SIX LIVES
-            </p>
-            <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">
-              Who is this for?
-            </h2>
-            <div className="mt-5">
-              {PERSONAS.map((row, index) => {
-                const open = openPersona === index;
-                return (
-                  <div key={row.label} className="border-t border-border-light py-3 first:border-t-0 lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:items-baseline lg:gap-4">
-                    <button
-                      type="button"
-                      aria-expanded={open}
-                      onClick={() => setOpenPersona(open ? null : index)}
-                      className="flex w-full items-baseline justify-between py-3 lg:pointer-events-none lg:py-0"
-                    >
-                      <span className="font-mono text-xs font-semibold tracking-wider text-text-muted">{row.label}</span>
-                      <span aria-hidden="true" className="font-mono text-[14px] text-text-faint lg:hidden">{open ? '−' : '+'}</span>
-                    </button>
-                    <p className={`${open ? 'block' : 'hidden'} lg:block mt-1 text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary lg:mt-0`}>
-                      {row.segments.map((seg, i) =>
-                        seg.mono ? (
-                          <span key={i} className="font-mono text-[12.5px] font-semibold text-brand-purple">{seg.text}</span>
-                        ) : (
-                          <Fragment key={i}>{seg.text}</Fragment>
-                        ),
-                      )}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-
       {/* ── THE PIPELINE HEADER (PR-CHROME → PR-PIPE-TITLE). Names the
             13-step run so the collapsed bars below read as one unit, and
             says what the pipeline IS — the data pipe the whole system runs
@@ -1280,14 +1285,18 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                                          rule follows the hero, so it now
                                          governs the demo act rather than this
                                          one.
-              live demo | done-for-you → the demo act's border-b
-              done-for-you | personas → done-for-you's border-b (the restored
-                                         personas act carries NO border-t —
-                                         its historical border-t was the one
-                                         adaptation of the restore)
-              personas | pipeline header → the personas act's border-b (the
-                                         adapted rule: border-t became
-                                         border-b for the new seat)
+              live demo | personas     → the demo act's border-b (PR-REORDER
+                                         moved personas above done-for-you —
+                                         the who-first order; the strip case
+                                         below still single-rules both seams)
+              personas | done-for-you  → the personas act's border-b (it
+                                         carries NO border-t — its historical
+                                         border-t became border-b at the
+                                         PR-PERSONAS-RESTORE remount, and that
+                                         rule travels with the act; the
+                                         PR-MODULES placeholder comment between
+                                         them is not DOM)
+              done-for-you | pipeline header → done-for-you's border-b
               pipeline header | 01 problem   → the header's border-b (PR-CHROME
                                          seated the header act between them;
                                          01's no-border exception survives
@@ -1326,13 +1335,14 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             done-for-you's border-b.
             THE GuestTripStrip CASE, now resolved. That strip renders only for a
             guest who has session trip records, carries its OWN border-b, and
-            sits between the demo and done-for-you acts. Closing the demo act
-            from BELOW rather than giving done-for-you a border-t is what makes
-            both cases single-ruled: with the strip, demo|strip is the demo's
-            border-b and strip|done-for-you is the strip's own; without it,
-            demo|done-for-you is the demo's border-b. A border-t on
-            done-for-you would have made strip|done-for-you the page's only
-            two-rule seam. Do not add one.
+            sits between the demo and personas acts (PR-REORDER swapped the
+            lower neighbor from done-for-you to personas; the logic is
+            unchanged). Closing the demo act from BELOW rather than giving the
+            act beneath a border-t is what makes both cases single-ruled: with
+            the strip, demo|strip is the demo's border-b and strip|personas is
+            the strip's own; without it, demo|personas is the demo's border-b.
+            A border-t on the personas act would have made strip|personas the
+            page's only two-rule seam. Do not add one.
             GEOMETRY, DECLARED: the content-width acts rule at content width
             (max-w-7xl), the full-bleed acts rule edge to edge. So the demo's
             border-b and the import and routing acts' border-t are inset, and
@@ -2562,6 +2572,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[24px] text-brand-purple">Twenty-five tools. And now every one knows what the others did.</p>
         </div>
       </section>
+
+      {/* WHY ACT LANDS HERE — (PR-WHY, content TBD) */}
 
       {/* ── BUILTON-MARQUEE: the "Built on" wall's five-category card grid
             became ONE auto-scrolling text-mark strip (professional-site
