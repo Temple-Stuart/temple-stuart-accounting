@@ -9,24 +9,30 @@
  *   hero (full-bleed aubergine band)
  *   LIVE DEMO — TRAVEL  — travel search/booking, real and public
  *   DONE-FOR-YOU        — the professional-services panel
- *   01 / THE PROBLEM    — the six-source fan + the twenty-five-tool sheet
- *   02 / THE IMPORT     — the raw import table, four arrivals, the trio
- *   03 / THE ROUTING    — one rule per feed, nine rows, four kinds
- *   04 / THE HANDOFF    — five tables; the kind is the address
- *   05 / THE TWO LANES  — observed vs authored
- *   06 / THE LOOP       — discover → decide → commit → record
- *   07 / THE MASTER TABLE — one table for everything you do
- *   08 / THE MATCH      — the deposit meets the invoice
- *   09 / THE POSTING    — rules write the debits and credits
- *   10 / THE ANSWERS    — every answer is math on the lines
- *   11 / THE TWO WINDOWS — the Ledger and the Calendar
- *   12 / THE THREADS    — one $500 sale, then four more doors
- *   13 / THE PROOF      — click any number, walk it back
+ *   01 / IDENTIFY THE PROBLEM — the six-source fan + the twenty-five-tool sheet
+ *   02 / IMPORT THE DATA      — the raw import table, four arrivals, the promises
+ *   03 / LABEL THE DATA       — one rule per feed, nine rows, four kinds
+ *   04 / MAP THE DATA TO ITS TABLE — five tables; the kind is the address
+ *   05 / SPLIT THE DATA INTO TWO LANES — observed vs authored
+ *   06 / RUN THE LOOP         — discover → decide → commit → record
+ *   07 / STORE EVERYTHING YOU DO IN ONE MASTER TABLE
+ *   08 / MATCH THE TWO LANES  — the deposit meets the invoice
+ *   09 / LET THE RULES WRITE THE LINES
+ *   10 / TURN THE LINES INTO ANSWERS
+ *   11 / OPEN THE TWO WINDOWS — the Ledger and the Calendar
+ *   12 / WATCH ONE DOLLAR RUN THE WHOLE MACHINE
+ *   13 / PROVE EVERY NUMBER   — click any number, walk it back
  *   Built on            — the vendor marquee
  *
- * PR-DECK: 01–13 are the pipeline deck, and every rendered string in them is
- * VERBATIM from the approved deck copy. Never rephrase in place — a copy
- * change is a deck change first. PR-COLLAPSE: each step is a disclosure —
+ * PR-DECK: 01–13 are the pipeline deck. PR-VOICE reconciled every rendered
+ * string to the common-tongue essay (temple-stuart-full-system-writeup.md,
+ * NOT in this repo) — headlines/subs that stay are the deck's poster
+ * compressions; everything else is essay-verbatim, '(N) ' prefixes included.
+ * Never rephrase in place — a copy change is an essay change first.
+ * DECK LAW #7, SHOW DON'T ECHO: where a visual carries a piece of the essay
+ * (08's cards, 09's drawn sale lines, 11's calendar), the visual IS that
+ * piece — never render the same content as both drawing and text.
+ * PR-COLLAPSE: each step is a disclosure —
  * header button (label + '+'/'−' glyph, the retired personas accordion's
  * shape, 5010ca1f) over a hidden-class body; step 1 open by default, a
  * #deck-NN hash opens its step on load. RUST NOTE: the deck's "rust" group-label
@@ -236,15 +242,15 @@ const PROBLEM_SHEET_SM = [
 // PROBLEM-CAPTION: the line that sits under the sheet. It is rendered TWICE —
 // on desktop INSIDE the sheet column, so it inherits the table's left edge,
 // and on mobile under the stacked grids — so the string lives here once
-// rather than being typed twice (the no-drift law). PR-D1: the deck's caption
-// is ONE sentence joined by an em dash, not the earlier A SPREADSHEET kicker +
-// note pair, so the two consts collapsed into this one. CAPTION-ANCHOR: the
+// rather than being typed twice (the no-drift law). PR-D1 collapsed the old
+// A SPREADSHEET kicker + note pair into one sentence; PR-VOICE swapped that
+// sentence for the essay's full one, verbatim. CAPTION-ANCHOR: the
 // caption used to be a lone <p> child of the section with no left offset at
 // all, so it began at the page margin while A SPREADSHEET faked its alignment
 // with a pl-[560px] hand-copied from the sheet's rect x. Both magic numbers
 // are gone: on desktop the caption is simply a child of the column the table
 // fills.
-const PROBLEM_SHEET_CAPTION = 'A spreadsheet — as current as the last time you typed into it.';
+const PROBLEM_SHEET_CAPTION = 'So today, to see your full picture, you copy numbers out of each one into a spreadsheet and connect them by hand; and that spreadsheet is only as current as the last time you typed into it.';
 
 // IMPORT-COLUMNS (PR-DECK): the field table of the 02 / THE IMPORT slide,
 // reconciled to the deck's plain-language vocabulary (provider · connection ·
@@ -254,8 +260,8 @@ const PROBLEM_SHEET_CAPTION = 'A spreadsheet — as current as the last time you
 // gone. Order is the reading order of the slide and carries the argument;
 // never sort or regroup for tidiness.
 //
-// asked / arrived / read HAVE NO DESCRIPTION ON PURPOSE — the deck leaves
-// them bare and the empty string is content, not a gap. Do not invent copy.
+// PR-VOICE: every gloss is the essay's own wording — the timing rows carry
+// the essay's 'when we asked / when it arrived / when we read it'.
 //
 // THE PAYLOAD ROW carries the slide's emphasis as a third tuple slot: the
 // shouted tail of its description renders in the deck's rust (brand-amber),
@@ -265,31 +271,31 @@ const IMPORT_COLUMNS: ReadonlyArray<{ band: string; rows: ReadonlyArray<readonly
     band: 'WHERE IT CAME FROM',
     rows: [
       ['provider', 'stripe · plaid · sec · fred — which company sent it'],
-      ['connection', 'you might have two banks'],
+      ['connection', 'because you might have two or more banks'],
     ],
   },
   {
     band: 'WHAT IT IS',
     rows: [
       ['resource', 'their own word: payout · transaction · quote'],
-      ['their id', 'so we never import the same thing twice'],
-      ['our id', 'two providers could accidentally use the same name'],
+      ['their id', 'so we tie the row back to the provider and never import the same thing twice'],
+      ['our id', 'two providers could accidentally use the same id'],
     ],
   },
   {
     band: 'WHAT THEY ACTUALLY SENT',
     rows: [
       ['payload', 'saved word for word — ', 'THE REASON THIS TABLE EXISTS'],
-      ['fingerprint', 'proves we never changed it'],
+      ['fingerprint', 'a code made from the payload — proves we never changed it'],
     ],
   },
   {
     band: 'WHEN AND HOW FAR',
     rows: [
-      ['asked', ''],
-      ['arrived', ''],
-      ['read', ''],
-      ['status', 'pending · done · failed'],
+      ['asked', 'when we asked'],
+      ['arrived', 'when it arrived'],
+      ['read', 'when we read it'],
+      ['status', 'pending, done, or failed'],
     ],
   },
 ];
@@ -368,13 +374,14 @@ const HANDOFF_KINDS = [
   ['derived', 'math we did'],
 ] as const;
 
-// PR-DECK: the import slide's closing trio, verbatim. The old [claim,
-// remainder] pairs (IMPORT_WHY_IT_MATTERS) died with the deck reconcile —
-// the deck keeps only the three claims.
+// PR-VOICE: the import slide's closing list — the essay's three numbered
+// promises, verbatim, rendered under the 'This table is to show us that:'
+// framing line. The '(N) ' prefixes are content (the essay's own
+// enumeration), not styling.
 const IMPORT_TRIO = [
-  'Nothing is ever edited.',
-  'Nothing is ever asked twice.',
-  'Nothing is ever claimed.',
+  '(1) Nothing was ever edited; if a provider corrects something, the correction is a new row.',
+  '(2) Nothing was ever asked twice; if our reading of a row fails, we just read our stored copy again.',
+  "(3) Nothing was ever claimed; the fingerprint proves we stored exactly what they sent, but that doesn't necessarily mean they were right!",
 ] as const;
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -386,29 +393,37 @@ const IMPORT_TRIO = [
 // punctuation-derived.
 // ─────────────────────────────────────────────────────────────────────────
 
-// DECK-05: the two lanes. Two columns, rust headers, four nouns each.
+// DECK-05 (PR-VOICE): the two lanes, each a rust header over the essay's own
+// sentences — one <p> per line, in the lane's prose tier. AUTHORED's last
+// three lines are the essay's framing + (1)(2) draft/commit enumeration; the
+// '(N) ' prefixes are content, not styling.
 const LANE_COLUMNS = [
   {
     header: 'OBSERVED',
-    tells: 'the world tells you — it arrives finished',
-    items: 'deposits · charges · fills · quotes',
-    law: 'you can never edit the past.',
+    lines: [
+      'Look at everything we imported so far: deposits, charges, fills, quotes. (A fill is the broker saying your trade happened.)',
+      'All of it happened TO you. The world told you, and it arrived finished. You can never edit the past. We call these observed.',
+    ],
   },
   {
     header: 'AUTHORED',
-    tells: 'you make it happen',
-    items: 'a booking · an invoice · a trade · a filing',
-    law: 'starts as a draft; becomes real when you commit.',
+    lines: [
+      'But running a business is not just watching! You book flights. You send invoices. You place trades. You file paperwork. These are things YOU make happen. We call these authored.',
+      'An authored thing does not arrive finished:',
+      '(1) It starts as a draft.',
+      '(2) It becomes real only when you commit; you pull the trigger, and the outside world moves.',
+    ],
   },
 ] as const;
 
-// DECK-06: the four beats of the loop band, [beat, caption]. RECORD's
-// trailing period is the deck's own punctuation.
+// DECK-06 (PR-VOICE): the four beats of the loop band, [beat, caption] —
+// captions are the essay's own beat lines, chains gloss inline. Punctuation
+// is the essay's.
 const LOOP_BEATS = [
-  ['DISCOVER', 'look at your options'],
-  ['DECIDE', 'the pick becomes a draft'],
-  ['COMMIT', 'pull the trigger — the world moves'],
-  ['RECORD', 'written down forever.'],
+  ['DISCOVER', 'look at your options. Live flight prices. Option chains (the menu of trades you could make). The invoices coming due.'],
+  ['DECIDE', 'pick one. The pick becomes a draft; a cart, a trade card, a draft invoice.'],
+  ['COMMIT', 'pull the trigger. The flight books and a confirmation code comes back. The order goes to the broker. Invoice #14 goes out the door.'],
+  ['RECORD', 'it is written down forever.'],
 ] as const;
 
 // DECK-06: the three-tool loop table, [beat, travel, trading, invoicing].
@@ -419,12 +434,16 @@ const LOOP_ROWS = [
   ['RECORD', 'booking recorded', 'order recorded', 'invoice recorded'],
 ] as const;
 
-// DECK-07: the four things every document carries, [name, desc].
+// DECK-07 (PR-VOICE): the four things every document carries, [name, desc] —
+// the essay's (1)–(4) items, split at the essay's own semicolon so the
+// column gap plays the semicolon (the same arrangement every two-column
+// row in this deck uses). Item (4) has no tail in the essay, so its desc is
+// empty — content, not a gap.
 const MASTER_ROWS = [
-  ['what it is', 'a booking, an invoice, a trade'],
-  ['its life story', 'draft → committed → settled — or void, if it dies'],
-  ['its pieces', 'the flights in a booking, the items on an invoice'],
-  ['who and when', 'who did it, and when.'],
+  ['(1) What it is', 'a booking, an invoice, a trade.'],
+  ['(2) Its life story', 'draft → committed → settled, or void, if it dies.'],
+  ['(3) Its pieces', 'the flights in a booking, the items on an invoice.'],
+  ['(4) Who did it, and when.', ''],
 ] as const;
 
 // DECK-08: the two match cards, [name, amount, date] — amounts gold.
@@ -443,28 +462,31 @@ const POSTING_RULES = [
   ['payroll run', 'Wages + employer taxes', 'Cash + withholdings'],
 ] as const;
 
-// DECK-09: the worked sale — sentence segments ([text, isGold]) and the three
-// lines, [account, amount].
+// DECK-09 (PR-VOICE): the worked sale — the essay's 'Now watch it work'
+// sentence introduces the three drawn lines, which render ONCE with the
+// essay's (1)(2)(3) prefixes (Deck Law #7, show don't echo — no separate
+// text list). Sentence segments are [text, isGold]; lines are
+// [account, amount].
 const SALE_SENTENCE: ReadonlyArray<readonly [string, boolean]> = [
-  ['One sale for ', false], ['$100.00', true],
+  ['Now watch it work. One sale for ', false], ['$100.00', true],
   ['. Stripe keeps a ', false], ['$3.20', true],
   [' fee. ', false], ['$96.80', true],
-  [' lands in the bank.', false],
+  [' lands in the bank. The rule writes three lines:', false],
 ];
 const SALE_LINES = [
-  ['Revenue', '100.00'],
-  ['Fees', '3.20'],
-  ['Cash', '96.80'],
+  ['(1) Revenue', '100.00'],
+  ['(2) Fees', '3.20'],
+  ['(3) Cash', '96.80'],
 ] as const;
 
 // DECK-10: four questions and their math, the math pre-split so the deck's
 // money words ink gold. Row 3 has no money word and that is the deck's own
 // shape, not an omission.
 const ANSWER_ROWS: ReadonlyArray<readonly [string, ReadonlyArray<readonly [string, boolean]>]> = [
-  ['What do I owe in tax?', [['income', true], [' so far × the rules', false]]],
-  ['How long can I last?', [['cash', true], [' ÷ what I burn each month', false]]],
-  ['How is my trading doing?', [['wins, losses, and open risk', false]]],
-  ['How is my business doing?', [['money in', true], [' minus ', false], ['money out', true], ['.', false]]],
+  ['What do I owe in tax?', [['Income', true], [' so far × the rules.', false]]],
+  ['How long can I last?', [['Cash', true], [' ÷ what I burn each month.', false]]],
+  ['How is my trading doing?', [['Wins, losses, and open risk; from fills, positions, and live quotes.', false]]],
+  ['How is my business doing?', [['Money in', true], [' minus ', false], ['money out', true], ['.', false]]],
 ];
 
 // DECK-11: the mini ledger, [date, line, debit, credit] — amounts gold, empty
@@ -492,24 +514,27 @@ const CAL_DOTS = [
   { label: 'Estimated tax — Sep 15', day: 2 },
   { label: 'Invoice #14 due — Sep 22', day: 9 },
 ] as const;
+// PR-VOICE: the four deadline segments are the essay's glossed entries,
+// verbatim minus the '(N) ' prefixes (the strip's gold dots are the
+// joiners, so the enumeration needs no numbers).
 const CAL_DEADLINES = [
-  'Estimated tax — Apr 15 · Jun 15 · Sep 15 · Jan 15',
-  'S-corp return Mar 16',
-  '1099s & W-2s Feb 2',
-  'extended 1040 Oct 15',
+  'Estimated tax — pay tax as you earn, four times a year — April 15, June 15, September 15, January 15.',
+  "The S-corp return — the business's own tax form — March 16.",
+  '1099s and W-2s — the forms that say who got paid what — February 2.',
+  'The extended 1040 — your personal tax form, on its extension date — October 15.',
 ] as const;
 
 // DECK-12: the hero thread — eight beats of one $500 sale, [n, action,
 // artifactSegments]. Debit/credit values and amounts gold via the segments.
 const THREAD_ROWS: ReadonlyArray<readonly [string, string, ReadonlyArray<readonly [string, boolean]>]> = [
-  ['1', 'You sign a client', [['the contract lands in registry', false]]],
-  ['2', 'The obligation comes due', [['a draft invoice appears', false]]],
-  ['3', 'You send invoice #14 — commit', [['debit ', false], ['A/R 500.00', true], [', credit ', false], ['Revenue 500.00', true]]],
-  ['4', 'The client pays', [['a deposit arrives, stored and fingerprinted', false]]],
-  ['5', 'The system finds it', [['deposit matched to invoice #14', false]]],
-  ['6', 'Rules fire again', [['debit ', false], ['Cash 500.00', true], [', credit ', false], ['A/R 500.00', true]]],
-  ['7', 'Math runs', [['tax owed ticks up, runway ticks up', false]]],
-  ['8', 'You look', [['four lines on the Ledger, two dots on the Calendar', false]]],
+  ['1', 'You sign a client', [['the contract lands in registry.', false]]],
+  ['2', 'The obligation comes due', [['a draft invoice appears.', false]]],
+  ['3', 'You send invoice #14; commit!', [['A rule writes: debit ', false], ['A/R 500.00', true], [', credit ', false], ['Revenue 500.00', true], ['.', false]]],
+  ['4', 'The client pays', [['a deposit arrives, stored and fingerprinted.', false]]],
+  ['5', 'The system finds it', [['deposit matched to invoice #14.', false]]],
+  ['6', 'Rules fire again', [['debit ', false], ['Cash 500.00', true], [', credit ', false], ['A/R 500.00', true], ['.', false]]],
+  ['7', 'Math runs', [['tax owed ticks up, runway ticks up.', false]]],
+  ['8', 'You look', [['four lines on the Ledger, two dots on the Calendar.', false]]],
 ];
 
 // DECK-12: the four-door table. Row 6 (LINES WRITTEN) pre-splits its cells so
@@ -520,7 +545,7 @@ type DoorCell = string | ReadonlyArray<readonly [string, boolean]>;
 const DOOR_ROWS: ReadonlyArray<readonly [string, DoorCell, DoorCell, DoorCell, DoorCell]> = [
   ['DISCOVER', 'live fares arrive', 'scan the chains', 'approved hours pile up', 'goals meet the audit'],
   ['DECIDE', 'a cart', 'a trade card', 'a payroll run drafts', 'a task is accepted'],
-  ['COMMIT', 'book it, a confirmation code comes back', 'order goes to the broker', 'run it', 'the build fires'],
+  ['COMMIT', 'book it — a confirmation code comes back', 'order goes to the broker', 'run it', 'the build fires'],
   ['THE WORLD ANSWERS (OBSERVED)', 'the card charge arrives', 'the fill arrives', 'the bank withdrawal arrives', 'the finished build comes back'],
   ['MATCH', 'charge ↔ booking', 'fill ↔ order', 'withdrawal ↔ payroll run', 'task ↔ finished build'],
   ['LINES WRITTEN',
@@ -528,29 +553,42 @@ const DOOR_ROWS: ReadonlyArray<readonly [string, DoorCell, DoorCell, DoorCell, D
     [['debit ', false], ['Position', true], [', credit ', false], ['Cash', true]],
     [['debit ', false], ['Wages + taxes', true], [', credit ', false], ['Cash + withholdings', true]],
     'none — no money moved'],
-  ['MATH RUNS', 'deductible portion, runway', 'P&L, win rate, open risk', 'the true cost of labor', "progress, what's stuck"],
+  ['MATH RUNS', 'deductible portion, runway', 'P&L (profit and loss), win rate, open risk', 'the true cost of labor', "progress, what's stuck"],
   ['YOU LOOK', 'a trip bar, plus lines', 'fill dots, plus lines', 'a pay-day dot, plus lines', 'a due-date dot — no lines'],
 ];
 
-// DECK-12: the trade-close strip, pre-split for its three gold values.
+// DECK-12 (PR-VOICE): the two truths under 'Two more truths from this
+// table:'. Truth (1) absorbed the old trade-close strip, in the essay's own
+// sentence, amounts and debit/credit values gold; truth (2) needs no gold —
+// it is about lines NOT being written.
 const TRADE_CLOSE: ReadonlyArray<readonly [string, boolean]> = [
-  ['When a trade closes, the gain gets its own line: debit ', false],
+  ['(1) When a trade closes, the gain gets its own line. Sell for ', false],
+  ['5,300.00', true],
+  [' what you bought for ', false],
+  ['5,000.00', true],
+  [', and the rule writes: debit ', false],
   ['Cash 5,300.00', true],
-  [' · credit ', false],
+  [', credit ', false],
   ['Position 5,000.00', true],
-  [' · credit ', false],
+  [', credit ', false],
   ['Gain 300.00', true],
   ['.', false],
 ];
+// VOICE-2: the withholdings parenthetical moved to 09's four-gloss line —
+// glossed at its first on-screen use, the payroll rule row.
+const HOURS_TRUTH = '(2) Your hours never write a line by themselves. They only reach the books when a payroll run commits, exactly as Step 9 promised.';
 
-// DECK-13: the reverse walk, [layer, artifact] — labels gold mono, artifacts
-// mono aubergine.
+// DECK-13 (PR-VOICE): the reverse walk, [layer, artifact] — labels gold
+// mono, artifacts mono aubergine. The essay's '(N) The layer:' phrasing maps
+// onto the two columns: the prefix rides the label cell, the colon is the
+// column gap, and the artifact carries the essay's punctuation — including
+// 'still matches!' (the essay's exclamation replaced the old ✓ glyph).
 const PROOF_WALK = [
-  ['THE NUMBER', '$96.80 on your runway screen'],
-  ['THE LINE', 'debit Cash 96.80'],
-  ['THE MATCH', 'linked to payout po_1QmX8fK2'],
-  ['THE ARRIVAL', 'the payload, word for word — received 09:14:02Z'],
-  ['THE FINGERPRINT', 'still matches ✓'],
+  ['(1) THE NUMBER', '$96.80 on your runway screen.'],
+  ['(2) THE LINE', 'debit Cash 96.80.'],
+  ['(3) THE MATCH', 'linked to payout po_1QmX8fK2.'],
+  ['(4) THE ARRIVAL', 'the payload, word for word, received 09:14:02Z.'],
+  ['(5) THE FINGERPRINT', 'still matches!'],
 ] as const;
 const PROOF_TRIO = [
   'Nothing was edited.',
@@ -1212,7 +1250,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           onClick={() => toggleStep(0)}
           className={DECK.stepButton}
         >
-          <span className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.12em] text-text-faint">01 / THE PROBLEM</span>
+          <span className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.12em] text-text-faint">01 / IDENTIFY THE PROBLEM</span>
           <span aria-hidden="true" className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.12em] text-text-faint">{openSteps[0] ? '−' : '+'}</span>
         </button>
         <div className={DECK.stepRule} aria-hidden="true" />
@@ -1401,7 +1439,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <p className="mt-2 max-w-[680px] pl-[20px] text-[15px] leading-[1.6] text-text-secondary lg:hidden">
             {PROBLEM_SHEET_CAPTION}
           </p>
-          <p className="mt-6 text-[17px] lg:text-[20px] text-brand-purple">So what do these twenty-five actually give you?</p>
+          {/* PR-VOICE: the essay's problem pair, below the table on both
+              breakpoints (the caption above carries the essay's spreadsheet
+              sentence). */}
+          <p className={`mt-6 ${DECK.statement}`}>The problem is none of these tools knows what the others did.</p>
+          <p className={`mt-2 ${DECK.statement}`}>They don&apos;t talk to each other.</p>
+          <p className="mt-6 text-[17px] lg:text-[20px] text-brand-purple">So what data do these twenty-five different tools actually give you?</p>
           <div className="mt-4 h-[30px] lg:h-10 w-px bg-border" aria-hidden="true" />
         </div>
       </section>
@@ -1437,7 +1480,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           onClick={() => toggleStep(1)}
           className={DECK.stepButton}
         >
-          <span className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">02 / THE IMPORT</span>
+          <span className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">02 / IMPORT THE DATA</span>
           <span aria-hidden="true" className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">{openSteps[1] ? '−' : '+'}</span>
         </button>
         <div className={DECK.stepRule} aria-hidden="true" />
@@ -1446,8 +1489,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             Store what arrived.<br />Then decide what it means.
           </h2>
           <p className="mt-[22px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
-            One table. Every answer a provider sends is stored as one arrival — before anyone decides what it means.
+            First, we identify the different providers that we use, and we ask those providers for their data.
           </p>
+          {/* PR-VOICE: the essay's arrival intro and provider-jobs sentence,
+              above the field table. */}
+          <p className={`mt-[14px] ${DECK.statement}`}>Every provider sends back an answer, and those answers are stored as an arrival.</p>
+          <p className={`mt-2 ${DECK.statement}`}>Each arrival is stored as one row, in one table, before anyone decides what any of the data actually means.</p>
+          <p className={`mt-[14px] ${DECK.statement}`}>Each data provider does one job: Stripe accepts card money; Plaid connects to your banks and other financial accounts; TastyTrade is a broker, with market data, and where your trades happen; the SEC keeps company filings; the Federal Reserve publishes the economy&apos;s numbers. Etc.</p>
 
           {/* TABLE 1 — the field table, two columns, no thead (the deck names no
               headers). The colgroup carries the fixed-layout widths the thead
@@ -1508,7 +1556,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           </table>
 
           <div className="mt-10 lg:mt-[76px] h-px w-full bg-border" aria-hidden="true" />
-          <div className="mt-[22px] lg:mt-8">
+          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>This table is to show us that:</p>
+          <div className="mt-[14px]">
             {IMPORT_TRIO.map((claim, i) => (
               <p key={claim} className={`${i === 0 ? '' : 'mt-3 lg:mt-[14px]'} text-[13px] leading-[1.5] lg:text-[16.5px] text-brand-purple`}>{claim}</p>
             ))}
@@ -1563,7 +1612,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           onClick={() => toggleStep(2)}
           className={DECK.stepButton}
         >
-          <span className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">03 / THE ROUTING</span>
+          <span className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">03 / LABEL THE DATA</span>
           <span aria-hidden="true" className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">{openSteps[2] ? '−' : '+'}</span>
         </button>
         <div className={DECK.stepRule} aria-hidden="true" />
@@ -1572,8 +1621,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             One rule per feed.<br />Written down.
           </h2>
           <p className="mt-[22px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
-            A rule is one written row that makes one decision — never a guess buried in code.
+            Now we examine the data that we just imported in Step 2, and we give every feed a label.
           </p>
+          {/* PR-VOICE: the essay's feed gloss pair — Duffel and Anthropic are
+              named here, before their first table rows below. */}
+          <p className={`mt-[14px] ${DECK.statement}`}>A feed is one provider-and-resource pair; like Stripe&apos;s payouts, or Plaid&apos;s transactions, or TastyTrade&apos;s quotes.</p>
+          <p className={`mt-2 ${DECK.statement}`}>Two more providers appear here: Duffel books flights, and Anthropic is our AI.</p>
 
           <table className="mt-10 lg:mt-[76px] w-full table-fixed border-separate border-spacing-0 border border-border">
             <thead>
@@ -1631,9 +1684,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             </tbody>
           </table>
 
+          {/* PR-VOICE: the essay's fifth-kind tease and the rule block, after
+              the routing table. */}
+          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>And there is a fifth kind; but no feed ever earns it. We will meet it soon.</p>
+          <p className={`mt-2 ${DECK.statement}`}>Here is what makes this step different from every software you have ever met: each kind is given by a rule, and a rule is one written row in a table. Anyone can read it. Anyone can argue with it. It is not a guess buried in code.</p>
           <div className="mt-8 lg:mt-12 h-px w-full bg-border" aria-hidden="true" />
           <p className="mt-[22px] lg:mt-8 text-[12px] lg:text-[14px] text-text-faint">
-            When a new provider shows up, we add rows — not code, and not new tables.
+            When a new provider shows up, we add rows; not code, and not new tables.
           </p>
           <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">So how many tables are there?</p>
         </div>
@@ -1665,7 +1722,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           onClick={() => toggleStep(3)}
           className={DECK.stepButton}
         >
-          <span className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">04 / THE HANDOFF</span>
+          <span className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">04 / MAP THE DATA TO ITS TABLE</span>
           <span aria-hidden="true" className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">{openSteps[3] ? '−' : '+'}</span>
         </button>
         <div className={DECK.stepRule} aria-hidden="true" />
@@ -1674,7 +1731,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             Five.<br />The kind is the address.
           </h2>
           <p className="mt-[22px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
-            Every arrival moves into the table for its kind.
+            Now we take every labeled arrival and move it into a table; one table per kind.
           </p>
 
           <table className="mt-10 lg:mt-[76px] w-full table-fixed border-separate border-spacing-0 border border-border">
@@ -1714,12 +1771,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
 
           <div className="mt-10 lg:mt-[76px] h-px w-full bg-border" aria-hidden="true" />
           <p className="mt-[22px] lg:mt-8 text-[17px] lg:text-[28px] text-brand-purple">
-            Twenty-five tools, five tables — because we sorted by what a thing is, not by which tool it came from.
+            Twenty-five tools, five tables; because we sorted by what a thing is, not by which tool it came from.
           </p>
           <div className="mt-[14px] lg:mt-5">
-            <p className="text-[12px] lg:text-[14px] text-text-faint">Providers only ever fill three of the five.</p>
-            <p className="mt-2 text-[12px] lg:text-[14px] text-text-faint">Derived is filled only by our own math.</p>
-            <p className="mt-2 text-[12px] lg:text-[14px] text-text-faint">And posting? Nobody sends you debits and credits. Remember that.</p>
+            <p className="text-[12px] lg:text-[14px] text-text-faint">But notice something strange here!</p>
+            <p className="mt-2 text-[12px] lg:text-[14px] text-text-faint">(1) Providers only ever fill three of the five: reference, registry, and event.</p>
+            <p className="mt-2 text-[12px] lg:text-[14px] text-text-faint">(2) Derived is filled only by our own math.</p>
+            <p className="mt-2 text-[12px] lg:text-[14px] text-text-faint">(3) And posting? Nothing from the outside world ever lands there. Nobody sends you debits and credits. Remember that; it matters soon.</p>
           </div>
           <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">Everything so far arrived from the world. So where do the things you do live?</p>
         </div>
@@ -1738,7 +1796,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           onClick={() => toggleStep(4)}
           className={DECK.stepButton}
         >
-          <span className={DECK.eyebrow}>05 / THE TWO LANES</span>
+          <span className={DECK.eyebrow}>05 / SPLIT THE DATA INTO TWO LANES</span>
           <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[4] ? '−' : '+'}</span>
         </button>
         <div className={DECK.stepRule} aria-hidden="true" />
@@ -1754,15 +1812,14 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             {LANE_COLUMNS.map((lane) => (
               <div key={lane.header}>
                 <p className={DECK.rust}>{lane.header}</p>
-                <p className="mt-[10px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">{lane.tells}</p>
-                <p className="mt-3 font-mono text-[12px] lg:text-[13px] text-brand-purple">{lane.items}</p>
-                <p className="mt-3 text-[12px] lg:text-[14px] text-text-faint">{lane.law}</p>
+                {lane.lines.map((line, i) => (
+                  <p key={line} className={`${i === 0 ? 'mt-[10px]' : 'mt-3'} text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary`}>{line}</p>
+                ))}
               </div>
             ))}
           </div>
 
           <div className={DECK.hairline} aria-hidden="true" />
-          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>commit = pulling the trigger — the outside world moves.</p>
           <p className={DECK.q}>So how exactly do you make something happen?</p>
         </div>
       </section>
@@ -1781,7 +1838,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           onClick={() => toggleStep(5)}
           className={DECK.stepButton}
         >
-          <span className={DECK.eyebrow}>06 / THE LOOP</span>
+          <span className={DECK.eyebrow}>06 / RUN THE LOOP</span>
           <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[5] ? '−' : '+'}</span>
         </button>
         <div className={DECK.stepRule} aria-hidden="true" />
@@ -1790,7 +1847,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             Every tool runs the same four beats.<br />Discover. Decide. Commit. Record.
           </h2>
           <p className={DECK.sub}>
-            Book a flight, place a trade, send an invoice — same loop, different nouns.
+            Book a flight, place a trade, send an invoice; same loop, different nouns.
           </p>
 
           <div className="mt-10 lg:mt-[76px] flex flex-col gap-6 lg:flex-row lg:gap-0">
@@ -1835,7 +1892,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           </table>
 
           <div className={DECK.hairline} aria-hidden="true" />
-          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Twenty-five tools. Twenty-five loops. One shape.</p>
+          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Twenty-five tools. Twenty-five loops. One shape!</p>
           <p className={DECK.q}>Twenty-five loops. Where do all the commits land?</p>
         </div>
       </section>
@@ -1851,7 +1908,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           onClick={() => toggleStep(6)}
           className={DECK.stepButton}
         >
-          <span className={DECK.eyebrow}>07 / THE MASTER TABLE</span>
+          <span className={DECK.eyebrow}>07 / STORE EVERYTHING YOU DO IN ONE MASTER TABLE</span>
           <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[6] ? '−' : '+'}</span>
         </button>
         <div className={DECK.stepRule} aria-hidden="true" />
@@ -1860,9 +1917,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             One table holds<br />everything you do.
           </h2>
           <p className={DECK.sub}>
-            A booking, an invoice, a trade, a filing, a budget — different names, same shape.
+            Every authored thing — a booking, an invoice, a trade, a filing, a budget — is stored as one document in one master table.
           </p>
 
+          {/* VOICE-2 / SHOW DON'T ECHO: the rust label IS the framing line —
+              text echoing text is the same offence as text echoing a drawing,
+              so the statement-tier duplicate died. */}
           <p className={`mt-10 lg:mt-[76px] ${DECK.rust}`}>EVERY DOCUMENT CARRIES THE SAME FOUR THINGS</p>
           <table className={`mt-[14px] lg:mt-[18px] ${DECK.table}`}>
             <colgroup>
@@ -1883,7 +1943,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           </table>
 
           <div className={DECK.hairline} aria-hidden="true" />
-          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>That&apos;s why one table can hold them all.</p>
+          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Different names, same shape. That is why one table can hold them all!</p>
           <p className={DECK.q}>You committed. The world moved. But how do you know the money really landed?</p>
         </div>
       </section>
@@ -1904,7 +1964,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           onClick={() => toggleStep(7)}
           className={DECK.stepButton}
         >
-          <span className={DECK.eyebrow}>08 / THE MATCH</span>
+          <span className={DECK.eyebrow}>08 / MATCH THE TWO LANES</span>
           <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[7] ? '−' : '+'}</span>
         </button>
         <div className={DECK.stepRule} aria-hidden="true" />
@@ -1913,7 +1973,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             The deposit meets the invoice.<br />The fill meets the order.
           </h2>
           <p className={DECK.sub}>
-            The system pairs what the world did with what you did — by itself.
+            Now the two lanes meet.
           </p>
 
           <div className="mt-10 lg:mt-[76px] grid gap-6 lg:grid-cols-[1fr_260px_1fr] lg:gap-0">
@@ -1944,8 +2004,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           </div>
 
           <div className={DECK.hairline} aria-hidden="true" />
-          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Nobody hunted through statements. Matched means real — the world just confirmed what you did.</p>
-          <p className={`mt-2 ${DECK.statement}`}>A piece of this is already alive today: card charges find their bookings on their own.</p>
+          {/* PR-VOICE + Deck Law #7 (show don't echo): the cards and the
+              centre caption CARRY the invoice/deposit story and the three
+              checks — the text below never restates them. */}
+          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Click; one match.</p>
+          <p className={`mt-2 ${DECK.statement}`}>The deposit found its invoice. The fill found its order. The card charge found its booking. Nobody hunted through statements!</p>
+          <p className={`mt-2 ${DECK.statement}`}>(A piece of this is already alive today: card charges find their bookings on their own.)</p>
+          <p className={`mt-2 ${DECK.statement}`}>Matched means real; the world just confirmed what you did.</p>
           <p className={DECK.q}>Matched and real. So who writes the debits and credits?</p>
         </div>
       </section>
@@ -1962,7 +2027,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           onClick={() => toggleStep(8)}
           className={DECK.stepButton}
         >
-          <span className={DECK.eyebrow}>09 / THE POSTING</span>
+          <span className={DECK.eyebrow}>09 / LET THE RULES WRITE THE LINES</span>
           <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[8] ? '−' : '+'}</span>
         </button>
         <div className={DECK.stepRule} aria-hidden="true" />
@@ -1971,14 +2036,15 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             Nobody sends them.<br />Rules write them.
           </h2>
           <p className={DECK.sub}>
-            Same trick as the routing: a rule is one written row that makes one decision. There, rules gave kinds. Here, rules write lines.
+            It is the same trick as Step 3. A rule is one written row that makes one decision. There, the rules gave kinds. Here, the rules write lines.
           </p>
 
           <div className="mt-10 lg:mt-[76px] border-y border-border py-[14px]">
-            <p className="text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
-              Every time money moves, the rule writes two lines — a credit for where the money came from, a debit for where it went. You never type them.
-            </p>
-            <p className="mt-2 font-mono text-[11px] lg:text-[12px] text-text-faint">A/R = money owed to you · A/P = money you owe.</p>
+            <p className="text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">Every time money moves, the rule writes two lines:</p>
+            <p className="mt-2 text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">(1) a credit, for where the money came from,</p>
+            <p className="mt-2 text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">(2) a debit, for where it went.</p>
+            <p className="mt-2 text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">You never type them!</p>
+            <p className="mt-2 font-mono text-[11px] lg:text-[12px] text-text-faint">Four quick glosses before we go on: A/R means money owed TO you. A/P means money YOU owe. Clearing means a holding bin that must end at zero. Withholdings means tax held back from a paycheck before it reaches anyone.</p>
           </div>
 
           <table className={`mt-10 lg:mt-[76px] ${DECK.table}`}>
@@ -2017,11 +2083,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               </p>
             ))}
           </div>
-          <p className={`mt-[14px] ${DECK.statement}`}>The deposit matches the bank to the penny.</p>
+          <p className={`mt-[14px] ${DECK.statement}`}>And the deposit matches the bank to the penny!</p>
 
           <p className={`mt-10 lg:mt-[76px] ${DECK.rust}`}>WHO NEVER TOUCHES MONEY</p>
           <p className="mt-[14px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
-            {'Calendar, Tasks, Time, CRM, Compliance, Budget, and FP&A never write a line. Your hours reach the books one way only — through Payroll.'}
+            {'One more truth: some tools never touch money. Calendar, Tasks, Time, CRM, Compliance, Budget, and FP&A never write a line. Your hours reach the books one way only; through Payroll.'}
           </p>
 
           <div className={DECK.hairline} aria-hidden="true" />
@@ -2040,7 +2106,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           onClick={() => toggleStep(9)}
           className={DECK.stepButton}
         >
-          <span className={DECK.eyebrow}>10 / THE ANSWERS</span>
+          <span className={DECK.eyebrow}>10 / TURN THE LINES INTO ANSWERS</span>
           <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[9] ? '−' : '+'}</span>
         </button>
         <div className={DECK.stepRule} aria-hidden="true" />
@@ -2049,7 +2115,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             Every answer is math<br />on the lines.
           </h2>
           <p className={DECK.sub}>
-            Four questions, answered at any moment. Never typed. Never stale.
+            Four questions, answered at any moment.
           </p>
 
           <table className={`mt-10 lg:mt-[76px] ${DECK.table}`}>
@@ -2075,7 +2141,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             </tbody>
           </table>
 
-          <p className="mt-10 lg:mt-[76px] font-mono text-[11px] lg:text-[13px] uppercase tracking-[0.20em] text-brand-amber">THIS IS THE PRODUCT.</p>
+          {/* PR-VOICE: the essay line renders once, in the statement tier;
+              the rust caps line stays as the poster emphasis of it. */}
+          <p className={`mt-10 lg:mt-[76px] ${DECK.statement}`}>Never typed. Never stale. This is the product!</p>
+          <p className="mt-[14px] font-mono text-[11px] lg:text-[13px] uppercase tracking-[0.20em] text-brand-amber">THIS IS THE PRODUCT.</p>
 
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={DECK.q}>Four answers. Where do you look?</p>
@@ -2101,7 +2170,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           onClick={() => toggleStep(10)}
           className={DECK.stepButton}
         >
-          <span className={DECK.eyebrow}>11 / THE TWO WINDOWS</span>
+          <span className={DECK.eyebrow}>11 / OPEN THE TWO WINDOWS</span>
           <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[10] ? '−' : '+'}</span>
         </button>
         <div className={DECK.stepRule} aria-hidden="true" />
@@ -2110,7 +2179,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             One Ledger. One Calendar.<br />All twenty-five.
           </h2>
           <p className={DECK.sub}>
-            The Ledger shows everything as a table. The Calendar shows the same truth on time.
+            There are two windows, and every one of the twenty-five tools shows up in both:
           </p>
 
           <div className="mt-10 lg:mt-[76px] grid gap-10 lg:grid-cols-2 lg:gap-12">
@@ -2200,6 +2269,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             ))}
           </div>
 
+          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Twenty-five tools. Two windows!</p>
+
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={DECK.q}>Can you watch one dollar run the whole machine?</p>
         </div>
@@ -2221,7 +2292,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           onClick={() => toggleStep(11)}
           className={DECK.stepButton}
         >
-          <span className={DECK.eyebrow}>12 / THE THREADS</span>
+          <span className={DECK.eyebrow}>12 / WATCH ONE DOLLAR RUN THE WHOLE MACHINE</span>
           <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[11] ? '−' : '+'}</span>
         </button>
         <div className={DECK.stepRule} aria-hidden="true" />
@@ -2244,9 +2315,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               </div>
             ))}
           </div>
-          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Nobody typed a debit anywhere in this story.</p>
+          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Nobody typed a debit anywhere in this story!</p>
 
-          <p className={`mt-10 lg:mt-[76px] ${DECK.rust}`}>SAME MACHINE, SAME EIGHT BEATS</p>
+          {/* PR-VOICE: the essay's door-opening framing, directly above the
+              four-door table's rust label. */}
+          <p className={`mt-10 lg:mt-[76px] ${DECK.statement}`}>Now open the other doors. Same machine, same eight beats; only the nouns change.</p>
+          <p className={`mt-[14px] ${DECK.rust}`}>SAME MACHINE, SAME EIGHT BEATS</p>
           <div className="mt-[14px] overflow-x-auto lg:mt-[18px]">
             <table className={`min-w-[760px] ${DECK.table}`}>
               <thead>
@@ -2275,10 +2349,17 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             </table>
           </div>
 
-          <p className={`mt-[22px] lg:mt-8 ${DECK.trio}`}>The loop is bigger than money; money is just the loops that get a shadow.</p>
-          <p className="mt-[14px] border-y border-border py-[14px] font-mono text-[11px] leading-[1.6] lg:text-[12px] text-text-secondary">
-            <GoldSegments segments={TRADE_CLOSE} />
-          </p>
+          <p className={`mt-[22px] lg:mt-8 ${DECK.trio}`}>Read the last column twice! A project runs the whole loop — discover, decide, commit, match — and writes zero lines, because no money moved. The loop is bigger than money; money is just the loops that get a shadow.</p>
+          {/* PR-VOICE: the two truths ride the old trade-close strip — truth
+              (1) absorbed its content. */}
+          <p className={`mt-[14px] ${DECK.statement}`}>Two more truths from this table:</p>
+          <div className="mt-[10px] border-y border-border py-[14px]">
+            <p className="font-mono text-[11px] leading-[1.6] lg:text-[12px] text-text-secondary">
+              <GoldSegments segments={TRADE_CLOSE} />
+            </p>
+            <p className="mt-2 font-mono text-[11px] leading-[1.6] lg:text-[12px] text-text-secondary">{HOURS_TRUTH}</p>
+          </div>
+          <p className={`mt-[14px] ${DECK.statement}`}>The travel match is already alive today: card charges find their bookings on their own.</p>
 
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={DECK.q}>Beautiful. But why should you believe any of it?</p>
@@ -2300,7 +2381,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           onClick={() => toggleStep(12)}
           className={DECK.stepButton}
         >
-          <span className={DECK.eyebrow}>13 / THE PROOF</span>
+          <span className={DECK.eyebrow}>13 / PROVE EVERY NUMBER</span>
           <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[12] ? '−' : '+'}</span>
         </button>
         <div className={DECK.stepRule} aria-hidden="true" />
@@ -2330,6 +2411,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               <p key={claim} className={`${i === 0 ? '' : 'mt-3 lg:mt-[14px]'} ${DECK.trio}`}>{claim}</p>
             ))}
           </div>
+          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>That is why you can believe the screen: every number walks back to the exact words the provider sent.</p>
           <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[24px] text-brand-purple">Twenty-five tools. And now every one knows what the others did.</p>
         </div>
       </section>
