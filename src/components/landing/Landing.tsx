@@ -9,8 +9,9 @@
  *   hero (full-bleed aubergine band)
  *   LIVE DEMO — TRAVEL  — travel search/booking, real and public
  *   DONE-FOR-YOU        — the professional-services panel
- *   PERSONAS            — same nine modules · different reasons (restored
- *                         verbatim from bc1a6fef, PR-PERSONAS-RESTORE)
+ *   PERSONAS            — one system · six lives (structure restored from
+ *                         bc1a6fef by PR-PERSONAS-RESTORE; copy rewritten to
+ *                         the 13-step vocabulary by PR-PERSONAS-COPY)
  *   THE PIPELINE header — names the 13-step run (essay front matter, PR-CHROME)
  *   01 / IDENTIFY THE PROBLEM — the six-source fan + the twenty-five-tool sheet
  *   02 / IMPORT THE DATA      — the raw import table, four arrivals, the promises
@@ -68,13 +69,16 @@
  * FRAME_LINKS, GROUP_RATIONALE, the whole stage/autoplay state machine, and
  * the lucide + GLIMPSES imports that served only them. Do not reconstruct any
  * of it from this comment; read the git history instead.
- * PERSONAS-RESTORED (PR-PERSONAS-RESTORE): the personas rail alone came BACK,
- * verbatim from bc1a6fef (the last commit that carried it — 6a439eaf's
- * parent): the PERSONAS const, the openPersona accordion state, and the ACT 2
- * block, remounted between DONE-FOR-YOU and the pipeline header with exactly
- * one adaptation — its historical border-t became border-b for the new seat
+ * PERSONAS-RESTORED (PR-PERSONAS-RESTORE): the personas rail alone came BACK
+ * from bc1a6fef (the last commit that carried it — 6a439eaf's parent): the
+ * PERSONAS const, the openPersona accordion state, and the ACT 2 block,
+ * remounted between DONE-FOR-YOU and the pipeline header with exactly one
+ * adaptation — its historical border-t became border-b for the new seat
  * (see the seam ledger). GROUP_RATIONALE stays dead: only the deleted stage
- * ever rendered it.
+ * ever rendered it. PERSONAS-COPY (PR-PERSONAS-COPY) then rewrote the six
+ * rows and the act label to the 13-step vocabulary per the 2026-08 persona
+ * research pack — the STRUCTURE is still bc1a6fef's; the historical copy
+ * lives in git history.
  *
  * id="modules" lives on the LIVE DEMO — TRAVEL section, and rode that
  * section's move up the page. It is a commerce contract, not decoration: the
@@ -750,46 +754,50 @@ const PROBLEM_LABEL_TOP_SM = [
 // svg FILES stay in public/demo per the spec; the strings live in git
 // history if a surface ever wants them back.
 
-// PERSONAS-3 → PERSONAS-PAYOFFS (round-5): each row = the hook question +
-// ONE plain-language outcome sentence + the spec's payoff sentence (the
-// final plain segment per row — extracted PROGRAMMATICALLY from the
-// Desktop-1440 mock's personas region, whose paragraphs were verified to
-// START byte-exactly with the shipped sentences; the remainder IS the
-// payoff — never retyped). Rows alternate prose and mono-purple module
-// fragments (the ruled idiom: max two per row, mid-sentence; rows where no
-// fragment reads naturally stay plain prose).
+// PERSONAS-PAYOFFS → PERSONAS-COPY (PR-PERSONAS-COPY): rows rewritten to the
+// 13-step vocabulary from the 2026-08 persona research pack (every claim
+// cited there); mono fragments only from the essay word list, max two per
+// row. Segment boundaries are the slate's — never resplit them.
 const PERSONAS: ReadonlyArray<{ label: string; segments: ReadonlyArray<{ text: string; mono?: true }> }> = [
   { label: 'FOUNDER', segments: [
-    { text: "Building a company? See how many months you've got, what the build is costing, and receipts for every dollar when investors ask." },
-    { text: " When someone asks where the money went, the answer is one click." },
+    { text: 'Building a company? See your ' },
+    { text: 'runway', mono: true },
+    { text: ' at any moment, and click any number back to the raw bank bytes when investors ask.' },
+    { text: ' Every dollar keeps its ' },
+    { text: 'fingerprint', mono: true },
+    { text: '.' },
   ] },
   { label: 'TRADER', segments: [
-    { text: 'Trading your own money? Every fill lands in your ' },
+    { text: 'Trading your own money? Every fill finds its order and lands in your ' },
     { text: 'books', mono: true },
-    { text: ', keeps its receipt, and shows up on your ' },
+    { text: ', so your ' },
     { text: 'return', mono: true },
-    { text: ' — you just trade.' },
-    { text: " No April spreadsheet panic; it's been ready all year." },
+    { text: ' is ready all year.' },
+    { text: ' No April spreadsheet panic.' },
   ] },
   { label: 'CREATOR', segments: [
-    { text: 'Filming what you do? Your day plans your shoots, and your ' },
-    { text: 'calendar', mono: true },
-    { text: ' writes the script.' },
-    { text: " More posting, less planning." },
+    { text: 'Filming what you do? Your ' },
+    { text: 'Calendar', mono: true },
+    { text: ' plans your shoots, and the tax you owe updates as the money lands.' },
+    { text: ' More posting, less panic.' },
   ] },
   { label: 'NOMAD', segments: [
-    { text: 'Living out of a suitcase? Book the trip, and the budget, calendar, and ' },
-    { text: 'books', mono: true },
-    { text: ' update themselves — from anywhere.' },
-    { text: " Change countries; your money system doesn't care." },
+    { text: 'Living out of a suitcase? Book the trip inside the system, and the card charge ' },
+    { text: 'matches', mono: true },
+    { text: ' its booking by itself.' },
+    { text: ' Nothing lost between countries.' },
   ] },
   { label: 'SMALL BUSINESS OWNER', segments: [
-    { text: "Running a small business? Know what came in, what went out, and what's left — without hiring a bookkeeper." },
-    { text: " You see what an accountant would see, in plain words, every day." },
+    { text: 'Running the whole thing yourself? ' },
+    { text: 'Posting', mono: true },
+    { text: ' rules write every debit and credit, so you never type a journal entry.' },
+    { text: ' No more spreadsheet tabs.' },
   ] },
   { label: 'STUDENT', segments: [
-    { text: "First bank account? Learn where your money goes before it's gone — the app shows you how." },
-    { text: " You'll pick up real accounting without ever taking the class." },
+    { text: 'First real paycheck? Watch one $500 travel your whole ' },
+    { text: 'Ledger', mono: true },
+    { text: ' — every term explained the first time you see it.' },
+    { text: " The class most schools still don't require." },
   ] },
 ];
 
@@ -1187,7 +1195,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         <div className="w-full border-b border-border">
           <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10 lg:pt-[60px] pb-12 lg:pb-[68px]">
             <p className="text-center font-mono text-xs lg:text-[10px] font-semibold tracking-[0.16em] text-text-muted">
-              SAME NINE MODULES <span className="text-brand-gold">·</span> DIFFERENT REASONS
+              ONE SYSTEM <span className="text-brand-gold">·</span> SIX LIVES
             </p>
             <div className="mx-auto mt-5 max-w-[880px]">
               {PERSONAS.map((row, index) => {
