@@ -1187,17 +1187,24 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-        {/* ACT 2 — PERSONAS-3 (value cases): hook question + one outcome
+        {/* ACT 2 — PERSONAS (value cases): hook question + one outcome
             sentence per row; module-name fragments wear the mono purple
             idiom mid-sentence. Rows: border-light rules (§0's inner
             hairline — the exact #EBE4F7 token). The '·' in the act label
-            wears gold — the Act 1 label's own separator idiom. */}
+            wears gold. PERSONAS-CHROME: the act adopts the standard act
+            grammar — DONE-FOR-YOU's eyebrow/h2/py-10 classes verbatim,
+            left-aligned, rows full container width; the sentence tier is
+            slide 09's body tier. Row texts and the label are FROZEN; the
+            outer div's border-b (the personas|header rule) is untouched. */}
         <div className="w-full border-b border-border">
-          <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10 lg:pt-[60px] pb-12 lg:pb-[68px]">
-            <p className="text-center font-mono text-xs lg:text-[10px] font-semibold tracking-[0.16em] text-text-muted">
+          <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
+            <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">
               ONE SYSTEM <span className="text-brand-gold">·</span> SIX LIVES
             </p>
-            <div className="mx-auto mt-5 max-w-[880px]">
+            <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">
+              Who is this for?
+            </h2>
+            <div className="mt-5">
               {PERSONAS.map((row, index) => {
                 const open = openPersona === index;
                 return (
@@ -1211,7 +1218,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                       <span className="font-mono text-xs font-semibold tracking-wider text-text-muted">{row.label}</span>
                       <span aria-hidden="true" className="font-mono text-[14px] text-text-faint lg:hidden">{open ? '−' : '+'}</span>
                     </button>
-                    <p className={`${open ? 'block' : 'hidden'} lg:block mt-1 text-[14.5px] text-text-primary lg:mt-0`}>
+                    <p className={`${open ? 'block' : 'hidden'} lg:block mt-1 text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary lg:mt-0`}>
                       {row.segments.map((seg, i) =>
                         seg.mono ? (
                           <span key={i} className="font-mono text-[12.5px] font-semibold text-brand-purple">{seg.text}</span>
