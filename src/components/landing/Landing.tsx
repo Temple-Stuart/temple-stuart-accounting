@@ -9,6 +9,7 @@
  *   hero (full-bleed aubergine band)
  *   LIVE DEMO — TRAVEL  — travel search/booking, real and public
  *   DONE-FOR-YOU        — the professional-services panel
+ *   THE PIPELINE header — names the 13-step run (essay front matter, PR-CHROME)
  *   01 / IDENTIFY THE PROBLEM — the six-source fan + the twenty-five-tool sheet
  *   02 / IMPORT THE DATA      — the raw import table, four arrivals, the promises
  *   03 / LABEL THE DATA       — one rule per feed, nine rows, four kinds
@@ -616,12 +617,17 @@ const DECK = {
   trio: 'text-[13px] leading-[1.5] lg:text-[16.5px] text-brand-purple',
   hairline: 'mt-10 lg:mt-[76px] h-px w-full bg-border',
   q: 'mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple',
-  // PR-COLLAPSE: the step-header disclosure button and the hairline beneath
-  // it — the retired personas accordion's shape (5010ca1f), flat and
-  // instant, glyphs as text in the label tier. Every utility here already
-  // rides elsewhere in this file.
-  stepButton: 'flex w-full items-baseline justify-between gap-3 text-left',
-  stepRule: 'mt-[14px] h-px w-full bg-border',
+  // PR-COLLAPSE → PR-CHROME: the step-header disclosure button is a compact
+  // BAR now — bg-bg-row fill, 1px border-border, px-4 py-3 (the personas
+  // accordion's own 12px rhythm, 5010ca1f) — so collapsed steps read as one
+  // gray stack. The bar's border replaced the old stepRule hairline; label
+  // and glyph inside are byte-identical. Every utility already rides
+  // elsewhere in this file.
+  stepButton: 'flex w-full items-baseline justify-between gap-3 border border-border bg-bg-row px-4 py-3 text-left',
+  // A COLLAPSED step's section contributes only its bar plus this 8px gap —
+  // no act padding, no border-t (the bar's own border is the rule; see the
+  // seam ledger). Expanded sections keep their full act classes.
+  sectionBar: 'max-w-7xl mx-auto px-4 lg:px-8 pb-2',
 } as const;
 
 // PR-COLLAPSE: the 13 deck steps' section ids, order-parallel to the acts.
@@ -1114,6 +1120,28 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
+      {/* ── THE PIPELINE HEADER (PR-CHROME). Names the 13-step run so the
+            collapsed bars below read as one unit. The headline and sub are
+            the essay's front matter, VERBATIM — no invented sentences; the
+            two mono lines are the run's name and the essay's Date · Time ·
+            Money subtitle in the label tier. Act grammar, existing classes
+            only.
+            SEAM: this act takes border-b — done-for-you's border-b closes
+            done-for-you|header from above, and this act's border-b closes
+            header|01, which preserves 01's own no-border exception exactly
+            as the seam ledger records it. One rule per boundary, both
+            boundaries. */}
+      <section aria-label="The pipeline" className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-b border-border">
+        <p className={DECK.eyebrow}>THE PIPELINE — 13 STEPS</p>
+        <p className={`mt-2 ${DECK.eyebrow}`}>DATE · TIME · MONEY</p>
+        <h2 className={DECK.h2}>
+          One Ledger.<br />One Calendar.
+        </h2>
+        <p className={DECK.sub}>
+          The full system, start to end. Written so anyone can understand it — and build it.
+        </p>
+      </section>
+
       {/* ── PROBLEM-01 / SIX-SOURCE DIAGRAM. This is where the TEACHING
             SEQUENCE starts — the two acts above it are live revenue surfaces
             and carry no step number, so 01 is still the first number a reader
@@ -1136,14 +1164,22 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                                          governs the demo act rather than this
                                          one.
               live demo | done-for-you → the demo act's border-b
-              done-for-you | 01 problem→ done-for-you's border-b
+              done-for-you | pipeline header → done-for-you's border-b
+              pipeline header | 01 problem   → the header's border-b (PR-CHROME
+                                         seated the header act between them;
+                                         01's no-border exception survives
+                                         unchanged)
               01 problem | 02 import   → the import act's border-t
               02 import | 03 routing   → the routing act's border-t
               03 routing | 04 handoff  → the handoff act's border-t
-              04 … 13 (the deck run)   → each act's own border-t — PR-DECK
-                                         appended 05–13 the ruled way, one
-                                         border-t per new act, no existing
-                                         border touched
+              04 … 13 (the deck run)   → each act's own border-t WHEN EXPANDED
+                                         — PR-DECK appended 05–13 the ruled
+                                         way, one border-t per new act.
+                                         PR-CHROME: a COLLAPSED step renders
+                                         only its bar (DECK.sectionBar has no
+                                         border-t); the bar's own 1px border
+                                         is that boundary's one rule, so the
+                                         law holds in both states
               13 proof | built on      → built-on's border-t (the proof act
                                          ends the teaching run and, like every
                                          numbered act, draws no bottom rule of
@@ -1159,8 +1195,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             changed no existing border — built-on's border-t, which used to close
             routing|built-on, now closes handoff|built-on without being touched.
             THE ONE EXCEPTION IS 01 ITSELF: this act has no border class at all,
-            because the act above it is done-for-you, a revenue surface that
-            closes its own bottom edge (see done-for-you|01 above). So 02 and 03
+            because the act above it closes its own bottom edge — done-for-you
+            originally, the pipeline header's border-b since PR-CHROME (see
+            the ledger above). So 02 and 03
             take border-t and 01 takes nothing. Do not "make it consistent" by
             adding a border-t here — that would double the rule against
             done-for-you's border-b.
@@ -1242,7 +1279,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             The six family labels stay HTML absolutely positioned over the fan,
             which is what the rule was written for. BY HAND, part of the drawing
             itself, is still inside the SVG. ─────────────────────────────────────────── */}
-      <section id="deck-01" aria-label="The problem" className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px]">
+      <section id="deck-01" aria-label="The problem" className={openSteps[0] ? 'max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px]' : DECK.sectionBar}>
         <button
           type="button"
           aria-expanded={openSteps[0]}
@@ -1253,7 +1290,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <span className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.12em] text-text-faint">01 / IDENTIFY THE PROBLEM</span>
           <span aria-hidden="true" className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.12em] text-text-faint">{openSteps[0] ? '−' : '+'}</span>
         </button>
-        <div className={DECK.stepRule} aria-hidden="true" />
         <div id="deck-01-body" className={openSteps[0] ? undefined : 'hidden'}>
           <h2 className="mt-[18px] text-[27px] lg:text-[38px] font-medium tracking-[-0.025em] text-brand-purple">
             Twenty-five tools.<br />None of them knows what the others did.
@@ -1472,7 +1508,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             data row drops its rule for the table's own outer border. The
             payload row's emphasis is the rust tail of its own description
             (IMPORT_COLUMNS third tuple slot) — no fill, no weight change. */}
-      <section id="deck-02" aria-label="The import" className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border">
+      <section id="deck-02" aria-label="The import" className={openSteps[1] ? 'max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border' : DECK.sectionBar}>
         <button
           type="button"
           aria-expanded={openSteps[1]}
@@ -1483,7 +1519,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <span className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">02 / IMPORT THE DATA</span>
           <span aria-hidden="true" className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">{openSteps[1] ? '−' : '+'}</span>
         </button>
-        <div className={DECK.stepRule} aria-hidden="true" />
         <div id="deck-02-body" className={openSteps[1] ? undefined : 'hidden'}>
           <h2 className="mt-[26px] text-[27px] leading-[1.2] lg:text-[38px] tracking-[-0.025em] text-brand-purple">
             Store what arrived.<br />Then decide what it means.
@@ -1604,7 +1639,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             COLUMN: the only colSpan here lives on an lg:hidden ROW, and a row
             with display:none leaves the table model entirely, so desktop counts
             four columns from the header and mobile counts three. ─────────── */}
-      <section id="deck-03" aria-label="The routing" className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border">
+      <section id="deck-03" aria-label="The routing" className={openSteps[2] ? 'max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border' : DECK.sectionBar}>
         <button
           type="button"
           aria-expanded={openSteps[2]}
@@ -1615,7 +1650,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <span className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">03 / LABEL THE DATA</span>
           <span aria-hidden="true" className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">{openSteps[2] ? '−' : '+'}</span>
         </button>
-        <div className={DECK.stepRule} aria-hidden="true" />
         <div id="deck-03-body" className={openSteps[2] ? undefined : 'hidden'}>
           <h2 className="mt-[26px] text-[27px] leading-[1.2] lg:text-[38px] tracking-[-0.025em] text-brand-purple">
             One rule per feed.<br />Written down.
@@ -1714,7 +1748,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             THE ENDING GREW A NOTICE BLOCK: statement, then three
             statement-tier lines the deck uses to set up 05 and 09 (posting is
             the one table nobody sends you), then the closing question. */}
-      <section id="deck-04" aria-label="The handoff" className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border">
+      <section id="deck-04" aria-label="The handoff" className={openSteps[3] ? 'max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border' : DECK.sectionBar}>
         <button
           type="button"
           aria-expanded={openSteps[3]}
@@ -1725,7 +1759,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <span className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">04 / MAP THE DATA TO ITS TABLE</span>
           <span aria-hidden="true" className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">{openSteps[3] ? '−' : '+'}</span>
         </button>
-        <div className={DECK.stepRule} aria-hidden="true" />
         <div id="deck-04-body" className={openSteps[3] ? undefined : 'hidden'}>
           <h2 className="mt-[26px] text-[27px] leading-[1.2] lg:text-[38px] tracking-[-0.025em] text-brand-purple">
             Five.<br />The kind is the address.
@@ -1788,7 +1821,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             nine acts cannot drift from 01–04 or from each other. Bare
             two-column prose — the deck gives 05 no table. border-t closes
             handoff|lanes per the seam ledger. */}
-      <section id="deck-05" aria-label="The two lanes" className={DECK.section}>
+      <section id="deck-05" aria-label="The two lanes" className={openSteps[4] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
           aria-expanded={openSteps[4]}
@@ -1799,7 +1832,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <span className={DECK.eyebrow}>05 / SPLIT THE DATA INTO TWO LANES</span>
           <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[4] ? '−' : '+'}</span>
         </button>
-        <div className={DECK.stepRule} aria-hidden="true" />
         <div id="deck-05-body" className={openSteps[4] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             Some things happen to you.<br />Some things you make happen.
@@ -1830,7 +1862,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             rotated 45° (no token covers #B9B2C6; exact hex per the deck's
             token law), shaft centred on the beat-name line. Mobile stacks the
             beats and drops the arrows. */}
-      <section id="deck-06" aria-label="The loop" className={DECK.section}>
+      <section id="deck-06" aria-label="The loop" className={openSteps[5] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
           aria-expanded={openSteps[5]}
@@ -1841,7 +1873,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <span className={DECK.eyebrow}>06 / RUN THE LOOP</span>
           <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[5] ? '−' : '+'}</span>
         </button>
-        <div className={DECK.stepRule} aria-hidden="true" />
         <div id="deck-06-body" className={openSteps[5] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             Every tool runs the same four beats.<br />Discover. Decide. Commit. Record.
@@ -1900,7 +1931,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
       {/* ── DECK-07 / THE MASTER TABLE. The 02 field-table idiom: two
             columns, no thead (the deck names no headers), one rust label
             above, colgroup carrying the fixed-layout widths. */}
-      <section id="deck-07" aria-label="The master table" className={DECK.section}>
+      <section id="deck-07" aria-label="The master table" className={openSteps[6] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
           aria-expanded={openSteps[6]}
@@ -1911,7 +1942,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <span className={DECK.eyebrow}>07 / STORE EVERYTHING YOU DO IN ONE MASTER TABLE</span>
           <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[6] ? '−' : '+'}</span>
         </button>
-        <div className={DECK.stepRule} aria-hidden="true" />
         <div id="deck-07-body" className={openSteps[6] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             One table holds<br />everything you do.
@@ -1956,7 +1986,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             gaps; caption 11px faint centred 8px beneath. The centre column's
             lg padding-top optically centres MATCH on the card row. Mobile
             stacks the three cells; the flanking hairlines are desktop-only. */}
-      <section id="deck-08" aria-label="The match" className={DECK.section}>
+      <section id="deck-08" aria-label="The match" className={openSteps[7] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
           aria-expanded={openSteps[7]}
@@ -1967,7 +1997,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <span className={DECK.eyebrow}>08 / MATCH THE TWO LANES</span>
           <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[7] ? '−' : '+'}</span>
         </button>
-        <div className={DECK.stepRule} aria-hidden="true" />
         <div id="deck-08-body" className={openSteps[7] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             The deposit meets the invoice.<br />The fill meets the order.
@@ -2019,7 +2048,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             idiom), the rules table with gold debit/credit values, the worked
             sale, and the no-money strip. Gold here is exactly its licence:
             dollar amounts and debit/credit values. */}
-      <section id="deck-09" aria-label="The posting" className={DECK.section}>
+      <section id="deck-09" aria-label="The posting" className={openSteps[8] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
           aria-expanded={openSteps[8]}
@@ -2030,7 +2059,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <span className={DECK.eyebrow}>09 / LET THE RULES WRITE THE LINES</span>
           <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[8] ? '−' : '+'}</span>
         </button>
-        <div className={DECK.stepRule} aria-hidden="true" />
         <div id="deck-09-body" className={openSteps[8] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             Nobody sends them.<br />Rules write them.
@@ -2098,7 +2126,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
       {/* ── DECK-10 / THE ANSWERS. QUESTION | THE MATH; the math's money
             words ink gold via the pre-split segments. The emphasis line is
             the deck's standalone rust. */}
-      <section id="deck-10" aria-label="The answers" className={DECK.section}>
+      <section id="deck-10" aria-label="The answers" className={openSteps[9] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
           aria-expanded={openSteps[9]}
@@ -2109,7 +2137,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <span className={DECK.eyebrow}>10 / TURN THE LINES INTO ANSWERS</span>
           <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[9] ? '−' : '+'}</span>
         </button>
-        <div className={DECK.stepRule} aria-hidden="true" />
         <div id="deck-10-body" className={openSteps[9] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             Every answer is math<br />on the lines.
@@ -2162,7 +2189,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             house escape hatch for computed positioning (the PROBLEM fan's
             label tops, CalendarGrid.tsx:747). The deadline strip runs full
             width below both windows. */}
-      <section id="deck-11" aria-label="The two windows" className={DECK.section}>
+      <section id="deck-11" aria-label="The two windows" className={openSteps[10] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
           aria-expanded={openSteps[10]}
@@ -2173,7 +2200,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <span className={DECK.eyebrow}>11 / OPEN THE TWO WINDOWS</span>
           <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[10] ? '−' : '+'}</span>
         </button>
-        <div className={DECK.stepRule} aria-hidden="true" />
         <div id="deck-11-body" className={openSteps[10] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             One Ledger. One Calendar.<br />All twenty-five.
@@ -2284,7 +2310,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             table scrolls horizontally below lg (the house overflow-x-auto
             idiom — ModuleCostBreakdown above): dropping three of four doors
             would lose the slide. */}
-      <section id="deck-12" aria-label="The threads" className={DECK.section}>
+      <section id="deck-12" aria-label="The threads" className={openSteps[11] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
           aria-expanded={openSteps[11]}
@@ -2295,7 +2321,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <span className={DECK.eyebrow}>12 / WATCH ONE DOLLAR RUN THE WHOLE MACHINE</span>
           <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[11] ? '−' : '+'}</span>
         </button>
-        <div className={DECK.stepRule} aria-hidden="true" />
         <div id="deck-12-body" className={openSteps[11] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             One $500 sale runs the machine.<br />Then four more doors open.
@@ -2373,7 +2398,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             roman, deliberately NOT a question and NOT the question size pair;
             nothing on this page is italic, so roman is the default it ships
             with. */}
-      <section id="deck-13" aria-label="The proof" className={DECK.section}>
+      <section id="deck-13" aria-label="The proof" className={openSteps[12] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
           aria-expanded={openSteps[12]}
@@ -2384,7 +2409,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <span className={DECK.eyebrow}>13 / PROVE EVERY NUMBER</span>
           <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[12] ? '−' : '+'}</span>
         </button>
-        <div className={DECK.stepRule} aria-hidden="true" />
         <div id="deck-13-body" className={openSteps[12] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             Click any number.<br />Walk it back.
