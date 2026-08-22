@@ -9,6 +9,8 @@
  *   hero (full-bleed aubergine band)
  *   LIVE DEMO — TRAVEL  — travel search/booking, real and public
  *   DONE-FOR-YOU        — the professional-services panel
+ *   PERSONAS            — same nine modules · different reasons (restored
+ *                         verbatim from bc1a6fef, PR-PERSONAS-RESTORE)
  *   THE PIPELINE header — names the 13-step run (essay front matter, PR-CHROME)
  *   01 / IDENTIFY THE PROBLEM — the six-source fan + the twenty-five-tool sheet
  *   02 / IMPORT THE DATA      — the raw import table, four arrivals, the promises
@@ -58,14 +60,21 @@
  * HANDOFF after it with one const and one border-t. Neither changed an
  * existing border.
  *
- * MODULES-RETIRED (this PR). The nine-module deck — pillar cards, the
+ * MODULES-RETIRED (6a439eaf). The nine-module deck — pillar cards, the
  * nine-row module sheet, the segment control, the personas rail and the
- * merged '02 / THE NINE MODULES' stage that replaced them all — is DELETED.
+ * merged '02 / THE NINE MODULES' stage that replaced them all — was DELETED.
  * It was built on a superseded model and a teaching sequence replaces it. Gone
  * with it: DECK_CATEGORIES, PILLAR_CARDS, REPLACED_APPS, FAMILY_OFFSETS,
- * FRAME_LINKS, PERSONAS, GROUP_RATIONALE, the whole stage/autoplay state
- * machine, and the lucide + GLIMPSES imports that served only them. Do not
- * reconstruct any of it from this comment; read the git history instead.
+ * FRAME_LINKS, GROUP_RATIONALE, the whole stage/autoplay state machine, and
+ * the lucide + GLIMPSES imports that served only them. Do not reconstruct any
+ * of it from this comment; read the git history instead.
+ * PERSONAS-RESTORED (PR-PERSONAS-RESTORE): the personas rail alone came BACK,
+ * verbatim from bc1a6fef (the last commit that carried it — 6a439eaf's
+ * parent): the PERSONAS const, the openPersona accordion state, and the ACT 2
+ * block, remounted between DONE-FOR-YOU and the pipeline header with exactly
+ * one adaptation — its historical border-t became border-b for the new seat
+ * (see the seam ledger). GROUP_RATIONALE stays dead: only the deleted stage
+ * ever rendered it.
  *
  * id="modules" lives on the LIVE DEMO — TRAVEL section, and rode that
  * section's move up the page. It is a commerce contract, not decoration: the
@@ -741,6 +750,49 @@ const PROBLEM_LABEL_TOP_SM = [
 // svg FILES stay in public/demo per the spec; the strings live in git
 // history if a surface ever wants them back.
 
+// PERSONAS-3 → PERSONAS-PAYOFFS (round-5): each row = the hook question +
+// ONE plain-language outcome sentence + the spec's payoff sentence (the
+// final plain segment per row — extracted PROGRAMMATICALLY from the
+// Desktop-1440 mock's personas region, whose paragraphs were verified to
+// START byte-exactly with the shipped sentences; the remainder IS the
+// payoff — never retyped). Rows alternate prose and mono-purple module
+// fragments (the ruled idiom: max two per row, mid-sentence; rows where no
+// fragment reads naturally stay plain prose).
+const PERSONAS: ReadonlyArray<{ label: string; segments: ReadonlyArray<{ text: string; mono?: true }> }> = [
+  { label: 'FOUNDER', segments: [
+    { text: "Building a company? See how many months you've got, what the build is costing, and receipts for every dollar when investors ask." },
+    { text: " When someone asks where the money went, the answer is one click." },
+  ] },
+  { label: 'TRADER', segments: [
+    { text: 'Trading your own money? Every fill lands in your ' },
+    { text: 'books', mono: true },
+    { text: ', keeps its receipt, and shows up on your ' },
+    { text: 'return', mono: true },
+    { text: ' — you just trade.' },
+    { text: " No April spreadsheet panic; it's been ready all year." },
+  ] },
+  { label: 'CREATOR', segments: [
+    { text: 'Filming what you do? Your day plans your shoots, and your ' },
+    { text: 'calendar', mono: true },
+    { text: ' writes the script.' },
+    { text: " More posting, less planning." },
+  ] },
+  { label: 'NOMAD', segments: [
+    { text: 'Living out of a suitcase? Book the trip, and the budget, calendar, and ' },
+    { text: 'books', mono: true },
+    { text: ' update themselves — from anywhere.' },
+    { text: " Change countries; your money system doesn't care." },
+  ] },
+  { label: 'SMALL BUSINESS OWNER', segments: [
+    { text: "Running a small business? Know what came in, what went out, and what's left — without hiring a bookkeeper." },
+    { text: " You see what an accountant would see, in plain words, every day." },
+  ] },
+  { label: 'STUDENT', segments: [
+    { text: "First bank account? Learn where your money goes before it's gone — the app shows you how." },
+    { text: " You'll pick up real accounting without ever taking the class." },
+  ] },
+];
+
 // FD-1n: the footnote marks ACTUALLY referenced by the allocation rows
 // (amount footnotes + the ᵉ riding split percentages) — the merged registry
 // renders only these, derived, never hardcoded.
@@ -883,6 +935,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
   // restores an opener restores the behaviour. Flagged rather than silently
   // left looking live.
   const [showDemo, setShowDemo] = useState(false);
+
+  // PERSONAS-MOBILE: below lg the persona rows collapse to a one-open-at-a-
+  // time accordion — FOUNDER (index 0) open by default; tapping the open row
+  // closes it. Desktop is untouched: the toggle renders as the inert label
+  // (lg:pointer-events-none) and every sentence stays lg:block.
+  const [openPersona, setOpenPersona] = useState<number | null>(0);
 
   // PR-COLLAPSE: one open flag per deck step, independent toggles (any
   // number can be open). ALL 13 ship collapsed — the URL-hash effect below
@@ -1121,6 +1179,47 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
+        {/* ACT 2 — PERSONAS-3 (value cases): hook question + one outcome
+            sentence per row; module-name fragments wear the mono purple
+            idiom mid-sentence. Rows: border-light rules (§0's inner
+            hairline — the exact #EBE4F7 token). The '·' in the act label
+            wears gold — the Act 1 label's own separator idiom. */}
+        <div className="w-full border-b border-border">
+          <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10 lg:pt-[60px] pb-12 lg:pb-[68px]">
+            <p className="text-center font-mono text-xs lg:text-[10px] font-semibold tracking-[0.16em] text-text-muted">
+              SAME NINE MODULES <span className="text-brand-gold">·</span> DIFFERENT REASONS
+            </p>
+            <div className="mx-auto mt-5 max-w-[880px]">
+              {PERSONAS.map((row, index) => {
+                const open = openPersona === index;
+                return (
+                  <div key={row.label} className="border-t border-border-light py-3 first:border-t-0 lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:items-baseline lg:gap-4">
+                    <button
+                      type="button"
+                      aria-expanded={open}
+                      onClick={() => setOpenPersona(open ? null : index)}
+                      className="flex w-full items-baseline justify-between py-3 lg:pointer-events-none lg:py-0"
+                    >
+                      <span className="font-mono text-xs font-semibold tracking-wider text-text-muted">{row.label}</span>
+                      <span aria-hidden="true" className="font-mono text-[14px] text-text-faint lg:hidden">{open ? '−' : '+'}</span>
+                    </button>
+                    <p className={`${open ? 'block' : 'hidden'} lg:block mt-1 text-[14.5px] text-text-primary lg:mt-0`}>
+                      {row.segments.map((seg, i) =>
+                        seg.mono ? (
+                          <span key={i} className="font-mono text-[12.5px] font-semibold text-brand-purple">{seg.text}</span>
+                        ) : (
+                          <Fragment key={i}>{seg.text}</Fragment>
+                        ),
+                      )}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+
       {/* ── THE PIPELINE HEADER (PR-CHROME). Names the 13-step run so the
             collapsed bars below read as one unit. The headline and sub are
             the essay's front matter, VERBATIM — no invented sentences; the
@@ -1165,7 +1264,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                                          governs the demo act rather than this
                                          one.
               live demo | done-for-you → the demo act's border-b
-              done-for-you | pipeline header → done-for-you's border-b
+              done-for-you | personas → done-for-you's border-b (the restored
+                                         personas act carries NO border-t —
+                                         its historical border-t was the one
+                                         adaptation of the restore)
+              personas | pipeline header → the personas act's border-b (the
+                                         adapted rule: border-t became
+                                         border-b for the new seat)
               pipeline header | 01 problem   → the header's border-b (PR-CHROME
                                          seated the header act between them;
                                          01's no-border exception survives
