@@ -1235,12 +1235,14 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
 
 
-      {/* ── THE PIPELINE HEADER (PR-CHROME). Names the 13-step run so the
-            collapsed bars below read as one unit. The headline and sub are
-            the essay's front matter, VERBATIM — no invented sentences; the
-            two mono lines are the run's name and the essay's Date · Time ·
-            Money subtitle in the label tier. Act grammar, existing classes
-            only.
+      {/* ── THE PIPELINE HEADER (PR-CHROME → PR-PIPE-TITLE). Names the
+            13-step run so the collapsed bars below read as one unit, and
+            says what the pipeline IS — the data pipe the whole system runs
+            on. The headline and sub are the essay's front matter, VERBATIM
+            (the essay updated to the data-pipe-and-foundation claim in the
+            same breath as this PR); the two mono lines are the run's name
+            and the essay's Date · Time · Money subtitle in the label tier.
+            Act grammar, existing classes only.
             SEAM: this act takes border-b — done-for-you's border-b closes
             done-for-you|header from above, and this act's border-b closes
             header|01, which preserves 01's own no-border exception exactly
@@ -1250,10 +1252,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         <p className={DECK.eyebrow}>THE PIPELINE — 13 STEPS</p>
         <p className={`mt-2 ${DECK.eyebrow}`}>DATE · TIME · MONEY</p>
         <h2 className={DECK.h2}>
-          One Ledger. One Calendar.
+          One data pipe runs the whole system.
         </h2>
         <p className={DECK.sub}>
-          The full system, start to end. Written so anyone can understand it — and build it.
+          Thirteen steps turn raw data into one Ledger and one Calendar — the foundation everything else is built on. Written so anyone can understand it — and build it.
         </p>
       </section>
 
