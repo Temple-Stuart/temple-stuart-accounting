@@ -12,7 +12,9 @@
  *                         (structure restored from bc1a6fef by
  *                         PR-PERSONAS-RESTORE; copy PR-PERSONAS-COPY; seated
  *                         here by PR-REORDER — the who-first order)
- *   [PR-MODULES placeholder — "the what", content TBD]
+ *   THE MODULES         — the what: six chips on the pipe, five LIVE ▪ +
+ *                         HUB CALENDAR building (ACT 3 structure recovered
+ *                         from bc1a6fef, facts corrected, PR-MODULES)
  *   DONE-FOR-YOU        — the professional-services panel
  *   THE PIPELINE header — names the 13-step run (essay front matter, PR-CHROME)
  *   01 / IDENTIFY THE PROBLEM — the six-source fan + the twenty-five-tool sheet
@@ -82,7 +84,11 @@
  * ever rendered it. PERSONAS-COPY (PR-PERSONAS-COPY) then rewrote the six
  * rows and the act label to the 13-step vocabulary per the 2026-08 persona
  * research pack — the STRUCTURE is still bc1a6fef's; the historical copy
- * lives in git history.
+ * lives in git history. MODULES-RESTORED (PR-MODULES): ACT 3's label row,
+ * chip anatomy and truth line came back the same way (structure from
+ * bc1a6fef, false facts corrected, the dead stage NOT restored — see the
+ * act's own comment); PILLAR_CARDS itself stays dead, MODULE_CHIPS owns
+ * today's six.
  *
  * id="modules" lives on the LIVE DEMO — TRAVEL section, and rode that
  * section's move up the page. It is a commerce contract, not decoration: the
@@ -805,6 +811,26 @@ const PERSONAS: ReadonlyArray<{ label: string; segments: ReadonlyArray<{ text: s
   ] },
 ];
 
+// MODULES-RESTORED (PR-MODULES): the six modules on the pipe, as
+// [label, status, desc] — ACT 3's chip-row structure recovered from
+// bc1a6fef:1583-1633 with the audit's false claims corrected: nine chips
+// became today's six, the gold ▪ marks every LIVE module (it was Travel's
+// alone when only Travel was live — bc1a6fef:1626), HUB CALENDAR is
+// BUILDING (faint mono, never gold — the :1661 treatment), and the
+// descriptions are the CD-MODULES mockup's founder-reviewed one-liners.
+// STATUSES ARE LOCKED. The old PILLAR_CARDS stays dead with the stage; this
+// const owns the six. No pricing copy anywhere in this act — the truth
+// line's false 'Paid modules are launching soon.' sentence died with the
+// audit.
+const MODULE_CHIPS = [
+  ['OPERATIONS', 'LIVE', 'Projects, routines, and your daily plan — the work side of the machine.'],
+  ['TRAVEL', 'LIVE', 'Search, book, and the card charge finds its booking by itself.'],
+  ['TRADING', 'LIVE', 'Every fill lands with its lot, its cost, and its receipt.'],
+  ['BOOKKEEPING', 'LIVE', 'Double-entry books that reconcile, close, and export for a CPA.'],
+  ['TAX & RUNWAY', 'LIVE', 'Tax documents, what-if scenarios, and how long you can last — from the same numbers as everything else.'],
+  ['HUB CALENDAR', 'BUILDING', 'One calendar for planned, actual, and deadlines — all three entities.'],
+] as const;
+
 // FD-1n: the footnote marks ACTUALLY referenced by the allocation rows
 // (amount footnotes + the ᵉ riding split percentages) — the merged registry
 // renders only these, derived, never hardcoded.
@@ -1166,7 +1192,47 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           </div>
         </div>
 
-      {/* MODULES ACT LANDS HERE — "the what" (PR-MODULES, content TBD) */}
+      {/* ── THE MODULES (PR-MODULES). ACT 3's structure recovered from
+            bc1a6fef:1583-1633 — the label row and chip anatomy verbatim, the
+            truth line minus its false sentence — seated in the placeholder
+            between personas and DONE-FOR-YOU. ADAPTATIONS, all forced by the
+            audit, none decorative: the chips are STATIC (their onClick /
+            aria-pressed / active-variant / autoplay-pause contract targeted
+            the stage machinery deleted in 6a439eaf, which is not restored, so
+            button became div and the hover affordance died with it); the
+            nine-chip scroller strip became a six-cell grid so each module
+            carries its one-line description (the dead stage used to hold
+            module detail); the compact lg chip paddings (lg:px-2 lg:pt-[9px]
+            lg:pb-2) existed to fit nine across and retired with the count.
+            Gold in this act: the LIVE ▪ glyphs only.
+            SEAM: the historical border-t became border-b for this seat (the
+            personas restore's own precedent) — personas' border-b closes
+            personas|modules, this act's border-b closes modules|done-for-you.
+            The seam ledger records both. */}
+      <div className="w-full border-b border-border">
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10 lg:pt-[60px] pb-12 lg:pb-[76px]">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <p className="font-mono text-xs lg:text-[10px] font-semibold tracking-[0.16em] text-text-muted">THE MODULES</p>
+          </div>
+          <div role="group" aria-label="The six modules" className="mt-4 grid gap-2 lg:grid-cols-3 lg:gap-3">
+            {MODULE_CHIPS.map(([label, status, desc], i) => (
+              <div key={label}>
+                <div className="flex items-baseline gap-1.5 whitespace-nowrap border border-b-[3px] border-border bg-ts-white px-3 pt-[10px] pb-[9px] font-mono text-xs lg:text-[10.5px] tracking-[0.06em] text-text-secondary">
+                  <span className="text-text-faint">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="font-semibold uppercase text-brand-purple">{label}</span>
+                  {status === 'LIVE' ? (
+                    <span className="ml-auto font-semibold text-brand-purple">LIVE <span className="text-brand-gold" aria-hidden="true">▪</span></span>
+                  ) : (
+                    <span className="ml-auto tracking-[0.05em] text-text-muted">{status}</span>
+                  )}
+                </div>
+                <p className="mt-2 text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">{desc}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 font-mono text-xs lg:text-[11px] text-text-muted">Search & book travel free today — no account needed.</p>
+        </div>
+      </div>
 
       {/* ── LANDING-V4 (Alex's ruling, reversing the V2 seat): DONE-FOR-YOU is
             its own section — no right slot. Body = the PROFESSIONAL SERVICES
@@ -1289,13 +1355,16 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                                          moved personas above done-for-you —
                                          the who-first order; the strip case
                                          below still single-rules both seams)
-              personas | done-for-you  → the personas act's border-b (it
-                                         carries NO border-t — its historical
-                                         border-t became border-b at the
-                                         PR-PERSONAS-RESTORE remount, and that
-                                         rule travels with the act; the
-                                         PR-MODULES placeholder comment between
-                                         them is not DOM)
+              personas | modules       → the personas act's border-b (its
+                                         historical border-t became border-b at
+                                         the PR-PERSONAS-RESTORE remount, and
+                                         that rule travels with the act;
+                                         PR-MODULES filled the placeholder seat
+                                         between them)
+              modules | done-for-you   → the modules act's border-b (ACT 3's
+                                         historical border-t became border-b at
+                                         the PR-MODULES restore — the personas
+                                         precedent)
               done-for-you | pipeline header → done-for-you's border-b
               pipeline header | 01 problem   → the header's border-b (PR-CHROME
                                          seated the header act between them;
