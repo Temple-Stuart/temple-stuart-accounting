@@ -35,7 +35,7 @@
  * piece — never render the same content as both drawing and text.
  * PR-COLLAPSE: each step is a disclosure —
  * header button (label + '+'/'−' glyph, the retired personas accordion's
- * shape, 5010ca1f) over a hidden-class body; step 1 open by default, a
+ * shape, 5010ca1f) over a hidden-class body; all 13 collapsed by default, a
  * #deck-NN hash opens its step on load. RUST NOTE: the deck's "rust" group-label
  * colour has no token in this palette; brand-amber (#d97706) is the mapping,
  * chosen over inventing a hex. If Design lands a true rust token, swap
@@ -885,10 +885,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
   const [showDemo, setShowDemo] = useState(false);
 
   // PR-COLLAPSE: one open flag per deck step, independent toggles (any
-  // number can be open). Step 1 ships expanded, 2–13 collapsed. Show/hide is
+  // number can be open). ALL 13 ship collapsed — the URL-hash effect below
+  // is the only thing that opens a step automatically. Show/hide is
   // instant — the body div takes the `hidden` class, no animation, and the
   // copy stays in the DOM (the personas-accordion arrangement, 5010ca1f).
-  const [openSteps, setOpenSteps] = useState<boolean[]>(() => DECK_STEP_IDS.map((_, i) => i === 0));
+  const [openSteps, setOpenSteps] = useState<boolean[]>(() => DECK_STEP_IDS.map(() => false));
   // A URL hash naming a step's section id expands that step after mount.
   // The hash never reaches the server, so this cannot be an SSR branch —
   // first paint is always the deterministic default above.
@@ -1135,7 +1136,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         <p className={DECK.eyebrow}>THE PIPELINE — 13 STEPS</p>
         <p className={`mt-2 ${DECK.eyebrow}`}>DATE · TIME · MONEY</p>
         <h2 className={DECK.h2}>
-          One Ledger.<br />One Calendar.
+          One Ledger. One Calendar.
         </h2>
         <p className={DECK.sub}>
           The full system, start to end. Written so anyone can understand it — and build it.
