@@ -559,9 +559,8 @@ const DOOR_ROWS: ReadonlyArray<readonly [string, DoorCell, DoorCell, DoorCell, D
 
 // DECK-12 (PR-VOICE): the two truths under 'Two more truths from this
 // table:'. Truth (1) absorbed the old trade-close strip, in the essay's own
-// sentence, amounts and debit/credit values gold; truth (2) carries the
-// withholdings parenthetical and needs no gold — it is about lines NOT
-// being written.
+// sentence, amounts and debit/credit values gold; truth (2) needs no gold —
+// it is about lines NOT being written.
 const TRADE_CLOSE: ReadonlyArray<readonly [string, boolean]> = [
   ['(1) When a trade closes, the gain gets its own line. Sell for ', false],
   ['5,300.00', true],
@@ -575,7 +574,9 @@ const TRADE_CLOSE: ReadonlyArray<readonly [string, boolean]> = [
   ['Gain 300.00', true],
   ['.', false],
 ];
-const HOURS_TRUTH = '(2) Your hours never write a line by themselves. They only reach the books when a payroll run commits, exactly as Step 9 promised. (Withholdings, by the way, is just tax held back from a paycheck before it reaches anyone.)';
+// VOICE-2: the withholdings parenthetical moved to 09's four-gloss line —
+// glossed at its first on-screen use, the payroll rule row.
+const HOURS_TRUTH = '(2) Your hours never write a line by themselves. They only reach the books when a payroll run commits, exactly as Step 9 promised.';
 
 // DECK-13 (PR-VOICE): the reverse walk, [layer, artifact] — labels gold
 // mono, artifacts mono aubergine. The essay's '(N) The layer:' phrasing maps
@@ -1819,7 +1820,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           </div>
 
           <div className={DECK.hairline} aria-hidden="true" />
-          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>commit = pulling the trigger — the outside world moves.</p>
           <p className={DECK.q}>So how exactly do you make something happen?</p>
         </div>
       </section>
@@ -1920,9 +1920,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             Every authored thing — a booking, an invoice, a trade, a filing, a budget — is stored as one document in one master table.
           </p>
 
+          {/* VOICE-2 / SHOW DON'T ECHO: the rust label IS the framing line —
+              text echoing text is the same offence as text echoing a drawing,
+              so the statement-tier duplicate died. */}
           <p className={`mt-10 lg:mt-[76px] ${DECK.rust}`}>EVERY DOCUMENT CARRIES THE SAME FOUR THINGS</p>
-          {/* PR-VOICE: the essay's framing line, directly above its list. */}
-          <p className={`mt-[14px] ${DECK.statement}`}>Every document carries the same four things:</p>
           <table className={`mt-[14px] lg:mt-[18px] ${DECK.table}`}>
             <colgroup>
               <col className="w-[34%] lg:w-[25%]" />
@@ -2043,7 +2044,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             <p className="mt-2 text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">(1) a credit, for where the money came from,</p>
             <p className="mt-2 text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">(2) a debit, for where it went.</p>
             <p className="mt-2 text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">You never type them!</p>
-            <p className="mt-2 font-mono text-[11px] lg:text-[12px] text-text-faint">Three quick glosses before we go on: A/R means money owed TO you. A/P means money YOU owe. Clearing means a holding bin that must end at zero.</p>
+            <p className="mt-2 font-mono text-[11px] lg:text-[12px] text-text-faint">Four quick glosses before we go on: A/R means money owed TO you. A/P means money YOU owe. Clearing means a holding bin that must end at zero. Withholdings means tax held back from a paycheck before it reaches anyone.</p>
           </div>
 
           <table className={`mt-10 lg:mt-[76px] ${DECK.table}`}>
@@ -2350,8 +2351,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
 
           <p className={`mt-[22px] lg:mt-8 ${DECK.trio}`}>Read the last column twice! A project runs the whole loop — discover, decide, commit, match — and writes zero lines, because no money moved. The loop is bigger than money; money is just the loops that get a shadow.</p>
           {/* PR-VOICE: the two truths ride the old trade-close strip — truth
-              (1) absorbed its content, truth (2) carries the withholdings
-              parenthetical. */}
+              (1) absorbed its content. */}
           <p className={`mt-[14px] ${DECK.statement}`}>Two more truths from this table:</p>
           <div className="mt-[10px] border-y border-border py-[14px]">
             <p className="font-mono text-[11px] leading-[1.6] lg:text-[12px] text-text-secondary">
