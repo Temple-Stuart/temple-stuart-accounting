@@ -271,33 +271,33 @@ const PROBLEM_SHEET_SM = [
 // fills.
 const PROBLEM_SHEET_CAPTION = 'So today, to see your full picture, you copy numbers out of each one into a spreadsheet and connect them by hand; and that spreadsheet is only as current as the last time you typed into it.';
 
-// PROVIDER-ROSTER (PR-STEP-2): the eleven providers the system speaks to
-// today, for the 02 / PICK THE PROVIDERS slide — the essay's Step 2 numbered
-// lines VERBATIM, one string per line. Order is the essay's order and carries
-// the argument; the arrivals strip and the routing table downstream list the
-// same eleven, so the three surfaces name providers in one voice. A new
-// provider is ONE new string here (a provider is just rows in a table —
-// added, never built).
-const PROVIDER_ROSTER = [
-  '(1) Plaid connects to your banks and other financial accounts.',
-  '(2) Stripe accepts card money.',
-  '(3) TastyTrade is a broker, with market data, and where your trades happen.',
-  '(4) Duffel books flights.',
-  '(5) LiteAPI books hotels.',
-  '(6) Viator books activities.',
-  "(7) Google Places knows the world's locations.",
-  '(8) Finnhub publishes company numbers.',
-  "(9) FRED publishes the economy's numbers.",
-  '(10) The SEC keeps company filings.',
-  '(11) Anthropic is our AI; it does our labeling math.',
-] as const;
+// PR-STEP2-VIZ: PROVIDER_ROSTER + PROVIDER_DOORS retired — SHOW DON'T ECHO
+// (Deck Law #7): the provider menu below carries the eleven providers AND
+// the open doors in one drawing, so the eleven-line roster and the doors
+// gloss died as text. The offerings sentence died with them — its one fact
+// the table cannot draw (the SnapTrade connector) survives as the table's
+// footnote, essay verbatim. The essay's Step 2 line (11) took the three-AIs
+// wording in the same breath. The retired strings live in git history.
 
-// PROVIDER-DOORS (PR-STEP-2): the founder-ruled open-doors gloss under the
-// roster — the ONE line on this slide that is not essay text (ruled in the
-// PR-STEP-2 prompt, quoted exactly). These names are doors, not claims:
-// nothing here renders as a connected provider.
-const PROVIDER_DOORS =
-  'Doors already open for later: Schwab · IBKR · Alpaca · SnapTrade · Teller · Square · QuickBooks Online · Xero · Amadeus · Polygon — each one is one new row when its turn comes.';
+// PROVIDER-MENU (PR-STEP2-VIZ): the 02 / PICK THE PROVIDERS visual, as
+// [job, today, next] — eleven jobs, who feeds each today, which doors are
+// already open for later. Rows are the essay's Step 2 list restated as
+// jobs, same order. '—' is deck content — a job with no open door yet —
+// and renders in the faint tier; never fill it. A new provider is one cell
+// edit here (a provider is just rows in a table — added, never built).
+const PROVIDER_MENU = [
+  ['banks & accounts', 'plaid', 'teller'],
+  ['card money', 'stripe', 'square'],
+  ['trades & market data', 'tastytrade', 'schwab · ibkr · alpaca · tradier · snaptrade'],
+  ['flights', 'duffel', 'amadeus'],
+  ['hotels', 'liteapi', 'amadeus'],
+  ['activities', 'viator', '—'],
+  ['locations', 'google places', '—'],
+  ['company numbers', 'finnhub', 'polygon'],
+  ['the economy', 'fred', '—'],
+  ['filings', 'sec', '—'],
+  ['our AI', 'anthropic · openai · xai grok', '—'],
+] as const;
 
 // IMPORT-COLUMNS (PR-DECK): the field table of the 03 / THE IMPORT slide,
 // reconciled to the deck's plain-language vocabulary (provider · connection ·
@@ -349,7 +349,8 @@ const IMPORT_COLUMNS: ReadonlyArray<{ band: string; rows: ReadonlyArray<readonly
 
 // IMPORT-ARRIVALS (PR-STEP-2): twelve rows that landed, ONE PER SPEAKING
 // PROVIDER, as [provider·connection, resource, received, status] — the same
-// eleven providers Step 02's roster names, in the roster's order. Plaid rows
+// eleven providers Step 02's menu speaks to today, in the menu's row order
+// (its TODAY column; PR-STEP2-VIZ retired the roster). Plaid rows
 // TWICE with two different connections (chase / boa) because that is the
 // deck's own teaching — 'because you might have two or more banks' — and
 // only plaid renders a connection: the others have one, so the cell is just
@@ -1673,20 +1674,25 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── PROVIDERS-02 / PICK THE PROVIDERS (PR-STEP-2). The inserted step:
-            the essay's Step 2, VERBATIM — the offerings sentence (the
-            SnapTrade clause is the ONLY place Robinhood may ever appear),
-            the pick-yours statement, the eleven-line roster
-            (PROVIDER_ROSTER), the more-join line, and the closer. The one
-            non-essay line is PROVIDER_DOORS, ruled in the PR-STEP-2 prompt.
-            Act grammar is the import act's, class for class: same container,
-            same act padding, same eyebrow/headline/support tiers, and a
-            border-t closing the problem|providers seam (see the seam ledger
-            above). The roster renders in the import act's trio tier —
-            statement lead-in, purple lines — and the doors line in the
-            routing act's gloss tier under its own hairline. Nothing here is
-            money and nothing is a kind word, so NO GOLD on this slide; rust
-            never enters either — there is no band label and no live status. */}
+      {/* ── PROVIDERS-02 / PICK THE PROVIDERS (PR-STEP-2 → PR-STEP2-VIZ).
+            The step's visual: the provider MENU — THE JOB | TODAY | NEXT —
+            replaces the eleven-line roster, the offerings sentence and the
+            doors gloss (SHOW DON'T ECHO, Deck Law #7: the table IS that
+            content, drawn once). Around it, essay verbatim: the sub, the
+            pick-yours statement, the framing line, the more-join line, the
+            closer — and the one line under the table is the essay's
+            SnapTrade clause, verbatim, the ONLY place Robinhood may ever
+            appear. Act grammar is the import act's, class for class; the
+            table is the routing act's grammar via the DECK tokens
+            (table/th/pad/rule) — provider names in the routing table's mono
+            tier: TODAY and open NEXT doors purple, jobs and '—' cells the
+            faint tier. NEXT is the wide column (w-[40%]): its longest cell
+            is the five-name trades row, sized the way the routing act sized
+            'classification'. All three columns survive mobile — the menu IS
+            the slide's argument; multi-name cells wrap at their spaces.
+            Nothing here is money and nothing is a kind word, so NO GOLD on
+            this slide; rust never enters either — there is no band label
+            and no live status. */}
       <section id="deck-02" aria-label="The providers" className={openSteps[1] ? 'max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border' : DECK.sectionBar}>
         <button
           type="button"
@@ -1705,26 +1711,39 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <p className="mt-[22px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
             A tool is a job. A provider is a company you hire to feed that job.
           </p>
-          {/* PR-STEP-2: the essay's offerings sentence and pick-yours
-              statement, verbatim — the SnapTrade clause included, exactly as
-              the essay writes it. */}
-          <p className={`mt-[14px] ${DECK.statement}`}>Most jobs have more than one company offering. Brokerage? TastyTrade, IBKR, Schwab — and one connector called SnapTrade reaches Robinhood, Webull, and Public too. Card money? Stripe or Square. Banks? Plaid reaches thousands of them.</p>
-          <p className={`mt-2 ${DECK.statement}`}>You pick yours. Your neighbor picks theirs. The system does not care; a provider is just rows in a table, so a new one is added, never built.</p>
+          {/* PR-STEP2-VIZ: the essay's pick-yours statement, verbatim. */}
+          <p className={`mt-[14px] ${DECK.statement}`}>You pick yours. Your neighbor picks theirs. The system does not care; a provider is just rows in a table, so a new one is added, never built.</p>
 
-          {/* The roster — the import act's trio idiom: a statement lead-in,
-              then purple lines, one per provider. */}
+          {/* THE MENU — the framing line in the label-above-table idiom the
+              import act's arrivals strip uses, then the table itself. */}
           <p className={`mt-10 lg:mt-[76px] ${DECK.statement}`}>Here is who we speak to today:</p>
-          <div className="mt-[14px]">
-            {PROVIDER_ROSTER.map((line, i) => (
-              <p key={line} className={`${i === 0 ? '' : 'mt-3 lg:mt-[14px]'} text-[13px] leading-[1.5] lg:text-[16.5px] text-brand-purple`}>{line}</p>
-            ))}
-          </div>
-          <p className={`mt-[14px] ${DECK.statement}`}>More join over time. Each one is one new row!</p>
+          <table className={`mt-[14px] lg:mt-[18px] ${DECK.table}`}>
+            <thead>
+              <tr>
+                {([
+                  ['THE JOB', 'w-[30%]'], ['TODAY', 'w-[30%]'], ['NEXT', 'w-[40%]'],
+                ] as const).map(([head, w]) => (
+                  <th key={head} scope="col" className={`${w} ${DECK.th}`}>{head}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {PROVIDER_MENU.map(([job, today, next], r) => {
+                const rule = r === PROVIDER_MENU.length - 1 ? '' : DECK.rule;
+                return (
+                  <tr key={job}>
+                    <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-text-faint`}>{job}</td>
+                    <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}>{today}</td>
+                    <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] ${next === '—' ? 'text-text-faint' : 'text-brand-purple'}`}>{next}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {/* The table's footnote — the essay's SnapTrade clause, verbatim. */}
+          <p className={`mt-[14px] ${DECK.statement}`}>one connector called SnapTrade reaches Robinhood, Webull, and Public too.</p>
 
-          <div className="mt-8 lg:mt-12 h-px w-full bg-border" aria-hidden="true" />
-          <p className="mt-[22px] lg:mt-8 text-[12px] lg:text-[14px] text-text-faint">
-            {PROVIDER_DOORS}
-          </p>
+          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>More join over time. Each one is one new row!</p>
           <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">So how do we actually get their data?</p>
         </div>
       </section>
