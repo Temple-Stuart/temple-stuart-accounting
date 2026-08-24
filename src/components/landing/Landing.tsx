@@ -19,7 +19,7 @@
  *   02 / LOOK AT THE TOOLS AND PICK THE PROVIDERS BEHIND THEM — the provider menu + the open doors
  *   03 / IMPORT THE DATA AND SEE HOW IT ARRIVES — the raw import table, twelve arrivals, the promises
  *   04 / LABEL EVERY FEED BY ITS KIND — one rule per feed, thirteen rows, four kinds
- *   05 / CREATE ONE TABLE PER KIND AND MAP THE DATA IN — five tables; the kind is the address
+ *   05 / CREATE ONE TABLE PER KIND AND MAP THE DATA IN — six tables; the kind is the address
  *   06 / SEPARATE WHAT HAPPENED TO YOU FROM WHAT YOU DID — observed vs authored
  *   07 / RUN THE LOOP         — discover → decide → commit → record
  *   08 / STORE EVERYTHING YOU DO IN ONE MASTER TABLE
@@ -377,16 +377,18 @@ const IMPORT_ARRIVALS = [
   ['anthropic', 'classification', '11:15:09Z', 'DONE'],
 ] as const;
 
-// ROUTING-RULES (PR-DECK → PR-STEP-2): the whole routing decision, for the
-// 04 / THE ROUTING slide, as [provider, resource, kind, means]. THIRTEEN ROWS
-// — eleven of the providers Step 02 names, four kinds, providers repeating
-// because a feed sends more than one shape. The MEANS column speaks only on a
-// kind's FIRST appearance ('something that happened' · 'one of your accounts'
-// · 'a fact about the world' · 'math we did — never a source'); the empty
-// strings on repeat rows are deck content, not gaps — do not fill them.
+// ROUTING-RULES (PR-DECK → PR-STEP-2 → PR-SIX): the whole routing decision,
+// for the 04 / THE ROUTING slide, as [provider, resource, kind, means].
+// FOURTEEN ROWS — eleven of the providers Step 02 names, five kinds,
+// providers repeating because a feed sends more than one shape. The MEANS
+// column speaks only on a kind's FIRST appearance ('something that happened'
+// · 'one of your accounts' · 'how things stood at one moment' · 'a fact
+// about the world' · 'math we did — never a source'); the empty strings on
+// repeat rows are deck content, not gaps — do not fill them.
 //
-// THE FOUR ROUTABLE KINDS ARE A CLOSED SET — EVENT, REGISTRY, REFERENCE,
-// DERIVED. FOUR HERE, FIVE IN HANDOFF_KINDS BELOW, AND THE GAP IS THE POINT:
+// THE FIVE ROUTABLE KINDS ARE A CLOSED SET — EVENT, REGISTRY, SNAPSHOT,
+// REFERENCE, DERIVED. FIVE HERE, SIX IN HANDOFF_KINDS BELOW, AND THE GAP IS
+// THE POINT:
 // nothing ever arrives as a posting — the system writes postings from events.
 // Do not add a POSTING row here to make the two lists match.
 //
@@ -397,6 +399,7 @@ const ROUTING_RULES = [
   ['stripe', 'payout', 'EVENT', 'something that happened'],
   ['plaid', 'transaction', 'EVENT', ''],
   ['plaid', 'account', 'REGISTRY', 'one of your accounts'],
+  ['plaid', 'holding', 'SNAPSHOT', 'how things stood at one moment'],
   ['tastytrade', 'quote', 'REFERENCE', 'a fact about the world'],
   ['tastytrade', 'fill', 'EVENT', ''],
   ['sec', 'filing', 'REFERENCE', ''],
@@ -418,25 +421,27 @@ const ROUTING_DERIVED_ROW = 'anthropic';
 // tables.') typed at the render, not a trio. The three tests live in git
 // history if a surface ever wants them back.
 
-// HANDOFF-KINDS (PR-DECK): the five tables a kind can address, for the
+// HANDOFF-KINDS (PR-DECK → PR-SIX): the six tables a kind can address, for the
 // 05 / THE HANDOFF slide, as [kind, holds]. The deck writes the kinds
 // lowercase here — on 04 they are addresses, not shouted vocabulary — and
 // collapses the old kind/table pair into one word, since the kind IS the
 // table name. Kind words are the one non-money place gold is allowed.
 //
-// FIVE KINDS HERE, FOUR IN ROUTING_RULES, AND THAT IS CORRECT — nothing ever
+// SIX KINDS HERE, FIVE IN ROUTING_RULES, AND THAT IS CORRECT — nothing ever
 // ARRIVES as a posting: postings are what the system writes from events. The
 // deck's notice block under the table says exactly this on screen.
 //
 // ORDER IS THE ARGUMENT, not the alphabet: world data first (reference), then
-// who you are (registry), then what happened (event), then what that did to
-// the money (posting), then what you concluded (derived).
+// who you are (registry), then what happened (event), then how things stood
+// (snapshot), then what that did to the money (posting), then what you
+// concluded (derived).
 //
-// NO ROW IS EMPHASISED, deliberately — the five kinds are peers.
+// NO ROW IS EMPHASISED, deliberately — the six kinds are peers.
 const HANDOFF_KINDS = [
   ['reference', 'facts about the world'],
   ['registry', 'your accounts and your people'],
   ['event', 'what happened'],
+  ['snapshot', 'how things stood at one moment'],
   ['posting', 'debits and credits'],
   ['derived', 'math we did'],
 ] as const;
@@ -1866,6 +1871,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               2026-08-24 FEED-INVENTORY audit's number, and the strip above is
               the small sample this line promises. */}
           <p className={`mt-[14px] ${DECK.statement}`}>And here is the real size of it: today that is 121 feeds from 20 providers — counted August 24, 2026. We will show you a small sample, so the idea stays small enough to hold.</p>
+          {/* PR-SIX: the essay's handshake honesty line, verbatim. */}
+          <p className={`mt-2 ${DECK.statement}`}>One more honest line: a few things we fetch are not data at all — handshakes, like the token that opens a bank connection. Handshakes are not data; they are how we knock on the door. They never enter the tables.</p>
 
           <div className="mt-10 lg:mt-[76px] h-px w-full bg-border" aria-hidden="true" />
           <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>This table is to show us that:</p>
@@ -1995,10 +2002,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             </tbody>
           </table>
 
-          {/* PR-MECHANICS: the essay's who-decides passage, verbatim, then
-              (PR-VOICE) the fifth-kind tease and the rule block. */}
-          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>And who decides the kind? We do — once per feed. We ask one question: what IS this thing, really? The answer becomes the rule&apos;s row, and the system applies it forever after.</p>
-          <p className={`mt-2 ${DECK.statement}`}>And there is a fifth kind; but no feed ever earns it. We will meet it soon.</p>
+          {/* PR-SIX: the essay's derived-rule line, verbatim, then
+              (PR-MECHANICS) the who-decides passage and (PR-VOICE) the
+              sixth-kind tease and the rule block. */}
+          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>And the line is who did the math: if we ordered it or ran it, it is derived; a provider&apos;s own published math is reference.</p>
+          <p className={`mt-2 ${DECK.statement}`}>And who decides the kind? We do — once per feed. We ask one question: what IS this thing, really? The answer becomes the rule&apos;s row, and the system applies it forever after.</p>
+          <p className={`mt-2 ${DECK.statement}`}>And there is a sixth kind; but no feed ever earns it. We will meet it soon.</p>
           <p className={`mt-2 ${DECK.statement}`}>Here is what makes this step different from every software you have ever met: each kind is given by a rule, and a rule is one written row in a table. Anyone can read it. Anyone can argue with it. It is not a guess buried in code.</p>
           <div className="mt-8 lg:mt-12 h-px w-full bg-border" aria-hidden="true" />
           <p className="mt-[22px] lg:mt-8 text-[12px] lg:text-[14px] text-text-faint">
@@ -2021,7 +2030,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             licence — and the aria-hidden arrow stays presentation, not data,
             right-aligned in the KIND cell so kind→holds reads as one movement.
 
-            NO ROW IS EMPHASISED — the five kinds are peers.
+            NO ROW IS EMPHASISED — the six kinds are peers.
 
             THE ENDING GREW A NOTICE BLOCK: statement, then three
             statement-tier lines the deck uses to set up 05 and 09 (posting is
@@ -2039,7 +2048,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </button>
         <div id="deck-05-body" className={openSteps[4] ? undefined : 'hidden'}>
           <h2 className="mt-[26px] text-[27px] leading-[1.2] lg:text-[38px] tracking-[-0.025em] text-brand-purple">
-            Five.<br />The kind is the address.
+            Six.<br />The kind is the address.
           </h2>
           <p className="mt-[22px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
             Now we take every labeled arrival and move it into a table; one table per kind.
@@ -2082,14 +2091,16 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
 
           <div className="mt-10 lg:mt-[76px] h-px w-full bg-border" aria-hidden="true" />
           <p className="mt-[22px] lg:mt-8 text-[17px] lg:text-[28px] text-brand-purple">
-            Twenty-five tools, five tables; because we sorted by what a thing is, not by which tool it came from.
+            Twenty-five tools, six tables; because we sorted by what a thing is, not by which tool it came from.
           </p>
           <div className="mt-[14px] lg:mt-5">
             <p className="text-[12px] lg:text-[14px] text-text-faint">But notice something strange here!</p>
-            <p className="mt-2 text-[12px] lg:text-[14px] text-text-faint">(1) Providers only ever fill three of the five: reference, registry, and event.</p>
+            <p className="mt-2 text-[12px] lg:text-[14px] text-text-faint">(1) Providers only ever fill four of the six: reference, registry, event, and snapshot.</p>
             <p className="mt-2 text-[12px] lg:text-[14px] text-text-faint">(2) Derived is filled only by our own math.</p>
             <p className="mt-2 text-[12px] lg:text-[14px] text-text-faint">(3) And posting? Nothing from the outside world ever lands there. Nobody sends you debits and credits. Remember that; it matters soon.</p>
           </div>
+          {/* PR-SIX: the essay's census receipt, verbatim. */}
+          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>We did not guess this. We classified every one of the 121 feeds — August 24, 2026 — and posting took zero. The data agreed!</p>
           <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">Everything so far arrived from the world. So where do the things you do live?</p>
         </div>
       </section>
@@ -2128,8 +2139,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               </div>
             ))}
           </div>
-          {/* PR-MECHANICS: the essay's two-doors mechanical truth, verbatim. */}
-          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>And here is the mechanical truth: this step adds nothing to the tables. Observed things already live in the tables from Step 5; that is the world&apos;s door. Authored things will get their own home in Step 8; that is your door. Two doors into one system — and how the two connect comes soon.</p>
+          {/* PR-SIX: the essay's echo paragraph, verbatim, then
+              (PR-MECHANICS) the two-doors mechanical truth. */}
+          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>And one more truth: some observed things are the world confirming what you did. A booking confirmation is the world&apos;s echo of your commit. It is still observed — it arrived, and you cannot edit it — and in Step 9 it will find the thing you did.</p>
+          <p className={`mt-2 ${DECK.statement}`}>And here is the mechanical truth: this step adds nothing to the tables. Observed things already live in the tables from Step 5; that is the world&apos;s door. Authored things will get their own home in Step 8; that is your door. Two doors into one system — and how the two connect comes soon.</p>
 
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={DECK.q}>So how exactly do you make something happen?</p>
