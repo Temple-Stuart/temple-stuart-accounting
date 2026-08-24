@@ -14,20 +14,21 @@
  *                         here by PR-REORDER — the who-first order)
  *   [PR-MODULES placeholder — "the what", content TBD]
  *   DONE-FOR-YOU        — the professional-services panel
- *   THE PIPELINE header — names the 13-step run (essay front matter, PR-CHROME)
+ *   THE PIPELINE header — names the 14-step run (essay front matter, PR-CHROME)
  *   01 / IDENTIFY THE PROBLEM — the six-source fan + the twenty-five-tool sheet
- *   02 / IMPORT THE DATA      — the raw import table, four arrivals, the promises
- *   03 / LABEL THE DATA       — one rule per feed, nine rows, four kinds
- *   04 / MAP THE DATA TO ITS TABLE — five tables; the kind is the address
- *   05 / SPLIT THE DATA INTO TWO LANES — observed vs authored
- *   06 / RUN THE LOOP         — discover → decide → commit → record
- *   07 / STORE EVERYTHING YOU DO IN ONE MASTER TABLE
- *   08 / MATCH THE TWO LANES  — the deposit meets the invoice
- *   09 / LET THE RULES WRITE THE LINES
- *   10 / TURN THE LINES INTO ANSWERS
- *   11 / OPEN THE TWO WINDOWS — the Ledger and the Calendar
- *   12 / WATCH ONE DOLLAR RUN THE WHOLE MACHINE
- *   13 / PROVE EVERY NUMBER   — click any number, walk it back
+ *   02 / PICK THE PROVIDERS   — the eleven-provider roster + the open doors (PR-STEP-2)
+ *   03 / IMPORT THE DATA      — the raw import table, twelve arrivals, the promises
+ *   04 / LABEL THE DATA       — one rule per feed, thirteen rows, four kinds
+ *   05 / MAP THE DATA TO ITS TABLE — five tables; the kind is the address
+ *   06 / SPLIT THE DATA INTO TWO LANES — observed vs authored
+ *   07 / RUN THE LOOP         — discover → decide → commit → record
+ *   08 / STORE EVERYTHING YOU DO IN ONE MASTER TABLE
+ *   09 / MATCH THE TWO LANES  — the deposit meets the invoice
+ *   10 / LET THE RULES WRITE THE LINES
+ *   11 / TURN THE LINES INTO ANSWERS
+ *   12 / OPEN THE TWO WINDOWS — the Ledger and the Calendar
+ *   13 / WATCH ONE DOLLAR RUN THE WHOLE MACHINE
+ *   14 / PROVE EVERY NUMBER   — click any number, walk it back
  *   [PR-WHY placeholder — content TBD]
  *   Built on            — the vendor marquee
  *
@@ -37,11 +38,11 @@
  * compressions; everything else is essay-verbatim, '(N) ' prefixes included.
  * Never rephrase in place — a copy change is an essay change first.
  * DECK LAW #7, SHOW DON'T ECHO: where a visual carries a piece of the essay
- * (08's cards, 09's drawn sale lines, 11's calendar), the visual IS that
+ * (09's cards, 10's drawn sale lines, 12's calendar), the visual IS that
  * piece — never render the same content as both drawing and text.
  * PR-COLLAPSE: each step is a disclosure —
  * header button (label + '+'/'−' glyph, the retired personas accordion's
- * shape, 5010ca1f) over a hidden-class body; all 13 collapsed by default, a
+ * shape, 5010ca1f) over a hidden-class body; all 14 collapsed by default, a
  * #deck-NN hash opens its step on load. RUST NOTE: the deck's "rust" group-label
  * colour has no token in this palette; brand-amber (#d97706) is the mapping,
  * chosen over inventing a hex. If Design lands a true rust token, swap
@@ -59,8 +60,8 @@
  * number in the run, a border-t (no NUMBERED act carries a border-b, so every
  * boundary INSIDE the run is closed by the lower section — but see the seam
  * ledger in the problem act for the one exception, 01 itself, which carries no
- * border at all), and its data as module-scope consts beside the others. 03 / THE
- * ROUTING was added that way — three consts, one border-t — and 04 / THE
+ * border at all), and its data as module-scope consts beside the others. 04 / THE
+ * ROUTING was added that way — three consts, one border-t — and 05 / THE
  * HANDOFF after it with one const and one border-t. Neither changed an
  * existing border.
  *
@@ -270,7 +271,35 @@ const PROBLEM_SHEET_SM = [
 // fills.
 const PROBLEM_SHEET_CAPTION = 'So today, to see your full picture, you copy numbers out of each one into a spreadsheet and connect them by hand; and that spreadsheet is only as current as the last time you typed into it.';
 
-// IMPORT-COLUMNS (PR-DECK): the field table of the 02 / THE IMPORT slide,
+// PROVIDER-ROSTER (PR-STEP-2): the eleven providers the system speaks to
+// today, for the 02 / PICK THE PROVIDERS slide — the essay's Step 2 numbered
+// lines VERBATIM, one string per line. Order is the essay's order and carries
+// the argument; the arrivals strip and the routing table downstream list the
+// same eleven, so the three surfaces name providers in one voice. A new
+// provider is ONE new string here (a provider is just rows in a table —
+// added, never built).
+const PROVIDER_ROSTER = [
+  '(1) Plaid connects to your banks and other financial accounts.',
+  '(2) Stripe accepts card money.',
+  '(3) TastyTrade is a broker, with market data, and where your trades happen.',
+  '(4) Duffel books flights.',
+  '(5) LiteAPI books hotels.',
+  '(6) Viator books activities.',
+  "(7) Google Places knows the world's locations.",
+  '(8) Finnhub publishes company numbers.',
+  "(9) FRED publishes the economy's numbers.",
+  '(10) The SEC keeps company filings.',
+  '(11) Anthropic is our AI; it does our labeling math.',
+] as const;
+
+// PROVIDER-DOORS (PR-STEP-2): the founder-ruled open-doors gloss under the
+// roster — the ONE line on this slide that is not essay text (ruled in the
+// PR-STEP-2 prompt, quoted exactly). These names are doors, not claims:
+// nothing here renders as a connected provider.
+const PROVIDER_DOORS =
+  'Doors already open for later: Schwab · IBKR · Alpaca · SnapTrade · Teller · Square · QuickBooks Online · Xero · Amadeus · Polygon — each one is one new row when its turn comes.';
+
+// IMPORT-COLUMNS (PR-DECK): the field table of the 03 / THE IMPORT slide,
 // reconciled to the deck's plain-language vocabulary (provider · connection ·
 // resource · their id · our id · payload · fingerprint · asked · arrived ·
 // read · status). Four rust-labelled bands, each row a [name, desc] pair —
@@ -318,27 +347,40 @@ const IMPORT_COLUMNS: ReadonlyArray<{ band: string; rows: ReadonlyArray<readonly
   },
 ];
 
-// IMPORT-ARRIVALS: four rows that actually landed, one per feed, as
-// [provider, resource, external_id, received, parse]. The point of the table is
-// that four unrelated kinds of thing — a payout, a card purchase, a stock quote
-// and a filing — are the same shape, so the four providers must stay different
-// from one another; replacing one with a second bank would lose the argument.
-// PR-DECK: parse values are UPPERCASE per the deck, and the renderer inks
-// PENDING in the deck's rust — the one live state that is not yet done.
+// IMPORT-ARRIVALS (PR-STEP-2): twelve rows that landed, ONE PER SPEAKING
+// PROVIDER, as [provider·connection, resource, received, status] — the same
+// eleven providers Step 02's roster names, in the roster's order. Plaid rows
+// TWICE with two different connections (chase / boa) because that is the
+// deck's own teaching — 'because you might have two or more banks' — and
+// only plaid renders a connection: the others have one, so the cell is just
+// the provider. The old external_id column left with the fifth column; the
+// two name tags stay taught in the field table above. Times are invented
+// display data consistent with the original four (stripe/plaid/tastytrade/sec
+// keep the times they always showed); statuses are all DONE except sec — the
+// one arrival still in flight, and the renderer inks PENDING in the deck's
+// rust.
 const IMPORT_ARRIVALS = [
-  ['stripe', 'payout', 'po_1QmX8fK2', '09:14:02Z', 'DONE'],
-  ['plaid', 'transaction', 'nkP9dLm4zQx7', '09:14:06Z', 'DONE'],
-  ['tastytrade', 'quote', 'SPY-2026-02-19', '10:31:00Z', 'DONE'],
-  ['sec', 'filing', '0000320193-26-14', '11:02:44Z', 'PENDING'],
+  ['plaid · chase', 'transaction', '09:14:06Z', 'DONE'],
+  ['plaid · boa', 'transaction', '09:14:09Z', 'DONE'],
+  ['stripe', 'payout', '09:14:02Z', 'DONE'],
+  ['tastytrade', 'quote', '10:31:00Z', 'DONE'],
+  ['duffel', 'booking', '10:33:27Z', 'DONE'],
+  ['liteapi', 'stay', '10:36:44Z', 'DONE'],
+  ['viator', 'activity', '10:39:12Z', 'DONE'],
+  ['google places', 'place', '10:42:58Z', 'DONE'],
+  ['finnhub', 'fundamentals', '10:47:31Z', 'DONE'],
+  ['fred', 'series', '10:53:20Z', 'DONE'],
+  ['sec', 'filing', '11:02:44Z', 'PENDING'],
+  ['anthropic', 'classification', '11:15:09Z', 'DONE'],
 ] as const;
 
-// ROUTING-RULES (PR-DECK): the whole routing decision, for the 03 / THE
-// ROUTING slide, as [provider, resource, kind, means]. NINE ROWS PER THE DECK
-// — seven providers, four kinds, providers repeating because a feed sends
-// more than one shape. The MEANS column speaks only on a kind's FIRST
-// appearance ('something that happened' · 'one of your accounts' · 'a fact
-// about the world' · 'math we did — never a source'); the empty strings on
-// repeat rows are deck content, not gaps — do not fill them.
+// ROUTING-RULES (PR-DECK → PR-STEP-2): the whole routing decision, for the
+// 04 / THE ROUTING slide, as [provider, resource, kind, means]. THIRTEEN ROWS
+// — the eleven providers Step 02 names, four kinds, providers repeating
+// because a feed sends more than one shape. The MEANS column speaks only on a
+// kind's FIRST appearance ('something that happened' · 'one of your accounts'
+// · 'a fact about the world' · 'math we did — never a source'); the empty
+// strings on repeat rows are deck content, not gaps — do not fill them.
 //
 // THE FOUR ROUTABLE KINDS ARE A CLOSED SET — EVENT, REGISTRY, REFERENCE,
 // DERIVED. FOUR HERE, FIVE IN HANDOFF_KINDS BELOW, AND THE GAP IS THE POINT:
@@ -357,6 +399,10 @@ const ROUTING_RULES = [
   ['sec', 'filing', 'REFERENCE', ''],
   ['fred', 'series', 'REFERENCE', ''],
   ['duffel', 'booking', 'EVENT', ''],
+  ['liteapi', 'stay', 'EVENT', ''],
+  ['viator', 'activity', 'EVENT', ''],
+  ['google places', 'place', 'REFERENCE', ''],
+  ['finnhub', 'fundamentals', 'REFERENCE', ''],
   ['anthropic', 'classification', 'DERIVED', 'math we did — never a source'],
 ] as const;
 
@@ -364,13 +410,13 @@ const ROUTING_RULES = [
 // into the renderer so the emphasis and the data cannot drift apart.
 const ROUTING_DERIVED_ROW = 'anthropic';
 
-// PR-DECK: ROUTING_TESTS retired — the deck's 03 closes on one statement line
+// PR-DECK: ROUTING_TESTS retired — the deck's 04 closes on one statement line
 // ('When a new provider shows up, we add rows — not code, and not new
 // tables.') typed at the render, not a trio. The three tests live in git
 // history if a surface ever wants them back.
 
 // HANDOFF-KINDS (PR-DECK): the five tables a kind can address, for the
-// 04 / THE HANDOFF slide, as [kind, holds]. The deck writes the kinds
+// 05 / THE HANDOFF slide, as [kind, holds]. The deck writes the kinds
 // lowercase here — on 04 they are addresses, not shouted vocabulary — and
 // collapses the old kind/table pair into one word, since the kind IS the
 // table name. Kind words are the one non-money place gold is allowed.
@@ -594,7 +640,7 @@ const TRADE_CLOSE: ReadonlyArray<readonly [string, boolean]> = [
 ];
 // VOICE-2: the withholdings parenthetical moved to 09's four-gloss line —
 // glossed at its first on-screen use, the payroll rule row.
-const HOURS_TRUTH = '(2) Your hours never write a line by themselves. They only reach the books when a payroll run commits, exactly as Step 9 promised.';
+const HOURS_TRUTH = '(2) Your hours never write a line by themselves. They only reach the books when a payroll run commits, exactly as Step 10 promised.';
 
 // DECK-13 (PR-VOICE): the reverse walk, [layer, artifact] — labels gold
 // mono, artifacts mono aubergine. The essay's '(N) The layer:' phrasing maps
@@ -647,14 +693,17 @@ const DECK = {
   sectionBar: 'max-w-7xl mx-auto px-4 lg:px-8 pb-2',
 } as const;
 
-// PR-COLLAPSE: the 13 deck steps' section ids, order-parallel to the acts.
+// PR-COLLAPSE: the 14 deck steps' section ids, order-parallel to the acts.
 // Each header button's aria-controls points at `${id}-body`, and a URL hash
 // naming a section id expands that step on load. The ids are NEW with this
 // feature (the deck sections carried only aria-labels before), so no
 // existing anchor moved; id="modules" / id="demo" are untouched.
+// PR-STEP-2: deck-02 is the inserted providers step; 03–14 are the old
+// 02–13 shifted by one, so an OLD #deck-NN link now opens the step BEFORE
+// the one it used to name — accepted, the ids follow the essay's numbering.
 const DECK_STEP_IDS = [
   'deck-01', 'deck-02', 'deck-03', 'deck-04', 'deck-05', 'deck-06', 'deck-07',
-  'deck-08', 'deck-09', 'deck-10', 'deck-11', 'deck-12', 'deck-13',
+  'deck-08', 'deck-09', 'deck-10', 'deck-11', 'deck-12', 'deck-13', 'deck-14',
 ] as const;
 
 /** PR-DECK: inline [text, isGold] segments — the only way gold ever enters a
@@ -955,7 +1004,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
   const [openPersona, setOpenPersona] = useState<number | null>(0);
 
   // PR-COLLAPSE: one open flag per deck step, independent toggles (any
-  // number can be open). ALL 13 ship collapsed — the URL-hash effect below
+  // number can be open). ALL 14 ship collapsed — the URL-hash effect below
   // is the only thing that opens a step automatically. Show/hide is
   // instant — the body div takes the `hidden` class, no animation, and the
   // copy stays in the DOM (the personas-accordion arrangement, 5010ca1f).
@@ -1240,8 +1289,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── THE PIPELINE HEADER (PR-CHROME → PR-PIPE-TITLE). Names the
-            13-step run so the collapsed bars below read as one unit, and
+      {/* ── THE PIPELINE HEADER (PR-CHROME → PR-PIPE-TITLE → PR-STEP-2).
+            Names the 14-step run so the collapsed bars below read as one unit, and
             says what the pipeline IS — the data pipe the whole system runs
             on. The headline and sub are the essay's front matter, VERBATIM
             (the essay updated to the data-pipe-and-foundation claim in the
@@ -1254,13 +1303,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             as the seam ledger records it. One rule per boundary, both
             boundaries. */}
       <section aria-label="The pipeline" className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-b border-border">
-        <p className={DECK.eyebrow}>THE PIPELINE — 13 STEPS</p>
+        <p className={DECK.eyebrow}>THE PIPELINE — 14 STEPS</p>
         <p className={`mt-2 ${DECK.eyebrow}`}>DATE · TIME · MONEY</p>
         <h2 className={DECK.h2}>
           One data pipe runs the whole system.
         </h2>
         <p className={DECK.sub}>
-          Thirteen steps turn raw data into one Ledger and one Calendar — the foundation everything else is built on. Written so anyone can understand it — and build it.
+          Fourteen steps turn raw data into one Ledger and one Calendar — the foundation everything else is built on. Written so anyone can understand it — and build it.
         </p>
       </section>
 
@@ -1301,35 +1350,40 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                                          seated the header act between them;
                                          01's no-border exception survives
                                          unchanged)
-              01 problem | 02 import   → the import act's border-t
-              02 import | 03 routing   → the routing act's border-t
-              03 routing | 04 handoff  → the handoff act's border-t
-              04 … 13 (the deck run)   → each act's own border-t WHEN EXPANDED
-                                         — PR-DECK appended 05–13 the ruled
-                                         way, one border-t per new act.
+              01 problem | 02 providers → the providers act's border-t
+                                         (PR-STEP-2 inserted 02 the ruled
+                                         way: one border-t, no existing
+                                         border touched)
+              02 providers | 03 import → the import act's border-t
+              03 import | 04 routing   → the routing act's border-t
+              04 routing | 05 handoff  → the handoff act's border-t
+              05 … 14 (the deck run)   → each act's own border-t WHEN EXPANDED
+                                         — PR-DECK appended the back nine the
+                                         ruled way, one border-t per new act.
                                          PR-CHROME: a COLLAPSED step renders
                                          only its bar (DECK.sectionBar has no
                                          border-t); the bar's own 1px border
                                          is that boundary's one rule, so the
                                          law holds in both states
-              13 proof | built on      → built-on's border-t (the proof act
+              14 proof | built on      → built-on's border-t (the proof act
                                          ends the teaching run and, like every
                                          numbered act, draws no bottom rule of
                                          its own)
               built on | footer        → built-on's border-b
-            NO NUMBERED ACT CARRIES A border-b — 01 through 04 specifically;
+            NO NUMBERED ACT CARRIES A border-b — 01 through 05 specifically;
             done-for-you and built-on both do, which is why the run's boundaries
             behave differently from the page's. That is what makes the run
             extensible: every boundary INSIDE the teaching sequence is closed by
-            the LOWER section's border-t, so a slide appended to the run needs
-            exactly one class and disturbs nothing else. Adding 04 was the second
-            demonstration of that: like 03 before it, it added one border-t and
-            changed no existing border — built-on's border-t, which used to close
-            routing|built-on, now closes handoff|built-on without being touched.
+            the LOWER section's border-t, so a slide appended OR INSERTED needs
+            exactly one class and disturbs nothing else. Adding the handoff act
+            demonstrated the append case; PR-STEP-2's providers act demonstrated
+            the insert case — its border-t closes problem|providers, and the
+            import act's border-t, which used to close problem|import, closes
+            providers|import without being touched.
             THE ONE EXCEPTION IS 01 ITSELF: this act has no border class at all,
             because the act above it closes its own bottom edge — done-for-you
             originally, the pipeline header's border-b since PR-CHROME (see
-            the ledger above). So 02 and 03
+            the ledger above). So 02, 03 and 04
             take border-t and 01 takes nothing. Do not "make it consistent" by
             adding a border-t here — that would double the rule against
             done-for-you's border-b.
@@ -1345,7 +1399,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             page's only two-rule seam. Do not add one.
             GEOMETRY, DECLARED: the content-width acts rule at content width
             (max-w-7xl), the full-bleed acts rule edge to edge. So the demo's
-            border-b and the import and routing acts' border-t are inset, and
+            border-b and the providers, import and routing acts' border-t are
+            inset, and
             done-for-you's and built-on's are not. This act draws no rule of its
             own at all, so it contributes none.
 
@@ -1613,21 +1668,77 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               sentence). */}
           <p className={`mt-6 ${DECK.statement}`}>The problem is none of these tools knows what the others did.</p>
           <p className={`mt-2 ${DECK.statement}`}>They don&apos;t talk to each other.</p>
-          <p className="mt-6 text-[17px] lg:text-[20px] text-brand-purple">So what data do these twenty-five different tools actually give you?</p>
+          <p className="mt-6 text-[17px] lg:text-[20px] text-brand-purple">So who sends you all that data?</p>
           <div className="mt-4 h-[30px] lg:h-10 w-px bg-border" aria-hidden="true" />
         </div>
       </section>
 
-      {/* ── IMPORT-02 / THE RAW IMPORT TABLE (PR-DECK reconcile). Act grammar
+      {/* ── PROVIDERS-02 / PICK THE PROVIDERS (PR-STEP-2). The inserted step:
+            the essay's Step 2, VERBATIM — the offerings sentence (the
+            SnapTrade clause is the ONLY place Robinhood may ever appear),
+            the pick-yours statement, the eleven-line roster
+            (PROVIDER_ROSTER), the more-join line, and the closer. The one
+            non-essay line is PROVIDER_DOORS, ruled in the PR-STEP-2 prompt.
+            Act grammar is the import act's, class for class: same container,
+            same act padding, same eyebrow/headline/support tiers, and a
+            border-t closing the problem|providers seam (see the seam ledger
+            above). The roster renders in the import act's trio tier —
+            statement lead-in, purple lines — and the doors line in the
+            routing act's gloss tier under its own hairline. Nothing here is
+            money and nothing is a kind word, so NO GOLD on this slide; rust
+            never enters either — there is no band label and no live status. */}
+      <section id="deck-02" aria-label="The providers" className={openSteps[1] ? 'max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border' : DECK.sectionBar}>
+        <button
+          type="button"
+          aria-expanded={openSteps[1]}
+          aria-controls="deck-02-body"
+          onClick={() => toggleStep(1)}
+          className={DECK.stepButton}
+        >
+          <span className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">02 / PICK THE PROVIDERS</span>
+          <span aria-hidden="true" className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">{openSteps[1] ? '−' : '+'}</span>
+        </button>
+        <div id="deck-02-body" className={openSteps[1] ? undefined : 'hidden'}>
+          <h2 className="mt-[26px] text-[27px] leading-[1.2] lg:text-[38px] tracking-[-0.025em] text-brand-purple">
+            Every job has more than one company.<br />You pick yours.
+          </h2>
+          <p className="mt-[22px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
+            A tool is a job. A provider is a company you hire to feed that job.
+          </p>
+          {/* PR-STEP-2: the essay's offerings sentence and pick-yours
+              statement, verbatim — the SnapTrade clause included, exactly as
+              the essay writes it. */}
+          <p className={`mt-[14px] ${DECK.statement}`}>Most jobs have more than one company offering. Brokerage? TastyTrade, IBKR, Schwab — and one connector called SnapTrade reaches Robinhood, Webull, and Public too. Card money? Stripe or Square. Banks? Plaid reaches thousands of them.</p>
+          <p className={`mt-2 ${DECK.statement}`}>You pick yours. Your neighbor picks theirs. The system does not care; a provider is just rows in a table, so a new one is added, never built.</p>
+
+          {/* The roster — the import act's trio idiom: a statement lead-in,
+              then purple lines, one per provider. */}
+          <p className={`mt-10 lg:mt-[76px] ${DECK.statement}`}>Here is who we speak to today:</p>
+          <div className="mt-[14px]">
+            {PROVIDER_ROSTER.map((line, i) => (
+              <p key={line} className={`${i === 0 ? '' : 'mt-3 lg:mt-[14px]'} text-[13px] leading-[1.5] lg:text-[16.5px] text-brand-purple`}>{line}</p>
+            ))}
+          </div>
+          <p className={`mt-[14px] ${DECK.statement}`}>More join over time. Each one is one new row!</p>
+
+          <div className="mt-8 lg:mt-12 h-px w-full bg-border" aria-hidden="true" />
+          <p className="mt-[22px] lg:mt-8 text-[12px] lg:text-[14px] text-text-faint">
+            {PROVIDER_DOORS}
+          </p>
+          <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">So how do we actually get their data?</p>
+        </div>
+      </section>
+
+      {/* ── IMPORT-03 / THE RAW IMPORT TABLE (PR-DECK reconcile). Act grammar
             unchanged: same container, same act padding, border-t closing the
             problem|import seam (see the seam ledger above).
 
             RUST REPLACES GOLD ON THE LABELS. The deck's token law — gold inks
             dollar amounts, debit/credit values and kind words ONLY — moved the
-            band labels and FOUR ARRIVALS to the deck's rust (brand-amber; the
+            band labels and TWELVE ARRIVALS to the deck's rust (brand-amber; the
             mapping is recorded in the file header). Gold still enters the
             numbered run at this act's arrivals? No — nothing here is money, so
-            gold now first inks at 03's KIND column.
+            gold now first inks at 04's KIND column.
 
             THE FIELD TABLE IS TWO COLUMNS, NO HEADER ROW. The deck gives each
             field one plain-language description and names no column headers,
@@ -1641,29 +1752,29 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             data row drops its rule for the table's own outer border. The
             payload row's emphasis is the rust tail of its own description
             (IMPORT_COLUMNS third tuple slot) — no fill, no weight change. */}
-      <section id="deck-02" aria-label="The import" className={openSteps[1] ? 'max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border' : DECK.sectionBar}>
+      <section id="deck-03" aria-label="The import" className={openSteps[2] ? 'max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border' : DECK.sectionBar}>
         <button
           type="button"
-          aria-expanded={openSteps[1]}
-          aria-controls="deck-02-body"
-          onClick={() => toggleStep(1)}
+          aria-expanded={openSteps[2]}
+          aria-controls="deck-03-body"
+          onClick={() => toggleStep(2)}
           className={DECK.stepButton}
         >
-          <span className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">02 / IMPORT THE DATA</span>
-          <span aria-hidden="true" className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">{openSteps[1] ? '−' : '+'}</span>
+          <span className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">03 / IMPORT THE DATA</span>
+          <span aria-hidden="true" className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">{openSteps[2] ? '−' : '+'}</span>
         </button>
-        <div id="deck-02-body" className={openSteps[1] ? undefined : 'hidden'}>
+        <div id="deck-03-body" className={openSteps[2] ? undefined : 'hidden'}>
           <h2 className="mt-[26px] text-[27px] leading-[1.2] lg:text-[38px] tracking-[-0.025em] text-brand-purple">
             Store what arrived.<br />Then decide what it means.
           </h2>
           <p className="mt-[22px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
-            First, we identify the different providers that we use, and we ask those providers for their data.
+            Now we ask the providers we picked for their data.
           </p>
-          {/* PR-VOICE: the essay's arrival intro and provider-jobs sentence,
-              above the field table. */}
+          {/* PR-VOICE → PR-STEP-2: the essay's arrival intro, above the
+              field table. The provider-jobs sentence left with PR-STEP-2 —
+              Step 02 owns provider glosses now. */}
           <p className={`mt-[14px] ${DECK.statement}`}>Every provider sends back an answer, and those answers are stored as an arrival.</p>
           <p className={`mt-2 ${DECK.statement}`}>Each arrival is stored as one row, in one table, before anyone decides what any of the data actually means.</p>
-          <p className={`mt-[14px] ${DECK.statement}`}>Each data provider does one job: Stripe accepts card money; Plaid connects to your banks and other financial accounts; TastyTrade is a broker, with market data, and where your trades happen; the SEC keeps company filings; the Federal Reserve publishes the economy&apos;s numbers. Etc.</p>
 
           {/* TABLE 1 — the field table, two columns, no thead (the deck names no
               headers). The colgroup carries the fixed-layout widths the thead
@@ -1698,22 +1809,24 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             ))}
           </table>
 
-          <p className="mt-10 lg:mt-[76px] font-mono text-[10px] lg:text-[11px] uppercase tracking-[0.20em] text-brand-amber">FOUR ARRIVALS, ONE TABLE</p>
+          <p className="mt-10 lg:mt-[76px] font-mono text-[10px] lg:text-[11px] uppercase tracking-[0.20em] text-brand-amber">TWELVE ARRIVALS, ONE TABLE</p>
 
-          {/* TABLE 2 — the four arrivals, five columns, no thead (the deck names
-              no headers here either; the rust label above is the table's name).
-              Mobile keeps provider, resource and parse and drops the two columns
-              that cannot shorten. Fixed-layout widths ride the first row's tds
-              now that there is no header row. Parse values are the deck's
-              uppercase, and PENDING inks rust — the one arrival still in flight. */}
+          {/* TABLE 2 — the twelve arrivals, four columns
+              (provider·connection | resource | time | status), no thead (the
+              deck names no headers here either; the rust label above is the
+              table's name). Mobile keeps provider, resource and status and
+              drops the time — the one column that cannot shorten. Fixed-layout
+              widths ride the first row's tds now that there is no header row.
+              Status values are the deck's uppercase, and PENDING inks rust —
+              the one arrival still in flight. */}
           <table className="mt-[14px] lg:mt-[18px] w-full table-fixed border-separate border-spacing-0 border border-border">
             <tbody>
               {IMPORT_ARRIVALS.map((row, r) => (
-                <tr key={row[2]}>
+                <tr key={row[0]}>
                   {row.map((cell, c) => (
                     <td
                       key={cell}
-                      className={`${c === 2 || c === 3 ? 'hidden lg:table-cell lg:w-[20%]' : 'w-[33.33%] lg:w-[20%]'} px-[11px] py-[9px] lg:px-5 lg:py-[11px] align-top font-mono text-[11px] lg:text-[13px] ${c === 0 ? 'text-brand-purple' : c === 4 && cell === 'PENDING' ? 'text-brand-amber' : 'text-text-faint'} ${r === IMPORT_ARRIVALS.length - 1 ? '' : 'border-b-[0.75px] border-b-text-faint'}`}
+                      className={`${c === 2 ? 'hidden lg:table-cell lg:w-[25%]' : 'w-[33.33%] lg:w-[25%]'} px-[11px] py-[9px] lg:px-5 lg:py-[11px] align-top font-mono text-[11px] lg:text-[13px] ${c === 0 ? 'text-brand-purple' : c === 3 && cell === 'PENDING' ? 'text-brand-amber' : 'text-text-faint'} ${r === IMPORT_ARRIVALS.length - 1 ? '' : 'border-b-[0.75px] border-b-text-faint'}`}
                     >
                       {cell}
                     </td>
@@ -1734,7 +1847,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── ROUTING-03 / THE ROUTING TABLE. Act grammar copied from the import
+      {/* ── ROUTING-04 / THE ROUTING TABLE. Act grammar copied from the import
             act above, class for class: same max-w-7xl container, same px, same
             pt-9 lg:pt-[60px] pb-9 lg:pb-[60px], same eyebrow/headline/support
             sizes, and a border-t which is the page's rule for the
@@ -1772,28 +1885,28 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             COLUMN: the only colSpan here lives on an lg:hidden ROW, and a row
             with display:none leaves the table model entirely, so desktop counts
             four columns from the header and mobile counts three. ─────────── */}
-      <section id="deck-03" aria-label="The routing" className={openSteps[2] ? 'max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border' : DECK.sectionBar}>
+      <section id="deck-04" aria-label="The routing" className={openSteps[3] ? 'max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border' : DECK.sectionBar}>
         <button
           type="button"
-          aria-expanded={openSteps[2]}
-          aria-controls="deck-03-body"
-          onClick={() => toggleStep(2)}
+          aria-expanded={openSteps[3]}
+          aria-controls="deck-04-body"
+          onClick={() => toggleStep(3)}
           className={DECK.stepButton}
         >
-          <span className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">03 / LABEL THE DATA</span>
-          <span aria-hidden="true" className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">{openSteps[2] ? '−' : '+'}</span>
+          <span className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">04 / LABEL THE DATA</span>
+          <span aria-hidden="true" className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">{openSteps[3] ? '−' : '+'}</span>
         </button>
-        <div id="deck-03-body" className={openSteps[2] ? undefined : 'hidden'}>
+        <div id="deck-04-body" className={openSteps[3] ? undefined : 'hidden'}>
           <h2 className="mt-[26px] text-[27px] leading-[1.2] lg:text-[38px] tracking-[-0.025em] text-brand-purple">
             One rule per feed.<br />Written down.
           </h2>
           <p className="mt-[22px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
-            Now we examine the data that we just imported in Step 2, and we give every feed a label.
+            Now we examine the data that we just imported in Step 3, and we give every feed a label.
           </p>
-          {/* PR-VOICE: the essay's feed gloss pair — Duffel and Anthropic are
-              named here, before their first table rows below. */}
+          {/* PR-VOICE → PR-STEP-2: the essay's feed gloss. The
+              Duffel/Anthropic caption left with PR-STEP-2 — Step 02 owns
+              provider glosses now, so no provider is introduced here. */}
           <p className={`mt-[14px] ${DECK.statement}`}>A feed is one provider-and-resource pair; like Stripe&apos;s payouts, or Plaid&apos;s transactions, or TastyTrade&apos;s quotes.</p>
-          <p className={`mt-2 ${DECK.statement}`}>Two more providers appear here: Duffel books flights, and Anthropic is our AI.</p>
 
           <table className="mt-10 lg:mt-[76px] w-full table-fixed border-separate border-spacing-0 border border-border">
             <thead>
@@ -1863,7 +1976,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── HANDOFF-04 / FIVE. THE KIND IS THE ADDRESS (PR-DECK reconcile).
+      {/* ── HANDOFF-05 / FIVE. THE KIND IS THE ADDRESS (PR-DECK reconcile).
             Act grammar unchanged: same container, act padding, border-t
             closing the routing|handoff seam. Everything is weight 400 — every
             th carries an explicit font-normal because Preflight does not reset
@@ -1881,18 +1994,18 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             THE ENDING GREW A NOTICE BLOCK: statement, then three
             statement-tier lines the deck uses to set up 05 and 09 (posting is
             the one table nobody sends you), then the closing question. */}
-      <section id="deck-04" aria-label="The handoff" className={openSteps[3] ? 'max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border' : DECK.sectionBar}>
+      <section id="deck-05" aria-label="The handoff" className={openSteps[4] ? 'max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border' : DECK.sectionBar}>
         <button
           type="button"
-          aria-expanded={openSteps[3]}
-          aria-controls="deck-04-body"
-          onClick={() => toggleStep(3)}
+          aria-expanded={openSteps[4]}
+          aria-controls="deck-05-body"
+          onClick={() => toggleStep(4)}
           className={DECK.stepButton}
         >
-          <span className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">04 / MAP THE DATA TO ITS TABLE</span>
-          <span aria-hidden="true" className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">{openSteps[3] ? '−' : '+'}</span>
+          <span className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">05 / MAP THE DATA TO ITS TABLE</span>
+          <span aria-hidden="true" className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">{openSteps[4] ? '−' : '+'}</span>
         </button>
-        <div id="deck-04-body" className={openSteps[3] ? undefined : 'hidden'}>
+        <div id="deck-05-body" className={openSteps[4] ? undefined : 'hidden'}>
           <h2 className="mt-[26px] text-[27px] leading-[1.2] lg:text-[38px] tracking-[-0.025em] text-brand-purple">
             Five.<br />The kind is the address.
           </h2>
@@ -1949,23 +2062,23 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── DECK-05 / THE TWO LANES. First of the PR-DECK back nine. From
+      {/* ── DECK-06 / THE TWO LANES. First of the PR-DECK back nine. From
             here down, the act grammar rides the module-scope DECK const so
             nine acts cannot drift from 01–04 or from each other. Bare
             two-column prose — the deck gives 05 no table. border-t closes
             handoff|lanes per the seam ledger. */}
-      <section id="deck-05" aria-label="The two lanes" className={openSteps[4] ? DECK.section : DECK.sectionBar}>
+      <section id="deck-06" aria-label="The two lanes" className={openSteps[5] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
-          aria-expanded={openSteps[4]}
-          aria-controls="deck-05-body"
-          onClick={() => toggleStep(4)}
+          aria-expanded={openSteps[5]}
+          aria-controls="deck-06-body"
+          onClick={() => toggleStep(5)}
           className={DECK.stepButton}
         >
-          <span className={DECK.eyebrow}>05 / SPLIT THE DATA INTO TWO LANES</span>
-          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[4] ? '−' : '+'}</span>
+          <span className={DECK.eyebrow}>06 / SPLIT THE DATA INTO TWO LANES</span>
+          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[5] ? '−' : '+'}</span>
         </button>
-        <div id="deck-05-body" className={openSteps[4] ? undefined : 'hidden'}>
+        <div id="deck-06-body" className={openSteps[5] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             Some things happen to you.<br />Some things you make happen.
           </h2>
@@ -1989,24 +2102,24 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── DECK-06 / THE LOOP. The four-beat band is Design's spec: four
+      {/* ── DECK-07 / THE LOOP. The four-beat band is Design's spec: four
             equal flex columns, 32px arrow slots between — a 1px lavender
             shaft (bg-border) plus a 5×5 chevron of two 1px #B9B2C6 strokes
             rotated 45° (no token covers #B9B2C6; exact hex per the deck's
             token law), shaft centred on the beat-name line. Mobile stacks the
             beats and drops the arrows. */}
-      <section id="deck-06" aria-label="The loop" className={openSteps[5] ? DECK.section : DECK.sectionBar}>
+      <section id="deck-07" aria-label="The loop" className={openSteps[6] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
-          aria-expanded={openSteps[5]}
-          aria-controls="deck-06-body"
-          onClick={() => toggleStep(5)}
+          aria-expanded={openSteps[6]}
+          aria-controls="deck-07-body"
+          onClick={() => toggleStep(6)}
           className={DECK.stepButton}
         >
-          <span className={DECK.eyebrow}>06 / RUN THE LOOP</span>
-          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[5] ? '−' : '+'}</span>
+          <span className={DECK.eyebrow}>07 / RUN THE LOOP</span>
+          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[6] ? '−' : '+'}</span>
         </button>
-        <div id="deck-06-body" className={openSteps[5] ? undefined : 'hidden'}>
+        <div id="deck-07-body" className={openSteps[6] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             Every tool runs the same four beats.<br />Discover. Decide. Commit. Record.
           </h2>
@@ -2061,21 +2174,21 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── DECK-07 / THE MASTER TABLE. The 02 field-table idiom: two
+      {/* ── DECK-08 / THE MASTER TABLE. The 03 field-table idiom: two
             columns, no thead (the deck names no headers), one rust label
             above, colgroup carrying the fixed-layout widths. */}
-      <section id="deck-07" aria-label="The master table" className={openSteps[6] ? DECK.section : DECK.sectionBar}>
+      <section id="deck-08" aria-label="The master table" className={openSteps[7] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
-          aria-expanded={openSteps[6]}
-          aria-controls="deck-07-body"
-          onClick={() => toggleStep(6)}
+          aria-expanded={openSteps[7]}
+          aria-controls="deck-08-body"
+          onClick={() => toggleStep(7)}
           className={DECK.stepButton}
         >
-          <span className={DECK.eyebrow}>07 / STORE EVERYTHING YOU DO IN ONE MASTER TABLE</span>
-          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[6] ? '−' : '+'}</span>
+          <span className={DECK.eyebrow}>08 / STORE EVERYTHING YOU DO IN ONE MASTER TABLE</span>
+          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[7] ? '−' : '+'}</span>
         </button>
-        <div id="deck-07-body" className={openSteps[6] ? undefined : 'hidden'}>
+        <div id="deck-08-body" className={openSteps[7] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             One table holds<br />everything you do.
           </h2>
@@ -2111,7 +2224,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── DECK-08 / THE MATCH. Design's match visual: grid 1fr | 260px |
+      {/* ── DECK-09 / THE MATCH. Design's match visual: grid 1fr | 260px |
             1fr. Cards are border-border (the 1px lavender) on bg-ts-white
             (the token the spec's #FFFDF9 resolves to), 12×16 padding, three
             mono-12 spans space-between; rust label 10px above each. Centre:
@@ -2119,18 +2232,18 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             gaps; caption 11px faint centred 8px beneath. The centre column's
             lg padding-top optically centres MATCH on the card row. Mobile
             stacks the three cells; the flanking hairlines are desktop-only. */}
-      <section id="deck-08" aria-label="The match" className={openSteps[7] ? DECK.section : DECK.sectionBar}>
+      <section id="deck-09" aria-label="The match" className={openSteps[8] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
-          aria-expanded={openSteps[7]}
-          aria-controls="deck-08-body"
-          onClick={() => toggleStep(7)}
+          aria-expanded={openSteps[8]}
+          aria-controls="deck-09-body"
+          onClick={() => toggleStep(8)}
           className={DECK.stepButton}
         >
-          <span className={DECK.eyebrow}>08 / MATCH THE TWO LANES</span>
-          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[7] ? '−' : '+'}</span>
+          <span className={DECK.eyebrow}>09 / MATCH THE TWO LANES</span>
+          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[8] ? '−' : '+'}</span>
         </button>
-        <div id="deck-08-body" className={openSteps[7] ? undefined : 'hidden'}>
+        <div id="deck-09-body" className={openSteps[8] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             The deposit meets the invoice.<br />The fill meets the order.
           </h2>
@@ -2177,27 +2290,27 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── DECK-09 / THE POSTING. Definition strip (the border-y strip
+      {/* ── DECK-10 / THE POSTING. Definition strip (the border-y strip
             idiom), the rules table with gold debit/credit values, the worked
             sale, and the no-money strip. Gold here is exactly its licence:
             dollar amounts and debit/credit values. */}
-      <section id="deck-09" aria-label="The posting" className={openSteps[8] ? DECK.section : DECK.sectionBar}>
+      <section id="deck-10" aria-label="The posting" className={openSteps[9] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
-          aria-expanded={openSteps[8]}
-          aria-controls="deck-09-body"
-          onClick={() => toggleStep(8)}
+          aria-expanded={openSteps[9]}
+          aria-controls="deck-10-body"
+          onClick={() => toggleStep(9)}
           className={DECK.stepButton}
         >
-          <span className={DECK.eyebrow}>09 / LET THE RULES WRITE THE LINES</span>
-          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[8] ? '−' : '+'}</span>
+          <span className={DECK.eyebrow}>10 / LET THE RULES WRITE THE LINES</span>
+          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[9] ? '−' : '+'}</span>
         </button>
-        <div id="deck-09-body" className={openSteps[8] ? undefined : 'hidden'}>
+        <div id="deck-10-body" className={openSteps[9] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             Nobody sends them.<br />Rules write them.
           </h2>
           <p className={DECK.sub}>
-            It is the same trick as Step 3. A rule is one written row that makes one decision. There, the rules gave kinds. Here, the rules write lines.
+            It is the same trick as Step 4. A rule is one written row that makes one decision. There, the rules gave kinds. Here, the rules write lines.
           </p>
 
           <div className="mt-10 lg:mt-[76px] border-y border-border py-[14px]">
@@ -2256,21 +2369,21 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── DECK-10 / THE ANSWERS. QUESTION | THE MATH; the math's money
+      {/* ── DECK-11 / THE ANSWERS. QUESTION | THE MATH; the math's money
             words ink gold via the pre-split segments. The emphasis line is
             the deck's standalone rust. */}
-      <section id="deck-10" aria-label="The answers" className={openSteps[9] ? DECK.section : DECK.sectionBar}>
+      <section id="deck-11" aria-label="The answers" className={openSteps[10] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
-          aria-expanded={openSteps[9]}
-          aria-controls="deck-10-body"
-          onClick={() => toggleStep(9)}
+          aria-expanded={openSteps[10]}
+          aria-controls="deck-11-body"
+          onClick={() => toggleStep(10)}
           className={DECK.stepButton}
         >
-          <span className={DECK.eyebrow}>10 / TURN THE LINES INTO ANSWERS</span>
-          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[9] ? '−' : '+'}</span>
+          <span className={DECK.eyebrow}>11 / TURN THE LINES INTO ANSWERS</span>
+          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[10] ? '−' : '+'}</span>
         </button>
-        <div id="deck-10-body" className={openSteps[9] ? undefined : 'hidden'}>
+        <div id="deck-11-body" className={openSteps[10] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             Every answer is math<br />on the lines.
           </h2>
@@ -2311,7 +2424,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── DECK-11 / THE TWO WINDOWS. Left: the mini ledger — the sale's
+      {/* ── DECK-12 / THE TWO WINDOWS. Left: the mini ledger — the sale's
             three lines plus the travel line (LEDGER_ROWS carries the one
             flagged constructed figure). Right: Design's two-week calendar
             strip, fluid percentages over the given pixel geometry: day header
@@ -2322,18 +2435,18 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             house escape hatch for computed positioning (the PROBLEM fan's
             label tops, CalendarGrid.tsx:747). The deadline strip runs full
             width below both windows. */}
-      <section id="deck-11" aria-label="The two windows" className={openSteps[10] ? DECK.section : DECK.sectionBar}>
+      <section id="deck-12" aria-label="The two windows" className={openSteps[11] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
-          aria-expanded={openSteps[10]}
-          aria-controls="deck-11-body"
-          onClick={() => toggleStep(10)}
+          aria-expanded={openSteps[11]}
+          aria-controls="deck-12-body"
+          onClick={() => toggleStep(11)}
           className={DECK.stepButton}
         >
-          <span className={DECK.eyebrow}>11 / OPEN THE TWO WINDOWS</span>
-          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[10] ? '−' : '+'}</span>
+          <span className={DECK.eyebrow}>12 / OPEN THE TWO WINDOWS</span>
+          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[11] ? '−' : '+'}</span>
         </button>
-        <div id="deck-11-body" className={openSteps[10] ? undefined : 'hidden'}>
+        <div id="deck-12-body" className={openSteps[11] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             One Ledger. One Calendar.<br />All twenty-five.
           </h2>
@@ -2435,7 +2548,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── DECK-12 / THE THREADS. The hero thread rides Design's connector
+      {/* ── DECK-13 / THE THREADS. The hero thread rides Design's connector
             grid: a 20px gutter with a 1px lavender spine at x=2 and 5×5
             aubergine node squares; artifact cells rule with border-light (the
             token for the spec's #EBE4F7). Mobile stacks artifact under action
@@ -2443,18 +2556,18 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             table scrolls horizontally below lg (the house overflow-x-auto
             idiom — ModuleCostBreakdown above): dropping three of four doors
             would lose the slide. */}
-      <section id="deck-12" aria-label="The threads" className={openSteps[11] ? DECK.section : DECK.sectionBar}>
+      <section id="deck-13" aria-label="The threads" className={openSteps[12] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
-          aria-expanded={openSteps[11]}
-          aria-controls="deck-12-body"
-          onClick={() => toggleStep(11)}
+          aria-expanded={openSteps[12]}
+          aria-controls="deck-13-body"
+          onClick={() => toggleStep(12)}
           className={DECK.stepButton}
         >
-          <span className={DECK.eyebrow}>12 / WATCH ONE DOLLAR RUN THE WHOLE MACHINE</span>
-          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[11] ? '−' : '+'}</span>
+          <span className={DECK.eyebrow}>13 / WATCH ONE DOLLAR RUN THE WHOLE MACHINE</span>
+          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[12] ? '−' : '+'}</span>
         </button>
-        <div id="deck-12-body" className={openSteps[11] ? undefined : 'hidden'}>
+        <div id="deck-13-body" className={openSteps[12] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             One $500 sale runs the machine.<br />Then four more doors open.
           </h2>
@@ -2524,25 +2637,25 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── DECK-13 / THE PROOF. The reverse walk reuses 12's connector
+      {/* ── DECK-14 / THE PROOF. The reverse walk reuses 13's connector
             treatment on a 20px | 180px | 1fr grid; layer labels gold mono
             with NO bottom rule (Design's exception), artifacts mono aubergine
             ruled with border-light. Ends on the deck's closing LINE — 24px
             roman, deliberately NOT a question and NOT the question size pair;
             nothing on this page is italic, so roman is the default it ships
             with. */}
-      <section id="deck-13" aria-label="The proof" className={openSteps[12] ? DECK.section : DECK.sectionBar}>
+      <section id="deck-14" aria-label="The proof" className={openSteps[13] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
-          aria-expanded={openSteps[12]}
-          aria-controls="deck-13-body"
-          onClick={() => toggleStep(12)}
+          aria-expanded={openSteps[13]}
+          aria-controls="deck-14-body"
+          onClick={() => toggleStep(13)}
           className={DECK.stepButton}
         >
-          <span className={DECK.eyebrow}>13 / PROVE EVERY NUMBER</span>
-          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[12] ? '−' : '+'}</span>
+          <span className={DECK.eyebrow}>14 / PROVE EVERY NUMBER</span>
+          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[13] ? '−' : '+'}</span>
         </button>
-        <div id="deck-13-body" className={openSteps[12] ? undefined : 'hidden'}>
+        <div id="deck-14-body" className={openSteps[13] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             Click any number.<br />Walk it back.
           </h2>
