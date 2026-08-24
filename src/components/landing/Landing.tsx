@@ -1995,9 +1995,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             </tbody>
           </table>
 
-          {/* PR-VOICE: the essay's fifth-kind tease and the rule block, after
-              the routing table. */}
-          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>And there is a fifth kind; but no feed ever earns it. We will meet it soon.</p>
+          {/* PR-MECHANICS: the essay's who-decides passage, verbatim, then
+              (PR-VOICE) the fifth-kind tease and the rule block. */}
+          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>And who decides the kind? We do — once per feed. We ask one question: what IS this thing, really? The answer becomes the rule&apos;s row, and the system applies it forever after.</p>
+          <p className={`mt-2 ${DECK.statement}`}>And there is a fifth kind; but no feed ever earns it. We will meet it soon.</p>
           <p className={`mt-2 ${DECK.statement}`}>Here is what makes this step different from every software you have ever met: each kind is given by a rule, and a rule is one written row in a table. Anyone can read it. Anyone can argue with it. It is not a guess buried in code.</p>
           <div className="mt-8 lg:mt-12 h-px w-full bg-border" aria-hidden="true" />
           <p className="mt-[22px] lg:mt-8 text-[12px] lg:text-[14px] text-text-faint">
@@ -2127,6 +2128,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               </div>
             ))}
           </div>
+          {/* PR-MECHANICS: the essay's two-doors mechanical truth, verbatim. */}
+          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>And here is the mechanical truth: this step adds nothing to the tables. Observed things already live in the tables from Step 5; that is the world&apos;s door. Authored things will get their own home in Step 8; that is your door. Two doors into one system — and how the two connect comes soon.</p>
 
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={DECK.q}>So how exactly do you make something happen?</p>
