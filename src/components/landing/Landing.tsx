@@ -484,7 +484,7 @@ const LANE_COLUMNS = [
   },
 ] as const;
 
-// DECK-06 (PR-VOICE): the four beats of the loop band, [beat, caption] —
+// DECK-07 (PR-VOICE): the four beats of the loop band, [beat, caption] —
 // captions are the essay's own beat lines, chains gloss inline. Punctuation
 // is the essay's.
 const LOOP_BEATS = [
@@ -494,7 +494,7 @@ const LOOP_BEATS = [
   ['RECORD', 'it is written down forever.'],
 ] as const;
 
-// DECK-06: the three-tool loop table, [beat, travel, trading, invoicing].
+// DECK-07: the three-tool loop table, [beat, travel, trading, invoicing].
 const LOOP_ROWS = [
   ['DISCOVER', 'live flight prices', 'option chains', 'invoices coming due'],
   ['DECIDE', 'a cart', 'a trade card', 'a draft invoice'],
@@ -502,7 +502,7 @@ const LOOP_ROWS = [
   ['RECORD', 'booking recorded', 'order recorded', 'invoice recorded'],
 ] as const;
 
-// DECK-07 (PR-VOICE): the four things every document carries, [name, desc] —
+// DECK-08 (PR-VOICE): the four things every document carries, [name, desc] —
 // the essay's (1)–(4) items, split at the essay's own semicolon so the
 // column gap plays the semicolon (the same arrangement every two-column
 // row in this deck uses). Item (4) has no tail in the essay, so its desc is
@@ -514,13 +514,13 @@ const MASTER_ROWS = [
   ['(4) Who did it, and when.', ''],
 ] as const;
 
-// DECK-08: the two match cards, [name, amount, date] — amounts gold.
+// DECK-09: the two match cards, [name, amount, date] — amounts gold.
 const MATCH_CARDS = [
   { label: 'OBSERVED', name: 'deposit', amount: '$500.00', date: 'Sep 22' },
   { label: 'AUTHORED', name: 'invoice #14', amount: '$500.00', date: 'due Sep 22' },
 ] as const;
 
-// DECK-09: the posting rules, [event, debit, credit] — debit/credit values
+// DECK-10: the posting rules, [event, debit, credit] — debit/credit values
 // gold at the render.
 const POSTING_RULES = [
   ['invoice issued', 'A/R', 'Revenue'],
@@ -530,7 +530,7 @@ const POSTING_RULES = [
   ['payroll run', 'Wages + employer taxes', 'Cash + withholdings'],
 ] as const;
 
-// DECK-09 (PR-VOICE): the worked sale — the essay's 'Now watch it work'
+// DECK-10 (PR-VOICE): the worked sale — the essay's 'Now watch it work'
 // sentence introduces the three drawn lines, which render ONCE with the
 // essay's (1)(2)(3) prefixes (Deck Law #7, show don't echo — no separate
 // text list). Sentence segments are [text, isGold]; lines are
@@ -547,7 +547,7 @@ const SALE_LINES = [
   ['(3) Cash', '96.80'],
 ] as const;
 
-// DECK-10: four questions and their math, the math pre-split so the deck's
+// DECK-11: four questions and their math, the math pre-split so the deck's
 // money words ink gold. Row 3 has no money word and that is the deck's own
 // shape, not an omission.
 const ANSWER_ROWS: ReadonlyArray<readonly [string, ReadonlyArray<readonly [string, boolean]>]> = [
@@ -557,7 +557,7 @@ const ANSWER_ROWS: ReadonlyArray<readonly [string, ReadonlyArray<readonly [strin
   ['How is my business doing?', [['Money in', true], [' minus ', false], ['money out', true], ['.', false]]],
 ];
 
-// DECK-11: the mini ledger, [date, line, debit, credit] — amounts gold, empty
+// DECK-12: the mini ledger, [date, line, debit, credit] — amounts gold, empty
 // side empty. The sale's three lines ride the deck's own Sep 22 (invoice #14's
 // date); the travel line rides the trip's Sep 20 start. CONSTRUCTED VALUE,
 // FLAGGED: the deck names the travel line but gives it no figure — 480.00 is
@@ -569,7 +569,7 @@ const LEDGER_ROWS = [
   ['Sep 20', 'Travel', '480.00', ''],
 ] as const;
 
-// DECK-11: the two-week calendar strip. Day numbers derive from the deck's
+// DECK-12: the two-week calendar strip. Day numbers derive from the deck's
 // own dates — the trip bar (Sep 20–27) occupies the back 57.15% of 14 equal
 // days, so day one is Sep 14. Geometry is Design's: bars 6px aubergine at the
 // given percent offsets, dots 6px gold centred on their day column.
@@ -592,7 +592,7 @@ const CAL_DEADLINES = [
   'The extended 1040 — your personal tax form, on its extension date — October 15.',
 ] as const;
 
-// DECK-12: the hero thread — eight beats of one $500 sale, [n, action,
+// DECK-13: the hero thread — eight beats of one $500 sale, [n, action,
 // artifactSegments]. Debit/credit values and amounts gold via the segments.
 const THREAD_ROWS: ReadonlyArray<readonly [string, string, ReadonlyArray<readonly [string, boolean]>]> = [
   ['1', 'You sign a client', [['the contract lands in registry.', false]]],
@@ -605,7 +605,7 @@ const THREAD_ROWS: ReadonlyArray<readonly [string, string, ReadonlyArray<readonl
   ['8', 'You look', [['four lines on the Ledger, two dots on the Calendar.', false]]],
 ];
 
-// DECK-12: the four-door table. Row 6 (LINES WRITTEN) pre-splits its cells so
+// DECK-13: the four-door table. Row 6 (LINES WRITTEN) pre-splits its cells so
 // debit/credit VALUES ink gold while the words stay put; the PROJECTS cell is
 // the deliberate exception — 'none — no money moved' stays gray, per the deck.
 const DOOR_COLS = ['TRAVEL', 'TRADING', 'TIME → PAYROLL', 'PROJECTS'] as const;
@@ -625,7 +625,7 @@ const DOOR_ROWS: ReadonlyArray<readonly [string, DoorCell, DoorCell, DoorCell, D
   ['YOU LOOK', 'a trip bar, plus lines', 'fill dots, plus lines', 'a pay-day dot, plus lines', 'a due-date dot — no lines'],
 ];
 
-// DECK-12 (PR-VOICE): the two truths under 'Two more truths from this
+// DECK-13 (PR-VOICE): the two truths under 'Two more truths from this
 // table:'. Truth (1) absorbed the old trade-close strip, in the essay's own
 // sentence, amounts and debit/credit values gold; truth (2) needs no gold —
 // it is about lines NOT being written.
@@ -646,7 +646,7 @@ const TRADE_CLOSE: ReadonlyArray<readonly [string, boolean]> = [
 // glossed at its first on-screen use, the payroll rule row.
 const HOURS_TRUTH = '(2) Your hours never write a line by themselves. They only reach the books when a payroll run commits, exactly as Step 10 promised.';
 
-// DECK-13 (PR-VOICE): the reverse walk, [layer, artifact] — labels gold
+// DECK-14 (PR-VOICE): the reverse walk, [layer, artifact] — labels gold
 // mono, artifacts mono aubergine. The essay's '(N) The layer:' phrasing maps
 // onto the two columns: the prefix rides the label cell, the colon is the
 // column gap, and the artifact carries the essay's punctuation — including
@@ -2089,7 +2089,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             nine acts cannot drift from 01–04 or from each other. Bare
             two-column prose — the deck gives 05 no table. border-t closes
             handoff|06 per the seam ledger. */}
-      <section id="deck-06" aria-label="The two lanes" className={openSteps[5] ? DECK.section : DECK.sectionBar}>
+      <section id="deck-06" aria-label="Observed vs authored" className={openSteps[5] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
           aria-expanded={openSteps[5]}
