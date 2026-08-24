@@ -272,7 +272,7 @@ const PROBLEM_SHEET_SM = [
 const PROBLEM_SHEET_CAPTION = 'So today, to see your full picture, you copy numbers out of each one into a spreadsheet and connect them by hand; and that spreadsheet is only as current as the last time you typed into it.';
 
 // PR-STEP2-VIZ: PROVIDER_ROSTER + PROVIDER_DOORS retired — SHOW DON'T ECHO
-// (Deck Law #7): the provider menu below carries the eleven providers AND
+// (Deck Law #7): the provider menu below carries the providers AND
 // the open doors in one drawing, so the eleven-line roster and the doors
 // gloss died as text. The offerings sentence died with them — its one fact
 // the table cannot draw (the SnapTrade connector) survives as the table's
@@ -280,7 +280,7 @@ const PROBLEM_SHEET_CAPTION = 'So today, to see your full picture, you copy numb
 // wording in the same breath. The retired strings live in git history.
 
 // PROVIDER-MENU (PR-STEP2-VIZ): the 02 / PICK THE PROVIDERS visual, as
-// [job, today, next] — eleven jobs, who feeds each today, which doors are
+// [job, today, next] — thirteen jobs, who feeds each today, which doors are
 // already open for later. Rows are the essay's Step 2 list restated as
 // jobs, same order. '—' is deck content — a job with no open door yet —
 // and renders in the faint tier; never fill it. A new provider is one cell
@@ -296,7 +296,9 @@ const PROVIDER_MENU = [
   ['company numbers', 'finnhub', 'polygon'],
   ['the economy', 'fred', '—'],
   ['filings', 'sec', '—'],
-  ['our AI', 'anthropic · openai · xai grok', '—'],
+  ['our AI', 'anthropic · openai · xai grok · voyage', '—'],
+  ['visas', 'travel buddy', '—'],
+  ['the law itself', 'ecfr · us code · federal register · irs', '—'],
 ] as const;
 
 // IMPORT-COLUMNS (PR-DECK): the field table of the 03 / THE IMPORT slide,
@@ -348,9 +350,9 @@ const IMPORT_COLUMNS: ReadonlyArray<{ band: string; rows: ReadonlyArray<readonly
 ];
 
 // IMPORT-ARRIVALS (PR-STEP-2): twelve rows that landed, ONE PER SPEAKING
-// PROVIDER, as [provider·connection, resource, received, status] — the same
-// eleven providers Step 02's menu speaks to today, in the menu's row order
-// (its TODAY column; PR-STEP2-VIZ retired the roster). Plaid rows
+// PROVIDER, as [provider·connection, resource, received, status] — the
+// SMALL SAMPLE the census line under the strip promises (PR-REALITY): twelve
+// arrivals drawn from Step 02's menu, in the menu's row order. Plaid rows
 // TWICE with two different connections (chase / boa) because that is the
 // deck's own teaching — 'because you might have two or more banks' — and
 // only plaid renders a connection: the others have one, so the cell is just
@@ -377,7 +379,7 @@ const IMPORT_ARRIVALS = [
 
 // ROUTING-RULES (PR-DECK → PR-STEP-2): the whole routing decision, for the
 // 04 / THE ROUTING slide, as [provider, resource, kind, means]. THIRTEEN ROWS
-// — the eleven providers Step 02 names, four kinds, providers repeating
+// — eleven of the providers Step 02 names, four kinds, providers repeating
 // because a feed sends more than one shape. The MEANS column speaks only on a
 // kind's FIRST appearance ('something that happened' · 'one of your accounts'
 // · 'a fact about the world' · 'math we did — never a source'); the empty
@@ -1857,6 +1859,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               ))}
             </tbody>
           </table>
+          {/* PR-REALITY: the essay's census line, verbatim — the count is the
+              2026-08-24 FEED-INVENTORY audit's number, and the strip above is
+              the small sample this line promises. */}
+          <p className={`mt-[14px] ${DECK.statement}`}>And here is the real size of it: today that is 121 feeds from 20 providers — counted August 24, 2026. We will show you a small sample, so the idea stays small enough to hold.</p>
 
           <div className="mt-10 lg:mt-[76px] h-px w-full bg-border" aria-hidden="true" />
           <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>This table is to show us that:</p>
