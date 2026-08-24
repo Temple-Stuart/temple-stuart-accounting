@@ -15,11 +15,11 @@
  *   [PR-MODULES placeholder — "the what", content TBD]
  *   DONE-FOR-YOU        — the professional-services panel
  *   THE PIPELINE header — names the 14-step run (essay front matter, PR-CHROME)
- *   01 / IDENTIFY THE PROBLEM — the six-source fan + the twenty-five-tool sheet
- *   02 / PICK THE PROVIDERS   — the eleven-provider roster + the open doors (PR-STEP-2)
- *   03 / IMPORT THE DATA      — the raw import table, twelve arrivals, the promises
- *   04 / LABEL THE DATA       — one rule per feed, thirteen rows, four kinds
- *   05 / MAP THE DATA TO ITS TABLE — five tables; the kind is the address
+ *   01 / IDENTIFY THE PROBLEM, THE TOOLS YOU NEED, AND THEIR FAMILIES — the six-source fan + the twenty-five-tool sheet
+ *   02 / LOOK AT THE TOOLS AND PICK THE PROVIDERS BEHIND THEM — the provider menu + the open doors
+ *   03 / IMPORT THE DATA AND SEE HOW IT ARRIVES — the raw import table, twelve arrivals, the promises
+ *   04 / LABEL EVERY FEED BY ITS KIND — one rule per feed, thirteen rows, four kinds
+ *   05 / CREATE ONE TABLE PER KIND AND MAP THE DATA IN — five tables; the kind is the address
  *   06 / SEPARATE WHAT HAPPENED TO YOU FROM WHAT YOU DID — observed vs authored
  *   07 / RUN THE LOOP         — discover → decide → commit → record
  *   08 / STORE EVERYTHING YOU DO IN ONE MASTER TABLE
@@ -279,7 +279,7 @@ const PROBLEM_SHEET_CAPTION = 'So today, to see your full picture, you copy numb
 // footnote, essay verbatim. The essay's Step 2 line (11) took the three-AIs
 // wording in the same breath. The retired strings live in git history.
 
-// PROVIDER-MENU (PR-STEP2-VIZ): the 02 / PICK THE PROVIDERS visual, as
+// PROVIDER-MENU (PR-STEP2-VIZ): the slide-02 provider-menu visual, as
 // [job, today, next] — thirteen jobs, who feeds each today, which doors are
 // already open for later. Rows are the essay's Step 2 list restated as
 // jobs, same order. '—' is deck content — a job with no open door yet —
@@ -1481,7 +1481,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           onClick={() => toggleStep(0)}
           className={DECK.stepButton}
         >
-          <span className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.12em] text-text-faint">01 / IDENTIFY THE PROBLEM</span>
+          <span className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.12em] text-text-faint">01 / IDENTIFY THE PROBLEM, THE TOOLS YOU NEED, AND THEIR FAMILIES</span>
           <span aria-hidden="true" className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.12em] text-text-faint">{openSteps[0] ? '−' : '+'}</span>
         </button>
         <div id="deck-01-body" className={openSteps[0] ? undefined : 'hidden'}>
@@ -1679,7 +1679,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── PROVIDERS-02 / PICK THE PROVIDERS (PR-STEP-2 → PR-STEP2-VIZ).
+      {/* ── PROVIDERS-02 (PR-STEP-2 → PR-STEP2-VIZ → PR-ARTICULATION: bar
+            reads LOOK AT THE TOOLS AND PICK THE PROVIDERS BEHIND THEM).
             The step's visual: the provider MENU — THE JOB | TODAY | NEXT —
             replaces the eleven-line roster, the offerings sentence and the
             doors gloss (SHOW DON'T ECHO, Deck Law #7: the table IS that
@@ -1706,7 +1707,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           onClick={() => toggleStep(1)}
           className={DECK.stepButton}
         >
-          <span className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">02 / PICK THE PROVIDERS</span>
+          <span className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">02 / LOOK AT THE TOOLS AND PICK THE PROVIDERS BEHIND THEM</span>
           <span aria-hidden="true" className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">{openSteps[1] ? '−' : '+'}</span>
         </button>
         <div id="deck-02-body" className={openSteps[1] ? undefined : 'hidden'}>
@@ -1747,6 +1748,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           </table>
           {/* The table's footnote — the essay's SnapTrade clause, verbatim. */}
           <p className={`mt-[14px] ${DECK.statement}`}>one connector called SnapTrade reaches Robinhood, Webull, and Public too.</p>
+          {/* PR-ARTICULATION: the essay's born-here paragraph, verbatim. */}
+          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>But notice: most of the twenty-five tools have no provider at all. Nobody sends an API for your tasks, your invoices, your budget. For those, this system does not import the tool — it IS the tool, and the data is born right here. Only some jobs come from outside; the rest, we make.</p>
 
           <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>More join over time. Each one is one new row!</p>
           <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">So how do we actually get their data?</p>
@@ -1784,7 +1787,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           onClick={() => toggleStep(2)}
           className={DECK.stepButton}
         >
-          <span className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">03 / IMPORT THE DATA</span>
+          <span className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">03 / IMPORT THE DATA AND SEE HOW IT ARRIVES</span>
           <span aria-hidden="true" className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">{openSteps[2] ? '−' : '+'}</span>
         </button>
         <div id="deck-03-body" className={openSteps[2] ? undefined : 'hidden'}>
@@ -1921,7 +1924,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           onClick={() => toggleStep(3)}
           className={DECK.stepButton}
         >
-          <span className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">04 / LABEL THE DATA</span>
+          <span className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">04 / LABEL EVERY FEED BY ITS KIND</span>
           <span aria-hidden="true" className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">{openSteps[3] ? '−' : '+'}</span>
         </button>
         <div id="deck-04-body" className={openSteps[3] ? undefined : 'hidden'}>
@@ -2030,7 +2033,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           onClick={() => toggleStep(4)}
           className={DECK.stepButton}
         >
-          <span className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">05 / MAP THE DATA TO ITS TABLE</span>
+          <span className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">05 / CREATE ONE TABLE PER KIND AND MAP THE DATA IN</span>
           <span aria-hidden="true" className="font-mono text-[10.5px] lg:text-[10px] uppercase tracking-[0.12em] text-text-faint">{openSteps[4] ? '−' : '+'}</span>
         </button>
         <div id="deck-05-body" className={openSteps[4] ? undefined : 'hidden'}>
@@ -2445,6 +2448,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           {/* PR-VOICE: the essay line renders once, in the statement tier;
               the rust caps line stays as the poster emphasis of it. */}
           <p className={`mt-10 lg:mt-[76px] ${DECK.statement}`}>Never typed. Never stale. This is the product!</p>
+          {/* PR-ARTICULATION: the essay's back-half truth, verbatim. */}
+          <p className={`mt-2 ${DECK.statement}`}>And look at what these steps really are: Steps 9 and 10 are the bookkeeping system. Step 11 is the tax module and the runway screen. We did not bolt tools onto the pipe — the back half of the pipe IS the tools.</p>
           <p className="mt-[14px] font-mono text-[11px] lg:text-[13px] uppercase tracking-[0.20em] text-brand-amber">THIS IS THE PRODUCT.</p>
 
           <div className={DECK.hairline} aria-hidden="true" />
@@ -2709,7 +2714,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               <p key={claim} className={`${i === 0 ? '' : 'mt-3 lg:mt-[14px]'} ${DECK.trio}`}>{claim}</p>
             ))}
           </div>
-          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>That is why you can believe the screen: every number walks back to the exact words the provider sent.</p>
+          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>That is why you can believe the screen: every number walks back to its source — the exact words a provider sent, or the document you committed — and the rule that wrote the line.</p>
           <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[24px] text-brand-purple">Twenty-five tools. And now every one knows what the others did.</p>
         </div>
       </section>
