@@ -20,10 +20,10 @@
  *   03 / IMPORT THE DATA      — the raw import table, twelve arrivals, the promises
  *   04 / LABEL THE DATA       — one rule per feed, thirteen rows, four kinds
  *   05 / MAP THE DATA TO ITS TABLE — five tables; the kind is the address
- *   06 / SPLIT THE DATA INTO TWO LANES — observed vs authored
+ *   06 / SEPARATE WHAT HAPPENED TO YOU FROM WHAT YOU DID — observed vs authored
  *   07 / RUN THE LOOP         — discover → decide → commit → record
  *   08 / STORE EVERYTHING YOU DO IN ONE MASTER TABLE
- *   09 / MATCH THE TWO LANES  — the deposit meets the invoice
+ *   09 / MATCH WHAT HAPPENED TO WHAT YOU DID — the deposit meets the invoice
  *   10 / LET THE RULES WRITE THE LINES
  *   11 / TURN THE LINES INTO ANSWERS
  *   12 / OPEN THE TWO WINDOWS — the Ledger and the Calendar
@@ -458,8 +458,11 @@ const IMPORT_TRIO = [
 // punctuation-derived.
 // ─────────────────────────────────────────────────────────────────────────
 
-// DECK-05 (PR-VOICE): the two lanes, each a rust header over the essay's own
-// sentences — one <p> per line, in the lane's prose tier. AUTHORED's last
+// DECK-06 (PR-VOICE → PR-LANES): the observed and authored columns, each a
+// rust header over the essay's own sentences — one <p> per line, in the
+// column's prose tier. (The const keeps its historical LANE_COLUMNS name —
+// the lane metaphor died as rendered copy in PR-LANES; the identifier is
+// code, not copy.) AUTHORED's last
 // three lines are the essay's framing + (1)(2) draft/commit enumeration; the
 // '(N) ' prefixes are content, not styling.
 const LANE_COLUMNS = [
@@ -2081,11 +2084,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── DECK-06 / THE TWO LANES. First of the PR-DECK back nine. From
+      {/* ── DECK-06 / OBSERVED VS AUTHORED. First of the PR-DECK back nine. From
             here down, the act grammar rides the module-scope DECK const so
             nine acts cannot drift from 01–04 or from each other. Bare
             two-column prose — the deck gives 05 no table. border-t closes
-            handoff|lanes per the seam ledger. */}
+            handoff|06 per the seam ledger. */}
       <section id="deck-06" aria-label="The two lanes" className={openSteps[5] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
@@ -2094,7 +2097,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           onClick={() => toggleStep(5)}
           className={DECK.stepButton}
         >
-          <span className={DECK.eyebrow}>06 / SPLIT THE DATA INTO TWO LANES</span>
+          <span className={DECK.eyebrow}>06 / SEPARATE WHAT HAPPENED TO YOU FROM WHAT YOU DID</span>
           <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[5] ? '−' : '+'}</span>
         </button>
         <div id="deck-06-body" className={openSteps[5] ? undefined : 'hidden'}>
@@ -2259,7 +2262,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           onClick={() => toggleStep(8)}
           className={DECK.stepButton}
         >
-          <span className={DECK.eyebrow}>09 / MATCH THE TWO LANES</span>
+          <span className={DECK.eyebrow}>09 / MATCH WHAT HAPPENED TO WHAT YOU DID</span>
           <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[8] ? '−' : '+'}</span>
         </button>
         <div id="deck-09-body" className={openSteps[8] ? undefined : 'hidden'}>
@@ -2267,7 +2270,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             The deposit meets the invoice.<br />The fill meets the order.
           </h2>
           <p className={DECK.sub}>
-            Now the two lanes meet.
+            Now observed meets authored.
           </p>
 
           <div className="mt-10 lg:mt-[76px] grid gap-6 lg:grid-cols-[1fr_260px_1fr] lg:gap-0">
