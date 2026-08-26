@@ -280,18 +280,9 @@ const PROBLEM_SHEET_SM = [
   { top: 180, cols: PROBLEM_SHEET.slice(3) },
 ] as const;
 
-// PROBLEM-CAPTION: the line that sits under the sheet. It is rendered TWICE —
-// on desktop INSIDE the sheet column, so it inherits the table's left edge,
-// and on mobile under the stacked grids — so the string lives here once
-// rather than being typed twice (the no-drift law). PR-D1 collapsed the old
-// A SPREADSHEET kicker + note pair into one sentence; PR-VOICE swapped that
-// sentence for the essay's full one, verbatim. CAPTION-ANCHOR: the
-// caption used to be a lone <p> child of the section with no left offset at
-// all, so it began at the page margin while A SPREADSHEET faked its alignment
-// with a pl-[560px] hand-copied from the sheet's rect x. Both magic numbers
-// are gone: on desktop the caption is simply a child of the column the table
-// fills.
-const PROBLEM_SHEET_CAPTION = 'So today, to see your full picture, you copy numbers out of each one into a spreadsheet and connect them by hand; and that spreadsheet is only as current as the last time you typed into it.';
+// PR-S1-PROSE: PROBLEM_SHEET_CAPTION retired — the spreadsheet sentence now
+// lives inside the slide's single merged problem paragraph (essay v14
+// Step 1), rendered once below the visual row. History holds the const.
 
 // PR-STEP2-VIZ: PROVIDER_ROSTER + PROVIDER_DOORS retired — SHOW DON'T ECHO
 // (Deck Law #7): the provider menu below carries the providers AND
@@ -1488,12 +1479,14 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               straight down, tip exactly on the band edge). ~1px stroke,
               2-4 dash, no glow, no gradient. The stroke is brand-purple —
               the mockup's aubergine IS the token; no raw hex.
-              MOBILE stacks list → family grids → caption and drops the
-              overlay and the (c)/(d) tags with it; stacking classes:
+              MOBILE stacks list → family grids → the merged paragraph and
+              drops the overlay; stacking classes:
               container `relative mt-6 lg:mt-8 lg:flex lg:items-start`, list
               `w-full lg:w-[30%]`, gap `hidden lg:block lg:w-[4%]`, sheet
               column `hidden lg:block lg:w-[66%]`, mobile grids `mt-6
-              lg:hidden`. ─────────────────────────────────────────────── */}
+              lg:hidden`. PR-S1-PROSE: the (c)/(d) drawing tags died — the
+              moves block is the only home for the four letters; (b) stays
+              on the list card. ───────────────────────────────────────── */}
           <div className="relative mt-6 lg:mt-8 lg:flex lg:items-start">
             <svg viewBox={`0 0 1216 ${S1_CORRIDOR_PX}`} preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 hidden w-full text-brand-purple lg:block" style={{ height: S1_CORRIDOR_PX }}>
               <defs>
@@ -1513,7 +1506,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                 );
               })}
             </svg>
-            <span className="absolute left-[31%] top-[20px] hidden font-mono text-[10px] font-semibold text-brand-gold lg:block" aria-hidden="true">(d)</span>
 
             {/* MOVE (b) — the raw list. */}
             <div className="w-full lg:w-[30%]">
@@ -1535,7 +1527,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
 
             {/* MOVES (c)/(d) — the family sheet, desktop. */}
             <div className="relative hidden lg:block lg:w-[66%] [container-type:inline-size]" style={{ paddingTop: S1_CORRIDOR_PX }}>
-              <span className="absolute -left-6 top-2 font-mono text-[10px] font-semibold text-brand-gold" aria-hidden="true">(c)</span>
               <table className="w-full table-fixed border-separate border-spacing-0 border border-border">
                 <thead>
                   <tr>
@@ -1565,11 +1556,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                   ))}
                 </tbody>
               </table>
-              {/* CAPTION-ANCHOR: a child of the sheet column, so the line starts
-                  at the table's left edge with no offset of its own. */}
-              <p className="mt-5 text-[15px] leading-[1.6] text-text-secondary">
-                {PROBLEM_SHEET_CAPTION}
-              </p>
             </div>
           </div>
 
@@ -1614,14 +1600,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               </g>
             </svg>
           </div>
-          <p className="mt-2 max-w-[680px] pl-[20px] text-[15px] leading-[1.6] text-text-secondary lg:hidden">
-            {PROBLEM_SHEET_CAPTION}
-          </p>
-          {/* PR-VOICE: the essay's problem pair, below the table on both
-              breakpoints (the caption above carries the essay's spreadsheet
-              sentence). */}
-          <p className={`mt-6 ${DECK.statement}`}>The problem is none of these tools knows what the others did.</p>
-          <p className={`mt-2 ${DECK.statement}`}>They don&apos;t talk to each other.</p>
+          {/* PR-S1-PROSE: the essay's merged problem paragraph, verbatim —
+              one body-tier <p> below the visual row on both breakpoints;
+              the old problem pair and the spreadsheet caption render
+              nowhere else. */}
+          <p className="mt-8 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">The problem is none of these tools knows what the others did. They don&apos;t talk to each other. So today, to see your full picture, you copy numbers out of each one into a spreadsheet and connect them by hand; and that spreadsheet is only as current as the last time you typed into it.</p>
           <p className="mt-6 text-[17px] lg:text-[20px] text-brand-purple">So who sends you all that data?</p>
           <div className="mt-4 h-[30px] lg:h-10 w-px bg-border" aria-hidden="true" />
         </div>
