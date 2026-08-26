@@ -289,7 +289,7 @@ const PROVIDER_MENU = [
   ['banks & accounts', 'plaid', 'teller'],
   ['card money', 'stripe', 'square'],
   ['trades & market data', 'tastytrade', 'schwab · ibkr · alpaca · tradier · snaptrade'],
-  ['flights', 'duffel', 'amadeus'],
+  ['flights', 'liteapi', 'amadeus'],
   ['hotels', 'liteapi', 'amadeus'],
   ['activities', 'viator', '—'],
   ['locations', 'google places', '—'],
@@ -367,7 +367,7 @@ const IMPORT_ARRIVALS = [
   ['plaid · boa', 'transaction', '09:14:09Z', 'DONE'],
   ['stripe', 'payout', '09:14:02Z', 'DONE'],
   ['tastytrade', 'quote', '10:31:00Z', 'DONE'],
-  ['duffel', 'booking', '10:33:27Z', 'DONE'],
+  ['liteapi', 'booking', '10:33:27Z', 'DONE'],
   ['liteapi', 'stay', '10:36:44Z', 'DONE'],
   ['viator', 'activity', '10:39:12Z', 'DONE'],
   ['google places', 'place', '10:42:58Z', 'DONE'],
@@ -379,7 +379,7 @@ const IMPORT_ARRIVALS = [
 
 // ROUTING-RULES (PR-DECK → PR-STEP-2 → PR-SIX): the whole routing decision,
 // for the 04 / THE ROUTING slide, as [provider, resource, kind, means].
-// FOURTEEN ROWS — eleven of the providers Step 02 names, five kinds,
+// FOURTEEN ROWS — ten of the providers Step 02 names, five kinds,
 // providers repeating because a feed sends more than one shape. The MEANS
 // column speaks only on a kind's FIRST appearance ('something that happened'
 // · 'one of your accounts' · 'how things stood at one moment' · 'a fact
@@ -404,7 +404,7 @@ const ROUTING_RULES = [
   ['tastytrade', 'fill', 'EVENT', ''],
   ['sec', 'filing', 'REFERENCE', ''],
   ['fred', 'series', 'REFERENCE', ''],
-  ['duffel', 'booking', 'EVENT', ''],
+  ['liteapi', 'booking', 'EVENT', ''],
   ['liteapi', 'stay', 'EVENT', ''],
   ['viator', 'activity', 'EVENT', ''],
   ['google places', 'place', 'REFERENCE', ''],
@@ -1077,7 +1077,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               {/* HERO-REPO-1 (Alex's rationale): the hosted product leads —
                   "Create free account" is the promoted white CTA. The repo
                   joins as the bordered-ghost secondary: cloning requires
-                  provisioning every API (Duffel / LiteAPI / Plaid / Stripe /
+                  provisioning every API (LiteAPI / Plaid / Stripe /
                   Anthropic / …) — most won't, many can't, and Alex sells setup
                   for those who want it; open-sourcing extends the honesty
                   thesis to the code. "See how it works ↓" left the hero (the
@@ -1841,7 +1841,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             ))}
           </table>
 
-          <p className="mt-10 lg:mt-[76px] font-mono text-[10px] lg:text-[11px] uppercase tracking-[0.20em] text-brand-amber">TWELVE ARRIVALS, ONE TABLE</p>
+          <p className="mt-10 lg:mt-[76px] font-mono text-[10px] lg:text-[11px] uppercase tracking-[0.20em] text-brand-amber">TWELVE ARRIVALS, ONE TABLE — AN EXAMPLE</p>
 
           {/* TABLE 2 — the twelve arrivals, four columns
               (provider·connection | resource | time | status), no thead (the
@@ -1854,7 +1854,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <table className="mt-[14px] lg:mt-[18px] w-full table-fixed border-separate border-spacing-0 border border-border">
             <tbody>
               {IMPORT_ARRIVALS.map((row, r) => (
-                <tr key={row[0]}>
+                <tr key={`${row[0]}-${row[1]}`}>
                   {row.map((cell, c) => (
                     <td
                       key={cell}
@@ -2331,7 +2331,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               checks — the text below never restates them. */}
           <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Click; one match.</p>
           <p className={`mt-2 ${DECK.statement}`}>The deposit found its invoice. The fill found its order. The card charge found its booking. Nobody hunted through statements!</p>
-          <p className={`mt-2 ${DECK.statement}`}>(A piece of this is already alive today: card charges find their bookings on their own.)</p>
+          <p className={`mt-2 ${DECK.statement}`}>(A piece of this is already alive today: card charges find their bookings and propose the match — you approve it.)</p>
           <p className={`mt-2 ${DECK.statement}`}>Matched means real; the world just confirmed what you did.</p>
           <p className={DECK.q}>Matched and real. So who writes the debits and credits?</p>
         </div>
@@ -2679,7 +2679,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             </p>
             <p className="mt-2 font-mono text-[11px] leading-[1.6] lg:text-[12px] text-text-secondary">{HOURS_TRUTH}</p>
           </div>
-          <p className={`mt-[14px] ${DECK.statement}`}>The travel match is already alive today: card charges find their bookings on their own.</p>
+          <p className={`mt-[14px] ${DECK.statement}`}>The travel match is already alive today: card charges find their bookings and propose the match — you approve it.</p>
 
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={DECK.q}>Beautiful. But why should you believe any of it?</p>
