@@ -15,7 +15,7 @@
  *   [PR-MODULES placeholder — "the what", content TBD]
  *   DONE-FOR-YOU        — the professional-services panel
  *   THE PIPELINE header — names the 14-step run (essay front matter, PR-CHROME)
- *   01 / IDENTIFY THE PROBLEM, THE TOOLS, THE FAMILIES — AND SORT THEM IN — four moves, the six-source fan + the twenty-five-tool sheet
+ *   01 / IDENTIFY THE PROBLEM, THE TOOLS, THE FAMILIES — AND SORT THEM IN — four moves drawn: the raw list, the family sheet, the flow arcs
  *   02 / LOOK AT THE TOOLS AND PICK THE PROVIDERS BEHIND THEM — the provider menu + the open doors
  *   03 / IMPORT THE DATA AND SEE HOW IT ARRIVES — the raw import table, twelve arrivals, the promises
  *   04 / LABEL EVERY FEED BY ITS KIND — one rule per feed, thirteen rows, four kinds
@@ -195,67 +195,73 @@ const LandingBookingSection = dynamic(() => import('./LandingBookingSection'), {
   ),
 });
 
-// PROBLEM-DIAGRAM: the six kinds of places money lives, for the 01 / THE
-// PROBLEM diagram. ONE array because the diagram renders its labels TWICE —
-// once per breakpoint SVG, each at its own absolute offsets — and the same
-// six strings typed twice is exactly the drift the no-drift law forbids.
-// Stored in sentence case; the mono lockup uppercases via CSS, never a
-// retyped string. These six were deliberately never a shared symbol with the
-// retired REPLACED_APPS family names, which grouped the apps you replace where
-// this names where money lives; that array died with the modules section and
-// this one is now the sole owner of the vocabulary.
-const PROBLEM_SOURCES = [
-  'The Work',
-  'Money In',
-  'Money Out',
-  'What You Own',
-  'What You Owe',
-  'The Proof',
-] as const;
+// PR-S1-VIZ: PROBLEM_SOURCES retired — the fan died with the CD-S1 ruling
+// and the six family names moved into PROBLEM_SHEET's headers (below), which
+// are now their sole owner. The old headers-abbreviated-on-purpose law
+// (place-name left, tab-name top, the mismatch was the drawing) is OVERRULED
+// by the founder's CD-S1 mockup: the sheet's header band carries the FULL
+// family names, because the sheet is now moves (c)/(d)'s destination, not a
+// spreadsheet pastiche. PROBLEM_FAN_LG, PROBLEM_LABEL_TOP_LG and
+// PROBLEM_LABEL_TOP_SM died with the fan. History holds all four.
 
-// PROBLEM-SHEET: the twenty-five tools those six places actually take, one
-// column per PROBLEM_SOURCES entry and ORDER-PARALLEL to it — index i here is
-// the sheet column belonging to fan label i. Shape: six { header, tools }.
-//
-// THE HEADERS ARE ABBREVIATED ON PURPOSE and deliberately do NOT match
-// PROBLEM_SOURCES. The fan's HTML labels on the left carry the full names
-// ('What You Own'); these are the tab names a person would actually type
-// across the top of a spreadsheet ('OWN'). That mismatch IS the drawing — the
-// left column names the place, the sheet names the tab. Do not "fix" either
-// side to the other; squaring them would flatten the whole point of the figure.
+// PROBLEM-SHEET (PR-S1-VIZ): the twenty-five tools under their six family
+// names — headers uppercase literals (the desktop th also carries the
+// uppercase class; the mobile SVG draws the string raw, so the const is the
+// single uppercase source).
 //
 // THE COLUMNS ARE DELIBERATELY UNEQUAL — 3 / 4 / 6 / 5 / 3 / 4, twenty-five in
 // total. The ragged bottom is honest: some kinds of places take six tools and
 // some take three. NEVER pad a column to square the grid — the empty cells are
 // the finding, not a rendering defect.
 //
-// SOLE OWNER of the twenty-five, as of the modules retirement. This was
-// deliberately never coupled to the retired REPLACED_APPS — the same reasoning
-// as PROBLEM_SOURCES above — and that decision is why the deck could be deleted
-// without touching a line of this slide. Keep it uncoupled: a future module
-// list is a different question from what a business is replacing.
+// SOLE OWNER of the twenty-five and of the family vocabulary, as of the
+// modules retirement and the fan retirement. S1_TOOL_LIST below is the SAME
+// twenty-five in the founder's raw-list order — set-equal by construction,
+// verified by the PR script; a new tool lands in BOTH or the check fails.
 const PROBLEM_SHEET = [
-  { header: 'WORK', tools: ['Calendar', 'Tasks', 'Time'] },
-  { header: 'IN', tools: ['CRM', 'Contracts', 'Invoicing', 'Payments'] },
-  { header: 'OUT', tools: ['Bill Pay', 'Payroll', 'Expenses', 'Travel', 'Mileage', 'Budget'] },
-  { header: 'OWN', tools: ['Banking', 'Fixed Assets', 'Retirement', 'Brokerage', 'Trade Log'] },
-  { header: 'OWE', tools: ['Debt', 'Sales Tax', 'Ent Filings'] },
-  { header: 'PROOF', tools: ['Bookkeeping', 'Tax', 'Compliance', 'FP&A'] },
+  { header: 'THE WORK', tools: ['Calendar', 'Tasks', 'Time'] },
+  { header: 'MONEY IN', tools: ['CRM', 'Contracts', 'Invoicing', 'Payments'] },
+  { header: 'MONEY OUT', tools: ['Bill Pay', 'Payroll', 'Expenses', 'Travel', 'Mileage', 'Budget'] },
+  { header: 'WHAT YOU OWN', tools: ['Banking', 'Fixed Assets', 'Retirement', 'Brokerage', 'Trade Log'] },
+  { header: 'WHAT YOU OWE', tools: ['Debt', 'Sales Tax', 'Ent Filings'] },
+  { header: 'THE PROOF', tools: ['Bookkeeping', 'Tax', 'Compliance', 'FP&A'] },
 ] as const;
 
-// PROBLEM-SHEET / MOBILE SPLIT: six 56px columns cannot fit a 280px viewBox, so
+// S1-TOOL-LIST (PR-S1-VIZ): move (b) — the raw twenty-five in the founder's
+// ruled order, BEFORE sorting. Set-equal to PROBLEM_SHEET's cells (the PR
+// script proves it); the scramble against the sheet's family order is the
+// drawing — the list is the pile, the sheet is the pile sorted.
+const S1_TOOL_LIST = [
+  'CRM', 'Bookkeeping', 'Bill Pay', 'Calendar', 'Banking', 'Debt',
+  'Contracts', 'Payroll', 'Fixed Assets', 'Tasks', 'Tax', 'Sales Tax',
+  'Invoicing', 'Retirement', 'Compliance', 'Expenses', 'Time', 'Payments',
+  'Travel', 'Brokerage', 'Ent Filings', 'Mileage', 'Trade Log', 'Budget',
+  'FP&A',
+] as const;
+
+// S1-FLOWS (PR-S1-VIZ): move (d) — five dotted arcs, list edge to five
+// DISTINCT family columns' tops, as [source-y (viewBox), column index].
+// Drawn in the desktop overlay only; geometry lives in the render comment.
+const S1_FLOWS = [
+  { sy: 80, col: 0 },
+  { sy: 150, col: 1 },
+  { sy: 220, col: 2 },
+  { sy: 290, col: 3 },
+  { sy: 360, col: 5 },
+] as const;
+
+// PROBLEM-SHEET / MOBILE SPLIT: six columns cannot fit a 280px viewBox, so
 // the phone draws TWO stacked grids of three columns instead of one of six.
-// DERIVED BY SLICE from PROBLEM_SHEET, never a retyped second copy of the tool
-// names (the no-drift law) — and each grid is paired here with its own `top` so
-// the split and its geometry can only move together. `top` is the y of that
-// grid's outer rect; EVERY other coordinate in the mobile sheet is computed
-// from it (header rule top+30, interior rules top+50..top+130 by 20, header
-// baseline top+18, data baselines top+43 by 20). Grid A keeps the original
-// grid's y=230 so the dashed fan's convergence point is untouched; Grid B sits
-// 30px below A's bottom edge.
+// DERIVED BY SLICE from PROBLEM_SHEET, never a retyped second copy (the
+// no-drift law) — each grid paired with its own `top` so the split and its
+// geometry move together. EVERY other coordinate derives from `top` (header
+// rule top+30, interior rules top+50..top+130 by 20, header baseline top+18,
+// data baselines top+43 by 20). PR-S1-VIZ: the fan died, so the tops no
+// longer anchor to a convergence point — Grid A sits at 0, Grid B 30px below
+// A's bottom edge (0+150+30), in a 280x330 viewBox.
 const PROBLEM_SHEET_SM = [
-  { top: 230, cols: PROBLEM_SHEET.slice(0, 3) },
-  { top: 410, cols: PROBLEM_SHEET.slice(3) },
+  { top: 0, cols: PROBLEM_SHEET.slice(0, 3) },
+  { top: 180, cols: PROBLEM_SHEET.slice(3) },
 ] as const;
 
 // PROBLEM-CAPTION: the line that sits under the sheet. It is rendered TWICE —
@@ -729,45 +735,8 @@ function GoldSegments({ segments }: { segments: ReadonlyArray<readonly [string, 
   );
 }
 
-// PROBLEM-FAN / DESKTOP GEOMETRY. The whole desktop drawing in one object, so
-// the viewBox, the paths and the label offsets cannot drift apart. Design's
-// figures: origins at x=148, a horizontal run to the bend at x=268, then one
-// angle to the join at (505, 166). The join stops SHORT of the sheet on
-// purpose — the lines AIM at it, they do not land on it — and 505 also keeps
-// the 1px stroke's outer half (505.5) inside the 507 box, the right-edge clip
-// lesson from GRID-SCALE below.
-const PROBLEM_FAN_LG = { w: 507, h: 310, originX: 148, bendX: 268, joinX: 505, joinY: 166 } as const;
-
-// The six DESKTOP line-origin y values — first at 21, pitch 55. This array is
-// the SINGLE SOURCE for both the fan's six paths AND the six HTML labels
-// pinned over them: the paths read it directly, and each label's offset is
-// y / PROBLEM_FAN_LG.h expressed as a percentage. There is nothing left to
-// keep in sync by hand, which is what the old two-array arrangement asked for
-// and what the note below still asks of the MOBILE pair.
-//
-// WHY PERCENTAGES, AND WHY AN INLINE style. The desktop SVG is no longer
-// rendered 1:1 — it is fluid (w-full over a fixed viewBox), because a fixed
-// 1216px row overflows every viewport under 1280 while `lg:` starts at 1024.
-// Once the drawing scales, a px offset is only correct at one width, but
-// y / 310 is correct at EVERY width, since the wrapper's height is exactly the
-// scaled SVG's height. Percentages cannot be literal Tailwind classes here
-// (`top-[${y}%]` would never compile — Tailwind scans source text, it does not
-// evaluate it; the REPAINT-1 landmine note in tailwind.config.ts is the same
-// lesson), so the offset goes through an inline style — the house escape hatch
-// for computed positioning (CalendarGrid.tsx:747,767,779 do exactly this).
-const PROBLEM_LABEL_TOP_LG = [21, 76, 131, 186, 241, 296] as const;
-
-// The six MOBILE label offsets, order-parallel to PROBLEM_SOURCES. LITERAL
-// class strings, never interpolated (same Tailwind-scans-source lesson as
-// above). The mobile SVG IS still rendered 1:1 at its viewBox size, so these
-// stay exact pixel matches to its line origins, with no scaling to reason
-// about: 6 rows of 26px. Scaling that drawing without scaling this array would
-// silently unpin every mobile label from its line.
-// (No lg: prefix needed — the array is used inside a container that is already
-// breakpoint-gated, so the class only applies where it is visible.)
-const PROBLEM_LABEL_TOP_SM = [
-  'top-[13px]', 'top-[39px]', 'top-[65px]', 'top-[91px]', 'top-[117px]', 'top-[143px]',
-] as const;
+// PR-S1-VIZ: PROBLEM_FAN_LG, PROBLEM_LABEL_TOP_LG, PROBLEM_LABEL_TOP_SM
+// retired with the fan — see the S1-VIZ render comment. History holds them.
 
 // FD-1i: the SUMMARY deck's content — LIFTED ONLY, zero invented copy (the
 // FD-1b bullet-lift precedent). PLAIN-SHOWCASE exception: the TRAVEL entry
@@ -1326,7 +1295,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         <p className={`mt-[14px] ${DECK.statement}`}>Each number is a machine step — a stage the data passes through. Inside a step there can be moves, lettered (a), (b), (c): the things a person does. We walk them one by one.</p>
       </section>
 
-      {/* ── PROBLEM-01 / SIX-SOURCE DIAGRAM. This is where the TEACHING
+      {/* ── PROBLEM-01 / THE FOUR MOVES DRAWN (PR-S1-VIZ). This is where the TEACHING
             SEQUENCE starts — the two acts above it are live revenue surfaces
             and carry no step number, so 01 is still the first number a reader
             meets even though it is no longer the first act on the page.
@@ -1431,55 +1400,22 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             guest has trip records — GuestTripStrip's money numerals, which are
             text-brand-gold, i.e. gold INK, not just fill
             (GuestTripStrip.tsx:53,65). What IS true and worth recording: among
-            the NUMBERED teaching acts, gold enters at 02 and continues into 03.
-            Check the other files before writing a page-wide colour claim.
+            the NUMBERED teaching acts, gold now enters at 01 — the (b)/(c)/(d)
+            letter tags and the moves block's letters, ruled by the CD-S1
+            mockup. Check the other files before writing a page-wide colour
+            claim.
 
-            FIRST DIAGRAM SVG IN THE REPO. Every other <svg> in src/ is an
-            icon or a spinner, so there was no diagram precedent to follow and
-            this establishes one. It follows the house icon idiom
-            (HomeClient.tsx:301-305, Header.tsx:35-37): stroke/fill =
-            "currentColor", the colour supplied by a Tailwind text-* token on
-            a wrapping <g>. NO hex — BacktestPanel.tsx:80 and
-            strategy-builder.ts:1384 hardcode token values and are drift bugs,
-            not precedent. currentColor carries ONE colour per subtree, so
-            elements are grouped by COLOUR, not by meaning. On DESKTOP that now
-            costs a single group: the SVG draws only the dashed fan and BY HAND,
-            both faint, because the sheet left the drawing entirely (see below).
-            The MOBILE SVG still draws its sheet and keeps the four-group split:
-            the bg-row <g> holds the header bands ALONE and comes first so every
-            rule and every name draws over them; the faint <g> holds the fan,
-            BY HAND, the sheets' inner rules and their column headers; a
-            brand-purple <g> holds the tool names; the muted <g> holds each
-            sheet's outer border and header rule.
-
-            TWO SVGs, BREAKPOINT-SWAPPED — not one responsive viewBox. These
-            are two different drawings, not one drawing at two sizes: desktop
-            runs the lines rightward and converges on the sheet's LEFT edge,
-            mobile runs them downward and converges on its TOP edge. One
-            viewBox cannot express both, and stretching either into the
-            other's aspect would skew the dash pattern and the angles — which
-            are the whole point of the figure. Each SVG renders at its viewBox
-            size 1:1 (no scaling at all), and that is what lets the six HTML
-            labels be positioned in exact pixels against the line origins.
-
-            The six labels and A SPREADSHEET are real HTML text in the mono
-            lockup (:853's idiom), never SVG <text> — selectable, findable and
-            translatable.
-
-            THE SVG-<text> EXCEPTION IS RETIRED ON DESKTOP. It was granted
-            because thirty-one strings inside a drawn grid would have needed
-            thirty-one absolute pixel offsets over the SVG. That reasoning died
-            with the grid: the desktop sheet is a real HTML <table>, which sizes
-            itself from padding and line-height, so all thirty-one coordinates
-            disappear rather than moving into HTML. The desktop SVG is back to
-            what the rule always wanted — a drawing and nothing else — and the
-            table's contents are selectable, findable and translatable like
-            every other string in the section. The exception survives on MOBILE
-            only, where the two stacked sheets are still drawn.
-
-            The six family labels stay HTML absolutely positioned over the fan,
-            which is what the rule was written for. BY HAND, part of the drawing
-            itself, is still inside the SVG. ─────────────────────────────────────────── */}
+            THE FAN IS RETIRED (PR-S1-VIZ) and with it BY HAND, the six-label
+            rail and both convergence drawings. What remains follows the house
+            SVG idiom (stroke/fill = "currentColor", colour via a Tailwind
+            text-* token on a wrapping <g>; NO hex): the desktop overlay draws
+            only the five move-(d) arcs in one brand-purple subtree, and the
+            MOBILE SVG draws only the two stacked family grids with the same
+            four-group colour split as before (bg-row bands first, faint rules
+            + headers, purple tool names, muted outer borders). The desktop
+            sheet stays a real HTML <table> — selectable, findable,
+            translatable — and the SVG-<text> exception survives on MOBILE
+            only, where the grids are still drawn. */}
       <section id="deck-01" aria-label="The problem" className={openSteps[0] ? 'max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px]' : DECK.sectionBar}>
         <button
           type="button"
@@ -1500,79 +1436,76 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           </p>
           {/* PR-MOVES → PR-MOVES-2: the essay's four-moves block, verbatim. */}
           <p className={`mt-6 ${DECK.statement}`}>This step is four moves:</p>
-          <p className={`mt-2 ${DECK.statement}`}>(a) The problem gets named.</p>
-          <p className={`mt-2 ${DECK.statement}`}>(b) The tools to solve it get listed.</p>
-          <p className={`mt-2 ${DECK.statement}`}>(c) The families to sort the tools into get created.</p>
-          <p className={`mt-2 ${DECK.statement}`}>(d) Each tool gets moved from the list into the table, under its family.</p>
+          <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(a)</span> The problem gets named.</p>
+          <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(b)</span> The tools to solve it get listed.</p>
+          <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(c)</span> The families to sort the tools into get created.</p>
+          <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(d)</span> Each tool gets moved from the list into the table, under its family.</p>
 
-          {/* DESKTOP FAN — viewBox 900×224, rendered 1:1. Origins sit at x=168,
-              clear of the label column; each line runs right to x=336 then
-              angles to one point on the sheet's left edge (560, 112). The two
-              middle lines run nearly level while the outer four angle hard —
-              that spread IS the convergence.
-  FLUID, NOT 1:1. Design measured a 1728px artboard; scaled
-              to this site's 1216px of content that is 507 diagram + 73 gap + 636
-              sheet. But 1216px of content only exists at viewport >= 1280, while
-              `lg:` starts at 1024 — at 1024 the container is 960px, so a fixed
-              row would have scrolled sideways by 256px across the whole band.
-              The row is therefore proportional: 41.6941% / 5.8388% / 52.4671%,
-              the exact ratios of 507 / 71 / 638 over 1216, summing to 100%. At
-              the 1280 reference every part lands on Design's integer px; below
-              it the whole figure scales, diagram and sheet together.
-              TYPE SCALES WITH THE BOX. A fluid box holding fixed 11px type is
-              not fluid — measured, "Fixed Assets" stops fitting its column below
-              about 1205px of viewport, wrapping to two lines and blowing the 26px
-              row rhythm. So the sheet column is a container-query context and the
-              table's type and padding are cqw fractions of it: 11px -> 1.72414cqw,
-              9px -> 1.41066cqw, 7px -> 1.09718cqw, 10px -> 1.5674cqw, 12px ->
-              1.88088cqw, 8px -> 1.25392cqw, each x/638 as a percentage. Rule
-              weights alone stay in px, per Design's own 0.75-not-0.5 ruling.
-              THE JOIN STOPS SHORT. The fan converges at (505, 166) and the sheet
-              begins a gap away; Design leaves the lines aiming at the sheet
-              rather than landing on it, and that gap is the point. */}
-          <div className="mt-6 hidden lg:mt-8 lg:flex lg:items-start">
-            {/* DIAGRAM — 507 of the 1216 row. The SVG is fluid (w-full over a
-                fixed viewBox), so it holds Design's proportions at every width
-                and hits her exact 507x310 at the 1280 reference. */}
-            <div className="relative w-[41.6941%]">
-              <svg role="img" viewBox={`0 0 ${PROBLEM_FAN_LG.w} ${PROBLEM_FAN_LG.h}`} className="h-auto w-full">
-                <title>Six kinds of places, copied by hand into one spreadsheet</title>
-                <g className="text-text-faint" stroke="currentColor" fill="none">
-                  {PROBLEM_LABEL_TOP_LG.map((y) => (
-                    <path
-                      key={y}
-                      d={`M${PROBLEM_FAN_LG.originX} ${y} H${PROBLEM_FAN_LG.bendX} L${PROBLEM_FAN_LG.joinX} ${PROBLEM_FAN_LG.joinY}`}
-                      strokeWidth={1}
-                      strokeDasharray="3 5"
-                    />
+          {/* ── S1-VIZ (PR-S1-VIZ, per the approved CD-S1 mockup 1a): the four
+              moves DRAWN. The fan is retired — the visual is move (b) as a
+              bordered card (the raw twenty-five, S1_TOOL_LIST, routing-card
+              grammar: DECK.th header band, faint numbers, purple mono names),
+              move (c) as the family sheet (full family names in the header
+              band, cqw type untouched — the sheet column is still its own
+              container-query context, so the table scales with its new 66%
+              exactly as it did with the old 52%), and move (d) as dotted
+              arcs from the list's right edge to five distinct family
+              columns' tops. Letter tags in gold mono mark (b), (c) and (d)
+              on the drawing; (a) has no tag — the headline carries it.
+              ARC GEOMETRY: one absolutely-positioned pointer-events-none SVG
+              overlay spans the whole row (viewBox 0 0 1216 440,
+              preserveAspectRatio "none" — decorative arcs stretch with the
+              row). Sources sit at x=368 (the list's right edge, 30% of
+              1216); targets at column centers x = 413 + col*133.8 + 66.9
+              (sheet starts at 34%, six equal columns of the 66%), y=8; each
+              path is a quadratic bezier whose control point hugs the top
+              (ctrlY = 8 + (sy-8)*0.18), ~1px stroke, 2-4 dash, small solid
+              triangle heads pointing down into the column top. The stroke is
+              brand-purple — the mockup's #3B2D6B IS the token; no raw hex.
+              MOBILE stacks list → family grids → caption and drops the
+              overlay and the (c)/(d) tags with it; stacking classes:
+              container `relative mt-6 lg:mt-8 lg:flex lg:items-start`, list
+              `w-full lg:w-[30%]`, gap `hidden lg:block lg:w-[4%]`, sheet
+              column `hidden lg:block lg:w-[66%]`, mobile grids `mt-6
+              lg:hidden`. ─────────────────────────────────────────────── */}
+          <div className="relative mt-6 lg:mt-8 lg:flex lg:items-start">
+            <svg viewBox="0 0 1216 440" preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 hidden h-full w-full text-brand-purple lg:block">
+              {S1_FLOWS.map(({ sy, col }) => {
+                const sx = 368;
+                const tx = Math.round(413 + col * 133.8 + 66.9);
+                const ty = 8;
+                const ctrlY = ty + (sy - ty) * 0.18;
+                return (
+                  <g key={`${sy}-${col}`}>
+                    <path d={`M${sx} ${sy} Q ${Math.round((sx + tx) / 2)} ${Math.round(ctrlY)} ${tx} ${ty}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" />
+                    <path d={`M${tx} ${ty} l -5 -7 h 10 z`} fill="currentColor" />
+                  </g>
+                );
+              })}
+            </svg>
+            <span className="absolute left-[31%] top-[10%] hidden font-mono text-[10px] font-semibold text-brand-gold lg:block" aria-hidden="true">(d)</span>
+
+            {/* MOVE (b) — the raw list. */}
+            <div className="w-full lg:w-[30%]">
+              <p className="font-mono text-[10px] font-semibold text-brand-gold" aria-hidden="true">(b)</p>
+              <div className="mt-1.5 border border-border bg-white">
+                <p className={DECK.th}>TOOLS</p>
+                <div className="px-[11px] py-[7px] lg:px-4 lg:py-2">
+                  {S1_TOOL_LIST.map((tool, i) => (
+                    <p key={tool} className="flex items-baseline gap-2 py-[2px] font-mono text-[10.5px] leading-[1.35]">
+                      <span className="text-text-faint">{String(i + 1).padStart(2, '0')}</span>
+                      <span className="text-brand-purple">{tool}</span>
+                    </p>
                   ))}
-                  <text x={430} y={70} textAnchor="middle" fontSize={10} letterSpacing={1.4} className="font-mono" fill="currentColor" stroke="none">BY HAND</text>
-                </g>
-              </svg>
-              {PROBLEM_SOURCES.map((label, i) => (
-                <p
-                  key={label}
-                  className="absolute left-0 -translate-y-1/2 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-purple"
-                  style={{ top: `${(PROBLEM_LABEL_TOP_LG[i] / PROBLEM_FAN_LG.h) * 100}%` }}
-                >
-                  {label}
-                </p>
-              ))}
+                </div>
+              </div>
             </div>
 
-            {/* GAP — 71 of 1216. Design's 73 less the 2px the table's border-box
-                conversion needs; whitespace is the cheapest place to find 2px and
-                it keeps the column grid at exactly 106. */}
-            <div className="w-[5.8388%]" aria-hidden="true" />
+            <div className="hidden lg:block lg:w-[4%]" aria-hidden="true" />
 
-            {/* SHEET — 638 of 1216 (Design's 636 CONTENT + the table's 1px left
-                and right borders, since Preflight puts every box in border-box).
-                The column is the container-query context: the table's type and
-                padding are cqw fractions of it, so the sheet scales in lockstep
-                with the diagram instead of holding 11px type inside a shrinking
-                box. Rule weights stay in px — Design's own ruling that 0.75
-                must not go sub-pixel applies at every width, not just 1280. */}
-            <div className="w-[52.4671%] [container-type:inline-size]">
+            {/* MOVES (c)/(d) — the family sheet, desktop. */}
+            <div className="relative hidden lg:block lg:w-[66%] [container-type:inline-size]">
+              <span className="absolute -left-6 top-2 font-mono text-[10px] font-semibold text-brand-gold" aria-hidden="true">(c)</span>
               <table className="w-full table-fixed border-separate border-spacing-0 border border-border">
                 <thead>
                   <tr>
@@ -1610,38 +1543,18 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             </div>
           </div>
 
-          {/* MOBILE FAN — viewBox 280×570, rendered 1:1 (280 clears the 288px
-              content width of a 320px viewport). Each line leaves its own label
-              at x=100 and angles DOWN to one point on the sheet's top edge
-              (140, 230). THE FAN IS UNTOUCHED by the sheet rewrite: same six
-              origins, same convergence point, same weights — only the viewBox
-              FLOOR moved, and a viewBox growing downward cannot move anything
-              already drawn above it.
-              TWO STACKED GRIDS, NOT ONE OF SIX. Six columns do not fit 280px —
-              240px of sheet would give 40px a column, under what the longer names
-              need at fontSize 7 — so the phone splits the sheet: Grid A
-              (WORK · IN · OUT) keeps the original grid's box at y=230 so the
-              convergence point still lands on a real top edge, and Grid B
-              (OWN · OWE · PROOF) sits 30px below A's bottom edge, at y=410. Each
-              is 240 / 3 = 80px a column (dividers at x=100/180, text at
-              24 + c*80), with the same header band, the same six 20px data rows
-              and the same rule weights as desktop. Both grids share x=20, so the
-              spreadsheet caption's pl-[20px] still aligns to both and does not
-              move. Every coordinate derives from each grid's `top` — the split
-              and its geometry live together in PROBLEM_SHEET_SM. */}
-          <div className="relative mt-6 lg:hidden">
-            <svg role="img" viewBox="0 0 280 570" className="h-[570px] w-[280px]">
-              <title>Six kinds of places, copied by hand into one spreadsheet</title>
+          {/* MOBILE SHEET — the two stacked grids, fan-free (PR-S1-VIZ): same
+              header band, rules and type as before, in a 280x330 viewBox whose
+              tops live in PROBLEM_SHEET_SM. */}
+          <div className="mt-6 lg:hidden">
+            <svg role="img" viewBox="0 0 280 330" className="h-[330px] w-[280px]">
+              <title>The twenty-five tools sorted into six families</title>
               <g className="text-bg-row" fill="currentColor" stroke="none">
                 {PROBLEM_SHEET_SM.map(({ top }) => (
                   <rect key={top} x={20} y={top} width={240} height={30} />
                 ))}
               </g>
               <g className="text-text-faint" stroke="currentColor" fill="none">
-                {[13, 39, 65, 91, 117, 143].map((y) => (
-                  <path key={y} d={`M100 ${y} L140 230`} strokeWidth={1} strokeDasharray="3 4" />
-                ))}
-                <text x={200} y={185} textAnchor="middle" fontSize={10} letterSpacing={1.4} className="font-mono" fill="currentColor" stroke="none">BY HAND</text>
                 {PROBLEM_SHEET_SM.flatMap(({ top, cols }) => [
                   ...[1, 2, 3, 4, 5].map((r) => (
                     <line key={`h${top}-${r}`} x1={20} y1={top + 30 + r * 20} x2={260} y2={top + 30 + r * 20} strokeWidth={0.75} />
@@ -1670,14 +1583,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                 ])}
               </g>
             </svg>
-            {PROBLEM_SOURCES.map((label, i) => (
-              <p
-                key={label}
-                className={`absolute left-0 -translate-y-1/2 font-mono text-xs font-semibold uppercase tracking-[0.08em] text-brand-purple ${PROBLEM_LABEL_TOP_SM[i]}`}
-              >
-                {label}
-              </p>
-            ))}
           </div>
           <p className="mt-2 max-w-[680px] pl-[20px] text-[15px] leading-[1.6] text-text-secondary lg:hidden">
             {PROBLEM_SHEET_CAPTION}
