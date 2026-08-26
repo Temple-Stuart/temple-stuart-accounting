@@ -59,7 +59,7 @@
  * ── VERBATIM STRINGS CARRIED ─────────────────────────────────────────────────
  *   "Flight search is temporarily paused. Please try again later."
  *                                          flights/search/route.ts:90
- *   "Test mode — no real charge. Use a Duffel test card."
+ *   "Test mode — no real charge. Use a Stripe test card."
  *                                          FlightCheckoutPanel.tsx:206
  *   "Test mode — use card 4242 4242 4242 4242, any future date, any CVV. No
  *    real charge."                         CheckoutPanel.tsx:269-270
@@ -202,10 +202,10 @@ function FlightCheckoutMirror() {
         <p><span className="text-text-faint">search</span> <span className="float-right text-text-secondary">real LiteAPI offers, real prices</span></p>
         <p><span className="text-text-faint">passenger</span> <span className="float-right text-text-secondary">name · DOB · passport (intl)</span></p>
         <p><span className="text-text-faint">payment intent</span> <span className="float-right text-text-secondary">→ client_token</span></p>
-        <p><span className="text-text-faint">card element</span> <span className="float-right text-text-secondary">Duffel&rsquo;s own — PCI, never our server</span></p>
+        <p><span className="text-text-faint">card element</span> <span className="float-right text-text-secondary">Nuitée&rsquo;s Stripe — PCI, never our server</span></p>
         <p><span className="text-text-faint">order</span> <span className="float-right text-text-secondary">server verifies intent, then books</span></p>
         <p className="mt-1 rounded border border-brand-amber/40 bg-brand-amber/10 px-2 py-1 text-[10px] text-brand-amber">
-          Test mode — no real charge. Use a Duffel test card.
+          Test mode — no real charge. Use a Stripe test card.
         </p>
         <p className="text-[10px] italic text-text-faint">
           Honest stops: live charging is double-flag-blocked, and orders don&rsquo;t persist to your
@@ -341,7 +341,7 @@ export default function TravelShowcase({ onRequireAuth }: Props) {
         {
           title: 'Real searches, free by design.',
           copy:
-            'Guests search real vendors — Duffel flights, LiteAPI hotels, Viator tours and rides, visa rules — with no account. It stays free because it has to: our vendor agreements require it, and the caps keep it safe. When a limit is hit, the page says "temporarily paused" instead of showing you something fake.',
+            'Guests search real vendors — LiteAPI flights and hotels, Viator tours and rides, visa rules — with no account. It stays free because it has to: our vendor agreements require it, and the caps keep it safe. When a limit is hit, the page says "temporarily paused" instead of showing you something fake.',
           panel: <GuardsPanel />,
           panelSide: 'left',
         },
@@ -355,7 +355,7 @@ export default function TravelShowcase({ onRequireAuth }: Props) {
         {
           title: 'Flights: real prices, real card element — honest about the rest.',
           copy:
-            'The search is live Duffel inventory. The checkout is the real thing too — Duffel’s own card element, payment verified server-side before any order. And the page tells you the truth: test mode, no real charge, and orders don’t persist to an account yet. No pretending.',
+            'The search is live LiteAPI inventory. The checkout is the real thing too — a Stripe card element on Nuitée’s own account, payment verified server-side before any order. And the page tells you the truth: test mode, no real charge, and orders don’t persist to an account yet. No pretending.',
           panel: <FlightCheckoutMirror />,
           panelSide: 'left',
         },
