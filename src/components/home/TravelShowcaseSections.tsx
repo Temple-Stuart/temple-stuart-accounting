@@ -120,7 +120,7 @@ function TravelHeroTerminal() {
         <ExampleTag text="Real vendors" />
       </div>
       <div className="mt-2 space-y-0.5 text-text-secondary">
-        <p><span className="text-text-faint">FLIGHTS</span> real offers <span className="float-right text-text-secondary">Duffel</span></p>
+        <p><span className="text-text-faint">FLIGHTS</span> real offers <span className="float-right text-text-secondary">LiteAPI</span></p>
         <p><span className="text-text-faint">HOTELS</span> search + guest booking <span className="float-right text-text-secondary">LiteAPI</span></p>
         <p><span className="text-text-faint">ACTIVITIES + TRANSFERS</span> real tours &amp; rides <span className="float-right text-text-secondary">Viator</span></p>
         <p><span className="text-text-faint">PLACES</span> premium local picks <span className="float-right text-text-secondary">Google</span></p>
@@ -199,7 +199,7 @@ function FlightCheckoutMirror() {
   return (
     <DarkSlide title="Flight checkout — real card element, test rails" tag="Mirror · labeled">
       <div className="space-y-1 text-text-secondary">
-        <p><span className="text-text-faint">search</span> <span className="float-right text-text-secondary">real Duffel offers, real prices</span></p>
+        <p><span className="text-text-faint">search</span> <span className="float-right text-text-secondary">real LiteAPI offers, real prices</span></p>
         <p><span className="text-text-faint">passenger</span> <span className="float-right text-text-secondary">name · DOB · passport (intl)</span></p>
         <p><span className="text-text-faint">payment intent</span> <span className="float-right text-text-secondary">→ client_token</span></p>
         <p><span className="text-text-faint">card element</span> <span className="float-right text-text-secondary">Duffel&rsquo;s own — PCI, never our server</span></p>
