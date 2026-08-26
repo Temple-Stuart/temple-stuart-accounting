@@ -239,15 +239,31 @@ const S1_TOOL_LIST = [
   'FP&A',
 ] as const;
 
-// S1-FLOWS (PR-S1-VIZ): move (d) — five dotted arcs, list edge to five
-// DISTINCT family columns' tops, as [source-y (viewBox), column index].
-// Drawn in the desktop overlay only; geometry lives in the render comment.
+// S1-CORRIDOR (PR-S1-ARROWS): the flow overlay's ONE height in px, shared
+// by the overlay SVG's rendered height AND the sheet column's top padding —
+// both read this const through inline style (the house escape hatch for
+// computed geometry; Tailwind cannot compile interpolated classes). Because
+// the drawing surface ENDS exactly where the table begins, no path can ever
+// cross the table body or the caption — the corridor-bottom == header-top
+// equality is structural, not a discipline. 64px = the (b) tag row (~15px)
+// + its 6px margin + enough air above the card's top edge for the arcs to
+// cruise at y=8 and dive at y=36.
+const S1_CORRIDOR_PX = 64;
+
+// S1-FLOWS (PR-S1-ARROWS): move (d) — five dotted paths, all ORIGINATING in
+// one small zone at the list card's top-right corner (sx 366, sy staggered
+// 26..42 in corridor space), each rising to the y=8 cruise, travelling
+// right, then turning DOWN to terminate at its target column's center on
+// the corridor's bottom edge (== the family header band's top edge), where
+// the marker points straight down. Targets per the mockup: THE WORK ·
+// MONEY IN · MONEY OUT · WHAT YOU OWN · THE PROOF (cols 0,1,2,3,5 — five
+// DISTINCT columns; THE OWE column deliberately unserved, per mockup).
 const S1_FLOWS = [
-  { sy: 80, col: 0 },
-  { sy: 150, col: 1 },
-  { sy: 220, col: 2 },
-  { sy: 290, col: 3 },
-  { sy: 360, col: 5 },
+  { sy: 26, col: 0 },
+  { sy: 30, col: 1 },
+  { sy: 34, col: 2 },
+  { sy: 38, col: 3 },
+  { sy: 42, col: 5 },
 ] as const;
 
 // PROBLEM-SHEET / MOBILE SPLIT: six columns cannot fit a 280px viewBox, so
@@ -1452,16 +1468,26 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               arcs from the list's right edge to five distinct family
               columns' tops. Letter tags in gold mono mark (b), (c) and (d)
               on the drawing; (a) has no tag — the headline carries it.
-              ARC GEOMETRY: one absolutely-positioned pointer-events-none SVG
-              overlay spans the whole row (viewBox 0 0 1216 440,
-              preserveAspectRatio "none" — decorative arcs stretch with the
-              row). Sources sit at x=368 (the list's right edge, 30% of
-              1216); targets at column centers x = 413 + col*133.8 + 66.9
-              (sheet starts at 34%, six equal columns of the 66%), y=8; each
-              path is a quadratic bezier whose control point hugs the top
-              (ctrlY = 8 + (sy-8)*0.18), ~1px stroke, 2-4 dash, small solid
-              triangle heads pointing down into the column top. The stroke is
-              brand-purple — the mockup's #3B2D6B IS the token; no raw hex.
+              ARC GEOMETRY (PR-S1-ARROWS, the corridor law): the overlay is
+              the CORRIDOR ONLY — viewBox 0 0 1216 S1_CORRIDOR_PX, rendered
+              at inset-x-0 top-0 with height S1_CORRIDOR_PX, and the sheet
+              column carries paddingTop S1_CORRIDOR_PX from the SAME const,
+              so the drawing surface ends exactly where the family header
+              band begins: corridor-bottom == header-top by construction and
+              no path can cross the table body or the caption. All five
+              paths originate in one small zone at the list card's top-right
+              corner (sx=366 ≈ 30% of 1216; sy 26..42), rise to the y=8
+              cruise, run right (cubic: C c1x 8, c2x 8, tx 36 — controls
+              clamped to the midpoint so the nearest column's controls never
+              cross), then a
+              straight vertical drop L tx S1_CORRIDOR_PX to terminate at the
+              target column's center on the band's top edge — tx = 413 +
+              col*133.8 + 66.9 (sheet at 34%, six equal columns of 66%).
+              Heads are one shared SVG <marker> (id s1-arrow, 7px solid
+              triangle, orient auto on a vertical final segment = pointing
+              straight down, tip exactly on the band edge). ~1px stroke,
+              2-4 dash, no glow, no gradient. The stroke is brand-purple —
+              the mockup's aubergine IS the token; no raw hex.
               MOBILE stacks list → family grids → caption and drops the
               overlay and the (c)/(d) tags with it; stacking classes:
               container `relative mt-6 lg:mt-8 lg:flex lg:items-start`, list
@@ -1469,21 +1495,25 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               column `hidden lg:block lg:w-[66%]`, mobile grids `mt-6
               lg:hidden`. ─────────────────────────────────────────────── */}
           <div className="relative mt-6 lg:mt-8 lg:flex lg:items-start">
-            <svg viewBox="0 0 1216 440" preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 hidden h-full w-full text-brand-purple lg:block">
+            <svg viewBox={`0 0 1216 ${S1_CORRIDOR_PX}`} preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 hidden w-full text-brand-purple lg:block" style={{ height: S1_CORRIDOR_PX }}>
+              <defs>
+                <marker id="s1-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto">
+                  <path d="M0 0 L8 4 L0 8 z" fill="currentColor" />
+                </marker>
+              </defs>
               {S1_FLOWS.map(({ sy, col }) => {
-                const sx = 368;
+                const sx = 366;
                 const tx = Math.round(413 + col * 133.8 + 66.9);
-                const ty = 8;
-                const ctrlY = ty + (sy - ty) * 0.18;
+                const mid = Math.round((sx + tx) / 2);
+                const c1x = Math.min(sx + 80, mid);
+                const c2x = Math.max(tx - 100, mid);
+                const d = `M${sx} ${sy} C ${c1x} 8, ${c2x} 8, ${tx} 36 L ${tx} ${S1_CORRIDOR_PX}`;
                 return (
-                  <g key={`${sy}-${col}`}>
-                    <path d={`M${sx} ${sy} Q ${Math.round((sx + tx) / 2)} ${Math.round(ctrlY)} ${tx} ${ty}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" />
-                    <path d={`M${tx} ${ty} l -5 -7 h 10 z`} fill="currentColor" />
-                  </g>
+                  <path key={col} d={d} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd="url(#s1-arrow)" />
                 );
               })}
             </svg>
-            <span className="absolute left-[31%] top-[10%] hidden font-mono text-[10px] font-semibold text-brand-gold lg:block" aria-hidden="true">(d)</span>
+            <span className="absolute left-[31%] top-[20px] hidden font-mono text-[10px] font-semibold text-brand-gold lg:block" aria-hidden="true">(d)</span>
 
             {/* MOVE (b) — the raw list. */}
             <div className="w-full lg:w-[30%]">
@@ -1504,7 +1534,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             <div className="hidden lg:block lg:w-[4%]" aria-hidden="true" />
 
             {/* MOVES (c)/(d) — the family sheet, desktop. */}
-            <div className="relative hidden lg:block lg:w-[66%] [container-type:inline-size]">
+            <div className="relative hidden lg:block lg:w-[66%] [container-type:inline-size]" style={{ paddingTop: S1_CORRIDOR_PX }}>
               <span className="absolute -left-6 top-2 font-mono text-[10px] font-semibold text-brand-gold" aria-hidden="true">(c)</span>
               <table className="w-full table-fixed border-separate border-spacing-0 border border-border">
                 <thead>
