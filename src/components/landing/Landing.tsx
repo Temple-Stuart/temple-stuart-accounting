@@ -351,7 +351,7 @@ const IMPORT_COLUMNS: ReadonlyArray<{ band: string; rows: ReadonlyArray<readonly
 
 // IMPORT-ARRIVALS (PR-STEP-2): twelve rows that landed, ONE PER SPEAKING
 // PROVIDER, as [provider·connection, resource, received, status] — the
-// SMALL SAMPLE the census line under the strip promises (PR-REALITY): twelve
+// SMALL EXAMPLE the census line under the strip promises (PR-REALITY): twelve
 // arrivals drawn from Step 02's menu, in the menu's row order. Plaid rows
 // TWICE with two different connections (chase / boa) because that is the
 // deck's own teaching — 'because you might have two or more banks' — and
@@ -1869,8 +1869,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           </table>
           {/* PR-REALITY: the essay's census line, verbatim — the count is the
               2026-08-24 FEED-INVENTORY audit's number, and the strip above is
-              the small sample this line promises. */}
-          <p className={`mt-[14px] ${DECK.statement}`}>And here is the real size of it: today that is 121 feeds from 20 providers — counted August 24, 2026. We will show you a small sample, so the idea stays small enough to hold.</p>
+              the small example this line promises. */}
+          <p className={`mt-[14px] ${DECK.statement}`}>And here is the real size of it: today that is 121 feeds from 20 providers — counted August 24, 2026. We will show you a small example, so the idea stays small enough to hold.</p>
           {/* PR-SIX: the essay's handshake honesty line, verbatim. */}
           <p className={`mt-2 ${DECK.statement}`}>One more honest line: a few things we fetch are not data at all — handshakes, like the token that opens a bank connection. Handshakes are not data; they are how we knock on the door. They never enter the tables.</p>
 
