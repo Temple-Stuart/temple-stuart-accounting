@@ -15,7 +15,7 @@
  *   [PR-MODULES placeholder — "the what", content TBD]
  *   DONE-FOR-YOU        — the professional-services panel
  *   THE PIPELINE header — names the 14-step run (essay front matter, PR-CHROME)
- *   01 / IDENTIFY THE PROBLEM — three moves, the six-source fan + the twenty-five-tool sheet
+ *   01 / IDENTIFY THE PROBLEM, THE TOOLS, THE FAMILIES — AND SORT THEM IN — four moves, the six-source fan + the twenty-five-tool sheet
  *   02 / LOOK AT THE TOOLS AND PICK THE PROVIDERS BEHIND THEM — the provider menu + the open doors
  *   03 / IMPORT THE DATA AND SEE HOW IT ARRIVES — the raw import table, twelve arrivals, the promises
  *   04 / LABEL EVERY FEED BY ITS KIND — one rule per feed, thirteen rows, four kinds
@@ -1322,6 +1322,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         <p className={DECK.sub}>
           Fourteen steps turn raw data into one Ledger and one Calendar — the foundation everything else is built on. Written so anyone can understand it — and build it.
         </p>
+        {/* PR-MOVES-2: the essay's machine-step law, verbatim, gloss tier. */}
+        <p className={`mt-[14px] ${DECK.statement}`}>Each number is a machine step — a stage the data passes through. Inside a step there can be moves, lettered (a), (b), (c): the things a person does. We walk them one by one.</p>
       </section>
 
       {/* ── PROBLEM-01 / SIX-SOURCE DIAGRAM. This is where the TEACHING
@@ -1486,7 +1488,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           onClick={() => toggleStep(0)}
           className={DECK.stepButton}
         >
-          <span className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.12em] text-text-faint">01 / IDENTIFY THE PROBLEM</span>
+          <span className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.12em] text-text-faint">01 / IDENTIFY THE PROBLEM, THE TOOLS, THE FAMILIES — AND SORT THEM IN</span>
           <span aria-hidden="true" className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-[0.12em] text-text-faint">{openSteps[0] ? '−' : '+'}</span>
         </button>
         <div id="deck-01-body" className={openSteps[0] ? undefined : 'hidden'}>
@@ -1496,11 +1498,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <p className="mt-4 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">
             Your business is one system. Your software isn&apos;t.
           </p>
-          {/* PR-MOVES: the essay's three-moves block, verbatim. */}
-          <p className={`mt-6 ${DECK.statement}`}>This step is three moves:</p>
-          <p className={`mt-2 ${DECK.statement}`}>(a) Name the problem.</p>
-          <p className={`mt-2 ${DECK.statement}`}>(b) List the tools it takes to solve it.</p>
-          <p className={`mt-2 ${DECK.statement}`}>(c) Sort the tools into families.</p>
+          {/* PR-MOVES → PR-MOVES-2: the essay's four-moves block, verbatim. */}
+          <p className={`mt-6 ${DECK.statement}`}>This step is four moves:</p>
+          <p className={`mt-2 ${DECK.statement}`}>(a) The problem gets named.</p>
+          <p className={`mt-2 ${DECK.statement}`}>(b) The tools to solve it get listed.</p>
+          <p className={`mt-2 ${DECK.statement}`}>(c) The families to sort the tools into get created.</p>
+          <p className={`mt-2 ${DECK.statement}`}>(d) Each tool gets moved from the list into the table, under its family.</p>
 
           {/* DESKTOP FAN — viewBox 900×224, rendered 1:1. Origins sit at x=168,
               clear of the label column; each line runs right to x=336 then
