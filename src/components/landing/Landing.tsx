@@ -1711,12 +1711,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             born-here treatment — and 'our AI' unserved by design. The menu renders ONCE PER BREAKPOINT: the walk's right
             panel on desktop, the full-width DECK.table with its framing
             line on mobile (multi-name cells wrap at their spaces there).
-            Geometry is the S2_GEOM corridor law (see the consts). Around
-            the drawing, essay verbatim: the sub, the tint legend's
-            stay-home sentences, the count line, the AI parenthetical, the
-            counted born-here paragraph, the pick-yours statement, the
-            more-join line, the closer — and the SnapTrade footnote, the
-            ONLY place Robinhood may ever appear. TODAY and open NEXT doors
+            Geometry is the S2_GEOM corridor law (see the consts).
+            PR-S2-PROSE: the slide ends in ONE BREATH — around the
+            drawing, essay verbatim: the sub, the merged Step 2 paragraph
+            (slide-01 body tier), the closer. The key is pure chrome
+            (TINTED = STAY HOME, no trailing sentence), and the SnapTrade
+            footnote sits under the menu at BOTH breakpoints — the ONLY
+            place Robinhood may ever appear. TODAY and open NEXT doors
             purple, jobs and '—' cells the faint tier. Nothing in the
             DRAWING is money or a kind word, so gold inks ONLY the moves
             block's letter tags (the deck's moves tier); rust never enters
@@ -1813,6 +1814,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                   })}
                 </tbody>
               </table>
+              {/* The menu's footnote — the essay's SnapTrade clause,
+                  verbatim; the gloss tier at the panel's compact size. */}
+              <p className="mt-1 text-[12px] leading-[1.5] text-text-faint">one connector called SnapTrade reaches Robinhood, Webull, and Public too.</p>
             </div>
             <svg viewBox={`0 0 ${S2_GEOM.W} ${S2_GEOM.H}`} preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full text-brand-purple">
               <defs>
@@ -1829,6 +1833,15 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               })}
             </svg>
           </div>
+
+          {/* THE KEY — pure chrome beside the drawing; the one-breath
+              paragraph below carries the words now. Renders once, both
+              breakpoints: under the row on desktop, above the stack on
+              mobile. */}
+          <p className={`mt-[22px] lg:mt-6 ${DECK.statement}`}>
+            <span aria-hidden="true" className="mr-2 inline-block h-2.5 w-2.5 border border-border bg-bg-row align-[-1px]" />
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em]">TINTED = STAY HOME</span>
+          </p>
 
           {/* THE WALK, mobile — stacked: the sheet as two three-family
               grids (PROBLEM_SHEET_SM's split) with per-tool fate marks —
@@ -1868,7 +1881,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             {/* THE MENU — the framing line in the label-above-table idiom
                 the import act's arrivals strip uses, then the full menu.
                 On desktop the menu renders as the walk's right panel
-                instead — once per breakpoint, never twice. */}
+                instead — once per breakpoint, never twice; the SnapTrade
+                footnote sits beneath the menu on BOTH breakpoints. */}
             <p className={`mt-10 ${DECK.statement}`}>Here is who we speak to today:</p>
             <table className={`mt-[14px] ${DECK.table}`}>
               <thead>
@@ -1893,28 +1907,18 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                 })}
               </tbody>
             </table>
+            {/* The menu's footnote — the essay's SnapTrade clause,
+                verbatim, gloss tier. */}
+            <p className={`mt-[14px] ${DECK.statement}`}>one connector called SnapTrade reaches Robinhood, Webull, and Public too.</p>
           </div>
 
-          {/* Under the drawing, essay verbatim: the tint legend (chrome
-              label + the essay's stay-home sentences), the count line,
-              the AI parenthetical — then the counted born-here paragraph,
-              the pick-yours statement and the SnapTrade footnote. */}
-          <p className={`mt-[22px] lg:mt-6 ${DECK.statement}`}>
-            <span aria-hidden="true" className="mr-2 inline-block h-2.5 w-2.5 border border-border bg-bg-row align-[-1px]" />
-            <span className="font-mono text-[10px] uppercase tracking-[0.18em]">TINTED = STAY HOME</span>
-            {' — '}Nobody outside sends their data. The system will be those tools, and their data gets born here.
-          </p>
-          <p className={`mt-2 ${DECK.statement}`}>Nine tools take providers. Sixteen stay home. Count them; it is twenty-five.</p>
-          <p className={`mt-2 ${DECK.statement}`}>(Our AI — Anthropic, OpenAI, xAI Grok, Voyage — belongs to no tool. It serves every step.)</p>
-          {/* PR-S2: the essay's counted born-here paragraph, verbatim —
-              the old 'But notice' version renders nowhere else. */}
-          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>So notice: sixteen of the twenty-five tools have no provider at all. Nobody sends an API for your tasks, your invoices, your budget. For those, this system does not import the tool — it IS the tool.</p>
-          {/* PR-STEP2-VIZ: the essay's pick-yours statement, verbatim. */}
-          <p className={`mt-[14px] ${DECK.statement}`}>You pick yours. Your neighbor picks theirs. The system does not care; a provider is just rows in a table, so a new one is added, never built.</p>
-          {/* The menu's footnote — the essay's SnapTrade clause, verbatim. */}
-          <p className={`mt-[14px] ${DECK.statement}`}>one connector called SnapTrade reaches Robinhood, Webull, and Public too.</p>
-
-          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>More join over time. Each one is one new row!</p>
+          {/* PR-S2-PROSE: slide 02 ends in ONE BREATH — the essay's
+              merged Step 2 paragraph, verbatim, in the slide-01 body tier.
+              The count line, the AI parenthetical, the born-here
+              paragraph, the pick-yours statement and the more-join line
+              render nowhere else as standalones; the SnapTrade footnote
+              moved under the menu at both breakpoints. */}
+          <p className="mt-8 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">Nine tools take providers. Sixteen stay home. Count them; it is twenty-five. For the sixteen, nobody sends an API — not for your tasks, your invoices, your budget. So this system does not import those tools; it IS those tools, and their data gets born here. Our AI belongs to no tool; it serves every step. For the nine, you pick yours and your neighbor picks theirs. The system does not care; a provider is just rows in a table, so a new one is added, never built. More join over time. Each one is one new row!</p>
           <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">So how do we actually get their data?</p>
         </div>
       </section>
