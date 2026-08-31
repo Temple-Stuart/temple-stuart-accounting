@@ -402,6 +402,28 @@ const s2PortX = S2_GEOM.COL_X + S2_GEOM.COL_W;
 const s2PortY = (tool: string) => s2RowCenter(S2_PORTS.indexOf(tool as (typeof S2_PORTS)[number]));
 const s2MenuY = (job: string) => s2RowCenter(PROVIDER_MENU.findIndex(([j]) => j === job));
 
+// ── PR-S3 / THE ASK. Step 3's visual: the menu's picked providers on
+// the left, each one's answer landing as ONE ROW in the arrivals table
+// on the right — the drawing IS the hinge (Law 7). Geometry from the
+// approved CD-S3 BuildSpec; both lists share ONE order (the menu's), so
+// the nineteen arrows cross ZERO times by construction — the PR script
+// proves it pairwise; plaid's pair shares its source.
+
+// S3-PROVIDERS: the left list's eighteen rows, DERIVED from the menu's
+// TODAY column — flattened in menu row order, liteapi deduped — never
+// retyped (the no-drift law; the PR script proves 18, ruled order).
+const S3_PROVIDERS = [...new Set(PROVIDER_MENU.flatMap(([, today]) => today.split(' · ')))];
+
+// S3-GEOM: S2_GEOM's sibling — the same corridor law. Arc source x ==
+// LIST_W, landing x == TABLE_X, midpoint verticals at
+// (LIST_W + TABLE_X) / 2; H is the arrivals panel's height EXACTLY:
+// HEAD_H + 19 · ROW_H = 482, so no arrow can escape the row.
+const S3_GEOM = {
+  W: 900, H: 482, LIST_W: 200, TABLE_X: 380, TABLE_W: 520,
+  HEAD_H: 26, ROW_H: 24,
+} as const;
+const s3RowCenter = (i: number) => S3_GEOM.HEAD_H + i * S3_GEOM.ROW_H + S3_GEOM.ROW_H / 2;
+
 // IMPORT-COLUMNS (PR-DECK): the field table of the 03 / THE IMPORT slide,
 // reconciled to the deck's plain-language vocabulary (provider · connection ·
 // resource · their id · our id · payload · fingerprint · asked · arrived ·
@@ -450,32 +472,37 @@ const IMPORT_COLUMNS: ReadonlyArray<{ band: string; rows: ReadonlyArray<readonly
   },
 ];
 
-// IMPORT-ARRIVALS (PR-STEP-2): twelve rows that landed, ONE PER SPEAKING
-// PROVIDER, as [provider·connection, resource, received, status] — the
-// SMALL EXAMPLE the census line under the strip promises (PR-REALITY): twelve
-// arrivals drawn from Step 02's menu, in the menu's row order. Plaid rows
-// TWICE with two different connections (chase / boa) because that is the
-// deck's own teaching — 'because you might have two or more banks' — and
-// only plaid renders a connection: the others have one, so the cell is just
-// the provider. The old external_id column left with the fifth column; the
-// two name tags stay taught in the field table above. Times are invented
-// display data consistent with the original four (stripe/plaid/tastytrade/sec
-// keep the times they always showed); statuses are all DONE except sec — the
-// one arrival still in flight, and the renderer inks PENDING in the deck's
-// rust.
+// IMPORT-ARRIVALS (PR-STEP-2 → PR-S3): NINETEEN rows — ONE ARRIVAL PER
+// PICKED PROVIDER, in S3_PROVIDERS order (the menu's), as
+// [provider·connection, resource, received, status] — the small example
+// the census line promises. Plaid rows TWICE with two connections
+// (chase / boa) — 'because you might have two or more banks' — and only
+// plaid renders a connection; the two-rows lesson is plaid's alone now
+// (liteapi's old 'stay' row died with the one-per-provider law). Times
+// are invented display data, strictly ascending; STRIPE KEEPS 09:14:02Z
+// because slide 14's walk-back names that exact arrival. Statuses all
+// DONE except sec — the one arrival still in flight, and the renderer
+// inks PENDING in the deck's rust.
 const IMPORT_ARRIVALS = [
-  ['plaid · chase', 'transaction', '09:14:06Z', 'DONE'],
-  ['plaid · boa', 'transaction', '09:14:09Z', 'DONE'],
+  ['plaid · chase', 'transaction', '09:13:47Z', 'DONE'],
+  ['plaid · boa', 'transaction', '09:13:55Z', 'DONE'],
   ['stripe', 'payout', '09:14:02Z', 'DONE'],
-  ['tastytrade', 'quote', '10:31:00Z', 'DONE'],
+  ['tastytrade', 'quote', '09:31:00Z', 'DONE'],
+  ['finnhub', 'fundamentals', '09:47:13Z', 'DONE'],
+  ['fred', 'series', '09:53:20Z', 'DONE'],
+  ['sec', 'filing', '10:02:44Z', 'PENDING'],
   ['liteapi', 'booking', '10:33:27Z', 'DONE'],
-  ['liteapi', 'stay', '10:36:44Z', 'DONE'],
   ['viator', 'activity', '10:39:12Z', 'DONE'],
   ['google places', 'place', '10:42:58Z', 'DONE'],
-  ['finnhub', 'fundamentals', '10:47:31Z', 'DONE'],
-  ['fred', 'series', '10:53:20Z', 'DONE'],
-  ['sec', 'filing', '11:02:44Z', 'PENDING'],
+  ['travel buddy', 'visa', '10:51:36Z', 'DONE'],
   ['anthropic', 'classification', '11:15:09Z', 'DONE'],
+  ['openai', 'insight', '11:15:12Z', 'DONE'],
+  ['xai grok', 'sentiment', '11:15:18Z', 'DONE'],
+  ['voyage', 'embedding', '11:15:25Z', 'DONE'],
+  ['ecfr', 'title', '11:40:03Z', 'DONE'],
+  ['us code', 'title', '11:40:31Z', 'DONE'],
+  ['federal register', 'document', '11:41:07Z', 'DONE'],
+  ['irs', 'bulletin', '11:42:56Z', 'DONE'],
 ] as const;
 
 // ROUTING-RULES (PR-DECK → PR-STEP-2 → PR-SIX): the whole routing decision,
@@ -1929,7 +1956,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
 
             RUST REPLACES GOLD ON THE LABELS. The deck's token law — gold inks
             dollar amounts, debit/credit values and kind words ONLY — moved the
-            band labels and TWELVE ARRIVALS to the deck's rust (brand-amber; the
+            band labels and the arrivals caption to the deck's rust (brand-amber; the
             mapping is recorded in the file header). Gold still enters the
             numbered run at this act's arrivals? No — nothing here is money, so
             gold now first inks at 04's KIND column.
@@ -1964,16 +1991,108 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <p className="mt-[22px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
             Now we ask the providers we picked for their data.
           </p>
-          {/* PR-VOICE → PR-STEP-2: the essay's arrival intro, above the
-              field table. The provider-jobs sentence left with PR-STEP-2 —
-              Step 02 owns provider glosses now. */}
-          <p className={`mt-[14px] ${DECK.statement}`}>Every provider sends back an answer, and those answers are stored as an arrival.</p>
-          <p className={`mt-2 ${DECK.statement}`}>Each arrival is stored as one row, in one table, before anyone decides what any of the data actually means.</p>
+          {/* PR-S3: the essay's Step 3 moves block, verbatim — slide-01
+              grammar, letters in the gold mono tier. The two old arrival
+              intro lines died into moves (c)/(d) — zero renders. */}
+          <p className={`mt-6 ${DECK.statement}`}>This step is four moves:</p>
+          <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(a)</span> Start from the menu Step 2 built — the providers in the TODAY column.</p>
+          <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(b)</span> Ask each provider for its data.</p>
+          <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(c)</span> The answer comes back, and it gets stored as one row, word for word, before anyone decides what it means. That row is an arrival.</p>
+          <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(d)</span> Each row gets stamped: who sent it, what it is, its fingerprint, when we asked, when it arrived, when we read it, and how far it got.</p>
+
+          {/* THE ASK, desktop caption — the arrivals caption in the act's
+              rust chrome, aligned over the table panel (marginLeft from
+              S3_GEOM — exact at full width, ≤2px adrift below 900px). */}
+          <p className="mt-10 hidden font-mono text-[11px] uppercase tracking-[0.20em] text-brand-amber lg:mt-[76px] lg:block" style={{ marginLeft: S3_GEOM.TABLE_X }}>ONE ARRIVAL PER PROVIDER — AN EXAMPLE</p>
+
+          {/* THE ASK, desktop (PR-S3) — S2's wrapper idiom: three absolute
+              layers in one relative row of height S3_GEOM.H. Left, the
+              providers we picked (S3_PROVIDERS); right, the arrivals as a
+              compact four-column panel; between, nineteen dotted arcs —
+              one per arrival row, source = the row's provider, so plaid
+              fans to its two rows and ZERO arrows cross. */}
+          <div className="relative mt-[14px] hidden lg:mt-[18px] lg:block" style={{ height: S3_GEOM.H, maxWidth: S3_GEOM.W }}>
+            <div className="absolute left-0 top-0 border border-border bg-white" style={{ width: `${(S3_GEOM.LIST_W / S3_GEOM.W) * 100}%` }}>
+              <p style={{ height: S3_GEOM.HEAD_H }} className="flex items-center overflow-hidden whitespace-nowrap bg-bg-row px-[6px] font-mono text-[7px] font-normal uppercase tracking-[0.14em] text-text-faint border-b border-b-border">THE PROVIDERS WE PICKED</p>
+              {S3_PROVIDERS.map((p, i) => (
+                <p key={p} style={{ height: S3_GEOM.ROW_H }} className={`flex items-center overflow-hidden whitespace-nowrap px-[6px] font-mono text-[8.5px] text-brand-purple ${i < S3_PROVIDERS.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>{p}</p>
+              ))}
+            </div>
+            <div className="absolute top-0 border border-border bg-white" style={{ left: `${(S3_GEOM.TABLE_X / S3_GEOM.W) * 100}%`, width: `${(S3_GEOM.TABLE_W / S3_GEOM.W) * 100}%` }}>
+              <div style={{ height: S3_GEOM.HEAD_H }} className="grid grid-cols-[140px_130px_110px_1fr] items-center overflow-hidden bg-bg-row font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">
+                <span className="px-[8px] whitespace-nowrap">PROVIDER · CONNECTION</span><span className="px-[8px]">RESOURCE</span><span className="px-[8px]">ARRIVED</span><span className="px-[8px]">STATUS</span>
+              </div>
+              {IMPORT_ARRIVALS.map(([pc, res, t, st], j) => (
+                <div key={`${pc}-${res}`} style={{ height: S3_GEOM.ROW_H }} className={`grid grid-cols-[140px_130px_110px_1fr] items-center font-mono text-[8px] ${j < IMPORT_ARRIVALS.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                  <span className="overflow-hidden whitespace-nowrap px-[8px] text-brand-purple">{pc}</span>
+                  <span className="px-[8px] text-text-faint">{res}</span>
+                  <span className="px-[8px] text-text-faint">{t}</span>
+                  <span className={`px-[8px] ${st === 'PENDING' ? 'text-brand-amber' : 'text-text-faint'}`}>{st}</span>
+                </div>
+              ))}
+            </div>
+            <svg viewBox={`0 0 ${S3_GEOM.W} ${S3_GEOM.H}`} preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full text-brand-purple">
+              <defs>
+                <marker id="s3-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto">
+                  <path d="M0 0 L8 4 L0 8 z" fill="currentColor" />
+                </marker>
+              </defs>
+              {IMPORT_ARRIVALS.map(([pc], j) => {
+                const sy = s3RowCenter(S3_PROVIDERS.indexOf(pc.split(' · ')[0] ?? pc));
+                const ty = s3RowCenter(j);
+                const mx = (S3_GEOM.LIST_W + S3_GEOM.TABLE_X) / 2;
+                const d = `M${S3_GEOM.LIST_W} ${sy} C ${mx} ${sy}, ${mx} ${ty}, ${S3_GEOM.TABLE_X} ${ty}`;
+                return <path key={`${pc}-${j}`} d={d} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd="url(#s3-arrow)" />;
+              })}
+            </svg>
+          </div>
+
+          {/* THE ASK, mobile — stacked per the BuildSpec: the providers we
+              picked, then the caption, then the arrivals table condensed
+              (its ARRIVED column drops — the cell's own hidden lg:table-cell
+              inside this lg:hidden wrapper — and PENDING inks rust); arrows
+              collapse to ORDER — both lists read in the one shared order. */}
+          <div className="mt-[14px] lg:hidden">
+            <div className="w-[200px] border border-border bg-white">
+              <p className="flex h-[26px] items-center overflow-hidden whitespace-nowrap bg-bg-row px-[6px] font-mono text-[7px] font-normal uppercase tracking-[0.14em] text-text-faint border-b border-b-border">THE PROVIDERS WE PICKED</p>
+              {S3_PROVIDERS.map((p, i) => (
+                <p key={p} className={`flex h-[20px] items-center overflow-hidden whitespace-nowrap px-[6px] font-mono text-[10px] text-brand-purple ${i < S3_PROVIDERS.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>{p}</p>
+              ))}
+            </div>
+            <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.20em] text-brand-amber">ONE ARRIVAL PER PROVIDER — AN EXAMPLE</p>
+
+            {/* TABLE 2 — the nineteen arrivals, four columns
+                (provider·connection | resource | time | status), no thead
+                (the rust caption above is the table's name). Inside this
+                lg:hidden wrapper it is the MOBILE render — the desktop
+                panel above draws the same const — and the time column's
+                hidden lg:table-cell drops it here. Fixed-layout widths
+                ride the first row's tds; PENDING inks rust — the one
+                arrival still in flight. */}
+            <table className="mt-[14px] w-full table-fixed border-separate border-spacing-0 border border-border">
+              <tbody>
+                {IMPORT_ARRIVALS.map((row, r) => (
+                  <tr key={`${row[0]}-${row[1]}`}>
+                    {row.map((cell, c) => (
+                      <td
+                        key={cell}
+                        className={`${c === 2 ? 'hidden lg:table-cell lg:w-[25%]' : 'w-[33.33%] lg:w-[25%]'} px-[11px] py-[9px] lg:px-5 lg:py-[11px] align-top font-mono text-[11px] lg:text-[13px] ${c === 0 ? 'text-brand-purple' : c === 3 && cell === 'PENDING' ? 'text-brand-amber' : 'text-text-faint'} ${r === IMPORT_ARRIVALS.length - 1 ? '' : 'border-b-[0.75px] border-b-text-faint'}`}
+                      >
+                        {cell}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           {/* TABLE 1 — the field table, two columns, no thead (the deck names no
-              headers). The colgroup carries the fixed-layout widths the thead
-              used to; band rows are full-width colSpan cells in the deck's rust.
-              The payload row's rust tail rides the row's own third tuple slot. */}
+              headers). PR-S3: relocated BELOW the drawing — it now reads as the
+              parts of each row — content untouched. The colgroup carries the
+              fixed-layout widths the thead used to; band rows are full-width
+              colSpan cells in the deck's rust. The payload row's rust tail
+              rides the row's own third tuple slot. */}
           <table className="mt-10 lg:mt-[76px] w-full table-fixed border-separate border-spacing-0 border border-border">
             <colgroup>
               <col className="w-[34%] lg:w-[25%]" />
@@ -2002,35 +2121,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               </tbody>
             ))}
           </table>
-
-          <p className="mt-10 lg:mt-[76px] font-mono text-[10px] lg:text-[11px] uppercase tracking-[0.20em] text-brand-amber">TWELVE ARRIVALS, ONE TABLE — AN EXAMPLE</p>
-
-          {/* TABLE 2 — the twelve arrivals, four columns
-              (provider·connection | resource | time | status), no thead (the
-              deck names no headers here either; the rust label above is the
-              table's name). Mobile keeps provider, resource and status and
-              drops the time — the one column that cannot shorten. Fixed-layout
-              widths ride the first row's tds now that there is no header row.
-              Status values are the deck's uppercase, and PENDING inks rust —
-              the one arrival still in flight. */}
-          <table className="mt-[14px] lg:mt-[18px] w-full table-fixed border-separate border-spacing-0 border border-border">
-            <tbody>
-              {IMPORT_ARRIVALS.map((row, r) => (
-                <tr key={`${row[0]}-${row[1]}`}>
-                  {row.map((cell, c) => (
-                    <td
-                      key={cell}
-                      className={`${c === 2 ? 'hidden lg:table-cell lg:w-[25%]' : 'w-[33.33%] lg:w-[25%]'} px-[11px] py-[9px] lg:px-5 lg:py-[11px] align-top font-mono text-[11px] lg:text-[13px] ${c === 0 ? 'text-brand-purple' : c === 3 && cell === 'PENDING' ? 'text-brand-amber' : 'text-text-faint'} ${r === IMPORT_ARRIVALS.length - 1 ? '' : 'border-b-[0.75px] border-b-text-faint'}`}
-                    >
-                      {cell}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
           {/* PR-REALITY: the essay's census line, verbatim — the count is the
-              2026-08-24 FEED-INVENTORY audit's number, and the strip above is
+              2026-08-24 FEED-INVENTORY audit's number, and the drawing above is
               the small example this line promises. */}
           <p className={`mt-[14px] ${DECK.statement}`}>And here is the real size of it: today that is 121 feeds from 20 providers — counted August 24, 2026. We will show you a small example, so the idea stays small enough to hold.</p>
           {/* PR-SIX: the essay's handshake honesty line, verbatim. */}
