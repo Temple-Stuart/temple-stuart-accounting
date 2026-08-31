@@ -427,7 +427,8 @@ const s3RowCenter = (i: number) => S3_GEOM.HEAD_H + i * S3_GEOM.ROW_H + S3_GEOM.
 // IMPORT-COLUMNS (PR-DECK): the field table of the 03 / THE IMPORT slide,
 // reconciled to the deck's plain-language vocabulary (provider · connection ·
 // resource · their id · our id · payload · fingerprint · asked · arrived ·
-// read · status). Four rust-labelled bands, each row a [name, desc] pair —
+// read · status). Four sand-banded groups (PR-S3-COHESION: the labels
+// ride the DECK.th band, no longer rust), each row a [name, desc] pair —
 // the deck gives each field ONE description, so the old holds/why split is
 // gone. Order is the reading order of the slide and carries the argument;
 // never sort or regroup for tidiness.
@@ -574,15 +575,10 @@ const HANDOFF_KINDS = [
   ['derived', 'math we did'],
 ] as const;
 
-// PR-VOICE: the import slide's closing list — the essay's three numbered
-// promises, verbatim, rendered under the 'This table is to show us that:'
-// framing line. The '(N) ' prefixes are content (the essay's own
-// enumeration), not styling.
-const IMPORT_TRIO = [
-  '(1) Nothing was ever edited; if a provider corrects something, the correction is a new row.',
-  '(2) Nothing was ever asked twice; if our reading of a row fails, we just read our stored copy again.',
-  "(3) Nothing was ever claimed; the fingerprint proves we stored exactly what they sent, but that doesn't necessarily mean they were right!",
-] as const;
+// PR-S3-COHESION: IMPORT_TRIO retired — the essay merged the three
+// promises (and the census + handshake lines) into Step 3's single tail
+// paragraph, rendered once in the slide-01 body tier below the card.
+// History holds the const.
 
 // ─────────────────────────────────────────────────────────────────────────
 // PR-DECK 05–13: the deck's back nine, all data module-scope per the house
@@ -1956,10 +1952,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
 
             RUST REPLACES GOLD ON THE LABELS. The deck's token law — gold inks
             dollar amounts, debit/credit values and kind words ONLY — moved the
-            band labels and the arrivals caption to the deck's rust (brand-amber; the
-            mapping is recorded in the file header). Gold still enters the
-            numbered run at this act's arrivals? No — nothing here is money, so
-            gold now first inks at 04's KIND column.
+            arrivals caption to the deck's rust (brand-amber; the mapping is
+            recorded in the file header). PR-S3-COHESION: the field card's
+            group labels left rust for the sand band (the DECK.th header-band
+            idiom) — rust in this act is the caption, the payload tail and
+            PENDING. Gold still enters the numbered run at this act's
+            arrivals? No — nothing here is money, so gold now first inks at
+            04's KIND column.
 
             THE FIELD TABLE IS TWO COLUMNS, NO HEADER ROW. The deck gives each
             field one plain-language description and names no column headers,
@@ -2087,31 +2086,39 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             </table>
           </div>
 
-          {/* TABLE 1 — the field table, two columns, no thead (the deck names no
-              headers). PR-S3: relocated BELOW the drawing — it now reads as the
-              parts of each row — content untouched. The colgroup carries the
-              fixed-layout widths the thead used to; band rows are full-width
-              colSpan cells in the deck's rust. The payload row's rust tail
-              rides the row's own third tuple slot. */}
-          <table className="mt-10 lg:mt-[76px] w-full table-fixed border-separate border-spacing-0 border border-border">
+          {/* THE CARD (PR-S3-COHESION) — the field card wears the DECK
+              table grammar the arrivals and routing tables wear
+              (DECK.table/th/pad/rule): one thead band names it THE PARTS
+              OF EACH ROW; the four group labels ride the same sand band
+              (the header-band idiom — no more rust standalone labels);
+              field names in the arrivals table's purple mono tier,
+              glosses in its faint tier. Every rendered string is
+              byte-unchanged — restyle only. Its box is the DRAWING'S box:
+              the same maxWidth: S3_GEOM.W the visual row carries, so the
+              card and the drawing share one right edge structurally. */}
+          <table className={`mt-10 lg:mt-[76px] ${DECK.table}`} style={{ maxWidth: S3_GEOM.W }}>
             <colgroup>
               <col className="w-[34%] lg:w-[25%]" />
               <col />
             </colgroup>
+            <thead>
+              <tr>
+                <th colSpan={2} scope="col" className={DECK.th}>THE PARTS OF EACH ROW</th>
+              </tr>
+            </thead>
             {IMPORT_COLUMNS.map((group, b) => (
               <tbody key={group.band}>
                 <tr>
-                  <td colSpan={2} className="px-[11px] pt-[17px] pb-[7px] lg:px-5 lg:pt-6 lg:pb-[9px] align-top font-mono text-[10px] lg:text-[11px] uppercase tracking-[0.20em] text-brand-amber">{group.band}</td>
+                  <td colSpan={2} className={DECK.th}>{group.band}</td>
                 </tr>
                 {group.rows.map((row, r) => {
                   const [name = '', desc = '', emphasis] = row;
                   const isLast = b === IMPORT_COLUMNS.length - 1 && r === group.rows.length - 1;
-                  const rule = isLast ? '' : 'border-b-[0.75px] border-b-text-faint';
-                  const pad = 'px-[11px] py-[9px] lg:px-5 lg:py-[11px]';
+                  const rule = isLast ? '' : DECK.rule;
                   return (
                     <tr key={name}>
-                      <td className={`${pad} ${rule} align-top font-mono text-[11.5px] lg:text-[14px] text-brand-purple`}>{name}</td>
-                      <td className={`${pad} ${rule} align-top text-[11px] leading-[1.4] lg:text-[13.5px] lg:leading-[1.45] text-text-faint`}>
+                      <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}>{name}</td>
+                      <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-text-faint`}>
                         {desc}
                         {emphasis !== undefined && <span className="font-mono text-brand-amber">{emphasis}</span>}
                       </td>
@@ -2121,20 +2128,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               </tbody>
             ))}
           </table>
-          {/* PR-REALITY: the essay's census line, verbatim — the count is the
-              2026-08-24 FEED-INVENTORY audit's number, and the drawing above is
-              the small example this line promises. */}
-          <p className={`mt-[14px] ${DECK.statement}`}>And here is the real size of it: today that is 121 feeds from 20 providers — counted August 24, 2026. We will show you a small example, so the idea stays small enough to hold.</p>
-          {/* PR-SIX: the essay's handshake honesty line, verbatim. */}
-          <p className={`mt-2 ${DECK.statement}`}>One more honest line: a few things we fetch are not data at all — handshakes, like the token that opens a bank connection. Handshakes are not data; they are how we knock on the door. They never enter the tables.</p>
-
-          <div className="mt-10 lg:mt-[76px] h-px w-full bg-border" aria-hidden="true" />
-          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>This table is to show us that:</p>
-          <div className="mt-[14px]">
-            {IMPORT_TRIO.map((claim, i) => (
-              <p key={claim} className={`${i === 0 ? '' : 'mt-3 lg:mt-[14px]'} text-[13px] leading-[1.5] lg:text-[16.5px] text-brand-purple`}>{claim}</p>
-            ))}
-          </div>
+          {/* PR-S3-COHESION: the tail is ONE paragraph — the essay's merged
+              census + handshake + three-promises passage, verbatim, in the
+              slide-01 body tier. The standalone census and handshake
+              lines, the old framing line and the retired trio render
+              nowhere else. */}
+          <p className="mt-8 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">And here is the real size of it: today that is 121 feeds from 20 providers — counted August 24, 2026. We will show you a small example, so the idea stays small enough to hold. One more honest line: a few things we fetch are not data at all — handshakes, like the token that opens a bank connection. Handshakes are not data; they are how we knock on the door. They never enter the tables. And this table makes three promises: (1) nothing was ever edited — if a provider corrects something, the correction is a new row; (2) nothing was ever asked twice — if our reading of a row fails, we just read our stored copy again; (3) nothing was ever claimed — the fingerprint proves we stored exactly what they sent, but that does not necessarily mean they were right!</p>
           <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">Now — what kind of thing is each one?</p>
         </div>
       </section>
