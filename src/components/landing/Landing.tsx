@@ -1439,7 +1439,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             Twenty-five tools.<br />None of them knows what the others did.
           </h2>
           <p className="mt-4 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">
-            Your business is one system. Your software isn&apos;t.
+            Your life is one system. Your software isn&apos;t.
           </p>
           {/* PR-MOVES → PR-MOVES-2: the essay's four-moves block, verbatim. */}
           <p className={`mt-6 ${DECK.statement}`}>This step is four moves:</p>
