@@ -295,8 +295,11 @@ const PROBLEM_SHEET_SM = [
 
 // PROVIDER-MENU (PR-STEP2-VIZ): the slide-02 provider-menu visual, as
 // [job, today, next] — thirteen jobs, who feeds each today, which doors are
-// already open for later. Rows are the essay's Step 2 list restated as
-// jobs, same order. '—' is deck content — a job with no open door yet —
+// already open for later. PR-S2-LINES: rows sit in the WALK-LANDING order
+// (the pull-out column's targets, top to bottom) — the essay's
+// who-we-speak-to list carries the same order, LiteAPI's one entry
+// seating both flights and hotels. '—' is deck content — a job with no
+// open door yet —
 // and renders in the faint tier; never fill it. A new provider is one cell
 // edit here (a provider is just rows in a table — added, never built).
 // PR-S2: the menu renders ONCE PER BREAKPOINT — the walk's right panel
@@ -305,22 +308,24 @@ const PROVIDER_MENU = [
   ['banks & accounts', 'plaid', 'teller'],
   ['card money', 'stripe', 'square'],
   ['trades & market data', 'tastytrade', 'schwab · ibkr · alpaca · tradier · snaptrade'],
+  ['company numbers', 'finnhub', 'polygon'],
+  ['the economy', 'fred', '—'],
+  ['filings', 'sec', '—'],
   ['flights', 'liteapi', 'amadeus'],
   ['hotels', 'liteapi', 'amadeus'],
   ['activities', 'viator', '—'],
   ['locations', 'google places', '—'],
-  ['company numbers', 'finnhub', 'polygon'],
-  ['the economy', 'fred', '—'],
-  ['filings', 'sec', '—'],
-  ['our AI', 'anthropic · openai · xai grok · voyage', '—'],
   ['visas', 'travel buddy', '—'],
+  ['our AI', 'anthropic · openai · xai grok · voyage', '—'],
   ['the law itself', 'ecfr · us code · federal register · irs', '—'],
 ] as const;
 
 // ── PR-S2 / THE WALK. Step 2's visual: the walk from Step 1's finished
 // table to the provider menu, DRAWN, not listed (SHOW DON'T ECHO, Deck
 // Law #7 — the essay's (1)-(9) walk renders nowhere as text). Facts and
-// geometry from the approved CD-S2 BuildSpec.
+// geometry from the approved CD-S2 BuildSpec (v3, PR-S2-LINES: the
+// pull-out re-cut — a list between two tables, the slide-01 idiom; no
+// arrows leave the sheet; sixteen arcs, ZERO crossings, script-proven).
 
 // S2-MOVERS: the nine tools that take providers — the walk's “yes”
 // answers. The PR script proves: movers ⊂ PROBLEM_SHEET cells,
@@ -361,37 +366,40 @@ const S2_FATES = [
 // width; the vertical scale stays 1:1 because the row's height IS H.
 // Cells are fixed-height through HEAD_H/ROW_H (border-box, so borders
 // never add to the pitch) — the same numbers the anchor math reads.
+// PR-S2-LINES: PORT_X died — the arc-source x is DERIVED below as
+// COL_X + COL_W, the pull-out column's right edge (== 630).
 const S2_GEOM = {
-  W: 1216, H: 380, TABLE_W: 430, PORT_X: 456, MENU_X: 792, MENU_W: 424,
-  HEAD_H: 26, ROW_H: 24,
+  W: 1216, H: 380, TABLE_W: 430, COL_X: 470, COL_W: 160, MENU_X: 792,
+  MENU_W: 424, HEAD_H: 26, ROW_H: 24,
 } as const;
 
-// S2-PORTS: the exit rail, top to bottom — ordered by TARGET CLUSTER (the
-// four banks-row movers, then Payments, then the trades cluster, then
-// Travel's fan, then Compliance) to minimize crossings. Rail top 48,
-// pitch 26 (the BuildSpec's values; the ~two remaining crossings —
-// Travel's dive to visas over Brokerage's lower fan — are ruled).
+// S2-PORTS (PR-S2-LINES): the pull-out column — THE NINE THAT MOVE —
+// top to bottom in the founder's locked order; ONE const is the column's
+// row data AND the arc sources. With the menu reordered to land the walk,
+// landing-y is monotone across ascending source rows and both fans land
+// on CONTIGUOUS menu blocks, so the sixteen arcs cross ZERO times — the
+// PR script proves it pairwise. No arrows leave the sheet: the nine are
+// outlined there and pulled out here by NAME.
 const S2_PORTS = [
-  'Expenses', 'Banking', 'Retirement', 'Debt', 'Payments',
-  'Trade Log', 'Travel', 'Brokerage', 'Compliance',
+  'Banking', 'Expenses', 'Retirement', 'Debt', 'Payments',
+  'Trade Log', 'Brokerage', 'Travel', 'Compliance',
 ] as const;
 
 // S2-CONVERGE: shared landing rows fan their arrowheads so four heads
-// never stack — px offsets off the landing row's center.
+// never stack — px offsets off the landing row's center, ordered by
+// pull-out row so the converge fan cannot self-cross.
 const S2_CONVERGE: Readonly<Record<string, Readonly<Record<string, number>>>> = {
-  'banks & accounts': { Expenses: -7, Banking: -2, Retirement: 2, Debt: 7 },
+  'banks & accounts': { Banking: -7, Expenses: -2, Retirement: 2, Debt: 7 },
   'trades & market data': { 'Trade Log': -4, Brokerage: 4 },
 };
 
 // Derived geometry — every coordinate computed from S2_GEOM plus the data
-// consts above; no hand-typed path numbers anywhere.
+// consts above; no hand-typed path numbers anywhere. A port is simply the
+// pull-out row's right-edge center — same s2RowCenter the menu rows use,
+// so source-anchor == row-center is structural.
 const s2RowCenter = (i: number) => S2_GEOM.HEAD_H + i * S2_GEOM.ROW_H + S2_GEOM.ROW_H / 2;
-const s2PortY = (tool: string) => 48 + S2_PORTS.indexOf(tool as (typeof S2_PORTS)[number]) * 26;
-const s2CellAnchor = (tool: string) => {
-  const c = PROBLEM_SHEET.findIndex((col) => (col.tools as readonly string[]).includes(tool));
-  const r = (PROBLEM_SHEET[c].tools as readonly string[]).indexOf(tool);
-  return { x: Math.round(((c + 1) * S2_GEOM.TABLE_W) / 6), y: s2RowCenter(r) };
-};
+const s2PortX = S2_GEOM.COL_X + S2_GEOM.COL_W;
+const s2PortY = (tool: string) => s2RowCenter(S2_PORTS.indexOf(tool as (typeof S2_PORTS)[number]));
 const s2MenuY = (job: string) => s2RowCenter(PROVIDER_MENU.findIndex(([j]) => j === job));
 
 // IMPORT-COLUMNS (PR-DECK): the field table of the 03 / THE IMPORT slide,
@@ -1695,11 +1703,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             THE PROVIDERS BEHIND THEM). Step 2 in full: the essay's four
             moves under the sub, then the WALK DRAWN — the essay's (1)-(9)
             answers render nowhere as text (SHOW DON'T ECHO, Deck Law #7):
-            Step 1's sheet condensed on the left, the provider menu as the
-            walk's landing on the right, sixteen dotted arcs between (nine
-            movers through the port rail), sixteen stay-homes tinted
-            bg-bg-row — the born-here treatment — and 'our AI' unserved by
-            design. The menu renders ONCE PER BREAKPOINT: the walk's right
+            Step 1's sheet condensed on the left (no arrows leave it; the
+            nine movers outlined), the pull-out column between — THE NINE
+            THAT MOVE — and the provider menu REORDERED to land the walk
+            on the right; sixteen short dotted arcs pull-out → menu with
+            ZERO crossings, sixteen stay-homes tinted bg-bg-row — the
+            born-here treatment — and 'our AI' unserved by design. The menu renders ONCE PER BREAKPOINT: the walk's right
             panel on desktop, the full-width DECK.table with its framing
             line on mobile (multi-name cells wrap at their spaces there).
             Geometry is the S2_GEOM corridor law (see the consts). Around
@@ -1739,11 +1748,14 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(c)</span> If yes, pick the company that sends it. That company is a provider.</p>
           <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(d)</span> If no, the tool stays home: the system will be that tool, and its data gets born here.</p>
 
-          {/* THE WALK, desktop — three absolute layers in one relative row
-              of height S2_GEOM.H: Step 1's sheet condensed (left), the
-              provider menu (right), the corridor overlay between. The
-              nine movers exit right through the port rail into sixteen
-              arcs; stay-homes are tinted, 'our AI' takes NO arrow. */}
+          {/* THE WALK, desktop (PR-S2-LINES) — four absolute layers in one
+              relative row of height S2_GEOM.H: Step 1's sheet condensed
+              (left; stay-homes tinted, the nine movers OUTLINED — no
+              arrows leave it), the pull-out column (middle — THE NINE
+              THAT MOVE, the slide-01 list-between-two-tables idiom), the
+              provider menu reordered to land the walk (right), and the
+              overlay: sixteen short arcs pull-out → menu, ZERO crossings;
+              'our AI' takes NO arrow. */}
           <div className="relative mt-10 hidden lg:mt-[76px] lg:block" style={{ height: S2_GEOM.H, maxWidth: S2_GEOM.W }}>
             <div className="absolute left-0 top-0" style={{ width: `${(S2_GEOM.TABLE_W / S2_GEOM.W) * 100}%` }}>
               <table className="w-full table-fixed border-separate border-spacing-0 border border-border bg-white">
@@ -1760,13 +1772,19 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                       {PROBLEM_SHEET.map((col, c) => {
                         const tool = col.tools[r];
                         return (
-                          <td key={col.header} style={{ height: S2_GEOM.ROW_H }} className={`overflow-hidden whitespace-nowrap px-[6px] align-middle font-mono text-[8.5px] text-brand-purple ${tool && !S2_MOVERS.has(tool) ? 'bg-bg-row ' : ''}${r < 5 ? 'border-b-[0.75px] border-b-text-faint ' : ''}${c < 5 ? 'border-r-[0.75px] border-r-text-faint' : ''}`}>{tool ?? '\u00A0'}</td>
+                          <td key={col.header} style={{ height: S2_GEOM.ROW_H }} className={`overflow-hidden whitespace-nowrap px-[6px] align-middle font-mono text-[8.5px] text-brand-purple ${tool && !S2_MOVERS.has(tool) ? 'bg-bg-row ' : ''}${tool && S2_MOVERS.has(tool) ? 'ring-1 ring-inset ring-brand-purple ' : ''}${r < 5 ? 'border-b-[0.75px] border-b-text-faint ' : ''}${c < 5 ? 'border-r-[0.75px] border-r-text-faint' : ''}`}>{tool ?? '\u00A0'}</td>
                         );
                       })}
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div className="absolute top-0 border border-border bg-white" style={{ left: `${(S2_GEOM.COL_X / S2_GEOM.W) * 100}%`, width: `${(S2_GEOM.COL_W / S2_GEOM.W) * 100}%` }}>
+              <p style={{ height: S2_GEOM.HEAD_H }} className="flex items-center overflow-hidden whitespace-nowrap bg-bg-row px-[6px] font-mono text-[7px] font-normal uppercase tracking-[0.14em] text-text-faint border-b border-b-border">THE NINE THAT MOVE</p>
+              {S2_PORTS.map((tool, i) => (
+                <p key={tool} style={{ height: S2_GEOM.ROW_H }} className={`flex items-center overflow-hidden whitespace-nowrap px-[6px] font-mono text-[8.5px] text-brand-purple ${i < S2_PORTS.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>{tool}</p>
+              ))}
             </div>
             <div className="absolute top-0" style={{ left: `${(S2_GEOM.MENU_X / S2_GEOM.W) * 100}%`, width: `${(S2_GEOM.MENU_W / S2_GEOM.W) * 100}%` }}>
               <table className="w-full table-fixed border-separate border-spacing-0 border border-border bg-white">
@@ -1802,17 +1820,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                   <path d="M0 0 L8 4 L0 8 z" fill="currentColor" />
                 </marker>
               </defs>
-              {S2_PORTS.map((tool) => {
-                const a = s2CellAnchor(tool);
-                const py = s2PortY(tool);
-                const d = `M${a.x} ${a.y} C ${a.x + 14} ${a.y}, ${S2_GEOM.PORT_X - 12} ${py}, ${S2_GEOM.PORT_X} ${py}`;
-                return <path key={tool} d={d} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" />;
-              })}
               {S2_FATES.map(([tool, job]) => {
                 const py = s2PortY(tool);
                 const ly = s2MenuY(job) + (S2_CONVERGE[job]?.[tool] ?? 0);
-                const mx = (S2_GEOM.PORT_X + S2_GEOM.MENU_X) / 2;
-                const d = `M${S2_GEOM.PORT_X} ${py} C ${mx} ${py}, ${mx} ${ly}, ${S2_GEOM.MENU_X} ${ly}`;
+                const mx = (s2PortX + S2_GEOM.MENU_X) / 2;
+                const d = `M${s2PortX} ${py} C ${mx} ${py}, ${mx} ${ly}, ${S2_GEOM.MENU_X} ${ly}`;
                 return <path key={`${tool}-${job}`} d={d} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd="url(#s2-arrow)" />;
               })}
             </svg>
