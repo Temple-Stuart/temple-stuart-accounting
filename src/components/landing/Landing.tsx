@@ -424,6 +424,26 @@ const S3_GEOM = {
 } as const;
 const s3RowCenter = (i: number) => S3_GEOM.HEAD_H + i * S3_GEOM.ROW_H + S3_GEOM.ROW_H / 2;
 
+// PR-S3-TIEOUT: stripe's payout opened all the way up — the card's third
+// column, keyed by part name (the PR script proves the 11 keys equal the
+// card's 11 field names). po_1QmX8fK2 and the 09:14:0xZ times name the
+// SAME arrival slide 14 walks back to — the cross-slide echo; the rest
+// is the deck's invented example data, consistent with the table's
+// stripe row.
+const S3_OPEN_ROW: Readonly<Record<string, string>> = {
+  provider: 'stripe',
+  connection: '—',
+  resource: 'payout',
+  'their id': 'po_1QmX8fK2',
+  'our id': 'arr_0003',
+  payload: '{ "id": "po_1QmX8fK2", "amount": 9680, … }',
+  fingerprint: 'c9d1…4f2a',
+  asked: '09:14:01Z',
+  arrived: '09:14:02Z',
+  read: '09:14:03Z',
+  status: 'DONE',
+};
+
 // IMPORT-COLUMNS (PR-DECK): the field table of the 03 / THE IMPORT slide,
 // reconciled to the deck's plain-language vocabulary (provider · connection ·
 // resource · their id · our id · payload · fingerprint · asked · arrived ·
@@ -2022,7 +2042,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                 <span className="px-[8px] whitespace-nowrap">PROVIDER · CONNECTION</span><span className="px-[8px]">RESOURCE</span><span className="px-[8px]">ARRIVED</span><span className="px-[8px]">STATUS</span>
               </div>
               {IMPORT_ARRIVALS.map(([pc, res, t, st], j) => (
-                <div key={`${pc}-${res}`} style={{ height: S3_GEOM.ROW_H }} className={`grid grid-cols-[140px_130px_110px_1fr] items-center font-mono text-[8px] ${j < IMPORT_ARRIVALS.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                <div key={`${pc}-${res}`} style={{ height: S3_GEOM.ROW_H }} className={`grid grid-cols-[140px_130px_110px_1fr] items-center font-mono text-[8px] ${pc === 'stripe' ? 'ring-1 ring-inset ring-brand-purple ' : ''}${j < IMPORT_ARRIVALS.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
                   <span className="overflow-hidden whitespace-nowrap px-[8px] text-brand-purple">{pc}</span>
                   <span className="px-[8px] text-text-faint">{res}</span>
                   <span className="px-[8px] text-text-faint">{t}</span>
@@ -2075,7 +2095,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                     {row.map((cell, c) => (
                       <td
                         key={cell}
-                        className={`${c === 2 ? 'hidden lg:table-cell lg:w-[25%]' : 'w-[33.33%] lg:w-[25%]'} px-[11px] py-[9px] lg:px-5 lg:py-[11px] align-top font-mono text-[11px] lg:text-[13px] ${c === 0 ? 'text-brand-purple' : c === 3 && cell === 'PENDING' ? 'text-brand-amber' : 'text-text-faint'} ${r === IMPORT_ARRIVALS.length - 1 ? '' : 'border-b-[0.75px] border-b-text-faint'}`}
+                        className={`${c === 2 ? 'hidden lg:table-cell lg:w-[25%]' : 'w-[33.33%] lg:w-[25%]'} ${row[0] === 'stripe' ? 'ring-1 ring-inset ring-brand-purple ' : ''}px-[11px] py-[9px] lg:px-5 lg:py-[11px] align-top font-mono text-[11px] lg:text-[13px] ${c === 0 ? 'text-brand-purple' : c === 3 && cell === 'PENDING' ? 'text-brand-amber' : 'text-text-faint'} ${r === IMPORT_ARRIVALS.length - 1 ? '' : 'border-b-[0.75px] border-b-text-faint'}`}
                       >
                         {cell}
                       </td>
@@ -2086,30 +2106,38 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             </table>
           </div>
 
-          {/* THE CARD (PR-S3-COHESION) — the field card wears the DECK
-              table grammar the arrivals and routing tables wear
-              (DECK.table/th/pad/rule): one thead band names it THE PARTS
-              OF EACH ROW; the four group labels ride the same sand band
-              (the header-band idiom — no more rust standalone labels);
-              field names in the arrivals table's purple mono tier,
-              glosses in its faint tier. Every rendered string is
-              byte-unchanged — restyle only. Its box is the DRAWING'S box:
-              the same maxWidth: S3_GEOM.W the visual row carries, so the
-              card and the drawing share one right edge structurally. */}
-          <table className={`mt-10 lg:mt-[76px] ${DECK.table}`} style={{ maxWidth: S3_GEOM.W }}>
+          {/* PR-S3-TIEOUT: the bridge — the essay's four-of-eleven line,
+              verbatim, statement tier, above the card. */}
+          <p className={`mt-10 lg:mt-[76px] ${DECK.statement}`}>The table shows four of each row&apos;s eleven parts. So let us take one row — stripe&apos;s payout — and open it all the way up.</p>
+
+          {/* THE CARD (PR-S3-COHESION → PR-S3-TIEOUT) — the field card
+              wears the DECK table grammar the arrivals and routing tables
+              wear (DECK.table/th/pad/rule): one thead band names it THE
+              PARTS OF EACH ROW, and the third column — STRIPE'S ROW —
+              opens the ringed arrivals row all the way up, values from
+              S3_OPEN_ROW in the arrivals table's faint mono tier. The
+              four group labels ride the same sand band spanning all
+              three columns; field names purple mono, glosses faint —
+              every part name and gloss string byte-unchanged. Its box is
+              the DRAWING'S box: the same maxWidth: S3_GEOM.W the visual
+              row carries, so the card and the drawing share one right
+              edge structurally. Values wrap on mobile; nothing drops. */}
+          <table className={`mt-[14px] lg:mt-[18px] ${DECK.table}`} style={{ maxWidth: S3_GEOM.W }}>
             <colgroup>
-              <col className="w-[34%] lg:w-[25%]" />
+              <col className="w-[26%] lg:w-[22%]" />
               <col />
+              <col className="w-[30%] lg:w-[26%]" />
             </colgroup>
             <thead>
               <tr>
                 <th colSpan={2} scope="col" className={DECK.th}>THE PARTS OF EACH ROW</th>
+                <th scope="col" className={DECK.th}>STRIPE&apos;S ROW</th>
               </tr>
             </thead>
             {IMPORT_COLUMNS.map((group, b) => (
               <tbody key={group.band}>
                 <tr>
-                  <td colSpan={2} className={DECK.th}>{group.band}</td>
+                  <td colSpan={3} className={DECK.th}>{group.band}</td>
                 </tr>
                 {group.rows.map((row, r) => {
                   const [name = '', desc = '', emphasis] = row;
@@ -2122,6 +2150,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                         {desc}
                         {emphasis !== undefined && <span className="font-mono text-brand-amber">{emphasis}</span>}
                       </td>
+                      <td className={`${DECK.pad} ${rule} break-words align-top font-mono text-[11px] lg:text-[13px] text-text-faint`}>{S3_OPEN_ROW[name]}</td>
                     </tr>
                   );
                 })}
