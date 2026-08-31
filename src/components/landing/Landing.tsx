@@ -274,7 +274,8 @@ const S1_FLOWS = [
 // rule top+30, interior rules top+50..top+130 by 20, header baseline top+18,
 // data baselines top+43 by 20). PR-S1-VIZ: the fan died, so the tops no
 // longer anchor to a convergence point — Grid A sits at 0, Grid B 30px below
-// A's bottom edge (0+150+30), in a 280x330 viewBox.
+// A's bottom edge (0+150+30), in a 280x330 viewBox. PR-S2: the same
+// slices also draw slide 02's mobile walk grids (with fate marks).
 const PROBLEM_SHEET_SM = [
   { top: 0, cols: PROBLEM_SHEET.slice(0, 3) },
   { top: 180, cols: PROBLEM_SHEET.slice(3) },
@@ -298,6 +299,8 @@ const PROBLEM_SHEET_SM = [
 // jobs, same order. '—' is deck content — a job with no open door yet —
 // and renders in the faint tier; never fill it. A new provider is one cell
 // edit here (a provider is just rows in a table — added, never built).
+// PR-S2: the menu renders ONCE PER BREAKPOINT — the walk's right panel
+// on desktop, the full-width DECK.table on mobile.
 const PROVIDER_MENU = [
   ['banks & accounts', 'plaid', 'teller'],
   ['card money', 'stripe', 'square'],
@@ -313,6 +316,83 @@ const PROVIDER_MENU = [
   ['visas', 'travel buddy', '—'],
   ['the law itself', 'ecfr · us code · federal register · irs', '—'],
 ] as const;
+
+// ── PR-S2 / THE WALK. Step 2's visual: the walk from Step 1's finished
+// table to the provider menu, DRAWN, not listed (SHOW DON'T ECHO, Deck
+// Law #7 — the essay's (1)-(9) walk renders nowhere as text). Facts and
+// geometry from the approved CD-S2 BuildSpec.
+
+// S2-MOVERS: the nine tools that take providers — the walk's “yes”
+// answers. The PR script proves: movers ⊂ PROBLEM_SHEET cells,
+// |movers| == 9, cells − movers == 16 (the tinted stay-homes).
+const S2_MOVERS = new Set<string>([
+  'Payments', 'Expenses', 'Travel', 'Banking', 'Retirement',
+  'Brokerage', 'Trade Log', 'Debt', 'Compliance',
+]);
+
+// S2-FATES: the sixteen [tool, job] pairs — ONE const drives the desktop
+// arcs AND the mobile fate lines (the no-drift law). Every job string
+// matches a PROVIDER_MENU row's job cell verbatim (script-proved).
+const S2_FATES = [
+  ['Payments', 'card money'],
+  ['Expenses', 'banks & accounts'],
+  ['Banking', 'banks & accounts'],
+  ['Retirement', 'banks & accounts'],
+  ['Debt', 'banks & accounts'],
+  ['Trade Log', 'trades & market data'],
+  ['Brokerage', 'trades & market data'],
+  ['Brokerage', 'company numbers'],
+  ['Brokerage', 'the economy'],
+  ['Brokerage', 'filings'],
+  ['Travel', 'flights'],
+  ['Travel', 'hotels'],
+  ['Travel', 'activities'],
+  ['Travel', 'locations'],
+  ['Travel', 'visas'],
+  ['Compliance', 'the law itself'],
+] as const;
+
+// S2-GEOM: the corridor law, horizontal (S1_CORRIDOR_PX precedent, above):
+// the overlay's viewBox, both panels' inline geometry and every path
+// coordinate read THIS object, so arc-landing-x == menu-left-edge and
+// path-anchor == row-center are structural, not a discipline. Panels sit
+// at percentages of W and the overlay stretches with
+// preserveAspectRatio="none", so the x-equalities hold at ANY column
+// width; the vertical scale stays 1:1 because the row's height IS H.
+// Cells are fixed-height through HEAD_H/ROW_H (border-box, so borders
+// never add to the pitch) — the same numbers the anchor math reads.
+const S2_GEOM = {
+  W: 1216, H: 380, TABLE_W: 430, PORT_X: 456, MENU_X: 792, MENU_W: 424,
+  HEAD_H: 26, ROW_H: 24,
+} as const;
+
+// S2-PORTS: the exit rail, top to bottom — ordered by TARGET CLUSTER (the
+// four banks-row movers, then Payments, then the trades cluster, then
+// Travel's fan, then Compliance) to minimize crossings. Rail top 48,
+// pitch 26 (the BuildSpec's values; the ~two remaining crossings —
+// Travel's dive to visas over Brokerage's lower fan — are ruled).
+const S2_PORTS = [
+  'Expenses', 'Banking', 'Retirement', 'Debt', 'Payments',
+  'Trade Log', 'Travel', 'Brokerage', 'Compliance',
+] as const;
+
+// S2-CONVERGE: shared landing rows fan their arrowheads so four heads
+// never stack — px offsets off the landing row's center.
+const S2_CONVERGE: Readonly<Record<string, Readonly<Record<string, number>>>> = {
+  'banks & accounts': { Expenses: -7, Banking: -2, Retirement: 2, Debt: 7 },
+  'trades & market data': { 'Trade Log': -4, Brokerage: 4 },
+};
+
+// Derived geometry — every coordinate computed from S2_GEOM plus the data
+// consts above; no hand-typed path numbers anywhere.
+const s2RowCenter = (i: number) => S2_GEOM.HEAD_H + i * S2_GEOM.ROW_H + S2_GEOM.ROW_H / 2;
+const s2PortY = (tool: string) => 48 + S2_PORTS.indexOf(tool as (typeof S2_PORTS)[number]) * 26;
+const s2CellAnchor = (tool: string) => {
+  const c = PROBLEM_SHEET.findIndex((col) => (col.tools as readonly string[]).includes(tool));
+  const r = (PROBLEM_SHEET[c].tools as readonly string[]).indexOf(tool);
+  return { x: Math.round(((c + 1) * S2_GEOM.TABLE_W) / 6), y: s2RowCenter(r) };
+};
+const s2MenuY = (job: string) => s2RowCenter(PROVIDER_MENU.findIndex(([j]) => j === job));
 
 // IMPORT-COLUMNS (PR-DECK): the field table of the 03 / THE IMPORT slide,
 // reconciled to the deck's plain-language vocabulary (provider · connection ·
@@ -1610,26 +1690,28 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── PROVIDERS-02 (PR-STEP-2 → PR-STEP2-VIZ → PR-ARTICULATION: bar
-            reads LOOK AT THE TOOLS AND PICK THE PROVIDERS BEHIND THEM).
-            The step's visual: the provider MENU — THE JOB | TODAY | NEXT —
-            replaces the eleven-line roster, the offerings sentence and the
-            doors gloss (SHOW DON'T ECHO, Deck Law #7: the table IS that
-            content, drawn once). Around it, essay verbatim: the sub, the
-            pick-yours statement, the framing line, the more-join line, the
-            closer — and the one line under the table is the essay's
-            SnapTrade clause, verbatim, the ONLY place Robinhood may ever
-            appear. Act grammar is the import act's, class for class; the
-            table is the routing act's grammar via the DECK tokens
-            (table/th/pad/rule) — provider names in the routing table's mono
-            tier: TODAY and open NEXT doors purple, jobs and '—' cells the
-            faint tier. NEXT is the wide column (w-[40%]): its longest cell
-            is the five-name trades row, sized the way the routing act sized
-            'classification'. All three columns survive mobile — the menu IS
-            the slide's argument; multi-name cells wrap at their spaces.
-            Nothing here is money and nothing is a kind word, so NO GOLD on
-            this slide; rust never enters either — there is no band label
-            and no live status. */}
+      {/* ── PROVIDERS-02 / THE WALK (PR-STEP-2 → PR-STEP2-VIZ →
+            PR-ARTICULATION → PR-S2: bar reads LOOK AT THE TOOLS AND PICK
+            THE PROVIDERS BEHIND THEM). Step 2 in full: the essay's four
+            moves under the sub, then the WALK DRAWN — the essay's (1)-(9)
+            answers render nowhere as text (SHOW DON'T ECHO, Deck Law #7):
+            Step 1's sheet condensed on the left, the provider menu as the
+            walk's landing on the right, sixteen dotted arcs between (nine
+            movers through the port rail), sixteen stay-homes tinted
+            bg-bg-row — the born-here treatment — and 'our AI' unserved by
+            design. The menu renders ONCE PER BREAKPOINT: the walk's right
+            panel on desktop, the full-width DECK.table with its framing
+            line on mobile (multi-name cells wrap at their spaces there).
+            Geometry is the S2_GEOM corridor law (see the consts). Around
+            the drawing, essay verbatim: the sub, the tint legend's
+            stay-home sentences, the count line, the AI parenthetical, the
+            counted born-here paragraph, the pick-yours statement, the
+            more-join line, the closer — and the SnapTrade footnote, the
+            ONLY place Robinhood may ever appear. TODAY and open NEXT doors
+            purple, jobs and '—' cells the faint tier. Nothing in the
+            DRAWING is money or a kind word, so gold inks ONLY the moves
+            block's letter tags (the deck's moves tier); rust never enters
+            — there is no band label and no live status. */}
       <section id="deck-02" aria-label="The providers" className={openSteps[1] ? 'max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border' : DECK.sectionBar}>
         <button
           type="button"
@@ -1648,39 +1730,177 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <p className="mt-[22px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
             A tool is a job. A provider is a company you hire to feed that job.
           </p>
+          {/* PR-S2: the essay's Step 2 moves block, verbatim — slide-01
+              grammar, letters in the gold mono tier (the moves block is
+              the only home for letters; no letters enter the drawing). */}
+          <p className={`mt-6 ${DECK.statement}`}>This step is four moves:</p>
+          <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(a)</span> Start from the table Step 1 built.</p>
+          <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(b)</span> Go tool by tool and ask one question: does this tool&apos;s data arrive from outside — someone else telling you what happened?</p>
+          <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(c)</span> If yes, pick the company that sends it. That company is a provider.</p>
+          <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(d)</span> If no, the tool stays home: the system will be that tool, and its data gets born here.</p>
+
+          {/* THE WALK, desktop — three absolute layers in one relative row
+              of height S2_GEOM.H: Step 1's sheet condensed (left), the
+              provider menu (right), the corridor overlay between. The
+              nine movers exit right through the port rail into sixteen
+              arcs; stay-homes are tinted, 'our AI' takes NO arrow. */}
+          <div className="relative mt-10 hidden lg:mt-[76px] lg:block" style={{ height: S2_GEOM.H, maxWidth: S2_GEOM.W }}>
+            <div className="absolute left-0 top-0" style={{ width: `${(S2_GEOM.TABLE_W / S2_GEOM.W) * 100}%` }}>
+              <table className="w-full table-fixed border-separate border-spacing-0 border border-border bg-white">
+                <thead>
+                  <tr>
+                    {PROBLEM_SHEET.map((col, c) => (
+                      <th key={col.header} scope="col" style={{ height: S2_GEOM.HEAD_H }} className={`overflow-hidden whitespace-nowrap bg-bg-row px-[6px] text-left align-middle font-mono text-[6.5px] font-semibold uppercase tracking-[0.12em] text-text-faint border-b border-b-border ${c < 5 ? 'border-r-[0.75px] border-r-text-faint' : ''}`}>{col.header}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[0, 1, 2, 3, 4, 5].map((r) => (
+                    <tr key={r}>
+                      {PROBLEM_SHEET.map((col, c) => {
+                        const tool = col.tools[r];
+                        return (
+                          <td key={col.header} style={{ height: S2_GEOM.ROW_H }} className={`overflow-hidden whitespace-nowrap px-[6px] align-middle font-mono text-[8.5px] text-brand-purple ${tool && !S2_MOVERS.has(tool) ? 'bg-bg-row ' : ''}${r < 5 ? 'border-b-[0.75px] border-b-text-faint ' : ''}${c < 5 ? 'border-r-[0.75px] border-r-text-faint' : ''}`}>{tool ?? '\u00A0'}</td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="absolute top-0" style={{ left: `${(S2_GEOM.MENU_X / S2_GEOM.W) * 100}%`, width: `${(S2_GEOM.MENU_W / S2_GEOM.W) * 100}%` }}>
+              <table className="w-full table-fixed border-separate border-spacing-0 border border-border bg-white">
+                <colgroup>
+                  <col style={{ width: 118 }} />
+                  <col style={{ width: 172 }} />
+                  <col />
+                </colgroup>
+                <thead>
+                  <tr>
+                    {(['THE JOB', 'TODAY', 'NEXT'] as const).map((head) => (
+                      <th key={head} scope="col" style={{ height: S2_GEOM.HEAD_H }} className="overflow-hidden whitespace-nowrap bg-bg-row px-[6px] text-left align-middle font-mono text-[7px] font-normal uppercase tracking-[0.14em] text-text-faint border-b border-b-border">{head}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {PROVIDER_MENU.map(([job, today, next], r) => {
+                    const rule = r === PROVIDER_MENU.length - 1 ? '' : 'border-b-[0.75px] border-b-text-faint ';
+                    return (
+                      <tr key={job}>
+                        <td style={{ height: S2_GEOM.ROW_H }} className={`${rule}overflow-hidden px-[6px] align-middle font-mono text-[8px] leading-[1.2] text-text-faint`}>{job}</td>
+                        <td style={{ height: S2_GEOM.ROW_H }} className={`${rule}overflow-hidden px-[6px] align-middle font-mono text-[8px] leading-[1.2] text-brand-purple`}>{today}</td>
+                        <td style={{ height: S2_GEOM.ROW_H }} className={`${rule}overflow-hidden px-[6px] align-middle font-mono text-[8px] leading-[1.2] ${next === '—' ? 'text-text-faint' : 'text-brand-purple'}`}>{next}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <svg viewBox={`0 0 ${S2_GEOM.W} ${S2_GEOM.H}`} preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full text-brand-purple">
+              <defs>
+                <marker id="s2-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto">
+                  <path d="M0 0 L8 4 L0 8 z" fill="currentColor" />
+                </marker>
+              </defs>
+              {S2_PORTS.map((tool) => {
+                const a = s2CellAnchor(tool);
+                const py = s2PortY(tool);
+                const d = `M${a.x} ${a.y} C ${a.x + 14} ${a.y}, ${S2_GEOM.PORT_X - 12} ${py}, ${S2_GEOM.PORT_X} ${py}`;
+                return <path key={tool} d={d} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" />;
+              })}
+              {S2_FATES.map(([tool, job]) => {
+                const py = s2PortY(tool);
+                const ly = s2MenuY(job) + (S2_CONVERGE[job]?.[tool] ?? 0);
+                const mx = (S2_GEOM.PORT_X + S2_GEOM.MENU_X) / 2;
+                const d = `M${S2_GEOM.PORT_X} ${py} C ${mx} ${py}, ${mx} ${ly}, ${S2_GEOM.MENU_X} ${ly}`;
+                return <path key={`${tool}-${job}`} d={d} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd="url(#s2-arrow)" />;
+              })}
+            </svg>
+          </div>
+
+          {/* THE WALK, mobile — stacked: the sheet as two three-family
+              grids (PROBLEM_SHEET_SM's split) with per-tool fate marks —
+              stay-homes tinted, movers marked → — then the nine fate
+              lines (derived from S2_FATES; sheet order == the essay's walk
+              order), then the menu. Arrows collapse to marks; fates never
+              disappear. */}
+          <div className="mt-10 lg:hidden">
+            {PROBLEM_SHEET_SM.map(({ top, cols }) => {
+              const rows = Math.max(...cols.map((col) => col.tools.length));
+              return (
+                <div key={top} className={`grid grid-cols-3 border border-border bg-white ${top === 0 ? '' : 'mt-2.5'}`}>
+                  {cols.map((col, ci) => (
+                    <div key={col.header} className={ci < cols.length - 1 ? 'border-r-[0.75px] border-r-text-faint' : ''}>
+                      <p className="overflow-hidden whitespace-nowrap border-b border-b-border bg-bg-row px-[6px] py-[5px] font-mono text-[8px] uppercase tracking-[0.08em] text-text-faint">{col.header}</p>
+                      {Array.from({ length: rows }, (_, r) => {
+                        const tool = col.tools[r];
+                        return (
+                          <p key={r} className={`flex items-center justify-between px-[6px] py-[3px] font-mono text-[10.5px] leading-[1.35] text-brand-purple ${tool && !S2_MOVERS.has(tool) ? 'bg-bg-row ' : ''}${r < rows - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                            <span className="overflow-hidden whitespace-nowrap">{tool ?? '\u00A0'}</span>
+                            {tool && S2_MOVERS.has(tool) ? <span aria-hidden="true">→</span> : null}
+                          </p>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+            <div className="mt-4">
+              {PROBLEM_SHEET.flatMap((col) => col.tools.filter((tool) => S2_MOVERS.has(tool))).map((tool) => (
+                <p key={tool} className="py-[2px] font-mono text-[10.5px] leading-[1.35] text-brand-purple">
+                  {tool} <span aria-hidden="true" className="text-text-faint">→</span> {S2_FATES.filter(([t]) => t === tool).map(([, job]) => job).join(' · ')}
+                </p>
+              ))}
+            </div>
+            {/* THE MENU — the framing line in the label-above-table idiom
+                the import act's arrivals strip uses, then the full menu.
+                On desktop the menu renders as the walk's right panel
+                instead — once per breakpoint, never twice. */}
+            <p className={`mt-10 ${DECK.statement}`}>Here is who we speak to today:</p>
+            <table className={`mt-[14px] ${DECK.table}`}>
+              <thead>
+                <tr>
+                  {([
+                    ['THE JOB', 'w-[30%]'], ['TODAY', 'w-[30%]'], ['NEXT', 'w-[40%]'],
+                  ] as const).map(([head, w]) => (
+                    <th key={head} scope="col" className={`${w} ${DECK.th}`}>{head}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {PROVIDER_MENU.map(([job, today, next], r) => {
+                  const rule = r === PROVIDER_MENU.length - 1 ? '' : DECK.rule;
+                  return (
+                    <tr key={job}>
+                      <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-text-faint`}>{job}</td>
+                      <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}>{today}</td>
+                      <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] ${next === '—' ? 'text-text-faint' : 'text-brand-purple'}`}>{next}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Under the drawing, essay verbatim: the tint legend (chrome
+              label + the essay's stay-home sentences), the count line,
+              the AI parenthetical — then the counted born-here paragraph,
+              the pick-yours statement and the SnapTrade footnote. */}
+          <p className={`mt-[22px] lg:mt-6 ${DECK.statement}`}>
+            <span aria-hidden="true" className="mr-2 inline-block h-2.5 w-2.5 border border-border bg-bg-row align-[-1px]" />
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em]">TINTED = STAY HOME</span>
+            {' — '}Nobody outside sends their data. The system will be those tools, and their data gets born here.
+          </p>
+          <p className={`mt-2 ${DECK.statement}`}>Nine tools take providers. Sixteen stay home. Count them; it is twenty-five.</p>
+          <p className={`mt-2 ${DECK.statement}`}>(Our AI — Anthropic, OpenAI, xAI Grok, Voyage — belongs to no tool. It serves every step.)</p>
+          {/* PR-S2: the essay's counted born-here paragraph, verbatim —
+              the old 'But notice' version renders nowhere else. */}
+          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>So notice: sixteen of the twenty-five tools have no provider at all. Nobody sends an API for your tasks, your invoices, your budget. For those, this system does not import the tool — it IS the tool.</p>
           {/* PR-STEP2-VIZ: the essay's pick-yours statement, verbatim. */}
           <p className={`mt-[14px] ${DECK.statement}`}>You pick yours. Your neighbor picks theirs. The system does not care; a provider is just rows in a table, so a new one is added, never built.</p>
-
-          {/* THE MENU — the framing line in the label-above-table idiom the
-              import act's arrivals strip uses, then the table itself. */}
-          <p className={`mt-10 lg:mt-[76px] ${DECK.statement}`}>Here is who we speak to today:</p>
-          <table className={`mt-[14px] lg:mt-[18px] ${DECK.table}`}>
-            <thead>
-              <tr>
-                {([
-                  ['THE JOB', 'w-[30%]'], ['TODAY', 'w-[30%]'], ['NEXT', 'w-[40%]'],
-                ] as const).map(([head, w]) => (
-                  <th key={head} scope="col" className={`${w} ${DECK.th}`}>{head}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {PROVIDER_MENU.map(([job, today, next], r) => {
-                const rule = r === PROVIDER_MENU.length - 1 ? '' : DECK.rule;
-                return (
-                  <tr key={job}>
-                    <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-text-faint`}>{job}</td>
-                    <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}>{today}</td>
-                    <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] ${next === '—' ? 'text-text-faint' : 'text-brand-purple'}`}>{next}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {/* The table's footnote — the essay's SnapTrade clause, verbatim. */}
+          {/* The menu's footnote — the essay's SnapTrade clause, verbatim. */}
           <p className={`mt-[14px] ${DECK.statement}`}>one connector called SnapTrade reaches Robinhood, Webull, and Public too.</p>
-          {/* PR-ARTICULATION: the essay's born-here paragraph, verbatim. */}
-          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>But notice: most of the twenty-five tools have no provider at all. Nobody sends an API for your tasks, your invoices, your budget. For those, this system does not import the tool — it IS the tool, and the data is born right here. Only some jobs come from outside; the rest, we make.</p>
 
           <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>More join over time. Each one is one new row!</p>
           <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">So how do we actually get their data?</p>
