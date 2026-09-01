@@ -1566,23 +1566,134 @@ const S13_LAYOUT = (() => {
 })();
 const S13_H = S13_LAYOUT.h;
 
-// DECK-14 (PR-VOICE): the reverse walk, [layer, artifact] — labels gold
-// mono, artifacts mono aubergine. The essay's '(N) The layer:' phrasing maps
-// onto the two columns: the prefix rides the label cell, the colon is the
-// column gap, and the artifact carries the essay's punctuation — including
-// 'still matches!' (the essay's exclamation replaced the old ✓ glyph).
-const PROOF_WALK = [
-  ['(1) THE NUMBER', '$96.80 on your runway screen.'],
-  ['(2) THE LINE', 'debit Cash 96.80.'],
-  ['(3) THE MATCH', 'linked to payout po_1QmX8fK2.'],
-  ['(4) THE ARRIVAL', 'the payload, word for word, received 09:14:02Z.'],
-  ['(5) THE FINGERPRINT', 'still matches!'],
-] as const;
+// DECK-14 (PR-S14-DATAFLOW): PROOF_WALK retired — five retyped rows,
+// including a payout id, a timestamp and a fingerprint the deck already
+// carries as its own worked import (IMPORT_ARRIVALS, step 3). The walk
+// is now seven hops, every record DERIVED from the consts slides
+// 11/12/10/09/08/03 render from, each paired with the check the
+// S14_LAYOUT law RUNS at build — a failed check is a failed build, so
+// the drawing can never show a false proof. PROOF_TRIO stays verbatim.
 const PROOF_TRIO = [
   'Nothing was edited.',
   'Nothing was asked twice.',
   'Nothing is claimed without the fingerprint.',
 ] as const;
+
+// S14-WALK: [step tag, layer, source] — the tag names the slide each
+// record walks back through; the source names the consts it derives from.
+const S14_WALK = [
+  ['11', 'THE NUMBER', 'SALE_LINES × ANSWER_INPUTS'],
+  ['12', 'THE LINE', 'LEDGER_ROWS'],
+  ['10', 'THE RULE', 'SALE_RULE'],
+  ['09', 'THE MATCH', 'MATCHES × TOOL_DOCUMENTS × S9_KEY'],
+  ['08', 'THE DOCUMENT', 'TOOL_DOCUMENTS × MASTER_ROWS'],
+  ['03', 'THE ARRIVAL', 'IMPORT_ARRIVALS × IMPORT_COLUMNS × ROUTING_RULES'],
+  ['03', 'THE FINGERPRINT', 'IMPORT_ARRIVALS'],
+] as const;
+
+// S14-CHECKS: the design-voice line per hop. Each is PAIRED with an
+// assertion the law runs — the CHECK column renders from the law's own
+// returned list, so it cannot show a check that did not pass.
+const S14_CHECKS = [
+  "Cash is on that answer's input list, and on no other's",
+  'the ledger row equals sale line (3), account and amount',
+  "the rule's debit side names Cash",
+  'the invoice has a match side and a document side',
+  'the document carries all four fields',
+  'one stripe payout arrival · DONE · payload present · feed labeled by kind',
+  'the row carries a fingerprint, made on arrival: asked ≤ arrived ≤ read',
+] as const;
+
+// S14-GEOM: one lane on the 13/14 connector — a beat gutter, THE RECORD,
+// THE CHECK; fixed row pitch so the seven nodes land deterministically.
+const S14_GEOM = { W: 1216, G_W: 170, R_W: 560, HEAD: 24, ROW_H: 40, NODE_TOP: 10 } as const;
+
+// THE LAYOUT LAW (S14): seven hops, seven checks, names paired 1:1;
+// every record derived; every check thrown on failure — the number's
+// question is unique, the line equals the sale's Cash line, the rule
+// debits Cash, the match has both sides, the document carries all four
+// fields, exactly one stripe payout arrival (DONE, payload present,
+// kind labeled), the fingerprint exists and asked ≤ arrived ≤ read.
+// Binds 14's dollar to 13's hero row and the rule to the feed that
+// carried it. Wrap metric: 7px mono ≈ 4.2px per char; a record or
+// check wider than three lines at its column's budget throws.
+const S14_LAYOUT = (() => {
+  type Seg = readonly [string, boolean];
+  if (S14_WALK.length !== 7 || S14_CHECKS.length !== 7) throw new Error('slide 14: seven hops, seven checks');
+  // hop 1 — THE NUMBER
+  const cashSale = SALE_LINES.find(([acct]) => acct.replace(/^\(\d\) /, '') === 'Cash');
+  if (!cashSale) throw new Error('slide 14: the sale must land in Cash');
+  const amount = `$${cashSale[1]}`;
+  const cashQuestions = ANSWER_ROWS.map(([q]) => q).filter((q) => ANSWER_INPUTS[q].includes('Cash'));
+  if (cashQuestions.length !== 1) throw new Error(`slide 14: exactly one answer reads Cash — got ${cashQuestions.length}`);
+  const question = cashQuestions[0];
+  const heroCash = S13_LAYOUT.heroRows.find(([, line]) => line === 'Cash');
+  if (!heroCash || `$${heroCash[2] || heroCash[3]}` !== amount) throw new Error('slide 14: 13 and 14 must walk the same dollar');
+  // hop 2 — THE LINE
+  const ledger = LEDGER_ROWS.find(([d, l]) => d === S13_LAYOUT.heroDate && l === 'Cash');
+  if (!ledger) throw new Error('slide 14: the Cash line must sit on the hero date');
+  const [ledDate, ledLine, ledDebit, ledCredit] = ledger;
+  if (ledLine !== cashSale[0].replace(/^\(\d\) /, '') || (ledDebit || ledCredit) !== cashSale[1])
+    throw new Error('slide 14: the ledger row must equal sale line (3), account and amount');
+  // hop 3 — THE RULE
+  if (!SALE_RULE[1].includes('Cash')) throw new Error('slide 14: the rule must debit Cash');
+  // hop 4 — THE MATCH
+  if (!('Invoicing' in MATCHES) || !('Invoicing' in TOOL_DOCUMENTS)) throw new Error('slide 14: the invoice needs a match side and a document side');
+  // hop 5 — THE DOCUMENT
+  if (MASTER_ROWS.length !== 4) throw new Error('slide 14: the document carries four fields');
+  if (!TOOL_DOCUMENTS.Invoicing[0] || !TOOL_DOCUMENTS.Invoicing[1] || !S8_LIFE || !S8_WHO)
+    throw new Error('slide 14: the document fields must all be present');
+  // hop 6 — THE ARRIVAL
+  const arrivals = IMPORT_ARRIVALS.filter((r) => r[0] === 'stripe' && r[2] === 'payout');
+  if (arrivals.length !== 1) throw new Error(`slide 14: exactly one stripe payout arrival — got ${arrivals.length}`);
+  // widened: the as-const tuple union would let the DONE narrowing mark
+  // the payload/fingerprint guards impossible — they are runtime guards.
+  const arrival: readonly string[] = arrivals[0];
+  const [provider, , resource, theirId, , payload, fingerprint, asked, arrived, read, status] = arrival;
+  if (status !== 'DONE') throw new Error('slide 14: the arrival must be DONE');
+  if (payload === '—') throw new Error('slide 14: the arrival must carry its payload');
+  const payloadRow = IMPORT_COLUMNS.flatMap((band) => band.rows).find((row) => row[0] === 'payload');
+  if (!payloadRow) throw new Error('slide 14: the one table must gloss its payload column');
+  const gloss = payloadRow[1].replace(/ — $/, '');
+  const routing = ROUTING_RULES.find(([p, r]) => p === provider && r === resource);
+  if (!routing || !routing[2]) throw new Error('slide 14: the feed must be labeled by kind in the rule book');
+  const kind = routing[2];
+  if (SALE_RULE[0] !== `${provider} ${resource}`) throw new Error('slide 14: the rule that wrote the line and the feed that carried it must be the same feed');
+  // hop 7 — THE FINGERPRINT
+  if (fingerprint === '—') throw new Error('slide 14: the arrival must carry its fingerprint');
+  if (!(asked <= arrived && arrived <= read)) throw new Error('slide 14: the fingerprint must be made on arrival — asked ≤ arrived ≤ read');
+  const records: ReadonlyArray<readonly Seg[]> = [
+    [[amount, true], [` on "${question}"`, false]],
+    [[`${ledDate} · ${ledDebit ? 'debit' : 'credit'} `, false], [`${ledLine} ${ledDebit || ledCredit}`, true]],
+    [[`${SALE_RULE[0]} → debit `, false], [SALE_RULE[1], true], [', credit ', false], [SALE_RULE[2], true]],
+    [[`${MATCHES.Invoicing} ↔ ${TOOL_DOCUMENTS.Invoicing[0]} · on ${S9_KEY}`, false]],
+    [[`${TOOL_DOCUMENTS.Invoicing[0]} · ${S8_LIFE} · ${TOOL_DOCUMENTS.Invoicing[1]} · ${S8_WHO}`, false]],
+    [[`${provider} ${resource} `, false], [theirId, true], [` · arrived ${arrived} · ${gloss} · ${kind}`, false]],
+    [[fingerprint, true], [` · made from the payload at ${arrived}`, false]],
+  ];
+  const rCols = Math.floor((S14_GEOM.R_W - 26) / 4.2);
+  const cCols = Math.floor((S14_GEOM.W - S14_GEOM.G_W - S14_GEOM.R_W - 16) / 4.2);
+  const wrapCount = (text: string, cols: number) => {
+    const lines: string[] = [];
+    let line = '';
+    for (const word of text.split(' ')) {
+      const next = line ? `${line} ${word}` : word;
+      if (next.length > cols && line) { lines.push(line); line = word; } else { line = next; }
+    }
+    if (line) lines.push(line);
+    return lines.length;
+  };
+  const hops = S14_WALK.map(([tag, layer], i) => {
+    const record = records[i];
+    const check = S14_CHECKS[i];
+    if (wrapCount(record.map(([t]) => t).join(''), rCols) > 3) throw new Error(`slide 14: a record overflows its column — hop ${layer}`);
+    if (wrapCount(check, cCols) > 3) throw new Error(`slide 14: a check overflows its column — hop ${layer}`);
+    return { tag, layer, record, check, y: S14_GEOM.HEAD + i * S14_GEOM.ROW_H + S14_GEOM.NODE_TOP };
+  });
+  if (hops.length !== 7 || new Set(hops.map((h) => h.y)).size !== 7) throw new Error('slide 14: seven nodes on one lane, distinct pitch');
+  return { hops, amount, question, arrival: { theirId, arrived, fingerprint }, h: S14_GEOM.HEAD + S14_WALK.length * S14_GEOM.ROW_H } as const;
+})();
+const S14_H = S14_LAYOUT.h;
 
 // DECK CLASS GRAMMAR — the section grammar of acts 01–04, extracted once so
 // nine new acts cannot drift from it or from each other. These are the exact
@@ -4283,13 +4394,18 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── DECK-14 / THE PROOF. The reverse walk reuses 13's connector
-            treatment on a 20px | 180px | 1fr grid; layer labels gold mono
-            with NO bottom rule (Design's exception), artifacts mono aubergine
-            ruled with border-light. Ends on the deck's closing LINE — 24px
-            roman, deliberately NOT a question and NOT the question size pair;
-            nothing on this page is italic, so roman is the default it ships
-            with. */}
+      {/* ── DECK-14 / THE PROOF (PR-S14-DATAFLOW) — the reverse walk,
+            derived and checked: one lane down the 13/14 connector (1px
+            spine, 5×5 node per hop, the arrowhead landing on THE
+            FINGERPRINT — the walk ends at the source). Seven hops,
+            every record derived from the consts slides 11/12/10/09/08/03
+            render from; the CHECK column renders the law's own list, and
+            every check THROWS at build — the drawing can never show a
+            false proof. Layer labels keep 14's gold-mono exception; gold
+            in records only via GoldSegments (accounts, amounts, ids, the
+            fingerprint). PROOF_WALK retired (Deck Law 7); PROOF_TRIO
+            stays verbatim. Ends on the deck's closing LINE — 24px roman,
+            deliberately NOT a question. */}
       <section id="deck-14" aria-label="The proof" className={openSteps[13] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
@@ -4309,17 +4425,60 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             Every figure traces to the exact words the provider sent — and the fingerprint still matches.
           </p>
 
-          <div className="relative mt-10 lg:mt-[76px]">
-            <span aria-hidden="true" className="absolute bottom-[20px] left-[2px] top-[20px] w-px bg-border" />
-            {PROOF_WALK.map(([layer, artifact]) => (
-              <div key={layer} className="relative grid grid-cols-[20px_1fr] lg:min-h-[49px] lg:grid-cols-[20px_180px_1fr]">
-                <span aria-hidden="true" className="absolute left-0 top-[19px] h-[5px] w-[5px] bg-brand-purple" />
-                <span />
-                <p className="pt-[14px] font-mono text-[10px] lg:text-[11px] uppercase tracking-[0.18em] text-brand-gold lg:py-[14px]">{layer}</p>
-                <p className="col-start-2 row-start-2 border-b border-border-light pb-[14px] pt-1 font-mono text-[11px] lg:text-[13px] text-brand-purple lg:col-start-3 lg:row-start-1 lg:py-[14px]">{artifact}</p>
+          {/* The three moves — real flow, no padding; labels faint. */}
+          <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is three moves:</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(a)</span>{` Take one number off the screen — the ${S14_LAYOUT.amount} on "${S14_LAYOUT.question}" — and walk it backwards.`}</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(b)</span> At every layer, name the record it came from and the check that proves the hop: the line, the rule, the match, the document, the arrival.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(c)</span> End at the fingerprint — the code made from the payload the moment it arrived. Recompute it: it still matches.</p>
+
+          <p className={`mt-10 lg:mt-[76px] ${DECK.rust}`}>SEVEN HOPS BACK TO THE PROVIDER&apos;S WORDS</p>
+          <p className="mt-[6px] font-mono text-[10px] lg:text-[11px] text-text-faint">seven of seven hops checked at build — a failed check is a failed build.</p>
+
+          {/* THE PROOF, desktop (PR-S14-DATAFLOW) — the beat gutter, THE
+              RECORD, THE CHECK; the connector overlay rides the fixed
+              row pitch. */}
+          <div className="relative mt-[14px] hidden lg:mt-[18px] lg:block" style={{ maxWidth: S14_GEOM.W, minHeight: S14_H }}>
+            <div className="grid border-b border-border bg-bg-row" style={{ height: S14_GEOM.HEAD, gridTemplateColumns: `${(S14_GEOM.G_W / S14_GEOM.W) * 100}% ${(S14_GEOM.R_W / S14_GEOM.W) * 100}% minmax(0, 1fr)` }}>
+              <span />
+              <span className="flex items-center overflow-hidden pl-[10px] pr-2 font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint">THE RECORD</span>
+              <span className="flex items-center overflow-hidden px-2 font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint">THE CHECK</span>
+            </div>
+            {S14_LAYOUT.hops.map((hop, i) => (
+              <div key={hop.layer} className={`grid bg-white ${i < S14_LAYOUT.hops.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`} style={{ height: S14_GEOM.ROW_H, gridTemplateColumns: `${(S14_GEOM.G_W / S14_GEOM.W) * 100}% ${(S14_GEOM.R_W / S14_GEOM.W) * 100}% minmax(0, 1fr)` }}>
+                <div className="flex flex-col justify-center gap-[2px] overflow-hidden px-2">
+                  <span className="font-mono text-[7px] text-text-faint">{hop.tag}</span>
+                  <span className="whitespace-nowrap font-mono text-[7px] uppercase tracking-[0.14em] text-brand-gold">{hop.layer}</span>
+                </div>
+                <div className="flex items-center overflow-hidden pl-[10px] pr-2">
+                  <span className="font-mono text-[7px] leading-[10px] text-brand-purple"><GoldSegments segments={hop.record} /></span>
+                </div>
+                <div className="flex items-center overflow-hidden px-2">
+                  <span className="font-mono text-[7px] leading-[10px] text-text-faint">{hop.check}</span>
+                </div>
+              </div>
+            ))}
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+              <span className="absolute w-px bg-border" style={{ left: `${((S14_GEOM.G_W + 2) / S14_GEOM.W) * 100}%`, top: S14_LAYOUT.hops[0].y, height: S14_LAYOUT.hops[S14_LAYOUT.hops.length - 1].y + 8 - S14_LAYOUT.hops[0].y }} />
+              {S14_LAYOUT.hops.map((hop) => (
+                <span key={hop.layer} className="absolute h-[5px] w-[5px] bg-brand-purple" style={{ left: `calc(${((S14_GEOM.G_W + 2) / S14_GEOM.W) * 100}% - 2px)`, top: hop.y - 2 }} />
+              ))}
+              <span className="absolute h-0 w-0 border-l-[3px] border-r-[3px] border-t-[5px] border-l-transparent border-r-transparent border-t-brand-purple" style={{ left: `calc(${((S14_GEOM.G_W + 2) / S14_GEOM.W) * 100}% - 3px)`, top: S14_LAYOUT.hops[S14_LAYOUT.hops.length - 1].y + 8 }} />
+            </div>
+          </div>
+
+          {/* THE PROOF, mobile (PR-S14-DATAFLOW) — one card per hop in
+              walk order; no arrows. */}
+          <div className="mt-[14px] lg:hidden">
+            {S14_LAYOUT.hops.map((hop) => (
+              <div key={hop.layer} className="mt-3 border border-border bg-white px-3 py-[10px] first:mt-0">
+                <p className="font-mono text-[10px] uppercase tracking-[0.14em]"><span className="text-text-faint">{hop.tag} · </span><span className="text-brand-gold">{hop.layer}</span></p>
+                <p className="mt-[6px] font-mono text-[10px] leading-[1.5]"><span className="text-text-faint">RECORD — </span><span className="text-brand-purple"><GoldSegments segments={hop.record} /></span></p>
+                <p className="mt-[3px] font-mono text-[10px] leading-[1.5] text-text-faint">CHECK — {hop.check}</p>
               </div>
             ))}
           </div>
+
+          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Nothing between the screen and the provider&apos;s words was edited.</p>
 
           <div className={DECK.hairline} aria-hidden="true" />
           <div className="mt-[22px] lg:mt-8">
@@ -4328,6 +4487,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             ))}
           </div>
           <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>That is why you can believe the screen: every number walks back to its source — the exact words a provider sent, or the document you committed — and the rule that wrote the line.</p>
+          <p className={`mt-2 ${DECK.statement}`}>Alive today: the fingerprint, on the rules and the books — every regulation pull is hashed the moment it lands, citation checks re-fetch the source and re-hash it, and the audit log hash-chains every write. Today the money feeds land already parsed — no stored word-for-word payload, no fingerprint yet; the arrivals table that saves the provider&apos;s exact words and fingerprints them on arrival is the shape we&apos;re building.</p>
           <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[24px] text-brand-purple">Twenty-five tools. And now every one knows what the others did.</p>
         </div>
       </section>
