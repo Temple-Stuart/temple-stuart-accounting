@@ -414,41 +414,35 @@ const s2MenuY = (job: string) => s2RowCenter(PROVIDER_MENU.findIndex(([j]) => j 
 // retyped (the no-drift law; the PR script proves 18, ruled order).
 const S3_PROVIDERS = [...new Set(PROVIDER_MENU.flatMap(([, today]) => today.split(' · ')))];
 
-// S3-GEOM: S2_GEOM's sibling — the same corridor law. Arc source x ==
-// LIST_W, landing x == TABLE_X, midpoint verticals at
-// (LIST_W + TABLE_X) / 2; H is the arrivals panel's height EXACTLY:
-// HEAD_H + 19 · ROW_H = 482, so no arrow can escape the row.
+// S3-GEOM (PR-S3-ONE-TABLE): the corridor law, widened to the full
+// container — the two tables became ONE, so the arrivals table carries
+// its own legend as a THREE-TIER header (T1 group bands · T2 part names
+// · T3 glosses) and takes the rest of the row. The derived equalities
+// are code, not discipline: S3_HEAD_H is the tier sum; S3_LIST_TOP =
+// S3_HEAD_H − 2 is the LEVEL-ARROW LAW — list row i's center
+// (S3_LIST_TOP + 26 + 24i + 12) equals table row (i+1)'s center
+// (S3_HEAD_H + 24(i+1) + 12) identically, so all seventeen single
+// arrows and plaid→boa run DEAD LEVEL, plaid→chase rises exactly one
+// pitch, and the list's bottom edge lands flush with the table's.
 const S3_GEOM = {
-  W: 900, H: 482, LIST_W: 200, TABLE_X: 380, TABLE_W: 520,
-  HEAD_H: 26, ROW_H: 24,
+  W: 1216, LIST_W: 150, TABLE_X: 240, T1: 22, T2: 20, T3: 44, ROW_H: 24,
 } as const;
-const s3RowCenter = (i: number) => S3_GEOM.HEAD_H + i * S3_GEOM.ROW_H + S3_GEOM.ROW_H / 2;
-
-// PR-S3-TIEOUT: stripe's payout opened all the way up — the card's third
-// column, keyed by part name (the PR script proves the 11 keys equal the
-// card's 11 field names). po_1QmX8fK2 and the 09:14:0xZ times name the
-// SAME arrival slide 14 walks back to — the cross-slide echo; the rest
-// is the deck's invented example data, consistent with the table's
-// stripe row.
-const S3_OPEN_ROW: Readonly<Record<string, string>> = {
-  provider: 'stripe',
-  connection: '—',
-  resource: 'payout',
-  'their id': 'po_1QmX8fK2',
-  'our id': 'arr_0003',
-  payload: '{ "id": "po_1QmX8fK2", "amount": 9680, … }',
-  fingerprint: 'c9d1…4f2a',
-  asked: '09:14:01Z',
-  arrived: '09:14:02Z',
-  read: '09:14:03Z',
-  status: 'DONE',
-};
+const S3_HEAD_H = S3_GEOM.T1 + S3_GEOM.T2 + S3_GEOM.T3;
+const S3_LIST_TOP = S3_HEAD_H - 2;
+const S3_TABLE_W = S3_GEOM.W - S3_GEOM.TABLE_X;
+const s3RowCenter = (j: number) => S3_HEAD_H + j * S3_GEOM.ROW_H + S3_GEOM.ROW_H / 2;
+const s3ListCenter = (i: number) => S3_LIST_TOP + 26 + i * S3_GEOM.ROW_H + S3_GEOM.ROW_H / 2;
 
 // IMPORT-COLUMNS (PR-DECK): the field table of the 03 / THE IMPORT slide,
 // reconciled to the deck's plain-language vocabulary (provider · connection ·
 // resource · their id · our id · payload · fingerprint · asked · arrived ·
 // read · status). Four sand-banded groups (PR-S3-COHESION: the labels
 // ride the DECK.th band, no longer rust), each row a [name, desc] pair —
+// PR-S3-ONE-TABLE: this const is now the ONE table's three-tier header
+// (bands · names · glosses) on desktop AND the phone card's left half;
+// the provider and resource glosses carry the founder's ruled
+// shortenings ('which company sent it' / 'their own word' — the old
+// example lists were redundant above real data columns) —
 // the deck gives each field ONE description, so the old holds/why split is
 // gone. Order is the reading order of the slide and carries the argument;
 // never sort or regroup for tidiness.
@@ -463,14 +457,14 @@ const IMPORT_COLUMNS: ReadonlyArray<{ band: string; rows: ReadonlyArray<readonly
   {
     band: 'WHERE IT CAME FROM',
     rows: [
-      ['provider', 'stripe · plaid · sec · fred — which company sent it'],
+      ['provider', 'which company sent it'],
       ['connection', 'because you might have two or more banks'],
     ],
   },
   {
     band: 'WHAT IT IS',
     rows: [
-      ['resource', 'their own word: payout · transaction · quote'],
+      ['resource', 'their own word'],
       ['their id', 'so we tie the row back to the provider and never import the same thing twice'],
       ['our id', 'two providers could accidentally use the same id'],
     ],
@@ -493,38 +487,50 @@ const IMPORT_COLUMNS: ReadonlyArray<{ band: string; rows: ReadonlyArray<readonly
   },
 ];
 
-// IMPORT-ARRIVALS (PR-STEP-2 → PR-S3): NINETEEN rows — ONE ARRIVAL PER
-// PICKED PROVIDER, in S3_PROVIDERS order (the menu's), as
-// [provider·connection, resource, received, status] — the small example
-// the census line promises. Plaid rows TWICE with two connections
-// (chase / boa) — 'because you might have two or more banks' — and only
-// plaid renders a connection; the two-rows lesson is plaid's alone now
-// (liteapi's old 'stay' row died with the one-per-provider law). Times
-// are invented display data, strictly ascending; STRIPE KEEPS 09:14:02Z
-// because slide 14's walk-back names that exact arrival. Statuses all
-// DONE except sec — the one arrival still in flight, and the renderer
-// inks PENDING in the deck's rust.
+// IMPORT-ARRIVALS (PR-S3 → PR-S3-ONE-TABLE): NINETEEN rows × ELEVEN
+// fields — [provider, connection, resource, their id, our id, payload,
+// fingerprint, asked, arrived, read, status] — the ONE table's body, in
+// S3_PROVIDERS order (the menu's). Three status stories: DONE ×17 (all
+// three times, ascending within the row), sec PENDING (asked + arrived,
+// read —), and viator FAILED (asked only — its their id, payload,
+// fingerprint, arrived and read are '—': nothing arrived, so nothing is
+// claimed). Stripe keeps po_1QmX8fK2 · arr_0003 · c9d1…4f2a ·
+// 09:14:01/02/03Z — the arrival slide 14 walks back to. our id runs
+// arr_0001…arr_0019 in row order; their ids follow each provider's real
+// id convention (FRED's GDPC1 and the Federal Register's 2026-18432 are
+// the genuine shapes); times and ids are invented display data per the
+// shipped precedent, the stripe echoes pinned. The payload cell is the
+// '{ … }' glyph — the word-for-word answer is the point, not its bytes.
+// PENDING and FAILED ink rust.
 const IMPORT_ARRIVALS = [
-  ['plaid · chase', 'transaction', '09:13:47Z', 'DONE'],
-  ['plaid · boa', 'transaction', '09:13:55Z', 'DONE'],
-  ['stripe', 'payout', '09:14:02Z', 'DONE'],
-  ['tastytrade', 'quote', '09:31:00Z', 'DONE'],
-  ['finnhub', 'fundamentals', '09:47:13Z', 'DONE'],
-  ['fred', 'series', '09:53:20Z', 'DONE'],
-  ['sec', 'filing', '10:02:44Z', 'PENDING'],
-  ['liteapi', 'booking', '10:33:27Z', 'DONE'],
-  ['viator', 'activity', '10:39:12Z', 'DONE'],
-  ['google places', 'place', '10:42:58Z', 'DONE'],
-  ['travel buddy', 'visa', '10:51:36Z', 'DONE'],
-  ['anthropic', 'classification', '11:15:09Z', 'DONE'],
-  ['openai', 'insight', '11:15:12Z', 'DONE'],
-  ['xai grok', 'sentiment', '11:15:18Z', 'DONE'],
-  ['voyage', 'embedding', '11:15:25Z', 'DONE'],
-  ['ecfr', 'title', '11:40:03Z', 'DONE'],
-  ['us code', 'title', '11:40:31Z', 'DONE'],
-  ['federal register', 'document', '11:41:07Z', 'DONE'],
-  ['irs', 'bulletin', '11:42:56Z', 'DONE'],
+  ['plaid', 'chase', 'transaction', 'tx_9KmXw24Lp', 'arr_0001', '{ … }', 'a3f8…09be', '09:13:45Z', '09:13:47Z', '09:13:48Z', 'DONE'],
+  ['plaid', 'boa', 'transaction', 'tx_7BqRt81Vn', 'arr_0002', '{ … }', '7c42…d1e0', '09:13:53Z', '09:13:55Z', '09:13:56Z', 'DONE'],
+  ['stripe', '—', 'payout', 'po_1QmX8fK2', 'arr_0003', '{ … }', 'c9d1…4f2a', '09:14:01Z', '09:14:02Z', '09:14:03Z', 'DONE'],
+  ['tastytrade', '—', 'quote', 'qt_0831_SPY', 'arr_0004', '{ … }', '5b9a…22c7', '09:30:58Z', '09:31:00Z', '09:31:02Z', 'DONE'],
+  ['finnhub', '—', 'fundamentals', 'AAPL-Q2-2026', 'arr_0005', '{ … }', 'e610…8fd3', '09:47:10Z', '09:47:13Z', '09:47:14Z', 'DONE'],
+  ['fred', '—', 'series', 'GDPC1', 'arr_0006', '{ … }', '91d4…7a6c', '09:53:18Z', '09:53:20Z', '09:53:21Z', 'DONE'],
+  ['sec', '—', 'filing', '0000320193-26', 'arr_0007', '{ … }', '4e7f…c058', '10:02:41Z', '10:02:44Z', '—', 'PENDING'],
+  ['liteapi', '—', 'booking', 'bk_HTZ29X', 'arr_0008', '{ … }', 'b820…3391', '10:33:24Z', '10:33:27Z', '10:33:29Z', 'DONE'],
+  ['viator', '—', 'activity', '—', 'arr_0009', '—', '—', '10:39:12Z', '—', '—', 'FAILED'],
+  ['google places', '—', 'place', 'ChIJN1t_9zs', 'arr_0010', '{ … }', 'd3b7…104f', '10:42:55Z', '10:42:58Z', '10:42:59Z', 'DONE'],
+  ['travel buddy', '—', 'visa', 'visa_US_PT', 'arr_0011', '{ … }', '08e2…b56a', '10:51:33Z', '10:51:36Z', '10:51:37Z', 'DONE'],
+  ['anthropic', '—', 'classification', 'msg_01XkQz', 'arr_0012', '{ … }', 'f19c…62d8', '11:15:07Z', '11:15:09Z', '11:15:10Z', 'DONE'],
+  ['openai', '—', 'insight', 'chatcmpl-9xQ2', 'arr_0013', '{ … }', '73ab…f0e4', '11:15:10Z', '11:15:12Z', '11:15:13Z', 'DONE'],
+  ['xai grok', '—', 'sentiment', 'grok_7f2q1', 'arr_0014', '{ … }', 'c507…89b1', '11:15:15Z', '11:15:18Z', '11:15:19Z', 'DONE'],
+  ['voyage', '—', 'embedding', 'emb_44219', 'arr_0015', '{ … }', '2df6…a743', '11:15:22Z', '11:15:25Z', '11:15:26Z', 'DONE'],
+  ['ecfr', '—', 'title', '26-CFR-1.61', 'arr_0016', '{ … }', '8b31…5c9e', '11:40:00Z', '11:40:03Z', '11:40:05Z', 'DONE'],
+  ['us code', '—', 'title', '26-USC-61', 'arr_0017', '{ … }', 'ae64…01f7', '11:40:28Z', '11:40:31Z', '11:40:32Z', 'DONE'],
+  ['federal register', '—', 'document', '2026-18432', 'arr_0018', '{ … }', '39c8…d6b2', '11:41:04Z', '11:41:07Z', '11:41:08Z', 'DONE'],
+  ['irs', '—', 'bulletin', 'IRB-2026-35', 'arr_0019', '{ … }', '1e05…78ca', '11:42:53Z', '11:42:56Z', '11:42:57Z', 'DONE'],
 ] as const;
+
+// Derived from the arrivals (PR-S3-ONE-TABLE): the row's height; the
+// phone card's opened row (plaid · chase == IMPORT_ARRIVALS[0], never
+// retyped); and the flat field index pairing IMPORT_COLUMNS' part rows
+// with the 11-tuple's slots (the PR script proves the alignment).
+const S3_H = S3_HEAD_H + IMPORT_ARRIVALS.length * S3_GEOM.ROW_H;
+const S3_OPEN_ROW = IMPORT_ARRIVALS[0];
+const s3FieldIndex = (b: number, r: number) => IMPORT_COLUMNS.slice(0, b).reduce((n, g) => n + g.rows.length, 0) + r;
 
 // ROUTING-RULES (PR-DECK → PR-STEP-2 → PR-SIX): the whole routing decision,
 // for the 04 / THE ROUTING slide, as [provider, resource, kind, means].
@@ -1975,8 +1981,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             arrivals caption to the deck's rust (brand-amber; the mapping is
             recorded in the file header). PR-S3-COHESION: the field card's
             group labels left rust for the sand band (the DECK.th header-band
-            idiom) — rust in this act is the caption, the payload tail and
-            PENDING. Gold still enters the numbered run at this act's
+            idiom) — rust in this act is the caption, the payload gloss tail,
+            PENDING and FAILED. Gold still enters the numbered run at this act's
             arrivals? No — nothing here is money, so gold now first inks at
             04's KIND column.
 
@@ -2019,58 +2025,87 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(c)</span> The answer comes back, and it gets stored as one row, word for word, before anyone decides what it means. That row is an arrival.</p>
           <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(d)</span> Each row gets stamped: who sent it, what it is, its fingerprint, when we asked, when it arrived, when we read it, and how far it got.</p>
 
+          {/* PR-S3-ONE-TABLE: the bridge — the essay's read-across line,
+              verbatim, statement tier, above the table. Desktop-only:
+              the phone cannot name every part at the top, so its
+              counterpart is the declared line in the mobile stack. */}
+          <p className={`mt-10 hidden lg:mt-[76px] lg:block ${DECK.statement}`}>Every part of a row is named at the top of the table, and nineteen rows are shown. Read across plaid&apos;s row — from your Chase connection — and you have read one whole arrival.</p>
+
           {/* THE ASK, desktop caption — the arrivals caption in the act's
               rust chrome, aligned over the table panel (marginLeft from
-              S3_GEOM — exact at full width, ≤2px adrift below 900px). */}
-          <p className="mt-10 hidden font-mono text-[11px] uppercase tracking-[0.20em] text-brand-amber lg:mt-[76px] lg:block" style={{ marginLeft: S3_GEOM.TABLE_X }}>ONE ARRIVAL PER PROVIDER — AN EXAMPLE</p>
+              S3_GEOM — exact at full width, drifting only where the row
+              shrinks below S3_GEOM.W). */}
+          <p className="mt-6 hidden font-mono text-[11px] uppercase tracking-[0.20em] text-brand-amber lg:block" style={{ marginLeft: S3_GEOM.TABLE_X }}>ONE ARRIVAL PER PROVIDER — AN EXAMPLE</p>
 
-          {/* THE ASK, desktop (PR-S3) — S2's wrapper idiom: three absolute
-              layers in one relative row of height S3_GEOM.H. Left, the
-              providers we picked (S3_PROVIDERS); right, the arrivals as a
-              compact four-column panel; between, nineteen dotted arcs —
-              one per arrival row, source = the row's provider, so plaid
-              fans to its two rows and ZERO arrows cross. */}
-          <div className="relative mt-[14px] hidden lg:mt-[18px] lg:block" style={{ height: S3_GEOM.H, maxWidth: S3_GEOM.W }}>
-            <div className="absolute left-0 top-0 border border-border bg-white" style={{ width: `${(S3_GEOM.LIST_W / S3_GEOM.W) * 100}%` }}>
-              <p style={{ height: S3_GEOM.HEAD_H }} className="flex items-center overflow-hidden whitespace-nowrap bg-bg-row px-[6px] font-mono text-[7px] font-normal uppercase tracking-[0.14em] text-text-faint border-b border-b-border">THE PROVIDERS WE PICKED</p>
+          {/* THE ONE TABLE, desktop (PR-S3-ONE-TABLE) — the two tables
+              became one: the providers list (top offset S3_LIST_TOP —
+              the level-arrow law) feeds nineteen dotted arcs into a
+              table whose THREE-TIER header IS the legend: tier 1 the
+              four group bands spanning 2/3/2/4 columns (172/294/158px +
+              the rest — the column sums), tier 2 the eleven part names
+              (purple mono), tier 3 each column's gloss (faint, wrapped;
+              the payload tail rust) — all read from IMPORT_COLUMNS, one
+              source. Nineteen 11-field rows beneath; plaid · chase
+              ringed (the essay's read-across row); PENDING and FAILED
+              ink rust. 18 of 19 arrows run dead level; plaid→chase
+              rises one pitch; zero crossings. */}
+          <div className="relative mt-[14px] hidden lg:mt-[18px] lg:block" style={{ height: S3_H, maxWidth: S3_GEOM.W }}>
+            <div className="absolute left-0 border border-border bg-white" style={{ top: S3_LIST_TOP, width: `${(S3_GEOM.LIST_W / S3_GEOM.W) * 100}%` }}>
+              <p className="flex h-[26px] items-center overflow-hidden whitespace-nowrap bg-bg-row px-[6px] font-mono text-[7px] font-normal uppercase tracking-[0.14em] text-text-faint border-b border-b-border">THE PROVIDERS WE PICKED</p>
               {S3_PROVIDERS.map((p, i) => (
                 <p key={p} style={{ height: S3_GEOM.ROW_H }} className={`flex items-center overflow-hidden whitespace-nowrap px-[6px] font-mono text-[8.5px] text-brand-purple ${i < S3_PROVIDERS.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>{p}</p>
               ))}
             </div>
-            <div className="absolute top-0 border border-border bg-white" style={{ left: `${(S3_GEOM.TABLE_X / S3_GEOM.W) * 100}%`, width: `${(S3_GEOM.TABLE_W / S3_GEOM.W) * 100}%` }}>
-              <div style={{ height: S3_GEOM.HEAD_H }} className="grid grid-cols-[140px_130px_110px_1fr] items-center overflow-hidden bg-bg-row font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">
-                <span className="px-[8px] whitespace-nowrap">PROVIDER · CONNECTION</span><span className="px-[8px]">RESOURCE</span><span className="px-[8px]">ARRIVED</span><span className="px-[8px]">STATUS</span>
+            <div className="absolute top-0 border border-border bg-white" style={{ left: `${(S3_GEOM.TABLE_X / S3_GEOM.W) * 100}%`, width: `${(S3_TABLE_W / S3_GEOM.W) * 100}%` }}>
+              <div style={{ height: S3_GEOM.T1 }} className="grid grid-cols-[172px_294px_158px_1fr] items-center overflow-hidden bg-bg-row font-mono text-[6.5px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">
+                {IMPORT_COLUMNS.map((group, b) => (
+                  <span key={group.band} className={`overflow-hidden whitespace-nowrap px-[8px] ${b < IMPORT_COLUMNS.length - 1 ? 'border-r-[0.75px] border-r-text-faint' : ''}`}>{group.band}</span>
+                ))}
               </div>
-              {IMPORT_ARRIVALS.map(([pc, res, t, st], j) => (
-                <div key={`${pc}-${res}`} style={{ height: S3_GEOM.ROW_H }} className={`grid grid-cols-[140px_130px_110px_1fr] items-center font-mono text-[8px] ${pc === 'stripe' ? 'ring-1 ring-inset ring-brand-purple ' : ''}${j < IMPORT_ARRIVALS.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
-                  <span className="overflow-hidden whitespace-nowrap px-[8px] text-brand-purple">{pc}</span>
-                  <span className="px-[8px] text-text-faint">{res}</span>
-                  <span className="px-[8px] text-text-faint">{t}</span>
-                  <span className={`px-[8px] ${st === 'PENDING' ? 'text-brand-amber' : 'text-text-faint'}`}>{st}</span>
+              <div style={{ height: S3_GEOM.T2 }} className="grid grid-cols-[92px_80px_88px_130px_76px_64px_94px_76px_76px_76px_1fr] items-center overflow-hidden border-b-[0.75px] border-b-text-faint font-mono text-[7px] text-brand-purple">
+                {IMPORT_COLUMNS.flatMap((group) => group.rows).map(([name]) => (
+                  <span key={name} className="overflow-hidden whitespace-nowrap px-[6px]">{name}</span>
+                ))}
+              </div>
+              <div style={{ height: S3_GEOM.T3 }} className="grid grid-cols-[92px_80px_88px_130px_76px_64px_94px_76px_76px_76px_1fr] overflow-hidden border-b border-b-border text-[6px] leading-[1.35] text-text-faint">
+                {IMPORT_COLUMNS.flatMap((group) => group.rows).map(([name, desc, emphasis]) => (
+                  <span key={name} className="overflow-hidden px-[6px] py-[3px]">
+                    {desc}
+                    {emphasis !== undefined && <span className="font-mono text-brand-amber">{emphasis}</span>}
+                  </span>
+                ))}
+              </div>
+              {IMPORT_ARRIVALS.map((row, j) => (
+                <div key={row[4]} style={{ height: S3_GEOM.ROW_H }} className={`grid grid-cols-[92px_80px_88px_130px_76px_64px_94px_76px_76px_76px_1fr] items-center font-mono text-[7px] ${row[0] === 'plaid' && row[1] === 'chase' ? 'ring-1 ring-inset ring-brand-purple ' : ''}${j < IMPORT_ARRIVALS.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                  {row.map((cell, c) => (
+                    <span key={c} className={`overflow-hidden whitespace-nowrap px-[6px] ${c === 0 ? 'text-brand-purple' : c === 10 && (cell === 'PENDING' || cell === 'FAILED') ? 'text-brand-amber' : 'text-text-faint'}`}>{cell}</span>
+                  ))}
                 </div>
               ))}
             </div>
-            <svg viewBox={`0 0 ${S3_GEOM.W} ${S3_GEOM.H}`} preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full text-brand-purple">
+            <svg viewBox={`0 0 ${S3_GEOM.W} ${S3_H}`} preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full text-brand-purple">
               <defs>
                 <marker id="s3-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto">
                   <path d="M0 0 L8 4 L0 8 z" fill="currentColor" />
                 </marker>
               </defs>
-              {IMPORT_ARRIVALS.map(([pc], j) => {
-                const sy = s3RowCenter(S3_PROVIDERS.indexOf(pc.split(' · ')[0] ?? pc));
+              {IMPORT_ARRIVALS.map((row, j) => {
+                const sy = s3ListCenter(S3_PROVIDERS.indexOf(row[0]));
                 const ty = s3RowCenter(j);
                 const mx = (S3_GEOM.LIST_W + S3_GEOM.TABLE_X) / 2;
                 const d = `M${S3_GEOM.LIST_W} ${sy} C ${mx} ${sy}, ${mx} ${ty}, ${S3_GEOM.TABLE_X} ${ty}`;
-                return <path key={`${pc}-${j}`} d={d} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd="url(#s3-arrow)" />;
+                return <path key={row[4]} d={d} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd="url(#s3-arrow)" />;
               })}
             </svg>
           </div>
 
-          {/* THE ASK, mobile — stacked per the BuildSpec: the providers we
-              picked, then the caption, then the arrivals table condensed
-              (its ARRIVED column drops — the cell's own hidden lg:table-cell
-              inside this lg:hidden wrapper — and PENDING inks rust); arrows
-              collapse to ORDER — both lists read in the one shared order. */}
+          {/* THE ASK, mobile (PR-S3-ONE-TABLE) — the providers we picked,
+              the caption, then the compact FOUR-column table (provider ·
+              connection · resource · status; plaid · chase ringed,
+              cell-level, the slide-02 idiom; PENDING and FAILED rust),
+              the declared line, and the card — the old legend's form,
+              part · gloss · plaid · chase's value, the phone's only
+              legend. Arrows collapse to order. */}
           <div className="mt-[14px] lg:hidden">
             <div className="w-[200px] border border-border bg-white">
               <p className="flex h-[26px] items-center overflow-hidden whitespace-nowrap bg-bg-row px-[6px] font-mono text-[7px] font-normal uppercase tracking-[0.14em] text-text-faint border-b border-b-border">THE PROVIDERS WE PICKED</p>
@@ -2079,84 +2114,74 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               ))}
             </div>
             <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.20em] text-brand-amber">ONE ARRIVAL PER PROVIDER — AN EXAMPLE</p>
-
-            {/* TABLE 2 — the nineteen arrivals, four columns
-                (provider·connection | resource | time | status), no thead
-                (the rust caption above is the table's name). Inside this
-                lg:hidden wrapper it is the MOBILE render — the desktop
-                panel above draws the same const — and the time column's
-                hidden lg:table-cell drops it here. Fixed-layout widths
-                ride the first row's tds; PENDING inks rust — the one
-                arrival still in flight. */}
             <table className="mt-[14px] w-full table-fixed border-separate border-spacing-0 border border-border">
-              <tbody>
-                {IMPORT_ARRIVALS.map((row, r) => (
-                  <tr key={`${row[0]}-${row[1]}`}>
-                    {row.map((cell, c) => (
-                      <td
-                        key={cell}
-                        className={`${c === 2 ? 'hidden lg:table-cell lg:w-[25%]' : 'w-[33.33%] lg:w-[25%]'} ${row[0] === 'stripe' ? 'ring-1 ring-inset ring-brand-purple ' : ''}px-[11px] py-[9px] lg:px-5 lg:py-[11px] align-top font-mono text-[11px] lg:text-[13px] ${c === 0 ? 'text-brand-purple' : c === 3 && cell === 'PENDING' ? 'text-brand-amber' : 'text-text-faint'} ${r === IMPORT_ARRIVALS.length - 1 ? '' : 'border-b-[0.75px] border-b-text-faint'}`}
-                      >
-                        {cell}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* PR-S3-TIEOUT: the bridge — the essay's four-of-eleven line,
-              verbatim, statement tier, above the card. */}
-          <p className={`mt-10 lg:mt-[76px] ${DECK.statement}`}>The table shows four of each row&apos;s eleven parts. So let us take one row — stripe&apos;s payout — and open it all the way up.</p>
-
-          {/* THE CARD (PR-S3-COHESION → PR-S3-TIEOUT) — the field card
-              wears the DECK table grammar the arrivals and routing tables
-              wear (DECK.table/th/pad/rule): one thead band names it THE
-              PARTS OF EACH ROW, and the third column — STRIPE'S ROW —
-              opens the ringed arrivals row all the way up, values from
-              S3_OPEN_ROW in the arrivals table's faint mono tier. The
-              four group labels ride the same sand band spanning all
-              three columns; field names purple mono, glosses faint —
-              every part name and gloss string byte-unchanged. Its box is
-              the DRAWING'S box: the same maxWidth: S3_GEOM.W the visual
-              row carries, so the card and the drawing share one right
-              edge structurally. Values wrap on mobile; nothing drops. */}
-          <table className={`mt-[14px] lg:mt-[18px] ${DECK.table}`} style={{ maxWidth: S3_GEOM.W }}>
-            <colgroup>
-              <col className="w-[26%] lg:w-[22%]" />
-              <col />
-              <col className="w-[30%] lg:w-[26%]" />
-            </colgroup>
-            <thead>
-              <tr>
-                <th colSpan={2} scope="col" className={DECK.th}>THE PARTS OF EACH ROW</th>
-                <th scope="col" className={DECK.th}>STRIPE&apos;S ROW</th>
-              </tr>
-            </thead>
-            {IMPORT_COLUMNS.map((group, b) => (
-              <tbody key={group.band}>
+              <thead>
                 <tr>
-                  <td colSpan={3} className={DECK.th}>{group.band}</td>
+                  {([
+                    ['PROVIDER', 'w-[28%]'], ['CONNECTION', 'w-[20%]'], ['RESOURCE', 'w-[28%]'], ['STATUS', 'w-[24%]'],
+                  ] as const).map(([head, w]) => (
+                    <th key={head} scope="col" className={`${w} ${DECK.th}`}>{head}</th>
+                  ))}
                 </tr>
-                {group.rows.map((row, r) => {
-                  const [name = '', desc = '', emphasis] = row;
-                  const isLast = b === IMPORT_COLUMNS.length - 1 && r === group.rows.length - 1;
-                  const rule = isLast ? '' : DECK.rule;
+              </thead>
+              <tbody>
+                {IMPORT_ARRIVALS.map((row, r) => {
+                  const ring = row[0] === 'plaid' && row[1] === 'chase' ? 'ring-1 ring-inset ring-brand-purple ' : '';
+                  const rule = r === IMPORT_ARRIVALS.length - 1 ? '' : 'border-b-[0.75px] border-b-text-faint';
                   return (
-                    <tr key={name}>
-                      <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}>{name}</td>
-                      <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-text-faint`}>
-                        {desc}
-                        {emphasis !== undefined && <span className="font-mono text-brand-amber">{emphasis}</span>}
-                      </td>
-                      <td className={`${DECK.pad} ${rule} break-words align-top font-mono text-[11px] lg:text-[13px] text-text-faint`}>{S3_OPEN_ROW[name]}</td>
+                    <tr key={row[4]}>
+                      {([row[0], row[1], row[2], row[10]] as const).map((cell, c) => (
+                        <td key={c} className={`${ring}px-[11px] py-[9px] align-top font-mono text-[11px] ${c === 0 ? 'text-brand-purple' : c === 3 && (cell === 'PENDING' || cell === 'FAILED') ? 'text-brand-amber' : 'text-text-faint'} ${rule}`}>{cell}</td>
+                      ))}
                     </tr>
                   );
                 })}
               </tbody>
-            ))}
-          </table>
+            </table>
+            {/* The declared line — the founder's ruled wording, quoted
+                exactly; not an essay line. */}
+            <p className={`mt-[14px] ${DECK.statement}`}>Four of the eleven fit on a phone — plaid&apos;s row is opened below.</p>
+            {/* THE CARD, mobile-only (PR-S3-ONE-TABLE) — the old legend's
+                form: part names and glosses from IMPORT_COLUMNS (one
+                source) and plaid · chase's values (S3_OPEN_ROW ==
+                IMPORT_ARRIVALS[0], never retyped; s3FieldIndex pairs the
+                const's rows with the 11-tuple's slots). */}
+            <table className={`mt-[14px] ${DECK.table}`}>
+              <colgroup>
+                <col className="w-[26%]" />
+                <col />
+                <col className="w-[30%]" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th colSpan={2} scope="col" className={DECK.th}>THE PARTS OF EACH ROW</th>
+                  <th scope="col" className={DECK.th}>PLAID · CHASE&apos;S ROW</th>
+                </tr>
+              </thead>
+              {IMPORT_COLUMNS.map((group, b) => (
+                <tbody key={group.band}>
+                  <tr>
+                    <td colSpan={3} className={DECK.th}>{group.band}</td>
+                  </tr>
+                  {group.rows.map((row, r) => {
+                    const [name = '', desc = '', emphasis] = row;
+                    const isLast = b === IMPORT_COLUMNS.length - 1 && r === group.rows.length - 1;
+                    const rule = isLast ? '' : DECK.rule;
+                    return (
+                      <tr key={name}>
+                        <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] text-brand-purple`}>{name}</td>
+                        <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] text-text-faint`}>
+                          {desc}
+                          {emphasis !== undefined && <span className="font-mono text-brand-amber">{emphasis}</span>}
+                        </td>
+                        <td className={`${DECK.pad} ${rule} break-words align-top font-mono text-[11px] text-text-faint`}>{S3_OPEN_ROW[s3FieldIndex(b, r)]}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              ))}
+            </table>
+          </div>
           {/* PR-S3-COHESION: the tail is ONE paragraph — the essay's merged
               census + handshake + three-promises passage, verbatim, in the
               slide-01 body tier. The standalone census and handshake
