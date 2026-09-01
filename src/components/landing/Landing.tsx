@@ -1348,52 +1348,85 @@ const S12_LAYOUT = (() => {
 })();
 const S12_H = S12_LAYOUT.h;
 
-// DECK-13: the hero thread — eight beats of one $500 sale, [n, action,
-// artifactSegments]. Debit/credit values and amounts gold via the segments.
-const THREAD_ROWS: ReadonlyArray<readonly [string, string, ReadonlyArray<readonly [string, boolean]>]> = [
-  ['1', 'You sign a client', [['the contract lands in registry.', false]]],
-  ['2', 'The obligation comes due', [['a draft invoice appears.', false]]],
-  ['3', 'You send invoice #14; commit!', [['A rule writes: debit ', false], ['A/R 500.00', true], [', credit ', false], ['Revenue 500.00', true], ['.', false]]],
-  ['4', 'The client pays', [['a deposit arrives, stored and fingerprinted.', false]]],
-  ['5', 'The system finds it', [['deposit matched to invoice #14.', false]]],
-  ['6', 'Rules fire again', [['debit ', false], ['Cash 500.00', true], [', credit ', false], ['A/R 500.00', true], ['.', false]]],
-  ['7', 'Math runs', [['tax owed ticks up, runway ticks up.', false]]],
-  ['8', 'You look', [['four lines on the Ledger, two dots on the Calendar.', false]]],
-];
-
-// DECK-13: the four-door table. Row 6 (LINES WRITTEN) pre-splits its cells so
-// debit/credit VALUES ink gold while the words stay put; the PROJECTS cell is
-// the deliberate exception — 'none — no money moved' stays gray, per the deck.
+// DECK-13 (PR-S13-DATAFLOW): THREAD_ROWS and DOOR_ROWS retired — the $500
+// invoice story watched a dollar the deck never drew (its A/R lines appear
+// nowhere in 10 or 12), and every table cell was retyped (Deck Law 7).
+// History holds both consts. The five lanes now DERIVE every cell from the
+// consts slides 07/09/10/11/12 already render from; the S13_LAYOUT law
+// binds 13's dollar to 10's sale and 12's ledger. DOOR_COLS survives as
+// the four door lane labels.
 const DOOR_COLS = ['TRAVEL', 'TRADING', 'TIME → PAYROLL', 'PROJECTS'] as const;
-type DoorCell = string | ReadonlyArray<readonly [string, boolean]>;
-const DOOR_ROWS: ReadonlyArray<readonly [string, DoorCell, DoorCell, DoorCell, DoorCell]> = [
-  ['DISCOVER', 'live fares arrive', 'scan the chains', 'approved hours pile up', 'goals meet the audit'],
-  ['DECIDE', 'a cart', 'a trade card', 'a payroll run drafts', 'a task is accepted'],
-  ['COMMIT', 'book it — a confirmation code comes back', 'order goes to the broker', 'run it', 'the build fires'],
-  ['THE WORLD ANSWERS (OBSERVED)', 'the card charge arrives', 'the fill arrives', 'the bank withdrawal arrives', 'the finished build comes back'],
-  ['MATCH', 'charge ↔ booking', 'fill ↔ order', 'withdrawal ↔ payroll run', 'task ↔ finished build'],
-  ['LINES WRITTEN',
-    [['debit ', false], ['Travel', true], [', credit ', false], ['Card', true]],
-    [['debit ', false], ['Position', true], [', credit ', false], ['Cash', true]],
-    [['debit ', false], ['Wages + taxes', true], [', credit ', false], ['Cash + withholdings', true]],
-    'none — no money moved'],
-  ['MATH RUNS', 'deductible portion, runway', 'P&L (profit and loss), win rate, open risk', 'the true cost of labor', "progress, what's stuck"],
-  ['YOU LOOK', 'a trip bar, plus lines', 'fill dots, plus lines', 'a pay-day dot, plus lines', 'a due-date dot — no lines'],
-];
 
-// DECK-13 (PR-VOICE): the two truths under 'Two more truths from this
-// table:'. Truth (1) absorbed the old trade-close strip, in the essay's own
-// sentence, amounts and debit/credit values gold; truth (2) needs no gold —
-// it is about lines NOT being written.
+// S13-LANES: [label, tool] — the hero label's amount derives from the
+// sale; the four doors carry DOOR_COLS verbatim. Tools are sheet keys.
+const S13_LANES = [
+  [`THE SALE · $${SALE_LINES[0][1]}`, 'Invoicing'],
+  [DOOR_COLS[0], 'Travel'],
+  [DOOR_COLS[1], 'Brokerage'],
+  [DOOR_COLS[2], 'Payroll'],
+  [DOOR_COLS[3], 'Tasks'],
+] as const;
+
+// S13-BEATS: [step tag, name, source] — the tag names the slide each
+// cell's derivation comes from; the first three names ARE S7_BEATS.
+const S13_BEATS = [
+  ['07', S7_BEATS[0], 'LOOP_BY_TOOL'],
+  ['07', S7_BEATS[1], 'LOOP_BY_TOOL'],
+  ['07', S7_BEATS[2], 'LOOP_BY_TOOL'],
+  ['09', 'THE WORLD ANSWERS (OBSERVED)', 'MATCHES'],
+  ['09', 'MATCH', 'MATCHES × TOOL_DOCUMENTS'],
+  ['10', 'LINES WRITTEN', 'POSTING_RULES × LEDGER_ROWS'],
+  ['11', 'MATH RUNS', 'ANSWER_INPUTS × S13_LENS'],
+  ['12', 'YOU LOOK', 'S12_ITEMS × S13_LANDINGS'],
+] as const;
+
+// S13-LENS: question → the short word MATH RUNS renders. The law asserts
+// the keys equal ANSWER_ROWS' questions 4/4; the MATH cells themselves
+// are always derived from ANSWER_INPUTS, never listed.
+const S13_LENS: Readonly<Record<string, string>> = {
+  'What do I owe in tax?': 'tax',
+  'How long can I last?': 'runway',
+  'How is my trading doing?': 'trading',
+  'How is my business doing?': 'the business',
+};
+
+// S13-LANDINGS: lane tool → the S12_ITEMS names it lands on, resolved BY
+// NAME by the law (a name that resolves nowhere throws). Empty = the lane
+// has no slide-12 landing yet and must supply a YOU LOOK shape.
+const S13_LANDINGS: Readonly<Record<string, readonly string[]>> = {
+  Invoicing: ['Revenue', 'Fees', 'Cash', 'Invoice #14 due — Sep 22'],
+  Travel: ['Travel', 'Trip — Sep 20–27'],
+  Brokerage: [],
+  Payroll: [],
+  Tasks: [],
+};
+
+// S13-OWN: supplied ONLY where no derivation exists — the law THROWS on a
+// supplied cell any derivation can produce, and on a missing supply where
+// none can. Tasks has no MATCHES key, so it supplies its observed noun;
+// the three lanes with no S12 landings supply their YOU LOOK shapes,
+// rendered muted with a (shape) tag.
+const S13_OWN: Readonly<Record<string, { readonly observed?: string; readonly look?: string }>> = {
+  Tasks: { observed: 'the finished build', look: 'a due-date dot — no lines' },
+  Brokerage: { look: 'fill dots, plus lines' },
+  Payroll: { look: 'a pay-day dot, plus lines' },
+};
+
+// DECK-13 (PR-VOICE → PR-S13-DATAFLOW): truth (1), the trade close. The
+// two rule-book accounts now DERIVE from POSTING_RULES.Brokerage — the
+// old strip retyped an account name the rule book never wrote — and the
+// sentence says 'the close writes' (the rule book carries no
+// close rule, so the strip claims none). The gain leg stays. Amounts
+// carried verbatim from the old strip.
 const TRADE_CLOSE: ReadonlyArray<readonly [string, boolean]> = [
   ['(1) When a trade closes, the gain gets its own line. Sell for ', false],
   ['5,300.00', true],
   [' what you bought for ', false],
   ['5,000.00', true],
-  [', and the rule writes: debit ', false],
-  ['Cash 5,300.00', true],
+  [', and the close writes: debit ', false],
+  [`${POSTING_RULES.Brokerage[2]} 5,300.00`, true],
   [', credit ', false],
-  ['Position 5,000.00', true],
+  [`${POSTING_RULES.Brokerage[1]} 5,000.00`, true],
   [', credit ', false],
   ['Gain 300.00', true],
   ['.', false],
@@ -1401,6 +1434,137 @@ const TRADE_CLOSE: ReadonlyArray<readonly [string, boolean]> = [
 // VOICE-2: the withholdings parenthetical moved to 09's four-gloss line —
 // glossed at its first on-screen use, the payroll rule row.
 const HOURS_TRUTH = '(2) Your hours never write a line by themselves. They only reach the books when a payroll run commits, exactly as Step 10 promised.';
+
+// S13-GEOM: a gutter of beat labels, then five equal lanes; fixed row
+// pitch so the spine nodes land deterministically.
+const S13_GEOM = { W: 1216, G_W: 170, HEAD: 24, ROW_H: 40, NODE_TOP: 10 } as const;
+
+// THE LAYOUT LAW (S13): every cell derived or provably underivable; the
+// hero's lines ARE the sale's three, on the invoice dot's date — 13's
+// dollar bound to 10's and 12's; the lens covers the four questions; the
+// five spines are parallel at distinct x (zero crossings by
+// construction); every cell wraps within three lines at the lane's char
+// budget. THROWS at build on any violation; a green build is the proof.
+const S13_LAYOUT = (() => {
+  type Seg = readonly [string, boolean];
+  type Cell = { readonly segs: readonly Seg[]; readonly faint: boolean; readonly tag: string | null; readonly supplied: boolean };
+  if (S13_LANES.length !== 5 || S13_BEATS.length !== 8) throw new Error('slide 13: five lanes, eight beats');
+  if (S13_BEATS[0][1] !== S7_BEATS[0] || S13_BEATS[1][1] !== S7_BEATS[1] || S13_BEATS[2][1] !== S7_BEATS[2])
+    throw new Error('slide 13: the first three beats are Step 7 beats');
+  const laneW = (S13_GEOM.W - S13_GEOM.G_W) / S13_LANES.length;
+  const chars = Math.floor((laneW - 16) / 4.2);
+  const NUMS = ['zero', 'one', 'two', 'three', 'four', 'five'] as const;
+  const sheet = PROBLEM_SHEET.flatMap(({ tools: t }) => t as readonly string[]);
+  const amount = `$${SALE_LINES[0][1]}`;
+  const firstGold = SALE_SENTENCE.find(([, gold]) => gold);
+  if (!firstGold || firstGold[0] !== amount) throw new Error(`slide 13: the h2 dollar must be the sale sentence's — ${amount}`);
+  const heroItem = S12_ITEMS.find((it) => it.name.includes('Invoice #14'));
+  if (!heroItem) throw new Error('slide 13: the hero needs its invoice dot in S12_ITEMS');
+  const heroDate = heroItem.date;
+  const heroRows = LEDGER_ROWS.filter(([d]) => d === heroDate);
+  if (heroRows.length !== SALE_LINES.length) throw new Error(`slide 13: the hero lines must be the sale's three — got ${heroRows.length}`);
+  heroRows.forEach(([, line, debit, credit], i) => {
+    const [saleAccount, saleAmount] = SALE_LINES[i];
+    if (saleAccount.replace(/^\(\d\) /, '') !== line || (debit || credit) !== saleAmount)
+      throw new Error(`slide 13: hero line ${i + 1} drifts from the sale — ${line}`);
+  });
+  const questions = ANSWER_ROWS.map(([q]) => q);
+  if (Object.keys(S13_LENS).length !== questions.length || questions.some((q) => !(q in S13_LENS)))
+    throw new Error('slide 13: S13_LENS must cover ANSWER_ROWS 4/4');
+  if ('Time' in POSTING_RULES || !('Payroll' in POSTING_RULES))
+    throw new Error('slide 13: hours reach the books through Payroll only');
+  if (!TRADE_CLOSE.some(([t, g]) => g && t.startsWith(`${POSTING_RULES.Brokerage[2]} `)) ||
+      !TRADE_CLOSE.some(([t, g]) => g && t.startsWith(`${POSTING_RULES.Brokerage[1]} `)))
+    throw new Error('slide 13: the trade close must write the rule book accounts');
+  const wrapCount = (text: string) => {
+    const lines: string[] = [];
+    let line = '';
+    for (const word of text.split(' ')) {
+      const next = line ? `${line} ${word}` : word;
+      if (next.length > chars && line) { lines.push(line); line = word; } else { line = next; }
+    }
+    if (line) lines.push(line);
+    return lines.length;
+  };
+  let ownless = 0;
+  const lanes = S13_LANES.map(([label, tool], li) => {
+    if (!sheet.includes(tool) || !(tool in LOOP_BY_TOOL) || !(tool in TOOL_DOCUMENTS))
+      throw new Error(`slide 13: a lane tool must live on the sheet with a loop and a document — ${tool}`);
+    if ((tool in MATCHES) !== (tool in POSTING_RULES))
+      throw new Error(`slide 13: a lane matches money iff it writes lines — ${tool}`);
+    const own = tool in S13_OWN ? S13_OWN[tool] : undefined;
+    if (tool in MATCHES && own?.observed) throw new Error(`slide 13: ${tool} derives its observed event — supplied cell refused`);
+    if (!(tool in MATCHES) && !own?.observed) throw new Error(`slide 13: ${tool} has no match — it must supply its observed noun`);
+    if (!(tool in MATCHES)) ownless += 1;
+    if (!(tool in S13_LANDINGS)) throw new Error(`slide 13: every lane needs its landings list — ${tool}`);
+    const landings = S13_LANDINGS[tool];
+    if (landings.length > 0 && own?.look) throw new Error(`slide 13: ${tool} derives YOU LOOK from its landings — supplied shape refused`);
+    if (landings.length === 0 && !own?.look) throw new Error(`slide 13: ${tool} has no landings — it must supply a YOU LOOK shape`);
+    const observed = tool in MATCHES ? MATCHES[tool] : own?.observed;
+    if (!observed) throw new Error(`slide 13: ${tool} has no observed event`);
+    const live = S9_LAYOUT.rows.some((r) => r.tool === tool && r.live);
+    const loop = LOOP_BY_TOOL[tool];
+    const cells: Cell[] = [
+      { segs: [[loop[0], false]], faint: false, tag: null, supplied: false },
+      { segs: [[loop[1], false]], faint: false, tag: null, supplied: false },
+      { segs: [[loop[2], false]], faint: false, tag: null, supplied: false },
+      { segs: [[`${observed} arrives`, false]], faint: false, tag: null, supplied: !(tool in MATCHES) },
+      { segs: [[`${observed} ↔ ${TOOL_DOCUMENTS[tool][0]}`, false]], faint: false, tag: live ? '· LIVE TODAY' : null, supplied: false },
+    ];
+    if (li === 0) {
+      const segs: Seg[] = [];
+      heroRows.forEach(([, line, debit, credit], i) => {
+        segs.push([`${i > 0 ? ' · ' : ''}${debit ? 'debit' : 'credit'} `, false]);
+        segs.push([`${line} ${debit || credit}`, true]);
+      });
+      cells.push({ segs, faint: false, tag: null, supplied: false });
+    } else if (tool in POSTING_RULES) {
+      cells.push({ segs: [['debit ', false], [POSTING_RULES[tool][1], true], [', credit ', false], [POSTING_RULES[tool][2], true]], faint: false, tag: null, supplied: false });
+    } else {
+      cells.push({ segs: [['none — no money moved', false]], faint: true, tag: null, supplied: false });
+    }
+    const laneAccounts = li === 0 ? heroRows.map(([, line]) => line)
+      : tool in POSTING_RULES ? [POSTING_RULES[tool][1], POSTING_RULES[tool][2]] : null;
+    if (laneAccounts) {
+      const qs = questions.filter((q) => ANSWER_INPUTS[q].some((acc) => laneAccounts.includes(acc)));
+      if (qs.length === 0) throw new Error(`slide 13: a money lane must reach at least one answer — ${tool}`);
+      cells.push({ segs: [[qs.map((q) => S13_LENS[q]).join(' · '), false]], faint: false, tag: null, supplied: false });
+    } else {
+      cells.push({ segs: [['— no lines, no ledger math', false]], faint: true, tag: null, supplied: false });
+    }
+    if (landings.length > 0) {
+      const resolved = landings.map((nm) => {
+        const it = S12_ITEMS.find((x) => x.name === nm);
+        if (!it) throw new Error(`slide 13: a landing must resolve in S12_ITEMS — ${nm}`);
+        return it;
+      });
+      const lineCount = resolved.filter((it) => it.isLine).length;
+      if (lineCount >= NUMS.length) throw new Error('slide 13: too many hero lines to name');
+      const parts = lineCount > 0 ? [`${NUMS[lineCount]} line${lineCount === 1 ? '' : 's'} on the ledger`] : [];
+      for (const it of resolved) {
+        if (!it.isLine) parts.push(`a ${it.kind === 'a span' ? 'bar' : 'dot'} on the calendar (${it.date})`);
+      }
+      cells.push({ segs: [[parts.join(' · '), false]], faint: false, tag: null, supplied: false });
+    } else {
+      cells.push({ segs: [[own?.look ?? '', false]], faint: true, tag: '(shape)', supplied: true });
+    }
+    for (const cell of cells) {
+      const text = cell.segs.map(([t]) => t).join('') + (cell.tag ? ` ${cell.tag}` : '');
+      if (wrapCount(text) > 3) throw new Error(`slide 13: a cell overflows its lane — ${text.slice(0, 40)}`);
+    }
+    return { label, tool, x: S13_GEOM.G_W + li * laneW, cells };
+  });
+  if (ownless !== 1) throw new Error(`slide 13: exactly one lane runs the loop without money — got ${ownless}`);
+  for (let a = 0; a < lanes.length; a += 1) {
+    for (let b = a + 1; b < lanes.length; b += 1) {
+      if (lanes[a].x === lanes[b].x) throw new Error('slide 13: the spines must keep distinct x — parallel is the proof');
+    }
+  }
+  const nodeYs = S13_BEATS.map((_, b) => S13_GEOM.HEAD + b * S13_GEOM.ROW_H + S13_GEOM.NODE_TOP);
+  const supplied = lanes.flatMap((l) => l.cells.map((c, bi) => (c.supplied ? `${l.tool} ${S13_BEATS[bi][1]}` : null)).filter((s): s is string => s !== null));
+  return { lanes, nodeYs, laneW, chars, heroDate, heroRows, amount, supplied, h: S13_GEOM.HEAD + S13_BEATS.length * S13_GEOM.ROW_H } as const;
+})();
+const S13_H = S13_LAYOUT.h;
 
 // DECK-14 (PR-VOICE): the reverse walk, [layer, artifact] — labels gold
 // mono, artifacts mono aubergine. The essay's '(N) The layer:' phrasing maps
@@ -4005,14 +4169,17 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── DECK-13 / THE THREADS. The hero thread rides Design's connector
-            grid: a 20px gutter with a 1px lavender spine at x=2 and 5×5
-            aubergine node squares; artifact cells rule with border-light (the
-            token for the spec's #EBE4F7). Mobile stacks artifact under action
-            inside the same grid via explicit col/row starts. The four-door
-            table scrolls horizontally below lg (the house overflow-x-auto
-            idiom — ModuleCostBreakdown above): dropping three of four doors
-            would lose the slide. */}
+      {/* ── DECK-13 / THE THREADS (PR-S13-DATAFLOW) — five derived lanes
+            down the same eight beats on Design's 13/14 connector (1px
+            spine, 5×5 node squares — the arrows run DOWN here, five
+            parallel plumb spines, zero crossings by construction). Every
+            cell derives from the consts 07/09/10/11/12 render from; the
+            S13_LAYOUT law binds the hero dollar to 10's sale and 12's
+            ledger and refuses any supplied cell a derivation can
+            produce. The PROJECTS spine runs unbroken through 'no money
+            moved' — that IS the teaching. The old $500 thread and the
+            retyped four-door table retired (Deck Law 7). Gold only via
+            GoldSegments: accounts and amounts. */}
       <section id="deck-13" aria-label="The threads" className={openSteps[12] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
@@ -4026,68 +4193,90 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </button>
         <div id="deck-13-body" className={openSteps[12] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
-            One $500 sale runs the machine.<br />Then four more doors open.
+            {`One ${S13_LAYOUT.amount} sale runs the machine.`}<br />Then four more doors open.
           </h2>
 
-          <div className="relative mt-10 lg:mt-[76px]">
-            <span aria-hidden="true" className="absolute bottom-[20px] left-[2px] top-[20px] w-px bg-border" />
-            {THREAD_ROWS.map(([n, action, artifact]) => (
-              <div key={n} className="relative grid grid-cols-[20px_28px_1fr] lg:grid-cols-[20px_40px_340px_1fr]">
-                <span aria-hidden="true" className="absolute left-0 top-[19px] h-[5px] w-[5px] bg-brand-purple" />
-                <span />
-                <p className="py-[14px] font-mono text-[11px] lg:text-[12px] text-text-faint">{n}</p>
-                <p className="py-[14px] pr-4 text-[12px] leading-[1.5] lg:text-[13px] text-text-secondary">{action}</p>
-                <p className="col-start-3 row-start-2 border-b border-border-light pb-[14px] font-mono text-[11px] leading-[1.5] lg:text-[12px] text-brand-purple lg:col-start-4 lg:row-start-1 lg:py-[14px]">
-                  <GoldSegments segments={artifact} />
-                </p>
+          {/* The three moves — real flow, no padding; labels faint. */}
+          <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is three moves:</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(a)</span>{` Take one sale — the ${S13_LAYOUT.amount} sale from Step 10 — and run it down all eight beats.`}</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(b)</span> Open four more doors — travel, trading, payroll, projects — and run their records down the same eight beats.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(c)</span> Watch where each lane throws a shadow: the money lanes write lines; the project lane runs the whole loop and writes none.</p>
+
+          <p className={`mt-10 lg:mt-[76px] ${DECK.rust}`}>SAME MACHINE, SAME EIGHT BEATS</p>
+          <p className="mt-[6px] font-mono text-[10px] lg:text-[11px] text-text-faint">five lanes · eight beats — every lane reaches YOU LOOK; one writes no lines.</p>
+
+          {/* THE THREADS, desktop (PR-S13-DATAFLOW) — the beat gutter,
+              then five lanes; the connector overlay rides the fixed row
+              pitch. */}
+          <div className="relative mt-[14px] hidden lg:mt-[18px] lg:block" style={{ maxWidth: S13_GEOM.W, minHeight: S13_H }}>
+            <div className="grid border-b border-border bg-bg-row" style={{ height: S13_GEOM.HEAD, gridTemplateColumns: `${(S13_GEOM.G_W / S13_GEOM.W) * 100}% repeat(5, minmax(0, 1fr))` }}>
+              <span />
+              {S13_LAYOUT.lanes.map((lane) => (
+                <span key={lane.tool} className="flex items-center overflow-hidden whitespace-nowrap pl-[10px] pr-2 font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint">{lane.label}</span>
+              ))}
+            </div>
+            {S13_BEATS.map(([tag, beat], bi) => (
+              <div key={beat} className={`grid bg-white ${bi < S13_BEATS.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`} style={{ height: S13_GEOM.ROW_H, gridTemplateColumns: `${(S13_GEOM.G_W / S13_GEOM.W) * 100}% repeat(5, minmax(0, 1fr))` }}>
+                <div className="flex flex-col justify-center gap-[2px] overflow-hidden px-2">
+                  <span className="font-mono text-[7px] text-text-faint">{tag}</span>
+                  <span className="whitespace-nowrap font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint">{beat}</span>
+                </div>
+                {S13_LAYOUT.lanes.map((lane) => (
+                  <div key={lane.tool} className="flex items-center overflow-hidden pl-[10px] pr-2">
+                    <span className={`font-mono text-[7px] leading-[10px] ${lane.cells[bi].faint ? 'text-text-faint' : 'text-brand-purple'}`}>
+                      <GoldSegments segments={lane.cells[bi].segs} />
+                      {lane.cells[bi].tag && <span className="text-text-faint"> {lane.cells[bi].tag}</span>}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ))}
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+              {S13_LAYOUT.lanes.map((lane) => (
+                <Fragment key={lane.tool}>
+                  <span className="absolute w-px bg-border" style={{ left: `${((lane.x + 2) / S13_GEOM.W) * 100}%`, top: S13_LAYOUT.nodeYs[0], height: S13_LAYOUT.nodeYs[S13_LAYOUT.nodeYs.length - 1] + 8 - S13_LAYOUT.nodeYs[0] }} />
+                  {S13_LAYOUT.nodeYs.map((y) => (
+                    <span key={y} className="absolute h-[5px] w-[5px] bg-brand-purple" style={{ left: `calc(${((lane.x + 2) / S13_GEOM.W) * 100}% - 2px)`, top: y - 2 }} />
+                  ))}
+                  <span className="absolute h-0 w-0 border-l-[3px] border-r-[3px] border-t-[5px] border-l-transparent border-r-transparent border-t-brand-purple" style={{ left: `calc(${((lane.x + 2) / S13_GEOM.W) * 100}% - 3px)`, top: S13_LAYOUT.nodeYs[S13_LAYOUT.nodeYs.length - 1] + 8 }} />
+                </Fragment>
+              ))}
+            </div>
+          </div>
+
+          {/* THE THREADS, mobile (PR-S13-DATAFLOW) — one card per lane in
+              lane order, the eight beats as label → value lines; no
+              arrows. */}
+          <div className="mt-[14px] lg:hidden">
+            {S13_LAYOUT.lanes.map((lane) => (
+              <div key={lane.tool} className="mt-3 border border-border bg-white px-3 py-[10px] first:mt-0">
+                <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">{lane.label}</p>
+                {S13_BEATS.map(([tag, beat], bi) => (
+                  <p key={beat} className="mt-[6px] font-mono text-[10px] leading-[1.5]">
+                    <span className="text-text-faint">{tag} · {beat} — </span>
+                    <span className={lane.cells[bi].faint ? 'text-text-faint' : 'text-brand-purple'}>
+                      <GoldSegments segments={lane.cells[bi].segs} />
+                      {lane.cells[bi].tag && <span className="text-text-faint"> {lane.cells[bi].tag}</span>}
+                    </span>
+                  </p>
+                ))}
               </div>
             ))}
           </div>
+
           <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Nobody typed a debit anywhere in this story!</p>
 
-          {/* PR-VOICE: the essay's door-opening framing, directly above the
-              four-door table's rust label. */}
-          <p className={`mt-10 lg:mt-[76px] ${DECK.statement}`}>Now open the other doors. Same machine, same eight beats; only the nouns change.</p>
-          <p className={`mt-[14px] ${DECK.rust}`}>SAME MACHINE, SAME EIGHT BEATS</p>
-          <div className="mt-[14px] overflow-x-auto lg:mt-[18px]">
-            <table className={`min-w-[760px] ${DECK.table}`}>
-              <thead>
-                <tr>
-                  <th scope="col" className={`w-[16%] ${DECK.th}`}>BEAT</th>
-                  {DOOR_COLS.map((head) => (
-                    <th key={head} scope="col" className={`w-[21%] ${DECK.th}`}>{head}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {DOOR_ROWS.map(([beat, ...cells], r) => {
-                  const rule = r === DOOR_ROWS.length - 1 ? '' : DECK.rule;
-                  return (
-                    <tr key={beat}>
-                      <th scope="row" className={`${DECK.pad} ${rule} text-left align-top font-mono text-[10px] lg:text-[11px] font-normal uppercase tracking-[0.18em] text-text-faint`}>{beat}</th>
-                      {cells.map((cell, c) => (
-                        <td key={c} className={`${DECK.pad} ${rule} align-top text-[11px] leading-[1.4] lg:text-[13px] lg:leading-normal ${typeof cell === 'string' ? (cell === 'none — no money moved' ? 'text-text-faint' : 'text-brand-purple') : 'font-mono text-brand-purple'}`}>
-                          {typeof cell === 'string' ? cell : <GoldSegments segments={cell} />}
-                        </td>
-                      ))}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          <p className={`mt-[22px] lg:mt-8 ${DECK.trio}`}>Read the last column twice! A project runs the whole loop — discover, decide, commit, match — and writes zero lines, because no money moved. The loop is bigger than money; money is just the loops that get a shadow.</p>
-          {/* PR-VOICE: the two truths ride the old trade-close strip — truth
-              (1) absorbed its content. */}
-          <p className={`mt-[14px] ${DECK.statement}`}>Two more truths from this table:</p>
+          <p className={`mt-[22px] lg:mt-8 ${DECK.trio}`}>Read the last lane twice! A project runs the whole loop — discover, decide, commit, match — and writes zero lines, because no money moved. The loop is bigger than money; money is just the loops that get a shadow.</p>
+          {/* PR-VOICE: the two truths — truth (1) now derives its account
+              words from the rule book. */}
+          <p className={`mt-[14px] ${DECK.statement}`}>Two more truths from this drawing:</p>
           <div className="mt-[10px] border-y border-border py-[14px]">
             <p className="font-mono text-[11px] leading-[1.6] lg:text-[12px] text-text-secondary">
               <GoldSegments segments={TRADE_CLOSE} />
             </p>
             <p className="mt-2 font-mono text-[11px] leading-[1.6] lg:text-[12px] text-text-secondary">{HOURS_TRUTH}</p>
           </div>
-          <p className={`mt-[14px] ${DECK.statement}`}>The travel match is already alive today: card charges find their bookings and propose the match — you approve it.</p>
+          <p className={`mt-[14px] ${DECK.statement}`}>Alive today: the travel match — card charges find their bookings and propose the match; you approve it. The project lane&apos;s match is the blueprint: today a task lands for your review; the build that answers it is the shape we&apos;re building.</p>
 
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={DECK.q}>Beautiful. But why should you believe any of it?</p>
