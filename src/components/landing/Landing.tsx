@@ -1955,7 +1955,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             A tool is a job. A provider is a company you hire to feed that job.
           </p>
           {/* PR-S2: the essay's Step 2 moves block, verbatim — slide-01
-              grammar, letters in the gold mono tier (the moves block is
+              grammar, letters in the faint mono tier (the moves block is
               the only home for letters; no letters enter the drawing). */}
           <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is four moves:</p>
           <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(a)</span> Start from the table Step 1 built.</p>
@@ -2182,7 +2182,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             Now we ask the providers we picked for their data.
           </p>
           {/* PR-S3: the essay's Step 3 moves block, verbatim — slide-01
-              grammar, letters in the gold mono tier. The two old arrival
+              grammar, letters in the faint mono tier. The two old arrival
               intro lines died into moves (c)/(d) — zero renders. */}
           <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is four moves:</p>
           <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(a)</span> Start from the menu Step 2 built — the providers in the TODAY column.</p>
@@ -2391,7 +2391,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             Now we examine the data that we just imported in Step 3, and we give every feed a label.
           </p>
           {/* PR-S4: the essay's Step 4 moves block, verbatim — slide-01
-              grammar, gold letter tier, the #1600 rhythm. Who decides the
+              grammar, faint letter tier, the #1600 rhythm. Who decides the
               kind lives in moves (c)/(d) now. */}
           <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is four moves:</p>
           <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(a)</span> Start from the arrivals table Step 3 built.</p>
@@ -2565,7 +2565,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           </p>
 
           {/* PR-S5: the essay's Step 5 moves block, verbatim — slide-01
-              grammar, gold letter tier, the #1600 rhythm. */}
+              grammar, faint letter tier, the #1600 rhythm. */}
           <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is four moves:</p>
           <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(a)</span> Start from the rule book Step 4 built.</p>
           <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(b)</span> Create one table per kind: six tables, six names.</p>
@@ -3326,7 +3326,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                     <tr key={beat}>
                       <th scope="row" className={`${DECK.pad} ${rule} text-left align-top font-mono text-[10px] lg:text-[11px] font-normal uppercase tracking-[0.18em] text-text-faint`}>{beat}</th>
                       {cells.map((cell, c) => (
-                        <td key={c} className={`${DECK.pad} ${rule} align-top text-[11px] leading-[1.4] lg:text-[13px] lg:leading-normal ${typeof cell === 'string' ? 'text-brand-purple' : 'font-mono text-text-faint'}`}>
+                        <td key={c} className={`${DECK.pad} ${rule} align-top text-[11px] leading-[1.4] lg:text-[13px] lg:leading-normal ${typeof cell === 'string' ? (cell === 'none — no money moved' ? 'text-text-faint' : 'text-brand-purple') : 'font-mono text-brand-purple'}`}>
                           {typeof cell === 'string' ? cell : <GoldSegments segments={cell} />}
                         </td>
                       ))}
