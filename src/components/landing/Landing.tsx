@@ -1136,6 +1136,75 @@ const ANSWER_ROWS: ReadonlyArray<readonly [string, ReadonlyArray<readonly [strin
   ['How is my business doing?', [['Money in', true], [' minus ', false], ['money out', true], ['.', false]]],
 ];
 
+// S11-INPUTS (PR-S11-DATAFLOW): the lines each answer reads, keyed by
+// the answer's question, in ANSWER_ROWS order — Alex's product logic; he
+// tunes on Preview. Accounts are verbatim POSTING_RULES debit/credit
+// strings; feeds are verbatim ROUTING_RULES provider+resource pairs; the
+// S11_LAYOUT law throws on anything that resolves to neither. A line
+// under more than one answer is CORRECT — same line, many lenses; it
+// renders once per group. NOTE: the ruling named a tastytrade position
+// feed, which ROUTING_RULES does not carry (tastytrade has only quote);
+// plaid holding is the rule book's positions feed (SNAPSHOT — how things
+// stood at one moment), so it rides here and the kept math's 'fills,
+// positions, and live quotes' stays drawn 3-for-3.
+const ANSWER_INPUTS: Readonly<Record<string, readonly string[]>> = {
+  'What do I owe in tax?': ['Revenue', 'Expense', 'Wages + employer taxes', 'irs bulletin', 'us code title'],
+  'How long can I last?': ['Cash', 'Expense', 'Travel', 'Wages + employer taxes', 'A/P'],
+  'How is my trading doing?': ['Investments', 'plaid holding', 'tastytrade quote'],
+  'How is my business doing?': ['Revenue', 'Expense', 'Travel', 'Wages + employer taxes', 'Filing Fees'],
+};
+
+// S11-GEOM: the lines (grouped by answer), THE MATH pull-out (one lens
+// per group, spanning its rows), the four answer cards. Rows on one
+// grid; heads fan on the landing in row order — the S2_CONVERGE pattern
+// — so converging heads never stack.
+const S11_GEOM = { W: 1216, L_W: 300, M_X: 380, M_W: 280, R_X: 740, CARD_W: 300, CARD_H: 44, HEAD: 22, GROUP_HEAD: 18, ROW_H: 20, FAN: 7 } as const;
+
+// THE LAYOUT LAW (S11): rows derive from ANSWER_INPUTS in ANSWER_ROWS
+// order; every answer must carry an entry (4/4); every input must
+// resolve — a POSTING_RULES account or a ROUTING_RULES feed — else
+// throw. Groups tile contiguously and answers land in group order, so
+// sources and landings keep ONE order; the pairwise test proves no two
+// arrows cross. THROWS at build on any violation; green build = proof.
+const S11_LAYOUT = (() => {
+  const questions = ANSWER_ROWS.map(([q]) => q);
+  if (questions.length !== 4 || Object.keys(ANSWER_INPUTS).length !== 4 || questions.some((q) => !(q in ANSWER_INPUTS)))
+    throw new Error('slide 11: every answer needs its lines — ANSWER_INPUTS must cover ANSWER_ROWS 4/4');
+  const accounts = new Set<string>(Object.values(POSTING_RULES).flatMap(([, d, c]) => [d, c]));
+  const feeds = new Set<string>(ROUTING_RULES.map(([p, r]) => `${p} ${r}`));
+  const bad = questions.flatMap((q) => ANSWER_INPUTS[q].filter((s) => !accounts.has(s) && !feeds.has(s)));
+  if (bad.length) throw new Error(`slide 11: every line must be a POSTING_RULES account or a ROUTING_RULES feed — bad [${bad.join(', ')}]`);
+  let yy = S11_GEOM.HEAD;
+  const groups = questions.map((question, gi) => {
+    const items = ANSWER_INPUTS[question];
+    const top = yy;
+    const h = S11_GEOM.GROUP_HEAD + items.length * S11_GEOM.ROW_H;
+    const ay = top + h / 2;
+    const rows = items.map((name, i) => ({
+      name,
+      ly: top + S11_GEOM.GROUP_HEAD + i * S11_GEOM.ROW_H + S11_GEOM.ROW_H / 2,
+      ty: ay + (i - (items.length - 1) / 2) * S11_GEOM.FAN,
+    }));
+    yy += h;
+    return { question, gi, top, h, ay, rows, math: ANSWER_ROWS[gi][1] };
+  });
+  for (const g of groups) {
+    for (const r of g.rows) {
+      if (r.ly <= g.top || r.ly >= g.top + g.h || r.ty <= g.top || r.ty >= g.top + g.h)
+        throw new Error(`slide 11: group is not contiguous — a row or landing escapes its block (${g.question})`);
+    }
+  }
+  const arrows = groups.flatMap((g) => g.rows.map((r) => ({ ...r, gi: g.gi })));
+  for (let a = 0; a < arrows.length; a += 1) {
+    for (let b = a + 1; b < arrows.length; b += 1) {
+      if (arrows[a].ly === arrows[b].ly || (arrows[a].ly < arrows[b].ly) !== (arrows[a].ty < arrows[b].ty))
+        throw new Error('slide 11: arrows would cross — sources and landings must keep one order');
+    }
+  }
+  return { groups, arrows, h: yy } as const;
+})();
+const S11_H = S11_LAYOUT.h;
+
 // DECK-12: the mini ledger, [date, line, debit, credit] — amounts gold, empty
 // side empty. The sale's three lines ride the deck's own Sep 22 (invoice #14's
 // date); the travel line rides the trip's Sep 20 start. CONSTRUCTED VALUE,
@@ -3498,9 +3567,19 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── DECK-11 / THE ANSWERS. QUESTION | THE MATH; the math's money
-            words ink gold via the pre-split segments. The emphasis line is
-            the deck's standalone rust. */}
+      {/* ── DECK-11 / THE ANSWERS (PR-S11-DATAFLOW) — the thesis, drawn:
+            one ledger, many lenses. The lines Step 10 wrote (accounts,
+            plus the reference feeds an answer needs) group under a faint
+            header per answer; each group's math from ANSWER_ROWS spans
+            its rows as the lens; one arrow per line runs level through
+            the lens and converges on its answer card, heads fanned in
+            row order (the S2_CONVERGE pattern) so nothing stacks.
+            Groups tile contiguously in ANSWER_ROWS order, so the fans
+            are monotonic — zero crossings by the S11_LAYOUT law (it
+            throws at build). The static QUESTION | THE MATH table
+            retired (SHOW DON'T ECHO) — ANSWER_ROWS feeds the middle
+            panel only. A line under two answers renders once per group:
+            same line, many lenses. Three moves, no padding. */}
       <section id="deck-11" aria-label="The answers" className={openSteps[10] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
@@ -3520,28 +3599,76 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             Four questions, answered at any moment.
           </p>
 
-          <table className={`mt-10 lg:mt-[76px] ${DECK.table}`}>
-            <thead>
-              <tr>
-                {([
-                  ['QUESTION', 'w-[46%] lg:w-[40%]'], ['THE MATH', 'w-[54%] lg:w-[60%]'],
-                ] as const).map(([head, w]) => (
-                  <th key={head} scope="col" className={`${w} ${DECK.th}`}>{head}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {ANSWER_ROWS.map(([question, math], r) => {
-                const rule = r === ANSWER_ROWS.length - 1 ? '' : DECK.rule;
-                return (
-                  <tr key={question}>
-                    <td className={`${DECK.pad} ${rule} align-top text-[11px] leading-[1.4] lg:text-[13px] lg:leading-normal text-brand-purple`}>{question}</td>
-                    <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}><GoldSegments segments={math} /></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          {/* The three moves — real flow, no padding; labels faint. */}
+          <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is three moves:</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(a)</span> Take the lines Step 10 wrote — the accounts, and the reference feeds an answer needs.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(b)</span> Each answer is a lens: its math pulls exactly the lines it reads, and only those.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(c)</span> The answer is computed from them — never typed, never stale.</p>
+
+          {/* THE ANSWERS, desktop (PR-S11-DATAFLOW) — the 1–5 corridor:
+              the lines, THE MATH pull-out spanning each group, the four
+              answer cards. */}
+          <div className="relative mt-[14px] hidden lg:mt-8 lg:block" style={{ height: S11_H, maxWidth: S11_GEOM.W }}>
+            <div className="absolute left-0 top-0 border border-border bg-white" style={{ width: `${(S11_GEOM.L_W / S11_GEOM.W) * 100}%` }}>
+              <div style={{ height: S11_GEOM.HEAD }} className="flex items-center overflow-hidden bg-bg-row px-[8px] border-b border-b-border">
+                <span className={DECK.rust}>THE LINES — what Step 10 wrote</span>
+              </div>
+              {S11_LAYOUT.groups.map((g) => (
+                <Fragment key={g.question}>
+                  <div style={{ height: S11_GEOM.GROUP_HEAD }} className="flex items-center overflow-hidden bg-bg-row px-[8px] font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">{g.question}</div>
+                  {g.rows.map((r, i) => (
+                    <div key={`${g.question}-${r.name}`} style={{ height: S11_GEOM.ROW_H }} className={`flex items-center overflow-hidden px-[8px] font-mono text-[7px] text-brand-purple ${i < g.rows.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>{r.name}</div>
+                  ))}
+                </Fragment>
+              ))}
+            </div>
+            <div className="absolute top-0 border border-border bg-white" style={{ left: `${(S11_GEOM.M_X / S11_GEOM.W) * 100}%`, width: `${(S11_GEOM.M_W / S11_GEOM.W) * 100}%` }}>
+              <div style={{ height: S11_GEOM.HEAD }} className="flex items-center gap-[10px] overflow-hidden bg-bg-row px-[8px] border-b border-b-border">
+                <span className="h-px flex-1 bg-border" aria-hidden="true" />
+                <span className="font-mono text-[10px] font-semibold tracking-[0.12em] text-brand-purple">THE MATH</span>
+                <span className="h-px flex-1 bg-border" aria-hidden="true" />
+              </div>
+              {S11_LAYOUT.groups.map((g, i) => (
+                <div key={g.question} style={{ height: g.h }} className={`flex items-center overflow-hidden px-[10px] font-mono text-[8px] leading-[1.5] text-brand-purple ${i < S11_LAYOUT.groups.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                  <span><GoldSegments segments={g.math} /></span>
+                </div>
+              ))}
+            </div>
+            <div className="absolute top-0 flex items-center overflow-hidden" style={{ left: `${(S11_GEOM.R_X / S11_GEOM.W) * 100}%`, height: S11_GEOM.HEAD }}>
+              <span className={DECK.rust}>THE ANSWERS</span>
+            </div>
+            {S11_LAYOUT.groups.map((g) => (
+              <div key={g.question} className="absolute border border-border bg-white" style={{ left: `${(S11_GEOM.R_X / S11_GEOM.W) * 100}%`, top: g.ay - S11_GEOM.CARD_H / 2, width: `${(S11_GEOM.CARD_W / S11_GEOM.W) * 100}%`, height: S11_GEOM.CARD_H }}>
+                <div className="flex h-full items-center overflow-hidden px-[10px] text-[11px] leading-[1.3] text-brand-purple">{g.question}</div>
+              </div>
+            ))}
+            <svg viewBox={`0 0 ${S11_GEOM.W} ${S11_H}`} preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full text-brand-purple">
+              <defs>
+                <marker id="s11-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="6" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto">
+                  <path d="M0 0 L8 4 L0 8 z" fill="currentColor" />
+                </marker>
+              </defs>
+              {S11_LAYOUT.arrows.map((r) => (
+                <g key={`${r.gi}-${r.name}`}>
+                  <path d={`M${S11_GEOM.L_W} ${r.ly} H${S11_GEOM.M_X}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" />
+                  <path d={`M${S11_GEOM.M_X + S11_GEOM.M_W} ${r.ly} C ${(S11_GEOM.M_X + S11_GEOM.M_W + S11_GEOM.R_X) / 2} ${r.ly}, ${(S11_GEOM.M_X + S11_GEOM.M_W + S11_GEOM.R_X) / 2} ${r.ty}, ${S11_GEOM.R_X} ${r.ty}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd="url(#s11-arrow)" />
+                </g>
+              ))}
+            </svg>
+          </div>
+
+          {/* THE ANSWERS, mobile (PR-S11-DATAFLOW) — the 1–5 mobile
+              idiom: no arrows; four cards in order — the question, its
+              math, its lines. */}
+          <div className="mt-[14px] lg:hidden">
+            {S11_LAYOUT.groups.map((g) => (
+              <div key={g.question} className="mt-3 border border-border bg-white px-3 py-[8px] first:mt-0">
+                <span className="text-[11px] leading-[1.4] text-brand-purple">{g.question}</span>
+                <p className="mt-[3px] font-mono text-[10px] leading-[1.5] text-brand-purple"><GoldSegments segments={g.math} /></p>
+                <p className="mt-[3px] font-mono text-[10px] leading-[1.5] text-text-faint">{g.rows.map((r) => r.name).join(' · ')}</p>
+              </div>
+            ))}
+          </div>
 
           {/* PR-VOICE: the essay line renders once, in the statement tier;
               the rust caps line stays as the poster emphasis of it. */}
@@ -3549,6 +3676,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           {/* PR-ARTICULATION: the essay's back-half truth, verbatim. */}
           <p className={`mt-2 ${DECK.statement}`}>And look at what these steps really are: Steps 9 and 10 are the bookkeeping system. Step 11 is the tax module and the runway screen. We did not bolt tools onto the pipe — the back half of the pipe IS the tools.</p>
           <p className="mt-[14px] font-mono text-[11px] lg:text-[13px] uppercase tracking-[0.20em] text-brand-amber">THIS IS THE PRODUCT.</p>
+
+          <p className={`mt-2 ${DECK.statement}`}>These four lenses are the blueprint. Today the trading lens reads live; tax, runway, and the business result wait on the posting pipe — the lines have to exist before they can add up.</p>
 
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={DECK.q}>Four answers. Where do you look?</p>
