@@ -996,11 +996,11 @@ const DECK = {
   sub: 'mt-[22px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary',
   // The deck's rust group label — brand-amber per the header-comment mapping.
   rust: 'font-mono text-[10px] lg:text-[11px] uppercase tracking-[0.20em] text-brand-amber',
-  table: 'w-full table-fixed border-separate border-spacing-0 border border-border',
+  table: 'w-full table-fixed border-separate border-spacing-0 border border-border bg-white',
   th: 'bg-bg-row px-[11px] py-[9px] lg:px-5 lg:py-3 text-left align-top font-mono text-[10px] lg:text-[11px] font-normal uppercase tracking-[0.18em] text-text-faint border-b border-b-border',
   pad: 'px-[11px] py-[9px] lg:px-5 lg:py-[11px]',
   rule: 'border-b-[0.75px] border-b-text-faint',
-  statement: 'text-[12px] lg:text-[14px] text-text-faint',
+  statement: 'text-[12px] lg:text-[14px] text-text-secondary',
   trio: 'text-[13px] leading-[1.5] lg:text-[16.5px] text-brand-purple',
   hairline: 'mt-10 lg:mt-[76px] h-px w-full bg-border',
   q: 'mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple',
@@ -1743,10 +1743,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           </p>
           {/* PR-MOVES → PR-MOVES-2: the essay's four-moves block, verbatim. */}
           <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is four moves:</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(a)</span> The problem gets named.</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(b)</span> The tools to solve it get listed.</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(c)</span> The families to sort the tools into get created.</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(d)</span> Each tool gets moved from the list into the table, under its family.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(a)</span> The problem gets named.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(b)</span> The tools to solve it get listed.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(c)</span> The families to sort the tools into get created.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(d)</span> Each tool gets moved from the list into the table, under its family.</p>
 
           {/* ── S1-VIZ (PR-S1-VIZ, per the approved CD-S1 mockup 1a): the four
               moves DRAWN. The fan is retired — the visual is move (b) as a
@@ -1757,7 +1757,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               container-query context, so the table scales with its new 66%
               exactly as it did with the old 52%), and move (d) as dotted
               arcs from the list's right edge to five distinct family
-              columns' tops. Letter tags in gold mono mark (b), (c) and (d)
+              columns' tops. Letter tags in faint mono mark (b), (c) and (d)
               on the drawing; (a) has no tag — the headline carries it.
               ARC GEOMETRY (PR-S1-ARROWS, the corridor law): the overlay is
               the CORRIDOR ONLY — viewBox 0 0 1216 S1_CORRIDOR_PX, rendered
@@ -1809,7 +1809,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
 
             {/* MOVE (b) — the raw list. */}
             <div className="w-full lg:w-[30%]">
-              <p className="font-mono text-[10px] font-semibold text-brand-gold" aria-hidden="true">(b)</p>
+              <p className="font-mono text-[10px] font-semibold text-text-faint" aria-hidden="true">(b)</p>
               <div className="mt-1.5 border border-border bg-white">
                 <p className={DECK.th}>TOOLS</p>
                 <div className="px-[11px] py-[7px] lg:px-4 lg:py-2">
@@ -1827,7 +1827,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
 
             {/* MOVES (c)/(d) — the family sheet, desktop. */}
             <div className="relative hidden lg:block lg:w-[66%] [container-type:inline-size]" style={{ paddingTop: S1_CORRIDOR_PX }}>
-              <table className="w-full table-fixed border-separate border-spacing-0 border border-border">
+              <table className="w-full table-fixed border-separate border-spacing-0 border border-border bg-white">
                 <thead>
                   <tr>
                     {PROBLEM_SHEET.map((col, c) => (
@@ -1930,9 +1930,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             (TINTED = STAY HOME, no trailing sentence), and the SnapTrade
             footnote sits under the menu at BOTH breakpoints — the ONLY
             place Robinhood may ever appear. TODAY and open NEXT doors
-            purple, jobs and '—' cells the faint tier. Nothing in the
-            DRAWING is money or a kind word, so gold inks ONLY the moves
-            block's letter tags (the deck's moves tier); rust never enters
+            purple; jobs read purple since PR-PALETTE (data cells are the
+            dark tier) and '—' cells stay faint (empty markers are chrome).
+            Nothing in the DRAWING is money or a kind word, and the moves
+            letter tags read faint since PR-PALETTE — gold marks the kind
+            and only the kind; rust never enters
             — there is no band label and no live status. */}
       <section id="deck-02" aria-label="The providers" className={openSteps[1] ? 'max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border' : DECK.sectionBar}>
         <button
@@ -1956,10 +1958,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               grammar, letters in the gold mono tier (the moves block is
               the only home for letters; no letters enter the drawing). */}
           <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is four moves:</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(a)</span> Start from the table Step 1 built.</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(b)</span> Go tool by tool and ask one question: does this tool&apos;s data arrive from outside — someone else telling you what happened?</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(c)</span> If yes, pick the company that sends it. That company is a provider.</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(d)</span> If no, the tool stays home: the system will be that tool, and its data gets born here.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(a)</span> Start from the table Step 1 built.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(b)</span> Go tool by tool and ask one question: does this tool&apos;s data arrive from outside — someone else telling you what happened?</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(c)</span> If yes, pick the company that sends it. That company is a provider.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(d)</span> If no, the tool stays home: the system will be that tool, and its data gets born here.</p>
 
           {/* THE WALK, desktop (PR-S2-LINES) — four absolute layers in one
               relative row of height S2_GEOM.H: Step 1's sheet condensed
@@ -2018,7 +2020,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                     const rule = r === PROVIDER_MENU.length - 1 ? '' : 'border-b-[0.75px] border-b-text-faint ';
                     return (
                       <tr key={job}>
-                        <td style={{ height: S2_GEOM.ROW_H }} className={`${rule}overflow-hidden px-[6px] align-middle font-mono text-[8px] leading-[1.2] text-text-faint`}>{job}</td>
+                        <td style={{ height: S2_GEOM.ROW_H }} className={`${rule}overflow-hidden px-[6px] align-middle font-mono text-[8px] leading-[1.2] text-brand-purple`}>{job}</td>
                         <td style={{ height: S2_GEOM.ROW_H }} className={`${rule}overflow-hidden px-[6px] align-middle font-mono text-[8px] leading-[1.2] text-brand-purple`}>{today}</td>
                         <td style={{ height: S2_GEOM.ROW_H }} className={`${rule}overflow-hidden px-[6px] align-middle font-mono text-[8px] leading-[1.2] ${next === '—' ? 'text-text-faint' : 'text-brand-purple'}`}>{next}</td>
                       </tr>
@@ -2050,7 +2052,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               paragraph below carries the words now. Renders once, both
               breakpoints: under the row on desktop, above the stack on
               mobile. */}
-          <p className={`mt-[22px] lg:mt-6 ${DECK.statement}`}>
+          <p className="mt-[22px] lg:mt-6 text-[12px] lg:text-[14px] text-text-faint">
             <span aria-hidden="true" className="mr-2 inline-block h-2.5 w-2.5 border border-border bg-bg-row align-[-1px]" />
             <span className="font-mono text-[10px] uppercase tracking-[0.18em]">TINTED = STAY HOME</span>
           </p>
@@ -2111,7 +2113,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                   const rule = r === PROVIDER_MENU.length - 1 ? '' : DECK.rule;
                   return (
                     <tr key={job}>
-                      <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-text-faint`}>{job}</td>
+                      <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}>{job}</td>
                       <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}>{today}</td>
                       <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] ${next === '—' ? 'text-text-faint' : 'text-brand-purple'}`}>{next}</td>
                     </tr>
@@ -2121,7 +2123,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             </table>
             {/* The menu's footnote — the essay's SnapTrade clause,
                 verbatim, gloss tier. */}
-            <p className={`mt-[14px] ${DECK.statement}`}>one connector called SnapTrade reaches Robinhood, Webull, and Public too.</p>
+            <p className="mt-[14px] text-[12px] lg:text-[14px] text-text-faint">one connector called SnapTrade reaches Robinhood, Webull, and Public too.</p>
           </div>
 
           {/* PR-S2-PROSE: slide 02 ends in ONE BREATH — the essay's
@@ -2183,10 +2185,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               grammar, letters in the gold mono tier. The two old arrival
               intro lines died into moves (c)/(d) — zero renders. */}
           <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is four moves:</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(a)</span> Start from the menu Step 2 built — the providers in the TODAY column.</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(b)</span> Ask each provider for its data.</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(c)</span> The answer comes back, and it gets stored as one row, word for word, before anyone decides what it means. That row is an arrival.</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(d)</span> Each row gets stamped: who sent it, what it is, its fingerprint, when we asked, when it arrived, when we read it, and how far it got.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(a)</span> Start from the menu Step 2 built — the providers in the TODAY column.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(b)</span> Ask each provider for its data.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(c)</span> The answer comes back, and it gets stored as one row, word for word, before anyone decides what it means. That row is an arrival.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(d)</span> Each row gets stamped: who sent it, what it is, its fingerprint, when we asked, when it arrived, when we read it, and how far it got.</p>
 
           {/* PR-S3-ONE-TABLE: the bridge — the essay's read-across line,
               verbatim, statement tier, above the table. Desktop-only:
@@ -2241,7 +2243,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               {IMPORT_ARRIVALS.map((row, j) => (
                 <div key={row[4]} style={{ height: S3_GEOM.ROW_H }} className={`grid grid-cols-[92px_80px_88px_130px_76px_64px_94px_76px_76px_76px_1fr] items-center font-mono text-[7px] ${row[0] === 'plaid' && row[1] === 'chase' ? 'ring-1 ring-inset ring-brand-purple ' : ''}${j < IMPORT_ARRIVALS.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
                   {row.map((cell, c) => (
-                    <span key={c} className={`overflow-hidden whitespace-nowrap px-[6px] ${c === 0 ? 'text-brand-purple' : c === 10 && (cell === 'PENDING' || cell === 'FAILED') ? 'text-brand-amber' : 'text-text-faint'}`}>{cell}</span>
+                    <span key={c} className={`overflow-hidden whitespace-nowrap px-[6px] ${c === 0 ? 'text-brand-purple' : c === 10 && (cell === 'PENDING' || cell === 'FAILED') ? 'text-brand-amber' : 'text-brand-purple'}`}>{cell}</span>
                   ))}
                 </div>
               ))}
@@ -2277,7 +2279,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               ))}
             </div>
             <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.20em] text-brand-amber">ONE ARRIVAL PER PROVIDER — AN EXAMPLE</p>
-            <table className="mt-[14px] w-full table-fixed border-separate border-spacing-0 border border-border">
+            <table className="mt-[14px] w-full table-fixed border-separate border-spacing-0 border border-border bg-white">
               <thead>
                 <tr>
                   {([
@@ -2294,7 +2296,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                   return (
                     <tr key={row[4]}>
                       {([row[0], row[1], row[2], row[10]] as const).map((cell, c) => (
-                        <td key={c} className={`${ring}px-[11px] py-[9px] align-top font-mono text-[11px] ${c === 0 ? 'text-brand-purple' : c === 3 && (cell === 'PENDING' || cell === 'FAILED') ? 'text-brand-amber' : 'text-text-faint'} ${rule}`}>{cell}</td>
+                        <td key={c} className={`${ring}px-[11px] py-[9px] align-top font-mono text-[11px] ${c === 0 ? 'text-brand-purple' : c === 3 && (cell === 'PENDING' || cell === 'FAILED') ? 'text-brand-amber' : 'text-brand-purple'} ${rule}`}>{cell}</td>
                       ))}
                     </tr>
                   );
@@ -2337,7 +2339,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                           {desc}
                           {emphasis !== undefined && <span className="font-mono text-brand-amber">{emphasis}</span>}
                         </td>
-                        <td className={`${DECK.pad} ${rule} break-words align-top font-mono text-[11px] text-text-faint`}>{S3_OPEN_ROW[s3FieldIndex(b, r)]}</td>
+                        <td className={`${DECK.pad} ${rule} break-words align-top font-mono text-[11px] text-brand-purple`}>{S3_OPEN_ROW[s3FieldIndex(b, r)]}</td>
                       </tr>
                     );
                   })}
@@ -2392,10 +2394,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               grammar, gold letter tier, the #1600 rhythm. Who decides the
               kind lives in moves (c)/(d) now. */}
           <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is four moves:</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(a)</span> Start from the arrivals table Step 3 built.</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(b)</span> Fold the rows into feeds: one provider, one resource, one feed. Plaid&apos;s two connections are one feed.</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(c)</span> Ask of each feed one question: what IS this thing, really? The answer is one of six kinds.</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(d)</span> Write the answer down as one rule row — the feed and its kind — and the system applies it to every arrival of that feed, forever after.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(a)</span> Start from the arrivals table Step 3 built.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(b)</span> Fold the rows into feeds: one provider, one resource, one feed. Plaid&apos;s two connections are one feed.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(c)</span> Ask of each feed one question: what IS this thing, really? The answer is one of six kinds.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(d)</span> Write the answer down as one rule row — the feed and its kind — and the system applies it to every arrival of that feed, forever after.</p>
 
           {/* PR-VOICE → PR-STEP-2: the essay's feed gloss. The
               Duffel/Anthropic caption left with PR-STEP-2 — Step 02 owns
@@ -2423,8 +2425,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               {IMPORT_ARRIVALS.map((row, j) => (
                 <div key={row[4]} style={{ height: S4_GEOM.ROW_H }} className={`grid grid-cols-[100px_74px_1fr] items-center font-mono text-[7px] ${j < IMPORT_ARRIVALS.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
                   <span className="overflow-hidden whitespace-nowrap px-[6px] text-brand-purple">{row[0]}</span>
-                  <span className="overflow-hidden whitespace-nowrap px-[6px] text-text-faint">{row[1]}</span>
-                  <span className="overflow-hidden whitespace-nowrap px-[6px] text-text-faint">{row[2]}</span>
+                  <span className="overflow-hidden whitespace-nowrap px-[6px] text-brand-purple">{row[1]}</span>
+                  <span className="overflow-hidden whitespace-nowrap px-[6px] text-brand-purple">{row[2]}</span>
                 </div>
               ))}
             </div>
@@ -2444,9 +2446,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               {ROUTING_RULES.map(([p, r, kind, means], i) => (
                 <div key={`${p}-${r}`} style={{ height: S4_GEOM.ROW_H }} className={`grid grid-cols-[96px_92px_72px_1fr] items-center font-mono text-[7px] ${i < ROUTING_RULES.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
                   <span className="overflow-hidden whitespace-nowrap px-[6px] text-brand-purple">{p}</span>
-                  <span className="overflow-hidden whitespace-nowrap px-[6px] text-text-faint">{r}</span>
+                  <span className="overflow-hidden whitespace-nowrap px-[6px] text-brand-purple">{r}</span>
                   <span className="overflow-hidden whitespace-nowrap px-[6px] uppercase text-brand-gold">{kind}</span>
-                  <span className="overflow-hidden whitespace-nowrap px-[6px] text-text-faint">{means}</span>
+                  <span className="overflow-hidden whitespace-nowrap px-[6px] text-brand-purple">{means}</span>
                 </div>
               ))}
             </div>
@@ -2487,8 +2489,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               {IMPORT_ARRIVALS.map((row, j) => (
                 <div key={row[4]} className={`grid grid-cols-[96px_66px_1fr] font-mono text-[10px] leading-[1.4] ${j < IMPORT_ARRIVALS.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
                   <span className="px-[6px] py-[3px] text-brand-purple">{row[0]}</span>
-                  <span className="px-[6px] py-[3px] text-text-faint">{row[1]}</span>
-                  <span className="px-[6px] py-[3px] text-text-faint">{row[2]}</span>
+                  <span className="px-[6px] py-[3px] text-brand-purple">{row[1]}</span>
+                  <span className="px-[6px] py-[3px] text-brand-purple">{row[2]}</span>
                 </div>
               ))}
             </div>
@@ -2509,9 +2511,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               {ROUTING_RULES.map(([p, r, kind, means], i) => (
                 <div key={`${p}-${r}`} className={`grid grid-cols-[82px_84px_62px_1fr] font-mono text-[9.5px] leading-[1.4] ${i < ROUTING_RULES.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
                   <span className="px-[6px] py-[3px] text-brand-purple">{p}</span>
-                  <span className="px-[6px] py-[3px] text-text-faint">{r}</span>
+                  <span className="px-[6px] py-[3px] text-brand-purple">{r}</span>
                   <span className="px-[6px] py-[3px] uppercase text-brand-gold">{kind}</span>
-                  <span className="break-words px-[6px] py-[3px] text-text-faint">{means}</span>
+                  <span className="break-words px-[6px] py-[3px] text-brand-purple">{means}</span>
                 </div>
               ))}
             </div>
@@ -2565,10 +2567,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           {/* PR-S5: the essay's Step 5 moves block, verbatim — slide-01
               grammar, gold letter tier, the #1600 rhythm. */}
           <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is four moves:</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(a)</span> Start from the rule book Step 4 built.</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(b)</span> Create one table per kind: six tables, six names.</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(c)</span> Send every feed&apos;s arrivals to the table its kind names.</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(d)</span> Look at what landed. The outside world fills four tables. Math we ordered fills derived. Posting stays empty.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(a)</span> Start from the rule book Step 4 built.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(b)</span> Create one table per kind: six tables, six names.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(c)</span> Send every feed&apos;s arrivals to the table its kind names.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(d)</span> Look at what landed. The outside world fills four tables. Math we ordered fills derived. Posting stays empty.</p>
 
           {/* THE ADDRESS, desktop (PR-H6R) — the rule book SORTED by kind
               (S5_SORTED: the same twenty rows, stable within kind) beside
@@ -2589,7 +2591,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               {S5_SORTED.map(([p, r, kind], j) => (
                 <div key={`${p}-${r}`} style={{ height: S5_GEOM.ROW_H }} className={`grid grid-cols-[130px_150px_1fr] items-center font-mono text-[7px] ${j < S5_SORTED.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
                   <span className="overflow-hidden whitespace-nowrap px-[6px] text-brand-purple">{p}</span>
-                  <span className="overflow-hidden whitespace-nowrap px-[6px] text-text-faint">{r}</span>
+                  <span className="overflow-hidden whitespace-nowrap px-[6px] text-brand-purple">{r}</span>
                   <span className="overflow-hidden whitespace-nowrap px-[6px] uppercase text-brand-gold">{kind}</span>
                 </div>
               ))}
@@ -2639,7 +2641,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               {S5_SORTED.map(([p, r, kind], j) => (
                 <div key={`${p}-${r}`} className={`grid grid-cols-[96px_96px_1fr] font-mono text-[10px] leading-[1.4] ${j < S5_SORTED.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
                   <span className="px-[6px] py-[3px] text-brand-purple">{p}</span>
-                  <span className="px-[6px] py-[3px] text-text-faint">{r}</span>
+                  <span className="px-[6px] py-[3px] text-brand-purple">{r}</span>
                   <span className="px-[6px] py-[3px] uppercase text-brand-gold">{kind}</span>
                 </div>
               ))}
@@ -2699,10 +2701,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
 
           {/* The four moves — muted labels, the slide-05 grammar. */}
           <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is four moves:</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(a)</span> Take everything the system holds so far: the six tables, plus the sixteen tools that stayed home in Step 2.</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(b)</span> Ask one question of each: did the world hand it to you finished, or did you make it?</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(c)</span> Sort into two lanes — observed (the world&apos;s, you can&apos;t edit it) and authored (yours).</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(d)</span> The world&apos;s four tables are observed. Your derived and posting are self-made. And the sixteen — your tasks, invoices, trades — are authored, with no table yet.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(a)</span> Take everything the system holds so far: the six tables, plus the sixteen tools that stayed home in Step 2.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(b)</span> Ask one question of each: did the world hand it to you finished, or did you make it?</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(c)</span> Sort into two lanes — observed (the world&apos;s, you can&apos;t edit it) and authored (yours).</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(d)</span> The world&apos;s four tables are observed. Your derived and posting are self-made. And the sixteen — your tasks, invoices, trades — are authored, with no table yet.</p>
 
           {/* THE FORK, desktop (PR-S6-CORRIDOR) — two group panels (names
               gold, the deck's kind licence), each collected by a square
@@ -2872,7 +2874,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                   <tr key={beat}>
                     <th scope="row" className={`${DECK.pad} ${rule} text-left align-top font-mono text-[10px] lg:text-[11px] font-normal uppercase tracking-[0.18em] text-text-faint`}>{beat}</th>
                     {[travel, trading, invoicing].map((cell, c) => (
-                      <td key={c} className={`${DECK.pad} ${rule} align-top text-[11px] leading-[1.4] lg:text-[13px] lg:leading-normal text-text-faint`}>{cell}</td>
+                      <td key={c} className={`${DECK.pad} ${rule} align-top text-[11px] leading-[1.4] lg:text-[13px] lg:leading-normal text-brand-purple`}>{cell}</td>
                     ))}
                   </tr>
                 );
@@ -2924,7 +2926,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                 return (
                   <tr key={name}>
                     <td className={`${DECK.pad} ${rule} align-top font-mono text-[11.5px] lg:text-[14px] text-brand-purple`}>{name}</td>
-                    <td className={`${DECK.pad} ${rule} align-top text-[11px] leading-[1.4] lg:text-[13.5px] lg:leading-[1.45] text-text-faint`}>{desc}</td>
+                    <td className={`${DECK.pad} ${rule} align-top text-[11px] leading-[1.4] lg:text-[13.5px] lg:leading-[1.45] text-brand-purple`}>{desc}</td>
                   </tr>
                 );
               })}
@@ -2970,7 +2972,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               <div className="mt-[10px] flex items-baseline justify-between gap-2 border border-border bg-ts-white px-4 py-3">
                 <span className="font-mono text-[12px] text-brand-purple">{MATCH_CARDS[0].name}</span>
                 <span className="font-mono text-[12px] text-brand-gold">{MATCH_CARDS[0].amount}</span>
-                <span className="font-mono text-[12px] text-text-muted">{MATCH_CARDS[0].date}</span>
+                <span className="font-mono text-[12px] text-brand-purple">{MATCH_CARDS[0].date}</span>
               </div>
             </div>
             <div className="lg:px-[10px] lg:pt-[33px]">
@@ -2986,7 +2988,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               <div className="mt-[10px] flex items-baseline justify-between gap-2 border border-border bg-ts-white px-4 py-3">
                 <span className="font-mono text-[12px] text-brand-purple">{MATCH_CARDS[1].name}</span>
                 <span className="font-mono text-[12px] text-brand-gold">{MATCH_CARDS[1].amount}</span>
-                <span className="font-mono text-[12px] text-text-muted">{MATCH_CARDS[1].date}</span>
+                <span className="font-mono text-[12px] text-brand-purple">{MATCH_CARDS[1].date}</span>
               </div>
             </div>
           </div>
@@ -3120,7 +3122,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                 return (
                   <tr key={question}>
                     <td className={`${DECK.pad} ${rule} align-top text-[11px] leading-[1.4] lg:text-[13px] lg:leading-normal text-brand-purple`}>{question}</td>
-                    <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-text-faint`}><GoldSegments segments={math} /></td>
+                    <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}><GoldSegments segments={math} /></td>
                   </tr>
                 );
               })}
@@ -3187,7 +3189,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                     const rule = r === LEDGER_ROWS.length - 1 ? '' : DECK.rule;
                     return (
                       <tr key={line}>
-                        <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[12px] text-text-muted`}>{date}</td>
+                        <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[12px] text-brand-purple`}>{date}</td>
                         <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}>{line}</td>
                         <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-gold`}>{debit}</td>
                         <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-gold`}>{credit}</td>
@@ -3202,10 +3204,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               <div className="mt-[10px] border border-border">
                 <div className="grid grid-cols-[repeat(14,minmax(0,1fr))] border-b border-border bg-bg-row">
                   {CAL_DAYS.map((d) => (
-                    <span key={d} className="py-1 text-center font-mono text-[9px] text-text-muted">{d}</span>
+                    <span key={d} className="py-1 text-center font-mono text-[9px] text-text-faint">{d}</span>
                   ))}
                 </div>
-                <div className="relative h-[132px]">
+                <div className="relative h-[132px] bg-white">
                   {Array.from({ length: 13 }, (_, i) => (
                     <span key={i} aria-hidden="true" className="absolute top-0 h-full w-px bg-bg-row" style={{ left: `${((i + 1) / 14) * 100}%` }} />
                   ))}
@@ -3232,7 +3234,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                         style={{ left: `calc(${((dot.day - 0.5) / 14) * 100}% - 3px)`, top: 96 }}
                       />
                       <span
-                        className="absolute whitespace-nowrap font-mono text-[10px] text-text-secondary"
+                        className="absolute whitespace-nowrap font-mono text-[10px] text-brand-purple"
                         style={{ left: `calc(${((dot.day - 0.5) / 14) * 100}% + 9px)`, top: 94 }}
                       >
                         {dot.label}
@@ -3251,7 +3253,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             {CAL_DEADLINES.map((seg, i) => (
               <Fragment key={seg}>
                 {i > 0 && <span aria-hidden="true" className="h-[5px] w-[5px] rounded-full bg-brand-gold" />}
-                <span className="font-mono text-[11px] lg:text-[12px] text-text-secondary">{seg}</span>
+                <span className="font-mono text-[11px] lg:text-[12px] text-brand-purple">{seg}</span>
               </Fragment>
             ))}
           </div>
@@ -3293,7 +3295,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               <div key={n} className="relative grid grid-cols-[20px_28px_1fr] lg:grid-cols-[20px_40px_340px_1fr]">
                 <span aria-hidden="true" className="absolute left-0 top-[19px] h-[5px] w-[5px] bg-brand-purple" />
                 <span />
-                <p className="py-[14px] font-mono text-[11px] lg:text-[12px] text-text-muted">{n}</p>
+                <p className="py-[14px] font-mono text-[11px] lg:text-[12px] text-text-faint">{n}</p>
                 <p className="py-[14px] pr-4 text-[12px] leading-[1.5] lg:text-[13px] text-text-secondary">{action}</p>
                 <p className="col-start-3 row-start-2 border-b border-border-light pb-[14px] font-mono text-[11px] leading-[1.5] lg:text-[12px] text-brand-purple lg:col-start-4 lg:row-start-1 lg:py-[14px]">
                   <GoldSegments segments={artifact} />
@@ -3324,7 +3326,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                     <tr key={beat}>
                       <th scope="row" className={`${DECK.pad} ${rule} text-left align-top font-mono text-[10px] lg:text-[11px] font-normal uppercase tracking-[0.18em] text-text-faint`}>{beat}</th>
                       {cells.map((cell, c) => (
-                        <td key={c} className={`${DECK.pad} ${rule} align-top text-[11px] leading-[1.4] lg:text-[13px] lg:leading-normal ${typeof cell === 'string' ? 'text-text-faint' : 'font-mono text-text-faint'}`}>
+                        <td key={c} className={`${DECK.pad} ${rule} align-top text-[11px] leading-[1.4] lg:text-[13px] lg:leading-normal ${typeof cell === 'string' ? 'text-brand-purple' : 'font-mono text-text-faint'}`}>
                           {typeof cell === 'string' ? cell : <GoldSegments segments={cell} />}
                         </td>
                       ))}
