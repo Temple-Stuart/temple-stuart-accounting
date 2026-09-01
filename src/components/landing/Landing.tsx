@@ -18,7 +18,7 @@
  *   01 / IDENTIFY THE PROBLEM, THE TOOLS, THE FAMILIES — AND SORT THEM IN — four moves drawn: the raw list, the family sheet, the flow arcs
  *   02 / LOOK AT THE TOOLS AND PICK THE PROVIDERS BEHIND THEM — the provider menu + the open doors
  *   03 / IMPORT THE DATA AND SEE HOW IT ARRIVES — the raw import table, twelve arrivals, the promises
- *   04 / LABEL EVERY FEED BY ITS KIND — one rule per feed, thirteen rows, four kinds
+ *   04 / LABEL EVERY FEED BY ITS KIND — the fold drawn, one rule per feed, twenty rows, five kinds
  *   05 / CREATE ONE TABLE PER KIND AND MAP THE DATA IN — six tables; the kind is the address
  *   06 / SEPARATE WHAT HAPPENED TO YOU FROM WHAT YOU DID — observed vs authored
  *   07 / RUN THE LOOP         — discover → decide → commit → record
@@ -532,44 +532,80 @@ const S3_H = S3_HEAD_H + IMPORT_ARRIVALS.length * S3_GEOM.ROW_H;
 const S3_OPEN_ROW = IMPORT_ARRIVALS[0];
 const s3FieldIndex = (b: number, r: number) => IMPORT_COLUMNS.slice(0, b).reduce((n, g) => n + g.rows.length, 0) + r;
 
-// ROUTING-RULES (PR-DECK → PR-STEP-2 → PR-SIX): the whole routing decision,
-// for the 04 / THE ROUTING slide, as [provider, resource, kind, means].
-// FOURTEEN ROWS — ten of the providers Step 02 names, five kinds,
-// providers repeating because a feed sends more than one shape. The MEANS
-// column speaks only on a kind's FIRST appearance ('something that happened'
-// · 'one of your accounts' · 'how things stood at one moment' · 'a fact
-// about the world' · 'math we did — never a source'); the empty strings on
-// repeat rows are deck content, not gaps — do not fill them.
+// ROUTING-RULES (PR-DECK → PR-STEP-2 → PR-SIX → PR-S4): THE RULE BOOK —
+// one row per feed, TWENTY ROWS in S4_FEEDS order (the eighteen folded
+// feeds plus plaid's two ruled extras, account and holding, so every
+// earnable kind is seen), as [provider, resource, kind, means]. The MEANS
+// column speaks only on a kind's FIRST appearance ('something that
+// happened' · 'one of your accounts' · 'how things stood at one moment' ·
+// 'a fact about the world' · 'math we did — never a source'); the empty
+// strings on repeat rows are deck content, not gaps — do not fill them.
+// Kinds count EVENT 3 · REGISTRY 1 · SNAPSHOT 1 · REFERENCE 11 ·
+// DERIVED 4 — script-proved, and row i names feed i exactly.
 //
 // THE FIVE ROUTABLE KINDS ARE A CLOSED SET — EVENT, REGISTRY, SNAPSHOT,
 // REFERENCE, DERIVED. FIVE HERE, SIX IN HANDOFF_KINDS BELOW, AND THE GAP IS
 // THE POINT:
 // nothing ever arrives as a posting — the system writes postings from events.
 // Do not add a POSTING row here to make the two lists match.
-//
-// THE anthropic ROW IS THE POINT and the renderer keys off its provider name,
-// not a flag here, so this stays plain data. Its means is the deck's warning
-// — a classification is math we did, never a source another table trusts.
 const ROUTING_RULES = [
-  ['stripe', 'payout', 'EVENT', 'something that happened'],
-  ['plaid', 'transaction', 'EVENT', ''],
+  ['plaid', 'transaction', 'EVENT', 'something that happened'],
   ['plaid', 'account', 'REGISTRY', 'one of your accounts'],
   ['plaid', 'holding', 'SNAPSHOT', 'how things stood at one moment'],
+  ['stripe', 'payout', 'EVENT', ''],
   ['tastytrade', 'quote', 'REFERENCE', 'a fact about the world'],
-  ['tastytrade', 'fill', 'EVENT', ''],
-  ['sec', 'filing', 'REFERENCE', ''],
-  ['fred', 'series', 'REFERENCE', ''],
-  ['liteapi', 'booking', 'EVENT', ''],
-  ['liteapi', 'stay', 'EVENT', ''],
-  ['viator', 'activity', 'EVENT', ''],
-  ['google places', 'place', 'REFERENCE', ''],
   ['finnhub', 'fundamentals', 'REFERENCE', ''],
+  ['fred', 'series', 'REFERENCE', ''],
+  ['sec', 'filing', 'REFERENCE', ''],
+  ['liteapi', 'booking', 'EVENT', ''],
+  ['viator', 'activity', 'REFERENCE', ''],
+  ['google places', 'place', 'REFERENCE', ''],
+  ['travel buddy', 'visa', 'REFERENCE', ''],
   ['anthropic', 'classification', 'DERIVED', 'math we did — never a source'],
+  ['openai', 'insight', 'DERIVED', ''],
+  ['xai grok', 'sentiment', 'DERIVED', ''],
+  ['voyage', 'embedding', 'DERIVED', ''],
+  ['ecfr', 'title', 'REFERENCE', ''],
+  ['us code', 'title', 'REFERENCE', ''],
+  ['federal register', 'document', 'REFERENCE', ''],
+  ['irs', 'bulletin', 'REFERENCE', ''],
 ] as const;
 
-// The provider whose row the routing table fills. Named here rather than typed
-// into the renderer so the emphasis and the data cannot drift apart.
-const ROUTING_DERIVED_ROW = 'anthropic';
+// PR-S4: ROUTING_DERIVED_ROW retired — the old table's anthropic emphasis
+// died with the table; the rule book's rows are peers, and DERIVED's
+// first-appearance MEANS carries the warning. History holds the const.
+
+// ── PR-S4 / THE FOLD AND THE RULE. Step 4's drawing: Step 3's arrivals
+// (identity columns) FOLD into feeds — plaid's two connections converge —
+// and each feed lands its rule row in the rule book, KIND in gold.
+// Geometry from the approved CD-S4 BuildSpec with the founder's OPTION
+// built: plaid's account and holding feeds ride beneath the fold, marked,
+// so all five earnable kinds ink on the slide.
+
+// S4-FEEDS: the fold IS code — dedup IMPORT_ARRIVALS by (provider,
+// resource) in row order (18, script-proved), then the two ruled extras
+// slot in beneath the fold. ONE list drives the feeds panel, the rule
+// book's order and both arrow rails.
+const s4Folded = IMPORT_ARRIVALS.reduce<ReadonlyArray<readonly [string, string]>>(
+  (acc, row) => (acc.some(([p, r]) => p === row[0] && r === row[2]) ? acc : [...acc, [row[0], row[2]] as const]),
+  [],
+);
+const S4_EXTRAS = [['plaid', 'account'], ['plaid', 'holding']] as const;
+const S4_FEEDS = [...s4Folded.slice(0, 1), ...S4_EXTRAS, ...s4Folded.slice(1)];
+
+// S4-GEOM: the S2/S3 sibling. All three panels share HEAD + ROW_H and sit
+// top-aligned, so a feed's center is one pitch below its arrival's (the
+// uniform drop the extras buy) and the rule rail runs DEAD LEVEL row for
+// row; R_X + R_W == W, and the drawing's height is the twenty-row
+// panels' — both derived, not typed.
+const S4_GEOM = {
+  W: 1216, L_W: 270, F_X: 404, F_W: 190, R_X: 728, R_W: 488,
+  HEAD: 26, ROW_H: 24,
+} as const;
+const S4_H = S4_GEOM.HEAD + S4_FEEDS.length * S4_GEOM.ROW_H;
+const s4RowCenter = (i: number) => S4_GEOM.HEAD + i * S4_GEOM.ROW_H + S4_GEOM.ROW_H / 2;
+// plaid's converging pair fans its heads at feed 0 so they never stack.
+const S4_CONVERGE: Readonly<Record<string, number>> = { chase: -3, boa: 3 };
 
 // PR-DECK: ROUTING_TESTS retired — the deck's 04 closes on one statement line
 // ('When a new provider shows up, we add rows — not code, and not new
@@ -2192,44 +2228,21 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── ROUTING-04 / THE ROUTING TABLE. Act grammar copied from the import
-            act above, class for class: same max-w-7xl container, same px, same
-            pt-9 lg:pt-[60px] pb-9 lg:pb-[60px], same eyebrow/headline/support
-            sizes, and a border-t which is the page's rule for the
-            import|routing seam. Everything is weight 400 — which is why every
-            th carries an explicit font-normal: Preflight does not reset the
-            UA's `th { font-weight: bold }`, so a th without it ships at 700.
-
-            ONE TABLE, FOUR EQUAL QUARTERS, ruled horizontally only. No interior
-            verticals on this slide either — the same calm the import tables
-            read with — so cells set border-b and never border-r.
-            border-separate + border-spacing-0 rather than the house
-            border-collapse, because collapsed borders are half-inside the box
-            and make percentage columns unpredictable.
-
-            THE anthropic ROW is the emphasis and differs in EXACTLY ONE way:
-            bg-bg-row across its cells. No weight change, no size change, no
-            border accent, no gold beyond the KIND column every row already
-            has. The point lands because the row is filled, not because it
-            shouts.
-
-            MOBILE COLUMNS ARE NOT EQUAL THIRDS, deliberately: 30 / 40 / 30.
-            Equal thirds were measured and 'classification' — the longest
-            resource name, one unbreakable token — overflowed its cell by 1.1px
-            at 375. The four quarters the spec fixes are a DESKTOP measurement;
-            below lg the three surviving columns are sized to what they hold,
-            which is what a table does. Do not 'tidy' these back to 33.33%
-            without re-measuring the longest token first.
-
-            MOBILE reuses the import act's old payload pattern rather than
-            inventing a second one: MEANS is dropped, and the derived row's
-            'math we did — never a source' follows as its own colSpan={3} row
-            with the same fill and no rule between, so the two read as one
-            block. (The other kinds' first-appearance means are desktop-only —
-            the deck's own mobile treatment drops the column.) NO PHANTOM
-            COLUMN: the only colSpan here lives on an lg:hidden ROW, and a row
-            with display:none leaves the table model entirely, so desktop counts
-            four columns from the header and mobile counts three. ─────────── */}
+      {/* ── ROUTING-04 / THE FOLD AND THE RULE (PR-DECK → … → PR-S4). Act
+            grammar unchanged: same container, act padding, border-t for the
+            import|routing seam. Step 4 in full: the essay's four moves under
+            the sub (the #1600 rhythm), the feed gloss, then the FOLD DRAWN —
+            the arrivals' identity columns fold into THE FEEDS (plaid's two
+            connections converge; the two ruled extras ride beneath the fold,
+            marked) and each feed lands its rule row in THE RULE BOOK, twenty
+            rows, KIND gold (the deck's one non-money gold licence), MEANS on
+            first appearance only. Two rails, 19 + 20 arrows, zero crossings,
+            geometry the S4_GEOM corridor law. Under the rule book, the
+            essay's plaid footnote (gloss tier, both breakpoints); then ONE
+            paragraph — the merged rule / boundary / sixth-kind passage,
+            slide-01 body tier — and the closer. The old routing table, the
+            who-decides passage, the derived-boundary line, the sixth tease
+            and the two rule lines render nowhere else. */}
       <section id="deck-04" aria-label="The routing" className={openSteps[3] ? 'max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border' : DECK.sectionBar}>
         <button
           type="button"
@@ -2248,78 +2261,144 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <p className="mt-[22px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
             Now we examine the data that we just imported in Step 3, and we give every feed a label.
           </p>
+          {/* PR-S4: the essay's Step 4 moves block, verbatim — slide-01
+              grammar, gold letter tier, the #1600 rhythm. Who decides the
+              kind lives in moves (c)/(d) now. */}
+          <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is four moves:</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(a)</span> Start from the arrivals table Step 3 built.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(b)</span> Fold the rows into feeds: one provider, one resource, one feed. Plaid&apos;s two connections are one feed.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(c)</span> Ask of each feed one question: what IS this thing, really? The answer is one of six kinds.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(d)</span> Write the answer down as one rule row — the feed and its kind — and the system applies it to every arrival of that feed, forever after.</p>
+
           {/* PR-VOICE → PR-STEP-2: the essay's feed gloss. The
               Duffel/Anthropic caption left with PR-STEP-2 — Step 02 owns
-              provider glosses now, so no provider is introduced here. */}
-          <p className={`mt-[14px] ${DECK.statement}`}>A feed is one provider-and-resource pair; like Stripe&apos;s payouts, or Plaid&apos;s transactions, or TastyTrade&apos;s quotes.</p>
+              provider glosses now, so no provider is introduced here.
+              PR-S4: it takes the moves→next-block gap of the #1600 scale. */}
+          <p className={`mt-[14px] lg:mt-8 ${DECK.statement}`}>A feed is one provider-and-resource pair; like Stripe&apos;s payouts, or Plaid&apos;s transactions, or TastyTrade&apos;s quotes.</p>
 
-          <table className="mt-10 lg:mt-[76px] w-full table-fixed border-separate border-spacing-0 border border-border">
-            <thead>
-              <tr>
-                {([
-                  ['PROVIDER', 'w-[30%]'], ['RESOURCE', 'w-[40%]'], ['KIND', 'w-[30%]'], ['MEANS', 'hidden lg:table-cell'],
-                ] as const).map(([head, sm]) => (
-                  <th
-                    key={head}
-                    scope="col"
-                    className={`${sm} lg:w-[25%] bg-bg-row px-[11px] py-[9px] lg:px-5 lg:py-3 text-left align-top font-mono text-[10px] lg:text-[11px] font-normal uppercase tracking-[0.18em] text-text-faint border-b border-b-border`}
-                  >
-                    {head}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {ROUTING_RULES.map(([provider, resource, kind, means], r) => {
-                const isDerived = provider === ROUTING_DERIVED_ROW;
-                const isLast = r === ROUTING_RULES.length - 1;
-                // Rule policy, kept from the pre-deck import pattern: a normal
-                // row rules at both breakpoints; a derived row keeps its rule on
-                // desktop and drops it on mobile, where MEANS follows as a
-                // second row the two must read as one block; the last row rules
-                // at neither, because the table's outer border closes it.
-                // THE isDerived BRANCH IS INERT TODAY and that is not a mistake:
-                // anthropic is both the derived row AND the last row, so isLast
-                // wins and this row takes no rule at either breakpoint — the
-                // correct result. It is kept rather than simplified away because
-                // the moment a rule is appended after anthropic the branch has to
-                // fire, and losing it would silently put a hairline between the
-                // derived row and its own continuation row on mobile, breaking
-                // the one-block reading with nothing to catch it. The import act's
-                // 'payload' sits mid-table, so there the branch is live.
-                const rule = isLast ? '' : isDerived ? 'lg:border-b-[0.75px] lg:border-b-text-faint' : 'border-b-[0.75px] border-b-text-faint';
-                const fill = isDerived ? 'bg-bg-row' : '';
-                const pad = 'px-[11px] py-[9px] lg:px-5 lg:py-[11px]';
-                return (
-                  <Fragment key={`${provider}-${resource}`}>
-                    <tr>
-                      <td className={`${pad} ${fill} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}>{provider}</td>
-                      <td className={`${pad} ${fill} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}>{resource}</td>
-                      <td className={`${pad} ${fill} ${rule} align-top font-mono text-[11px] lg:text-[13px] uppercase text-brand-gold`}>{kind}</td>
-                      <td className={`hidden lg:table-cell ${pad} ${fill} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-text-faint`}>{means}</td>
-                    </tr>
-                    {isDerived && (
-                      <tr className="lg:hidden">
-                        <td colSpan={3} className={`${fill} ${isLast ? '' : 'border-b-[0.75px] border-b-text-faint'} px-[11px] pt-0 pb-[9px] align-top font-mono text-[11px] leading-[1.4] text-text-faint`}>{means}</td>
-                      </tr>
-                    )}
-                  </Fragment>
-                );
+          {/* THE FOLD AND THE RULE, desktop (PR-S4) — three panels, two
+              rails. LEFT: the arrivals' identity columns (19 rows, from
+              IMPORT_ARRIVALS slots 0/1/2 — one source). MIDDLE: THE FEEDS
+              — S4_FEEDS, plaid's two connections converging into feed 0,
+              the two ruled extras beneath the fold marked 'more from
+              plaid'. RIGHT: the rule book — ROUTING_RULES, KIND gold (the
+              deck's one non-money gold licence), MEANS on each kind's
+              first appearance. Fold rail: 19 arrows — plaid's pair
+              converges (S4_CONVERGE fans the heads) and every other arrow
+              drops exactly one pitch (the offset the extras buy). Rule
+              rail: 20 arrows, dead level row for row. Zero crossings on
+              both rails — script-proved. */}
+          <div className="relative mt-[14px] hidden lg:mt-3 lg:block" style={{ height: S4_H, maxWidth: S4_GEOM.W }}>
+            <div className="absolute left-0 top-0 border border-border bg-white" style={{ width: `${(S4_GEOM.L_W / S4_GEOM.W) * 100}%` }}>
+              <div style={{ height: S4_GEOM.HEAD }} className="grid grid-cols-[100px_74px_1fr] items-center overflow-hidden bg-bg-row font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">
+                <span className="px-[6px]">PROVIDER</span><span className="px-[6px]">CONNECTION</span><span className="px-[6px]">RESOURCE</span>
+              </div>
+              {IMPORT_ARRIVALS.map((row, j) => (
+                <div key={row[4]} style={{ height: S4_GEOM.ROW_H }} className={`grid grid-cols-[100px_74px_1fr] items-center font-mono text-[7px] ${j < IMPORT_ARRIVALS.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                  <span className="overflow-hidden whitespace-nowrap px-[6px] text-brand-purple">{row[0]}</span>
+                  <span className="overflow-hidden whitespace-nowrap px-[6px] text-text-faint">{row[1]}</span>
+                  <span className="overflow-hidden whitespace-nowrap px-[6px] text-text-faint">{row[2]}</span>
+                </div>
+              ))}
+            </div>
+            <div className="absolute top-0 border border-border bg-white" style={{ left: `${(S4_GEOM.F_X / S4_GEOM.W) * 100}%`, width: `${(S4_GEOM.F_W / S4_GEOM.W) * 100}%` }}>
+              <p style={{ height: S4_GEOM.HEAD }} className="flex items-center overflow-hidden whitespace-nowrap bg-bg-row px-[6px] font-mono text-[7px] font-normal uppercase tracking-[0.14em] text-text-faint border-b border-b-border">THE FEEDS</p>
+              {S4_FEEDS.map(([p, r], i) => (
+                <div key={`${p}-${r}`} style={{ height: S4_GEOM.ROW_H }} className={`flex items-center justify-between overflow-hidden px-[6px] font-mono text-[7px] ${i < S4_FEEDS.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                  <span className="overflow-hidden whitespace-nowrap text-brand-purple">{p} · {r}</span>
+                  {(r === 'account' || r === 'holding') && <span className="whitespace-nowrap pl-1 text-text-faint">more from plaid</span>}
+                </div>
+              ))}
+            </div>
+            <div className="absolute top-0 border border-border bg-white" style={{ left: `${(S4_GEOM.R_X / S4_GEOM.W) * 100}%`, width: `${(S4_GEOM.R_W / S4_GEOM.W) * 100}%` }}>
+              <div style={{ height: S4_GEOM.HEAD }} className="grid grid-cols-[96px_92px_72px_1fr] items-center overflow-hidden bg-bg-row font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">
+                <span className="px-[6px]">PROVIDER</span><span className="px-[6px]">RESOURCE</span><span className="px-[6px]">KIND</span><span className="px-[6px]">MEANS</span>
+              </div>
+              {ROUTING_RULES.map(([p, r, kind, means], i) => (
+                <div key={`${p}-${r}`} style={{ height: S4_GEOM.ROW_H }} className={`grid grid-cols-[96px_92px_72px_1fr] items-center font-mono text-[7px] ${i < ROUTING_RULES.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                  <span className="overflow-hidden whitespace-nowrap px-[6px] text-brand-purple">{p}</span>
+                  <span className="overflow-hidden whitespace-nowrap px-[6px] text-text-faint">{r}</span>
+                  <span className="overflow-hidden whitespace-nowrap px-[6px] uppercase text-brand-gold">{kind}</span>
+                  <span className="overflow-hidden whitespace-nowrap px-[6px] text-text-faint">{means}</span>
+                </div>
+              ))}
+            </div>
+            <svg viewBox={`0 0 ${S4_GEOM.W} ${S4_H}`} preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full text-brand-purple">
+              <defs>
+                <marker id="s4-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto">
+                  <path d="M0 0 L8 4 L0 8 z" fill="currentColor" />
+                </marker>
+              </defs>
+              {IMPORT_ARRIVALS.map((row, j) => {
+                const i = S4_FEEDS.findIndex(([p, r]) => p === row[0] && r === row[2]);
+                const ty = s4RowCenter(i) + (i === 0 ? S4_CONVERGE[row[1]] ?? 0 : 0);
+                const mx = (S4_GEOM.L_W + S4_GEOM.F_X) / 2;
+                const d = `M${S4_GEOM.L_W} ${s4RowCenter(j)} C ${mx} ${s4RowCenter(j)}, ${mx} ${ty}, ${S4_GEOM.F_X} ${ty}`;
+                return <path key={row[4]} d={d} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd="url(#s4-arrow)" />;
               })}
-            </tbody>
-          </table>
+              {S4_FEEDS.map(([p, r], i) => {
+                const mx = (S4_GEOM.F_X + S4_GEOM.F_W + S4_GEOM.R_X) / 2;
+                const d = `M${S4_GEOM.F_X + S4_GEOM.F_W} ${s4RowCenter(i)} C ${mx} ${s4RowCenter(i)}, ${mx} ${s4RowCenter(i)}, ${S4_GEOM.R_X} ${s4RowCenter(i)}`;
+                return <path key={`${p}-${r}`} d={d} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd="url(#s4-arrow)" />;
+              })}
+            </svg>
+          </div>
+          {/* PR-S4: the essay's plaid footnote, verbatim, gloss tier —
+              seated under the rule book (marginLeft from S4_GEOM). */}
+          <p className={`hidden lg:block mt-2 ${DECK.statement}`} style={{ marginLeft: S4_GEOM.R_X }}>Plaid alone sends more than one feed. So the rule book here shows two more of Plaid&apos;s — your accounts and your holdings — so you can see every kind a feed can earn.</p>
 
-          {/* PR-SIX: the essay's derived-rule line, verbatim, then
-              (PR-MECHANICS) the who-decides passage and (PR-VOICE) the
-              sixth-kind tease and the rule block. */}
-          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>And the line is who did the math: if we ordered it or ran it, it is derived; a provider&apos;s own published math is reference.</p>
-          <p className={`mt-2 ${DECK.statement}`}>And who decides the kind? We do — once per feed. We ask one question: what IS this thing, really? The answer becomes the rule&apos;s row, and the system applies it forever after.</p>
-          <p className={`mt-2 ${DECK.statement}`}>And there is a sixth kind; but no feed ever earns it. We will meet it soon.</p>
-          <p className={`mt-2 ${DECK.statement}`}>Here is what makes this step different from every software you have ever met: each kind is given by a rule, and a rule is one written row in a table. Anyone can read it. Anyone can argue with it. It is not a guess buried in code.</p>
-          <div className="mt-8 lg:mt-12 h-px w-full bg-border" aria-hidden="true" />
-          <p className="mt-[22px] lg:mt-8 text-[12px] lg:text-[14px] text-text-faint">
-            When a new provider shows up, we add rows; not code, and not new tables.
-          </p>
+          {/* THE FOLD AND THE RULE, mobile (PR-S4) — stacked per the
+              BuildSpec: the identity table, THE FEEDS card with the fold
+              marked on plaid's row and the extras marked, the rule book
+              condensed (MEANS wraps), then the footnote. Arrows collapse
+              to order. */}
+          <div className="mt-[14px] lg:hidden">
+            <div className="border border-border bg-white">
+              <div className="grid h-[22px] grid-cols-[96px_66px_1fr] items-center overflow-hidden bg-bg-row font-mono text-[6.5px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">
+                <span className="px-[6px]">PROVIDER</span><span className="px-[6px]">CONNECTION</span><span className="px-[6px]">RESOURCE</span>
+              </div>
+              {IMPORT_ARRIVALS.map((row, j) => (
+                <div key={row[4]} className={`grid grid-cols-[96px_66px_1fr] font-mono text-[10px] leading-[1.4] ${j < IMPORT_ARRIVALS.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                  <span className="px-[6px] py-[3px] text-brand-purple">{row[0]}</span>
+                  <span className="px-[6px] py-[3px] text-text-faint">{row[1]}</span>
+                  <span className="px-[6px] py-[3px] text-text-faint">{row[2]}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 border border-border bg-white">
+              <p className="flex h-[22px] items-center overflow-hidden whitespace-nowrap bg-bg-row px-[6px] font-mono text-[6.5px] font-normal uppercase tracking-[0.14em] text-text-faint border-b border-b-border">THE FEEDS</p>
+              {S4_FEEDS.map(([p, r], i) => (
+                <p key={`${p}-${r}`} className={`px-[6px] py-[3px] font-mono text-[10px] leading-[1.4] text-brand-purple ${i < S4_FEEDS.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                  {p} · {r}
+                  {p === 'plaid' && r === 'transaction' && <span className="text-text-faint"> ← chase · boa — two connections, one feed</span>}
+                  {(r === 'account' || r === 'holding') && <span className="text-text-faint"> — more from plaid</span>}
+                </p>
+              ))}
+            </div>
+            <div className="mt-4 border border-border bg-white">
+              <div className="grid h-[22px] grid-cols-[82px_84px_62px_1fr] items-center overflow-hidden bg-bg-row font-mono text-[6.5px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">
+                <span className="px-[6px]">PROVIDER</span><span className="px-[6px]">RESOURCE</span><span className="px-[6px]">KIND</span><span className="px-[6px]">MEANS</span>
+              </div>
+              {ROUTING_RULES.map(([p, r, kind, means], i) => (
+                <div key={`${p}-${r}`} className={`grid grid-cols-[82px_84px_62px_1fr] font-mono text-[9.5px] leading-[1.4] ${i < ROUTING_RULES.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                  <span className="px-[6px] py-[3px] text-brand-purple">{p}</span>
+                  <span className="px-[6px] py-[3px] text-text-faint">{r}</span>
+                  <span className="px-[6px] py-[3px] uppercase text-brand-gold">{kind}</span>
+                  <span className="break-words px-[6px] py-[3px] text-text-faint">{means}</span>
+                </div>
+              ))}
+            </div>
+            {/* The plaid footnote, mobile seat — same essay string. */}
+            <p className={`mt-[14px] ${DECK.statement}`}>Plaid alone sends more than one feed. So the rule book here shows two more of Plaid&apos;s — your accounts and your holdings — so you can see every kind a feed can earn.</p>
+          </div>
+
+          {/* PR-S4: the tail is ONE paragraph — the essay's merged rule /
+              boundary / sixth-kind passage, verbatim, slide-01 body tier.
+              The old standalones (the who-decides passage, the
+              derived-boundary line, the sixth-kind tease, the two rule
+              lines and their divider) render nowhere else — who-decides
+              lives in moves (c)/(d) now. */}
+          <p className="mt-8 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">Here is what makes this step different from every software you have ever met: each kind is given by a rule, and a rule is one written row in a table. Anyone can read it. Anyone can argue with it. It is not a guess buried in code. When a new provider shows up, we add rows; not code, and not new tables. And the line is who did the math: if we ordered it or ran it, it is derived; a provider&apos;s own published math is reference. And there is a sixth kind; but no feed ever earns it. We will meet it soon.</p>
           <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">So how many tables are there?</p>
         </div>
       </section>
