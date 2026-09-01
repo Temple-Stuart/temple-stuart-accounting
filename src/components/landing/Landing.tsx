@@ -19,7 +19,7 @@
  *   02 / LOOK AT THE TOOLS AND PICK THE PROVIDERS BEHIND THEM — the provider menu + the open doors
  *   03 / IMPORT THE DATA AND SEE HOW IT ARRIVES — the raw import table, twelve arrivals, the promises
  *   04 / LABEL EVERY FEED BY ITS KIND — the fold drawn, one rule per feed, twenty rows, five kinds
- *   05 / CREATE ONE TABLE PER KIND AND MAP THE DATA IN — six tables; the kind is the address
+ *   05 / CREATE ONE TABLE PER KIND AND MAP THE DATA IN — six tables; the kind picks the table
  *   06 / SEPARATE WHAT HAPPENED TO YOU FROM WHAT YOU DID — observed vs authored
  *   07 / RUN THE LOOP         — discover → decide → commit → record
  *   08 / STORE EVERYTHING YOU DO IN ONE MASTER TABLE
@@ -669,18 +669,22 @@ const S5_SORTED = HANDOFF_KINDS.flatMap(([kind]) => ROUTING_RULES.filter(([, , k
 // corridor midpoint between the stem and the boxes.
 const S5_GEOM = {
   W: 1216, RB_W: 380, HEAD: 26, ROW_H: 24,
-  BX_L: 896, BX_W: 320, BOX_H: 66, POST_H: 100, GAP: 8, BRK: 392,
+  BX_L: 896, BX_W: 320, BOX_H: 66, POST_H: 100, BRK: 392,
 } as const;
 const s5RowY = (r: number) => S5_GEOM.HEAD + r * S5_GEOM.ROW_H + S5_GEOM.ROW_H / 2;
 const s5BoxH = (kind: string) => (kind === 'posting' ? S5_GEOM.POST_H : S5_GEOM.BOX_H);
 
-// THE LAYOUT LAW (PR-H6R, ruled): the sorted book's kind-blocks must be
-// contiguous; each box centers on its source block, pushed down only where
-// the minimum pitch forbids centering (reference and registry land dead
-// level; posting has no block — it hangs off the cascade, nothing feeds
-// it); and the two column orders must agree pairwise. The build REFUSES —
-// this throws at module load, so prerender fails — if any two connectors
-// would cross. ONE connector per block: five, and none for posting.
+// THE LAYOUT LAW (PR-H6R → EVEN SPAN, ruled): the sorted book's
+// kind-blocks must be contiguous, and the six boxes SPAN the table's data
+// rows exactly — reference's top flush with the first data row's top,
+// posting's bottom flush with the last data row's bottom — with EQUAL
+// GAPS solved from the differing box heights (posting is taller), never
+// equal centers. Box order still matches block order, so the five
+// connectors stay monotonic. The build REFUSES — this throws at module
+// load, so prerender fails — if the blocks break contiguity, a box would
+// overrun the table bottom (negative gap), the span fails to close
+// flush, or any two connectors would cross. ONE connector per block:
+// five, and none for posting.
 const S5_LAYOUT = (() => {
   const blocks: Array<readonly [string, number, number]> = [];
   S5_BOXES.forEach(([kind, , n], b) => {
@@ -689,18 +693,23 @@ const S5_LAYOUT = (() => {
     if (!S5_SORTED.slice(r0, r0 + n).every(([, , k]) => k.toLowerCase() === kind)) throw new Error(`slide 05: ${kind} rows are not one contiguous block`);
     blocks.push([kind, r0, r0 + n - 1] as const);
   });
+  const top = S5_GEOM.HEAD;
+  const bottom = S5_GEOM.HEAD + S5_SORTED.length * S5_GEOM.ROW_H;
+  const boxSum = S5_BOXES.reduce((s, [kind]) => s + s5BoxH(kind), 0);
+  const gap = (bottom - top - boxSum) / (S5_BOXES.length - 1);
+  if (gap < 0) throw new Error('slide 05: the boxes overrun the rule book — a box would extend below the table');
   const centers: number[] = [];
-  S5_BOXES.forEach(([kind], b) => {
-    const floor = b === 0 ? 0 : centers[b - 1] + (s5BoxH(S5_BOXES[b - 1][0]) + s5BoxH(kind)) / 2 + S5_GEOM.GAP;
-    const block = blocks.find(([k]) => k === kind);
-    const want = block ? (s5RowY(block[1]) + s5RowY(block[2])) / 2 : 0;
-    centers.push(Math.max(want, floor));
+  let y = top;
+  S5_BOXES.forEach(([kind]) => {
+    centers.push(y + s5BoxH(kind) / 2);
+    y += s5BoxH(kind) + gap;
   });
+  if (y - gap !== bottom) throw new Error('slide 05: the even span does not close flush with the table bottom');
   for (let x = 0; x < blocks.length; x += 1) {
-    for (let y = x + 1; y < blocks.length; y += 1) {
+    for (let z = x + 1; z < blocks.length; z += 1) {
       const sx = (s5RowY(blocks[x][1]) + s5RowY(blocks[x][2])) / 2;
-      const sy = (s5RowY(blocks[y][1]) + s5RowY(blocks[y][2])) / 2;
-      if ((sx - sy) * (centers[x] - centers[y]) <= 0) throw new Error('slide 05: connectors would cross — reorder the blocks');
+      const sz = (s5RowY(blocks[z][1]) + s5RowY(blocks[z][2])) / 2;
+      if ((sx - sz) * (centers[x] - centers[z]) <= 0) throw new Error('slide 05: connectors would cross — reorder the blocks');
     }
   }
   return { blocks, centers } as const;
@@ -2480,10 +2489,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             kind and only the kind — then the drawing: the rule book
             SORTED by kind beside six kind-table boxes, five square
             block-brackets each sending ONE dotted muted connector to its
-            box (posting gets none; its dashed card says why), boxes
-            centered on their source blocks by the S5_LAYOUT law, which
-            THROWS at build if blocks break contiguity or any two
-            connectors would cross. The tail paragraph carries the
+            box (posting gets none; its dashed card says why), the six
+            boxes spanning the rule book's data rows flush top and bottom
+            with equal gaps (the S5_LAYOUT even-span law, which THROWS at
+            build if contiguity, the flush span, or crossing-freedom
+            fails). The tail paragraph carries the
             founder's named-filler sentence. */}
       <section id="deck-05" aria-label="The handoff" className={openSteps[4] ? 'max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border' : DECK.sectionBar}>
         <button
@@ -2518,9 +2528,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               square block-brackets at the table's edge — one per
               contiguous kind-block — each sending ONE dotted muted
               connector to its box's left-center; posting gets none
-              (nothing feeds it — its dashed card says so). Boxes center
-              on their source blocks by the S5_LAYOUT law; the build
-              refuses if any two connectors would cross. */}
+              (nothing feeds it — its dashed card says so). The boxes span
+              the table's data rows flush top and bottom with equal gaps
+              (S5_LAYOUT); the build refuses if the span or the
+              crossing-freedom fails. */}
           <p className="mt-8 hidden font-mono text-[11px] uppercase tracking-[0.20em] text-brand-amber lg:block">THE RULE BOOK — SORTED BY KIND</p>
           <div className="relative mt-[14px] hidden lg:mt-3 lg:block" style={{ height: S5_H, maxWidth: S5_GEOM.W }}>
             <div className="absolute left-0 top-0 border border-border bg-white" style={{ width: `${(S5_GEOM.RB_W / S5_GEOM.W) * 100}%` }}>
