@@ -820,39 +820,66 @@ const S6_LAYOUT = (() => {
 })();
 const S6_H = Math.max(S6_LAYOUT.leftH, S6_LAYOUT.laneTop.authored + S6_LAYOUT.laneH.authored);
 
-// DECK-07 (PR-FIVE → PR-DATAFLOW): the loop DRAWN — the five tools travel
-// the four beats row for row. The floating LOOP_BEATS band retired (the
-// beats ARE the moves block now) and the static 5×4 table died with it —
-// SHOW DON'T ECHO, no grid repeats the drawing. LOOP_TOOLS + LOOP_ROWS
-// stay the one source; the stage headers derive from LOOP_ROWS' beat
-// column, never retyped. Bookkeeping's commit is honestly an internal
-// post to the ledger; it does not move the outside world the way
-// book/trade/invoice/file do.
-const LOOP_TOOLS = ['TRAVEL', 'TRADING', 'INVOICING', 'BOOKKEEPING', 'ENT FILINGS'] as const;
-const LOOP_ROWS = [
-  ['DISCOVER', 'live flight prices', 'option chains', 'invoices coming due', 'transactions waiting to be booked', 'filings coming due'],
-  ['DECIDE', 'a cart', 'a trade card', 'a draft invoice', 'a draft entry, an account picked', 'a draft filing'],
-  ['COMMIT', 'the flight books, a confirmation code comes back', 'the order goes to the broker', 'invoice #14 goes out the door', 'the entry posts to the ledger', 'it files with the state, a confirmation comes back'],
-  ['RECORD', 'booking recorded', 'order recorded', 'invoice recorded', 'entry recorded', 'filing recorded'],
-] as const;
+// DECK-07 (PR-DATAFLOW → PR-ALL-25): ALL twenty-five tools run the loop.
+// The drawing's source is LOOP_BY_TOOL, keyed by PROBLEM_SHEET name; the
+// five-tool LOOP_TOOLS / LOOP_ROWS retired INTO it, their cells carried
+// over verbatim (byte-gated by the PR script) — the old TRADING column
+// lives at Brokerage, since the sheet splits the trade into Brokerage
+// (place it) and Trade Log (log it). Bookkeeping's commit is honestly an
+// internal post to the ledger. The four beats are the loop's own names —
+// the moves block and the h2 carry the same four words.
+const S7_BEATS = ['DISCOVER', 'DECIDE', 'COMMIT', 'RECORD'] as const;
+// LOOP-BY-TOOL: [discover, decide, commit, record] — the founder's data
+// model; nouns tune on Preview. The S7_LAYOUT law asserts the keys equal
+// PROBLEM_SHEET's cells EXACTLY (25/25 — any drift throws at build).
+const LOOP_BY_TOOL: Readonly<Record<string, readonly [string, string, string, string]>> = {
+  CRM: ['leads coming in', 'a draft contact', 'the contact is saved, the deal opens', 'contact recorded'],
+  Bookkeeping: ['transactions waiting to be booked', 'a draft entry, an account picked', 'the entry posts to the ledger', 'entry recorded'],
+  'Bill Pay': ['bills coming due', 'a draft payment', 'the payment sends, the bill is paid', 'payment recorded'],
+  Calendar: ['open time on the calendar', 'a draft event', 'the event is set, invites go out', 'event recorded'],
+  Banking: ['your balances', 'a draft transfer', 'the transfer sends between accounts', 'transfer recorded'],
+  Debt: ['what\'s owed and when', 'a draft payment', 'the payment goes to the lender', 'payment recorded'],
+  Contracts: ['terms on the table', 'a draft contract', 'it\'s signed, both parties bound', 'contract recorded'],
+  Payroll: ['hours and wages due', 'a draft payroll run', 'the run pays out, people get paid', 'payroll recorded'],
+  'Fixed Assets': ['what you bought', 'a draft asset entry', 'the asset is placed in service', 'asset recorded'],
+  Tasks: ['what needs doing', 'a draft task', 'the task is committed to the plan', 'task recorded'],
+  Tax: ['the year\'s numbers', 'a draft return', 'the return files with the IRS', 'return recorded'],
+  'Sales Tax': ['sales by jurisdiction', 'a draft filing', 'the filing goes to the state', 'filing recorded'],
+  Invoicing: ['invoices coming due', 'a draft invoice', 'invoice #14 goes out the door', 'invoice recorded'],
+  Retirement: ['room to contribute', 'a draft contribution', 'the contribution moves to the account', 'contribution recorded'],
+  Compliance: ['controls due for review', 'a draft attestation', 'the attestation is signed', 'attestation recorded'],
+  Expenses: ['receipts to log', 'a draft expense', 'the expense is submitted', 'expense recorded'],
+  Time: ['hours worked', 'a draft time entry', 'the hours are logged to the project', 'time recorded'],
+  Payments: ['what you\'re owed', 'a draft payment request', 'the payment collects', 'payment recorded'],
+  Travel: ['live flight prices', 'a cart', 'the flight books, a confirmation code comes back', 'booking recorded'],
+  Brokerage: ['option chains', 'a trade card', 'the order goes to the broker', 'order recorded'],
+  'Ent Filings': ['filings coming due', 'a draft filing', 'it files with the state, a confirmation comes back', 'filing recorded'],
+  Mileage: ['miles driven', 'a draft trip', 'the trip is logged', 'trip recorded'],
+  'Trade Log': ['fills from the broker', 'a draft trade record', 'the trade is logged with entry and exit', 'trade record recorded'],
+  Budget: ['last period\'s spend', 'a draft budget', 'the budget is set for the period', 'budget recorded'],
+  'FP&A': ['the trend lines', 'a draft forecast', 'the forecast is published', 'forecast recorded'],
+};
 
-// S7-GEOM: the tools list, then four stage panels with four corridors —
-// integers throughout (W == T_W + 4·C_W + 4·STAGE_W). COMMIT wears the
-// deck's ring (the pull-out); RECORD is the landing.
-const S7_GEOM = { W: 1216, T_W: 116, C_W: 50, HEAD: 22, ROW_H: 24 } as const;
+// S7-GEOM: the S6/S8 tight pitch — twenty-five rows read as one flow.
+const S7_GEOM = { W: 1216, T_W: 116, C_W: 50, HEAD: 22, ROW_H: 20 } as const;
 const S7_STAGE_W = (S7_GEOM.W - S7_GEOM.T_W - 4 * S7_GEOM.C_W) / 4;
 const s7StageX = (s: number) => S7_GEOM.T_W + S7_GEOM.C_W + s * (S7_STAGE_W + S7_GEOM.C_W);
 
-// THE LAYOUT LAW (S7): rows from LOOP_TOOLS; every LOOP_ROWS cell must
-// resolve for every tool (a missing cell throws); one DEAD-LEVEL arrow
-// per tool through the four stages, proven pairwise — level arrows on
-// distinct row centers cannot cross. A green build is the proof.
+// THE LAYOUT LAW (S7 → ALL-25): rows from PROBLEM_SHEET in its order;
+// LOOP_BY_TOOL must cover exactly those keys; every row must carry all
+// four cells (missing throws); one DEAD-LEVEL arrow per tool, proven
+// pairwise — level arrows on distinct row centers cannot cross. A green
+// build is the proof.
 const S7_LAYOUT = (() => {
-  const stages = LOOP_ROWS.map(([beat]) => beat);
-  if (stages.length !== 4) throw new Error('slide 07: the loop has four beats');
-  const rows = LOOP_TOOLS.map((tool, i) => {
-    const cells = LOOP_ROWS.map((row) => row[i + 1]);
-    if (cells.some((c) => !c)) throw new Error(`slide 07: ${tool} is missing a beat cell`);
+  if (S7_BEATS.length !== 4) throw new Error('slide 07: the loop has four beats');
+  const tools = PROBLEM_SHEET.flatMap(({ tools: t }) => t as readonly string[]);
+  if (tools.length !== 25) throw new Error(`slide 07: the sheet must hold twenty-five tools — got ${tools.length}`);
+  const missing = tools.filter((t) => !(t in LOOP_BY_TOOL));
+  const extra = Object.keys(LOOP_BY_TOOL).filter((k) => !tools.includes(k));
+  if (missing.length || extra.length) throw new Error(`slide 07: LOOP_BY_TOOL drifted from the sheet — missing [${missing.join(', ')}], extra [${extra.join(', ')}]`);
+  const rows = tools.map((tool, i) => {
+    const cells = LOOP_BY_TOOL[tool];
+    if (cells.length !== 4 || cells.some((c) => !c)) throw new Error(`slide 07: ${tool} is missing a beat cell`);
     return { tool, cells, y: S7_GEOM.HEAD + i * S7_GEOM.ROW_H + S7_GEOM.ROW_H / 2 };
   });
   for (let a = 0; a < rows.length; a += 1) {
@@ -860,9 +887,9 @@ const S7_LAYOUT = (() => {
       if ((rows[a].y - rows[b].y) * (rows[a].y - rows[b].y) <= 0) throw new Error('slide 07: arrows would cross or overlap — the rows must keep distinct centers');
     }
   }
-  return { stages, rows } as const;
+  return { rows } as const;
 })();
-const S7_H = S7_GEOM.HEAD + LOOP_TOOLS.length * S7_GEOM.ROW_H;
+const S7_H = S7_GEOM.HEAD + S7_LAYOUT.rows.length * S7_GEOM.ROW_H;
 
 // DECK-08 (PR-VOICE → PR-S8-DATAFLOW): the four things every document
 // carries, [name, desc]. The static two-column field table died (SHOW
@@ -2899,16 +2926,15 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── DECK-07 / THE LOOP (PR-DATAFLOW) — the loop DRAWN as data
-            flow: the five tools (named, dark tier) travel four stage
-            panels — DISCOVER → DECIDE → COMMIT → RECORD, headers faint,
-            stage names derived from LOOP_ROWS — on one dead-level arrow
-            per tool, row for row, zero crossings by the S7_LAYOUT law
-            (it throws at build). COMMIT wears the deck's ring (the
-            pull-out — each tool's trigger by name); RECORD is the
-            landing, tagged 'no home yet → Step 8'. The floating beat
-            band and the static 5×4 table died — the beats ARE the moves
-            block, and no grid repeats the drawing (Deck Law 7). */}
+      {/* ── DECK-07 / THE LOOP (PR-ALL-25) — ALL twenty-five tools
+            travel the four stage panels — DISCOVER → DECIDE → COMMIT →
+            RECORD, headers faint — on one dead-level arrow per tool, row
+            for row in PROBLEM_SHEET order, zero crossings by the
+            S7_LAYOUT law (it throws at build). COMMIT wears the deck's
+            ring (the pull-out — each tool's trigger by name); RECORD is
+            the landing, tagged '→ Step 8' — its column is, by name,
+            exactly what slide 08 catches (one source, LOOP_BY_TOOL, zero
+            drift). No grid repeats the drawing (Deck Law 7). */}
       <section id="deck-07" aria-label="The loop" className={openSteps[6] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
@@ -2935,7 +2961,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(c)</span> Commit — pull the trigger; the world moves.</p>
           <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(d)</span> Record — it is written down forever.</p>
 
-          <p className="mt-10 lg:mt-[76px] text-[12px] lg:text-[14px] text-text-faint">five of twenty-five — every tool runs these same four beats.</p>
+          <p className="mt-10 lg:mt-[76px] text-[12px] lg:text-[14px] text-text-faint">twenty-five of twenty-five — every tool runs these same four beats.</p>
 
           {/* THE LOOP, desktop (PR-DATAFLOW) — five level arrows through
               four stages. */}
@@ -2946,7 +2972,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                 <div key={r.tool} style={{ height: S7_GEOM.ROW_H }} className={`flex items-center overflow-hidden px-[8px] font-mono text-[7px] uppercase tracking-[0.12em] text-brand-purple ${i < S7_LAYOUT.rows.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>{r.tool}</div>
               ))}
             </div>
-            {S7_LAYOUT.stages.map((stage, s) => (
+            {S7_BEATS.map((stage, s) => (
               <div key={stage} className={`absolute top-0 border border-border bg-white ${stage === 'COMMIT' ? 'ring-1 ring-inset ring-brand-purple' : ''}`} style={{ left: `${(s7StageX(s) / S7_GEOM.W) * 100}%`, width: `${(S7_STAGE_W / S7_GEOM.W) * 100}%` }}>
                 <div style={{ height: S7_GEOM.HEAD }} className="flex items-center overflow-hidden bg-bg-row px-[8px] font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">{stage}</div>
                 {S7_LAYOUT.rows.map((r, i) => (
@@ -2964,26 +2990,27 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               </defs>
               {S7_LAYOUT.rows.map((r) => (
                 <g key={r.tool}>
-                  {S7_LAYOUT.stages.map((stage, s) => (
-                    <path key={stage} d={`M${s === 0 ? S7_GEOM.T_W : s7StageX(s - 1) + S7_STAGE_W} ${r.y} H${s7StageX(s)}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd={s === S7_LAYOUT.stages.length - 1 ? 'url(#s7-arrow)' : undefined} />
+                  {S7_BEATS.map((stage, s) => (
+                    <path key={stage} d={`M${s === 0 ? S7_GEOM.T_W : s7StageX(s - 1) + S7_STAGE_W} ${r.y} H${s7StageX(s)}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd={s === S7_BEATS.length - 1 ? 'url(#s7-arrow)' : undefined} />
                   ))}
                 </g>
               ))}
             </svg>
           </div>
           {/* The landing's tag — chrome, faint, seated under RECORD. */}
-          <p className="mt-2 hidden text-[12px] lg:block lg:text-[14px] text-text-faint" style={{ marginLeft: s7StageX(3) }}>no home yet → Step 8</p>
+          <p className="mt-2 hidden text-[12px] lg:block lg:text-[14px] text-text-faint" style={{ marginLeft: s7StageX(3) }}>→ Step 8</p>
 
-          {/* THE LOOP, mobile — one white card per tool, its four beats as
-              label → value lines (the 1–5 mobile idiom, no arrows). */}
+          {/* THE LOOP, mobile — one white card per tool, all twenty-five,
+              four beats as label → value lines (the 1–5 mobile idiom, no
+              arrows). */}
           <div className="mt-4 lg:hidden">
-            {LOOP_TOOLS.map((tool, i) => (
-              <div key={tool} className="mt-3 border border-border bg-white px-3 py-[10px] first:mt-0">
-                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-text-faint">{tool}</p>
-                {LOOP_ROWS.map(([beat, ...cells]) => (
-                  <div key={beat} className="mt-[6px] grid grid-cols-[74px_1fr] gap-2">
+            {S7_LAYOUT.rows.map((r) => (
+              <div key={r.tool} className="mt-3 border border-border bg-white px-3 py-[8px] first:mt-0">
+                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-text-faint">{r.tool}</p>
+                {S7_BEATS.map((beat, s) => (
+                  <div key={beat} className="mt-[4px] grid grid-cols-[74px_1fr] gap-2">
                     <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">{beat}</span>
-                    <span className="text-[11px] leading-[1.4] text-brand-purple">{cells[i]}</span>
+                    <span className="text-[10px] leading-[1.4] text-brand-purple">{r.cells[s]}</span>
                   </div>
                 ))}
               </div>
@@ -2992,7 +3019,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
 
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Twenty-five tools. Twenty-five loops. One shape!</p>
-          <p className={`mt-2 ${DECK.statement}`}>This loop is the blueprint — the shape we&apos;re building every tool toward. Today, hotel bookings commit for real; flights, trades, invoices, ledger entries, and filings run discover → decide → draft, and commit is the beat we&apos;re wiring to the same loop next.</p>
+          <p className={`mt-2 ${DECK.statement}`}>This loop is the blueprint — the shape we&apos;re building every tool toward. Today, hotel bookings commit for real; the rest run discover → decide → draft, and commit is the beat we&apos;re wiring to the same loop, tool by tool.</p>
           <p className={DECK.q}>Twenty-five loops. Where do all the commits land?</p>
         </div>
       </section>
@@ -3040,8 +3067,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <div className="relative mt-2 hidden lg:block" style={{ height: S8_H, maxWidth: S8_GEOM.W }}>
             <div className="absolute left-0 top-0 border border-border bg-white" style={{ width: `${(S8_GEOM.L_W / S8_GEOM.W) * 100}%` }}>
               <div style={{ height: S8_GEOM.HEAD }} className="flex items-center overflow-hidden bg-bg-row px-[8px] font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">ONE PER LOOP — TWENTY-FIVE</div>
+              {/* PR-ALL-25: each record BY NAME — LOOP_BY_TOOL's RECORD
+                  cell, exactly what slide 07's landing column wrote. */}
               {S8_LAYOUT.rows.map((r, i) => (
-                <div key={r.tool} style={{ height: S8_GEOM.ROW_H }} className={`flex items-center overflow-hidden px-[8px] font-mono text-[7px] text-brand-purple ${i < S8_LAYOUT.rows.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>{r.tool}</div>
+                <div key={r.tool} style={{ height: S8_GEOM.ROW_H }} className={`flex items-center overflow-hidden px-[8px] font-mono text-[7px] text-brand-purple ${i < S8_LAYOUT.rows.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>{LOOP_BY_TOOL[r.tool][3]}</div>
               ))}
             </div>
             <div className="absolute top-0 border border-border bg-white" style={{ left: `${(S8_GEOM.M_X / S8_GEOM.W) * 100}%`, width: `${(S8_GEOM.M_W / S8_GEOM.W) * 100}%` }}>
