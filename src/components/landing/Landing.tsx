@@ -1040,15 +1040,35 @@ const S9_LAYOUT = (() => {
 })();
 const S9_H = S9_GEOM.HEAD + S9_LAYOUT.rows.length * S9_GEOM.ROW_H;
 
-// DECK-10: the posting rules, [event, debit, credit] — debit/credit values
-// gold at the render.
-const POSTING_RULES = [
-  ['invoice issued', 'A/R', 'Revenue'],
-  ['payment received', 'Cash', 'A/R'],
-  ['stripe payout', 'Cash + Fees', 'Clearing'],
-  ['bill paid', 'A/P', 'Cash'],
-  ['payroll run', 'Wages + employer taxes', 'Cash + withholdings'],
-] as const;
+// DECK-10 (PR-S10-DATAFLOW): the posting rules, re-keyed by MATCHES tool
+// → [event, debit account, credit account] — slide 9's matched movers are
+// exactly the events a rule fires for; the S10_LAYOUT law asserts the
+// keys match 14/14 and that every row carries both accounts. The old
+// rule book's five rows carry verbatim (these are Alex's books — he
+// tunes accounts on Preview): four live here; the fifth, the
+// stripe-payout row, lives on as SALE_RULE under the worked sale (it is
+// what the three drawn lines demonstrate). Debit/credit account words
+// keep the gold money licence at the render. Feeds the middle panel
+// only — the static rules table retired (SHOW DON'T ECHO).
+const POSTING_RULES: Readonly<Record<string, readonly [string, string, string]>> = {
+  Invoicing: ['invoice issued', 'A/R', 'Revenue'],
+  Payments: ['payment received', 'Cash', 'A/R'],
+  Brokerage: ['fill', 'Investments', 'Cash'],
+  Travel: ['booking charged', 'Travel', 'Card Payable'],
+  Expenses: ['expense charged', 'Expense', 'Card Payable'],
+  'Fixed Assets': ['asset bought', 'Fixed Assets', 'Cash'],
+  'Bill Pay': ['bill paid', 'A/P', 'Cash'],
+  Payroll: ['payroll run', 'Wages + employer taxes', 'Cash + withholdings'],
+  Debt: ['debt payment', 'Loan Payable + Interest', 'Cash'],
+  'Sales Tax': ['sales tax paid', 'Sales Tax Payable', 'Cash'],
+  'Ent Filings': ['filing fee paid', 'Filing Fees', 'Cash'],
+  Retirement: ['contribution', 'Retirement', 'Cash'],
+  Banking: ['transfer', 'Cash (to)', 'Cash (from)'],
+  Tax: ['tax paid', 'Tax Expense', 'Cash'],
+};
+
+// the worked sale's rule — the old rule book's stripe-payout row, verbatim.
+const SALE_RULE = ['stripe payout', 'Cash + Fees', 'Clearing'] as const;
 
 // DECK-10 (PR-VOICE): the worked sale — the essay's 'Now watch it work'
 // sentence introduces the three drawn lines, which render ONCE with the
@@ -1066,6 +1086,45 @@ const SALE_LINES = [
   ['(2) Fees', '3.20'],
   ['(3) Cash', '96.80'],
 ] as const;
+
+// S10-GEOM: matched events, THE RULE pull-out, the posting table filling
+// — all top-aligned on one row grid, so every arrow runs DEAD LEVEL (the
+// S6–S9 tight pitch). HEAD is tall enough for the posting panel's
+// three-line header; all three panels share it so the rows stay aligned.
+const S10_GEOM = { W: 1216, L_W: 320, M_X: 420, M_W: 280, R_X: 800, HEAD: 50, ROW_H: 20 } as const;
+
+// THE LAYOUT LAW (S10): fourteen rows from MATCHES in its ruled order —
+// slide 9's matches ARE slide 10's inputs. POSTING_RULES' keys must
+// equal MATCHES' keys both ways; every rule must carry both accounts;
+// the derived no-money set (PROBLEM_SHEET − MATCHES) must be exactly
+// eleven — the same eleven slide 9 named. One dead-level arrow per
+// event, proven pairwise — level arrows on distinct row centers cannot
+// cross. THROWS at build on any violation; a green build is the proof.
+const S10_LAYOUT = (() => {
+  const matched = Object.keys(MATCHES);
+  const ruled = Object.keys(POSTING_RULES);
+  if (matched.length !== 14 || ruled.length !== 14) throw new Error(`slide 10: expected fourteen matched events and fourteen rules — got ${matched.length}/${ruled.length}`);
+  const bad = matched.filter((k) => !(k in POSTING_RULES)).concat(ruled.filter((k) => !(k in MATCHES)));
+  if (bad.length) throw new Error(`slide 10: POSTING_RULES keys must equal MATCHES keys — bad [${bad.join(', ')}]`);
+  const empty = matched.filter((k) => !POSTING_RULES[k][1] || !POSTING_RULES[k][2]);
+  if (empty.length) throw new Error(`slide 10: every rule needs both accounts — missing on [${empty.join(', ')}]`);
+  const noMoney = PROBLEM_SHEET.flatMap(({ tools: t }) => t as readonly string[]).filter((t) => !(t in MATCHES));
+  if (noMoney.length !== 11) throw new Error(`slide 10: expected eleven no-money tools — got ${noMoney.length}`);
+  const rows = matched.map((tool, i) => ({
+    tool,
+    event: POSTING_RULES[tool][0],
+    debit: POSTING_RULES[tool][1],
+    credit: POSTING_RULES[tool][2],
+    y: S10_GEOM.HEAD + i * S10_GEOM.ROW_H + S10_GEOM.ROW_H / 2,
+  }));
+  for (let a = 0; a < rows.length; a += 1) {
+    for (let b = a + 1; b < rows.length; b += 1) {
+      if (rows[a].y === rows[b].y) throw new Error('slide 10: arrows would cross or overlap — the rows must keep distinct centers');
+    }
+  }
+  return { rows, noMoney } as const;
+})();
+const S10_H = S10_GEOM.HEAD + S10_LAYOUT.rows.length * S10_GEOM.ROW_H;
 
 // DECK-11: four questions and their math, the math pre-split so the deck's
 // money words ink gold. Row 3 has no money word and that is the deck's own
@@ -3307,10 +3366,20 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── DECK-10 / THE POSTING. Definition strip (the border-y strip
-            idiom), the rules table with gold debit/credit values, the worked
-            sale, and the no-money strip. Gold here is exactly its licence:
-            dollar amounts and debit/credit values. */}
+      {/* ── DECK-10 / THE POSTING (PR-S10-DATAFLOW) — the deck's longest
+            payoff, drawn: posting took zero feeds at step 5; slide 9
+            closed on who writes the debits and credits; here the
+            fourteen matched money events (MATCHES order — 9's matches
+            ARE 10's inputs) each pull out their rule — debit account ·
+            credit account, accounts gold (the money licence) — and one
+            DEAD-LEVEL arrow writes the two lines into the posting
+            table, slide 5's box now filling (same dashed border, the
+            echo). Fourteen arrows, zero crossings by the S10_LAYOUT law
+            (it throws at build). The static rules table retired (SHOW
+            DON'T ECHO) — POSTING_RULES feeds the middle panel only; the
+            stripe-payout rule lives on under the worked sale. The
+            no-money eleven derive from the sheet — the same eleven
+            slide 9 named. Three moves, no padding. */}
       <section id="deck-10" aria-label="The posting" className={openSteps[9] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
@@ -3330,39 +3399,82 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             It is the same trick as Step 4. A rule is one written row that makes one decision. There, the rules gave kinds. Here, the rules write lines.
           </p>
 
-          <div className="mt-10 lg:mt-[76px] border-y border-border py-[14px]">
-            <p className="text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">Every time money moves, the rule writes two lines:</p>
-            <p className="mt-2 text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">(1) a credit, for where the money came from,</p>
-            <p className="mt-2 text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">(2) a debit, for where it went.</p>
-            <p className="mt-2 text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">You never type them!</p>
-            <p className="mt-2 font-mono text-[11px] lg:text-[12px] text-text-faint">Four quick glosses before we go on: A/R means money owed TO you. A/P means money YOU owe. Clearing means a holding bin that must end at zero. Withholdings means tax held back from a paycheck before it reaches anyone.</p>
+          {/* The three moves — real flow, no padding; labels faint. */}
+          <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is three moves:</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(a)</span> Take the matched money events from Step 9 — fourteen, each confirmed by the world.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(b)</span> Pull out each one&apos;s rule: which account takes the debit, which takes the credit.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(c)</span> The rule writes the two lines into the posting table. You never type them.</p>
+
+          {/* THE POSTING, desktop (PR-S10-DATAFLOW) — the 1–5 corridor:
+              matched events, THE RULE pull-out, the posting table
+              filling. */}
+          <div className="relative mt-[14px] hidden lg:mt-8 lg:block" style={{ height: S10_H, maxWidth: S10_GEOM.W }}>
+            <div className="absolute left-0 top-0 border border-border bg-white" style={{ width: `${(S10_GEOM.L_W / S10_GEOM.W) * 100}%` }}>
+              <div style={{ height: S10_GEOM.HEAD }} className="flex items-center overflow-hidden bg-bg-row px-[8px] border-b border-b-border">
+                <span className={DECK.rust}>MATCHED — confirmed by the world</span>
+              </div>
+              {S10_LAYOUT.rows.map((r, i) => (
+                <div key={r.tool} style={{ height: S10_GEOM.ROW_H }} className={`flex items-center overflow-hidden px-[8px] font-mono text-[7px] text-brand-purple ${i < S10_LAYOUT.rows.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>{r.event}</div>
+              ))}
+            </div>
+            <div className="absolute top-0 border border-border bg-white" style={{ left: `${(S10_GEOM.M_X / S10_GEOM.W) * 100}%`, width: `${(S10_GEOM.M_W / S10_GEOM.W) * 100}%` }}>
+              <div style={{ height: S10_GEOM.HEAD }} className="flex items-center gap-[10px] overflow-hidden bg-bg-row px-[8px] border-b border-b-border">
+                <span className="h-px flex-1 bg-border" aria-hidden="true" />
+                <span className="font-mono text-[10px] font-semibold tracking-[0.12em] text-brand-purple">THE RULE</span>
+                <span className="h-px flex-1 bg-border" aria-hidden="true" />
+              </div>
+              {S10_LAYOUT.rows.map((r, i) => (
+                <div key={r.tool} style={{ height: S10_GEOM.ROW_H }} className={`flex items-center overflow-hidden px-[8px] font-mono text-[7px] ${i < S10_LAYOUT.rows.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                  <span className="whitespace-nowrap"><span className="text-text-faint">debit </span><span className="text-brand-gold">{r.debit}</span><span className="text-text-faint"> · credit </span><span className="text-brand-gold">{r.credit}</span></span>
+                </div>
+              ))}
+            </div>
+            <div className="absolute top-0 border border-dashed border-text-faint bg-white" style={{ left: `${(S10_GEOM.R_X / S10_GEOM.W) * 100}%`, width: `${((S10_GEOM.W - S10_GEOM.R_X) / S10_GEOM.W) * 100}%` }}>
+              <div style={{ height: S10_GEOM.HEAD }} className="overflow-hidden bg-bg-row pt-[5px] border-b border-b-border">
+                <p className={`px-[8px] leading-[1.3] ${DECK.rust}`}>POSTING — debits and credits</p>
+                <p className="mt-[2px] px-[8px] font-mono text-[8px] leading-[1.3] text-text-faint">the table that took zero at Step 5</p>
+                <div className="mt-[3px] grid grid-cols-2 font-mono text-[7px] leading-[1.3] uppercase tracking-[0.14em] text-text-faint">
+                  <span className="px-[8px]">DEBIT</span><span className="px-[8px]">CREDIT</span>
+                </div>
+              </div>
+              {S10_LAYOUT.rows.map((r, i) => (
+                <div key={r.tool} style={{ height: S10_GEOM.ROW_H }} className={`grid grid-cols-2 items-center font-mono text-[7px] text-brand-gold ${i < S10_LAYOUT.rows.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                  <span className="overflow-hidden whitespace-nowrap px-[8px]">{r.debit}</span>
+                  <span className="overflow-hidden whitespace-nowrap px-[8px]">{r.credit}</span>
+                </div>
+              ))}
+            </div>
+            <svg viewBox={`0 0 ${S10_GEOM.W} ${S10_H}`} preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full text-brand-purple">
+              <defs>
+                <marker id="s10-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="6" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto">
+                  <path d="M0 0 L8 4 L0 8 z" fill="currentColor" />
+                </marker>
+              </defs>
+              {S10_LAYOUT.rows.map((r) => (
+                <g key={r.tool}>
+                  <path d={`M${S10_GEOM.L_W} ${r.y} H${S10_GEOM.M_X}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" />
+                  <path d={`M${S10_GEOM.M_X + S10_GEOM.M_W} ${r.y} C ${(S10_GEOM.M_X + S10_GEOM.M_W + S10_GEOM.R_X) / 2} ${r.y}, ${(S10_GEOM.M_X + S10_GEOM.M_W + S10_GEOM.R_X) / 2} ${r.y}, ${S10_GEOM.R_X} ${r.y}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd="url(#s10-arrow)" />
+                </g>
+              ))}
+            </svg>
           </div>
 
-          <table className={`mt-10 lg:mt-[76px] ${DECK.table}`}>
-            <thead>
-              <tr>
-                {([
-                  ['EVENT', 'w-[40%] lg:w-[36%]'], ['DEBIT', 'w-[30%] lg:w-[32%]'], ['CREDIT', 'w-[30%] lg:w-[32%]'],
-                ] as const).map(([head, w]) => (
-                  <th key={head} scope="col" className={`${w} ${DECK.th}`}>{head}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {POSTING_RULES.map(([event, debit, credit], r) => {
-                const rule = r === POSTING_RULES.length - 1 ? '' : DECK.rule;
-                return (
-                  <tr key={event}>
-                    <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}>{event}</td>
-                    <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-gold`}>{debit}</td>
-                    <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-gold`}>{credit}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          {/* THE POSTING, mobile (PR-S10-DATAFLOW) — the 1–5 mobile
+              idiom: no arrows; fourteen compact cards, each event and
+              the rule&apos;s two lines. */}
+          <div className="mt-[14px] lg:hidden">
+            {S10_LAYOUT.rows.map((r) => (
+              <div key={r.tool} className="mt-3 border border-border bg-white px-3 py-[8px] first:mt-0">
+                <span className="font-mono text-[10px] text-brand-purple">{r.event}</span>
+                <p className="mt-[3px] font-mono text-[10px] leading-[1.5]"><span className="text-text-faint">debit </span><span className="text-brand-gold">{r.debit}</span><span className="text-text-faint"> · credit </span><span className="text-brand-gold">{r.credit}</span></p>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-[22px] lg:mt-8 font-mono text-[11px] lg:text-[12px] text-text-faint">Four quick glosses before we go on: A/R means money owed TO you. A/P means money YOU owe. Clearing means a holding bin that must end at zero. Withholdings means tax held back from a paycheck before it reaches anyone.</p>
 
           <p className={`mt-10 lg:mt-[76px] ${DECK.rust}`}>ONE SALE, THREE LINES</p>
+          <p className="mt-[14px] font-mono text-[11px] lg:text-[12px]"><span className="text-brand-purple">{SALE_RULE[0]}</span><span className="text-text-faint"> — debit </span><span className="text-brand-gold">{SALE_RULE[1]}</span><span className="text-text-faint"> · credit </span><span className="text-brand-gold">{SALE_RULE[2]}</span></p>
           <p className="mt-[14px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
             <GoldSegments segments={SALE_SENTENCE} />
           </p>
@@ -3377,9 +3489,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <p className={`mt-[14px] ${DECK.statement}`}>And the deposit matches the bank to the penny!</p>
 
           <p className={`mt-10 lg:mt-[76px] ${DECK.rust}`}>WHO NEVER TOUCHES MONEY</p>
-          <p className="mt-[14px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
-            {'One more truth: some tools never touch money. Calendar, Tasks, Time, CRM, Compliance, Budget, and FP&A never write a line. Your hours reach the books one way only; through Payroll.'}
-          </p>
+          <p className="mt-[14px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">{`One more truth: some tools never touch money. ${S10_LAYOUT.noMoney.join(', ')} never write a line. Your hours reach the books one way only; through Payroll.`}</p>
+
+          <p className={`mt-2 ${DECK.statement}`}>The posting table is the blueprint — today it holds zero lines. The rules writing them is the bookkeeping pipe we&apos;re building.</p>
 
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={DECK.q}>So what do all those lines add up to?</p>
