@@ -612,30 +612,68 @@ const S4_CONVERGE: Readonly<Record<string, number>> = { chase: -3, boa: 3 };
 // tables.') typed at the render, not a trio. The three tests live in git
 // history if a surface ever wants them back.
 
-// HANDOFF-KINDS (PR-DECK → PR-SIX): the six tables a kind can address, for the
-// 05 / THE HANDOFF slide, as [kind, holds]. The deck writes the kinds
-// lowercase here — on 04 they are addresses, not shouted vocabulary — and
-// collapses the old kind/table pair into one word, since the kind IS the
-// table name. Kind words are the one non-money place gold is allowed.
+// HANDOFF-KINDS (PR-DECK → PR-SIX → PR-S5): the six tables a kind can
+// address, for 05 / THE ADDRESS, as [kind, holds]. The deck writes the
+// kinds lowercase here — on 05 they are addresses, not shouted
+// vocabulary — and collapses the old kind/table pair into one word, since
+// the kind IS the table name. Kind words are the one non-money place gold
+// is allowed.
 //
 // SIX KINDS HERE, FIVE IN ROUTING_RULES, AND THAT IS CORRECT — nothing ever
-// ARRIVES as a posting: postings are what the system writes from events. The
-// deck's notice block under the table says exactly this on screen.
+// ARRIVES as a posting: postings are what the system writes from events.
+// Posting's own box says exactly this on screen, in the essay's words.
 //
-// ORDER IS THE ARGUMENT, not the alphabet: world data first (reference), then
-// who you are (registry), then what happened (event), then how things stood
-// (snapshot), then what that did to the money (posting), then what you
-// concluded (derived).
+// ORDER IS THE ARGUMENT, not the alphabet — the essay's Step 5 list: world
+// data first (reference), then who you are (registry), then what happened
+// (event), then what you concluded (derived), then how things stood
+// (snapshot), and last the table nothing from outside ever fills (posting).
 //
 // NO ROW IS EMPHASISED, deliberately — the six kinds are peers.
 const HANDOFF_KINDS = [
   ['reference', 'facts about the world'],
   ['registry', 'your accounts and your people'],
   ['event', 'what happened'],
+  ['derived', 'math we did'],
   ['snapshot', 'how things stood at one moment'],
   ['posting', 'debits and credits'],
-  ['derived', 'math we did'],
 ] as const;
+
+// ── PR-S5 / THE ADDRESS. Step 5's drawing: the rule book's twenty rows fan
+// into six kind-table boxes — the boxes ARE the old handoff table now, so
+// HANDOFF_KINDS has exactly one renderer again.
+
+// S5-BOXES: [kind, holds, count] — the box list. Gloss strings ride
+// HANDOFF_KINDS untouched; each kind's count is its rule rows in
+// ROUTING_RULES, DERIVED, never retyped (posting: zero by construction —
+// no POSTING row exists, the closed-set law above). The verify script
+// asserts the counts sum to ROUTING_RULES.length.
+const S5_BOXES = HANDOFF_KINDS.map(
+  ([kind, holds]) => [kind, holds, ROUTING_RULES.filter(([, , k]) => k.toLowerCase() === kind).length] as const,
+);
+// a kind's rule rows, in rule-book order — drives tails and heads alike.
+const s5RowsOf = (kind: string) => ROUTING_RULES.flatMap(([, , k], r) => (k.toLowerCase() === kind ? [r] : []));
+
+// S5-GEOM: the S2/S3/S4 sibling. Rule book x 0..RB_W (HEAD + 20·ROW_H
+// tall); six boxes at BX_L, BOX_H tall on a BOX_H+GAP pitch — the
+// drawing's height is the boxes' column, derived, not typed; and
+// BX_L + BX_W == W. FX..W is the head fan zone (CTRL its control x).
+const S5_GEOM = {
+  W: 1216, RB_W: 380, HEAD: 26, ROW_H: 24,
+  BX_L: 896, BX_W: 320, BOX_H: 90, GAP: 18, FX: 820, CTRL: 858,
+} as const;
+const S5_H = 5 * (S5_GEOM.BOX_H + S5_GEOM.GAP) + S5_GEOM.BOX_H;
+const s5RowY = (r: number) => S5_GEOM.HEAD + r * S5_GEOM.ROW_H + S5_GEOM.ROW_H / 2;
+const s5BoxTop = (b: number) => b * (S5_GEOM.BOX_H + S5_GEOM.GAP);
+const s5Cy = (b: number) => s5BoxTop(b) + S5_GEOM.BOX_H / 2;
+
+// S5-LANES: the five kind trunks' x, left→right — the CD-S5 brute-forced
+// optimum over all 120 lane orders (derived · reference · event ·
+// snapshot · registry). Ten crossings, the lane minimum; every one lands
+// on a pair the rule book's fixed order forces to cross (a crossing-free
+// 05 does not exist — CD-S5's proof). Posting has no lane and no arrows.
+const S5_LANES: Readonly<Record<string, number>> = {
+  derived: 480, reference: 555, event: 630, snapshot: 705, registry: 780,
+};
 
 // PR-S3-COHESION: IMPORT_TRIO retired — the essay merged the three
 // promises (and the census + handshake lines) into Step 3's single tail
@@ -2403,24 +2441,16 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── HANDOFF-05 / FIVE. THE KIND IS THE ADDRESS (PR-DECK reconcile).
-            Act grammar unchanged: same container, act padding, border-t
-            closing the routing|handoff seam. Everything is weight 400 — every
-            th carries an explicit font-normal because Preflight does not reset
-            the UA's `th { font-weight: bold }`.
-
-            TWO COLUMNS NOW. The deck collapsed the old kind/table pair into
-            one lowercase word (the kind IS the table's name on this slide, so
-            a second column would repeat it) and renamed the prose column
-            HOLDS. KIND stays gold — kind words are gold's one non-money
-            licence — and the aria-hidden arrow stays presentation, not data,
-            right-aligned in the KIND cell so kind→holds reads as one movement.
-
-            NO ROW IS EMPHASISED — the six kinds are peers.
-
-            THE ENDING GREW A NOTICE BLOCK: statement, then three
-            statement-tier lines the deck uses to set up 05 and 09 (posting is
-            the one table nobody sends you), then the closing question. */}
+      {/* ── PR-S5 / SIX. THE KIND IS THE ADDRESS — Step 5 in full. Act
+            grammar unchanged: same container, act padding, border-t closing
+            the routing|handoff seam. Body: the essay's Step 5 moves block
+            (slide-01 grammar), then THE ADDRESS drawn — the rule book's
+            twenty rows (slide 04's order, MEANS dropped) fanning into six
+            kind-table boxes in HANDOFF_KINDS order, twenty arrows on five
+            trunk lanes, posting's box empty but for the essay's line — and
+            the consolidated tail paragraph. The old kind table, its aria
+            arrow, the divider, the twenty-five-tools standalone, the notice
+            block and the census receipt all retired into the paragraph. */}
       <section id="deck-05" aria-label="The handoff" className={openSteps[4] ? 'max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border' : DECK.sectionBar}>
         <button
           type="button"
@@ -2440,53 +2470,111 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             Now we take every labeled arrival and move it into a table; one table per kind.
           </p>
 
-          <table className="mt-10 lg:mt-[76px] w-full table-fixed border-separate border-spacing-0 border border-border">
-            <thead>
-              <tr>
-                {([
-                  ['KIND', 'w-[32%] lg:w-[16%]'], ['HOLDS', 'w-[68%] lg:w-[84%]'],
-                ] as const).map(([head, w]) => (
-                  <th
-                    key={head}
-                    scope="col"
-                    className={`${w} bg-bg-row px-[11px] py-[9px] lg:px-5 lg:py-3 text-left align-top font-mono text-[10px] lg:text-[11px] font-normal uppercase tracking-[0.18em] text-text-faint border-b border-b-border`}
-                  >
-                    {head}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {HANDOFF_KINDS.map(([kind, holds], r) => {
-                const rule = r === HANDOFF_KINDS.length - 1 ? '' : 'border-b-[0.75px] border-b-text-faint';
-                const pad = 'px-[11px] py-[9px] lg:px-5 lg:py-[11px]';
+          {/* PR-S5: the essay's Step 5 moves block, verbatim — slide-01
+              grammar, gold letter tier, the #1600 rhythm. */}
+          <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is four moves:</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(a)</span> Start from the rule book Step 4 built.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(b)</span> Create one table per kind: six tables, six names.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(c)</span> Send every feed&apos;s arrivals to the table its kind names. The kind is the address.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(d)</span> Look at what landed. The outside world fills four tables. Math we ordered fills derived. Posting stays empty.</p>
+
+          {/* THE ADDRESS, desktop (PR-S5) — the rule book (slide 04's twenty
+              rows, same order, MEANS dropped: 04 taught the words, 05 uses
+              them as addresses) fans into six kind-table boxes in
+              HANDOFF_KINDS order. Twenty arrows ride five kind trunks
+              (S5_LANES): 20 row tails, 5 trunks + 5 entries, 20 heads
+              fanning at 6px pitch so reference's eleven never stack — the
+              S4 converge idiom generalized; each segment draws once so the
+              2-4 dash never doubles. Ten crossings, the lane minimum, each
+              on a pair the fixed order forces to cross. Posting: no lane,
+              no arrows, count 0 — its box carries the essay's line. */}
+          <div className="relative mt-[14px] hidden lg:mt-8 lg:block" style={{ height: S5_H, maxWidth: S5_GEOM.W }}>
+            <div className="absolute left-0 top-0 border border-border bg-white" style={{ width: `${(S5_GEOM.RB_W / S5_GEOM.W) * 100}%` }}>
+              <div style={{ height: S5_GEOM.HEAD }} className="grid grid-cols-[130px_150px_1fr] items-center overflow-hidden bg-bg-row font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">
+                <span className="px-[6px]">PROVIDER</span><span className="px-[6px]">RESOURCE</span><span className="px-[6px]">KIND</span>
+              </div>
+              {ROUTING_RULES.map(([p, r, kind], j) => (
+                <div key={`${p}-${r}`} style={{ height: S5_GEOM.ROW_H }} className={`grid grid-cols-[130px_150px_1fr] items-center font-mono text-[7px] ${j < ROUTING_RULES.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                  <span className="overflow-hidden whitespace-nowrap px-[6px] text-brand-purple">{p}</span>
+                  <span className="overflow-hidden whitespace-nowrap px-[6px] text-text-faint">{r}</span>
+                  <span className="overflow-hidden whitespace-nowrap px-[6px] uppercase text-brand-gold">{kind}</span>
+                </div>
+              ))}
+            </div>
+            {S5_BOXES.map(([kind, holds, n], b) => (
+              <div key={kind} className="absolute border border-border bg-white" style={{ left: `${(S5_GEOM.BX_L / S5_GEOM.W) * 100}%`, top: s5BoxTop(b), width: `${(S5_GEOM.BX_W / S5_GEOM.W) * 100}%`, height: S5_GEOM.BOX_H }}>
+                <div className="flex items-baseline justify-between px-[14px] pt-3">
+                  <span className="font-mono text-[13px] text-brand-gold">{kind}</span>
+                  <span className="font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint">{n} {n === 1 ? 'FEED' : 'FEEDS'}</span>
+                </div>
+                <p className="mt-[6px] px-[14px] text-[11px] leading-[1.4] text-text-faint">holds {holds}</p>
+                {kind === 'posting' && <p className="mt-2 px-[14px] text-[11px] leading-[1.4] text-brand-purple">Nobody sends you debits and credits.</p>}
+              </div>
+            ))}
+            <svg viewBox={`0 0 ${S5_GEOM.W} ${S5_H}`} preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full text-brand-purple">
+              <defs>
+                <marker id="s5-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto">
+                  <path d="M0 0 L8 4 L0 8 z" fill="currentColor" />
+                </marker>
+              </defs>
+              {ROUTING_RULES.map(([p, r, kind], j) => (
+                <path key={`${p}-${r}`} d={`M${S5_GEOM.RB_W} ${s5RowY(j)} H${S5_LANES[kind.toLowerCase()]}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" />
+              ))}
+              {S5_BOXES.map(([kind, , n], b) => {
+                if (n === 0) return null;
+                const ys = [...s5RowsOf(kind).map(s5RowY), s5Cy(b)];
                 return (
-                  <tr key={kind}>
-                    <td className={`${pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-gold`}>
-                      <span className="flex items-baseline justify-between gap-2">
-                        {kind}
-                        <span aria-hidden="true" className="text-text-muted">→</span>
-                      </span>
-                    </td>
-                    <td className={`${pad} ${rule} align-top text-[11px] leading-[1.4] lg:text-[13px] lg:leading-normal text-text-faint`}>{holds}</td>
-                  </tr>
+                  <g key={kind}>
+                    <path d={`M${S5_LANES[kind]} ${Math.min(...ys)} V${Math.max(...ys)}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" />
+                    <path d={`M${S5_LANES[kind]} ${s5Cy(b)} H${S5_GEOM.FX}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" />
+                  </g>
                 );
               })}
-            </tbody>
-          </table>
-
-          <div className="mt-10 lg:mt-[76px] h-px w-full bg-border" aria-hidden="true" />
-          <p className="mt-[22px] lg:mt-8 text-[17px] lg:text-[28px] text-brand-purple">
-            Twenty-five tools, six tables; because we sorted by what a thing is, not by which tool it came from.
-          </p>
-          <div className="mt-[14px] lg:mt-5">
-            <p className="text-[12px] lg:text-[14px] text-text-faint">But notice something strange here!</p>
-            <p className="mt-2 text-[12px] lg:text-[14px] text-text-faint">(1) Providers only ever fill four of the six: reference, registry, event, and snapshot.</p>
-            <p className="mt-2 text-[12px] lg:text-[14px] text-text-faint">(2) Derived is filled only by our own math.</p>
-            <p className="mt-2 text-[12px] lg:text-[14px] text-text-faint">(3) And posting? Nothing from the outside world ever lands there. Nobody sends you debits and credits. Remember that; it matters soon.</p>
+              {S5_BOXES.map(([kind, , n], b) =>
+                s5RowsOf(kind).map((row, i) => {
+                  const hy = s5Cy(b) + (i - (n - 1) / 2) * 6;
+                  return <path key={`${kind}-${row}`} d={`M${S5_GEOM.FX} ${s5Cy(b)} C ${S5_GEOM.CTRL} ${s5Cy(b)}, ${S5_GEOM.CTRL} ${hy}, ${S5_GEOM.BX_L} ${hy}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd="url(#s5-arrow)" />;
+                }),
+              )}
+            </svg>
           </div>
-          {/* PR-SIX: the essay's census receipt, verbatim. */}
-          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>We did not guess this. We classified every one of the 121 feeds — August 24, 2026 — and posting took zero. The data agreed!</p>
+
+          {/* THE ADDRESS, mobile (PR-S5) — stacked per the BuildSpec: the
+              rule book condensed, then the six boxes with their count tags
+              (the arrows collapse to the tags — the chrome line below the
+              stack rides the CD-S5 mockup), posting carrying its line. */}
+          <div className="mt-[14px] lg:hidden">
+            <div className="border border-border bg-white">
+              <div className="grid h-[22px] grid-cols-[96px_96px_1fr] items-center overflow-hidden bg-bg-row font-mono text-[6.5px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">
+                <span className="px-[6px]">PROVIDER</span><span className="px-[6px]">RESOURCE</span><span className="px-[6px]">KIND</span>
+              </div>
+              {ROUTING_RULES.map(([p, r, kind], j) => (
+                <div key={`${p}-${r}`} className={`grid grid-cols-[96px_96px_1fr] font-mono text-[10px] leading-[1.4] ${j < ROUTING_RULES.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                  <span className="px-[6px] py-[3px] text-brand-purple">{p}</span>
+                  <span className="px-[6px] py-[3px] text-text-faint">{r}</span>
+                  <span className="px-[6px] py-[3px] uppercase text-brand-gold">{kind}</span>
+                </div>
+              ))}
+            </div>
+            {S5_BOXES.map(([kind, holds, n]) => (
+              <div key={kind} className="mt-3 border border-border bg-white px-3 py-[10px]">
+                <div className="flex items-baseline justify-between">
+                  <span className="font-mono text-[12px] text-brand-gold">{kind}</span>
+                  <span className="font-mono text-[6.5px] uppercase tracking-[0.14em] text-text-faint">{n} {n === 1 ? 'FEED' : 'FEEDS'}</span>
+                </div>
+                <p className="mt-1 text-[10px] leading-[1.4] text-text-faint">holds {holds}</p>
+                {kind === 'posting' && <p className="mt-[6px] text-[10px] leading-[1.4] text-brand-purple">Nobody sends you debits and credits.</p>}
+              </div>
+            ))}
+            <p className="mt-4 font-mono text-[9px] text-text-faint">arrows collapse to the count tags — each box says how many rules send here</p>
+          </div>
+
+          {/* PR-S5: the tail is ONE paragraph — the essay's consolidated
+              Step 5 passage, verbatim, slide-01 body tier. The old kind
+              table, the divider, the twenty-five-tools statement, the
+              notice block and the census receipt all return inside it —
+              they render nowhere else now. */}
+          <p className="mt-8 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">Twenty-five tools, six tables; because we sorted by what a thing is, not by which tool it came from. But notice something strange here: (1) the outside world only ever fills four of the six — reference, registry, event, and snapshot; (2) derived is filled only by math we ordered, our AIs included; (3) and posting? Nothing from the outside world ever lands there. Nobody sends you debits and credits. Remember that; it matters soon. We did not guess this. We classified every one of the 121 feeds — August 24, 2026 — and posting took zero. The data agreed!</p>
           <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">Everything so far arrived from the world. So where do the things you do live?</p>
         </div>
       </section>
