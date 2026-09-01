@@ -730,31 +730,79 @@ const S5_H = S5_LAYOUT.centers[S5_LAYOUT.centers.length - 1] + S5_GEOM.POST_H / 
 // punctuation-derived.
 // ─────────────────────────────────────────────────────────────────────────
 
-// DECK-06 (PR-VOICE → PR-LANES): the observed and authored columns, each a
-// rust header over the essay's own sentences — one <p> per line, in the
-// column's prose tier. (The const keeps its historical LANE_COLUMNS name —
-// the lane metaphor died as rendered copy in PR-LANES; the identifier is
-// code, not copy.) AUTHORED's last
-// three lines are the essay's framing + (1)(2) draft/commit enumeration; the
-// '(N) ' prefixes are content, not styling.
-const LANE_COLUMNS = [
-  {
-    header: 'OBSERVED',
-    lines: [
-      'Look at everything we imported so far: deposits, charges, fills, quotes. (A fill is the broker saying your trade happened.)',
-      'All of it happened TO you. The world told you, and it arrived finished. You can never edit the past. We call these observed.',
-    ],
-  },
-  {
-    header: 'AUTHORED',
-    lines: [
-      'But running a business is not just watching! You book flights. You send invoices. You place trades. You file paperwork. These are things YOU make happen. We call these authored.',
-      'An authored thing does not arrive finished:',
-      '(1) It starts as a draft.',
-      '(2) It becomes real only when you commit; you pull the trigger, and the outside world moves.',
-    ],
-  },
+// DECK-06 (PR-LANES → PR-S6-CORRIDOR): LANE_COLUMNS' prose columns
+// retired — the fork is DRAWN now, in the corridor idiom of 01–05, and
+// the echo/match nuance moved back to Step 9's slide. History holds the
+// const.
+
+// S6-TABLES: the six tables Step 5 landed, [name, holds, lane] — GROUPED
+// observed-first so the fork cannot cross. The order is this slide's own
+// (snapshot rises above derived to keep each lane contiguous); the HOLDS
+// glosses ride HANDOFF_KINDS by name, never retyped — an unknown name
+// throws at module load.
+const s6Gloss = (name: string) => {
+  const hit = HANDOFF_KINDS.find(([k]) => k === name);
+  if (!hit) throw new Error(`slide 06: ${name} is not a HANDOFF kind`);
+  return hit[1];
+};
+const S6_TABLES = ([
+  ['reference', 'observed'], ['registry', 'observed'], ['event', 'observed'],
+  ['snapshot', 'observed'], ['derived', 'authored'], ['posting', 'authored'],
+] as const).map(([name, lane]) => [name, s6Gloss(name), lane] as const);
+// the two lanes, [key, header, gloss] — headers render RUST, never gold.
+const S6_LANES = [
+  ['observed', 'OBSERVED', 'the world handed it to you — it arrived finished, you can\'t edit it'],
+  ['authored', 'AUTHORED', 'you made it happen'],
 ] as const;
+// S6-SIXTEEN (the reunion): Step 2's stay-home tools join the you-made
+// group as ONE labeled block — MUTED, never gold (it is not a table), the
+// count as its tag. [label, gloss, tag].
+const S6_SIXTEEN = ['THE SIXTEEN (Step 2)', 'the things you do: tasks · invoices · budget · bookings · trades · filings', '16'] as const;
+
+// S6-GEOM: the corridor. Left list x 0..L_W — two group panels, ROW_H
+// rows, GROUP_GAP between; the hinge node mid-corridor (HG_X..HG_X+HG_W,
+// HG_H tall); two lane cards at LN_X, LN_H tall; LN_X + LN_W == W. BRK is
+// the group-bracket spine x (ticks at BRK−6, stem to BRK+12) — the
+// slide-05 idiom.
+const S6_GEOM = {
+  W: 1216, L_W: 380, ROW_H: 28, GROUP_GAP: 24,
+  HG_X: 556, HG_W: 190, HG_H: 54, LN_X: 896, LN_W: 320, LN_H: 96, SIX_H: 56, BRK: 392,
+} as const;
+
+// THE LAYOUT LAW (S6 → REUNION, ruled — slide 05's fail-loud
+// discipline): the two lanes must be contiguous groups in the list, in
+// lane order; the SIXTEEN block rides INSIDE the you-made bracket, below
+// its two tables, and its center closes that group's span; each lane
+// card centers on its group's span; the fork stays monotonic because
+// group order == lane order. The build REFUSES — this throws at module
+// load, so prerender fails — if the groups break contiguity or order, the
+// lane cards would overlap, or the two connectors would cross. STILL two
+// bracket-connectors only, passing through the hinge; nothing else forks.
+const S6_LAYOUT = (() => {
+  const groups: Array<readonly [string, number, number]> = [];
+  S6_LANES.forEach(([lane]) => {
+    const rows = S6_TABLES.flatMap(([, , l], r) => (l === lane ? [r] : []));
+    if (rows.length === 0 || rows[rows.length - 1] - rows[0] + 1 !== rows.length) throw new Error(`slide 06: the ${lane} group is not one contiguous block`);
+    groups.push([lane, rows[0], rows[rows.length - 1]] as const);
+  });
+  if (groups[0][1] !== 0 || groups[1][1] !== groups[0][2] + 1) throw new Error('slide 06: the groups are out of lane order');
+  const rowY = (r: number) =>
+    (r <= groups[0][2] ? 0 : S6_GEOM.GROUP_GAP) + r * S6_GEOM.ROW_H + S6_GEOM.ROW_H / 2;
+  const sixTop = (groups[1][2] + 1) * S6_GEOM.ROW_H + S6_GEOM.GROUP_GAP;
+  const sixCenter = sixTop + S6_GEOM.SIX_H / 2;
+  const span = [
+    [rowY(groups[0][1]), rowY(groups[0][2])],
+    [rowY(groups[1][1]), sixCenter],
+  ] as const;
+  const centers = span.map(([a, b]) => (a + b) / 2);
+  if (centers[0] >= centers[1]) throw new Error('slide 06: connectors would cross — reorder the groups');
+  if (centers[0] + S6_GEOM.LN_H / 2 + 8 > centers[1] - S6_GEOM.LN_H / 2) throw new Error('slide 06: the lane cards would overlap');
+  return { groups, rowY, centers, span, sixTop } as const;
+})();
+const S6_H = Math.max(
+  S6_LAYOUT.sixTop + S6_GEOM.SIX_H,
+  S6_LAYOUT.centers[1] + S6_GEOM.LN_H / 2,
+);
 
 // DECK-07 (PR-VOICE): the four beats of the loop band, [beat, caption] —
 // captions are the essay's own beat lines, chains gloss inline. Punctuation
@@ -2619,11 +2667,17 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── DECK-06 / OBSERVED VS AUTHORED. First of the PR-DECK back nine. From
-            here down, the act grammar rides the module-scope DECK const so
-            nine acts cannot drift from 01–04 or from each other. Bare
-            two-column prose — the deck gives 05 no table. border-t closes
-            handoff|06 per the seam ledger. */}
+      {/* ── DECK-06 / OBSERVED VS AUTHORED (PR-S6-CORRIDOR) — the fork
+            drawn in the corridor idiom of 01–05: the six tables Step 5
+            landed flow in as two contiguous groups — the SIXTEEN stay-home
+            tools from Step 2 riding the you-made bracket (the reunion:
+            Step 2's 9/16 split pays off here) — the hinge node carries
+            the question, two lane cards land on the right. Lane headers
+            RUST; gold inks the six table names only (left rows + lane
+            members). The old prose columns and the two tail paragraphs
+            retired — the two-doors mechanic is the visual now, and the
+            echo/match nuance belongs at Step 9. border-t closes handoff|06
+            per the seam ledger. */}
       <section id="deck-06" aria-label="Observed vs authored" className={openSteps[5] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
@@ -2640,23 +2694,120 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             Some things happen to you.<br />Some things you make happen.
           </h2>
           <p className={DECK.sub}>
-            Every piece of data in the whole system is one of these two flavors. That&apos;s the whole trick.
+            Step 2 split your twenty-five tools — nine took providers, sixteen stayed home. Here is why that mattered.
           </p>
 
-          <div className="mt-10 lg:mt-[76px] grid gap-8 lg:grid-cols-2 lg:gap-12">
-            {LANE_COLUMNS.map((lane) => (
-              <div key={lane.header}>
-                <p className={DECK.rust}>{lane.header}</p>
-                {lane.lines.map((line, i) => (
-                  <p key={line} className={`${i === 0 ? 'mt-[10px]' : 'mt-3'} text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary`}>{line}</p>
+          {/* The four moves — muted labels, the slide-05 grammar. */}
+          <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is four moves:</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(a)</span> Take everything the system holds so far: the six tables, plus the sixteen tools that stayed home in Step 2.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(b)</span> Ask one question of each: did the world hand it to you finished, or did you make it?</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(c)</span> Sort into two lanes — observed (the world&apos;s, you can&apos;t edit it) and authored (yours).</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(d)</span> The world&apos;s four tables are observed. Your derived and posting are self-made. And the sixteen — your tasks, invoices, trades — are authored, with no table yet.</p>
+
+          {/* THE FORK, desktop (PR-S6-CORRIDOR) — two group panels (names
+              gold, the deck's kind licence), each collected by a square
+              hairline bracket sending ONE dotted muted connector THROUGH
+              the hinge — the fork question — into its lane card. Lane
+              headers RUST, never gold. Cards center on their source
+              groups; the S6_LAYOUT law throws at build if contiguity, the
+              card gap, or the crossing-freedom fails. */}
+          <div className="relative mt-[14px] hidden lg:mt-8 lg:block" style={{ height: S6_H, maxWidth: S6_GEOM.W }}>
+            {S6_LAYOUT.groups.map(([lane, r0, r1]) => (
+              <div key={lane} className="absolute left-0 border border-border bg-white" style={{ top: S6_LAYOUT.rowY(r0) - S6_GEOM.ROW_H / 2, width: `${(S6_GEOM.L_W / S6_GEOM.W) * 100}%` }}>
+                {S6_TABLES.slice(r0, r1 + 1).map(([name, holds], i) => (
+                  <div key={name} style={{ height: S6_GEOM.ROW_H }} className={`flex items-center gap-3 overflow-hidden px-[14px] ${i < r1 - r0 || lane === 'authored' ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                    <span className="whitespace-nowrap font-mono text-[12px] text-brand-gold">{name}</span>
+                    <span className="overflow-hidden whitespace-nowrap text-[11px] text-text-faint">{holds}</span>
+                  </div>
                 ))}
+                {lane === 'authored' && (
+                  <div style={{ height: S6_GEOM.SIX_H }} className="overflow-hidden px-[14px] pt-[6px]">
+                    <div className="flex items-baseline justify-between">
+                      <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-text-faint">{S6_SIXTEEN[0]}</span>
+                      <span className="font-mono text-[9px] tracking-[0.14em] text-text-faint">{S6_SIXTEEN[2]}</span>
+                    </div>
+                    <p className="mt-[2px] text-[11px] leading-[1.4] text-text-faint">{S6_SIXTEEN[1]}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+            <div className="absolute flex items-center border border-border bg-white px-[14px]" style={{ left: `${(S6_GEOM.HG_X / S6_GEOM.W) * 100}%`, top: (S6_LAYOUT.centers[0] + S6_LAYOUT.centers[1]) / 2 - S6_GEOM.HG_H / 2, width: `${(S6_GEOM.HG_W / S6_GEOM.W) * 100}%`, height: S6_GEOM.HG_H }}>
+              <p className="font-mono text-[10px] leading-[1.5] text-brand-purple">Did the world hand it to you, or did you make it?</p>
+            </div>
+            {S6_LANES.map(([lane, header, gloss], i) => (
+              <div key={lane} className="absolute border border-border bg-white px-[14px] py-[10px]" style={{ left: `${(S6_GEOM.LN_X / S6_GEOM.W) * 100}%`, top: S6_LAYOUT.centers[i] - S6_GEOM.LN_H / 2, width: `${(S6_GEOM.LN_W / S6_GEOM.W) * 100}%`, height: S6_GEOM.LN_H }}>
+                <p className={DECK.rust}>{header}</p>
+                <p className="mt-1 text-[11px] leading-[1.4] text-text-faint">{gloss}</p>
+                <p className="mt-[6px] font-mono text-[11px] text-brand-gold">{S6_TABLES.filter(([, , l]) => l === lane).map(([name]) => name).join(' · ')}{lane === 'authored' && <span className="text-text-faint"> · the sixteen</span>}</p>
+              </div>
+            ))}
+            <svg viewBox={`0 0 ${S6_GEOM.W} ${S6_H}`} preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full text-text-faint">
+              <defs>
+                <marker id="s6-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="6" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto">
+                  <path d="M0 0 L8 4 L0 8 z" fill="currentColor" />
+                </marker>
+              </defs>
+              <g className="text-border" stroke="currentColor" strokeWidth={1} fill="none">
+                {S6_LAYOUT.groups.map(([lane], i) => (
+                  <path key={lane} d={`M${S6_GEOM.BRK - 6} ${S6_LAYOUT.span[i][0]} H${S6_GEOM.BRK} V${S6_LAYOUT.span[i][1]} H${S6_GEOM.BRK - 6} M${S6_GEOM.BRK} ${S6_LAYOUT.centers[i]} H${S6_GEOM.BRK + 12}`} />
+                ))}
+              </g>
+              {S6_LAYOUT.groups.map(([lane], i) => {
+                const gm = S6_LAYOUT.centers[i];
+                const hy = (S6_LAYOUT.centers[0] + S6_LAYOUT.centers[1]) / 2 + (i === 0 ? -10 : 10);
+                const inMx = (S6_GEOM.BRK + 12 + S6_GEOM.HG_X) / 2;
+                const outMx = (S6_GEOM.HG_X + S6_GEOM.HG_W + S6_GEOM.LN_X) / 2;
+                return (
+                  <g key={lane}>
+                    <path d={`M${S6_GEOM.BRK + 12} ${gm} C ${inMx} ${gm}, ${inMx} ${hy}, ${S6_GEOM.HG_X} ${hy}`} stroke="currentColor" strokeWidth={1} strokeDasharray="1 4" strokeLinecap="round" fill="none" />
+                    <path d={`M${S6_GEOM.HG_X + S6_GEOM.HG_W} ${hy} C ${outMx} ${hy}, ${outMx} ${S6_LAYOUT.centers[i]}, ${S6_GEOM.LN_X} ${S6_LAYOUT.centers[i]}`} stroke="currentColor" strokeWidth={1} strokeDasharray="1 4" strokeLinecap="round" fill="none" markerEnd="url(#s6-arrow)" />
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+
+          {/* THE FORK, mobile (PR-S6-CORRIDOR) — stacked: the two table
+              groups (gold names), the hinge question as a full-width
+              divider label, then the two lane cards — the membership line
+              inside each card stands in for the brackets. */}
+          <div className="mt-[14px] lg:hidden">
+            {S6_LAYOUT.groups.map(([lane, r0, r1]) => (
+              <div key={lane} className="mt-3 border border-border bg-white first:mt-0">
+                {S6_TABLES.slice(r0, r1 + 1).map(([name, holds], i) => (
+                  <div key={name} className={`flex items-baseline gap-2 px-3 py-[6px] ${i < r1 - r0 || lane === 'authored' ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                    <span className="whitespace-nowrap font-mono text-[11px] text-brand-gold">{name}</span>
+                    <span className="overflow-hidden whitespace-nowrap text-[10px] text-text-faint">{holds}</span>
+                  </div>
+                ))}
+                {lane === 'authored' && (
+                  <div className="px-3 py-[6px]">
+                    <div className="flex items-baseline justify-between">
+                      <span className="font-mono text-[8.5px] uppercase tracking-[0.14em] text-text-faint">{S6_SIXTEEN[0]}</span>
+                      <span className="font-mono text-[8.5px] tracking-[0.14em] text-text-faint">{S6_SIXTEEN[2]}</span>
+                    </div>
+                    <p className="mt-[2px] text-[10px] leading-[1.4] text-text-faint">{S6_SIXTEEN[1]}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+            <div className="mt-4 border-t border-border pt-3">
+              <p className="font-mono text-[10px] leading-[1.5] text-brand-purple">Did the world hand it to you, or did you make it?</p>
+            </div>
+            {S6_LANES.map(([lane, header, gloss]) => (
+              <div key={lane} className="mt-3 border border-border bg-white px-3 py-[10px]">
+                <p className={DECK.rust}>{header}</p>
+                <p className="mt-1 text-[10px] leading-[1.4] text-text-faint">{gloss}</p>
+                <p className="mt-[6px] font-mono text-[10px] text-brand-gold">{S6_TABLES.filter(([, , l]) => l === lane).map(([name]) => name).join(' · ')}{lane === 'authored' && <span className="text-text-faint"> · the sixteen</span>}</p>
               </div>
             ))}
           </div>
-          {/* PR-SIX: the essay's echo paragraph, verbatim, then
-              (PR-MECHANICS) the two-doors mechanical truth. */}
-          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>And one more truth: some observed things are the world confirming what you did. A booking confirmation is the world&apos;s echo of your commit. It is still observed — it arrived, and you cannot edit it — and in Step 9 it will find the thing you did.</p>
-          <p className={`mt-2 ${DECK.statement}`}>And here is the mechanical truth: this step adds nothing to the tables. Observed things already live in the tables from Step 5; that is the world&apos;s door. Authored things will get their own home in Step 8; that is your door. Two doors into one system — and how the two connect comes soon.</p>
+
+          {/* The honest texture and the hinge-out — the founder's ruled
+              lines. The old echo and two-doors paragraphs retired: the
+              doors are the visual now; the echo nuance belongs at Step 9. */}
+          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Derived and posting your system computes — no draft. The sixteen you draft, then commit: you pull the trigger, and the world moves.</p>
+          <p className={`mt-2 ${DECK.statement}`}>The sixteen that stayed home in Step 2 are authored — the work you do. Everything else already has a table. They don&apos;t. That&apos;s the one gap left.</p>
 
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={DECK.q}>So how exactly do you make something happen?</p>
