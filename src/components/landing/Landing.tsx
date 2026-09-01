@@ -638,9 +638,13 @@ const HANDOFF_KINDS = [
   ['posting', 'debits and credits'],
 ] as const;
 
-// ── PR-S5 / THE ADDRESS. Step 5's drawing: the rule book's twenty rows fan
-// into six kind-table boxes — the boxes ARE the old handoff table now, so
-// HANDOFF_KINDS has exactly one renderer again.
+// ── PR-S5 / THE ADDRESS → PR-S5-SORT. Step 5's drawing: the rule book's
+// twenty rows fan into six kind-table boxes — the boxes ARE the old
+// handoff table now, so HANDOFF_KINDS has exactly one renderer again.
+// PR-S5-SORT re-cut the drawing for legibility: slide 05 shows the book
+// SORTED by kind, one arrow per rule, zero crossings. The trunk harness
+// (S5_LANES, the FX/CTRL fan zone, s5RowsOf, the ten forced crossings)
+// died with this cut; history holds it.
 
 // S5-BOXES: [kind, holds, count] — the box list. Gloss strings ride
 // HANDOFF_KINDS untouched; each kind's count is its rule rows in
@@ -650,30 +654,37 @@ const HANDOFF_KINDS = [
 const S5_BOXES = HANDOFF_KINDS.map(
   ([kind, holds]) => [kind, holds, ROUTING_RULES.filter(([, , k]) => k.toLowerCase() === kind).length] as const,
 );
-// a kind's rule rows, in rule-book order — drives tails and heads alike.
-const s5RowsOf = (kind: string) => ROUTING_RULES.flatMap(([, , k], r) => (k.toLowerCase() === kind ? [r] : []));
+// where each kind's band begins in the sorted book (cumulative counts).
+const S5_STARTS = S5_BOXES.map((_, b) => S5_BOXES.slice(0, b).reduce((s, [, , n]) => s + n, 0));
+// S5-SORTED: the book as slide 05 shows it — the same twenty rows,
+// stable-sorted into HANDOFF_KINDS order so each kind's rows sit beside
+// their table. DERIVED from the two consts, never retyped; ROUTING_RULES
+// itself is untouched — slide 04 still renders the wire order.
+const S5_SORTED = HANDOFF_KINDS.flatMap(([kind]) => ROUTING_RULES.filter(([, , k]) => k.toLowerCase() === kind));
 
-// S5-GEOM: the S2/S3/S4 sibling. Rule book x 0..RB_W (HEAD + 20·ROW_H
-// tall); six boxes at BX_L, BOX_H tall on a BOX_H+GAP pitch — the
-// drawing's height is the boxes' column, derived, not typed; and
-// BX_L + BX_W == W. FX..W is the head fan zone (CTRL its control x).
+// S5-GEOM (PR-S5-SORT): the S2/S3/S4 sibling. Rule book x 0..RB_W, HEAD +
+// 20·ROW_H tall; six boxes at BX_L, all BOX_H tall; BX_L + BX_W == W.
+// S5_MX is the corridor midpoint, (RB_W + BX_L) / 2 — the arc control x
+// of the slide 01–04 cubic idiom.
 const S5_GEOM = {
   W: 1216, RB_W: 380, HEAD: 26, ROW_H: 24,
-  BX_L: 896, BX_W: 320, BOX_H: 90, GAP: 18, FX: 820, CTRL: 858,
+  BX_L: 896, BX_W: 320, BOX_H: 66, GAP: 8,
 } as const;
-const S5_H = 5 * (S5_GEOM.BOX_H + S5_GEOM.GAP) + S5_GEOM.BOX_H;
+const S5_MX = (S5_GEOM.RB_W + S5_GEOM.BX_L) / 2;
 const s5RowY = (r: number) => S5_GEOM.HEAD + r * S5_GEOM.ROW_H + S5_GEOM.ROW_H / 2;
-const s5BoxTop = (b: number) => b * (S5_GEOM.BOX_H + S5_GEOM.GAP);
-const s5Cy = (b: number) => s5BoxTop(b) + S5_GEOM.BOX_H / 2;
-
-// S5-LANES: the five kind trunks' x, left→right — the CD-S5 brute-forced
-// optimum over all 120 lane orders (derived · reference · event ·
-// snapshot · registry). Ten crossings, the lane minimum; every one lands
-// on a pair the rule book's fixed order forces to cross (a crossing-free
-// 05 does not exist — CD-S5's proof). Posting has no lane and no arrows.
-const S5_LANES: Readonly<Record<string, number>> = {
-  derived: 480, reference: 555, event: 630, snapshot: 705, registry: 780,
-};
+// The level-arrow law, cascaded: box k's center IS its kind's band center
+// in the sorted book — HEAD + (S5_STARTS[k] + count/2)·ROW_H — unless the
+// minimum pitch (BOX_H + GAP) pushes it down. reference and registry land
+// dead level; event, derived and snapshot sit within 30px of their bands;
+// posting's 'band' is the book's bottom edge, HEAD + 20·ROW_H — nothing
+// feeds it. The drawing's height is the last box's bottom — derived.
+const S5_CENTERS = S5_BOXES.reduce<ReadonlyArray<number>>((acc, [, , n], b) => {
+  const band = S5_GEOM.HEAD + (S5_STARTS[b] + n / 2) * S5_GEOM.ROW_H;
+  const floor = b === 0 ? 0 : acc[b - 1] + S5_GEOM.BOX_H + S5_GEOM.GAP;
+  return [...acc, Math.max(band, floor)];
+}, []);
+const s5BoxTop = (b: number) => S5_CENTERS[b] - S5_GEOM.BOX_H / 2;
+const S5_H = S5_CENTERS[S5_CENTERS.length - 1] + S5_GEOM.BOX_H / 2;
 
 // PR-S3-COHESION: IMPORT_TRIO retired — the essay merged the three
 // promises (and the census + handshake lines) into Step 3's single tail
@@ -2441,14 +2452,15 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── PR-S5 / SIX. THE KIND IS THE ADDRESS — Step 5 in full. Act
-            grammar unchanged: same container, act padding, border-t closing
-            the routing|handoff seam. Body: the essay's Step 5 moves block
-            (slide-01 grammar), then THE ADDRESS drawn — the rule book's
-            twenty rows (slide 04's order, MEANS dropped) fanning into six
-            kind-table boxes in HANDOFF_KINDS order, twenty arrows on five
-            trunk lanes, posting's box empty but for the essay's line — and
-            the consolidated tail paragraph. The old kind table, its aria
+      {/* ── PR-S5 / SIX. THE KIND IS THE ADDRESS — Step 5 in full;
+            PR-S5-SORT re-cut the drawing. Act grammar unchanged: same
+            container, act padding, border-t closing the routing|handoff
+            seam. Body: the essay's Step 5 moves block (slide-01 grammar),
+            then THE ADDRESS drawn — the rule book SORTED by kind (MEANS
+            dropped) beside six kind-table boxes in HANDOFF_KINDS order,
+            one level-or-near-level arrow per rule, zero crossings,
+            posting's box empty but for the essay's line — and the
+            consolidated tail paragraph. The old kind table, its aria
             arrow, the divider, the twenty-five-tools standalone, the notice
             block and the census receipt all retired into the paragraph. */}
       <section id="deck-05" aria-label="The handoff" className={openSteps[4] ? 'max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border' : DECK.sectionBar}>
@@ -2478,23 +2490,24 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(c)</span> Send every feed&apos;s arrivals to the table its kind names. The kind is the address.</p>
           <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(d)</span> Look at what landed. The outside world fills four tables. Math we ordered fills derived. Posting stays empty.</p>
 
-          {/* THE ADDRESS, desktop (PR-S5) — the rule book (slide 04's twenty
-              rows, same order, MEANS dropped: 04 taught the words, 05 uses
-              them as addresses) fans into six kind-table boxes in
-              HANDOFF_KINDS order. Twenty arrows ride five kind trunks
-              (S5_LANES): 20 row tails, 5 trunks + 5 entries, 20 heads
-              fanning at 6px pitch so reference's eleven never stack — the
-              S4 converge idiom generalized; each segment draws once so the
-              2-4 dash never doubles. Ten crossings, the lane minimum, each
-              on a pair the fixed order forces to cross. Posting: no lane,
-              no arrows, count 0 — its box carries the essay's line. */}
-          <div className="relative mt-[14px] hidden lg:mt-8 lg:block" style={{ height: S5_H, maxWidth: S5_GEOM.W }}>
+          {/* THE ADDRESS, desktop (PR-S5-SORT) — the rule book SORTED by
+              kind (S5_SORTED: the same twenty rows, stable within kind)
+              beside the six kind-table boxes. One arrow per rule in the
+              corridor arc idiom of slides 01–04 (cubics through S5_MX, no
+              trunks): because both sides share the sort, every arrow runs
+              level or near-level — registry and reference's middle row
+              dead level — and crossings are ZERO, script-proved. Heads fan
+              at the S4 pitch (6px) so reference's eleven never stack.
+              Posting: no arrows, count 0 — its box carries the essay's
+              line. */}
+          <p className="mt-8 hidden font-mono text-[11px] uppercase tracking-[0.20em] text-brand-amber lg:block">THE RULE BOOK — SORTED BY KIND</p>
+          <div className="relative mt-[14px] hidden lg:mt-3 lg:block" style={{ height: S5_H, maxWidth: S5_GEOM.W }}>
             <div className="absolute left-0 top-0 border border-border bg-white" style={{ width: `${(S5_GEOM.RB_W / S5_GEOM.W) * 100}%` }}>
               <div style={{ height: S5_GEOM.HEAD }} className="grid grid-cols-[130px_150px_1fr] items-center overflow-hidden bg-bg-row font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">
                 <span className="px-[6px]">PROVIDER</span><span className="px-[6px]">RESOURCE</span><span className="px-[6px]">KIND</span>
               </div>
-              {ROUTING_RULES.map(([p, r, kind], j) => (
-                <div key={`${p}-${r}`} style={{ height: S5_GEOM.ROW_H }} className={`grid grid-cols-[130px_150px_1fr] items-center font-mono text-[7px] ${j < ROUTING_RULES.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+              {S5_SORTED.map(([p, r, kind], j) => (
+                <div key={`${p}-${r}`} style={{ height: S5_GEOM.ROW_H }} className={`grid grid-cols-[130px_150px_1fr] items-center font-mono text-[7px] ${j < S5_SORTED.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
                   <span className="overflow-hidden whitespace-nowrap px-[6px] text-brand-purple">{p}</span>
                   <span className="overflow-hidden whitespace-nowrap px-[6px] text-text-faint">{r}</span>
                   <span className="overflow-hidden whitespace-nowrap px-[6px] uppercase text-brand-gold">{kind}</span>
@@ -2503,12 +2516,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             </div>
             {S5_BOXES.map(([kind, holds, n], b) => (
               <div key={kind} className="absolute border border-border bg-white" style={{ left: `${(S5_GEOM.BX_L / S5_GEOM.W) * 100}%`, top: s5BoxTop(b), width: `${(S5_GEOM.BX_W / S5_GEOM.W) * 100}%`, height: S5_GEOM.BOX_H }}>
-                <div className="flex items-baseline justify-between px-[14px] pt-3">
+                <div className="flex items-baseline justify-between px-[14px] pt-2">
                   <span className="font-mono text-[13px] text-brand-gold">{kind}</span>
                   <span className="font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint">{n} {n === 1 ? 'FEED' : 'FEEDS'}</span>
                 </div>
-                <p className="mt-[6px] px-[14px] text-[11px] leading-[1.4] text-text-faint">holds {holds}</p>
-                {kind === 'posting' && <p className="mt-2 px-[14px] text-[11px] leading-[1.4] text-brand-purple">Nobody sends you debits and credits.</p>}
+                <p className="mt-1 px-[14px] text-[11px] leading-[1.4] text-text-faint">holds {holds}</p>
+                {kind === 'posting' && <p className="mt-1 px-[14px] text-[11px] leading-[1.4] text-brand-purple">Nobody sends you debits and credits.</p>}
               </div>
             ))}
             <svg viewBox={`0 0 ${S5_GEOM.W} ${S5_H}`} preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full text-brand-purple">
@@ -2517,39 +2530,28 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                   <path d="M0 0 L8 4 L0 8 z" fill="currentColor" />
                 </marker>
               </defs>
-              {ROUTING_RULES.map(([p, r, kind], j) => (
-                <path key={`${p}-${r}`} d={`M${S5_GEOM.RB_W} ${s5RowY(j)} H${S5_LANES[kind.toLowerCase()]}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" />
-              ))}
-              {S5_BOXES.map(([kind, , n], b) => {
-                if (n === 0) return null;
-                const ys = [...s5RowsOf(kind).map(s5RowY), s5Cy(b)];
-                return (
-                  <g key={kind}>
-                    <path d={`M${S5_LANES[kind]} ${Math.min(...ys)} V${Math.max(...ys)}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" />
-                    <path d={`M${S5_LANES[kind]} ${s5Cy(b)} H${S5_GEOM.FX}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" />
-                  </g>
-                );
-              })}
               {S5_BOXES.map(([kind, , n], b) =>
-                s5RowsOf(kind).map((row, i) => {
-                  const hy = s5Cy(b) + (i - (n - 1) / 2) * 6;
-                  return <path key={`${kind}-${row}`} d={`M${S5_GEOM.FX} ${s5Cy(b)} C ${S5_GEOM.CTRL} ${s5Cy(b)}, ${S5_GEOM.CTRL} ${hy}, ${S5_GEOM.BX_L} ${hy}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd="url(#s5-arrow)" />;
+                Array.from({ length: n }, (_, i) => {
+                  const sy = s5RowY(S5_STARTS[b] + i);
+                  const hy = S5_CENTERS[b] + (i - (n - 1) / 2) * 6;
+                  return <path key={`${kind}-${i}`} d={`M${S5_GEOM.RB_W} ${sy} C ${S5_MX} ${sy}, ${S5_MX} ${hy}, ${S5_GEOM.BX_L} ${hy}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd="url(#s5-arrow)" />;
                 }),
               )}
             </svg>
           </div>
 
-          {/* THE ADDRESS, mobile (PR-S5) — stacked per the BuildSpec: the
-              rule book condensed, then the six boxes with their count tags
-              (the arrows collapse to the tags — the chrome line below the
-              stack rides the CD-S5 mockup), posting carrying its line. */}
+          {/* THE ADDRESS, mobile (PR-S5-SORT) — stacked: the caption, the
+              sorted rule book condensed, then the six boxes with their
+              count tags, posting carrying its line. The old chrome line
+              retired with the trunk harness. */}
           <div className="mt-[14px] lg:hidden">
-            <div className="border border-border bg-white">
+            <p className="font-mono text-[10px] uppercase tracking-[0.20em] text-brand-amber">THE RULE BOOK — SORTED BY KIND</p>
+            <div className="mt-2 border border-border bg-white">
               <div className="grid h-[22px] grid-cols-[96px_96px_1fr] items-center overflow-hidden bg-bg-row font-mono text-[6.5px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">
                 <span className="px-[6px]">PROVIDER</span><span className="px-[6px]">RESOURCE</span><span className="px-[6px]">KIND</span>
               </div>
-              {ROUTING_RULES.map(([p, r, kind], j) => (
-                <div key={`${p}-${r}`} className={`grid grid-cols-[96px_96px_1fr] font-mono text-[10px] leading-[1.4] ${j < ROUTING_RULES.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+              {S5_SORTED.map(([p, r, kind], j) => (
+                <div key={`${p}-${r}`} className={`grid grid-cols-[96px_96px_1fr] font-mono text-[10px] leading-[1.4] ${j < S5_SORTED.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
                   <span className="px-[6px] py-[3px] text-brand-purple">{p}</span>
                   <span className="px-[6px] py-[3px] text-text-faint">{r}</span>
                   <span className="px-[6px] py-[3px] uppercase text-brand-gold">{kind}</span>
@@ -2566,7 +2568,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                 {kind === 'posting' && <p className="mt-[6px] text-[10px] leading-[1.4] text-brand-purple">Nobody sends you debits and credits.</p>}
               </div>
             ))}
-            <p className="mt-4 font-mono text-[9px] text-text-faint">arrows collapse to the count tags — each box says how many rules send here</p>
           </div>
 
           {/* PR-S5: the tail is ONE paragraph — the essay's consolidated
