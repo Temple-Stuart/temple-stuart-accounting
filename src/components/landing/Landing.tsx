@@ -1348,24 +1348,14 @@ const S12_LAYOUT = (() => {
 })();
 const S12_H = S12_LAYOUT.h;
 
-// DECK-13 (PR-S13-DATAFLOW): THREAD_ROWS and DOOR_ROWS retired — the $500
-// invoice story watched a dollar the deck never drew (its A/R lines appear
-// nowhere in 10 or 12), and every table cell was retyped (Deck Law 7).
-// History holds both consts. The five lanes now DERIVE every cell from the
-// consts slides 07/09/10/11/12 already render from; the S13_LAYOUT law
-// binds 13's dollar to 10's sale and 12's ledger. DOOR_COLS survives as
-// the four door lane labels.
-const DOOR_COLS = ['TRAVEL', 'TRADING', 'TIME → PAYROLL', 'PROJECTS'] as const;
-
-// S13-LANES: [label, tool] — the hero label's amount derives from the
-// sale; the four doors carry DOOR_COLS verbatim. Tools are sheet keys.
-const S13_LANES = [
-  [`THE SALE · $${SALE_LINES[0][1]}`, 'Invoicing'],
-  [DOOR_COLS[0], 'Travel'],
-  [DOOR_COLS[1], 'Brokerage'],
-  [DOOR_COLS[2], 'Payroll'],
-  [DOOR_COLS[3], 'Tasks'],
-] as const;
+// DECK-13 (PR-S13-ALL-25): the five doors became the full sheet — every
+// one of the twenty-five tools runs the same eight beats, fourteen throw
+// a shadow, eleven don't (the 14/11 split slide 9 proved). DOOR_COLS and
+// S13_LANES retired: the lanes ARE PROBLEM_SHEET's cells now, in sheet
+// order (the slide-8 idiom) — tools as rows, beats as columns, one
+// dead-level arrow per lane. Same derivations, same hero dollar;
+// S13_LAYOUT keeps heroRows/heroDate/amount so slide 14's law reads it
+// untouched. History holds the five-lane consts.
 
 // S13-BEATS: [step tag, name, source] — the tag names the slide each
 // cell's derivation comes from; the first three names ARE S7_BEATS.
@@ -1401,15 +1391,14 @@ const S13_LANDINGS: Readonly<Record<string, readonly string[]>> = {
   Tasks: [],
 };
 
-// S13-OWN: supplied ONLY where no derivation exists — the law THROWS on a
-// supplied cell any derivation can produce, and on a missing supply where
-// none can. Tasks has no MATCHES key, so it supplies its observed noun;
-// the three lanes with no S12 landings supply their YOU LOOK shapes,
-// rendered muted with a (shape) tag.
-const S13_OWN: Readonly<Record<string, { readonly observed?: string; readonly look?: string }>> = {
-  Tasks: { observed: 'the finished build', look: 'a due-date dot — no lines' },
-  Brokerage: { look: 'fill dots, plus lines' },
-  Payroll: { look: 'a pay-day dot, plus lines' },
+// S13-OWN: supplied ONLY where no derivation exists — one entry. Tasks
+// (the Truth Machine) has no MATCHES key, so it supplies its observed
+// noun; the law throws on any other entry, and on a supplied cell any
+// derivation can produce. The old YOU LOOK shapes died — no shapes for
+// things slide 12 doesn't draw; lanes without landings render the faint
+// long dash.
+const S13_OWN: Readonly<Record<string, { readonly observed: string }>> = {
+  Tasks: { observed: 'the finished build' },
 };
 
 // DECK-13 (PR-VOICE → PR-S13-DATAFLOW): truth (1), the trade close. The
@@ -1435,26 +1424,32 @@ const TRADE_CLOSE: ReadonlyArray<readonly [string, boolean]> = [
 // glossed at its first on-screen use, the payroll rule row.
 const HOURS_TRUTH = '(2) Your hours never write a line by themselves. They only reach the books when a payroll run commits, exactly as Step 10 promised.';
 
-// S13-GEOM: a gutter of beat labels, then five equal lanes; fixed row
-// pitch so the spine nodes land deterministically.
-const S13_GEOM = { W: 1216, G_W: 170, HEAD: 24, ROW_H: 40, NODE_TOP: 10 } as const;
+// S13-GEOM: a gutter of tool names, then eight beat columns with arrow
+// gaps between them (the slide-7 corridor idiom, widened to the full
+// walk). 144 + 8 × (18 + 116) = 1216 — the columns land flush.
+const S13_GEOM = { W: 1216, G_W: 144, COL_W: 116, GAP: 18, HEAD: 34, ROW_H: 40 } as const;
 
-// THE LAYOUT LAW (S13): every cell derived or provably underivable; the
-// hero's lines ARE the sale's three, on the invoice dot's date — 13's
-// dollar bound to 10's and 12's; the lens covers the four questions; the
-// five spines are parallel at distinct x (zero crossings by
-// construction); every cell wraps within three lines at the lane's char
-// budget. THROWS at build on any violation; a green build is the proof.
+// THE LAYOUT LAW (S13): the lanes are PROBLEM_SHEET's cells 25/25, each
+// with a loop and a document; a lane matches money iff it writes lines,
+// fourteen do and eleven don't; the hero bindings are unchanged (the
+// invoice dot's date, the sale's three lines, the sale sentence's gold
+// amount) so slide 14 keeps passing untouched; supplied cells only where
+// ruled (Tasks OBSERVED); twenty-five distinct row centers carry level
+// arrows — zero crossings by construction; every cell wraps within
+// three lines at the column budget (7px mono ≈ 4.2px per char). The law
+// RECORDS money lanes whose accounts reach zero answers instead of
+// throwing — that is the rule book's own wording, reported not bent.
+// THROWS at build on any violation; a green build is the proof.
 const S13_LAYOUT = (() => {
   type Seg = readonly [string, boolean];
   type Cell = { readonly segs: readonly Seg[]; readonly faint: boolean; readonly tag: string | null; readonly supplied: boolean };
-  if (S13_LANES.length !== 5 || S13_BEATS.length !== 8) throw new Error('slide 13: five lanes, eight beats');
+  if (S13_BEATS.length !== 8) throw new Error('slide 13: eight beats');
   if (S13_BEATS[0][1] !== S7_BEATS[0] || S13_BEATS[1][1] !== S7_BEATS[1] || S13_BEATS[2][1] !== S7_BEATS[2])
     throw new Error('slide 13: the first three beats are Step 7 beats');
-  const laneW = (S13_GEOM.W - S13_GEOM.G_W) / S13_LANES.length;
-  const chars = Math.floor((laneW - 16) / 4.2);
+  const chars = Math.floor((S13_GEOM.COL_W - 12) / 4.2);
   const NUMS = ['zero', 'one', 'two', 'three', 'four', 'five'] as const;
-  const sheet = PROBLEM_SHEET.flatMap(({ tools: t }) => t as readonly string[]);
+  const tools = PROBLEM_SHEET.flatMap(({ tools: t }) => t as readonly string[]);
+  if (tools.length !== 25) throw new Error(`slide 13: the full sheet is twenty-five — got ${tools.length}`);
   const amount = `$${SALE_LINES[0][1]}`;
   const firstGold = SALE_SENTENCE.find(([, gold]) => gold);
   if (!firstGold || firstGold[0] !== amount) throw new Error(`slide 13: the h2 dollar must be the sale sentence's — ${amount}`);
@@ -1476,6 +1471,10 @@ const S13_LAYOUT = (() => {
   if (!TRADE_CLOSE.some(([t, g]) => g && t.startsWith(`${POSTING_RULES.Brokerage[2]} `)) ||
       !TRADE_CLOSE.some(([t, g]) => g && t.startsWith(`${POSTING_RULES.Brokerage[1]} `)))
     throw new Error('slide 13: the trade close must write the rule book accounts');
+  const ownKeys = Object.keys(S13_OWN);
+  if (ownKeys.length !== 1 || ownKeys[0] !== 'Tasks' || !S13_OWN.Tasks.observed)
+    throw new Error('slide 13: supplied cells only where ruled — Tasks OBSERVED alone');
+  if ('Tasks' in MATCHES) throw new Error('slide 13: Tasks derives — its supplied noun is refused');
   const wrapCount = (text: string) => {
     const lines: string[] = [];
     let line = '';
@@ -1486,35 +1485,36 @@ const S13_LAYOUT = (() => {
     if (line) lines.push(line);
     return lines.length;
   };
-  let ownless = 0;
-  const lanes = S13_LANES.map(([label, tool], li) => {
-    if (!sheet.includes(tool) || !(tool in LOOP_BY_TOOL) || !(tool in TOOL_DOCUMENTS))
-      throw new Error(`slide 13: a lane tool must live on the sheet with a loop and a document — ${tool}`);
+  let money = 0;
+  const zeroMathMoney: string[] = [];
+  const lanes = tools.map((tool, i) => {
+    if (!(tool in LOOP_BY_TOOL) || !(tool in TOOL_DOCUMENTS))
+      throw new Error(`slide 13: every lane needs a loop and a document — ${tool}`);
     if ((tool in MATCHES) !== (tool in POSTING_RULES))
       throw new Error(`slide 13: a lane matches money iff it writes lines — ${tool}`);
+    if (tool in MATCHES) money += 1;
     const own = tool in S13_OWN ? S13_OWN[tool] : undefined;
-    if (tool in MATCHES && own?.observed) throw new Error(`slide 13: ${tool} derives its observed event — supplied cell refused`);
-    if (!(tool in MATCHES) && !own?.observed) throw new Error(`slide 13: ${tool} has no match — it must supply its observed noun`);
-    if (!(tool in MATCHES)) ownless += 1;
-    if (!(tool in S13_LANDINGS)) throw new Error(`slide 13: every lane needs its landings list — ${tool}`);
-    const landings = S13_LANDINGS[tool];
-    if (landings.length > 0 && own?.look) throw new Error(`slide 13: ${tool} derives YOU LOOK from its landings — supplied shape refused`);
-    if (landings.length === 0 && !own?.look) throw new Error(`slide 13: ${tool} has no landings — it must supply a YOU LOOK shape`);
     const observed = tool in MATCHES ? MATCHES[tool] : own?.observed;
-    if (!observed) throw new Error(`slide 13: ${tool} has no observed event`);
     const live = S9_LAYOUT.rows.some((r) => r.tool === tool && r.live);
-    const loop = LOOP_BY_TOOL[tool];
+    const isHero = tool === 'Invoicing';
+    const label: readonly Seg[] = isHero
+      ? [['Invoicing — THE ', false], [amount, true], [' SALE', false]]
+      : [[tool, false]];
     const cells: Cell[] = [
-      { segs: [[loop[0], false]], faint: false, tag: null, supplied: false },
-      { segs: [[loop[1], false]], faint: false, tag: null, supplied: false },
-      { segs: [[loop[2], false]], faint: false, tag: null, supplied: false },
-      { segs: [[`${observed} arrives`, false]], faint: false, tag: null, supplied: !(tool in MATCHES) },
-      { segs: [[`${observed} ↔ ${TOOL_DOCUMENTS[tool][0]}`, false]], faint: false, tag: live ? '· LIVE TODAY' : null, supplied: false },
+      { segs: [[LOOP_BY_TOOL[tool][0], false]], faint: false, tag: null, supplied: false },
+      { segs: [[LOOP_BY_TOOL[tool][1], false]], faint: false, tag: null, supplied: false },
+      { segs: [[LOOP_BY_TOOL[tool][2], false]], faint: false, tag: null, supplied: false },
+      observed
+        ? { segs: [[`${observed} arrives`, false]], faint: false, tag: null, supplied: !(tool in MATCHES) }
+        : { segs: [['—', false]], faint: true, tag: null, supplied: false },
+      observed
+        ? { segs: [[`${observed} ↔ ${TOOL_DOCUMENTS[tool][0]}`, false]], faint: false, tag: live ? '· LIVE TODAY' : null, supplied: false }
+        : { segs: [['—', false]], faint: true, tag: null, supplied: false },
     ];
-    if (li === 0) {
+    if (isHero) {
       const segs: Seg[] = [];
-      heroRows.forEach(([, line, debit, credit], i) => {
-        segs.push([`${i > 0 ? ' · ' : ''}${debit ? 'debit' : 'credit'} `, false]);
+      heroRows.forEach(([, line, debit, credit], k) => {
+        segs.push([`${k > 0 ? ' · ' : ''}${debit ? 'debit' : 'credit'} `, false]);
         segs.push([`${line} ${debit || credit}`, true]);
       });
       cells.push({ segs, faint: false, tag: null, supplied: false });
@@ -1523,15 +1523,16 @@ const S13_LAYOUT = (() => {
     } else {
       cells.push({ segs: [['none — no money moved', false]], faint: true, tag: null, supplied: false });
     }
-    const laneAccounts = li === 0 ? heroRows.map(([, line]) => line)
+    const laneAccounts = isHero ? heroRows.map(([, line]) => line)
       : tool in POSTING_RULES ? [POSTING_RULES[tool][1], POSTING_RULES[tool][2]] : null;
-    if (laneAccounts) {
-      const qs = questions.filter((q) => ANSWER_INPUTS[q].some((acc) => laneAccounts.includes(acc)));
-      if (qs.length === 0) throw new Error(`slide 13: a money lane must reach at least one answer — ${tool}`);
+    const qs = laneAccounts ? questions.filter((q) => ANSWER_INPUTS[q].some((acc) => laneAccounts.includes(acc))) : [];
+    if (qs.length > 0) {
       cells.push({ segs: [[qs.map((q) => S13_LENS[q]).join(' · '), false]], faint: false, tag: null, supplied: false });
     } else {
-      cells.push({ segs: [['— no lines, no ledger math', false]], faint: true, tag: null, supplied: false });
+      if (laneAccounts) zeroMathMoney.push(tool);
+      cells.push({ segs: [['—', false]], faint: true, tag: null, supplied: false });
     }
+    const landings = tool in S13_LANDINGS ? S13_LANDINGS[tool] : [];
     if (landings.length > 0) {
       const resolved = landings.map((nm) => {
         const it = S12_ITEMS.find((x) => x.name === nm);
@@ -1546,23 +1547,25 @@ const S13_LAYOUT = (() => {
       }
       cells.push({ segs: [[parts.join(' · '), false]], faint: false, tag: null, supplied: false });
     } else {
-      cells.push({ segs: [[own?.look ?? '', false]], faint: true, tag: '(shape)', supplied: true });
+      cells.push({ segs: [['—', false]], faint: true, tag: null, supplied: false });
     }
     for (const cell of cells) {
       const text = cell.segs.map(([t]) => t).join('') + (cell.tag ? ` ${cell.tag}` : '');
-      if (wrapCount(text) > 3) throw new Error(`slide 13: a cell overflows its lane — ${text.slice(0, 40)}`);
+      if (wrapCount(text) > 3) throw new Error(`slide 13: a cell overflows its column — ${text.slice(0, 40)}`);
     }
-    return { label, tool, x: S13_GEOM.G_W + li * laneW, cells };
+    return { tool, label, y: S13_GEOM.HEAD + i * S13_GEOM.ROW_H + S13_GEOM.ROW_H / 2, cells };
   });
-  if (ownless !== 1) throw new Error(`slide 13: exactly one lane runs the loop without money — got ${ownless}`);
+  if (money !== 14 || tools.length - money !== 11)
+    throw new Error(`slide 13: fourteen money lanes, eleven without — got ${money}/${tools.length - money}`);
   for (let a = 0; a < lanes.length; a += 1) {
     for (let b = a + 1; b < lanes.length; b += 1) {
-      if (lanes[a].x === lanes[b].x) throw new Error('slide 13: the spines must keep distinct x — parallel is the proof');
+      if (lanes[a].y === lanes[b].y) throw new Error('slide 13: level arrows need distinct row centers');
     }
   }
-  const nodeYs = S13_BEATS.map((_, b) => S13_GEOM.HEAD + b * S13_GEOM.ROW_H + S13_GEOM.NODE_TOP);
+  const colXs = S13_BEATS.map((_, s) => S13_GEOM.G_W + S13_GEOM.GAP + s * (S13_GEOM.COL_W + S13_GEOM.GAP));
+  if (colXs[colXs.length - 1] + S13_GEOM.COL_W !== S13_GEOM.W) throw new Error('slide 13: the columns must land flush on the right edge');
   const supplied = lanes.flatMap((l) => l.cells.map((c, bi) => (c.supplied ? `${l.tool} ${S13_BEATS[bi][1]}` : null)).filter((s): s is string => s !== null));
-  return { lanes, nodeYs, laneW, chars, heroDate, heroRows, amount, supplied, h: S13_GEOM.HEAD + S13_BEATS.length * S13_GEOM.ROW_H } as const;
+  return { lanes, colXs, heroDate, heroRows, amount, supplied, zeroMathMoney, chars, h: S13_GEOM.HEAD + tools.length * S13_GEOM.ROW_H } as const;
 })();
 const S13_H = S13_LAYOUT.h;
 
@@ -4280,17 +4283,17 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── DECK-13 / THE THREADS (PR-S13-DATAFLOW) — five derived lanes
-            down the same eight beats on Design's 13/14 connector (1px
-            spine, 5×5 node squares — the arrows run DOWN here, five
-            parallel plumb spines, zero crossings by construction). Every
-            cell derives from the consts 07/09/10/11/12 render from; the
-            S13_LAYOUT law binds the hero dollar to 10's sale and 12's
-            ledger and refuses any supplied cell a derivation can
-            produce. The PROJECTS spine runs unbroken through 'no money
-            moved' — that IS the teaching. The old $500 thread and the
-            retyped four-door table retired (Deck Law 7). Gold only via
-            GoldSegments: accounts and amounts. */}
+      {/* ── DECK-13 / THE THREADS (PR-S13-ALL-25) — the full sheet runs
+            the eight beats: twenty-five lanes in PROBLEM_SHEET order
+            (tools as rows, the slide-8 idiom), beats as columns, one
+            DEAD-LEVEL arrow per lane through the column gaps (the
+            slide-7 corridor idiom) with the head landing on YOU LOOK —
+            twenty-five arrows, zero crossings by construction. Every
+            cell derives as before; fourteen lanes throw a shadow,
+            eleven run the loop and write none — that IS the teaching.
+            The hero row carries the sale in its label; the hero
+            bindings are unchanged so slide 14's law reads S13_LAYOUT
+            untouched. Gold only via GoldSegments. */}
       <section id="deck-13" aria-label="The threads" className={openSteps[12] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
@@ -4304,64 +4307,68 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </button>
         <div id="deck-13-body" className={openSteps[12] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
-            {`One ${S13_LAYOUT.amount} sale runs the machine.`}<br />Then four more doors open.
+            {`One ${S13_LAYOUT.amount} sale runs the machine.`}<br />Then every other door opens.
           </h2>
 
           {/* The three moves — real flow, no padding; labels faint. */}
           <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is three moves:</p>
           <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(a)</span>{` Take one sale — the ${S13_LAYOUT.amount} sale from Step 10 — and run it down all eight beats.`}</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(b)</span> Open four more doors — travel, trading, payroll, projects — and run their records down the same eight beats.</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(c)</span> Watch where each lane throws a shadow: the money lanes write lines; the project lane runs the whole loop and writes none.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(b)</span> Open every door — all twenty-five tools — and run their records down the same eight beats.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(c)</span> Watch where each lane throws a shadow: fourteen write lines; eleven run the whole loop and write none.</p>
 
           <p className={`mt-10 lg:mt-[76px] ${DECK.rust}`}>SAME MACHINE, SAME EIGHT BEATS</p>
-          <p className="mt-[6px] font-mono text-[10px] lg:text-[11px] text-text-faint">five lanes · eight beats — every lane reaches YOU LOOK; one writes no lines.</p>
+          <p className="mt-[6px] font-mono text-[10px] lg:text-[11px] text-text-faint">twenty-five of twenty-five — every lane reaches YOU LOOK; eleven write no lines.</p>
 
-          {/* THE THREADS, desktop (PR-S13-DATAFLOW) — the beat gutter,
-              then five lanes; the connector overlay rides the fixed row
-              pitch. */}
-          <div className="relative mt-[14px] hidden lg:mt-[18px] lg:block" style={{ maxWidth: S13_GEOM.W, minHeight: S13_H }}>
-            <div className="grid border-b border-border bg-bg-row" style={{ height: S13_GEOM.HEAD, gridTemplateColumns: `${(S13_GEOM.G_W / S13_GEOM.W) * 100}% repeat(5, minmax(0, 1fr))` }}>
-              <span />
-              {S13_LAYOUT.lanes.map((lane) => (
-                <span key={lane.tool} className="flex items-center overflow-hidden whitespace-nowrap pl-[10px] pr-2 font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint">{lane.label}</span>
+          {/* THE THREADS, desktop (PR-S13-ALL-25) — the tool gutter,
+              eight beat columns, level arrows in the gaps. */}
+          <div className="relative mt-[14px] hidden lg:mt-[18px] lg:block" style={{ height: S13_H, maxWidth: S13_GEOM.W }}>
+            <div className="absolute left-0 top-0 border border-border bg-white" style={{ width: `${(S13_GEOM.G_W / S13_GEOM.W) * 100}%` }}>
+              <div style={{ height: S13_GEOM.HEAD }} className="flex items-center overflow-hidden bg-bg-row px-[6px] font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">THE SHEET</div>
+              {S13_LAYOUT.lanes.map((lane, i) => (
+                <div key={lane.tool} style={{ height: S13_GEOM.ROW_H }} className={`flex items-center overflow-hidden px-[6px] font-mono text-[7px] leading-[10px] text-brand-purple ${i < S13_LAYOUT.lanes.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                  <span><GoldSegments segments={lane.label} /></span>
+                </div>
               ))}
             </div>
-            {S13_BEATS.map(([tag, beat], bi) => (
-              <div key={beat} className={`grid bg-white ${bi < S13_BEATS.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`} style={{ height: S13_GEOM.ROW_H, gridTemplateColumns: `${(S13_GEOM.G_W / S13_GEOM.W) * 100}% repeat(5, minmax(0, 1fr))` }}>
-                <div className="flex flex-col justify-center gap-[2px] overflow-hidden px-2">
+            {S13_BEATS.map(([tag, beat], s) => (
+              <div key={beat} className="absolute top-0 border border-border bg-white" style={{ left: `${(S13_LAYOUT.colXs[s] / S13_GEOM.W) * 100}%`, width: `${(S13_GEOM.COL_W / S13_GEOM.W) * 100}%` }}>
+                <div style={{ height: S13_GEOM.HEAD }} className="flex flex-col justify-center gap-[1px] overflow-hidden bg-bg-row px-[6px] border-b border-b-border">
                   <span className="font-mono text-[7px] text-text-faint">{tag}</span>
-                  <span className="whitespace-nowrap font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint">{beat}</span>
+                  <span className="font-mono text-[7px] leading-[9px] uppercase tracking-[0.1em] text-text-faint">{beat}</span>
                 </div>
-                {S13_LAYOUT.lanes.map((lane) => (
-                  <div key={lane.tool} className="flex items-center overflow-hidden pl-[10px] pr-2">
-                    <span className={`font-mono text-[7px] leading-[10px] ${lane.cells[bi].faint ? 'text-text-faint' : 'text-brand-purple'}`}>
-                      <GoldSegments segments={lane.cells[bi].segs} />
-                      {lane.cells[bi].tag && <span className="text-text-faint"> {lane.cells[bi].tag}</span>}
+                {S13_LAYOUT.lanes.map((lane, i) => (
+                  <div key={lane.tool} style={{ height: S13_GEOM.ROW_H }} className={`flex items-center overflow-hidden px-[6px] ${i < S13_LAYOUT.lanes.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                    <span className={`font-mono text-[7px] leading-[10px] ${lane.cells[s].faint ? 'text-text-faint' : 'text-brand-purple'}`}>
+                      <GoldSegments segments={lane.cells[s].segs} />
+                      {lane.cells[s].tag && <span className="text-text-faint"> {lane.cells[s].tag}</span>}
                     </span>
                   </div>
                 ))}
               </div>
             ))}
-            <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+            <svg viewBox={`0 0 ${S13_GEOM.W} ${S13_H}`} preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full text-brand-purple">
+              <defs>
+                <marker id="s13-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="6" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto">
+                  <path d="M0 0 L8 4 L0 8 z" fill="currentColor" />
+                </marker>
+              </defs>
               {S13_LAYOUT.lanes.map((lane) => (
-                <Fragment key={lane.tool}>
-                  <span className="absolute w-px bg-border" style={{ left: `${((lane.x + 2) / S13_GEOM.W) * 100}%`, top: S13_LAYOUT.nodeYs[0], height: S13_LAYOUT.nodeYs[S13_LAYOUT.nodeYs.length - 1] + 8 - S13_LAYOUT.nodeYs[0] }} />
-                  {S13_LAYOUT.nodeYs.map((y) => (
-                    <span key={y} className="absolute h-[5px] w-[5px] bg-brand-purple" style={{ left: `calc(${((lane.x + 2) / S13_GEOM.W) * 100}% - 2px)`, top: y - 2 }} />
+                <g key={lane.tool}>
+                  {S13_BEATS.map((beat, s) => (
+                    <path key={beat[1]} d={`M${s === 0 ? S13_GEOM.G_W : S13_LAYOUT.colXs[s - 1] + S13_GEOM.COL_W} ${lane.y} H${S13_LAYOUT.colXs[s]}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd={s === S13_BEATS.length - 1 ? 'url(#s13-arrow)' : undefined} />
                   ))}
-                  <span className="absolute h-0 w-0 border-l-[3px] border-r-[3px] border-t-[5px] border-l-transparent border-r-transparent border-t-brand-purple" style={{ left: `calc(${((lane.x + 2) / S13_GEOM.W) * 100}% - 3px)`, top: S13_LAYOUT.nodeYs[S13_LAYOUT.nodeYs.length - 1] + 8 }} />
-                </Fragment>
+                </g>
               ))}
-            </div>
+            </svg>
           </div>
 
-          {/* THE THREADS, mobile (PR-S13-DATAFLOW) — one card per lane in
-              lane order, the eight beats as label → value lines; no
+          {/* THE THREADS, mobile (PR-S13-ALL-25) — twenty-five cards in
+              sheet order, the eight beats as label → value lines; no
               arrows. */}
           <div className="mt-[14px] lg:hidden">
             {S13_LAYOUT.lanes.map((lane) => (
               <div key={lane.tool} className="mt-3 border border-border bg-white px-3 py-[10px] first:mt-0">
-                <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">{lane.label}</p>
+                <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-brand-purple"><GoldSegments segments={lane.label} /></p>
                 {S13_BEATS.map(([tag, beat], bi) => (
                   <p key={beat} className="mt-[6px] font-mono text-[10px] leading-[1.5]">
                     <span className="text-text-faint">{tag} · {beat} — </span>
@@ -4377,8 +4384,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
 
           <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Nobody typed a debit anywhere in this story!</p>
 
-          <p className={`mt-[22px] lg:mt-8 ${DECK.trio}`}>Read the last lane twice! A project runs the whole loop — discover, decide, commit, match — and writes zero lines, because no money moved. The loop is bigger than money; money is just the loops that get a shadow.</p>
-          {/* PR-VOICE: the two truths — truth (1) now derives its account
+          <p className={`mt-[22px] lg:mt-8 ${DECK.trio}`}>Read the no-line lanes twice! Eleven tools run the loop — and the project lane runs it all the way to a match — writing zero lines, because no money moved. The loop is bigger than money; money is just the loops that get a shadow.</p>
+          {/* PR-VOICE: the two truths — truth (1) derives its account
               words from the rule book. */}
           <p className={`mt-[14px] ${DECK.statement}`}>Two more truths from this drawing:</p>
           <div className="mt-[10px] border-y border-border py-[14px]">
@@ -4387,7 +4394,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             </p>
             <p className="mt-2 font-mono text-[11px] leading-[1.6] lg:text-[12px] text-text-secondary">{HOURS_TRUTH}</p>
           </div>
-          <p className={`mt-[14px] ${DECK.statement}`}>Alive today: the travel match — card charges find their bookings and propose the match; you approve it. The project lane&apos;s match is the blueprint: today a task lands for your review; the build that answers it is the shape we&apos;re building.</p>
+          <p className={`mt-[14px] ${DECK.statement}`}>Alive today: the travel match — card charges find their bookings and propose the match; you approve it. The project lane is wired end to end: a task lands for your review, and accepting it fires the build that answers it.</p>
 
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={DECK.q}>Beautiful. But why should you believe any of it?</p>
