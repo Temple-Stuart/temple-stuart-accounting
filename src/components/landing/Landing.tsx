@@ -1240,6 +1240,114 @@ const CAL_DEADLINES = [
   'The extended 1040 — your personal tax form, on its extension date — October 15.',
 ] as const;
 
+// S12-ITEMS (PR-S12-DATAFLOW): every dated thing the pipe made, derived
+// from the four existing consts — the ledger lines (moments, on their
+// dates), the calendar bars (spans, start→end derived from their percent
+// geometry), the dots (moments, on their days), the real deadlines
+// (moments, name and date split from the essay sentences; their dates
+// live outside the two-week window by nature, so the in-range assert
+// covers the window items and the deadlines assert a derived date and
+// land under the real-deadlines strip instead). Sorted by date (window day
+// order; deadlines after, in CAL_DEADLINES order); the sort is the
+// no-crossing law's spine. Nothing retyped: names, dates and amounts all
+// come from the consts.
+type S12Item = {
+  readonly name: string;
+  readonly date: string;
+  readonly kind: 'a moment' | 'a span';
+  readonly isLine: boolean;
+  readonly key: number;
+  readonly row: readonly [string, string, string, string] | null;
+};
+const S12_ITEMS: readonly S12Item[] = (() => {
+  const days = CAL_DAYS as readonly string[];
+  const items: S12Item[] = [];
+  for (const [date, line, debit, credit] of LEDGER_ROWS) {
+    const idx = days.indexOf(date.split(' ')[1]);
+    if (idx < 0) throw new Error(`slide 12: ledger date outside the window — ${date}`);
+    items.push({ name: line, date, kind: 'a moment', isLine: true, key: idx, row: [date, line, debit, credit] });
+  }
+  for (const bar of CAL_BARS) {
+    const start = Math.round((bar.left * days.length) / 100);
+    const end = Math.round(((bar.left + bar.width) * days.length) / 100) - 1;
+    if (start < 0 || end > days.length - 1 || start > end) throw new Error(`slide 12: bar outside the window — ${bar.label}`);
+    items.push({ name: bar.label, date: `Sep ${days[start]}–${days[end]}`, kind: 'a span', isLine: false, key: start, row: null });
+  }
+  for (const dot of CAL_DOTS) {
+    const idx = dot.day - 1;
+    if (idx < 0 || idx > days.length - 1) throw new Error(`slide 12: dot outside the window — ${dot.label}`);
+    items.push({ name: dot.label, date: `Sep ${days[idx]}`, kind: 'a moment', isLine: false, key: idx, row: null });
+  }
+  CAL_DEADLINES.forEach((s, i) => {
+    const cut = s.indexOf(' — ');
+    const back = s.lastIndexOf(' — ');
+    if (cut < 0 || back <= cut) throw new Error(`slide 12: a deadline needs a name and a date — ${s}`);
+    const name = s.slice(0, cut);
+    const date = s.slice(back + 3).replace(/\.$/, '');
+    if (!name || !date) throw new Error(`slide 12: a deadline needs a name and a date — ${s}`);
+    items.push({ name, date, kind: 'a moment', isLine: false, key: 100 + i, row: null });
+  });
+  return items.slice().sort((a, b) => a.key - b.key);
+})();
+
+// S12-GEOM: calendar window LEFT, the dated things + WHEN in the CENTER,
+// ledger window RIGHT. The calendar set exits left, the ledger set exits
+// right — the two arrow sets live in separate half-planes, so they can
+// never meet; within each set sources and landings share one date order,
+// so each corridor is monotone. (Both windows stacked on one side cannot
+// be crossing-free: one line item's calendar arrow must cross another's
+// ledger arrow — the half-planes are load-bearing, not styling.)
+const S12_GEOM = { W: 1216, CAL_W: 380, C_X: 460, C_W: 360, L_X: 900, HEAD: 22, ROW_H: 20, DAY_H: 18, BODY_H: 132, DLL_H: 16, DL_H: 16, SLOT0: 44, SLOT: 16, LED_TOP: 40, LED_HEAD: 18, LED_ROW: 20 } as const;
+
+// THE LAYOUT LAW (S12): every dated thing rides once; window items keep
+// dates inside CAL_DAYS (asserted at derive); the ledger landing and the
+// calendar entries are both date-monotonic; every item lands in the
+// calendar window and every line also lands in the ledger; the pairwise
+// one-order test proves each corridor crossing-free, and the half-plane
+// split is asserted from the geometry. THROWS at build on any violation;
+// a green build is the proof.
+const S12_LAYOUT = (() => {
+  const n = S12_ITEMS.length;
+  if (n !== LEDGER_ROWS.length + CAL_BARS.length + CAL_DOTS.length + CAL_DEADLINES.length)
+    throw new Error(`slide 12: every dated thing rides once — got ${n}`);
+  const rows = S12_ITEMS.map((it, i) => ({ ...it, ly: S12_GEOM.HEAD + i * S12_GEOM.ROW_H + S12_GEOM.ROW_H / 2 }));
+  const windowed = rows.filter((r) => r.key < 100);
+  const deadlines = rows.filter((r) => r.key >= 100);
+  rows.forEach((r, i) => {
+    if (r.key >= 100 && i < n - deadlines.length) throw new Error('slide 12: window items must precede the deadlines');
+  });
+  const dlTop = S12_GEOM.HEAD + S12_GEOM.DAY_H + S12_GEOM.BODY_H + S12_GEOM.DLL_H;
+  const calArrows = windowed
+    .map((r, k) => ({ ...r, ty: S12_GEOM.SLOT0 + k * S12_GEOM.SLOT }))
+    .concat(deadlines.map((r, j) => ({ ...r, ty: dlTop + j * S12_GEOM.DL_H + S12_GEOM.DL_H / 2 })));
+  if (calArrows.length !== n) throw new Error('slide 12: an item lands nowhere');
+  const lines = rows.filter((r) => r.isLine).map((r) => {
+    if (!r.row) throw new Error(`slide 12: a ledger line lost its row — ${r.name}`);
+    return { ...r, row: r.row };
+  });
+  if (lines.length !== LEDGER_ROWS.length) throw new Error('slide 12: every ledger line lands in the ledger');
+  for (let a = 1; a < lines.length; a += 1) {
+    if (lines[a].key < lines[a - 1].key) throw new Error('slide 12: the ledger landing must be date-monotonic');
+  }
+  for (let a = 1; a < calArrows.length; a += 1) {
+    if (calArrows[a].ty <= calArrows[a - 1].ty) throw new Error('slide 12: the calendar entries must be date-monotonic');
+  }
+  const ledArrows = lines.map((r, k) => ({ ...r, ty: S12_GEOM.LED_TOP + S12_GEOM.LED_HEAD + k * S12_GEOM.LED_ROW + S12_GEOM.LED_ROW / 2 }));
+  for (const set of [calArrows, ledArrows]) {
+    for (let a = 0; a < set.length; a += 1) {
+      for (let b = a + 1; b < set.length; b += 1) {
+        if (set[a].ly === set[b].ly || (set[a].ly < set[b].ly) !== (set[a].ty < set[b].ty))
+          throw new Error('slide 12: arrows would cross — sources and landings must keep one order');
+      }
+    }
+  }
+  if (S12_GEOM.CAL_W >= S12_GEOM.C_X || S12_GEOM.C_X + S12_GEOM.C_W >= S12_GEOM.L_X)
+    throw new Error('slide 12: the two windows must keep their half-planes');
+  const h = Math.max(S12_GEOM.HEAD + n * S12_GEOM.ROW_H, dlTop + CAL_DEADLINES.length * S12_GEOM.DL_H);
+  return { rows, calArrows, ledArrows, lines, deadlines, h } as const;
+})();
+const S12_H = S12_LAYOUT.h;
+
 // DECK-13: the hero thread — eight beats of one $500 sale, [n, action,
 // artifactSegments]. Debit/credit values and amounts gold via the segments.
 const THREAD_ROWS: ReadonlyArray<readonly [string, string, ReadonlyArray<readonly [string, boolean]>]> = [
@@ -3684,17 +3792,28 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── DECK-12 / THE TWO WINDOWS. Left: the mini ledger — the sale's
-            three lines plus the travel line (LEDGER_ROWS carries the one
-            flagged constructed figure). Right: Design's two-week calendar
-            strip, fluid percentages over the given pixel geometry: day header
-            of 14 equal columns on bg-bg-row (the header cream), 132px body
-            with day gridlines in the same cream, 6px square aubergine bars,
-            6px gold dots — the dots (here and in the deadline strip) are the
-            deck's one licensed radius. Bar/dot offsets are inline styles, the
-            house escape hatch for computed positioning (the PROBLEM fan's
-            label tops, CalendarGrid.tsx:747). The deadline strip runs full
-            width below both windows. */}
+      {/* ── DECK-12 / THE TWO WINDOWS (PR-S12-DATAFLOW) — the thesis,
+            drawn: ledger and calendar are the same rows seen two ways.
+            The dated things sit in the CENTER with their WHEN pulled
+            out; the calendar window is LEFT, the ledger window RIGHT —
+            the two arrow sets live in separate half-planes (stacked on
+            one side they provably cross: one line's calendar arrow must
+            cross another's ledger arrow), and within each set sources
+            and landings share one date order, so both corridors are
+            monotone — zero crossings by the S12_LAYOUT law (it throws
+            at build). Every item arrows LEFT into the calendar (bars on
+            their spans, dots on their days, ledger lines as derived
+            gold dots, deadlines on the real-deadlines rows); the four
+            lines ALSO arrow RIGHT into the ledger — one item, two
+            windows. The static side-by-side retired (SHOW DON'T ECHO);
+            both windows survive only as the landings. Every item
+            arrows left into the calendar; deadlines land on the
+            real-deadlines strip rows. The travel figure stays flagged:
+            the render tags it faint as illustrative while the const
+            comment holds the swap-here note. The deadline sentences'
+            glosses leave the render — name and date derive per row;
+            CAL_DEADLINES holds the essay text. Three moves, no
+            padding. */}
       <section id="deck-12" aria-label="The two windows" className={openSteps[11] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
@@ -3714,94 +3833,172 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             There are two windows, and every one of the twenty-five tools shows up in both:
           </p>
 
-          <div className="mt-10 lg:mt-[76px] grid gap-10 lg:grid-cols-2 lg:gap-12">
-            <div>
-              <p className={DECK.rust}>THE LEDGER</p>
-              <table className={`mt-[10px] ${DECK.table}`}>
-                <thead>
-                  <tr>
-                    {([
-                      ['DATE', 'w-[22%]'], ['LINE', 'w-[30%]'], ['DEBIT', 'w-[24%]'], ['CREDIT', 'w-[24%]'],
-                    ] as const).map(([head, w]) => (
-                      <th key={head} scope="col" className={`${w} ${DECK.th}`}>{head}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {LEDGER_ROWS.map(([date, line, debit, credit], r) => {
-                    const rule = r === LEDGER_ROWS.length - 1 ? '' : DECK.rule;
-                    return (
-                      <tr key={line}>
-                        <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[12px] text-brand-purple`}>{date}</td>
-                        <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}>{line}</td>
-                        <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-gold`}>{debit}</td>
-                        <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-gold`}>{credit}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <div>
-              <p className={DECK.rust}>THE CALENDAR</p>
-              <div className="mt-[10px] border border-border">
-                <div className="grid grid-cols-[repeat(14,minmax(0,1fr))] border-b border-border bg-bg-row">
-                  {CAL_DAYS.map((d) => (
-                    <span key={d} className="py-1 text-center font-mono text-[9px] text-text-faint">{d}</span>
-                  ))}
-                </div>
-                <div className="relative h-[132px] bg-white">
-                  {Array.from({ length: 13 }, (_, i) => (
-                    <span key={i} aria-hidden="true" className="absolute top-0 h-full w-px bg-bg-row" style={{ left: `${((i + 1) / 14) * 100}%` }} />
-                  ))}
-                  {CAL_BARS.map((bar) => (
-                    <Fragment key={bar.label}>
-                      <span
-                        aria-hidden="true"
-                        className="absolute h-[6px] bg-brand-purple"
-                        style={{ left: `calc(${bar.left}% + 6px)`, width: `calc(${bar.width}% - 12px)`, top: bar.y }}
-                      />
-                      <span
-                        className="absolute whitespace-nowrap font-mono text-[10px] text-brand-purple"
-                        style={{ left: `calc(${bar.left}% + 6px)`, top: bar.y + 11 }}
-                      >
-                        {bar.label}
-                      </span>
-                    </Fragment>
-                  ))}
-                  {CAL_DOTS.map((dot) => (
-                    <Fragment key={dot.label}>
-                      <span
-                        aria-hidden="true"
-                        className="absolute h-[6px] w-[6px] rounded-full bg-brand-gold"
-                        style={{ left: `calc(${((dot.day - 0.5) / 14) * 100}% - 3px)`, top: 96 }}
-                      />
-                      <span
-                        className="absolute whitespace-nowrap font-mono text-[10px] text-brand-purple"
-                        style={{ left: `calc(${((dot.day - 0.5) / 14) * 100}% + 9px)`, top: 94 }}
-                      >
-                        {dot.label}
-                      </span>
-                    </Fragment>
-                  ))}
-                </div>
+          {/* The three moves — real flow, no padding; labels faint. */}
+          <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is three moves:</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(a)</span> Take every dated thing the pipe made — the lines Step 10 wrote, the documents from Step 8 that carry a date, the real deadlines.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(b)</span> Pull out WHEN it is: a moment — a dot — or a span — a bar.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(c)</span> It appears in both windows at once: as a row in the ledger, and on its day in the calendar. Same thing, two views.</p>
+
+          {/* THE TWO WINDOWS, desktop (PR-S12-DATAFLOW) — center-out:
+              the dated things radiate left into the calendar and right
+              into the ledger. */}
+          <div className="relative mt-[14px] hidden lg:mt-8 lg:block" style={{ height: S12_H, maxWidth: S12_GEOM.W }}>
+            <div className="absolute left-0 top-0 border border-border bg-white" style={{ width: `${(S12_GEOM.CAL_W / S12_GEOM.W) * 100}%` }}>
+              <div style={{ height: S12_GEOM.HEAD }} className="flex items-center overflow-hidden bg-bg-row px-[8px] border-b border-b-border">
+                <span className={DECK.rust}>THE CALENDAR</span>
               </div>
+              <div style={{ height: S12_GEOM.DAY_H }} className="grid grid-cols-[repeat(14,minmax(0,1fr))] border-b border-border bg-bg-row">
+                {CAL_DAYS.map((d) => (
+                  <span key={d} className="flex items-center justify-center font-mono text-[7px] text-text-faint">{d}</span>
+                ))}
+              </div>
+              <div className="relative bg-white" style={{ height: S12_GEOM.BODY_H }}>
+                {Array.from({ length: 13 }, (_, i) => (
+                  <span key={i} aria-hidden="true" className="absolute top-0 h-full w-px bg-bg-row" style={{ left: `${((i + 1) / 14) * 100}%` }} />
+                ))}
+                {CAL_BARS.map((bar) => (
+                  <Fragment key={bar.label}>
+                    <span aria-hidden="true" className="absolute h-[6px] bg-brand-purple" style={{ left: `calc(${bar.left}% + 4px)`, width: `calc(${bar.width}% - 8px)`, top: bar.y }} />
+                    <span className="absolute whitespace-nowrap font-mono text-[8px] text-brand-purple" style={{ left: `calc(${bar.left}% + 4px)`, top: bar.y + 9 }}>{bar.label}</span>
+                  </Fragment>
+                ))}
+                {CAL_DOTS.map((dot) => (
+                  <Fragment key={dot.label}>
+                    <span aria-hidden="true" className="absolute h-[6px] w-[6px] rounded-full bg-brand-gold" style={{ left: `calc(${((dot.day - 0.5) / 14) * 100}% - 3px)`, top: 96 }} />
+                    <span className="absolute whitespace-nowrap font-mono text-[8px] text-brand-purple" style={{ left: `calc(${((dot.day - 0.5) / 14) * 100}% + 7px)`, top: 93 }}>{dot.label}</span>
+                  </Fragment>
+                ))}
+                {S12_LAYOUT.lines.map((r, j) => (
+                  <span key={r.name} aria-hidden="true" className="absolute h-[6px] w-[6px] rounded-full bg-brand-gold" style={{ left: `calc(${((r.key + 0.5) / 14) * 100}% - 3px)`, top: 104 + j * 7 }} />
+                ))}
+              </div>
+              <div style={{ height: S12_GEOM.DLL_H }} className="flex items-center overflow-hidden bg-bg-row px-[8px] border-y border-border">
+                <span className="font-mono text-[8px] uppercase tracking-[0.20em] text-brand-amber">THE REAL DEADLINES</span>
+              </div>
+              {S12_LAYOUT.deadlines.map((r, j) => (
+                <div key={r.name} style={{ height: S12_GEOM.DL_H }} className={`flex items-center gap-[6px] overflow-hidden px-[8px] font-mono text-[7px] ${j < S12_LAYOUT.deadlines.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                  <span aria-hidden="true" className="h-[4px] w-[4px] shrink-0 rounded-full bg-brand-gold" />
+                  <span className="whitespace-nowrap text-brand-purple">{r.name}</span>
+                  <span className="overflow-hidden whitespace-nowrap text-text-faint">— {r.date}</span>
+                </div>
+              ))}
+            </div>
+            <div className="absolute top-0 border border-border bg-white" style={{ left: `${(S12_GEOM.C_X / S12_GEOM.W) * 100}%`, width: `${(S12_GEOM.C_W / S12_GEOM.W) * 100}%` }}>
+              <div style={{ height: S12_GEOM.HEAD }} className="flex items-center justify-between overflow-hidden bg-bg-row px-[8px] border-b border-b-border">
+                <span className={DECK.rust}>THE DATED THINGS</span>
+                <span className="font-mono text-[10px] font-semibold tracking-[0.12em] text-brand-purple">WHEN</span>
+              </div>
+              {S12_LAYOUT.rows.map((r, i) => (
+                <div key={`${r.name}-${i}`} style={{ height: S12_GEOM.ROW_H }} className={`grid grid-cols-[150px_1fr] items-center font-mono text-[7px] ${i < S12_LAYOUT.rows.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                  <span className="overflow-hidden whitespace-nowrap px-[8px] text-brand-purple">{r.name}</span>
+                  <span className="overflow-hidden whitespace-nowrap px-[8px]"><span className="text-brand-purple">{r.date}</span><span className="text-text-faint"> · {r.kind}</span></span>
+                </div>
+              ))}
+            </div>
+            <div className="absolute top-0" style={{ left: `${(S12_GEOM.L_X / S12_GEOM.W) * 100}%`, width: `${((S12_GEOM.W - S12_GEOM.L_X) / S12_GEOM.W) * 100}%` }}>
+              <div style={{ height: S12_GEOM.HEAD }} className="flex items-center overflow-hidden px-[8px]">
+                <span className={DECK.rust}>THE LEDGER</span>
+              </div>
+              <div className="border border-border bg-white" style={{ marginTop: S12_GEOM.LED_TOP - S12_GEOM.HEAD }}>
+                <div style={{ height: S12_GEOM.LED_HEAD }} className="grid grid-cols-[56px_84px_1fr_70px] items-center overflow-hidden bg-bg-row font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">
+                  <span className="px-[6px]">DATE</span><span className="px-[6px]">LINE</span><span className="px-[6px]">DEBIT</span><span className="px-[6px]">CREDIT</span>
+                </div>
+                {S12_LAYOUT.lines.map((r, k) => (
+                  <div key={r.name} style={{ height: S12_GEOM.LED_ROW }} className={`grid grid-cols-[56px_84px_1fr_70px] items-center font-mono text-[7px] ${k < S12_LAYOUT.lines.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                    <span className="overflow-hidden whitespace-nowrap px-[6px] text-brand-purple">{r.row[0]}</span>
+                    <span className="overflow-hidden whitespace-nowrap px-[6px] text-brand-purple">{r.row[1]}</span>
+                    <span className="overflow-hidden whitespace-nowrap px-[6px] text-brand-gold">{r.row[2]}{r.row[2] === '480.00' && <span className="text-[6px] text-text-faint"> (illustrative)</span>}</span>
+                    <span className="overflow-hidden whitespace-nowrap px-[6px] text-brand-gold">{r.row[3]}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <svg viewBox={`0 0 ${S12_GEOM.W} ${S12_H}`} preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full text-brand-purple">
+              <defs>
+                <marker id="s12-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="6" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto">
+                  <path d="M0 0 L8 4 L0 8 z" fill="currentColor" />
+                </marker>
+              </defs>
+              {S12_LAYOUT.calArrows.map((r, i) => (
+                <path key={`cal-${r.name}-${i}`} d={`M${S12_GEOM.C_X} ${r.ly} C ${(S12_GEOM.C_X + S12_GEOM.CAL_W) / 2} ${r.ly}, ${(S12_GEOM.C_X + S12_GEOM.CAL_W) / 2} ${r.ty}, ${S12_GEOM.CAL_W} ${r.ty}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd="url(#s12-arrow)" />
+              ))}
+              {S12_LAYOUT.ledArrows.map((r) => (
+                <path key={`led-${r.name}`} d={`M${S12_GEOM.C_X + S12_GEOM.C_W} ${r.ly} C ${(S12_GEOM.C_X + S12_GEOM.C_W + S12_GEOM.L_X) / 2} ${r.ly}, ${(S12_GEOM.C_X + S12_GEOM.C_W + S12_GEOM.L_X) / 2} ${r.ty}, ${S12_GEOM.L_X} ${r.ty}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd="url(#s12-arrow)" />
+              ))}
+            </svg>
+          </div>
+
+          {/* THE TWO WINDOWS, mobile (PR-S12-DATAFLOW) — no arrows; the
+              dated things as cards, then the ledger, then the calendar
+              strip with the deadlines. */}
+          <div className="mt-[14px] lg:hidden">
+            {S12_LAYOUT.rows.map((r, i) => (
+              <div key={`${r.name}-${i}`} className="mt-3 border border-border bg-white px-3 py-[8px] first:mt-0">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="overflow-hidden whitespace-nowrap font-mono text-[10px] text-brand-purple">{r.name}</span>
+                  <span className="whitespace-nowrap font-mono text-[8px] text-text-faint">{r.isLine ? 'ledger + calendar' : 'calendar'}</span>
+                </div>
+                <p className="mt-[3px] font-mono text-[10px] leading-[1.5]"><span className="text-brand-purple">{r.date}</span><span className="text-text-faint"> · {r.kind}</span></p>
+              </div>
+            ))}
+            <p className={`mt-6 ${DECK.rust}`}>THE LEDGER</p>
+            <div className="mt-[10px] border border-border bg-white">
+              <div className="grid grid-cols-[64px_1fr_88px_72px] items-center bg-bg-row py-1 font-mono text-[8px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">
+                <span className="px-2">DATE</span><span className="px-2">LINE</span><span className="px-2">DEBIT</span><span className="px-2">CREDIT</span>
+              </div>
+              {S12_LAYOUT.lines.map((r, k) => (
+                <div key={r.name} className={`grid grid-cols-[64px_1fr_88px_72px] items-center py-[6px] font-mono text-[10px] ${k < S12_LAYOUT.lines.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                  <span className="overflow-hidden whitespace-nowrap px-2 text-brand-purple">{r.row[0]}</span>
+                  <span className="overflow-hidden whitespace-nowrap px-2 text-brand-purple">{r.row[1]}</span>
+                  <span className="overflow-hidden whitespace-nowrap px-2 text-brand-gold">{r.row[2]}{r.row[2] === '480.00' && <span className="text-[8px] text-text-faint"> (illustrative)</span>}</span>
+                  <span className="overflow-hidden whitespace-nowrap px-2 text-brand-gold">{r.row[3]}</span>
+                </div>
+              ))}
+            </div>
+            <p className={`mt-6 ${DECK.rust}`}>THE CALENDAR</p>
+            <div className="mt-[10px] border border-border">
+              <div className="grid grid-cols-[repeat(14,minmax(0,1fr))] border-b border-border bg-bg-row">
+                {CAL_DAYS.map((d) => (
+                  <span key={d} className="py-1 text-center font-mono text-[10px] text-text-faint">{d}</span>
+                ))}
+              </div>
+              <div className="relative h-[132px] bg-white">
+                {Array.from({ length: 13 }, (_, i) => (
+                  <span key={i} aria-hidden="true" className="absolute top-0 h-full w-px bg-bg-row" style={{ left: `${((i + 1) / 14) * 100}%` }} />
+                ))}
+                {CAL_BARS.map((bar) => (
+                  <Fragment key={bar.label}>
+                    <span aria-hidden="true" className="absolute h-[6px] bg-brand-purple" style={{ left: `calc(${bar.left}% + 4px)`, width: `calc(${bar.width}% - 8px)`, top: bar.y }} />
+                    <span className="absolute whitespace-nowrap font-mono text-[10px] text-brand-purple" style={{ left: `calc(${bar.left}% + 4px)`, top: bar.y + 9 }}>{bar.label}</span>
+                  </Fragment>
+                ))}
+                {CAL_DOTS.map((dot) => (
+                  <Fragment key={dot.label}>
+                    <span aria-hidden="true" className="absolute h-[6px] w-[6px] rounded-full bg-brand-gold" style={{ left: `calc(${((dot.day - 0.5) / 14) * 100}% - 3px)`, top: 96 }} />
+                    <span className="absolute whitespace-nowrap font-mono text-[10px] text-brand-purple" style={{ left: `calc(${((dot.day - 0.5) / 14) * 100}% + 7px)`, top: 92 }}>{dot.label}</span>
+                  </Fragment>
+                ))}
+                {S12_LAYOUT.lines.map((r, j) => (
+                  <span key={r.name} aria-hidden="true" className="absolute h-[6px] w-[6px] rounded-full bg-brand-gold" style={{ left: `calc(${((r.key + 0.5) / 14) * 100}% - 3px)`, top: 104 + j * 7 }} />
+                ))}
+              </div>
+              <div className="flex items-center bg-bg-row px-2 py-1 border-y border-border">
+                <span className="font-mono text-[10px] uppercase tracking-[0.20em] text-brand-amber">THE REAL DEADLINES</span>
+              </div>
+              {S12_LAYOUT.deadlines.map((r, j) => (
+                <div key={r.name} className={`flex items-center gap-2 px-2 py-[5px] font-mono text-[10px] ${j < S12_LAYOUT.deadlines.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                  <span aria-hidden="true" className="h-[5px] w-[5px] shrink-0 rounded-full bg-brand-gold" />
+                  <span className="whitespace-nowrap text-brand-purple">{r.name}</span>
+                  <span className="overflow-hidden whitespace-nowrap text-text-faint">— {r.date}</span>
+                </div>
+              ))}
             </div>
           </div>
 
           <p className={`mt-8 lg:mt-12 ${DECK.statement}`}>Bars are things that last. Dots are things that happen.</p>
-
-          <p className={`mt-8 lg:mt-12 ${DECK.rust}`}>THE REAL DEADLINES</p>
-          <div className="mt-[10px] flex flex-wrap items-center gap-x-[14px] gap-y-2 border-y border-border py-[14px]">
-            {CAL_DEADLINES.map((seg, i) => (
-              <Fragment key={seg}>
-                {i > 0 && <span aria-hidden="true" className="h-[5px] w-[5px] rounded-full bg-brand-gold" />}
-                <span className="font-mono text-[11px] lg:text-[12px] text-brand-purple">{seg}</span>
-              </Fragment>
-            ))}
-          </div>
-
           <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Twenty-five tools. Two windows!</p>
+
+          <p className={`mt-2 ${DECK.statement}`}>Two windows over one set of rows is the blueprint. Today the calendar window is live at /hub; the ledger window fills as the posting pipe lands its lines.</p>
 
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={DECK.q}>Can you watch one dollar run the whole machine?</p>
