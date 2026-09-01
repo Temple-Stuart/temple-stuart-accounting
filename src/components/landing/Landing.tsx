@@ -20,8 +20,6 @@
  *   03 / IMPORT THE DATA AND SEE HOW IT ARRIVES — the raw import table, twelve arrivals, the promises
  *   04 / LABEL EVERY FEED BY ITS KIND — the fold drawn, one rule per feed, twenty rows, five kinds
  *   05 / CREATE ONE TABLE PER KIND AND MAP THE DATA IN — six tables; the kind is the address
- *   06 / THE HANDOFF — inserted slide (PR-H6): the kind picks the table;
- *                      the old 06–14 below await the founder's renumber
  *   06 / SEPARATE WHAT HAPPENED TO YOU FROM WHAT YOU DID — observed vs authored
  *   07 / RUN THE LOOP         — discover → decide → commit → record
  *   08 / STORE EVERYTHING YOU DO IN ONE MASTER TABLE
@@ -664,105 +662,50 @@ const S5_STARTS = S5_BOXES.map((_, b) => S5_BOXES.slice(0, b).reduce((s, [, , n]
 // itself is untouched — slide 04 still renders the wire order.
 const S5_SORTED = HANDOFF_KINDS.flatMap(([kind]) => ROUTING_RULES.filter(([, , k]) => k.toLowerCase() === kind));
 
-// S5-GEOM (PR-S5-SORT): the S2/S3/S4 sibling. Rule book x 0..RB_W, HEAD +
-// 20·ROW_H tall; six boxes at BX_L, all BOX_H tall; BX_L + BX_W == W.
-// S5_MX is the corridor midpoint, (RB_W + BX_L) / 2 — the arc control x
-// of the slide 01–04 cubic idiom.
+// S5-GEOM (PR-H6R): the S2/S3/S4 sibling. Rule book x 0..RB_W, HEAD +
+// 20·ROW_H tall; six boxes at BX_L — BOX_H tall, POST_H for posting's
+// taller dashed card; BX_L + BX_W == W. BRK is the block-bracket spine x
+// (ticks at BRK−6, stem to BRK+12); the connector's control x is the
+// corridor midpoint between the stem and the boxes.
 const S5_GEOM = {
   W: 1216, RB_W: 380, HEAD: 26, ROW_H: 24,
-  BX_L: 896, BX_W: 320, BOX_H: 66, GAP: 8,
+  BX_L: 896, BX_W: 320, BOX_H: 66, POST_H: 100, GAP: 8, BRK: 392,
 } as const;
-const S5_MX = (S5_GEOM.RB_W + S5_GEOM.BX_L) / 2;
 const s5RowY = (r: number) => S5_GEOM.HEAD + r * S5_GEOM.ROW_H + S5_GEOM.ROW_H / 2;
-// The level-arrow law, cascaded: box k's center IS its kind's band center
-// in the sorted book — HEAD + (S5_STARTS[k] + count/2)·ROW_H — unless the
-// minimum pitch (BOX_H + GAP) pushes it down. reference and registry land
-// dead level; event, derived and snapshot sit within 30px of their bands;
-// posting's 'band' is the book's bottom edge, HEAD + 20·ROW_H — nothing
-// feeds it. The drawing's height is the last box's bottom — derived.
-const S5_CENTERS = S5_BOXES.reduce<ReadonlyArray<number>>((acc, [, , n], b) => {
-  const band = S5_GEOM.HEAD + (S5_STARTS[b] + n / 2) * S5_GEOM.ROW_H;
-  const floor = b === 0 ? 0 : acc[b - 1] + S5_GEOM.BOX_H + S5_GEOM.GAP;
-  return [...acc, Math.max(band, floor)];
-}, []);
-const s5BoxTop = (b: number) => S5_CENTERS[b] - S5_GEOM.BOX_H / 2;
-const S5_H = S5_CENTERS[S5_CENTERS.length - 1] + S5_GEOM.BOX_H / 2;
+const s5BoxH = (kind: string) => (kind === 'posting' ? S5_GEOM.POST_H : S5_GEOM.BOX_H);
 
-// ── PR-H6 / THE HANDOFF — the founder's inserted slide 06. Deck tokens
-// stand in for the artboard's spec hexes (the deck defines them centrally):
-// aubergine = brand-purple, gold = brand-gold, lavender = border, band =
-// bg-row, muted = text-faint, the LIGHTER interior rule = border-light,
-// mono = font-mono. Data first, drawn from it — nothing retyped.
-const H6_ROWS = [
-  ['tastytrade', 'quote', 'REFERENCE'],
-  ['finnhub', 'fundamentals', 'REFERENCE'],
-  ['fred', 'series', 'REFERENCE'],
-  ['sec', 'filing', 'REFERENCE'],
-  ['viator', 'activity', 'REFERENCE'],
-  ['google places', 'place', 'REFERENCE'],
-  ['travel buddy', 'visa', 'REFERENCE'],
-  ['ecfr', 'title', 'REFERENCE'],
-  ['us code', 'title', 'REFERENCE'],
-  ['federal register', 'document', 'REFERENCE'],
-  ['irs', 'bulletin', 'REFERENCE'],
-  ['plaid', 'account', 'REGISTRY'],
-  ['plaid', 'transaction', 'EVENT'],
-  ['stripe', 'payout', 'EVENT'],
-  ['liteapi', 'booking', 'EVENT'],
-  ['anthropic', 'classification', 'DERIVED'],
-  ['openai', 'insight', 'DERIVED'],
-  ['xai grok', 'sentiment', 'DERIVED'],
-  ['voyage', 'embedding', 'DERIVED'],
-  ['plaid', 'holding', 'SNAPSHOT'],
-] as const;
-// the six boxes in ruled order — counts DERIVED from the rows, never typed.
-const H6_BOXES = ([
-  ['reference', 'holds facts about the world'],
-  ['registry', 'holds your accounts and your people'],
-  ['event', 'holds what happened'],
-  ['derived', 'holds math we did'],
-  ['snapshot', 'holds how things stood at one moment'],
-  ['posting', 'holds debits and credits'],
-] as const).map(([kind, gloss]) => [kind, gloss, H6_ROWS.filter(([, , k]) => k.toLowerCase() === kind).length] as const);
-
-const H6_GEOM = {
-  W: 1216, TBL_W: 360, HEAD: 26, ROW_H: 24,
-  BX_L: 880, BX_W: 336, BOX_H: 64, POST_H: 96, GAP: 10,
-} as const;
-const h6RowY = (r: number) => H6_GEOM.HEAD + r * H6_GEOM.ROW_H + H6_GEOM.ROW_H / 2;
-
-// THE LAYOUT LAW (ruled): kind-blocks must be contiguous; each box centers
-// on its source block, pushed down only where the minimum pitch forbids
-// centering; and the two column orders must agree pairwise. The build
-// REFUSES — this throws at module load, so prerender fails — if any two
-// connectors would cross. Posting has no block and no connector.
-const H6_LAYOUT = (() => {
+// THE LAYOUT LAW (PR-H6R, ruled): the sorted book's kind-blocks must be
+// contiguous; each box centers on its source block, pushed down only where
+// the minimum pitch forbids centering (reference and registry land dead
+// level; posting has no block — it hangs off the cascade, nothing feeds
+// it); and the two column orders must agree pairwise. The build REFUSES —
+// this throws at module load, so prerender fails — if any two connectors
+// would cross. ONE connector per block: five, and none for posting.
+const S5_LAYOUT = (() => {
   const blocks: Array<readonly [string, number, number]> = [];
-  H6_BOXES.forEach(([kind, , n]) => {
+  S5_BOXES.forEach(([kind, , n], b) => {
     if (n === 0) return;
-    const rows = H6_ROWS.flatMap(([, , k], r) => (k.toLowerCase() === kind ? [r] : []));
-    if (rows.length !== n || rows[n - 1] - rows[0] + 1 !== n) throw new Error(`deck-06 handoff: ${kind} rows are not one contiguous block`);
-    blocks.push([kind, rows[0], rows[n - 1]] as const);
+    const r0 = S5_STARTS[b];
+    if (!S5_SORTED.slice(r0, r0 + n).every(([, , k]) => k.toLowerCase() === kind)) throw new Error(`slide 05: ${kind} rows are not one contiguous block`);
+    blocks.push([kind, r0, r0 + n - 1] as const);
   });
   const centers: number[] = [];
-  H6_BOXES.forEach(([kind], b) => {
-    const h = kind === 'posting' ? H6_GEOM.POST_H : H6_GEOM.BOX_H;
-    const prevH = b > 0 && H6_BOXES[b - 1][0] === 'posting' ? H6_GEOM.POST_H : H6_GEOM.BOX_H;
-    const floor = b === 0 ? 0 : centers[b - 1] + (prevH + h) / 2 + H6_GEOM.GAP;
+  S5_BOXES.forEach(([kind], b) => {
+    const floor = b === 0 ? 0 : centers[b - 1] + (s5BoxH(S5_BOXES[b - 1][0]) + s5BoxH(kind)) / 2 + S5_GEOM.GAP;
     const block = blocks.find(([k]) => k === kind);
-    const want = block ? (h6RowY(block[1]) + h6RowY(block[2])) / 2 : 0;
+    const want = block ? (s5RowY(block[1]) + s5RowY(block[2])) / 2 : 0;
     centers.push(Math.max(want, floor));
   });
-  for (let a = 0; a < blocks.length; a += 1) {
-    for (let b = a + 1; b < blocks.length; b += 1) {
-      const sa = (h6RowY(blocks[a][1]) + h6RowY(blocks[a][2])) / 2;
-      const sb = (h6RowY(blocks[b][1]) + h6RowY(blocks[b][2])) / 2;
-      if ((sa - sb) * (centers[a] - centers[b]) <= 0) throw new Error('deck-06 handoff: connectors would cross — reorder the blocks');
+  for (let x = 0; x < blocks.length; x += 1) {
+    for (let y = x + 1; y < blocks.length; y += 1) {
+      const sx = (s5RowY(blocks[x][1]) + s5RowY(blocks[x][2])) / 2;
+      const sy = (s5RowY(blocks[y][1]) + s5RowY(blocks[y][2])) / 2;
+      if ((sx - sy) * (centers[x] - centers[y]) <= 0) throw new Error('slide 05: connectors would cross — reorder the blocks');
     }
   }
   return { blocks, centers } as const;
 })();
-const H6_H = H6_LAYOUT.centers[H6_LAYOUT.centers.length - 1] + H6_GEOM.POST_H / 2;
+const S5_H = S5_LAYOUT.centers[S5_LAYOUT.centers.length - 1] + S5_GEOM.POST_H / 2;
 
 // PR-S3-COHESION: IMPORT_TRIO retired — the essay merged the three
 // promises (and the census + handshake lines) into Step 3's single tail
@@ -1017,8 +960,7 @@ const DECK = {
   sectionBar: 'max-w-7xl mx-auto px-4 lg:px-8 pb-2',
 } as const;
 
-// PR-COLLAPSE: the deck steps' section ids (15 with PR-H6), order-parallel
-// to the acts.
+// PR-COLLAPSE: the 14 deck steps' section ids, order-parallel to the acts.
 // Each header button's aria-controls points at `${id}-body`, and a URL hash
 // naming a section id expands that step on load. The ids are NEW with this
 // feature (the deck sections carried only aria-labels before), so no
@@ -1026,14 +968,9 @@ const DECK = {
 // PR-STEP-2: deck-02 is the inserted providers step; 03–14 are the old
 // 02–13 shifted by one, so an OLD #deck-NN link now opens the step BEFORE
 // the one it used to name — accepted, the ids follow the essay's numbering.
-// PR-H6: 'deck-06-handoff' is the founder's inserted slide 06 (THE
-// HANDOFF) between 05 and the old 06. The old 06–14 sections keep their
-// ids, eyebrows and content (only their openSteps indices shifted by one)
-// until the founder renumbers the back nine.
 const DECK_STEP_IDS = [
-  'deck-01', 'deck-02', 'deck-03', 'deck-04', 'deck-05', 'deck-06-handoff',
-  'deck-06', 'deck-07', 'deck-08', 'deck-09', 'deck-10', 'deck-11',
-  'deck-12', 'deck-13', 'deck-14',
+  'deck-01', 'deck-02', 'deck-03', 'deck-04', 'deck-05', 'deck-06', 'deck-07',
+  'deck-08', 'deck-09', 'deck-10', 'deck-11', 'deck-12', 'deck-13', 'deck-14',
 ] as const;
 
 /** PR-DECK: inline [text, isGold] segments — the only way gold ever enters a
@@ -2536,17 +2473,18 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── PR-S5 / SIX. THE KIND IS THE ADDRESS — Step 5 in full;
-            PR-S5-SORT re-cut the drawing. Act grammar unchanged: same
-            container, act padding, border-t closing the routing|handoff
-            seam. Body: the essay's Step 5 moves block (slide-01 grammar),
-            then THE ADDRESS drawn — the rule book SORTED by kind (MEANS
-            dropped) beside six kind-table boxes in HANDOFF_KINDS order,
-            one level-or-near-level arrow per rule, zero crossings,
-            posting's box empty but for the essay's line — and the
-            consolidated tail paragraph. The old kind table, its aria
-            arrow, the divider, the twenty-five-tools standalone, the notice
-            block and the census receipt all retired into the paragraph. */}
+      {/* ── PR-S5 → PR-H6R / THE KIND PICKS THE TABLE — Step 5, the
+            handoff re-cut IN PLACE (the founder's replace ruling: no new
+            slide, no duplicate 06). Act grammar unchanged. Body: the Step
+            5 moves block with MUTED labels — gold on this slide marks the
+            kind and only the kind — then the drawing: the rule book
+            SORTED by kind beside six kind-table boxes, five square
+            block-brackets each sending ONE dotted muted connector to its
+            box (posting gets none; its dashed card says why), boxes
+            centered on their source blocks by the S5_LAYOUT law, which
+            THROWS at build if blocks break contiguity or any two
+            connectors would cross. The tail paragraph carries the
+            founder's named-filler sentence. */}
       <section id="deck-05" aria-label="The handoff" className={openSteps[4] ? 'max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-t border-border' : DECK.sectionBar}>
         <button
           type="button"
@@ -2560,7 +2498,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </button>
         <div id="deck-05-body" className={openSteps[4] ? undefined : 'hidden'}>
           <h2 className="mt-[26px] text-[27px] leading-[1.2] lg:text-[38px] tracking-[-0.025em] text-brand-purple">
-            Six.<br />The kind is the address.
+            The kind picks the table.
           </h2>
           <p className="mt-[22px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">
             Now we take every labeled arrival and move it into a table; one table per kind.
@@ -2569,21 +2507,20 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           {/* PR-S5: the essay's Step 5 moves block, verbatim — slide-01
               grammar, gold letter tier, the #1600 rhythm. */}
           <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is four moves:</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(a)</span> Start from the rule book Step 4 built.</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(b)</span> Create one table per kind: six tables, six names.</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(c)</span> Send every feed&apos;s arrivals to the table its kind names. The kind is the address.</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(d)</span> Look at what landed. The outside world fills four tables. Math we ordered fills derived. Posting stays empty.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(a)</span> Start from the rule book Step 4 built.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(b)</span> Create one table per kind: six tables, six names.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(c)</span> Send every feed&apos;s arrivals to the table its kind names.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(d)</span> Look at what landed. The outside world fills four tables. Math we ordered fills derived. Posting stays empty.</p>
 
-          {/* THE ADDRESS, desktop (PR-S5-SORT) — the rule book SORTED by
-              kind (S5_SORTED: the same twenty rows, stable within kind)
-              beside the six kind-table boxes. One arrow per rule in the
-              corridor arc idiom of slides 01–04 (cubics through S5_MX, no
-              trunks): because both sides share the sort, every arrow runs
-              level or near-level — registry and reference's middle row
-              dead level — and crossings are ZERO, script-proved. Heads fan
-              at the S4 pitch (6px) so reference's eleven never stack.
-              Posting: no arrows, count 0 — its box carries the essay's
-              line. */}
+          {/* THE ADDRESS, desktop (PR-H6R) — the rule book SORTED by kind
+              (S5_SORTED: the same twenty rows, stable within kind) beside
+              the six kind-table boxes. The handoff layout, IN PLACE: five
+              square block-brackets at the table's edge — one per
+              contiguous kind-block — each sending ONE dotted muted
+              connector to its box's left-center; posting gets none
+              (nothing feeds it — its dashed card says so). Boxes center
+              on their source blocks by the S5_LAYOUT law; the build
+              refuses if any two connectors would cross. */}
           <p className="mt-8 hidden font-mono text-[11px] uppercase tracking-[0.20em] text-brand-amber lg:block">THE RULE BOOK — SORTED BY KIND</p>
           <div className="relative mt-[14px] hidden lg:mt-3 lg:block" style={{ height: S5_H, maxWidth: S5_GEOM.W }}>
             <div className="absolute left-0 top-0 border border-border bg-white" style={{ width: `${(S5_GEOM.RB_W / S5_GEOM.W) * 100}%` }}>
@@ -2599,35 +2536,41 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               ))}
             </div>
             {S5_BOXES.map(([kind, holds, n], b) => (
-              <div key={kind} className="absolute border border-border bg-white" style={{ left: `${(S5_GEOM.BX_L / S5_GEOM.W) * 100}%`, top: s5BoxTop(b), width: `${(S5_GEOM.BX_W / S5_GEOM.W) * 100}%`, height: S5_GEOM.BOX_H }}>
+              <div key={kind} className={`absolute bg-white ${kind === 'posting' ? 'border border-dashed border-text-faint' : 'border border-border'}`} style={{ left: `${(S5_GEOM.BX_L / S5_GEOM.W) * 100}%`, top: S5_LAYOUT.centers[b] - s5BoxH(kind) / 2, width: `${(S5_GEOM.BX_W / S5_GEOM.W) * 100}%`, height: s5BoxH(kind) }}>
                 <div className="flex items-baseline justify-between px-[14px] pt-2">
                   <span className="font-mono text-[13px] text-brand-gold">{kind}</span>
-                  <span className="font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint">{n} {n === 1 ? 'FEED' : 'FEEDS'}</span>
+                  <span className="font-mono text-[7px] tracking-[0.14em] text-text-faint"><span className="uppercase">{n} {n === 1 ? 'FEED' : 'FEEDS'}</span>{kind === 'posting' ? ' (later)' : ''}</span>
                 </div>
                 <p className="mt-1 px-[14px] text-[11px] leading-[1.4] text-text-faint">holds {holds}</p>
-                {kind === 'posting' && <p className="mt-1 px-[14px] text-[11px] leading-[1.4] text-brand-purple">Nobody sends you debits and credits.</p>}
+                {kind === 'posting' && <p className="mt-[5px] px-[14px] text-[11px] leading-[1.4] text-brand-purple">No provider feeds this. The bookkeeping step writes them here — from your events.</p>}
               </div>
             ))}
-            <svg viewBox={`0 0 ${S5_GEOM.W} ${S5_H}`} preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full text-brand-purple">
+            <svg viewBox={`0 0 ${S5_GEOM.W} ${S5_H}`} preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full text-text-faint">
               <defs>
-                <marker id="s5-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto">
+                <marker id="s5-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="6" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto">
                   <path d="M0 0 L8 4 L0 8 z" fill="currentColor" />
                 </marker>
               </defs>
-              {S5_BOXES.map(([kind, , n], b) =>
-                Array.from({ length: n }, (_, i) => {
-                  const sy = s5RowY(S5_STARTS[b] + i);
-                  const hy = S5_CENTERS[b] + (i - (n - 1) / 2) * 6;
-                  return <path key={`${kind}-${i}`} d={`M${S5_GEOM.RB_W} ${sy} C ${S5_MX} ${sy}, ${S5_MX} ${hy}, ${S5_GEOM.BX_L} ${hy}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd="url(#s5-arrow)" />;
-                }),
-              )}
+              <g className="text-border" stroke="currentColor" strokeWidth={1} fill="none">
+                {S5_LAYOUT.blocks.map(([kind, r0, r1]) => {
+                  const y0 = r0 === r1 ? s5RowY(r0) - 7 : s5RowY(r0);
+                  const y1 = r0 === r1 ? s5RowY(r1) + 7 : s5RowY(r1);
+                  const mid = (s5RowY(r0) + s5RowY(r1)) / 2;
+                  return <path key={kind} d={`M${S5_GEOM.BRK - 6} ${y0} H${S5_GEOM.BRK} V${y1} H${S5_GEOM.BRK - 6} M${S5_GEOM.BRK} ${mid} H${S5_GEOM.BRK + 12}`} />;
+                })}
+              </g>
+              {S5_LAYOUT.blocks.map(([kind, r0, r1], b) => {
+                const mid = (s5RowY(r0) + s5RowY(r1)) / 2;
+                const cmx = (S5_GEOM.BRK + 12 + S5_GEOM.BX_L) / 2;
+                return <path key={kind} d={`M${S5_GEOM.BRK + 12} ${mid} C ${cmx} ${mid}, ${cmx} ${S5_LAYOUT.centers[b]}, ${S5_GEOM.BX_L} ${S5_LAYOUT.centers[b]}`} stroke="currentColor" strokeWidth={1} strokeDasharray="1 4" strokeLinecap="round" fill="none" markerEnd="url(#s5-arrow)" />;
+              })}
             </svg>
           </div>
 
-          {/* THE ADDRESS, mobile (PR-S5-SORT) — stacked: the caption, the
-              sorted rule book condensed, then the six boxes with their
-              count tags, posting carrying its line. The old chrome line
-              retired with the trunk harness. */}
+          {/* THE ADDRESS, mobile (PR-H6R) — stacked: the caption, the
+              sorted rule book condensed, then the six boxes — each wearing
+              its gold KIND echo in place of the connectors — posting
+              dashed with its (later) tag and the aubergine line. */}
           <div className="mt-[14px] lg:hidden">
             <p className="font-mono text-[10px] uppercase tracking-[0.20em] text-brand-amber">THE RULE BOOK — SORTED BY KIND</p>
             <div className="mt-2 border border-border bg-white">
@@ -2643,13 +2586,14 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               ))}
             </div>
             {S5_BOXES.map(([kind, holds, n]) => (
-              <div key={kind} className="mt-3 border border-border bg-white px-3 py-[10px]">
+              <div key={kind} className={`mt-3 bg-white px-3 py-[10px] ${kind === 'posting' ? 'border border-dashed border-text-faint' : 'border border-border'}`}>
                 <div className="flex items-baseline justify-between">
                   <span className="font-mono text-[12px] text-brand-gold">{kind}</span>
-                  <span className="font-mono text-[6.5px] uppercase tracking-[0.14em] text-text-faint">{n} {n === 1 ? 'FEED' : 'FEEDS'}</span>
+                  <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-brand-gold">{kind.toUpperCase()}</span>
                 </div>
                 <p className="mt-1 text-[10px] leading-[1.4] text-text-faint">holds {holds}</p>
-                {kind === 'posting' && <p className="mt-[6px] text-[10px] leading-[1.4] text-brand-purple">Nobody sends you debits and credits.</p>}
+                <p className="mt-1 font-mono text-[8px] tracking-[0.14em] text-text-faint"><span className="uppercase">{n} {n === 1 ? 'FEED' : 'FEEDS'}</span>{kind === 'posting' ? ' (later)' : ''}</p>
+                {kind === 'posting' && <p className="mt-[5px] text-[10px] leading-[1.4] text-brand-purple">No provider feeds this. The bookkeeping step writes them here — from your events.</p>}
               </div>
             ))}
           </div>
@@ -2659,122 +2603,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               table, the divider, the twenty-five-tools statement, the
               notice block and the census receipt all return inside it —
               they render nowhere else now. */}
-          <p className="mt-8 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">Twenty-five tools, six tables; because we sorted by what a thing is, not by which tool it came from. But notice something strange here: (1) the outside world only ever fills four of the six — reference, registry, event, and snapshot; (2) derived is filled only by math we ordered, our AIs included; (3) and posting? Nothing from the outside world ever lands there. Nobody sends you debits and credits. Remember that; it matters soon. We did not guess this. We classified every one of the 121 feeds — August 24, 2026 — and posting took zero. The data agreed!</p>
+          <p className="mt-8 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">Twenty-five tools, six tables; because we sorted by what a thing is, not by which tool it came from. But notice something strange here: (1) the outside world only ever fills four of the six — reference, registry, event, and snapshot; (2) derived is filled only by math we ordered, our AIs included; (3) and posting? Nothing from the outside world ever lands there. Nobody sends you debits and credits — the bookkeeping step builds those, from your own events. Remember that; it matters soon. We did not guess this. We classified every one of the 121 feeds — August 24, 2026 — and posting took zero. The data agreed!</p>
           <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">Everything so far arrived from the world. So where do the things you do live?</p>
-        </div>
-      </section>
-
-      {/* ── PR-H6 / DECK-06-HANDOFF / THE HANDOFF — the founder's inserted
-            slide 06: the kind picks the table. Shipped from the approved
-            artboard: the rule book in contiguous kind-blocks, five square
-            block-brackets each sending ONE dotted connector to its box
-            (posting gets none), boxes centered on their blocks by the
-            H6_LAYOUT law — which throws at build if any two connectors
-            would cross. Gold inks the KIND column and the six box names
-            only; the move labels are MUTED (the founder's one change from
-            the artboard). Mobile stacks the book then the boxes, each
-            wearing its ruled gold KIND echo. NOTE: eyebrow number 06 is
-            duplicated with the old deck-06 until the founder renumbers
-            the back nine. */}
-      <section id="deck-06-handoff" aria-label="The kind picks the table" className={openSteps[5] ? DECK.section : DECK.sectionBar}>
-        <button
-          type="button"
-          aria-expanded={openSteps[5]}
-          aria-controls="deck-06-handoff-body"
-          onClick={() => toggleStep(5)}
-          className={DECK.stepButton}
-        >
-          <span className={DECK.eyebrow}>06 / THE HANDOFF</span>
-          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[5] ? '−' : '+'}</span>
-        </button>
-        <div id="deck-06-handoff-body" className={openSteps[5] ? undefined : 'hidden'}>
-          <h2 className={DECK.h2}>The kind picks the table.</h2>
-          <p className={DECK.sub}>Every labeled arrival moves into the table for its kind.</p>
-
-          {/* The four moves — labels MUTED: gold on this slide marks the
-              kind and only the kind. */}
-          <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is four moves:</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(a)</span> Start from the rule book the routing step built.</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(b)</span> Create one table per kind: six tables, six names.</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(c)</span> Send every feed&apos;s arrivals to the table its kind names.</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(d)</span> Look at what landed. The outside world fills four tables. Math we ordered fills derived. Posting stays empty.</p>
-
-          {/* Desktop — the bracket-connector drawing. */}
-          <div className="relative mt-[14px] hidden lg:mt-8 lg:block" style={{ height: H6_H, maxWidth: H6_GEOM.W }}>
-            <div className="absolute left-0 top-0 border border-border bg-white" style={{ width: `${(H6_GEOM.TBL_W / H6_GEOM.W) * 100}%` }}>
-              <div style={{ height: H6_GEOM.HEAD }} className="grid grid-cols-[120px_120px_1fr] items-center overflow-hidden bg-bg-row font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">
-                <span className="px-[10px]">PROVIDER</span><span className="px-[10px]">RESOURCE</span><span className="px-[10px]">KIND</span>
-              </div>
-              {H6_ROWS.map(([p, r, kind], j) => (
-                <div key={`${p}-${r}`} style={{ height: H6_GEOM.ROW_H }} className={`grid grid-cols-[120px_120px_1fr] items-center ${j < H6_ROWS.length - 1 ? 'border-b-[0.75px] border-b-border-light' : ''}`}>
-                  <span className="overflow-hidden whitespace-nowrap px-[10px] text-[12px] text-text-faint">{p}</span>
-                  <span className="overflow-hidden whitespace-nowrap px-[10px] text-[12px] text-text-faint">{r}</span>
-                  <span className="overflow-hidden whitespace-nowrap px-[10px] font-mono text-[11px] tracking-[0.08em] text-brand-gold">{kind}</span>
-                </div>
-              ))}
-            </div>
-            {H6_BOXES.map(([kind, gloss, n], b) => (
-              <div key={kind} className={`absolute bg-white ${kind === 'posting' ? 'border border-dashed border-text-faint' : 'border border-border'}`} style={{ left: `${(H6_GEOM.BX_L / H6_GEOM.W) * 100}%`, top: H6_LAYOUT.centers[b] - (kind === 'posting' ? H6_GEOM.POST_H : H6_GEOM.BOX_H) / 2, width: `${(H6_GEOM.BX_W / H6_GEOM.W) * 100}%`, height: kind === 'posting' ? H6_GEOM.POST_H : H6_GEOM.BOX_H }}>
-                <div className="flex items-baseline justify-between px-[14px] pt-[11px]">
-                  <span className="font-mono text-[14px] text-brand-gold">{kind}</span>
-                  <span className="font-mono text-[10px] text-text-faint">{n} feed{n === 1 ? '' : 's'}{kind === 'posting' ? ' (later)' : ''}</span>
-                </div>
-                <p className="mt-1 px-[14px] text-[12px] leading-[1.45] text-text-faint">{gloss}</p>
-                {kind === 'posting' && <p className="mt-[5px] px-[14px] text-[12px] leading-[1.45] text-brand-purple">No provider feeds this. The bookkeeping step writes them here — from your events.</p>}
-              </div>
-            ))}
-            <svg viewBox={`0 0 ${H6_GEOM.W} ${H6_H}`} preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full text-text-faint">
-              <defs>
-                <marker id="h6-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="6" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto">
-                  <path d="M0 0 L8 4 L0 8 z" fill="currentColor" />
-                </marker>
-              </defs>
-              <g className="text-border" stroke="currentColor" strokeWidth={1} fill="none">
-                {H6_LAYOUT.blocks.map(([kind, r0, r1]) => {
-                  const y0 = r0 === r1 ? h6RowY(r0) - 7 : h6RowY(r0);
-                  const y1 = r0 === r1 ? h6RowY(r1) + 7 : h6RowY(r1);
-                  const mid = (h6RowY(r0) + h6RowY(r1)) / 2;
-                  return <path key={kind} d={`M366 ${y0} H372 V${y1} H366 M372 ${mid} H384`} />;
-                })}
-              </g>
-              {H6_LAYOUT.blocks.map(([kind, r0, r1], b) => {
-                const mid = (h6RowY(r0) + h6RowY(r1)) / 2;
-                return <path key={kind} d={`M384 ${mid} C 632 ${mid}, 632 ${H6_LAYOUT.centers[b]}, ${H6_GEOM.BX_L} ${H6_LAYOUT.centers[b]}`} stroke="currentColor" strokeWidth={1} strokeDasharray="1 4" strokeLinecap="round" fill="none" markerEnd="url(#h6-arrow)" />;
-              })}
-            </svg>
-          </div>
-
-          {/* Mobile — the stack: sorted book condensed (three columns fit at
-              375 with 10px type), then the boxes, each wearing its ruled
-              gold KIND echo in place of the connectors. */}
-          <div className="mt-[14px] lg:hidden">
-            <div className="border border-border bg-white">
-              <div className="grid h-[22px] grid-cols-[100px_110px_1fr] items-center overflow-hidden bg-bg-row font-mono text-[9px] uppercase tracking-[0.12em] text-text-faint border-b border-b-border">
-                <span className="px-2">PROVIDER</span><span className="px-2">RESOURCE</span><span className="px-2">KIND</span>
-              </div>
-              {H6_ROWS.map(([p, r, kind], j) => (
-                <div key={`${p}-${r}`} className={`grid h-[22px] grid-cols-[100px_110px_1fr] items-center ${j < H6_ROWS.length - 1 ? 'border-b-[0.75px] border-b-border-light' : ''}`}>
-                  <span className="overflow-hidden whitespace-nowrap px-2 text-[10px] text-text-faint">{p}</span>
-                  <span className="overflow-hidden whitespace-nowrap px-2 text-[10px] text-text-faint">{r}</span>
-                  <span className="overflow-hidden whitespace-nowrap px-2 font-mono text-[10px] text-brand-gold">{kind}</span>
-                </div>
-              ))}
-            </div>
-            {H6_BOXES.map(([kind, gloss, n]) => (
-              <div key={kind} className={`mt-[10px] bg-white px-3 py-[10px] ${kind === 'posting' ? 'border border-dashed border-text-faint' : 'border border-border'}`}>
-                <div className="flex items-baseline justify-between">
-                  <span className="font-mono text-[13px] text-brand-gold">{kind}</span>
-                  <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-brand-gold">{kind.toUpperCase()}</span>
-                </div>
-                <p className="mt-[3px] text-[11px] leading-[1.45] text-text-faint">{gloss}</p>
-                <p className="mt-1 font-mono text-[9px] text-text-faint">{n} feed{n === 1 ? '' : 's'}{kind === 'posting' ? ' (later)' : ''}</p>
-                {kind === 'posting' && <p className="mt-[5px] text-[11px] leading-[1.45] text-brand-purple">No provider feeds this. The bookkeeping step writes them here — from your events.</p>}
-              </div>
-            ))}
-          </div>
-
-          <div className={DECK.hairline} aria-hidden="true" />
-          <p className="mt-5 text-[13px] leading-[1.6] lg:text-[15px] lg:leading-[1.65] text-brand-purple">Twenty-five tools, six tables — because we sorted by what a thing is, not by which tool it came from. But notice something strange: (1) the outside world only ever fills four of the six — reference, registry, event, and snapshot; (2) derived is filled only by math we ordered, our AIs included; (3) and posting? Nothing from the outside world ever lands there. Nobody sends you debits and credits — the bookkeeping step builds those, from your own events. Remember that; it matters soon. We did not guess this. We classified every one of the 121 feeds — August 24, 2026 — and posting took zero. The data agreed.</p>
         </div>
       </section>
 
@@ -2783,18 +2613,18 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             nine acts cannot drift from 01–04 or from each other. Bare
             two-column prose — the deck gives 05 no table. border-t closes
             handoff|06 per the seam ledger. */}
-      <section id="deck-06" aria-label="Observed vs authored" className={openSteps[6] ? DECK.section : DECK.sectionBar}>
+      <section id="deck-06" aria-label="Observed vs authored" className={openSteps[5] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
-          aria-expanded={openSteps[6]}
+          aria-expanded={openSteps[5]}
           aria-controls="deck-06-body"
-          onClick={() => toggleStep(6)}
+          onClick={() => toggleStep(5)}
           className={DECK.stepButton}
         >
           <span className={DECK.eyebrow}>06 / SEPARATE WHAT HAPPENED TO YOU FROM WHAT YOU DID</span>
-          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[6] ? '−' : '+'}</span>
+          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[5] ? '−' : '+'}</span>
         </button>
-        <div id="deck-06-body" className={openSteps[6] ? undefined : 'hidden'}>
+        <div id="deck-06-body" className={openSteps[5] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             Some things happen to you.<br />Some things you make happen.
           </h2>
@@ -2828,18 +2658,18 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             rotated 45° (no token covers #B9B2C6; exact hex per the deck's
             token law), shaft centred on the beat-name line. Mobile stacks the
             beats and drops the arrows. */}
-      <section id="deck-07" aria-label="The loop" className={openSteps[7] ? DECK.section : DECK.sectionBar}>
+      <section id="deck-07" aria-label="The loop" className={openSteps[6] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
-          aria-expanded={openSteps[7]}
+          aria-expanded={openSteps[6]}
           aria-controls="deck-07-body"
-          onClick={() => toggleStep(7)}
+          onClick={() => toggleStep(6)}
           className={DECK.stepButton}
         >
           <span className={DECK.eyebrow}>07 / RUN THE LOOP</span>
-          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[7] ? '−' : '+'}</span>
+          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[6] ? '−' : '+'}</span>
         </button>
-        <div id="deck-07-body" className={openSteps[7] ? undefined : 'hidden'}>
+        <div id="deck-07-body" className={openSteps[6] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             Every tool runs the same four beats.<br />Discover. Decide. Commit. Record.
           </h2>
@@ -2897,18 +2727,18 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
       {/* ── DECK-08 / THE MASTER TABLE. The 03 field-table idiom: two
             columns, no thead (the deck names no headers), one rust label
             above, colgroup carrying the fixed-layout widths. */}
-      <section id="deck-08" aria-label="The master table" className={openSteps[8] ? DECK.section : DECK.sectionBar}>
+      <section id="deck-08" aria-label="The master table" className={openSteps[7] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
-          aria-expanded={openSteps[8]}
+          aria-expanded={openSteps[7]}
           aria-controls="deck-08-body"
-          onClick={() => toggleStep(8)}
+          onClick={() => toggleStep(7)}
           className={DECK.stepButton}
         >
           <span className={DECK.eyebrow}>08 / STORE EVERYTHING YOU DO IN ONE MASTER TABLE</span>
-          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[8] ? '−' : '+'}</span>
+          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[7] ? '−' : '+'}</span>
         </button>
-        <div id="deck-08-body" className={openSteps[8] ? undefined : 'hidden'}>
+        <div id="deck-08-body" className={openSteps[7] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             One table holds<br />everything you do.
           </h2>
@@ -2952,18 +2782,18 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             gaps; caption 11px faint centred 8px beneath. The centre column's
             lg padding-top optically centres MATCH on the card row. Mobile
             stacks the three cells; the flanking hairlines are desktop-only. */}
-      <section id="deck-09" aria-label="The match" className={openSteps[9] ? DECK.section : DECK.sectionBar}>
+      <section id="deck-09" aria-label="The match" className={openSteps[8] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
-          aria-expanded={openSteps[9]}
+          aria-expanded={openSteps[8]}
           aria-controls="deck-09-body"
-          onClick={() => toggleStep(9)}
+          onClick={() => toggleStep(8)}
           className={DECK.stepButton}
         >
           <span className={DECK.eyebrow}>09 / MATCH WHAT HAPPENED TO WHAT YOU DID</span>
-          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[9] ? '−' : '+'}</span>
+          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[8] ? '−' : '+'}</span>
         </button>
-        <div id="deck-09-body" className={openSteps[9] ? undefined : 'hidden'}>
+        <div id="deck-09-body" className={openSteps[8] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             The deposit meets the invoice.<br />The fill meets the order.
           </h2>
@@ -3014,18 +2844,18 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             idiom), the rules table with gold debit/credit values, the worked
             sale, and the no-money strip. Gold here is exactly its licence:
             dollar amounts and debit/credit values. */}
-      <section id="deck-10" aria-label="The posting" className={openSteps[10] ? DECK.section : DECK.sectionBar}>
+      <section id="deck-10" aria-label="The posting" className={openSteps[9] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
-          aria-expanded={openSteps[10]}
+          aria-expanded={openSteps[9]}
           aria-controls="deck-10-body"
-          onClick={() => toggleStep(10)}
+          onClick={() => toggleStep(9)}
           className={DECK.stepButton}
         >
           <span className={DECK.eyebrow}>10 / LET THE RULES WRITE THE LINES</span>
-          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[10] ? '−' : '+'}</span>
+          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[9] ? '−' : '+'}</span>
         </button>
-        <div id="deck-10-body" className={openSteps[10] ? undefined : 'hidden'}>
+        <div id="deck-10-body" className={openSteps[9] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             Nobody sends them.<br />Rules write them.
           </h2>
@@ -3092,18 +2922,18 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
       {/* ── DECK-11 / THE ANSWERS. QUESTION | THE MATH; the math's money
             words ink gold via the pre-split segments. The emphasis line is
             the deck's standalone rust. */}
-      <section id="deck-11" aria-label="The answers" className={openSteps[11] ? DECK.section : DECK.sectionBar}>
+      <section id="deck-11" aria-label="The answers" className={openSteps[10] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
-          aria-expanded={openSteps[11]}
+          aria-expanded={openSteps[10]}
           aria-controls="deck-11-body"
-          onClick={() => toggleStep(11)}
+          onClick={() => toggleStep(10)}
           className={DECK.stepButton}
         >
           <span className={DECK.eyebrow}>11 / TURN THE LINES INTO ANSWERS</span>
-          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[11] ? '−' : '+'}</span>
+          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[10] ? '−' : '+'}</span>
         </button>
-        <div id="deck-11-body" className={openSteps[11] ? undefined : 'hidden'}>
+        <div id="deck-11-body" className={openSteps[10] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             Every answer is math<br />on the lines.
           </h2>
@@ -3157,18 +2987,18 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             house escape hatch for computed positioning (the PROBLEM fan's
             label tops, CalendarGrid.tsx:747). The deadline strip runs full
             width below both windows. */}
-      <section id="deck-12" aria-label="The two windows" className={openSteps[12] ? DECK.section : DECK.sectionBar}>
+      <section id="deck-12" aria-label="The two windows" className={openSteps[11] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
-          aria-expanded={openSteps[12]}
+          aria-expanded={openSteps[11]}
           aria-controls="deck-12-body"
-          onClick={() => toggleStep(12)}
+          onClick={() => toggleStep(11)}
           className={DECK.stepButton}
         >
           <span className={DECK.eyebrow}>12 / OPEN THE TWO WINDOWS</span>
-          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[12] ? '−' : '+'}</span>
+          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[11] ? '−' : '+'}</span>
         </button>
-        <div id="deck-12-body" className={openSteps[12] ? undefined : 'hidden'}>
+        <div id="deck-12-body" className={openSteps[11] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             One Ledger. One Calendar.<br />All twenty-five.
           </h2>
@@ -3278,18 +3108,18 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             table scrolls horizontally below lg (the house overflow-x-auto
             idiom — ModuleCostBreakdown above): dropping three of four doors
             would lose the slide. */}
-      <section id="deck-13" aria-label="The threads" className={openSteps[13] ? DECK.section : DECK.sectionBar}>
+      <section id="deck-13" aria-label="The threads" className={openSteps[12] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
-          aria-expanded={openSteps[13]}
+          aria-expanded={openSteps[12]}
           aria-controls="deck-13-body"
-          onClick={() => toggleStep(13)}
+          onClick={() => toggleStep(12)}
           className={DECK.stepButton}
         >
           <span className={DECK.eyebrow}>13 / WATCH ONE DOLLAR RUN THE WHOLE MACHINE</span>
-          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[13] ? '−' : '+'}</span>
+          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[12] ? '−' : '+'}</span>
         </button>
-        <div id="deck-13-body" className={openSteps[13] ? undefined : 'hidden'}>
+        <div id="deck-13-body" className={openSteps[12] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             One $500 sale runs the machine.<br />Then four more doors open.
           </h2>
@@ -3366,18 +3196,18 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             roman, deliberately NOT a question and NOT the question size pair;
             nothing on this page is italic, so roman is the default it ships
             with. */}
-      <section id="deck-14" aria-label="The proof" className={openSteps[14] ? DECK.section : DECK.sectionBar}>
+      <section id="deck-14" aria-label="The proof" className={openSteps[13] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
-          aria-expanded={openSteps[14]}
+          aria-expanded={openSteps[13]}
           aria-controls="deck-14-body"
-          onClick={() => toggleStep(14)}
+          onClick={() => toggleStep(13)}
           className={DECK.stepButton}
         >
           <span className={DECK.eyebrow}>14 / PROVE EVERY NUMBER</span>
-          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[14] ? '−' : '+'}</span>
+          <span aria-hidden="true" className={DECK.eyebrow}>{openSteps[13] ? '−' : '+'}</span>
         </button>
-        <div id="deck-14-body" className={openSteps[14] ? undefined : 'hidden'}>
+        <div id="deck-14-body" className={openSteps[13] ? undefined : 'hidden'}>
           <h2 className={DECK.h2}>
             Click any number.<br />Walk it back.
           </h2>
