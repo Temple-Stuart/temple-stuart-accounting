@@ -754,6 +754,10 @@ const S6_LANES = [
   ['observed', 'OBSERVED', 'the world handed it to you — it arrived finished, you can\'t edit it'],
   ['authored', 'AUTHORED', 'you made it happen'],
 ] as const;
+// S6-SIXTEEN (the reunion): Step 2's stay-home tools join the you-made
+// group as ONE labeled block — MUTED, never gold (it is not a table), the
+// count as its tag. [label, gloss, tag].
+const S6_SIXTEEN = ['THE SIXTEEN (Step 2)', 'the things you do: tasks · invoices · budget · bookings · trades · filings', '16'] as const;
 
 // S6-GEOM: the corridor. Left list x 0..L_W — two group panels, ROW_H
 // rows, GROUP_GAP between; the hinge node mid-corridor (HG_X..HG_X+HG_W,
@@ -762,15 +766,17 @@ const S6_LANES = [
 // slide-05 idiom.
 const S6_GEOM = {
   W: 1216, L_W: 380, ROW_H: 28, GROUP_GAP: 24,
-  HG_X: 556, HG_W: 190, HG_H: 54, LN_X: 896, LN_W: 320, LN_H: 96, BRK: 392,
+  HG_X: 556, HG_W: 190, HG_H: 54, LN_X: 896, LN_W: 320, LN_H: 96, SIX_H: 56, BRK: 392,
 } as const;
 
-// THE LAYOUT LAW (S6, ruled — slide 05's fail-loud discipline): the two
-// lanes must be contiguous groups in the list, in lane order; each lane
-// card centers on its source group; the fork stays monotonic because
+// THE LAYOUT LAW (S6 → REUNION, ruled — slide 05's fail-loud
+// discipline): the two lanes must be contiguous groups in the list, in
+// lane order; the SIXTEEN block rides INSIDE the you-made bracket, below
+// its two tables, and its center closes that group's span; each lane
+// card centers on its group's span; the fork stays monotonic because
 // group order == lane order. The build REFUSES — this throws at module
 // load, so prerender fails — if the groups break contiguity or order, the
-// lane cards would overlap, or the two connectors would cross. TWO
+// lane cards would overlap, or the two connectors would cross. STILL two
 // bracket-connectors only, passing through the hinge; nothing else forks.
 const S6_LAYOUT = (() => {
   const groups: Array<readonly [string, number, number]> = [];
@@ -782,13 +788,19 @@ const S6_LAYOUT = (() => {
   if (groups[0][1] !== 0 || groups[1][1] !== groups[0][2] + 1) throw new Error('slide 06: the groups are out of lane order');
   const rowY = (r: number) =>
     (r <= groups[0][2] ? 0 : S6_GEOM.GROUP_GAP) + r * S6_GEOM.ROW_H + S6_GEOM.ROW_H / 2;
-  const centers = groups.map(([, r0, r1]) => (rowY(r0) + rowY(r1)) / 2);
+  const sixTop = (groups[1][2] + 1) * S6_GEOM.ROW_H + S6_GEOM.GROUP_GAP;
+  const sixCenter = sixTop + S6_GEOM.SIX_H / 2;
+  const span = [
+    [rowY(groups[0][1]), rowY(groups[0][2])],
+    [rowY(groups[1][1]), sixCenter],
+  ] as const;
+  const centers = span.map(([a, b]) => (a + b) / 2);
   if (centers[0] >= centers[1]) throw new Error('slide 06: connectors would cross — reorder the groups');
   if (centers[0] + S6_GEOM.LN_H / 2 + 8 > centers[1] - S6_GEOM.LN_H / 2) throw new Error('slide 06: the lane cards would overlap');
-  return { groups, rowY, centers } as const;
+  return { groups, rowY, centers, span, sixTop } as const;
 })();
 const S6_H = Math.max(
-  S6_TABLES.length * S6_GEOM.ROW_H + S6_GEOM.GROUP_GAP,
+  S6_LAYOUT.sixTop + S6_GEOM.SIX_H,
   S6_LAYOUT.centers[1] + S6_GEOM.LN_H / 2,
 );
 
@@ -2657,7 +2669,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
 
       {/* ── DECK-06 / OBSERVED VS AUTHORED (PR-S6-CORRIDOR) — the fork
             drawn in the corridor idiom of 01–05: the six tables Step 5
-            landed flow in as two contiguous groups, the hinge node carries
+            landed flow in as two contiguous groups — the SIXTEEN stay-home
+            tools from Step 2 riding the you-made bracket (the reunion:
+            Step 2's 9/16 split pays off here) — the hinge node carries
             the question, two lane cards land on the right. Lane headers
             RUST; gold inks the six table names only (left rows + lane
             members). The old prose columns and the two tail paragraphs
@@ -2680,15 +2694,15 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             Some things happen to you.<br />Some things you make happen.
           </h2>
           <p className={DECK.sub}>
-            Take the six tables Step 5 built and ask one thing of each — did the world hand it to you, or did you make it?
+            Step 2 split your twenty-five tools — nine took providers, sixteen stayed home. Here is why that mattered.
           </p>
 
           {/* The four moves — muted labels, the slide-05 grammar. */}
           <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is four moves:</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(a)</span> Start from the six tables Step 5 landed.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(a)</span> Take everything the system holds so far: the six tables, plus the sixteen tools that stayed home in Step 2.</p>
           <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(b)</span> Ask one question of each: did the world hand it to you finished, or did you make it?</p>
           <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(c)</span> Sort into two lanes — observed (the world&apos;s, you can&apos;t edit it) and authored (yours).</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(d)</span> Four tables are the world&apos;s; two — derived and posting — are yours. And the things you DO — book, trade, invoice, file — aren&apos;t in any of them yet.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono">(d)</span> The world&apos;s four tables are observed. Your derived and posting are self-made. And the sixteen — your tasks, invoices, trades — are authored, with no table yet.</p>
 
           {/* THE FORK, desktop (PR-S6-CORRIDOR) — two group panels (names
               gold, the deck's kind licence), each collected by a square
@@ -2701,11 +2715,20 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             {S6_LAYOUT.groups.map(([lane, r0, r1]) => (
               <div key={lane} className="absolute left-0 border border-border bg-white" style={{ top: S6_LAYOUT.rowY(r0) - S6_GEOM.ROW_H / 2, width: `${(S6_GEOM.L_W / S6_GEOM.W) * 100}%` }}>
                 {S6_TABLES.slice(r0, r1 + 1).map(([name, holds], i) => (
-                  <div key={name} style={{ height: S6_GEOM.ROW_H }} className={`flex items-center gap-3 overflow-hidden px-[14px] ${i < r1 - r0 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                  <div key={name} style={{ height: S6_GEOM.ROW_H }} className={`flex items-center gap-3 overflow-hidden px-[14px] ${i < r1 - r0 || lane === 'authored' ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
                     <span className="whitespace-nowrap font-mono text-[12px] text-brand-gold">{name}</span>
                     <span className="overflow-hidden whitespace-nowrap text-[11px] text-text-faint">{holds}</span>
                   </div>
                 ))}
+                {lane === 'authored' && (
+                  <div style={{ height: S6_GEOM.SIX_H }} className="overflow-hidden px-[14px] pt-[6px]">
+                    <div className="flex items-baseline justify-between">
+                      <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-text-faint">{S6_SIXTEEN[0]}</span>
+                      <span className="font-mono text-[9px] tracking-[0.14em] text-text-faint">{S6_SIXTEEN[2]}</span>
+                    </div>
+                    <p className="mt-[2px] text-[11px] leading-[1.4] text-text-faint">{S6_SIXTEEN[1]}</p>
+                  </div>
+                )}
               </div>
             ))}
             <div className="absolute flex items-center border border-border bg-white px-[14px]" style={{ left: `${(S6_GEOM.HG_X / S6_GEOM.W) * 100}%`, top: (S6_LAYOUT.centers[0] + S6_LAYOUT.centers[1]) / 2 - S6_GEOM.HG_H / 2, width: `${(S6_GEOM.HG_W / S6_GEOM.W) * 100}%`, height: S6_GEOM.HG_H }}>
@@ -2715,7 +2738,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               <div key={lane} className="absolute border border-border bg-white px-[14px] py-[10px]" style={{ left: `${(S6_GEOM.LN_X / S6_GEOM.W) * 100}%`, top: S6_LAYOUT.centers[i] - S6_GEOM.LN_H / 2, width: `${(S6_GEOM.LN_W / S6_GEOM.W) * 100}%`, height: S6_GEOM.LN_H }}>
                 <p className={DECK.rust}>{header}</p>
                 <p className="mt-1 text-[11px] leading-[1.4] text-text-faint">{gloss}</p>
-                <p className="mt-[6px] font-mono text-[11px] text-brand-gold">{S6_TABLES.filter(([, , l]) => l === lane).map(([name]) => name).join(' · ')}</p>
+                <p className="mt-[6px] font-mono text-[11px] text-brand-gold">{S6_TABLES.filter(([, , l]) => l === lane).map(([name]) => name).join(' · ')}{lane === 'authored' && <span className="text-text-faint"> · the sixteen</span>}</p>
               </div>
             ))}
             <svg viewBox={`0 0 ${S6_GEOM.W} ${S6_H}`} preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full text-text-faint">
@@ -2725,12 +2748,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                 </marker>
               </defs>
               <g className="text-border" stroke="currentColor" strokeWidth={1} fill="none">
-                {S6_LAYOUT.groups.map(([lane, r0, r1]) => (
-                  <path key={lane} d={`M${S6_GEOM.BRK - 6} ${S6_LAYOUT.rowY(r0)} H${S6_GEOM.BRK} V${S6_LAYOUT.rowY(r1)} H${S6_GEOM.BRK - 6} M${S6_GEOM.BRK} ${(S6_LAYOUT.rowY(r0) + S6_LAYOUT.rowY(r1)) / 2} H${S6_GEOM.BRK + 12}`} />
+                {S6_LAYOUT.groups.map(([lane], i) => (
+                  <path key={lane} d={`M${S6_GEOM.BRK - 6} ${S6_LAYOUT.span[i][0]} H${S6_GEOM.BRK} V${S6_LAYOUT.span[i][1]} H${S6_GEOM.BRK - 6} M${S6_GEOM.BRK} ${S6_LAYOUT.centers[i]} H${S6_GEOM.BRK + 12}`} />
                 ))}
               </g>
-              {S6_LAYOUT.groups.map(([lane, r0, r1], i) => {
-                const gm = (S6_LAYOUT.rowY(r0) + S6_LAYOUT.rowY(r1)) / 2;
+              {S6_LAYOUT.groups.map(([lane], i) => {
+                const gm = S6_LAYOUT.centers[i];
                 const hy = (S6_LAYOUT.centers[0] + S6_LAYOUT.centers[1]) / 2 + (i === 0 ? -10 : 10);
                 const inMx = (S6_GEOM.BRK + 12 + S6_GEOM.HG_X) / 2;
                 const outMx = (S6_GEOM.HG_X + S6_GEOM.HG_W + S6_GEOM.LN_X) / 2;
@@ -2752,11 +2775,20 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             {S6_LAYOUT.groups.map(([lane, r0, r1]) => (
               <div key={lane} className="mt-3 border border-border bg-white first:mt-0">
                 {S6_TABLES.slice(r0, r1 + 1).map(([name, holds], i) => (
-                  <div key={name} className={`flex items-baseline gap-2 px-3 py-[6px] ${i < r1 - r0 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                  <div key={name} className={`flex items-baseline gap-2 px-3 py-[6px] ${i < r1 - r0 || lane === 'authored' ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
                     <span className="whitespace-nowrap font-mono text-[11px] text-brand-gold">{name}</span>
                     <span className="overflow-hidden whitespace-nowrap text-[10px] text-text-faint">{holds}</span>
                   </div>
                 ))}
+                {lane === 'authored' && (
+                  <div className="px-3 py-[6px]">
+                    <div className="flex items-baseline justify-between">
+                      <span className="font-mono text-[8.5px] uppercase tracking-[0.14em] text-text-faint">{S6_SIXTEEN[0]}</span>
+                      <span className="font-mono text-[8.5px] tracking-[0.14em] text-text-faint">{S6_SIXTEEN[2]}</span>
+                    </div>
+                    <p className="mt-[2px] text-[10px] leading-[1.4] text-text-faint">{S6_SIXTEEN[1]}</p>
+                  </div>
+                )}
               </div>
             ))}
             <div className="mt-4 border-t border-border pt-3">
@@ -2766,7 +2798,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               <div key={lane} className="mt-3 border border-border bg-white px-3 py-[10px]">
                 <p className={DECK.rust}>{header}</p>
                 <p className="mt-1 text-[10px] leading-[1.4] text-text-faint">{gloss}</p>
-                <p className="mt-[6px] font-mono text-[10px] text-brand-gold">{S6_TABLES.filter(([, , l]) => l === lane).map(([name]) => name).join(' · ')}</p>
+                <p className="mt-[6px] font-mono text-[10px] text-brand-gold">{S6_TABLES.filter(([, , l]) => l === lane).map(([name]) => name).join(' · ')}{lane === 'authored' && <span className="text-text-faint"> · the sixteen</span>}</p>
               </div>
             ))}
           </div>
@@ -2774,8 +2806,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           {/* The honest texture and the hinge-out — the founder's ruled
               lines. The old echo and two-doors paragraphs retired: the
               doors are the visual now; the echo nuance belongs at Step 9. */}
-          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Authored splits two ways: derived and posting your system computes — no draft. The things you DO — book, trade, invoice, file — you draft, then commit. Those have no table yet.</p>
-          <p className={`mt-2 ${DECK.statement}`}>The world&apos;s four tables are done. Your two are self-made. But the things you actively do have no home — they arrive as drafts and need one. That&apos;s next.</p>
+          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Derived and posting your system computes — no draft. The sixteen you draft, then commit: you pull the trigger, and the world moves.</p>
+          <p className={`mt-2 ${DECK.statement}`}>The sixteen that stayed home in Step 2 are authored — the work you do. Everything else already has a table. They don&apos;t. That&apos;s the one gap left.</p>
 
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={DECK.q}>So how exactly do you make something happen?</p>
