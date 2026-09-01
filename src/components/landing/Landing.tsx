@@ -814,12 +814,17 @@ const LOOP_BEATS = [
   ['RECORD', 'it is written down forever.'],
 ] as const;
 
-// DECK-07: the three-tool loop table, [beat, travel, trading, invoicing].
+// DECK-07 (PR-FIVE): the five-tool loop table — five families of the
+// twenty-five, [beat, travel, trading, invoicing, bookkeeping, filings].
+// LOOP_TOOLS drives the desktop header AND the mobile stack — one order.
+// Bookkeeping's commit is honestly an internal post to the ledger; it
+// does not move the outside world the way book/trade/invoice/file do.
+const LOOP_TOOLS = ['TRAVEL', 'TRADING', 'INVOICING', 'BOOKKEEPING', 'ENT FILINGS'] as const;
 const LOOP_ROWS = [
-  ['DISCOVER', 'live flight prices', 'option chains', 'invoices coming due'],
-  ['DECIDE', 'a cart', 'a trade card', 'a draft invoice'],
-  ['COMMIT', 'the flight books, a confirmation code comes back', 'the order goes to the broker', 'invoice #14 goes out the door'],
-  ['RECORD', 'booking recorded', 'order recorded', 'invoice recorded'],
+  ['DISCOVER', 'live flight prices', 'option chains', 'invoices coming due', 'transactions waiting to be booked', 'filings coming due'],
+  ['DECIDE', 'a cart', 'a trade card', 'a draft invoice', 'a draft entry, an account picked', 'a draft filing'],
+  ['COMMIT', 'the flight books, a confirmation code comes back', 'the order goes to the broker', 'invoice #14 goes out the door', 'the entry posts to the ledger', 'it files with the state, a confirmation comes back'],
+  ['RECORD', 'booking recorded', 'order recorded', 'invoice recorded', 'entry recorded', 'filing recorded'],
 ] as const;
 
 // DECK-08 (PR-VOICE): the four things every document carries, [name, desc] —
@@ -2838,7 +2843,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             Every tool runs the same four beats.<br />Discover. Decide. Commit. Record.
           </h2>
           <p className={DECK.sub}>
-            Book a flight, place a trade, send an invoice; same loop, different nouns.
+            Book a flight, place a trade, send an invoice, post an entry, file with the state; same loop, different nouns.
           </p>
 
           <div className="mt-10 lg:mt-[76px] flex flex-col gap-6 lg:flex-row lg:gap-0">
@@ -2858,22 +2863,25 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             ))}
           </div>
 
-          <table className={`mt-10 lg:mt-[76px] ${DECK.table}`}>
+          {/* PR-FIVE: the faint caption, then the six-column table on
+              desktop; mobile stacks one block per tool below. */}
+          <p className="mt-10 lg:mt-[76px] text-[12px] lg:text-[14px] text-text-faint">five of twenty-five — every tool runs these same four beats.</p>
+          <table className={`mt-4 hidden lg:table ${DECK.table}`}>
             <thead>
               <tr>
-                <th scope="col" className={`w-[22%] lg:w-[16%] ${DECK.th}`} />
-                {(['TRAVEL', 'TRADING', 'INVOICING'] as const).map((head) => (
+                <th scope="col" className={`w-[16%] ${DECK.th}`} />
+                {LOOP_TOOLS.map((head) => (
                   <th key={head} scope="col" className={DECK.th}>{head}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {LOOP_ROWS.map(([beat, travel, trading, invoicing], r) => {
+              {LOOP_ROWS.map(([beat, ...cells], r) => {
                 const rule = r === LOOP_ROWS.length - 1 ? '' : DECK.rule;
                 return (
                   <tr key={beat}>
                     <th scope="row" className={`${DECK.pad} ${rule} text-left align-top font-mono text-[10px] lg:text-[11px] font-normal uppercase tracking-[0.18em] text-text-faint`}>{beat}</th>
-                    {[travel, trading, invoicing].map((cell, c) => (
+                    {cells.map((cell, c) => (
                       <td key={c} className={`${DECK.pad} ${rule} align-top text-[11px] leading-[1.4] lg:text-[13px] lg:leading-normal text-brand-purple`}>{cell}</td>
                     ))}
                   </tr>
@@ -2882,9 +2890,26 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             </tbody>
           </table>
 
+          {/* PR-FIVE, mobile — six columns cannot fit at 375: one white
+              card per tool, its four beats as label → value lines, the
+              Pass-A tiers (faint labels, purple values). */}
+          <div className="mt-4 lg:hidden">
+            {LOOP_TOOLS.map((tool, i) => (
+              <div key={tool} className="mt-3 border border-border bg-white px-3 py-[10px] first:mt-0">
+                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-text-faint">{tool}</p>
+                {LOOP_ROWS.map(([beat, ...cells]) => (
+                  <div key={beat} className="mt-[6px] grid grid-cols-[74px_1fr] gap-2">
+                    <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">{beat}</span>
+                    <span className="text-[11px] leading-[1.4] text-brand-purple">{cells[i]}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Twenty-five tools. Twenty-five loops. One shape!</p>
-          <p className={`mt-2 ${DECK.statement}`}>This loop is the blueprint — the shape we&apos;re building every tool toward. Today, hotel bookings commit for real; flights, trades, and invoices run discover → decide → draft, and commit is the beat we&apos;re wiring to the same loop next.</p>
+          <p className={`mt-2 ${DECK.statement}`}>This loop is the blueprint — the shape we&apos;re building every tool toward. Today, hotel bookings commit for real; flights, trades, invoices, ledger entries, and filings run discover → decide → draft, and commit is the beat we&apos;re wiring to the same loop next.</p>
           <p className={DECK.q}>Twenty-five loops. Where do all the commits land?</p>
         </div>
       </section>
