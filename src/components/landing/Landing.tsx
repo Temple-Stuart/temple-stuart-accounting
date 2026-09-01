@@ -730,16 +730,17 @@ const S5_H = S5_LAYOUT.centers[S5_LAYOUT.centers.length - 1] + S5_GEOM.POST_H / 
 // punctuation-derived.
 // ─────────────────────────────────────────────────────────────────────────
 
-// DECK-06 (PR-LANES → PR-S6-CORRIDOR): LANE_COLUMNS' prose columns
-// retired — the fork is DRAWN now, in the corridor idiom of 01–05, and
-// the echo/match nuance moved back to Step 9's slide. History holds the
-// const.
+// DECK-06 (PR-S6-CORRIDOR → PR-DATAFLOW): the fork drawn as DATA FLOW in
+// the 1–5 grammar — every item the system holds renders BY NAME, one
+// arrow per item through its pulled-out source into its lane. The
+// question-in-a-box hinge and the group brackets died (the drawing IS
+// the hinge; Deck Law 7, SHOW DON'T ECHO). LANE_COLUMNS' prose and the
+// S6_SIXTEEN block died earlier or here; history holds them all.
 
-// S6-TABLES: the six tables Step 5 landed, [name, holds, lane] — GROUPED
-// observed-first so the fork cannot cross. The order is this slide's own
-// (snapshot rises above derived to keep each lane contiguous); the HOLDS
-// glosses ride HANDOFF_KINDS by name, never retyped — an unknown name
-// throws at module load.
+// the six kind groups, [name, holds, lane] — glosses ride HANDOFF_KINDS
+// by name, never retyped; an unknown name throws at module load. The
+// group order keeps the two destinations CONTIGUOUS (world-given above,
+// you-made below) — the no-crossing law depends on it.
 const s6Gloss = (name: string) => {
   const hit = HANDOFF_KINDS.find(([k]) => k === name);
   if (!hit) throw new Error(`slide 06: ${name} is not a HANDOFF kind`);
@@ -749,76 +750,84 @@ const S6_TABLES = ([
   ['reference', 'observed'], ['registry', 'observed'], ['event', 'observed'],
   ['snapshot', 'observed'], ['derived', 'authored'], ['posting', 'authored'],
 ] as const).map(([name, lane]) => [name, s6Gloss(name), lane] as const);
+// the items, DERIVED (anti-drift): each kind's feeds from ROUTING_RULES;
+// the sixteen stay-homes = PROBLEM_SHEET's cells minus S2_MOVERS — the
+// layout law asserts |sixteen| == 16.
+const s6FeedsOf = (kind: string) => ROUTING_RULES.filter(([, , k]) => k.toLowerCase() === kind).map(([p, r]) => `${p} · ${r}`);
+const S6_STAYHOME = PROBLEM_SHEET.flatMap(({ tools }) => tools).filter((t) => !S2_MOVERS.has(t));
+// the left column's seven groups: the six kinds (posting shown empty),
+// then THE SIXTEEN — a label is gold only when it IS a kind/table name.
+const S6_GROUPS = [
+  ...S6_TABLES.map(([kind, , lane]) => ({ label: kind, isKind: true, lane, items: s6FeedsOf(kind) })),
+  { label: 'THE SIXTEEN', isKind: false, lane: 'authored' as const, items: S6_STAYHOME },
+] as const;
 // the two lanes, [key, header, gloss] — headers render RUST, never gold.
 const S6_LANES = [
   ['observed', 'OBSERVED', 'the world handed it to you — it arrived finished, you can\'t edit it'],
   ['authored', 'AUTHORED', 'you made it happen'],
 ] as const;
-// S6-SIXTEEN (the reunion): Step 2's stay-home tools join the you-made
-// group as ONE labeled block — MUTED, never gold (it is not a table), the
-// count as its tag. [label, gloss, tag].
-const S6_SIXTEEN = ['THE SIXTEEN (Step 2)', 'the things you do: tasks · invoices · budget · bookings · trades · filings', '16'] as const;
 
-// S6-GEOM: the corridor. Left list x 0..L_W — two group panels, ROW_H
-// rows, GROUP_GAP between; the hinge node mid-corridor (HG_X..HG_X+HG_W,
-// HG_H tall); two lane cards at LN_X, LN_H tall; LN_X + LN_W == W. BRK is
-// the group-bracket spine x (ticks at BRK−6, stem to BRK+12) — the
-// slide-05 idiom.
+// S6-GEOM: left list x 0..L_W; the SOURCE pull-out at M_X (the fold
+// applied to source — the step-4 idiom); the two landing lanes at R_X..W
+// (the step-2 landing-block idiom).
 const S6_GEOM = {
-  W: 1216, L_W: 380, ROW_H: 28, GROUP_GAP: 24,
-  HG_X: 556, HG_W: 190, HG_H: 54, LN_X: 896, LN_W: 320, LN_H: 96, SIX_H: 56, BRK: 392,
+  W: 1216, L_W: 300, M_X: 380, M_W: 90, R_X: 640,
+  HEAD: 22, ROW_H: 20, LANE_HEAD: 44, LANE_GAP: 16,
 } as const;
 
-// THE LAYOUT LAW (S6 → REUNION, ruled — slide 05's fail-loud
-// discipline): the two lanes must be contiguous groups in the list, in
-// lane order; the SIXTEEN block rides INSIDE the you-made bracket, below
-// its two tables, and its center closes that group's span; each lane
-// card centers on its group's span; the fork stays monotonic because
-// group order == lane order. The build REFUSES — this throws at module
-// load, so prerender fails — if the groups break contiguity or order, the
-// lane cards would overlap, or the two connectors would cross. STILL two
-// bracket-connectors only, passing through the hinge; nothing else forks.
+// THE LAYOUT LAW (PR-DATAFLOW): flattens the groups into the row grid,
+// computes every arrow — left item row, dead level through its source
+// cell, then into its OWN landing row in its lane. Landings are
+// per-item, so no heads ever share a row (asserted — the S2_CONVERGE
+// fan case never arises). THROWS at build if the stay-homes are not
+// sixteen, the lane blocks break contiguity, the counts are not 16/20,
+// a landing row is shared, or any two arrows would cross. A green build
+// is the proof.
 const S6_LAYOUT = (() => {
-  const groups: Array<readonly [string, number, number]> = [];
-  S6_LANES.forEach(([lane]) => {
-    const rows = S6_TABLES.flatMap(([, , l], r) => (l === lane ? [r] : []));
-    if (rows.length === 0 || rows[rows.length - 1] - rows[0] + 1 !== rows.length) throw new Error(`slide 06: the ${lane} group is not one contiguous block`);
-    groups.push([lane, rows[0], rows[rows.length - 1]] as const);
+  if (S6_STAYHOME.length !== 16) throw new Error(`slide 06: the stay-homes must number sixteen — got ${S6_STAYHOME.length}`);
+  let y = S6_GEOM.HEAD;
+  const headerYs: number[] = [];
+  const itemRows: Array<{ name: string; lane: 'observed' | 'authored'; ly: number }> = [];
+  S6_GROUPS.forEach((g) => {
+    headerYs.push(y);
+    y += S6_GEOM.ROW_H;
+    g.items.forEach((name) => {
+      itemRows.push({ name, lane: g.lane, ly: y + S6_GEOM.ROW_H / 2 });
+      y += S6_GEOM.ROW_H;
+    });
   });
-  if (groups[0][1] !== 0 || groups[1][1] !== groups[0][2] + 1) throw new Error('slide 06: the groups are out of lane order');
-  const rowY = (r: number) =>
-    (r <= groups[0][2] ? 0 : S6_GEOM.GROUP_GAP) + r * S6_GEOM.ROW_H + S6_GEOM.ROW_H / 2;
-  const sixTop = (groups[1][2] + 1) * S6_GEOM.ROW_H + S6_GEOM.GROUP_GAP;
-  const sixCenter = sixTop + S6_GEOM.SIX_H / 2;
-  const span = [
-    [rowY(groups[0][1]), rowY(groups[0][2])],
-    [rowY(groups[1][1]), sixCenter],
-  ] as const;
-  const centers = span.map(([a, b]) => (a + b) / 2);
-  if (centers[0] >= centers[1]) throw new Error('slide 06: connectors would cross — reorder the groups');
-  if (centers[0] + S6_GEOM.LN_H / 2 + 8 > centers[1] - S6_GEOM.LN_H / 2) throw new Error('slide 06: the lane cards would overlap');
-  return { groups, rowY, centers, span, sixTop } as const;
+  const leftH = y;
+  const nObs = itemRows.filter((r) => r.lane === 'observed').length;
+  const nAuth = itemRows.length - nObs;
+  if (nObs !== 16 || nAuth !== 20) throw new Error(`slide 06: expected 16 world-given and 20 you-made items, got ${nObs}/${nAuth}`);
+  const firstAuth = itemRows.findIndex((r) => r.lane === 'authored');
+  if (itemRows.slice(0, firstAuth).some((r) => r.lane !== 'observed') || itemRows.slice(firstAuth).some((r) => r.lane !== 'authored')) throw new Error('slide 06: the lane blocks are not contiguous — reorder the groups');
+  const laneTop = { observed: 0, authored: S6_GEOM.LANE_HEAD + nObs * S6_GEOM.ROW_H + S6_GEOM.LANE_GAP };
+  const landed = { observed: 0, authored: 0 };
+  const arrows = itemRows.map((r) => {
+    const ry = laneTop[r.lane] + S6_GEOM.LANE_HEAD + landed[r.lane] * S6_GEOM.ROW_H + S6_GEOM.ROW_H / 2;
+    landed[r.lane] += 1;
+    return { ...r, ry, source: r.lane === 'observed' ? 'world' : 'you' };
+  });
+  if (new Set(arrows.map((a) => a.ry)).size !== arrows.length) throw new Error('slide 06: two arrows share a landing row');
+  for (let a = 0; a < arrows.length; a += 1) {
+    for (let b = a + 1; b < arrows.length; b += 1) {
+      if ((arrows[a].ly - arrows[b].ly) * (arrows[a].ry - arrows[b].ry) <= 0) throw new Error('slide 06: arrows would cross — reorder the items');
+    }
+  }
+  const laneH = { observed: S6_GEOM.LANE_HEAD + nObs * S6_GEOM.ROW_H, authored: S6_GEOM.LANE_HEAD + nAuth * S6_GEOM.ROW_H };
+  return { headerYs, arrows, laneTop, laneH, leftH, nObs, nAuth } as const;
 })();
-const S6_H = Math.max(
-  S6_LAYOUT.sixTop + S6_GEOM.SIX_H,
-  S6_LAYOUT.centers[1] + S6_GEOM.LN_H / 2,
-);
+const S6_H = Math.max(S6_LAYOUT.leftH, S6_LAYOUT.laneTop.authored + S6_LAYOUT.laneH.authored);
 
-// DECK-07 (PR-VOICE): the four beats of the loop band, [beat, caption] —
-// captions are the essay's own beat lines, chains gloss inline. Punctuation
-// is the essay's.
-const LOOP_BEATS = [
-  ['DISCOVER', 'look at your options. Live flight prices. Option chains (the menu of trades you could make). The invoices coming due.'],
-  ['DECIDE', 'pick one. The pick becomes a draft; a cart, a trade card, a draft invoice.'],
-  ['COMMIT', 'pull the trigger. The flight books and a confirmation code comes back. The order goes to the broker. Invoice #14 goes out the door.'],
-  ['RECORD', 'it is written down forever.'],
-] as const;
-
-// DECK-07 (PR-FIVE): the five-tool loop table — five families of the
-// twenty-five, [beat, travel, trading, invoicing, bookkeeping, filings].
-// LOOP_TOOLS drives the desktop header AND the mobile stack — one order.
-// Bookkeeping's commit is honestly an internal post to the ledger; it
-// does not move the outside world the way book/trade/invoice/file do.
+// DECK-07 (PR-FIVE → PR-DATAFLOW): the loop DRAWN — the five tools travel
+// the four beats row for row. The floating LOOP_BEATS band retired (the
+// beats ARE the moves block now) and the static 5×4 table died with it —
+// SHOW DON'T ECHO, no grid repeats the drawing. LOOP_TOOLS + LOOP_ROWS
+// stay the one source; the stage headers derive from LOOP_ROWS' beat
+// column, never retyped. Bookkeeping's commit is honestly an internal
+// post to the ledger; it does not move the outside world the way
+// book/trade/invoice/file do.
 const LOOP_TOOLS = ['TRAVEL', 'TRADING', 'INVOICING', 'BOOKKEEPING', 'ENT FILINGS'] as const;
 const LOOP_ROWS = [
   ['DISCOVER', 'live flight prices', 'option chains', 'invoices coming due', 'transactions waiting to be booked', 'filings coming due'],
@@ -826,6 +835,34 @@ const LOOP_ROWS = [
   ['COMMIT', 'the flight books, a confirmation code comes back', 'the order goes to the broker', 'invoice #14 goes out the door', 'the entry posts to the ledger', 'it files with the state, a confirmation comes back'],
   ['RECORD', 'booking recorded', 'order recorded', 'invoice recorded', 'entry recorded', 'filing recorded'],
 ] as const;
+
+// S7-GEOM: the tools list, then four stage panels with four corridors —
+// integers throughout (W == T_W + 4·C_W + 4·STAGE_W). COMMIT wears the
+// deck's ring (the pull-out); RECORD is the landing.
+const S7_GEOM = { W: 1216, T_W: 116, C_W: 50, HEAD: 22, ROW_H: 24 } as const;
+const S7_STAGE_W = (S7_GEOM.W - S7_GEOM.T_W - 4 * S7_GEOM.C_W) / 4;
+const s7StageX = (s: number) => S7_GEOM.T_W + S7_GEOM.C_W + s * (S7_STAGE_W + S7_GEOM.C_W);
+
+// THE LAYOUT LAW (S7): rows from LOOP_TOOLS; every LOOP_ROWS cell must
+// resolve for every tool (a missing cell throws); one DEAD-LEVEL arrow
+// per tool through the four stages, proven pairwise — level arrows on
+// distinct row centers cannot cross. A green build is the proof.
+const S7_LAYOUT = (() => {
+  const stages = LOOP_ROWS.map(([beat]) => beat);
+  if (stages.length !== 4) throw new Error('slide 07: the loop has four beats');
+  const rows = LOOP_TOOLS.map((tool, i) => {
+    const cells = LOOP_ROWS.map((row) => row[i + 1]);
+    if (cells.some((c) => !c)) throw new Error(`slide 07: ${tool} is missing a beat cell`);
+    return { tool, cells, y: S7_GEOM.HEAD + i * S7_GEOM.ROW_H + S7_GEOM.ROW_H / 2 };
+  });
+  for (let a = 0; a < rows.length; a += 1) {
+    for (let b = a + 1; b < rows.length; b += 1) {
+      if ((rows[a].y - rows[b].y) * (rows[a].y - rows[b].y) <= 0) throw new Error('slide 07: arrows would cross or overlap — the rows must keep distinct centers');
+    }
+  }
+  return { stages, rows } as const;
+})();
+const S7_H = S7_GEOM.HEAD + LOOP_TOOLS.length * S7_GEOM.ROW_H;
 
 // DECK-08 (PR-VOICE): the four things every document carries, [name, desc] —
 // the essay's (1)–(4) items, split at the essay's own semicolon so the
@@ -2674,17 +2711,15 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── DECK-06 / OBSERVED VS AUTHORED (PR-S6-CORRIDOR) — the fork
-            drawn in the corridor idiom of 01–05: the six tables Step 5
-            landed flow in as two contiguous groups — the SIXTEEN stay-home
-            tools from Step 2 riding the you-made bracket (the reunion:
-            Step 2's 9/16 split pays off here) — the hinge node carries
-            the question, two lane cards land on the right. Lane headers
-            RUST; gold inks the six table names only (left rows + lane
-            members). The old prose columns and the two tail paragraphs
-            retired — the two-doors mechanic is the visual now, and the
-            echo/match nuance belongs at Step 9. border-t closes handoff|06
-            per the seam ledger. */}
+      {/* ── DECK-06 / OBSERVED VS AUTHORED (PR-DATAFLOW) — the fork as
+            DATA FLOW: every item the system holds, BY NAME, grouped under
+            its step-5 table (kind headers gold; THE SIXTEEN faint — not a
+            table name), each item pulling out its source (world / you)
+            and flowing on one arrow into its landing row in its lane —
+            36 arrows, 16 → OBSERVED and 20 → AUTHORED, zero crossings by
+            the S6_LAYOUT law (it throws at build). The hinge box and the
+            brackets died: the drawing is the hinge. Lane headers RUST;
+            item rows the dark data tier; three moves, no padding. */}
       <section id="deck-06" aria-label="Observed vs authored" className={openSteps[5] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
@@ -2701,132 +2736,109 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             Some things happen to you.<br />Some things you make happen.
           </h2>
           <p className={DECK.sub}>
-            Step 2 split your twenty-five tools — nine took providers, sixteen stayed home. Here is why that mattered.
+            For everything the system holds — did the world hand it to you, or did you make it?
           </p>
 
-          {/* The four moves — muted labels, the slide-05 grammar. */}
-          <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is four moves:</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(a)</span> Take everything the system holds so far: the six tables, plus the sixteen tools that stayed home in Step 2.</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(b)</span> Ask one question of each: did the world hand it to you finished, or did you make it?</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(c)</span> Sort into two lanes — observed (the world&apos;s, you can&apos;t edit it) and authored (yours).</p>
-          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(d)</span> The world&apos;s four tables are observed. Your derived and posting are self-made. And the sixteen — your tasks, invoices, trades — are authored, with no table yet.</p>
+          {/* The three moves — real flow, no padding; labels faint. */}
+          <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is three moves:</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(a)</span> Take everything the system holds: the six tables&apos; feeds, and the sixteen tools that stayed home in Step 2.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(b)</span> Pull out each one&apos;s source — did the world hand it to you, or did you make it?</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(c)</span> Route it: world-given lands in OBSERVED, you-made lands in AUTHORED.</p>
 
-          {/* THE FORK, desktop (PR-S6-CORRIDOR) — two group panels (names
-              gold, the deck's kind licence), each collected by a square
-              hairline bracket sending ONE dotted muted connector THROUGH
-              the hinge — the fork question — into its lane card. Lane
-              headers RUST, never gold. Cards center on their source
-              groups; the S6_LAYOUT law throws at build if contiguity, the
-              card gap, or the crossing-freedom fails. */}
+          {/* THE FORK, desktop (PR-DATAFLOW) — the 1–5 corridor: named
+              rows, the SOURCE pull-out, two landing lanes, one arrow per
+              item, row for row. */}
           <div className="relative mt-[14px] hidden lg:mt-8 lg:block" style={{ height: S6_H, maxWidth: S6_GEOM.W }}>
-            {S6_LAYOUT.groups.map(([lane, r0, r1]) => (
-              <div key={lane} className="absolute left-0 border border-border bg-white" style={{ top: S6_LAYOUT.rowY(r0) - S6_GEOM.ROW_H / 2, width: `${(S6_GEOM.L_W / S6_GEOM.W) * 100}%` }}>
-                {S6_TABLES.slice(r0, r1 + 1).map(([name, holds], i) => (
-                  <div key={name} style={{ height: S6_GEOM.ROW_H }} className={`flex items-center gap-3 overflow-hidden px-[14px] ${i < r1 - r0 || lane === 'authored' ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
-                    <span className="whitespace-nowrap font-mono text-[12px] text-brand-gold">{name}</span>
-                    <span className="overflow-hidden whitespace-nowrap text-[11px] text-text-faint">{holds}</span>
+            <div className="absolute left-0 top-0 border border-border bg-white" style={{ width: `${(S6_GEOM.L_W / S6_GEOM.W) * 100}%` }}>
+              <div style={{ height: S6_GEOM.HEAD }} className="flex items-center overflow-hidden bg-bg-row px-[8px] font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">EVERYTHING THE SYSTEM HOLDS</div>
+              {S6_GROUPS.map((g) => (
+                <Fragment key={g.label}>
+                  <div style={{ height: S6_GEOM.ROW_H }} className="flex items-center justify-between overflow-hidden bg-bg-row px-[8px] font-mono text-[7px]">
+                    <span className={g.isKind ? 'text-brand-gold' : 'uppercase tracking-[0.12em] text-text-faint'}>{g.label}</span>
+                    <span className="text-text-faint">{g.items.length === 0 ? '(empty)' : `(${g.items.length} ${g.isKind ? (g.items.length === 1 ? 'feed' : 'feeds') : 'tools'})`}</span>
                   </div>
-                ))}
-                {lane === 'authored' && (
-                  <div style={{ height: S6_GEOM.SIX_H }} className="overflow-hidden px-[14px] pt-[6px]">
-                    <div className="flex items-baseline justify-between">
-                      <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-text-faint">{S6_SIXTEEN[0]}</span>
-                      <span className="font-mono text-[9px] tracking-[0.14em] text-text-faint">{S6_SIXTEEN[2]}</span>
-                    </div>
-                    <p className="mt-[2px] text-[11px] leading-[1.4] text-text-faint">{S6_SIXTEEN[1]}</p>
-                  </div>
-                )}
-              </div>
-            ))}
-            <div className="absolute flex items-center border border-border bg-white px-[14px]" style={{ left: `${(S6_GEOM.HG_X / S6_GEOM.W) * 100}%`, top: (S6_LAYOUT.centers[0] + S6_LAYOUT.centers[1]) / 2 - S6_GEOM.HG_H / 2, width: `${(S6_GEOM.HG_W / S6_GEOM.W) * 100}%`, height: S6_GEOM.HG_H }}>
-              <p className="font-mono text-[10px] leading-[1.5] text-brand-purple">Did the world hand it to you, or did you make it?</p>
+                  {g.items.map((name, i) => (
+                    <div key={name} style={{ height: S6_GEOM.ROW_H }} className={`flex items-center overflow-hidden px-[8px] font-mono text-[7px] text-brand-purple ${i < g.items.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>{name}</div>
+                  ))}
+                </Fragment>
+              ))}
             </div>
-            {S6_LANES.map(([lane, header, gloss], i) => (
-              <div key={lane} className="absolute border border-border bg-white px-[14px] py-[10px]" style={{ left: `${(S6_GEOM.LN_X / S6_GEOM.W) * 100}%`, top: S6_LAYOUT.centers[i] - S6_GEOM.LN_H / 2, width: `${(S6_GEOM.LN_W / S6_GEOM.W) * 100}%`, height: S6_GEOM.LN_H }}>
-                <p className={DECK.rust}>{header}</p>
-                <p className="mt-1 text-[11px] leading-[1.4] text-text-faint">{gloss}</p>
-                <p className="mt-[6px] font-mono text-[11px] text-brand-gold">{S6_TABLES.filter(([, , l]) => l === lane).map(([name]) => name).join(' · ')}{lane === 'authored' && <span className="text-text-faint"> · the sixteen</span>}</p>
+            <div className="absolute top-0 border border-border bg-white" style={{ left: `${(S6_GEOM.M_X / S6_GEOM.W) * 100}%`, width: `${(S6_GEOM.M_W / S6_GEOM.W) * 100}%` }}>
+              <div style={{ height: S6_GEOM.HEAD }} className="flex items-center overflow-hidden bg-bg-row px-[8px] font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">SOURCE</div>
+              {S6_GROUPS.map((g) => (
+                <Fragment key={g.label}>
+                  <div style={{ height: S6_GEOM.ROW_H }} className="bg-bg-row" />
+                  {g.items.map((name, i) => (
+                    <div key={name} style={{ height: S6_GEOM.ROW_H }} className={`flex items-center overflow-hidden px-[8px] font-mono text-[7px] text-brand-purple ${i < g.items.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>{g.lane === 'observed' ? 'world' : 'you'}</div>
+                  ))}
+                </Fragment>
+              ))}
+            </div>
+            {S6_LANES.map(([lane, header, gloss]) => (
+              <div key={lane} className="absolute border border-border bg-white" style={{ left: `${(S6_GEOM.R_X / S6_GEOM.W) * 100}%`, top: S6_LAYOUT.laneTop[lane], width: `${((S6_GEOM.W - S6_GEOM.R_X) / S6_GEOM.W) * 100}%`, height: S6_LAYOUT.laneH[lane] }}>
+                <div style={{ height: S6_GEOM.LANE_HEAD }} className="overflow-hidden bg-bg-row px-[10px] pt-[6px] border-b border-b-border">
+                  <p className={DECK.rust}>{header}</p>
+                  <p className="mt-[2px] text-[10px] leading-[1.3] text-text-faint">{gloss}</p>
+                </div>
+                {S6_LAYOUT.arrows.filter((a) => a.lane === lane).map((a, i, arr) => (
+                  <div key={a.name} style={{ height: S6_GEOM.ROW_H }} className={`flex items-center overflow-hidden px-[10px] font-mono text-[7px] text-brand-purple ${i < arr.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>{a.name}</div>
+                ))}
               </div>
             ))}
-            <svg viewBox={`0 0 ${S6_GEOM.W} ${S6_H}`} preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full text-text-faint">
+            <svg viewBox={`0 0 ${S6_GEOM.W} ${S6_H}`} preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full text-brand-purple">
               <defs>
                 <marker id="s6-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="6" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto">
                   <path d="M0 0 L8 4 L0 8 z" fill="currentColor" />
                 </marker>
               </defs>
-              <g className="text-border" stroke="currentColor" strokeWidth={1} fill="none">
-                {S6_LAYOUT.groups.map(([lane], i) => (
-                  <path key={lane} d={`M${S6_GEOM.BRK - 6} ${S6_LAYOUT.span[i][0]} H${S6_GEOM.BRK} V${S6_LAYOUT.span[i][1]} H${S6_GEOM.BRK - 6} M${S6_GEOM.BRK} ${S6_LAYOUT.centers[i]} H${S6_GEOM.BRK + 12}`} />
-                ))}
-              </g>
-              {S6_LAYOUT.groups.map(([lane], i) => {
-                const gm = S6_LAYOUT.centers[i];
-                const hy = (S6_LAYOUT.centers[0] + S6_LAYOUT.centers[1]) / 2 + (i === 0 ? -10 : 10);
-                const inMx = (S6_GEOM.BRK + 12 + S6_GEOM.HG_X) / 2;
-                const outMx = (S6_GEOM.HG_X + S6_GEOM.HG_W + S6_GEOM.LN_X) / 2;
-                return (
-                  <g key={lane}>
-                    <path d={`M${S6_GEOM.BRK + 12} ${gm} C ${inMx} ${gm}, ${inMx} ${hy}, ${S6_GEOM.HG_X} ${hy}`} stroke="currentColor" strokeWidth={1} strokeDasharray="1 4" strokeLinecap="round" fill="none" />
-                    <path d={`M${S6_GEOM.HG_X + S6_GEOM.HG_W} ${hy} C ${outMx} ${hy}, ${outMx} ${S6_LAYOUT.centers[i]}, ${S6_GEOM.LN_X} ${S6_LAYOUT.centers[i]}`} stroke="currentColor" strokeWidth={1} strokeDasharray="1 4" strokeLinecap="round" fill="none" markerEnd="url(#s6-arrow)" />
-                  </g>
-                );
-              })}
+              {S6_LAYOUT.arrows.map((a) => (
+                <g key={a.name}>
+                  <path d={`M${S6_GEOM.L_W} ${a.ly} H${S6_GEOM.M_X}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" />
+                  <path d={`M${S6_GEOM.M_X + S6_GEOM.M_W} ${a.ly} C ${(S6_GEOM.M_X + S6_GEOM.M_W + S6_GEOM.R_X) / 2} ${a.ly}, ${(S6_GEOM.M_X + S6_GEOM.M_W + S6_GEOM.R_X) / 2} ${a.ry}, ${S6_GEOM.R_X} ${a.ry}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd="url(#s6-arrow)" />
+                </g>
+              ))}
             </svg>
           </div>
 
-          {/* THE FORK, mobile (PR-S6-CORRIDOR) — stacked: the two table
-              groups (gold names), the hinge question as a full-width
-              divider label, then the two lane cards — the membership line
-              inside each card stands in for the brackets. */}
+          {/* THE FORK, mobile (PR-DATAFLOW) — the 1–5 mobile idiom: no
+              arrows; each group card lists its items with source and lane
+              tags. */}
           <div className="mt-[14px] lg:hidden">
-            {S6_LAYOUT.groups.map(([lane, r0, r1]) => (
-              <div key={lane} className="mt-3 border border-border bg-white first:mt-0">
-                {S6_TABLES.slice(r0, r1 + 1).map(([name, holds], i) => (
-                  <div key={name} className={`flex items-baseline gap-2 px-3 py-[6px] ${i < r1 - r0 || lane === 'authored' ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
-                    <span className="whitespace-nowrap font-mono text-[11px] text-brand-gold">{name}</span>
-                    <span className="overflow-hidden whitespace-nowrap text-[10px] text-text-faint">{holds}</span>
+            {S6_GROUPS.map((g) => (
+              <div key={g.label} className="mt-3 border border-border bg-white first:mt-0">
+                <div className="flex items-baseline justify-between bg-bg-row px-3 py-[6px] border-b border-b-border">
+                  <span className={`font-mono text-[11px] ${g.isKind ? 'text-brand-gold' : 'uppercase tracking-[0.12em] text-text-faint'}`}>{g.label}</span>
+                  <span className="font-mono text-[8px] tracking-[0.12em] text-text-faint">{g.items.length === 0 ? '(empty)' : `(${g.items.length} ${g.isKind ? (g.items.length === 1 ? 'feed' : 'feeds') : 'tools'})`}</span>
+                </div>
+                {g.items.map((name, i) => (
+                  <div key={name} className={`flex items-baseline justify-between gap-2 px-3 py-[5px] ${i < g.items.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                    <span className="overflow-hidden whitespace-nowrap font-mono text-[10px] text-brand-purple">{name}</span>
+                    <span className="whitespace-nowrap font-mono text-[8px] text-text-faint">{g.lane === 'observed' ? 'world → OBSERVED' : 'you → AUTHORED'}</span>
                   </div>
                 ))}
-                {lane === 'authored' && (
-                  <div className="px-3 py-[6px]">
-                    <div className="flex items-baseline justify-between">
-                      <span className="font-mono text-[8.5px] uppercase tracking-[0.14em] text-text-faint">{S6_SIXTEEN[0]}</span>
-                      <span className="font-mono text-[8.5px] tracking-[0.14em] text-text-faint">{S6_SIXTEEN[2]}</span>
-                    </div>
-                    <p className="mt-[2px] text-[10px] leading-[1.4] text-text-faint">{S6_SIXTEEN[1]}</p>
-                  </div>
-                )}
-              </div>
-            ))}
-            <div className="mt-4 border-t border-border pt-3">
-              <p className="font-mono text-[10px] leading-[1.5] text-brand-purple">Did the world hand it to you, or did you make it?</p>
-            </div>
-            {S6_LANES.map(([lane, header, gloss]) => (
-              <div key={lane} className="mt-3 border border-border bg-white px-3 py-[10px]">
-                <p className={DECK.rust}>{header}</p>
-                <p className="mt-1 text-[10px] leading-[1.4] text-text-faint">{gloss}</p>
-                <p className="mt-[6px] font-mono text-[10px] text-brand-gold">{S6_TABLES.filter(([, , l]) => l === lane).map(([name]) => name).join(' · ')}{lane === 'authored' && <span className="text-text-faint"> · the sixteen</span>}</p>
               </div>
             ))}
           </div>
 
-          {/* The honest texture and the hinge-out — the founder's ruled
-              lines. The old echo and two-doors paragraphs retired: the
-              doors are the visual now; the echo nuance belongs at Step 9. */}
-          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Derived and posting your system computes — no draft. The sixteen you draft, then commit: you pull the trigger, and the world moves.</p>
-          <p className={`mt-2 ${DECK.statement}`}>The sixteen that stayed home in Step 2 are authored — the work you do. Everything else already has a table. They don&apos;t. That&apos;s the one gap left.</p>
+          {/* The punch (not a fourth move), then the faint texture note. */}
+          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>The sixteen are yours — and they have no table. That&apos;s the one gap left.</p>
+          <p className="mt-2 text-[12px] lg:text-[14px] text-text-faint">Derived and posting your system computes — no draft. The sixteen you draft, then commit.</p>
 
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={DECK.q}>So how exactly do you make something happen?</p>
         </div>
       </section>
 
-      {/* ── DECK-07 / THE LOOP. The four-beat band is Design's spec: four
-            equal flex columns, 32px arrow slots between — a 1px lavender
-            shaft (bg-border) plus a 5×5 chevron of two 1px #B9B2C6 strokes
-            rotated 45° (no token covers #B9B2C6; exact hex per the deck's
-            token law), shaft centred on the beat-name line. Mobile stacks the
-            beats and drops the arrows. */}
+      {/* ── DECK-07 / THE LOOP (PR-DATAFLOW) — the loop DRAWN as data
+            flow: the five tools (named, dark tier) travel four stage
+            panels — DISCOVER → DECIDE → COMMIT → RECORD, headers faint,
+            stage names derived from LOOP_ROWS — on one dead-level arrow
+            per tool, row for row, zero crossings by the S7_LAYOUT law
+            (it throws at build). COMMIT wears the deck's ring (the
+            pull-out — each tool's trigger by name); RECORD is the
+            landing, tagged 'no home yet → Step 8'. The floating beat
+            band and the static 5×4 table died — the beats ARE the moves
+            block, and no grid repeats the drawing (Deck Law 7). */}
       <section id="deck-07" aria-label="The loop" className={openSteps[6] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
@@ -2846,53 +2858,54 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             Book a flight, place a trade, send an invoice, post an entry, file with the state; same loop, different nouns.
           </p>
 
-          <div className="mt-10 lg:mt-[76px] flex flex-col gap-6 lg:flex-row lg:gap-0">
-            {LOOP_BEATS.map(([beat, caption], i) => (
-              <Fragment key={beat}>
-                {i > 0 && (
-                  <div aria-hidden="true" className="relative hidden w-8 shrink-0 lg:block">
-                    <span className="absolute left-0 right-[2px] top-[8px] h-px bg-border" />
-                    <span className="absolute right-[2px] top-[8px] h-[5px] w-[5px] -translate-y-1/2 rotate-45 border-r border-t border-[#B9B2C6]" />
-                  </div>
-                )}
-                <div className="lg:flex-1">
-                  <p className="font-mono text-[13px] font-semibold tracking-[0.12em] text-brand-purple">{beat}</p>
-                  <p className="mt-2 text-[11px] text-text-faint">{caption}</p>
-                </div>
-              </Fragment>
-            ))}
-          </div>
+          {/* The four moves ARE the beats — labels faint. */}
+          <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is four moves:</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(a)</span> Discover — look at your options.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(b)</span> Decide — pick one; the pick becomes a draft.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(c)</span> Commit — pull the trigger; the world moves.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(d)</span> Record — it is written down forever.</p>
 
-          {/* PR-FIVE: the faint caption, then the six-column table on
-              desktop; mobile stacks one block per tool below. */}
           <p className="mt-10 lg:mt-[76px] text-[12px] lg:text-[14px] text-text-faint">five of twenty-five — every tool runs these same four beats.</p>
-          <table className={`mt-4 hidden lg:table ${DECK.table}`}>
-            <thead>
-              <tr>
-                <th scope="col" className={`w-[16%] ${DECK.th}`} />
-                {LOOP_TOOLS.map((head) => (
-                  <th key={head} scope="col" className={DECK.th}>{head}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {LOOP_ROWS.map(([beat, ...cells], r) => {
-                const rule = r === LOOP_ROWS.length - 1 ? '' : DECK.rule;
-                return (
-                  <tr key={beat}>
-                    <th scope="row" className={`${DECK.pad} ${rule} text-left align-top font-mono text-[10px] lg:text-[11px] font-normal uppercase tracking-[0.18em] text-text-faint`}>{beat}</th>
-                    {cells.map((cell, c) => (
-                      <td key={c} className={`${DECK.pad} ${rule} align-top text-[11px] leading-[1.4] lg:text-[13px] lg:leading-normal text-brand-purple`}>{cell}</td>
-                    ))}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
 
-          {/* PR-FIVE, mobile — six columns cannot fit at 375: one white
-              card per tool, its four beats as label → value lines, the
-              Pass-A tiers (faint labels, purple values). */}
+          {/* THE LOOP, desktop (PR-DATAFLOW) — five level arrows through
+              four stages. */}
+          <div className="relative mt-4 hidden lg:block" style={{ height: S7_H, maxWidth: S7_GEOM.W }}>
+            <div className="absolute left-0 top-0 border border-border bg-white" style={{ width: `${(S7_GEOM.T_W / S7_GEOM.W) * 100}%` }}>
+              <div style={{ height: S7_GEOM.HEAD }} className="bg-bg-row border-b border-b-border" />
+              {S7_LAYOUT.rows.map((r, i) => (
+                <div key={r.tool} style={{ height: S7_GEOM.ROW_H }} className={`flex items-center overflow-hidden px-[8px] font-mono text-[7px] uppercase tracking-[0.12em] text-brand-purple ${i < S7_LAYOUT.rows.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>{r.tool}</div>
+              ))}
+            </div>
+            {S7_LAYOUT.stages.map((stage, s) => (
+              <div key={stage} className={`absolute top-0 border border-border bg-white ${stage === 'COMMIT' ? 'ring-1 ring-inset ring-brand-purple' : ''}`} style={{ left: `${(s7StageX(s) / S7_GEOM.W) * 100}%`, width: `${(S7_STAGE_W / S7_GEOM.W) * 100}%` }}>
+                <div style={{ height: S7_GEOM.HEAD }} className="flex items-center overflow-hidden bg-bg-row px-[8px] font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">{stage}</div>
+                {S7_LAYOUT.rows.map((r, i) => (
+                  <div key={r.tool} style={{ height: S7_GEOM.ROW_H }} className={`flex items-center overflow-hidden px-[8px] font-mono text-[7px] text-brand-purple ${i < S7_LAYOUT.rows.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                    <span className="overflow-hidden whitespace-nowrap">{r.cells[s]}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+            <svg viewBox={`0 0 ${S7_GEOM.W} ${S7_H}`} preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full text-brand-purple">
+              <defs>
+                <marker id="s7-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="6" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto">
+                  <path d="M0 0 L8 4 L0 8 z" fill="currentColor" />
+                </marker>
+              </defs>
+              {S7_LAYOUT.rows.map((r) => (
+                <g key={r.tool}>
+                  {S7_LAYOUT.stages.map((stage, s) => (
+                    <path key={stage} d={`M${s === 0 ? S7_GEOM.T_W : s7StageX(s - 1) + S7_STAGE_W} ${r.y} H${s7StageX(s)}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd={s === S7_LAYOUT.stages.length - 1 ? 'url(#s7-arrow)' : undefined} />
+                  ))}
+                </g>
+              ))}
+            </svg>
+          </div>
+          {/* The landing's tag — chrome, faint, seated under RECORD. */}
+          <p className="mt-2 hidden text-[12px] lg:block lg:text-[14px] text-text-faint" style={{ marginLeft: s7StageX(3) }}>no home yet → Step 8</p>
+
+          {/* THE LOOP, mobile — one white card per tool, its four beats as
+              label → value lines (the 1–5 mobile idiom, no arrows). */}
           <div className="mt-4 lg:hidden">
             {LOOP_TOOLS.map((tool, i) => (
               <div key={tool} className="mt-3 border border-border bg-white px-3 py-[10px] first:mt-0">
