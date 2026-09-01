@@ -1579,11 +1579,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             Your life is one system. Your software isn&apos;t.
           </p>
           {/* PR-MOVES → PR-MOVES-2: the essay's four-moves block, verbatim. */}
-          <p className={`mt-6 ${DECK.statement}`}>This step is four moves:</p>
-          <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(a)</span> The problem gets named.</p>
-          <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(b)</span> The tools to solve it get listed.</p>
-          <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(c)</span> The families to sort the tools into get created.</p>
-          <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(d)</span> Each tool gets moved from the list into the table, under its family.</p>
+          <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is four moves:</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(a)</span> The problem gets named.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(b)</span> The tools to solve it get listed.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(c)</span> The families to sort the tools into get created.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(d)</span> Each tool gets moved from the list into the table, under its family.</p>
 
           {/* ── S1-VIZ (PR-S1-VIZ, per the approved CD-S1 mockup 1a): the four
               moves DRAWN. The fan is retired — the visual is move (b) as a
@@ -1792,11 +1792,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           {/* PR-S2: the essay's Step 2 moves block, verbatim — slide-01
               grammar, letters in the gold mono tier (the moves block is
               the only home for letters; no letters enter the drawing). */}
-          <p className={`mt-6 ${DECK.statement}`}>This step is four moves:</p>
-          <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(a)</span> Start from the table Step 1 built.</p>
-          <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(b)</span> Go tool by tool and ask one question: does this tool&apos;s data arrive from outside — someone else telling you what happened?</p>
-          <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(c)</span> If yes, pick the company that sends it. That company is a provider.</p>
-          <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(d)</span> If no, the tool stays home: the system will be that tool, and its data gets born here.</p>
+          <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is four moves:</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(a)</span> Start from the table Step 1 built.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(b)</span> Go tool by tool and ask one question: does this tool&apos;s data arrive from outside — someone else telling you what happened?</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(c)</span> If yes, pick the company that sends it. That company is a provider.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(d)</span> If no, the tool stays home: the system will be that tool, and its data gets born here.</p>
 
           {/* THE WALK, desktop (PR-S2-LINES) — four absolute layers in one
               relative row of height S2_GEOM.H: Step 1's sheet condensed
@@ -1806,7 +1806,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               provider menu reordered to land the walk (right), and the
               overlay: sixteen short arcs pull-out → menu, ZERO crossings;
               'our AI' takes NO arrow. */}
-          <div className="relative mt-10 hidden lg:mt-[76px] lg:block" style={{ height: S2_GEOM.H, maxWidth: S2_GEOM.W }}>
+          <div className="relative mt-10 hidden lg:mt-8 lg:block" style={{ height: S2_GEOM.H, maxWidth: S2_GEOM.W }}>
             <div className="absolute left-0 top-0" style={{ width: `${(S2_GEOM.TABLE_W / S2_GEOM.W) * 100}%` }}>
               <table className="w-full table-fixed border-separate border-spacing-0 border border-border bg-white">
                 <thead>
@@ -2019,23 +2019,23 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           {/* PR-S3: the essay's Step 3 moves block, verbatim — slide-01
               grammar, letters in the gold mono tier. The two old arrival
               intro lines died into moves (c)/(d) — zero renders. */}
-          <p className={`mt-6 ${DECK.statement}`}>This step is four moves:</p>
-          <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(a)</span> Start from the menu Step 2 built — the providers in the TODAY column.</p>
-          <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(b)</span> Ask each provider for its data.</p>
-          <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(c)</span> The answer comes back, and it gets stored as one row, word for word, before anyone decides what it means. That row is an arrival.</p>
-          <p className={`mt-2 ${DECK.statement}`}><span className="font-mono text-brand-gold">(d)</span> Each row gets stamped: who sent it, what it is, its fingerprint, when we asked, when it arrived, when we read it, and how far it got.</p>
+          <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is four moves:</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(a)</span> Start from the menu Step 2 built — the providers in the TODAY column.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(b)</span> Ask each provider for its data.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(c)</span> The answer comes back, and it gets stored as one row, word for word, before anyone decides what it means. That row is an arrival.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-brand-gold">(d)</span> Each row gets stamped: who sent it, what it is, its fingerprint, when we asked, when it arrived, when we read it, and how far it got.</p>
 
           {/* PR-S3-ONE-TABLE: the bridge — the essay's read-across line,
               verbatim, statement tier, above the table. Desktop-only:
               the phone cannot name every part at the top, so its
               counterpart is the declared line in the mobile stack. */}
-          <p className={`mt-10 hidden lg:mt-[76px] lg:block ${DECK.statement}`}>Every part of a row is named at the top of the table, and nineteen rows are shown. Read across plaid&apos;s row — from your Chase connection — and you have read one whole arrival.</p>
+          <p className={`mt-10 hidden lg:mt-8 lg:block ${DECK.statement}`}>Every part of a row is named at the top of the table, and nineteen rows are shown. Read across plaid&apos;s row — from your Chase connection — and you have read one whole arrival.</p>
 
           {/* THE ASK, desktop caption — the arrivals caption in the act's
               rust chrome, aligned over the table panel (marginLeft from
               S3_GEOM — exact at full width, drifting only where the row
               shrinks below S3_GEOM.W). */}
-          <p className="mt-6 hidden font-mono text-[11px] uppercase tracking-[0.20em] text-brand-amber lg:block" style={{ marginLeft: S3_GEOM.TABLE_X }}>ONE ARRIVAL PER PROVIDER — AN EXAMPLE</p>
+          <p className="mt-5 hidden font-mono text-[11px] uppercase tracking-[0.20em] text-brand-amber lg:block" style={{ marginLeft: S3_GEOM.TABLE_X }}>ONE ARRIVAL PER PROVIDER — AN EXAMPLE</p>
 
           {/* THE ONE TABLE, desktop (PR-S3-ONE-TABLE) — the two tables
               became one: the providers list (top offset S3_LIST_TOP —
@@ -2049,7 +2049,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               ringed (the essay's read-across row); PENDING and FAILED
               ink rust. 18 of 19 arrows run dead level; plaid→chase
               rises one pitch; zero crossings. */}
-          <div className="relative mt-[14px] hidden lg:mt-[18px] lg:block" style={{ height: S3_H, maxWidth: S3_GEOM.W }}>
+          <div className="relative mt-[14px] hidden lg:mt-3 lg:block" style={{ height: S3_H, maxWidth: S3_GEOM.W }}>
             <div className="absolute left-0 border border-border bg-white" style={{ top: S3_LIST_TOP, width: `${(S3_GEOM.LIST_W / S3_GEOM.W) * 100}%` }}>
               <p className="flex h-[26px] items-center overflow-hidden whitespace-nowrap bg-bg-row px-[6px] font-mono text-[7px] font-normal uppercase tracking-[0.14em] text-text-faint border-b border-b-border">THE PROVIDERS WE PICKED</p>
               {S3_PROVIDERS.map((p, i) => (
