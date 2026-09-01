@@ -973,11 +973,72 @@ const S8_LAYOUT = (() => {
 })();
 const S8_H = S8_GEOM.HEAD + S8_LAYOUT.rows.length * S8_GEOM.ROW_H;
 
-// DECK-09: the two match cards, [name, amount, date] — amounts gold.
-const MATCH_CARDS = [
-  { label: 'OBSERVED', name: 'deposit', amount: '$500.00', date: 'Sep 22' },
-  { label: 'AUTHORED', name: 'invoice #14', amount: '$500.00', date: 'due Sep 22' },
-] as const;
+// DECK-09 (PR-S9-DATAFLOW): MATCH_CARDS' single deposit/invoice example
+// retired — the match is DRAWN now, all fourteen money movers at once
+// (SHOW DON'T ECHO). History holds the const.
+
+// S9-MATCHES: observed event → tool, keyed by PROBLEM_SHEET name in the
+// founder's ruled row order (object insertion order IS the drawing's
+// order). The authored side derives from TOOL_DOCUMENTS' what-it-is noun
+// — never retyped. The S9_LAYOUT law asserts every key is a sheet tool
+// that resolves in TOOL_DOCUMENTS, and that the derived no-match set is
+// exactly eleven. Repeated events ('a bank debit' × 5) are distinct rows
+// — distinct matches.
+const MATCHES: Readonly<Record<string, string>> = {
+  Invoicing: 'a deposit',
+  Payments: 'a deposit',
+  Brokerage: 'a fill',
+  Travel: 'a card charge',
+  Expenses: 'a card charge',
+  'Fixed Assets': 'a card charge',
+  'Bill Pay': 'a bank debit',
+  Payroll: 'a bank debit',
+  Debt: 'a bank debit',
+  'Sales Tax': 'a bank debit',
+  'Ent Filings': 'a bank debit',
+  Retirement: 'a transfer',
+  Banking: 'a transfer',
+  Tax: 'a payment or refund',
+};
+// the KEY pulled out of both sides — the same on every row; the
+// repetition is the teaching (the S8 idiom).
+const S9_KEY = 'amount · date · reference';
+
+// S9-GEOM: observed events, the KEY pull-out (the MATCH divider rides
+// its band), the documents found — all top-aligned on one row grid, so
+// every arrow runs DEAD LEVEL (the S6-S8 tight pitch).
+const S9_GEOM = { W: 1216, L_W: 240, M_X: 360, M_W: 240, R_X: 720, HEAD: 22, ROW_H: 20 } as const;
+
+// THE LAYOUT LAW (S9): fourteen rows from MATCHES in its ruled order;
+// every key must be a PROBLEM_SHEET tool that resolves in
+// TOOL_DOCUMENTS; the derived no-match set must be exactly eleven; one
+// dead-level arrow per match, proven pairwise — level arrows on distinct
+// row centers cannot cross. THROWS at build on any violation; a green
+// build is the proof. Travel is the live-today row — the drawing and
+// the hedge agree.
+const S9_LAYOUT = (() => {
+  const tools = PROBLEM_SHEET.flatMap(({ tools: t }) => t as readonly string[]);
+  const keys = Object.keys(MATCHES);
+  if (keys.length !== 14) throw new Error(`slide 09: expected fourteen money movers — got ${keys.length}`);
+  const bad = keys.filter((k) => !tools.includes(k) || !(k in TOOL_DOCUMENTS));
+  if (bad.length) throw new Error(`slide 09: MATCHES keys must be sheet tools with documents — bad [${bad.join(', ')}]`);
+  const unmatched = tools.filter((t) => !(t in MATCHES));
+  if (unmatched.length !== 11) throw new Error(`slide 09: expected eleven no-match tools — got ${unmatched.length}`);
+  const rows = keys.map((tool, i) => ({
+    tool,
+    observed: MATCHES[tool],
+    doc: TOOL_DOCUMENTS[tool][0],
+    live: tool === 'Travel',
+    y: S9_GEOM.HEAD + i * S9_GEOM.ROW_H + S9_GEOM.ROW_H / 2,
+  }));
+  for (let a = 0; a < rows.length; a += 1) {
+    for (let b = a + 1; b < rows.length; b += 1) {
+      if ((rows[a].y - rows[b].y) * (rows[a].y - rows[b].y) <= 0) throw new Error('slide 09: arrows would cross or overlap — the rows must keep distinct centers');
+    }
+  }
+  return { rows, unmatched } as const;
+})();
+const S9_H = S9_GEOM.HEAD + S9_LAYOUT.rows.length * S9_GEOM.ROW_H;
 
 // DECK-10: the posting rules, [event, debit, credit] — debit/credit values
 // gold at the render.
@@ -3134,14 +3195,19 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── DECK-09 / THE MATCH. Design's match visual: grid 1fr | 260px |
-            1fr. Cards are border-border (the 1px lavender) on bg-ts-white
-            (the token the spec's #FFFDF9 resolves to), 12×16 padding, three
-            mono-12 spans space-between; rust label 10px above each. Centre:
-            MATCH mono 10/600/0.12em aubergine flanked by hairlines with 10px
-            gaps; caption 11px faint centred 8px beneath. The centre column's
-            lg padding-top optically centres MATCH on the card row. Mobile
-            stacks the three cells; the flanking hairlines are desktop-only. */}
+      {/* ── DECK-09 / THE MATCH (PR-S9-DATAFLOW) — the payoff of 06's
+            fork, drawn: the fourteen observed money events (dark tier,
+            the ruled MATCHES order — repeats are distinct matches) each
+            pull out the KEY — amount · date · reference, the same on
+            every row — and flow on one DEAD-LEVEL arrow into the
+            authored document they confirm (TOOL_DOCUMENTS' nouns).
+            Fourteen arrows, zero crossings by the S9_LAYOUT law (it
+            throws at build). The MATCH divider idiom rides the middle
+            band; OBSERVED / AUTHORED band labels are rust; Travel wears
+            the faint live-today tag so the drawing and the hedge agree.
+            The single deposit/invoice card pair retired (SHOW DON'T
+            ECHO); the eleven no-match tools are derived and named in
+            the faint note. Three moves, no padding. */}
       <section id="deck-09" aria-label="The match" className={openSteps[8] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
@@ -3161,41 +3227,82 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             Now observed meets authored.
           </p>
 
-          <div className="mt-10 lg:mt-[76px] grid gap-6 lg:grid-cols-[1fr_260px_1fr] lg:gap-0">
-            <div>
-              <p className={DECK.rust}>{MATCH_CARDS[0].label}</p>
-              <div className="mt-[10px] flex items-baseline justify-between gap-2 border border-border bg-ts-white px-4 py-3">
-                <span className="font-mono text-[12px] text-brand-purple">{MATCH_CARDS[0].name}</span>
-                <span className="font-mono text-[12px] text-brand-gold">{MATCH_CARDS[0].amount}</span>
-                <span className="font-mono text-[12px] text-brand-purple">{MATCH_CARDS[0].date}</span>
+          {/* The three moves — real flow, no padding; labels faint. */}
+          <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is three moves:</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(a)</span> Take what the world said happened — the observed money events.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(b)</span> Pull out the key from each: amount, date, reference.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(c)</span> Find the document in the master table with the same key — and match them.</p>
+
+          {/* THE MATCH, desktop (PR-S9-DATAFLOW) — the 1–5 corridor:
+              observed events, the KEY pull-out under the MATCH divider,
+              the documents found. */}
+          <div className="relative mt-[14px] hidden lg:mt-8 lg:block" style={{ height: S9_H, maxWidth: S9_GEOM.W }}>
+            <div className="absolute left-0 top-0 border border-border bg-white" style={{ width: `${(S9_GEOM.L_W / S9_GEOM.W) * 100}%` }}>
+              <div style={{ height: S9_GEOM.HEAD }} className="flex items-center overflow-hidden bg-bg-row px-[8px] border-b border-b-border">
+                <span className={DECK.rust}>OBSERVED — what happened</span>
               </div>
+              {S9_LAYOUT.rows.map((r, i) => (
+                <div key={r.tool} style={{ height: S9_GEOM.ROW_H }} className={`flex items-center overflow-hidden px-[8px] font-mono text-[7px] text-brand-purple ${i < S9_LAYOUT.rows.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>{r.observed}</div>
+              ))}
             </div>
-            <div className="lg:px-[10px] lg:pt-[33px]">
-              <div className="flex items-center gap-[10px]">
-                <span className="hidden h-px flex-1 bg-border lg:block" aria-hidden="true" />
+            <div className="absolute top-0 border border-border bg-white" style={{ left: `${(S9_GEOM.M_X / S9_GEOM.W) * 100}%`, width: `${(S9_GEOM.M_W / S9_GEOM.W) * 100}%` }}>
+              <div style={{ height: S9_GEOM.HEAD }} className="flex items-center gap-[10px] overflow-hidden bg-bg-row px-[8px] border-b border-b-border">
+                <span className="h-px flex-1 bg-border" aria-hidden="true" />
                 <span className="font-mono text-[10px] font-semibold tracking-[0.12em] text-brand-purple">MATCH</span>
-                <span className="hidden h-px flex-1 bg-border lg:block" aria-hidden="true" />
+                <span className="h-px flex-1 bg-border" aria-hidden="true" />
               </div>
-              <p className="mt-2 text-[11px] text-text-faint lg:text-center">amount + date + reference → one match.</p>
+              {S9_LAYOUT.rows.map((r, i) => (
+                <div key={r.tool} style={{ height: S9_GEOM.ROW_H }} className={`flex items-center overflow-hidden px-[8px] font-mono text-[7px] text-brand-purple ${i < S9_LAYOUT.rows.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>{S9_KEY}</div>
+              ))}
             </div>
-            <div>
-              <p className={DECK.rust}>{MATCH_CARDS[1].label}</p>
-              <div className="mt-[10px] flex items-baseline justify-between gap-2 border border-border bg-ts-white px-4 py-3">
-                <span className="font-mono text-[12px] text-brand-purple">{MATCH_CARDS[1].name}</span>
-                <span className="font-mono text-[12px] text-brand-gold">{MATCH_CARDS[1].amount}</span>
-                <span className="font-mono text-[12px] text-brand-purple">{MATCH_CARDS[1].date}</span>
+            <div className="absolute top-0 border border-border bg-white" style={{ left: `${(S9_GEOM.R_X / S9_GEOM.W) * 100}%`, width: `${((S9_GEOM.W - S9_GEOM.R_X) / S9_GEOM.W) * 100}%` }}>
+              <div style={{ height: S9_GEOM.HEAD }} className="flex items-center overflow-hidden bg-bg-row px-[8px] border-b border-b-border">
+                <span className={DECK.rust}>AUTHORED — what you did</span>
               </div>
+              {S9_LAYOUT.rows.map((r, i) => (
+                <div key={r.tool} style={{ height: S9_GEOM.ROW_H }} className={`flex items-center justify-between overflow-hidden px-[8px] font-mono text-[7px] ${i < S9_LAYOUT.rows.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                  <span className="overflow-hidden whitespace-nowrap text-brand-purple">{r.doc}</span>
+                  {r.live && <span className="whitespace-nowrap pl-2 text-text-faint">live today</span>}
+                </div>
+              ))}
             </div>
+            <svg viewBox={`0 0 ${S9_GEOM.W} ${S9_H}`} preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full text-brand-purple">
+              <defs>
+                <marker id="s9-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="6" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto">
+                  <path d="M0 0 L8 4 L0 8 z" fill="currentColor" />
+                </marker>
+              </defs>
+              {S9_LAYOUT.rows.map((r) => (
+                <g key={r.tool}>
+                  <path d={`M${S9_GEOM.L_W} ${r.y} H${S9_GEOM.M_X}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" />
+                  <path d={`M${S9_GEOM.M_X + S9_GEOM.M_W} ${r.y} C ${(S9_GEOM.M_X + S9_GEOM.M_W + S9_GEOM.R_X) / 2} ${r.y}, ${(S9_GEOM.M_X + S9_GEOM.M_W + S9_GEOM.R_X) / 2} ${r.y}, ${S9_GEOM.R_X} ${r.y}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd="url(#s9-arrow)" />
+                </g>
+              ))}
+            </svg>
+          </div>
+
+          {/* THE MATCH, mobile (PR-S9-DATAFLOW) — the 1–5 mobile idiom:
+              no arrows; fourteen compact cards, observed → key → document
+              found, Travel tagged live today. */}
+          <div className="mt-[14px] lg:hidden">
+            {S9_LAYOUT.rows.map((r) => (
+              <div key={r.tool} className="mt-3 border border-border bg-white px-3 py-[8px] first:mt-0">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="overflow-hidden whitespace-nowrap font-mono text-[10px] text-brand-purple">{r.observed} → {r.doc}</span>
+                  {r.live && <span className="whitespace-nowrap font-mono text-[8px] text-text-faint">live today</span>}
+                </div>
+                <p className="mt-[3px] font-mono text-[8px] tracking-[0.1em] text-text-faint">{S9_KEY}</p>
+              </div>
+            ))}
           </div>
 
           <div className={DECK.hairline} aria-hidden="true" />
-          {/* PR-VOICE + Deck Law #7 (show don't echo): the cards and the
-              centre caption CARRY the invoice/deposit story and the three
-              checks — the text below never restates them. */}
-          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Click; one match.</p>
+          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>amount + date + reference → one match.</p>
+          <p className={`mt-2 ${DECK.statement}`}>Click; one match.</p>
           <p className={`mt-2 ${DECK.statement}`}>The deposit found its invoice. The fill found its order. The card charge found its booking. Nobody hunted through statements!</p>
-          <p className={`mt-2 ${DECK.statement}`}>(A piece of this is already alive today: card charges find their bookings and propose the match — you approve it.)</p>
           <p className={`mt-2 ${DECK.statement}`}>Matched means real; the world just confirmed what you did.</p>
+          <p className={`mt-2 ${DECK.statement}`}>(A piece of this is already alive today: card charges find their bookings and propose the match — you approve it.)</p>
+          <p className="mt-2 text-[12px] lg:text-[14px] text-text-faint">The other eleven move no money and need no match — they&apos;re real the moment you commit.</p>
           <p className={DECK.q}>Matched and real. So who writes the debits and credits?</p>
         </div>
       </section>
