@@ -864,17 +864,87 @@ const S7_LAYOUT = (() => {
 })();
 const S7_H = S7_GEOM.HEAD + LOOP_TOOLS.length * S7_GEOM.ROW_H;
 
-// DECK-08 (PR-VOICE): the four things every document carries, [name, desc] —
-// the essay's (1)–(4) items, split at the essay's own semicolon so the
-// column gap plays the semicolon (the same arrangement every two-column
-// row in this deck uses). Item (4) has no tail in the essay, so its desc is
-// empty — content, not a gap.
+// DECK-08 (PR-VOICE → PR-S8-DATAFLOW): the four things every document
+// carries, [name, desc]. The static two-column field table died (SHOW
+// DON'T ECHO — the master table is DRAWN now); MASTER_ROWS survives as
+// the SOURCE of the drawn table's four field headers — the name column
+// with its '(N) ' prefix and trailing period stripped — so the fields
+// cannot drift from the essay's items. The descs render nowhere.
 const MASTER_ROWS = [
   ['(1) What it is', 'a booking, an invoice, a trade.'],
   ['(2) Its life story', 'draft → committed → settled, or void, if it dies.'],
   ['(3) Its pieces', 'the flights in a booking, the items on an invoice.'],
   ['(4) Who did it, and when.', ''],
 ] as const;
+
+// S8-DOCUMENTS: the founder's data model — [what it is, its pieces],
+// keyed by PROBLEM_SHEET tool name. The S8_LAYOUT law asserts the keys
+// equal PROBLEM_SHEET's cells EXACTLY (25, no missing, no extra, no
+// misspelling — any drift throws at build). Nouns tune on Preview.
+const TOOL_DOCUMENTS: Readonly<Record<string, readonly [string, string]>> = {
+  CRM: ['a contact', 'the deals, the notes'],
+  Bookkeeping: ['a ledger entry', 'the debits and credits'],
+  'Bill Pay': ['a bill payment', 'the bill, the amount, the payee'],
+  Calendar: ['an event', 'the time, the attendees'],
+  Banking: ['a transfer', 'the from, the to, the amount'],
+  Debt: ['a debt payment', 'the principal, the interest'],
+  Contracts: ['a contract', 'the parties, the terms'],
+  Payroll: ['a payroll run', 'the employees, the wages'],
+  'Fixed Assets': ['an asset', 'the cost, the depreciation'],
+  Tasks: ['a task', 'the steps, the due date'],
+  Tax: ['a tax return', 'the forms, the schedules'],
+  'Sales Tax': ['a sales-tax filing', 'the jurisdictions, the amounts'],
+  Invoicing: ['an invoice', 'the line items'],
+  Retirement: ['a contribution', 'the account, the amount'],
+  Compliance: ['an attestation', 'the controls, the evidence'],
+  Expenses: ['an expense', 'the receipt, the category'],
+  Time: ['a time entry', 'the hours, the project'],
+  Payments: ['a payment', 'the payer, the amount'],
+  Travel: ['a booking', 'the flights, the nights'],
+  Brokerage: ['a trade', 'the legs'],
+  'Ent Filings': ['a filing', 'the forms'],
+  Mileage: ['a trip', 'the miles, the purpose'],
+  'Trade Log': ['a trade record', 'the entry, the exit, the P&L'],
+  Budget: ['a budget', 'the lines, the period'],
+  'FP&A': ['a forecast', 'the assumptions, the scenarios'],
+};
+// the two SAME-ON-EVERY-ROW fields — the repetition IS the teaching:
+// different names, same shape.
+const S8_LIFE = 'draft → committed → settled';
+const S8_WHO = 'you · the moment you committed';
+
+// S8-GEOM: the records list, the WHAT-IT-IS pull-out, the master table —
+// all three panels top-aligned on one row grid, so every arrow runs DEAD
+// LEVEL (the S6 tight pitch; 25 rows read as one table).
+const S8_GEOM = { W: 1216, L_W: 150, M_X: 230, M_W: 170, R_X: 470, HEAD: 22, ROW_H: 20 } as const;
+
+// THE LAYOUT LAW (S8): the 25 rows come from PROBLEM_SHEET in its order;
+// TOOL_DOCUMENTS must cover exactly those keys; every row must resolve
+// all four fields (the two per-tool fields non-empty, the two shared
+// fields constant); one dead-level arrow per record, proven pairwise —
+// level arrows on distinct row centers cannot cross. THROWS at build on
+// any violation; a green build is the proof.
+const S8_LAYOUT = (() => {
+  const tools = PROBLEM_SHEET.flatMap(({ tools: t }) => t as readonly string[]);
+  if (tools.length !== 25) throw new Error(`slide 08: the sheet must hold twenty-five tools — got ${tools.length}`);
+  const missing = tools.filter((t) => !(t in TOOL_DOCUMENTS));
+  const extra = Object.keys(TOOL_DOCUMENTS).filter((k) => !tools.includes(k));
+  if (missing.length || extra.length) throw new Error(`slide 08: TOOL_DOCUMENTS drifted from the sheet — missing [${missing.join(', ')}], extra [${extra.join(', ')}]`);
+  const fields = MASTER_ROWS.map(([name]) => name.replace(/^\(\d\) /, '').replace(/\.$/, '').toUpperCase());
+  if (fields.length !== 4) throw new Error('slide 08: a document carries four fields');
+  const rows = tools.map((tool, i) => {
+    const doc = TOOL_DOCUMENTS[tool];
+    if (!doc[0] || !doc[1] || !S8_LIFE || !S8_WHO) throw new Error(`slide 08: ${tool} does not resolve all four fields`);
+    return { tool, what: doc[0], pieces: doc[1], y: S8_GEOM.HEAD + i * S8_GEOM.ROW_H + S8_GEOM.ROW_H / 2 };
+  });
+  for (let a = 0; a < rows.length; a += 1) {
+    for (let b = a + 1; b < rows.length; b += 1) {
+      if ((rows[a].y - rows[b].y) * (rows[a].y - rows[b].y) <= 0) throw new Error('slide 08: arrows would cross or overlap — the rows must keep distinct centers');
+    }
+  }
+  return { rows, fields } as const;
+})();
+const S8_H = S8_GEOM.HEAD + S8_LAYOUT.rows.length * S8_GEOM.ROW_H;
 
 // DECK-09: the two match cards, [name, amount, date] — amounts gold.
 const MATCH_CARDS = [
@@ -2927,9 +2997,16 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
-      {/* ── DECK-08 / THE MASTER TABLE. The 03 field-table idiom: two
-            columns, no thead (the deck names no headers), one rust label
-            above, colgroup carrying the fixed-layout widths. */}
+      {/* ── DECK-08 / THE MASTER TABLE (PR-S8-DATAFLOW) — the claim is
+            drawn: all twenty-five loops' records, BY NAME in PROBLEM_SHEET
+            order, each pulling out the document it becomes (WHAT IT IS)
+            and flowing on its own DEAD-LEVEL arrow into its row of ONE
+            master table — 25 arrows, zero crossings by the S8_LAYOUT law
+            (it throws at build). The four field columns derive from
+            MASTER_ROWS; the life-story and who/when cells repeat on every
+            row — the repetition IS the teaching. The static two-column
+            field table died (SHOW DON'T ECHO). Rust label above the
+            table; three moves, no padding. */}
       <section id="deck-08" aria-label="The master table" className={openSteps[7] ? DECK.section : DECK.sectionBar}>
         <button
           type="button"
@@ -2949,30 +3026,81 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             Every authored thing — a booking, an invoice, a trade, a filing, a budget — is stored as one document in one master table.
           </p>
 
-          {/* VOICE-2 / SHOW DON'T ECHO: the rust label IS the framing line —
-              text echoing text is the same offence as text echoing a drawing,
-              so the statement-tier duplicate died. */}
-          <p className={`mt-10 lg:mt-[76px] ${DECK.rust}`}>EVERY DOCUMENT CARRIES THE SAME FOUR THINGS</p>
-          <table className={`mt-[14px] lg:mt-[18px] ${DECK.table}`}>
-            <colgroup>
-              <col className="w-[34%] lg:w-[25%]" />
-              <col />
-            </colgroup>
-            <tbody>
-              {MASTER_ROWS.map(([name, desc], r) => {
-                const rule = r === MASTER_ROWS.length - 1 ? '' : DECK.rule;
-                return (
-                  <tr key={name}>
-                    <td className={`${DECK.pad} ${rule} align-top font-mono text-[11.5px] lg:text-[14px] text-brand-purple`}>{name}</td>
-                    <td className={`${DECK.pad} ${rule} align-top text-[11px] leading-[1.4] lg:text-[13.5px] lg:leading-[1.45] text-brand-purple`}>{desc}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          {/* The three moves — real flow, no padding; labels faint. */}
+          <p className={`mt-6 lg:mt-5 ${DECK.statement}`}>This step is three moves:</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(a)</span> Take every record the loops wrote — one per tool, twenty-five, still with no home.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(b)</span> Give each one the same shape: a document with four fields — what it is, its life story, its pieces, who did it and when.</p>
+          <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(c)</span> Store all twenty-five in ONE master table.</p>
+
+          <p className="mt-10 lg:mt-[76px] text-[12px] lg:text-[14px] text-text-faint">twenty-five of twenty-five — every loop&apos;s record lands here.</p>
+          <p className={`mt-4 hidden lg:block ${DECK.rust}`} style={{ marginLeft: S8_GEOM.R_X }}>EVERY DOCUMENT CARRIES THE SAME FOUR THINGS</p>
+
+          {/* THE MASTER TABLE, desktop (PR-S8-DATAFLOW) — the 1–5 corridor:
+              named records, the WHAT-IT-IS pull-out, one landing table. */}
+          <div className="relative mt-2 hidden lg:block" style={{ height: S8_H, maxWidth: S8_GEOM.W }}>
+            <div className="absolute left-0 top-0 border border-border bg-white" style={{ width: `${(S8_GEOM.L_W / S8_GEOM.W) * 100}%` }}>
+              <div style={{ height: S8_GEOM.HEAD }} className="flex items-center overflow-hidden bg-bg-row px-[8px] font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">ONE PER LOOP — TWENTY-FIVE</div>
+              {S8_LAYOUT.rows.map((r, i) => (
+                <div key={r.tool} style={{ height: S8_GEOM.ROW_H }} className={`flex items-center overflow-hidden px-[8px] font-mono text-[7px] text-brand-purple ${i < S8_LAYOUT.rows.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>{r.tool}</div>
+              ))}
+            </div>
+            <div className="absolute top-0 border border-border bg-white" style={{ left: `${(S8_GEOM.M_X / S8_GEOM.W) * 100}%`, width: `${(S8_GEOM.M_W / S8_GEOM.W) * 100}%` }}>
+              <div style={{ height: S8_GEOM.HEAD }} className="flex items-center overflow-hidden bg-bg-row px-[8px] font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">{S8_LAYOUT.fields[0]}</div>
+              {S8_LAYOUT.rows.map((r, i) => (
+                <div key={r.tool} style={{ height: S8_GEOM.ROW_H }} className={`flex items-center overflow-hidden px-[8px] font-mono text-[7px] text-brand-purple ${i < S8_LAYOUT.rows.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>{r.what}</div>
+              ))}
+            </div>
+            <div className="absolute top-0 border border-border bg-white" style={{ left: `${(S8_GEOM.R_X / S8_GEOM.W) * 100}%`, width: `${((S8_GEOM.W - S8_GEOM.R_X) / S8_GEOM.W) * 100}%` }}>
+              <div style={{ height: S8_GEOM.HEAD }} className="grid grid-cols-[150px_170px_210px_1fr] items-center overflow-hidden bg-bg-row font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">
+                {S8_LAYOUT.fields.map((f) => (
+                  <span key={f} className="overflow-hidden whitespace-nowrap px-[8px]">{f}</span>
+                ))}
+              </div>
+              {S8_LAYOUT.rows.map((r, i) => (
+                <div key={r.tool} style={{ height: S8_GEOM.ROW_H }} className={`grid grid-cols-[150px_170px_210px_1fr] items-center font-mono text-[7px] text-brand-purple ${i < S8_LAYOUT.rows.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                  <span className="overflow-hidden whitespace-nowrap px-[8px]">{r.what}</span>
+                  <span className="overflow-hidden whitespace-nowrap px-[8px]">{S8_LIFE}</span>
+                  <span className="overflow-hidden whitespace-nowrap px-[8px]">{r.pieces}</span>
+                  <span className="overflow-hidden whitespace-nowrap px-[8px]">{S8_WHO}</span>
+                </div>
+              ))}
+            </div>
+            <svg viewBox={`0 0 ${S8_GEOM.W} ${S8_H}`} preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full text-brand-purple">
+              <defs>
+                <marker id="s8-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="6" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto">
+                  <path d="M0 0 L8 4 L0 8 z" fill="currentColor" />
+                </marker>
+              </defs>
+              {S8_LAYOUT.rows.map((r) => (
+                <g key={r.tool}>
+                  <path d={`M${S8_GEOM.L_W} ${r.y} H${S8_GEOM.M_X}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" />
+                  <path d={`M${S8_GEOM.M_X + S8_GEOM.M_W} ${r.y} C ${(S8_GEOM.M_X + S8_GEOM.M_W + S8_GEOM.R_X) / 2} ${r.y}, ${(S8_GEOM.M_X + S8_GEOM.M_W + S8_GEOM.R_X) / 2} ${r.y}, ${S8_GEOM.R_X} ${r.y}`} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd="url(#s8-arrow)" />
+                </g>
+              ))}
+            </svg>
+          </div>
+
+          {/* THE MASTER TABLE, mobile (PR-S8-DATAFLOW) — the 1–5 mobile
+              idiom: no arrows; the twenty-five documents as compact white
+              cards, four fields each as label → value lines. */}
+          <div className="mt-2 lg:hidden">
+            <p className={DECK.rust}>EVERY DOCUMENT CARRIES THE SAME FOUR THINGS</p>
+            {S8_LAYOUT.rows.map((r) => (
+              <div key={r.tool} className="mt-3 border border-border bg-white px-3 py-[8px] first:mt-2">
+                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-text-faint">{r.tool}</p>
+                {([[S8_LAYOUT.fields[0], r.what], [S8_LAYOUT.fields[1], S8_LIFE], [S8_LAYOUT.fields[2], r.pieces], [S8_LAYOUT.fields[3], S8_WHO]] as const).map(([label, value]) => (
+                  <div key={label} className="mt-[4px] grid grid-cols-[104px_1fr] gap-2">
+                    <span className="overflow-hidden whitespace-nowrap font-mono text-[8px] uppercase tracking-[0.1em] text-text-faint">{label}</span>
+                    <span className="text-[10px] leading-[1.4] text-brand-purple">{value}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
 
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Different names, same shape. That is why one table can hold them all!</p>
+          <p className={`mt-2 ${DECK.statement}`}>The master table is the blueprint. Today each tool keeps its own table; one table holding every document is the shape we&apos;re building.</p>
           <p className={DECK.q}>You committed. The world moved. But how do you know the money really landed?</p>
         </div>
       </section>
