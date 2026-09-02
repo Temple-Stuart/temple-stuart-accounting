@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
 import { requireAdmin } from '@/lib/require-admin';
+import { decryptToken } from '@/lib/secrets/tokenCipher';
 
 /**
  * POST /api/admin/backfill-transaction-fields
@@ -48,7 +49,7 @@ export async function POST() {
 
         while (hasMore) {
           const response = await plaidClient.transactionsGet({
-            access_token: item.accessToken,
+            access_token: decryptToken(item.accessToken),
             start_date: '2024-01-01',
             end_date: new Date().toISOString().split('T')[0],
             options: {

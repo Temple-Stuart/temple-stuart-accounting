@@ -196,6 +196,7 @@ These are the written laws in `CLAUDE.md`, stated as practice:
 - Audit log: a hash chain — each entry stores `prev_hash` and its own sha256 `content_hash` with a `sequence_number` (`prisma/schema.prisma:2441-2443`; written at `src/lib/audit/writeAuditLog.ts:99`); `src/lib/audit/verifyAuditChain.ts:47, 80` recomputes the chain.
 - Citations: `src/lib/citations/verifyCitation.ts:97` re-fetches the source and re-hashes it against `citations.retrieved_content_hash` (`prisma/schema.prisma:2287`); the column's only writer stores an empty string today (`src/lib/discovery/materializeProposal.ts:165`), so the check is structurally dead until the arrivals rebuild lands the real hash.
 - Corpus: the four ingest persisters hash content with sha256 on write — `src/lib/corpus/ingest/ecfr-persist.ts:28`, `uscode-persist.ts:32`, `fedreg-persist.ts:31`, `irb-persist.ts:32`.
+- Provider tokens at rest: AES-256-GCM with a key held in the deployment env (`src/lib/secrets/tokenCipher.ts`); readers accept ciphertext only.
 - Report a vulnerability to astuart@templestuart.com.
 
 ## Providers
@@ -229,6 +230,7 @@ You need Node (the code is typed against `@types/node ^20`), PostgreSQL, and a h
 | Core | `DATABASE_URL` (read by Prisma, `prisma/schema.prisma:7`), `JWT_SECRET`, `NEXTAUTH_SECRET`, `OWNER_EMAIL`, `NEXT_PUBLIC_OWNER_EMAIL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_BASE_URL` | Required |
 | Set by the platform | `NODE_ENV`, `VERCEL`, `NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA` | Provided by Vercel / Node; nothing to set |
 | Plaid (bank sync) | `PLAID_CLIENT_ID`, `PLAID_SECRET` | Required unless Books sync is disabled |
+| Provider tokens at rest | `TOKEN_ENCRYPTION_KEY` (base64 of 32 bytes), `TOKEN_ENCRYPTION_KEY_ID` (`src/lib/secrets/tokenCipher.ts`) | Required — every Plaid and tastytrade token read or write fails loud without both |
 | Stripe (payments) | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_PRO_PRICE_ID`, `STRIPE_PRO_PLUS_PRICE_ID`; per entitlement `STRIPE_TAB_<KEY>_PRICE_ID`, `STRIPE_CAT_<KEY>_PRICE_ID`, `STRIPE_BUNDLE_ALL_PRICE_ID` (`src/lib/stripe.ts:49-55`) | Required to sell modules; skip to run everything unlocked |
 | Flights and stays (LiteAPI) | `LITEAPI_SANDBOX_KEY`, `LITEAPI_PRODUCTION_KEY`, `LITEAPI_MODE`, `FLIGHTS_LANE` (set to `liteapi`; `src/lib/flightsLane.ts:20`) | Required unless travel is disabled |
 | Tours (Viator) | `VIATOR_API_KEY` | Required unless activities are disabled |

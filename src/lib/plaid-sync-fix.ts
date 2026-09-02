@@ -1,5 +1,6 @@
 import { prisma } from './prisma';
 import { plaidClient } from './plaid';
+import { decryptToken } from './secrets/tokenCipher';
 
 export async function fixPlaidSync(userId: string) {
   try {
@@ -12,7 +13,7 @@ export async function fixPlaidSync(userId: string) {
     for (const item of plaidItems) {
       try {
         const response = await plaidClient.transactionsGet({
-          access_token: item.accessToken,
+          access_token: decryptToken(item.accessToken),
           start_date: '2024-01-01',
           end_date: new Date().toISOString().split('T')[0]
         });

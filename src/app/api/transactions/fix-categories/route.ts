@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { decryptToken } from '@/lib/secrets/tokenCipher';
 
 export async function POST() {
   try {
@@ -28,7 +29,7 @@ export async function POST() {
     for (const item of plaidItems) {
       try {
         const response = await plaidClient.transactionsGet({
-          access_token: item.accessToken,
+          access_token: decryptToken(item.accessToken),
           start_date: '2024-01-01',
           end_date: new Date().toISOString().split('T')[0]
         });

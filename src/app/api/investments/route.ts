@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { decryptToken } from '@/lib/secrets/tokenCipher';
 
 export async function GET() {
   try {
@@ -28,11 +29,11 @@ export async function GET() {
     for (const item of plaidItems) {
       try {
         const holdingsResponse = await plaidClient.investmentsHoldingsGet({
-          access_token: item.accessToken
+          access_token: decryptToken(item.accessToken)
         });
 
         const transactionsResponse = await plaidClient.investmentsTransactionsGet({
-          access_token: item.accessToken,
+          access_token: decryptToken(item.accessToken),
           start_date: '2020-01-01',
           end_date: new Date().toISOString().split('T')[0]
         });

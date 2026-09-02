@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
+import { decryptToken } from '@/lib/secrets/tokenCipher';
 
 export async function POST() {
   console.warn('DEPRECATED: /api/transactions/sync called — use /api/transactions/sync-complete');
@@ -46,7 +47,7 @@ export async function POST() {
         
         while (hasMore) {
           const request: any = {
-            access_token: item.accessToken,
+            access_token: decryptToken(item.accessToken),
             count: 500
           };
           

@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
+import { decryptToken } from '@/lib/secrets/tokenCipher';
 
 export async function POST() {
   console.warn('DEPRECATED: /api/transactions/sync-full called — use /api/transactions/sync-complete');
@@ -49,7 +50,7 @@ export async function POST() {
         const startDate = new Date(Date.now() - 730 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 2 years
         
         const response = await plaidClient.transactionsGet({
-          access_token: item.accessToken,
+          access_token: decryptToken(item.accessToken),
           start_date: startDate,
           end_date: endDate,
           options: {
