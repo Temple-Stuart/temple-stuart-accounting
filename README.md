@@ -1,61 +1,247 @@
 # Temple Stuart
 
-**Temple Stuart — track your money, plan your time, book your trips, grade your trades. One app, one set of books.**
+Twenty-five business tools on one data pipe that ends in one Ledger and one Calendar.
 
-[![Live demo](public/demo/travel-real.png)](https://templestuart.com)
+Source-available (BSL 1.1) · built and operated in production by its founder as User #1 · as of 2026-09-02: 112 Prisma models, 289 API route files, 121 feeds from 20 providers (counted August 24, 2026)
 
-**[Try it free — no account](https://templestuart.com)**
+## The system
 
----
+A small business runs on about twenty-five tools — invoicing, payroll, banking, travel, trading, tax, projects — and none of them knows what the others did. Temple Stuart replaces that with one data pipe. By design: every provider answer lands once, word for word, fingerprinted; every feed is labeled by its kind and lands in the table for that kind; what happened to you is kept apart from what you did; every tool runs the same loop and stores its records in one master table; observed money is matched to authored documents; rules write the debits and credits; four answers are math on those lines; and the same rows show as a Ledger and a Calendar. Any number walks back to the provider's words. Search & book travel — free today, no account needed.
 
-## What's inside
+## This is the blueprint
 
-| Module | What it does |
+The landing deck at templestuart.com teaches the ideal pipe, step by step, with build-time proofs. This README carries the deck's shapes — the arrival row, the kinds, the loop, the document, the match key, the rule book, the lenses, the two windows — verbatim from the code that renders them. The GAP LEDGER below is the distance between the blueprint and today, taken from the deck's own honest-state lines. The rebuild closes the gaps, and a step moves to alive only with a dated census.
+
+## The pipe
+
+| Step | Headline |
 |---|---|
-| **Travel** | Search, book, and budget your trips in one place. |
-| **Runway** | See how many months your money lasts. |
-| **Books** | Know where every dollar went — synced straight from your bank. |
-| **Trade** | Find trades worth taking — and get told when to skip. |
-| **Tax** | Your return builds itself from your records. |
-| **Compliance** | Every number keeps its receipt — proof you can show later. |
-| **Routines** | Set up a habit once — it lands on your calendar and your budget. |
-| **Projects** | Type a goal — get a plan you can actually run. |
-| **Content** | Turn what you did today into a ready-to-film script. |
+| 01 / IDENTIFY THE PROBLEM, THE TOOLS, THE FAMILIES — AND SORT THEM IN | Twenty-five tools. None of them knows what the others did. |
+| 02 / LOOK AT THE TOOLS AND PICK THE PROVIDERS BEHIND THEM | Every job has more than one company. You pick yours. |
+| 03 / IMPORT THE DATA AND SEE HOW IT ARRIVES | Store what arrived. Then decide what it means. |
+| 04 / LABEL EVERY FEED BY ITS KIND | One rule per feed. Written down. |
+| 05 / CREATE ONE TABLE PER KIND AND MAP THE DATA IN | The kind picks the table. |
+| 06 / SEPARATE WHAT HAPPENED TO YOU FROM WHAT YOU DID | Some things happen to you. Some things you make happen. |
+| 07 / RUN THE LOOP | Every tool runs the same four beats. Discover. Decide. Commit. Record. |
+| 08 / STORE EVERYTHING YOU DO IN ONE MASTER TABLE | One table holds everything you do. |
+| 09 / MATCH WHAT HAPPENED TO WHAT YOU DID | The deposit meets the invoice. The fill meets the order. |
+| 10 / LET THE RULES WRITE THE LINES | Nobody sends them. Rules write them. |
+| 11 / TURN THE LINES INTO ANSWERS | Every answer is math on the lines. |
+| 12 / OPEN THE TWO WINDOWS | One Ledger. One Calendar. All twenty-five. |
+| 13 / WATCH ONE DOLLAR RUN THE WHOLE MACHINE | One $100.00 sale runs the machine. Then every other door opens. |
+| 14 / PROVE EVERY NUMBER | Click any number. Walk it back. |
 
-## The trading scanner
+templestuart.com teaches the full pipe with build-time proofs: every drawing derives from these consts, and the layout laws throw at build, so a false slide is a failed build.
 
-Live prices from TastyTrade. Synced from your broker. Every trade lands in your books.
+## The data model
 
-The scanner scores an entire index, shows its work step by step, and generates trade cards you can
-link to real positions — then grades you: a self-graded track record with the max-loss integrity
-check (how many linked trades stayed within their card's stated max loss). Data, not advice.
+Every shape below is extracted from `src/components/landing/Landing.tsx` — the same consts the deck renders from.
 
-> Data and analytics only — not investment advice or a recommendation. All metrics are
-> computed from market data; you make all trading decisions. Options involve substantial
-> risk of loss.
+### The arrival row (step 3)
 
-## Self-hosting (free for personal use)
+One row per provider answer, eleven fields:
 
-You need: **Node 20+**, **PostgreSQL**, and a host (built for Vercel). Then the keys.
+| Band | Field | Gloss |
+|---|---|---|
+| WHERE IT CAME FROM | provider | which company sent it |
+| WHERE IT CAME FROM | connection | because you might have two or more banks |
+| WHAT IT IS | resource | their own word |
+| WHAT IT IS | their id | so we tie the row back to the provider and never import the same thing twice |
+| WHAT IT IS | our id | two providers could accidentally use the same id |
+| WHAT THEY ACTUALLY SENT | payload | saved word for word — THE REASON THIS TABLE EXISTS |
+| WHAT THEY ACTUALLY SENT | fingerprint | a code made from the payload — proves we never changed it |
+| WHEN AND HOW FAR | asked | when we asked |
+| WHEN AND HOW FAR | arrived | when it arrived |
+| WHEN AND HOW FAR | read | when we read it |
+| WHEN AND HOW FAR | status | pending, done, or failed |
+
+### The six kinds (steps 4–5)
+
+Five kinds arrive from outside; the sixth is never sent — the system writes postings from events.
+
+| Kind | Holds | Means |
+|---|---|---|
+| reference | facts about the world | a fact about the world |
+| registry | your accounts and your people | one of your accounts |
+| event | what happened | something that happened |
+| derived | math we did | math we did — never a source |
+| snapshot | how things stood at one moment | how things stood at one moment |
+| posting | debits and credits | never arrives — the system writes postings from events |
+
+### The loop (step 7)
+
+Every tool runs the same four beats: **DISCOVER → DECIDE → COMMIT → RECORD**.
+
+### The document (step 8)
+
+Four fields on every record in the master table:
+
+| # | Field |
+|---|---|
+| 1 | What it is |
+| 2 | Its life story |
+| 3 | Its pieces |
+| 4 | Who did it, and when |
+| life | draft → committed → settled |
+| who | you · the moment you committed |
+
+### The match key (step 9)
+
+An observed money event meets its authored document on **amount · date · reference**.
+
+### The posting rule book (step 10)
+
+Fourteen matched events, one rule each — the rule writes two lines:
+
+| Tool | Event | Debit | Credit |
+|---|---|---|---|
+| Invoicing | invoice issued | A/R | Revenue |
+| Payments | payment received | Cash | A/R |
+| Brokerage | fill | Investments | Cash |
+| Travel | booking charged | Travel | Card Payable |
+| Expenses | expense charged | Expense | Card Payable |
+| Fixed Assets | asset bought | Fixed Assets | Cash |
+| Bill Pay | bill paid | A/P | Cash |
+| Payroll | payroll run | Wages + employer taxes | Cash + withholdings |
+| Debt | debt payment | Loan Payable + Interest | Cash |
+| Sales Tax | sales tax paid | Sales Tax Payable | Cash |
+| Ent Filings | filing fee paid | Filing Fees | Cash |
+| Retirement | contribution | Retirement | Cash |
+| Banking | transfer | Cash (to) | Cash (from) |
+| Tax | tax paid | Tax Expense | Cash |
+
+### The four lenses (step 11)
+
+| Question | The math | Reads |
+|---|---|---|
+| What do I owe in tax? | Income so far × the rules. | Revenue · Expense · Wages + employer taxes · irs bulletin · us code title |
+| How long can I last? | Cash ÷ what I burn each month. | Cash · Expense · Travel · Wages + employer taxes · A/P |
+| How is my trading doing? | Wins, losses, and open risk; from fills, positions, and live quotes. | Investments · plaid holding · tastytrade quote |
+| How is my business doing? | Money in minus money out. | Revenue · Expense · Travel · Wages + employer taxes · Filing Fees |
+
+### The two windows (step 12)
+
+Pull out WHEN it is: a moment — a dot — or a span — a bar. Every dated thing appears in both windows at once: as a row in the Ledger, and on its day in the Calendar.
+
+## The gap ledger
+
+BLUEPRINT is the step's headline; TODAY is the deck's honest-state line, verbatim; GAP is the difference between the two and nothing more. Steps 1–6 appear only where the deck states a dated fact.
+
+| Step | Blueprint | Today | Gap |
+|---|---|---|---|
+| 03 | Store what arrived. Then decide what it means. | today that is 121 feeds from 20 providers — counted August 24, 2026. | feeds counted (121/20); the arrivals table that stores them word for word, fingerprinted, is not built — see 14. |
+| 04 | One rule per feed. Written down. | We classified every one of the 121 feeds — August 24, 2026 — and posting took zero. | kinds assigned in the August 24 census; rows the system applies to arrivals wait on the step-3 table — see 14. |
+| 07 | Every tool runs the same four beats. Discover. Decide. Commit. Record. | This loop is the blueprint — the shape we're building every tool toward. Today, hotel bookings commit for real; the rest run discover → decide → draft, and commit is the beat we're wiring to the same loop, tool by tool. | commit is real for one tool (hotel bookings); the other twenty-four stop at draft. |
+| 08 | One table holds everything you do. | The master table is the blueprint. Today each tool keeps its own table; one table holding every document is the shape we're building. | no master table; each tool keeps its own. |
+| 09 | The deposit meets the invoice. The fill meets the order. | (A piece of this is already alive today: card charges find their bookings and propose the match — you approve it.) | one of fourteen matches proposes today (card charge ↔ booking); the other thirteen do not. |
+| 10 | Nobody sends them. Rules write them. | The posting table is the blueprint — today it holds zero lines. The rules writing them is the bookkeeping pipe we're building. | zero lines; no rule writes yet. |
+| 11 | Every answer is math on the lines. | These four lenses are the blueprint. Today the trading lens reads live; tax, runway, and the business result wait on the posting pipe — the lines have to exist before they can add up. | one lens live (trading); three wait on step 10. |
+| 12 | One Ledger. One Calendar. All twenty-five. | Two windows over one set of rows is the blueprint. Today the calendar window is live at /hub; the ledger window fills as the posting pipe lands its lines. | the Calendar window is live; the Ledger window is empty until step 10 writes. |
+| 13 | One $100.00 sale runs the machine. Then every other door opens. | Alive today: the travel match — card charges find their bookings and propose the match; you approve it. The project lane is wired end to end: a task lands for your review, and accepting it fires the build that answers it. | the travel match is alive; the project lane is wired end to end; the sale's lines and lenses wait on steps 10–11. |
+| 14 | Click any number. Walk it back. | Alive today: the fingerprint, on the rules and the audit log — every regulation pull is hashed the moment it lands, citation checks re-fetch the source and re-hash it, and the audit log hash-chains every entry it records. Today the money feeds land already parsed — no stored word-for-word payload, no fingerprint yet; the arrivals table that saves the provider's exact words and fingerprints them on arrival is the shape we're building. | fingerprints on the rules corpus and the audit log; none on money feeds — the arrivals table is not built. |
+
+## The nine modules
+
+| Module | What exists in code |
+|---|---|
+| Travel | stays and flights through LiteAPI, activities through Viator, visa checks through RapidAPI — public routes under src/app/api/travel (15 route files) and src/app/api/flights (3); models `trips` (schema:571) and `reservations` (schema:1327). |
+| Runway | the reservation matcher — src/app/api/runway/match/propose, queue, review (the step-9 piece alive today) — plus src/app/api/runway/route.ts; models `budgets` (schema:541) and `home_expenses` (schema:1577). |
+| Books | Plaid-synced transactions, a chart of accounts, journal and ledger entries — src/app/api/plaid/sync/route.ts:103 writes `transactions` (schema:414); `journal_entries` (schema:180), `ledger_entries` (schema:219). |
+| Trade | tastytrade connection, quotes and backtests — src/app/api/tastytrade (13 route files); models `trade_cards` (schema:1708) and `scan_snapshots` (schema:1894). |
+| Tax | scenarios, documents and the 2025 export script (`npm run tax:export:2025`) — src/app/api/tax (7 route files); models `tax_scenarios` (schema:1497) and `tax_documents` (schema:1816). |
+| Compliance | the regulatory corpus (eCFR, US Code, Federal Register, IRS bulletins) ingested by Inngest functions with sha256 on write, citations re-verified, and the hash-chained audit log — models `regulatory_sources` (schema:2207), `citations` (schema:2271), `audit_log` (schema:2437). |
+| Routines | scheduled routines evaluated by the `routine-evaluator` Inngest function — models `operations_routines` (schema:3091) and `hub_scheduled_items` (schema:3197); the deck calls the calendar window live at /hub (step 12 honest line). |
+| Projects | projects and tasks; accepting a pending task fires the Execute-Task Routine (src/app/api/operations/projects/[id]/tasks/[taskId]/route.ts:395-405) — models `operations_projects` (schema:2915) and `operations_project_tasks` (schema:2960). |
+| Content | scene groups, scenes, pieces and takes — model `operations_content_pieces` (schema:3324); src/app/api/operations carries 50 route files across Routines, Projects and Content. |
+
+## Architecture
+
+Versions from package.json, read 2026-09-02:
+
+| Layer | What |
+|---|---|
+| Framework | Next.js 15.5.9 · React ^18.3.1 · TypeScript ^5 |
+| Data | Prisma ^5.22.0 (client ^5.22.0) on Azure PostgreSQL |
+| Hosting | Vercel (one cron in vercel.json: `/api/cron/auto-categorize` at 02:00 UTC) |
+| Jobs | Inngest ^4.2.6 — 8 functions: ecfr-ingest, embed-pending, fedreg-ingest, health-check, irb-ingest, operations-pipe-run, routine-evaluator, uscode-ingest |
+| Auth | HMAC-signed cookie (src/lib/cookie-auth.ts) · next-auth ^4.24.13 for OAuth sign-in |
+| Payments / banking | Stripe ^20.3.0 · Plaid ^11.0.0 |
+| Styling | Tailwind CSS ^3.4.18 |
+| Runtime | Node (typed against @types/node ^20) |
+
+Observed versus authored (step 6): what the world sends is observed; what you do is authored; the blueprint keeps the two apart and matches them on one key. Today the money feeds land parsed, without a stored payload — see the gap ledger, step 14.
+
+Scale, as of 2026-09-02: 112 Prisma models, 30 enums, 289 API route files, 35 runtime dependencies, 18 dev dependencies, one test file (`npm test`).
+
+## Engineering discipline
+
+These are the written laws in `CLAUDE.md`, stated as practice:
+
+- Audit before action: a read-only audit with `file:line` citations precedes any implementation.
+- Derive, never retype: the deck's drawings derive from their consts, and module-scope layout laws throw at build — a false slide is a failed build.
+- Census before claim: every public surface claims only what a dated count of the code supports.
+- Fail loud: no silent fallbacks, no silent catches, no placeholder data.
+- One concept per PR: each change is atomic and revertible.
+- All work lands on `claude/*` branches; only the founder merges to `main` — the merge is the SOC 2 change-management control.
+- Migrations: the raw SQL and `schema.prisma` move in lockstep; the repo holds no `DATABASE_URL`, so a session can author a migration but never apply one.
+- The README and the deck are the blueprint; code drifts, the blueprint doesn't — drift is a bug.
+
+## Security model
+
+- Sessions: an HMAC-SHA256-signed cookie; verification uses a timing-safe comparison — `src/lib/cookie-auth.ts:16-18, 26-45`.
+- Middleware: every path not in `PUBLIC_PATHS` requires the verified cookie — `src/middleware.ts:50-160, 162, 165-170`; the two Routine callbacks (`…/audit-ingest`, `…/exec-ingest`) bypass the cookie and validate a shared-secret bearer (`AUDIT_INGEST_SECRET`, `EXEC_INGEST_SECRET`) instead — `src/middleware.ts:173-187`.
+- Route gates: `getCurrentUser` (`src/lib/auth-helpers.ts:11`), `requireTier` (`:42`), `requireAdmin` (`src/lib/require-admin.ts:8`); the working law is that a paid external call is never made before the gate (CLAUDE.md, Security-first).
+- User scoping: every query is scoped to the authed user — e.g. `where: { userId: user.id }` at `src/app/api/tastytrade/connect/route.ts:54`.
+- Rate limits: a durable fixed-window limiter backed by the `rate_limit_hits` table (`src/lib/rateLimit.ts:3-15`; schema:1312), plus `src/lib/scan-rate-limit.ts` and `src/lib/ai-rate-limit.ts`; tuned by `SEARCH_/BOOK_/SCAN_/AI_RATE_LIMIT` and `_WINDOW`, with daily caps `AI_PIPE_DAILY_CAP`, `AI_EXEC_DAILY_CAP`, `AI_ROUTINE_DAILY_CAP`, `TRAVEL_SEARCH_DAILY_CAP`, and `GOOGLE_PLACES_MONTHLY_CAP`.
+- Audit log: a hash chain — each entry stores `prev_hash` and its own sha256 `content_hash` with a `sequence_number` (`prisma/schema.prisma:2441-2443`; written at `src/lib/audit/writeAuditLog.ts:99`); `src/lib/audit/verifyAuditChain.ts:47, 80` recomputes the chain.
+- Citations: each regulatory citation stores `retrieved_content_hash` (`prisma/schema.prisma:2287`); `src/lib/citations/verifyCitation.ts:97` re-fetches the source and re-hashes it; a mismatch fails the check.
+- Corpus: the four ingest persisters hash content with sha256 on write — `src/lib/corpus/ingest/ecfr-persist.ts:28`, `uscode-persist.ts:32`, `fedreg-persist.ts:31`, `irb-persist.ts:32`.
+- Report a vulnerability to astuart@templestuart.com.
+
+## Providers
+
+The provider menu the deck draws at step 2 — who feeds each job today, and which doors are open next:
+
+| The job | Today | Next |
+|---|---|---|
+| banks & accounts | plaid | teller |
+| card money | stripe | square |
+| trades & market data | tastytrade | schwab · ibkr · alpaca · tradier · snaptrade |
+| company numbers | finnhub | polygon |
+| the economy | fred | — |
+| filings | sec | — |
+| flights | liteapi | amadeus |
+| hotels | liteapi | amadeus |
+| activities | viator | — |
+| locations | google places | — |
+| visas | travel buddy | — |
+| our AI | anthropic · openai · xai grok · voyage | — |
+| the law itself | ecfr · us code · federal register · irs | — |
+
+The deck's own count: today that is 121 feeds from 20 providers — counted August 24, 2026.
+
+## Self-hosting
+
+You need Node (the code is typed against `@types/node ^20`), PostgreSQL, and a host — it is built for Vercel. Then the keys. Every name below is read by the code (`grep -rhoE "process\.env\.[A-Z0-9_]+" src`, 2026-09-02).
 
 | Vendor / concern | Keys | Needed when |
 |---|---|---|
-| Core | `DATABASE_URL`, `JWT_SECRET`, `NEXTAUTH_SECRET`, `ADMIN_PASSWORD`, `OWNER_EMAIL`, `NEXT_PUBLIC_OWNER_EMAIL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_BASE_URL` | Required |
-| Plaid (bank sync) | `PLAID_CLIENT_ID`, `PLAID_SECRET` | Required unless Books sync disabled |
-| Stripe (payments) | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_PRO_PRICE_ID`, `STRIPE_PRO_PLUS_PRICE_ID`, `STRIPE_TAB_<MODULE>_PRICE_ID` (per sellable module) | Required to sell modules; skip to run everything unlocked-free |
-| Flights (Duffel) | `DUFFEL_API_TOKEN`, `DUFFEL_ALLOW_LIVE_BOOKING`, `NEXT_PUBLIC_DUFFEL_ENABLED`, `FLIGHTS_LANE` | Required unless flights disabled |
-| Stays (Nuitée liteAPI) | `LITEAPI_SANDBOX_KEY`, `LITEAPI_PRODUCTION_KEY`, `LITEAPI_MODE` | Required unless hotels disabled |
-| Tours (Viator) | `VIATOR_API_KEY` | Required unless activities disabled |
-| Visa rules (RapidAPI) | `RAPIDAPI_VISA_KEY`, `RAPIDAPI_VISA_HOST` | Required unless visa check disabled |
-| Places / maps | `GOOGLE_PLACES_API_KEY`, `GOOGLE_PLACES_MONTHLY_CAP`, `PLACES_CACHE_TTL_DAYS` | Key required unless location search disabled; caps optional |
-| Markets (TastyTrade) | `TASTYTRADE_CLIENT_SECRET`, `TASTYTRADE_REFRESH_TOKEN`, `TT_USERNAME`, `TT_PASSWORD` | Required unless Trade disabled |
-| Market data | `FINNHUB_API_KEY`, `FRED_API_KEY` | Required unless the scanner is disabled (the code fails loud: "FINNHUB_API_KEY not configured") |
+| Core | `DATABASE_URL` (read by Prisma, `prisma/schema.prisma:7`), `JWT_SECRET`, `NEXTAUTH_SECRET`, `OWNER_EMAIL`, `NEXT_PUBLIC_OWNER_EMAIL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_BASE_URL` | Required |
+| Set by the platform | `NODE_ENV`, `VERCEL`, `NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA` | Provided by Vercel / Node; nothing to set |
+| Plaid (bank sync) | `PLAID_CLIENT_ID`, `PLAID_SECRET` | Required unless Books sync is disabled |
+| Stripe (payments) | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_PRO_PRICE_ID`, `STRIPE_PRO_PLUS_PRICE_ID`; per entitlement `STRIPE_TAB_<KEY>_PRICE_ID`, `STRIPE_CAT_<KEY>_PRICE_ID`, `STRIPE_BUNDLE_ALL_PRICE_ID` (`src/lib/stripe.ts:49-55`) | Required to sell modules; skip to run everything unlocked |
+| Flights and stays (LiteAPI) | `LITEAPI_SANDBOX_KEY`, `LITEAPI_PRODUCTION_KEY`, `LITEAPI_MODE`, `FLIGHTS_LANE` (set to `liteapi`; `src/lib/flightsLane.ts:20`) | Required unless travel is disabled |
+| Tours (Viator) | `VIATOR_API_KEY` | Required unless activities are disabled |
+| Visa rules (RapidAPI) | `RAPIDAPI_VISA_KEY`, `RAPIDAPI_VISA_HOST` | Required unless the visa check is disabled |
+| Places | `GOOGLE_PLACES_API_KEY`, `GOOGLE_PLACES_MONTHLY_CAP`, `PLACES_CACHE_TTL_DAYS` | Key required unless location search is disabled; caps optional |
+| Markets (tastytrade) | `TASTYTRADE_CLIENT_SECRET`, `TASTYTRADE_REFRESH_TOKEN`, `TT_USERNAME`, `TT_PASSWORD` | Required unless Trade is disabled |
+| Market data | `FINNHUB_API_KEY`, `FRED_API_KEY` | Required unless the scanner is disabled |
 | AI | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `XAI_API_KEY`, `VOYAGE_API_KEY` | Required unless the AI features are disabled |
-| Email (Resend) | `RESEND_API_KEY`, `EMAIL_FROM` | Required unless email disabled |
-| Jobs (Inngest) | `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY` | Required unless background jobs disabled |
-| OAuth sign-in | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | Optional (email login works without) |
-| Routine/audit hooks | `CRON_SECRET`, `ROUTINE_AUDIT_TOKEN`, `ROUTINE_AUDIT_FIRE_URL`, `EXEC_ROUTINE_TOKEN`, `EXEC_ROUTINE_FIRE_URL`, `EXEC_INGEST_SECRET`, `AUDIT_INGEST_SECRET` | Required unless scheduled routines disabled |
-| Rate limits & caps | `SEARCH_RATE_LIMIT`, `SEARCH_RATE_WINDOW`, `BOOK_RATE_LIMIT`, `BOOK_RATE_WINDOW`, `SCAN_RATE_LIMIT`, `SCAN_RATE_WINDOW`, `AI_RATE_LIMIT`, `AI_RATE_WINDOW`, `AI_PIPE_DAILY_CAP`, `AI_EXEC_DAILY_CAP`, `AI_ROUTINE_DAILY_CAP`, `TRAVEL_SEARCH_DAILY_CAP` | Optional (code defaults) |
+| Email (Resend) | `RESEND_API_KEY`, `EMAIL_FROM` | Required unless email is disabled |
+| Jobs (Inngest) | `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY` | Required unless background jobs are disabled |
+| OAuth sign-in | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | Optional; email login works without |
+| Routine and audit hooks | `CRON_SECRET`, `ROUTINE_AUDIT_TOKEN`, `ROUTINE_AUDIT_FIRE_URL`, `EXEC_ROUTINE_TOKEN`, `EXEC_ROUTINE_FIRE_URL`, `EXEC_INGEST_SECRET`, `AUDIT_INGEST_SECRET` | Required unless scheduled routines are disabled |
+| Rate limits and caps | `SEARCH_RATE_LIMIT`, `SEARCH_RATE_WINDOW`, `BOOK_RATE_LIMIT`, `BOOK_RATE_WINDOW`, `SCAN_RATE_LIMIT`, `SCAN_RATE_WINDOW`, `AI_RATE_LIMIT`, `AI_RATE_WINDOW`, `AI_PIPE_DAILY_CAP`, `AI_EXEC_DAILY_CAP`, `AI_ROUTINE_DAILY_CAP`, `TRAVEL_SEARCH_DAILY_CAP`; per provider `TRAVEL_SEARCH_DAILY_CAP_<PROVIDER>` (`src/lib/travelSearchQuota.ts:79`) | Optional; the code has defaults |
 | Misc | `YELP_API_KEY` | Required unless its feature is disabled |
 
 Yes, that's a lot of keys. That's why the next section exists.
@@ -73,8 +259,7 @@ Email a project proposal (the template's pre-filled): [astuart@templestuart.com]
 
 ## License
 
-Source-available under BSL 1.1 — free to self-host for personal use. Commercial use or a
-done-for-you setup → astuart@templestuart.com
+Source-available under the Business Source License 1.1 — see [LICENSE](LICENSE). Free to self-host for personal use; commercial use or a done-for-you setup: astuart@templestuart.com
 
 ---
 
