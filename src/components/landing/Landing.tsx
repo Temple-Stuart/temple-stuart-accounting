@@ -3594,7 +3594,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
 
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Twenty-five tools. Twenty-five loops. One shape!</p>
-          <p className={`mt-2 ${DECK.statement}`}>This loop is the blueprint — the shape we&apos;re building every tool toward. Today, hotel bookings commit for real; the rest run discover → decide → draft, and commit is the beat we&apos;re wiring to the same loop, tool by tool.</p>
+          <p className={`mt-2 ${DECK.statement}`}>This loop is the blueprint — the shape we&apos;re building every tool toward. Today, hotel bookings commit for real and an accepted task fires its build; the rest run discover → decide → draft, and commit is the beat we&apos;re wiring to the same loop, tool by tool.</p>
           <p className={DECK.q}>Twenty-five loops. Where do all the commits land?</p>
         </div>
       </section>
