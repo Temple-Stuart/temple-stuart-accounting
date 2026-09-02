@@ -8,6 +8,7 @@ import { prisma } from '@/lib/prisma';
 import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { decryptToken } from '@/lib/secrets/tokenCipher';
+import { summarizePlaidError } from '@/lib/plaid/summarizeError';
 
 const plaidConfig = new Configuration({
   basePath: PlaidEnvironments.production,
@@ -132,7 +133,7 @@ export async function POST(request: NextRequest) {
       synced: transactions.length 
     });
   } catch (error: any) {
-    console.error('Sync error:', error);
+    console.error('Sync error:', summarizePlaidError(error));
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

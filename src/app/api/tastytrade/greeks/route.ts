@@ -5,6 +5,7 @@ import { MarketDataSubscriptionType } from '@tastytrade/api';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
 import { numOrNull, firstNumOrNull } from '@/lib/parse-num';
+import { summarizeTastytradeError } from '@/lib/tastytrade/summarizeError';
 
 export async function POST(request: Request) {
   try {
@@ -113,7 +114,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ greeks: data });
   } catch (error: any) {
-    console.error('[Tastytrade] Greeks error:', error);
+    console.error('[Tastytrade] Greeks error:', summarizeTastytradeError(error));
     return NextResponse.json({ error: 'Failed to fetch greeks' }, { status: 500 });
   }
 }

@@ -4,6 +4,7 @@ import { getTastytradeClient } from '@/lib/tastytrade';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireAdmin } from '@/lib/require-admin';
 import { encryptToken } from '@/lib/secrets/tokenCipher';
+import { summarizeTastytradeError } from '@/lib/tastytrade/summarizeError';
 
 export async function POST() {
   try {
@@ -79,7 +80,7 @@ export async function POST() {
       message: 'Tastytrade account connected successfully',
     });
   } catch (error: any) {
-    console.error('[Tastytrade] Connect error:', error);
+    console.error('[Tastytrade] Connect error:', summarizeTastytradeError(error));
     return NextResponse.json({ error: 'Failed to connect Tastytrade account' }, { status: 500 });
   }
 }

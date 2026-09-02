@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
 import { Products, CountryCode } from 'plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { summarizePlaidError } from '@/lib/plaid/summarizeError';
 
 export async function POST() {
   try {
@@ -45,7 +46,7 @@ export async function POST() {
       expiration: createTokenResponse.data.expiration 
     });
   } catch (error: any) {
-    console.error('Error creating link token:', error);
+    console.error('Error creating link token:', summarizePlaidError(error));
     return NextResponse.json(
       { error: 'Failed to create link token', details: error.message },
       { status: 500 }

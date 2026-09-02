@@ -4,6 +4,7 @@ import { getAuthenticatedClient } from '@/lib/tastytrade';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
 import { numOrNull, firstNumOrNull } from '@/lib/parse-num';
+import { summarizeTastytradeError } from '@/lib/tastytrade/summarizeError';
 
 export const maxDuration = 300;
 
@@ -207,7 +208,7 @@ export async function GET(request: Request) {
           });
           return Array.isArray(raw) ? raw : [];
         } catch (err) {
-          console.error('[Scanner] Batch error:', err);
+          console.error('[Scanner] Batch error:', summarizeTastytradeError(err));
           batchErrors.push(`batch of ${batch.length} symbols FAILED: ${err instanceof Error ? err.message : String(err)}`);
           symbolsFailedCount += batch.length;
           return [];
@@ -296,7 +297,7 @@ export async function GET(request: Request) {
       fetchedAt: new Date().toISOString(),
     });
   } catch (error: any) {
-    console.error('[Tastytrade] Scanner error:', error);
+    console.error('[Tastytrade] Scanner error:', summarizeTastytradeError(error));
     return NextResponse.json({ error: 'Failed to fetch scanner data' }, { status: 500 });
   }
 }

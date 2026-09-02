@@ -1,6 +1,7 @@
 import { prisma } from './prisma';
 import { plaidClient } from './plaid';
 import { decryptToken } from './secrets/tokenCipher';
+import { summarizePlaidError } from './plaid/summarizeError';
 
 export async function fixPlaidSync(userId: string) {
   try {
@@ -29,13 +30,13 @@ export async function fixPlaidSync(userId: string) {
           updatedCount++;
         }
       } catch (error) {
-        console.error('Error fixing sync for item:', item.id, error);
+        console.error('Error fixing sync for item:', item.id, summarizePlaidError(error));
       }
     }
 
     return { success: true, updatedCount };
   } catch (error) {
-    console.error('Fix plaid sync error:', error);
+    console.error('Fix plaid sync error:', summarizePlaidError(error));
     return { success: false, error };
   }
 }

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireAdmin } from '@/lib/require-admin';
+import { summarizeTastytradeError } from '@/lib/tastytrade/summarizeError';
 
 // With OAuth, the SDK auto-refreshes access tokens.
 // This endpoint validates the OAuth client still works and updates lastUsedAt.
@@ -61,7 +62,7 @@ export async function POST() {
       message: 'Session refreshed successfully',
     });
   } catch (error: any) {
-    console.error('[Tastytrade] Callback error:', error);
+    console.error('[Tastytrade] Callback error:', summarizeTastytradeError(error));
     return NextResponse.json({ error: 'Failed to refresh session' }, { status: 500 });
   }
 }

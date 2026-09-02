@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getAuthenticatedClient, getTastytradeConnection } from '@/lib/tastytrade';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireAdmin } from '@/lib/require-admin';
+import { summarizeTastytradeError } from '@/lib/tastytrade/summarizeError';
 
 export async function GET() {
   try {
@@ -63,7 +64,7 @@ export async function GET() {
 
     return NextResponse.json({ positions: allPositions, accounts: accountNumbers, failed_accounts: failedAccounts });
   } catch (error: any) {
-    console.error('[Tastytrade] Positions error:', error);
+    console.error('[Tastytrade] Positions error:', summarizeTastytradeError(error));
     return NextResponse.json({ error: 'Failed to fetch positions' }, { status: 500 });
   }
 }
