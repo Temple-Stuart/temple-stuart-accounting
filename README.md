@@ -14,22 +14,22 @@ The landing deck at templestuart.com teaches the ideal pipe, step by step, with 
 
 ## The pipe
 
-| Step | What it does |
+| Step | Headline |
 |---|---|
-| 01 / IDENTIFY THE PROBLEM, THE TOOLS, THE FAMILIES — AND SORT THEM IN | the twenty-five tools, sorted into families and flows. |
-| 02 / LOOK AT THE TOOLS AND PICK THE PROVIDERS BEHIND THEM | the provider behind each tool — the menu, one row per provider. |
-| 03 / IMPORT THE DATA AND SEE HOW IT ARRIVES | every provider answer lands as one row, word for word, fingerprinted. |
-| 04 / LABEL EVERY FEED BY ITS KIND | every feed labeled by its kind — one rule per feed. |
-| 05 / CREATE ONE TABLE PER KIND AND MAP THE DATA IN | one table per kind; the kind picks the table. |
-| 06 / SEPARATE WHAT HAPPENED TO YOU FROM WHAT YOU DID | observed (what happened to you) split from authored (what you did). |
-| 07 / RUN THE LOOP | every tool runs discover → decide → commit → record. |
-| 08 / STORE EVERYTHING YOU DO IN ONE MASTER TABLE | every document, all twenty-five tools, in one master table. |
-| 09 / MATCH WHAT HAPPENED TO WHAT YOU DID | observed money events matched to authored documents on one key. |
-| 10 / LET THE RULES WRITE THE LINES | rules write the debits and credits; nobody types them. |
-| 11 / TURN THE LINES INTO ANSWERS | the four answers are math on the lines. |
-| 12 / OPEN THE TWO WINDOWS | the same rows seen two ways — a Ledger and a Calendar. |
-| 13 / WATCH ONE DOLLAR RUN THE WHOLE MACHINE | one sale run down all eight beats, then all twenty-five tools. |
-| 14 / PROVE EVERY NUMBER | any number walked back to the provider's words and the fingerprint. |
+| 01 / IDENTIFY THE PROBLEM, THE TOOLS, THE FAMILIES — AND SORT THEM IN | Twenty-five tools. None of them knows what the others did. |
+| 02 / LOOK AT THE TOOLS AND PICK THE PROVIDERS BEHIND THEM | Every job has more than one company. You pick yours. |
+| 03 / IMPORT THE DATA AND SEE HOW IT ARRIVES | Store what arrived. Then decide what it means. |
+| 04 / LABEL EVERY FEED BY ITS KIND | One rule per feed. Written down. |
+| 05 / CREATE ONE TABLE PER KIND AND MAP THE DATA IN | The kind picks the table. |
+| 06 / SEPARATE WHAT HAPPENED TO YOU FROM WHAT YOU DID | Some things happen to you. Some things you make happen. |
+| 07 / RUN THE LOOP | Every tool runs the same four beats. Discover. Decide. Commit. Record. |
+| 08 / STORE EVERYTHING YOU DO IN ONE MASTER TABLE | One table holds everything you do. |
+| 09 / MATCH WHAT HAPPENED TO WHAT YOU DID | The deposit meets the invoice. The fill meets the order. |
+| 10 / LET THE RULES WRITE THE LINES | Nobody sends them. Rules write them. |
+| 11 / TURN THE LINES INTO ANSWERS | Every answer is math on the lines. |
+| 12 / OPEN THE TWO WINDOWS | One Ledger. One Calendar. All twenty-five. |
+| 13 / WATCH ONE DOLLAR RUN THE WHOLE MACHINE | One $100.00 sale runs the machine. Then every other door opens. |
+| 14 / PROVE EVERY NUMBER | Click any number. Walk it back. |
 
 templestuart.com teaches the full pipe with build-time proofs: every drawing derives from these consts, and the layout laws throw at build, so a false slide is a failed build.
 
@@ -129,15 +129,15 @@ BLUEPRINT is the step's headline; TODAY is the deck's honest-state line, verbati
 
 | Step | Blueprint | Today | Gap |
 |---|---|---|---|
-| 03 | every provider answer lands as one row, word for word, fingerprinted. | today that is 121 feeds from 20 providers — counted August 24, 2026. | none — counted. |
-| 04 | every feed labeled by its kind — one rule per feed. | We classified every one of the 121 feeds — August 24, 2026 — and posting took zero. | none — classified. |
+| 03 | Store what arrived. Then decide what it means. | today that is 121 feeds from 20 providers — counted August 24, 2026. | feeds counted (121/20); the arrivals table that stores them word for word, fingerprinted, is not built — see 14. |
+| 04 | One rule per feed. Written down. | We classified every one of the 121 feeds — August 24, 2026 — and posting took zero. | kinds assigned in the August 24 census; rows the system applies to arrivals wait on the step-3 table — see 14. |
 | 07 | Every tool runs the same four beats. Discover. Decide. Commit. Record. | This loop is the blueprint — the shape we're building every tool toward. Today, hotel bookings commit for real; the rest run discover → decide → draft, and commit is the beat we're wiring to the same loop, tool by tool. | commit is real for one tool (hotel bookings); the other twenty-four stop at draft. |
 | 08 | One table holds everything you do. | The master table is the blueprint. Today each tool keeps its own table; one table holding every document is the shape we're building. | no master table; each tool keeps its own. |
 | 09 | The deposit meets the invoice. The fill meets the order. | (A piece of this is already alive today: card charges find their bookings and propose the match — you approve it.) | one of fourteen matches proposes today (card charge ↔ booking); the other thirteen do not. |
 | 10 | Nobody sends them. Rules write them. | The posting table is the blueprint — today it holds zero lines. The rules writing them is the bookkeeping pipe we're building. | zero lines; no rule writes yet. |
 | 11 | Every answer is math on the lines. | These four lenses are the blueprint. Today the trading lens reads live; tax, runway, and the business result wait on the posting pipe — the lines have to exist before they can add up. | one lens live (trading); three wait on step 10. |
 | 12 | One Ledger. One Calendar. All twenty-five. | Two windows over one set of rows is the blueprint. Today the calendar window is live at /hub; the ledger window fills as the posting pipe lands its lines. | the Calendar window is live; the Ledger window is empty until step 10 writes. |
-| 13 | One $100.00 sale runs the machine. Then every other door opens. | Alive today: the travel match — card charges find their bookings and propose the match; you approve it. The project lane is wired end to end: a task lands for your review, and accepting it fires the build that answers it. | two lanes run end to end (travel match, project build); the sale's lines and lenses wait on steps 10–11. |
+| 13 | One $100.00 sale runs the machine. Then every other door opens. | Alive today: the travel match — card charges find their bookings and propose the match; you approve it. The project lane is wired end to end: a task lands for your review, and accepting it fires the build that answers it. | the travel match is alive; the project lane is wired end to end; the sale's lines and lenses wait on steps 10–11. |
 | 14 | Click any number. Walk it back. | Alive today: the fingerprint, on the rules and the audit log — every regulation pull is hashed the moment it lands, citation checks re-fetch the source and re-hash it, and the audit log hash-chains every entry it records. Today the money feeds land already parsed — no stored word-for-word payload, no fingerprint yet; the arrivals table that saves the provider's exact words and fingerprints them on arrival is the shape we're building. | fingerprints on the rules corpus and the audit log; none on money feeds — the arrivals table is not built. |
 
 ## The nine modules
@@ -145,7 +145,7 @@ BLUEPRINT is the step's headline; TODAY is the deck's honest-state line, verbati
 | Module | What exists in code |
 |---|---|
 | Travel | stays and flights through LiteAPI, activities through Viator, visa checks through RapidAPI — public routes under src/app/api/travel (15 route files) and src/app/api/flights (3); models `trips` (schema:571) and `reservations` (schema:1327). |
-| Runway | budgets and home expenses — src/app/api/runway (4 route files); models `budgets` (schema:541) and `home_expenses` (schema:1577). |
+| Runway | the reservation matcher — src/app/api/runway/match/propose, queue, review (the step-9 piece alive today) — plus src/app/api/runway/route.ts; models `budgets` (schema:541) and `home_expenses` (schema:1577). |
 | Books | Plaid-synced transactions, a chart of accounts, journal and ledger entries — src/app/api/plaid/sync/route.ts:103 writes `transactions` (schema:414); `journal_entries` (schema:180), `ledger_entries` (schema:219). |
 | Trade | tastytrade connection, quotes and backtests — src/app/api/tastytrade (13 route files); models `trade_cards` (schema:1708) and `scan_snapshots` (schema:1894). |
 | Tax | scenarios, documents and the 2025 export script (`npm run tax:export:2025`) — src/app/api/tax (7 route files); models `tax_scenarios` (schema:1497) and `tax_documents` (schema:1816). |
