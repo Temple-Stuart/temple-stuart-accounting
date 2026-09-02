@@ -25,7 +25,8 @@ export default function LoginPage() {
 
       if (response.ok) {
         // Force full page navigation to ensure cookie is picked up
-        window.location.href = '/hub';
+        // NAV-01c: the post-login front door is /answers.
+        window.location.href = '/answers';
       } else {
         setError(data.error || 'Login failed');
       }

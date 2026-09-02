@@ -11,7 +11,8 @@ interface LoginBoxProps {
   initialMode?: 'login' | 'register';
 }
 
-export default function LoginBox({ onClose, onSuccess, redirectTo = '/hub', initialMode = 'login' }: LoginBoxProps) {
+// NAV-01c: the post-login front door is /answers (src/lib/answers.ts ANSWERS_HOME).
+export default function LoginBox({ onClose, onSuccess, redirectTo = '/answers', initialMode = 'login' }: LoginBoxProps) {
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

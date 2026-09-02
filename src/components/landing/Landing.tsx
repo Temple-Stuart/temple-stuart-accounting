@@ -181,6 +181,7 @@ import LandingFooter from './LandingFooter';
 // only on the FD-2 verified-guest branch).
 import GuestTripStrip from './GuestTripStrip';
 import { PROBLEM_SHEET } from '@/lib/problemSheet';
+import { ANSWER_ROWS, ANSWER_INPUTS } from '@/lib/answers';
 // PR-ELEV-1: the coming-soon tiles became badged "Soon" chips INSIDE the
 // booking strip (travelStripModes) — the separate tile row is gone.
 
@@ -1122,33 +1123,11 @@ const S10_LAYOUT = (() => {
 })();
 const S10_H = S10_GEOM.HEAD + S10_LAYOUT.rows.length * S10_GEOM.ROW_H;
 
-// DECK-11: four questions and their math, the math pre-split so the deck's
-// money words ink gold. Row 3 has no money word and that is the deck's own
-// shape, not an omission.
-const ANSWER_ROWS: ReadonlyArray<readonly [string, ReadonlyArray<readonly [string, boolean]>]> = [
-  ['What do I owe in tax?', [['Income', true], [' so far × the rules.', false]]],
-  ['How long can I last?', [['Cash', true], [' ÷ what I burn each month.', false]]],
-  ['How is my trading doing?', [['Wins, losses, and open risk; from fills, positions, and live quotes.', false]]],
-  ['How is my business doing?', [['Money in', true], [' minus ', false], ['money out', true], ['.', false]]],
-];
-
-// S11-INPUTS (PR-S11-DATAFLOW): the lines each answer reads, keyed by
-// the answer's question, in ANSWER_ROWS order — Alex's product logic; he
-// tunes on Preview. Accounts are verbatim POSTING_RULES debit/credit
-// strings; feeds are verbatim ROUTING_RULES provider+resource pairs; the
-// S11_LAYOUT law throws on anything that resolves to neither. A line
-// under more than one answer is CORRECT — same line, many lenses; it
-// renders once per group. NOTE: the ruling named a tastytrade position
-// feed, which ROUTING_RULES does not carry (tastytrade has only quote);
-// plaid holding is the rule book's positions feed (SNAPSHOT — how things
-// stood at one moment), so it rides here and the kept math's 'fills,
-// positions, and live quotes' stays drawn 3-for-3.
-const ANSWER_INPUTS: Readonly<Record<string, readonly string[]>> = {
-  'What do I owe in tax?': ['Revenue', 'Expense', 'Wages + employer taxes', 'irs bulletin', 'us code title'],
-  'How long can I last?': ['Cash', 'Expense', 'Travel', 'Wages + employer taxes', 'A/P'],
-  'How is my trading doing?': ['Investments', 'plaid holding', 'tastytrade quote'],
-  'How is my business doing?': ['Revenue', 'Expense', 'Travel', 'Wages + employer taxes', 'Filing Fees'],
-};
+// NAV-01c: ANSWER_ROWS (the four questions and their math lines) and
+// ANSWER_INPUTS (the lines each answer reads) moved to the shared leaf
+// src/lib/answers.ts — one source, as PROBLEM_SHEET moved (NAV-01a): the deck
+// renders them, /answers renders them, the build-time law reads them. Imported
+// at the top beside PROBLEM_SHEET; the S11 / S13 / S14 laws below are unchanged.
 
 // S11-GEOM: the lines (grouped by answer), THE MATH pull-out (one lens
 // per group, spanning its rows), the four answer cards. Rows on one
