@@ -34,14 +34,21 @@ export async function POST() {
         });
 
         for (const plaidTxn of response.data.transactions) {
-          await prisma.transactions.updateMany({
-            where: { transactionId: plaidTxn.transaction_id },
+          // SEC-01: transactions carry no userId (prisma/schema.prisma:414-450). The
+          // real ownership path is transactions.accountId → accounts.plaidItemId →
+          // plaid_items.userId. The write is scoped to THIS item under THIS user;
+          // a transactionId held by another user matches zero rows. No fallback.
+          const result = await prisma.transactions.updateMany({
+            where: {
+              transactionId: plaidTxn.transaction_id,
+              accounts: { plaid_items: { id: item.id, userId: user.id } },
+            },
             data: { 
               category: plaidTxn.category ? plaidTxn.category.join(', ') : null,
               merchantName: plaidTxn.merchant_name
             }
           });
-          updatedCount++;
+          updatedCount += result.count;
         }
       } catch (error) {
         console.error('Error fixing categories for item:', item.id, error);
