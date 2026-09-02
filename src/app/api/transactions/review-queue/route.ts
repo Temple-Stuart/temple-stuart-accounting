@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
@@ -59,10 +60,6 @@ export async function GET() {
     });
 
   } catch (error: any) {
-    console.error('Review queue error:', error);
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    );
+    return failClosedResponse('Review queue', 'Review queue failed', error);
   }
 }

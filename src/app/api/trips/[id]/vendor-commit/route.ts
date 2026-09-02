@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { getCOACode } from '@/lib/travelCategories';
@@ -433,10 +434,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       itineraryCount: result.itineraryEntries.length,
     });
   } catch (error) {
-    console.error('Vendor commit error:', error);
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : 'Failed to commit vendor option',
-    }, { status: 500 });
+    return failClosedResponse('Vendor commit', 'Failed to commit vendor option', error);
   }
 }
 
@@ -536,9 +534,6 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Vendor uncommit error:', error);
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : 'Failed to uncommit vendor option',
-    }, { status: 500 });
+    return failClosedResponse('Vendor uncommit', 'Failed to uncommit vendor option', error);
   }
 }

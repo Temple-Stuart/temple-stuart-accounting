@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { positionTrackerService } from '@/lib/position-tracker-service';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -183,10 +184,7 @@ export async function POST(request: Request) {
       ...result
     });
   } catch (error) {
-    console.error('Stock lots create error:', error);
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : 'Failed to create lots'
-    }, { status: 500 });
+    return failClosedResponse('Stock lots create', 'Failed to create lots', error);
   }
 }
 

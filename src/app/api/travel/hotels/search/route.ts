@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { searchHotelRates, liteApiHotelToRecommendation } from '@/lib/liteapiClient';
 import { findDestinationCoords } from '@/lib/destinations';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
@@ -117,10 +118,6 @@ export async function GET(request: NextRequest) {
         { status: 503 }
       );
     }
-    console.error('Hotel search error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Hotel search failed' },
-      { status: 500 }
-    );
+    return failClosedResponse('Hotel search', 'Hotel search failed', error);
   }
 }

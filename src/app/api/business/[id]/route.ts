@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
@@ -117,8 +118,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Business PATCH error:', error);
-    return NextResponse.json({ error: 'Failed: ' + (error as Error).message }, { status: 500 });
+    return failClosedResponse('api/business/[id] PATCH', 'Failed to update the record', error);
   }
 }
 

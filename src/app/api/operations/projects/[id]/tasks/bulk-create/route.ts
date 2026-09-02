@@ -24,6 +24,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
@@ -246,10 +247,6 @@ export async function POST(
       source_ai_usage_id: sourceAiUsageId,
     });
   } catch (error) {
-    console.error('[Bulk Create Tasks POST]', error);
-    return NextResponse.json(
-      { error: 'Failed to bulk-create tasks', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Bulk Create Tasks POST', 'Failed to bulk-create tasks', error);
   }
 }

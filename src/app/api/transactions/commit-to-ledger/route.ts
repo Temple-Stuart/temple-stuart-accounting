@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { commitPlaidTransaction, type CommitLink } from '@/lib/journal-entry-service';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -379,8 +380,6 @@ export async function POST(request: NextRequest) {
       { status }
     );
   } catch (error: unknown) {
-    console.error('Commit API error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return failClosedResponse('Commit API', 'Commit write failed', error);
   }
 }

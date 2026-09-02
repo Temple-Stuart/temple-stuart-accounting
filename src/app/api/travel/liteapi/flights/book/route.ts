@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { bookFlight, FlightOfferExpiredError } from '@/lib/liteapiFlightsClient';
@@ -93,11 +94,7 @@ export async function POST(request: NextRequest) {
           { status: 502 }
         );
       }
-      console.error('[LiteAPI flights book] unexpected error:', err);
-      return NextResponse.json(
-        { error: err instanceof Error ? err.message : 'Flight book failed' },
-        { status: 500 }
-      );
+      return failClosedResponse('LiteAPI flights book', 'Flight book failed', err);
     }
 
     // ─── Persist reservation + commission ledger (hotel pattern :155-206) ────
@@ -242,10 +239,6 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     }
-    console.error('[LiteAPI flights book] request error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Flight book failed' },
-      { status: 500 }
-    );
+    return failClosedResponse('LiteAPI flights book', 'Flight book failed', error);
   }
 }

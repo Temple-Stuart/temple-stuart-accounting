@@ -1,5 +1,6 @@
 import { requireTabAccess } from '@/lib/auth-helpers';
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
 import { Products, CountryCode } from 'plaid';
@@ -47,9 +48,6 @@ export async function POST() {
     });
   } catch (error: any) {
     console.error('Error creating link token:', summarizePlaidError(error));
-    return NextResponse.json(
-      { error: 'Failed to create link token', details: error.message },
-      { status: 500 }
-    );
+    return failClosedResponse('api/plaid/link-token POST', 'Failed to create link token', error);
   }
 }

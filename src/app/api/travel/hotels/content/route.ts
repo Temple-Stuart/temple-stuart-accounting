@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { getHotelContent } from '@/lib/liteapiClient';
 import { LiteApiError } from '@/lib/travelErrors';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
@@ -56,10 +57,6 @@ export async function GET(request: NextRequest) {
         { status: 502 }
       );
     }
-    console.error('Hotel content error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to load hotel details' },
-      { status: 500 }
-    );
+    return failClosedResponse('Hotel content', 'Failed to load hotel details', error);
   }
 }

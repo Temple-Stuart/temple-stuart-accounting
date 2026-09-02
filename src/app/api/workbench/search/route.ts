@@ -10,6 +10,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { prisma } from '@/lib/prisma';
 import { requireTabAccess } from '@/lib/auth-helpers';
@@ -68,11 +69,6 @@ export async function POST(request: NextRequest) {
       mode: body.mode ?? 'hybrid',
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'unknown error';
-    console.error('[/api/workbench/search]', message);
-    return NextResponse.json(
-      { error: 'search failed', detail: message },
-      { status: 500 }
-    );
+    return failClosedResponse('workbench/search', 'Search failed', err);
   }
 }

@@ -17,6 +17,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
@@ -112,10 +113,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ cell }, { status: existing ? 200 : 201 });
   } catch (error) {
-    console.error('[Content Grid Cell POST]', error);
-    return NextResponse.json(
-      { error: 'Failed to upsert cell', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Content Grid Cell POST', 'Failed to upsert cell', error);
   }
 }

@@ -1,5 +1,6 @@
 import { requireTabAccess } from '@/lib/auth-helpers';
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
@@ -35,8 +36,6 @@ export async function GET() {
     // that re-adds accessToken fails `satisfies` (string is not assignable to never).
     return NextResponse.json(items satisfies ReadonlyArray<{ id: string; accessToken?: never }>);
   } catch (error: unknown) {
-    console.error('Error fetching items:', error);
-    const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return failClosedResponse('Fetching items', 'Failed to fetch items', error);
   }
 }

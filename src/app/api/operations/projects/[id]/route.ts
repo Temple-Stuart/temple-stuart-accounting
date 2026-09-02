@@ -12,6 +12,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma, ProjectStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -65,11 +66,7 @@ export async function GET(
 
     return NextResponse.json({ project });
   } catch (error) {
-    console.error('[Project GET]', error);
-    return NextResponse.json(
-      { error: 'Failed to load project', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Project GET', 'Failed to load project', error);
   }
 }
 
@@ -321,11 +318,7 @@ export async function PATCH(
 
     return NextResponse.json({ project });
   } catch (error) {
-    console.error('[Project PATCH]', error);
-    return NextResponse.json(
-      { error: 'Failed to update project', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Project PATCH', 'Failed to update project', error);
   }
 }
 
@@ -369,7 +362,6 @@ export async function DELETE(
 
     return NextResponse.json({ deleted: true, id: existing.id });
   } catch (error) {
-    console.error('[Project DELETE]', error);
     // Translate DB constraint violations into a clear, non-leaky message
     // instead of forwarding the raw Postgres string (no-silent-failure:
     // surface WHY legibly). Covers FK (P2003) + other constraint (P2004)
@@ -387,9 +379,6 @@ export async function DELETE(
         { status: 409 }
       );
     }
-    return NextResponse.json(
-      { error: 'Failed to delete project', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Project DELETE', 'Failed to delete project', error);
   }
 }

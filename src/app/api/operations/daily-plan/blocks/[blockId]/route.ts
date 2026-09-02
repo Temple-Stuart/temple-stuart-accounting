@@ -13,6 +13,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma, CalendarBlockStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -180,11 +181,7 @@ export async function PATCH(
 
     return NextResponse.json({ block, conflicts });
   } catch (error) {
-    console.error('[Calendar Block PATCH]', error);
-    return NextResponse.json(
-      { error: 'Failed to update calendar block', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Calendar Block PATCH', 'Failed to update calendar block', error);
   }
 }
 
@@ -227,10 +224,6 @@ export async function DELETE(
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error('[Calendar Block DELETE]', error);
-    return NextResponse.json(
-      { error: 'Failed to delete calendar block', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Calendar Block DELETE', 'Failed to delete calendar block', error);
   }
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import {
   prebookFlight,
   FlightOfferExpiredError,
@@ -190,10 +191,6 @@ export async function POST(request: NextRequest) {
         { status: 502 }
       );
     }
-    console.error('[LiteAPI flights prebook] unexpected error:', err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Flight prebook failed' },
-      { status: 500 }
-    );
+    return failClosedResponse('LiteAPI flights prebook', 'Flight prebook failed', err);
   }
 }

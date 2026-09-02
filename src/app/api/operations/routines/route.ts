@@ -14,6 +14,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -101,11 +102,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ routines });
   } catch (error) {
-    console.error('[Routines GET]', error);
-    return NextResponse.json(
-      { error: 'Failed to load routines', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Routines GET', 'Failed to load routines', error);
   }
 }
 
@@ -313,10 +310,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ routine, isCreate: true }, { status: 201 });
   } catch (error) {
-    console.error('[Routines POST]', error);
-    return NextResponse.json(
-      { error: 'Failed to create routine', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Routines POST', 'Failed to create routine', error);
   }
 }

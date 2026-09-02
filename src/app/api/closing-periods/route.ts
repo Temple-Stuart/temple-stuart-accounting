@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
@@ -51,8 +52,6 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error) {
-    console.error('Closing periods API error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return failClosedResponse('Closing periods API', 'Closing periods read failed', error);
   }
 }

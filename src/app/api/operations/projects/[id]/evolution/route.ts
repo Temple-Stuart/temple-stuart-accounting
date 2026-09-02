@@ -19,6 +19,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { OperationsTaskStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -152,10 +153,6 @@ export async function GET(
       unversioned_count: unversioned.length,
     });
   } catch (error) {
-    console.error('[Project Evolution GET]', error);
-    return NextResponse.json(
-      { error: 'Failed to load project evolution', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Project Evolution GET', 'Failed to load project evolution', error);
   }
 }

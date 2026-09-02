@@ -14,6 +14,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -151,11 +152,7 @@ export async function PATCH(
 
     return NextResponse.json({ step });
   } catch (error) {
-    console.error('[Routine Step PATCH]', error);
-    return NextResponse.json(
-      { error: 'Failed to update routine step', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Routine Step PATCH', 'Failed to update routine step', error);
   }
 }
 
@@ -210,10 +207,6 @@ export async function DELETE(
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error('[Routine Step DELETE]', error);
-    return NextResponse.json(
-      { error: 'Failed to delete routine step', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Routine Step DELETE', 'Failed to delete routine step', error);
   }
 }

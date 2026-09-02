@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
@@ -101,10 +102,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ link: updated });
   } catch (err) {
-    console.error('[Runway match review] error:', err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Review failed' },
-      { status: 500 }
-    );
+    return failClosedResponse('Runway match review', 'Review failed', err);
   }
 }

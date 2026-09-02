@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { ADMIN_USER_ID } from '@/lib/tiers';
@@ -239,10 +240,6 @@ export async function POST(request: NextRequest) {
       results,
     });
   } catch (error) {
-    console.error('Fix entity assignment error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
-    );
+    return failClosedResponse('Fix entity assignment', 'Fix entity assignment failed', error);
   }
 }

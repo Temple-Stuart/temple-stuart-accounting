@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { bookRate, type BookGuest, type BookHolder } from '@/lib/liteapiClient';
@@ -145,11 +146,7 @@ export async function POST(request: NextRequest) {
           { status: 502 }
         );
       }
-      console.error('[LiteAPI book] unexpected error:', err);
-      return NextResponse.json(
-        { error: err instanceof Error ? err.message : 'Book failed' },
-        { status: 500 }
-      );
+      return failClosedResponse('LiteAPI book', 'Book failed', err);
     }
 
     // ─── Persist reservation + commission ledger (single transaction) ────────
@@ -288,10 +285,6 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     }
-    console.error('[LiteAPI book] request error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Book failed' },
-      { status: 500 }
-    );
+    return failClosedResponse('LiteAPI book', 'Book failed', error);
   }
 }

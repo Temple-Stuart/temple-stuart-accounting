@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/require-admin';
 
@@ -200,9 +201,6 @@ export async function POST() {
 
     return NextResponse.json({ success: true, fixes });
   } catch (error) {
-    console.error('Fix unbalanced entries error:', error);
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : 'Failed to fix entries'
-    }, { status: 500 });
+    return failClosedResponse('Fix unbalanced entries', 'Failed to fix entries', error);
   }
 }

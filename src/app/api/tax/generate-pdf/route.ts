@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { generateForm1040 } from '@/lib/form-1040-service';
@@ -62,9 +63,6 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    console.error('PDF generation error:', error);
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : 'Failed to generate PDF',
-    }, { status: 500 });
+    return failClosedResponse('PDF generation', 'Failed to generate PDF', error);
   }
 }

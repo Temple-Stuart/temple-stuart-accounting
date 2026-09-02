@@ -1,6 +1,7 @@
 import { requireTier } from '@/lib/auth-helpers';
 import { requireAiRateLimit } from '@/lib/ai-rate-limit';
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import OpenAI from 'openai';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -223,10 +224,6 @@ FINAL CHECK: sum all estimatedPrice values, multiply by 1.15 = totalEstimated. T
     return NextResponse.json(plan);
 
   } catch (error) {
-    console.error('Cart plan error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to generate cart plan' },
-      { status: 500 }
-    );
+    return failClosedResponse('Cart plan', 'Failed to generate cart plan', error);
   }
 }

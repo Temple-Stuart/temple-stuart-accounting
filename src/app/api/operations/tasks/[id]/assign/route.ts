@@ -31,6 +31,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -272,10 +273,6 @@ export async function POST(
         { status: 409 }
       );
     }
-    console.error('[Task Assign POST]', error);
-    return NextResponse.json(
-      { error: 'Failed to assign task', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Task Assign POST', 'Failed to assign task', error);
   }
 }

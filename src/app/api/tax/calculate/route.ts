@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { generateScheduleC, generateScheduleSE } from '@/lib/schedule-c-service';
@@ -358,9 +359,6 @@ export async function GET(request: Request) {
       data_quality: dataQuality,
     });
   } catch (error) {
-    console.error('Tax calculate error:', error);
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : 'Internal server error',
-    }, { status: 500 });
+    return failClosedResponse('Tax calculate', 'Tax calculate failed', error);
   }
 }

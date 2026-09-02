@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-helpers';
 import { requireTabAccess } from '@/lib/auth-helpers';
@@ -116,9 +117,7 @@ export async function GET(request: NextRequest) {
       accounts,
     });
   } catch (error) {
-    console.error('Account tax mappings GET error:', error);
-    const msg = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return failClosedResponse('Account tax mappings GET', 'Account tax mappings read failed', error);
   }
 }
 
@@ -197,9 +196,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Account tax mappings POST error:', error);
-    const msg = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return failClosedResponse('Account tax mappings POST', 'Account tax mappings write failed', error);
   }
 }
 
@@ -244,8 +241,6 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true, deleted: id });
   } catch (error) {
-    console.error('Account tax mappings DELETE error:', error);
-    const msg = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return failClosedResponse('Account tax mappings DELETE', 'Account tax mappings delete failed', error);
   }
 }

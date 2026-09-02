@@ -12,6 +12,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -56,11 +57,7 @@ export async function GET(
 
     return NextResponse.json({ scene });
   } catch (error) {
-    console.error('[Content Scene GET]', error);
-    return NextResponse.json(
-      { error: 'Failed to load scene', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Content Scene GET', 'Failed to load scene', error);
   }
 }
 
@@ -228,11 +225,7 @@ export async function PATCH(
 
     return NextResponse.json({ scene: updated });
   } catch (error) {
-    console.error('[Content Scene PATCH]', error);
-    return NextResponse.json(
-      { error: 'Failed to update scene', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Content Scene PATCH', 'Failed to update scene', error);
   }
 }
 
@@ -282,10 +275,6 @@ export async function DELETE(
 
     return NextResponse.json({ deleted: true, id });
   } catch (error) {
-    console.error('[Content Scene DELETE]', error);
-    return NextResponse.json(
-      { error: 'Failed to delete scene', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Content Scene DELETE', 'Failed to delete scene', error);
   }
 }

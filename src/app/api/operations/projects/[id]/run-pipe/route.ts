@@ -19,6 +19,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { inngest } from '@/inngest/client';
@@ -78,13 +79,6 @@ export async function POST(
       { status: 202 }
     );
   } catch (error) {
-    console.error('[Project Run-Pipe POST]', error);
-    return NextResponse.json(
-      {
-        error: 'Failed to queue pipe run',
-        message: error instanceof Error ? error.message : 'unknown',
-      },
-      { status: 500 }
-    );
+    return failClosedResponse('Project Run-Pipe POST', 'Failed to queue pipe run', error);
   }
 }

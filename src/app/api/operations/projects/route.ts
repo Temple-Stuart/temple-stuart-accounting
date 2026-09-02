@@ -18,6 +18,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma, ProjectStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -187,11 +188,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ projects: withCounts });
   } catch (error) {
-    console.error('[Projects GET]', error);
-    return NextResponse.json(
-      { error: 'Failed to load projects', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Projects GET', 'Failed to load projects', error);
   }
 }
 
@@ -425,10 +422,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ project, isCreate: true }, { status: 201 });
   } catch (error) {
-    console.error('[Projects POST]', error);
-    return NextResponse.json(
-      { error: 'Failed to create project', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Projects POST', 'Failed to create project', error);
   }
 }

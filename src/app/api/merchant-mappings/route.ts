@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
@@ -62,11 +63,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ mappings });
   } catch (error: any) {
-    console.error('Merchant mapping fetch error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch merchant mappings', details: error.message },
-      { status: 500 }
-    );
+    return failClosedResponse('Merchant mapping fetch', 'Failed to fetch merchant mappings', error);
   }
 }
 
@@ -133,10 +130,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ mapping: created, action: 'created' });
     }
   } catch (error: any) {
-    console.error('Merchant mapping save error:', error);
-    return NextResponse.json(
-      { error: 'Failed to save merchant mapping', details: error.message },
-      { status: 500 }
-    );
+    return failClosedResponse('Merchant mapping save', 'Failed to save merchant mapping', error);
   }
 }

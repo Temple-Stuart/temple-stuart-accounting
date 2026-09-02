@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { positionTrackerService } from '@/lib/position-tracker-service';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -136,7 +137,6 @@ export async function POST(request: Request) {
     if (error instanceof PeriodClosedError) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
-    console.error('Investment commit error:', error);
 
     // Duplicate commit (unique constraint violation)
     if (error?.code === 'P2002') {
@@ -146,9 +146,6 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json(
-      { error: error.message || 'Failed to commit investments' },
-      { status: 500 }
-    );
+    return failClosedResponse('Investment commit', 'Failed to commit investments', error);
   }
 }

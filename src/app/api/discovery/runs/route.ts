@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { runDiscovery } from '@/lib/discovery/runDiscovery';
@@ -95,9 +96,6 @@ export async function POST(_request: NextRequest) {
       return NextResponse.json(refusal.body, { status: refusal.status, headers: refusal.headers });
     }
     console.error('[Discovery Runs POST]', error instanceof Error ? `${error.name}: ${error.message}` : error);
-    return NextResponse.json(
-      { ok: false, stage: 'discovery', error: 'Failed to start discovery run', message: error instanceof Error ? error.message : 'unknown error' },
-      { status: 500 },
-    );
+    return failClosedResponse('api/discovery/runs POST', 'Failed to start discovery run', error);
   }
 }

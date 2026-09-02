@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
@@ -102,11 +103,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, link });
   } catch (error) {
-    console.error('Trade card link error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to link trade card' },
-      { status: 500 }
-    );
+    return failClosedResponse('Trade card link', 'Failed to link trade card', error);
   }
 }
 
@@ -148,11 +145,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Trade card unlink error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to unlink trade card' },
-      { status: 500 }
-    );
+    return failClosedResponse('Trade card unlink', 'Failed to unlink trade card', error);
   }
 }
 

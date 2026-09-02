@@ -1,5 +1,6 @@
 import { requireTier } from '@/lib/auth-helpers';
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getEntitledCategories } from '@/lib/entitlements';
 import { GOOGLE_CATEGORY_KEYS } from '@/lib/categoryKeys';
@@ -544,10 +545,6 @@ export async function POST(
         { status: 501 }
       );
     }
-    console.error('Travel scan error:', err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Search failed', category },
-      { status: 500 }
-    );
+    return failClosedResponse('Travel scan', 'Search failed', err, 500, { category });
   }
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { classifyAndPreview, processStockBuys, processOptions, processStockSells, processAssignmentsExercises, processCallSpreadAssignments, processDividends, processRemainingCloses, runValidation } from '@/lib/batch-trade-processor';
@@ -82,8 +83,6 @@ export async function POST(request: Request) {
     });
 
   } catch (error: unknown) {
-    console.error('Batch process error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return failClosedResponse('Batch process', 'Batch process failed', error);
   }
 }

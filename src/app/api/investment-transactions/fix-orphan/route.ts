@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
@@ -45,9 +46,6 @@ export async function POST(request: Request) {
       }
     });
   } catch (error) {
-    console.error('Fix orphan error:', error);
-    return NextResponse.json({ 
-      error: error instanceof Error ? error.message : 'Failed to fix transaction' 
-    }, { status: 500 });
+    return failClosedResponse('Fix orphan', 'Failed to fix transaction', error);
   }
 }

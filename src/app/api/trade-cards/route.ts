@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
@@ -116,17 +117,8 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ success: true, card });
-  } catch (error: any) {
-    console.error('trade_cards.create error:', JSON.stringify({
-      message: error.message,
-      code: error.code,
-      meta: error.meta,
-      clientVersion: error.clientVersion,
-    }, null, 2));
-    return NextResponse.json(
-      { error: error.message ?? 'Failed to save trade card' },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return failClosedResponse('trade_cards.create', 'Failed to save trade card', error);
   }
 }
 

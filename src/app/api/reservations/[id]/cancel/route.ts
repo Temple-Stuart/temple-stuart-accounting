@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { cancelBooking } from '@/lib/liteapiClient';
@@ -224,11 +225,7 @@ export async function POST(
           { status: 502 }
         );
       }
-      console.error('[Reservation cancel] unexpected provider error:', err);
-      return NextResponse.json(
-        { error: err instanceof Error ? err.message : 'Cancellation failed' },
-        { status: 500 }
-      );
+      return failClosedResponse('Reservation cancel', 'Cancellation failed', err);
     }
 
     // ─── Persist the flip (status is the ONLY field written) ─────────────────

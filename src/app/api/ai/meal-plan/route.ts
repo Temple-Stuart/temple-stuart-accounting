@@ -1,6 +1,7 @@
 import { requireTier } from '@/lib/auth-helpers';
 import { requireAiRateLimit } from '@/lib/ai-rate-limit';
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import OpenAI from 'openai';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -413,10 +414,6 @@ ${profile.cookingStyle === 'meal-prep' ? 'Include prepSchedule array showing wha
     return NextResponse.json(plan);
 
   } catch (error) {
-    console.error('Meal plan error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to generate meal plan' },
-      { status: 500 }
-    );
+    return failClosedResponse('Meal plan', 'Failed to generate meal plan', error);
   }
 }

@@ -15,6 +15,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { PrismaClient } from '@prisma/client';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
@@ -98,10 +99,6 @@ export async function GET(request: Request) {
       result_count: rows.length,
     });
   } catch (err) {
-    console.error('[workbench/recent-chunks] error', err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('workbench/recent-chunks', 'Recent chunks failed', err);
   }
 }

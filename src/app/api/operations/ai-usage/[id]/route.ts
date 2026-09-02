@@ -15,6 +15,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
@@ -55,10 +56,6 @@ export async function GET(
       created_by: row.created_by,
     });
   } catch (error) {
-    console.error('[AI Usage GET]', error);
-    return NextResponse.json(
-      { error: 'Failed to load AI usage row', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('AI Usage GET', 'Failed to load AI usage row', error);
   }
 }

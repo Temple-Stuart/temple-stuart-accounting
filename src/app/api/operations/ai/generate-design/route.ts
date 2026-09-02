@@ -20,6 +20,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { generateProjectDesign } from '@/lib/ai/generateProjectDesign';
@@ -128,10 +129,6 @@ export async function POST(request: NextRequest) {
     if (error instanceof PipeBudgetError) {
       return NextResponse.json({ error: 'Rate limit', message: error.message }, { status: 429 });
     }
-    console.error('[Stateless Generate Design POST]', error);
-    return NextResponse.json(
-      { error: 'Failed to generate design', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Stateless Generate Design POST', 'Failed to generate design', error);
   }
 }

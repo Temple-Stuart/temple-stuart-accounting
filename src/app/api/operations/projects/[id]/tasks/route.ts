@@ -17,6 +17,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma, OperationsTaskStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -84,11 +85,7 @@ export async function GET(
 
     return NextResponse.json({ tasks: sorted });
   } catch (error) {
-    console.error('[Tasks GET]', error);
-    return NextResponse.json(
-      { error: 'Failed to load tasks', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Tasks GET', 'Failed to load tasks', error);
   }
 }
 
@@ -258,10 +255,6 @@ export async function POST(
 
     return NextResponse.json({ task, isCreate: true }, { status: 201 });
   } catch (error) {
-    console.error('[Tasks POST]', error);
-    return NextResponse.json(
-      { error: 'Failed to create task', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Tasks POST', 'Failed to create task', error);
   }
 }

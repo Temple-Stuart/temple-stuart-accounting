@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { proposeMatches } from '@/lib/runway/reservationMatcher';
@@ -136,10 +137,6 @@ export async function POST(request: NextRequest) {
       );
     }
     // Includes the MATCH-0-table-missing case (P2021) — declared, never hidden.
-    console.error('[Runway match propose] error:', err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Match proposal run failed' },
-      { status: 500 }
-    );
+    return failClosedResponse('Runway match propose', 'Match proposal run failed', err);
   }
 }

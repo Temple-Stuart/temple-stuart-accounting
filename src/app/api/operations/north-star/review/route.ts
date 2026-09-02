@@ -13,6 +13,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
@@ -74,10 +75,6 @@ export async function POST() {
 
     return NextResponse.json({ northStar });
   } catch (error) {
-    console.error('[North Star Review]', error);
-    return NextResponse.json(
-      { error: 'Failed to record review', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('North Star Review', 'Failed to record review', error);
   }
 }

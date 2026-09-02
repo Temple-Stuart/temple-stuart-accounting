@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { searchFlightRates, FlightLeg, FlightCabinClass } from '@/lib/liteapiFlightsClient';
 import { MissingLiteApiKeyError, LiteApiError } from '@/lib/travelErrors';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
@@ -144,10 +145,6 @@ export async function POST(request: NextRequest) {
         { status: 502 }
       );
     }
-    console.error('[LiteAPI flights search] unexpected error:', err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Flight search failed' },
-      { status: 500 }
-    );
+    return failClosedResponse('LiteAPI flights search', 'Flight search failed', err);
   }
 }

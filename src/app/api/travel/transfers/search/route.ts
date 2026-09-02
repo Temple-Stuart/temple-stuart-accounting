@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { validatedAffiliateUrl } from '@/config/affiliates';
 import { searchViatorProductsByTags, viatorProductToRecommendation } from '@/lib/viatorClient';
 import { findViatorDestIdFor } from '@/lib/destinations';
@@ -114,10 +115,6 @@ export async function GET(request: NextRequest) {
         { status: 503 }
       );
     }
-    console.error('Transfer search error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Transfer search failed' },
-      { status: 500 }
-    );
+    return failClosedResponse('Transfer search', 'Transfer search failed', error);
   }
 }

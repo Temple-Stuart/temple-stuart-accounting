@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import Anthropic from '@anthropic-ai/sdk';
@@ -92,8 +93,6 @@ export async function POST(request: Request) {
     if (error instanceof PipeBudgetError) {
       return NextResponse.json({ error: 'Rate limit', message: error.message }, { status: 429 });
     }
-    console.error('[Brain Dump]', error);
-    const msg = error instanceof Error ? error.message : 'Brain dump processing failed';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return failClosedResponse('Brain Dump', 'Brain Dump failed', error);
   }
 }
