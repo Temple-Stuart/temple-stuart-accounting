@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
 import { CountryCode } from 'plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { encryptToken } from '@/lib/secrets/tokenCipher';
 
 export async function POST(request: Request) {
   try {
@@ -62,7 +63,8 @@ export async function POST(request: Request) {
       data: {
         id: plaidItemId,
         itemId,
-        accessToken,
+        // SEC-02: the Plaid access token lands encrypted; readers accept ciphertext only.
+        accessToken: encryptToken(accessToken),
         institutionId: institutionId || 'unknown',
         institutionName: institutionName,
         userId: user.id,

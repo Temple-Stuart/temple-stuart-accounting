@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { decryptToken } from '@/lib/secrets/tokenCipher';
 
 const plaidConfig = new Configuration({
   basePath: PlaidEnvironments.production,
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
 
     // Sync transactions
     const transactionsResponse = await plaidClient.transactionsGet({
-      access_token: item.accessToken,
+      access_token: decryptToken(item.accessToken),
       start_date: thirtyDaysAgo.toISOString().split('T')[0],
       end_date: now.toISOString().split('T')[0],
     });

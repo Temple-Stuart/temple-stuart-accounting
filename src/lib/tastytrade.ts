@@ -163,7 +163,8 @@ export async function getTastytradeSessionToken(): Promise<string> {
       body: JSON.stringify({ login: username, password: password, 'remember-me': true }),
     });
     const text = await resp.text();
-    console.log('[TT Auth] Manual JWT+castle+creds:', resp.status, text.slice(0, 300));
+    // SEC-02: never log the /sessions body — it carries the session token on success.
+    console.log('[TT Auth] Manual JWT+castle+creds status:', resp.status);
 
     if (resp.ok) {
       const data = JSON.parse(text);

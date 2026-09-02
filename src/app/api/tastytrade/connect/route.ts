@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireAdmin } from '@/lib/require-admin';
+import { encryptToken } from '@/lib/secrets/tokenCipher';
 
 export async function POST() {
   try {
@@ -55,7 +56,7 @@ export async function POST() {
       create: {
         userId: user.id,
         ttUsername: 'oauth',
-        sessionToken: 'oauth',
+        sessionToken: encryptToken('oauth'),
         accountNumbers,
         status: 'active',
         connectedAt: new Date(),
@@ -63,7 +64,7 @@ export async function POST() {
       },
       update: {
         ttUsername: 'oauth',
-        sessionToken: 'oauth',
+        sessionToken: encryptToken('oauth'),
         rememberToken: null,
         accountNumbers,
         status: 'active',
