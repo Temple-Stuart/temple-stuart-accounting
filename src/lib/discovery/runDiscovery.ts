@@ -1,13 +1,20 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { user_profiles } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
-import { DISCOVERY_SYSTEM_PROMPT_V1 } from './prompts/v1/system';
+import { recordUsage } from '@/lib/ai/recordUsage';
+import { MODEL_SONNET_4 } from '@/lib/ai/client';
+import { DISCOVERY_SYSTEM_PROMPT_V2 } from './prompts/v2/system';
 import { profileToQueries } from './prompts/v1/profileToQueries';
+import { DISCOVERY_USAGE_PURPOSE, frameUntrusted, requireDiscoveryBudget } from './discoveryGate';
 
-const MODEL = 'claude-sonnet-4-6';
-const PROMPT_VERSION = 'v1';
+// SEC-03: the model id comes from the one cost-registered constant so recordUsage can
+// price the call (computeCostUsd throws on an unregistered model — fail loud, not $0).
+const MODEL = MODEL_SONNET_4;
+// SEC-03: prompt v2 = v1 + the untrusted-web-data clause (prompts/v2/system.ts).
+const PROMPT_VERSION = 'v2';
 const MAX_TOKENS = 16000;
+// The API default; recordUsage requires an explicit value. The v1 call passed none.
+const TEMPERATURE = 1;
 
 export interface DiscoveryRunInput {
   userId: string;
@@ -17,6 +24,10 @@ export interface DiscoveryRunInput {
 
 export async function runDiscovery(input: DiscoveryRunInput): Promise<{ discoveryRunId: string }> {
   const { userId, userEmail, profile } = input;
+
+  // SEC-03 gate 1 — daily budget from RECORDED spend, BEFORE any row or paid call.
+  // Over cap → DiscoveryBudgetError, declared by the route; the run never starts.
+  const budget = await requireDiscoveryBudget(userId);
 
   const sources = await prisma.regulatory_sources.findMany({
     where: { is_active: true },
@@ -57,7 +68,15 @@ export async function runDiscovery(input: DiscoveryRunInput): Promise<{ discover
     actor: { email: userEmail, type: 'human_user' },
     action: { type: 'ai_generation_started', description: `Started discovery run ${run.id}` },
     target: { table: 'discovery_runs', id: run.id },
-    payload: { metadata: { model: MODEL, prompt_version: PROMPT_VERSION, query_count: searchQueries.length } },
+    payload: {
+      metadata: {
+        model: MODEL,
+        prompt_version: PROMPT_VERSION,
+        query_count: searchQueries.length,
+        budget_spent_today_usd: budget.spentUsd,
+        budget_cap_usd: budget.capUsd,
+      },
+    },
   });
 
   try {
@@ -65,31 +84,48 @@ export async function runDiscovery(input: DiscoveryRunInput): Promise<{ discover
 
     const userMessage = buildUserMessage(profile, searchQueries, activeDomains);
 
-    const client = new Anthropic();
-    const response = await client.messages.create({
+    // SEC-03: the call goes through recordUsage, as every other pipe does — tokens
+    // and cost land in operations_ai_usage (purpose 'compliance_discovery', the row
+    // the daily budget reads) plus the audit row, with the full prompt and response
+    // kept for the audit tail. web_search results arrive as server-side tool blocks
+    // inside the model's context; nothing fetched is concatenated by this code.
+    const result = await recordUsage({
+      userId,
+      userEmail,
       model: MODEL,
-      max_tokens: MAX_TOKENS,
-      system: DISCOVERY_SYSTEM_PROMPT_V1,
-      tools: [{ type: 'web_search_20250305' as const, name: 'web_search', allowed_domains: activeDomains }],
-      messages: [{ role: 'user', content: userMessage }],
+      systemPrompt: DISCOVERY_SYSTEM_PROMPT_V2,
+      userMessage,
+      maxTokens: MAX_TOKENS,
+      temperature: TEMPERATURE,
+      purpose: DISCOVERY_USAGE_PURPOSE,
+      targetTable: 'discovery_runs',
+      targetId: run.id,
+      inputsSummary: `profile_id=${profile.id}; query_count=${searchQueries.length}; allowed_domains=${activeDomains.length}`,
+      auditDescription: `Discovery run ${run.id}: web search + compliance scoping`,
+      tools: [
+        { type: 'web_search_20250305', name: 'web_search', allowed_domains: activeDomains },
+      ] as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     });
 
-    const inputTokens = response.usage?.input_tokens ?? 0;
-    const outputTokens = response.usage?.output_tokens ?? 0;
-    const cacheReadTokens = (response.usage as unknown as Record<string, number>)?.cache_read_input_tokens ?? 0;
-    const cost = (inputTokens * 3 + outputTokens * 15 + cacheReadTokens * 0.3) / 1_000_000;
+    const inputTokens = result.inputTokens;
+    const outputTokens = result.outputTokens;
+    // recordUsage does not surface cache-read tokens; this call sets no cache_control,
+    // so the API reports none. Recorded as 0, not imputed.
+    const cacheReadTokens = 0;
+    const cost = result.costUsd;
 
+    // Count the server-side web searches from the persisted raw content array.
     let webSearchCount = 0;
-    for (const block of response.content) {
-      if (block.type === 'server_tool_use') webSearchCount++;
+    try {
+      const blocks = JSON.parse(result.inspection.rawResponse) as Array<{ type?: string }>;
+      webSearchCount = blocks.filter((b) => b?.type === 'server_tool_use').length;
+    } catch {
+      throw new Error('discovery: recordUsage returned a non-JSON raw response with tools enabled');
     }
 
     await prisma.discovery_runs.update({ where: { id: run.id }, data: { status: 'synthesis_running', status_message: 'Parsing AI response...' } });
 
-    let jsonText = '';
-    for (const block of response.content) {
-      if (block.type === 'text') jsonText += block.text;
-    }
+    const jsonText = result.text;
 
     const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('AI response did not contain valid JSON');
@@ -217,6 +253,10 @@ export async function runDiscovery(input: DiscoveryRunInput): Promise<{ discover
           proposals: proposalCount,
           citations: citationCount,
           research_gaps: parsed.research_gaps || [],
+          // SEC-03: instructions the model found inside web results or the profile
+          // block — reported, never followed (prompts/v2/system.ts rule 7).
+          untrusted_instructions_observed: parsed.untrusted_instructions_observed || [],
+          usage_id: result.usageId,
         },
       },
     });
@@ -246,8 +286,11 @@ function buildUserMessage(
   searchQueries: Array<{ query: string; allowed_domains: string[]; practice_areas: string[] }>,
   activeDomains: string[]
 ): string {
-  return `COMPLIANCE PROFILE:
-Business: ${profile.business_description}
+  // SEC-03: the profile is user-supplied free text — framed as delimited, labeled DATA
+  // (frameUntrusted), not concatenated raw; the v2 system prompt tells the model the
+  // block is never an instruction. Web results never pass through this function: the
+  // web_search server tool inserts them as tool-result blocks the same clause covers.
+  const profileBlock = frameUntrusted('compliance profile (user-supplied)', `Business: ${profile.business_description}
 Operating Jurisdictions: ${profile.operating_jurisdictions.join(', ') || 'None specified'}
 Customer Jurisdictions: ${profile.customer_jurisdictions.join(', ') || 'Same as operating'}
 Products/Services: ${profile.products_services.join(', ') || 'Not specified'}
@@ -259,7 +302,10 @@ Revenue Stage: ${profile.revenue_stage}
 Employees: ${profile.employee_count}
 Planned Actions (24mo): ${profile.planned_actions_24mo.join('; ') || 'None'}
 Completed Filings: ${profile.known_completed_filings.join('; ') || 'None'}
-Notes: ${profile.notes || 'None'}
+Notes: ${profile.notes || 'None'}`);
+
+  return `COMPLIANCE PROFILE:
+${profileBlock}
 
 SEARCH QUERIES TO RUN (use web_search for each):
 ${searchQueries.map((q, i) => `${i + 1}. "${q.query}" [domains: ${q.allowed_domains.join(', ')}] [areas: ${q.practice_areas.join(', ')}]`).join('\n')}
