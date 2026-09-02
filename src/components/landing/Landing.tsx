@@ -4038,7 +4038,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <p className={`mt-2 ${DECK.statement}`}>And look at what these steps really are: Steps 9 and 10 are the bookkeeping system. Step 11 is the tax module and the runway screen. We did not bolt tools onto the pipe — the back half of the pipe IS the tools.</p>
           <p className="mt-[14px] font-mono text-[11px] lg:text-[13px] uppercase tracking-[0.20em] text-brand-amber">THIS IS THE PRODUCT.</p>
 
-          <p className={`mt-2 ${DECK.statement}`}>These four lenses are the blueprint. Today the trading lens reads live; tax, runway, and the business result wait on the posting pipe — the lines have to exist before they can add up.</p>
+          <p className={`mt-2 ${DECK.statement}`}>These four lenses are the blueprint. Today all four compute — tax and the business result from the journal entries you commit by hand, runway from Plaid&apos;s account balances against those entries, trading from the positions and lots you committed, with no live quote in the number. The rules-written lines and the live quotes the blueprint reads wait on the posting pipe.</p>
 
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={DECK.q}>Four answers. Where do you look?</p>
@@ -4251,7 +4251,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <p className={`mt-8 lg:mt-12 ${DECK.statement}`}>Bars are things that last. Dots are things that happen.</p>
           <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Twenty-five tools. Two windows!</p>
 
-          <p className={`mt-2 ${DECK.statement}`}>Two windows over one set of rows is the blueprint. Today the calendar window is live at /hub; the ledger window fills as the posting pipe lands its lines.</p>
+          <p className={`mt-2 ${DECK.statement}`}>Two windows over one set of rows is the blueprint. Today the calendar window is live in the cockpit; the ledger window fills as the posting pipe lands its lines.</p>
 
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={DECK.q}>Can you watch one dollar run the whole machine?</p>
