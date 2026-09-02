@@ -7,6 +7,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { SECTION_HEADER, STATE } from '@/lib/ds';
+import FamilyNav from './FamilyNav';
 import { readSyncOutcome, type SyncOutcome } from '@/lib/plaid/failLoud';
 import CreateTripForm from '@/components/trips/CreateTripForm';
 import TripBookings from '@/components/trips/TripBookings';
@@ -607,34 +608,15 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
 
   return (
     <>
-      {/* PR-Mobile2: bottom padding so the fixed mobile tab bar never covers the last
-          content; removed on desktop (md:pb-0), where there is no bar. */}
-      <div className="pb-20 md:pb-0">
-      {/* PR-Edge-B: the DESKTOP top tab row — desktop only (hidden md:block). It mirrors
-          the mobile bottom bar (same TABS, same setActiveModule) so desktop also shows
-          one module panel at a time. Sticky so it stays while a panel scrolls. The
-          phone uses the bottom bar instead (md:hidden). */}
-      {/* SHELL-SPEC (the landing is the spec): the desktop tab bar sits on the
-          light shell — bg-white + border-border hairline (HomeClient.tsx:138
-          idiom), mono uppercase labels. Active = brand-purple ink + underline;
-          inactive = text-muted → text-primary on hover (the ds.ts iconTab
-          ink pair). Structure/behavior untouched. */}
-      <nav className="sticky top-0 z-30 hidden border-b border-border bg-white md:block">
-        <div className="max-w-7xl mx-auto flex px-4 lg:px-8">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => selectTab(t.key)}
-              aria-current={activeModule === t.key ? 'page' : undefined}
-              className={`flex items-center gap-2 border-b-2 px-4 py-3 font-mono text-xs uppercase tracking-wider transition-colors ${activeModule === t.key ? 'border-brand-purple text-brand-purple' : 'border-transparent text-text-muted hover:text-text-primary'}`}
-            >
-              <t.icon className="h-4 w-4" aria-hidden="true" />
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </nav>
+      {/* NAV-01a: no fixed bottom bar any more, so no bottom padding to clear it. */}
+      <div>
+      {/* NAV-01a: THE FAMILY NAVIGATION replaces the nine product-history tabs on
+          every viewport — the deck's six families, each listing its tools with
+          their true state (src/lib/toolRegistry.ts). A cockpit-hosted tool opens
+          its section below through the SAME selectTab funnel the tabs used, so
+          the URL is still written as today and every deep link still restores
+          (the path/param effect above is untouched). */}
+      <FamilyNav activeModule={activeModule} onSelectModule={selectTab} />
       {/* HOME-PR-7: each module is its own FULL-WIDTH band with an ALTERNATING
           background (white / light-gray bg-bg-row) + generous vertical padding,
           so the six read as distinct breathing sections (the old marketing
@@ -1457,28 +1439,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       })}
       </div>
 
-      {/* PR-Mobile2 + PR-Edge-A: the fixed mobile bottom tab bar — phone only
-          (md:hidden), one tab per module. It horizontal-scrolls (overflow-x-auto + a
-          hidden scrollbar) so the 7 tabs stay clean and tappable on a narrow phone —
-          each tab is a fixed min-w-[64px], never crushed. Desktop uses the top tab row
-          instead (PR-Edge-B). Safe-area padding lifts it above the iOS home indicator. */}
-      {/* SHELL-SPEC: the mobile bottom bar sits on the light shell — bg-white +
-          border-border hairline; active = brand-purple, inactive = text-muted
-          (readable on white; mirrors the desktop bar). */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto border-t border-border bg-white pb-[env(safe-area-inset-bottom)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:hidden">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => selectTab(t.key)}
-            aria-current={activeModule === t.key ? 'page' : undefined}
-            className={`flex min-h-[44px] min-w-[64px] flex-1 flex-col items-center justify-center gap-0.5 py-1.5 font-mono text-[10px] uppercase tracking-wider transition-colors ${activeModule === t.key ? 'text-brand-purple' : 'text-text-muted'}`}
-          >
-            <t.icon className="h-5 w-5" aria-hidden="true" />
-            {t.label}
-          </button>
-        ))}
-      </nav>
+      {/* NAV-01a: the fixed mobile bottom tab bar is retired — the family nav at
+          the top serves every viewport (its family row scrolls horizontally). */}
     </>
   );
 }

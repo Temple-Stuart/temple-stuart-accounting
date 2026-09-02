@@ -180,6 +180,7 @@ import LandingFooter from './LandingFooter';
 // BOOK-3: the session-trip strip (guest-only by construction — Landing renders
 // only on the FD-2 verified-guest branch).
 import GuestTripStrip from './GuestTripStrip';
+import { PROBLEM_SHEET } from '@/lib/problemSheet';
 // PR-ELEV-1: the coming-soon tiles became badged "Soon" chips INSIDE the
 // booking strip (travelStripModes) — the separate tile row is gone.
 
@@ -218,14 +219,9 @@ const LandingBookingSection = dynamic(() => import('./LandingBookingSection'), {
 // modules retirement and the fan retirement. S1_TOOL_LIST below is the SAME
 // twenty-five in the founder's raw-list order — set-equal by construction,
 // verified by the PR script; a new tool lands in BOTH or the check fails.
-const PROBLEM_SHEET = [
-  { header: 'THE WORK', tools: ['Calendar', 'Tasks', 'Time'] },
-  { header: 'MONEY IN', tools: ['CRM', 'Contracts', 'Invoicing', 'Payments'] },
-  { header: 'MONEY OUT', tools: ['Bill Pay', 'Payroll', 'Expenses', 'Travel', 'Mileage', 'Budget'] },
-  { header: 'WHAT YOU OWN', tools: ['Banking', 'Fixed Assets', 'Retirement', 'Brokerage', 'Trade Log'] },
-  { header: 'WHAT YOU OWE', tools: ['Debt', 'Sales Tax', 'Ent Filings'] },
-  { header: 'THE PROOF', tools: ['Bookkeeping', 'Tax', 'Compliance', 'FP&A'] },
-] as const;
+// NAV-01a: PROBLEM_SHEET lives in the shared leaf src/lib/problemSheet.ts now
+// (imported at the top) — the deck, the tool registry, and the build-time
+// registry assert read the ONE const. Bytes unchanged; only the address moved.
 
 // S1-TOOL-LIST (PR-S1-VIZ): move (b) — the raw twenty-five in the founder's
 // ruled order, BEFORE sorting. Set-equal to PROBLEM_SHEET's cells (the PR
