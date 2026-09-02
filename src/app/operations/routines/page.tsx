@@ -1,13 +1,8 @@
-/**
- * /operations/routines
- *
- * Section E · Routines page. The OperationsEntityProvider is wired in the
- * parent /operations/layout.tsx (PR-Ops-2a precedent), so this page just
- * mounts SectionE_Routines directly — same shape as projects/page.tsx.
- */
+import { redirect } from 'next/navigation';
 
-import SectionE_Routines from '@/components/workbench/operations/SectionE_Routines';
-
-export default function OperationsRoutinesPage() {
-  return <SectionE_Routines />;
+// NAV-01b (ONE SHELL): the Operations shell's Routines page mounted the same SectionE_Routines the
+// cockpit's Routines section mounts.
+// The URL keeps resolving for anyone who linked or bookmarked it.
+export default function OperationsRoutinesRedirect() {
+  redirect('/routines');
 }

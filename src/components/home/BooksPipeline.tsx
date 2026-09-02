@@ -122,6 +122,17 @@ export default function BooksPipeline() {
     setPeriodCloses(d.periods || []);
   }, []);
 
+  // NAV-01b: the Financial Statements status — the one status /dashboard derived
+  // (dashboard :243-247, availableYears from /api/statements) — moves here with the
+  // section. Fail-loud like its siblings.
+  const [statementYears, setStatementYears] = useState<number[]>([]);
+  const loadStatementYears = useCallback(async () => {
+    const res = await fetch(`/api/statements?year=${year}`);
+    if (!res.ok) throw new Error('statements fetch failed');
+    const d = await res.json();
+    setStatementYears(Array.isArray(d.availableYears) ? d.availableYears : []);
+  }, [year]);
+
   // Core pipe data (mirrors dashboard loadData :142 + entities effect :199).
   // Fail-loud: any non-OK response throws → 'error' state (no fabricated empty data).
   const loadData = useCallback(async () => {
@@ -173,12 +184,12 @@ export default function BooksPipeline() {
   const reloadAll = useCallback(async () => {
     setState('loading');
     try {
-      await Promise.all([loadData(), loadReconciliations(), loadPeriodCloses()]);
+      await Promise.all([loadData(), loadReconciliations(), loadPeriodCloses(), loadStatementYears()]);
       setState('ok');
     } catch {
       setState('error');
     }
-  }, [loadData, loadReconciliations, loadPeriodCloses]);
+  }, [loadData, loadReconciliations, loadPeriodCloses, loadStatementYears]);
 
   useEffect(() => { reloadAll(); }, [reloadAll]);
 
@@ -220,6 +231,8 @@ export default function BooksPipeline() {
   const reconciledCount = reconciliations.filter((r) => r.status === 'reconciled').length;
   const closedThisYear = periodCloses.filter((p) => p.year === year && p.status === 'closed').length;
   const closedPeriods = periodCloses.filter((p) => p.status === 'closed' && p.closedAt);
+  // NAV-01b: the December close of the selected year IS the year-end close.
+  const yearEndClosed = periodCloses.some((p) => p.year === year && p.month === 12 && p.status === 'closed');
   // G7: the latest close's closedAt/closedBy — fetched (loadPeriodCloses) and
   // typed (PeriodClose.tsx PeriodCloseRecord) but never rendered until now.
   const latestClose = closedPeriods.reduce(
@@ -452,7 +465,10 @@ export default function BooksPipeline() {
       <div className={phase === 'reconcile' ? 'block space-y-3' : 'hidden'}>
         <SectionHeader kicker="03 / Reconcile" right="PHASE 03 OF 06" />
       {/* 6. REC — Bank Reconciliation (dashboard :620). */}
-      <BookkeepingSection title="Bank Reconciliation" pipelineKey="REC" status="pending">
+      {/* NAV-01b: status derived from the loaded reconciliations, no hardcoded 'pending'. */}
+      <BookkeepingSection title="Bank Reconciliation" pipelineKey="REC"
+        subtitle={`${reconciledCount} reconciled`}
+        status={reconciledCount > 0 ? 'complete' : 'pending'}>
         <div className="p-2">
           <BankReconciliation
             accounts={accounts}
@@ -476,12 +492,16 @@ export default function BooksPipeline() {
       <div className={phase === 'close' ? 'block space-y-3' : 'hidden'}>
         <SectionHeader kicker="04 / Close" right="PHASE 04 OF 06" />
       {/* 7. ADJ — Adjusting Entries (dashboard :644, self-fetching). */}
-      <BookkeepingSection title="Adjusting Entries" pipelineKey="ADJ" status="pending">
+      {/* NAV-01b: self-fetching section; this pipe holds no data to judge it, so it
+          carries no status claim (BookkeepingSection status is optional). */}
+      <BookkeepingSection title="Adjusting Entries" pipelineKey="ADJ">
         <AdjustingEntriesTab />
       </BookkeepingSection>
 
       {/* 10. CLOSE — Period Close (dashboard :663). */}
-      <BookkeepingSection title="Period Close" pipelineKey="CLOSE" status="pending">
+      <BookkeepingSection title="Period Close" pipelineKey="CLOSE"
+        subtitle={`${closedThisYear} closed in ${year}`}
+        status={closedThisYear > 0 ? 'complete' : 'pending'}>
         <div className="p-2">
           <PeriodClose
             transactions={transactions}
@@ -518,7 +538,8 @@ export default function BooksPipeline() {
       </BookkeepingSection>
 
       {/* 11. CLOSE-YE — Year-End Close (dashboard :703). */}
-      <BookkeepingSection title="Year-End Close" pipelineKey="CLOSE-YE" status="pending">
+      <BookkeepingSection title="Year-End Close" pipelineKey="CLOSE-YE"
+        status={yearEndClosed ? 'complete' : 'pending'}>
         <div className="p-2">
           <CloseBooksTab entityId={entityId} selectedYear={year} />
         </div>
@@ -531,22 +552,25 @@ export default function BooksPipeline() {
           onTotals reports the already-fetched T1 totals up for the strip state +
           the ProofStrip receipt (zero new fetches; the stable setter is the
           callback). */}
-      <BookkeepingSection title="Trial Balance" pipelineKey="TB" status="pending">
+      <BookkeepingSection title="Trial Balance" pipelineKey="TB"
+        status={tbTotals ? (tbTotals.hasActivity ? (tbTotals.isBalanced ? 'complete' : 'action-needed') : 'pending') : undefined}>
         <TrialBalanceSection onTotals={setTbTotals} />
       </BookkeepingSection>
 
       {/* 8. STMT — Financial Statements (dashboard :650, self-fetching). */}
-      <BookkeepingSection title="Financial Statements" pipelineKey="STMT" status="pending">
+      <BookkeepingSection title="Financial Statements" pipelineKey="STMT"
+        subtitle={statementYears.length > 0 ? `${statementYears.length} yr` : undefined}
+        status={statementYears.length > 0 ? 'complete' : 'pending'}>
         <FinancialStatementsTab />
       </BookkeepingSection>
 
       {/* 9. TAX-LOT — Tax Lot Accounting & Wash Sales (dashboard :657, self-fetching). */}
-      <BookkeepingSection title="Tax Lot Accounting & Wash Sales" pipelineKey="TAX-LOT" status="pending">
+      <BookkeepingSection title="Tax Lot Accounting & Wash Sales" pipelineKey="TAX-LOT">
         <WashSaleReportTab />
       </BookkeepingSection>
 
       {/* 12. POS — Position Report (dashboard :714, self-fetching). */}
-      <BookkeepingSection title="Position Report" pipelineKey="POS" status="pending">
+      <BookkeepingSection title="Position Report" pipelineKey="POS">
         <PositionReportTab />
       </BookkeepingSection>
       </div>
@@ -555,7 +579,7 @@ export default function BooksPipeline() {
         <SectionHeader kicker="06 / Export" right="PHASE 06 OF 06" />
       {/* 13. EXP — CPA Export (dashboard :745). The dashboard's Tax-forms link (:720) is
           intentionally omitted — Tax is its own homepage tab, not part of this pipe. */}
-      <BookkeepingSection title="CPA Export" pipelineKey="EXP" status="pending">
+      <BookkeepingSection title="CPA Export" pipelineKey="EXP">
         <div className="p-4">
           <CPAExport year={year} entityId={entityId} />
           {/* EXPORT-1: the full-data export lives on the same management surface

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import LoginBox from '@/components/LoginBox';
 import ModuleLauncher from '@/components/home/ModuleLauncher';
+import UtilitiesMenu from '@/components/ui/UtilitiesMenu';
 // ONE-BAND: the per-tab module band copy (headline + ✓ chips) — the hero IS
 // the module band now, so it reads the same single source (leaf module,
 // lockstep with the deck's PILLAR_CARDS).
@@ -40,6 +41,7 @@ export default function HomeClient() {
   // (render a neutral placeholder, never flash the wrong action); true/false once resolved.
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [userLabel, setUserLabel] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
   // EXPORT-1b: the header export chip — shared behavior with the Books-tab button.
   const { busy: exportBusy, error: exportError, run: runExport } = useExportDownload();
   // PR-PRICE-3: "Manage subscription" relocated here from the dead /pricing
@@ -76,6 +78,8 @@ export default function HomeClient() {
           const data = await res.json().catch(() => null);
           const u = data?.user;
           if (u) setUserLabel(u.name || u.email?.split('@')[0] || '');
+          // NAV-01b: the utilities menu (owner pages) shows for an admin viewer only.
+          setIsAdmin(Boolean(u?.isAdmin));
         }
       })
       .catch(() => { if (!cancelled) setAuthed(false); });
@@ -172,6 +176,7 @@ export default function HomeClient() {
                   >
                     {manageBusy ? 'Opening portal…' : 'Manage subscription'}
                   </button>
+                  {isAdmin && <UtilitiesMenu />}
                   {userLabel && (
                     <span className="text-xs text-text-muted hidden sm:block">{userLabel}</span>
                   )}

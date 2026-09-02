@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useEffect, useState, Suspense } from 'react';
 import TripCreationBar from '@/components/trips/TripCreationBar';
-import Sidebar from '@/components/ui/Sidebar';
+import ShellBar from '@/components/ui/ShellBar';
 
 export interface LedgerMetrics {
   balance: number;
@@ -47,11 +47,14 @@ export interface AppLayoutProps {
 interface CookieUser {
   email: string;
   name: string;
+  /** /api/auth/me → isAdminUser(user.id); gates the utilities menu. */
+  isAdmin?: boolean;
 }
 
 // ─── Route Groups ────────────────────────────────────────────────────────────
-// Nav route config now lives in Sidebar.tsx (same hrefs/prefixes). Only the
-// Travel prefixes remain here, to gate the Travel search bar below.
+// NAV-01b: the Sidebar (five module links duplicating the cockpit) is gone; the
+// families are the navigation. Only the Travel prefixes remain here, to gate the
+// Travel search bar below.
 
 const TRAVEL_PREFIXES = ['/budgets/trips', '/trips'];
 
@@ -169,13 +172,17 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
   const userLabel = currentUser?.name || currentUser?.email?.split('@')[0] || '';
 
   // ─── Render ────────────────────────────────────────────────────────────────
-  // Sidebar shell replaces the former top-nav (Overhaul-PR-1). The prop-driven
-  // context bars (Travel search, bookkeeping, ledger, engine) are preserved and
-  // relocated to the top of the main content column — page {children} unchanged.
+  // NAV-01b: ONE shell — the slim ShellBar (brand → the map, utilities, sign out)
+  // replaces the Sidebar; the prop-driven context bars (Travel search, bookkeeping,
+  // ledger, engine) stay at the top of the content column — page {children} unchanged.
 
   return (
-    <div className="min-h-screen bg-bg-terminal lg:flex">
-      <Sidebar pathname={pathname} userLabel={userLabel} onSignOut={handleSignOut} />
+    <div className="min-h-screen bg-bg-terminal flex flex-col">
+      <ShellBar
+        userLabel={userLabel}
+        isAdmin={Boolean((currentUser as { isAdmin?: boolean } | null | undefined)?.isAdmin)}
+        onSignOut={handleSignOut}
+      />
 
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Travel Search Bar (only on Travel routes) */}
