@@ -8,7 +8,7 @@ import { prisma } from '@/lib/prisma';
 import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { decryptToken } from '@/lib/secrets/tokenCipher';
-import { summarizePlaidError } from '@/lib/plaid/summarizeError';
+import { failureEnvelope } from '@/lib/plaid/failLoud';
 
 const plaidConfig = new Configuration({
   basePath: PlaidEnvironments.production,
@@ -129,11 +129,14 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ 
+      ok: true,
       success: true, 
       synced: transactions.length 
     });
-  } catch (error: any) {
-    console.error('Sync error:', summarizePlaidError(error));
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    // HYG-01: the failure is declared with a summarized body, never a bare message.
+    const { status, body } = failureEnvelope('transactions', error);
+    console.error('Sync error:', body.error);
+    return NextResponse.json(body, { status });
   }
 }

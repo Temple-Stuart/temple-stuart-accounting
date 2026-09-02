@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
 import { requireAdmin } from '@/lib/require-admin';
 import { decryptToken } from '@/lib/secrets/tokenCipher';
-import { summarizePlaidError } from '@/lib/plaid/summarizeError';
+import { failureEnvelope } from '@/lib/plaid/failLoud';
 
 /**
  * POST /api/admin/backfill-transaction-fields
@@ -127,17 +127,24 @@ export async function POST() {
           hasMore = response.data.total_transactions > offset;
         }
       } catch (error) {
-        console.error(`Error backfilling item ${item.id}:`, summarizePlaidError(error));
+        // HYG-01: STOP AND DECLARE — no further items, the failure is the response.
+        const { status, body } = failureEnvelope('backfill', error, {
+          updated: totalUpdated, fieldsBackfilled: totalFieldsBackfilled,
+        });
+        console.error(`Error backfilling item ${item.id}:`, body.error);
+        return NextResponse.json(body, { status });
       }
     }
 
     return NextResponse.json({
+      ok: true,
       success: true,
       updated: totalUpdated,
       fieldsBackfilled: totalFieldsBackfilled
     });
   } catch (error) {
-    console.error('Backfill error:', summarizePlaidError(error));
-    return NextResponse.json({ error: 'Failed to backfill' }, { status: 500 });
+    const { status, body } = failureEnvelope('backfill', error);
+    console.error('Backfill error:', body.error);
+    return NextResponse.json(body, { status });
   }
 }

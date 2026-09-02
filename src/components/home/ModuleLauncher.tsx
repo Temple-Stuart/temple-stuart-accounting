@@ -7,6 +7,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { SECTION_HEADER, STATE } from '@/lib/ds';
+import { readSyncOutcome, type SyncOutcome } from '@/lib/plaid/failLoud';
 import CreateTripForm from '@/components/trips/CreateTripForm';
 import TripBookings from '@/components/trips/TripBookings';
 import UnattachedBookings from '@/components/trips/UnattachedBookings';
@@ -393,6 +394,9 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
     isBalanced: boolean; hasActivity: boolean; connectedAccounts: number; periodStatus: 'open' | 'closed';
   } | null>(null);
   const [booksSyncing, setBooksSyncing] = useState(false);
+  // HYG-01: the sync route's returned line (200 ok / 207 partial / non-2xx failure),
+  // rendered inline under the cockpit bar. Cleared when the next sync starts.
+  const [booksSyncMessage, setBooksSyncMessage] = useState<SyncOutcome | null>(null);
   // Plaid Link token for onLinkAccount (fetched from the auth-gated /api/plaid/link-token).
   const [booksLinkToken, setBooksLinkToken] = useState<string | null>(null);
 
@@ -455,8 +459,11 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // /api/transactions/sync-complete, then re-read the cockpit. No auth weakened.
   const booksSyncAccounts = async () => {
     setBooksSyncing(true);
+    setBooksSyncMessage(null);
     try {
-      await fetch('/api/transactions/sync-complete', { method: 'POST' });
+      const res = await fetch('/api/transactions/sync-complete', { method: 'POST' });
+      // HYG-01: read the declared outcome — a failed or partial sync is shown, never swallowed.
+      setBooksSyncMessage(await readSyncOutcome(res));
       await loadBooksCockpit();
     } finally {
       setBooksSyncing(false);
@@ -1302,6 +1309,16 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                     syncing={booksSyncing}
                     onLinkAccount={booksLinkAccount}
                   />
+                )}
+                {booksSyncMessage && (
+                  <div
+                    role={booksSyncMessage.tone === 'ok' ? 'status' : 'alert'}
+                    className={booksSyncMessage.tone === 'ok'
+                      ? 'rounded-lg border border-border bg-bg-row p-3 text-xs text-text-secondary'
+                      : STATE.errorCard}
+                  >
+                    {booksSyncMessage.text}
+                  </div>
                 )}
                 {/* BOOKS-2: the full pipe below the cockpit — import → categorize/COA →
                     journal → ledger → trial balance → reconcile → adjusting → statements →

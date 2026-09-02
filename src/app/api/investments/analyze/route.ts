@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { decryptToken } from '@/lib/secrets/tokenCipher';
-import { summarizePlaidError } from '@/lib/plaid/summarizeError';
+import { failureEnvelope } from '@/lib/plaid/failLoud';
 
 export async function GET() {
   try {
@@ -25,6 +25,9 @@ export async function GET() {
     });
 
     for (const item of plaidItems) {
+      // HYG-01: STOP AND DECLARE — a failed provider call is the response, never an
+      // empty page. `stage` names the call in flight.
+      let stage: 'holdings' | 'investments' = 'holdings';
       try {
         // Get investment holdings
         const holdingsResponse = await plaidClient.investmentsHoldingsGet({
@@ -36,6 +39,7 @@ export async function GET() {
         }
 
         // Get investment transactions
+        stage = 'investments';
         const transactionsResponse = await plaidClient.investmentsTransactionsGet({
           access_token: decryptToken(item.accessToken),
           start_date: '2020-01-01',
@@ -46,11 +50,14 @@ export async function GET() {
           allTransactions = allTransactions.concat(transactionsResponse.data.investment_transactions);
         }
       } catch (error) {
-        console.error('Error fetching investment data:', summarizePlaidError(error));
+        const { status, body } = failureEnvelope(stage, error);
+        console.error('Error fetching investment data:', body.error);
+        return NextResponse.json(body, { status });
       }
     }
 
     return NextResponse.json({
+      ok: true,
       holdings,
       transactions: allTransactions,
       summary: {
@@ -59,7 +66,8 @@ export async function GET() {
       }
     });
   } catch (error) {
-    console.error('Investment analysis error:', summarizePlaidError(error));
-    return NextResponse.json({ error: 'Failed to analyze investments' }, { status: 500 });
+    const { status, body } = failureEnvelope('investments', error);
+    console.error('Investment analysis error:', body.error);
+    return NextResponse.json(body, { status });
   }
 }

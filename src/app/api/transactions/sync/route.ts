@@ -8,7 +8,7 @@ import { plaidClient } from '@/lib/plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
 import { decryptToken } from '@/lib/secrets/tokenCipher';
-import { summarizePlaidError } from '@/lib/plaid/summarizeError';
+import { failureEnvelope, stageOk, syncEnvelope } from '@/lib/plaid/failLoud';
 
 export async function POST() {
   console.warn('DEPRECATED: /api/transactions/sync called — use /api/transactions/sync-complete');
@@ -123,20 +123,23 @@ export async function POST() {
           cursor = next_cursor;
         }
       } catch (error) {
-        console.error('Error syncing transactions for item:', item.id, summarizePlaidError(error));
+        // HYG-01: STOP AND DECLARE — no further items, the failure is the response.
+        const { status, body } = failureEnvelope('transactions', error, {
+          stats: { added: totalAdded, modified: totalModified, removed: totalRemoved },
+        });
+        console.error('Error syncing transactions for item:', item.id, body.error);
+        return NextResponse.json(body, { status });
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      stats: {
-        added: totalAdded,
-        modified: totalModified,
-        removed: totalRemoved
-      }
-    });
+    const { status, body } = syncEnvelope(
+      [stageOk('transactions', { added: totalAdded, modified: totalModified, removed: totalRemoved })],
+      { success: true, stats: { added: totalAdded, modified: totalModified, removed: totalRemoved } },
+    );
+    return NextResponse.json(body, { status });
   } catch (error) {
-    console.error('Transaction sync error:', summarizePlaidError(error));
-    return NextResponse.json({ error: 'Failed to sync transactions' }, { status: 500 });
+    const { status, body } = failureEnvelope('sync', error);
+    console.error('Transaction sync error:', body.error);
+    return NextResponse.json(body, { status });
   }
 }
