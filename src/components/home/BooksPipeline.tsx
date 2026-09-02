@@ -101,6 +101,9 @@ export default function BooksPipeline() {
   const [periodCloses, setPeriodCloses] = useState<Row[]>([]);
   const [entityId, setEntityId] = useState<string | null>(null);
   const [mappingTab, setMappingTab] = useState<'spending' | 'investments'>('spending');
+  // HYG-01: the Investments badge counts the SAME query the commit workflow renders
+  // (/api/investment-transactions/opens · totalAll) — one source, never a disagreeing number.
+  const [investmentQueue, setInvestmentQueue] = useState<number>(0);
 
   // Reconciliations + period closes have their own reloaders (mirrors dashboard
   // loadReconciliations :178 / loadPeriodCloses :188). Fail-loud — throw so the
@@ -122,15 +125,16 @@ export default function BooksPipeline() {
   // Core pipe data (mirrors dashboard loadData :142 + entities effect :199).
   // Fail-loud: any non-OK response throws → 'error' state (no fabricated empty data).
   const loadData = useCallback(async () => {
-    const [txnRes, coaRes, accRes, invRes, jeRes, entRes] = await Promise.all([
+    const [txnRes, coaRes, accRes, invRes, jeRes, entRes, opensRes] = await Promise.all([
       fetch('/api/transactions'),
       fetch('/api/chart-of-accounts'),
       fetch('/api/accounts'),
       fetch('/api/investment-transactions'),
       fetch('/api/journal-transactions'),
       fetch('/api/entities'),
+      fetch('/api/investment-transactions/opens'),
     ]);
-    if (![txnRes, coaRes, accRes, invRes, jeRes, entRes].every((r) => r.ok)) {
+    if (![txnRes, coaRes, accRes, invRes, jeRes, entRes, opensRes].every((r) => r.ok)) {
       throw new Error('core books fetch failed');
     }
     const txn = await txnRes.json();
@@ -150,7 +154,14 @@ export default function BooksPipeline() {
     });
     setAccounts(flat);
     const inv = await invRes.json();
-    setInvestmentTransactions(inv.transactions || inv.investments || []);
+    // HYG-01: /api/investment-transactions returns a bare array; the old `inv.transactions ||
+    // inv.investments || []` read it as EMPTY every time (the 'Investments 0' badge above 920
+    // rows). A non-array is a contract break → error state, not a fabricated empty list.
+    if (!Array.isArray(inv)) throw new Error('investment-transactions: expected an array');
+    setInvestmentTransactions(inv);
+    const opens = await opensRes.json();
+    if (typeof opens?.totalAll !== 'number') throw new Error('investment-transactions/opens: totalAll missing');
+    setInvestmentQueue(opens.totalAll);
     const je = await jeRes.json();
     setJournalEntries(je.entries || []);
     const ent = await entRes.json();
@@ -205,7 +216,7 @@ export default function BooksPipeline() {
   // component already holds (hardcoded states forbidden; the in-card stage
   // dots' 9 hardcoded 'pending' props are the ledgered G2 anti-pattern, NEXT
   // PR, untouched here).
-  const pendingCount = uncommittedSpending.length + uncommittedInvestments.length;
+  const pendingCount = uncommittedSpending.length + investmentQueue;
   const reconciledCount = reconciliations.filter((r) => r.status === 'reconciled').length;
   const closedThisYear = periodCloses.filter((p) => p.year === year && p.status === 'closed').length;
   const closedPeriods = periodCloses.filter((p) => p.status === 'closed' && p.closedAt);
@@ -393,8 +404,8 @@ export default function BooksPipeline() {
         <SectionHeader kicker="02 / Code" right="PHASE 02 OF 06" />
       {/* 2. CAT — Categorize (dashboard :568): the COA-assignment queue. */}
       <BookkeepingSection title="Categorize Transactions" pipelineKey="CAT"
-        subtitle={`${uncommittedSpending.length + uncommittedInvestments.length} pending`}
-        status={uncommittedSpending.length + uncommittedInvestments.length > 0 ? 'action-needed' : 'complete'}>
+        subtitle={`${uncommittedSpending.length + investmentQueue} pending`}
+        status={uncommittedSpending.length + investmentQueue > 0 ? 'action-needed' : 'complete'}>
         <div>
           <div className={'flex items-center gap-3 px-3 py-1.5 border-b border-border'}>
             <div className={'flex items-center border border-border bg-white'}>
@@ -408,7 +419,7 @@ export default function BooksPipeline() {
                 className={`px-2 py-0.5 text-[10px] font-mono font-medium border-l border-border transition-colors ${
                   mappingTab === 'investments' ? 'bg-brand-purple-wash text-brand-purple' : 'text-text-muted hover:text-text-primary'
                 }`}>
-                Investments <span className="font-bold text-brand-gold">{uncommittedInvestments.length}</span>
+                Investments <span className="font-bold text-brand-gold">{investmentQueue}</span>
               </button>
             </div>
           </div>

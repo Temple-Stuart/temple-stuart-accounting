@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { decryptToken } from '@/lib/secrets/tokenCipher';
-import { summarizePlaidError } from '@/lib/plaid/summarizeError';
+import { failureEnvelope } from '@/lib/plaid/failLoud';
 
 export async function POST() {
   try {
@@ -53,16 +53,21 @@ export async function POST() {
           updatedCount += result.count;
         }
       } catch (error) {
-        console.error('Error fixing categories for item:', item.id, summarizePlaidError(error));
+        // HYG-01: STOP AND DECLARE — no further items, the failure is the response.
+        const { status, body } = failureEnvelope('categories', error, { updatedCount });
+        console.error('Error fixing categories for item:', item.id, body.error);
+        return NextResponse.json(body, { status });
       }
     }
 
     return NextResponse.json({ 
+      ok: true,
       success: true, 
       updatedCount 
     });
   } catch (error) {
-    console.error('Fix categories error:', summarizePlaidError(error));
-    return NextResponse.json({ error: 'Failed to fix categories' }, { status: 500 });
+    const { status, body } = failureEnvelope('categories', error);
+    console.error('Fix categories error:', body.error);
+    return NextResponse.json(body, { status });
   }
 }

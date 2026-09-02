@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { decryptToken } from '@/lib/secrets/tokenCipher';
-import { summarizePlaidError } from '@/lib/plaid/summarizeError';
+import { failureEnvelope } from '@/lib/plaid/failLoud';
 
 export async function GET() {
   try {
@@ -28,11 +28,15 @@ export async function GET() {
     const investmentData = [];
     
     for (const item of plaidItems) {
+      // HYG-01: STOP AND DECLARE — a failed provider call is the response, never an
+      // empty list. `stage` names the call in flight.
+      let stage: 'holdings' | 'investments' = 'holdings';
       try {
         const holdingsResponse = await plaidClient.investmentsHoldingsGet({
           access_token: decryptToken(item.accessToken)
         });
 
+        stage = 'investments';
         const transactionsResponse = await plaidClient.investmentsTransactionsGet({
           access_token: decryptToken(item.accessToken),
           start_date: '2020-01-01',
@@ -46,13 +50,16 @@ export async function GET() {
           transactions: transactionsResponse.data.investment_transactions,
         });
       } catch (error) {
-        console.error('Error fetching investment data:', summarizePlaidError(error));
+        const { status, body } = failureEnvelope(stage, error);
+        console.error('Error fetching investment data:', body.error);
+        return NextResponse.json(body, { status });
       }
     }
 
     return NextResponse.json(investmentData);
   } catch (error) {
-    console.error('Error in investments route:', summarizePlaidError(error));
-    return NextResponse.json({ error: 'Failed to fetch investments' }, { status: 500 });
+    const { status, body } = failureEnvelope('investments', error);
+    console.error('Error in investments route:', body.error);
+    return NextResponse.json(body, { status });
   }
 }

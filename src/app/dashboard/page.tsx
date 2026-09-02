@@ -6,6 +6,8 @@ import Link from 'next/link';
 import Script from 'next/script';
 import { AppLayout } from '@/components/ui';
 import { isTabLocked } from '@/lib/categoryLock';
+import { STATE } from '@/lib/ds';
+import { readSyncOutcome, type SyncOutcome } from '@/lib/plaid/failLoud';
 import SpendingTab from '@/components/dashboard/SpendingTab';
 import InvestmentsTab from '@/components/dashboard/InvestmentsTab';
 import GeneralLedger from '@/components/dashboard/GeneralLedger';
@@ -111,6 +113,12 @@ export default function Dashboard() {
   const [journalEntries, setJournalEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  // HYG-01: the sync route's returned line; a failed core load is declared, not blank.
+  const [syncMessage, setSyncMessage] = useState<SyncOutcome | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  // HYG-01: the Investments badge counts the SAME query the commit workflow renders
+  // (/api/investment-transactions/opens · totalAll) — one source, never a disagreeing number.
+  const [investmentQueue, setInvestmentQueue] = useState<number>(0);
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [userTier, setUserTier] = useState<string>('free');
   const [currentUserId, setCurrentUserId] = useState<string>('');
@@ -145,9 +153,14 @@ export default function Dashboard() {
 
   const loadData = useCallback(async () => {
     try {
-      const [txnRes, coaRes, accRes, invRes] = await Promise.all([
-        fetch('/api/transactions'), fetch('/api/chart-of-accounts'), fetch('/api/accounts'), fetch('/api/investment-transactions')
+      const [txnRes, coaRes, accRes, invRes, opensRes] = await Promise.all([
+        fetch('/api/transactions'), fetch('/api/chart-of-accounts'), fetch('/api/accounts'), fetch('/api/investment-transactions'),
+        fetch('/api/investment-transactions/opens')
       ]);
+      // HYG-01: declare a failed core load instead of rendering the last (or empty) state as truth.
+      const failedCore = ([['transactions', txnRes], ['chart of accounts', coaRes], ['accounts', accRes], ['investment transactions', invRes], ['investment queue', opensRes]] as const)
+        .filter(([, r]) => !r.ok).map(([name, r]) => `${name} (HTTP ${r.status})`);
+      setLoadError(failedCore.length ? `Couldn't load: ${failedCore.join(', ')}. Nothing is assumed.` : null);
       if (txnRes.ok) { const data = await txnRes.json(); setTransactions(data.transactions || []); }
       if (coaRes.ok) { const data = await coaRes.json(); setCoaOptions(data.accounts || []); }
       if (accRes.ok) {
@@ -161,6 +174,12 @@ export default function Dashboard() {
         setAccounts(allAccounts);
       }
       if (invRes.ok) { const data = await invRes.json(); setInvestmentTransactions(data.transactions || data.investments || data || []); }
+      if (opensRes.ok) {
+        const data = await opensRes.json();
+        // HYG-01: a missing count is declared, never defaulted to 0.
+        if (typeof data.totalAll === 'number') setInvestmentQueue(data.totalAll);
+        else setLoadError((prev) => [prev, 'Investment queue: totalAll missing from /api/investment-transactions/opens.'].filter(Boolean).join(' '));
+      }
       
       const jeRes = await fetch('/api/journal-transactions');
       if (jeRes.ok) { const jeData = await jeRes.json(); setJournalEntries(jeData.entries || []); }
@@ -357,9 +376,15 @@ export default function Dashboard() {
 
   const syncAccounts = async () => {
     setSyncing(true);
-    await fetch('/api/transactions/sync-complete', { method: 'POST' });
-    await loadData();
-    setSyncing(false);
+    setSyncMessage(null);
+    try {
+      const res = await fetch('/api/transactions/sync-complete', { method: 'POST' });
+      // HYG-01: read the declared outcome — a failed or partial sync is shown, never swallowed.
+      setSyncMessage(await readSyncOutcome(res));
+      await loadData();
+    } finally {
+      setSyncing(false);
+    }
   };
 
   const updateAccountEntity = async (accountId: string, entityType: string) => {
@@ -408,7 +433,7 @@ export default function Dashboard() {
   // saveReconciliation, closePeriod, reopenPeriod removed — tables dropped in Phase 0
 
   const totalBalance = accounts.reduce((s, a) => s + a.balance, 0);
-  const pendingCount = uncommittedSpending.length + uncommittedInvestments.length;
+  const pendingCount = uncommittedSpending.length + investmentQueue;
   const committedCount = committedSpending.length + committedInvestments.length;
 
   const handleTaxSettingsSave = async (settings: TaxSettingsValues) => {
@@ -483,6 +508,19 @@ export default function Dashboard() {
         <div className="min-h-screen bg-bg-terminal">
           <div className="px-4 lg:px-6 pt-4 max-w-[1600px] mx-auto">
             <div className="space-y-3">
+              {loadError && (
+                <div role="alert" className={STATE.errorCard}>{loadError}</div>
+              )}
+              {syncMessage && (
+                <div
+                  role={syncMessage.tone === 'ok' ? 'status' : 'alert'}
+                  className={syncMessage.tone === 'ok'
+                    ? 'rounded-lg border border-border bg-bg-row p-3 text-xs text-text-secondary'
+                    : STATE.errorCard}
+                >
+                  {syncMessage.text}
+                </div>
+              )}
 
               {/* Tax Filing CTA — primary tax-season action */}
               <Link
@@ -577,8 +615,8 @@ export default function Dashboard() {
 
               {/* 2. CAT — Categorize */}
               <BookkeepingSection title="Categorize Transactions" pipelineKey="CAT"
-                subtitle={`${uncommittedSpending.length + uncommittedInvestments.length} pending`}
-                status={uncommittedSpending.length + uncommittedInvestments.length > 0 ? 'action-needed' : 'complete'}>
+                subtitle={`${uncommittedSpending.length + investmentQueue} pending`}
+                status={uncommittedSpending.length + investmentQueue > 0 ? 'action-needed' : 'complete'}>
                 <div>
                   <div className="flex items-center gap-3 px-3 py-1.5 border-b border-border">
                     <div className="flex items-center border border-border bg-white">
@@ -592,7 +630,7 @@ export default function Dashboard() {
                         className={`px-2 py-0.5 text-[10px] font-mono font-medium border-l border-border transition-colors ${
                           mappingTab === 'investments' ? 'bg-brand-purple-wash text-brand-purple' : 'text-text-muted hover:text-text-primary'
                         }`}>
-                        Investments <span className="font-bold text-brand-gold">{uncommittedInvestments.length}</span>
+                        Investments <span className="font-bold text-brand-gold">{investmentQueue}</span>
                       </button>
                     </div>
                   </div>
