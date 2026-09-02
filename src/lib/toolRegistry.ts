@@ -79,10 +79,12 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   },
   Tasks: {
     slug: 'tasks', status: 'LIVE', beats: ALL, home: '/projects', cockpitKey: 'projects',
+    links: [{ label: 'Issue log', href: '/operations/issues' }, { label: 'Audit tail', href: '/operations/audit-log' }],
     citation: 'src/app/api/operations/projects/[id]/tasks/route.ts:43 · generate-tasks/route.ts:42 · tasks/bulk-create/route.ts:117 · tasks/[taskId]/route.ts:82 → :339, :370',
   },
   Time: {
     slug: 'time', status: 'LIVE', beats: ALL, home: '/content', cockpitKey: 'content',
+    links: [{ label: 'Daily plan · North Star', href: '/operations' }],
     citation: 'src/app/api/operations/tasks/unscheduled/route.ts · daily-plan/items/route.ts:120 · daily-plan/items/[itemId]/blocks/route.ts:36 · daily-plan/blocks/[blockId]/route.ts:38, :163',
   },
   // ── MONEY IN ──
@@ -113,6 +115,8 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     links: [
       { label: 'Personal', href: '/personal' }, { label: 'Home', href: '/home' }, { label: 'Auto', href: '/auto' },
       { label: 'Growth', href: '/growth' }, { label: 'Health', href: '/health' },
+      { label: 'Shopping · meal & cart plans', href: '/shopping' },
+      { label: 'Itinerary budget builder', href: '/hub/itinerary' },
       { label: 'Runway · the read-only view', cockpitKey: 'calendar' },
     ],
     citation: 'src/components/dashboard/BudgetingPage.tsx:39 · src/app/api/home/route.ts:33-63 · :89 (draft :107) · src/app/api/home/[id]/route.ts:143 · :118-139, :81-89',
@@ -121,12 +125,14 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // ── WHAT YOU OWN ──
   Banking: {
     slug: 'banking', status: 'PARTIAL', beats: some({ discover: true }), home: '/books', cockpitKey: 'books',
+    links: [{ label: 'Accounts · the legacy page', href: '/accounts' }],
     citation: 'src/components/home/BooksPipeline.tsx:296 (Source Accounts) · src/app/api/accounts/route.ts:6; no transfer route exists',
   },
   'Fixed Assets': { slug: 'fixed-assets', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 15 — no depreciation or placed-in-service field' },
   Retirement: { slug: 'retirement', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 16 — 1099-R intake at src/app/api/tax/calculate/route.ts:250 is Tax' },
   Brokerage: {
     slug: 'brokerage', status: 'PARTIAL', beats: some({ discover: true, decide: true }), home: '/trade', cockpitKey: 'trade',
+    links: [{ label: 'Standalone cockpit · chains, connect, observatory, journal', href: '/trading' }],
     citation: 'src/app/api/tastytrade/chains/route.ts:58 · scanner/route.ts:205 · src/app/api/trade-cards/route.ts:72 (status queued :92); no order is ever sent (ConvergenceIntelligence.tsx:840)',
   },
   'Trade Log': {
@@ -141,7 +147,7 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // ── THE PROOF ──
   Bookkeeping: {
     slug: 'bookkeeping', status: 'LIVE', beats: ALL, home: '/books', cockpitKey: 'books',
-    links: [{ label: 'Dashboard · the legacy shell', href: '/dashboard' }],
+    links: [{ label: 'Chart of accounts', href: '/chart-of-accounts' }],
     citation: 'src/components/home/BooksPipeline.tsx:198 · src/lib/auto-categorization-service.ts:132-140 · src/lib/journal-entry-service.ts:131, :210-216 · :147, :158',
   },
   Tax: {
@@ -151,12 +157,23 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   },
   Compliance: {
     slug: 'compliance', status: 'PARTIAL', beats: some({ discover: true, decide: true, record: true }), home: '/compliance', cockpitKey: 'compliance',
+    links: [{ label: 'SOC 2 proofs', href: '/soc2' }],
     citation: 'src/lib/discovery/runDiscovery.ts:44 · :107 · src/lib/audit/writeAuditLog.ts:101 via materializeProposal.ts:186; nothing signed (attestation_status schema:2675-2678 never written)',
   },
   'FP&A': { slug: 'fpa', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 25 — no forecast model, route, or tab; MetricsAndProjectionsTab.tsx:53 reads a key the route never returns' },
 };
 
 export const FAMILIES: readonly FamilyName[] = PROBLEM_SHEET.map((f) => f.header);
+
+/**
+ * NAV-01b: family-level READS — pages that read across a family's tools and
+ * belong to no single tool. Net worth is reserved for THE ANSWERS (NAV-01c);
+ * until then it is a read under WHAT YOU OWN. Income is a read under MONEY IN.
+ */
+export const FAMILY_READS: Readonly<Partial<Record<FamilyName, readonly ToolLink[]>>> = {
+  'MONEY IN': [{ label: 'Income · a read', href: '/income' }],
+  'WHAT YOU OWN': [{ label: 'Net worth · a read (THE ANSWERS, NAV-01c)', href: '/net-worth' }],
+};
 
 /** The 25 tools in sheet order, each joined to its census facts. */
 export const TOOL_REGISTRY: readonly ToolEntry[] = PROBLEM_SHEET.flatMap((f) =>
@@ -213,6 +230,10 @@ export function registryLaw(opts: { throwOnFail?: boolean } = {}): string[] {
   }
   for (const [key, name] of Object.entries(COCKPIT_PRIMARY_TOOL)) {
     if (!(name in FACTS)) violations.push(`COCKPIT_PRIMARY_TOOL[${key}] names unknown tool "${name}"`);
+  }
+  for (const [family, reads] of Object.entries(FAMILY_READS)) {
+    if (!FAMILIES.includes(family as FamilyName)) violations.push(`FAMILY_READS names unknown family "${family}"`);
+    for (const r of reads ?? []) if (!r.href || !r.href.startsWith('/')) violations.push(`FAMILY_READS[${family}]: "${r.label}" must be an href route`);
   }
   if (violations.length && opts.throwOnFail !== false) {
     throw new Error(`TOOL REGISTRY LAW failed:\n  ${violations.join('\n  ')}`);

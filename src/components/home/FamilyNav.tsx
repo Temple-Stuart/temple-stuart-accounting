@@ -16,7 +16,7 @@
  */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { FAMILIES, COCKPIT_PRIMARY_TOOL, TOOL_REGISTRY, toolsOf, type Beats, type ToolEntry, type ToolStatus } from '@/lib/toolRegistry';
+import { FAMILIES, FAMILY_READS, COCKPIT_PRIMARY_TOOL, TOOL_REGISTRY, toolsOf, type Beats, type ToolEntry, type ToolStatus } from '@/lib/toolRegistry';
 import type { FamilyName } from '@/lib/problemSheet';
 
 interface Props {
@@ -50,6 +50,7 @@ export default function FamilyNav({ activeModule, onSelectModule }: Props) {
   }, [activeModule]);
 
   const tools = toolsOf(family);
+  const reads = FAMILY_READS[family] ?? [];
 
   return (
     <nav aria-label="Tool families" className="border-b border-border bg-white">
@@ -78,6 +79,17 @@ export default function FamilyNav({ activeModule, onSelectModule }: Props) {
             <ToolRow key={t.slug} tool={t} activeModule={activeModule} onSelectModule={onSelectModule} />
           ))}
         </ul>
+        {/* NAV-01b: family-level reads — pages that read across the family's tools. */}
+        {reads.length > 0 && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border py-2 font-mono text-[10px] uppercase tracking-wider">
+            <span className="text-text-faint">Reads</span>
+            {reads.map((r) => (
+              <Link key={r.label} href={r.href as string} className="text-text-muted underline-offset-2 hover:text-text-primary hover:underline normal-case tracking-normal">
+                {r.label}
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </nav>
   );
