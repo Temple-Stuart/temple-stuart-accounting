@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   DEFAULT_DISCOVERY_DAILY_CAP_USD,
   DiscoveryBudgetError,
+  DiscoveryConfigError,
   discoveryDailyCapUsd,
   discoveryRefusal,
   frameUntrusted,
@@ -55,12 +56,38 @@ test('at cap exactly is refused (>= cap); under cap runs and reports the status'
   });
 });
 
-test('the cap reads AI_DISCOVERY_DAILY_CAP as a positive number; otherwise the default', () => {
-  withCap('2.5', () => assert.equal(discoveryDailyCapUsd(), 2.5));
-  withCap('0', () => assert.equal(discoveryDailyCapUsd(), DEFAULT_DISCOVERY_DAILY_CAP_USD));
-  withCap('nope', () => assert.equal(discoveryDailyCapUsd(), DEFAULT_DISCOVERY_DAILY_CAP_USD));
+test('the cap: unset → the documented default; set to a finite positive number → that number', () => {
   withCap(undefined, () => assert.equal(discoveryDailyCapUsd(), DEFAULT_DISCOVERY_DAILY_CAP_USD));
+  withCap('2.5', () => assert.equal(discoveryDailyCapUsd(), 2.5));
+  withCap(' 10 ', () => assert.equal(discoveryDailyCapUsd(), 10));
   assert.equal(DEFAULT_DISCOVERY_DAILY_CAP_USD, 10);
+});
+
+test('the cap: set but invalid → DiscoveryConfigError naming the value, never the default', async () => {
+  for (const bad of ['0', '-1', 'nope', '', '   ', '10abc', 'Infinity', 'NaN']) {
+    withCap(bad, () => {
+      assert.throws(
+        () => discoveryDailyCapUsd(),
+        (err: unknown) => {
+          assert.ok(err instanceof DiscoveryConfigError, `expected DiscoveryConfigError for ${JSON.stringify(bad)}`);
+          assert.equal(err.variable, 'AI_DISCOVERY_DAILY_CAP');
+          assert.equal(err.value, bad);
+          assert.ok(err.message.includes(JSON.stringify(bad)));
+          return true;
+        },
+      );
+    });
+  }
+  // and the budget gate propagates it (as a rejection — the gate is async): no spend
+  // is read, no call is made
+  await withCap('nope', async () => {
+    let spendRead = false;
+    await assert.rejects(
+      () => requireDiscoveryBudget('u', async () => { spendRead = true; return 0; }),
+      DiscoveryConfigError,
+    );
+    assert.equal(spendRead, false);
+  });
 });
 
 test('a rate-limited refusal is declared: 429, the envelope shape, Retry-After', () => {

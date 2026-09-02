@@ -34,10 +34,28 @@ export class DiscoveryBudgetError extends Error {
   }
 }
 
-/** The per-user daily cap in USD. AI_DISCOVERY_DAILY_CAP env (positive number) → default. */
+/** AI_DISCOVERY_DAILY_CAP is set but is not a finite positive number. Fail loud, never default. */
+export class DiscoveryConfigError extends Error {
+  constructor(public variable: string, public value: string) {
+    super(`${variable} is set to ${JSON.stringify(value)} — it must be a finite positive number of USD per day; unset it to use the default of ${DEFAULT_DISCOVERY_DAILY_CAP_USD}`);
+    this.name = 'DiscoveryConfigError';
+  }
+}
+
+/**
+ * The per-user daily cap in USD. Unset → DEFAULT_DISCOVERY_DAILY_CAP_USD. Set →
+ * must be a finite positive number (the whole string, so "10abc" and "" are
+ * invalid); anything else throws DiscoveryConfigError naming the value — a
+ * mistyped cap must never silently become the default.
+ */
 export function discoveryDailyCapUsd(): number {
-  const env = parseFloat(process.env.AI_DISCOVERY_DAILY_CAP || '');
-  return Number.isFinite(env) && env > 0 ? env : DEFAULT_DISCOVERY_DAILY_CAP_USD;
+  const raw = process.env.AI_DISCOVERY_DAILY_CAP;
+  if (raw === undefined) return DEFAULT_DISCOVERY_DAILY_CAP_USD;
+  const value = raw.trim() === '' ? NaN : Number(raw.trim());
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new DiscoveryConfigError('AI_DISCOVERY_DAILY_CAP', raw);
+  }
+  return value;
 }
 
 function utcMidnight(now = new Date()): Date {
