@@ -35,7 +35,7 @@ templestuart.com teaches the full pipe with build-time proofs: every drawing der
 
 ## The data model
 
-Every shape below is extracted from `src/components/landing/Landing.tsx` — the same consts the deck renders from.
+Every shape below is extracted from the consts the deck renders from — `src/components/landing/Landing.tsx` and the leaves it imports (`src/lib/problemSheet.ts` for the sheet, `src/lib/answers.ts` for the four lenses and their inputs).
 
 ### The arrival row (step 3)
 

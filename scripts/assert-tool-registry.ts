@@ -8,6 +8,15 @@
  * target has a door. A child page is reached through its parent (segment-prefix
  * rule: /agenda/[id] through /agenda). A page with no door fails the build.
  *
+ * THE ANSWERS LAW (NAV-01c): the module-scope law of src/lib/answers.ts re-run
+ * here (ANSWER_READS keys === ANSWER_ROWS questions 4/4 in order; a computed
+ * read declares its source line — a card with a number and no source fails the
+ * build), plus what only the filesystem can answer: /answers has a page file,
+ * and its client derives the four cards from ANSWER_ROWS (imports the leaf,
+ * maps ANSWER_ROWS, retypes no question). /answers is a door in the family
+ * navigation (its first entry); each card's home and the net-worth read are
+ * doors on /answers.
+ *
  * The assert:showroom pattern: a plain script wired into the `build` script so
  * it runs in CI / Vercel and fails the BUILD. It imports the registry (which
  * runs its module-scope law: sheet cells 25/25 both ways, LIVE/PARTIAL have a
@@ -22,8 +31,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { readdirSync, statSync } from 'node:fs';
 import { PROBLEM_SHEET } from '../src/lib/problemSheet';
-import { EXPECTED_STATUS_COUNTS, FAMILY_READS, TOOL_REGISTRY, registryLaw, statusCounts } from '../src/lib/toolRegistry';
+import { COCKPIT_PATH, EXPECTED_STATUS_COUNTS, FAMILY_READS, TOOL_REGISTRY, registryLaw, statusCounts } from '../src/lib/toolRegistry';
 import { OWNER_UTILITIES } from '../src/lib/shellMenu';
+import { ANSWERS_HOME, ANSWER_READS, ANSWER_ROWS, NET_WORTH_READ, answersLaw } from '../src/lib/answers';
 
 /**
  * Routes whose door is outside the app map: the front door and its marketing
@@ -45,11 +55,6 @@ const GUEST_ROUTES: ReadonlyArray<{ route: string; why: string }> = [
   { route: '/trips/rsvp', why: 'the RSVP invite link sent to participants (src/app/trips/rsvp/RSVPClient.tsx)' },
   { route: '/trips/[id]', why: 'linked from the RSVP flow — RSVPClient.tsx:72, :87, :136' },
 ];
-
-const COCKPIT_PATH: Record<string, string> = {
-  calendar: '/runway', travel: '/travel', routines: '/routines', projects: '/projects',
-  content: '/content', trade: '/trade', books: '/books', tax: '/tax', compliance: '/?tab=compliance',
-};
 
 function pageRoutes(): Array<{ route: string; file: string }> {
   const out: Array<{ route: string; file: string }> = [];
@@ -139,6 +144,10 @@ for (const t of TOOL_REGISTRY) {
 for (const [family, reads] of Object.entries(FAMILY_READS)) for (const r of reads ?? []) doors.push({ route: r.href as string, kind: 'family read', via: `${family} · "${r.label}"` });
 for (const u of OWNER_UTILITIES) doors.push({ route: u.href, kind: 'utilities menu', via: u.label });
 for (const g of GUEST_ROUTES) doors.push({ route: g.route, kind: 'listed route', via: g.why });
+// NAV-01c: THE ANSWERS is the family navigation's first entry; each card opens its lens's home.
+doors.push({ route: ANSWERS_HOME, kind: 'family nav', via: 'THE ANSWERS · first entry' });
+for (const [q, r] of Object.entries(ANSWER_READS)) if (r.computed) doors.push({ route: r.home, kind: 'answers', via: `"${q}" · Open · ${r.home}` });
+doors.push({ route: NET_WORTH_READ.home, kind: 'answers', via: `Net worth · Open · ${NET_WORTH_READ.home}` });
 
 const pages = pageRoutes();
 const reach = new Map<string, Door | null>();
@@ -175,6 +184,26 @@ for (const d of doors) {
 }
 console.log(`pages: ${pages.length} · doors: ${doors.length}`);
 
+// ── THE ANSWERS LAW (NAV-01c) ───────────────────────────────────────────────
+violations.push(...answersLaw({ throwOnFail: false }));
+const ANSWERS_PAGE = `src/app${ANSWERS_HOME}/page.tsx`;
+const ANSWERS_CLIENT = 'src/components/answers/AnswersClient.tsx';
+if (!existsSync(resolve(ROOT, ANSWERS_PAGE))) violations.push(`${ANSWERS_HOME} has no page file (${ANSWERS_PAGE})`);
+const clientSrc = existsSync(resolve(ROOT, ANSWERS_CLIENT)) ? readFileSync(resolve(ROOT, ANSWERS_CLIENT), 'utf8') : '';
+if (!clientSrc) violations.push(`${ANSWERS_CLIENT} is missing — /answers renders nothing`);
+if (clientSrc && !/from '@\/lib\/answers'/.test(clientSrc)) violations.push(`${ANSWERS_CLIENT} must import the answers from src/lib/answers.ts`);
+if (clientSrc && !clientSrc.includes('ANSWER_ROWS.map(')) violations.push(`${ANSWERS_CLIENT} must derive its cards from ANSWER_ROWS — never a retyped list`);
+for (const [q] of ANSWER_ROWS) {
+  if (clientSrc.includes(`'${q}'`) || clientSrc.includes(`"${q}"`)) violations.push(`${ANSWERS_CLIENT} retypes the question "${q}" — the four questions come from ANSWER_ROWS only`);
+}
+console.log('THE ANSWERS — four cards, ANSWER_ROWS order, then the read');
+for (const [q, segs] of ANSWER_ROWS) {
+  const r = ANSWER_READS[q];
+  console.log(`${q.padEnd(28)} ${segs.map(([t]) => t).join('')}`);
+  console.log(`${''.padEnd(28)} ${r === undefined ? 'NO READ' : r.computed ? `NUMBER · ${r.endpoint} → ${r.home}\n${''.padEnd(28)} source: ${r.source}` : `HONEST · ${r.honest}`}`);
+}
+console.log(`${'Net worth'.padEnd(28)} NUMBER · ${NET_WORTH_READ.endpoint} → ${NET_WORTH_READ.home}\n${''.padEnd(28)} source: ${NET_WORTH_READ.source}`);
+
 console.log('TOOL REGISTRY — 25 rows, sheet order');
 console.log('#   tool          family        status    beats                                  home            page file');
 for (const r of rows) console.log(r);
@@ -188,3 +217,4 @@ if (violations.length) {
 }
 console.log('✔ Tool registry law passed — 25/25 cells, homes resolve to page files, counts match the census.');
 console.log(`✔ Reachability law passed — ${pages.length} pages, every one has a door.`);
+console.log(`✔ The answers law passed — ${ANSWER_ROWS.length}/4 questions on ${ANSWERS_HOME}, every number sourced.`);

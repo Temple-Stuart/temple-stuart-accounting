@@ -167,12 +167,13 @@ export const FAMILIES: readonly FamilyName[] = PROBLEM_SHEET.map((f) => f.header
 
 /**
  * NAV-01b: family-level READS — pages that read across a family's tools and
- * belong to no single tool. Net worth is reserved for THE ANSWERS (NAV-01c);
- * until then it is a read under WHAT YOU OWN. Income is a read under MONEY IN.
+ * belong to no single tool. Income is a read under MONEY IN; net worth is a
+ * read under WHAT YOU OWN and, since NAV-01c, the read below the four answers
+ * on /answers (src/lib/answers.ts NET_WORTH_READ names the same page).
  */
 export const FAMILY_READS: Readonly<Partial<Record<FamilyName, readonly ToolLink[]>>> = {
   'MONEY IN': [{ label: 'Income · a read', href: '/income' }],
-  'WHAT YOU OWN': [{ label: 'Net worth · a read (THE ANSWERS, NAV-01c)', href: '/net-worth' }],
+  'WHAT YOU OWN': [{ label: 'Net worth · a read', href: '/net-worth' }],
 };
 
 /** The 25 tools in sheet order, each joined to its census facts. */
@@ -184,6 +185,18 @@ export const TOOL_REGISTRY: readonly ToolEntry[] = PROBLEM_SHEET.flatMap((f) =>
 export const COCKPIT_PRIMARY_TOOL: Readonly<Record<string, ToolName>> = {
   projects: 'Tasks', content: 'Time', travel: 'Travel', calendar: 'Budget', routines: 'Calendar',
   books: 'Bookkeeping', trade: 'Brokerage', tax: 'Tax', compliance: 'Compliance',
+};
+
+/**
+ * NAV-01c: cockpit section key → the URL the cockpit writes for it
+ * (ModuleLauncher writeTabParam; src/app/[tab]/page.tsx TAB_PATHS; the
+ * compliance carve-out keeps its legacy /?tab= URL). ONE source: the family
+ * navigation's link mode (off the cockpit, a cockpit tool is a plain link here)
+ * and the build-time reachability law (scripts/assert-tool-registry.ts).
+ */
+export const COCKPIT_PATH: Readonly<Record<string, string>> = {
+  calendar: '/runway', travel: '/travel', routines: '/routines', projects: '/projects',
+  content: '/content', trade: '/trade', books: '/books', tax: '/tax', compliance: '/?tab=compliance',
 };
 
 export function toolsOf(family: FamilyName): readonly ToolEntry[] {
@@ -230,6 +243,11 @@ export function registryLaw(opts: { throwOnFail?: boolean } = {}): string[] {
   }
   for (const [key, name] of Object.entries(COCKPIT_PRIMARY_TOOL)) {
     if (!(name in FACTS)) violations.push(`COCKPIT_PRIMARY_TOOL[${key}] names unknown tool "${name}"`);
+    if (!(key in COCKPIT_PATH)) violations.push(`COCKPIT_PRIMARY_TOOL key "${key}" has no COCKPIT_PATH`);
+  }
+  for (const t of TOOL_REGISTRY) {
+    if (t.cockpitKey && !(t.cockpitKey in COCKPIT_PATH)) violations.push(`${t.name}: cockpitKey "${t.cockpitKey}" has no COCKPIT_PATH`);
+    for (const l of t.links ?? []) if (l.cockpitKey && !(l.cockpitKey in COCKPIT_PATH)) violations.push(`${t.name}: link "${l.label}" cockpit key "${l.cockpitKey}" has no COCKPIT_PATH`);
   }
   for (const [family, reads] of Object.entries(FAMILY_READS)) {
     if (!FAMILIES.includes(family as FamilyName)) violations.push(`FAMILY_READS names unknown family "${family}"`);

@@ -31,9 +31,9 @@ export default function HomeClient() {
   // tabs and reports the active one via onTabChange; this mirror drives the hero copy.
   // Default 'calendar' matches ModuleLauncher's initial tab (no flash, no mismatch).
   const [activeTab, setActiveTab] = useState('calendar');
-  // PR-Auth-Home: login from the home page lands back on the home tabs (in logged-in
-  // mode), not the old /hub cockpit. (Other /hub entry points are a separate retire PR.)
-  const [loginRedirect] = useState('/');
+  // PR-Auth-Home → NAV-01c: login from the home page lands on THE ANSWERS (/answers),
+  // the post-login front door — the same door the /login page and /hub use.
+  const [loginRedirect] = useState('/answers');
   const [loginMode, setLoginMode] = useState<'login' | 'register'>('login');
 
   // PR-Auth-Home: the home shell now learns who's logged in (same /api/auth/me check the
@@ -349,7 +349,7 @@ export default function HomeClient() {
           <div className="relative z-10">
             <LoginBox
               onClose={() => setShowLogin(false)}
-              onSuccess={() => { window.location.href = '/'; }}
+              onSuccess={() => { window.location.href = loginRedirect; }}
               redirectTo={loginRedirect}
               initialMode={loginMode}
             />
