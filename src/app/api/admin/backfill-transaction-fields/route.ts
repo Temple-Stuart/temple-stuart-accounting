@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
 import { requireAdmin } from '@/lib/require-admin';
 import { decryptToken } from '@/lib/secrets/tokenCipher';
+import { summarizePlaidError } from '@/lib/plaid/summarizeError';
 
 /**
  * POST /api/admin/backfill-transaction-fields
@@ -126,7 +127,7 @@ export async function POST() {
           hasMore = response.data.total_transactions > offset;
         }
       } catch (error) {
-        console.error(`Error backfilling item ${item.id}:`, error);
+        console.error(`Error backfilling item ${item.id}:`, summarizePlaidError(error));
       }
     }
 
@@ -136,7 +137,7 @@ export async function POST() {
       fieldsBackfilled: totalFieldsBackfilled
     });
   } catch (error) {
-    console.error('Backfill error:', error);
+    console.error('Backfill error:', summarizePlaidError(error));
     return NextResponse.json({ error: 'Failed to backfill' }, { status: 500 });
   }
 }

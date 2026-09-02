@@ -5,6 +5,7 @@ import { plaidClient } from '@/lib/plaid';
 import { CountryCode } from 'plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { encryptToken } from '@/lib/secrets/tokenCipher';
+import { summarizePlaidError } from '@/lib/plaid/summarizeError';
 
 export async function POST(request: Request) {
   try {
@@ -135,7 +136,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Token exchange error:', error);
+    console.error('Token exchange error:', summarizePlaidError(error));
     return NextResponse.json({ error: 'Failed to exchange token' }, { status: 500 });
   }
 }

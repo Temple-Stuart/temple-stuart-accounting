@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { decryptToken } from '@/lib/secrets/tokenCipher';
+import { summarizePlaidError } from '@/lib/plaid/summarizeError';
 
 export async function GET() {
   try {
@@ -45,13 +46,13 @@ export async function GET() {
           transactions: transactionsResponse.data.investment_transactions,
         });
       } catch (error) {
-        console.error('Error fetching investment data:', error);
+        console.error('Error fetching investment data:', summarizePlaidError(error));
       }
     }
 
     return NextResponse.json(investmentData);
   } catch (error) {
-    console.error('Error in investments route:', error);
+    console.error('Error in investments route:', summarizePlaidError(error));
     return NextResponse.json({ error: 'Failed to fetch investments' }, { status: 500 });
   }
 }

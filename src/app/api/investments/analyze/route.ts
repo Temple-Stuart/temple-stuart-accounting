@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { decryptToken } from '@/lib/secrets/tokenCipher';
+import { summarizePlaidError } from '@/lib/plaid/summarizeError';
 
 export async function GET() {
   try {
@@ -45,7 +46,7 @@ export async function GET() {
           allTransactions = allTransactions.concat(transactionsResponse.data.investment_transactions);
         }
       } catch (error) {
-        console.error('Error fetching investment data:', error);
+        console.error('Error fetching investment data:', summarizePlaidError(error));
       }
     }
 
@@ -58,7 +59,7 @@ export async function GET() {
       }
     });
   } catch (error) {
-    console.error('Investment analysis error:', error);
+    console.error('Investment analysis error:', summarizePlaidError(error));
     return NextResponse.json({ error: 'Failed to analyze investments' }, { status: 500 });
   }
 }

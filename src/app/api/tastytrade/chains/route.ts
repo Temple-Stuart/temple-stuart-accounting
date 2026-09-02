@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getAuthenticatedClient } from '@/lib/tastytrade';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
+import { summarizeTastytradeError } from '@/lib/tastytrade/summarizeError';
 
 // Convert OCC symbol (e.g. "SPY   260221P00690000") to DXFeed format (".SPY260221P690")
 function occToDxFeed(occ: string): string | null {
@@ -117,7 +118,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ chain: { symbol, expirations }, strikes_skipped_no_price: strikesSkippedNoPrice });
   } catch (error: any) {
-    console.error('[Tastytrade] Chains error:', error);
+    console.error('[Tastytrade] Chains error:', summarizeTastytradeError(error));
     return NextResponse.json({ error: 'Failed to fetch option chain' }, { status: 500 });
   }
 }

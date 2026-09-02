@@ -8,6 +8,7 @@ import { plaidClient } from '@/lib/plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
 import { decryptToken } from '@/lib/secrets/tokenCipher';
+import { summarizePlaidError } from '@/lib/plaid/summarizeError';
 
 export async function POST() {
   console.warn('DEPRECATED: /api/transactions/sync-full called — use /api/transactions/sync-complete');
@@ -93,7 +94,7 @@ export async function POST() {
           totalAdded++;
         }
       } catch (error) {
-        console.error('Error syncing item:', item.id, error);
+        console.error('Error syncing item:', item.id, summarizePlaidError(error));
       }
     }
 
@@ -106,7 +107,7 @@ export async function POST() {
       }
     });
   } catch (error) {
-    console.error('Full sync error:', error);
+    console.error('Full sync error:', summarizePlaidError(error));
     return NextResponse.json({ error: 'Failed to sync' }, { status: 500 });
   }
 }

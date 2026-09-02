@@ -4,6 +4,7 @@ import { plaidClient } from '@/lib/plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
 import { decryptToken } from '@/lib/secrets/tokenCipher';
+import { summarizePlaidError } from '@/lib/plaid/summarizeError';
 
 export const maxDuration = 300; // 5 minutes for Pro plan
 
@@ -163,7 +164,7 @@ export async function POST() {
           }
         }
       } catch (error) {
-        console.error('Error syncing transactions:', error);
+        console.error('Error syncing transactions:', summarizePlaidError(error));
       }
 
       // Sync investment transactions + securities
@@ -266,7 +267,7 @@ export async function POST() {
           hasMore = investResponse.data.total_investment_transactions > offset;
         }
       } catch (error) {
-        console.error('Error syncing investment transactions:', error);
+        console.error('Error syncing investment transactions:', summarizePlaidError(error));
       }
     }
 
@@ -283,7 +284,7 @@ export async function POST() {
       }
     });
   } catch (error) {
-    console.error('Complete sync error:', error);
+    console.error('Complete sync error:', summarizePlaidError(error));
     return NextResponse.json({ error: 'Failed to sync' }, { status: 500 });
   }
 }

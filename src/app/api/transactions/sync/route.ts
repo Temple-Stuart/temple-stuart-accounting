@@ -8,6 +8,7 @@ import { plaidClient } from '@/lib/plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
 import { decryptToken } from '@/lib/secrets/tokenCipher';
+import { summarizePlaidError } from '@/lib/plaid/summarizeError';
 
 export async function POST() {
   console.warn('DEPRECATED: /api/transactions/sync called — use /api/transactions/sync-complete');
@@ -122,7 +123,7 @@ export async function POST() {
           cursor = next_cursor;
         }
       } catch (error) {
-        console.error('Error syncing transactions for item:', item.id, error);
+        console.error('Error syncing transactions for item:', item.id, summarizePlaidError(error));
       }
     }
 
@@ -135,7 +136,7 @@ export async function POST() {
       }
     });
   } catch (error) {
-    console.error('Transaction sync error:', error);
+    console.error('Transaction sync error:', summarizePlaidError(error));
     return NextResponse.json({ error: 'Failed to sync transactions' }, { status: 500 });
   }
 }

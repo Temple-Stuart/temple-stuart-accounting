@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { decryptToken } from '@/lib/secrets/tokenCipher';
+import { summarizePlaidError } from '@/lib/plaid/summarizeError';
 
 export async function POST() {
   try {
@@ -52,7 +53,7 @@ export async function POST() {
           updatedCount += result.count;
         }
       } catch (error) {
-        console.error('Error fixing categories for item:', item.id, error);
+        console.error('Error fixing categories for item:', item.id, summarizePlaidError(error));
       }
     }
 
@@ -61,7 +62,7 @@ export async function POST() {
       updatedCount 
     });
   } catch (error) {
-    console.error('Fix categories error:', error);
+    console.error('Fix categories error:', summarizePlaidError(error));
     return NextResponse.json({ error: 'Failed to fix categories' }, { status: 500 });
   }
 }
