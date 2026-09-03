@@ -2,7 +2,7 @@
 
 Twenty-five business tools on one data pipe that ends in one Ledger and one Calendar.
 
-Source-available (BSL 1.1) · built and operated in production by its founder as User #1 · as of 2026-09-02: 112 Prisma models, 289 API route files, 121 feeds from 20 providers (counted August 24, 2026)
+Source-available (BSL 1.1) · built and operated in production by its founder as User #1 · as of 2026-09-02: 114 Prisma models, 289 API route files, 121 feeds from 20 providers (counted August 24, 2026)
 
 ## The system
 
@@ -35,7 +35,7 @@ templestuart.com teaches the full pipe with build-time proofs: every drawing der
 
 ## The data model
 
-Every shape below is extracted from the consts the deck renders from — `src/components/landing/Landing.tsx` and the leaves it imports (`src/lib/problemSheet.ts` for the sheet, `src/lib/answers.ts` for the four lenses and their inputs).
+Every shape below is extracted from the consts the deck renders from — `src/components/landing/Landing.tsx` and the leaves it imports (`src/lib/problemSheet.ts` for the sheet, `src/lib/providers.ts` for the provider menu and the rule book, `src/lib/answers.ts` for the four lenses and their inputs).
 
 ### The arrival row (step 3)
 
@@ -54,6 +54,55 @@ One row per provider answer, eleven fields:
 | WHEN AND HOW FAR | arrived | when it arrived |
 | WHEN AND HOW FAR | read | when we read it |
 | WHEN AND HOW FAR | status | pending, done, or failed |
+
+### The arrivals store (step 3, built)
+
+The arrival row above as tables — `prisma/migrations/20260903000000_arrivals/migration.sql` and the `provider_responses` / `arrivals` models in `prisma/schema.prisma`, column for column (asserted at build). Two tables: the wire (one row per HTTP answer, exact bytes, sha256) and the deck's row (one per provider object). The `arrival_provider` enum is `src/lib/providers.ts`' code set — 27 providers, every one the deck names — and `arrival_status` is the deck's pending / done / failed. Nothing writes here yet.
+
+`provider_responses` — the wire:
+
+| Column | Type | Rule |
+|---|---|---|
+| id | text | PRIMARY KEY |
+| provider | arrival_provider | NOT NULL |
+| resource | text | NOT NULL |
+| user_id | text | NULL REFERENCES users(id) |
+| guest_ref | text | NULL |
+| http_status | integer | NOT NULL |
+| body | bytea | NOT NULL |
+| body_sha256 | bytea | NOT NULL |
+| asked | timestamptz | NOT NULL |
+| arrived | timestamptz | NOT NULL |
+|  | CHECK / KEY | CHECK (octet_length(body_sha256) = 32) |
+|  | CHECK / KEY | CHECK (octet_length(body) <= 1048576) |
+|  | CHECK / KEY | CHECK (user_id IS NOT NULL OR guest_ref IS NOT NULL) |
+
+`arrivals` — the deck's row:
+
+| Column | Type | Rule |
+|---|---|---|
+| id | text | PRIMARY KEY |
+| provider | arrival_provider | NOT NULL |
+| connection | text | NULL |
+| resource | text | NOT NULL |
+| their_id | text | NOT NULL |
+| their_id_kind | their_id_kind | NOT NULL |
+| payload | jsonb | NOT NULL |
+| fingerprint | bytea | NOT NULL |
+| redactions | text[] | NOT NULL DEFAULT '{}' |
+| asked | timestamptz | NOT NULL |
+| arrived | timestamptz | NULL |
+| read | timestamptz | NULL |
+| status | arrival_status | NOT NULL DEFAULT 'pending' |
+| response_id | text | NULL REFERENCES provider_responses(id) |
+| user_id | text | NULL REFERENCES users(id) |
+| guest_ref | text | NULL |
+|  | CHECK / KEY | CHECK (octet_length(fingerprint) = 32) |
+|  | CHECK / KEY | CHECK (pg_column_size(payload) <= 1048576) |
+|  | CHECK / KEY | CHECK (user_id IS NOT NULL OR guest_ref IS NOT NULL) |
+|  | CHECK / KEY | UNIQUE (provider, their_id) |
+
+Promise 1 is a database law, not a convention: the `arrivals_promise_1` BEFORE UPDATE trigger raises if provider, connection, resource, their_id, their_id_kind, payload, fingerprint, redactions, asked, arrived, response_id, user_id or guest_ref would change — only `read` and `status` may move, each once (read from NULL, status from pending). There is no updated_at column and no DELETE policy: keep forever is the default.
 
 ### The six kinds (steps 4–5)
 
@@ -129,8 +178,8 @@ BLUEPRINT is the step's headline; TODAY is the deck's honest-state line, verbati
 
 | Step | Blueprint | Today | Gap |
 |---|---|---|---|
-| 03 | Store what arrived. Then decide what it means. | today that is 121 feeds from 20 providers — counted August 24, 2026. | feeds counted (121/20); the arrivals table that stores them word for word, fingerprinted, is not built — see 14. |
-| 04 | One rule per feed. Written down. | We classified every one of the 121 feeds — August 24, 2026 — and posting took zero. | kinds assigned in the August 24 census; rows the system applies to arrivals wait on the step-3 table — see 14. |
+| 03 | Store what arrived. Then decide what it means. | today that is 121 feeds from 20 providers — counted August 24, 2026. | feeds counted (121/20); the arrivals store that keeps them word for word, fingerprinted, is built (PR-1) and holds nothing yet — nothing lands until PR-2 — see 14. |
+| 04 | One rule per feed. Written down. | We classified every one of the 121 feeds — August 24, 2026 — and posting took zero. | kinds assigned in the August 24 census; the step-3 table is built (PR-1) and no rule row applies to it yet — see 14. |
 | 07 | Every tool runs the same four beats. Discover. Decide. Commit. Record. | This loop is the blueprint — the shape we're building every tool toward. Today, hotel bookings commit for real and an accepted task fires its build; the rest run discover → decide → draft, and commit is the beat we're wiring to the same loop, tool by tool. | commit is real for two tools (hotel bookings, accepted tasks); the other twenty-three stop at draft. |
 | 08 | One table holds everything you do. | The master table is the blueprint. Today each tool keeps its own table; one table holding every document is the shape we're building. | no master table; each tool keeps its own. |
 | 09 | The deposit meets the invoice. The fill meets the order. | (A piece of this is already alive today: card charges find their bookings and propose the match — you approve it.) | one of fourteen matches proposes today (card charge ↔ booking); the other thirteen do not. |
@@ -138,21 +187,21 @@ BLUEPRINT is the step's headline; TODAY is the deck's honest-state line, verbati
 | 11 | Every answer is math on the lines. | These four lenses are the blueprint. Today all four compute — tax and the business result from the journal entries you commit by hand, runway from Plaid's account balances against those entries, trading from the positions and lots you committed, with no live quote in the number. The rules-written lines and the live quotes the blueprint reads wait on the posting pipe. | all four compute from hand-committed lines and Plaid balances; the rules-written lines and live quotes wait on step 10. |
 | 12 | One Ledger. One Calendar. All twenty-five. | Two windows over one set of rows is the blueprint. Today the calendar window is live in the cockpit; the ledger window fills as the posting pipe lands its lines. | the Calendar window is live; the Ledger window is empty until step 10 writes. |
 | 13 | One $100.00 sale runs the machine. Then every other door opens. | Alive today: the travel match — card charges find their bookings and propose the match; you approve it. The project lane is wired end to end: a task lands for your review, and accepting it fires the build that answers it. | the travel match is alive; the project lane is wired end to end; the sale's lines and lenses wait on steps 10–11. |
-| 14 | Click any number. Walk it back. | Alive today: the fingerprint, on the rules and the audit log — every regulation pull is hashed the moment it lands, and the audit log hash-chains every entry it records; the citation re-check is written, but the hash it compares against is stored empty today, so it proves nothing yet. Today the money feeds land already parsed — no stored word-for-word payload, no fingerprint yet; the arrivals table that saves the provider's exact words and fingerprints them on arrival is the shape we're building. | fingerprints on the rules corpus and the audit log; none on money feeds — the arrivals table is not built. |
+| 14 | Click any number. Walk it back. | Alive today: the fingerprint, on the rules and the audit log — every regulation pull is hashed the moment it lands, and the audit log hash-chains every entry it records; the citation re-check is written, but the hash it compares against is stored empty today, so it proves nothing yet. Today the money feeds land already parsed — no stored word-for-word payload, no fingerprint yet; the arrivals table that saves the provider's exact words and fingerprints them on arrival is the shape we're building. | fingerprints on the rules corpus and the audit log; none on money feeds yet — the arrivals store is built (PR-1) and no feed lands in it until PR-2. |
 
 ## The nine modules
 
 | Module | What exists in code |
 |---|---|
-| Travel | stays and flights through LiteAPI, activities through Viator, visa checks through RapidAPI — public routes under src/app/api/travel (15 route files) and src/app/api/flights (3); models `trips` (schema:571) and `reservations` (schema:1327). |
-| Runway | the reservation matcher — src/app/api/runway/match/propose, queue, review (the step-9 piece alive today) — plus src/app/api/runway/route.ts; models `budgets` (schema:541) and `home_expenses` (schema:1577). |
+| Travel | stays and flights through LiteAPI, activities through Viator, visa checks through RapidAPI — public routes under src/app/api/travel (15 route files) and src/app/api/flights (3); models `trips` (schema:573) and `reservations` (schema:1329). |
+| Runway | the reservation matcher — src/app/api/runway/match/propose, queue, review (the step-9 piece alive today) — plus src/app/api/runway/route.ts; models `budgets` (schema:543) and `home_expenses` (schema:1579). |
 | Books | Plaid-synced transactions, a chart of accounts, journal and ledger entries — src/app/api/plaid/sync/route.ts:103 writes `transactions` (schema:414); `journal_entries` (schema:180), `ledger_entries` (schema:219). |
-| Trade | tastytrade connection, quotes and backtests — src/app/api/tastytrade (13 route files); models `trade_cards` (schema:1708) and `scan_snapshots` (schema:1894). |
-| Tax | scenarios, documents and the 2025 export script (`npm run tax:export:2025`) — src/app/api/tax (7 route files); models `tax_scenarios` (schema:1497) and `tax_documents` (schema:1816). |
-| Compliance | the regulatory corpus (eCFR, US Code, Federal Register, IRS bulletins) ingested by Inngest functions with sha256 on write, citations re-verified, and the hash-chained audit log — models `regulatory_sources` (schema:2207), `citations` (schema:2271), `audit_log` (schema:2437). |
-| Routines | scheduled routines evaluated by the `routine-evaluator` Inngest function — models `operations_routines` (schema:3091) and `hub_scheduled_items` (schema:3197); the deck calls the calendar window live in the cockpit (step 12 honest line). |
-| Projects | projects and tasks; accepting a pending task fires the Execute-Task Routine (src/app/api/operations/projects/[id]/tasks/[taskId]/route.ts:395-405) — models `operations_projects` (schema:2915) and `operations_project_tasks` (schema:2960). |
-| Content | scene groups, scenes, pieces and takes — model `operations_content_pieces` (schema:3324); src/app/api/operations carries 50 route files across Routines, Projects and Content. |
+| Trade | tastytrade connection, quotes and backtests — src/app/api/tastytrade (13 route files); models `trade_cards` (schema:1710) and `scan_snapshots` (schema:1896). |
+| Tax | scenarios, documents and the 2025 export script (`npm run tax:export:2025`) — src/app/api/tax (7 route files); models `tax_scenarios` (schema:1499) and `tax_documents` (schema:1818). |
+| Compliance | the regulatory corpus (eCFR, US Code, Federal Register, IRS bulletins) ingested by Inngest functions with sha256 on write, citations re-verified, and the hash-chained audit log — models `regulatory_sources` (schema:2209), `citations` (schema:2273), `audit_log` (schema:2439). |
+| Routines | scheduled routines evaluated by the `routine-evaluator` Inngest function — models `operations_routines` (schema:3093) and `hub_scheduled_items` (schema:3199); the deck calls the calendar window live in the cockpit (step 12 honest line). |
+| Projects | projects and tasks; accepting a pending task fires the Execute-Task Routine (src/app/api/operations/projects/[id]/tasks/[taskId]/route.ts:395-405) — models `operations_projects` (schema:2917) and `operations_project_tasks` (schema:2962). |
+| Content | scene groups, scenes, pieces and takes — model `operations_content_pieces` (schema:3326); src/app/api/operations carries 50 route files across Routines, Projects and Content. |
 
 ## Architecture
 
@@ -171,7 +220,7 @@ Versions from package.json, read 2026-09-02:
 
 Observed versus authored (step 6): what the world sends is observed; what you do is authored; the blueprint keeps the two apart and matches them on one key. Today the money feeds land parsed, without a stored payload — see the gap ledger, step 14.
 
-Scale, as of 2026-09-02: 112 Prisma models, 30 enums, 289 API route files, 35 runtime dependencies, 18 dev dependencies, one test file (`npm test`).
+Scale, as of 2026-09-02: 114 Prisma models, 33 enums, 289 API route files, 35 runtime dependencies, 18 dev dependencies, one test file (`npm test`).
 
 ## Engineering discipline
 
@@ -192,7 +241,7 @@ These are the written laws in `CLAUDE.md`, stated as practice:
 - Middleware: every path not in `PUBLIC_PATHS` requires the verified cookie — `src/middleware.ts:50-160, 162, 165-170`; the two Routine callbacks (`…/audit-ingest`, `…/exec-ingest`) bypass the cookie and validate a shared-secret bearer (`AUDIT_INGEST_SECRET`, `EXEC_INGEST_SECRET`) instead — `src/middleware.ts:173-187`.
 - Route gates: `getCurrentUser` (`src/lib/auth-helpers.ts:11`), `requireTier` (`:42`), `requireAdmin` (`src/lib/require-admin.ts:8`); the working law is that a paid external call is never made before the gate (CLAUDE.md, Security-first).
 - User scoping: every query is scoped to the authed user — e.g. `where: { userId: user.id }` at `src/app/api/tastytrade/connect/route.ts:54`.
-- Rate limits: a durable fixed-window limiter backed by the `rate_limit_hits` table (`src/lib/rateLimit.ts:3-15`; schema:1312), plus `src/lib/scan-rate-limit.ts` and `src/lib/ai-rate-limit.ts`; tuned by `SEARCH_/BOOK_/SCAN_/AI_RATE_LIMIT` and `_WINDOW`, with daily caps `AI_PIPE_DAILY_CAP`, `AI_EXEC_DAILY_CAP`, `AI_ROUTINE_DAILY_CAP`, `AI_DISCOVERY_DAILY_CAP` (USD, from recorded spend — `src/lib/discovery/discoveryGate.ts`), `TRAVEL_SEARCH_DAILY_CAP`, and `GOOGLE_PLACES_MONTHLY_CAP`.
+- Rate limits: a durable fixed-window limiter backed by the `rate_limit_hits` table (`src/lib/rateLimit.ts:3-15`; schema:1314), plus `src/lib/scan-rate-limit.ts` and `src/lib/ai-rate-limit.ts`; tuned by `SEARCH_/BOOK_/SCAN_/AI_RATE_LIMIT` and `_WINDOW`, with daily caps `AI_PIPE_DAILY_CAP`, `AI_EXEC_DAILY_CAP`, `AI_ROUTINE_DAILY_CAP`, `AI_DISCOVERY_DAILY_CAP` (USD, from recorded spend — `src/lib/discovery/discoveryGate.ts`), `TRAVEL_SEARCH_DAILY_CAP`, and `GOOGLE_PLACES_MONTHLY_CAP`.
 - Audit log: a hash chain — each entry stores `prev_hash` and its own sha256 `content_hash` with a `sequence_number` (`prisma/schema.prisma:2441-2443`; written at `src/lib/audit/writeAuditLog.ts:99`); `src/lib/audit/verifyAuditChain.ts:47, 80` recomputes the chain.
 - Citations: `src/lib/citations/verifyCitation.ts:97` re-fetches the source and re-hashes it against `citations.retrieved_content_hash` (`prisma/schema.prisma:2287`); the column's only writer stores an empty string today (`src/lib/discovery/materializeProposal.ts:165`), so the check is structurally dead until the arrivals rebuild lands the real hash.
 - Corpus: the four ingest persisters hash content with sha256 on write — `src/lib/corpus/ingest/ecfr-persist.ts:28`, `uscode-persist.ts:32`, `fedreg-persist.ts:31`, `irb-persist.ts:32`.

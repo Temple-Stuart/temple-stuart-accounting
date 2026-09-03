@@ -182,6 +182,7 @@ import LandingFooter from './LandingFooter';
 import GuestTripStrip from './GuestTripStrip';
 import { PROBLEM_SHEET } from '@/lib/problemSheet';
 import { ANSWER_ROWS, ANSWER_INPUTS } from '@/lib/answers';
+import { PROVIDER_MENU, ROUTING_RULES } from '@/lib/providers';
 // PR-ELEV-1: the coming-soon tiles became badged "Soon" chips INSIDE the
 // booking strip (travelStripModes) — the separate tile row is gone.
 
@@ -301,21 +302,10 @@ const PROBLEM_SHEET_SM = [
 // edit here (a provider is just rows in a table — added, never built).
 // PR-S2: the menu renders ONCE PER BREAKPOINT — the walk's right panel
 // on desktop, the full-width DECK.table on mobile.
-const PROVIDER_MENU = [
-  ['banks & accounts', 'plaid', 'teller'],
-  ['card money', 'stripe', 'square'],
-  ['trades & market data', 'tastytrade', 'schwab · ibkr · alpaca · tradier · snaptrade'],
-  ['company numbers', 'finnhub', 'polygon'],
-  ['the economy', 'fred', '—'],
-  ['filings', 'sec', '—'],
-  ['flights', 'liteapi', 'amadeus'],
-  ['hotels', 'liteapi', 'amadeus'],
-  ['activities', 'viator', '—'],
-  ['locations', 'google places', '—'],
-  ['visas', 'travel buddy', '—'],
-  ['our AI', 'anthropic · openai · xai grok · voyage', '—'],
-  ['the law itself', 'ecfr · us code · federal register · irs', '—'],
-] as const;
+// REBUILD-01: PROVIDER_MENU (step 2's menu — [job, today, next]) lives in the
+// shared leaf src/lib/providers.ts now — one vocabulary for the deck, the
+// schema and the code. Imported at the top; byte-identical; the S2 laws below
+// are unchanged.
 
 // ── PR-S2 / THE WALK. Step 2's visual: the walk from Step 1's finished
 // table to the provider menu, DRAWN, not listed (SHOW DON'T ECHO, Deck
@@ -545,28 +535,9 @@ const s3FieldIndex = (b: number, r: number) => IMPORT_COLUMNS.slice(0, b).reduce
 // THE POINT:
 // nothing ever arrives as a posting — the system writes postings from events.
 // Do not add a POSTING row here to make the two lists match.
-const ROUTING_RULES = [
-  ['plaid', 'transaction', 'EVENT', 'something that happened'],
-  ['plaid', 'account', 'REGISTRY', 'one of your accounts'],
-  ['plaid', 'holding', 'SNAPSHOT', 'how things stood at one moment'],
-  ['stripe', 'payout', 'EVENT', ''],
-  ['tastytrade', 'quote', 'REFERENCE', 'a fact about the world'],
-  ['finnhub', 'fundamentals', 'REFERENCE', ''],
-  ['fred', 'series', 'REFERENCE', ''],
-  ['sec', 'filing', 'REFERENCE', ''],
-  ['liteapi', 'booking', 'EVENT', ''],
-  ['viator', 'activity', 'REFERENCE', ''],
-  ['google places', 'place', 'REFERENCE', ''],
-  ['travel buddy', 'visa', 'REFERENCE', ''],
-  ['anthropic', 'classification', 'DERIVED', 'math we did — never a source'],
-  ['openai', 'insight', 'DERIVED', ''],
-  ['xai grok', 'sentiment', 'DERIVED', ''],
-  ['voyage', 'embedding', 'DERIVED', ''],
-  ['ecfr', 'title', 'REFERENCE', ''],
-  ['us code', 'title', 'REFERENCE', ''],
-  ['federal register', 'document', 'REFERENCE', ''],
-  ['irs', 'bulletin', 'REFERENCE', ''],
-] as const;
+// REBUILD-01: ROUTING_RULES (step 4's rule book) lives in the shared leaf
+// src/lib/providers.ts now, beside PROVIDER_MENU. Imported at the top;
+// byte-identical; the S4 / S5 laws below are unchanged.
 
 // PR-S4: ROUTING_DERIVED_ROW retired — the old table's anthropic emphasis
 // died with the table; the rule book's rows are peers, and DERIVED's
