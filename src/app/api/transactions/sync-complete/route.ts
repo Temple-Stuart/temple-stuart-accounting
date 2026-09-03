@@ -5,6 +5,10 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
 import { decryptToken } from '@/lib/secrets/tokenCipher';
 import { failureEnvelope, stageFailed, stageOk, syncEnvelope, type StageFailed } from '@/lib/plaid/failLoud';
+import { wireOf } from '@/lib/plaid/wire';
+import { prismaLanding } from '@/lib/arrivals/prismaLanding';
+import { runTransactionsPage, type DomainDb } from '@/lib/arrivals/plaidTransactionsPage';
+import type { Prisma } from '@prisma/client';
 
 export const maxDuration = 300; // 5 minutes for Pro plan
 
@@ -37,6 +41,10 @@ export async function POST() {
     let totalSecurities = 0;
     let skippedTransactions = 0;
     let skippedInvestmentTransactions = 0;
+    // REBUILD-01 PR-2: the store's own counts — arrivals landed this run, and objects the
+    // table already held (linked, not re-parsed; promise 2 working).
+    let landedArrivals = 0;
+    let alreadyLanded = 0;
     // HYG-01: STOP AND DECLARE. The first failure ends its stage for the whole run;
     // the outcome is declared in the response (200 / 207 / non-2xx), never hidden.
     let transactionsFailure: StageFailed | null = null;
@@ -66,8 +74,10 @@ export async function POST() {
 
           let hasMore = true;
           let offset = 0;
+          let page = 0;
 
           while (hasMore) {
+            page += 1;
             const response = await plaidClient.transactionsGet({
               access_token: decryptToken(item.accessToken),
               start_date: '2024-01-01',
@@ -78,6 +88,9 @@ export async function POST() {
                 include_personal_finance_category: true
               }
             });
+            // REBUILD-01 PR-2: the exact wire bytes ride the response (src/lib/plaid/wire.ts);
+            // their absence is a fault, never a silent skip.
+            const wire = wireOf(response, `transactionsGet page ${page}`);
 
             // Update balances (first iteration only)
             if (offset === 0 && response.data.accounts) {
@@ -95,71 +108,34 @@ export async function POST() {
               }
             }
 
-            for (const txn of response.data.transactions) {
-              const account = item.accounts.find(acc => acc.accountId === txn.account_id);
-              if (!account) continue;
-
-              const existing = existingMap.get(txn.transaction_id);
-
-              if (existing && existing.personal_finance_category !== null) {
-                // Already has complete data — skip expensive update
-                skippedTransactions++;
-                totalTransactions++;
-                continue;
-              }
-
-              const txnData = {
-                amount: txn.amount,
-                date: new Date(txn.date),
-                name: txn.name,
-                merchantName: txn.merchant_name,
-                category: txn.category?.join(', ') || null,
-                pending: txn.pending || false,
-                authorized_date: txn.authorized_date ? new Date(txn.authorized_date) : null,
-                authorized_datetime: txn.authorized_datetime ? new Date(txn.authorized_datetime) : null,
-                counterparties: (txn as any).counterparties || null,
-                location: (txn as any).location || null,
-                payment_channel: txn.payment_channel,
-                payment_meta: (txn as any).payment_meta || null,
-                personal_finance_category: (txn as any).personal_finance_category || null,
-                personal_finance_category_icon_url: (txn as any).personal_finance_category_icon_url,
-                transaction_code: txn.transaction_code,
-                transaction_type: (txn as any).transaction_type,
-                logo_url: (txn as any).logo_url,
-                website: (txn as any).website,
-                updatedAt: new Date()
-              };
-
-              await prisma.transactions.upsert({
-                where: { transactionId: txn.transaction_id },
-                create: {
-                  id: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                  transactionId: txn.transaction_id,
-                  accountId: account.id,
-                  ...txnData
-                },
-                update: txnData
-              });
-              totalTransactions++;
-
-              // If this is a posted transaction, delete any matching pending duplicates
-              if (!txn.pending) {
-                const twoDaysAgo = new Date(txn.date);
-                twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-                const twoDaysAfter = new Date(txn.date);
-                twoDaysAfter.setDate(twoDaysAfter.getDate() + 2);
-
-                await prisma.transactions.deleteMany({
-                  where: {
-                    accountId: account.id,
-                    amount: txn.amount,
-                    pending: true,
-                    date: { gte: twoDaysAgo, lte: twoDaysAfter },
-                    transactionId: { not: txn.transaction_id }
-                  }
-                });
-              }
+            // REBUILD-01 PR-2: raw-first, in ONE database transaction per page —
+            // provider_responses (the wire) → arrivals (one per object, promise 2 on
+            // (provider, their_id)) → the existing parser, reading the ARRIVAL payloads →
+            // transactions.arrival_id → read / status = done. A parser throw rolls this
+            // page back; earlier pages stay landed; the stage declares the failure.
+            const result = await runTransactionsPage(
+              prisma,
+              (tx) => ({ landing: prismaLanding(tx as Prisma.TransactionClient), domain: tx as unknown as DomainDb }),
+              {
+                page,
+                userId: user.id,
+                connection: item.itemId,
+                accounts: item.accounts.map((acc) => ({ id: acc.id, accountId: acc.accountId })),
+                existing: existingMap,
+                wire,
+                httpStatus: response.status,
+                transactions: response.data.transactions,
+              },
+            );
+            if (!result.ok) {
+              transactionsFailure = result.failure;
+              console.error(`Transactions stage failed on page ${page}:`, result.failure.error);
+              break;
             }
+            totalTransactions += result.counts.synced;
+            skippedTransactions += result.counts.skipped;
+            landedArrivals += result.counts.landed;
+            alreadyLanded += result.counts.already_landed;
 
             offset += response.data.transactions.length;
             hasMore = response.data.total_transactions > offset;
@@ -282,7 +258,7 @@ export async function POST() {
     }
 
     const stages = [
-      transactionsFailure ?? stageOk('transactions', { synced: totalTransactions, skipped: skippedTransactions }),
+      transactionsFailure ?? stageOk('transactions', { synced: totalTransactions, skipped: skippedTransactions, landed: landedArrivals, already_landed: alreadyLanded }),
       investmentsFailure ?? stageOk('investments', { synced: totalInvestmentTransactions, skipped: skippedInvestmentTransactions, securities: totalSecurities }),
     ];
     const { status, body } = syncEnvelope(stages, {
@@ -295,7 +271,9 @@ export async function POST() {
       skipped: {
         transactions: skippedTransactions,
         investmentTransactions: skippedInvestmentTransactions
-      }
+      },
+      // REBUILD-01 PR-2: the store's counts for this run.
+      landed: { arrivals: landedArrivals, already_landed: alreadyLanded }
     });
     return NextResponse.json(body, { status });
   } catch (error) {

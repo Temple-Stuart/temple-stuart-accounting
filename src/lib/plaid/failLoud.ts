@@ -24,6 +24,8 @@ export interface StageFailed {
   ok: false;
   error: PlaidErrorSummary;
   message: string;
+  /** REBUILD-01 PR-2: the page whose transaction rolled back, when the stage pages. */
+  page?: number;
 }
 
 export type StageOutcome = StageOk | StageFailed;
@@ -62,9 +64,9 @@ export function stageOk(stage: string, counts: Record<string, number>): StageOk 
   return { stage, ok: true, counts };
 }
 
-export function stageFailed(stage: string, err: unknown): StageFailed {
+export function stageFailed(stage: string, err: unknown, page?: number): StageFailed {
   const error = summarizePlaidError(err);
-  return { stage, ok: false, error, message: describeFailure(error) };
+  return { stage, ok: false, error, message: describeFailure(error), ...(page === undefined ? {} : { page }) };
 }
 
 function line(s: StageOutcome): string {
@@ -72,7 +74,7 @@ function line(s: StageOutcome): string {
     const parts = Object.entries(s.counts).map(([k, v]) => `${v} ${k}`);
     return `${s.stage}: ok${parts.length ? ` (${parts.join(', ')})` : ''}`;
   }
-  return `${s.stage}: ${s.message}`;
+  return `${s.stage}${s.page === undefined ? '' : ` (page ${s.page})`}: ${s.message}`;
 }
 
 /**
