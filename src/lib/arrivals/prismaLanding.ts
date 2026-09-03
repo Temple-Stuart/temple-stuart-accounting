@@ -2,7 +2,7 @@
  * REBUILD-01 PR-2 — the Prisma-backed LandingDb, bound to ONE transaction
  * client so a page lands, parses and marks read atomically (sync-complete).
  * The arrivals insert is raw SQL for the one thing the Prisma client cannot say:
- * ON CONFLICT (provider, their_id) DO NOTHING … RETURNING their_id.
+ * ON CONFLICT (provider, their_id, fingerprint) DO NOTHING … RETURNING.
  */
 import { Prisma } from '@prisma/client';
 import type { ArrivalRow, LandedArrival, LandingDb, ProviderResponseRow } from './land';
@@ -36,20 +36,20 @@ export function prismaLanding(tx: Tx): LandingDb {
       const values = rows.map(
         (r) => Prisma.sql`(${r.id}, ${r.provider}::arrival_provider, ${r.connection}, ${r.resource}, ${r.their_id}, ${r.their_id_kind}::their_id_kind, ${JSON.stringify(r.payload)}::jsonb, ${r.fingerprint}, ${textArray(r.redactions)}, ${r.asked}, ${r.arrived}, 'pending'::arrival_status, ${r.response_id}, ${r.user_id}, ${r.guest_ref})`,
       );
-      const inserted = await tx.$queryRaw<Array<{ their_id: string }>>(Prisma.sql`
+      const inserted = await tx.$queryRaw<Array<{ their_id: string; fingerprint: Buffer }>>(Prisma.sql`
         INSERT INTO arrivals (id, provider, connection, resource, their_id, their_id_kind, payload, fingerprint, redactions, asked, arrived, status, response_id, user_id, guest_ref)
         VALUES ${Prisma.join(values)}
-        ON CONFLICT (provider, their_id) DO NOTHING
-        RETURNING their_id`);
-      return inserted.map((r) => r.their_id);
+        ON CONFLICT (provider, their_id, fingerprint) DO NOTHING
+        RETURNING their_id, fingerprint`);
+      return inserted.map((r) => ({ their_id: r.their_id, fingerprint: Buffer.from(r.fingerprint) }));
     },
     async findArrivals(provider: string, theirIds: string[]): Promise<LandedArrival[]> {
       if (theirIds.length === 0) return [];
       const rows = await tx.arrivals.findMany({
         where: { provider: provider as Prisma.arrivalsWhereInput['provider'], their_id: { in: theirIds } },
-        select: { id: true, their_id: true, payload: true, status: true },
+        select: { id: true, their_id: true, fingerprint: true, payload: true, status: true, arrived: true },
       });
-      return rows.map((r) => ({ id: r.id, their_id: r.their_id, payload: r.payload, status: r.status }));
+      return rows.map((r) => ({ id: r.id, their_id: r.their_id, fingerprint: Buffer.from(r.fingerprint), payload: r.payload, status: r.status, arrived: r.arrived }));
     },
     async markRead(ids: string[], at: Date) {
       if (ids.length === 0) return;

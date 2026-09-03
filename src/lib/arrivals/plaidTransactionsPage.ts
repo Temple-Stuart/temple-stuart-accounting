@@ -9,9 +9,15 @@
  * A parser throw rolls the whole page back (the response row, the page's
  * arrivals, its domain writes) and the caller answers with the HYG-01 envelope
  * carrying stage 'transactions', the page number and the summarized error; the
- * landed rows of earlier pages stay. An arrival the table already held is
- * LINKED (transactions.arrival_id), not re-parsed, and counted as
- * already_landed — promise 2 working, not an error.
+ * landed rows of earlier pages stay. Three outcomes per object, counted apart:
+ * landed (a new id) · already_landed (same id, same content — LINKED through
+ * transactions.arrival_id, never re-parsed; promise 2 working) · corrected
+ * (same id, new content — a NEW arrival row, parsed; the upsert applies it, so
+ * latest-arrived wins and arrival_id moves to the newest row; promise 1).
+ *
+ * A non-2xx answer lands as evidence of the ask — one provider_responses row
+ * (exact bytes, http_status, asked, arrived), no arrivals — before the stage
+ * declares its failure (recordFailedAnswer).
  *
  * The parser itself is sync-complete's existing domain logic, moved here
  * unchanged in behavior: the "complete data" skip, the upsert, the pending
@@ -62,17 +68,18 @@ export interface TransactionsPageInput {
 export interface PageCounts {
   landed: number;
   already_landed: number;
+  corrected: number;
   synced: number;
   skipped: number;
 }
 
-/** The existing domain write, from an arrival's payload. */
-async function parseTransaction(domain: DomainDb, ctx: TransactionsPageInput, arrivalId: string, txn: Transaction, counts: PageCounts, now: Date): Promise<void> {
+/** The existing domain write, from an arrival's payload. A correction never takes the complete-data skip: latest-arrived wins. */
+async function parseTransaction(domain: DomainDb, ctx: TransactionsPageInput, arrivalId: string, txn: Transaction, counts: PageCounts, now: Date, correction: boolean): Promise<void> {
   const account = ctx.accounts.find((acc) => acc.accountId === txn.account_id);
   if (!account) return;
 
   const existing = ctx.existing.get(txn.transaction_id);
-  if (existing && existing.personal_finance_category !== null) {
+  if (!correction && existing && existing.personal_finance_category !== null) {
     // Already has complete data — skip expensive update; still point the row at its arrival.
     await domain.transactions.updateMany({ where: { transactionId: txn.transaction_id, arrival_id: null }, data: { arrival_id: arrivalId } });
     counts.skipped++;
@@ -138,7 +145,7 @@ async function parseTransaction(domain: DomainDb, ctx: TransactionsPageInput, ar
 /** Inside the caller's transaction: land, parse from the table, mark read. Throws to roll the page back. */
 export async function landTransactionsPage(landing: LandingDb, domain: DomainDb, input: TransactionsPageInput): Promise<PageCounts> {
   const now = input.now ?? (() => new Date());
-  const counts: PageCounts = { landed: 0, already_landed: 0, synced: 0, skipped: 0 };
+  const counts: PageCounts = { landed: 0, already_landed: 0, corrected: 0, synced: 0, skipped: 0 };
 
   const response = await landResponse(landing, {
     provider: PLAID,
@@ -162,22 +169,46 @@ export async function landTransactionsPage(landing: LandingDb, domain: DomainDb,
     arrived: input.wire.arrived,
     objects: input.transactions.map((t) => ({ theirId: t.transaction_id, payload: t as unknown as JsonObject })),
   });
-  counts.landed = landed.newIds.size;
-  counts.already_landed = landed.existingIds.size + landed.repeatedInAnswer;
+  counts.landed = landed.landed;
+  counts.already_landed = landed.alreadyLanded;
+  counts.corrected = landed.corrected;
 
   const at = now();
+  const newRowIds: string[] = [];
   for (const row of landed.rows) {
-    if (landed.existingIds.has(row.their_id)) {
-      // Promise 2: the table already holds this object — link the domain row, never re-parse.
+    if (row.outcome === 'already_landed') {
+      // Promise 2: the table already holds this content — link the domain row, never re-parse.
       await domain.transactions.updateMany({ where: { transactionId: row.their_id, arrival_id: null }, data: { arrival_id: row.id } });
       continue;
     }
-    // The parser reads the arrival, never the HTTP object.
-    await parseTransaction(domain, input, row.id, row.payload as Transaction, counts, at);
+    newRowIds.push(row.id);
+    // The parser reads the arrival, never the HTTP object; a correction is applied (latest-arrived wins).
+    await parseTransaction(domain, input, row.id, row.payload as Transaction, counts, at, row.outcome === 'corrected');
   }
 
-  await markRead(landing, [...landed.newIds.values()], at);
+  await markRead(landing, newRowIds, at);
   return counts;
+}
+
+/** A failed ask is evidence of the ask: land the non-2xx answer's bytes (no arrivals). A network failure with no answer lands nothing. */
+export async function recordFailedAnswer(landing: LandingDb, input: { userId: string; err: unknown; now?: () => Date }): Promise<{ landed: boolean; status?: number }> {
+  const response = (err_has_response(input.err) ? input.err.response : undefined);
+  if (!response?.wire) return { landed: false };
+  await landResponse(landing, {
+    provider: PLAID,
+    resource: TRANSACTION,
+    userId: input.userId,
+    guestRef: null,
+    httpStatus: response.status,
+    body: response.wire.body,
+    asked: response.wire.asked,
+    arrived: response.wire.arrived,
+  });
+  return { landed: true, status: response.status };
+}
+
+function err_has_response(err: unknown): err is { response?: { status: number; wire?: WireStamp } } {
+  return typeof err === 'object' && err !== null && 'response' in err;
 }
 
 export interface PageClient {

@@ -7,7 +7,7 @@ import { decryptToken } from '@/lib/secrets/tokenCipher';
 import { failureEnvelope, stageFailed, stageOk, syncEnvelope, type StageFailed } from '@/lib/plaid/failLoud';
 import { wireOf } from '@/lib/plaid/wire';
 import { prismaLanding } from '@/lib/arrivals/prismaLanding';
-import { runTransactionsPage, type DomainDb } from '@/lib/arrivals/plaidTransactionsPage';
+import { recordFailedAnswer, runTransactionsPage, type DomainDb } from '@/lib/arrivals/plaidTransactionsPage';
 import type { Prisma } from '@prisma/client';
 
 export const maxDuration = 300; // 5 minutes for Pro plan
@@ -45,6 +45,7 @@ export async function POST() {
     // table already held (linked, not re-parsed; promise 2 working).
     let landedArrivals = 0;
     let alreadyLanded = 0;
+    let correctedArrivals = 0;
     // HYG-01: STOP AND DECLARE. The first failure ends its stage for the whole run;
     // the outcome is declared in the response (200 / 207 / non-2xx), never hidden.
     let transactionsFailure: StageFailed | null = null;
@@ -78,16 +79,24 @@ export async function POST() {
 
           while (hasMore) {
             page += 1;
-            const response = await plaidClient.transactionsGet({
-              access_token: decryptToken(item.accessToken),
-              start_date: '2024-01-01',
-              end_date: new Date().toISOString().split('T')[0],
-              options: {
-                offset: offset,
-                count: 100,
-                include_personal_finance_category: true
-              }
-            });
+            let response;
+            try {
+              response = await plaidClient.transactionsGet({
+                access_token: decryptToken(item.accessToken),
+                start_date: '2024-01-01',
+                end_date: new Date().toISOString().split('T')[0],
+                options: {
+                  offset: offset,
+                  count: 100,
+                  include_personal_finance_category: true
+                }
+              });
+            } catch (askError) {
+              // REBUILD-01 PR-2: a failed ask is evidence of the ask — the non-2xx answer's
+              // exact bytes land (no arrivals) before the stage declares the failure.
+              await recordFailedAnswer(prismaLanding(prisma as unknown as Prisma.TransactionClient), { userId: user.id, err: askError });
+              throw askError;
+            }
             // REBUILD-01 PR-2: the exact wire bytes ride the response (src/lib/plaid/wire.ts);
             // their absence is a fault, never a silent skip.
             const wire = wireOf(response, `transactionsGet page ${page}`);
@@ -136,6 +145,7 @@ export async function POST() {
             skippedTransactions += result.counts.skipped;
             landedArrivals += result.counts.landed;
             alreadyLanded += result.counts.already_landed;
+            correctedArrivals += result.counts.corrected;
 
             offset += response.data.transactions.length;
             hasMore = response.data.total_transactions > offset;
@@ -258,7 +268,7 @@ export async function POST() {
     }
 
     const stages = [
-      transactionsFailure ?? stageOk('transactions', { synced: totalTransactions, skipped: skippedTransactions, landed: landedArrivals, already_landed: alreadyLanded }),
+      transactionsFailure ?? stageOk('transactions', { synced: totalTransactions, skipped: skippedTransactions, landed: landedArrivals, already_landed: alreadyLanded, corrected: correctedArrivals }),
       investmentsFailure ?? stageOk('investments', { synced: totalInvestmentTransactions, skipped: skippedInvestmentTransactions, securities: totalSecurities }),
     ];
     const { status, body } = syncEnvelope(stages, {
@@ -273,7 +283,7 @@ export async function POST() {
         investmentTransactions: skippedInvestmentTransactions
       },
       // REBUILD-01 PR-2: the store's counts for this run.
-      landed: { arrivals: landedArrivals, already_landed: alreadyLanded }
+      landed: { arrivals: landedArrivals, already_landed: alreadyLanded, corrected: correctedArrivals }
     });
     return NextResponse.json(body, { status });
   } catch (error) {

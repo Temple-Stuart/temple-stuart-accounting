@@ -2,32 +2,34 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { Transaction } from 'plaid';
 import { canonicalBytes, fingerprintOf, landObjects, landResponse, sha256, type ArrivalRow, type LandedArrival, type LandingDb, type ProviderResponseRow } from '../arrivals/land';
-import { landTransactionsPage, runTransactionsPage, type DomainDb, type TransactionsPageInput } from '../arrivals/plaidTransactionsPage';
+import { landTransactionsPage, recordFailedAnswer, runTransactionsPage, type DomainDb, type TransactionsPageInput } from '../arrivals/plaidTransactionsPage';
+import { stageFailed, syncEnvelope } from '../plaid/failLoud';
+import { onWireError, type WireStamp } from '../plaid/wire';
 
 // REBUILD-01 PR-2 — landing. Hermetic: a fake LandingDb with the table's own
-// rules (UNIQUE on provider + their_id; read / status move once) and a fake
+// rules (UNIQUE on provider + their_id + fingerprint — the same thing is the
+// same provider, id and content; read / status move once) and a fake
 // transaction client that discards a page's writes when the page throws.
 
 class FakeLanding implements LandingDb {
   responses: ProviderResponseRow[] = [];
   arrivals = new Map<string, { row: ArrivalRow; read: Date | null; status: string }>();
-  private key(provider: string, theirId: string) { return `${provider} ${theirId}`; }
+  private key(provider: string, theirId: string, fingerprint: Buffer) { return `${provider} ${theirId} ${Buffer.from(fingerprint).toString('hex')}`; }
   async insertResponse(row: ProviderResponseRow) { this.responses.push(row); }
   async insertArrivalsIgnoringDuplicates(rows: ArrivalRow[]) {
-    const inserted: string[] = [];
+    const inserted: Array<{ their_id: string; fingerprint: Buffer }> = [];
     for (const r of rows) {
-      const k = this.key(r.provider, r.their_id);
+      const k = this.key(r.provider, r.their_id, r.fingerprint);
       if (this.arrivals.has(k)) continue;
       this.arrivals.set(k, { row: structuredClone(r), read: null, status: 'pending' });
-      inserted.push(r.their_id);
+      inserted.push({ their_id: r.their_id, fingerprint: r.fingerprint });
     }
     return inserted;
   }
   async findArrivals(provider: string, theirIds: string[]): Promise<LandedArrival[]> {
-    return theirIds.flatMap((t) => {
-      const a = this.arrivals.get(this.key(provider, t));
-      return a ? [{ id: a.row.id, their_id: t, payload: structuredClone(a.row.payload), status: a.status }] : [];
-    });
+    return [...this.arrivals.values()]
+      .filter((a) => a.row.provider === provider && theirIds.includes(a.row.their_id))
+      .map((a) => ({ id: a.row.id, their_id: a.row.their_id, fingerprint: Buffer.from(a.row.fingerprint), payload: structuredClone(a.row.payload), status: a.status, arrived: a.row.arrived }));
   }
   async markRead(ids: string[], at: Date) {
     for (const a of this.arrivals.values()) {
@@ -37,6 +39,7 @@ class FakeLanding implements LandingDb {
       a.status = 'done';
     }
   }
+  rowsFor(theirId: string) { return [...this.arrivals.values()].filter((a) => a.row.their_id === theirId); }
   snapshot() {
     return { responses: [...this.responses], arrivals: new Map([...this.arrivals].map(([k, v]) => [k, { ...v, row: structuredClone(v.row) }])) };
   }
@@ -50,6 +53,8 @@ class FakeDomain implements DomainDb {
   upserts: Upsert[] = [];
   links: Link[] = [];
   deletes = 0;
+  /** what the domain table would hold after the upserts, keyed by transactionId */
+  rows = new Map<string, Record<string, unknown>>();
   constructor(private throwOn: string | null = null) {}
   transactions = {
     upsert: async (args: Upsert) => {
@@ -57,6 +62,8 @@ class FakeDomain implements DomainDb {
         throw new Error('Invalid `prisma.transactions.upsert()` invocation: column "arrival_id" of relation "transactions" does not exist');
       }
       this.upserts.push(args);
+      const prev = this.rows.get(args.where.transactionId);
+      this.rows.set(args.where.transactionId, prev ? { ...prev, ...args.update } : { ...args.create });
       return {};
     },
     updateMany: async (args: Link) => { this.links.push(args); return {}; },
@@ -88,32 +95,73 @@ test('(a) JCS canonicalization is key-order independent and the fingerprint is s
   assert.throws(() => canonicalBytes(undefined), /no JCS form/);
 });
 
-test('(b) two objects with the same transaction_id produce one row and one already_landed', async () => {
+test('(b)(e) same id + same content → one row, already_landed; a repeat within the answer lands once', async () => {
   const landing = new FakeLanding();
   const resp = await landResponse(landing, { provider: 'plaid', resource: 'transaction', userId: 'u', guestRef: null, httpStatus: 200, body: Buffer.from('{}'), asked: new Date(), arrived: new Date() });
   assert.equal(landing.responses.length, 1);
   assert.deepEqual(landing.responses[0].body_sha256, sha256(Buffer.from('{}')));
   const base = { provider: 'plaid', resource: 'transaction', connection: 'item_abc', userId: 'u', guestRef: null, responseId: resp.id, asked: new Date(), arrived: new Date() };
   const first = await landObjects(landing, { ...base, objects: [{ theirId: 't1', payload: { transaction_id: 't1', amount: 1 } }, { theirId: 't1', payload: { transaction_id: 't1', amount: 1 } }] });
-  assert.equal(first.newIds.size, 1);
-  assert.equal(first.existingIds.size, 0);
-  assert.equal(first.repeatedInAnswer, 1);
+  assert.deepEqual([first.landed, first.alreadyLanded, first.corrected, first.repeatedInAnswer], [1, 1, 0, 1]);
+  assert.equal(first.rows.length, 1);
+  assert.equal(first.rows[0].outcome, 'landed');
   assert.equal(landing.arrivals.size, 1);
-  // the same object in a later answer: promise 2 — one row, reported as already existing
-  const second = await landObjects(landing, { ...base, objects: [{ theirId: 't1', payload: { transaction_id: 't1', amount: 1 } }, { theirId: 't2', payload: { transaction_id: 't2', amount: 2 } }] });
-  assert.equal(second.newIds.size, 1);
-  assert.deepEqual([...second.existingIds.keys()], ['t1']);
-  assert.equal(second.existingIds.get('t1'), first.newIds.get('t1'));
+  // the same content in a later answer: promise 2 — one row, already landed
+  const second = await landObjects(landing, { ...base, objects: [{ theirId: 't1', payload: { amount: 1, transaction_id: 't1' } }, { theirId: 't2', payload: { transaction_id: 't2', amount: 2 } }] });
+  assert.deepEqual([second.landed, second.alreadyLanded, second.corrected], [1, 1, 0]);
+  assert.deepEqual(second.rows.map((r) => [r.their_id, r.outcome]), [['t1', 'already_landed'], ['t2', 'landed']]);
+  assert.equal(second.rows[0].id, first.rows[0].id, 'the very row the first answer landed');
   assert.equal(landing.arrivals.size, 2);
   // the page counts it as already_landed and links instead of re-parsing
   const domain = new FakeDomain();
-  const counts = await landTransactionsPage(landing, domain, pageInput({ transactions: [txn('t1'), txn('t3')] }));
-  assert.deepEqual(counts, { landed: 1, already_landed: 1, synced: 1, skipped: 0 });
-  assert.equal(domain.upserts.length, 1);
-  assert.equal(domain.upserts[0].where.transactionId, 't3');
-  assert.equal(domain.links.length, 1);
-  assert.deepEqual(domain.links[0].where, { transactionId: 't1', arrival_id: null });
-  assert.equal(domain.links[0].data.arrival_id, first.newIds.get('t1'));
+  const counts = await landTransactionsPage(landing, domain, pageInput({ transactions: [txn('t1', { amount: 1, name: 'x' } as Partial<Transaction>), txn('t3')] }));
+  assert.equal(counts.already_landed + counts.landed + counts.corrected, 2);
+  assert.equal(counts.landed, 1);
+  assert.equal(domain.upserts.length, 2, 'the t1 payload differs from the stored { transaction_id, amount } object, so it is a correction here');
+});
+
+test('(e) same id + same content, through the page: one row, already_landed, linked, not re-parsed', async () => {
+  const landing = new FakeLanding();
+  const domain = new FakeDomain();
+  const t = txn('t1');
+  const p1 = await landTransactionsPage(landing, domain, pageInput({ page: 1, transactions: [t] }));
+  assert.deepEqual(p1, { landed: 1, already_landed: 0, corrected: 0, synced: 1, skipped: 0 });
+  const p2 = await landTransactionsPage(landing, domain, pageInput({ page: 2, transactions: [{ ...t }] }));
+  assert.deepEqual(p2, { landed: 0, already_landed: 1, corrected: 0, synced: 0, skipped: 0 });
+  assert.equal(landing.rowsFor('t1').length, 1, 'one row');
+  assert.equal(domain.upserts.length, 1, 'not re-parsed');
+  assert.equal(domain.links.length, 1, 'linked');
+  assert.equal(domain.links[0].data.arrival_id, landing.rowsFor('t1')[0].row.id);
+});
+
+test('(f) same id + changed content → two rows, corrected = 1, the domain row carries the new values and the newest arrival_id', async () => {
+  const landing = new FakeLanding();
+  const domain = new FakeDomain();
+  const original = txn('t1', { amount: 12.5, name: 'Coffee' });
+  const p1 = await landTransactionsPage(landing, domain, pageInput({ page: 1, transactions: [original] }));
+  assert.deepEqual(p1, { landed: 1, already_landed: 0, corrected: 0, synced: 1, skipped: 0 });
+  const firstId = landing.rowsFor('t1')[0].row.id;
+  // the provider corrects the amount; the row is even marked "complete" (the skip must not apply to a correction)
+  const corrected = txn('t1', { amount: 13.75, name: 'Coffee (corrected)' });
+  const existing = new Map([['t1', { transactionId: 't1', personal_finance_category: { primary: 'FOOD' } }]]);
+  const p2 = await landTransactionsPage(landing, domain, pageInput({ page: 2, existing, transactions: [corrected] }));
+  assert.deepEqual(p2, { landed: 0, already_landed: 0, corrected: 1, synced: 1, skipped: 0 });
+  const rows = landing.rowsFor('t1');
+  assert.equal(rows.length, 2, 'two rows');
+  const newest = rows.find((r) => r.row.id !== firstId);
+  assert.ok(newest);
+  assert.equal(newest.status, 'done');
+  assert.notDeepEqual(Buffer.from(newest.row.fingerprint), Buffer.from(rows[0].row.fingerprint === newest.row.fingerprint ? rows[1].row.fingerprint : rows[0].row.fingerprint));
+  assert.equal(domain.upserts.length, 2);
+  const domainRow = domain.rows.get('t1');
+  assert.ok(domainRow);
+  assert.equal(domainRow.amount, 13.75);
+  assert.equal(domainRow.name, 'Coffee (corrected)');
+  assert.equal(domainRow.arrival_id, newest.row.id, 'arrival_id moved to the newest arrival');
+  // the original content arriving again is still the same thing: already landed, no third row
+  const p3 = await landTransactionsPage(landing, domain, pageInput({ page: 3, transactions: [original] }));
+  assert.deepEqual(p3, { landed: 0, already_landed: 1, corrected: 0, synced: 0, skipped: 0 });
+  assert.equal(landing.rowsFor('t1').length, 2);
 });
 
 test('the parser reads the arrival row, never the HTTP object, and every new arrival is read once', async () => {
@@ -122,7 +170,7 @@ test('the parser reads the arrival row, never the HTTP object, and every new arr
   const t = txn('t9', { name: 'As landed' });
   const counts = await landTransactionsPage(landing, domain, pageInput({ transactions: [t] }));
   t.name = 'Mutated after landing';
-  assert.deepEqual(counts, { landed: 1, already_landed: 0, synced: 1, skipped: 0 });
+  assert.deepEqual(counts, { landed: 1, already_landed: 0, corrected: 0, synced: 1, skipped: 0 });
   assert.equal(domain.upserts[0].create.name, 'As landed');
   const a = [...landing.arrivals.values()][0];
   assert.equal(domain.upserts[0].create.arrival_id, a.row.id);
@@ -167,4 +215,28 @@ test("(c) a parser throw leaves the page's arrivals absent (rollback) and return
   const again = await runTransactionsPage(client, () => ({ landing, domain }), pageInput({ page: 3, transactions: [txn('t1'), txn('t2')] }));
   assert.equal(again.ok, false);
   assert.equal(landing.arrivals.size, 1);
+});
+
+test('(g) a 429 answer produces one provider_responses row, zero arrivals, and the 429 envelope', async () => {
+  const landing = new FakeLanding();
+  const body = Buffer.from('{"error_type":"RATE_LIMIT_EXCEEDED","error_code":"TRANSACTIONS_LIMIT","error_message":"slow down","request_id":"r9"}');
+  const err = Object.assign(new Error('Request failed with status code 429'), { response: { data: body as unknown, status: 429, config: { wireAsked: new Date('2026-09-03T10:00:00Z') }, wire: undefined as WireStamp | undefined } });
+  await assert.rejects(onWireError(err, () => new Date('2026-09-03T10:00:01Z')));
+  const recorded = await recordFailedAnswer(landing, { userId: 'user_1', err });
+  assert.deepEqual(recorded, { landed: true, status: 429 });
+  assert.equal(landing.responses.length, 1);
+  assert.equal(landing.responses[0].http_status, 429);
+  assert.equal(Buffer.compare(landing.responses[0].body, body), 0, 'the exact bytes of the refusal');
+  assert.deepEqual(landing.responses[0].body_sha256, sha256(body));
+  assert.deepEqual(landing.responses[0].asked, new Date('2026-09-03T10:00:00Z'));
+  assert.equal(landing.arrivals.size, 0, 'zero arrivals');
+  const failure = stageFailed('transactions', err, 1);
+  const { status, body: envelope } = syncEnvelope([failure]);
+  assert.equal(status, 429);
+  assert.equal(envelope.ok, false);
+  assert.equal((envelope.error as { error_type: string }).error_type, 'RATE_LIMIT_EXCEEDED');
+  assert.match(String(envelope.message), /transactions \(page 1\): Plaid: RATE_LIMIT_EXCEEDED \(TRANSACTIONS_LIMIT\) — try again in a few minutes/);
+  // a network failure with no answer lands nothing — there was no answer to keep
+  assert.deepEqual(await recordFailedAnswer(landing, { userId: 'user_1', err: new Error('ECONNRESET') }), { landed: false });
+  assert.equal(landing.responses.length, 1);
 });

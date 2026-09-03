@@ -11,11 +11,16 @@
  *                    their_id = the provider's own id (their_id_kind
  *                    'provider'), redactions [] (the PR-2 audit found no secret
  *                    in a /transactions/get body), response_id set, status
- *                    pending. INSERT … ON CONFLICT (provider, their_id) DO
- *                    NOTHING — a duplicate is promise 2 working, not an error —
- *                    and the caller learns which were new and which already
- *                    existed. The rows handed back are READ FROM THE TABLE, so
- *                    a parser that takes them never reads the HTTP object.
+ *                    pending. INSERT … ON CONFLICT (provider, their_id,
+ *                    fingerprint) DO NOTHING — THE SAME THING IS THE SAME
+ *                    PROVIDER, ID AND CONTENT; a duplicate is promise 2 working,
+ *                    not an error, and a provider's CORRECTION (same id, new
+ *                    content) is a NEW ROW (promise 1). Each object comes back
+ *                    with one of three outcomes — landed (first row for the id)
+ *                    · already_landed (that content was already there) ·
+ *                    corrected (a new row for an id that had others). The rows
+ *                    handed back are READ FROM THE TABLE, so a parser that
+ *                    takes them never reads the HTTP object.
  *   markRead()     — read = now, status = done, once (promise 1 is the
  *                    database's trigger; this is its only legal move).
  *
@@ -62,17 +67,25 @@ export interface ArrivalRow {
 export interface LandedArrival {
   id: string;
   their_id: string;
+  fingerprint: Buffer;
   /** The payload as the TABLE holds it — the parser's only input. */
   payload: unknown;
   status: string;
+  arrived: Date | null;
+}
+
+export type ArrivalOutcome = 'landed' | 'already_landed' | 'corrected';
+
+export interface LandedObject extends LandedArrival {
+  outcome: ArrivalOutcome;
 }
 
 /** The port. Every method runs inside the caller's database transaction. */
 export interface LandingDb {
   insertResponse(row: ProviderResponseRow): Promise<void>;
-  /** INSERT … ON CONFLICT (provider, their_id) DO NOTHING; resolves to the their_ids that were actually inserted. */
-  insertArrivalsIgnoringDuplicates(rows: ArrivalRow[]): Promise<string[]>;
-  /** The rows the table holds for these (provider, their_id)s — new and pre-existing alike. */
+  /** INSERT … ON CONFLICT (provider, their_id, fingerprint) DO NOTHING; resolves to the (their_id, fingerprint) pairs actually inserted. */
+  insertArrivalsIgnoringDuplicates(rows: ArrivalRow[]): Promise<Array<{ their_id: string; fingerprint: Buffer }>>;
+  /** EVERY row the table holds for these (provider, their_id)s — new, pre-existing and earlier versions alike. */
   findArrivals(provider: string, theirIds: string[]): Promise<LandedArrival[]>;
   /** read = at, status = done for these ids. */
   markRead(ids: string[], at: Date): Promise<void>;
@@ -157,15 +170,16 @@ export interface LandObjectsInput {
 }
 
 export interface LandedObjects {
-  /** their_id → arrival id, for the objects this call inserted. */
-  newIds: Map<string, string>;
-  /** their_id → arrival id, for the objects the table already held (promise 2). */
-  existingIds: Map<string, string>;
-  /** Objects repeated within this one answer — landed once, counted here. */
+  /** One per distinct (their_id, fingerprint) in the answer, in the answer's order, each with its outcome — read from the table. */
+  rows: LandedObject[];
+  /** Objects repeated (same id, same content) within this one answer — landed once, counted here as already landed. */
   repeatedInAnswer: number;
-  /** The rows as the table holds them, in the answer's order (one per distinct their_id). */
-  rows: LandedArrival[];
+  landed: number;
+  alreadyLanded: number;
+  corrected: number;
 }
+
+const pairKey = (theirId: string, fingerprint: Buffer) => `${theirId}\u0000${fingerprint.toString('hex')}`;
 
 export async function landObjects(db: LandingDb, input: LandObjectsInput): Promise<LandedObjects> {
   assertProvider(input.provider);
@@ -174,8 +188,10 @@ export async function landObjects(db: LandingDb, input: LandObjectsInput): Promi
   let repeatedInAnswer = 0;
   const rows: ArrivalRow[] = [];
   for (const o of input.objects) {
-    if (seen.has(o.theirId)) { repeatedInAnswer += 1; continue; }
-    seen.add(o.theirId);
+    const fingerprint = fingerprintOf(o.payload);
+    const key = pairKey(o.theirId, fingerprint);
+    if (seen.has(key)) { repeatedInAnswer += 1; continue; }
+    seen.add(key);
     rows.push({
       id: `arr_${randomUUID()}`,
       provider: input.provider,
@@ -184,7 +200,7 @@ export async function landObjects(db: LandingDb, input: LandObjectsInput): Promi
       their_id: o.theirId,
       their_id_kind: 'provider',
       payload: o.payload,
-      fingerprint: fingerprintOf(o.payload),
+      fingerprint,
       redactions: [],
       asked: input.asked,
       arrived: input.arrived,
@@ -193,19 +209,36 @@ export async function landObjects(db: LandingDb, input: LandObjectsInput): Promi
       guest_ref: input.guestRef,
     });
   }
-  const inserted = new Set(rows.length ? await db.insertArrivalsIgnoringDuplicates(rows) : []);
-  const found = rows.length ? await db.findArrivals(input.provider, rows.map((r) => r.their_id)) : [];
-  const byTheirId = new Map(found.map((f) => [f.their_id, f]));
-  const newIds = new Map<string, string>();
-  const existingIds = new Map<string, string>();
-  const ordered: LandedArrival[] = [];
+  const inserted = new Set((rows.length ? await db.insertArrivalsIgnoringDuplicates(rows) : []).map((p) => pairKey(p.their_id, p.fingerprint)));
+  const found = rows.length ? await db.findArrivals(input.provider, [...new Set(rows.map((r) => r.their_id))]) : [];
+  const byPair = new Map(found.map((f) => [pairKey(f.their_id, f.fingerprint), f]));
+  const rowsPerId = new Map<string, number>();
+  for (const f of found) rowsPerId.set(f.their_id, (rowsPerId.get(f.their_id) ?? 0) + 1);
+  const ordered: LandedObject[] = [];
+  let landed = 0;
+  let alreadyLanded = repeatedInAnswer;
+  let corrected = 0;
+  // Within one answer a corrected id lands two rows; the second is a correction of the first.
+  const landedInThisAnswer = new Set<string>();
   for (const r of rows) {
-    const f = byTheirId.get(r.their_id);
+    const key = pairKey(r.their_id, r.fingerprint);
+    const f = byPair.get(key);
     if (!f) throw new Error(`landObjects: ${input.provider} ${r.their_id} was neither inserted nor found — the table is not answering`);
-    (inserted.has(r.their_id) ? newIds : existingIds).set(r.their_id, f.id);
-    ordered.push(f);
+    let outcome: ArrivalOutcome;
+    if (!inserted.has(key)) {
+      outcome = 'already_landed';
+      alreadyLanded += 1;
+    } else if ((rowsPerId.get(r.their_id) ?? 1) > 1 || landedInThisAnswer.has(r.their_id)) {
+      outcome = 'corrected';
+      corrected += 1;
+    } else {
+      outcome = 'landed';
+      landed += 1;
+    }
+    landedInThisAnswer.add(r.their_id);
+    ordered.push({ ...f, outcome });
   }
-  return { newIds, existingIds, repeatedInAnswer, rows: ordered };
+  return { rows: ordered, repeatedInAnswer, landed, alreadyLanded, corrected };
 }
 
 export async function markRead(db: LandingDb, ids: string[], at: Date = new Date()): Promise<void> {

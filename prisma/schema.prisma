@@ -3638,8 +3638,10 @@ model arrivals {
   user          users?              @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   transactions  transactions[]
 
-  @@unique([provider, their_id])
+  /// PR-2: the same thing is the same provider + id + content; a correction is a new row.
+  @@unique([provider, their_id, fingerprint])
   @@index([user_id, provider, resource, arrived(sort: Desc)])
+  @@index([provider, their_id, arrived(sort: Desc)])
   @@index([status])
   @@index([response_id])
 }
