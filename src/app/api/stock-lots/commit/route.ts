@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { ValidationError } from '@/lib/errors/ValidationError';
 import { NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
@@ -103,7 +104,7 @@ export async function POST(request: Request) {
         // Reorder based on user selection
         sortedLots = selectedLots.map(sel => {
           const lot = lots.find(l => l.id === sel.lotId);
-          if (!lot) throw new Error(`Lot not found: ${sel.lotId}`);
+          if (!lot) throw new ValidationError(`Lot not found: ${sel.lotId}`, { status: 404, field: 'selectedLots' });
           return { ...lot, requestedQty: sel.quantity };
         });
         break;
@@ -192,7 +193,7 @@ export async function POST(request: Request) {
       }
 
       if (remaining > 0.01) {
-        throw new Error(`Could not match all shares: ${remaining.toFixed(4)} remaining`);
+        throw new ValidationError(`Could not match all shares: ${remaining.toFixed(4)} remaining`);
       }
 
       // Save tax scenario record
@@ -247,7 +248,7 @@ export async function POST(request: Request) {
       const plAccount = accounts.find(a => a.code === PL_ACCOUNT);
 
       if (!cashAccount || !stockAccount || !plAccount) {
-        throw new Error(`Missing required accounts: ${TRADING_CASH}, ${STOCK_POSITION}, ${PL_ACCOUNT}`);
+        throw new ValidationError(`Missing required accounts: ${TRADING_CASH}, ${STOCK_POSITION}, ${PL_ACCOUNT}`);
       }
 
       // Create journal entry

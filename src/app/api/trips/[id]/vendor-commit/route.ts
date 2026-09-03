@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ValidationError } from '@/lib/errors/ValidationError';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -37,7 +38,7 @@ async function getOptionDetails(
       // divisor. The outer catch surfaces this as a 500 with the message.
       const totalPrice = Number(opt.total_price);
       if (!Number.isFinite(totalPrice) || totalPrice <= 0) {
-        throw new Error(
+        throw new ValidationError(
           `Lodging option ${optionId} has no total_price — refusing to substitute one night's ` +
           `price_per_night as the whole-stay amount. Re-save the stay with a total.`,
         );
@@ -226,7 +227,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const details = (optionType === 'flight' || isSyntheticLodging || isSyntheticActivity)
         ? { title: notes || (isSyntheticLodging ? 'Lodging' : isSyntheticActivity ? 'Place' : 'Flight'), amount: Number(requestAmount || 0), tripId: id }
         : await getOptionDetails(tx, optionType, optionId, id);
-      if (!details) throw new Error('Vendor option not found');
+      if (!details) throw new ValidationError('Vendor option not found', { status: 404 });
 
       // A. Update vendor option status to committed (only for real option rows —
       // flights, synthetic lodging, and synthetic activity have none to update).

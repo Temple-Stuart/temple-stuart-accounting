@@ -9,10 +9,15 @@
  * discipline) and RETURNS the HYG-01 envelope with a FIXED, user-safe message.
  * The thrown message never reaches the body.
  *
+ * The one exception is user guidance: a ValidationError (src/lib/errors) is
+ * text written FOR the user — it passes through VERBATIM at its own status
+ * (400 / 404 …) and is not logged as an error. Everything else is a fault.
+ *
  * Pure (no Next.js import) so it runs in node:test; failClosedResponse.ts is
  * the one-line NextResponse wrapper routes call.
  */
 import type { Envelope } from '../plaid/failLoud';
+import { ValidationError } from '../errors/ValidationError';
 
 export interface FailureSummary {
   name?: string;
@@ -50,6 +55,13 @@ export interface FailClosedBody {
   /** The fixed, user-safe line — the same text in both keys so every existing reader (`error` or `message`) prints it. */
   error: string;
   message: string;
+  /** Set only for a ValidationError that names its input field. */
+  field?: string;
+}
+
+/** The text a client may print for a thrown error: a ValidationError's own words, else the fixed line. */
+export function userFacingMessage(err: unknown, fixed: string): string {
+  return err instanceof ValidationError ? err.message : fixed;
 }
 
 /**
@@ -60,6 +72,13 @@ export interface FailClosedBody {
  * anything derived from the thrown error.
  */
 export function failClosed(stage: string, userMessage: string, err: unknown, status = 500, extra: Record<string, unknown> = {}): Envelope & { body: FailClosedBody } {
+  if (err instanceof ValidationError) {
+    // User guidance, verbatim, at its own status; a refusal is not a fault, so no error log.
+    return {
+      status: err.status,
+      body: { ...extra, ok: false, stage, error: err.message, message: err.message, ...(err.field ? { field: err.field } : {}) },
+    };
+  }
   console.error(`[${stage}] ${userMessage}`, summarizeError(err));
   return { status, body: { ...extra, ok: false, stage, error: userMessage, message: userMessage } };
 }

@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { ValidationError } from '@/lib/errors/ValidationError';
 import { prisma } from '@/lib/prisma';
 import { positionTrackerService } from '@/lib/position-tracker-service';
 
@@ -978,7 +979,7 @@ export async function processStockSells(
           const plAccount = accounts.find((a: { code: string }) => a.code === PL_ACCOUNT);
 
           if (!cashAccount || !stockAccount || !plAccount) {
-            throw new Error(`Missing required accounts: ${TRADING_CASH}, ${STOCK_POSITION}, ${PL_ACCOUNT}`);
+            throw new ValidationError(`Missing required accounts: ${TRADING_CASH}, ${STOCK_POSITION}, ${PL_ACCOUNT}`);
           }
 
           const journalEntry = await tx.journal_entries.create({
@@ -1220,7 +1221,7 @@ export async function processDividends(
           const divAccount = accounts.find((a: { code: string }) => a.code === DIVIDEND_INCOME);
 
           if (!cashAccount || !divAccount) {
-            throw new Error(`Missing COA accounts: ${TRADING_CASH} or ${DIVIDEND_INCOME}. Ensure trading entity has dividend income account (4300).`);
+            throw new ValidationError(`Missing COA accounts: ${TRADING_CASH} or ${DIVIDEND_INCOME}. Ensure trading entity has dividend income account (4300).`);
           }
 
           // DR Trading Cash, CR Dividend Income

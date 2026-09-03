@@ -1,6 +1,8 @@
 import { randomUUID } from 'crypto';
+import { ValidationError } from '@/lib/errors/ValidationError';
 import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
+import { summarizeError, userFacingMessage } from '@/lib/http/failClosed';
 import { prisma } from '@/lib/prisma';
 import { commitPlaidTransaction, type CommitLink } from '@/lib/journal-entry-service';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -362,8 +364,9 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        console.error('Error committing transaction:', txnId, error);
-        errors.push({ txnId, error: message });
+        // HYG-02: a ValidationError's guidance reaches the body verbatim; a fault stays on the server.
+        if (!(error instanceof ValidationError)) console.error('[Commit] transaction failed:', txnId, summarizeError(error));
+        errors.push({ txnId, error: userFacingMessage(error, 'Commit failed') });
       }
     }
 
