@@ -15,7 +15,7 @@
  * key-value port (localStorage in the browser, a Map in tests).
  */
 import { CountryCode, Products, type LinkTokenCreateRequest } from 'plaid';
-import { readSyncResponse, type SyncOutcome } from './failLoud';
+import { readSyncResponse, syncLine, type SyncOutcome } from './failLoud';
 
 // ─── the redirect URI ─────────────────────────────────────────────────────────
 
@@ -191,7 +191,8 @@ export async function completeOauthReturn(flow: LinkFlow, publicToken: string, m
   // exchange-token's success body carries no `message`; name the bank instead of "Synced (HTTP 200)".
   const b = body && typeof body === 'object' ? (body as Record<string, unknown>) : null;
   const text = read.tone === 'ok' && typeof b?.message !== 'string' ? `${institutionName ?? 'Account'} linked` : read.text;
-  return { endpoint: '/api/plaid/exchange-token', outcome: { ...read, text } };
+  // HYG-03: `lines` moves with the text — the banner renders lines, not text.
+  return { endpoint: '/api/plaid/exchange-token', outcome: text === read.text ? read : syncLine(read.tone, text) };
 }
 
 // ─── the outcome line, carried back to Books ──────────────────────────────────
@@ -219,7 +220,7 @@ export function takeReturnOutcome(store: KeyValueStore, kind: LinkFlow['kind']):
     }
     if (v.flow.kind !== kind) return null;
     store.removeItem(OUTCOME_KEY);
-    return { flow: v.flow, outcome: { tone: outcome.tone as SyncOutcome['tone'], text: outcome.text }, at: v.at };
+    return { flow: v.flow, outcome: syncLine(outcome.tone as SyncOutcome['tone'], outcome.text), at: v.at };
   } catch {
     store.removeItem(OUTCOME_KEY);
     return null;
