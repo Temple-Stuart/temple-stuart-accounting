@@ -1,7 +1,8 @@
 import { randomUUID } from 'crypto';
+import { ValidationError } from '@/lib/errors/ValidationError';
 import { NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
-import { summarizeError } from '@/lib/http/failClosed';
+import { summarizeError, userFacingMessage } from '@/lib/http/failClosed';
 import { prisma } from '@/lib/prisma';
 import { reversePlaidTransaction } from '@/lib/journal-entry-service';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -82,9 +83,9 @@ export async function POST(request: Request) {
         if (error instanceof PeriodClosedError) {
           return NextResponse.json({ error: error.message }, { status: 409 });
         }
-        // HYG-02: the thrown text stays on the server; the body says which transaction failed, not why internally.
-        console.error('[Uncommit] transaction failed:', txn.id, summarizeError(error));
-        errors.push({ txnId: txn.id, error: 'Uncommit failed' });
+        // HYG-02: a ValidationError's guidance reaches the body verbatim; a fault stays on the server.
+        if (!(error instanceof ValidationError)) console.error('[Uncommit] transaction failed:', txn.id, summarizeError(error));
+        errors.push({ txnId: txn.id, error: userFacingMessage(error, 'Uncommit failed') });
       }
     }
 

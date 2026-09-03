@@ -1,4 +1,5 @@
 import { requireTier } from '@/lib/auth-helpers';
+import { ValidationError } from '@/lib/errors/ValidationError';
 import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
@@ -257,7 +258,7 @@ export async function POST(
         select: { startDate: true, endDate: true },
       });
       if (!trip?.startDate || !trip?.endDate) {
-        throw new Error('Trip dates required for hotel search — set Start/End on the trip first');
+        throw new ValidationError('Trip dates required for hotel search — set Start/End on the trip first');
       }
       const participantCount = await prisma.trip_participants.count({ where: { tripId } });
       const adults = Math.max(1, participantCount);
@@ -348,7 +349,7 @@ export async function POST(
       if (!process.env.VIATOR_API_KEY) {
         // Fail loud — Viator categories must come from Viator. A missing key
         // is a config issue the user needs to see, not silently routed to Google.
-        throw new Error('VIATOR_API_KEY is not configured');
+        throw new MissingViatorKeyError();
       }
       console.log(`[Viator] ${category}: Using Viator API for ${city}, ${country}`);
       try {

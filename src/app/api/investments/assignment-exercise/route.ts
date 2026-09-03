@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ValidationError } from '@/lib/errors/ValidationError';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { positionTrackerService } from '@/lib/position-tracker-service';
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
       ]);
 
       if (!transferTxn || !stockTxn) {
-        throw new Error(`Transaction not found or not owned: ${transferId} or ${stockId}`);
+        throw new ValidationError(`Transaction not found or not owned: ${transferId} or ${stockId}`, { status: 404 });
       }
 
       const result = await positionTrackerService.handleAssignmentExercise({

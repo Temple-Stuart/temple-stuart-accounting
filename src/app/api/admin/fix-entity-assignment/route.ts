@@ -1,6 +1,8 @@
 import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
+import { summarizeError, userFacingMessage } from '@/lib/http/failClosed';
+import { ValidationError } from '@/lib/errors/ValidationError';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { ADMIN_USER_ID } from '@/lib/tiers';
@@ -227,9 +229,9 @@ export async function POST(request: NextRequest) {
           errors.push(`Txn ${txn.id}: ${err.message}`);
           continue;
         }
-        const msg = err instanceof Error ? err.message : 'Unknown error';
-        console.error(`Fix entity error for txn ${txn.id}:`, err);
-        errors.push(`Txn ${txn.id}: ${msg}`);
+        // HYG-02: a ValidationError's guidance reaches the body verbatim; a fault stays on the server.
+        if (!(err instanceof ValidationError)) console.error(`[Fix entity assignment] txn ${txn.id} failed:`, summarizeError(err));
+        errors.push(`Txn ${txn.id}: ${userFacingMessage(err, 'Fix failed')}`);
       }
     }
 

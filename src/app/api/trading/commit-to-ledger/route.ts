@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ValidationError } from '@/lib/errors/ValidationError';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
+import { summarizeError, userFacingMessage } from '@/lib/http/failClosed';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { assertPeriodOpen, PeriodClosedError } from '@/lib/period-close-guard';
@@ -231,8 +233,9 @@ export async function POST(request: NextRequest) {
           skipped++;
           continue;
         }
-        console.error(`Error committing trade #${tradeNum}:`, err);
-        errors.push(`Trade #${tradeNum}: ${message}`);
+        // HYG-02: a ValidationError's guidance reaches the body verbatim; a fault stays on the server.
+        if (!(err instanceof ValidationError)) console.error(`[Trade commit] trade #${tradeNum} failed:`, summarizeError(err));
+        errors.push(`Trade #${tradeNum}: ${userFacingMessage(err, 'Commit failed')}`);
       }
     }
 

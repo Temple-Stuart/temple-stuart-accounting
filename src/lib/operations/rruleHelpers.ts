@@ -14,6 +14,7 @@
  */
 
 import { RRule, RRuleSet, rrulestr, Frequency } from 'rrule';
+import { ValidationError } from '@/lib/errors/ValidationError';
 import type { CadenceGroup, CadenceMode, RoutineForm, WeekDay } from '@/components/workbench/operations/routines/types';
 
 /**
@@ -30,7 +31,7 @@ export function compileFormToRRule(form: RoutineForm): string {
   if (form.cadence_mode === 'custom') {
     const trimmed = form.custom_rrule.trim();
     if (trimmed.length === 0) {
-      throw new Error('custom RRULE is required when cadence_mode=custom');
+      throw new ValidationError('custom RRULE is required when cadence_mode=custom', { field: 'custom_rrule' });
     }
     // Validate it parses; rrulestr throws on malformed input.
     rrulestr(trimmed.startsWith('RRULE:') ? trimmed : `RRULE:${trimmed}`);
@@ -43,7 +44,7 @@ export function compileFormToRRule(form: RoutineForm): string {
     parts.push('FREQ=DAILY');
   } else if (form.cadence_mode === 'weekly') {
     if (form.weekly_byday.length === 0) {
-      throw new Error('weekly cadence requires at least one weekday selection');
+      throw new ValidationError('weekly cadence requires at least one weekday selection', { field: 'weekdays' });
     }
     parts.push('FREQ=WEEKLY');
     parts.push(`BYDAY=${form.weekly_byday.join(',')}`);
@@ -53,7 +54,7 @@ export function compileFormToRRule(form: RoutineForm): string {
     parts.push(`BYMONTHDAY=${dom}`);
   } else if (form.cadence_mode === 'monthly_nth_weekday') {
     const nth = parseIntStrict(form.monthly_nth, -5, 5);
-    if (nth === 0) throw new Error('monthly_nth must be non-zero');
+    if (nth === 0) throw new ValidationError('monthly_nth must be non-zero', { field: 'monthly_nth' });
     parts.push('FREQ=MONTHLY');
     parts.push(`BYDAY=${nth}${form.monthly_weekday}`);
   }
@@ -121,7 +122,7 @@ export function rruleFromString(rruleString: string): RRule {
     dtstart: new Date(Date.UTC(1971, 0, 1, 0, 0, 0)),
   });
   if (parsed instanceof RRuleSet) {
-    throw new Error('RRuleSet not supported; provide a single RRULE');
+    throw new ValidationError('RRuleSet not supported; provide a single RRULE', { field: 'schedule_rrule' });
   }
   return parsed;
 }
@@ -233,7 +234,7 @@ function addYears(d: Date, n: number): Date {
 function parseIntStrict(value: string, min: number, max: number): number {
   const n = parseInt(value, 10);
   if (!Number.isInteger(n) || n < min || n > max) {
-    throw new Error(`invalid integer: "${value}" must be between ${min} and ${max}`);
+    throw new ValidationError(`invalid integer: "${value}" must be between ${min} and ${max}`);
   }
   return n;
 }

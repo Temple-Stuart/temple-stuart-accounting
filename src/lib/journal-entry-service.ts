@@ -1,4 +1,5 @@
 import { PrismaClient, journal_entries } from '@prisma/client';
+import { ValidationError } from '@/lib/errors/ValidationError';
 import { assertPeriodOpen } from '@/lib/period-close-guard';
 
 type Tx = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
@@ -95,7 +96,7 @@ export async function commitPlaidTransaction(
       },
     });
     if (!expenseOrIncomeAccount) {
-      throw new Error(
+      throw new ValidationError(
         `COA account not found: code=${accountCode}, entityId=${entityId}, userId=${userId}`
       );
     }
@@ -110,7 +111,7 @@ export async function commitPlaidTransaction(
       },
     });
     if (!bankAccount) {
-      throw new Error(
+      throw new ValidationError(
         `Bank COA account not found: code=${bankAccountCode}, entityId=${resolvedBankEntityId}, userId=${userId}`
       );
     }
@@ -239,7 +240,7 @@ export async function reversePlaidTransaction(
     });
 
     if (!original) {
-      throw new Error(`Journal entry not found: ${journalEntryId}`);
+      throw new ValidationError(`Journal entry not found: ${journalEntryId}`, { status: 404 });
     }
 
     if (original.userId !== userId) {
@@ -247,11 +248,11 @@ export async function reversePlaidTransaction(
     }
 
     if (original.reversed_by_entry_id) {
-      throw new Error('Journal entry has already been reversed');
+      throw new ValidationError('Journal entry has already been reversed');
     }
 
     if (original.is_reversal) {
-      throw new Error('Cannot reverse a reversal entry');
+      throw new ValidationError('Cannot reverse a reversal entry');
     }
 
     // Period close enforcement — reversals are dated today

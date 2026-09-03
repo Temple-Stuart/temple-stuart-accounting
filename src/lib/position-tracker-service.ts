@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { ValidationError } from '@/lib/errors/ValidationError';
 import { PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 
@@ -220,7 +221,7 @@ export class PositionTrackerService {
 
     // Skip quantity validation for exercise/assignment (qty is shares, not contracts)
     if (!isExerciseOrAssignment && closeQty > remainingQty) {
-      throw new Error(`Cannot close ${closeQty} contracts - only ${remainingQty} remaining`);
+      throw new ValidationError(`Cannot close ${closeQty} contracts - only ${remainingQty} remaining`);
     }
 
     // For normal closes, use leg qty; for exercise/assignment, close full position
@@ -594,7 +595,7 @@ export class PositionTrackerService {
     const accounts = await db.chart_of_accounts.findMany({ where: { code: { in: uniqueAccountCodes }, userId, entity_id: entityId } });
     if (accounts.length !== uniqueAccountCodes.length) {
       const missing = uniqueAccountCodes.filter(code => !accounts.find(a => a.code === code));
-      throw new Error(`Account codes not found: ${missing.join(', ')}`);
+      throw new ValidationError(`Account codes not found: ${missing.join(', ')}`);
     }
 
     // Create journal entry

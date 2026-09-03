@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { failClosed, summarizeError } from '../http/failClosed';
+import { failClosed, summarizeError, userFacingMessage } from '../http/failClosed';
+import { ValidationError } from '../errors/ValidationError';
 
 // HYG-02 — no raw database or runtime error text to the client. Hermetic: a
 // Prisma-shaped error is thrown by hand; console.error is captured.
@@ -66,4 +67,31 @@ test('status and extra keys pass through; extra can never override the fixed key
     assert.equal(bad.status, 502);
   });
   assert.equal(logs.length, 2);
+});
+
+test('a ValidationError reaches the body verbatim at 400 (or its own status) with no error log', () => {
+  const guidance = 'Trip dates required for hotel search — set Start/End on the trip first';
+  const logs = capture(() => {
+    const e = failClosed('Travel scan', 'Search failed', new ValidationError(guidance), 500, { category: 'accommodation' });
+    assert.equal(e.status, 400);
+    assert.deepEqual(e.body, { category: 'accommodation', ok: false, stage: 'Travel scan', error: guidance, message: guidance });
+    const nf = failClosed('Stock lots commit', 'Failed to commit sale', new ValidationError('Lot not found: lot-9', { status: 404, field: 'selectedLots' }));
+    assert.equal(nf.status, 404);
+    assert.equal(nf.body.error, 'Lot not found: lot-9');
+    assert.equal(nf.body.field, 'selectedLots');
+  });
+  assert.equal(logs.length, 0);
+  assert.equal(userFacingMessage(new ValidationError('Cannot reverse a reversal entry'), 'Uncommit failed'), 'Cannot reverse a reversal entry');
+});
+
+test('a Prisma-shaped error still never reaches the body, even beside a ValidationError path', () => {
+  const err = new PrismaClientInitializationError(PRISMA_TEXT);
+  const logs = capture(() => {
+    const e = failClosed('Stock lots commit', 'Failed to commit sale', err);
+    assert.equal(e.status, 500);
+    assert.equal(e.body.error, 'Failed to commit sale');
+    assert.ok(!JSON.stringify(e.body).includes('prisma'));
+    assert.equal(userFacingMessage(err, 'Commit failed'), 'Commit failed');
+  });
+  assert.equal(logs.length, 1);
 });
