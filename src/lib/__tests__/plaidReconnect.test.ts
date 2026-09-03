@@ -167,8 +167,9 @@ test("(b) link-token with another user's itemId is a 404 envelope that confirms 
   assert.equal(finds.length, before, 'a missing id never reaches the table');
 
   // Update mode: the existing item's access token, no products, no history request.
-  const req = updateModeLinkRequest({ userId: OWNER, clientName: 'Temple Stuart, LLC', accessToken: ACCESS_TOKEN });
+  const req = updateModeLinkRequest({ userId: OWNER, clientName: 'Temple Stuart, LLC', accessToken: ACCESS_TOKEN, redirectUri: 'https://www.templestuart.com/plaid/oauth-return' });
   assert.equal(req.access_token, ACCESS_TOKEN);
+  assert.equal(req.redirect_uri, 'https://www.templestuart.com/plaid/oauth-return', 'BANK-01c: update mode carries the OAuth return URL');
   assert.equal(req.user.client_user_id, OWNER);
   assert.equal(req.client_name, 'Temple Stuart, LLC');
   assert.equal('products' in req, false);

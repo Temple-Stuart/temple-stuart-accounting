@@ -31,6 +31,10 @@ import { PIPE_PHASES } from '@/lib/pipePhases';
 import { readSyncOutcome } from '@/lib/plaid/failLoud';
 // BANK-01b: Plaid Link's onExit is surfaced — the reason on the row, the report in the log.
 import { RECONNECT_CANCELLED, linkExitOutcome, notLoggedSuffix, postLinkExit, type LinkExitError, type LinkExitMetadata } from '@/lib/plaid/linkExit';
+// BANK-01c: the OAuth round trip — the update-mode token and the reconnect flow (item +
+// bank) are kept before Link opens so /plaid/oauth-return re-opens Link with the SAME
+// token; the return page's outcome line lands on the row.
+import { forgetLinkFlow, keepLinkFlow, takeReturnOutcome } from '@/lib/plaid/oauth';
 
 const [PIPE_FEED, PIPE_CODE, PIPE_RECONCILE, PIPE_CLOSE, PIPE_REPORTS, PIPE_EXPORT] = PIPE_PHASES.books;
 import SectionHeader from '@/components/ui/SectionHeader';
@@ -196,7 +200,14 @@ export default function BooksPipeline() {
   // BANK-01b: a third tone — 'note' — for a plain outcome (a cancel) that is neither ok nor an error.
   const [reconnectNote, setReconnectNote] = useState<{ itemId: string; text: string; tone: 'ok' | 'error' | 'note' } | null>(null);
   const [reconnecting, setReconnecting] = useState<string | null>(null);
-  const reconnectItem = async (itemId: string) => {
+  // BANK-01c: a reconnect that went through the OAuth return page left its outcome line
+  // for this row (ok / error / a cancel as the plain tone).
+  useEffect(() => {
+    const back = takeReturnOutcome(window.localStorage, 'reconnect');
+    if (!back || back.flow.kind !== 'reconnect') return;
+    setReconnectNote({ itemId: back.flow.itemId, text: back.outcome.text, tone: back.outcome.tone === 'ok' ? 'ok' : back.outcome.tone === 'error' ? 'error' : 'note' });
+  }, []);
+  const reconnectItem = async (itemId: string, institution: string) => {
     const plaid = (window as unknown as { Plaid?: { create: (cfg: Record<string, unknown>) => { open(): void } } }).Plaid;
     if (!plaid) {
       setReconnectNote({ itemId, text: 'Plaid Link has not loaded yet — try again in a moment.', tone: 'error' });
@@ -213,10 +224,18 @@ export default function BooksPipeline() {
         setReconnectNote({ itemId, text: out.text, tone: 'error' });
         return;
       }
-      const { link_token: token } = (await res.json()) as { link_token: string };
+      const { link_token: token, expiration } = (await res.json()) as { link_token: string; expiration?: unknown };
+      if (typeof expiration !== 'string') {
+        setReconnectNote({ itemId, text: 'The link token answer carried no expiration — not opening Plaid Link.', tone: 'error' });
+        return;
+      }
+      // BANK-01c: keep the token + the reconnect flow for the OAuth return page before Link
+      // opens (Plaid's guide: the same link_token must re-open Link after the bank's redirect).
+      keepLinkFlow(window.localStorage, { linkToken: token, flow: { kind: 'reconnect', itemId, institution }, expiresAt: expiration });
       plaid.create({
         token,
         onSuccess: async () => {
+          forgetLinkFlow(window.localStorage, token);
           const done = await fetch('/api/plaid/reconnect-complete', {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId }),
           });
@@ -229,6 +248,7 @@ export default function BooksPipeline() {
         // /api/plaid/link-exit so the log carries it; a cancel → "Reconnect cancelled".
         onExit: async (error: LinkExitError | null, metadata: LinkExitMetadata) => {
           setReconnecting(null);
+          forgetLinkFlow(window.localStorage, token);
           const exit = linkExitOutcome(error, metadata ?? {}, RECONNECT_CANCELLED, itemId);
           if (exit.kind === 'connected') return;
           if (exit.kind === 'cancelled') {
@@ -418,7 +438,7 @@ export default function BooksPipeline() {
                                 <span className="font-mono text-[10px] uppercase tracking-wider text-rose-700">needs reconnecting · {acc.lastErrorCode}</span>
                                 <button
                                   type="button"
-                                  onClick={() => reconnectItem(acc.itemId)}
+                                  onClick={() => reconnectItem(acc.itemId, acc.institutionName)}
                                   disabled={reconnecting === acc.itemId}
                                   className="rounded border border-brand-purple px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-brand-purple hover:bg-brand-purple-wash disabled:opacity-60"
                                 >

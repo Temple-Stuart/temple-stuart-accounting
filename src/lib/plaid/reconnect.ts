@@ -78,14 +78,20 @@ export async function ownedItemOr404(db: ItemDb, userId: string, itemRowId: unkn
   return item;
 }
 
-/** Link update mode: the existing item's access token, no products (Plaid: products are not set in update mode unless adding one). */
-export function updateModeLinkRequest(input: { userId: string; clientName: string; accessToken: string }): LinkTokenCreateRequest {
+/**
+ * Link update mode: the existing item's access token, no products (Plaid: products are
+ * not set in update mode unless adding one). BANK-01c: the OAuth return URL rides here
+ * too — Plaid: "If you're using Link in update mode, ensure you specify your redirect
+ * URI via the redirect_uri field."
+ */
+export function updateModeLinkRequest(input: { userId: string; clientName: string; accessToken: string; redirectUri: string }): LinkTokenCreateRequest {
   return {
     user: { client_user_id: input.userId },
     client_name: input.clientName,
     country_codes: [CountryCode.Us],
     language: 'en',
     access_token: input.accessToken,
+    redirect_uri: input.redirectUri,
   };
 }
 
