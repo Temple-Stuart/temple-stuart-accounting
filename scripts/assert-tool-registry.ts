@@ -253,7 +253,9 @@ function modelColumns(model: string): Array<{ name: string; type: string; nullab
     const l = raw.trim();
     if (!l || l.startsWith('@@') || l.startsWith('//')) continue;
     const [name, typeTok, ...rest] = l.split(/\s+/);
-    if (rest.some((t) => t.startsWith('@relation')) || /^(users|provider_responses|arrivals)\??(\[\])?$/.test(typeTok)) continue;
+    // A relation field carries no column: it is declared with @relation, or its type is a model (scalar, optional or list form).
+    const relTarget = typeTok.replace(/\[\]$/, '').replace(/\?$/, '');
+    if (rest.some((t) => t.startsWith('@relation')) || schemaText.includes(`model ${relTarget} {`)) continue;
     const nullable = typeTok.endsWith('?');
     const base = typeTok.replace(/\?$/, '');
     const native = rest.find((t) => t.startsWith('@db.')) ?? '';

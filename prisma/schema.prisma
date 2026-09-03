@@ -444,9 +444,14 @@ model transactions {
   overridden_at                      DateTime?
   overridden_by                      String?   @db.VarChar(255)
   entity_id                          String?
+  /// REBUILD-01 PR-2: the arrival this row was parsed from; NULL before the cutoff (no backfill).
+  arrival_id                         String?
   accounts                           accounts  @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   entity                             entities? @relation(fields: [entity_id], references: [id])
+  arrival                            arrivals? @relation(fields: [arrival_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   transaction_reservation_links      transaction_reservation_links[]
+
+  @@index([arrival_id])
 }
 
 model investment_transactions {
@@ -3631,9 +3636,12 @@ model arrivals {
   guest_ref     String?
   response      provider_responses? @relation(fields: [response_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   user          users?              @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  transactions  transactions[]
 
-  @@unique([provider, their_id])
+  /// PR-2: the same thing is the same provider + id + content; a correction is a new row.
+  @@unique([provider, their_id, fingerprint])
   @@index([user_id, provider, resource, arrived(sort: Desc)])
+  @@index([provider, their_id, arrived(sort: Desc)])
   @@index([status])
   @@index([response_id])
 }
