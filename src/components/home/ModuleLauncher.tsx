@@ -65,6 +65,9 @@ import BookkeepingCockpitBar from '@/components/bookkeeping/BookkeepingCockpitBa
 // dashboard's canonical order. It owns its own data layer; the 5 BOOKS-1 drop-ins now render
 // inside it at their dashboard positions (no longer standalone here).
 import BooksPipeline from '@/components/home/BooksPipeline';
+// BANK-01b: the new-item Link's onExit is surfaced too — the reason under the cockpit
+// bar (the sync line's slot), the report to /api/plaid/link-exit for the log.
+import { LINK_CANCELLED, linkExitOutcome, notLoggedSuffix, postLinkExit, type LinkExitError, type LinkExitMetadata } from '@/lib/plaid/linkExit';
 // TAX-1: the closed-books handoff gate — shows the tax wizard only once a period is
 // closed, otherwise a "close your books first" screen that jumps to the Books tab.
 import TaxHandoffGate from '@/components/home/TaxHandoffGate';
@@ -496,7 +499,20 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         });
         await loadBooksCockpit();
       },
-      onExit: () => {},
+      // BANK-01b: same wiring as the Reconnect flow — an error → the line under the
+      // cockpit bar ("Plaid Link: CODE — message") and the report to the log; a cancel →
+      // "Account link cancelled". No itemId: there is no item yet.
+      onExit: async (error: LinkExitError | null, metadata: LinkExitMetadata) => {
+        const exit = linkExitOutcome(error, metadata ?? {}, LINK_CANCELLED);
+        if (exit.kind === 'connected') return;
+        if (exit.kind === 'cancelled') {
+          setBooksSyncMessage({ tone: 'ok', text: exit.note });
+          return;
+        }
+        setBooksSyncMessage({ tone: 'error', text: exit.note });
+        const posted = await postLinkExit(exit.report);
+        if (!posted.logged) setBooksSyncMessage({ tone: 'error', text: exit.note + notLoggedSuffix(posted.status) });
+      },
     }).open();
   };
 

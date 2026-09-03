@@ -29,6 +29,8 @@ import { PIPE_PHASES } from '@/lib/pipePhases';
 // BANK-01: the HYG-01 envelope reader — the Reconnect flow reads link-token /
 // reconnect-complete answers exactly as the Sync button reads sync-complete.
 import { readSyncOutcome } from '@/lib/plaid/failLoud';
+// BANK-01b: Plaid Link's onExit is surfaced — the reason on the row, the report in the log.
+import { RECONNECT_CANCELLED, linkExitOutcome, notLoggedSuffix, postLinkExit, type LinkExitError, type LinkExitMetadata } from '@/lib/plaid/linkExit';
 
 const [PIPE_FEED, PIPE_CODE, PIPE_RECONCILE, PIPE_CLOSE, PIPE_REPORTS, PIPE_EXPORT] = PIPE_PHASES.books;
 import SectionHeader from '@/components/ui/SectionHeader';
@@ -191,7 +193,8 @@ export default function BooksPipeline() {
   // browser sees the link token only. After Link's onSuccess there is NO public-token
   // exchange — reconnect-complete asks /item/get whether the item is healthy and answers
   // with the HYG-01 envelope, which renders inline (fail-loud, never swallowed).
-  const [reconnectNote, setReconnectNote] = useState<{ itemId: string; text: string; tone: 'ok' | 'error' } | null>(null);
+  // BANK-01b: a third tone — 'note' — for a plain outcome (a cancel) that is neither ok nor an error.
+  const [reconnectNote, setReconnectNote] = useState<{ itemId: string; text: string; tone: 'ok' | 'error' | 'note' } | null>(null);
   const [reconnecting, setReconnecting] = useState<string | null>(null);
   const reconnectItem = async (itemId: string) => {
     const plaid = (window as unknown as { Plaid?: { create: (cfg: Record<string, unknown>) => { open(): void } } }).Plaid;
@@ -221,7 +224,21 @@ export default function BooksPipeline() {
           setReconnectNote({ itemId, text: out.text, tone: out.tone === 'ok' ? 'ok' : 'error' });
           await reloadAll();
         },
-        onExit: () => { setReconnecting(null); },
+        // BANK-01b: Link's exit is the only place it says why it closed. An error →
+        // the row's line ("Plaid Link: CODE — message") and the report to
+        // /api/plaid/link-exit so the log carries it; a cancel → "Reconnect cancelled".
+        onExit: async (error: LinkExitError | null, metadata: LinkExitMetadata) => {
+          setReconnecting(null);
+          const exit = linkExitOutcome(error, metadata ?? {}, RECONNECT_CANCELLED, itemId);
+          if (exit.kind === 'connected') return;
+          if (exit.kind === 'cancelled') {
+            setReconnectNote({ itemId, text: exit.note, tone: 'note' });
+            return;
+          }
+          setReconnectNote({ itemId, text: exit.note, tone: 'error' });
+          const posted = await postLinkExit(exit.report);
+          if (!posted.logged) setReconnectNote({ itemId, text: exit.note + notLoggedSuffix(posted.status), tone: 'error' });
+        },
       }).open();
     } finally {
       setReconnecting(null);
@@ -410,7 +427,7 @@ export default function BooksPipeline() {
                               </>
                             )}
                             {reconnectNote && reconnectNote.itemId === acc.itemId && (
-                              <span role={reconnectNote.tone === 'ok' ? 'status' : 'alert'} className={`text-[10px] ${reconnectNote.tone === 'ok' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                              <span role={reconnectNote.tone === 'error' ? 'alert' : 'status'} className={`text-[10px] ${reconnectNote.tone === 'ok' ? 'text-emerald-700' : reconnectNote.tone === 'error' ? 'text-rose-700' : 'text-text-secondary'}`}>
                                 {reconnectNote.text}
                               </span>
                             )}
