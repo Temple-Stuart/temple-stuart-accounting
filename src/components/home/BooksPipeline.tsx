@@ -26,6 +26,9 @@ import StageStrip, { type StagePhase } from '@/components/ui/StageStrip';
 // construction. Keys, derived states, the handler, and the 13-stage →
 // 6-phase nesting map stay HERE (the config carries phase data only).
 import { PIPE_PHASES } from '@/lib/pipePhases';
+// BANK-01: the HYG-01 envelope reader — the Reconnect flow reads link-token /
+// reconnect-complete answers exactly as the Sync button reads sync-complete.
+import { readSyncOutcome } from '@/lib/plaid/failLoud';
 
 const [PIPE_FEED, PIPE_CODE, PIPE_RECONCILE, PIPE_CLOSE, PIPE_REPORTS, PIPE_EXPORT] = PIPE_PHASES.books;
 import SectionHeader from '@/components/ui/SectionHeader';
@@ -160,6 +163,8 @@ export default function BooksPipeline() {
           id: a.id, name: a.name, mask: a.mask, type: a.type,
           balance: a.balance || 0, institutionName: item.institutionName || 'Unknown',
           entityType: a.entityType || null,
+          // BANK-01: the item this account rides on, and its recorded Plaid error (null when healthy).
+          itemId: item.id, lastErrorCode: item.lastErrorCode ?? null,
         });
       });
     });
@@ -180,6 +185,48 @@ export default function BooksPipeline() {
     const def = entities.find((e: Row) => e.is_default) || entities[0];
     setEntityId(def?.id ?? null);
   }, []);
+
+  // BANK-01: Reconnect a bank — Plaid Link in UPDATE MODE for the existing item. The
+  // server mints the update-mode token from the stored (encrypted) access token; the
+  // browser sees the link token only. After Link's onSuccess there is NO public-token
+  // exchange — reconnect-complete asks /item/get whether the item is healthy and answers
+  // with the HYG-01 envelope, which renders inline (fail-loud, never swallowed).
+  const [reconnectNote, setReconnectNote] = useState<{ itemId: string; text: string; tone: 'ok' | 'error' } | null>(null);
+  const [reconnecting, setReconnecting] = useState<string | null>(null);
+  const reconnectItem = async (itemId: string) => {
+    const plaid = (window as unknown as { Plaid?: { create: (cfg: Record<string, unknown>) => { open(): void } } }).Plaid;
+    if (!plaid) {
+      setReconnectNote({ itemId, text: 'Plaid Link has not loaded yet — try again in a moment.', tone: 'error' });
+      return;
+    }
+    setReconnecting(itemId);
+    setReconnectNote(null);
+    try {
+      const res = await fetch('/api/plaid/link-token', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId }),
+      });
+      if (!res.ok) {
+        const out = await readSyncOutcome(res);
+        setReconnectNote({ itemId, text: out.text, tone: 'error' });
+        return;
+      }
+      const { link_token: token } = (await res.json()) as { link_token: string };
+      plaid.create({
+        token,
+        onSuccess: async () => {
+          const done = await fetch('/api/plaid/reconnect-complete', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId }),
+          });
+          const out = await readSyncOutcome(done);
+          setReconnectNote({ itemId, text: out.text, tone: out.tone === 'ok' ? 'ok' : 'error' });
+          await reloadAll();
+        },
+        onExit: () => { setReconnecting(null); },
+      }).open();
+    } finally {
+      setReconnecting(null);
+    }
+  };
 
   const reloadAll = useCallback(async () => {
     setState('loading');
@@ -341,8 +388,35 @@ export default function BooksPipeline() {
                     : et === 'trading' ? 'bg-green-100 text-green-700'
                     : 'bg-orange-100 text-orange-700';
                   return (
-                    <tr key={acc.id} className={'hover:bg-brand-purple-wash/40'}>
-                      <td className={'px-3 py-2 font-medium text-text-primary'}>{acc.institutionName}</td>
+                    <tr key={acc.id} className={'hover:bg-brand-purple-wash/40'} data-item-error={acc.lastErrorCode ?? undefined}>
+                      <td className={'px-3 py-2 font-medium text-text-primary'}>
+                        {acc.institutionName}
+                        {/* BANK-01: only a row whose item carries a recorded Plaid error offers Reconnect.
+                            The outcome line stays on the row after the refetch — a reconnected item
+                            loses the button, not the "reconnected" answer. */}
+                        {(acc.lastErrorCode || (reconnectNote && reconnectNote.itemId === acc.itemId)) && (
+                          <div className="mt-1 flex flex-wrap items-center gap-2">
+                            {acc.lastErrorCode && (
+                              <>
+                                <span className="font-mono text-[10px] uppercase tracking-wider text-rose-700">needs reconnecting · {acc.lastErrorCode}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => reconnectItem(acc.itemId)}
+                                  disabled={reconnecting === acc.itemId}
+                                  className="rounded border border-brand-purple px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-brand-purple hover:bg-brand-purple-wash disabled:opacity-60"
+                                >
+                                  {reconnecting === acc.itemId ? 'Opening…' : 'Reconnect'}
+                                </button>
+                              </>
+                            )}
+                            {reconnectNote && reconnectNote.itemId === acc.itemId && (
+                              <span role={reconnectNote.tone === 'ok' ? 'status' : 'alert'} className={`text-[10px] ${reconnectNote.tone === 'ok' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                {reconnectNote.text}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </td>
                       <td className={'px-3 py-2 text-text-secondary font-mono'}>{'••••'} {acc.mask || '----'}</td>
                       <td className="px-3 py-2"><span className={'px-2 py-0.5 bg-bg-row text-text-secondary text-[10px] uppercase'}>{acc.type}</span></td>
                       <td className="px-3 py-2">
