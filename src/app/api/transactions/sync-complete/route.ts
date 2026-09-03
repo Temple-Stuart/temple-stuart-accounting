@@ -5,6 +5,8 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
 import { decryptToken } from '@/lib/secrets/tokenCipher';
 import { failureEnvelope, stageFailed, stageOk, syncEnvelope, type StageFailed } from '@/lib/plaid/failLoud';
+import { summarizePlaidError } from '@/lib/plaid/summarizeError';
+import { clearItemError, isItemError, itemFailure, recordItemError } from '@/lib/plaid/reconnect';
 import { wireOf } from '@/lib/plaid/wire';
 import { prismaLanding } from '@/lib/arrivals/prismaLanding';
 import { recordFailedAnswer, runTransactionsPage, type DomainDb } from '@/lib/arrivals/plaidTransactionsPage';
@@ -50,6 +52,19 @@ export async function POST() {
     // the outcome is declared in the response (200 / 207 / non-2xx), never hidden.
     let transactionsFailure: StageFailed | null = null;
     let investmentsFailure: StageFailed | null = null;
+
+    // BANK-01: a Plaid ITEM_ERROR (ITEM_LOGIN_REQUIRED and its kin) is the ITEM's state, not
+    // a one-off fault — record its code on the item (user-scoped) and name the INSTITUTION in
+    // the declared failure; never the Plaid item id, never a token. Any other error is
+    // declared as before.
+    const declareStageFailure = async (stage: string, error: unknown, item: { id: string; institutionName: string | null }): Promise<StageFailed> => {
+      const summary = summarizePlaidError(error);
+      if (isItemError(summary)) {
+        await recordItemError(prisma, { itemRowId: item.id, userId: user.id, code: summary.error_code ?? 'ITEM_ERROR', at: new Date() });
+        return itemFailure(stage, item.institutionName, error);
+      }
+      return stageFailed(stage, error);
+    };
 
     for (const item of plaidItems) {
       console.log(`Syncing ${item.institutionName || 'Bank'}...`);
@@ -154,8 +169,12 @@ export async function POST() {
               console.log(`Synced ${response.data.total_transactions} transactions for ${item.institutionName} (${skippedTransactions} skipped — already complete)`);
             }
           }
+          // BANK-01: the item answered — a recorded ITEM_ERROR is over.
+          if (item.last_error_code !== null) {
+            await clearItemError(prisma, { itemRowId: item.id, userId: user.id });
+          }
         } catch (error) {
-          transactionsFailure = stageFailed('transactions', error);
+          transactionsFailure = await declareStageFailure('transactions', error, item);
           console.error('Transactions stage failed:', transactionsFailure.error);
         }
       }
@@ -261,7 +280,7 @@ export async function POST() {
             hasMore = investResponse.data.total_investment_transactions > offset;
           }
         } catch (error) {
-          investmentsFailure = stageFailed('investments', error);
+          investmentsFailure = await declareStageFailure('investments', error, item);
           console.error('Investments stage failed:', investmentsFailure.error);
         }
       }

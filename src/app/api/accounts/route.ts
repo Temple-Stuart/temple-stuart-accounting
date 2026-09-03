@@ -32,6 +32,9 @@ export async function GET(request: NextRequest) {
     const transformedItems = items.map(item => ({
       id: item.id,
       institutionName: item.institutionName,
+      // BANK-01: the item's last Plaid ITEM_ERROR, so the Books page can offer Reconnect.
+      lastErrorCode: item.last_error_code,
+      lastErrorAt: item.last_error_at,
       accounts: item.accounts.map(account => ({
         id: account.id,
         name: account.name,

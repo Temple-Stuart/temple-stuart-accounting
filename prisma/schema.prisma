@@ -317,6 +317,9 @@ model plaid_items {
   updatedAt       DateTime
   accountCode     String?
   subAccount      String?
+  /// BANK-01: the item's last Plaid ITEM_ERROR code (e.g. ITEM_LOGIN_REQUIRED) and when; NULL when healthy.
+  last_error_code String?
+  last_error_at   DateTime?  @db.Timestamptz(6)
   accounts        accounts[]
   users           users      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
