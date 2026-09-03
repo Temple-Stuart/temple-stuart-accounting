@@ -68,6 +68,10 @@ import BooksPipeline from '@/components/home/BooksPipeline';
 // BANK-01b: the new-item Link's onExit is surfaced too — the reason under the cockpit
 // bar (the sync line's slot), the report to /api/plaid/link-exit for the log.
 import { LINK_CANCELLED, linkExitOutcome, notLoggedSuffix, postLinkExit, type LinkExitError, type LinkExitMetadata } from '@/lib/plaid/linkExit';
+// BANK-01c: the OAuth round trip — the link token and the flow are kept before Link
+// opens (Plaid's guide: local storage, same browser session) so /plaid/oauth-return can
+// re-open Link with the SAME token; the return page's outcome line lands here.
+import { forgetLinkFlow, keepLinkFlow, takeReturnOutcome } from '@/lib/plaid/oauth';
 // TAX-1: the closed-books handoff gate — shows the tax wizard only once a period is
 // closed, otherwise a "close your books first" screen that jumps to the Books tab.
 import TaxHandoffGate from '@/components/home/TaxHandoffGate';
@@ -403,6 +407,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   const [booksSyncMessage, setBooksSyncMessage] = useState<SyncOutcome | null>(null);
   // Plaid Link token for onLinkAccount (fetched from the auth-gated /api/plaid/link-token).
   const [booksLinkToken, setBooksLinkToken] = useState<string | null>(null);
+  // BANK-01c: Plaid's `expiration` for that token — the kept round-trip entry expires with it.
+  const [booksLinkExpiration, setBooksLinkExpiration] = useState<string | null>(null);
 
   const loadBooksCockpit = useCallback(async () => {
     setBooksState('loading');
@@ -453,9 +459,20 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   useEffect(() => {
     if (booksLocked) return;
     loadBooksCockpit();
+    // BANK-01c: an OAuth round trip that ended on /plaid/oauth-return left its outcome line
+    // for this banner (the 'new' flow; a reconnect's line goes to its row in the pipe).
+    const back = takeReturnOutcome(window.localStorage, 'new');
+    if (back) setBooksSyncMessage(back.outcome);
     fetch('/api/plaid/link-token', { method: 'POST' })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d?.link_token) setBooksLinkToken(d.link_token); })
+      .then((d) => {
+        // BANK-01c: the token is usable only with its expiration — the round-trip entry
+        // must expire with it; a token without one is a contract break, not a link.
+        if (d?.link_token && typeof d.expiration === 'string') {
+          setBooksLinkToken(d.link_token);
+          setBooksLinkExpiration(d.expiration);
+        }
+      })
       .catch(() => { /* no token → onLinkAccount guards on it, fail-loud (button no-ops until ready) */ });
   }, [booksLocked, loadBooksCockpit]);
 
@@ -483,10 +500,14 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // token, so this button no-ops. Guards on token + window.Plaid exactly like the
   // dashboard (no fallback).
   const booksLinkAccount = () => {
-    if (!booksLinkToken || !(window as any).Plaid) return; // eslint-disable-line @typescript-eslint/no-explicit-any
+    if (!booksLinkToken || !booksLinkExpiration || !(window as any).Plaid) return; // eslint-disable-line @typescript-eslint/no-explicit-any
+    // BANK-01c: keep the token + flow for the OAuth return page before Link opens (Plaid's
+    // guide: the same link_token must re-open Link after the bank's redirect).
+    keepLinkFlow(window.localStorage, { linkToken: booksLinkToken, flow: { kind: 'new' }, expiresAt: booksLinkExpiration });
     (window as any).Plaid.create({ // eslint-disable-line @typescript-eslint/no-explicit-any
       token: booksLinkToken,
       onSuccess: async (publicToken: string, metadata: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+        forgetLinkFlow(window.localStorage, booksLinkToken);
         await fetch('/api/plaid/exchange-token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -503,6 +524,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       // cockpit bar ("Plaid Link: CODE — message") and the report to the log; a cancel →
       // "Account link cancelled". No itemId: there is no item yet.
       onExit: async (error: LinkExitError | null, metadata: LinkExitMetadata) => {
+        forgetLinkFlow(window.localStorage, booksLinkToken);
         const exit = linkExitOutcome(error, metadata ?? {}, LINK_CANCELLED);
         if (exit.kind === 'connected') return;
         if (exit.kind === 'cancelled') {
