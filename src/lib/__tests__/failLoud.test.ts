@@ -90,11 +90,12 @@ test('(b) every stage failed → the first failure\'s status; zero failures → 
   assert.throws(() => syncEnvelope([]), /no stages/);
 });
 
+// HYG-03: the reader also carries `lines` — [text] when the body sent none.
 test('client reader: 200 → ok line, 207 → partial line, 429 → error line, non-JSON body → HTTP fallback', () => {
-  assert.deepEqual(readSyncResponse(200, { ok: true, message: 'Synced — transactions: ok (5 synced, 0 skipped)' }), { tone: 'ok', text: 'Synced — transactions: ok (5 synced, 0 skipped)' });
-  assert.deepEqual(readSyncResponse(207, { ok: false, partial: true, message: 'Partial sync — …' }), { tone: 'partial', text: 'Partial sync — …' });
+  assert.deepEqual(readSyncResponse(200, { ok: true, message: 'Synced — transactions: ok (5 synced, 0 skipped)' }), { tone: 'ok', text: 'Synced — transactions: ok (5 synced, 0 skipped)', lines: ['Synced — transactions: ok (5 synced, 0 skipped)'] });
+  assert.deepEqual(readSyncResponse(207, { ok: false, partial: true, message: 'Partial sync — …' }), { tone: 'partial', text: 'Partial sync — …', lines: ['Partial sync — …'] });
   assert.deepEqual(readSyncResponse(429, { ok: false, message: 'Plaid: RATE_LIMIT_EXCEEDED (TRANSACTIONS_LIMIT) — try again in a few minutes' }).tone, 'error');
-  assert.deepEqual(readSyncResponse(502, null), { tone: 'error', text: 'Sync failed: HTTP 502' });
-  assert.deepEqual(readSyncResponse(401, { error: 'Unauthorized' }), { tone: 'error', text: 'Unauthorized' });
+  assert.deepEqual(readSyncResponse(502, null), { tone: 'error', text: 'Sync failed: HTTP 502', lines: ['Sync failed: HTTP 502'] });
+  assert.deepEqual(readSyncResponse(401, { error: 'Unauthorized' }), { tone: 'error', text: 'Unauthorized', lines: ['Unauthorized'] });
   assert.equal(readSyncResponse(200, { ok: false, message: 'x' }).tone, 'error');
 });

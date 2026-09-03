@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { SECTION_HEADER, STATE } from '@/lib/ds';
 import FamilyNav from './FamilyNav';
-import { readSyncOutcome, type SyncOutcome } from '@/lib/plaid/failLoud';
+import { readSyncOutcome, syncLine, type SyncOutcome } from '@/lib/plaid/failLoud';
 import CreateTripForm from '@/components/trips/CreateTripForm';
 import TripBookings from '@/components/trips/TripBookings';
 import UnattachedBookings from '@/components/trips/UnattachedBookings';
@@ -506,12 +506,12 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         const exit = linkExitOutcome(error, metadata ?? {}, LINK_CANCELLED);
         if (exit.kind === 'connected') return;
         if (exit.kind === 'cancelled') {
-          setBooksSyncMessage({ tone: 'ok', text: exit.note });
+          setBooksSyncMessage(syncLine('ok', exit.note));
           return;
         }
-        setBooksSyncMessage({ tone: 'error', text: exit.note });
+        setBooksSyncMessage(syncLine('error', exit.note));
         const posted = await postLinkExit(exit.report);
-        if (!posted.logged) setBooksSyncMessage({ tone: 'error', text: exit.note + notLoggedSuffix(posted.status) });
+        if (!posted.logged) setBooksSyncMessage(syncLine('error', exit.note + notLoggedSuffix(posted.status)));
       },
     }).open();
   };
@@ -1315,7 +1315,9 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                       ? 'rounded-lg border border-border bg-bg-row p-3 text-xs text-text-secondary'
                       : STATE.errorCard}
                   >
-                    {booksSyncMessage.text}
+                    {/* HYG-03: one line per failed bank above one line for what succeeded —
+                        one dead bank never reads as "sync failed". */}
+                    {booksSyncMessage.lines.map((l, i) => <div key={i}>{l}</div>)}
                   </div>
                 )}
                 {/* BOOKS-2: the full pipe below the cockpit — import → categorize/COA →
