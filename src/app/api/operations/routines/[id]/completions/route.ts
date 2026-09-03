@@ -14,6 +14,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
@@ -146,10 +147,6 @@ export async function POST(
 
     return NextResponse.json({ completion, isCreate: true }, { status: 201 });
   } catch (error) {
-    console.error('[Completion POST]', error);
-    return NextResponse.json(
-      { error: 'Failed to record completion', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Completion POST', 'Failed to record completion', error);
   }
 }

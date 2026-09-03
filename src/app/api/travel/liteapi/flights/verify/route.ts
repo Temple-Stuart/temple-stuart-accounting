@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { verifyFlightOffer, FlightOfferExpiredError } from '@/lib/liteapiFlightsClient';
 import { MissingLiteApiKeyError, LiteApiError } from '@/lib/travelErrors';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
@@ -89,10 +90,6 @@ export async function POST(request: NextRequest) {
         { status: 502 }
       );
     }
-    console.error('[LiteAPI flights verify] unexpected error:', err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Flight verification failed' },
-      { status: 500 }
-    );
+    return failClosedResponse('LiteAPI flights verify', 'Flight verification failed', err);
   }
 }

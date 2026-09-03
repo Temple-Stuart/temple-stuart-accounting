@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -504,8 +505,6 @@ HAVING COUNT(*) > 1`,
       proofs: Object.fromEntries(controls.map(c => [c.id.toLowerCase(), { status: c.status, summary: c.proof.explanation, details: [] }])),
     });
   } catch (error) {
-    console.error('SOC2 API error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return failClosedResponse('SOC2 API', 'SOC2 read failed', error);
   }
 }

@@ -1,5 +1,7 @@
 import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
+import { summarizeError } from '@/lib/http/failClosed';
 import { prisma } from '@/lib/prisma';
 import { reversePlaidTransaction } from '@/lib/journal-entry-service';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -80,9 +82,9 @@ export async function POST(request: Request) {
         if (error instanceof PeriodClosedError) {
           return NextResponse.json({ error: error.message }, { status: 409 });
         }
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        console.error('Error uncommitting transaction:', txn.id, error);
-        errors.push({ txnId: txn.id, error: message });
+        // HYG-02: the thrown text stays on the server; the body says which transaction failed, not why internally.
+        console.error('[Uncommit] transaction failed:', txn.id, summarizeError(error));
+        errors.push({ txnId: txn.id, error: 'Uncommit failed' });
       }
     }
 
@@ -95,8 +97,6 @@ export async function POST(request: Request) {
       message: `Uncommitted ${results.length} transaction(s) with reversal entries created`,
     });
   } catch (error: unknown) {
-    console.error('Uncommit error:', error);
-    const message = error instanceof Error ? error.message : 'Failed to uncommit';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return failClosedResponse('Uncommit', 'Uncommit failed', error);
   }
 }

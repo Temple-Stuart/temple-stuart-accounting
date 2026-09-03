@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
@@ -77,9 +78,6 @@ export async function POST() {
       already_existed: alreadyExisted,
     });
   } catch (error) {
-    console.error('Seed missing COA error:', error);
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : 'Failed to seed COA',
-    }, { status: 500 });
+    return failClosedResponse('Seed missing COA', 'Failed to seed COA', error);
   }
 }

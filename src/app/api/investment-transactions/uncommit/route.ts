@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { assertPeriodOpen, PeriodClosedError } from '@/lib/period-close-guard';
@@ -181,9 +182,6 @@ export async function POST(request: Request) {
     if (error instanceof PeriodClosedError) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
-    console.error('Uncommit error:', error);
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : 'Failed to uncommit'
-    }, { status: 500 });
+    return failClosedResponse('Uncommit', 'Failed to uncommit', error);
   }
 }

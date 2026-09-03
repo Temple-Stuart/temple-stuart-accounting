@@ -14,6 +14,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { PrismaClient } from '@prisma/client';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
@@ -93,10 +94,6 @@ export async function GET() {
       })),
     });
   } catch (err) {
-    console.error('[workbench/corpus-context] error', err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('workbench/corpus-context', 'Corpus context failed', err);
   }
 }

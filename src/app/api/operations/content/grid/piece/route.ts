@@ -21,6 +21,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
@@ -107,10 +108,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ piece }, { status: 201 });
   } catch (error) {
-    console.error('[Content Grid Piece POST]', error);
-    return NextResponse.json(
-      { error: 'Failed to create piece', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Content Grid Piece POST', 'Failed to create piece', error);
   }
 }

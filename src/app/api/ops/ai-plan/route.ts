@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import Anthropic from '@anthropic-ai/sdk';
@@ -150,8 +151,6 @@ export async function POST(request: Request) {
     if (error instanceof PipeBudgetError) {
       return NextResponse.json({ error: 'Rate limit', message: error.message }, { status: 429 });
     }
-    console.error('[AI Plan]', error);
-    const msg = error instanceof Error ? error.message : 'AI planning failed';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return failClosedResponse('AI Plan', 'AI Plan failed', error);
   }
 }

@@ -21,6 +21,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
@@ -194,10 +195,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ sceneRow, created: !existing }, { status: existing ? 200 : 201 });
   } catch (error) {
-    console.error('[Content Scene-Rows POST]', error);
-    return NextResponse.json(
-      { error: 'Failed to upsert scene-row', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Content Scene-Rows POST', 'Failed to upsert scene-row', error);
   }
 }

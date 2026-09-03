@@ -13,6 +13,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
@@ -109,11 +110,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ items });
   } catch (error) {
-    console.error('[Daily Plan Items GET]', error);
-    return NextResponse.json(
-      { error: 'Failed to load daily plan items', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Daily Plan Items GET', 'Failed to load daily plan items', error);
   }
 }
 
@@ -246,10 +243,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ item, isCreate: true }, { status: 201 });
   } catch (error) {
-    console.error('[Daily Plan Items POST]', error);
-    return NextResponse.json(
-      { error: 'Failed to create daily plan item', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Daily Plan Items POST', 'Failed to create daily plan item', error);
   }
 }

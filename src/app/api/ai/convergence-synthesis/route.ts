@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { requireTabAccess } from '@/lib/auth-helpers';
 import { requireAiRateLimit } from '@/lib/ai-rate-limit';
@@ -399,8 +400,6 @@ export async function POST(request: Request) {
       },
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error('[Convergence Synthesis] Error:', message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return failClosedResponse('Convergence Synthesis', 'Convergence synthesis failed', error);
   }
 }

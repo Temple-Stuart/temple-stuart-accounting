@@ -21,6 +21,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { inngest } from '@/inngest/client';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
@@ -110,10 +111,6 @@ export async function POST(
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error('[Exec Ingest POST]', error);
-    return NextResponse.json(
-      { error: 'Failed to ingest exec result', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Exec Ingest POST', 'Failed to ingest exec result', error);
   }
 }

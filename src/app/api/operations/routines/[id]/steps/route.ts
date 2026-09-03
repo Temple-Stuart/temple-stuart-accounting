@@ -10,6 +10,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
@@ -136,10 +137,6 @@ export async function POST(
 
     return NextResponse.json({ step, isCreate: true }, { status: 201 });
   } catch (error) {
-    console.error('[Routine Step POST]', error);
-    return NextResponse.json(
-      { error: 'Failed to create routine step', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Routine Step POST', 'Failed to create routine step', error);
   }
 }

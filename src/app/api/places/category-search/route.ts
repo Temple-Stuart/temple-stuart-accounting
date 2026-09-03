@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTier } from '@/lib/auth-helpers';
@@ -172,10 +173,6 @@ export async function POST(request: NextRequest) {
       );
     }
     // FAIL LOUD — surface the real Google/cache/quota error; never substitute placeholder/empty data.
-    console.error('Category search error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Category search failed' },
-      { status: 500 }
-    );
+    return failClosedResponse('Category search', 'Category search failed', error);
   }
 }

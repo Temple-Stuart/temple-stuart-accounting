@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
@@ -50,9 +51,6 @@ export async function POST(request: Request) {
       deleted: result.count
     });
   } catch (error) {
-    console.error('Stock lots delete error:', error);
-    return NextResponse.json({ 
-      error: error instanceof Error ? error.message : 'Failed to delete lots' 
-    }, { status: 500 });
+    return failClosedResponse('Stock lots delete', 'Failed to delete lots', error);
   }
 }

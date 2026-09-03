@@ -40,6 +40,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requirePipeBudget, PipeBudgetError } from '@/lib/pipeBudget';
@@ -325,14 +326,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof PipeBudgetError) {
       return NextResponse.json({ error: 'Rate limit', message: error.message }, { status: 429 });
     }
-    console.error('[Optimize North Star Section POST]', error);
-    return NextResponse.json(
-      {
-        error: 'InternalError',
-        message: error instanceof Error ? error.message : 'unknown',
-      },
-      { status: 500 }
-    );
+    return failClosedResponse('Optimize North Star Section POST', 'Failed to optimize the section', error);
   }
 }
 

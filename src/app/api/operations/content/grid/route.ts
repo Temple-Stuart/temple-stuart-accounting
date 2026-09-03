@@ -17,6 +17,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
@@ -77,10 +78,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ scenes, pieces, cells });
   } catch (error) {
-    console.error('[Content Grid GET]', error);
-    return NextResponse.json(
-      { error: 'Failed to load grid', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Content Grid GET', 'Failed to load grid', error);
   }
 }

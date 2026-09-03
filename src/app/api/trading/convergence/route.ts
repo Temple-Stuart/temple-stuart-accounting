@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { runPipeline } from '@/lib/convergence/pipeline';
 import type { PipelineResult } from '@/lib/convergence/pipeline';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -187,8 +188,6 @@ export async function GET(request: Request) {
       },
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error('[Convergence Route] Error:', message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return failClosedResponse('Convergence Route', 'Convergence run failed', error);
   }
 }

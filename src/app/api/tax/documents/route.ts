@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
@@ -87,10 +88,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, document });
   } catch (error) {
-    console.error('Tax documents POST error:', error);
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : 'Failed to save document',
-    }, { status: 500 });
+    return failClosedResponse('Tax documents POST', 'Failed to save document', error);
   }
 }
 

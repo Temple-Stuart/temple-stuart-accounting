@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-helpers';
@@ -263,9 +264,7 @@ export async function GET(request: NextRequest) {
       generalLedger,
     });
   } catch (error) {
-    console.error('CPA export API error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return failClosedResponse('CPA export API', 'CPA export read failed', error);
   }
 }
 

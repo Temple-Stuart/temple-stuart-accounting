@@ -16,6 +16,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma, OperationsTaskStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -71,11 +72,7 @@ export async function GET(
 
     return NextResponse.json({ task });
   } catch (error) {
-    console.error('[Task GET]', error);
-    return NextResponse.json(
-      { error: 'Failed to load task', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Task GET', 'Failed to load task', error);
   }
 }
 
@@ -428,11 +425,7 @@ export async function PATCH(
 
     return NextResponse.json({ task });
   } catch (error) {
-    console.error('[Task PATCH]', error);
-    return NextResponse.json(
-      { error: 'Failed to update task', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Task PATCH', 'Failed to update task', error);
   }
 }
 
@@ -488,7 +481,6 @@ export async function DELETE(
 
     return NextResponse.json({ deleted: true, id: existing.id });
   } catch (error) {
-    console.error('[Task DELETE]', error);
     // Translate DB constraint violations into a clear, non-leaky message
     // instead of forwarding the raw Postgres string (no-silent-failure:
     // surface WHY legibly). Covers FK (P2003) + other constraint (P2004)
@@ -506,9 +498,6 @@ export async function DELETE(
         { status: 409 }
       );
     }
-    return NextResponse.json(
-      { error: 'Failed to delete task', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Task DELETE', 'Failed to delete task', error);
   }
 }

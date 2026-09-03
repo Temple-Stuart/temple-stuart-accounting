@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { randomUUID } from 'crypto';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -123,10 +124,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, expenseId, eventsCreated: events.length });
   } catch (error) {
-    console.error('Shopping commit error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to commit budget' },
-      { status: 500 }
-    );
+    return failClosedResponse('Shopping commit', 'Failed to commit budget', error);
   }
 }

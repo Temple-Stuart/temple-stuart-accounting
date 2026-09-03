@@ -23,6 +23,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { expandBetween } from '@/lib/operations/rruleHelpers';
@@ -184,10 +185,6 @@ export async function GET(_request: NextRequest) {
       entries,
     });
   } catch (error) {
-    console.error('[Today GET]', error);
-    return NextResponse.json(
-      { error: 'Failed to load today', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Today GET', 'Failed to load today', error);
   }
 }

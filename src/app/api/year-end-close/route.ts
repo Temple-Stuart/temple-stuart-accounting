@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -323,9 +324,7 @@ export async function POST(request: NextRequest) {
       entityName: entity.name,
     });
   } catch (error) {
-    console.error('Year-end close error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return failClosedResponse('Year-end close', 'Year-end close failed', error);
   }
 }
 
@@ -412,8 +411,6 @@ export async function GET(request: NextRequest) {
       closedAt: null,
     });
   } catch (error) {
-    console.error('Year-end close status error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return failClosedResponse('Year-end close status', 'Year-end close status failed', error);
   }
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -71,9 +72,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ reconciliations });
   } catch (error) {
-    console.error('Bank reconciliations GET error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return failClosedResponse('Bank reconciliations GET', 'Bank reconciliations read failed', error);
   }
 }
 
@@ -243,8 +242,6 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Bank reconciliations POST error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return failClosedResponse('Bank reconciliations POST', 'Bank reconciliations write failed', error);
   }
 }

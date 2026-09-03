@@ -13,6 +13,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
@@ -49,11 +50,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ takes });
   } catch (error) {
-    console.error('[Content Takes GET]', error);
-    return NextResponse.json(
-      { error: 'Failed to load takes', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Content Takes GET', 'Failed to load takes', error);
   }
 }
 
@@ -197,10 +194,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ take }, { status: 201 });
   } catch (error) {
-    console.error('[Content Takes POST]', error);
-    return NextResponse.json(
-      { error: 'Failed to create take', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Content Takes POST', 'Failed to create take', error);
   }
 }

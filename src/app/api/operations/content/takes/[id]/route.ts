@@ -12,6 +12,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -55,11 +56,7 @@ export async function GET(
 
     return NextResponse.json({ take });
   } catch (error) {
-    console.error('[Content Take GET]', error);
-    return NextResponse.json(
-      { error: 'Failed to load take', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Content Take GET', 'Failed to load take', error);
   }
 }
 
@@ -205,11 +202,7 @@ export async function PATCH(
 
     return NextResponse.json({ take: updated });
   } catch (error) {
-    console.error('[Content Take PATCH]', error);
-    return NextResponse.json(
-      { error: 'Failed to update take', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Content Take PATCH', 'Failed to update take', error);
   }
 }
 
@@ -259,10 +252,6 @@ export async function DELETE(
 
     return NextResponse.json({ deleted: true, id });
   } catch (error) {
-    console.error('[Content Take DELETE]', error);
-    return NextResponse.json(
-      { error: 'Failed to delete take', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Content Take DELETE', 'Failed to delete take', error);
   }
 }

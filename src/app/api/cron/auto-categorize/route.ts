@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { autoCategorizationService } from '@/lib/auto-categorization-service';
 
@@ -49,10 +50,6 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('[CRON] Auto-categorization error:', error);
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    );
+    return failClosedResponse('CRON auto-categorization', 'Auto-categorization failed', error);
   }
 }

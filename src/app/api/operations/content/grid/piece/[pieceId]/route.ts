@@ -15,6 +15,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
@@ -88,10 +89,6 @@ export async function PATCH(
 
     return NextResponse.json({ piece });
   } catch (error) {
-    console.error('[Content Piece PATCH]', error);
-    return NextResponse.json(
-      { error: 'Failed to save script', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Content Piece PATCH', 'Failed to save script', error);
   }
 }

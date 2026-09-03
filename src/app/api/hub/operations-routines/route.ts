@@ -27,6 +27,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { expandBetween } from '@/lib/operations/rruleHelpers';
@@ -191,13 +192,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ routines: out, truncated });
   } catch (error) {
-    console.error('[Hub Routines GET]', error);
-    return NextResponse.json(
-      {
-        error: 'Failed to load routines window',
-        message: error instanceof Error ? error.message : 'unknown',
-      },
-      { status: 500 }
-    );
+    return failClosedResponse('Hub Routines GET', 'Failed to load routines window', error);
   }
 }

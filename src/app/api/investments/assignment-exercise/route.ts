@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { positionTrackerService } from '@/lib/position-tracker-service';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -75,10 +76,6 @@ export async function POST(request: Request) {
     });
 
   } catch (error: any) {
-    console.error('Assignment/Exercise error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to process assignment/exercise' },
-      { status: 500 }
-    );
+    return failClosedResponse('Assignment/Exercise', 'Failed to process assignment/exercise', error);
   }
 }

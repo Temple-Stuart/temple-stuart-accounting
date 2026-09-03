@@ -26,6 +26,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -158,10 +159,6 @@ export async function PATCH(
     // audit either. Matching them rather than fabricating a mismatched action type.
     return NextResponse.json({ itinerary: updated });
   } catch (error) {
-    console.error('[Trip Itinerary PATCH]', error);
-    return NextResponse.json(
-      { error: 'Failed to update itinerary block', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Trip Itinerary PATCH', 'Failed to update itinerary block', error);
   }
 }

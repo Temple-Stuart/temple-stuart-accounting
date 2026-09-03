@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
@@ -57,7 +58,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, updated: updateCount });
   } catch (error: any) {
-    console.error('Assign COA error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return failClosedResponse('Assign COA', 'Assign COA failed', error);
   }
 }

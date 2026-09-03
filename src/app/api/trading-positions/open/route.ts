@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
@@ -74,10 +75,6 @@ export async function GET() {
     return NextResponse.json({ trades });
 
   } catch (error: any) {
-    console.error('Open trades fetch error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to fetch open trades' },
-      { status: 500 }
-    );
+    return failClosedResponse('Open trades fetch', 'Failed to fetch open trades', error);
   }
 }

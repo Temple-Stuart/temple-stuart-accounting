@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
@@ -51,10 +52,6 @@ export async function GET() {
     });
   } catch (err) {
     // Includes the MATCH-0-table-missing case — declared, never hidden.
-    console.error('[Runway match queue] error:', err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Could not load the match queue' },
-      { status: 500 }
-    );
+    return failClosedResponse('Runway match queue', 'Could not load the match queue', err);
   }
 }

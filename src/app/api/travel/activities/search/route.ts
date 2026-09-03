@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { validatedAffiliateUrl } from '@/config/affiliates';
 import { searchViatorProducts, viatorProductToRecommendation } from '@/lib/viatorClient';
 import { findViatorDestIdFor } from '@/lib/destinations';
@@ -112,10 +113,6 @@ export async function GET(request: NextRequest) {
         { status: 503 }
       );
     }
-    console.error('Activity search error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Activity search failed' },
-      { status: 500 }
-    );
+    return failClosedResponse('Activity search', 'Activity search failed', error);
   }
 }

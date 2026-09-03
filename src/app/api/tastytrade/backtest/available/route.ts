@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { getTastytradeSessionToken } from '@/lib/tastytrade';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -54,7 +55,6 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ available: true, data });
   } catch (e: any) {
-    console.error('[Backtest] Error:', e.message);
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return failClosedResponse('Backtest available', 'Backtest lookup failed', e);
   }
 }

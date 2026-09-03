@@ -14,6 +14,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -97,11 +98,7 @@ export async function GET(
 
     return NextResponse.json({ routine });
   } catch (error) {
-    console.error('[Routine GET]', error);
-    return NextResponse.json(
-      { error: 'Failed to load routine', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Routine GET', 'Failed to load routine', error);
   }
 }
 
@@ -345,11 +342,7 @@ export async function PATCH(
 
     return NextResponse.json({ routine });
   } catch (error) {
-    console.error('[Routine PATCH]', error);
-    return NextResponse.json(
-      { error: 'Failed to update routine', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Routine PATCH', 'Failed to update routine', error);
   }
 }
 
@@ -396,10 +389,6 @@ export async function DELETE(
 
     return NextResponse.json({ deleted: true, id: existing.id });
   } catch (error) {
-    console.error('[Routine DELETE]', error);
-    return NextResponse.json(
-      { error: 'Failed to delete routine', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Routine DELETE', 'Failed to delete routine', error);
   }
 }

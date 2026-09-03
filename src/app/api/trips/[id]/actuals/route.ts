@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
@@ -129,10 +130,6 @@ export async function GET(
 
     return NextResponse.json({ booked, unplanned, window });
   } catch (err) {
-    console.error('[Trip actuals] error:', err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Could not load trip actuals' },
-      { status: 500 }
-    );
+    return failClosedResponse('Trip actuals', 'Could not load trip actuals', err);
   }
 }

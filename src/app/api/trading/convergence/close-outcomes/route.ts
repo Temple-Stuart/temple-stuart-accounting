@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { requireAdmin } from '@/lib/require-admin';
 import { prisma } from '@/lib/prisma';
 import { closeSnapshotOutcomes } from '@/lib/convergence/outcome-tracker';
@@ -34,8 +35,6 @@ export async function POST() {
     const summary = await closeSnapshotOutcomes(user.id);
     return NextResponse.json(summary);
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : String(error);
-    console.error('[OutcomeCloser] run failed:', msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return failClosedResponse('OutcomeCloser', 'Outcome close failed', error);
   }
 }

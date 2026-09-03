@@ -20,6 +20,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTier } from '@/lib/auth-helpers';
@@ -192,13 +193,6 @@ export async function POST(request: NextRequest) {
       tasks_used: tasks.length,
     });
   } catch (error) {
-    console.error('[Generate Script POST]', error);
-    return NextResponse.json(
-      {
-        error: 'Failed to generate script',
-        message: error instanceof Error ? `AI voiceover generation failed: ${error.message}` : 'unknown',
-      },
-      { status: 500 }
-    );
+    return failClosedResponse('Generate Script POST', 'Failed to generate script', error);
   }
 }
