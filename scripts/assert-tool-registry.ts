@@ -17,6 +17,15 @@
  * navigation (its first entry); each card's home and the net-worth read are
  * doors on /answers.
  *
+ * THE ARRIVALS LAW (REBUILD-01 PR-1): the provider vocabulary's module-scope
+ * law re-run (src/lib/providers.ts — every ROUTING_RULES provider + resource
+ * pair resolves, no duplicate word or code), plus what only the texts can
+ * answer: the Prisma enum `arrival_provider` (prisma/schema.prisma, read as
+ * text) and the migration's CREATE TYPE (prisma/migrations/*_arrivals) carry
+ * the code set EXACTLY, alphabetical; and the two Prisma models agree with the
+ * migration's two CREATE TABLEs column for column — name, type, nullability,
+ * order — so schema.prisma and the SQL can never drift.
+ *
  * The assert:showroom pattern: a plain script wired into the `build` script so
  * it runs in CI / Vercel and fails the BUILD. It imports the registry (which
  * runs its module-scope law: sheet cells 25/25 both ways, LIVE/PARTIAL have a
@@ -34,6 +43,7 @@ import { PROBLEM_SHEET } from '../src/lib/problemSheet';
 import { COCKPIT_PATH, EXPECTED_STATUS_COUNTS, FAMILY_READS, TOOL_REGISTRY, registryLaw, statusCounts } from '../src/lib/toolRegistry';
 import { OWNER_UTILITIES } from '../src/lib/shellMenu';
 import { ANSWERS_HOME, ANSWER_READS, ANSWER_ROWS, NET_WORTH_READ, answersLaw } from '../src/lib/answers';
+import { PROVIDERS, PROVIDER_CODES, ROUTING_RULES, providersLaw } from '../src/lib/providers';
 
 /**
  * Routes whose door is outside the app map: the front door and its marketing
@@ -210,6 +220,68 @@ for (const r of rows) console.log(r);
 const counts = statusCounts();
 console.log(`counts: LIVE ${counts.LIVE} · PARTIAL ${counts.PARTIAL} · NOT_BUILT ${counts.NOT_BUILT} (census ${EXPECTED_STATUS_COUNTS.LIVE}/${EXPECTED_STATUS_COUNTS.PARTIAL}/${EXPECTED_STATUS_COUNTS.NOT_BUILT}) · sheet cells ${PROBLEM_SHEET.flatMap((f) => f.tools).length}`);
 
+// ── THE ARRIVALS LAW (REBUILD-01 PR-1) ──────────────────────────────────────
+violations.push(...providersLaw({ throwOnFail: false }));
+const schemaText = readFileSync(resolve(ROOT, 'prisma/schema.prisma'), 'utf8');
+const migrationDir = readdirSync(resolve(ROOT, 'prisma/migrations')).find((d) => d.endsWith('_arrivals'));
+const migrationSql = migrationDir ? readFileSync(resolve(ROOT, 'prisma/migrations', migrationDir, 'migration.sql'), 'utf8') : '';
+if (!migrationDir) violations.push('arrivals: no prisma/migrations/*_arrivals/migration.sql');
+
+const enumBlock = schemaText.match(/enum arrival_provider \{\n([\s\S]*?)\n\}/);
+const enumValues = enumBlock ? enumBlock[1].split('\n').map((l) => l.trim()).filter(Boolean) : [];
+if (enumValues.join(',') !== PROVIDER_CODES.join(',')) violations.push(`arrivals: enum arrival_provider [${enumValues.join(' ')}] ≠ providers.ts codes [${PROVIDER_CODES.join(' ')}]`);
+const typeValues = migrationSql.match(/CREATE TYPE arrival_provider AS ENUM \((.*?)\);/)?.[1].split(', ').map((v) => v.replace(/^'|'$/g, '')) ?? [];
+if (typeValues.join(',') !== PROVIDER_CODES.join(',')) violations.push(`arrivals: migration CREATE TYPE arrival_provider [${typeValues.join(' ')}] ≠ providers.ts codes`);
+
+/** SQL column → { name, type, nullable } from a CREATE TABLE body; constraints and indexes are skipped. */
+function sqlColumns(table: string): Array<{ name: string; type: string; nullable: boolean }> {
+  const m = migrationSql.match(new RegExp(`CREATE TABLE ${table} \\(\\n([\\s\\S]*?)\\n\\);`));
+  if (!m) return [];
+  return m[1].split('\n').map((l) => l.trim().replace(/,$/, '')).filter((l) => l && !/^CONSTRAINT /.test(l)).map((l) => {
+    const [name, type] = l.split(/\s+/);
+    const nullable = !/NOT NULL|PRIMARY KEY/.test(l);
+    return { name, type, nullable };
+  });
+}
+/** Prisma scalar field → the SQL shape it must match. Relation fields (a model type) are skipped. */
+const PRISMA_TO_SQL: Record<string, string> = { String: 'text', Int: 'integer', 'Bytes@db.ByteA': 'bytea', 'Json@db.JsonB': 'jsonb', 'DateTime@db.Timestamptz(6)': 'timestamptz', 'String[]': 'text[]' };
+function modelColumns(model: string): Array<{ name: string; type: string; nullable: boolean }> {
+  const m = schemaText.match(new RegExp(`model ${model} \\{\\n([\\s\\S]*?)\\n\\}`));
+  if (!m) return [];
+  const out: Array<{ name: string; type: string; nullable: boolean }> = [];
+  for (const raw of m[1].split('\n')) {
+    const l = raw.trim();
+    if (!l || l.startsWith('@@') || l.startsWith('//')) continue;
+    const [name, typeTok, ...rest] = l.split(/\s+/);
+    if (rest.some((t) => t.startsWith('@relation')) || /^(users|provider_responses|arrivals)\??(\[\])?$/.test(typeTok)) continue;
+    const nullable = typeTok.endsWith('?');
+    const base = typeTok.replace(/\?$/, '');
+    const native = rest.find((t) => t.startsWith('@db.')) ?? '';
+    const key = base + native;
+    const type = PRISMA_TO_SQL[key] ?? (['arrival_provider', 'arrival_status', 'their_id_kind'].includes(base) ? base : `?${key}`);
+    out.push({ name, type, nullable });
+  }
+  return out;
+}
+const arrivalsRows: string[] = [];
+for (const [table] of [['provider_responses'], ['arrivals']]) {
+  const sql = sqlColumns(table);
+  const model = modelColumns(table);
+  if (sql.length === 0) violations.push(`arrivals: CREATE TABLE ${table} not found in the migration`);
+  if (model.length === 0) violations.push(`arrivals: model ${table} not found in schema.prisma`);
+  const n = Math.max(sql.length, model.length);
+  for (let i = 0; i < n; i++) {
+    const a = sql[i]; const b = model[i];
+    const same = a && b && a.name === b.name && a.type === b.type && a.nullable === b.nullable;
+    arrivalsRows.push(`${table.padEnd(19)} ${(a ? `${a.name} ${a.type}${a.nullable ? ' NULL' : ' NOT NULL'}` : '—').padEnd(44)} ${(b ? `${b.name} ${b.type}${b.nullable ? ' NULL' : ' NOT NULL'}` : '—').padEnd(44)} ${same ? '=' : '≠'}`);
+    if (!same) violations.push(`arrivals: ${table} column ${i + 1} differs — SQL ${a ? `${a.name} ${a.type}${a.nullable ? '' : ' NOT NULL'}` : '(none)'} vs model ${b ? `${b.name} ${b.type}${b.nullable ? '' : ' NOT NULL'}` : '(none)'}`);
+  }
+}
+console.log('THE ARRIVALS STORE — migration SQL vs schema.prisma, column for column');
+console.log(`${'table'.padEnd(19)} ${'migration.sql'.padEnd(44)} ${'schema.prisma'.padEnd(44)}`);
+for (const r of arrivalsRows) console.log(r);
+console.log(`providers: ${PROVIDERS.length} (${PROVIDERS.filter((p) => p.today).length} today) · rule-book pairs ${ROUTING_RULES.length} · enum values ${enumValues.length} · CREATE TYPE values ${typeValues.length}`);
+
 if (violations.length) {
   console.error('\n✖ TOOL REGISTRY LAW FAILED:');
   for (const v of violations) console.error(`  ${v}`);
@@ -218,3 +290,4 @@ if (violations.length) {
 console.log('✔ Tool registry law passed — 25/25 cells, homes resolve to page files, counts match the census.');
 console.log(`✔ Reachability law passed — ${pages.length} pages, every one has a door.`);
 console.log(`✔ The answers law passed — ${ANSWER_ROWS.length}/4 questions on ${ANSWERS_HOME}, every number sourced.`);
+console.log(`✔ The arrivals law passed — ${PROVIDERS.length} providers, enum === codes, ${arrivalsRows.length} columns agree with the migration.`);

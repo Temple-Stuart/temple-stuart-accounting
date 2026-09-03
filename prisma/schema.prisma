@@ -536,6 +536,8 @@ model users {
   reservations            reservations[]
   commission_ledger       commission_ledger[]
   transaction_reservation_links transaction_reservation_links[]
+  provider_responses      provider_responses[]
+  arrivals                arrivals[]
 }
 
 model budgets {
@@ -3538,4 +3540,100 @@ model operations_north_star {
 
   @@index([next_review_at])
   @@map("operations_north_star")
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// THE ARRIVALS STORE (REBUILD-01 PR-1) — the blueprint's step 3
+// prisma/migrations/20260903000000_arrivals/migration.sql moves with this.
+// Column for column with the SQL — asserted at build
+// (scripts/assert-tool-registry.ts, THE ARRIVALS LAW). Nothing writes here yet.
+// ═══════════════════════════════════════════════════════════════════
+
+/// Every provider the deck names — src/lib/providers.ts PROVIDER_CODES, alphabetical.
+enum arrival_provider {
+  alpaca
+  amadeus
+  anthropic
+  ecfr
+  federal_register
+  finnhub
+  fred
+  google_places
+  ibkr
+  irs
+  liteapi
+  openai
+  plaid
+  polygon
+  schwab
+  sec
+  snaptrade
+  square
+  stripe
+  tastytrade
+  teller
+  tradier
+  travel_buddy
+  us_code
+  viator
+  voyage
+  xai_grok
+}
+
+enum arrival_status {
+  pending
+  done
+  failed
+}
+
+/// their_id is the provider's own id, or one we composed and labeled as such.
+enum their_id_kind {
+  provider
+  composed
+}
+
+/// The wire: the exact bytes of one HTTP answer, sha256'd. One row per answer.
+model provider_responses {
+  id          String           @id
+  provider    arrival_provider
+  resource    String
+  user_id     String?
+  guest_ref   String?
+  http_status Int
+  body        Bytes            @db.ByteA
+  body_sha256 Bytes            @db.ByteA
+  asked       DateTime         @db.Timestamptz(6)
+  arrived     DateTime         @db.Timestamptz(6)
+  user        users?           @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  arrivals    arrivals[]
+
+  @@index([user_id, provider, arrived(sort: Desc)])
+}
+
+/// The deck's row: one per provider object. Promise 1 is a BEFORE UPDATE
+/// trigger in the migration — only read and status may move, each once.
+model arrivals {
+  id            String              @id
+  provider      arrival_provider
+  connection    String?
+  resource      String
+  their_id      String
+  their_id_kind their_id_kind
+  payload       Json                @db.JsonB
+  fingerprint   Bytes               @db.ByteA
+  redactions    String[]            @default([])
+  asked         DateTime            @db.Timestamptz(6)
+  arrived       DateTime?           @db.Timestamptz(6)
+  read          DateTime?           @db.Timestamptz(6)
+  status        arrival_status      @default(pending)
+  response_id   String?
+  user_id       String?
+  guest_ref     String?
+  response      provider_responses? @relation(fields: [response_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user          users?              @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([provider, their_id])
+  @@index([user_id, provider, resource, arrived(sort: Desc)])
+  @@index([status])
+  @@index([response_id])
 }
