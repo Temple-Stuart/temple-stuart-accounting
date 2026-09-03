@@ -41,7 +41,8 @@ import {
   type LinkExitError,
   type LinkExitMetadata,
 } from '@/lib/plaid/linkExit';
-import type { SyncOutcome } from '@/lib/plaid/failLoud';
+// HYG-03: every outcome carries `lines`; a page-built one is the one-line form, like the link-exit notes.
+import { syncLine, type SyncOutcome } from '@/lib/plaid/failLoud';
 
 const PLAID_LINK_SCRIPT = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
 
@@ -108,11 +109,11 @@ export default function PlaidOauthReturnPage() {
         const exit = linkExitOutcome(error, metadata ?? {}, flow.kind === 'reconnect' ? RECONNECT_CANCELLED : LINK_CANCELLED, itemId);
         if (exit.kind === 'connected') return;
         if (exit.kind === 'cancelled') {
-          finish({ tone: flow.kind === 'reconnect' ? 'partial' : 'ok', text: exit.note });
+          finish(syncLine(flow.kind === 'reconnect' ? 'partial' : 'ok', exit.note));
           return;
         }
         const posted = await postLinkExit(exit.report);
-        finish({ tone: 'error', text: posted.logged ? exit.note : exit.note + notLoggedSuffix(posted.status) });
+        finish(syncLine('error', posted.logged ? exit.note : exit.note + notLoggedSuffix(posted.status)));
       },
     }).open();
   }, [phase, plaidReady, router]);

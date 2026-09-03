@@ -16,6 +16,7 @@ import {
   type KeyValueStore,
 } from '../plaid/oauth';
 import { updateModeLinkRequest } from '../plaid/reconnect';
+import { syncLine } from '../plaid/failLoud';
 
 // BANK-01c — Plaid OAuth: the redirect URI on every link token, and the return page's round trip.
 
@@ -117,22 +118,22 @@ test("the 'reconnect' flow calls reconnect-complete, never exchange-token; 'new'
   const r = await completeOauthReturn({ kind: 'reconnect', itemId: 'ckitemrow0001', institution: 'tastytrade' }, 'public-production-x', { institution: { name: 'tastytrade', institution_id: 'ins_116995' } }, reconnect.post);
   assert.equal(r.endpoint, '/api/plaid/reconnect-complete');
   assert.deepEqual(reconnect.calls, [{ path: '/api/plaid/reconnect-complete', body: { itemId: 'ckitemrow0001' } }], 'one call, no public token, no exchange');
-  assert.deepEqual(r.outcome, { tone: 'ok', text: 'tastytrade reconnected' });
+  assert.deepEqual(r.outcome, { tone: 'ok', text: 'tastytrade reconnected', lines: ['tastytrade reconnected'] });
   assert.ok(!JSON.stringify(reconnect.calls).includes('public-production-x'), 'the public token never leaves the browser in update mode');
 
   const still = fakePost({ '/api/plaid/reconnect-complete': { status: 409, body: { ok: false, stage: 'reconnect', message: 'tastytrade still needs to be reconnected (Plaid: ITEM_LOGIN_REQUIRED)' } } });
   const s = await completeOauthReturn({ kind: 'reconnect', itemId: 'ckitemrow0001', institution: 'tastytrade' }, 'public-production-x', null, still.post);
-  assert.deepEqual(s.outcome, { tone: 'error', text: 'tastytrade still needs to be reconnected (Plaid: ITEM_LOGIN_REQUIRED)' });
+  assert.deepEqual(s.outcome, { tone: 'error', text: 'tastytrade still needs to be reconnected (Plaid: ITEM_LOGIN_REQUIRED)', lines: ['tastytrade still needs to be reconnected (Plaid: ITEM_LOGIN_REQUIRED)'] });
 
   const fresh = fakePost({ '/api/plaid/exchange-token': { status: 200, body: { success: true } } });
   const n = await completeOauthReturn({ kind: 'new' }, 'public-production-y', { institution: { name: 'tastytrade', institution_id: 'ins_116995' } }, fresh.post);
   assert.equal(n.endpoint, '/api/plaid/exchange-token');
   assert.deepEqual(fresh.calls, [{ path: '/api/plaid/exchange-token', body: { publicToken: 'public-production-y', institutionId: 'ins_116995', institutionName: 'tastytrade', entityId: 'personal' } }], 'the exact body the cockpit sends today');
-  assert.deepEqual(n.outcome, { tone: 'ok', text: 'tastytrade linked' });
+  assert.deepEqual(n.outcome, { tone: 'ok', text: 'tastytrade linked', lines: ['tastytrade linked'] }, 'HYG-03: the renamed line moves its `lines` with it');
 
   const failed = fakePost({ '/api/plaid/exchange-token': { status: 500, body: { ok: false, stage: 'api/plaid/exchange-token POST', error: 'Failed to link account', message: 'Failed to link account' } } });
   const f = await completeOauthReturn({ kind: 'new' }, 'public-production-y', null, failed.post);
-  assert.deepEqual(f.outcome, { tone: 'error', text: 'Failed to link account' });
+  assert.deepEqual(f.outcome, { tone: 'error', text: 'Failed to link account', lines: ['Failed to link account'] });
 });
 
 test('a return with no kept state renders the declared error — and so do a missing state id, a corrupt entry, and an expired token', () => {
@@ -167,11 +168,11 @@ test('a return with no kept state renders the declared error — and so do a mis
 
 test('the outcome line rides back to Books and is consumed by the reader of its flow kind', () => {
   const store = memoryStore();
-  keepReturnOutcome(store, { flow: { kind: 'reconnect', itemId: 'ckitemrow0001', institution: 'tastytrade' }, outcome: { tone: 'ok', text: 'tastytrade reconnected' }, now: NOW });
+  keepReturnOutcome(store, { flow: { kind: 'reconnect', itemId: 'ckitemrow0001', institution: 'tastytrade' }, outcome: syncLine('ok', 'tastytrade reconnected'), now: NOW });
   assert.equal(takeReturnOutcome(store, 'new'), null, "the cockpit banner reads 'new' outcomes only — the row's outcome stays for the row");
   assert.ok(store.getItem(OUTCOME_KEY), 'still kept');
   const taken = takeReturnOutcome(store, 'reconnect');
-  assert.deepEqual(taken, { flow: { kind: 'reconnect', itemId: 'ckitemrow0001', institution: 'tastytrade' }, outcome: { tone: 'ok', text: 'tastytrade reconnected' }, at: NOW.toISOString() });
+  assert.deepEqual(taken, { flow: { kind: 'reconnect', itemId: 'ckitemrow0001', institution: 'tastytrade' }, outcome: { tone: 'ok', text: 'tastytrade reconnected', lines: ['tastytrade reconnected'] }, at: NOW.toISOString() });
   assert.equal(store.getItem(OUTCOME_KEY), null, 'consumed');
   assert.equal(takeReturnOutcome(store, 'reconnect'), null);
 
