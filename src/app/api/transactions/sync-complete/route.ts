@@ -9,7 +9,9 @@ import { summarizePlaidError } from '@/lib/plaid/summarizeError';
 import { bankName, clearItemError, isItemError, itemFailure, recordItemError } from '@/lib/plaid/reconnect';
 import { wireOf } from '@/lib/plaid/wire';
 import { prismaLanding } from '@/lib/arrivals/prismaLanding';
-import { recordFailedAnswer, runTransactionsPage, type DomainDb } from '@/lib/arrivals/plaidTransactionsPage';
+import { recordFailedAnswer, runTransactionsPage } from '@/lib/arrivals/plaidTransactionsPage';
+// PERF-01: the domain writes of a page land in one statement per kind, not one per row.
+import { prismaDomain } from '@/lib/arrivals/prismaDomain';
 import type { Prisma } from '@prisma/client';
 
 export const maxDuration = 300; // 5 minutes for Pro plan
@@ -133,9 +135,16 @@ export async function POST() {
           // (provider, their_id)) → the existing parser, reading the ARRIVAL payloads →
           // transactions.arrival_id → read / status = done. A parser throw rolls this
           // page back; earlier pages stay landed; this item's stage declares the failure.
+          // PERF-01: the batching domain binding — the parser's per-row intents replay as one
+          // statement per kind inside the page's transaction (finish); one log line per page.
+          let batch: ReturnType<typeof prismaDomain> | null = null;
+          const pageStarted = Date.now();
           const result = await runTransactionsPage(
             prisma,
-            (tx) => ({ landing: prismaLanding(tx as Prisma.TransactionClient), domain: tx as unknown as DomainDb }),
+            (tx) => {
+              batch = prismaDomain(tx as Prisma.TransactionClient);
+              return { landing: prismaLanding(tx as Prisma.TransactionClient), domain: batch, finish: () => batch!.finish() };
+            },
             {
               page,
               userId: user.id,
@@ -147,11 +156,14 @@ export async function POST() {
               transactions: response.data.transactions,
             },
           );
+          const pageMs = Date.now() - pageStarted;
+          const pageStats = batch ? (batch as ReturnType<typeof prismaDomain>).stats() : { intents: 0, statements: 0 };
           if (!result.ok) {
             pageFailure = result.failure;
-            console.error(`Transactions stage failed for ${bankName(item.institutionName)} on page ${page}:`, result.failure.error);
+            console.error(`Transactions stage failed for ${bankName(item.institutionName)} on page ${page} after ${pageMs}ms:`, result.failure.error);
             break;
           }
+          console.log(`[sync] ${bankName(item.institutionName)} transactions page ${page}: ${response.data.transactions.length} objects, ${JSON.stringify(result.counts)}, ${pageStats.intents} domain intents → ${pageStats.statements} statements, ${pageMs}ms`);
           synced += result.counts.synced;
           skipped += result.counts.skipped;
           landed += result.counts.landed;

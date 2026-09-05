@@ -217,16 +217,26 @@ export interface PageClient {
 
 export type PageResult = { ok: true; counts: PageCounts } | { ok: false; failure: StageFailed & { page: number } };
 
+/** The ports a page runs through. PERF-01: a domain port that BUFFERS its writes (prismaDomain) hands back `finish`, replayed inside the same transaction after the parser is done. */
+export interface PagePorts {
+  landing: LandingDb;
+  domain: DomainDb;
+  finish?: () => Promise<void>;
+}
+
 /** One page, one transaction. A throw inside rolls the page back and comes out as the declared failure. */
 export async function runTransactionsPage(
   client: PageClient,
-  ports: (tx: unknown) => { landing: LandingDb; domain: DomainDb },
+  ports: (tx: unknown) => PagePorts,
   input: TransactionsPageInput,
 ): Promise<PageResult> {
   try {
     const counts = await client.$transaction(async (tx) => {
-      const { landing, domain } = ports(tx);
-      return landTransactionsPage(landing, domain, input);
+      const { landing, domain, finish } = ports(tx);
+      const result = await landTransactionsPage(landing, domain, input);
+      // PERF-01: the batching binding's statements run here — still this transaction, still rolled back whole on a throw.
+      if (finish) await finish();
+      return result;
     }, { maxWait: 10_000, timeout: 120_000 });
     return { ok: true, counts };
   } catch (error) {
