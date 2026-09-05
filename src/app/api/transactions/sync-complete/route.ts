@@ -35,10 +35,16 @@ export async function POST() {
     const tabGate = await requireTabAccess(user.id, 'tab:books');
     if (tabGate) return tabGate;
 
-    // HYG-03: a stable run — items by institution, then id.
+    // HYG-03: a stable run — items by institution, then id. BANK-03: a retired item
+    // (replaced by a fresh link) is skipped and reported as retired, never as failed.
     const plaidItems = await prisma.plaid_items.findMany({
-      where: { userId: user.id },
+      where: { userId: user.id, retired_at: null },
       include: { accounts: true },
+      orderBy: [{ institutionName: 'asc' }, { id: 'asc' }],
+    });
+    const retiredItems = await prisma.plaid_items.findMany({
+      where: { userId: user.id, retired_at: { not: null } },
+      select: { institutionName: true, retired_reason: true, retired_at: true },
       orderBy: [{ institutionName: 'asc' }, { id: 'asc' }],
     });
     type PlaidItem = (typeof plaidItems)[number];
@@ -309,6 +315,8 @@ export async function POST() {
         ['investments', syncInvestments],
       ],
     );
+    // BANK-03: retired items ride the answer with no stages — the banner says "retired", never "failed".
+    for (const r of retiredItems) items.push({ institution: bankName(r.institutionName), stages: [], retired: r.retired_reason ?? `retired ${r.retired_at?.toISOString() ?? ''}`.trim() });
 
     // The run's totals — summed over the stages that succeeded (a failed stage has no counts).
     const tx = sumStageCounts(items, 'transactions');
