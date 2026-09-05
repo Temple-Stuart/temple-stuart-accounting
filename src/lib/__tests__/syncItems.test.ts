@@ -190,3 +190,17 @@ test('lines: an item failure is not double-named; a stage failure names its stag
   assert.deepEqual(readSyncResponse(409, { ok: false, stage: 'reconnect', message: 'Wells Fargo still needs to be reconnected (Plaid: ITEM_LOGIN_REQUIRED)' }).lines, ['Wells Fargo still needs to be reconnected (Plaid: ITEM_LOGIN_REQUIRED)']);
   assert.deepEqual(readSyncResponse(500, null).lines, ['Sync failed: HTTP 500']);
 });
+
+test('BANK-03: a retired item rides the answer with no stages — reported as retired, never failed; only live items decide the status', () => {
+  const retired: ItemOutcome = { institution: 'TastyTrade', stages: [], retired: 'replaced by NEWITEMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' };
+  const live: ItemOutcome = { institution: 'tastytrade', stages: [stageOk('transactions', { synced: 3, skipped: 0, landed: 3, already_landed: 0, corrected: 0 }), stageOk('investments', { synced: 7, skipped: 0, securities: 2 })] };
+  const ok = syncItemsEnvelope([retired, live]);
+  assert.equal(ok.status, 200, 'a retired item is not a failure');
+  assert.deepEqual(ok.body.lines, ['TastyTrade — retired (replaced by NEWITEMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)', 'tastytrade synced: 3 landed, 7 investment transactions, 2 securities'], 'named as retired, and never as synced');
+  const dead: ItemOutcome = { institution: 'Wells Fargo', stages: [stageFailed('transactions', new Error('boom')), stageFailed('investments', new Error('boom'))] };
+  assert.equal(syncItemsEnvelope([retired, dead]).status, 500, 'every LIVE item failed → non-2xx; the retired item does not soften it');
+  assert.equal(syncItemsEnvelope([retired, dead, live]).status, 207);
+  const only = syncItemsEnvelope([retired]);
+  assert.equal(only.status, 200);
+  assert.equal(only.body.message, 'Synced — no live banks · TastyTrade — retired (replaced by NEWITEMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)');
+});

@@ -115,10 +115,12 @@ export function failureEnvelope(stage: string, err: unknown, progress: Record<st
 // declares its own outcome; the response lists each bank with its outcomes and
 // counts. Inside one item a page failure still ends that item's stage (PR-2).
 
-/** One bank's outcomes — every stage, declared. */
+/** One bank's outcomes — every stage, declared. BANK-03: a retired item carries no stages and says why. */
 export interface ItemOutcome {
   institution: string;
   stages: StageOutcome[];
+  /** BANK-03: plaid_items.retired_reason — the item was replaced by a fresh link; skipped, not failed. */
+  retired?: string;
 }
 
 export type ItemStatus = 'ok' | 'partial' | 'failed';
@@ -181,7 +183,7 @@ export function failedLine(institution: string, failure: StageFailed): string {
 
 /** "Wells Fargo, Robinhood synced: 14 landed, 2 corrected, 5 investment transactions" — null when nothing succeeded. */
 export function successLine(items: ItemOutcome[]): string | null {
-  const okItems = items.filter((i) => itemStatus(i) === 'ok').map((i) => i.institution);
+  const okItems = items.filter((i) => i.stages.length > 0 && itemStatus(i) === 'ok').map((i) => i.institution);
   const tx = sumStageCounts(items, 'transactions');
   const inv = sumStageCounts(items, 'investments');
   const anyOk = items.some((i) => i.stages.some((s) => s.ok));
@@ -195,7 +197,7 @@ export function successLine(items: ItemOutcome[]): string | null {
   return `${who}: ${parts.join(', ')}`;
 }
 
-/** The banner's lines: one per failed bank (duplicates collapsed) above one for what succeeded. */
+/** The banner's lines: one per failed bank (duplicates collapsed), one per retired bank, then one for what succeeded. */
 export function syncLines(items: ItemOutcome[]): string[] {
   const failed: string[] = [];
   for (const item of items) {
@@ -205,8 +207,9 @@ export function syncLines(items: ItemOutcome[]): string[] {
       if (!failed.includes(l)) failed.push(l);
     }
   }
+  const retired = items.filter((i) => i.retired !== undefined).map((i) => `${i.institution} — retired (${i.retired})`);
   const ok = successLine(items);
-  return ok === null ? failed : [...failed, ok];
+  return ok === null ? [...failed, ...retired] : [...failed, ...retired, ok];
 }
 
 /**
@@ -221,12 +224,17 @@ export function syncItemsEnvelope(items: ItemOutcome[], okBody: Record<string, u
     return { status: 200, body: { ok: true, ...okBody, items, lines: [], message: 'Synced — no linked banks' } };
   }
   const lines = syncLines(items);
-  const statuses = items.map(itemStatus);
+  // BANK-03: a retired item has no stages — it is neither ok nor failed; only live items decide the status.
+  const live = items.filter((i) => i.stages.length > 0);
+  if (live.length === 0) {
+    return { status: 200, body: { ok: true, ...okBody, items, lines, message: `Synced — no live banks${lines.length ? ` · ${lines.join(' · ')}` : ''}` } };
+  }
+  const statuses = live.map(itemStatus);
   if (statuses.every((s) => s === 'ok')) {
     return { status: 200, body: { ok: true, ...okBody, items, lines, message: `Synced — ${lines.join(' · ')}` } };
   }
   if (statuses.every((s) => s === 'failed')) {
-    const firstItem = items[0];
+    const firstItem = live[0];
     const first = firstItem.stages.find((s): s is StageFailed => !s.ok)!;
     return {
       status: statusForFailure(first.error),
