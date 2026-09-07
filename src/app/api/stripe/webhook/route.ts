@@ -165,6 +165,7 @@ export async function POST(request: NextRequest) {
         handle: (event) => handleStripeEvent(db, event),
       };
     },
+    (line) => console.log(line),
   );
 
   if (!outcome.ok && outcome.failure === 'signature') {

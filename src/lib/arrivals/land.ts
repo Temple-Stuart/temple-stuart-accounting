@@ -4,7 +4,9 @@
  *
  *   landResponse() — one provider_responses row per HTTP answer: the exact
  *                    wire bytes, sha256 of those bytes, http_status, asked,
- *                    arrived.
+ *                    arrived. PR-4b: except declared redactions of secrets —
+ *                    then the canonical (RFC 8785) redacted bytes, sha256'd
+ *                    as stored, with the paths on `redactions`.
  *   landObjects()  — one arrivals row per object in the answer: payload = the
  *                    object, fingerprint = sha256 of its RFC 8785 canonical
  *                    bytes (the `canonicalize` package — JCS, never hand-rolled),
@@ -50,6 +52,8 @@ export interface ProviderResponseRow {
   body_sha256: Buffer;
   asked: Date;
   arrived: Date;
+  /** PR-4b: every path blanked in `body` before it was stored — [] means the exact wire bytes; else the canonical redacted bytes, sha256'd as stored. */
+  redactions: string[];
 }
 
 export interface ArrivalRow {
@@ -130,9 +134,12 @@ export interface WireAnswer {
   userId: string | null;
   guestRef: string | null;
   httpStatus: number;
+  /** The bytes to STORE: the exact wire when nothing was redacted; the canonical redacted bytes when something was. body_sha256 is over these. */
   body: Buffer;
   asked: Date;
   arrived: Date;
+  /** PR-4b: the paths blanked in `body`; omitted = [] (the exact wire). A caller that redacts hands the redacted bytes AND their paths — never one without the other. */
+  redactions?: string[];
 }
 
 export interface LandedResponse {
@@ -154,6 +161,7 @@ export async function landResponse(db: LandingDb, answer: WireAnswer): Promise<L
     body_sha256: sha256(answer.body),
     asked: answer.asked,
     arrived: answer.arrived,
+    redactions: answer.redactions ?? [],
   };
   await db.insertResponse(row);
   return { id: row.id, bodySha256: row.body_sha256 };

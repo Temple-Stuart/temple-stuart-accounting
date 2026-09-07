@@ -151,6 +151,7 @@ test('the parser reads the arrival row, never the HTTP object, and every new arr
   // structuredClone hands back a plain Uint8Array — compare the bytes, not the class.
   assert.equal(Buffer.compare(Buffer.from(a.row.fingerprint), fingerprintOf({ ...t, name: 'As landed' })), 0);
   assert.equal(landing.responses[0].http_status, 200);
+  assert.deepEqual(landing.responses[0].redactions, [], 'PR-4b: a Plaid answer declares no redaction — the exact wire bytes');
   await assert.rejects(landing.markRead([a.row.id], new Date()), /read is set once/);
 });
 

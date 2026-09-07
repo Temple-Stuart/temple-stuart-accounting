@@ -8,12 +8,15 @@
  *                          missing or bad signature throws
  *                          StripeSignatureError BEFORE anything lands (the
  *                          route answers Stripe's expected 400).
- *   landStripeEvent      — inside the caller's transaction: landResponse (the
- *                          verified raw body bytes, http_status 200 as
- *                          received; asked = arrived = when the delivery hit
- *                          us) → redactClientSecrets on a copy of the event
- *                          (every `client_secret` key at any depth blanked,
- *                          each path declared) → landObjects one arrival
+ *   landStripeEvent      — inside the caller's transaction: redactClientSecrets
+ *                          on a copy of the event (every `client_secret` key
+ *                          at any depth blanked, each path declared) →
+ *                          landResponse (PR-4b — the wire row: the exact raw
+ *                          bytes when nothing was redacted; the canonical
+ *                          RFC 8785 bytes of the redacted event when something
+ *                          was, sha256'd as stored, the paths declared on the
+ *                          row; http_status 200 as received; asked = arrived =
+ *                          when the delivery hit us) → landObjects one arrival
  *                          (stripe · event, their_id = event.id, kind event by
  *                          the rule book) → the handler runs FROM THE ARRIVAL
  *                          PAYLOAD read back from the table, never from the
@@ -40,7 +43,7 @@
  * with the real SDK's signing helper and a fake store.
  */
 import type { ArrivalOutcome, JsonObject, LandingDb } from './land';
-import { landObjects, landResponse, markRead } from './land';
+import { canonicalBytes, landObjects, landResponse, markRead } from './land';
 
 export const STRIPE = 'stripe';
 export const STRIPE_EVENT = 'event';
@@ -100,6 +103,18 @@ export function redactClientSecrets(payload: JsonObject): { payload: JsonObject;
   return { payload: walk(payload, '') as JsonObject, redactions };
 }
 
+/** The bytes the wire row stores: the exact raw bytes when nothing was redacted; the RFC 8785 canonical bytes of the redacted event when something was. */
+export function wireBytesFor(rawBody: Buffer, redacted: { payload: JsonObject; redactions: string[] }): { body: Buffer; redactions: string[] } {
+  if (redacted.redactions.length === 0) return { body: rawBody, redactions: [] };
+  return { body: canonicalBytes(redacted.payload), redactions: redacted.redactions };
+}
+
+/** The `t=` timestamp of a stripe-signature header, or null. */
+export function signatureTimestamp(signature: string | null): string | null {
+  const m = signature?.match(/(?:^|,)t=(\d+)/);
+  return m ? m[1] : null;
+}
+
 /** The customer id the event's object carries (a string or an expanded object), or null. */
 export function customerIdOf(event: StripeEventLike): string | null {
   const c = (event.data.object as { customer?: unknown }).customer;
@@ -115,6 +130,8 @@ export function guestRefFor(event: StripeEventLike): string {
 
 export interface StripeLandingPorts<E extends StripeEventLike> {
   landing: LandingDb;
+  /** One line per verified delivery (event id, the signature's timestamp, the creating request id — never a body); default silent. */
+  log?: (line: string) => void;
   /** Who the event belongs to; null → the arrival lands as a guest (guestRefFor). */
   userFor(event: E): Promise<string | null>;
   /** The existing handler — runs from the arrival payload, once per new arrival (landed or corrected), never on already_landed. */
@@ -142,17 +159,21 @@ export async function landStripeEvent<E extends StripeEventLike>(
   const { event } = input;
   const userId = await ports.userFor(event);
   const guestRef = userId === null ? guestRefFor(event) : null;
+  const redacted = redactClientSecrets(event as unknown as JsonObject);
+  // PR-4b: the wire row never holds the secret either — the stored bytes are the exact wire
+  // when nothing was blanked, else the canonical bytes of the redacted event, hashed as stored.
+  const wire = wireBytesFor(input.rawBody, redacted);
   const response = await landResponse(ports.landing, {
     provider: STRIPE,
     resource: STRIPE_EVENT,
     userId,
     guestRef,
     httpStatus: 200,
-    body: input.rawBody,
+    body: wire.body,
     asked: input.receivedAt,
     arrived: input.receivedAt,
+    redactions: wire.redactions,
   });
-  const redacted = redactClientSecrets(event as unknown as JsonObject);
   const landed = await landObjects(ports.landing, {
     provider: STRIPE,
     resource: STRIPE_EVENT,
@@ -191,6 +212,7 @@ export async function runStripeDelivery<E extends StripeEventLike>(
   delivery: StripeDelivery,
   verify: (rawBody: Buffer, signature: string, secret: string) => E,
   ports: (tx: unknown) => StripeLandingPorts<E>,
+  log?: (line: string) => void,
 ): Promise<StripeDeliveryResult> {
   let event: E;
   try {
@@ -198,6 +220,11 @@ export async function runStripeDelivery<E extends StripeEventLike>(
   } catch (e) {
     return { ok: false, failure: 'signature', error: e as StripeSignatureError };
   }
+  // One line records the verification — the event id, the delivery's signature timestamp and
+  // the creating request id; never a body. Stripe sends no delivery id header (the signature's
+  // t= and the event's request id are what a delivery carries).
+  const req = (event as { request?: { id?: string | null } | null }).request;
+  log?.(`[stripe] verified ${event.id} (${event.type}) — signed t=${signatureTimestamp(delivery.signature) ?? '?'}, request ${req?.id ?? 'none'}`);
   try {
     const result = await client.$transaction(
       (tx) => landStripeEvent(ports(tx), { rawBody: delivery.rawBody, event, receivedAt: delivery.receivedAt }),

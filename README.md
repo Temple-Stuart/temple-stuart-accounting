@@ -73,6 +73,7 @@ The arrival row above as tables — `prisma/migrations/20260903000000_arrivals/m
 | body_sha256 | bytea | NOT NULL |
 | asked | timestamptz | NOT NULL |
 | arrived | timestamptz | NOT NULL |
+| redactions | text[] | NOT NULL DEFAULT '{}' — `prisma/migrations/20260907220000_provider_responses_redactions/migration.sql`: every path blanked in body; '{}' = the exact wire bytes |
 |  | CHECK / KEY | CHECK (octet_length(body_sha256) = 32) |
 |  | CHECK / KEY | CHECK (octet_length(body) <= 1048576) |
 |  | CHECK / KEY | CHECK (user_id IS NOT NULL OR guest_ref IS NOT NULL) |
@@ -107,7 +108,7 @@ Promise 1 is a database law, not a convention: the `arrivals_promise_1` BEFORE U
 
 The write rule (PR-2 — one Plaid writer, `src/app/api/transactions/sync-complete/route.ts`, through `src/lib/arrivals/land.ts`):
 
-1. Every HTTP answer lands first, as the exact wire bytes, in `provider_responses` with the sha256 of those bytes (the Plaid SDK runs through an axios instance that keeps the body as bytes — `src/lib/plaid/wire.ts`).
+1. Every HTTP answer lands first in `provider_responses` — exact bytes, except declared redactions of secrets — then the canonical redacted bytes — with the sha256 of the bytes as stored and every blanked path on `redactions` (the Plaid SDK runs through an axios instance that keeps the body as bytes — `src/lib/plaid/wire.ts`; the Stripe webhook blanks `client_secret` — `src/lib/arrivals/stripeWebhook.ts`).
 2. Every object in the answer lands as one `arrivals` row: payload as sent, fingerprint = sha256 of its RFC 8785 canonical bytes (the `canonicalize` package), their_id = the provider's own id, redactions `[]` — `INSERT … ON CONFLICT (provider, their_id, fingerprint) DO NOTHING` — the same thing is the same provider, id and content, so a duplicate is promise 2 working, not an error, and a provider's correction is a new row (promise 1); three outcomes, counted apart: landed · already_landed (linked, not re-parsed) · corrected (parsed — latest-arrived wins and `transactions.arrival_id` moves to the newest row); a non-2xx answer lands as a `provider_responses` row with no arrivals — a failed ask is evidence of the ask; a duplicate is promise 2 working, reported as `already_landed`, never an error.
 3. The parser reads the arrival row, never the HTTP object, and points the domain row at it (`transactions.arrival_id`).
 4. Landing, parsing and `read` / `status` (once each) happen in ONE database transaction per page; a parser failure rolls that page back and is declared in the response (stage, page, summarized error) while earlier pages stay.

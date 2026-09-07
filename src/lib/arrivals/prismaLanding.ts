@@ -28,6 +28,7 @@ export function prismaLanding(tx: Tx): LandingDb {
           body_sha256: row.body_sha256,
           asked: row.asked,
           arrived: row.arrived,
+          redactions: row.redactions,
         },
       });
     },
