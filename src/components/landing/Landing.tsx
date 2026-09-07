@@ -3321,18 +3321,19 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             ))}
           </div>
 
-          {/* TABLES-01: the honest line (the 12/13 idiom) — today the six are
-              views over the typed feed tables; the names come from the census
-              (src/lib/kindViews.ts), the kinds from the rule book. */}
-          <p className={`mt-[14px] ${DECK.statement}`}>{KIND_VIEWS_HONEST_LINE}</p>
-
           {/* PR-S5: the tail is ONE paragraph — the essay's consolidated
               Step 5 passage, verbatim, slide-01 body tier. The old kind
               table, the divider, the twenty-five-tools statement, the
               notice block and the census receipt all return inside it —
               they render nowhere else now. */}
           <p className="mt-8 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">Twenty-five tools, six tables; because we sorted by what a thing is, not by which tool it came from. But notice something strange here: (1) the outside world only ever fills four of the six — reference, registry, event, and snapshot; (2) derived is filled only by math we ordered, our AIs included; (3) and posting? Nothing from the outside world ever lands there. Nobody sends you debits and credits — the bookkeeping step builds those, from your own events. Remember that; it matters soon. We did not guess this. We classified every one of the 121 feeds — August 24, 2026 — and posting took zero. The data agreed!</p>
-          <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">Everything so far arrived from the world. So where do the things you do live?</p>
+          <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">Everything so far arrived from the world.</p>
+          {/* DECK-TRUE-04: the honest line (the 12/13 idiom) — muted, after the
+              closer's lead-in, before its question. Every table and feed name
+              comes from the kind-views census (src/lib/kindViews.ts), the kinds
+              from the rule book; the README's row 05 TODAY is the same const. */}
+          <p className={`mt-[14px] ${DECK.statement}`}>{KIND_VIEWS_HONEST_LINE}</p>
+          <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">So where do the things you do live?</p>
         </div>
       </section>
 
