@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getStripe, getTierFromPriceId, getEntitlementKeyFromPriceId } from '@/lib/stripe';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
+// REBUILD-01 PR-4: every delivery lands raw-first — the signed bytes, one arrival per event
+// (client_secret redacted and declared), the handler from the arrival, one transaction.
+import { prismaLanding } from '@/lib/arrivals/prismaLanding';
+import { customerIdOf, runStripeDelivery } from '@/lib/arrivals/stripeWebhook';
 
 const OWNER_EMAIL = process.env.OWNER_EMAIL;
+
+/** The handler's database — the delivery's transaction client (PR-4), so its writes roll back with the landing. writeAuditLog keeps its own hash-chained transaction. */
+type Db = Prisma.TransactionClient;
 
 // PAYWALL: every tier entitlement change lands in the tamper-evident audit log.
 // actor = external_integration (Stripe, authenticated by webhook signature);
@@ -75,7 +83,7 @@ function entitlementPeriodEnd(subscription: Stripe.Subscription): Date | null {
 // ENTITLEMENT-WRITER: the ONE place an entitlement row is written from a paid
 // event. Caller must have (a) verified the webhook signature and (b) derived
 // `key` from the RECOGNIZED price ID — never from metadata alone.
-async function grantEntitlement(opts: {
+async function grantEntitlement(db: Db, opts: {
   eventId: string;
   eventType: string;
   userId: string;
@@ -89,11 +97,11 @@ async function grantEntitlement(opts: {
   // Audit on state TRANSITIONS only — a renewal that refreshes the period end
   // without changing status updates the row silently (the row itself is the
   // record); a grant or revoke always lands in the audit log.
-  const previous = await prisma.userCategoryEntitlement.findUnique({
+  const previous = await db.userCategoryEntitlement.findUnique({
     where: { userId_categoryKey: { userId: opts.userId, categoryKey: opts.key } },
     select: { status: true },
   });
-  const row = await prisma.userCategoryEntitlement.upsert({
+  const row = await db.userCategoryEntitlement.upsert({
     where: { userId_categoryKey: { userId: opts.userId, categoryKey: opts.key } },
     create: {
       userId: opts.userId,
@@ -122,21 +130,60 @@ async function grantEntitlement(opts: {
   }
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.text();
-    const signature = request.headers.get('stripe-signature');
-
-    if (!signature || !process.env.STRIPE_WEBHOOK_SECRET) {
-      return NextResponse.json({ error: 'Missing signature' }, { status: 400 });
+/**
+ * Who an event belongs to: the checkout session's metadata.userId when it names one
+ * of our users, else the user whose stripeCustomerId is the object's customer. Null
+ * → the arrival lands as a guest (guest_ref = the customer id, or event:<id>).
+ */
+async function userForEvent(db: Db, event: Stripe.Event): Promise<string | null> {
+  if (event.type === 'checkout.session.completed') {
+    const metaUserId = event.data.object.metadata?.userId;
+    if (metaUserId) {
+      const u = await db.users.findUnique({ where: { id: metaUserId }, select: { id: true } });
+      if (u) return u.id;
     }
+  }
+  const customerId = customerIdOf(event);
+  if (!customerId) return null;
+  const u = await db.users.findFirst({ where: { stripeCustomerId: customerId }, select: { id: true } });
+  return u?.id ?? null;
+}
 
-    const event = getStripe().webhooks.constructEvent(
-      body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
+export async function POST(request: NextRequest) {
+  const rawBody = Buffer.from(await request.arrayBuffer());
+  const signature = request.headers.get('stripe-signature');
 
+  const outcome = await runStripeDelivery<Stripe.Event>(
+    prisma,
+    { rawBody, signature, secret: process.env.STRIPE_WEBHOOK_SECRET, receivedAt: new Date() },
+    (body, sig, secret) => getStripe().webhooks.constructEvent(body, sig, secret),
+    (tx) => {
+      const db = tx as Db;
+      return {
+        landing: prismaLanding(db),
+        userFor: (event) => userForEvent(db, event),
+        handle: (event) => handleStripeEvent(db, event),
+      };
+    },
+  );
+
+  if (!outcome.ok && outcome.failure === 'signature') {
+    // Nothing landed; Stripe's expected 400.
+    console.error('Stripe webhook:', outcome.error.message);
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
+  }
+  if (!outcome.ok) {
+    // The delivery rolled back whole; a non-2xx makes Stripe redeliver.
+    console.error('Stripe webhook error:', outcome.error);
+    return NextResponse.json({ error: 'Webhook failed' }, { status: 500 });
+  }
+  const r = outcome.result;
+  console.log(`[stripe] ${r.type} ${r.eventId}: ${r.outcome}${r.handled ? '' : ' — handler skipped'}${r.redactions.length ? ` · redacted ${r.redactions.join(', ')}` : ''}${r.guestRef ? ` · guest ${r.guestRef}` : ''}`);
+  return NextResponse.json({ received: true, landed: r.outcome, handled: r.handled });
+}
+
+/** The existing handler, unchanged in what it does — it reads the ARRIVAL payload (PR-4) and writes through the delivery's transaction. */
+async function handleStripeEvent(db: Db, event: Stripe.Event): Promise<void> {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
@@ -167,7 +214,7 @@ export async function POST(request: NextRequest) {
           const entitlementKey = getEntitlementKeyFromPriceId(priceId);
           const tier = getTierFromPriceId(priceId); // 'free' when not a tier price
 
-          const checkoutUser = await prisma.users.findUnique({ where: { id: userId } });
+          const checkoutUser = await db.users.findUnique({ where: { id: userId } });
           if (!checkoutUser || checkoutUser.email === OWNER_EMAIL) break;
 
           if (entitlementKey) {
@@ -181,7 +228,7 @@ export async function POST(request: NextRequest) {
               );
               break;
             }
-            await grantEntitlement({
+            await grantEntitlement(db, {
               eventId: event.id,
               eventType: event.type,
               userId,
@@ -192,7 +239,7 @@ export async function POST(request: NextRequest) {
               currentPeriodEnd: entitlementPeriodEnd(subscription),
             });
           } else if (tier !== 'free') {
-            await prisma.users.update({
+            await db.users.update({
               where: { id: userId },
               data: {
                 tier,
@@ -225,7 +272,7 @@ export async function POST(request: NextRequest) {
         const customerId = subscription.customer as string;
 
         // Find user by Stripe customer ID
-        const user = await prisma.users.findFirst({
+        const user = await db.users.findFirst({
           where: { stripeCustomerId: customerId },
         });
         if (!user || user.email === OWNER_EMAIL) break;
@@ -240,7 +287,7 @@ export async function POST(request: NextRequest) {
           // (past_due, canceled, unpaid…) → row inactive. Upsert covers the
           // renewal case and a race where 'updated' lands before 'completed'
           // — the key still comes ONLY from the recognized paid price.
-          await grantEntitlement({
+          await grantEntitlement(db, {
             eventId: event.id,
             eventType: event.type,
             userId: user.id,
@@ -268,7 +315,7 @@ export async function POST(request: NextRequest) {
         // 'free', non-active subscription → 'free'. A paid tier is only ever
         // set from a recognized price on an ACTIVE subscription.
         const effectiveTier = subscription.status === 'active' ? tier : 'free';
-        await prisma.users.update({
+        await db.users.update({
           where: { id: user.id },
           data: {
             tier: effectiveTier,
@@ -293,7 +340,7 @@ export async function POST(request: NextRequest) {
         const subscription = event.data.object;
         const customerId = subscription.customer as string;
 
-        const user = await prisma.users.findFirst({
+        const user = await db.users.findFirst({
           where: { stripeCustomerId: customerId },
         });
         if (!user || user.email === OWNER_EMAIL) break;
@@ -301,12 +348,12 @@ export async function POST(request: NextRequest) {
         // ENTITLEMENT-WRITER: if this subscription backs entitlement rows,
         // revoke exactly those rows (status → inactive, audit-logged) and do
         // NOT touch the user's tier.
-        const entitlementRows = await prisma.userCategoryEntitlement.findMany({
+        const entitlementRows = await db.userCategoryEntitlement.findMany({
           where: { userId: user.id, stripeSubscriptionId: subscription.id },
         });
         if (entitlementRows.length > 0) {
           for (const row of entitlementRows) {
-            await prisma.userCategoryEntitlement.update({
+            await db.userCategoryEntitlement.update({
               where: { id: row.id },
               data: { status: 'inactive' },
             });
@@ -334,7 +381,7 @@ export async function POST(request: NextRequest) {
           break;
         }
 
-        await prisma.users.update({
+        await db.users.update({
           where: { id: user.id },
           data: {
             tier: 'free',
@@ -356,9 +403,4 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ received: true });
-  } catch (error) {
-    console.error('Stripe webhook error:', error);
-    return NextResponse.json({ error: 'Webhook failed' }, { status: 400 });
-  }
 }

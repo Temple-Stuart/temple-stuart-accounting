@@ -128,7 +128,7 @@ Five kinds arrive from outside; the sixth is never sent — the system writes po
 
 ### The rule book (step 4, applied)
 
-One written rule per feed — its kind — and the system applies it to every arrival of that feed: `src/lib/providers.ts` RULE_BOOK, 22 rows (the deck's 20 verbatim plus the 2 the deck's sample omits and the store lands). Landing consults it (`src/lib/arrivals/land.ts`): every arrival carries its kind (`arrivals.kind`, `prisma/migrations/20260907180000_arrival_kind/migration.sql` — the same rules applied to every row landed before it), and a feed with no rule is a loud failure, never a default. The build asserts the book against the deck, the schema's enum, the migration's UPDATEs and every landing call site.
+One written rule per feed — its kind — and the system applies it to every arrival of that feed: `src/lib/providers.ts` RULE_BOOK, 23 rows (the deck's 20 verbatim plus the 3 the deck's sample omits and the store lands). Landing consults it (`src/lib/arrivals/land.ts`): every arrival carries its kind (`arrivals.kind`, `prisma/migrations/20260907180000_arrival_kind/migration.sql` — the same rules applied to every row landed before it), and a feed with no rule is a loud failure, never a default. The build asserts the book against the deck, the schema's enum, the migration's UPDATEs and every landing call site.
 
 | Provider | Resource | Kind | Means | Row |
 |---|---|---|---|---|
@@ -154,6 +154,7 @@ One written rule per feed — its kind — and the system applies it to every ar
 | irs | bulletin | reference |  | deck |
 | plaid | security | reference |  | added |
 | plaid | investment_transaction | event |  | added |
+| stripe | event | event |  | added |
 
 ### The six tables (step 5, views)
 
@@ -264,7 +265,7 @@ BLUEPRINT is the step's headline; TODAY is the deck's honest-state line, verbati
 | Step | Blueprint | Today | Gap |
 |---|---|---|---|
 | 03 | Store what arrived. Then decide what it means. | the arrivals store holds 9,092 Plaid transactions, 712 investment transactions and 247 securities — every answer word for word, fingerprinted, status done — counted September 7, 2026; rows before September 3, 2026 carry no arrival. | the other providers (Stripe events, LiteAPI, tastytrade, the market and law feeds) land parsed; the three old Plaid writers still exist. |
-| 04 | One rule per feed. Written down. | rules are rows the system applies — src/lib/providers.ts RULE_BOOK, 22 rows (the deck's 20 plus plaid · security → reference and plaid · investment_transaction → event); every Plaid arrival carries its kind (transaction · event, investment_transaction · event, security · reference), stamped on landing and applied by the migration to every row landed before it; a feed with no rule cannot land. | the other providers' arrivals wait on their landing — nothing of theirs has arrived to be labeled; the 121 feeds' classification stays the August 24 census until each lands. |
+| 04 | One rule per feed. Written down. | rules are rows the system applies — src/lib/providers.ts RULE_BOOK, 23 rows (the deck's 20 plus plaid · security → reference, plaid · investment_transaction → event, stripe · event → event); every Plaid and Stripe arrival carries its kind (transaction · event, investment_transaction · event, security · reference, stripe event · event), stamped on landing and applied by the migration to every row landed before it; a feed with no rule cannot land. | the other providers' arrivals wait on their landing — nothing of theirs has arrived to be labeled; the 121 feeds' classification stays the August 24 census until each lands. |
 | 05 | The kind picks the table. | Today the six are views over the feed tables — event: transactions, investment transactions, bookings; reference: securities, places, the law corpus; registry: accounts; snapshot: none yet; derived: none yet; posting: empty by law. | snapshot waits on holdings (PR-2d); derived has no feed table the rule book names — the AI tables carry no rule-book row; posting is empty by law; 8 tables are reported, not viewed. |
 | 07 | Every tool runs the same four beats. Discover. Decide. Commit. Record. | This loop is the blueprint — the shape we're building every tool toward. Today, hotel bookings commit for real and an accepted task fires its build; the rest run discover → decide → draft, and commit is the beat we're wiring to the same loop, tool by tool. | commit is real for two tools (hotel bookings, accepted tasks); the other twenty-three stop at draft. |
 | 08 | One table holds everything you do. | The master table is the blueprint. Today each tool keeps its own table; one table holding every document is the shape we're building. | no master table; each tool keeps its own. |
