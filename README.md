@@ -97,12 +97,13 @@ The arrival row above as tables — `prisma/migrations/20260903000000_arrivals/m
 | response_id | text | NULL REFERENCES provider_responses(id) |
 | user_id | text | NULL REFERENCES users(id) |
 | guest_ref | text | NULL |
+| kind | arrival_kind | NOT NULL — `prisma/migrations/20260907180000_arrival_kind/migration.sql`: the rule book's kind, applied on landing and to every earlier row |
 |  | CHECK / KEY | CHECK (octet_length(fingerprint) = 32) |
 |  | CHECK / KEY | CHECK (pg_column_size(payload) <= 1048576) |
 |  | CHECK / KEY | CHECK (user_id IS NOT NULL OR guest_ref IS NOT NULL) |
 |  | CHECK / KEY | UNIQUE (provider, their_id, fingerprint) |
 
-Promise 1 is a database law, not a convention: the `arrivals_promise_1` BEFORE UPDATE trigger raises if provider, connection, resource, their_id, their_id_kind, payload, fingerprint, redactions, asked, arrived, response_id, user_id or guest_ref would change — only `read` and `status` may move, each once (read from NULL, status from pending). There is no updated_at column and no DELETE policy: keep forever is the default.
+Promise 1 is a database law, not a convention: the `arrivals_promise_1` BEFORE UPDATE trigger raises if provider, connection, resource, their_id, their_id_kind, payload, fingerprint, redactions, asked, arrived, response_id, user_id, guest_ref or kind would change — only `read` and `status` may move, each once (read from NULL, status from pending). There is no updated_at column and no DELETE policy: keep forever is the default.
 
 The write rule (PR-2 — one Plaid writer, `src/app/api/transactions/sync-complete/route.ts`, through `src/lib/arrivals/land.ts`):
 
@@ -124,6 +125,35 @@ Five kinds arrive from outside; the sixth is never sent — the system writes po
 | derived | math we did | math we did — never a source |
 | snapshot | how things stood at one moment | how things stood at one moment |
 | posting | debits and credits | never arrives — the system writes postings from events |
+
+### The rule book (step 4, applied)
+
+One written rule per feed — its kind — and the system applies it to every arrival of that feed: `src/lib/providers.ts` RULE_BOOK, 22 rows (the deck's 20 verbatim plus the 2 the deck's sample omits and the store lands). Landing consults it (`src/lib/arrivals/land.ts`): every arrival carries its kind (`arrivals.kind`, `prisma/migrations/20260907180000_arrival_kind/migration.sql` — the same rules applied to every row landed before it), and a feed with no rule is a loud failure, never a default. The build asserts the book against the deck, the schema's enum, the migration's UPDATEs and every landing call site.
+
+| Provider | Resource | Kind | Means | Row |
+|---|---|---|---|---|
+| plaid | transaction | event | something that happened | deck |
+| plaid | account | registry | one of your accounts | deck |
+| plaid | holding | snapshot | how things stood at one moment | deck |
+| stripe | payout | event |  | deck |
+| tastytrade | quote | reference | a fact about the world | deck |
+| finnhub | fundamentals | reference |  | deck |
+| fred | series | reference |  | deck |
+| sec | filing | reference |  | deck |
+| liteapi | booking | event |  | deck |
+| viator | activity | reference |  | deck |
+| google places | place | reference |  | deck |
+| travel buddy | visa | reference |  | deck |
+| anthropic | classification | derived | math we did — never a source | deck |
+| openai | insight | derived |  | deck |
+| xai grok | sentiment | derived |  | deck |
+| voyage | embedding | derived |  | deck |
+| ecfr | title | reference |  | deck |
+| us code | title | reference |  | deck |
+| federal register | document | reference |  | deck |
+| irs | bulletin | reference |  | deck |
+| plaid | security | reference |  | added |
+| plaid | investment_transaction | event |  | added |
 
 ### The loop (step 7)
 
@@ -187,7 +217,7 @@ BLUEPRINT is the step's headline; TODAY is the deck's honest-state line, verbati
 | Step | Blueprint | Today | Gap |
 |---|---|---|---|
 | 03 | Store what arrived. Then decide what it means. | the arrivals store holds 9,092 Plaid transactions, 712 investment transactions and 247 securities — every answer word for word, fingerprinted, status done — counted September 7, 2026; rows before September 3, 2026 carry no arrival. | the other providers (Stripe events, LiteAPI, tastytrade, the market and law feeds) land parsed; the three old Plaid writers still exist. |
-| 04 | One rule per feed. Written down. | We classified every one of the 121 feeds — August 24, 2026 — and posting took zero. | kinds assigned in the August 24 census; the step-3 table is built (PR-1) and no rule row applies to it yet — see 14. |
+| 04 | One rule per feed. Written down. | rules are rows the system applies — src/lib/providers.ts RULE_BOOK, 22 rows (the deck's 20 plus plaid · security → reference and plaid · investment_transaction → event); every Plaid arrival carries its kind (transaction · event, investment_transaction · event, security · reference), stamped on landing and applied by the migration to every row landed before it; a feed with no rule cannot land. | the other providers' arrivals wait on their landing — nothing of theirs has arrived to be labeled; the 121 feeds' classification stays the August 24 census until each lands. |
 | 07 | Every tool runs the same four beats. Discover. Decide. Commit. Record. | This loop is the blueprint — the shape we're building every tool toward. Today, hotel bookings commit for real and an accepted task fires its build; the rest run discover → decide → draft, and commit is the beat we're wiring to the same loop, tool by tool. | commit is real for two tools (hotel bookings, accepted tasks); the other twenty-three stop at draft. |
 | 08 | One table holds everything you do. | The master table is the blueprint. Today each tool keeps its own table; one table holding every document is the shape we're building. | no master table; each tool keeps its own. |
 | 09 | The deposit meets the invoice. The fill meets the order. | (A piece of this is already alive today: card charges find their bookings and propose the match — you approve it.) | one of fourteen matches proposes today (card charge ↔ booking); the other thirteen do not. |
@@ -228,7 +258,7 @@ Versions from package.json, read 2026-09-02:
 
 Observed versus authored (step 6): what the world sends is observed; what you do is authored; the blueprint keeps the two apart and matches them on one key. Today the Plaid feeds land word for word, fingerprinted — 9,092 transactions, 712 investment transactions, 247 securities, counted September 7, 2026; the other providers still land parsed — see the gap ledger, step 14.
 
-Scale, as of 2026-09-02: 114 Prisma models, 33 enums, 292 API route files, 37 runtime dependencies, 18 dev dependencies, one test file (`npm test`).
+Scale, as of 2026-09-02: 114 Prisma models, 34 enums, 292 API route files, 37 runtime dependencies, 18 dev dependencies, one test file (`npm test`).
 
 ## Engineering discipline
 

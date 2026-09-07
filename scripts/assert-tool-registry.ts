@@ -25,6 +25,17 @@
  * navigation (its first entry); each card's home and the net-worth read are
  * doors on /answers.
  *
+ * THE RULE BOOK LAW (RULEBOOK-01): src/lib/providers.ts RULE_BOOK is the rule
+ * book the system applies — its module-scope law re-run (every ROUTING_RULES
+ * row present with the deck's kind; one kind per pair; six kinds, never
+ * posting), plus what only the schema, the migration and the call sites can
+ * answer: enum arrival_kind === ARRIVAL_KINDS === the *_arrival_kind
+ * migration's CREATE TYPE, in order; every UPDATE that migration applies is a
+ * rule the book holds with the same kind; every resource a landing call site
+ * names (files under src that call landObjects — the provider and resource
+ * they pass, as constants or literals) has a rule. A feed the book does not
+ * name cannot be landed: the build fails before the code does.
+ *
  * THE ARRIVALS LAW (REBUILD-01 PR-1): the provider vocabulary's module-scope
  * law re-run (src/lib/providers.ts — every ROUTING_RULES provider + resource
  * pair resolves, no duplicate word or code), plus what only the texts can
@@ -32,7 +43,9 @@
  * text) and the migration's CREATE TYPE (prisma/migrations/*_arrivals) carry
  * the code set EXACTLY, alphabetical; and the two Prisma models agree with the
  * migration's two CREATE TABLEs column for column — name, type, nullability,
- * order — so schema.prisma and the SQL can never drift.
+ * order — so schema.prisma and the SQL can never drift. RULEBOOK-01: the SQL
+ * side is the CREATE TABLE plus every later migration's ALTER TABLE … ADD
+ * COLUMN / ALTER COLUMN … SET NOT NULL on that table, in migration order.
  *
  * The assert:showroom pattern: a plain script wired into the `build` script so
  * it runs in CI / Vercel and fails the BUILD. It imports the registry (which
@@ -51,7 +64,7 @@ import { PROBLEM_SHEET } from '../src/lib/problemSheet';
 import { EXPECTED_STATUS_COUNTS, FAMILIES, FAMILY_PAGES, FAMILY_READS, TOOL_REGISTRY, familyCards, familyMenu, registryLaw, statusCounts } from '../src/lib/toolRegistry';
 import { OWNER_UTILITIES } from '../src/lib/shellMenu';
 import { ANSWERS_HOME, ANSWER_READS, ANSWER_ROWS, NET_WORTH_READ, answersLaw } from '../src/lib/answers';
-import { PROVIDERS, PROVIDER_CODES, ROUTING_RULES, providersLaw } from '../src/lib/providers';
+import { ARRIVAL_KINDS, PROVIDERS, PROVIDER_CODES, ROUTING_RULES, RULE_BOOK, providersLaw, ruleFor } from '../src/lib/providers';
 
 /**
  * Routes whose door is outside the app map: the front door and its marketing
@@ -294,15 +307,30 @@ if (enumValues.join(',') !== PROVIDER_CODES.join(',')) violations.push(`arrivals
 const typeValues = migrationSql.match(/CREATE TYPE arrival_provider AS ENUM \((.*?)\);/)?.[1].split(', ').map((v) => v.replace(/^'|'$/g, '')) ?? [];
 if (typeValues.join(',') !== PROVIDER_CODES.join(',')) violations.push(`arrivals: migration CREATE TYPE arrival_provider [${typeValues.join(' ')}] ≠ providers.ts codes`);
 
-/** SQL column → { name, type, nullable } from a CREATE TABLE body; constraints and indexes are skipped. */
+/** Every migration.sql, in migration order — the ALTER TABLE … ADD COLUMN / SET NOT NULL a table gained after its CREATE TABLE. */
+const ALL_MIGRATIONS = readdirSync(resolve(ROOT, 'prisma/migrations')).sort()
+  .filter((d) => existsSync(resolve(ROOT, 'prisma/migrations', d, 'migration.sql')))
+  .map((d) => ({ dir: d, sql: readFileSync(resolve(ROOT, 'prisma/migrations', d, 'migration.sql'), 'utf8') }));
+
+/** SQL column → { name, type, nullable }: the CREATE TABLE body (constraints and indexes skipped) plus every later ADD COLUMN, with SET NOT NULL applied. */
 function sqlColumns(table: string): Array<{ name: string; type: string; nullable: boolean }> {
   const m = migrationSql.match(new RegExp(`CREATE TABLE ${table} \\(\\n([\\s\\S]*?)\\n\\);`));
   if (!m) return [];
-  return m[1].split('\n').map((l) => l.trim().replace(/,$/, '')).filter((l) => l && !/^CONSTRAINT /.test(l)).map((l) => {
+  const cols = m[1].split('\n').map((l) => l.trim().replace(/,$/, '')).filter((l) => l && !/^CONSTRAINT /.test(l)).map((l) => {
     const [name, type] = l.split(/\s+/);
     const nullable = !/NOT NULL|PRIMARY KEY/.test(l);
     return { name, type, nullable };
   });
+  for (const { sql } of ALL_MIGRATIONS) {
+    for (const add of sql.matchAll(new RegExp(`ALTER TABLE ${table} ADD COLUMN (\\w+) ([\\w\\[\\]]+)( NOT NULL| NULL)?`, 'g'))) {
+      cols.push({ name: add[1], type: add[2], nullable: add[3] !== ' NOT NULL' });
+    }
+    for (const set of sql.matchAll(new RegExp(`ALTER TABLE ${table} ALTER COLUMN (\\w+) SET NOT NULL`, 'g'))) {
+      const c = cols.find((x) => x.name === set[1]);
+      if (c) c.nullable = false;
+    }
+  }
+  return cols;
 }
 /** Prisma scalar field → the SQL shape it must match. Relation fields (a model type) are skipped. */
 const PRISMA_TO_SQL: Record<string, string> = { String: 'text', Int: 'integer', 'Bytes@db.ByteA': 'bytea', 'Json@db.JsonB': 'jsonb', 'DateTime@db.Timestamptz(6)': 'timestamptz', 'String[]': 'text[]' };
@@ -321,7 +349,7 @@ function modelColumns(model: string): Array<{ name: string; type: string; nullab
     const base = typeTok.replace(/\?$/, '');
     const native = rest.find((t) => t.startsWith('@db.')) ?? '';
     const key = base + native;
-    const type = PRISMA_TO_SQL[key] ?? (['arrival_provider', 'arrival_status', 'their_id_kind'].includes(base) ? base : `?${key}`);
+    const type = PRISMA_TO_SQL[key] ?? (['arrival_provider', 'arrival_status', 'their_id_kind', 'arrival_kind'].includes(base) ? base : `?${key}`);
     out.push({ name, type, nullable });
   }
   return out;
@@ -345,6 +373,61 @@ console.log(`${'table'.padEnd(19)} ${'migration.sql'.padEnd(44)} ${'schema.prism
 for (const r of arrivalsRows) console.log(r);
 console.log(`providers: ${PROVIDERS.length} (${PROVIDERS.filter((p) => p.today).length} today) · rule-book pairs ${ROUTING_RULES.length} · enum values ${enumValues.length} · CREATE TYPE values ${typeValues.length}`);
 
+// ── THE RULE BOOK LAW (RULEBOOK-01) ─────────────────────────────────────────
+const kindMigration = ALL_MIGRATIONS.find((m) => m.dir.endsWith('_arrival_kind'));
+if (!kindMigration) violations.push('rule book: no prisma/migrations/*_arrival_kind/migration.sql');
+const kindMigrationSql = kindMigration?.sql ?? '';
+const kindEnumBlock = schemaText.match(/enum arrival_kind \{\n([\s\S]*?)\n\}/);
+const kindEnumValues = kindEnumBlock ? kindEnumBlock[1].split('\n').map((l) => l.trim()).filter(Boolean) : [];
+if (kindEnumValues.join(',') !== ARRIVAL_KINDS.join(',')) violations.push(`rule book: enum arrival_kind [${kindEnumValues.join(' ')}] ≠ providers.ts ARRIVAL_KINDS [${ARRIVAL_KINDS.join(' ')}]`);
+const kindTypeValues = kindMigrationSql.match(/CREATE TYPE arrival_kind AS ENUM \((.*?)\);/)?.[1].split(', ').map((v) => v.replace(/^'|'$/g, '')) ?? [];
+if (kindTypeValues.join(',') !== ARRIVAL_KINDS.join(',')) violations.push(`rule book: migration CREATE TYPE arrival_kind [${kindTypeValues.join(' ')}] ≠ providers.ts ARRIVAL_KINDS`);
+// The migration applies the book, it invents nothing: every UPDATE it runs is a rule the book holds, with the book's kind.
+const applied: Array<{ provider: string; resource: string; kind: string }> = [];
+for (const m of kindMigrationSql.matchAll(/UPDATE arrivals SET kind = '([a-z]+)'\s+WHERE kind IS NULL AND provider = '([a-z_]+)' AND resource = '([a-z_]+)';/g)) {
+  const [, kind, provider, resource] = m;
+  applied.push({ provider, resource, kind });
+  const rule = ruleFor(provider, resource);
+  if (!rule) violations.push(`rule book: the migration applies ${provider} · ${resource} → ${kind} but the book holds no such rule`);
+  else if (rule.kind !== kind) violations.push(`rule book: the migration sets ${provider} · ${resource} to ${kind}; the book says ${rule.kind}`);
+}
+if (kindMigration && applied.length === 0) violations.push('rule book: the arrival_kind migration applies no rule (no UPDATE … SET kind found)');
+if (kindMigration && !/ALTER TABLE arrivals ALTER COLUMN kind SET NOT NULL/.test(kindMigrationSql)) violations.push('rule book: the arrival_kind migration never sets kind NOT NULL');
+if (kindMigration && !/OR NEW\.kind\s+IS DISTINCT FROM OLD\.kind/.test(kindMigrationSql)) violations.push('rule book: the promise-1 trigger does not freeze kind');
+// Every landing call site's (provider, resource) has a rule — the files under src that call landObjects, the words they pass.
+function tsFiles(dir: string): string[] {
+  const out: string[] = [];
+  for (const name of readdirSync(dir)) {
+    const abs = `${dir}/${name}`;
+    if (statSync(abs).isDirectory()) { if (name !== '__tests__' && name !== 'node_modules') out.push(...tsFiles(abs)); continue; }
+    if (name.endsWith('.ts') || name.endsWith('.tsx')) out.push(abs);
+  }
+  return out;
+}
+const landingConstants = new Map<string, string>();
+const srcFiles = tsFiles(resolve(ROOT, 'src')).map((abs) => ({ file: abs.replace(`${ROOT}/`, ''), src: readFileSync(abs, 'utf8') }));
+for (const { src } of srcFiles) for (const m of src.matchAll(/export const ([A-Z_]+) = '([a-z_]+)';/g)) landingConstants.set(m[1], m[2]);
+const wordOf = (expr: string): string | undefined => (expr.startsWith("'") ? expr.slice(1, -1) : landingConstants.get(expr));
+const callSites: Array<{ file: string; provider: string; resource: string; kind: string }> = [];
+for (const { file, src } of srcFiles) {
+  if (!src.includes('landObjects(') || file === 'src/lib/arrivals/land.ts') continue;
+  const providers = [...new Set([...src.matchAll(/provider: ([A-Z_]+|'[a-z_]+')/g)].map((m) => wordOf(m[1])))];
+  const resources = [...new Set([...src.matchAll(/resource: ([A-Z_]+|'[a-z_]+')/g)].map((m) => wordOf(m[1])))];
+  if (providers.length !== 1 || providers[0] === undefined) violations.push(`rule book: ${file} calls landObjects and names ${providers.filter(Boolean).length} provider(s) — expected exactly one, as a constant or a literal`);
+  for (const resource of resources) {
+    if (resource === undefined) { violations.push(`rule book: ${file} names a resource the assert cannot resolve to a word`); continue; }
+    const rule = providers[0] ? ruleFor(providers[0], resource) : undefined;
+    callSites.push({ file, provider: providers[0] ?? '?', resource, kind: rule?.kind ?? 'NO RULE' });
+    if (!rule) violations.push(`rule book: ${file} lands ${providers[0]} · ${resource} and the book holds no rule for it`);
+  }
+}
+if (callSites.length === 0) violations.push('rule book: no landing call site found under src — the scan is broken');
+console.log(`THE RULE BOOK — ${RULE_BOOK.length} rows (${RULE_BOOK.filter((r) => r.source === 'deck').length} the deck's, ${RULE_BOOK.filter((r) => r.source === 'added').length} added)`);
+for (const r of RULE_BOOK) console.log(`${r.provider.padEnd(18)} ${r.resource.padEnd(24)} ${r.kind.padEnd(10)} ${r.source.padEnd(6)} ${r.means}`);
+console.log('LANDING CALL SITES — provider · resource → the rule applied');
+for (const c of callSites) console.log(`${c.file.padEnd(48)} ${c.provider} · ${c.resource.padEnd(24)} → ${c.kind}`);
+console.log(`the migration applies: ${applied.map((a) => `${a.provider} · ${a.resource} → ${a.kind}`).join(' · ')}`);
+
 if (violations.length) {
   console.error('\n✖ TOOL REGISTRY LAW FAILED:');
   for (const v of violations) console.error(`  ${v}`);
@@ -354,4 +437,5 @@ console.log('✔ Tool registry law passed — 25/25 cells, homes resolve to page
 console.log(`✔ Reachability law passed — ${pages.length} pages, every one has a door (family menus and family pages count).`);
 console.log(`✔ The family map law passed — ${FAMILIES.length} menus, ${FAMILIES.length} family pages, every tool once in each.`);
 console.log(`✔ The answers law passed — ${ANSWER_ROWS.length}/4 questions on ${ANSWERS_HOME}, every number sourced.`);
-console.log(`✔ The arrivals law passed — ${PROVIDERS.length} providers, enum === codes, ${arrivalsRows.length} columns agree with the migration.`);
+console.log(`✔ The arrivals law passed — ${PROVIDERS.length} providers, enum === codes, ${arrivalsRows.length} columns agree with the migrations.`);
+console.log(`✔ The rule book law passed — ${RULE_BOOK.length} rules, ${callSites.length} landing call sites covered, enum arrival_kind === the six kinds, the migration applies ${applied.length} rules the book holds.`);

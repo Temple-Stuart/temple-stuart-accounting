@@ -3613,6 +3613,16 @@ enum their_id_kind {
   composed
 }
 
+/// RULEBOOK-01: the six kinds, the deck's HANDOFF_KINDS order (src/lib/providers.ts ARRIVAL_KINDS; asserted at build). Nothing ever arrives as a posting.
+enum arrival_kind {
+  reference
+  registry
+  event
+  derived
+  snapshot
+  posting
+}
+
 /// The wire: the exact bytes of one HTTP answer, sha256'd. One row per answer.
 model provider_responses {
   id          String           @id
@@ -3650,6 +3660,8 @@ model arrivals {
   response_id   String?
   user_id       String?
   guest_ref     String?
+  /// RULEBOOK-01: the kind the rule book assigns this (provider, resource) — set on landing, applied by the migration to the rows before it; promise 1 freezes it.
+  kind          arrival_kind
   response      provider_responses? @relation(fields: [response_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   user          users?              @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   transactions  transactions[]

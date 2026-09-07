@@ -34,10 +34,10 @@ export function prismaLanding(tx: Tx): LandingDb {
     async insertArrivalsIgnoringDuplicates(rows: ArrivalRow[]) {
       if (rows.length === 0) return [];
       const values = rows.map(
-        (r) => Prisma.sql`(${r.id}, ${r.provider}::arrival_provider, ${r.connection}, ${r.resource}, ${r.their_id}, ${r.their_id_kind}::their_id_kind, ${JSON.stringify(r.payload)}::jsonb, ${r.fingerprint}, ${textArray(r.redactions)}, ${r.asked}, ${r.arrived}, 'pending'::arrival_status, ${r.response_id}, ${r.user_id}, ${r.guest_ref})`,
+        (r) => Prisma.sql`(${r.id}, ${r.provider}::arrival_provider, ${r.connection}, ${r.resource}, ${r.their_id}, ${r.their_id_kind}::their_id_kind, ${JSON.stringify(r.payload)}::jsonb, ${r.fingerprint}, ${textArray(r.redactions)}, ${r.asked}, ${r.arrived}, 'pending'::arrival_status, ${r.response_id}, ${r.user_id}, ${r.guest_ref}, ${r.kind}::arrival_kind)`,
       );
       const inserted = await tx.$queryRaw<Array<{ their_id: string; fingerprint: Buffer }>>(Prisma.sql`
-        INSERT INTO arrivals (id, provider, connection, resource, their_id, their_id_kind, payload, fingerprint, redactions, asked, arrived, status, response_id, user_id, guest_ref)
+        INSERT INTO arrivals (id, provider, connection, resource, their_id, their_id_kind, payload, fingerprint, redactions, asked, arrived, status, response_id, user_id, guest_ref, kind)
         VALUES ${Prisma.join(values)}
         ON CONFLICT (provider, their_id, fingerprint) DO NOTHING
         RETURNING their_id, fingerprint`);
