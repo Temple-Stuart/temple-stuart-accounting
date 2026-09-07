@@ -11,7 +11,8 @@
 //     admin/fix-entity-assignment/route.ts:180 `isExpense = txn.amount > 0`).
 //     Bookings are spend → only amount > 0 transactions are candidates
 //     (refunds/credits are out of MATCH-1 scope).
-//   • pending: persisted verbatim from Plaid (plaid/sync/route.ts:111,123) and
+//   • pending: persisted verbatim from Plaid (the one writer, sync-complete →
+//     src/lib/arrivals/plaidTransactionsPage.ts:97 `pending: txn.pending || false`) and
 //     NOT excluded by the analytics consumers — so the matcher includes
 //     pending transactions but SAYS SO in the rationale (a pending amount can
 //     still settle differently; the reviewer sees the flag).
