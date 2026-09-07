@@ -41,6 +41,7 @@ test('every ROUTING_RULES provider + resource pair resolves, spelled as the deck
   // RULEBOOK-01: resources come from the book — the deck's rows plus the two added plaid rows.
   assert.equal(PROVIDERS.flatMap((p) => p.resources).length, RULE_BOOK.length);
   assert.deepEqual(providerByDeck('plaid')?.resources, ['transaction', 'account', 'holding', 'security', 'investment_transaction']);
+  assert.deepEqual(providerByDeck('stripe')?.resources, ['payout', 'event']);
   assert.deepEqual(providerByDeck('teller')?.resources, []);
 });
 
@@ -57,7 +58,9 @@ test('the rule book: every deck row verbatim with the deck\'s kind, plus the two
     assert.equal(rule.source, 'deck');
     assert.equal(rule.code, providerCode(provider));
   }
-  assert.deepEqual(ADDED_RULES.map(([p, r, k]) => [p, r, k]), [['plaid', 'security', 'REFERENCE'], ['plaid', 'investment_transaction', 'EVENT']]);
+  assert.deepEqual(ADDED_RULES.map(([p, r, k]) => [p, r, k]), [['plaid', 'security', 'REFERENCE'], ['plaid', 'investment_transaction', 'EVENT'], ['stripe', 'event', 'EVENT']]);
+  assert.equal(kindOf('stripe', 'event'), 'event');
+  assert.equal(kindOf('stripe', 'payout'), 'event');
   assert.equal(ruleFor('plaid', 'security')?.source, 'added');
   assert.equal(new Set(RULE_BOOK.map((r) => `${r.provider} · ${r.resource}`)).size, RULE_BOOK.length, 'one rule per pair');
   assert.ok(RULE_BOOK.every((r) => r.kind !== 'posting'), 'nothing ever arrives as a posting');

@@ -9,8 +9,10 @@
  *                    object, fingerprint = sha256 of its RFC 8785 canonical
  *                    bytes (the `canonicalize` package — JCS, never hand-rolled),
  *                    their_id = the provider's own id (their_id_kind
- *                    'provider'), redactions [] (the PR-2 audit found no secret
- *                    in a /transactions/get body), response_id set, status
+ *                    'provider'), redactions = the paths the caller blanked
+ *                    before landing ([] for Plaid — the PR-2 audit found no
+ *                    secret in a /transactions/get body; PR-4 declares the
+ *                    Stripe client_secret paths), response_id set, status
  *                    pending, kind = the rule book's kind for (provider,
  *                    resource) (RULEBOOK-01 — no rule, no row: NoRuleError
  *                    before anything is built). INSERT … ON CONFLICT (provider, their_id,
@@ -160,6 +162,8 @@ export async function landResponse(db: LandingDb, answer: WireAnswer): Promise<L
 export interface ObjectToLand {
   theirId: string;
   payload: JsonObject;
+  /** PR-4: every path blanked in `payload` before landing (a secret never lands); [] when nothing was. */
+  redactions?: string[];
 }
 
 export interface LandObjectsInput {
@@ -208,7 +212,7 @@ export async function landObjects(db: LandingDb, input: LandObjectsInput): Promi
       their_id_kind: 'provider',
       payload: o.payload,
       fingerprint,
-      redactions: [],
+      redactions: o.redactions ?? [],
       asked: input.asked,
       arrived: input.arrived,
       response_id: input.responseId,
