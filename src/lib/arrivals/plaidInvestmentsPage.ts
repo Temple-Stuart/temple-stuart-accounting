@@ -15,7 +15,8 @@
  * transactions phase's answer carries the same accounts and neither phase
  * lands them as objects today (the rule book's plaid · account · REGISTRY row
  * is unused) — they ride the response bytes, once per answer. Holdings (kind
- * SNAPSHOT) are PR-2d.
+ * SNAPSHOT) land through plaidHoldingsPage.ts (PR-2d), which reuses
+ * securityWrite for the securities the holdings answer carries.
  *
  * Three outcomes per object, counted apart: landed (a new id — parsed; an
  * investment transaction whose domain row PREDATES the store is linked and
@@ -92,7 +93,8 @@ export interface InvestmentsPageCounts {
 }
 
 const dateOrNull = (v: string | null | undefined): Date | null => (v ? new Date(v) : null);
-const newId = (prefix: string) => `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+/** The sync's row id shape (`sec_…`, `inv_…`; PR-2d: `hold_…`). */
+export const newId = (prefix: string) => `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
 /** The sync's securities upsert, from an arrival's payload: every column on create; the price and option columns (and the arrival) on update. */
 export function securityWrite(s: SecurityPayload, arrivalId: string, now: Date): { where: { securityId: string }; create: Record<string, unknown>; update: Record<string, unknown> } {

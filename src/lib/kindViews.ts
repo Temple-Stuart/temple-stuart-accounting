@@ -7,19 +7,24 @@
  * · snapshot · posting — each with ONE common shape (VIEW_COLUMNS), union the
  * feed tables of that kind. The kind per table comes from the rule book
  * (src/lib/providers.ts kindOf) — never typed twice. Posting is empty by the
- * deck's own law (nothing ever arrives as a posting); snapshot is empty until
- * holdings land (PR-2d).
+ * deck's own law (nothing ever arrives as a posting); snapshot holds Plaid
+ * holdings since REBUILD-01 PR-2d.
  *
  * THE CENSUS (KIND_VIEW_CENSUS) is the one source: every table whose rows come
  * from a provider answer AND whose feed the rule book names, with its columns
  * for the common shape. A table whose feed the book cannot name is REPORTED
- * (STOPPED_TABLES), never guessed into a view. The migration
- * (prisma/migrations/*_kind_views) is kindViewsSql() verbatim; the deck's
- * step-5 honest line is KIND_VIEWS_HONEST_LINE; the README extracts both. The
- * build (scripts/assert-tool-registry.ts) runs kindViewsLaw against the
- * migration text: (a) every census table in exactly one view, (b) that view is
- * the rule book's kind for the table's feed, (c) posting unions nothing,
- * (d) all six views carry the common columns in the same order.
+ * (STOPPED_TABLES), never guessed into a view. The first migration
+ * (prisma/migrations/*_kind_views) created the six as kindViewsSql() verbatim;
+ * a view changes only through a later migration that drops and recreates it
+ * (the snapshot view, over holdings — *_holdings_snapshot), so THE EFFECTIVE
+ * TEXT of the six is latestViewsSql(): for each kind, the newest CREATE VIEW
+ * across the migrations in order. The deck's step-5 honest line is
+ * KIND_VIEWS_HONEST_LINE; the README extracts both. The build
+ * (scripts/assert-tool-registry.ts) runs kindViewsLaw against that effective
+ * text: (a) every census table in exactly one view, (b) that view is the rule
+ * book's kind for the table's feed, (c) posting unions nothing, (d) all six
+ * views carry the common columns in the same order, and each view's newest
+ * text is kindViewSql() verbatim.
  *
  * Imports the rule book only; server- and client-safe (the deck renders the line).
  */
@@ -111,6 +116,12 @@ export const KIND_VIEW_CENSUS: readonly FeedTable[] = [
     from: 'accounts a', where: "a.source = 'plaid'",
     why: "src/app/api/plaid/exchange-token/route.ts:118 (create at link); rows with source 'manual' are authored (src/app/api/transactions/manual/route.ts:49) — filtered out; no arrival_id (accounts are never landed as objects)",
   },
+  {
+    table: 'holdings', label: 'holdings', feed: ['plaid', 'holding'],
+    rowId: 'h.id', theirId: `('holding:' || a."accountId" || ':' || h.security_id || ':' || to_char(h.as_of, 'YYYY-MM-DD'))`, arrivalId: 'h.arrival_id', userId: 'a."userId"', arrived: 'h."createdAt"',
+    from: 'holdings h JOIN accounts a ON a.id = h."accountId"',
+    why: 'REBUILD-01 PR-2d: sync-complete → src/lib/arrivals/plaidHoldingsPage.ts (one /investments/holdings/get answer per item per sync); a holding has no provider id, so their_id is composed — holding:<account_id>:<security_id>:<as_of> — and labeled composed; user through accounts.userId; arrival_id NOT NULL (the table is younger than the store); the snapshot view was redefined over it by prisma/migrations/20260908120000_holdings_snapshot',
+  },
 ];
 
 /** Tables whose rows come from a provider answer but whose feed the rule book does not name — reported, never viewed. */
@@ -180,7 +191,6 @@ export function branchSql(t: FeedTable): string {
 
 /** Why a kind's view unions nothing today — the comment the migration carries. */
 export const EMPTY_VIEW_WHY: Readonly<Partial<Record<ArrivalKind, string>>> = {
-  snapshot: 'no feed table holds a snapshot yet — plaid · holding lands in REBUILD-01 PR-2d',
   derived: 'no feed table the rule book names holds a derived row — the AI tables (operations_ai_usage, discovery_proposals, trip_scanner_results, scan_snapshots) carry no rule-book feed (STOPPED_TABLES)',
   posting: "empty by the deck's own law — nothing ever arrives as a posting; the system writes postings from events (step 10)",
 };
@@ -215,6 +225,40 @@ export function kindViewsHonestLine(census: readonly FeedTable[] = KIND_VIEW_CEN
 }
 
 export const KIND_VIEWS_HONEST_LINE = kindViewsHonestLine();
+
+/** One view's newest definition and the migration that holds it. */
+export interface LatestView {
+  kind: ArrivalKind;
+  /** The migration directory the newest CREATE VIEW lives in. */
+  dir: string;
+  /** The block: its `-- kind: …` line and the CREATE VIEW statement, verbatim. */
+  sql: string;
+}
+
+/**
+ * The effective text of the six views: for each kind, the LAST CREATE VIEW block
+ * (with its `-- kind:` line) across the migrations in directory order — a later
+ * migration that drops and recreates a view supersedes the original. Pure over
+ * the texts handed in (no filesystem), so the deck, the assert and the tests share it.
+ */
+export function latestViews(migrations: ReadonlyArray<{ dir: string; sql: string }>): LatestView[] {
+  const ordered = [...migrations].sort((a, b) => a.dir.localeCompare(b.dir));
+  const out: LatestView[] = [];
+  for (const kind of ARRIVAL_KINDS) {
+    const re = new RegExp(`(?:-- ${kind}: [^\\n]*\\n)?CREATE VIEW ${kind} AS\\n[\\s\\S]*?;`, 'g');
+    let last: LatestView | null = null;
+    for (const m of ordered) {
+      for (const hit of m.sql.matchAll(re)) last = { kind, dir: m.dir, sql: hit[0] };
+    }
+    if (last !== null) out.push(last);
+  }
+  return out;
+}
+
+/** The six newest CREATE VIEW blocks joined — what kindViewsLaw checks against the census. */
+export function latestViewsSql(migrations: ReadonlyArray<{ dir: string; sql: string }>): string {
+  return latestViews(migrations).map((v) => v.sql).join('\n\n');
+}
 
 /** Parse CREATE VIEW blocks out of migration text: name → { tables (FROM …), columns (the AS aliases of the first SELECT), unions }. */
 export function parseViews(sql: string): Array<{ name: string; tables: string[]; columns: string[]; body: string }> {

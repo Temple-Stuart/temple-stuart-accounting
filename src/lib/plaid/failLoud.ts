@@ -181,11 +181,13 @@ export function failedLine(institution: string, failure: StageFailed): string {
   return `${institution} — ${where}${reason}`;
 }
 
-/** "Wells Fargo, Robinhood synced: 14 landed, 2 corrected, 5 investment transactions" — null when nothing succeeded. */
+/** "Wells Fargo, Robinhood synced: 14 landed, 2 corrected, 5 investment transactions, 12 holdings" — null when nothing succeeded. */
 export function successLine(items: ItemOutcome[]): string | null {
   const okItems = items.filter((i) => i.stages.length > 0 && itemStatus(i) === 'ok').map((i) => i.institution);
   const tx = sumStageCounts(items, 'transactions');
   const inv = sumStageCounts(items, 'investments');
+  // REBUILD-01 PR-2d: the holdings stage — rows written this run (a snapshot already stored writes none).
+  const hold = sumStageCounts(items, 'holdings');
   const anyOk = items.some((i) => i.stages.some((s) => s.ok));
   if (!anyOk) return null;
   const parts = [`${tx.landed ?? 0} landed`];
@@ -193,6 +195,7 @@ export function successLine(items: ItemOutcome[]): string | null {
   if (tx.corrected) parts.push(`${tx.corrected} corrected`);
   if (inv.synced) parts.push(`${inv.synced} investment transactions`);
   if (inv.securities) parts.push(`${inv.securities} securities`);
+  if (hold.holdings) parts.push(`${hold.holdings} holdings`);
   const who = okItems.length ? `${okItems.join(', ')} synced` : 'Partial progress';
   return `${who}: ${parts.join(', ')}`;
 }
