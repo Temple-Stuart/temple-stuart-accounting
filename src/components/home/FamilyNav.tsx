@@ -1,31 +1,44 @@
 'use client';
 
 /**
- * NAV-01a — THE FAMILY NAVIGATION. Replaces the nine product-history tabs in
- * the cockpit with the deck's six families (PROBLEM_SHEET order); selecting a
- * family lists its tools in sheet order. Every row states the tool's TRUE
- * state from the registry (src/lib/toolRegistry.ts): name · status chip · the
- * beats it has · a way in when a home exists. A cockpit-hosted tool opens its
- * existing section in place (the same selectTab funnel the old tabs used, so
- * the URL keeps being written as today); an off-cockpit tool is a plain link.
- * A NOT_BUILT row is exactly that — no screen, no mock, no "coming soon" copy.
+ * NAV-01a → NAV-02 — THE FAMILY NAVIGATION. THE ANSWERS first (a link to
+ * /answers, current when you are on it — NAV-01c), then the deck's six
+ * families in PROBLEM_SHEET order.
  *
- * NAV-01c — THE ANSWERS is the first entry of the row: a link to /answers, the
- * app's front page (src/lib/answers.ts ANSWERS_HOME), current when you are on
- * it. Off the cockpit (no selectTab funnel — /answers), the nav runs in LINK
- * MODE: a cockpit-hosted tool is a plain link to the URL the cockpit writes
- * for its section (COCKPIT_PATH, one source with the reachability law), and
- * the tool list opens only when a family is picked.
+ * NAV-02: a family tab is a MENU, not a tab panel. It opens on click — never on
+ * hover — and lists "All of <FAMILY>" (the family page) and then the family's
+ * tools in sheet order: name · status chip · the tool's door. Selecting closes
+ * it; so do Escape, a click outside, and focus leaving the bar. Nothing renders
+ * inline below the bar: the map of a family is its page (/work, /money-in, …
+ * — src/lib/toolRegistry.ts FAMILY_PAGES). The items come from familyMenu()
+ * in the registry — ONE source with the build-time law that counts every tool
+ * in exactly one menu, exactly once (scripts/assert-tool-registry.ts).
  *
- * Mobile: the family row scrolls horizontally; tool rows stack; nothing under
- * 10px type.
+ * Doors: on the cockpit a cockpit-hosted tool opens its section in place
+ * through the SAME selectTab funnel the old tabs used (onSelectModule — the
+ * URL keeps being written as today); off the cockpit (link mode — /answers,
+ * the family pages) it is a plain link to COCKPIT_PATH. An off-cockpit tool
+ * is a link to its home. A NOT_BUILT tool is a disabled item that says so —
+ * no screen, no mock, no "coming soon" copy.
+ *
+ * Keyboard (the ARIA menu-button pattern, no mouse needed): on a family tab,
+ * Enter / Space open and focus the first item, ArrowDown the first, ArrowUp
+ * the last; Left / Right move between the family tabs (an open menu follows).
+ * In a menu, Up / Down move (wrapping), Home / End jump, Left / Right open the
+ * neighbouring family's menu, Escape closes and returns focus to the tab, Tab
+ * closes and moves on.
+ *
+ * Mobile (< sm, 640px): a family tab is a plain LINK to its family page — a
+ * menu on a 375px screen is the page. The row scrolls horizontally; nothing
+ * under 10px type.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { COCKPIT_PATH, FAMILIES, FAMILY_READS, COCKPIT_PRIMARY_TOOL, TOOL_REGISTRY, toolsOf, type Beats, type ToolEntry, type ToolStatus } from '@/lib/toolRegistry';
+import { COCKPIT_PRIMARY_TOOL, FAMILIES, FAMILY_PAGES, TOOL_REGISTRY, familyMenu, familyOfPath, type MenuItem } from '@/lib/toolRegistry';
 import { ANSWERS_HOME } from '@/lib/answers';
 import type { FamilyName } from '@/lib/problemSheet';
+import { StatusChip } from './ToolChrome';
 
 interface Props {
   /** The cockpit's active section key (ModuleLauncher activeModule). Absent off the cockpit. */
@@ -34,16 +47,10 @@ interface Props {
   onSelectModule?: (key: string) => void;
 }
 
-const STATUS_LABEL: Record<ToolStatus, string> = { LIVE: 'LIVE', PARTIAL: 'PARTIAL', NOT_BUILT: 'NOT BUILT' };
-const STATUS_CLASS: Record<ToolStatus, string> = {
-  LIVE: 'border-brand-gold text-brand-gold',
-  PARTIAL: 'border-brand-amber text-brand-amber',
-  NOT_BUILT: 'border-border text-text-faint',
-};
-const BEATS: ReadonlyArray<[keyof Beats, string]> = [['discover', 'discover'], ['decide', 'decide'], ['commit', 'commit'], ['record', 'record']];
-const CHIP = 'shrink-0 border-b-2 px-3 sm:px-4 py-3 font-mono text-[10px] sm:text-xs uppercase tracking-wider transition-colors';
+const CHIP = 'shrink-0 whitespace-nowrap border-b-2 px-3 sm:px-4 py-3 font-mono text-[10px] sm:text-xs uppercase tracking-wider transition-colors';
 const CHIP_ON = 'border-brand-purple text-brand-purple';
 const CHIP_OFF = 'border-transparent text-text-muted hover:text-text-primary';
+const ITEM = 'flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-xs outline-none hover:bg-bg-row focus-visible:bg-bg-row focus-visible:ring-1 focus-visible:ring-brand-purple';
 
 function familyOfModule(key: string | undefined): FamilyName | null {
   if (!key) return null;
@@ -52,26 +59,88 @@ function familyOfModule(key: string | undefined): FamilyName | null {
   return TOOL_REGISTRY.find((t) => t.name === name)?.family ?? null;
 }
 
+const menuId = (f: FamilyName) => `family-menu-${f.toLowerCase().replace(/\s+/g, '-')}`;
+const adjacent = (f: FamilyName, delta: 1 | -1): FamilyName => FAMILIES[(FAMILIES.indexOf(f) + delta + FAMILIES.length) % FAMILIES.length];
+
 export default function FamilyNav({ activeModule, onSelectModule }: Props) {
   const pathname = usePathname();
   const onAnswers = pathname === ANSWERS_HOME;
-  // Cockpit mode opens a family at once (the section's own); link mode opens none until picked.
-  const [family, setFamily] = useState<FamilyName | null>(() => familyOfModule(activeModule) ?? (onSelectModule ? FAMILIES[0] : null));
+  // The current family: the cockpit section's own, or the family page you are on.
+  const current = familyOfModule(activeModule) ?? familyOfPath(pathname);
+  const [open, setOpen] = useState<FamilyName | null>(null);
+  const [pendingFocus, setPendingFocus] = useState<'first' | 'last' | null>(null);
+  const rootRef = useRef<HTMLElement>(null);
+  const buttons = useRef(new Map<FamilyName, HTMLButtonElement>());
 
-  // A deep link or the path restore lands on a cockpit section → open its family.
+  const menuItems = () => Array.from(rootRef.current?.querySelectorAll<HTMLElement>('[role="menu"] [role="menuitem"]') ?? []);
+
+  // A click (or touch) outside the bar closes the open menu.
   useEffect(() => {
-    const f = familyOfModule(activeModule);
-    if (f) setFamily(f);
-  }, [activeModule]);
+    if (open === null) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(null);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [open]);
 
-  const tools = family ? toolsOf(family) : [];
-  const reads = family ? (FAMILY_READS[family] ?? []) : [];
+  // A keyboard open lands focus on the first (or last) item once the menu is in the DOM.
+  useEffect(() => {
+    if (open === null || pendingFocus === null) return;
+    const items = menuItems();
+    (pendingFocus === 'first' ? items[0] : items[items.length - 1])?.focus();
+    setPendingFocus(null);
+  }, [open, pendingFocus]);
+
+  const openWithFocus = (f: FamilyName, where: 'first' | 'last') => { setOpen(f); setPendingFocus(where); };
+  const closeToButton = (f: FamilyName) => { setOpen(null); buttons.current.get(f)?.focus(); };
+
+  // Focus leaving the bar closes the menu. Deferred one tick: a keyboard move
+  // between menus unmounts the focused item before the next one takes focus.
+  const onRootBlur = (e: React.FocusEvent<HTMLElement>) => {
+    const root = e.currentTarget;
+    if (root.contains(e.relatedTarget as Node | null)) return;
+    window.setTimeout(() => { if (!root.contains(document.activeElement)) setOpen(null); }, 0);
+  };
+
+  const onButtonKey = (f: FamilyName, e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); openWithFocus(f, 'first'); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); openWithFocus(f, 'last'); }
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const next = adjacent(f, e.key === 'ArrowRight' ? 1 : -1);
+      const wasOpen = open === f;
+      buttons.current.get(next)?.focus();
+      if (wasOpen) setOpen(next);
+    }
+    else if (e.key === 'Escape' && open === f) { e.preventDefault(); setOpen(null); }
+  };
+
+  const onMenuKey = (f: FamilyName, e: React.KeyboardEvent<HTMLUListElement>) => {
+    const items = menuItems();
+    const i = items.indexOf(document.activeElement as HTMLElement);
+    switch (e.key) {
+      case 'ArrowDown': e.preventDefault(); items[(i + 1) % items.length]?.focus(); break;
+      case 'ArrowUp': e.preventDefault(); items[(i - 1 + items.length) % items.length]?.focus(); break;
+      case 'Home': e.preventDefault(); items[0]?.focus(); break;
+      case 'End': e.preventDefault(); items[items.length - 1]?.focus(); break;
+      case 'ArrowRight': e.preventDefault(); openWithFocus(adjacent(f, 1), 'first'); break;
+      case 'ArrowLeft': e.preventDefault(); openWithFocus(adjacent(f, -1), 'first'); break;
+      case 'Escape': e.preventDefault(); closeToButton(f); break;
+      case 'Tab':
+        // Close and hand focus back to the tab; a forward Tab then moves on from there.
+        if (e.shiftKey) e.preventDefault();
+        closeToButton(f);
+        break;
+      default: break;
+    }
+  };
 
   return (
-    <nav aria-label="Tool families" className="border-b border-border bg-white">
+    <nav ref={rootRef} aria-label="Tool families" onBlur={onRootBlur} className="border-b border-border bg-white">
       <div className="max-w-7xl mx-auto px-4 lg:px-8">
-        {/* THE ANSWERS first, then the six families — one row, horizontal scroll on a phone. */}
-        <div className="flex overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* THE ANSWERS first, then the six families — one row; horizontal scroll on a phone, room for the menus from sm. */}
+        <div className="flex overflow-x-auto sm:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <Link
             href={ANSWERS_HOME}
             aria-current={onAnswers ? 'page' : undefined}
@@ -80,107 +149,102 @@ export default function FamilyNav({ activeModule, onSelectModule }: Props) {
           >
             THE ANSWERS
           </Link>
-          <div role="tablist" className="flex">
-            {FAMILIES.map((f) => (
-              <button
-                key={f}
-                type="button"
-                role="tab"
-                aria-selected={family === f}
-                onClick={() => setFamily(f)}
-                className={`${CHIP} ${family === f ? CHIP_ON : CHIP_OFF}`}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* The family's tools, sheet order. */}
-        {family !== null && (
-          <ul role="tabpanel" className="divide-y divide-border">
-            {tools.map((t) => (
-              <ToolRow key={t.slug} tool={t} activeModule={activeModule} onSelectModule={onSelectModule} />
-            ))}
+          <ul className="flex" data-families>
+            {FAMILIES.map((f, index) => {
+              const isCurrent = current === f;
+              const isOpen = open === f;
+              return (
+                <li key={f} className="relative">
+                  {/* < sm: the family tab IS the family page. */}
+                  <Link
+                    href={FAMILY_PAGES[f]}
+                    aria-current={isCurrent ? 'page' : undefined}
+                    data-family-link={f}
+                    className={`block sm:hidden ${CHIP} ${isCurrent ? CHIP_ON : CHIP_OFF}`}
+                  >
+                    {f}
+                  </Link>
+                  {/* ≥ sm: the family tab opens its menu. */}
+                  <button
+                    type="button"
+                    ref={(el) => { if (el) buttons.current.set(f, el); else buttons.current.delete(f); }}
+                    aria-haspopup="menu"
+                    aria-expanded={isOpen}
+                    aria-controls={isOpen ? menuId(f) : undefined}
+                    aria-current={isCurrent ? 'true' : undefined}
+                    data-family={f}
+                    onClick={(e) => {
+                      const next = isOpen ? null : f;
+                      setOpen(next);
+                      // A keyboard "click" (Enter / Space — detail 0) lands on the first item; a pointer click leaves focus on the tab.
+                      if (next && e.detail === 0) setPendingFocus('first');
+                    }}
+                    onKeyDown={(e) => onButtonKey(f, e)}
+                    onFocus={() => { if (open !== null && open !== f) setOpen(null); }}
+                    className={`hidden sm:block ${CHIP} ${isCurrent || isOpen ? CHIP_ON : CHIP_OFF}`}
+                  >
+                    {f}
+                    <span aria-hidden="true" className="ml-1 text-text-faint">▾</span>
+                  </button>
+                  {isOpen && (
+                    <ul
+                      role="menu"
+                      id={menuId(f)}
+                      aria-label={f}
+                      onKeyDown={(e) => onMenuKey(f, e)}
+                      className={`absolute top-full z-40 mt-px hidden w-[22rem] max-w-[calc(100vw-2rem)] rounded-b-lg border border-border bg-white p-1 shadow-lg sm:block ${index >= FAMILIES.length / 2 ? 'right-0' : 'left-0'}`}
+                    >
+                      {familyMenu(f).map((item) => (
+                        <li key={item.kind === 'family' ? item.href : item.tool.slug} role="none">
+                          <MenuRow item={item} activeModule={activeModule} onSelectModule={onSelectModule} close={() => setOpen(null)} />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              );
+            })}
           </ul>
-        )}
-        {/* NAV-01b: family-level reads — pages that read across the family's tools. */}
-        {reads.length > 0 && (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border py-2 font-mono text-[10px] uppercase tracking-wider">
-            <span className="text-text-faint">Reads</span>
-            {reads.map((r) => (
-              <Link key={r.label} href={r.href as string} className="text-text-muted underline-offset-2 hover:text-text-primary hover:underline normal-case tracking-normal">
-                {r.label}
-              </Link>
-            ))}
-          </div>
-        )}
+        </div>
       </div>
     </nav>
   );
 }
 
-function ToolRow({ tool, activeModule, onSelectModule }: { tool: ToolEntry; activeModule?: string; onSelectModule?: (key: string) => void }) {
-  const isOpen = onSelectModule !== undefined && tool.cockpitKey !== undefined && tool.cockpitKey === activeModule;
-  const openClass = 'rounded border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider transition-colors';
-  const linkClass = 'font-mono text-[10px] text-text-muted underline-offset-2 hover:text-text-primary hover:underline';
+function MenuRow({ item, activeModule, onSelectModule, close }: { item: MenuItem; activeModule?: string; onSelectModule?: (key: string) => void; close: () => void }) {
+  if (item.kind === 'family') {
+    return (
+      <Link role="menuitem" tabIndex={-1} href={item.href} onClick={close} data-menu-family className={`${ITEM} font-mono text-[10px] uppercase tracking-wider text-brand-purple`}>
+        {item.label}
+        <span className="ml-auto normal-case tracking-normal text-text-faint">the family page</span>
+      </Link>
+    );
+  }
+  const { tool, door } = item;
+  const isOpenBelow = door.kind === 'cockpit' && onSelectModule !== undefined && door.key === activeModule;
+  const doorText = door.kind === 'none' ? 'no door' : isOpenBelow ? 'Open below' : `Open · ${door.href}`;
+  const inner = (
+    <>
+      <span className="w-5 shrink-0 text-right font-mono text-[10px] text-text-faint">{String(tool.order).padStart(2, '0')}</span>
+      <span className={`font-semibold ${tool.status === 'NOT_BUILT' ? 'text-text-muted' : 'text-text-primary'}`}>{tool.name}</span>
+      <StatusChip status={tool.status} />
+      <span className="ml-auto shrink-0 pl-3 font-mono text-[10px] text-text-muted">{doorText}</span>
+    </>
+  );
+  const data = { 'data-tool': tool.slug, 'data-status': tool.status };
+  if (door.kind === 'none') {
+    return <span role="menuitem" aria-disabled="true" tabIndex={-1} {...data} className={`${ITEM} cursor-default`}>{inner}</span>;
+  }
+  if (door.kind === 'cockpit' && onSelectModule) {
+    return (
+      <button type="button" role="menuitem" tabIndex={-1} aria-current={isOpenBelow ? 'page' : undefined} {...data} onClick={() => { onSelectModule(door.key); close(); }} className={ITEM}>
+        {inner}
+      </button>
+    );
+  }
   return (
-    <li className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-center sm:gap-4" data-tool={tool.slug} data-status={tool.status}>
-      <div className="flex items-center gap-3 sm:w-64">
-        <span className="font-mono text-[10px] text-text-faint w-5 text-right">{String(tool.order).padStart(2, '0')}</span>
-        <span className={`text-sm font-semibold ${tool.status === 'NOT_BUILT' ? 'text-text-muted' : 'text-text-primary'}`}>{tool.name}</span>
-        <span className={`rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${STATUS_CLASS[tool.status]}`}>
-          {STATUS_LABEL[tool.status]}
-        </span>
-      </div>
-
-      {/* The beats it has — a filled dot is a cited beat, a hollow one is "—". */}
-      <ul className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-wider" aria-label={`${tool.name} beats`}>
-        {BEATS.map(([key, label]) => (
-          <li key={key} className={`flex items-center gap-1 ${tool.beats[key] ? 'text-text-primary' : 'text-text-faint'}`}>
-            <span aria-hidden="true" className={`inline-block h-2 w-2 rounded-full border ${tool.beats[key] ? 'border-brand-purple bg-brand-purple' : 'border-border bg-transparent'}`} />
-            {label}
-          </li>
-        ))}
-      </ul>
-
-      {/* A way in — only when a home exists. NOT_BUILT renders nothing here. */}
-      {tool.home !== null && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:ml-auto">
-          {tool.cockpitKey && onSelectModule ? (
-            <button
-              type="button"
-              onClick={() => onSelectModule(tool.cockpitKey as string)}
-              aria-current={isOpen ? 'page' : undefined}
-              className={`${openClass} ${isOpen ? 'border-brand-purple bg-brand-purple text-white' : 'border-brand-purple text-brand-purple hover:bg-brand-purple-wash'}`}
-            >
-              {isOpen ? 'Open below' : `Open · ${tool.home}`}
-            </button>
-          ) : (
-            <Link
-              href={tool.cockpitKey ? COCKPIT_PATH[tool.cockpitKey] : tool.home}
-              className={`${openClass} border-brand-purple text-brand-purple hover:bg-brand-purple-wash`}
-            >
-              Open · {tool.cockpitKey ? COCKPIT_PATH[tool.cockpitKey] : tool.home}
-            </Link>
-          )}
-          {(tool.links ?? []).map((l) =>
-            l.href ? (
-              <Link key={l.label} href={l.href} className={linkClass}>
-                {l.label}
-              </Link>
-            ) : onSelectModule ? (
-              <button key={l.label} type="button" onClick={() => onSelectModule(l.cockpitKey as string)} className={linkClass}>
-                {l.label}
-              </button>
-            ) : (
-              <Link key={l.label} href={COCKPIT_PATH[l.cockpitKey as string]} className={linkClass}>
-                {l.label}
-              </Link>
-            ),
-          )}
-        </div>
-      )}
-    </li>
+    <Link role="menuitem" tabIndex={-1} href={door.href} {...data} onClick={close} className={ITEM}>
+      {inner}
+    </Link>
   );
 }
