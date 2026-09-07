@@ -22,8 +22,9 @@ export async function GET(request: NextRequest) {
     const tabGate = await requireTabAccess(user.id, 'tab:books');
     if (tabGate) return tabGate;
 
+    // BANK-03: a retired item (replaced by a fresh link) appears nowhere but history.
     const items = await prisma.plaid_items.findMany({
-      where: { userId: user.id },
+      where: { userId: user.id, retired_at: null },
       include: {
         accounts: true
       }

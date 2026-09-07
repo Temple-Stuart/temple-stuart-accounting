@@ -28,7 +28,7 @@ export async function GET() {
     // reads `item.id` and nothing else. Select exactly that — the row's accessToken
     // is a Plaid secret and must never reach the browser.
     const items = await prisma.plaid_items.findMany({
-      where: { userId: user.id },
+      where: { userId: user.id, retired_at: null }, // BANK-03: retired items appear nowhere but history
       select: { id: true },
     });
 
