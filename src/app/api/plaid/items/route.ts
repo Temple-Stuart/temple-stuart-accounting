@@ -24,7 +24,9 @@ export async function GET() {
     const tierGate = await requireTabAccess(user.id, 'tab:books');
     if (tierGate) return tierGate;
 
-    // SEC-01: the only consumer (src/components/dashboard/ImportDataSection.tsx:63-69)
+    // SEC-01: the consumer that read this (ImportDataSection's per-item sync loop) posts to
+    // the one writer since REBUILD-01 PR-3; no in-repo caller remains (grep). Kept as the
+    // user-scoped items read.
     // reads `item.id` and nothing else. Select exactly that — the row's accessToken
     // is a Plaid secret and must never reach the browser.
     const items = await prisma.plaid_items.findMany({

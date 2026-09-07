@@ -2,7 +2,7 @@
 
 Twenty-five business tools on one data pipe that ends in one Ledger and one Calendar.
 
-Source-available (BSL 1.1) · built and operated in production by its founder as User #1 · as of 2026-09-02: 114 Prisma models, 292 API route files, 121 feeds from 20 providers (counted August 24, 2026)
+Source-available (BSL 1.1) · built and operated in production by its founder as User #1 · as of 2026-09-02: 114 Prisma models, 289 API route files, 121 feeds from 20 providers (counted August 24, 2026)
 
 ## The system
 
@@ -281,7 +281,7 @@ BLUEPRINT is the step's headline; TODAY is the deck's honest-state line, verbati
 |---|---|
 | Travel | stays and flights through LiteAPI, activities through Viator, visa checks through RapidAPI — public routes under src/app/api/travel (15 route files) and src/app/api/flights (3); models `trips` (schema:599) and `reservations` (schema:1355). |
 | Runway | the reservation matcher — src/app/api/runway/match/propose, queue, review (the step-9 piece alive today) — plus src/app/api/runway/route.ts; models `budgets` (schema:569) and `home_expenses` (schema:1605). |
-| Books | Plaid-synced transactions, a chart of accounts, journal and ledger entries — src/app/api/plaid/sync/route.ts:103 writes `transactions` (schema:430); `journal_entries` (schema:185), `ledger_entries` (schema:224). |
+| Books | Plaid-synced transactions, a chart of accounts, journal and ledger entries — the one Plaid writer, src/app/api/transactions/sync-complete/route.ts, writes `transactions` (schema:430) through src/lib/arrivals/plaidTransactionsPage.ts:114; `journal_entries` (schema:185), `ledger_entries` (schema:224). |
 | Trade | tastytrade connection, quotes and backtests — src/app/api/tastytrade (13 route files); models `trade_cards` (schema:1736) and `scan_snapshots` (schema:1922). |
 | Tax | scenarios, documents and the 2025 export script (`npm run tax:export:2025`) — src/app/api/tax (7 route files); models `tax_scenarios` (schema:1525) and `tax_documents` (schema:1844). |
 | Compliance | the regulatory corpus (eCFR, US Code, Federal Register, IRS bulletins) ingested by Inngest functions with sha256 on write, citations re-verified, and the hash-chained audit log — models `regulatory_sources` (schema:2235), `citations` (schema:2299), `audit_log` (schema:2465). |
@@ -306,7 +306,7 @@ Versions from package.json, read 2026-09-02:
 
 Observed versus authored (step 6): what the world sends is observed; what you do is authored; the blueprint keeps the two apart and matches them on one key. Today the Plaid feeds land word for word, fingerprinted — 9,092 transactions, 712 investment transactions, 247 securities, counted September 7, 2026; the other providers still land parsed — see the gap ledger, step 14.
 
-Scale, as of 2026-09-02: 114 Prisma models, 34 enums, 292 API route files, 37 runtime dependencies, 18 dev dependencies, one test file (`npm test`).
+Scale, as of 2026-09-02: 114 Prisma models, 34 enums, 289 API route files, 37 runtime dependencies, 18 dev dependencies, one test file (`npm test`).
 
 ## Engineering discipline
 
