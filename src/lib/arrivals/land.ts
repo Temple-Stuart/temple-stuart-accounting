@@ -11,7 +11,9 @@
  *                    object, fingerprint = sha256 of its RFC 8785 canonical
  *                    bytes (the `canonicalize` package — JCS, never hand-rolled),
  *                    their_id = the provider's own id (their_id_kind
- *                    'provider'), redactions = the paths the caller blanked
+ *                    'provider') or one the caller composed and labels as such
+ *                    ('composed' — PR-5's LiteAPI cancellation, whose answer
+ *                    carries no id of its own), redactions = the paths the caller blanked
  *                    before landing ([] for Plaid — the PR-2 audit found no
  *                    secret in a /transactions/get body; PR-4 declares the
  *                    Stripe client_secret paths), response_id set, status
@@ -169,6 +171,8 @@ export async function landResponse(db: LandingDb, answer: WireAnswer): Promise<L
 
 export interface ObjectToLand {
   theirId: string;
+  /** PR-5: 'composed' when the caller built the id (LiteAPI's cancel answer carries none of its own) and labels it as such; omitted = 'provider'. */
+  theirIdKind?: 'provider' | 'composed';
   payload: JsonObject;
   /** PR-4: every path blanked in `payload` before landing (a secret never lands); [] when nothing was. */
   redactions?: string[];
@@ -217,7 +221,7 @@ export async function landObjects(db: LandingDb, input: LandObjectsInput): Promi
       connection: input.connection,
       resource: input.resource,
       their_id: o.theirId,
-      their_id_kind: 'provider',
+      their_id_kind: o.theirIdKind ?? 'provider',
       payload: o.payload,
       fingerprint,
       redactions: o.redactions ?? [],

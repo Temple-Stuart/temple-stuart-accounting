@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { bookFlight, FlightOfferExpiredError } from '@/lib/liteapiFlightsClient';
+import { bookFlight, parseFlightBookResult, FlightOfferExpiredError, type FlightBookResult } from '@/lib/liteapiFlightsClient';
+import { landLiteApiBooking } from '@/lib/arrivals/liteapiBooking';
+import { prismaLanding } from '@/lib/arrivals/prismaLanding';
 import { MissingLiteApiKeyError, LiteApiError } from '@/lib/travelErrors';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
@@ -67,9 +69,13 @@ export async function POST(request: NextRequest) {
     await reserveTravelSearch('liteapiflightbooking');
 
     // ─── Book at LiteAPI (real call — sandbox or production per env) ─────────
-    let booked;
+    // REBUILD-01 PR-5: the client hands the answer back as received (the
+    // bytes) beside the parsed result; `booked` serves the failure branch
+    // below and the ids — what is persisted and answered is parsed from the
+    // arrival.
+    let bookedAnswer;
     try {
-      booked = await bookFlight({ prebookId, transactionId });
+      bookedAnswer = await bookFlight({ prebookId, transactionId });
     } catch (err) {
       if (err instanceof MissingLiteApiKeyError) {
         return NextResponse.json(
@@ -96,65 +102,94 @@ export async function POST(request: NextRequest) {
       }
       return failClosedResponse('LiteAPI flights book', 'Flight book failed', err);
     }
+    const { answer, object, booked } = bookedAnswer;
 
-    // ─── Persist reservation + commission ledger (hotel pattern :155-206) ────
-    // Flight rows carry no stay window: hotelName/checkinDate/checkoutDate null
-    // (the D3 convention the Duffel book route established, flights/book/
-    // route.ts:191,208-210). PENDING_CONFIRMATION and PENDING are SUCCESS-
-    // shaped (the provider is finalizing — not an error): they persist as
-    // 'pending'; CONFIRMED/TICKETED → 'confirmed'; CANCELLED → 'cancelled';
-    // absent/unknown → 'pending' (never invented as confirmed).
-    const providerStatus = (booked.status ?? '').toUpperCase();
-    const status =
-      providerStatus === 'CONFIRMED' || providerStatus === 'TICKETED'
-        ? 'confirmed'
-        : providerStatus === 'CANCELLED'
-          ? 'cancelled'
-          : 'pending';
-    const resolvedPrice = booked.price ?? 0; // hotel-pattern fallback (:158)
-    const resolvedCurrency = booked.currency ?? 'USD';
-
+    // ─── Land, then persist — ONE transaction (REBUILD-01 PR-5; hotel pattern) ─
+    // The book answer's exact bytes land (provider_responses), the booking
+    // object (data[0].booking) lands as one arrival (liteapi · booking, kind
+    // event by the rule book), and the reservation + commission rows are
+    // written FROM THE ARRIVAL PAYLOAD, pointed at it (reservations.arrival_id).
+    // A landing failure rolls all of it back and the catch below declares it —
+    // never a booking recorded without its evidence. The upstream call is
+    // idempotent per prebookId, so a retry's same booking is already_landed:
+    // the reservation it recorded is handed back, no second row
+    // (src/lib/arrivals/liteapiBooking.ts).
     try {
-      const result = await prisma.$transaction(async (tx) => {
-        const reservation = await tx.reservations.create({
-          data: {
-            userId: user?.id ?? null,
-            tripId: null,
-            bookingType: isAccount ? 'account' : 'guest',
-            // The book body carries no contact (prebook collected it; Nuitee
-            // holds it) — guestEmail stays null for guests. FL-5b (confirmation
-            // email) is where a contact re-enters this lane.
-            guestEmail: null,
-            provider: 'liteapi',
-            providerBookingId: booked.bookingId,
-            providerConfirmationCode: booked.pnr ?? booked.bookingRef ?? null,
-            status,
-            hotelName: null,
-            checkinDate: null,
-            checkoutDate: null,
-            finalPriceCents: Math.round(resolvedPrice * 100),
-            currency: resolvedCurrency,
-          },
-        });
+      const landed = await prisma.$transaction(async (tx) =>
+        landLiteApiBooking({
+          landing: prismaLanding(tx),
+          log: (line) => console.log(line),
+          findReservation: async (bookingId) =>
+            tx.reservations.findFirst({ where: { provider: 'liteapi', providerBookingId: bookingId } }),
+          createReservation: async (parsed: FlightBookResult, arrivalId) => {
+            // Flight rows carry no stay window: hotelName/checkinDate/checkoutDate null
+            // (the D3 convention the Duffel book route established, flights/book/
+            // route.ts:191,208-210). PENDING_CONFIRMATION and PENDING are SUCCESS-
+            // shaped (the provider is finalizing — not an error): they persist as
+            // 'pending'; CONFIRMED/TICKETED → 'confirmed'; CANCELLED → 'cancelled';
+            // absent/unknown → 'pending' (never invented as confirmed).
+            const providerStatus = (parsed.status ?? '').toUpperCase();
+            const status =
+              providerStatus === 'CONFIRMED' || providerStatus === 'TICKETED'
+                ? 'confirmed'
+                : providerStatus === 'CANCELLED'
+                  ? 'cancelled'
+                  : 'pending';
+            const resolvedPrice = parsed.price ?? 0; // hotel-pattern fallback
+            const resolvedCurrency = parsed.currency ?? 'USD';
 
-        // Commission row — 'estimated' on book, mirroring the hotel pattern
-        // (:193-203). The flights booking response documents NO commission
-        // field, so the margin is recorded as 0 until a real reconciliation
-        // source exists — never guessed.
-        await tx.commission_ledger.create({
-          data: {
-            userId: user?.id ?? null,
-            reservationId: reservation.id,
-            provider: 'liteapi',
-            grossAmountCents: Math.round(resolvedPrice * 100),
-            commissionAmountCents: 0,
-            currency: resolvedCurrency,
-            status: 'estimated',
-          },
-        });
+            const reservation = await tx.reservations.create({
+              data: {
+                userId: user?.id ?? null,
+                tripId: null,
+                bookingType: isAccount ? 'account' : 'guest',
+                // The book body carries no contact (prebook collected it; Nuitee
+                // holds it) — guestEmail stays null for guests. FL-5b (confirmation
+                // email) is where a contact re-enters this lane.
+                guestEmail: null,
+                provider: 'liteapi',
+                providerBookingId: parsed.bookingId,
+                providerConfirmationCode: parsed.pnr ?? parsed.bookingRef ?? null,
+                status,
+                hotelName: null,
+                checkinDate: null,
+                checkoutDate: null,
+                finalPriceCents: Math.round(resolvedPrice * 100),
+                currency: resolvedCurrency,
+                // PR-5: the arrival this row was parsed from.
+                arrival_id: arrivalId,
+              },
+            });
 
-        return reservation;
-      });
+            // Commission row — 'estimated' on book, mirroring the hotel pattern.
+            // The flights booking response documents NO commission field, so
+            // the margin is recorded as 0 until a real reconciliation source
+            // exists — never guessed.
+            await tx.commission_ledger.create({
+              data: {
+                userId: user?.id ?? null,
+                reservationId: reservation.id,
+                provider: 'liteapi',
+                grossAmountCents: Math.round(resolvedPrice * 100),
+                commissionAmountCents: 0,
+                currency: resolvedCurrency,
+                status: 'estimated',
+              },
+            });
+
+            return reservation;
+          },
+        }, {
+          answer,
+          object: { theirId: booked.bookingId, payload: object },
+          parse: parseFlightBookResult,
+          userId: user?.id ?? null,
+          lane: 'flight',
+        }),
+      );
+      const result = landed.reservation;
+      // Parsed from the arrival — the audit trail and the envelope speak from the table.
+      const parsed = landed.parsed;
 
       // ─── Audit trail (PR-FL-5) ─────────────────────────────────────────────
       // Neither booking route wrote audit_log before this PR; FL-5 starts the
@@ -180,18 +215,18 @@ export async function POST(request: NextRequest) {
           target: { table: 'reservations', id: result.id },
           payload: {
             metadata: {
-              bookingId: booked.bookingId,
-              bookingRef: booked.bookingRef,
-              providerStatus: booked.status,
-              paymentStatus: booked.paymentStatus,
+              bookingId: parsed.bookingId,
+              bookingRef: parsed.bookingRef,
+              providerStatus: parsed.status,
+              paymentStatus: parsed.paymentStatus,
               bookingType: result.bookingType,
             },
           },
-          request_id: `liteapi-flight-book-${booked.bookingId}`,
+          request_id: `liteapi-flight-book-${parsed.bookingId}`,
         });
       } catch (auditErr) {
         console.error('[LiteAPI flights book] audit log FAILED (booking + persist succeeded):', {
-          bookingId: booked.bookingId,
+          bookingId: parsed.bookingId,
           reservationId: result.id,
           error: auditErr instanceof Error ? auditErr.message : auditErr,
         });
@@ -200,18 +235,19 @@ export async function POST(request: NextRequest) {
       // WHITELISTED envelope (ruled): the seven fields, provider status
       // VERBATIM — PENDING_CONFIRMATION arrives here as a 200 success shape.
       return NextResponse.json({
-        bookingId: booked.bookingId,
-        bookingRef: booked.bookingRef,
-        status: booked.status,
-        paymentStatus: booked.paymentStatus,
-        pnr: booked.pnr,
-        price: booked.price,
-        currency: booked.currency,
+        bookingId: parsed.bookingId,
+        bookingRef: parsed.bookingRef,
+        status: parsed.status,
+        paymentStatus: parsed.paymentStatus,
+        pnr: parsed.pnr,
+        price: parsed.price,
+        currency: parsed.currency,
       });
     } catch (dbErr) {
-      // LiteAPI booked the flight but we failed to persist — surface loudly so
-      // ops can reconcile (the upstream booking is real and paid). Hotel
-      // pattern :261-274.
+      // LiteAPI booked the flight but we failed to land or persist — the whole
+      // transaction rolled back (no evidence without the booking, no booking
+      // without its evidence); surface loudly so ops can reconcile (the
+      // upstream booking is real and paid). Hotel pattern.
       console.error('[LiteAPI flights book] DB persist failed AFTER successful booking:', {
         bookingId: booked.bookingId, error: dbErr,
       });

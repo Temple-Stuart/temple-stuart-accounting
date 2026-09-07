@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { cancelBooking } from '@/lib/liteapiClient';
+import { cancelBooking, parseCancelResult } from '@/lib/liteapiClient';
+import { landLiteApiCancellation } from '@/lib/arrivals/liteapiBooking';
+import { prismaLanding } from '@/lib/arrivals/prismaLanding';
 import { MissingLiteApiKeyError, LiteApiError } from '@/lib/travelErrors';
 import {
   createOrderCancellation,
@@ -206,10 +208,13 @@ export async function POST(
     }
 
     // ─── provider 'liteapi' (PR-Cancel-1 — behavior unchanged) ───────────────
-    // The provider cancel — the only money authority.
-    let cancelled;
+    // The provider cancel — the only money authority. REBUILD-01 PR-5: the
+    // client hands the answer back as received (the bytes) beside the parsed
+    // result; `cancelled` serves the failure branch below — what is answered
+    // is parsed from the arrival.
+    let cancelledAnswer;
     try {
-      cancelled = await cancelBooking(owned.providerBookingId);
+      cancelledAnswer = await cancelBooking(owned.providerBookingId);
     } catch (err) {
       if (err instanceof MissingLiteApiKeyError) {
         return NextResponse.json(
@@ -227,18 +232,39 @@ export async function POST(
       }
       return failClosedResponse('Reservation cancel', 'Cancellation failed', err);
     }
+    const { answer, object, cancelled } = cancelledAnswer;
 
-    // ─── Persist the flip (status is the ONLY field written) ─────────────────
-    let row;
+    // ─── Land, then persist the flip — ONE transaction (REBUILD-01 PR-5) ─────
+    // The cancel answer's exact bytes land (provider_responses) and its object
+    // lands as one arrival (liteapi · cancellation; the answer carries no id of
+    // its own, so their_id is composed from the booking and labeled composed);
+    // then the status write exactly as today — status is the ONLY field
+    // written. A landing failure rolls both back and the catch declares it
+    // (src/lib/arrivals/liteapiBooking.ts).
+    let landed;
     try {
-      row = await prisma.reservations.update({
-        where: { id: owned.id },
-        data: { status: 'cancelled' },
-      });
+      landed = await prisma.$transaction(async (tx) =>
+        landLiteApiCancellation({
+          landing: prismaLanding(tx),
+          log: (line) => console.log(line),
+          writeStatus: async () =>
+            tx.reservations.update({
+              where: { id: owned.id },
+              data: { status: 'cancelled' },
+            }),
+        }, {
+          answer,
+          bookingId: owned.providerBookingId,
+          payload: object,
+          parse: parseCancelResult,
+          userId: user.id,
+        }),
+      );
     } catch (dbErr) {
       // The provider ALREADY cancelled — the money truth exists upstream but our
-      // row still says confirmed. Surface loudly (mirrors the book routes'
-      // DB-fail-after convention); include the provider outcome so it isn't lost.
+      // row still says confirmed (the landing rolled back with the flip).
+      // Surface loudly (mirrors the book routes' DB-fail-after convention);
+      // include the provider outcome so it isn't lost.
       console.error('[Reservation cancel] DB update failed AFTER provider cancel:', {
         reservationId: owned.id, providerBookingId: owned.providerBookingId, error: dbErr,
       });
@@ -256,15 +282,17 @@ export async function POST(
         { status: 500 }
       );
     }
+    const row = landed.reservation;
 
     return NextResponse.json({
       reservation: { id: row.id, status: row.status },
-      // Provider verbatim — null means "not stated by provider", never zero.
+      // Provider verbatim (parsed from the arrival) — null means "not stated by
+      // provider", never zero.
       cancellation: {
-        providerStatus: cancelled.status,
-        cancellationFee: cancelled.cancellationFee,
-        refundAmount: cancelled.refundAmount,
-        currency: cancelled.currency,
+        providerStatus: landed.parsed.status,
+        cancellationFee: landed.parsed.cancellationFee,
+        refundAmount: landed.parsed.refundAmount,
+        currency: landed.parsed.currency,
       },
     });
   } catch (error) {
