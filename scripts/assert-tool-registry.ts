@@ -2,11 +2,19 @@
 /**
  * assert-tool-registry — THE TOOL REGISTRY LAW at build time (NAV-01a), and
  * THE REACHABILITY LAW (NAV-01b): every page file under src/app must have a
- * door — the family navigation (a registry home, link, or family read), the
- * header/profile utilities menu (src/lib/shellMenu.ts), a listed guest /
+ * door — the family navigation (NAV-02: a family MENU's links — "All of
+ * <FAMILY>" opens the family page, each tool item its door — and a family
+ * PAGE's cards — the registry home, the related surfaces, the family reads),
+ * the header/profile utilities menu (src/lib/shellMenu.ts), a listed guest /
  * marketing / flow route (GUEST_ROUTES below, each cited), or a redirect whose
  * target has a door. A child page is reached through its parent (segment-prefix
  * rule: /agenda/[id] through /agenda). A page with no door fails the build.
+ *
+ * THE FAMILY MAP LAW (NAV-02): every tool appears in its family's menu exactly
+ * once and on its family's page exactly once (familyMenu / familyCards, the
+ * registry's one source); each family page route has a page file that names
+ * its family; FamilyNav renders familyMenu() and FamilyPage renders
+ * familyCards() — never a retyped list.
  *
  * THE ANSWERS LAW (NAV-01c): the module-scope law of src/lib/answers.ts re-run
  * here (ANSWER_READS keys === ANSWER_ROWS questions 4/4 in order; a computed
@@ -40,7 +48,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { readdirSync, statSync } from 'node:fs';
 import { PROBLEM_SHEET } from '../src/lib/problemSheet';
-import { COCKPIT_PATH, EXPECTED_STATUS_COUNTS, FAMILY_READS, TOOL_REGISTRY, registryLaw, statusCounts } from '../src/lib/toolRegistry';
+import { EXPECTED_STATUS_COUNTS, FAMILIES, FAMILY_PAGES, FAMILY_READS, TOOL_REGISTRY, familyCards, familyMenu, registryLaw, statusCounts } from '../src/lib/toolRegistry';
 import { OWNER_UTILITIES } from '../src/lib/shellMenu';
 import { ANSWERS_HOME, ANSWER_READS, ANSWER_ROWS, NET_WORTH_READ, answersLaw } from '../src/lib/answers';
 import { PROVIDERS, PROVIDER_CODES, ROUTING_RULES, providersLaw } from '../src/lib/providers';
@@ -144,15 +152,21 @@ for (const t of TOOL_REGISTRY) {
 // ── THE REACHABILITY LAW (NAV-01b) ──────────────────────────────────────────
 type Door = { route: string; kind: string; via: string };
 const doors: Door[] = [];
-for (const t of TOOL_REGISTRY) {
-  if (t.home) doors.push({ route: t.home, kind: 'family nav', via: `${t.name} · home` });
-  if (t.cockpitKey) doors.push({ route: COCKPIT_PATH[t.cockpitKey], kind: 'family nav', via: `${t.name} · cockpit` });
-  for (const l of t.links ?? []) {
-    if (l.href) doors.push({ route: l.href, kind: 'family nav', via: `${t.name} · link "${l.label}"` });
-    if (l.cockpitKey) doors.push({ route: COCKPIT_PATH[l.cockpitKey], kind: 'family nav', via: `${t.name} · link "${l.label}"` });
+// NAV-02: the family navigation's doors are what it RENDERS — each family's menu
+// (familyMenu: "All of <FAMILY>" → the family page, then each tool's door) and
+// each family's page (familyCards: the registry home, the related surfaces, and
+// the family's reads). Nothing renders inline under the bar any more.
+for (const f of FAMILIES) {
+  doors.push({ route: FAMILY_PAGES[f], kind: 'family menu', via: `${f} · "All of ${f}"` });
+  for (const item of familyMenu(f)) {
+    if (item.kind === 'tool' && item.door.kind !== 'none') doors.push({ route: item.door.href, kind: 'family menu', via: `${f} · ${item.tool.name}` });
   }
+  for (const c of familyCards(f)) {
+    if (c.home) doors.push({ route: c.home, kind: 'family page', via: `${FAMILY_PAGES[f]} · ${c.tool.name} · Open` });
+    for (const l of c.links) if (l.door.kind !== 'none') doors.push({ route: l.door.href, kind: 'family page', via: `${FAMILY_PAGES[f]} · ${c.tool.name} · "${l.label}"` });
+  }
+  for (const r of FAMILY_READS[f] ?? []) doors.push({ route: r.href as string, kind: 'family page', via: `${FAMILY_PAGES[f]} · read "${r.label}"` });
 }
-for (const [family, reads] of Object.entries(FAMILY_READS)) for (const r of reads ?? []) doors.push({ route: r.href as string, kind: 'family read', via: `${family} · "${r.label}"` });
 for (const u of OWNER_UTILITIES) doors.push({ route: u.href, kind: 'utilities menu', via: u.label });
 for (const g of GUEST_ROUTES) doors.push({ route: g.route, kind: 'listed route', via: g.why });
 // NAV-01c: THE ANSWERS is the family navigation's first entry; each card opens its lens's home.
@@ -187,13 +201,59 @@ console.log('REACHABILITY — every page under src/app and its door');
 for (const p of pages) {
   const d = reach.get(p.route);
   console.log(`${p.route.padEnd(48)} ${d ? `${d.kind.padEnd(15)} ${d.via}` : 'NO DOOR'}`);
-  if (!d) violations.push(`${p.route} (${p.file}) has no door — not in the family nav, the utilities menu, GUEST_ROUTES, or a redirect`);
+  if (!d) violations.push(`${p.route} (${p.file}) has no door — not in a family menu, on a family page, in the utilities menu, GUEST_ROUTES, or a redirect`);
 }
 for (const d of doors) {
   if (d.route.startsWith('/?')) continue;
   if (!pages.some((p) => doorCovers(p.route, d.route) || doorCovers(d.route, p.route))) violations.push(`door ${d.route} (${d.kind}: ${d.via}) points at no page`);
 }
 console.log(`pages: ${pages.length} · doors: ${doors.length}`);
+
+// ── THE FAMILY MAP LAW (NAV-02) ─────────────────────────────────────────────
+const inMenus = new Map<string, string[]>();
+const onPages = new Map<string, string[]>();
+console.log('FAMILY MENUS — "All of <FAMILY>" first, then the tools in sheet order');
+for (const f of FAMILIES) {
+  const menu = familyMenu(f);
+  const first = menu[0];
+  if (!first || first.kind !== 'family' || first.label !== `All of ${f}` || first.href !== FAMILY_PAGES[f]) violations.push(`${f}: the menu's first item must be "All of ${f}" → ${FAMILY_PAGES[f]}`);
+  const names: string[] = [];
+  for (const item of menu.slice(1)) {
+    if (item.kind !== 'tool') { violations.push(`${f}: a second family item in the menu`); continue; }
+    names.push(item.tool.name);
+    inMenus.set(item.tool.name, [...(inMenus.get(item.tool.name) ?? []), f]);
+  }
+  const sheet = PROBLEM_SHEET.find((x) => x.header === f)?.tools ?? [];
+  if (names.join('|') !== sheet.join('|')) violations.push(`${f}: menu order [${names.join(', ')}] ≠ sheet order [${sheet.join(', ')}]`);
+  for (const c of familyCards(f)) onPages.set(c.tool.name, [...(onPages.get(c.tool.name) ?? []), f]);
+  console.log(`${f.padEnd(13)} ${menu.map((i) => (i.kind === 'family' ? `[${i.label} → ${i.href}]` : `${i.tool.name}${i.door.kind === 'none' ? ' (no door)' : ` → ${i.door.href}`}`)).join(' · ')}`);
+}
+for (const t of TOOL_REGISTRY) {
+  const m = inMenus.get(t.name) ?? [];
+  const c = onPages.get(t.name) ?? [];
+  if (m.length !== 1 || m[0] !== t.family) violations.push(`${t.name}: in ${m.length} family menu(s) [${m.join(', ')}] — must be exactly once, in ${t.family}`);
+  if (c.length !== 1 || c[0] !== t.family) violations.push(`${t.name}: on ${c.length} family page(s) [${c.join(', ')}] — must be exactly once, on ${FAMILY_PAGES[t.family]}`);
+}
+console.log('FAMILY PAGES — route → page file (names its family) → cards');
+const FAMILY_NAV = 'src/components/home/FamilyNav.tsx';
+const FAMILY_PAGE = 'src/components/home/FamilyPage.tsx';
+for (const f of FAMILIES) {
+  const route = FAMILY_PAGES[f];
+  const file = pageFor(route, tabs);
+  const expected = `src/app${route}/page.tsx`;
+  if (file !== expected) violations.push(`${f}: family page ${route} has no page file (${expected})`);
+  const src = file === expected ? readFileSync(resolve(ROOT, expected), 'utf8') : '';
+  const names = src.split(`family="${f}"`).length - 1;
+  if (file === expected && names !== 1) violations.push(`${expected} must name its family exactly once (family="${f}" ×${names})`);
+  if (file === expected && !src.includes("from '@/components/home/FamilyPage'")) violations.push(`${expected} must render FamilyPage`);
+  console.log(`${f.padEnd(13)} ${route.padEnd(15)} ${(file ?? 'NO PAGE FILE').padEnd(34)} ${familyCards(f).length} cards`);
+}
+const navSrc = existsSync(resolve(ROOT, FAMILY_NAV)) ? readFileSync(resolve(ROOT, FAMILY_NAV), 'utf8') : '';
+const pageSrc = existsSync(resolve(ROOT, FAMILY_PAGE)) ? readFileSync(resolve(ROOT, FAMILY_PAGE), 'utf8') : '';
+if (!navSrc.includes('familyMenu(')) violations.push(`${FAMILY_NAV} must render the menu from familyMenu() — never a retyped list`);
+if (!pageSrc.includes('familyCards(')) violations.push(`${FAMILY_PAGE} must render the cards from familyCards() — never a retyped list`);
+if (!navSrc.includes('role="menu"')) violations.push(`${FAMILY_NAV} must render the family tabs as menus (role="menu")`);
+if (/role="tabpanel"/.test(navSrc)) violations.push(`${FAMILY_NAV} renders a tab panel inline under the bar — the map of a family is its page`);
 
 // ── THE ANSWERS LAW (NAV-01c) ───────────────────────────────────────────────
 violations.push(...answersLaw({ throwOnFail: false }));
@@ -291,6 +351,7 @@ if (violations.length) {
   process.exit(1);
 }
 console.log('✔ Tool registry law passed — 25/25 cells, homes resolve to page files, counts match the census.');
-console.log(`✔ Reachability law passed — ${pages.length} pages, every one has a door.`);
+console.log(`✔ Reachability law passed — ${pages.length} pages, every one has a door (family menus and family pages count).`);
+console.log(`✔ The family map law passed — ${FAMILIES.length} menus, ${FAMILIES.length} family pages, every tool once in each.`);
 console.log(`✔ The answers law passed — ${ANSWER_ROWS.length}/4 questions on ${ANSWERS_HOME}, every number sourced.`);
 console.log(`✔ The arrivals law passed — ${PROVIDERS.length} providers, enum === codes, ${arrivalsRows.length} columns agree with the migration.`);

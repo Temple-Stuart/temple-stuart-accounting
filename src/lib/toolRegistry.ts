@@ -13,13 +13,20 @@
  * that IS its home, selected in place); an off-cockpit tool is a plain link.
  * A NOT_BUILT tool has no home, no screen, no copy.
  *
+ * NAV-02: the family navigation's tabs are MENUS and each family has a PAGE
+ * (FAMILY_PAGES). familyMenu() and familyCards() below are the ONE source the
+ * nav and the pages render from and the build assert counts: every tool in
+ * exactly one menu and on exactly one page, once each, in sheet order.
+ *
  * THE LAW (module scope — the deck's LAYOUT LAW idiom; also re-run at build by
  * scripts/assert-tool-registry.ts, which adds the filesystem check that every
  * home resolves to a page file):
  *   1. registry keys == PROBLEM_SHEET cells, 25/25, both directions;
  *   2. a LIVE or PARTIAL tool has a home; a NOT_BUILT tool has none;
  *   3. beats agree with status (LIVE ⇔ four; NOT_BUILT ⇔ none; PARTIAL ⇔ some);
- *   4. status counts == 6 / 7 / 12.
+ *   4. status counts == 6 / 7 / 12;
+ *   5. (NAV-02) every family has one page route — single-segment kebab-case,
+ *      unique, never a cockpit path or a tool's home.
  */
 import { PROBLEM_SHEET, type FamilyName, type ToolName } from './problemSheet';
 
@@ -203,6 +210,91 @@ export function toolsOf(family: FamilyName): readonly ToolEntry[] {
   return TOOL_REGISTRY.filter((t) => t.family === family);
 }
 
+/**
+ * NAV-02: the family PAGES — one route per family: the map of its tools (a
+ * grid, one card per tool) and the door the family menu's first item opens.
+ * On a phone the family tab IS this link (a menu on a 375px screen is the
+ * page). The law holds the six unique and kebab-case; the build assert checks
+ * each has a page file that names its family.
+ */
+export const FAMILY_PAGES: Readonly<Record<FamilyName, string>> = {
+  'THE WORK': '/work',
+  'MONEY IN': '/money-in',
+  'MONEY OUT': '/money-out',
+  'WHAT YOU OWN': '/what-you-own',
+  'WHAT YOU OWE': '/what-you-owe',
+  'THE PROOF': '/the-proof',
+};
+
+/** The family whose page this path is, or null. */
+export function familyOfPath(pathname: string | null | undefined): FamilyName | null {
+  if (!pathname) return null;
+  return FAMILIES.find((f) => FAMILY_PAGES[f] === pathname) ?? null;
+}
+
+/**
+ * NAV-02: a DOOR — where a menu item or a card link opens. A cockpit door is
+ * a ModuleLauncher section: on the cockpit it is selected in place through the
+ * selectTab funnel (the URL is written as today); anywhere else it is a plain
+ * link to COCKPIT_PATH. A route door is a page. `none` is a NOT_BUILT tool.
+ */
+export type ToolDoor =
+  | { kind: 'cockpit'; key: string; href: string }
+  | { kind: 'route'; href: string }
+  | { kind: 'none' };
+
+/** The tool's own door for its MENU item: its cockpit section when it has one, else its home; none for NOT_BUILT. */
+export function doorOf(tool: ToolEntry): ToolDoor {
+  if (tool.home === null) return { kind: 'none' };
+  if (tool.cockpitKey) return { kind: 'cockpit', key: tool.cockpitKey, href: COCKPIT_PATH[tool.cockpitKey] };
+  return { kind: 'route', href: tool.home };
+}
+
+/** A related surface's door. The law holds every link to exactly one of href / cockpitKey; anything else is a registry bug, thrown. */
+export function doorOfLink(tool: ToolEntry, link: ToolLink): ToolDoor {
+  if (link.href) return { kind: 'route', href: link.href };
+  if (link.cockpitKey) return { kind: 'cockpit', key: link.cockpitKey, href: COCKPIT_PATH[link.cockpitKey] };
+  throw new Error(`${tool.name}: link "${link.label}" has neither href nor cockpitKey`);
+}
+
+/**
+ * NAV-02: a family's MENU — what its tab opens. The first item is the family
+ * page ("All of <FAMILY>"); then the family's tools in sheet order, each with
+ * its status and its door. FamilyNav renders exactly this; the build assert
+ * counts it (every tool in exactly one menu, exactly once).
+ */
+export type MenuItem =
+  | { kind: 'family'; label: string; href: string }
+  | { kind: 'tool'; tool: ToolEntry; door: ToolDoor };
+
+export function familyMenu(family: FamilyName): readonly MenuItem[] {
+  return [
+    { kind: 'family', label: `All of ${family}`, href: FAMILY_PAGES[family] },
+    ...toolsOf(family).map((tool): MenuItem => ({ kind: 'tool', tool, door: doorOf(tool) })),
+  ];
+}
+
+/**
+ * NAV-02: a family PAGE's cards — one per tool in sheet order: the tool, its
+ * home (the registry's own route — a page, never a cockpit param) and its
+ * related surfaces' doors. The family page renders exactly this; the build
+ * assert counts it (every tool on exactly one page, exactly once).
+ */
+export interface FamilyCard {
+  tool: ToolEntry;
+  /** The registry home, or null for NOT_BUILT. */
+  home: string | null;
+  links: ReadonlyArray<{ label: string; door: ToolDoor }>;
+}
+
+export function familyCards(family: FamilyName): readonly FamilyCard[] {
+  return toolsOf(family).map((tool) => ({
+    tool,
+    home: tool.home,
+    links: (tool.links ?? []).map((l) => ({ label: l.label, door: doorOfLink(tool, l) })),
+  }));
+}
+
 export function statusCounts(registry: readonly ToolEntry[] = TOOL_REGISTRY): Record<ToolStatus, number> {
   const counts: Record<ToolStatus, number> = { LIVE: 0, PARTIAL: 0, NOT_BUILT: 0 };
   for (const t of registry) counts[t.status] += 1;
@@ -214,7 +306,7 @@ function beatCount(b: Beats): number {
 }
 
 /** THE LAW. Throws on the first violation; returns the violations list when asked not to throw. */
-export function registryLaw(opts: { throwOnFail?: boolean } = {}): string[] {
+export function registryLaw(opts: { throwOnFail?: boolean; familyPages?: Readonly<Record<FamilyName, string>> } = {}): string[] {
   const violations: string[] = [];
   const cells = PROBLEM_SHEET.flatMap((f) => f.tools as readonly string[]);
   const keys = Object.keys(FACTS);
@@ -253,6 +345,18 @@ export function registryLaw(opts: { throwOnFail?: boolean } = {}): string[] {
     if (!FAMILIES.includes(family as FamilyName)) violations.push(`FAMILY_READS names unknown family "${family}"`);
     for (const r of reads ?? []) if (!r.href || !r.href.startsWith('/')) violations.push(`FAMILY_READS[${family}]: "${r.label}" must be an href route`);
   }
+  // NAV-02 (rule 5): one page route per family — single-segment kebab-case, unique, never a cockpit path or a tool's home.
+  const pages = opts.familyPages ?? FAMILY_PAGES;
+  const pageKeys = Object.keys(pages);
+  if (pageKeys.length !== FAMILIES.length || FAMILIES.some((f) => !(f in pages))) violations.push(`FAMILY_PAGES must name the ${FAMILIES.length} families exactly (has ${pageKeys.join(', ')})`);
+  for (const k of pageKeys) if (!FAMILIES.includes(k as FamilyName)) violations.push(`FAMILY_PAGES names unknown family "${k}"`);
+  const routes = FAMILIES.map((f) => pages[f]).filter((r): r is string => typeof r === 'string');
+  for (const f of FAMILIES) {
+    const r = pages[f];
+    if (typeof r !== 'string' || !/^\/[a-z][a-z0-9-]*$/.test(r)) violations.push(`FAMILY_PAGES[${f}] "${r}" is not a single-segment kebab-case route`);
+    else if (Object.values(COCKPIT_PATH).includes(r) || TOOL_REGISTRY.some((t) => t.home === r)) violations.push(`FAMILY_PAGES[${f}] "${r}" collides with a cockpit path or a tool's home`);
+  }
+  if (new Set(routes).size !== routes.length) violations.push(`FAMILY_PAGES routes are not unique (${routes.join(', ')})`);
   if (violations.length && opts.throwOnFail !== false) {
     throw new Error(`TOOL REGISTRY LAW failed:\n  ${violations.join('\n  ')}`);
   }
