@@ -183,6 +183,8 @@ import GuestTripStrip from './GuestTripStrip';
 import { PROBLEM_SHEET } from '@/lib/problemSheet';
 import { ANSWER_ROWS, ANSWER_INPUTS } from '@/lib/answers';
 import { PROVIDER_MENU, ROUTING_RULES } from '@/lib/providers';
+// TABLES-01: step 5's honest line — every table name from the kind-views census, none retyped.
+import { KIND_VIEWS_HONEST_LINE } from '@/lib/kindViews';
 // PR-ELEV-1: the coming-soon tiles became badged "Soon" chips INSIDE the
 // booking strip (travelStripModes) — the separate tile row is gone.
 
@@ -3318,6 +3320,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               </div>
             ))}
           </div>
+
+          {/* TABLES-01: the honest line (the 12/13 idiom) — today the six are
+              views over the typed feed tables; the names come from the census
+              (src/lib/kindViews.ts), the kinds from the rule book. */}
+          <p className={`mt-[14px] ${DECK.statement}`}>{KIND_VIEWS_HONEST_LINE}</p>
 
           {/* PR-S5: the tail is ONE paragraph — the essay's consolidated
               Step 5 passage, verbatim, slide-01 body tier. The old kind

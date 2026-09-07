@@ -1,5 +1,10 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  // TABLES-01: the six kind views (src/lib/kindViews.ts) are `view` models — Prisma's `views` preview
+  // (https://www.prisma.io/docs/orm/prisma-schema/data-model/views; Prisma 5.22). Migrate does not
+  // manage views: the CREATE VIEWs live in prisma/migrations/*_kind_views and the build asserts the
+  // two agree.
+  previewFeatures = ["views"]
 }
 
 datasource db {
@@ -3674,4 +3679,86 @@ model arrivals {
   @@index([provider, their_id, arrived(sort: Desc)])
   @@index([status])
   @@index([response_id])
+}
+
+/// TABLES-01: six tables, one per kind — VIEWS over the typed feed tables (src/lib/kindViews.ts KIND_VIEW
+/// census; prisma/migrations/*_kind_views). One common shape; each unions exactly the feed tables of its
+/// kind, the kind per table from the rule book. posting is empty by the deck's own law; snapshot until holdings land.
+
+view reference {
+  kind       arrival_kind
+  feed       String
+  table_name String
+  row_id     String
+  their_id   String
+  arrival_id String?
+  user_id    String?
+  arrived    DateTime? @db.Timestamptz(6)
+
+  @@unique([table_name, row_id])
+}
+
+view registry {
+  kind       arrival_kind
+  feed       String
+  table_name String
+  row_id     String
+  their_id   String
+  arrival_id String?
+  user_id    String?
+  arrived    DateTime? @db.Timestamptz(6)
+
+  @@unique([table_name, row_id])
+}
+
+view event {
+  kind       arrival_kind
+  feed       String
+  table_name String
+  row_id     String
+  their_id   String
+  arrival_id String?
+  user_id    String?
+  arrived    DateTime? @db.Timestamptz(6)
+
+  @@unique([table_name, row_id])
+}
+
+view derived {
+  kind       arrival_kind
+  feed       String
+  table_name String
+  row_id     String
+  their_id   String
+  arrival_id String?
+  user_id    String?
+  arrived    DateTime? @db.Timestamptz(6)
+
+  @@unique([table_name, row_id])
+}
+
+view snapshot {
+  kind       arrival_kind
+  feed       String
+  table_name String
+  row_id     String
+  their_id   String
+  arrival_id String?
+  user_id    String?
+  arrived    DateTime? @db.Timestamptz(6)
+
+  @@unique([table_name, row_id])
+}
+
+view posting {
+  kind       arrival_kind
+  feed       String
+  table_name String
+  row_id     String
+  their_id   String
+  arrival_id String?
+  user_id    String?
+  arrived    DateTime? @db.Timestamptz(6)
+
+  @@unique([table_name, row_id])
 }

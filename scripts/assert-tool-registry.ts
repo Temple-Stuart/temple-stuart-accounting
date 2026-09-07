@@ -36,6 +36,15 @@
  * they pass, as constants or literals) has a rule. A feed the book does not
  * name cannot be landed: the build fails before the code does.
  *
+ * THE KIND-VIEWS LAW (TABLES-01): src/lib/kindViews.ts KIND_VIEW_CENSUS is the
+ * census of the typed feed tables; the *_kind_views migration must be its
+ * generator's text verbatim — (a) every census table in exactly one view,
+ * (b) that view is the rule book's kind for the table's feed, (c) posting
+ * unions nothing, (d) all six views carry the common columns in the same
+ * order — and schema.prisma carries the six as `view` models with those
+ * columns, under the `views` preview feature. The deck's step-5 honest line
+ * is the census's own sentence (the file imports KIND_VIEWS_HONEST_LINE).
+ *
  * THE ARRIVALS LAW (REBUILD-01 PR-1): the provider vocabulary's module-scope
  * law re-run (src/lib/providers.ts — every ROUTING_RULES provider + resource
  * pair resolves, no duplicate word or code), plus what only the texts can
@@ -65,6 +74,7 @@ import { EXPECTED_STATUS_COUNTS, FAMILIES, FAMILY_PAGES, FAMILY_READS, TOOL_REGI
 import { OWNER_UTILITIES } from '../src/lib/shellMenu';
 import { ANSWERS_HOME, ANSWER_READS, ANSWER_ROWS, NET_WORTH_READ, answersLaw } from '../src/lib/answers';
 import { ARRIVAL_KINDS, PROVIDERS, PROVIDER_CODES, ROUTING_RULES, RULE_BOOK, providersLaw, ruleFor } from '../src/lib/providers';
+import { KIND_VIEWS_HONEST_LINE, KIND_VIEW_CENSUS, STOPPED_TABLES, VIEW_COLUMNS, kindOfTable, kindViewsLaw, parseViews } from '../src/lib/kindViews';
 
 /**
  * Routes whose door is outside the app map: the front door and its marketing
@@ -437,5 +447,29 @@ console.log('✔ Tool registry law passed — 25/25 cells, homes resolve to page
 console.log(`✔ Reachability law passed — ${pages.length} pages, every one has a door (family menus and family pages count).`);
 console.log(`✔ The family map law passed — ${FAMILIES.length} menus, ${FAMILIES.length} family pages, every tool once in each.`);
 console.log(`✔ The answers law passed — ${ANSWER_ROWS.length}/4 questions on ${ANSWERS_HOME}, every number sourced.`);
+// ── THE KIND-VIEWS LAW (TABLES-01) ──────────────────────────────────────────
+const viewsMigration = ALL_MIGRATIONS.find((m) => m.dir.endsWith('_kind_views'));
+if (!viewsMigration) violations.push('kind views: no prisma/migrations/*_kind_views/migration.sql');
+violations.push(...kindViewsLaw({ throwOnFail: false, migrationSql: viewsMigration?.sql ?? '' }));
+// schema.prisma: the six `view` models, the common columns in order, the views preview on
+if (!/previewFeatures\s*=\s*\[[^\]]*"views"/.test(schemaText)) violations.push('kind views: generator client must enable previewFeatures = ["views"]');
+const VIEW_FIELD_TYPES: Record<string, string> = { arrival_kind: 'arrival_kind', text: 'String', timestamptz: 'DateTime' };
+for (const kind of ARRIVAL_KINDS) {
+  const block = schemaText.match(new RegExp(`\\nview ${kind} \\{\\n([\\s\\S]*?)\\n\\}`));
+  if (!block) { violations.push(`kind views: schema.prisma has no view ${kind}`); continue; }
+  const fields = block[1].split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('@@') && !l.startsWith('//')).map((l) => { const [name, type] = l.split(/\s+/); return { name, type: type.replace(/\?$/, '') }; });
+  const want = VIEW_COLUMNS.map(([n, t]) => `${n} ${VIEW_FIELD_TYPES[t]}`).join(', ');
+  const have = fields.map((f) => `${f.name} ${f.type}`).join(', ');
+  if (want !== have) violations.push(`kind views: view ${kind} in schema.prisma is [${have}], not the common shape [${want}]`);
+}
+const landingSrc = readFileSync(resolve(ROOT, 'src/components/landing/Landing.tsx'), 'utf8');
+if (!landingSrc.includes('{KIND_VIEWS_HONEST_LINE}')) violations.push("kind views: the deck's step 5 must render KIND_VIEWS_HONEST_LINE (never a retyped line)");
+console.log('THE KIND VIEWS — the census, each table once, the kind from the rule book');
+for (const t of KIND_VIEW_CENSUS) console.log(`${t.table.padEnd(26)} ${kindOfTable(t).padEnd(10)} ${Array.isArray(t.feed) ? `${t.feed[0]} · ${t.feed[1]}` : `by ${t.feed.column}: ${Object.values(t.feed.map).map(([p, r]) => `${p} · ${r}`).join(' | ')}`}`);
+for (const v of parseViews(viewsMigration?.sql ?? '')) console.log(`view ${v.name.padEnd(10)} ← ${v.tables.length ? v.tables.join(', ') : '(nothing)'}`);
+console.log(`stopped (reported, not viewed): ${STOPPED_TABLES.map((s) => s.table).join(' · ')}`);
+console.log(`honest line: ${KIND_VIEWS_HONEST_LINE}`);
+
 console.log(`✔ The arrivals law passed — ${PROVIDERS.length} providers, enum === codes, ${arrivalsRows.length} columns agree with the migrations.`);
 console.log(`✔ The rule book law passed — ${RULE_BOOK.length} rules, ${callSites.length} landing call sites covered, enum arrival_kind === the six kinds, the migration applies ${applied.length} rules the book holds.`);
+console.log(`✔ The kind views law passed — ${ARRIVAL_KINDS.length} views over ${KIND_VIEW_CENSUS.length} feed tables, each once, the kind from the rule book; posting unions nothing; ${STOPPED_TABLES.length} tables reported, not viewed.`);

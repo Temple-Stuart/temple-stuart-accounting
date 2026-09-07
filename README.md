@@ -155,6 +155,53 @@ One written rule per feed — its kind — and the system applies it to every ar
 | plaid | security | reference |  | added |
 | plaid | investment_transaction | event |  | added |
 
+### The six tables (step 5, views)
+
+Six tables, six names, the kind picks the table — as VIEWS over the typed feed tables (`prisma/migrations/20260907200000_kind_views/migration.sql`, generated from the census in `src/lib/kindViews.ts`; the six are `view` models in `prisma/schema.prisma` under Prisma's `views` preview). The feed tables keep their real columns, constraints and `arrival_id`; each view unions exactly the feed tables of its kind, the kind per table from the rule book, in one common shape. Posting is empty by the deck's own law; snapshot is empty until holdings land. A table whose feed the rule book cannot name is reported, never viewed. Today the six are views over the feed tables — event: transactions, investment transactions, bookings; reference: securities, places, the law corpus; registry: accounts; snapshot: none yet; derived: none yet; posting: empty by law.
+
+| Column | Type |
+|---|---|
+| kind | arrival_kind |
+| feed | text |
+| table_name | text |
+| row_id | text |
+| their_id | text |
+| arrival_id | text |
+| user_id | text |
+| arrived | timestamptz |
+
+| View | Unions | Feeds |
+|---|---|---|
+| reference | securities, places_cache, regulatory_documents | plaid · security · google_places · place · by s.domain: ecfr · title / us_code · title / federal_register · document / irs · bulletin |
+| registry | accounts | plaid · account |
+| event | transactions, investment_transactions, reservations | plaid · transaction · plaid · investment_transaction · liteapi · booking |
+| derived | (nothing) |  |
+| snapshot | (nothing) |  |
+| posting | (nothing) |  |
+
+| Feed table | Kind | Feed | arrival_id | user | arrived | Outside Prisma |
+|---|---|---|---|---|---|---|
+| securities | reference | plaid · security | yes | no | s."createdAt" |  |
+| places_cache | reference | google_places · place | no | no | p."cachedAt" |  |
+| regulatory_documents | reference | by s.domain: ecfr · title / us_code · title / federal_register · document / irs · bulletin | no | no | d.retrieved_at | prisma/migrations/20260503000000_pr_f_corpus_foundation/migration.sql (CREATE TABLE regulatory_documents; not a Prisma model) |
+| accounts | registry | plaid · account | no | yes | a."createdAt" |  |
+| transactions | event | plaid · transaction | yes | yes | t."createdAt" |  |
+| investment_transactions | event | plaid · investment_transaction | yes | yes | i."createdAt" |  |
+| reservations | event | liteapi · booking | no | yes | r."createdAt" |  |
+
+Reported, not viewed — rows from a provider answer whose feed the rule book does not name:
+
+| Table | Why |
+|---|---|
+| reservations (provider duffel) | 2 writes carry provider 'duffel' (src/app/api/flights/book/route.ts) — duffel is not a provider the deck names; those rows are outside the event view |
+| trip_scanner_results | src/app/api/trips/[id]/ai-assistant/route.ts writes AI recommendations per trip/category; the book names no such feed (anthropic · classification is the only anthropic row) |
+| scan_snapshots | src/lib/convergence/snapshot-logger.ts writes our own scores over quotes — math we did, not a provider answer; no rule-book feed |
+| operations_ai_usage | src/lib/ai/recordUsage.ts:158 stores our AI calls (purpose, tokens, full_response) — the book's anthropic row is classification, not a usage log |
+| discovery_proposals | AI-authored proposals (src/lib/discovery); not the book's anthropic · classification by name |
+| plaid_items | Plaid's item — a handshake (the access token lives here); the deck: handshakes never enter the tables; the book has no plaid · item row |
+| tastytrade_connections | a handshake (tokens); never data |
+| observatoryHealthLog | our probes of the providers (src/app/api/data-observatory) — not a provider feed |
+
 ### The loop (step 7)
 
 Every tool runs the same four beats: **DISCOVER → DECIDE → COMMIT → RECORD**.
@@ -218,6 +265,7 @@ BLUEPRINT is the step's headline; TODAY is the deck's honest-state line, verbati
 |---|---|---|---|
 | 03 | Store what arrived. Then decide what it means. | the arrivals store holds 9,092 Plaid transactions, 712 investment transactions and 247 securities — every answer word for word, fingerprinted, status done — counted September 7, 2026; rows before September 3, 2026 carry no arrival. | the other providers (Stripe events, LiteAPI, tastytrade, the market and law feeds) land parsed; the three old Plaid writers still exist. |
 | 04 | One rule per feed. Written down. | rules are rows the system applies — src/lib/providers.ts RULE_BOOK, 22 rows (the deck's 20 plus plaid · security → reference and plaid · investment_transaction → event); every Plaid arrival carries its kind (transaction · event, investment_transaction · event, security · reference), stamped on landing and applied by the migration to every row landed before it; a feed with no rule cannot land. | the other providers' arrivals wait on their landing — nothing of theirs has arrived to be labeled; the 121 feeds' classification stays the August 24 census until each lands. |
+| 05 | The kind picks the table. | Today the six are views over the feed tables — event: transactions, investment transactions, bookings; reference: securities, places, the law corpus; registry: accounts; snapshot: none yet; derived: none yet; posting: empty by law. | snapshot waits on holdings (PR-2d); derived has no feed table the rule book names — the AI tables carry no rule-book row; posting is empty by law; 8 tables are reported, not viewed. |
 | 07 | Every tool runs the same four beats. Discover. Decide. Commit. Record. | This loop is the blueprint — the shape we're building every tool toward. Today, hotel bookings commit for real and an accepted task fires its build; the rest run discover → decide → draft, and commit is the beat we're wiring to the same loop, tool by tool. | commit is real for two tools (hotel bookings, accepted tasks); the other twenty-three stop at draft. |
 | 08 | One table holds everything you do. | The master table is the blueprint. Today each tool keeps its own table; one table holding every document is the shape we're building. | no master table; each tool keeps its own. |
 | 09 | The deposit meets the invoice. The fill meets the order. | (A piece of this is already alive today: card charges find their bookings and propose the match — you approve it.) | one of fourteen matches proposes today (card charge ↔ booking); the other thirteen do not. |
@@ -231,15 +279,15 @@ BLUEPRINT is the step's headline; TODAY is the deck's honest-state line, verbati
 
 | Module | What exists in code |
 |---|---|
-| Travel | stays and flights through LiteAPI, activities through Viator, visa checks through RapidAPI — public routes under src/app/api/travel (15 route files) and src/app/api/flights (3); models `trips` (schema:594) and `reservations` (schema:1350). |
-| Runway | the reservation matcher — src/app/api/runway/match/propose, queue, review (the step-9 piece alive today) — plus src/app/api/runway/route.ts; models `budgets` (schema:564) and `home_expenses` (schema:1600). |
-| Books | Plaid-synced transactions, a chart of accounts, journal and ledger entries — src/app/api/plaid/sync/route.ts:103 writes `transactions` (schema:425); `journal_entries` (schema:180), `ledger_entries` (schema:219). |
-| Trade | tastytrade connection, quotes and backtests — src/app/api/tastytrade (13 route files); models `trade_cards` (schema:1731) and `scan_snapshots` (schema:1917). |
-| Tax | scenarios, documents and the 2025 export script (`npm run tax:export:2025`) — src/app/api/tax (7 route files); models `tax_scenarios` (schema:1520) and `tax_documents` (schema:1839). |
-| Compliance | the regulatory corpus (eCFR, US Code, Federal Register, IRS bulletins) ingested by Inngest functions with sha256 on write, citations re-verified, and the hash-chained audit log — models `regulatory_sources` (schema:2230), `citations` (schema:2294), `audit_log` (schema:2460). |
-| Routines | scheduled routines evaluated by the `routine-evaluator` Inngest function — models `operations_routines` (schema:3114) and `hub_scheduled_items` (schema:3220); the deck calls the calendar window live in the cockpit (step 12 honest line). |
-| Projects | projects and tasks; accepting a pending task fires the Execute-Task Routine (src/app/api/operations/projects/[id]/tasks/[taskId]/route.ts:395-405) — models `operations_projects` (schema:2938) and `operations_project_tasks` (schema:2983). |
-| Content | scene groups, scenes, pieces and takes — model `operations_content_pieces` (schema:3347); src/app/api/operations carries 50 route files across Routines, Projects and Content. |
+| Travel | stays and flights through LiteAPI, activities through Viator, visa checks through RapidAPI — public routes under src/app/api/travel (15 route files) and src/app/api/flights (3); models `trips` (schema:599) and `reservations` (schema:1355). |
+| Runway | the reservation matcher — src/app/api/runway/match/propose, queue, review (the step-9 piece alive today) — plus src/app/api/runway/route.ts; models `budgets` (schema:569) and `home_expenses` (schema:1605). |
+| Books | Plaid-synced transactions, a chart of accounts, journal and ledger entries — src/app/api/plaid/sync/route.ts:103 writes `transactions` (schema:430); `journal_entries` (schema:185), `ledger_entries` (schema:224). |
+| Trade | tastytrade connection, quotes and backtests — src/app/api/tastytrade (13 route files); models `trade_cards` (schema:1736) and `scan_snapshots` (schema:1922). |
+| Tax | scenarios, documents and the 2025 export script (`npm run tax:export:2025`) — src/app/api/tax (7 route files); models `tax_scenarios` (schema:1525) and `tax_documents` (schema:1844). |
+| Compliance | the regulatory corpus (eCFR, US Code, Federal Register, IRS bulletins) ingested by Inngest functions with sha256 on write, citations re-verified, and the hash-chained audit log — models `regulatory_sources` (schema:2235), `citations` (schema:2299), `audit_log` (schema:2465). |
+| Routines | scheduled routines evaluated by the `routine-evaluator` Inngest function — models `operations_routines` (schema:3119) and `hub_scheduled_items` (schema:3225); the deck calls the calendar window live in the cockpit (step 12 honest line). |
+| Projects | projects and tasks; accepting a pending task fires the Execute-Task Routine (src/app/api/operations/projects/[id]/tasks/[taskId]/route.ts:395-405) — models `operations_projects` (schema:2943) and `operations_project_tasks` (schema:2988). |
+| Content | scene groups, scenes, pieces and takes — model `operations_content_pieces` (schema:3352); src/app/api/operations carries 50 route files across Routines, Projects and Content. |
 
 ## Architecture
 
@@ -279,7 +327,7 @@ These are the written laws in `CLAUDE.md`, stated as practice:
 - Middleware: every path not in `PUBLIC_PATHS` requires the verified cookie — `src/middleware.ts:50-160, 162, 165-170`; the two Routine callbacks (`…/audit-ingest`, `…/exec-ingest`) bypass the cookie and validate a shared-secret bearer (`AUDIT_INGEST_SECRET`, `EXEC_INGEST_SECRET`) instead — `src/middleware.ts:173-187`.
 - Route gates: `getCurrentUser` (`src/lib/auth-helpers.ts:11`), `requireTier` (`:42`), `requireAdmin` (`src/lib/require-admin.ts:8`); the working law is that a paid external call is never made before the gate (CLAUDE.md, Security-first).
 - User scoping: every query is scoped to the authed user — e.g. `where: { userId: user.id }` at `src/app/api/tastytrade/connect/route.ts:54`.
-- Rate limits: a durable fixed-window limiter backed by the `rate_limit_hits` table (`src/lib/rateLimit.ts:3-15`; schema:1335), plus `src/lib/scan-rate-limit.ts` and `src/lib/ai-rate-limit.ts`; tuned by `SEARCH_/BOOK_/SCAN_/AI_RATE_LIMIT` and `_WINDOW`, with daily caps `AI_PIPE_DAILY_CAP`, `AI_EXEC_DAILY_CAP`, `AI_ROUTINE_DAILY_CAP`, `AI_DISCOVERY_DAILY_CAP` (USD, from recorded spend — `src/lib/discovery/discoveryGate.ts`), `TRAVEL_SEARCH_DAILY_CAP`, and `GOOGLE_PLACES_MONTHLY_CAP`.
+- Rate limits: a durable fixed-window limiter backed by the `rate_limit_hits` table (`src/lib/rateLimit.ts:3-15`; schema:1340), plus `src/lib/scan-rate-limit.ts` and `src/lib/ai-rate-limit.ts`; tuned by `SEARCH_/BOOK_/SCAN_/AI_RATE_LIMIT` and `_WINDOW`, with daily caps `AI_PIPE_DAILY_CAP`, `AI_EXEC_DAILY_CAP`, `AI_ROUTINE_DAILY_CAP`, `AI_DISCOVERY_DAILY_CAP` (USD, from recorded spend — `src/lib/discovery/discoveryGate.ts`), `TRAVEL_SEARCH_DAILY_CAP`, and `GOOGLE_PLACES_MONTHLY_CAP`.
 - Audit log: a hash chain — each entry stores `prev_hash` and its own sha256 `content_hash` with a `sequence_number` (`prisma/schema.prisma:2441-2443`; written at `src/lib/audit/writeAuditLog.ts:99`); `src/lib/audit/verifyAuditChain.ts:47, 80` recomputes the chain.
 - Citations: `src/lib/citations/verifyCitation.ts:97` re-fetches the source and re-hashes it against `citations.retrieved_content_hash` (`prisma/schema.prisma:2287`); the column's only writer stores an empty string today (`src/lib/discovery/materializeProposal.ts:165`), so the check is structurally dead until the arrivals rebuild lands the real hash.
 - Corpus: the four ingest persisters hash content with sha256 on write — `src/lib/corpus/ingest/ecfr-persist.ts:28`, `uscode-persist.ts:32`, `fedreg-persist.ts:31`, `irb-persist.ts:32`.
