@@ -190,13 +190,13 @@ export async function landTransactionsPage(landing: LandingDb, domain: DomainDb,
   return counts;
 }
 
-/** A failed ask is evidence of the ask: land the non-2xx answer's bytes (no arrivals). A network failure with no answer lands nothing. */
-export async function recordFailedAnswer(landing: LandingDb, input: { userId: string; err: unknown; now?: () => Date }): Promise<{ landed: boolean; status?: number }> {
+/** A failed ask is evidence of the ask: land the non-2xx answer's bytes (no arrivals). A network failure with no answer lands nothing. PR-2c: the investments phase names its resource. */
+export async function recordFailedAnswer(landing: LandingDb, input: { userId: string; err: unknown; now?: () => Date; resource?: string }): Promise<{ landed: boolean; status?: number }> {
   const response = (err_has_response(input.err) ? input.err.response : undefined);
   if (!response?.wire) return { landed: false };
   await landResponse(landing, {
     provider: PLAID,
-    resource: TRANSACTION,
+    resource: input.resource ?? TRANSACTION,
     userId: input.userId,
     guestRef: null,
     httpStatus: response.status,
