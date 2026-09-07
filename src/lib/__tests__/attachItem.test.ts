@@ -146,7 +146,7 @@ test('match by institutionId + mask, one-to-one; the name is never consulted', a
   assert.deepEqual(plan.unmatchedOld, []);
   assert.equal(plan.retireReason, 'replaced by NEWITEMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
   assert.deepEqual(plan.totalBefore, { transactions: 120, investment_transactions: 1076, bank_reconciliations: 1 });
-  assert.match(describePlan(plan), /^tastytrade ← TastyTrade: ••••2518 \(new row survives\), ••••3062 \(new row survives\), ••••9689 \(new row survives\); 1197 history rows$/);
+  assert.match(describePlan(plan), /^tastytrade \[NEWITEM\S+, ins_116995\] ← TastyTrade \[4Ad9Ba\S+, ins_116995\]: ••••2518 \(new row survives\), ••••3062 \(new row survives\), ••••9689 \(new row survives\); 1197 history rows$/);
 
   // pointed at the OLD item, the merge stops — it would retire the fresh one
   const backwards = await planAttach(db, { userId: USER, newItemRowId: 'pi_old' });
@@ -269,4 +269,76 @@ test('an unmatched new account is left alone; an unclaimed old account stays on 
   assert.ok(db.accounts.find((a) => a.id === 'acc_old_gone')?.plaidItemId === 'pi_old', 'still attached to the retired item');
   assert.equal(db.transactions.filter((r) => r.accountId === 'acc_old_gone').length, 1, 'its history untouched');
   assert.match(describePlan(plan), /1 new account\(s\) without a twin; 1 old account\(s\) unclaimed, staying on the retired item/);
+});
+
+// BANK-03b — Plaid replaced the institution record: the fresh item carries ins_138270, the old
+// item ins_116995. Found by institutionId there is nothing to pair; the owner declares the pair.
+function theReplacedInstitutionCase(): MemoryDb {
+  const db = theCase();
+  db.items[1].institutionId = 'ins_138270';
+  return db;
+}
+
+test('BANK-03b: without --old-item, a replaced institution record finds nothing (unchanged behavior)', async () => {
+  const db = theReplacedInstitutionCase();
+  assert.deepEqual(await planAttach(db, { userId: USER, newItemRowId: 'pi_new' }), { kind: 'nothing', reason: 'no live item of institution ins_138270 to retire — nothing to attach' });
+});
+
+test('BANK-03b: the explicit pair across institution ids plans and executes; the reason names the replacement', async () => {
+  const db = theReplacedInstitutionCase();
+  const before = await totals(db);
+  const plan = await planAttach(db, { userId: USER, newItemRowId: 'pi_new', oldItemRowId: 'pi_old' });
+  assert.equal(plan.kind, 'merge');
+  if (plan.kind !== 'merge') return;
+  assert.equal(plan.oldItem.id, 'pi_old');
+  assert.equal(plan.newItem.institutionId, 'ins_138270');
+  assert.equal(plan.oldItem.institutionId, 'ins_116995');
+  assert.equal(plan.retireReason, 'replaced by NEWITEMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx; institution ins_116995 → ins_138270');
+  assert.match(describePlan(plan), /^tastytrade \[NEWITEM\S+, ins_138270\] ← TastyTrade \[4Ad9Ba\S+, ins_116995\]: ••••2518/, 'both ids and both institution ids are printed');
+  assert.deepEqual(plan.pairs.map((p) => [p.mask, p.survivorIs]), [['2518', 'new'], ['3062', 'new'], ['9689', 'new']], 'still mask by mask, still the survivor rule');
+
+  const { report } = await attachItem(db, { userId: USER, newItemRowId: 'pi_new', oldItemRowId: 'pi_old', now: NOW });
+  assert.ok(report);
+  assert.deepEqual(await totals(db), before, 'counted moves, nothing lost');
+  assert.deepEqual(report.totalAfter, report.totalBefore);
+  assert.deepEqual(db.deleted.sort(), ['acc_old_2518', 'acc_old_3062', 'acc_old_9689'], 'empty-donor delete');
+  assert.deepEqual(db.retirements, [{ itemRowId: 'pi_old', at: NOW, reason: 'replaced by NEWITEMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx; institution ins_116995 → ins_138270' }]);
+
+  // Re-run with the same declaration: the old item is retired → nothing, no writes.
+  const again = await attachItem(db, { userId: USER, newItemRowId: 'pi_new', oldItemRowId: 'pi_old', now: NOW });
+  assert.equal(again.plan.kind, 'nothing');
+  assert.match((again.plan as { reason: string }).reason, /the old item 4Ad9Ba\S+ is already retired \(2026-09-05T12:00:00.000Z\) — nothing to attach/);
+  assert.equal(again.report, null);
+  assert.equal(db.deleted.length, 3);
+  assert.equal(db.retirements.length, 1);
+});
+
+test('BANK-03b: a foreign, newer, or self --old-item stops; every other guard stays', async () => {
+  // foreign (another user's item — or an unknown id): the same defensive text, nothing written
+  const foreign = theReplacedInstitutionCase();
+  foreign.items.push({ id: 'pi_theirs', userId: 'user-b', itemId: 'THEIRS', institutionId: 'ins_116995', institutionName: 'TastyTrade', retired_at: null, createdAt: new Date('2026-01-01T00:00:00Z') });
+  assert.deepEqual(await planAttach(foreign, { userId: USER, newItemRowId: 'pi_new', oldItemRowId: 'pi_theirs' }), { kind: 'stop', reason: 'Bank connection not found' });
+  assert.deepEqual(await planAttach(foreign, { userId: USER, newItemRowId: 'pi_new', oldItemRowId: 'pi_nope' }), { kind: 'stop', reason: 'Bank connection not found' });
+
+  // newer: the declared old item was created after the new one
+  const newer = theReplacedInstitutionCase();
+  newer.items[0].createdAt = new Date('2026-09-06T00:00:00Z');
+  const n = await planAttach(newer, { userId: USER, newItemRowId: 'pi_new', oldItemRowId: 'pi_old' });
+  assert.equal(n.kind, 'stop');
+  assert.match((n as { reason: string }).reason, /the declared old item 4Ad9Ba\S+ \(created 2026-09-06T00:00:00.000Z\) is not older than NEWITEM\S+ \(created 2026-09-04T00:00:00.000Z\) — the pair is the other way round/);
+
+  // the same row for both
+  const same = await planAttach(theReplacedInstitutionCase(), { userId: USER, newItemRowId: 'pi_new', oldItemRowId: 'pi_new' });
+  assert.match((same as { reason: string }).reason, /the old item and the new item are the same row/);
+
+  // the mask guards are unchanged under an explicit pair: two old rows with one mask still stop
+  const ambiguous = theReplacedInstitutionCase();
+  ambiguous.accounts.push(account({ id: 'acc_old_dup', plaidItemId: 'pi_old', accountId: 'plaid_old_dup', mask: '2518' }));
+  const a = await planAttach(ambiguous, { userId: USER, newItemRowId: 'pi_new', oldItemRowId: 'pi_old' });
+  assert.match((a as { reason: string }).reason, /mask 2518: 2 old accounts carry it .* — ambiguous, nothing merged/);
+  // and a reconciliation collision still stops
+  const collide = theReplacedInstitutionCase();
+  collide.bank_reconciliations.push({ id: 'r2', account_id: 'acc_new_2518', entity_id: 'ent-1', year: 2026, month: 7 });
+  const c = await planAttach(collide, { userId: USER, newItemRowId: 'pi_new', oldItemRowId: 'pi_old' });
+  assert.match((c as { reason: string }).reason, /reconciliation\(s\) for the same entity\/year\/month on both rows/);
 });

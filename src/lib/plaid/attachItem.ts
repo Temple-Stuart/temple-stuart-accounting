@@ -143,23 +143,53 @@ export class AttachIntegrityError extends Error {
   }
 }
 
-export const retireReasonFor = (newItem: AttachItem): string => `replaced by ${newItem.itemId}`;
+/** 'replaced by <new item id>' — and, when Plaid retired the institution record too, '; institution <old> → <new>'. */
+export const retireReasonFor = (newItem: AttachItem, oldItem?: AttachItem): string =>
+  oldItem && oldItem.institutionId !== newItem.institutionId
+    ? `replaced by ${newItem.itemId}; institution ${oldItem.institutionId ?? 'none'} → ${newItem.institutionId ?? 'none'}`
+    : `replaced by ${newItem.itemId}`;
+
+export interface PlanAttachInput {
+  userId: string;
+  newItemRowId: string;
+  /**
+   * BANK-03b: the owner DECLARES the old item when Plaid replaced the institution record
+   * (ins_116995 → ins_138270) so no live item of the new institutionId exists. It must be
+   * the same user's, live, and OLDER than the new item; institutionId equality is not
+   * required. Every other guard is unchanged. Without it, the pairing is found by
+   * institutionId as before.
+   */
+  oldItemRowId?: string;
+}
 
 /** Read-only: decide the merge, or why not. Nothing is written here. */
-export async function planAttach(db: AttachDb, input: { userId: string; newItemRowId: string }): Promise<AttachPlan> {
+export async function planAttach(db: AttachDb, input: PlanAttachInput): Promise<AttachPlan> {
   const newItem = await db.item(input.userId, input.newItemRowId);
   if (!newItem) return { kind: 'stop', reason: 'Bank connection not found' };
   if (newItem.retired_at) return { kind: 'stop', reason: `the item ${newItem.itemId} is itself retired (${newItem.retired_at.toISOString()})` };
   if (!newItem.institutionId || newItem.institutionId === 'unknown') return { kind: 'stop', reason: `the item ${newItem.itemId} has no institutionId — matching is by institutionId + mask, never by name` };
 
-  const olderLive = await db.liveItemsOfInstitution(input.userId, newItem.institutionId, newItem.id);
-  if (olderLive.length === 0) return { kind: 'nothing', reason: `no live item of institution ${newItem.institutionId} to retire — nothing to attach` };
-  if (olderLive.length > 1) return { kind: 'stop', reason: `${olderLive.length} live items of institution ${newItem.institutionId} besides ${newItem.itemId} (${olderLive.map((i) => i.itemId).join(', ')}) — one replacement at a time` };
-  const oldItem = olderLive[0];
-  // Direction: the item given must be the NEWER one — the fresh link. Pointed at the old
-  // item, the merge would retire the fresh one; that is a stop, not a guess.
-  if (oldItem.createdAt.getTime() >= newItem.createdAt.getTime()) {
-    return { kind: 'stop', reason: `the item ${newItem.itemId} (created ${newItem.createdAt.toISOString()}) is not the newest of institution ${newItem.institutionId}: ${oldItem.itemId} was created ${oldItem.createdAt.toISOString()} — run the merge on the newest item` };
+  let oldItem: AttachItem;
+  if (input.oldItemRowId !== undefined) {
+    // BANK-03b: the declared pair. A foreign or unknown id is the same defensive 404 text.
+    const declared = await db.item(input.userId, input.oldItemRowId);
+    if (!declared) return { kind: 'stop', reason: 'Bank connection not found' };
+    if (declared.id === newItem.id) return { kind: 'stop', reason: `the old item and the new item are the same row (${newItem.itemId})` };
+    if (declared.retired_at) return { kind: 'nothing', reason: `the old item ${declared.itemId} is already retired (${declared.retired_at.toISOString()}) — nothing to attach` };
+    if (declared.createdAt.getTime() >= newItem.createdAt.getTime()) {
+      return { kind: 'stop', reason: `the declared old item ${declared.itemId} (created ${declared.createdAt.toISOString()}) is not older than ${newItem.itemId} (created ${newItem.createdAt.toISOString()}) — the pair is the other way round` };
+    }
+    oldItem = declared;
+  } else {
+    const olderLive = await db.liveItemsOfInstitution(input.userId, newItem.institutionId, newItem.id);
+    if (olderLive.length === 0) return { kind: 'nothing', reason: `no live item of institution ${newItem.institutionId} to retire — nothing to attach` };
+    if (olderLive.length > 1) return { kind: 'stop', reason: `${olderLive.length} live items of institution ${newItem.institutionId} besides ${newItem.itemId} (${olderLive.map((i) => i.itemId).join(', ')}) — one replacement at a time` };
+    oldItem = olderLive[0];
+    // Direction: the item given must be the NEWER one — the fresh link. Pointed at the old
+    // item, the merge would retire the fresh one; that is a stop, not a guess.
+    if (oldItem.createdAt.getTime() >= newItem.createdAt.getTime()) {
+      return { kind: 'stop', reason: `the item ${newItem.itemId} (created ${newItem.createdAt.toISOString()}) is not the newest of institution ${newItem.institutionId}: ${oldItem.itemId} was created ${oldItem.createdAt.toISOString()} — run the merge on the newest item` };
+    }
   }
 
   const newAccounts = await db.accountsOfItem(newItem.id);
@@ -191,7 +221,7 @@ export async function planAttach(db: AttachDb, input: { userId: string; newItemR
 
   const unmatchedOld = oldAccounts.filter((o) => !claimedOld.has(o.id));
   const totalBefore = pairs.reduce((sum, p) => addCounts(sum, addCounts(p.before.old, p.before.new)), ZERO);
-  return { kind: 'merge', newItem, oldItem, pairs, unmatchedNew, unmatchedOld, retireReason: retireReasonFor(newItem), totalBefore };
+  return { kind: 'merge', newItem, oldItem, pairs, unmatchedNew, unmatchedOld, retireReason: retireReasonFor(newItem, oldItem), totalBefore };
 }
 
 export interface AttachReport {
@@ -258,7 +288,7 @@ export async function executeAttach(db: AttachDb, plan: Extract<AttachPlan, { ki
 }
 
 /** Plan, then execute unless dryRun. */
-export async function attachItem(db: AttachDb, input: { userId: string; newItemRowId: string; now?: Date; dryRun?: boolean }): Promise<{ plan: AttachPlan; report: AttachReport | null }> {
+export async function attachItem(db: AttachDb, input: PlanAttachInput & { now?: Date; dryRun?: boolean }): Promise<{ plan: AttachPlan; report: AttachReport | null }> {
   const plan = await planAttach(db, input);
   if (plan.kind !== 'merge' || input.dryRun) return { plan, report: null };
   return { plan, report: await executeAttach(db, plan, input.now ?? new Date()) };
@@ -272,5 +302,7 @@ export function describePlan(plan: AttachPlan): string {
     plan.unmatchedNew.length ? `${plan.unmatchedNew.length} new account(s) without a twin` : '',
     plan.unmatchedOld.length ? `${plan.unmatchedOld.length} old account(s) unclaimed, staying on the retired item` : '',
   ].filter(Boolean).join('; ');
-  return `${plan.newItem.institutionName ?? 'the new item'} ← ${plan.oldItem.institutionName ?? 'the old item'}: ${masks}; ${totalOf(plan.totalBefore)} history rows${extra ? `; ${extra}` : ''}`;
+  // Both items, by name AND id — with the institution ids when Plaid replaced the record, so the operator sees the pair.
+  const who = `${plan.newItem.institutionName ?? 'the new item'} [${plan.newItem.itemId}, ${plan.newItem.institutionId ?? 'no institution'}] ← ${plan.oldItem.institutionName ?? 'the old item'} [${plan.oldItem.itemId}, ${plan.oldItem.institutionId ?? 'no institution'}]`;
+  return `${who}: ${masks}; ${totalOf(plan.totalBefore)} history rows${extra ? `; ${extra}` : ''}`;
 }

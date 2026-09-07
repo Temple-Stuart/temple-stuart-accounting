@@ -7,12 +7,14 @@ import { attachItem, describePlan } from '@/lib/plaid/attachItem';
 import { prismaAttach } from '@/lib/plaid/prismaAttach';
 
 /**
- * POST /api/plaid/attach-item { itemId, dryRun? }
+ * POST /api/plaid/attach-item { itemId, oldItemId?, dryRun? }
  * BANK-03, OWNER-ONLY (requireAdmin → OWNER_EMAIL): attach the fresh item
  * `itemId` (plaid_items.id, the caller's own) to the account rows that already
  * carry the history — matched by institutionId + mask, one-to-one — and retire
  * the item it replaces. One transaction; every integrity assertion throws →
  * rollback → 500 envelope. `dryRun: true` answers the plan and writes nothing.
+ * `oldItemId` (BANK-03b) declares the old item when Plaid replaced the institution
+ * record — same user, live, older; institution ids may differ; every other guard stays.
  * A plan that stops (ambiguity, a collision, no match) is a 409 with the reason;
  * nothing to do is a 200 saying so. No Plaid call, no token read.
  */
@@ -26,11 +28,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const body = (await request.json().catch(() => ({}))) as { itemId?: unknown; dryRun?: unknown };
+    const body = (await request.json().catch(() => ({}))) as { itemId?: unknown; oldItemId?: unknown; dryRun?: unknown };
     if (typeof body.itemId !== 'string' || body.itemId.trim() === '') throw new ValidationError('itemId is required', { field: 'itemId' });
+    if (body.oldItemId !== undefined && (typeof body.oldItemId !== 'string' || body.oldItemId.trim() === '')) throw new ValidationError('oldItemId must be a non-empty string when given', { field: 'oldItemId' });
     const dryRun = body.dryRun === true;
 
-    const { plan, report } = await attachItem(prismaAttach(prisma), { userId: user.id, newItemRowId: body.itemId, dryRun });
+    const { plan, report } = await attachItem(prismaAttach(prisma), { userId: user.id, newItemRowId: body.itemId, oldItemRowId: body.oldItemId, dryRun });
     const stage = 'attach-item';
     if (plan.kind === 'stop') {
       const status = plan.reason === 'Bank connection not found' ? 404 : 409;
@@ -41,8 +44,8 @@ export async function POST(request: Request) {
     }
     const summary = {
       kind: 'merge',
-      newItem: { id: plan.newItem.id, itemId: plan.newItem.itemId, institutionName: plan.newItem.institutionName },
-      oldItem: { id: plan.oldItem.id, itemId: plan.oldItem.itemId, institutionName: plan.oldItem.institutionName },
+      newItem: { id: plan.newItem.id, itemId: plan.newItem.itemId, institutionId: plan.newItem.institutionId, institutionName: plan.newItem.institutionName },
+      oldItem: { id: plan.oldItem.id, itemId: plan.oldItem.itemId, institutionId: plan.oldItem.institutionId, institutionName: plan.oldItem.institutionName },
       pairs: plan.pairs.map((p) => ({ mask: p.mask, oldAccountId: p.oldRow.id, newAccountId: p.newRow.id, survivor: p.survivorIs, before: p.before })),
       unmatchedNew: plan.unmatchedNew.map((a) => a.id),
       unmatchedOld: plan.unmatchedOld.map((a) => a.id),
