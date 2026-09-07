@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import Stripe from 'stripe';
-import { fingerprintOf, sha256 } from '../arrivals/land';
-import { STRIPE, STRIPE_EVENT, StripeSignatureError, customerIdOf, guestRefFor, landStripeEvent, redactClientSecrets, runStripeDelivery, verifyStripeDelivery, type StripeEventLike } from '../arrivals/stripeWebhook';
+import { canonicalBytes, fingerprintOf, sha256 } from '../arrivals/land';
+import { STRIPE, STRIPE_EVENT, StripeSignatureError, customerIdOf, guestRefFor, landStripeEvent, redactClientSecrets, runStripeDelivery, signatureTimestamp, verifyStripeDelivery, wireBytesFor, type StripeEventLike } from '../arrivals/stripeWebhook';
 import { kindOf } from '../providers';
 import { FakeLanding, snapshotClient } from './fakeLanding';
 
@@ -57,24 +57,32 @@ test('the rule book names the feed: stripe · event → event', () => {
   assert.equal(kindOf(STRIPE, STRIPE_EVENT), 'event');
 });
 
-test('a signed fixture lands one response (the exact bytes, sha256) and one arrival (their_id = event.id, kind event, client_secret redacted and declared); the handler runs once, from the table, and never sees the secret', async () => {
+test('a signed fixture lands one response (PR-4b: the canonical redacted bytes — no secret, sha256 over the stored bytes, the path declared on the row) and one arrival (their_id = event.id, kind event, client_secret redacted and declared); the handler runs once, from the table, and never sees the secret', async () => {
   const landing = new FakeLanding();
   const rec = new Recorder();
+  const lines: string[] = [];
   const body = JSON.stringify(fixture());
-  const out = await runStripeDelivery(snapshotClient(landing), delivery(body), verify, () => rec.ports(landing));
+  const out = await runStripeDelivery(snapshotClient(landing), delivery(body), verify, () => rec.ports(landing), (l) => lines.push(l));
   assert.equal(out.ok, true);
   if (!out.ok) return;
   assert.deepEqual(out.result, { eventId: 'evt_1PR4test0001', type: 'payment_intent.succeeded', outcome: 'landed', redactions: ['data.object.client_secret'], handled: true, userId: 'u_alex', guestRef: null });
-  // the wire: exact bytes as signed (the secret is inside them — the ruling keeps the wire exact), sha256, 200 as received
+  // the wire row: the secret is nowhere in the stored bytes; the bytes are the RFC 8785 canonical form of the redacted event; the hash is over those bytes; the path is declared
   assert.equal(landing.responses.length, 1);
   const r = landing.responses[0];
   assert.equal(r.provider, STRIPE);
   assert.equal(r.resource, STRIPE_EVENT);
   assert.equal(r.http_status, 200);
-  assert.equal(r.body.toString('utf8'), body);
-  assert.deepEqual(r.body_sha256, sha256(Buffer.from(body)));
+  assert.ok(!r.body.toString('utf8').includes('secret_DONOTSTORE'), 'no secret at rest in the wire row');
+  assert.notEqual(r.body.toString('utf8'), body, 'not the raw bytes — those carried the secret');
+  assert.equal(Buffer.compare(r.body, canonicalBytes(redactClientSecrets(fixture() as never).payload)), 0, 'the canonical redacted bytes');
+  assert.deepEqual(r.body_sha256, sha256(r.body), 'sha256 over the stored bytes');
+  assert.deepEqual(r.redactions, ['data.object.client_secret'], 'declared on the row');
   assert.equal(r.user_id, 'u_alex');
   assert.deepEqual(r.asked, NOW);
+  // the verification line: the event id, the signature's t=, the request id — never a body
+  assert.equal(lines.length, 1);
+  assert.match(lines[0], /^\[stripe\] verified evt_1PR4test0001 \(payment_intent\.succeeded\) — signed t=\d+, request req_abc$/);
+  assert.ok(!lines[0].includes('secret') && !lines[0].includes('12000'));
   // the arrival: redacted payload, the path declared, the book's kind
   assert.equal(landing.arrivals.size, 1);
   const a = [...landing.arrivals.values()][0];
@@ -94,6 +102,26 @@ test('a signed fixture lands one response (the exact bytes, sha256) and one arri
   assert.equal(rec.calls[0].outcome, 'landed');
   assert.equal((rec.calls[0].event.data.object as { client_secret: unknown }).client_secret, null);
   assert.equal(rec.calls[0].event.id, 'evt_1PR4test0001');
+});
+
+test('PR-4b: a delivery without a client_secret stores the exact wire bytes with an empty redactions; wireBytesFor and signatureTimestamp are pure', async () => {
+  const landing = new FakeLanding();
+  const rec = new Recorder();
+  const sub = { ...fixture(), id: 'evt_1PR4sub', type: 'customer.subscription.updated', data: { object: { id: 'sub_1', object: 'subscription', customer: 'cus_PR4customer', status: 'active', items: { data: [{ price: { id: 'price_x' } }] } } } };
+  const body = JSON.stringify(sub);
+  const out = await runStripeDelivery(snapshotClient(landing), delivery(body), verify, () => rec.ports(landing));
+  assert.equal(out.ok && out.result.redactions.length, 0);
+  const r = landing.responses[0];
+  assert.equal(r.body.toString('utf8'), body, 'the exact wire bytes');
+  assert.deepEqual(r.body_sha256, sha256(Buffer.from(body)));
+  assert.deepEqual(r.redactions, []);
+  assert.deepEqual([...landing.arrivals.values()][0].row.redactions, []);
+  const raw = Buffer.from('{"b":1,"a":2}');
+  assert.equal(wireBytesFor(raw, { payload: { b: 1, a: 2 }, redactions: [] }).body, raw, 'nothing redacted → the very same bytes');
+  const red = wireBytesFor(raw, { payload: { b: 1, a: null }, redactions: ['a'] });
+  assert.equal(red.body.toString('utf8'), '{"a":null,"b":1}', 'redacted → canonical (keys sorted, no whitespace)');
+  assert.equal(signatureTimestamp('t=1757257200,v1=abc'), '1757257200');
+  assert.equal(signatureTimestamp(null), null);
 });
 
 test('the same delivery again → already_landed, one response more, no new arrival, and the handler is not called twice; a changed redelivery (same id, new content) → corrected and the handler runs', async () => {

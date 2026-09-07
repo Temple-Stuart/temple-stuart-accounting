@@ -3640,6 +3640,8 @@ model provider_responses {
   body_sha256 Bytes            @db.ByteA
   asked       DateTime         @db.Timestamptz(6)
   arrived     DateTime         @db.Timestamptz(6)
+  /// REBUILD-01 PR-4b: every path blanked in `body` before it was stored ('{}' = the exact wire bytes; else the canonical redacted bytes, sha256'd as stored).
+  redactions  String[]         @default([])
   user        users?           @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   arrivals    arrivals[]
 
