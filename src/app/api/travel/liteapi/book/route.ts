@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { bookRate, type BookGuest, type BookHolder } from '@/lib/liteapiClient';
+import { bookRate, parseBookResult, type BookGuest, type BookHolder, type BookResult } from '@/lib/liteapiClient';
+import { landLiteApiBooking } from '@/lib/arrivals/liteapiBooking';
+import { prismaLanding } from '@/lib/arrivals/prismaLanding';
 import { MissingLiteApiKeyError, LiteApiError } from '@/lib/travelErrors';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
@@ -130,9 +132,13 @@ export async function POST(request: NextRequest) {
     await reserveTravelSearch('hotelbooking');
 
     // ─── Book at LiteAPI (real call — sandbox or production per env) ──────────
-    let booked;
+    // REBUILD-01 PR-5: the client hands the answer back as received (the
+    // bytes) beside the parsed result; `booked` serves the failure branch
+    // below and the ids — what is persisted and answered is parsed from the
+    // arrival.
+    let bookedAnswer;
     try {
-      booked = await bookRate({ prebookId, holder, guests, paymentTransactionId });
+      bookedAnswer = await bookRate({ prebookId, holder, guests, paymentTransactionId });
     } catch (err) {
       if (err instanceof MissingLiteApiKeyError) {
         return NextResponse.json(
@@ -148,59 +154,86 @@ export async function POST(request: NextRequest) {
       }
       return failClosedResponse('LiteAPI book', 'Book failed', err);
     }
+    const { answer, object, booked } = bookedAnswer;
 
-    // ─── Persist reservation + commission ledger (single transaction) ────────
-    // LiteAPI's response is the source of truth where present; fall back to the
-    // client-supplied (prebook-time) values where it didn't echo back.
-    const resolvedPrice = booked.price ?? (finalPriceCents != null ? finalPriceCents / 100 : 0);
-    const resolvedCommission = booked.commission ?? (commissionAmountCents != null ? commissionAmountCents / 100 : 0);
-    const resolvedCurrency = booked.currency ?? currency ?? 'USD';
-    const resolvedHotelName = booked.hotelName ?? hotelName ?? null;
+    // ─── Land, then persist — ONE transaction (REBUILD-01 PR-5) ──────────────
+    // The book answer's exact bytes land (provider_responses), the booking
+    // object lands as one arrival (liteapi · booking, kind event by the rule
+    // book), and the reservation + commission rows are written FROM THE
+    // ARRIVAL PAYLOAD, pointed at it (reservations.arrival_id). A landing
+    // failure rolls all of it back and the catch below declares it — never a
+    // booking recorded without its evidence. The same answer again is
+    // already_landed: the reservation it recorded is handed back, no second
+    // row (src/lib/arrivals/liteapiBooking.ts).
     const resolvedGuestCount = guestCount ?? guests.length;
-    const status = (booked.status || 'CONFIRMED').toUpperCase() === 'CONFIRMED'
-      ? 'confirmed'
-      : 'pending';
 
     try {
-      const result = await prisma.$transaction(async (tx) => {
-        const reservation = await tx.reservations.create({
-          data: {
-            // PR-G2: account → userId/tripId set + bookingType 'account';
-            // guest → both null, guestEmail captured, bookingType 'guest'.
-            userId: user?.id ?? null,
-            tripId: resolvedTripId,
-            bookingType: isAccount ? 'account' : 'guest',
-            guestEmail: isAccount ? null : holder.email,
-            provider: 'liteapi',
-            providerBookingId: booked.bookingId,
-            providerConfirmationCode: booked.hotelConfirmationCode || booked.supplierConfirmationNum || null,
-            status,
-            hotelName: resolvedHotelName,
-            checkinDate: new Date(checkinDate + 'T12:00:00Z'),
-            checkoutDate: new Date(checkoutDate + 'T12:00:00Z'),
-            guestCount: resolvedGuestCount,
-            finalPriceCents: Math.round(resolvedPrice * 100),
-            currency: resolvedCurrency,
-            cancellationPolicyJson: (booked.cancellationPolicies ?? null) as object,
-          },
-        });
+      const landed = await prisma.$transaction(async (tx) =>
+        landLiteApiBooking({
+          landing: prismaLanding(tx),
+          log: (line) => console.log(line),
+          findReservation: async (bookingId) =>
+            tx.reservations.findFirst({ where: { provider: 'liteapi', providerBookingId: bookingId } }),
+          createReservation: async (parsed: BookResult, arrivalId) => {
+            // LiteAPI's answer is the source of truth where present; fall back to the
+            // client-supplied (prebook-time) values where it didn't echo back.
+            const resolvedPrice = parsed.price ?? (finalPriceCents != null ? finalPriceCents / 100 : 0);
+            const resolvedCommission = parsed.commission ?? (commissionAmountCents != null ? commissionAmountCents / 100 : 0);
+            const resolvedCurrency = parsed.currency ?? currency ?? 'USD';
+            const resolvedHotelName = parsed.hotelName ?? hotelName ?? null;
+            const status = (parsed.status || 'CONFIRMED').toUpperCase() === 'CONFIRMED'
+              ? 'confirmed'
+              : 'pending';
 
-        // Commission row — 'estimated' on book, flipped to 'confirmed' by a later
-        // reconciliation/webhook PR. userId null for a guest (margin earned anyway).
-        await tx.commission_ledger.create({
-          data: {
-            userId: user?.id ?? null,
-            reservationId: reservation.id,
-            provider: 'liteapi',
-            grossAmountCents: Math.round(resolvedPrice * 100),
-            commissionAmountCents: Math.round(resolvedCommission * 100),
-            currency: resolvedCurrency,
-            status: 'estimated',
-          },
-        });
+            const reservation = await tx.reservations.create({
+              data: {
+                // PR-G2: account → userId/tripId set + bookingType 'account';
+                // guest → both null, guestEmail captured, bookingType 'guest'.
+                userId: user?.id ?? null,
+                tripId: resolvedTripId,
+                bookingType: isAccount ? 'account' : 'guest',
+                guestEmail: isAccount ? null : holder.email,
+                provider: 'liteapi',
+                providerBookingId: parsed.bookingId,
+                providerConfirmationCode: parsed.hotelConfirmationCode || parsed.supplierConfirmationNum || null,
+                status,
+                hotelName: resolvedHotelName,
+                checkinDate: new Date(checkinDate + 'T12:00:00Z'),
+                checkoutDate: new Date(checkoutDate + 'T12:00:00Z'),
+                guestCount: resolvedGuestCount,
+                finalPriceCents: Math.round(resolvedPrice * 100),
+                currency: resolvedCurrency,
+                cancellationPolicyJson: (parsed.cancellationPolicies ?? null) as object,
+                // PR-5: the arrival this row was parsed from.
+                arrival_id: arrivalId,
+              },
+            });
 
-        return reservation;
-      });
+            // Commission row — 'estimated' on book, flipped to 'confirmed' by a later
+            // reconciliation/webhook PR. userId null for a guest (margin earned anyway).
+            await tx.commission_ledger.create({
+              data: {
+                userId: user?.id ?? null,
+                reservationId: reservation.id,
+                provider: 'liteapi',
+                grossAmountCents: Math.round(resolvedPrice * 100),
+                commissionAmountCents: Math.round(resolvedCommission * 100),
+                currency: resolvedCurrency,
+                status: 'estimated',
+              },
+            });
+
+            return reservation;
+          },
+        }, {
+          answer,
+          object: { theirId: booked.bookingId, payload: object },
+          parse: parseBookResult,
+          userId: user?.id ?? null,
+          lane: 'hotel',
+        }),
+      );
+      const result = landed.reservation;
 
       // ─── Booking confirmation email (PR-3, D5) ─────────────────────────────
       // Sent ONLY after both the provider booking AND the DB persist succeeded.
@@ -219,7 +252,7 @@ export async function POST(request: NextRequest) {
           checkinDate,
           checkoutDate,
           confirmationCode: result.providerConfirmationCode,
-          bookingId: booked.bookingId,
+          bookingId: landed.bookingId,
           totalAmountCents: result.finalPriceCents,
           currency: result.currency,
         });
@@ -234,7 +267,7 @@ export async function POST(request: NextRequest) {
         const errorClass = emailErr instanceof Error ? emailErr.name : 'UnknownError';
         const message = emailErr instanceof Error ? emailErr.message : String(emailErr);
         console.error('[LiteAPI book] confirmation email FAILED (booking itself succeeded):', {
-          bookingId: booked.bookingId, errorClass, message,
+          bookingId: landed.bookingId, errorClass, message,
         });
         emailStatus = { sent: false, error: errorClass };
       }
@@ -243,7 +276,7 @@ export async function POST(request: NextRequest) {
         reservation: {
           id: result.id,
           provider: 'liteapi',
-          bookingId: booked.bookingId,
+          bookingId: landed.bookingId,
           confirmationCode: result.providerConfirmationCode,
           status: result.status,
           hotelName: result.hotelName,
@@ -256,8 +289,10 @@ export async function POST(request: NextRequest) {
         email: emailStatus,
       });
     } catch (dbErr) {
-      // LiteAPI booked the hotel but we failed to persist — surface loudly so ops
-      // can manually reconcile (the upstream booking is real and chargeable).
+      // LiteAPI booked the hotel but we failed to land or persist — the whole
+      // transaction rolled back (no evidence without the booking, no booking
+      // without its evidence); surface loudly so ops can manually reconcile
+      // (the upstream booking is real and chargeable).
       console.error('[LiteAPI book] DB persist failed AFTER successful booking:', {
         bookingId: booked.bookingId, error: dbErr,
       });

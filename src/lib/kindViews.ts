@@ -49,7 +49,7 @@ export interface FeedTable {
   /** SQL expressions over the FROM clause below; row_id / their_id are cast to text by the generator. */
   rowId: string;
   theirId: string;
-  /** null → NULL::text (the table carries no arrival_id today). */
+  /** null → NULL::text (the table carries no arrival_id, or the view does not read it yet — `why` says which; a view is redefined by a migration of its own). */
   arrivalId: string | null;
   /** null → NULL::text (a shared reference or cache row belongs to no user). */
   userId: string | null;
@@ -83,7 +83,7 @@ export const KIND_VIEW_CENSUS: readonly FeedTable[] = [
     table: 'reservations', label: 'bookings', feed: ['liteapi', 'booking'],
     rowId: 'r.id', theirId: 'r."providerBookingId"', arrivalId: null, userId: 'r."userId"', arrived: 'r."createdAt"',
     from: 'reservations r', where: "r.provider = 'liteapi'",
-    why: "src/app/api/travel/liteapi/book/route.ts and liteapi/flights/book/route.ts write provider 'liteapi' (5 writes); the 2 'duffel' writes (src/app/api/flights/book/route.ts) are a provider the deck does not name — filtered out, reported; no arrival_id",
+    why: "src/app/api/travel/liteapi/book/route.ts and liteapi/flights/book/route.ts write provider 'liteapi' inside the landing's transaction (src/lib/arrivals/liteapiBooking.ts); the 2 'duffel' writes (src/app/api/flights/book/route.ts) are a provider the deck does not name — filtered out, reported; reservations.arrival_id exists since REBUILD-01 PR-5 (20260908000000_reservations_arrival_id) — the event view still reads NULL for it until a view migration of its own redefines it (TABLES-01b)",
   },
   {
     table: 'securities', label: 'securities', feed: ['plaid', 'security'],

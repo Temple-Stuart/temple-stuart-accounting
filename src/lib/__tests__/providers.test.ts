@@ -47,7 +47,7 @@ test('every ROUTING_RULES provider + resource pair resolves, spelled as the deck
 
 // ── RULEBOOK-01 ──
 
-test('the rule book: every deck row verbatim with the deck\'s kind, plus the two rows the sample omits; one rule per pair; kindOf answers from the book and throws for a feed it does not name', () => {
+test('the rule book: every deck row verbatim with the deck\'s kind, plus the rows the sample omits; one rule per pair; kindOf answers from the book and throws for a feed it does not name', () => {
   assert.deepEqual([...ARRIVAL_KINDS], ['reference', 'registry', 'event', 'derived', 'snapshot', 'posting']);
   assert.equal(RULE_BOOK.length, ROUTING_RULES.length + ADDED_RULES.length);
   for (const [provider, resource, kind, means] of ROUTING_RULES) {
@@ -58,7 +58,11 @@ test('the rule book: every deck row verbatim with the deck\'s kind, plus the two
     assert.equal(rule.source, 'deck');
     assert.equal(rule.code, providerCode(provider));
   }
-  assert.deepEqual(ADDED_RULES.map(([p, r, k]) => [p, r, k]), [['plaid', 'security', 'REFERENCE'], ['plaid', 'investment_transaction', 'EVENT'], ['stripe', 'event', 'EVENT']]);
+  assert.deepEqual(ADDED_RULES.map(([p, r, k]) => [p, r, k]), [['plaid', 'security', 'REFERENCE'], ['plaid', 'investment_transaction', 'EVENT'], ['stripe', 'event', 'EVENT'], ['liteapi', 'cancellation', 'EVENT']]);
+  assert.equal(kindOf('liteapi', 'cancellation'), 'event');
+  assert.equal(kindOf('liteapi', 'booking'), 'event');
+  assert.equal(ruleFor('liteapi', 'booking')?.source, 'deck');
+  assert.equal(ruleFor('liteapi', 'cancellation')?.source, 'added');
   assert.equal(kindOf('stripe', 'event'), 'event');
   assert.equal(kindOf('stripe', 'payout'), 'event');
   assert.equal(ruleFor('plaid', 'security')?.source, 'added');

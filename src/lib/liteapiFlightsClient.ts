@@ -24,6 +24,7 @@
 // fallback chain.
 
 import { MissingLiteApiKeyError, LiteApiError } from './travelErrors';
+import type { LiteApiAnswer } from './arrivals/liteapiBooking';
 
 // Production flights host — documented on the rates reference (see header).
 const FLIGHTS_HOST_PRODUCTION = 'https://api.liteapi.travel/v3.0';
@@ -315,13 +316,24 @@ export interface FlightSearchResult {
  *  throws typed — expired codes → FlightOfferExpiredError, everything else →
  *  LiteApiFlightsApiError. The raw body rides the throw either way. */
 async function postFlights<T>(base: string, path: string, body: unknown): Promise<T> {
+  return (await postFlightsAnswer(base, path, body)).json as T;
+}
+
+/** REBUILD-01 PR-5: the same POST, the 2xx answer kept as bytes (arrayBuffer —
+ *  never re-encoded) beside its parsed JSON, so the arrivals store lands the
+ *  book answer exactly as received (src/lib/arrivals/liteapiBooking.ts). The
+ *  non-2xx path is unchanged: typed throws, the raw body riding them. */
+async function postFlightsAnswer(base: string, path: string, body: unknown): Promise<LiteApiAnswer> {
+  const asked = new Date();
   const res = await fetch(`${base}${path}`, {
     method: 'POST',
     headers: headers(),
     body: JSON.stringify(body),
   });
+  const bytes = Buffer.from(await res.arrayBuffer());
+  const arrived = new Date();
   if (!res.ok) {
-    const raw = await res.text();
+    const raw = bytes.toString('utf8');
     let providerCode: number | null = null;
     let providerMessage: string | null = null;
     try {
@@ -337,7 +349,7 @@ async function postFlights<T>(base: string, path: string, body: unknown): Promis
     }
     throw new LiteApiFlightsApiError(path, res.status, providerCode, providerMessage, raw);
   }
-  return res.json() as Promise<T>;
+  return { httpStatus: res.status, body: bytes, asked, arrived, json: JSON.parse(bytes.toString('utf8')) };
 }
 
 // ─── Search (POST /flights/rates) ────────────────────────────────────────────
@@ -403,30 +415,17 @@ export interface FlightBookResult {
   currency: string | null;
 }
 
-/** Complete one flight booking. IDEMPOTENT PER THE DOCS: "Returns the existing
- *  booking if one already exists for the given `prebookId`" — a retry with the
- *  same prebookId cannot double-book. Throws typed on non-2xx (42004/42017 →
- *  FlightOfferExpiredError) and throws a contract-deviation error on a 2xx
- *  missing booking.bookingId. */
-export async function bookFlight({ prebookId, transactionId }: {
-  prebookId: string;
-  transactionId: string;
-}): Promise<FlightBookResult> {
-  const base = flightsBaseUrl();
-
-  const mode = getMode();
-  const keyPrefix = (mode === 'production' ? process.env.LITEAPI_PRODUCTION_KEY : process.env.LITEAPI_SANDBOX_KEY)?.slice(0, 4) ?? 'none';
-  console.log(`[LiteAPI flights] book: mode=${mode} keyPrefix=${keyPrefix} host=${base}`);
-
-  const json = await postFlights<{ data?: unknown }>(base, '/flights/bookings', {
-    prebookId,
-    payment: { method: 'TRANSACTION_ID', transactionId },
-  });
-
-  const first = Array.isArray(json?.data) ? (json.data[0] as Record<string, unknown> | undefined) : undefined;
+/** The booking object inside a flights book answer — `data[0].booking` (the docs:
+ *  data is an array of one `{ booking, message }`; the message says whether the
+ *  booking already existed for the prebookId and stays in the wire row) — the
+ *  arrival's payload (REBUILD-01 PR-5). A 2xx without booking.bookingId is the
+ *  contract deviation bookFlight always threw. */
+export function flightBookingObjectOf(json: unknown): Record<string, unknown> {
+  const data = (json as { data?: unknown } | null)?.data;
+  const first = Array.isArray(data) ? (data[0] as Record<string, unknown> | undefined) : undefined;
   const booking = first?.booking as Record<string, unknown> | undefined;
   const bookingId = typeof booking?.bookingId === 'string' ? booking.bookingId : '';
-  if (!bookingId) {
+  if (!booking || !bookingId) {
     throw new LiteApiFlightsApiError(
       '/flights/bookings',
       200,
@@ -435,17 +434,24 @@ export async function bookFlight({ prebookId, transactionId }: {
       JSON.stringify(json).slice(0, 500),
     );
   }
-  const pricing = booking?.pricing as Record<string, unknown> | undefined;
-  const payment = booking?.payment as Record<string, unknown> | undefined;
-  const order = booking?.order as Record<string, unknown> | undefined;
+  return booking;
+}
+
+/** The FlightBookResult mapping over the booking object — pure, so the landing
+ *  runs it over the ARRIVAL payload (src/lib/arrivals/liteapiBooking.ts), never
+ *  over the HTTP object. Field for field what bookFlight always returned. */
+export function parseFlightBookResult(booking: Record<string, unknown>): FlightBookResult {
+  const pricing = booking.pricing as Record<string, unknown> | undefined;
+  const payment = booking.payment as Record<string, unknown> | undefined;
+  const order = booking.order as Record<string, unknown> | undefined;
   const reference = order?.reference as Record<string, unknown> | undefined;
   const providerRef = reference?.provider as Record<string, unknown> | undefined;
 
   return {
-    bookingId,
-    bookingRef: typeof booking?.bookingRef === 'string' ? booking.bookingRef : null,
-    status: typeof booking?.status === 'string' ? booking.status : null,
-    paymentStatus: typeof booking?.paymentStatus === 'string' ? booking.paymentStatus : null,
+    bookingId: booking.bookingId as string,
+    bookingRef: typeof booking.bookingRef === 'string' ? booking.bookingRef : null,
+    status: typeof booking.status === 'string' ? booking.status : null,
+    paymentStatus: typeof booking.paymentStatus === 'string' ? booking.paymentStatus : null,
     pnr: typeof providerRef?.pnr === 'string' ? providerRef.pnr : null,
     price: typeof pricing?.totalAmount === 'number'
       ? pricing.totalAmount
@@ -454,6 +460,38 @@ export async function bookFlight({ prebookId, transactionId }: {
       ? pricing.currency
       : (typeof payment?.currency === 'string' ? payment.currency : null),
   };
+}
+
+export interface FlightBookAnswer {
+  /** The answer as received — the bytes the arrivals store lands. */
+  answer: LiteApiAnswer;
+  /** The booking object inside it — the arrival's payload. */
+  object: Record<string, unknown>;
+  /** parseFlightBookResult over that object — for the route's failure branches and ids BEFORE the landing; what is persisted and answered is parsed from the arrival. */
+  booked: FlightBookResult;
+}
+
+/** Complete one flight booking. IDEMPOTENT PER THE DOCS: "Returns the existing
+ *  booking if one already exists for the given `prebookId`" — a retry with the
+ *  same prebookId cannot double-book. Throws typed on non-2xx (42004/42017 →
+ *  FlightOfferExpiredError) and throws a contract-deviation error on a 2xx
+ *  missing booking.bookingId. */
+export async function bookFlight({ prebookId, transactionId }: {
+  prebookId: string;
+  transactionId: string;
+}): Promise<FlightBookAnswer> {
+  const base = flightsBaseUrl();
+
+  const mode = getMode();
+  const keyPrefix = (mode === 'production' ? process.env.LITEAPI_PRODUCTION_KEY : process.env.LITEAPI_SANDBOX_KEY)?.slice(0, 4) ?? 'none';
+  console.log(`[LiteAPI flights] book: mode=${mode} keyPrefix=${keyPrefix} host=${base}`);
+
+  const answer = await postFlightsAnswer(base, '/flights/bookings', {
+    prebookId,
+    payment: { method: 'TRANSACTION_ID', transactionId },
+  });
+  const object = flightBookingObjectOf(answer.json);
+  return { answer, object, booked: parseFlightBookResult(object) };
 }
 
 // ─── Verify (POST /flights/verify) ───────────────────────────────────────────

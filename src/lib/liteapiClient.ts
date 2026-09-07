@@ -14,6 +14,7 @@
 // key is set (mirrors src/lib/duffel.ts's mode-by-env pattern).
 
 import { MissingLiteApiKeyError, LiteApiError } from './travelErrors';
+import type { LiteApiAnswer } from './arrivals/liteapiBooking';
 
 // LiteAPI uses two hosts:
 //   - api.liteapi.travel  → search + prebook
@@ -58,6 +59,33 @@ function headers(): Record<string, string> {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   };
+}
+
+// ─── The answer as bytes (REBUILD-01 PR-5) ───────────────────────────────────
+// The book and cancel calls keep the answer exactly as received, so the
+// arrivals store lands it (src/lib/arrivals/liteapiBooking.ts). Non-2xx throws
+// LiteApiError with the body text, as every call here always did; a 2xx that
+// is not JSON throws the parse error — nothing is swallowed.
+async function fetchAnswer(url: string, init: RequestInit, path: string): Promise<LiteApiAnswer> {
+  const asked = new Date();
+  const res = await fetch(url, init);
+  const body = Buffer.from(await res.arrayBuffer());
+  const arrived = new Date();
+  if (!res.ok) {
+    throw new LiteApiError(path, res.status, body.toString('utf8'));
+  }
+  return { httpStatus: res.status, body, asked, arrived, json: JSON.parse(body.toString('utf8')) };
+}
+
+/** The object a book / cancel answer carries — `{ data: {...} }` or flat at the
+ *  root (LiteAPI returns either, plan/version dependent) — the arrival's
+ *  payload. A 2xx with no object is a contract deviation and throws. */
+function dataObjectOf(json: unknown, path: string): Record<string, unknown> {
+  const d = (json as { data?: unknown } | null)?.data ?? json;
+  if (typeof d !== 'object' || d === null || Array.isArray(d)) {
+    throw new LiteApiError(path, 200, `2xx carries no object — contract deviation from the documented shape: ${JSON.stringify(json).slice(0, 500)}`);
+  }
+  return d as Record<string, unknown>;
 }
 
 // ─── Country name → ISO 3166-1 alpha-2 ───────────────────────────────────────
@@ -714,9 +742,42 @@ export interface BookResult {
   cancellationPolicies?: unknown;
 }
 
+/** The booking object inside a book answer — the arrival's payload (REBUILD-01 PR-5). */
+export function bookingObjectOf(json: unknown): Record<string, unknown> {
+  return dataObjectOf(json, '/v3.0/rates/book');
+}
+
+/** The BookResult mapping over the booking object — pure, so the landing runs it
+ *  over the ARRIVAL payload (src/lib/arrivals/liteapiBooking.ts), never over
+ *  the HTTP object. Field for field what bookRate always returned. */
+export function parseBookResult(d: Record<string, unknown>): BookResult {
+  return {
+    bookingId: d.bookingId as string,
+    status: (d.status as string | undefined) ?? 'CONFIRMED',
+    hotelConfirmationCode: d.hotelConfirmationCode as string | undefined,
+    supplierConfirmationNum: d.supplierConfirmationNum as string | undefined,
+    checkin: d.checkin as string | undefined,
+    checkout: d.checkout as string | undefined,
+    hotelName: (d.hotel as { name?: string } | undefined)?.name,
+    price: d.price as number | undefined,
+    commission: d.commission as number | undefined,
+    currency: d.currency as string | undefined,
+    cancellationPolicies: d.cancellationPolicies,
+  };
+}
+
+export interface BookRateAnswer {
+  /** The answer as received — the bytes the arrivals store lands. */
+  answer: LiteApiAnswer;
+  /** The booking object inside it — the arrival's payload. */
+  object: Record<string, unknown>;
+  /** parseBookResult over that object — for the route's failure branches and ids BEFORE the landing; what is persisted and answered is parsed from the arrival. */
+  booked: BookResult;
+}
+
 /** Hit `/v3.0/rates/book`. Throws MissingLiteApiKeyError on no key,
- *  LiteApiError on non-2xx. */
-export async function bookRate(params: BookParams): Promise<BookResult> {
+ *  LiteApiError on non-2xx (and on a 2xx with no booking object). */
+export async function bookRate(params: BookParams): Promise<BookRateAnswer> {
   const body = {
     prebookId: params.prebookId,
     holder: params.holder,
@@ -726,29 +787,13 @@ export async function bookRate(params: BookParams): Promise<BookResult> {
     },
     guests: params.guests,
   };
-  const res = await fetch(`${LITEAPI_BOOK_BASE}/rates/book`, {
+  const answer = await fetchAnswer(`${LITEAPI_BOOK_BASE}/rates/book`, {
     method: 'POST',
     headers: headers(),
     body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    throw new LiteApiError('/v3.0/rates/book', res.status, await res.text());
-  }
-  const json = await res.json();
-  const d = json.data ?? json;
-  return {
-    bookingId: d.bookingId,
-    status: d.status ?? 'CONFIRMED',
-    hotelConfirmationCode: d.hotelConfirmationCode,
-    supplierConfirmationNum: d.supplierConfirmationNum,
-    checkin: d.checkin,
-    checkout: d.checkout,
-    hotelName: d.hotel?.name,
-    price: d.price,
-    commission: d.commission,
-    currency: d.currency,
-    cancellationPolicies: d.cancellationPolicies,
-  };
+  }, '/v3.0/rates/book');
+  const object = bookingObjectOf(answer.json);
+  return { answer, object, booked: parseBookResult(object) };
 }
 
 // ─── Individual guest reviews (Travel-PR-23) ─────────────────────────────────
@@ -967,20 +1012,14 @@ export interface CancelBookingResult {
   currency: string | null;
 }
 
-/** Hit `PUT /v3.0/bookings/{bookingId}` (the cancel call — no body) on the BOOK
- *  host. Throws MissingLiteApiKeyError on no key, LiteApiError on non-2xx (a
- *  policy-rejected cancellation — e.g. NRFN or past the deadline — comes back
- *  non-2xx and therefore THROWS; the caller surfaces the provider's message). */
-export async function cancelBooking(bookingId: string): Promise<CancelBookingResult> {
-  const res = await fetch(`${LITEAPI_BOOK_BASE}/bookings/${encodeURIComponent(bookingId)}`, {
-    method: 'PUT',
-    headers: headers(),
-  });
-  if (!res.ok) {
-    throw new LiteApiError('/v3.0/bookings/{id} (cancel)', res.status, await res.text());
-  }
-  const json = await res.json();
-  const d = json.data ?? json;
+/** The object inside a cancel answer — the arrival's payload (REBUILD-01 PR-5). */
+export function cancellationObjectOf(json: unknown): Record<string, unknown> {
+  return dataObjectOf(json, '/v3.0/bookings/{id} (cancel)');
+}
+
+/** The CancelBookingResult mapping over the cancel object — pure, so the landing
+ *  runs it over the ARRIVAL payload. Absent fields map to null, never invented. */
+export function parseCancelResult(d: Record<string, unknown>): CancelBookingResult {
   return {
     bookingId: typeof d.bookingId === 'string' ? d.bookingId : null,
     status: typeof d.status === 'string' ? d.status : null,
@@ -988,4 +1027,26 @@ export async function cancelBooking(bookingId: string): Promise<CancelBookingRes
     refundAmount: typeof d.refund_amount === 'number' ? d.refund_amount : null,
     currency: typeof d.currency === 'string' ? d.currency : null,
   };
+}
+
+export interface CancelBookingAnswer {
+  /** The answer as received — the bytes the arrivals store lands. */
+  answer: LiteApiAnswer;
+  /** The cancel object inside it — the arrival's payload. */
+  object: Record<string, unknown>;
+  /** parseCancelResult over that object — for the route's failure branch BEFORE the landing; what is answered is parsed from the arrival. */
+  cancelled: CancelBookingResult;
+}
+
+/** Hit `PUT /v3.0/bookings/{bookingId}` (the cancel call — no body) on the BOOK
+ *  host. Throws MissingLiteApiKeyError on no key, LiteApiError on non-2xx (a
+ *  policy-rejected cancellation — e.g. NRFN or past the deadline — comes back
+ *  non-2xx and therefore THROWS; the caller surfaces the provider's message). */
+export async function cancelBooking(bookingId: string): Promise<CancelBookingAnswer> {
+  const answer = await fetchAnswer(`${LITEAPI_BOOK_BASE}/bookings/${encodeURIComponent(bookingId)}`, {
+    method: 'PUT',
+    headers: headers(),
+  }, '/v3.0/bookings/{id} (cancel)');
+  const object = cancellationObjectOf(answer.json);
+  return { answer, object, cancelled: parseCancelResult(object) };
 }

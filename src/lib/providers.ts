@@ -17,8 +17,8 @@
  * every (provider, resource) with its KIND — the deck's ROUTING_RULES rows
  * verbatim plus ADDED_RULES, the rows the deck's twenty-row sample omits but
  * the store lands (plaid · security → reference, plaid · investment_transaction
- * → event, stripe · event → event; plaid · holding → snapshot is already a deck
- * row). Landing consults
+ * → event, stripe · event → event, liteapi · cancellation → event; plaid ·
+ * holding → snapshot is already a deck row). Landing consults
  * it (src/lib/arrivals/land.ts kindOf): every arrival carries its kind, and an
  * arrival with no rule is a loud failure — no default, ever. The six kinds are
  * the deck's HANDOFF_KINDS in the essay's order; nothing ever ARRIVES as a
@@ -87,6 +87,8 @@ export const ADDED_RULES = [
   ['plaid', 'investment_transaction', 'EVENT', ''],
   // REBUILD-01 PR-4: the webhook delivers Stripe EVENTS (the deck's row names the payout the events carry).
   ['stripe', 'event', 'EVENT', ''],
+  // REBUILD-01 PR-5: LiteAPI's cancel answer (PUT /bookings/{id}) is its own arrival — something that happened to a booking.
+  ['liteapi', 'cancellation', 'EVENT', ''],
 ] as const;
 
 /**
