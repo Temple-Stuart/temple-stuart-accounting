@@ -49,6 +49,17 @@ class MemoryDb implements AttachDb {
       bank_reconciliations: this.bank_reconciliations.filter((r) => r.account_id === id).length,
     };
   }
+  /** A fault injected for BANK-03c: history that claims to reach the item despite zero account rows. */
+  phantomHistory: HistoryCounts | null = null;
+  async historyCountsOfItem(itemRowId: string): Promise<HistoryCounts> {
+    if (this.phantomHistory) return this.phantomHistory;
+    const ids = new Set(this.accounts.filter((a) => a.plaidItemId === itemRowId).map((a) => a.id));
+    return {
+      transactions: this.transactions.filter((r) => ids.has(r.accountId)).length,
+      investment_transactions: this.investment_transactions.filter((r) => ids.has(r.accountId)).length,
+      bank_reconciliations: this.bank_reconciliations.filter((r) => ids.has(r.account_id)).length,
+    };
+  }
   async reconciliationCollisions(a: string, b: string) {
     const key = (r: Rec) => `${r.entity_id} ${r.year} ${r.month}`;
     const ka = new Set(this.bank_reconciliations.filter((r) => r.account_id === a).map(key));
@@ -341,4 +352,82 @@ test('BANK-03b: a foreign, newer, or self --old-item stops; every other guard st
   collide.bank_reconciliations.push({ id: 'r2', account_id: 'acc_new_2518', entity_id: 'ent-1', year: 2026, month: 7 });
   const c = await planAttach(collide, { userId: USER, newItemRowId: 'pi_new', oldItemRowId: 'pi_old' });
   assert.match((c as { reason: string }).reason, /reconciliation\(s\) for the same entity\/year\/month on both rows/);
+});
+
+// BANK-03c — the fresh link's dedup already re-pointed the account rows to the new item; the declared
+// old item holds zero account rows. Retire it; move nothing.
+function theEmptyOldItemCase(): MemoryDb {
+  const db = theReplacedInstitutionCase();
+  // every account row already on the new item, with the history on them
+  for (const a of db.accounts) if (a.plaidItemId === 'pi_old') { db.accounts = db.accounts.filter((x) => x.id !== a.id); }
+  for (const r of db.transactions) r.accountId = r.accountId.replace('acc_old_', 'acc_new_');
+  for (const r of db.investment_transactions) r.accountId = r.accountId.replace('acc_old_', 'acc_new_');
+  for (const r of db.bank_reconciliations) r.account_id = r.account_id.replace('acc_old_', 'acc_new_');
+  return db;
+}
+
+test('BANK-03c: a declared old item with zero account rows → retire-only plan, one UPDATE, nothing else written', async () => {
+  const db = theEmptyOldItemCase();
+  assert.equal(db.accounts.filter((a) => a.plaidItemId === 'pi_old').length, 0);
+  const before = { totals: await totals(db), accounts: structuredClone(db.accounts) };
+  const plan = await planAttach(db, { userId: USER, newItemRowId: 'pi_new', oldItemRowId: 'pi_old' });
+  assert.equal(plan.kind, 'retire-only');
+  if (plan.kind !== 'retire-only') return;
+  assert.equal(plan.oldItem.id, 'pi_old');
+  assert.equal(plan.retireReason, 'replaced by NEWITEMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx; institution ins_116995 → ins_138270; no accounts to attach');
+  assert.match(describePlan(plan), /^tastytrade \[NEWITEM\S+, ins_138270\] ← TastyTrade \[4Ad9Ba\S+, ins_116995\]: the old item holds no account rows and no history — retire only \(replaced by .*; no accounts to attach\); no other write$/);
+
+  const { report } = await attachItem(db, { userId: USER, newItemRowId: 'pi_new', oldItemRowId: 'pi_old', now: NOW });
+  assert.ok(report);
+  assert.equal(report.kind, 'retire-only');
+  assert.deepEqual(report.pairs, []);
+  assert.deepEqual(db.retirements, [{ itemRowId: 'pi_old', at: NOW, reason: 'replaced by NEWITEMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx; institution ins_116995 → ins_138270; no accounts to attach' }], 'exactly one write: the retirement');
+  assert.deepEqual(db.deleted, [], 'no delete');
+  assert.deepEqual(db.updates, [], 'no survivor update');
+  assert.deepEqual(await totals(db), before.totals, 'no history moved');
+  assert.deepEqual(db.accounts, before.accounts, 'no account row touched');
+  assert.equal(db.items.length, 2, 'plaid_items rows are never deleted');
+
+  // dry run writes nothing
+  const dryDb = theEmptyOldItemCase();
+  const d = await attachItem(dryDb, { userId: USER, newItemRowId: 'pi_new', oldItemRowId: 'pi_old', dryRun: true, now: NOW });
+  assert.deepEqual(dryDb.retirements, []);
+  assert.equal(d.plan.kind, 'retire-only');
+  assert.equal(d.report, null);
+
+  // re-run on the retired item → nothing, no writes
+  const again = await attachItem(db, { userId: USER, newItemRowId: 'pi_new', oldItemRowId: 'pi_old', now: NOW });
+  assert.equal(again.plan.kind, 'nothing');
+  assert.match((again.plan as { reason: string }).reason, /is already retired .* — nothing to attach/);
+  assert.equal(db.retirements.length, 1);
+});
+
+test('BANK-03c: an old item with ANY account row keeps the existing path; found by institution, an empty old item keeps the existing stop', async () => {
+  // one account row on the old item, its mask matching → the merge path as before
+  const merge = theEmptyOldItemCase();
+  merge.accounts.push(account({ id: 'acc_old_2518', plaidItemId: 'pi_old', accountId: 'plaid_old_2518', mask: '2518', name: 'TastyTrade 2518', accountCode: '1200-2518' }));
+  const m = await planAttach(merge, { userId: USER, newItemRowId: 'pi_new', oldItemRowId: 'pi_old' });
+  assert.equal(m.kind, 'merge');
+  if (m.kind === 'merge') assert.deepEqual(m.pairs.map((p) => p.mask), ['2518']);
+
+  // one account row on the old item, no mask match → the existing stop, not retire-only
+  const nomatch = theEmptyOldItemCase();
+  nomatch.accounts.push(account({ id: 'acc_old_0000', plaidItemId: 'pi_old', accountId: 'plaid_old_0000', mask: '0000' }));
+  const n = await planAttach(nomatch, { userId: USER, newItemRowId: 'pi_new', oldItemRowId: 'pi_old' });
+  assert.equal(n.kind, 'stop');
+  assert.match((n as { reason: string }).reason, /no new account's mask matches an old account/);
+
+  // WITHOUT --old-item, an empty old item found by institution: unchanged — the existing stop
+  const byInstitution = theEmptyOldItemCase();
+  byInstitution.items[0].institutionId = 'ins_138270';
+  const b = await planAttach(byInstitution, { userId: USER, newItemRowId: 'pi_new' });
+  assert.equal(b.kind, 'stop');
+  assert.match((b as { reason: string }).reason, /no new account's mask matches an old account of 4Ad9Ba\S+ — nothing to attach/);
+
+  // the assertion: history that somehow reaches the item without account rows → stop, not retire
+  const phantom = theEmptyOldItemCase();
+  phantom.phantomHistory = { transactions: 3, investment_transactions: 0, bank_reconciliations: 0 };
+  const ph = await planAttach(phantom, { userId: USER, newItemRowId: 'pi_new', oldItemRowId: 'pi_old' });
+  assert.equal(ph.kind, 'stop');
+  assert.match((ph as { reason: string }).reason, /has no account rows yet .* history rows reach it — not retiring/);
 });

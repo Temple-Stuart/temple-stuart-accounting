@@ -40,6 +40,14 @@ function bind(client: Client, root: Root | null): AttachDb {
       ]);
       return { transactions, investment_transactions, bank_reconciliations };
     },
+    async historyCountsOfItem(itemRowId): Promise<HistoryCounts> {
+      const [transactions, investment_transactions, bank_reconciliations] = await Promise.all([
+        client.transactions.count({ where: { accounts: { plaidItemId: itemRowId } } }),
+        client.investment_transactions.count({ where: { accounts: { plaidItemId: itemRowId } } }),
+        client.bank_reconciliations.count({ where: { account: { plaidItemId: itemRowId } } }),
+      ]);
+      return { transactions, investment_transactions, bank_reconciliations };
+    },
     async reconciliationCollisions(a, b): Promise<number> {
       const key = (r: { entity_id: string; year: number; month: number }) => `${r.entity_id} ${r.year} ${r.month}`;
       const [ra, rb] = await Promise.all([
