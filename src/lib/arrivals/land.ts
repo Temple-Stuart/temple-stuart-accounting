@@ -11,7 +11,9 @@
  *                    their_id = the provider's own id (their_id_kind
  *                    'provider'), redactions [] (the PR-2 audit found no secret
  *                    in a /transactions/get body), response_id set, status
- *                    pending. INSERT … ON CONFLICT (provider, their_id,
+ *                    pending, kind = the rule book's kind for (provider,
+ *                    resource) (RULEBOOK-01 — no rule, no row: NoRuleError
+ *                    before anything is built). INSERT … ON CONFLICT (provider, their_id,
  *                    fingerprint) DO NOTHING — THE SAME THING IS THE SAME
  *                    PROVIDER, ID AND CONTENT; a duplicate is promise 2 working,
  *                    not an error, and a provider's CORRECTION (same id, new
@@ -30,7 +32,8 @@
  */
 import { createHash, randomUUID } from 'node:crypto';
 import canonicalize from 'canonicalize';
-import { PROVIDER_CODES } from '@/lib/providers';
+// RULEBOOK-01: landing consults the rule book — every arrival carries its kind; no rule, no row.
+import { PROVIDER_CODES, kindOf, type ArrivalKind } from '@/lib/providers';
 
 export type JsonObject = Record<string, unknown>;
 
@@ -62,6 +65,8 @@ export interface ArrivalRow {
   response_id: string;
   user_id: string | null;
   guest_ref: string | null;
+  /** RULEBOOK-01: the kind the rule book assigns this (provider, resource) — set on landing, immutable after (promise 1). */
+  kind: ArrivalKind;
 }
 
 export interface LandedArrival {
@@ -184,6 +189,8 @@ const pairKey = (theirId: string, fingerprint: Buffer) => `${theirId}\u0000${fin
 export async function landObjects(db: LandingDb, input: LandObjectsInput): Promise<LandedObjects> {
   assertProvider(input.provider);
   if (input.userId === null && input.guestRef === null) throw new Error('landObjects: an arrival belongs to a user or a guest');
+  // RULEBOOK-01: the rule book is consulted BEFORE any row is built — a feed with no written kind throws here (NoRuleError), never lands, never defaults.
+  const kind = kindOf(input.provider, input.resource);
   const seen = new Set<string>();
   let repeatedInAnswer = 0;
   const rows: ArrivalRow[] = [];
@@ -207,6 +214,7 @@ export async function landObjects(db: LandingDb, input: LandObjectsInput): Promi
       response_id: input.responseId,
       user_id: input.userId,
       guest_ref: input.guestRef,
+      kind,
     });
   }
   const inserted = new Set((rows.length ? await db.insertArrivalsIgnoringDuplicates(rows) : []).map((p) => pairKey(p.their_id, p.fingerprint)));

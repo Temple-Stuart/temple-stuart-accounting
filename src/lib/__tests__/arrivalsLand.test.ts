@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import type { Transaction } from 'plaid';
 import { canonicalBytes, fingerprintOf, landObjects, landResponse, sha256 } from '../arrivals/land';
 import { FakeLanding } from './fakeLanding';
+import { NoRuleError } from '../providers';
 import { landTransactionsPage, recordFailedAnswer, runTransactionsPage, type DomainDb, type TransactionsPageInput } from '../arrivals/plaidTransactionsPage';
 import { stageFailed, syncEnvelope } from '../plaid/failLoud';
 import { onWireError, type WireStamp } from '../plaid/wire';
@@ -207,4 +208,34 @@ test('(g) a 429 answer produces one provider_responses row, zero arrivals, and t
   // a network failure with no answer lands nothing — there was no answer to keep
   assert.deepEqual(await recordFailedAnswer(landing, { userId: 'user_1', err: new Error('ECONNRESET') }), { landed: false });
   assert.equal(landing.responses.length, 1);
+});
+
+
+// ── RULEBOOK-01 ──
+
+test('a feed with no rule throws before anything is built — no response consulted, zero arrivals, the name of the missing rule', async () => {
+  const landing = new FakeLanding();
+  const asked = new Date('2026-09-07T10:00:00Z');
+  await assert.rejects(
+    landObjects(landing, { provider: 'plaid', resource: 'balance', connection: 'item_abc', userId: 'user_1', guestRef: null, responseId: 'resp_x', asked, arrived: asked, objects: [{ theirId: 'b1', payload: { account_id: 'a', current: 10 } }] }),
+    (e: unknown) => e instanceof NoRuleError && /no rule for plaid · balance/.test((e as Error).message),
+  );
+  assert.equal(landing.arrivals.size, 0, 'nothing landed');
+  // an unknown provider still fails first, as before
+  await assert.rejects(landObjects(landing, { provider: 'yodlee', resource: 'transaction', connection: null, userId: 'user_1', guestRef: null, responseId: 'resp_x', asked, arrived: asked, objects: [] }), /not a provider the deck names/);
+  assert.equal(landing.arrivals.size, 0);
+});
+
+test('kinds land as the book says: a transaction is an event, a security a reference, an investment transaction an event — on every row, read back from the table', async () => {
+  const landing = new FakeLanding();
+  const domain = new FakeDomain();
+  await landTransactionsPage(landing, domain, pageInput({ transactions: [txn('t1'), txn('t2')] }));
+  assert.deepEqual([...landing.arrivals.values()].map((a) => a.row.kind), ['event', 'event']);
+  const asked = new Date('2026-09-07T10:00:00Z');
+  const base = { provider: 'plaid', connection: 'item_abc', userId: 'user_1', guestRef: null, responseId: 'resp_x', asked, arrived: asked };
+  await landObjects(landing, { ...base, resource: 'security', objects: [{ theirId: 'sec_1', payload: { security_id: 'sec_1', name: 'X' } }] });
+  await landObjects(landing, { ...base, resource: 'investment_transaction', objects: [{ theirId: 'inv_1', payload: { investment_transaction_id: 'inv_1', amount: 1 } }] });
+  await landObjects(landing, { ...base, resource: 'holding', objects: [{ theirId: 'h_1', payload: { account_id: 'a', quantity: 2 } }] });
+  const kinds = Object.fromEntries([...landing.arrivals.values()].map((a) => [a.row.their_id, a.row.kind]));
+  assert.deepEqual(kinds, { t1: 'event', t2: 'event', sec_1: 'reference', inv_1: 'event', h_1: 'snapshot' });
 });

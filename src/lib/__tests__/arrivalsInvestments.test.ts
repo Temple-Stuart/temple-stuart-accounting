@@ -121,6 +121,9 @@ test('(1) a page of securities + investment transactions lands (bytes, one arriv
   }
   const opt = secRows.find((a) => a.row.their_id === 'opt1')!;
   assert.equal(Buffer.compare(Buffer.from(opt.row.fingerprint), fingerprintOf(securities[1])), 0);
+  // RULEBOOK-01: every row carries the book's kind — a security is a reference, an investment transaction an event.
+  assert.deepEqual(secRows.map((a) => a.row.kind), ['reference', 'reference']);
+  assert.deepEqual(invRows.map((a) => a.row.kind), ['event', 'event']);
 
   // the parser: securities first (the FK), every column on create, the option contract mapped, arrival_id set
   assert.deepEqual(domain.calls, ['securities.upsert aapl', 'securities.upsert opt1', 'investment_transactions.create i1', 'investment_transactions.create i2']);
