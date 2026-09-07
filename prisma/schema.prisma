@@ -378,7 +378,12 @@ model securities {
   option_underlying_ticker String?
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime
+  /// REBUILD-01 PR-2c: the arrival this row was parsed from; NULL before the cutoff (no backfill).
+  arrival_id               String?
   investment_transactions  investment_transactions[]
+  arrival                  arrivals?                 @relation(fields: [arrival_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([arrival_id])
 }
 
 /// IRS-compliant position tracking for options trading
@@ -496,9 +501,14 @@ model investment_transactions {
   reconciledAt              DateTime?   @map("reconciled_at")
   reconciledBy              String?     @map("reconciled_by") @db.VarChar(255)
   entity_id                 String?
+  /// REBUILD-01 PR-2c: the arrival this row was parsed from; NULL before the cutoff (no backfill).
+  arrival_id                String?
   security                  securities? @relation(fields: [security_id], references: [securityId])
   accounts                  accounts    @relation(fields: [accountId], references: [id])
   entity                    entities?   @relation(fields: [entity_id], references: [id])
+  arrival                   arrivals?   @relation(fields: [arrival_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([arrival_id])
 }
 
 model users {
@@ -3643,6 +3653,8 @@ model arrivals {
   response      provider_responses? @relation(fields: [response_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   user          users?              @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   transactions  transactions[]
+  investment_transactions investment_transactions[]
+  securities    securities[]
 
   /// PR-2: the same thing is the same provider + id + content; a correction is a new row.
   @@unique([provider, their_id, fingerprint])

@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { Transaction } from 'plaid';
-import { canonicalBytes, fingerprintOf, landObjects, landResponse, sha256, type ArrivalRow, type LandedArrival, type LandingDb, type ProviderResponseRow } from '../arrivals/land';
+import { canonicalBytes, fingerprintOf, landObjects, landResponse, sha256 } from '../arrivals/land';
+import { FakeLanding } from './fakeLanding';
 import { landTransactionsPage, recordFailedAnswer, runTransactionsPage, type DomainDb, type TransactionsPageInput } from '../arrivals/plaidTransactionsPage';
 import { stageFailed, syncEnvelope } from '../plaid/failLoud';
 import { onWireError, type WireStamp } from '../plaid/wire';
@@ -11,40 +12,7 @@ import { onWireError, type WireStamp } from '../plaid/wire';
 // same provider, id and content; read / status move once) and a fake
 // transaction client that discards a page's writes when the page throws.
 
-class FakeLanding implements LandingDb {
-  responses: ProviderResponseRow[] = [];
-  arrivals = new Map<string, { row: ArrivalRow; read: Date | null; status: string }>();
-  private key(provider: string, theirId: string, fingerprint: Buffer) { return `${provider} ${theirId} ${Buffer.from(fingerprint).toString('hex')}`; }
-  async insertResponse(row: ProviderResponseRow) { this.responses.push(row); }
-  async insertArrivalsIgnoringDuplicates(rows: ArrivalRow[]) {
-    const inserted: Array<{ their_id: string; fingerprint: Buffer }> = [];
-    for (const r of rows) {
-      const k = this.key(r.provider, r.their_id, r.fingerprint);
-      if (this.arrivals.has(k)) continue;
-      this.arrivals.set(k, { row: structuredClone(r), read: null, status: 'pending' });
-      inserted.push({ their_id: r.their_id, fingerprint: r.fingerprint });
-    }
-    return inserted;
-  }
-  async findArrivals(provider: string, theirIds: string[]): Promise<LandedArrival[]> {
-    return [...this.arrivals.values()]
-      .filter((a) => a.row.provider === provider && theirIds.includes(a.row.their_id))
-      .map((a) => ({ id: a.row.id, their_id: a.row.their_id, fingerprint: Buffer.from(a.row.fingerprint), payload: structuredClone(a.row.payload), status: a.status, arrived: a.row.arrived }));
-  }
-  async markRead(ids: string[], at: Date) {
-    for (const a of this.arrivals.values()) {
-      if (!ids.includes(a.row.id)) continue;
-      if (a.read !== null || a.status !== 'pending') throw new Error('arrivals promise 1: read is set once, from NULL');
-      a.read = at;
-      a.status = 'done';
-    }
-  }
-  rowsFor(theirId: string) { return [...this.arrivals.values()].filter((a) => a.row.their_id === theirId); }
-  snapshot() {
-    return { responses: [...this.responses], arrivals: new Map([...this.arrivals].map(([k, v]) => [k, { ...v, row: structuredClone(v.row) }])) };
-  }
-  restore(s: ReturnType<FakeLanding['snapshot']>) { this.responses = s.responses; this.arrivals = s.arrivals; }
-}
+// The fake store lives in fakeLanding.ts (PR-2c shares it with the investments landing tests).
 
 type Upsert = { where: { transactionId: string }; create: Record<string, unknown>; update: Record<string, unknown> };
 type Link = { where: Record<string, unknown>; data: Record<string, unknown> };

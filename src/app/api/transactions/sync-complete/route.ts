@@ -12,6 +12,10 @@ import { prismaLanding } from '@/lib/arrivals/prismaLanding';
 import { recordFailedAnswer, runTransactionsPage } from '@/lib/arrivals/plaidTransactionsPage';
 // PERF-01: the domain writes of a page land in one statement per kind, not one per row.
 import { prismaDomain } from '@/lib/arrivals/prismaDomain';
+// REBUILD-01 PR-2c: the investments phase lands raw-first too — securities and investment
+// transactions as arrivals, the parser reading them, one statement per kind.
+import { INVESTMENT_TRANSACTION, runInvestmentsPage } from '@/lib/arrivals/plaidInvestmentsPage';
+import { prismaInvestmentsDomain } from '@/lib/arrivals/prismaInvestmentsDomain';
 import type { Prisma } from '@prisma/client';
 
 export const maxDuration = 300; // 5 minutes for Pro plan
@@ -201,6 +205,9 @@ export async function POST() {
       let synced = 0;
       let skipped = 0;
       let securities = 0;
+      let landed = 0;
+      let alreadyLanded = 0;
+      let corrected = 0;
       try {
         // Batch lookup: fetch all existing investment transaction IDs for this item's accounts
         const accountIds = item.accounts.map(acc => acc.id);
@@ -214,92 +221,78 @@ export async function POST() {
 
         let offset = 0;
         let hasMore = true;
+        let page = 0;
+        let pageFailure: StageFailed | null = null;
 
         while (hasMore) {
-          const investResponse = await plaidClient.investmentsTransactionsGet({
-            access_token: decryptToken(item.accessToken),
-            start_date: '2024-01-01',
-            end_date: new Date().toISOString().split('T')[0],
-            options: {
-              offset: offset,
-              count: 100
-            }
-          });
-
-          // STORE SECURITIES DATA (includes option contract details)
-          for (const security of investResponse.data.securities) {
-            const optionContract = (security as any).option_contract;
-
-            await prisma.securities.upsert({
-              where: { securityId: security.security_id },
-              create: {
-                securityId: security.security_id,
-                isin: security.isin,
-                cusip: security.cusip,
-                sedol: security.sedol,
-                ticker_symbol: security.ticker_symbol,
-                name: security.name,
-                type: security.type,
-                close_price: security.close_price,
-                close_price_as_of: security.close_price_as_of ? new Date(security.close_price_as_of) : null,
-                option_contract_type: optionContract?.contract_type || null,
-                option_strike_price: optionContract?.strike_price || null,
-                option_expiration_date: optionContract?.expiration_date ? new Date(optionContract.expiration_date) : null,
-                option_underlying_ticker: optionContract?.underlying_security_ticker || null,
-                id: `sec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                updatedAt: new Date()
-              },
-              update: {
-                close_price: security.close_price,
-                close_price_as_of: security.close_price_as_of ? new Date(security.close_price_as_of) : null,
-                option_contract_type: optionContract?.contract_type || null,
-                option_strike_price: optionContract?.strike_price || null,
-                option_expiration_date: optionContract?.expiration_date ? new Date(optionContract.expiration_date) : null,
-                option_underlying_ticker: optionContract?.underlying_security_ticker || null
+          page += 1;
+          let investResponse;
+          try {
+            investResponse = await plaidClient.investmentsTransactionsGet({
+              access_token: decryptToken(item.accessToken),
+              start_date: '2024-01-01',
+              end_date: new Date().toISOString().split('T')[0],
+              options: {
+                offset: offset,
+                count: 100
               }
             });
-            securities++;
+          } catch (askError) {
+            // REBUILD-01 PR-2c: a failed ask is evidence of the ask — the non-2xx answer's
+            // exact bytes land (no arrivals) before the stage declares the failure.
+            await recordFailedAnswer(prismaLanding(prisma as unknown as Prisma.TransactionClient), { userId: user.id, err: askError, resource: INVESTMENT_TRANSACTION });
+            throw askError;
           }
+          const wire = wireOf(investResponse, `investmentsTransactionsGet page ${page}`);
 
-          // STORE INVESTMENT TRANSACTIONS
-          for (const txn of investResponse.data.investment_transactions) {
-            const account = item.accounts.find(acc => acc.accountId === txn.account_id);
-            if (!account) continue;
-
-            if (existingInvSet.has(txn.investment_transaction_id)) {
-              // Already exists — the original update clause was empty anyway, skip
-              skipped++;
-              synced++;
-              continue;
-            }
-
-            await prisma.investment_transactions.create({
-              data: {
-                id: `inv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                investment_transaction_id: txn.investment_transaction_id,
-                accountId: account.id,
-                amount: txn.amount,
-                cancel_transaction_id: txn.cancel_transaction_id,
-                date: new Date(txn.date),
-                fees: txn.fees,
-                iso_currency_code: txn.iso_currency_code,
-                name: txn.name,
-                price: txn.price,
-                quantity: txn.quantity,
-                security_id: txn.security_id,
-                subtype: txn.subtype,
-                type: txn.type,
-                unofficial_currency_code: txn.unofficial_currency_code,
-                updatedAt: new Date()
-              }
-            });
-            synced++;
+          // REBUILD-01 PR-2c: raw-first, in ONE database transaction per page —
+          // provider_responses (the wire) → arrivals (one per security, one per
+          // investment transaction; promise 2 on (provider, their_id, fingerprint)) →
+          // the existing parser, reading the ARRIVAL payloads → securities.arrival_id and
+          // investment_transactions.arrival_id → read / status = done. A parser throw rolls
+          // this page back; earlier pages stay; this item's stage declares the failure.
+          // The batching domain binding replays the parser's per-row intents as one
+          // statement per kind inside the page's transaction (finish); one log line per page.
+          let batch: ReturnType<typeof prismaInvestmentsDomain> | null = null;
+          const pageStarted = Date.now();
+          const result = await runInvestmentsPage(
+            prisma,
+            (tx) => {
+              batch = prismaInvestmentsDomain(tx as Prisma.TransactionClient);
+              return { landing: prismaLanding(tx as Prisma.TransactionClient), domain: batch, finish: () => batch!.finish() };
+            },
+            {
+              page,
+              userId: user.id,
+              connection: item.itemId,
+              accounts: item.accounts.map((acc) => ({ id: acc.id, accountId: acc.accountId })),
+              existing: existingInvSet,
+              wire,
+              httpStatus: investResponse.status,
+              securities: investResponse.data.securities,
+              investmentTransactions: investResponse.data.investment_transactions,
+            },
+          );
+          const pageMs = Date.now() - pageStarted;
+          const pageStats = batch ? (batch as ReturnType<typeof prismaInvestmentsDomain>).stats() : { intents: 0, statements: 0 };
+          if (!result.ok) {
+            pageFailure = result.failure;
+            console.error(`Investments stage failed for ${bankName(item.institutionName)} on page ${page} after ${pageMs}ms:`, result.failure.error);
+            break;
           }
+          console.log(`[sync] ${bankName(item.institutionName)} investments page ${page}: ${investResponse.data.securities.length} securities + ${investResponse.data.investment_transactions.length} investment transactions, ${JSON.stringify(result.counts)}, ${pageStats.intents} domain intents → ${pageStats.statements} statements, ${pageMs}ms`);
+          synced += result.counts.synced;
+          skipped += result.counts.skipped;
+          securities += result.counts.securities;
+          landed += result.counts.landed;
+          alreadyLanded += result.counts.already_landed;
+          corrected += result.counts.corrected;
 
           offset += investResponse.data.investment_transactions.length;
           hasMore = investResponse.data.total_investment_transactions > offset;
         }
-        return stageOk('investments', { synced, skipped, securities });
+        if (pageFailure) return pageFailure;
+        return stageOk('investments', { synced, skipped, securities, landed, already_landed: alreadyLanded, corrected });
       } catch (error) {
         const failure = await declareStageFailure('investments', error, item);
         console.error(`Investments stage failed for ${bankName(item.institutionName)}:`, failure.error);
@@ -333,8 +326,12 @@ export async function POST() {
         transactions: tx.skipped ?? 0,
         investmentTransactions: inv.skipped ?? 0
       },
-      // REBUILD-01 PR-2: the store's counts for this run.
-      landed: { arrivals: tx.landed ?? 0, already_landed: tx.already_landed ?? 0, corrected: tx.corrected ?? 0 }
+      // REBUILD-01 PR-2 / PR-2c: the store's counts for this run — both phases.
+      landed: {
+        arrivals: (tx.landed ?? 0) + (inv.landed ?? 0),
+        already_landed: (tx.already_landed ?? 0) + (inv.already_landed ?? 0),
+        corrected: (tx.corrected ?? 0) + (inv.corrected ?? 0)
+      }
     });
     return NextResponse.json(body, { status });
   } catch (error) {
