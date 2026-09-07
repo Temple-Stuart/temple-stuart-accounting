@@ -15,6 +15,7 @@ import { prismaAttach } from '@/lib/plaid/prismaAttach';
  * rollback → 500 envelope. `dryRun: true` answers the plan and writes nothing.
  * `oldItemId` (BANK-03b) declares the old item when Plaid replaced the institution
  * record — same user, live, older; institution ids may differ; every other guard stays.
+ * A declared old item with no account rows (BANK-03c) is retire-only: one UPDATE.
  * A plan that stops (ambiguity, a collision, no match) is a 409 with the reason;
  * nothing to do is a 200 saying so. No Plaid call, no token read.
  */
@@ -41,6 +42,17 @@ export async function POST(request: Request) {
     }
     if (plan.kind === 'nothing') {
       return NextResponse.json({ ok: true, stage, message: plan.reason, plan: { kind: 'nothing' } });
+    }
+    if (plan.kind === 'retire-only') {
+      // BANK-03c: the declared old item holds no account rows — one UPDATE, nothing moves.
+      const summary = {
+        kind: 'retire-only',
+        newItem: { id: plan.newItem.id, itemId: plan.newItem.itemId, institutionId: plan.newItem.institutionId, institutionName: plan.newItem.institutionName },
+        oldItem: { id: plan.oldItem.id, itemId: plan.oldItem.itemId, institutionId: plan.oldItem.institutionId, institutionName: plan.oldItem.institutionName },
+        retireReason: plan.retireReason,
+      };
+      if (dryRun) return NextResponse.json({ ok: true, stage, dryRun: true, message: `DRY RUN — ${describePlan(plan)}`, plan: summary });
+      return NextResponse.json({ ok: true, stage, message: `${plan.oldItem.institutionName ?? 'The old item'} retired (no accounts to attach)`, plan: summary, report });
     }
     const summary = {
       kind: 'merge',

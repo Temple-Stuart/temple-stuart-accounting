@@ -6,6 +6,8 @@
  *   … --item <new> --old-item <old>   (BANK-03b: Plaid replaced the institution record, so the
  *                                      pair is declared; the old item must be the same user's,
  *                                      live, and older; institution ids may differ)
+ *   A declared old item with NO account rows (BANK-03c) is a 'retire-only' plan: one UPDATE
+ *   sets retired_at / retired_reason; nothing moves. With --execute the AFTER row is printed.
  *
  * Without --execute it is a DRY RUN: it prints the BEFORE counts (every account
  * of both items with its history) and the plan, and writes nothing. With
@@ -65,7 +67,8 @@ async function main() {
       for (const p of plan.pairs) console.log(`  ••••${p.mask}: old ${p.oldRow.id} ${JSON.stringify(p.before.old)} · new ${p.newRow.id} ${JSON.stringify(p.before.new)} → ${p.survivorIs} row survives (${totalOf(p.before.old) + totalOf(p.before.new)} rows)`);
       console.log(`  retire ${plan.oldItem.id} (${plan.oldItem.itemId}) — ${plan.retireReason}`);
     }
-    if (plan.kind !== 'merge') { process.exitCode = plan.kind === 'stop' ? 1 : 0; return; }
+    if (plan.kind === 'retire-only') console.log(`  retire ${plan.oldItem.id} (${plan.oldItem.itemId}) — ${plan.retireReason} — one UPDATE, nothing moves`);
+    if (plan.kind !== 'merge' && plan.kind !== 'retire-only') { process.exitCode = plan.kind === 'stop' ? 1 : 0; return; }
     if (!execute) { console.log('\nDRY RUN — nothing written. Re-run with --execute to apply.'); return; }
 
     const { report } = await attachItem(db, { userId: user.id, newItemRowId: item.id, oldItemRowId: oldItem?.id });

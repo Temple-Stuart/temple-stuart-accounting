@@ -100,6 +100,8 @@ export interface AttachDb {
   liveItemsOfInstitution(userId: string, institutionId: string, excludeItemRowId: string): Promise<AttachItem[]>;
   accountsOfItem(itemRowId: string): Promise<AttachAccount[]>;
   historyCounts(accountRowId: string): Promise<HistoryCounts>;
+  /** BANK-03c: history rows reaching the ITEM through any of its account rows — the assertion behind retire-only. */
+  historyCountsOfItem(itemRowId: string): Promise<HistoryCounts>;
   /** (entity_id, year, month) reconciliation keys present on BOTH rows — a move would violate the unique key. */
   reconciliationCollisions(accountRowIdA: string, accountRowIdB: string): Promise<number>;
   /** UPDATE … SET account = to WHERE account = from, on every history table; resolves to the rows moved. */
@@ -123,6 +125,8 @@ export interface AttachPair {
 export type AttachPlan =
   | { kind: 'nothing'; reason: string }
   | { kind: 'stop'; reason: string }
+  /** BANK-03c: the declared old item holds no account rows (and, asserted, no history) — retire it, move nothing. */
+  | { kind: 'retire-only'; newItem: AttachItem; oldItem: AttachItem; retireReason: string }
   | {
       kind: 'merge';
       newItem: AttachItem;
@@ -196,6 +200,18 @@ export async function planAttach(db: AttachDb, input: PlanAttachInput): Promise<
   const oldAccounts = await db.accountsOfItem(oldItem.id);
   if (newAccounts.length === 0) return { kind: 'stop', reason: `the item ${newItem.itemId} has no account rows` };
 
+  // BANK-03c: a DECLARED old item with no account rows has nothing to attach — the fresh
+  // link's dedup already re-pointed its rows. Asserted against the three history tables
+  // through the item (nothing can reference an account row that is not there), then the
+  // plan is retire-only: one UPDATE, no other write. Found by institution, the old path stays.
+  if (input.oldItemRowId !== undefined && oldAccounts.length === 0) {
+    const reaching = await db.historyCountsOfItem(oldItem.id);
+    if (totalOf(reaching) !== 0) {
+      return { kind: 'stop', reason: `the old item ${oldItem.itemId} has no account rows yet ${JSON.stringify(reaching)} history rows reach it — not retiring` };
+    }
+    return { kind: 'retire-only', newItem, oldItem, retireReason: `${retireReasonFor(newItem, oldItem)}; no accounts to attach` };
+  }
+
   const pairs: AttachPair[] = [];
   const unmatchedNew: AttachAccount[] = [];
   const claimedOld = new Map<string, string>();
@@ -225,6 +241,7 @@ export async function planAttach(db: AttachDb, input: PlanAttachInput): Promise<
 }
 
 export interface AttachReport {
+  kind: 'merge' | 'retire-only';
   pairs: Array<{ mask: string; survivorId: string; survivorWas: 'old' | 'new'; deletedAccountId: string; moved: HistoryCounts; after: HistoryCounts }>;
   retired: { itemRowId: string; itemId: string; institutionName: string | null; reason: string };
   unmatchedNew: string[];
@@ -277,6 +294,7 @@ export async function executeAttach(db: AttachDb, plan: Extract<AttachPlan, { ki
     if (!sameCounts(totalAfter, plan.totalBefore)) throw new AttachIntegrityError(`history total changed: before ${JSON.stringify(plan.totalBefore)}, after ${JSON.stringify(totalAfter)}`);
     await tx.retireItem(plan.oldItem.id, now, plan.retireReason);
     return {
+      kind: 'merge',
       pairs,
       retired: { itemRowId: plan.oldItem.id, itemId: plan.oldItem.itemId, institutionName: plan.oldItem.institutionName, reason: plan.retireReason },
       unmatchedNew: plan.unmatchedNew.map((a) => a.id),
@@ -288,14 +306,35 @@ export async function executeAttach(db: AttachDb, plan: Extract<AttachPlan, { ki
 }
 
 /** Plan, then execute unless dryRun. */
+/** BANK-03c: exactly one UPDATE — retired_at, retired_reason — inside the transaction. Nothing else moves. */
+export async function executeRetireOnly(db: AttachDb, plan: Extract<AttachPlan, { kind: 'retire-only' }>, now: Date = new Date()): Promise<AttachReport> {
+  return db.transaction(async (tx) => {
+    await tx.retireItem(plan.oldItem.id, now, plan.retireReason);
+    return {
+      kind: 'retire-only',
+      pairs: [],
+      retired: { itemRowId: plan.oldItem.id, itemId: plan.oldItem.itemId, institutionName: plan.oldItem.institutionName, reason: plan.retireReason },
+      unmatchedNew: [],
+      unmatchedOld: [],
+      totalBefore: ZERO,
+      totalAfter: ZERO,
+    };
+  });
+}
+
 export async function attachItem(db: AttachDb, input: PlanAttachInput & { now?: Date; dryRun?: boolean }): Promise<{ plan: AttachPlan; report: AttachReport | null }> {
   const plan = await planAttach(db, input);
-  if (plan.kind !== 'merge' || input.dryRun) return { plan, report: null };
-  return { plan, report: await executeAttach(db, plan, input.now ?? new Date()) };
+  if (input.dryRun) return { plan, report: null };
+  if (plan.kind === 'merge') return { plan, report: await executeAttach(db, plan, input.now ?? new Date()) };
+  if (plan.kind === 'retire-only') return { plan, report: await executeRetireOnly(db, plan, input.now ?? new Date()) };
+  return { plan, report: null };
 }
 
 /** The one-line summary for a route answer or a script. */
 export function describePlan(plan: AttachPlan): string {
+  if (plan.kind === 'retire-only') {
+    return `${plan.newItem.institutionName ?? 'the new item'} [${plan.newItem.itemId}, ${plan.newItem.institutionId ?? 'no institution'}] ← ${plan.oldItem.institutionName ?? 'the old item'} [${plan.oldItem.itemId}, ${plan.oldItem.institutionId ?? 'no institution'}]: the old item holds no account rows and no history — retire only (${plan.retireReason}); no other write`;
+  }
   if (plan.kind !== 'merge') return plan.reason;
   const masks = plan.pairs.map((p) => `••••${p.mask} (${p.survivorIs} row survives)`).join(', ');
   const extra = [
