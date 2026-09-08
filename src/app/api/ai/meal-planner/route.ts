@@ -84,15 +84,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-
     const { messages, action } = await req.json();
 
     // SELL-05b: no tier — the AI caps (the hourly volume cap, then the daily cap), reserved once the input is valid and BEFORE the paid call; declared when hit.
     const capped = await aiCaps({ hourly: aiHourlyCap, reserveDaily: requireRoutineBudget }, user.id);
     if (capped) return NextResponse.json(capped.body, { status: capped.status, headers: capped.headers });
+
+    // The paid client is built only once every gate has passed.
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
 
 
     const chatMessages = action === 'start' 
