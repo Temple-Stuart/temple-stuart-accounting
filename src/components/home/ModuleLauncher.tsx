@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Script from 'next/script';
 import {
-  Calendar, Plane, Repeat, FolderKanban, TrendingUp, BookOpen, Receipt, ShieldCheck, Clapperboard, Lock,
+  Calendar, Plane, Repeat, FolderKanban, TrendingUp, BookOpen, Receipt, ShieldCheck, Clapperboard, MapPin,
   type LucideIcon,
 } from 'lucide-react';
 import { SECTION_HEADER, STATE } from '@/lib/ds';
@@ -22,7 +22,7 @@ import MatchReviewSection from '@/components/hub/MatchReviewSection';
 import { travelStripModes } from '@/components/trips/travelStripModes';
 import PublicCategorySearch from '@/components/trips/PublicCategorySearch';
 import { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS } from '@/components/trips/travelSection';
-import { HOMEPAGE_PAID_CATEGORIES } from '@/lib/categoryKeys';
+import { HOMEPAGE_CATEGORIES } from '@/lib/categoryKeys';
 // DS-1: the travel tab is rebuilt from the design system — the SAME ToggleStrip
 // primitive the landing consumes (one strip, chip-selected panels, all mounted).
 import ToggleStrip, { type ToggleMode } from '@/components/ui/ToggleStrip';
@@ -877,27 +877,23 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange, offerAvaila
                   currentTrip,
                   onCommitted: () => setTripsRefresh((n) => n + 1),
                 }),
-                // PREMIUM (honest label): the paid Google-Places categories. Gate =
-                // isCategoryLocked(catKey, entitledCategories, currentUserId)
-                // (PublicCategorySearch.tsx:65). Locked → each card renders the
-                // EXISTING upgrade path (LockedCategoryCard "Subscribe to unlock" →
-                // the real checkout-entitlement flow); entitled/admin → the live
-                // search. Copy is the existing PR-2c divider copy, not invented.
-                // PR-STRIP-DESIGN-1: the Premium chip joins the icon-tab row
-                // (Lock = the paid-gate vocabulary, LockedTabCard precedent);
-                // its old in-panel intro line moved UP verbatim as the mode
-                // explainer — the Kayak line the shared strip renders.
-                { key: 'premium', label: 'Premium',
-                  icon: <Lock className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />,
-                  headline: 'Unlock local picks.',
-                  explainer: 'Subscription — unlock local picks with ratings and prices to access.',
+                // LOCAL PICKS (SELL-05, honest label): the Google-Places category
+                // search is free with an account — the route gates on a signed-in
+                // user and the daily/monthly caps; no tier, no per-category key
+                // (nothing sold either). A guest gets the sign-in card per category
+                // (PublicCategorySearch.tsx); a signed-in viewer the live search.
+                // The old "Premium — Subscription" chip named a purchase that did
+                // not exist; the chip now says what the section is.
+                { key: 'premium', label: 'Local picks',
+                  icon: <MapPin className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />,
+                  headline: 'Local picks by category.',
+                  explainer: 'Free with an account — real local picks with ratings and prices, by category.',
                   panel: (
                   <div className="space-y-3">
-                    {HOMEPAGE_PAID_CATEGORIES.map((catKey) => (
+                    {HOMEPAGE_CATEGORIES.map((catKey) => (
                       <PublicCategorySearch
                         key={catKey}
                         catKey={catKey}
-                        entitledCategories={entitledCategories}
                         currentUserId={currentUserId}
                         onRequireAuth={onRequireAuth}
                       />

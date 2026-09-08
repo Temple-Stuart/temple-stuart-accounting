@@ -32,7 +32,7 @@ export function getPriceIdFromTier(tier: string): string | null {
 // ═══ ENTITLEMENT-WRITER: per-key price mapping ═══
 // SELL-02: the purchasable entitlement vocabulary is THE OFFER's keys
 // (src/lib/offer.ts OFFERS — Books and the all-modules bundle; the offer law
-// keeps tab:operations and the nine Google category keys out of it). Each
+// keeps the nine Google category keys out of it). Each
 // key's Stripe price ID lives in an env var named by the offer's rule
 // (priceEnvName). Alex creates the Stripe products and sets the env vars; a
 // key with NO env var set is simply NOT purchasable (checkout 400s with a
@@ -42,8 +42,9 @@ export function getPriceIdFromTier(tier: string): string | null {
 //   'tab:books'  → STRIPE_TAB_BOOKS_PRICE_ID
 //   'bundle:all' → STRIPE_BUNDLE_ALL_PRICE_ID
 //
-// Rows already held for keys no longer sold (a Google category, tab:operations)
-// keep their gate semantics (getEntitledCategories reads every active row); a
+// Rows already held for keys no longer sold (a Google category; the retired
+// tab:operations, which no reader asks for) keep whatever gate semantics a
+// reader gives them (getEntitledCategories reads every active row); a
 // Stripe event for such a subscription maps to no purchasable key and the
 // webhook declares "NO change" — nothing is granted or revoked silently.
 

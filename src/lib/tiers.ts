@@ -6,17 +6,19 @@
  * selling surfaces (SELL-02); both render src/lib/offer.ts (pricingModel.ts
  * died with it), and the Pro/Pro+ cards are gone. No surface names a tier price.
  * This file survives ONLY because live gates still read it (requireTier call
- * sites: ai/meal-plan, ai/cart-plan, ai/meal-planner, places/category-search,
- * trips/[id]/ai-assistant) and existing subscriptions resolve through it
- * (webhook getTierFromPriceId). Retiring it fully = migrating those gates to
- * module entitlements — its own ruled PR, not a copy change.
+ * sites: ai/meal-plan, ai/cart-plan, ai/meal-planner, trips/[id]/ai-assistant;
+ * the shopping page's canAccess twin) and existing subscriptions resolve
+ * through it (webhook getTierFromPriceId). Retiring it fully = migrating those
+ * gates to module entitlements or caps — its own ruled PR (SELL-05 reported the
+ * readers and stopped), not a copy change.
  *
- * TRUTH-LABELS: what tiers ACTUALLY gate today (post TAB-SERVER-GATE):
- *   'ai'           → lifestyle/ops AI: meal-plan, cart-plan, meal-planner,
- *                    operations content (enrich-routine, generate-script)
- *   'placesSearch' → travel premium category search (dual-gated with
- *                    per-category entitlements)
+ * TRUTH-LABELS: what tiers ACTUALLY gate today (post TAB-SERVER-GATE, SELL-05):
+ *   'ai'           → lifestyle AI: meal-plan, cart-plan, meal-planner
+ *                    (Time's enrich-routine and generate-script moved under the
+ *                    AI daily cap in SELL-05)
  *   'tripAI'       → trip AI recommendations
+ *   'placesSearch' was RETIRED by SELL-05: places/category-search gates on a
+ *                    signed-in user and the daily/monthly caps — zero readers.
  * The MODULES (Trade/Books/Tax/Compliance incl. Plaid sync, trading analytics,
  * wash sales, reconciliation, spending insights) are NOT tier features anymore —
  * they are per-tab entitlements (hasTabAccess, src/lib/entitlements.ts).
@@ -41,7 +43,6 @@ export interface TierConfig {
   manualEntry: boolean;
   tripPlanning: boolean;
   tripAI: boolean;
-  placesSearch: boolean;
   maxLinkedAccounts: number;
 }
 
@@ -52,7 +53,6 @@ const TIER_MAP: Record<Tier, TierConfig> = {
     manualEntry: true,
     tripPlanning: true,
     tripAI: false,
-    placesSearch: false,
     maxLinkedAccounts: 0,
   },
   pro: {
@@ -61,7 +61,6 @@ const TIER_MAP: Record<Tier, TierConfig> = {
     manualEntry: true,
     tripPlanning: true,
     tripAI: false,
-    placesSearch: true,
     maxLinkedAccounts: 10,
   },
   pro_plus: {
@@ -70,7 +69,6 @@ const TIER_MAP: Record<Tier, TierConfig> = {
     manualEntry: true,
     tripPlanning: true,
     tripAI: true,
-    placesSearch: true,
     maxLinkedAccounts: 25,
   },
 };
