@@ -559,6 +559,10 @@ model users {
   stripeCustomerId        String?
   stripeSubscriptionId    String?
   bookkeeping_initialized Boolean                  @default(false)
+  // SELL-03b: set by the verification link (or by OAuth, whose provider verified
+  // the address); NULL = the account has not finished signing in. Accounts that
+  // pre-date verification were backfilled to their createdAt in the migration.
+  email_verified_at       DateTime?                @db.Timestamptz(6)
   scanner_start_date      DateTime?
   accounts                accounts[]
   plaid_items             plaid_items[]
@@ -594,6 +598,26 @@ model users {
   transaction_reservation_links transaction_reservation_links[]
   provider_responses      provider_responses[]
   arrivals                arrivals[]
+  verification_tokens     verification_tokens[]
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SELL-03b: EMAIL VERIFICATION TOKENS — the link's random half is stored
+// HASHED (sha256 hex); the link itself is signed (HMAC over the random half,
+// src/lib/auth/verification.ts). Single-use (used_at set once, atomically
+// with users.email_verified_at), 24h (expires_at). Cascade with the user.
+// ═══════════════════════════════════════════════════════════════════
+
+model verification_tokens {
+  id         String    @id @default(uuid()) @db.Uuid
+  user_id    String
+  token_hash String    @unique @db.VarChar(64)
+  expires_at DateTime  @db.Timestamptz(6)
+  used_at    DateTime? @db.Timestamptz(6)
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  user       users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
 }
 
 model budgets {
