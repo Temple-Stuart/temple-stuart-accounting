@@ -1,4 +1,9 @@
-import { PRICING_MODEL } from './pricingModel';
+// SELL-02: the one price source is the offer (src/lib/offer.ts) — the
+// bookkeeping product's price below is READ from it, never typed here.
+import { offerFor } from '@/lib/offer';
+
+const BOOKS_OFFER = offerFor('tab:books');
+if (!BOOKS_OFFER) throw new Error('pricing-costs: the offer has no tab:books entry');
 /**
  * PRICING-PAGE — the Alex-editable cost table behind /how-pricing-works.
  *
@@ -300,7 +305,8 @@ export const PRODUCTS: ProductEntry[] = [
     name: 'Bookkeeping',
     what: 'bank sync, double-entry ledger, statements, reconciliation, period close',
     deps: ['plaid', 'openai'],
-    monthlyPrice: null,
+    // SELL-02: sold as the Books offer — its price is the offer's, read here.
+    monthlyPrice: BOOKS_OFFER.monthlyPrice,
   },
   {
     id: 'tax',
@@ -325,26 +331,9 @@ export const PRODUCTS: ProductEntry[] = [
   },
 ];
 
-// ═══ The sellable tabs + bundle, as shown on the landing deck (PR-PRICE-3:
-// the deck is THE pricing surface; /pricing redirects to /#modules) ═══
-// `monthlyPrice` is the Alex-entered DISPLAY price (what the deck shows) —
-// null renders the explicit "price not set — shown at checkout" state, never
-// a fabricated number. What checkout CHARGES is the Stripe price behind the
-// STRIPE_*_PRICE_ID env var for the same key (server-only; the client learns
-// only a boolean "purchasable right now" from the server component).
-export interface SellableTab {
-  key: string; // must be a PURCHASABLE_ENTITLEMENT_KEYS member (stripe.ts)
-  label: string;
-  /** Honest one-line description of what the entitlement actually unlocks. */
-  unlocks: string;
-  monthlyPrice: number | null;
-}
-
-// PR-PRICE-2: TAB_PRICING is now a DERIVED VIEW of THE one pricing model
-// (src/config/pricingModel.ts) — same keys, labels, gate-verified unlocks
-// strings and display prices, minus the stripeEnvKey plumbing. One source;
-// every consumer (the deck, the /modules access blocks) reads the same rows.
-export const TAB_PRICING: SellableTab[] = PRICING_MODEL.map(({ key, label, unlocks, monthlyPrice }) => ({ key, label, unlocks, monthlyPrice }));
+// SELL-02: TAB_PRICING (the PR-PRICE-2 view of pricingModel.ts) died with
+// pricingModel.ts — every selling surface renders the offer (src/lib/offer.ts
+// OFFERS + offerCard) and the registry's claim lines; nothing here sells.
 
 /** Vendors the audit found declared or referenced but NOT connected — zero cost, listed for completeness. */
 export const NOT_CONNECTED = [

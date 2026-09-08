@@ -18,8 +18,8 @@ import ModulePageClient from './ModulePageClient';
 // client' file made it a client reference here, and .find() threw at request
 // time (every /modules URL 500ed; the MOD-0 diagnosis).
 import { PILLARS } from '@/lib/modulePillars';
-import { TAB_PRICING } from '@/config/pricing-costs';
-import { getPriceIdFromEntitlementKey } from '@/lib/stripe';
+// SELL-02: the offer's price-id presence map, the same read the front door makes.
+import { offerAvailabilityFromEnv } from '@/lib/offer';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,8 +28,6 @@ export default async function ModulePage({ params }: { params: Promise<{ pillar:
   const def = PILLARS.find((p) => p.id === pillar);
   if (!def) notFound();
 
-  const availability = Object.fromEntries(
-    TAB_PRICING.map((t) => [t.key, getPriceIdFromEntitlementKey(t.key) !== null]),
-  );
+  const availability = offerAvailabilityFromEnv(process.env);
   return <ModulePageClient pillar={def} availability={availability} />;
 }

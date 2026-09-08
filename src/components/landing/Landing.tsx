@@ -85,19 +85,17 @@
  * research pack — the STRUCTURE is still bc1a6fef's; the historical copy
  * lives in git history.
  *
- * id="modules" lives on the LIVE DEMO — TRAVEL section, and rode that
- * section's move up the page. It is a commerce contract, not decoration: the
- * Stripe checkout
- * cancel_url, the /pricing 308 redirect, the module page's Select link and the
- * shopping View Plans button all resolve to it. Moving or dropping it breaks
- * the buy path — see the ANCHOR-REHOME note on that section.
+ * id="modules" lives on THE OFFER act (SELL-02, data-offer-act) — the section
+ * that renders src/lib/offer.ts. It is a commerce contract, not decoration:
+ * the Stripe checkout cancel_url (/?checkout=cancelled#modules), the /pricing
+ * and /modules pages' doors (/?module=<slug>#modules) all resolve to it.
+ * Moving or dropping it breaks the buy path — see the ANCHOR note on that
+ * section.
  *
- * WHAT THE DECK'S RETIREMENT DID NOT SETTLE: six other files still describe
- * this page as THE pricing surface (ModulePageClient.tsx:19,33 ·
- * pricingModel.ts:3 · pricing-costs.ts:329 · tiers.ts:6 · app/page.tsx:35 ·
- * AppLayout.tsx:60). With the deck gone that claim has no surface behind it.
- * Reported, deliberately NOT fixed here — what replaces it is a product
- * decision, not a cleanup.
+ * SELL-02 settled what the deck's retirement left open: the selling surfaces
+ * (this act, /pricing, the /modules access block, the cockpit's locked tabs)
+ * all render ONE source — src/lib/offer.ts over the tool registry — and the
+ * offer law (scripts/assert-tool-registry.ts) fails the build on drift.
  *
  * STILL TRUE FROM THE FD-1d SPLIT: header/footer are extracted to
  * LandingHeader/LandingFooter (shared with the /modules pages) and the CPA
@@ -185,6 +183,9 @@ import { ANSWER_ROWS, ANSWER_INPUTS } from '@/lib/answers';
 import { PROVIDER_MENU, ROUTING_RULES } from '@/lib/providers';
 // TABLES-01: step 5's honest line — every table name from the kind-views census, none retyped.
 import { KIND_VIEWS_HONEST_LINE } from '@/lib/kindViews';
+// SELL-02: the offer — what is sold and what is free, from ONE source; the hero's counts from the registry.
+import { FREE_TOOLS, OFFERS, heroCountsLine, offerCard } from '@/lib/offer';
+import OfferCard from '@/components/OfferCard';
 // PR-ELEV-1: the coming-soon tiles became badged "Soon" chips INSIDE the
 // booking strip (travelStripModes) — the separate tile row is gone.
 
@@ -1903,7 +1904,7 @@ interface Props {
   onRequireLogin?: () => void;
   /** Per-entitlement-key availability, SERVER-computed by the mount route
    *  (page.tsx:83-85 env-presence read). Missing key → unavailable. */
-  entitlementAvailability: Record<string, boolean>;
+  offerAvailability: Record<string, boolean>;
   /** PR-ELEV-2d: per logo slug, does public/logos/<slug>.svg exist? SERVER-
    *  computed (page.tsx fs check over BUILT_ON's logo slots). Missing/false
    *  → the text-only card, exactly as before — never a broken <img>. */
@@ -1922,18 +1923,13 @@ interface Props {
 // this file is a flat card + lavender hairline now (deck/services = bg-white,
 // summary slides = bg-ts-white card cream, wall tiles = solid aubergine).
 
-// entitlementAvailability + onBuyModule stay in Props — the FD-2 mount
-// contract still passes them (page.tsx → GuestLanding, outside this PR's
-// fence) — but Landing no longer consumes them. Their last consumer was the
-// Act-4 bundle bar, and the modules retirement removed the last surface that
-// could have picked them back up, so the destructure takes only what is used.
-// The buy path returns with the next purchase affordance; the checkout links
-// that survive all leave the page (see the id="modules" note).
-// REAL-MARKS: logoAvailability is CONSUMED again — the marquee chips carry
-// the lit-logo two-state render (the wall's own logic, relocated), so the
-// server fs-check → availability → chip pipeline is live end to end.
-// (entitlementAvailability/onBuyModule remain passed-but-unconsumed.)
-export default function Landing({ onRequireAuth, onRequireLogin, logoAvailability }: Props) {
+// SELL-02: offerAvailability + onBuyModule are CONSUMED again — the offer act
+// below the personas renders every OfferCard from src/lib/offer.ts with the
+// server-computed availability, and its doors call onBuyModule (GuestLanding's
+// account-first checkout resume). REAL-MARKS: logoAvailability is CONSUMED too —
+// the marquee chips carry the lit-logo two-state render (the wall's own logic,
+// relocated), so the server fs-check → availability → chip pipeline is live end to end.
+export default function Landing({ onRequireAuth, onRequireLogin, logoAvailability, offerAvailability, onBuyModule }: Props) {
   // LOBBY-DECK-1b: the demo modal's open flag.
   // UNREACHABLE AS OF THE MODULES RETIREMENT, DECLARED — the only
   // setShowDemo(true) in the file was the merged section's header button, which
@@ -2004,12 +2000,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             </h1>
             {/* LAND-MSG-1: the hero previously jumped tagline → CTAs with
                 nothing telling a novice what this IS. One plain sentence,
-                Alex's framing near-verbatim. Claims verified: bookkeeping is
-                GAAP double-entry (tab:books unlocks), and the platform spans
-                nine modules — money, calendar, travel, trading, tax in one
-                app rather than separate tools. */}
+                Alex's framing near-verbatim. SELL-02: the sentence is the registry's own count
+                (heroCountsLine, src/lib/offer.ts) — never typed. */}
             <p className="mb-6 max-w-xl text-base text-white/70">
-              Track your money the way an accountant would — one app, not ten.
+              {heroCountsLine()}
             </p>
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               {/* HERO-REPO-1 (Alex's rationale): the hosted product leads —
@@ -2060,15 +2054,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           Tailwind utilities are tag-agnostic and nothing selects div#demo
           (both ids here are href targets only).
 
-          ANCHOR: id="modules" lives here. It is NOT decorative — four live
-          inbound paths resolve to it and would 404-to-top without it:
-          the Stripe checkout cancel_url (api/stripe/checkout/route.ts:53),
-          the /pricing 308 permanent redirect (app/pricing/page.tsx:28), the
-          module page's Select buy link (ModulePageClient.tsx:139) and the
-          shopping View Plans button (app/shopping/page.tsx:307). It travelled
-          with this section when the revenue acts moved under the hero, so those
-          links now land higher up the page than they used to — closer to the
-          fold, which is the right direction for a buy path, not a regression.
+          ANCHOR: id="modules" MOVED to the offer act (SELL-02) — the Stripe checkout
+          cancel_url (api/stripe/checkout-entitlement/route.ts), the shopping View
+          Plans button (app/shopping/page.tsx) and the /pricing and /modules doors
+          resolve to the OFFER now, not to this demo.
           id="demo" is NOT dropped — an element carries one id, so it sits on
           the eyebrow row a few px below. It has no href pointing at it in src/
           today (the nav's Live-demo link retired, LandingHeader.tsx:35), but an
@@ -2083,7 +2072,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           zero-rule boundary, so a border-t here would be the defect the seam
           ledger warns about. Closing from below also single-rules the
           GuestTripStrip case — see the ledger on the problem section. */}
-      <section id="modules" aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 border-b border-border">
+      <section aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 border-b border-border">
         {/* LANDING-V2 (spec :96-97): the demo's numbered eyebrow row — 03,
             label otherwise verbatim; right slot = the existing /modules/travel
             door. */}
@@ -2164,7 +2153,37 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           </div>
         </div>
 
-      {/* MODULES ACT LANDS HERE — "the what" (PR-MODULES, content TBD) */}
+      {/* ── SELL-02: THE OFFER — the deck's modules act, rendered from
+            src/lib/offer.ts and the tool registry: every card names its tools
+            with their REGISTRY claim lines, shows the price only when it is
+            live (the const AND the Stripe price id), and carries a door —
+            onBuyModule(key) → the sign-up modal → after sign-up, checkout for
+            that key → /answers with the tab unlocked (GuestLanding). No live
+            price → the declared line and NO button. id="modules" lives HERE
+            now: the Stripe cancel_url (checkout-entitlement/route.ts), the
+            shopping page's View-Plans button (app/shopping/page.tsx) and the
+            /pricing and /modules doors (?module=<slug>#modules) resolve to it.
+            The free set is the registry's LIVE tools with no tab gate
+            (FREE_TOOLS) — never typed. ─────────────────────────────────── */}
+      <section id="modules" aria-label="The offer" className="w-full border-b border-border bg-bg-terminal" data-offer-act>
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
+          <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">
+            THE OFFER <span className="text-brand-gold">·</span> WHAT IS SOLD, WHAT IS FREE
+          </p>
+          <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">
+            What you can buy, and what is free.
+          </h2>
+          <p className={`mt-2 ${DECK.statement}`}>{heroCountsLine()}</p>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            {OFFERS.map((o) => (
+              <OfferCard key={o.key} card={offerCard(o, offerAvailability)} door={{ kind: 'button', onClick: () => onBuyModule(o.key) }} />
+            ))}
+          </div>
+          <p className="mt-5 text-[13px] text-text-secondary" data-free-set>
+            Free with an account, no module to buy: {FREE_TOOLS.map((t) => t.name).join(', ')} — the registry&apos;s live tools with no tab gate.
+          </p>
+        </div>
+      </section>
 
       {/* ── LANDING-V4 (Alex's ruling, reversing the V2 seat): DONE-FOR-YOU is
             its own section — no right slot. Body = the PROFESSIONAL SERVICES

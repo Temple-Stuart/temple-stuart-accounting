@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
-import { GOOGLE_CATEGORY_KEYS, TAB_ENTITLEMENT_KEYS, BUNDLE_ALL_KEY } from '@/lib/categoryKeys';
+// SELL-02: the purchasable set and the price-env naming rule live in the offer (src/lib/offer.ts).
+import { SELLABLE_KEYS, priceEnvName } from '@/lib/offer';
 
 let _stripe: Stripe | null = null;
 
@@ -28,31 +29,27 @@ export function getPriceIdFromTier(tier: string): string | null {
   return null;
 }
 
-// ═══ ENTITLEMENT-WRITER: per-key (category / tab / bundle) price mapping ═══
-// The purchasable entitlement vocabulary = the 9 Google category keys +
-// the tab:X keys + bundle:all (all defined in src/lib/categoryKeys.ts).
-// Each key's Stripe price ID lives in an env var whose name is derived
-// deterministically below. Alex creates the Stripe products and sets the
-// env vars; a key with NO env var set is simply NOT purchasable (checkout
-// 400s with a clear message) — never a fallback price, never a free grant.
+// ═══ ENTITLEMENT-WRITER: per-key price mapping ═══
+// SELL-02: the purchasable entitlement vocabulary is THE OFFER's keys
+// (src/lib/offer.ts OFFERS — Books and the all-modules bundle; the offer law
+// keeps tab:operations and the nine Google category keys out of it). Each
+// key's Stripe price ID lives in an env var named by the offer's rule
+// (priceEnvName). Alex creates the Stripe products and sets the env vars; a
+// key with NO env var set is simply NOT purchasable (checkout 400s with a
+// clear message, and no selling surface renders a buy button for it) — never
+// a fallback price, never a free grant.
 //
-//   'brunch_coffee' → STRIPE_CAT_BRUNCH_COFFEE_PRICE_ID
-//   'tab:trade'     → STRIPE_TAB_TRADE_PRICE_ID
-//   'bundle:all'    → STRIPE_BUNDLE_ALL_PRICE_ID
+//   'tab:books'  → STRIPE_TAB_BOOKS_PRICE_ID
+//   'bundle:all' → STRIPE_BUNDLE_ALL_PRICE_ID
+//
+// Rows already held for keys no longer sold (a Google category, tab:operations)
+// keep their gate semantics (getEntitledCategories reads every active row); a
+// Stripe event for such a subscription maps to no purchasable key and the
+// webhook declares "NO change" — nothing is granted or revoked silently.
 
-export const PURCHASABLE_ENTITLEMENT_KEYS: readonly string[] = [
-  ...GOOGLE_CATEGORY_KEYS,
-  ...TAB_ENTITLEMENT_KEYS,
-  BUNDLE_ALL_KEY,
-];
+export const PURCHASABLE_ENTITLEMENT_KEYS: readonly string[] = SELLABLE_KEYS;
 
-export function entitlementPriceEnvName(key: string): string {
-  if (key === BUNDLE_ALL_KEY) return 'STRIPE_BUNDLE_ALL_PRICE_ID';
-  if (key.startsWith('tab:')) {
-    return `STRIPE_TAB_${key.slice(4).toUpperCase()}_PRICE_ID`;
-  }
-  return `STRIPE_CAT_${key.toUpperCase()}_PRICE_ID`;
-}
+export const entitlementPriceEnvName = priceEnvName;
 
 export function getPriceIdFromEntitlementKey(key: string): string | null {
   if (!PURCHASABLE_ENTITLEMENT_KEYS.includes(key)) return null;

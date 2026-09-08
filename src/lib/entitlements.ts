@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { ADMIN_USER_ID } from '@/lib/tiers';
-import { GOOGLE_CATEGORY_KEYS, BUNDLE_ALL_KEY } from '@/lib/categoryKeys';
+import { GOOGLE_CATEGORY_KEYS } from '@/lib/categoryKeys';
+// SELL-02: which entitlement keys satisfy a tab gate is the OFFER's say (src/lib/offer.ts keysGranting).
+import { keysGranting } from '@/lib/offer';
 
 // The 9 Google category keys now live in the prisma-free src/lib/categoryKeys.ts so the
 // client can import them too (this module imports prisma → server-only). Re-exported here so
@@ -34,11 +36,13 @@ export async function getEntitledCategories(userId: string): Promise<string[]> {
 
 /**
  * ENTITLEMENT-WRITER: does this user have USE access to a tab?
- * TRUE when the user holds an ACTIVE, non-expired entitlement row for either
- * the specific tab key (e.g. 'tab:trade') OR the all-tabs bundle
- * ('bundle:all') — one bundle purchase satisfies every tab check, resolved
- * here at read time (never fanned out into per-tab rows at write time).
- * Admin (ADMIN_USER_ID) always passes — mirrors getEntitledCategories above.
+ * TRUE when the user holds an ACTIVE, non-expired entitlement row for any key
+ * that grants the tab — the specific tab key (e.g. 'tab:trade'), the all-tabs
+ * bundle, or an offer that grants it (SELL-02: Books grants tab:trade, tab:tax
+ * and tab:compliance — keysGranting, src/lib/offer.ts). One purchase satisfies
+ * every tab it grants, resolved here at read time (never fanned out into
+ * per-tab rows at write time). Admin (ADMIN_USER_ID) always passes — mirrors
+ * getEntitledCategories above.
  *
  * Fail-loud: a DB error PROPAGATES (no try/catch). We never return a silent
  * false — that would hide the failure as a lock. And there is no default
@@ -51,7 +55,7 @@ export async function hasTabAccess(userId: string, tabKey: string): Promise<bool
   const row = await prisma.userCategoryEntitlement.findFirst({
     where: {
       userId,
-      categoryKey: { in: [tabKey, BUNDLE_ALL_KEY] },
+      categoryKey: { in: keysGranting(tabKey) },
       status: 'active',
       OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: now } }],
     },

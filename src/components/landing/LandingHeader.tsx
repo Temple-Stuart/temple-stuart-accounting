@@ -33,8 +33,8 @@ export default function LandingHeader({ onRequireLogin, onRequireAuth }: {
   return (
     // LANDING-V3 (spec :34-47) → THREE-TRIMS: the nav anatomy, minus the
     // retired anchor links (Live demo → /#demo and Modules → /#modules died
-    // — the #modules id STAYS on the merged section as the /pricing 308
-    // redirect target, app/pricing/page.tsx). Outlined TS mark (:37);
+    // — the #modules id now marks THE OFFER act, SELL-02, the target of the
+    // checkout cancel_url and the /?module= doors). Outlined TS mark (:37);
     // Pricing keeps /how-pricing-works; GitHub ↗ = the repo link; Log in =
     // the spec's text link, SAME dual-mode handlers; CREATE FREE ACCOUNT =
     // the spec's mono uppercase gold button, SAME dual-mode handlers.

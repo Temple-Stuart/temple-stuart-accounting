@@ -1,5 +1,7 @@
 import { notFound } from 'next/navigation';
 import HomeClient from '@/components/home/HomeClient';
+// SELL-02: the cockpit's locked cards render the offer with the server's price-id presence map.
+import { offerAvailabilityFromEnv } from '@/lib/offer';
 
 /**
  * ROUTE-1 — real URLs for the app tabs: /runway /travel /routines /projects
@@ -49,5 +51,5 @@ export default async function TabPage({ params }: {
 }) {
   const { tab } = await params;
   if (!TAB_PATHS.has(tab)) notFound();
-  return <HomeClient />;
+  return <HomeClient offerAvailability={offerAvailabilityFromEnv(process.env)} />;
 }

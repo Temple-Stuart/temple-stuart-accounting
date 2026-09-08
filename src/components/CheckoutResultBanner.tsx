@@ -5,14 +5,16 @@
  * money-path UX: payment confirmation must not be silent).
  *
  * Reads the checkout-entitlement route's OWN return params verbatim
- * (checkout-entitlement/route.ts: success `/?unlocked=<key>`, cancel
- * `/?checkout=cancelled`) and renders a dismissible card on BOTH landings
- * (GuestLanding + HomeClient mounts). Dismiss clears ONLY these two params
- * via router.replace — every other param and the hash survive.
+ * (checkout-entitlement/route.ts: success `/answers?unlocked=<key>` — SELL-02
+ * — and cancel `/?checkout=cancelled#modules`) and renders a dismissible card
+ * on the three landings (GuestLanding, HomeClient and /answers mounts).
+ * Dismiss clears ONLY these two params via router.replace — every other param
+ * and the hash survive.
  *
- * Label lookup: the PRICING_MODEL entry for the key (the same vocabulary
- * the deck sells from). A key without a model entry (Google category keys)
- * displays the raw key — the honest identifier, nothing invented.
+ * Label lookup: the OFFER entry for the key (src/lib/offer.ts — the one
+ * vocabulary every selling surface sells from). A key without an offer (a
+ * Google category key held from before) displays the raw key — the honest
+ * identifier, nothing invented.
  *
  * useSearchParams rides inside its own <Suspense> so prerendering never
  * bails (the Next.js requirement; fallback null = no layout shift).
@@ -20,7 +22,7 @@
 
 import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { PRICING_MODEL } from '@/config/pricingModel';
+import { offerFor } from '@/lib/offer';
 
 function BannerInner() {
   const params = useSearchParams();
@@ -38,7 +40,7 @@ function BannerInner() {
   };
 
   const label = unlockedKey
-    ? (PRICING_MODEL.find((e) => e.key === unlockedKey)?.label ?? unlockedKey)
+    ? (offerFor(unlockedKey)?.label ?? unlockedKey)
     : null;
 
   return (
