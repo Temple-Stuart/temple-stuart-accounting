@@ -28,6 +28,11 @@ const ENTITY_LETTER: Record<string, string> = {
   trading: 'T',
 };
 
+/** COA-01: the E segment alone — the entity's code letter, or null when the type has none. */
+export function entityLetter(entityType: string | null | undefined): string | null {
+  return (entityType && ENTITY_LETTER[entityType]) || null;
+}
+
 export interface AccountStringParts {
   /** entities.entity_type ('personal' | 'sole_prop' | 'trading' | other). */
   entityType?: string | null;

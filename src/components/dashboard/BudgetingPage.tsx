@@ -44,6 +44,9 @@ export default function BudgetingPage({ category, emoji, apiPath }: BudgetingPag
   const [form, setForm] = useState({ name: '', coa_code: '', amount: '', cadence: 'monthly', target_date: new Date().toISOString().split('T')[0] });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [entityId, setEntityId] = useState<string | null>(null);
+  // COA-01: the entity's REAL type ('sole_prop', not the page's 'business'
+  // label) — the code letter and the scheme derive from it.
+  const [entityType, setEntityType] = useState<string>('');
 
   useEffect(() => { loadExpenses(); loadEntity(); }, []);
 
@@ -57,7 +60,7 @@ export default function BudgetingPage({ category, emoji, apiPath }: BudgetingPag
           ? ['business', 'sole_prop']
           : [categoryLower];
         const entity = (data.entities || []).find((e: any) => matchTypes.includes(e.entity_type));
-        if (entity) setEntityId(entity.id);
+        if (entity) { setEntityId(entity.id); setEntityType(entity.entity_type); }
       }
     } catch (err) { console.error('Failed to load entity:', err); }
   };
@@ -143,7 +146,7 @@ export default function BudgetingPage({ category, emoji, apiPath }: BudgetingPag
               <COAManagementTable
                 entityId={entityId}
                 entityName={category}
-                entityType={category.toLowerCase()}
+                entityType={entityType}
               />
             </div>
           </BookkeepingSection>
