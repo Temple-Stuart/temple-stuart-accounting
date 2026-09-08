@@ -1,5 +1,7 @@
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import AnswersClient from '@/components/answers/AnswersClient';
+// SELL-04: a free account's cards render THE OFFER with the server's price-id presence map.
+import { offerAvailabilityFromEnv } from '@/lib/offer';
 
 /**
  * NAV-01c — /answers, THE ANSWERS: the app's front page and the post-login
@@ -18,5 +20,5 @@ export const dynamic = 'force-dynamic';
 
 export default async function AnswersPage() {
   const viewer = await getVerifiedEmail();
-  return <AnswersClient viewer={viewer ?? ''} />;
+  return <AnswersClient viewer={viewer ?? ''} offerAvailability={offerAvailabilityFromEnv(process.env)} />;
 }

@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import BookkeepingSection from '@/components/bookkeeping/BookkeepingSection';
+// SELL-04: the first-run entity step — a viewer with no entity sets one up before the pipeline reads.
+import EntitySetup from '@/components/books/EntitySetup';
 import SpendingTab from '@/components/dashboard/SpendingTab';
 import InvestmentsTab from '@/components/dashboard/InvestmentsTab';
 import JournalEntryEngine from '@/components/dashboard/JournalEntryEngine';
@@ -82,7 +84,7 @@ export default function BooksPipeline() {
   // established conversion (panel family → border/bg families, white inks →
   // the text ladder).
   const [year] = useState(new Date().getFullYear());
-  const [state, setState] = useState<'loading' | 'error' | 'ok'>('loading');
+  const [state, setState] = useState<'loading' | 'error' | 'ok' | 'setup'>('loading');
   // BOOKS-PIPE-FRAME: the active phase — the ONLY state the retired
   // ToggleStrip owned, now owned here (keep-mounted CSS show/hide survival
   // unchanged, the house idiom). 'feed' = the strip's first phase, matching
@@ -268,6 +270,13 @@ export default function BooksPipeline() {
   const reloadAll = useCallback(async () => {
     setState('loading');
     try {
+      // SELL-04: entities FIRST — a viewer with none gets the setup step, and the Books routes
+      // (which now answer 412 "set up your entity" instead of creating one) are not read.
+      const entRes = await fetch('/api/entities');
+      if (!entRes.ok) throw new Error('entities fetch failed');
+      const ent = await entRes.json();
+      if (!Array.isArray(ent.entities)) throw new Error('entities: expected an array');
+      if (ent.entities.length === 0) { setState('setup'); return; }
       await Promise.all([loadData(), loadReconciliations(), loadPeriodCloses(), loadStatementYears()]);
       setState('ok');
     } catch {
@@ -330,6 +339,9 @@ export default function BooksPipeline() {
         Loading your books pipeline…
       </div>
     );
+  }
+  if (state === 'setup') {
+    return <EntitySetup existing={[]} mode="first-run" onCreated={reloadAll} />;
   }
   if (state === 'error') {
     return (

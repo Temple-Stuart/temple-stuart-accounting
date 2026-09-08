@@ -12,6 +12,14 @@
  * route's own error, never a number; an empty ledger prints the empty state in
  * words, never $0 as if it were a sum. No retry, no fallback, no placeholder.
  *
+ * SELL-04 — FIRST VALUE: before any route is read, each card's state comes
+ * from the viewer's facts (src/lib/answersState.ts cardState): a free account
+ * sees THE OFFER line from offer.ts with its buy door — the gated routes are
+ * never read, so there is no HTTP line to print; a paid account with no bank
+ * sees "link a bank" with the door to Books; one with a bank but no sole-prop
+ * entity sees "set up your business entity" with the door to the step, on the
+ * two cards whose route reads one. Only then does a card read its route.
+ *
  * The shell is the one shell (NAV-01b): ShellBar + the family navigation in
  * link mode (THE ANSWERS is its first entry). Mobile: cards stack; ≥10px.
  */
@@ -24,6 +32,8 @@ import FamilyNav from '@/components/home/FamilyNav';
 import CheckoutResultBanner from '@/components/CheckoutResultBanner';
 import { deriveRunwayReceipts } from '@/components/hub/RunwayBudgetPanel';
 import { ANSWER_ROWS, ANSWER_READS, NET_WORTH_READ, type AnswerRead, type ComputedRead } from '@/lib/answers';
+import { cardState, answersLocked, type CardState, type ViewerFacts } from '@/lib/answersState';
+import { startEntitlementCheckout } from '@/lib/checkoutDoor';
 
 type Read<T> = { status: 'reading' } | { status: 'failed'; message: string } | { status: 'ok'; data: T };
 
@@ -47,13 +57,15 @@ async function readJson<T>(endpoint: string): Promise<Read<T>> {
   }
 }
 
-function useRead<T>(endpoint: string): Read<T> {
+/** One read, made only when `enabled` — a card whose state is not 'read' never touches its route. */
+function useRead<T>(endpoint: string, enabled = true): Read<T> {
   const [read, setRead] = useState<Read<T>>({ status: 'reading' });
   useEffect(() => {
+    if (!enabled) return;
     let live = true;
     readJson<T>(endpoint).then((r) => { if (live) setRead(r); });
     return () => { live = false; };
-  }, [endpoint]);
+  }, [endpoint, enabled]);
   return read;
 }
 
@@ -142,6 +154,56 @@ function netWorthFigure(d: NetWorthAnswer): Figure {
 
 const TONE: Record<'pos' | 'neg' | 'flat', string> = { pos: 'text-emerald-700', neg: 'text-rose-700', flat: 'text-text-primary' };
 
+const DOOR_CLASS = 'self-start rounded border border-brand-purple px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-brand-purple hover:bg-brand-purple-wash';
+
+/**
+ * SELL-04: what a card shows BEFORE its route — the offer line (free account),
+ * "link a bank" (paid, no bank) or "set up your business entity" (paid, a
+ * bank, no sole-prop) — each with its door. The offer's buy door is the one
+ * checkout call every selling surface makes (checkoutDoor.ts) when the price
+ * is live; otherwise the door is the offer page. A failed checkout is declared.
+ */
+function StateBlock({ state }: { state: Exclude<CardState, { kind: 'read' }> }) {
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState('');
+  if (state.kind === 'offer') {
+    const buy = async () => {
+      if (state.door.kind !== 'checkout') return;
+      setError('');
+      setStarting(true);
+      try {
+        window.location.href = await startEntitlementCheckout(state.door.key);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not start checkout');
+        setStarting(false);
+      }
+    };
+    return (
+      <div data-read="offer" data-offer={state.card.key} data-buyable={state.card.buyable}>
+        <p className="font-mono text-sm text-text-secondary" data-offer-line>{state.line}</p>
+        {state.door.kind === 'checkout' ? (
+          <button type="button" onClick={buy} disabled={starting} className={`mt-2 ${DOOR_CLASS} disabled:opacity-60`} data-offer-door="button">
+            {starting ? 'Starting checkout…' : `Subscribe to ${state.card.label} — ${state.card.price.text}`}
+          </button>
+        ) : (
+          <Link href={state.door.href} className={`mt-2 inline-block ${DOOR_CLASS}`} data-offer-door="link">
+            The offer · {state.door.href}
+          </Link>
+        )}
+        {error && <p role="alert" className="mt-1 text-[10px] text-rose-700">{error}</p>}
+      </div>
+    );
+  }
+  return (
+    <div data-read="line" data-why={state.why}>
+      <p className="font-mono text-sm text-text-secondary" data-state-line>{state.line}</p>
+      <Link href={state.door} className={`mt-2 inline-block ${DOOR_CLASS}`} data-state-door>
+        Open · {state.door}
+      </Link>
+    </div>
+  );
+}
+
 function FigureBlock({ read, figure }: { read: Read<unknown>; figure: (d: never) => Figure }) {
   if (read.status === 'reading') return <p className="font-mono text-xs text-text-faint" data-read="reading">Reading…</p>;
   if (read.status === 'failed') return <p role="alert" className="font-mono text-xs text-rose-700" data-read="failed">Could not read — {read.message}</p>;
@@ -189,22 +251,26 @@ function AnswerCard({ question, math, read, children }: { question: string; math
   );
 }
 
-function TaxCard({ question, math, read }: { question: string; math: ReadonlyArray<readonly [string, boolean]>; read: ComputedRead }) {
-  const r = useRead<TaxAnswer>(`${read.endpoint}?year=${YEAR}`);
-  return <AnswerCard question={question} math={math} read={read}><FigureBlock read={r} figure={taxFigure} /></AnswerCard>;
+interface CardProps { question: string; math: ReadonlyArray<readonly [string, boolean]>; read: ComputedRead; state: CardState }
+
+function TaxCard({ question, math, read, state }: CardProps) {
+  const r = useRead<TaxAnswer>(`${read.endpoint}?year=${YEAR}`, state.kind === 'read');
+  return <AnswerCard question={question} math={math} read={read}>{state.kind === 'read' ? <FigureBlock read={r} figure={taxFigure} /> : <StateBlock state={state} />}</AnswerCard>;
 }
-function RunwayCard({ question, math, read }: { question: string; math: ReadonlyArray<readonly [string, boolean]>; read: ComputedRead }) {
-  const r = useRead<RunwayAnswer>(read.endpoint);
-  return <AnswerCard question={question} math={math} read={read}><FigureBlock read={r} figure={runwayFigure} /></AnswerCard>;
+function RunwayCard({ question, math, read, state }: CardProps) {
+  const r = useRead<RunwayAnswer>(read.endpoint, state.kind === 'read');
+  return <AnswerCard question={question} math={math} read={read}>{state.kind === 'read' ? <FigureBlock read={r} figure={runwayFigure} /> : <StateBlock state={state} />}</AnswerCard>;
 }
-function TradingCard({ question, math, read }: { question: string; math: ReadonlyArray<readonly [string, boolean]>; read: ComputedRead }) {
-  const r = useRead<TradingAnswer>(read.endpoint);
-  return <AnswerCard question={question} math={math} read={read}><FigureBlock read={r} figure={tradingFigure} /></AnswerCard>;
+function TradingCard({ question, math, read, state }: CardProps) {
+  const r = useRead<TradingAnswer>(read.endpoint, state.kind === 'read');
+  return <AnswerCard question={question} math={math} read={read}>{state.kind === 'read' ? <FigureBlock read={r} figure={tradingFigure} /> : <StateBlock state={state} />}</AnswerCard>;
 }
-function BusinessCard({ question, math, read }: { question: string; math: ReadonlyArray<readonly [string, boolean]>; read: ComputedRead }) {
+function BusinessCard({ question, math, read, state }: CardProps) {
   // Two reads, one source: the sole-prop entity (entities), then its statements for the year.
   const [r, setR] = useState<Read<{ entities: EntitiesAnswer['entities']; statements: StatementsAnswer[] }>>({ status: 'reading' });
+  const enabled = state.kind === 'read';
   useEffect(() => {
+    if (!enabled) return;
     let live = true;
     (async () => {
       const ents = await readJson<EntitiesAnswer>('/api/entities');
@@ -219,10 +285,12 @@ function BusinessCard({ question, math, read }: { question: string; math: Readon
       if (live) setR({ status: 'ok', data: { entities: business, statements } });
     })();
     return () => { live = false; };
-  }, [read.endpoint]);
+  }, [read.endpoint, enabled]);
   return (
     <AnswerCard question={question} math={math} read={read}>
-      <FigureBlock read={r} figure={(d: { entities: EntitiesAnswer['entities']; statements: StatementsAnswer[] }) => businessFigure(d.entities, d.statements)} />
+      {state.kind === 'read'
+        ? <FigureBlock read={r} figure={(d: { entities: EntitiesAnswer['entities']; statements: StatementsAnswer[] }) => businessFigure(d.entities, d.statements)} />
+        : <StateBlock state={state} />}
     </AnswerCard>
   );
 }
@@ -235,21 +303,40 @@ const CARD_BY_ENDPOINT: Record<string, typeof TaxCard> = {
   '/api/statements': BusinessCard,
 };
 
-export default function AnswersClient({ viewer }: { viewer: string }) {
+interface MeAnswer { user: { id: string; isAdmin?: boolean; entitledCategories?: string[] } }
+interface AccountsAnswer { items: Array<{ accounts: unknown[] }> }
+
+export default function AnswersClient({ viewer, offerAvailability }: { viewer: string; offerAvailability: Readonly<Record<string, boolean>> }) {
   const router = useRouter();
   const { data: session } = useSession();
   const [isAdmin, setIsAdmin] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
+  // SELL-04: the viewer's facts — entitlement keys (the same /api/auth/me payload the cockpit's
+  // isTabLocked reads), then, for an unlocked viewer only, linked accounts and entities.
+  const [facts, setFacts] = useState<ViewerFacts | null>(null);
+  const [factsError, setFactsError] = useState<string | null>(null);
 
   // The utilities menu is admin-only (the same /api/auth/me flag both headers read). A failed
   // profile read is declared, never swallowed: no menu, and the failure printed under the bar.
   useEffect(() => {
     let live = true;
-    readJson<{ user: { isAdmin?: boolean } }>('/api/auth/me').then((r) => {
+    (async () => {
+      const me = await readJson<MeAnswer>('/api/auth/me');
       if (!live) return;
-      if (r.status === 'ok') setIsAdmin(Boolean(r.data.user.isAdmin));
-      else if (r.status === 'failed') setProfileError(r.message);
-    });
+      if (me.status !== 'ok') { if (me.status === 'failed') setProfileError(me.message); return; }
+      setIsAdmin(Boolean(me.data.user.isAdmin));
+      const base = { userId: me.data.user.id, entitledKeys: me.data.user.entitledCategories ?? [] };
+      if (answersLocked(base)) { setFacts({ ...base, accountsLinked: null, soleProp: null }); return; }
+      const [accounts, entities] = await Promise.all([readJson<AccountsAnswer>('/api/accounts'), readJson<EntitiesAnswer>('/api/entities')]);
+      if (!live) return;
+      if (accounts.status !== 'ok') { setFactsError(`accounts — ${accounts.status === 'failed' ? accounts.message : 'reading'}`); return; }
+      if (entities.status !== 'ok') { setFactsError(`entities — ${entities.status === 'failed' ? entities.message : 'reading'}`); return; }
+      setFacts({
+        ...base,
+        accountsLinked: accounts.data.items.reduce((n, item) => n + item.accounts.length, 0),
+        soleProp: entities.data.entities.some((e) => e.entity_type === 'sole_prop'),
+      });
+    })();
     return () => { live = false; };
   }, []);
 
@@ -281,14 +368,20 @@ export default function AnswersClient({ viewer }: { viewer: string }) {
           <p className="mt-1 text-xs text-text-muted">Four questions, each a number with its source, or the honest state in words.</p>
         </header>
 
-        {/* The four, ANSWER_ROWS order. Cards stack on a phone, two-up from sm. */}
-        <section aria-label="The four answers" className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4" data-answers>
+        {factsError && (
+          <p role="alert" className="mb-4 font-mono text-[10px] text-rose-700" data-facts-error>Could not read your Books facts — {factsError}. The cards wait; nothing is assumed.</p>
+        )}
+
+        {/* The four, ANSWER_ROWS order. Cards stack on a phone, two-up from sm. Each card's state
+            (offer · link a bank · set up your entity · read) is decided from the facts first. */}
+        <section aria-label="The four answers" className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4" data-answers data-answers-locked={facts ? String(answersLocked(facts)) : undefined}>
           {ANSWER_ROWS.map(([question, math]) => {
             const read = ANSWER_READS[question];
             if (!read.computed) return <AnswerCard key={question} question={question} math={math} read={read}><p className="font-mono text-sm text-text-secondary">{read.honest}</p></AnswerCard>;
             const Card = CARD_BY_ENDPOINT[read.endpoint];
             if (!Card) throw new Error(`THE ANSWERS: no card renders ${read.endpoint} ("${question}")`);
-            return <Card key={question} question={question} math={math} read={read} />;
+            if (!facts) return <AnswerCard key={question} question={question} math={math} read={read}><p className="font-mono text-xs text-text-faint" data-read="reading">{factsError ? 'Waiting on your Books facts.' : 'Reading…'}</p></AnswerCard>;
+            return <Card key={question} question={question} math={math} read={read} state={cardState(question, facts, offerAvailability)} />;
           })}
         </section>
 

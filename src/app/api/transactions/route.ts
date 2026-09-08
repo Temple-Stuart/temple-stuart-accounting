@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { ensureBookkeepingInitialized } from '@/lib/ensure-bookkeeping';
+import { requireEntitySetup } from '@/lib/ensure-bookkeeping';
 
 export async function GET(request: Request) {
   try {
@@ -20,7 +20,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    await ensureBookkeepingInitialized(user);
+    // SELL-04: a user with no entity gets the declared setup line (412) — nothing is created here.
+    const setup = await requireEntitySetup(user);
+    if (setup) return setup;
 
     const { searchParams } = new URL(request.url);
     const accountCode = searchParams.get('accountCode');
