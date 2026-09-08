@@ -27,9 +27,9 @@
  * PARTIAL (a NOT_BUILT tool in an offer fails the build); an offer never lists a
  * tool its grants do not unlock; every gated tool is sold by some offer; the
  * bundle grants everything any offer grants; the purchasable keys are exactly
- * the offer keys — tab:operations and the nine Google category keys are not
- * for sale; every price env name follows the naming rule; the free set holds no
- * gated tool.
+ * the offer keys — the nine Google category keys are not for sale (and
+ * tab:operations left the vocabulary in SELL-05); every price env name follows
+ * the naming rule; the free set holds no gated tool.
  *
  * Client- and server-safe: imports the registry (a leaf) and the key vocabulary.
  */
@@ -313,8 +313,8 @@ export function offerLaw(opts: {
   const sold = [...purchasable].sort();
   if (offerKeys.join(',') !== sold.join(',')) violations.push(`purchasable keys [${sold.join(', ')}] ≠ the offers [${offerKeys.join(', ')}]`);
   for (const k of purchasable) {
-    if (k === 'tab:operations') violations.push('tab:operations is not for sale — no route gates on it');
-    if ((GOOGLE_CATEGORY_KEYS as readonly string[]).includes(k)) violations.push(`${k}: a Google category key is not for sale — its route gates on an unsold tier`);
+    if (!vocabulary.has(k)) violations.push(`${k}: not an entitlement key the store knows — not for sale`);
+    if ((GOOGLE_CATEGORY_KEYS as readonly string[]).includes(k)) violations.push(`${k}: a Google category key is not for sale — no route gates on it`);
   }
   // the free set holds no gated tool
   for (const t of registry) {

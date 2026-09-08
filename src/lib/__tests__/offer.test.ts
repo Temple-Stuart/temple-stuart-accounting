@@ -5,7 +5,7 @@ import {
   numberWord, offerAvailabilityFromEnv, offerCard, offerFor, offerFromModuleParam, offerGranting, offerLaw, priceEnvName, priceLineFor, type Offer,
 } from '../offer';
 import { TOOL_REGISTRY, type ToolEntry } from '../toolRegistry';
-import { GOOGLE_CATEGORY_KEYS } from '../categoryKeys';
+import { GOOGLE_CATEGORY_KEYS, TAB_ENTITLEMENT_KEYS } from '../categoryKeys';
 import { isTabLocked } from '../categoryLock';
 import { startEntitlementCheckout } from '../checkoutDoor';
 
@@ -18,13 +18,13 @@ const tool = (name: string): ToolEntry => {
 };
 const books = (): Offer => offerFor('tab:books') as Offer;
 
-test('the law passes on the real offer; the purchasable keys are exactly the offers\' (stripe.ts reads them); tab:operations and the nine category keys are out', () => {
+test('the law passes on the real offer; the purchasable keys are exactly the offers\' (stripe.ts reads them); tab:operations is no key at all and the nine category keys are out', () => {
   assert.deepEqual(offerLaw({ throwOnFail: false }), []);
   assert.deepEqual([...SELLABLE_KEYS], ['tab:books', 'bundle:all']);
-  assert.ok(!SELLABLE_KEYS.includes('tab:operations'));
+  assert.ok(!(TAB_ENTITLEMENT_KEYS as readonly string[]).includes('tab:operations'), 'SELL-05: gone from the vocabulary');
   for (const k of GOOGLE_CATEGORY_KEYS) assert.ok(!SELLABLE_KEYS.includes(k), k);
-  // the purchasable set handed in must equal the offers
-  assert.match(offerLaw({ throwOnFail: false, purchasable: ['tab:books', 'bundle:all', 'tab:operations'] }).join('\n'), /tab:operations is not for sale/);
+  // the purchasable set handed in must equal the offers; a key outside the vocabulary is named
+  assert.match(offerLaw({ throwOnFail: false, purchasable: ['tab:books', 'bundle:all', 'tab:operations'] }).join('\n'), /tab:operations: not an entitlement key the store knows/);
   assert.match(offerLaw({ throwOnFail: false, purchasable: ['tab:books', 'bundle:all', 'brunch_coffee'] }).join('\n'), /brunch_coffee: a Google category key is not for sale/);
   assert.match(offerLaw({ throwOnFail: false, purchasable: ['tab:books'] }).join('\n'), /purchasable keys \[tab:books\] ≠ the offers/);
 });
@@ -42,7 +42,7 @@ test('a NOT_BUILT tool in an offer fails the law (the build); so does a free too
   assert.match(offerLaw({ throwOnFail: false, offers: narrow }).join('\n'), /Brokerage is gated by tab:trade, which this offer does not grant/);
   const smallBundle = [b, { ...OFFERS[1], grants: ['tab:books' as const] }];
   assert.match(offerLaw({ throwOnFail: false, offers: smallBundle }).join('\n'), /bundle:all does not grant tab:trade/);
-  const nobodySellsTax = [{ ...b, tools: b.tools.filter((t) => t !== 'Tax'), grants: ['tab:books', 'tab:trade', 'tab:compliance'] as const }, { ...OFFERS[1], grants: ['tab:books', 'tab:trade', 'tab:compliance', 'tab:travel', 'tab:operations'] as const }];
+  const nobodySellsTax = [{ ...b, tools: b.tools.filter((t) => t !== 'Tax'), grants: ['tab:books', 'tab:trade', 'tab:compliance'] as const }, { ...OFFERS[1], grants: ['tab:books', 'tab:trade', 'tab:compliance', 'tab:travel'] as const }];
   const v2 = offerLaw({ throwOnFail: false, offers: nobodySellsTax }).join('\n');
   assert.match(v2, /Tax: gated by tab:tax, which no offer grants — sold nowhere/);
   // a key outside the store's vocabulary, a price that is not a positive number

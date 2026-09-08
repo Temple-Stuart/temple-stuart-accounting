@@ -14,18 +14,20 @@
  * Fail-loud: a routine with no active steps returns a clear 400 listing what's
  * needed — the AI is NEVER asked to fabricate steps or activities.
  *
- * PAID API — auth+tier mirror the src/app/api/ai/* reference routes
- * (e.g. market-brief / spending-insights): getVerifiedEmail → users lookup →
- * requireTier(user.tier, 'ai', user.id). (The sibling operations/ai/* routes
- * predate requireTier and omit it; this paid route adds the gate per the
- * src/app/api/ai/* pattern + the CE-3 "no shortcuts" mandate.)
+ * PAID API — SELL-05: getVerifiedEmail → users lookup → input + ownership →
+ * the AI DAILY CAP (AI_ROUTINE_DAILY_CAP, reserved through requireRoutineBudget
+ * and declared as a 429 when hit — src/lib/ai/dailyCap.ts) → the paid call.
+ * The 'ai' tier gate that stood here gated on a plan nothing sells; the cap
+ * is the cost control, reserved only once the request is valid and the
+ * routine is the caller's.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { requireTier } from '@/lib/auth-helpers';
+import { requireRoutineBudget } from '@/lib/routineFireBudget';
+import { withDailyCap } from '@/lib/ai/dailyCap';
 import { isValidUuid } from '@/lib/operations/parseUuid';
 import { enrichRoutineScenes } from '@/lib/ai/enrichRoutineScenes';
 
@@ -38,10 +40,6 @@ export async function POST(request: NextRequest) {
       where: { email: { equals: userEmail, mode: 'insensitive' } },
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
-
-    // Tier gate (paid AI feature) — mirrors src/app/api/ai/* routes.
-    const tierGate = requireTier(user.tier, 'ai', user.id);
-    if (tierGate) return tierGate;
 
     const body = (await request.json()) as Record<string, unknown>;
     if (typeof body.routine_id !== 'string' || !isValidUuid(body.routine_id)) {
@@ -83,6 +81,13 @@ export async function POST(request: NextRequest) {
       where: { user_id: user.id, is_active: true },
       orderBy: [{ sort_order: 'asc' }, { created_at: 'asc' }],
     });
+
+    // SELL-05: the AI daily cap — reserved now that the input is valid and the routine is the caller's; declared when hit.
+
+    const capped = await withDailyCap(requireRoutineBudget, user.id);
+
+    if (capped) return NextResponse.json(capped.body, { status: capped.status });
+
 
     const result = await enrichRoutineScenes({
       userId: user.id,

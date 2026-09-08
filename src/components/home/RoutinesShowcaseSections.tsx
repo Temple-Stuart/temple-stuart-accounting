@@ -47,8 +47,8 @@
  *                                          RRULEBuilder.tsx:150
  *
  * ── CTA RULING (inventory §12, pre-verified) ────────────────────────────────
- * No tab:routines entitlement exists (categoryKeys.ts:23-28); tab:operations is
- * defined but checked nowhere; the tab mount carries no lock
+ * No tab:routines entitlement exists (categoryKeys.ts TAB_ENTITLEMENT_KEYS); the
+ * old tab:operations key gated nothing and left the vocabulary (SELL-05); the tab mount carries no lock
  * (ModuleLauncher.tsx:513-531). Auth-only tab → honest "Make my free account".
  * NO subscribe card.
  *

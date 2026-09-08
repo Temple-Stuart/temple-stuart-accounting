@@ -2,36 +2,33 @@
 
 /**
  * PublicCategorySearch — ONE reusable homepage Travel-tab section for a single Google
- * category (one of the 9 GOOGLE_CATEGORY_KEYS), rendered 9× over the canonical key list.
+ * category (one of the 9 GOOGLE_CATEGORY_KEYS), rendered over the homepage key list.
  *
- * LOCKED vs UNLOCKED (per-category entitlement):
- *   - locked  → render a 🔒 card with a "Subscribe to unlock" button. The search form +
- *     fetch DO NOT MOUNT → zero Google spend for a category the user hasn't paid for.
- *   - unlocked (entitled, or admin) → mirror PublicActivitySearch: city+country form → POST
- *     /api/places/category-search → render discovery cards. The server route ALSO gates
- *     per-category (403 'Category not unlocked'); this client lock is UX, that gate is the
- *     real lock (defense in depth).
+ * SELL-05: the route gates on a SIGNED-IN USER and the caps — no tier, no per-category
+ * key (nothing sold either; the old "Subscribe to unlock" card started a checkout for a
+ * key the store refuses). So this section mirrors that gate exactly:
+ *   - a guest  → the sign-in card (the form + fetch do not mount — zero Google spend, and
+ *     the route would answer 401 anyway);
+ *   - signed in → city+country form → POST /api/places/category-search → discovery cards;
+ *     a cap the route declares (429) prints as its own line.
  *
  * No fallback data: a non-OK fetch throws the route's real error (fail-loud). The grid
  * renders exactly what the route returns. Label comes from TRAVEL_COA[catKey].label.
  */
 
 import { useState, useEffect } from 'react';
-import { Lock } from 'lucide-react';
-import { isCategoryLocked } from '@/lib/categoryLock';
+import { LogIn } from 'lucide-react';
 import { TRAVEL_COA } from '@/lib/travelCOA';
 import TravelSectionShell, { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS } from './travelSection';
 
 interface Props {
   /** One of the 9 GOOGLE_CATEGORY_KEYS. */
   catKey: string;
-  /** Google category keys this user has unlocked (from /api/auth/me). */
-  entitledCategories: string[];
-  /** This user's id (admin bypass inside isCategoryLocked). Empty when logged out. */
+  /** This user's id from /api/auth/me. Empty when logged out — the one gate (SELL-05). */
   currentUserId: string;
-  /** Opens the existing home register/login modal (unlocking requires sign-in). */
+  /** Opens the existing home register/login modal (searching requires sign-in). */
   onRequireAuth: () => void;
-  /** PR-3: unified-bar fan-out. Only consumed when UNLOCKED — a locked section returns
+  /** PR-3: unified-bar fan-out. Only consumed when signed in — a guest section returns
    *  before mounting the search child, so fan-out can never fire a Google call for it. */
   sharedCity?: string;
   sharedCountry?: string;
@@ -53,7 +50,6 @@ interface CategoryCard {
 
 export default function PublicCategorySearch({
   catKey,
-  entitledCategories,
   currentUserId,
   onRequireAuth,
   sharedCity,
@@ -62,21 +58,13 @@ export default function PublicCategorySearch({
 }: Props) {
   // Section title is the EXPENSE-CATEGORY label (TRAVEL_COA covers all 9 Google keys).
   const label = TRAVEL_COA[catKey]?.label || catKey;
-  const locked = isCategoryLocked(catKey, entitledCategories, currentUserId);
 
-  // ── LOCKED: no form, no fetch (zero Google spend). 🔒 card + subscribe CTA. ──
-  if (locked) {
-    return (
-      <LockedCategoryCard
-        catKey={catKey}
-        label={label}
-        currentUserId={currentUserId}
-        onRequireAuth={onRequireAuth}
-      />
-    );
+  // ── GUEST: no form, no fetch (zero Google spend). The sign-in card — the route's own gate. ──
+  if (!currentUserId) {
+    return <SignInCategoryCard label={label} onRequireAuth={onRequireAuth} />;
   }
 
-  // ── UNLOCKED: city+country form → POST category-search → discovery cards. ──
+  // ── SIGNED IN: city+country form → POST category-search → discovery cards. ──
   return (
     <UnlockedCategorySearch
       catKey={catKey}
@@ -88,74 +76,32 @@ export default function PublicCategorySearch({
   );
 }
 
-/** ENTITLEMENT-WRITER: the locked 🔒 card. "Subscribe to unlock" now starts a REAL
- *  Stripe Checkout for this category key (POST /api/stripe/checkout-entitlement — the
- *  webhook writes the entitlement row after signature verification). Logged-out →
- *  the sign-up modal first (checkout is auth-gated). Fail-loud: a checkout error
- *  renders under the button — never a silent unlock, never fake success. */
-function LockedCategoryCard({
-  catKey,
-  label,
-  currentUserId,
-  onRequireAuth,
-}: {
-  catKey: string;
-  label: string;
-  currentUserId: string;
-  onRequireAuth: () => void;
-}) {
-  const [starting, setStarting] = useState(false);
-  const [error, setError] = useState('');
-
-  const onRequestUnlock = async () => {
-    // Logged out (no user id from /api/auth/me) → create an account first.
-    if (!currentUserId) {
-      onRequireAuth();
-      return;
-    }
-    setError('');
-    setStarting(true);
-    try {
-      const res = await fetch('/api/stripe/checkout-entitlement', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: catKey }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.url) {
-        throw new Error(data.error || 'Could not start checkout');
-      }
-      window.location.href = data.url;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not start checkout');
-      setStarting(false);
-    }
-  };
-
+/** SELL-05: the guest card — the search is free with an account; the door is the sign-in
+ *  modal (the route answers a guest with 401, so nothing here starts a checkout). */
+function SignInCategoryCard({ label, onRequireAuth }: { label: string; onRequireAuth: () => void }) {
   return (
     <TravelSectionShell
       title={label}
-      explainer="Unlock this category to see real local picks with ratings and prices."
+      explainer="Sign in to see real local picks with ratings and prices."
     >
-      <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-brand-purple/15 bg-bg-row px-6 py-10 text-center">
+      <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-brand-purple/15 bg-bg-row px-6 py-10 text-center" data-category-guest={label}>
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-purple/10 text-brand-purple">
-          <Lock className="h-6 w-6" strokeWidth={2} aria-hidden="true" />
+          <LogIn className="h-6 w-6" strokeWidth={2} aria-hidden="true" />
         </div>
         <div className="space-y-1">
           <p className="text-base font-bold text-text-primary">{label}</p>
-          <p className="text-sm text-text-muted">Subscribe to see top-rated {label.toLowerCase()} with prices.</p>
+          <p className="text-sm text-text-muted">Free with an account — top-rated {label.toLowerCase()} with prices.</p>
         </div>
-        <button type="button" onClick={onRequestUnlock} disabled={starting} className={TRAVEL_BUTTON_CLASS}>
-          {starting ? 'Starting checkout…' : 'Subscribe to unlock'}
+        <button type="button" onClick={onRequireAuth} className={TRAVEL_BUTTON_CLASS}>
+          Sign in to search
         </button>
-        {error && <p className="text-sm text-brand-red">{error}</p>}
       </div>
     </TravelSectionShell>
   );
 }
 
-/** The mounted search UI — only rendered when unlocked, so its fetch can never fire for a
- *  locked category. Split out so the form/state hooks don't mount on a locked section. */
+/** The mounted search UI — only rendered for a signed-in viewer, so its fetch can never fire
+ *  for a guest. Split out so the form/state hooks don't mount on a guest section. */
 function UnlockedCategorySearch({
   catKey,
   label,
@@ -176,8 +122,8 @@ function UnlockedCategorySearch({
   const [error, setError] = useState('');
   const [searched, setSearched] = useState(false);
 
-  // The paid POST to category-search. Reused by both the form submit and the PR-3
-  // unified-bar fan-out (same fetch, same route, same per-category server gate).
+  // The POST to category-search. Reused by both the form submit and the PR-3
+  // unified-bar fan-out (same fetch, same route, same signed-in gate and caps).
   const runSearch = async (cityVal: string, countryVal: string) => {
     if (!cityVal.trim() || !countryVal.trim()) {
       setError('Enter a city and country.');
@@ -195,11 +141,7 @@ function UnlockedCategorySearch({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        // Defensive: an unlocked section shouldn't hit the per-category 403, but if the
-        // server gate disagrees with the client lock, surface it plainly (no fake data).
-        if (res.status === 403 && data?.error === 'Category not unlocked') {
-          throw new Error('This category is locked — subscribe to unlock.');
-        }
+        // A cap the route declared (429: burst, the daily cap, the monthly cap) prints as its own line.
         throw new Error(data.error || 'Failed to search this category');
       }
       const data = await res.json();
@@ -216,9 +158,9 @@ function UnlockedCategorySearch({
     runSearch(city, country);
   };
 
-  // PR-3: fan-out — fire this (UNLOCKED) category for the unified bar's destination when its
-  // nonce changes. This effect lives in the unlocked child, so a LOCKED category (which never
-  // mounts this child) can NEVER be fired by fan-out → zero Google spend for locked.
+  // PR-3: fan-out — fire this category for the unified bar's destination when its nonce
+  // changes. This effect lives in the signed-in child, so a guest section (which never
+  // mounts this child) can NEVER be fired by fan-out → zero Google spend for guests.
   useEffect(() => {
     if (!searchNonce) return;
     if (!sharedCity?.trim() || !sharedCountry?.trim()) return;

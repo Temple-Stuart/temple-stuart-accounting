@@ -15,15 +15,17 @@
  * script + usage_id; the immutable reasoning is the operations_ai_usage row recordUsage
  * wrote.
  *
- * PAID API — auth + tier mirror the enrich route: getVerifiedEmail → users lookup →
- * requireTier(user.tier, 'ai', user.id).
+ * PAID API — SELL-05, as the enrich route: getVerifiedEmail → users lookup → input +
+ * ownership → the AI DAILY CAP (AI_ROUTINE_DAILY_CAP via requireRoutineBudget, declared as
+ * a 429 when hit — src/lib/ai/dailyCap.ts) → the paid call. No tier.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { requireTier } from '@/lib/auth-helpers';
+import { requireRoutineBudget } from '@/lib/routineFireBudget';
+import { withDailyCap } from '@/lib/ai/dailyCap';
 import { isValidUuid } from '@/lib/operations/parseUuid';
 import {
   compareDayOrder,
@@ -50,9 +52,6 @@ export async function POST(request: NextRequest) {
       where: { email: { equals: userEmail, mode: 'insensitive' } },
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
-
-    const tierGate = requireTier(user.tier, 'ai', user.id);
-    if (tierGate) return tierGate;
 
     const body = (await request.json()) as Record<string, unknown>;
     if (typeof body.piece_id !== 'string' || !isValidUuid(body.piece_id)) {
@@ -171,6 +170,13 @@ export async function POST(request: NextRequest) {
     }
     taskRows.sort((a, b) => a.minute - b.minute);
     const tasks = taskRows.map((t) => t.row);
+
+    // SELL-05: the AI daily cap — reserved now that the input is valid and the piece is the caller's; declared when hit.
+
+    const capped = await withDailyCap(requireRoutineBudget, user.id);
+
+    if (capped) return NextResponse.json(capped.body, { status: capped.status });
+
 
     const result = await generateReelScript({
       userId: user.id,
