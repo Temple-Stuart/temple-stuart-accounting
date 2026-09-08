@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 
-interface TemplateAccount {
+export interface TemplateAccount {
   code: string;
   name: string;
   account_type: string;
@@ -82,7 +82,8 @@ const PERSONAL_STANDARD: TemplateDefinition = {
   ],
 };
 
-const SOLE_PROP_STANDARD: TemplateDefinition = {
+/** SELL-04: the sole-prop starter chart the product's own entity setup seeds (src/lib/entities/setup.ts) — the same rows this script writes to coa_templates. */
+export const SOLE_PROP_STANDARD: TemplateDefinition = {
   entity_type: 'sole_prop',
   name: 'Sole Proprietor Standard',
   accounts: [

@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { AppLayout } from '@/components/ui';
 import BookkeepingSection from '@/components/bookkeeping/BookkeepingSection';
 import COAManagementTable from '@/components/bookkeeping/COAManagementTable';
+// SELL-04: the first-run entity step (no entity yet) and the add-a-business step (no sole-prop).
+import EntitySetup from '@/components/books/EntitySetup';
 import { FAMILIES, FAMILY_RULES, letterFor } from '@/lib/coa/scheme';
 
 /**
@@ -13,6 +15,9 @@ import { FAMILIES, FAMILY_RULES, letterFor } from '@/lib/coa/scheme';
  * with the entity's REAL type driving its code letter. Reads /api/entities
  * (user-scoped) and, per entity, the two chart routes the table calls.
  * Every failure renders as the server's own words; nothing is swallowed.
+ * SELL-04: with no entity yet the page IS the first-run step (EntitySetup);
+ * with entities but no sole-prop it offers the business one — the Answers'
+ * "set up your business entity" door lands here.
  */
 
 interface Entity {
@@ -27,6 +32,9 @@ const TYPE_ORDER: Record<string, number> = { personal: 0, sole_prop: 1, trading:
 export default function ChartOfAccountsPage() {
   const [entities, setEntities] = useState<Entity[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const [reloads, setReloads] = useState(0);
+  const reload = () => setReloads((n) => n + 1);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,7 +53,7 @@ export default function ChartOfAccountsPage() {
       })
       .catch((err: Error) => { if (!cancelled) setError(err.message); });
     return () => { cancelled = true; };
-  }, []);
+  }, [reloads]);
 
   return (
     <AppLayout>
@@ -67,7 +75,10 @@ export default function ChartOfAccountsPage() {
           </div>
         )}
         {entities !== null && entities.length === 0 && (
-          <div className="text-sm text-text-muted">No entity yet — open Books once and the Personal entity is created with the default chart.</div>
+          <EntitySetup existing={[]} mode="first-run" onCreated={reload} />
+        )}
+        {entities !== null && entities.length > 0 && !entities.some((e) => e.entity_type === 'sole_prop') && (
+          <EntitySetup existing={entities} mode="add" onCreated={reload} />
         )}
         {entities?.map((entity) => {
           const letter = letterFor(entity.entity_type);

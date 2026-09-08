@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { attributeBurn, resolveOperatingEntities } from '@/lib/runway/entities';
 
 /**
  * GET /api/runway — compute-on-read runway engine (RUNWAY-2).
@@ -10,8 +12,9 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
  * income ≈ $176K but YTD ≈ ~$900 after Alex left his job, so a YTD net burn would be
  * meaningless). Two windows: trailing 3mo and trailing 6mo.
  *
- * OPERATING scope = Personal + Business only. The Trading entity is EXCLUDED from burn/income
- * (trading P&L is not operating burn — decision: audits/RUNWAY-ENTITY-MODEL.md; see TRADING_ENTITY_ID).
+ * OPERATING scope = Personal + Business only. The viewer's Trading entity is EXCLUDED from burn/income
+ * (trading P&L is not operating burn — decision: audits/RUNWAY-ENTITY-MODEL.md; SELL-04: resolved per
+ * user from their own entity rows, src/lib/runway/entities.ts — no single-tenant id constants).
  *
  * Inputs — ALL reuse the VERIFIED existing sources, user-scoped, no new table/migration:
  *   • cash       = SUM(accounts.currentBalance) for the user  (same field /api/metrics:22-27
@@ -48,21 +51,13 @@ const round = (n: number, dp: number) => {
   return Math.round(n * f) / f;
 };
 
-// Trading entity excluded from OPERATING runway — trading P&L (WIN→4100 revenue, LOSS→5100
-// expense, posted by commit-to-ledger) is NOT operating burn (decision: audits/RUNWAY-ENTITY-MODEL.md).
-// Operating burn/income = Personal + Business only. Resolved by entity_id — the IMMUTABLE key — NOT
-// entity_type, which is inconsistent across seeds (seed-entities.ts:13 wrongly seeds Trading as
-// 'personal'; Alex's psql confirmed the live row is entity_type='trading' with THIS id). Single-tenant:
-// this is the authenticated user's Trading entity. (Multi-tenant would resolve this per-user by id.)
-const TRADING_ENTITY_ID = '972658cc-c1ca-4178-b77e-fad32a89a823';
-
-// The two OPERATING entities, resolved by IMMUTABLE entity_id (psql-confirmed; entity_type is
-// inconsistent across seeds — same rationale as TRADING_ENTITY_ID). The per-entity breakdown
-// attributes each non-trading ledger row to one of these. Any non-trading row that is NEITHER
-// (a stray/legacy entity) is surfaced as `unattributed` — NEVER silently dropped — so the
-// invariant Personal + Business + Unattributed === Combined operating always holds. Single-tenant.
-const PERSONAL_ENTITY_ID = 'e83f5b3a-0b46-4c73-8b91-1b736ecdd3eb';
-const BUSINESS_ENTITY_ID = '9e8ee102-5b75-445b-a1ba-b7226a208b4a';
+// SELL-04: the operating entities are the USER'S OWN, resolved per request from their
+// entity rows (src/lib/runway/entities.ts) — Personal = their default `personal` entity,
+// Business = their `sole_prop` one, Trading = their `trading` one, excluded from operating
+// burn/income (trading P&L is not operating burn — decision: audits/RUNWAY-ENTITY-MODEL.md).
+// The three single-tenant id constants that stood here are gone: a second user's rows can
+// never match them, and a user with no operating entity gets the DECLARED setup line in
+// the breakdown (entities.setup) — never an `unattributed` bucket.
 
 type WindowState = 'ok' | 'insufficient_history' | 'cashflow_positive' | 'no_cash';
 
@@ -80,6 +75,15 @@ export async function GET() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     const userId = user.id;
+
+    // ── The viewer's own entities (user-scoped) → Personal / Business / Trading by their ids. ──
+    const ents = resolveOperatingEntities(
+      await prisma.entities.findMany({ where: { userId }, select: { id: true, entity_type: true, is_default: true } }),
+    );
+    // Trading rows are excluded by the viewer's trading entity id; a viewer with none excludes nothing
+    // (never `!= NULL`, which would exclude every row).
+    const notTradingCoa = ents.tradingId ? Prisma.sql`AND coa.entity_id != ${ents.tradingId}` : Prisma.empty;
+    const notTradingJe = ents.tradingId ? Prisma.sql`AND je.entity_id != ${ents.tradingId}` : Prisma.empty;
 
     // ── Trailing-window bounds: FULL calendar months, excluding the current partial month.
     //    e.g. on 2026-06-21 → windowEnd = 2026-06-01 (exclusive); 3mo start = 2026-03-01;
@@ -116,7 +120,7 @@ export async function GET() {
       WHERE je."userId" = ${userId}
         AND je.is_reversal = false
         AND je.reversed_by_entry_id IS NULL
-        AND je.entity_id != ${TRADING_ENTITY_ID}
+        ${notTradingJe}
     `;
     const earliest = earliestRows[0]?.earliest ?? null;
 
@@ -136,7 +140,7 @@ export async function GET() {
           AND je.reversed_by_entry_id IS NULL
           AND je.date >= ${startStr}::date
           AND je.date <  ${windowEndStr}::date
-          AND coa.entity_id != ${TRADING_ENTITY_ID}
+          ${notTradingCoa}
       `;
       const exp = Number(rows[0]?.exp_cents ?? 0) / 100;
       const rev = Number(rows[0]?.rev_cents ?? 0) / 100;
@@ -160,7 +164,7 @@ export async function GET() {
           AND je.reversed_by_entry_id IS NULL
           AND je.date >= ${startStr}::date
           AND je.date <  ${windowEndStr}::date
-          AND coa.entity_id != ${TRADING_ENTITY_ID}
+          ${notTradingCoa}
         GROUP BY coa.entity_id
       `;
       const map: Record<string, { exp: number; rev: number }> = {};
@@ -176,22 +180,11 @@ export async function GET() {
       const netBurnTotal = round(exp - rev, 2); // positive = burning cash over the window
       const netBurnPerMonth = round(netBurnTotal / n, 2);
 
-      // Per-entity net burn (additive — the combined numbers above are unchanged). Attribute each
-      // non-trading entity_id to Personal / Business; anything else accumulates into `unattributed`
-      // (expected 0 — psql shows exactly 3 entities — but surfaced truthfully if non-zero).
+      // Per-entity net burn (additive — the combined numbers above are unchanged), attributed to
+      // the VIEWER'S Personal / Business ids; anything else is `unattributed` (surfaced, never
+      // dropped); a viewer with no operating entity gets the declared setup line instead.
       const byEntity = await burnByEntity(startStr);
-      const entityFig = (e: { exp: number; rev: number }) => {
-        const total = round(e.exp - e.rev, 2);
-        return { expenses: e.exp, income: e.rev, netBurnTotal: total, netBurnPerMonth: round(total / n, 2) };
-      };
-      const personal = entityFig(byEntity[PERSONAL_ENTITY_ID] ?? { exp: 0, rev: 0 });
-      const business = entityFig(byEntity[BUSINESS_ENTITY_ID] ?? { exp: 0, rev: 0 });
-      let otherExp = 0;
-      let otherRev = 0;
-      for (const [id, e] of Object.entries(byEntity)) {
-        if (id !== PERSONAL_ENTITY_ID && id !== BUSINESS_ENTITY_ID) { otherExp += e.exp; otherRev += e.rev; }
-      }
-      const unattributed = entityFig({ exp: otherExp, rev: otherRev });
+      const attribution = attributeBurn(byEntity, ents, n);
       const sufficientHistory = earliest !== null && earliest <= startStr;
 
       let state: WindowState;
@@ -223,12 +216,9 @@ export async function GET() {
         state,
         runwayMonths,
         zeroDate,
-        // Additive per-entity breakdown (Personal + Business + Unattributed === combined netBurnTotal).
-        entities: {
-          personal,
-          business,
-          unattributed: unattributed.netBurnTotal !== 0 ? unattributed : null,
-        },
+        // Additive per-entity breakdown (Personal + Business + Unattributed === combined netBurnTotal),
+        // or the declared setup line for a viewer with no operating entity (SELL-04).
+        entities: attribution,
       };
     };
 

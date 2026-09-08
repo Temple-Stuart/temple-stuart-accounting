@@ -6,7 +6,7 @@ import { summarizeError, userFacingMessage } from '@/lib/http/failClosed';
 import { prisma } from '@/lib/prisma';
 import { commitPlaidTransaction, type CommitLink } from '@/lib/journal-entry-service';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { ensureBookkeepingInitialized } from '@/lib/ensure-bookkeeping';
+import { requireEntitySetup } from '@/lib/ensure-bookkeeping';
 import { PeriodClosedError } from '@/lib/period-close-guard';
 import { TAB_DESCRIPTORS } from '@/lib/tabDescriptors';
 
@@ -35,7 +35,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    await ensureBookkeepingInitialized(user);
+    // SELL-04: a user with no entity gets the declared setup line (412) — nothing is created here.
+    const setup = await requireEntitySetup(user);
+    if (setup) return setup;
 
     const body = await request.json();
     // DIM-3: vendorId + links are OPTIONAL — absent means the entries post

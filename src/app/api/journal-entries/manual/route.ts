@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { ensureBookkeepingInitialized } from '@/lib/ensure-bookkeeping';
+import { requireEntitySetup } from '@/lib/ensure-bookkeeping';
 import { assertPeriodOpen, PeriodClosedError } from '@/lib/period-close-guard';
 import { requireTabAccess } from '@/lib/auth-helpers';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
@@ -25,7 +25,9 @@ export async function POST(request: Request) {
     const tabGate = await requireTabAccess(user.id, 'tab:books');
     if (tabGate) return tabGate;
 
-    await ensureBookkeepingInitialized(user);
+    // SELL-04: a user with no entity gets the declared setup line (412) — nothing is created here.
+    const setup = await requireEntitySetup(user);
+    if (setup) return setup;
 
     const { date, description, entityId, lines } = await request.json();
 

@@ -34,7 +34,9 @@ interface RunwayWindow {
   runwayMonths: number | null;
   zeroDate: string | null;
   // Additive per-entity breakdown — Personal + Business (+ Unattributed if any) === netBurnTotal.
-  entities: { personal: EntityBurn; business: EntityBurn; unattributed: EntityBurn | null };
+  // SELL-04: each is the VIEWER'S OWN entity (null when they have none of that kind); `setup` is
+  // the declared line for a viewer with no operating entity at all (then the three are null).
+  entities: { personal: EntityBurn | null; business: EntityBurn | null; unattributed: EntityBurn | null; setup: string | null };
 }
 interface EntityBurn {
   expenses: number;
@@ -106,12 +108,14 @@ function windowStrings(w: RunwayWindow): { burnLine: string; runwayLine: string;
 // Per-entity net burn/mo — same trailing-ledger basis as the combined line. Net burn is real in
 // every state EXCEPT insufficient_history (the window lacks full data); no per-entity runway/zero
 // date (cash is not entity-split this PR). Mirrors the combined burnLine sign convention.
-const entityBurnLine = (w: RunwayWindow, e: EntityBurn) =>
-  w.state === 'insufficient_history'
-    ? '—'
-    : e.netBurnPerMonth > 0
-      ? `${usd(e.netBurnPerMonth)}/mo out`
-      : `${usd(Math.abs(e.netBurnPerMonth))}/mo in`;
+const entityBurnLine = (w: RunwayWindow, e: EntityBurn | null) =>
+  e === null
+    ? 'no entity' // SELL-04: the viewer has no entity of this kind — declared, never a zero
+    : w.state === 'insufficient_history'
+      ? '—'
+      : e.netBurnPerMonth > 0
+        ? `${usd(e.netBurnPerMonth)}/mo out`
+        : `${usd(Math.abs(e.netBurnPerMonth))}/mo in`;
 
 // RUNWAY-PIPE: the receipts the tab's ProofStrip renders, derived from the
 // panel's OWN payload via the SAME windowStrings mapping the hero + cards use
@@ -169,6 +173,10 @@ function RunwayWindowCard({ w }: { w: RunwayWindow }) {
       </div>
       {/* Per-entity operating breakdown (additive; Personal + Business reconcile to Net burn above). */}
       <div className="mt-1.5 pt-1.5 border-t border-border-light space-y-0.5">
+        {/* SELL-04: a viewer with no operating entity gets the declared setup line, never an unattributed bucket. */}
+        {w.entities.setup && (
+          <div className="text-[10px] text-status-warning" data-runway-setup>{w.entities.setup}</div>
+        )}
         <div className="flex items-baseline justify-between gap-2">
           <span className="text-[10px] text-text-faint uppercase tracking-wide">Personal</span>
           <span className="font-mono text-xs text-text-secondary tabular-nums">{entityBurnLine(w, w.entities.personal)}</span>
@@ -200,7 +208,7 @@ function previewRunway(): RunwayData {
     months, rangeStart: '', rangeEnd: '', expenses: 0, income: 0,
     netBurnTotal: 0, netBurnPerMonth: 0, sufficientHistory: false,
     state: 'insufficient_history', runwayMonths: null, zeroDate: null,
-    entities: { personal: PREVIEW_EMPTY_ENTITY, business: PREVIEW_EMPTY_ENTITY, unattributed: null },
+    entities: { personal: PREVIEW_EMPTY_ENTITY, business: PREVIEW_EMPTY_ENTITY, unattributed: null, setup: null },
   });
   return {
     asOf: new Date().toISOString().slice(0, 10),

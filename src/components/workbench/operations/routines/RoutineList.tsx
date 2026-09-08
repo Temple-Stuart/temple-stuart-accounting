@@ -19,6 +19,7 @@ import RoutineCreateForm from './RoutineCreateForm';
 import type { CadenceGroup, Routine } from './types';
 import { CADENCE_GROUP_LABELS, CADENCE_GROUP_ORDER } from './types';
 import type { Scene, Take } from '../content/ContentTable';
+import { SETUP_DOOR } from '@/lib/entities/kinds';
 
 
 interface Entity {
@@ -163,13 +164,13 @@ export default function RoutineList({ entities, onCommitted, onTotals }: Props &
         {!showCreate && (
           <div className="flex items-center gap-2">
             {/* ZERO-STATE-1: no silent disable — when no entity exists the
-                reason renders beside the button. Truth source: entities are
-                created automatically by ensureBookkeepingInitialized the
-                first time a bookkeeping route runs (ensure-bookkeeping.ts:
-                5-23) — there is no manual create-entity flow. */}
+                reason renders beside the button. Truth source (SELL-04):
+                entities are set up BY THE USER in Books — the first-run step
+                on the Books tab and the chart page (POST /api/entities);
+                nothing creates one automatically any more. */}
             {entities.length === 0 && (
               <span className="text-[11px] text-text-faint">
-                no entity yet — open the Books tab once and your default entity is created automatically.
+                no entity yet — set one up in Books › <a href={SETUP_DOOR} className="underline">Chart of accounts</a>.
               </span>
             )}
             <button
