@@ -253,8 +253,8 @@ export default function ShoppingPage() {
                   !canAccess(userTier, 'ai', currentUserId) ? (
                     <div className="text-center py-8">
                       <div className="text-sm font-medium text-text-primary mb-2">AI Shopping Planner requires Pro+</div>
-                      <div className="text-xs text-text-muted mb-4">Upgrade to Pro+ ($40/mo) to unlock AI-powered planning.</div>
-                      <button onClick={() => setShowUpgradeModal(true)} className="px-6 py-2 text-xs bg-brand-purple text-white font-medium hover:bg-brand-purple-hover">View Plans</button>
+                      <div className="text-xs text-text-muted mb-4">AI-powered planning is gated on a plan that is not for sale yet. Nothing here names a price that is not in the offer.</div>
+                      <button onClick={() => setShowUpgradeModal(true)} className="px-6 py-2 text-xs bg-brand-purple text-white font-medium hover:bg-brand-purple-hover">See the offer</button>
                     </div>
                   ) : (
                     <MealPlannerForm onPlanGenerated={handleMealGenerated} />
@@ -281,8 +281,8 @@ export default function ShoppingPage() {
                   !canAccess(userTier, 'ai', currentUserId) ? (
                     <div className="text-center py-8">
                       <div className="text-sm font-medium text-text-primary mb-2">AI Shopping Planner requires Pro+</div>
-                      <div className="text-xs text-text-muted mb-4">Upgrade to Pro+ ($40/mo) to unlock AI-powered planning.</div>
-                      <button onClick={() => setShowUpgradeModal(true)} className="px-6 py-2 text-xs bg-brand-purple text-white font-medium hover:bg-brand-purple-hover">View Plans</button>
+                      <div className="text-xs text-text-muted mb-4">AI-powered planning is gated on a plan that is not for sale yet. Nothing here names a price that is not in the offer.</div>
+                      <button onClick={() => setShowUpgradeModal(true)} className="px-6 py-2 text-xs bg-brand-purple text-white font-medium hover:bg-brand-purple-hover">See the offer</button>
                     </div>
                   ) : (
                     <CartPlannerForm
@@ -302,9 +302,9 @@ export default function ShoppingPage() {
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowUpgradeModal(false)} />
           <div className="relative z-10 bg-white border border-border p-6 max-w-md">
             <div className="text-sm font-medium text-text-primary mb-2">AI Shopping Planner requires Pro+</div>
-            <div className="text-xs text-text-muted mb-4">Upgrade to Pro+ ($40/mo) to unlock AI-powered planning.</div>
+            <div className="text-xs text-text-muted mb-4">AI-powered planning is gated on a plan that is not for sale yet. Nothing here names a price that is not in the offer.</div>
             <div className="flex gap-2">
-              <button onClick={() => window.location.href = "/#modules"} className="flex-1 px-4 py-2 text-xs bg-brand-purple text-white font-medium hover:bg-brand-purple-hover">View Plans</button>
+              <button onClick={() => window.location.href = "/pricing"} className="flex-1 px-4 py-2 text-xs bg-brand-purple text-white font-medium hover:bg-brand-purple-hover">See the offer</button>
               <button onClick={() => setShowUpgradeModal(false)} className="flex-1 px-4 py-2 text-xs border border-border text-text-secondary font-medium hover:bg-bg-row">Not Now</button>
             </div>
           </div>

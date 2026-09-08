@@ -201,9 +201,11 @@ interface Props {
   /** PR-Hero-PerTab: notifies the parent (page.tsx) of the active tab so the hero
    *  subhead up top can swap to that tab's descriptor. Optional/additive. */
   onTabChange?: (tab: string) => void;
+  /** SELL-02: per offer key, is its Stripe price id set — server-computed (page.tsx), passed down to the locked cards; never read here. */
+  offerAvailability: Readonly<Record<string, boolean>>;
 }
 
-export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
+export default function ModuleLauncher({ onRequireAuth, onTabChange, offerAvailability }: Props) {
   // Auth state: null = unknown (initial), true/false once /api/auth/me resolves.
   const [authed, setAuthed] = useState<boolean | null>(null);
   // PR-2b: per-category entitlements + user id (server-computed via /api/auth/me). Drive the
@@ -1266,8 +1268,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 <ModulePointerCard pillarId="trade" />
                 <LockedTabCard
                   tabKey="tab:trade"
-                  label="Trading"
-                  valueLine="Run live scans on real market data, with the reconcile queue and the self-graded record."
+                  offerAvailability={offerAvailability}
                   currentUserId={currentUserId}
                   onRequireAuth={onRequireAuth}
                 />
@@ -1357,8 +1358,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 <ModulePointerCard pillarId="books" />
                 <LockedTabCard
                   tabKey="tab:books"
-                  label="Bookkeeping"
-                  valueLine="Your real accounts, synced and closed month after month — GAAP double-entry, not a spreadsheet."
+                  offerAvailability={offerAvailability}
                   currentUserId={currentUserId}
                   onRequireAuth={onRequireAuth}
                 />
@@ -1390,8 +1390,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 <ModulePointerCard pillarId="tax" />
                 <LockedTabCard
                   tabKey="tab:tax"
-                  label="Tax"
-                  valueLine="Your 1040 estimate and schedules, derived from your actual closed books — plus the CPA-ready export."
+                  offerAvailability={offerAvailability}
                   currentUserId={currentUserId}
                   onRequireAuth={onRequireAuth}
                 />
@@ -1424,8 +1423,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 <ModulePointerCard pillarId="compliance" />
                 <LockedTabCard
                   tabKey="tab:compliance"
-                  label="Compliance"
-                  valueLine="The live workbench: corpus search, citation verification, missions, and the audit registry."
+                  offerAvailability={offerAvailability}
                   currentUserId={currentUserId}
                   onRequireAuth={onRequireAuth}
                 />

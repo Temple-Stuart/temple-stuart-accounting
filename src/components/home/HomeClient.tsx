@@ -16,6 +16,9 @@ import { Check } from 'lucide-react';
 // REPAINT-3: the HERO_BG import died — the hero is a solid aubergine band
 // (HOME-HERO-PARITY holds: the landing hero made the same move in REPAINT-2).
 import CheckoutResultBanner from '@/components/CheckoutResultBanner';
+// SELL-02: the `?module=<key>` door on the authed landing, and the one checkout call.
+import { moduleDoorPlan } from '@/lib/offer';
+import { startEntitlementCheckout } from '@/lib/checkoutDoor';
 import { useExportDownload } from '@/lib/useExportDownload';
 
 // BANDS-TRIM: the per-tab "How it works" disclosure (PR-Hero-Collapsible)
@@ -24,7 +27,10 @@ import { useExportDownload } from '@/lib/useExportDownload';
 // live in git history; TAB_DESCRIPTORS survives in its leaf for the
 // logged-out pointer cards (ModulePointerCard.tsx:32).
 
-export default function HomeClient() {
+export default function HomeClient({ offerAvailability }: {
+  /** SELL-02: per offer key, is its Stripe price id set — the server's env-presence read (page.tsx, [tab]/page.tsx); the locked cards render from it. */
+  offerAvailability: Record<string, boolean>;
+}) {
   const { data: session } = useSession();
   const [showLogin, setShowLogin] = useState(false);
   // PR-Hero-PerTab: the hero subhead swaps with the active tab. ModuleLauncher owns the
@@ -42,6 +48,11 @@ export default function HomeClient() {
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [userLabel, setUserLabel] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
+  // SELL-02: the `?module=<key>` door — a signed-in viewer goes straight to checkout; a guest
+  // (the tab paths render this shell for guests too) gets the sign-up modal with the key
+  // pending and checkout resumes after sign-up. Errors render loud; nothing retries.
+  const [pendingBuyKey, setPendingBuyKey] = useState<string | null>(null);
+  const [buyError, setBuyError] = useState('');
   // EXPORT-1b: the header export chip — shared behavior with the Books-tab button.
   const { busy: exportBusy, error: exportError, run: runExport } = useExportDownload();
   // PR-PRICE-3: "Manage subscription" relocated here from the dead /pricing
@@ -86,6 +97,20 @@ export default function HomeClient() {
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    if (authed === null) return;
+    const plan = moduleDoorPlan(window.location.search, authed);
+    if (plan.kind === 'checkout') {
+      startEntitlementCheckout(plan.key)
+        .then((url) => { window.location.href = url; })
+        .catch((err: unknown) => setBuyError(err instanceof Error ? err.message : 'Could not start checkout'));
+    } else if (plan.kind === 'register') {
+      setPendingBuyKey(plan.key);
+      setLoginMode('register');
+      setShowLogin(true);
+    }
+  }, [authed]);
+
   // PR-Auth-Home: log out from the home header — the SAME recipe the app shell uses
   // (AppLayout.handleSignOut): clear the cookie-auth cookie, sign out of next-auth if
   // there's a session, otherwise hit the clear-cookie route. End on the home page,
@@ -109,6 +134,11 @@ export default function HomeClient() {
       {/* UNLOCK-BANNER: authed landing — the same checkout result card the
           guest landing mounts (the purchase resume returns to '/'). */}
       <CheckoutResultBanner />
+      {buyError && (
+        <div role="alert" onClick={() => setBuyError('')} className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 cursor-pointer border border-red-200 bg-red-50 p-3 text-xs text-red-800 shadow-lg">
+          {buyError} — click to dismiss.
+        </div>
+      )}
       {/* Header — FD-3-2: joins the panel family, mirroring LandingHeader
           (border-b border-border bg-white text-text-primary; mono micro sub-
           line; text-text-muted nav links). It stays distinct from the hero via
@@ -275,6 +305,7 @@ export default function HomeClient() {
       <ModuleLauncher
         onRequireAuth={() => { setLoginMode('register'); setShowLogin(true); }}
         onTabChange={setActiveTab}
+        offerAvailability={offerAvailability}
       />
 
       {/* CPA Disclaimer — FD-3-2: the panel family, mirroring LandingFooter's
@@ -349,7 +380,19 @@ export default function HomeClient() {
           <div className="relative z-10">
             <LoginBox
               onClose={() => setShowLogin(false)}
-              onSuccess={() => { window.location.href = loginRedirect; }}
+              onSuccess={() => {
+                if (pendingBuyKey) {
+                  // SELL-02: the purchase resume — checkout for the pending key; Stripe returns to /answers.
+                  const key = pendingBuyKey;
+                  setPendingBuyKey(null);
+                  setShowLogin(false);
+                  startEntitlementCheckout(key)
+                    .then((url) => { window.location.href = url; })
+                    .catch((err: unknown) => setBuyError(err instanceof Error ? err.message : 'Could not start checkout'));
+                  return;
+                }
+                window.location.href = loginRedirect;
+              }}
               redirectTo={loginRedirect}
               initialMode={loginMode}
             />

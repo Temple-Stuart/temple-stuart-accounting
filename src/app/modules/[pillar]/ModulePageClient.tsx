@@ -15,10 +15,10 @@
  * ACCESS BLOCK TRUTH (per the FD-1d audit):
  *   • the four entitlement modules (trade/books/tax/compliance — the ONLY
  *     tab-gated pillars, categoryLock.ts:28-30 via ML :259-262) render
- *     TAB_PRICING price-or-fallback + the server-computed availability →
- *     Select links /?module=<key>#modules (PR-PRICE-3: the landing deck is
- *     THE pricing surface; its Select owns the account-first checkout) or
- *     the disabled "Not yet available";
+ *     THE OFFER CARD (SELL-02, src/lib/offer.ts): the registry's claim lines,
+ *     the price only when live, and a door linking /?module=<slug>#modules —
+ *     the deck's offer act, where GuestLanding owns the account-first
+ *     checkout; no live price → the declared line and no button;
  *   • travel: free, guest-usable — its search/booking routes are PUBLIC
  *     (middleware.ts:70-94) and its deck's own eyebrow says "no account
  *     required" (TravelShowcaseSections.tsx:324) → CTA = the live tools;
@@ -29,14 +29,16 @@
  *     hero "Create free account" opens account creation.
  *
  * On these pages every deck onRequireAuth routes to '/' — no login modal
- * exists here, and PR-PRICE-3 made the front door the real ask surface
- * (/pricing is a permanent redirect to /#modules now).
+ * exists here; the offer card's door links /?module=<slug>#modules, where
+ * the front door opens the sign-up modal with the key pending (SELL-02).
  */
 
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import type { ComponentType } from 'react';
-import { TAB_PRICING } from '@/config/pricing-costs';
+// SELL-02: the access block is THE OFFER CARD — the registry's claim lines, the price only when live.
+import OfferCard from '@/components/OfferCard';
+import { TOOL_GATE, offerCard, offerGranting } from '@/lib/offer';
 import { TAB_DESCRIPTORS } from '@/lib/tabDescriptors';
 // MOD-1: the pillar registry lives in a server-safe leaf now — defining it
 // here ('use client') made the server page's PILLARS.find() a client-reference
@@ -64,7 +66,7 @@ const TaxShowcase = dynamic(() => import('@/components/home/TabShowcases').then(
 const ComplianceShowcase = dynamic(() => import('@/components/home/TabShowcases').then((m) => m.ComplianceShowcase), { ssr: false, loading: deckLoading('Compliance') });
 
 type PlainDeck = ComponentType<{ onRequireAuth: () => void }>;
-type WrappedDeck = ComponentType<{ currentUserId: string; onRequireAuth: () => void }>;
+type WrappedDeck = ComponentType<{ currentUserId: string; onRequireAuth: () => void; offerAvailability: Readonly<Record<string, boolean>> }>;
 
 const PLAIN_DECKS: Record<string, PlainDeck> = {
   travel: TravelShowcase,
@@ -87,10 +89,10 @@ export default function ModulePageClient({ pillar, availability }: {
   const requireAuth = () => { window.location.href = '/'; };
   const Plain = PLAIN_DECKS[pillar.id];
   const Wrapped = WRAPPED_DECKS[pillar.id];
-  const pricing = pillar.entitlementKey
-    ? TAB_PRICING.find((t) => t.key === pillar.entitlementKey)
-    : undefined;
-  const available = pillar.entitlementKey ? availability[pillar.entitlementKey] === true : false;
+  // SELL-02: the offer that grants this pillar's tab (Books — Trade, Tax and Compliance ride inside).
+  const offer = pillar.entitlementKey ? offerGranting(pillar.entitlementKey) : undefined;
+  const card = offer ? offerCard(offer, availability) : undefined;
+  const highlight = card ? card.tools.filter((t) => TOOL_GATE[t.name] === pillar.entitlementKey).map((t) => t.name) : [];
 
   return (
     <div className="min-h-screen bg-bg-terminal text-text-primary">
@@ -104,7 +106,7 @@ export default function ModulePageClient({ pillar, availability }: {
           </p>
           <p className="mb-6 max-w-2xl text-xs text-white/60">{TAB_DESCRIPTORS[pillar.tab]}</p>
           {Plain && <Plain onRequireAuth={requireAuth} />}
-          {Wrapped && <Wrapped currentUserId="" onRequireAuth={requireAuth} />}
+          {Wrapped && <Wrapped currentUserId="" onRequireAuth={requireAuth} offerAvailability={availability} />}
         </div>
       </section>
 
@@ -114,44 +116,8 @@ export default function ModulePageClient({ pillar, availability }: {
           <p className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/50">
             Access
           </p>
-          {pricing ? (
-            <div className="flex flex-col gap-4 rounded-lg border border-panel-border bg-panel p-4 sm:flex-row sm:items-center">
-              <div className="flex-1">
-                <span className="rounded border border-white/20 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
-                  {pricing.label}
-                </span>
-                <p className="mt-2 text-xs leading-relaxed text-white/60">Unlocks {pricing.unlocks}.</p>
-                <p className="mt-1 font-mono text-[10px] uppercase tracking-wider text-white/40">
-                  Billed monthly · cancel anytime
-                </p>
-              </div>
-              <div className="font-mono text-lg font-bold text-white">
-                {pricing.monthlyPrice !== null ? (
-                  <>${pricing.monthlyPrice}<span className="text-xs font-normal text-white/50">/mo</span></>
-                ) : (
-                  <span className="text-xs font-normal italic text-white/50" title="Display price not entered yet — Stripe shows the real price at checkout">
-                    price shown at checkout
-                  </span>
-                )}
-              </div>
-              {available ? (
-                <Link
-                  href={`/?module=${encodeURIComponent(pricing.key)}#modules`}
-                  className="bg-white px-6 py-2 text-center text-xs font-medium text-brand-purple hover:bg-bg-row"
-                >
-                  Select {pricing.label} →
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  disabled
-                  title="This module's Stripe price isn't configured yet"
-                  className="cursor-not-allowed border border-panel-border px-6 py-2 text-xs font-medium text-white/40"
-                >
-                  Not yet available
-                </button>
-              )}
-            </div>
+          {card ? (
+            <OfferCard card={card} door={{ kind: 'link', href: `/?module=${card.slug}#modules` }} highlight={highlight} tone="dark" />
           ) : pillar.id === 'travel' ? (
             // DECKS-3 (ruling 3): paid framing — the ONE surviving free claim
             // is the home-page search itself (its routes are public,

@@ -65,8 +65,10 @@ export async function POST(request: NextRequest) {
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${baseUrl}/?unlocked=${encodeURIComponent(key)}`,
-      cancel_url: `${baseUrl}/?checkout=cancelled`,
+      // SELL-02: a purchase lands on THE ANSWERS with the tab unlocked (the
+      // banner reads ?unlocked= there); a cancel lands on the deck's offer act.
+      success_url: `${baseUrl}/answers?unlocked=${encodeURIComponent(key)}`,
+      cancel_url: `${baseUrl}/?checkout=cancelled#modules`,
       metadata: { userId: user.id, entitlementKey: key },
     });
 

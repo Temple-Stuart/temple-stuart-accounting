@@ -21,6 +21,7 @@ import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import ShellBar from '@/components/ui/ShellBar';
 import FamilyNav from '@/components/home/FamilyNav';
+import CheckoutResultBanner from '@/components/CheckoutResultBanner';
 import { deriveRunwayReceipts } from '@/components/hub/RunwayBudgetPanel';
 import { ANSWER_ROWS, ANSWER_READS, NET_WORTH_READ, type AnswerRead, type ComputedRead } from '@/lib/answers';
 
@@ -268,6 +269,8 @@ export default function AnswersClient({ viewer }: { viewer: string }) {
     <div className="min-h-screen bg-bg-terminal flex flex-col">
       <ShellBar userLabel={viewer.split('@')[0]} isAdmin={isAdmin} onSignOut={handleSignOut} />
       <FamilyNav />
+      {/* SELL-02: a purchase lands here (checkout-entitlement success_url) — the unlock banner reads ?unlocked=. */}
+      <CheckoutResultBanner />
       <main className="max-w-7xl mx-auto w-full px-4 lg:px-8 py-6 sm:py-8">
         {profileError && (
           <p role="alert" className="mb-4 font-mono text-[10px] text-rose-700">Profile read failed — {profileError}. Utilities hidden.</p>

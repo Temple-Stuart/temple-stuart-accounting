@@ -4,8 +4,8 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { decode } from 'next-auth/jwt';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { TAB_ENTITLEMENT_KEYS, BUNDLE_ALL_KEY } from '@/lib/categoryKeys';
-import { getPriceIdFromEntitlementKey } from '@/lib/stripe';
+// SELL-02: per offer key, is its Stripe price id set — the one env-presence read, passed to both landings.
+import { offerAvailabilityFromEnv } from '@/lib/offer';
 import { BUILT_ON } from '@/lib/builtOnWall';
 import HomeClient from '@/components/home/HomeClient';
 import GuestLanding from '@/components/landing/GuestLanding';
@@ -67,8 +67,9 @@ export default async function Page({ searchParams }: {
   //   • an invalid/non-string value redirects to the clean root (never a lying
   //     URL — the F2 doctrine, now server-side).
   const params = await searchParams;
+  const offerAvailability = offerAvailabilityFromEnv(process.env);
   if (params.tab !== undefined) {
-    if (params.tab === 'compliance') return <HomeClient />;
+    if (params.tab === 'compliance') return <HomeClient offerAvailability={offerAvailability} />;
     const TAB_TO_PATH: Record<string, string> = {
       calendar: '/runway', travel: '/travel', routines: '/routines',
       projects: '/projects', content: '/content', trade: '/trade',
@@ -77,15 +78,10 @@ export default async function Page({ searchParams }: {
     redirect(typeof params.tab === 'string' ? (TAB_TO_PATH[params.tab] ?? '/') : '/');
   }
 
-  if (await isVerifiedAuthed()) return <HomeClient />;
+  if (await isVerifiedAuthed()) return <HomeClient offerAvailability={offerAvailability} />;
 
-  // DECKS-3: availability computes over the FULL purchasable tab vocabulary
-  // (categoryKeys.ts:22-29 + bundle:all) — tab:travel / tab:operations now
-  // back landing Select buttons, so a Stripe price Alex configures for them
-  // must surface without a code change. Same env-presence-only read.
-  const entitlementAvailability = Object.fromEntries(
-    [...TAB_ENTITLEMENT_KEYS, BUNDLE_ALL_KEY].map((k) => [k, getPriceIdFromEntitlementKey(k) !== null]),
-  );
+  // SELL-02: the offer's availability (computed above, before the authed branch — the
+  // cockpit's locked cards need it too) rides both landings; the env value never leaves.
   // PR-ELEV-2d: per cleared logo slot, does public/logos/<slug>.svg exist?
   // File-presence only (the availability-map idiom above) — a dropped file
   // lights its Built-on card on the next request, no code change. force-
@@ -95,5 +91,5 @@ export default async function Page({ searchParams }: {
       e.logo ? [[e.logo.slug, fs.existsSync(path.join(process.cwd(), 'public', 'logos', `${e.logo.slug}.svg`))]] : [],
     ),
   );
-  return <GuestLanding entitlementAvailability={entitlementAvailability} logoAvailability={logoAvailability} />;
+  return <GuestLanding offerAvailability={offerAvailability} logoAvailability={logoAvailability} />;
 }

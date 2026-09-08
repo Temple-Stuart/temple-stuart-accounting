@@ -96,6 +96,8 @@ import {
 interface ShowcaseProps {
   currentUserId: string;
   onRequireAuth: () => void;
+  /** SELL-02: per offer key, is its Stripe price id set — the module page computes it server-side and passes it down. */
+  offerAvailability: Readonly<Record<string, boolean>>;
 }
 
 // ── TRADE ────────────────────────────────────────────────────────────────────
@@ -124,7 +126,7 @@ interface ShowcaseProps {
 // slides was redundant and is gone; the template's steps slot is now optional
 // and Trade passes no steps.
 
-export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
+export function TradeShowcase({ currentUserId, onRequireAuth, offerAvailability }: ShowcaseProps) {
   return (
     <TabShowcaseTemplate
       // TRADE-SHOWCASE-BLOOMBERG: dark cinematic hero replaces the purple band;
@@ -209,8 +211,7 @@ export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
         <div id={TRADE_UNLOCK_CTA_ID}>
           <LockedTabCard
             tabKey="tab:trade"
-            label="Trading"
-            valueLine="Run live scans on real market data, with the reconcile queue and the self-graded record."
+            offerAvailability={offerAvailability}
             currentUserId={currentUserId}
             onRequireAuth={onRequireAuth}
           />
@@ -230,7 +231,7 @@ export function TradeShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
 // statements -> period close -> CPA export. All example values are ONE
 // coherent set of books (reconciliation math in BooksShowcaseSections.tsx).
 
-export function BooksShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
+export function BooksShowcase({ currentUserId, onRequireAuth, offerAvailability }: ShowcaseProps) {
   return (
     <TabShowcaseTemplate
       darkHero={{
@@ -306,8 +307,7 @@ export function BooksShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
         <div id={BOOKS_UNLOCK_CTA_ID}>
           <LockedTabCard
             tabKey="tab:books"
-            label="Bookkeeping"
-            valueLine="Your real accounts, synced and closed month after month — GAAP double-entry, not a spreadsheet."
+            offerAvailability={offerAvailability}
             currentUserId={currentUserId}
             onRequireAuth={onRequireAuth}
           />
@@ -333,7 +333,7 @@ export function BooksShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
 // advertised nowhere. (This replaces the old 4-tile static panel — its
 // $23,400 scenario is retained and extended, engine-true.)
 
-export function TaxShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
+export function TaxShowcase({ currentUserId, onRequireAuth, offerAvailability }: ShowcaseProps) {
   return (
     <TabShowcaseTemplate
       darkHero={{
@@ -409,8 +409,7 @@ export function TaxShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
         <div id={TAX_UNLOCK_CTA_ID}>
           <LockedTabCard
             tabKey="tab:tax"
-            label="Tax"
-            valueLine="Your 1040 estimate and schedules, derived from your actual closed books — plus the CPA-ready export."
+            offerAvailability={offerAvailability}
             currentUserId={currentUserId}
             onRequireAuth={onRequireAuth}
           />
@@ -429,15 +428,14 @@ export function TaxShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
  *  carries the corrected version-locking language. The REAL unlock CTA
  *  (LockedTabCard, tab:compliance) is passed in as the deck's cta so the deck
  *  file never imports this module (no cycle). */
-export function ComplianceShowcase({ currentUserId, onRequireAuth }: ShowcaseProps) {
+export function ComplianceShowcase({ currentUserId, onRequireAuth, offerAvailability }: ShowcaseProps) {
   return (
     <ComplianceReceiptsDeck
       onRequireAuth={onRequireAuth}
       cta={
         <LockedTabCard
           tabKey="tab:compliance"
-          label="Compliance"
-          valueLine="The live workbench: corpus search, citation verification, missions, and the audit registry."
+          offerAvailability={offerAvailability}
           currentUserId={currentUserId}
           onRequireAuth={onRequireAuth}
         />

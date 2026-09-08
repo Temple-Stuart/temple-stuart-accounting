@@ -30,13 +30,17 @@
  * to Stripe instead; its return URLs land back on '/'.)
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Landing from './Landing';
 import CheckoutResultBanner from '@/components/CheckoutResultBanner';
 import LoginBox from '@/components/LoginBox';
+// SELL-02: the `?module=<key>` door and the one checkout call.
+import { moduleDoorPlan } from '@/lib/offer';
+import { startEntitlementCheckout } from '@/lib/checkoutDoor';
 
-export default function GuestLanding({ entitlementAvailability, logoAvailability }: {
-  entitlementAvailability: Record<string, boolean>;
+export default function GuestLanding({ offerAvailability, logoAvailability }: {
+  /** SELL-02: per offer key, is its Stripe price id set — page.tsx's env-presence read. */
+  offerAvailability: Record<string, boolean>;
   /** PR-ELEV-2d: server-computed public/logos/<slug>.svg presence map. */
   logoAvailability: Record<string, boolean>;
 }) {
@@ -55,16 +59,7 @@ export default function GuestLanding({ entitlementAvailability, logoAvailability
   const startCheckout = async (key: string) => {
     setBuyError(null);
     try {
-      const res = await fetch('/api/stripe/checkout-entitlement', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.url) {
-        throw new Error(data.error || 'Could not start checkout');
-      }
-      window.location.href = data.url;
+      window.location.href = await startEntitlementCheckout(key);
     } catch (err) {
       setBuyError(err instanceof Error ? err.message : 'Could not start checkout');
     }
@@ -77,13 +72,26 @@ export default function GuestLanding({ entitlementAvailability, logoAvailability
     setShowLogin(true);
   };
 
+  // SELL-02: the `?module=<key>` door — a link from /pricing, a /modules page or
+  // anywhere else opens the sign-up modal with the key pending; after sign-up
+  // the same resume runs checkout. Read once on mount: page.tsx renders this
+  // only for guests, so the plan is always the register one.
+  useEffect(() => {
+    const plan = moduleDoorPlan(window.location.search, false);
+    if (plan.kind !== 'register') return;
+    setBuyError(null);
+    setPendingBuyKey(plan.key);
+    setLoginMode('register');
+    setShowLogin(true);
+  }, []);
+
   return (
     <>
       {/* UNLOCK-BANNER: the checkout result card — the ?unlocked/?cancelled
           params the purchase resume returns with land here for guests. */}
       <CheckoutResultBanner />
       <Landing
-        entitlementAvailability={entitlementAvailability}
+        offerAvailability={offerAvailability}
         logoAvailability={logoAvailability}
         onRequireAuth={() => { setLoginMode('register'); setShowLogin(true); }}
         onRequireLogin={() => { setLoginMode('login'); setShowLogin(true); }}
@@ -111,7 +119,8 @@ export default function GuestLanding({ entitlementAvailability, logoAvailability
               onSuccess={() => {
                 if (pendingBuyKey) {
                   // Purchase resume: stay on the page and go straight to
-                  // checkout — Stripe's return URLs land back on '/'.
+                  // checkout — Stripe returns to /answers?unlocked=<key> on
+                  // success and /?checkout=cancelled#modules on cancel.
                   setShowLogin(false);
                   startCheckout(pendingBuyKey);
                   setPendingBuyKey(null);

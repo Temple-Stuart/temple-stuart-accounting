@@ -59,10 +59,11 @@ interface CookieUser {
 const TRAVEL_PREFIXES = ['/budgets/trips', '/trips'];
 
 // FD-4: routes that RENDER for guests despite mounting AppLayout. EMPTY since
-// PR-PRICE-3: '/pricing' (the only entry) no longer mounts AppLayout — it is
-// a permanent redirect to /#modules, and the deck's buy flow (GuestLanding
-// onBuyModule) owns the guest resume PricingClient used to. The mechanism
-// stays for the next guest-renderable AppLayout consumer.
+// PR-PRICE-3: '/pricing' (the only entry) no longer mounts AppLayout — it
+// renders THE OFFER under LandingHeader/LandingFooter (SELL-02), and the deck's
+// buy flow (GuestLanding onBuyModule / the ?module= door) owns the guest
+// resume PricingClient used to. The mechanism stays for the next
+// guest-renderable AppLayout consumer.
 const GUEST_OK_PATHS: string[] = [];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

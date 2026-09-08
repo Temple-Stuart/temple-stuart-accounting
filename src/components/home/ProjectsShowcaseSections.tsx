@@ -41,6 +41,8 @@
  */
 
 import TabShowcaseTemplate, { ExampleTag } from '@/components/home/TabShowcaseTemplate';
+// SELL-02: the CTA's claim line comes from the tool registry (claimForCockpit), never typed.
+import { claimForCockpit } from '@/lib/offer';
 
 interface Props {
   /** Opens the existing home register/login modal. Never fetches. */
@@ -247,7 +249,7 @@ function FreeAccountCta({ onRequireAuth, label, valueLine }: Props & { label: st
   return (
     <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-brand-purple/15 bg-bg-row px-6 py-8 text-center">
       <div className="space-y-1">
-        <p className="text-base font-bold text-text-primary">{label} — built and running</p>
+        <p className="text-base font-bold text-text-primary">{label} — {claimForCockpit('projects')}</p>
         <p className="text-sm text-text-muted">{valueLine}</p>
       </div>
       <button
