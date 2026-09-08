@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { ValidationError } from '@/lib/errors/ValidationError';
 import { prisma } from '@/lib/prisma';
 import { positionTrackerService } from '@/lib/position-tracker-service';
+import { postJournal } from '@/lib/posting/postJournal';
 
 // ═══════════════════════════════════════════════════════════════
 // Classification categories for investment transactions
@@ -494,10 +495,10 @@ export async function processStockBuys(
     const tradeNum = `${ticker}-${String(globalMaxNum).padStart(4, '0')}`;
 
     try {
-      const commitResult = await prisma.$transaction(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        async (tx: any) => {
-          return await positionTrackerService.commitStockTrade({
+      const { result: commitResult } = await postJournal(
+        prisma,
+        async (tx, post) =>
+          positionTrackerService.commitStockTrade({
             legs: [{
               id: txn.id,
               date: txn.date,
@@ -513,9 +514,9 @@ export async function processStockBuys(
             userId,
             entityId,
             tx,
+            post,
             createdBy: 'batch-trade-processor',
-          });
-        },
+          }),
         { maxWait: 10000, timeout: 30000 }
       );
 
@@ -722,19 +723,19 @@ export async function processOptions(
     const tradeNum = `${underlying}-${String(globalMaxNum).padStart(4, '0')}`;
 
     try {
-      const commitResult = await prisma.$transaction(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        async (tx: any) => {
-          return await positionTrackerService.commitOptionsTrade({
+      const { result: commitResult } = await postJournal(
+        prisma,
+        async (tx, post) =>
+          positionTrackerService.commitOptionsTrade({
             legs,
             strategy,
             tradeNum,
             userId,
             entityId,
             tx,
+            post,
             createdBy: 'batch-trade-processor',
-          });
-        },
+          }),
         { maxWait: 10000, timeout: 30000 }
       );
 
@@ -891,9 +892,9 @@ export async function processStockSells(
     const tradeNum = `${ticker}-${String(globalMaxNum).padStart(4, '0')}`;
 
     try {
-      await prisma.$transaction(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        async (tx: any) => {
+      await postJournal(
+        prisma,
+        async (tx, post) => {
           // Find open lots FIFO
           const lots = await tx.stock_lots.findMany({
             where: {
@@ -982,8 +983,11 @@ export async function processStockSells(
             throw new ValidationError(`Missing required accounts: ${TRADING_CASH}, ${STOCK_POSITION}, ${PL_ACCOUNT}`);
           }
 
-          const journalEntry = await tx.journal_entries.create({
-            data: {
+          // HYG-04: one entry, three lines, through `post` (the deltas as before:
+          // cash +proceeds, position −cost, P&L ±).
+          const plBalanceChange = plCents >= 0 ? BigInt(Math.abs(plCents)) : BigInt(-Math.abs(plCents));
+          await post({
+            entry: {
               userId,
               entity_id: entityId,
               date: saleDateObj,
@@ -995,52 +999,11 @@ export async function processStockSells(
               request_id: randomUUID(),
               created_by: 'batch-trade-processor',
             },
-          });
-
-          // DR Trading Cash
-          await tx.ledger_entries.create({
-            data: {
-              journal_entry_id: journalEntry.id,
-              account_id: cashAccount.id,
-              amount: BigInt(proceedsCents),
-              entry_type: 'D',
-              created_by: 'batch-trade-processor',
-            },
-          });
-          await tx.chart_of_accounts.update({
-            where: { id: cashAccount.id },
-            data: { settled_balance: { increment: BigInt(proceedsCents) }, version: { increment: 1 } },
-          });
-
-          // CR Stock Position
-          await tx.ledger_entries.create({
-            data: {
-              journal_entry_id: journalEntry.id,
-              account_id: stockAccount.id,
-              amount: BigInt(costBasisCents),
-              entry_type: 'C',
-              created_by: 'batch-trade-processor',
-            },
-          });
-          await tx.chart_of_accounts.update({
-            where: { id: stockAccount.id },
-            data: { settled_balance: { increment: BigInt(-costBasisCents) }, version: { increment: 1 } },
-          });
-
-          // P&L entry
-          await tx.ledger_entries.create({
-            data: {
-              journal_entry_id: journalEntry.id,
-              account_id: plAccount.id,
-              amount: BigInt(Math.abs(plCents)),
-              entry_type: plCents >= 0 ? 'C' : 'D',
-              created_by: 'batch-trade-processor',
-            },
-          });
-          const plBalanceChange = plCents >= 0 ? BigInt(Math.abs(plCents)) : BigInt(-Math.abs(plCents));
-          await tx.chart_of_accounts.update({
-            where: { id: plAccount.id },
-            data: { settled_balance: { increment: plBalanceChange }, version: { increment: 1 } },
+            lines: [
+              { account_id: cashAccount.id, entry_type: 'D', amount: BigInt(proceedsCents), balanceDelta: BigInt(proceedsCents), created_by: 'batch-trade-processor' },
+              { account_id: stockAccount.id, entry_type: 'C', amount: BigInt(costBasisCents), balanceDelta: BigInt(-costBasisCents), created_by: 'batch-trade-processor' },
+              { account_id: plAccount.id, entry_type: plCents >= 0 ? 'C' : 'D', amount: BigInt(Math.abs(plCents)), balanceDelta: plBalanceChange, created_by: 'batch-trade-processor' },
+            ],
           });
 
           // Update investment_transaction
@@ -1211,9 +1174,9 @@ export async function processDividends(
     if (amountCents === 0) continue;
 
     try {
-      await prisma.$transaction(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        async (tx: any) => {
+      await postJournal(
+        prisma,
+        async (tx, post) => {
           const accounts = await tx.chart_of_accounts.findMany({
             where: { code: { in: [TRADING_CASH, DIVIDEND_INCOME] }, userId, entity_id: entityId },
           });
@@ -1224,9 +1187,9 @@ export async function processDividends(
             throw new ValidationError(`Missing COA accounts: ${TRADING_CASH} or ${DIVIDEND_INCOME}. Ensure trading entity has dividend income account (4300).`);
           }
 
-          // DR Trading Cash, CR Dividend Income
-          const journalEntry = await tx.journal_entries.create({
-            data: {
+          // DR Trading Cash, CR Dividend Income — HYG-04: through `post`.
+          await post({
+            entry: {
               userId,
               entity_id: entityId,
               date: txn.date,
@@ -1238,34 +1201,10 @@ export async function processDividends(
               request_id: randomUUID(),
               created_by: 'batch-trade-processor',
             },
-          });
-
-          await tx.ledger_entries.create({
-            data: {
-              journal_entry_id: journalEntry.id,
-              account_id: cashAccount.id,
-              amount: BigInt(amountCents),
-              entry_type: 'D',
-              created_by: 'batch-trade-processor',
-            },
-          });
-          await tx.chart_of_accounts.update({
-            where: { id: cashAccount.id },
-            data: { settled_balance: { increment: BigInt(amountCents) }, version: { increment: 1 } },
-          });
-
-          await tx.ledger_entries.create({
-            data: {
-              journal_entry_id: journalEntry.id,
-              account_id: divAccount.id,
-              amount: BigInt(amountCents),
-              entry_type: 'C',
-              created_by: 'batch-trade-processor',
-            },
-          });
-          await tx.chart_of_accounts.update({
-            where: { id: divAccount.id },
-            data: { settled_balance: { increment: BigInt(amountCents) }, version: { increment: 1 } },
+            lines: [
+              { account_id: cashAccount.id, entry_type: 'D', amount: BigInt(amountCents), balanceDelta: BigInt(amountCents), created_by: 'batch-trade-processor' },
+              { account_id: divAccount.id, entry_type: 'C', amount: BigInt(amountCents), balanceDelta: BigInt(amountCents), created_by: 'batch-trade-processor' },
+            ],
           });
 
           await tx.investment_transactions.update({
@@ -1367,9 +1306,9 @@ export async function processRemainingCloses(
     const tradeNum = `${underlying}-${String(globalMaxNum).padStart(4, '0')}`;
 
     try {
-      await prisma.$transaction(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        async (tx: any) => {
+      await postJournal(
+        prisma,
+        async (tx, post) => {
           const leg = {
             id: txn.id,
             date: txn.date,
@@ -1395,6 +1334,7 @@ export async function processRemainingCloses(
             userId,
             entityId,
             tx,
+            post,
             createdBy: 'batch-trade-processor',
           });
         },
@@ -1622,9 +1562,9 @@ export async function processCallSpreadAssignments(
       const tradeNum = `${symbol}-${String(globalMaxNum).padStart(4, '0')}`;
 
       try {
-        await prisma.$transaction(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          async (tx: any) => {
+        await postJournal(
+          prisma,
+          async (tx, post) => {
             // Build all legs as close legs and route through commitOptionsTrade
             // which will detect the exercise/assignment pattern via name parsing
             // and use closeSpreadAtomically()
@@ -1757,8 +1697,11 @@ export async function processCallSpreadAssignments(
               // Journal entry: reverse the position, book P&L
               // Exercise (LONG): CR position (remove asset), DR loss (premium lost)
               // Assignment (SHORT): DR position (remove liability), CR gain (premium kept)
-              const journalEntry = await tx.journal_entries.create({
-                data: {
+              // HYG-04: one entry through `post` — exercise (LONG): CR position,
+              // DR loss; assignment (SHORT): DR position, CR gain; the deltas as before.
+              const cost = BigInt(originalCostCents);
+              await post({
+                entry: {
                   userId,
                   entity_id: entityId,
                   date: txn.date,
@@ -1770,67 +1713,16 @@ export async function processCallSpreadAssignments(
                   request_id: randomUUID(),
                   created_by: 'batch-trade-processor',
                 },
+                lines: isExercise
+                  ? [
+                      { account_id: posAcct.id, entry_type: 'C', amount: cost, balanceDelta: -cost, created_by: 'batch-trade-processor' },
+                      { account_id: plAcct.id, entry_type: 'D', amount: cost, balanceDelta: -cost, created_by: 'batch-trade-processor' },
+                    ]
+                  : [
+                      { account_id: posAcct.id, entry_type: 'D', amount: cost, balanceDelta: cost, created_by: 'batch-trade-processor' },
+                      { account_id: plAcct.id, entry_type: 'C', amount: cost, balanceDelta: cost, created_by: 'batch-trade-processor' },
+                    ],
               });
-
-              if (isExercise) {
-                // Remove LONG asset: CR position, DR loss
-                await tx.ledger_entries.create({
-                  data: {
-                    journal_entry_id: journalEntry.id,
-                    account_id: posAcct.id,
-                    amount: BigInt(originalCostCents),
-                    entry_type: 'C',
-                    created_by: 'batch-trade-processor',
-                  },
-                });
-                await tx.chart_of_accounts.update({
-                  where: { id: posAcct.id },
-                  data: { settled_balance: { increment: BigInt(-originalCostCents) }, version: { increment: 1 } },
-                });
-
-                await tx.ledger_entries.create({
-                  data: {
-                    journal_entry_id: journalEntry.id,
-                    account_id: plAcct.id,
-                    amount: BigInt(originalCostCents),
-                    entry_type: 'D',
-                    created_by: 'batch-trade-processor',
-                  },
-                });
-                await tx.chart_of_accounts.update({
-                  where: { id: plAcct.id },
-                  data: { settled_balance: { increment: BigInt(-originalCostCents) }, version: { increment: 1 } },
-                });
-              } else {
-                // Remove SHORT liability: DR position, CR gain
-                await tx.ledger_entries.create({
-                  data: {
-                    journal_entry_id: journalEntry.id,
-                    account_id: posAcct.id,
-                    amount: BigInt(originalCostCents),
-                    entry_type: 'D',
-                    created_by: 'batch-trade-processor',
-                  },
-                });
-                await tx.chart_of_accounts.update({
-                  where: { id: posAcct.id },
-                  data: { settled_balance: { increment: BigInt(originalCostCents) }, version: { increment: 1 } },
-                });
-
-                await tx.ledger_entries.create({
-                  data: {
-                    journal_entry_id: journalEntry.id,
-                    account_id: plAcct.id,
-                    amount: BigInt(originalCostCents),
-                    entry_type: 'C',
-                    created_by: 'batch-trade-processor',
-                  },
-                });
-                await tx.chart_of_accounts.update({
-                  where: { id: plAcct.id },
-                  data: { settled_balance: { increment: BigInt(originalCostCents) }, version: { increment: 1 } },
-                });
-              }
 
               result.journal_entries_created++;
 

@@ -6,14 +6,12 @@ import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { assertPeriodOpen, PeriodClosedError } from '@/lib/period-close-guard';
 import { requireTabAccess } from '@/lib/auth-helpers';
+import { balanceDeltaOf, postJournal } from '@/lib/posting/postJournal';
 
 function dollarsToCents(amount: number): bigint {
   return BigInt(Math.round(amount * 100));
 }
 
-function updateBalance(entryType: string, accountBalanceType: string, amountCents: bigint): bigint {
-  return entryType === accountBalanceType ? amountCents : -amountCents;
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -165,10 +163,11 @@ export async function POST(request: NextRequest) {
         // Period close enforcement
         await assertPeriodOpen(prisma, user.id, entityId, closeDate);
 
-        // Create JE + ledger entries + update balances in a single transaction
-        await prisma.$transaction(async (tx) => {
-          const journalEntry = await tx.journal_entries.create({
-            data: {
+        // HYG-04: JE + lines + balances through postJournal — SET CONSTRAINTS
+        // ALL IMMEDIATE first, one statement for the lines, read back after commit.
+        await postJournal(prisma, async (_tx, post) =>
+          post({
+            entry: {
               userId: user.id,
               entity_id: entityId,
               date: closeDate,
@@ -178,48 +177,12 @@ export async function POST(request: NextRequest) {
               status: 'posted',
               created_by: userEmail,
             },
-          });
-
-          // Debit ledger entry
-          await tx.ledger_entries.create({
-            data: {
-              journal_entry_id: journalEntry.id,
-              account_id: debitAccount.id,
-              entry_type: 'D',
-              amount: amountCents,
-              created_by: userEmail,
-            },
-          });
-
-          // Credit ledger entry
-          await tx.ledger_entries.create({
-            data: {
-              journal_entry_id: journalEntry.id,
-              account_id: creditAccount.id,
-              entry_type: 'C',
-              amount: amountCents,
-              created_by: userEmail,
-            },
-          });
-
-          // Update settled_balance on debit account
-          await tx.chart_of_accounts.update({
-            where: { id: debitAccount.id },
-            data: {
-              settled_balance: { increment: updateBalance('D', debitAccount.balance_type, amountCents) },
-              version: { increment: 1 },
-            },
-          });
-
-          // Update settled_balance on credit account
-          await tx.chart_of_accounts.update({
-            where: { id: creditAccount.id },
-            data: {
-              settled_balance: { increment: updateBalance('C', creditAccount.balance_type, amountCents) },
-              version: { increment: 1 },
-            },
-          });
-        });
+            lines: [
+              { account_id: debitAccount.id, entry_type: 'D', amount: amountCents, balanceDelta: balanceDeltaOf('D', debitAccount.balance_type, amountCents), created_by: userEmail },
+              { account_id: creditAccount.id, entry_type: 'C', amount: amountCents, balanceDelta: balanceDeltaOf('C', creditAccount.balance_type, amountCents), created_by: userEmail },
+            ],
+          }),
+        );
 
         committed++;
       } catch (err) {

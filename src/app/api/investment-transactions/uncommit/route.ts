@@ -4,6 +4,7 @@ import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { assertPeriodOpen, PeriodClosedError } from '@/lib/period-close-guard';
+import { balanceDeltaOf, postJournal } from '@/lib/posting/postJournal';
 
 export async function POST(request: Request) {
   try {
@@ -39,7 +40,8 @@ export async function POST(request: Request) {
     const batchId = randomUUID();
     const reversalIds: string[] = [];
 
-    await prisma.$transaction(async (tx) => {
+    // HYG-04: every reversal posts through postJournal's `post`; each id is read back after commit.
+    await postJournal(prisma, async (tx, post) => {
       // Clean up trading positions and stock lots (these are operational, not accounting records)
       const positions = await tx.trading_positions.findMany({
         where: {
@@ -97,9 +99,10 @@ export async function POST(request: Request) {
 
       // Create reversing entries for each original journal entry
       for (const original of journals) {
-        // Create the reversing journal entry
-        const reversalEntry = await tx.journal_entries.create({
-          data: {
+        // Create the reversing journal entry — the opposite line for every
+        // original line, the balances moved back by the same rule.
+        const reversalEntry = await post({
+          entry: {
             userId: user.id,
             entity_id: original.entity_id,
             date: now,
@@ -111,38 +114,20 @@ export async function POST(request: Request) {
             reverses_entry_id: original.id,
             request_id: `${batchId}-${original.id}`,
             created_by: userEmail,
-          }
+          },
+          lines: original.ledger_entries.map((entry) => {
+            const oppositeType: 'D' | 'C' = entry.entry_type === 'D' ? 'C' : 'D';
+            return {
+              account_id: entry.account_id,
+              entry_type: oppositeType,
+              amount: entry.amount,
+              balanceDelta: balanceDeltaOf(oppositeType, entry.account.balance_type, entry.amount),
+              created_by: userEmail,
+            };
+          }),
         });
 
         reversalIds.push(reversalEntry.id);
-
-        // Create reversing ledger entries (opposite debit/credit)
-        for (const entry of original.ledger_entries) {
-          const oppositeType = entry.entry_type === 'D' ? 'C' : 'D';
-
-          await tx.ledger_entries.create({
-            data: {
-              journal_entry_id: reversalEntry.id,
-              account_id: entry.account_id,
-              amount: entry.amount,
-              entry_type: oppositeType,
-              created_by: userEmail,
-            }
-          });
-
-          // Update COA balance: opposite direction from original
-          const balanceChange = oppositeType === entry.account.balance_type
-            ? entry.amount
-            : -entry.amount;
-
-          await tx.chart_of_accounts.update({
-            where: { id: entry.account.id },
-            data: {
-              settled_balance: { increment: balanceChange },
-              version: { increment: 1 }
-            }
-          });
-        }
 
         // Mark original as reversed
         await tx.journal_entries.update({

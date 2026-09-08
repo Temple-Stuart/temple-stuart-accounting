@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
+import { postJournal } from '@/lib/posting/postJournal';
 import { positionTrackerService } from '@/lib/position-tracker-service';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
@@ -163,19 +164,21 @@ export async function POST(request: Request) {
     });
 
     // Use position tracker service to create lots + journal entries
-    const result = await prisma.$transaction(
-      async (tx) => {
-        return await positionTrackerService.commitStockTrade({
+    // HYG-04: lots + journal entries post through postJournal (read back after commit).
+    const { result } = await postJournal(
+      prisma,
+      async (tx, post) =>
+        positionTrackerService.commitStockTrade({
           legs,
           strategy,
           tradeNum: actualTradeNum,
           userId: user.id,
           entityId,
           tx,
+          post,
           createdBy: userEmail,
-        });
-      },
-      { maxWait: 30000, timeout: 120000 }
+        }),
+      { maxWait: 30000, timeout: 120000 },
     );
 
     return NextResponse.json({

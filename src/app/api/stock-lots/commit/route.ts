@@ -3,6 +3,7 @@ import { ValidationError } from '@/lib/errors/ValidationError';
 import { NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
+import { postJournal } from '@/lib/posting/postJournal';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { assertPeriodOpen, PeriodClosedError } from '@/lib/period-close-guard';
 
@@ -115,7 +116,8 @@ export async function POST(request: Request) {
     // Period close enforcement
     await assertPeriodOpen(prisma, user.id, entityId, saleDateObj);
 
-    const result = await prisma.$transaction(async (tx) => {
+    // HYG-04: the sale's entry posts through postJournal's `post` (read back after commit).
+    const { result } = await postJournal(prisma, async (tx, post) => {
       const dispositions = [];
       let remaining = saleQuantity;
       let totalCostBasis = 0;
@@ -251,9 +253,18 @@ export async function POST(request: Request) {
         throw new ValidationError(`Missing required accounts: ${TRADING_CASH}, ${STOCK_POSITION}, ${PL_ACCOUNT}`);
       }
 
-      // Create journal entry
-      const journalEntry = await tx.journal_entries.create({
-        data: {
+      // Balance guard: verify debits === credits before writing any ledger entries
+      const totalDebits = proceedsCents + (plCents < 0 ? Math.abs(plCents) : 0);
+      const totalCredits = costBasisCents + (plCents >= 0 ? plCents : 0);
+      if (totalDebits !== totalCredits) {
+        throw new Error(`UNBALANCED JOURNAL ENTRY: debits=${totalDebits} credits=${totalCredits} — refusing to commit`);
+      }
+
+      // HYG-04: the entry — DR cash (proceeds), CR position (cost), the P&L
+      // line (gain = credit 4100, loss = debit 5100) — through `post`.
+      const plBalanceChange = totalGainLoss >= 0 ? BigInt(Math.abs(plCents)) : BigInt(-Math.abs(plCents));
+      const journalEntry = await post({
+        entry: {
           userId: user.id,
           entity_id: entityId,
           date: saleDateObj,
@@ -264,60 +275,12 @@ export async function POST(request: Request) {
           metadata: { strategy: 'stock-long', tradeNum },
           request_id: randomUUID(),
           created_by: userEmail,
-        }
-      });
-
-      // Balance guard: verify debits === credits before writing any ledger entries
-      const totalDebits = proceedsCents + (plCents < 0 ? Math.abs(plCents) : 0);
-      const totalCredits = costBasisCents + (plCents >= 0 ? plCents : 0);
-      if (totalDebits !== totalCredits) {
-        throw new Error(`UNBALANCED JOURNAL ENTRY: debits=${totalDebits} credits=${totalCredits} — refusing to commit`);
-      }
-
-      // DR Trading Cash (proceeds received)
-      await tx.ledger_entries.create({
-        data: {
-          journal_entry_id: journalEntry.id,
-          account_id: cashAccount.id,
-          amount: BigInt(proceedsCents),
-          entry_type: 'D',
-          created_by: userEmail,
-        }
-      });
-      await tx.chart_of_accounts.update({
-        where: { id: cashAccount.id },
-        data: { settled_balance: { increment: BigInt(proceedsCents) }, version: { increment: 1 } }
-      });
-
-      // CR Stock Position (cost basis removed)
-      await tx.ledger_entries.create({
-        data: {
-          journal_entry_id: journalEntry.id,
-          account_id: stockAccount.id,
-          amount: BigInt(costBasisCents),
-          entry_type: 'C',
-          created_by: userEmail,
-        }
-      });
-      await tx.chart_of_accounts.update({
-        where: { id: stockAccount.id },
-        data: { settled_balance: { increment: BigInt(-costBasisCents) }, version: { increment: 1 } }
-      });
-
-      // P&L entry (gain = credit 4100, loss = debit 5100)
-      await tx.ledger_entries.create({
-        data: {
-          journal_entry_id: journalEntry.id,
-          account_id: plAccount.id,
-          amount: BigInt(Math.abs(plCents)),
-          entry_type: totalGainLoss >= 0 ? 'C' : 'D',
-          created_by: userEmail,
-        }
-      });
-      const plBalanceChange = totalGainLoss >= 0 ? BigInt(Math.abs(plCents)) : BigInt(-Math.abs(plCents));
-      await tx.chart_of_accounts.update({
-        where: { id: plAccount.id },
-        data: { settled_balance: { increment: plBalanceChange }, version: { increment: 1 } }
+        },
+        lines: [
+          { account_id: cashAccount.id, entry_type: 'D', amount: BigInt(proceedsCents), balanceDelta: BigInt(proceedsCents), created_by: userEmail },
+          { account_id: stockAccount.id, entry_type: 'C', amount: BigInt(costBasisCents), balanceDelta: BigInt(-costBasisCents), created_by: userEmail },
+          { account_id: plAccount.id, entry_type: totalGainLoss >= 0 ? 'C' : 'D', amount: BigInt(Math.abs(plCents)), balanceDelta: plBalanceChange, created_by: userEmail },
+        ],
       });
 
       // Update sale investment transaction with tradeNum

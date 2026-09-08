@@ -105,21 +105,27 @@ export function planReclassification(input: ReclassInput): ReclassPlan {
   };
 }
 
-/** The write port a reclass needs — inserts and balance increments only; there is no way to edit a prior row through it. */
+/**
+ * The write port a reclass needs — ONE posting of the whole entry (HYG-04:
+ * postJournal's `post` in production — the journal row, every line in one
+ * statement, the balance moves, the id read back after commit). There is no
+ * way to edit a prior row through it.
+ */
 export interface PostingDb {
-  insertJournalEntry(row: {
-    userId: string;
-    entity_id: string;
-    date: Date;
-    description: string;
-    source_type: 'reclass';
-    status: 'posted';
-    request_id: string;
-    created_by: string | null;
-    metadata: ReclassPlan['metadata'];
+  postEntry(input: {
+    entry: {
+      userId: string;
+      entity_id: string;
+      date: Date;
+      description: string;
+      source_type: 'reclass';
+      status: 'posted';
+      request_id: string;
+      created_by: string | null;
+      metadata: ReclassPlan['metadata'];
+    };
+    lines: Array<{ account_id: string; entry_type: 'D' | 'C'; amount: bigint; balanceDelta: bigint; created_by: string | null }>;
   }): Promise<{ id: string }>;
-  insertLedgerLine(row: { journal_entry_id: string; account_id: string; entry_type: 'D' | 'C'; amount: bigint; created_by: string | null }): Promise<{ id: string }>;
-  incrementBalance(accountId: string, delta: bigint): Promise<void>;
 }
 
 export interface PostingContext {
@@ -130,20 +136,19 @@ export interface PostingContext {
 }
 
 export async function postReclassification(db: PostingDb, ctx: PostingContext, plan: ReclassPlan): Promise<{ journalEntryId: string }> {
-  const je = await db.insertJournalEntry({
-    userId: ctx.userId,
-    entity_id: ctx.entityId,
-    date: plan.date,
-    description: plan.description,
-    source_type: 'reclass',
-    status: 'posted',
-    request_id: ctx.requestId,
-    created_by: ctx.createdBy,
-    metadata: plan.metadata,
+  const je = await db.postEntry({
+    entry: {
+      userId: ctx.userId,
+      entity_id: ctx.entityId,
+      date: plan.date,
+      description: plan.description,
+      source_type: 'reclass',
+      status: 'posted',
+      request_id: ctx.requestId,
+      created_by: ctx.createdBy,
+      metadata: plan.metadata,
+    },
+    lines: plan.lines.map((line) => ({ account_id: line.account_id, entry_type: line.entry_type, amount: line.amount, balanceDelta: line.balanceDelta, created_by: ctx.createdBy })),
   });
-  for (const line of plan.lines) {
-    await db.insertLedgerLine({ journal_entry_id: je.id, account_id: line.account_id, entry_type: line.entry_type, amount: line.amount, created_by: ctx.createdBy });
-    await db.incrementBalance(line.account_id, line.balanceDelta);
-  }
   return { journalEntryId: je.id };
 }

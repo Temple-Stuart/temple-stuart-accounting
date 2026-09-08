@@ -1,9 +1,11 @@
 import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { ensureBookkeepingInitialized } from '@/lib/ensure-bookkeeping';
 import { assertPeriodOpen, PeriodClosedError } from '@/lib/period-close-guard';
+import { balanceDeltaOf, postJournal } from '@/lib/posting/postJournal';
 import { requireTabAccess } from '@/lib/auth-helpers';
 
 export async function GET() {
@@ -82,7 +84,7 @@ export async function POST(request: Request) {
     const uniqueAccountIds = [...new Set(accountIds)];
     const ownedAccounts = await prisma.chart_of_accounts.findMany({
       where: { id: { in: uniqueAccountIds }, userId: user.id, entity_id: entityId },
-      select: { id: true },
+      select: { id: true, balance_type: true },
     });
     if (ownedAccounts.length !== uniqueAccountIds.length) {
       // Defensive 404 — do not confirm which accounts exist for another user.
@@ -92,32 +94,39 @@ export async function POST(request: Request) {
     // Period close enforcement
     await assertPeriodOpen(prisma, user.id, entityId, new Date(date));
 
-    const entry = await prisma.journal_entries.create({
-      data: {
-        userId: user.id,
-        entity_id: entityId,
-        date: new Date(date),
-        description: description || 'Manual journal entry',
-        source_type: 'manual',
-        status: entryStatus || 'posted',
-        request_id: randomUUID(),
-        created_by: userEmail,
-        ledger_entries: {
-          create: lines.map((l: any) => {
-            const debitAmt = parseFloat(l.debit) || 0;
-            const creditAmt = parseFloat(l.credit) || 0;
-            const isDebit = debitAmt > 0;
-            const amountCents = Math.round((isDebit ? debitAmt : creditAmt) * 100);
-            return {
-              account_id: l.accountId,
-              entry_type: isDebit ? 'D' : 'C',
-              amount: BigInt(amountCents),
-              created_by: userEmail,
-            };
-          })
-        }
-      },
-      include: { ledger_entries: { include: { account: true } } }
+    // HYG-04: ONE posting discipline — postJournal (SET CONSTRAINTS ALL
+    // IMMEDIATE first, every line in one statement, read back after commit).
+    // The lines move settled_balance by the rule every writer uses — this
+    // route's nested create never did, so its entries left the balances behind.
+    const { result: entry } = await postJournal(prisma, async (tx, post) => {
+      const posted = await post({
+        entry: {
+          userId: user.id,
+          entity_id: entityId,
+          date: new Date(date),
+          description: description || 'Manual journal entry',
+          source_type: 'manual',
+          status: entryStatus || 'posted',
+          request_id: randomUUID(),
+          created_by: userEmail,
+        },
+        lines: lines.map((l: any) => {
+          const debitAmt = parseFloat(l.debit) || 0;
+          const creditAmt = parseFloat(l.credit) || 0;
+          const isDebit = debitAmt > 0;
+          const entryType: 'D' | 'C' = isDebit ? 'D' : 'C';
+          const amountCents = BigInt(Math.round((isDebit ? debitAmt : creditAmt) * 100));
+          const account = ownedAccounts.find((a) => a.id === l.accountId)!;
+          return {
+            account_id: l.accountId,
+            entry_type: entryType,
+            amount: amountCents,
+            balanceDelta: balanceDeltaOf(entryType, account.balance_type, amountCents),
+            created_by: userEmail,
+          };
+        }),
+      });
+      return tx.journal_entries.findUniqueOrThrow({ where: { id: posted.id }, include: { ledger_entries: { include: { account: true } } } });
     });
 
     return NextResponse.json({ entry });
@@ -125,7 +134,6 @@ export async function POST(request: Request) {
     if (error instanceof PeriodClosedError) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
-    console.error('Error:', error);
-    return NextResponse.json({ error: 'Failed to create journal entry' }, { status: 500 });
+    return failClosedResponse('Journal entry', 'Failed to create journal entry', error);
   }
 }

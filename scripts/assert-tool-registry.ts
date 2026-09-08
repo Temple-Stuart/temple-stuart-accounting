@@ -471,6 +471,30 @@ for (const o of OFFERS) {
 console.log(`free with an account: ${FREE_TOOLS.map((t) => `${t.name} (${TOOL_GATE[t.name] ?? 'no gate'})`).join(', ')}`);
 console.log(`hero: ${heroCountsLine()}`);
 
+// ── HYG-04: the posting law — no posting path may report success on a rolled-back
+// write. Every journal_entries / ledger_entries row is created by
+// src/lib/posting/postJournal.ts (SET CONSTRAINTS ALL IMMEDIATE first, the lines
+// in one statement, the entry id read back after commit); a create anywhere
+// else in src/ (tests excluded) fails the build, and a raw $transaction that
+// names those tables fails too.
+const POSTING_HOME = 'src/lib/posting/postJournal.ts';
+// A word boundary before the table name: trade_journal_entries (a different table) is not the ledger.
+const POSTING_WRITES = [/(?<![A-Za-z0-9_])journal_entries\s*\.\s*create(?:Many)?\s*\(/, /(?<![A-Za-z0-9_])ledger_entries\s*\.\s*create(?:Many)?\s*\(/, /(?<![A-Za-z0-9_])ledger_entries\s*:\s*\{\s*create\b/];
+const postingPaths = new Set<string>();
+for (const { file, src } of srcFiles) {
+  if (file === POSTING_HOME) continue;
+  for (const re of POSTING_WRITES) {
+    if (re.test(src)) violations.push(`posting: ${file} creates a journal or ledger row outside ${POSTING_HOME} — every posting path routes through postJournal()`);
+  }
+  if (/postJournal\s*\(/.test(src)) postingPaths.add(file);
+}
+if (!srcFiles.some(({ file }) => file === POSTING_HOME)) violations.push(`posting: ${POSTING_HOME} is missing`);
+const postingHome = srcFiles.find(({ file }) => file === POSTING_HOME)?.src ?? '';
+if (!postingHome.includes("'SET CONSTRAINTS ALL IMMEDIATE'")) violations.push('posting: postJournal.ts does not issue SET CONSTRAINTS ALL IMMEDIATE');
+if (!/ledger_entries\.createMany\(/.test(postingHome)) violations.push('posting: postJournal.ts does not insert the lines in one statement');
+if (!/PostingNotLandedError/.test(postingHome)) violations.push('posting: postJournal.ts has no read-back failure');
+if (postingPaths.size < 12) violations.push(`posting: only ${postingPaths.size} files route through postJournal() — the audit counted 12`);
+
 if (violations.length) {
   console.error('\n✖ TOOL REGISTRY LAW FAILED:');
   for (const v of violations) console.error(`  ${v}`);
@@ -509,4 +533,5 @@ console.log(`honest line: ${KIND_VIEWS_HONEST_LINE}`);
 console.log(`✔ The arrivals law passed — ${PROVIDERS.length} providers, enum === codes, ${arrivalsRows.length} columns agree with the migrations.`);
 console.log(`✔ The rule book law passed — ${RULE_BOOK.length} rules, ${callSites.length} landing call sites covered, enum arrival_kind === the six kinds, the migration applies ${applied.length} rules the book holds.`);
 console.log(`✔ The kind views law passed — ${ARRIVAL_KINDS.length} views over ${KIND_VIEW_CENSUS.length} feed tables, each once, the kind from the rule book; posting unions nothing; ${STOPPED_TABLES.length} tables reported, not viewed.`);
+console.log(`✔ The posting law passed — every journal and ledger row is created by postJournal.ts (SET CONSTRAINTS ALL IMMEDIATE first, one statement for the lines, read back after commit); ${postingPaths.size} files post through it.`);
 console.log(`✔ The offer law passed — ${OFFERS.length} offers over ${new Set(OFFERS.flatMap((o) => o.tools)).size} tools (LIVE or PARTIAL only), ${FREE_TOOLS.length} free; the purchasable keys are the offers'; "built and running" typed nowhere but offer.ts; ${SELLING_SURFACES.length} selling surfaces render the offer.`);

@@ -6,7 +6,7 @@ import type { PostingDb } from '../coa/reclassify';
  * tests. Hermetic, with the tables' own rules: UNIQUE on (userId, entity_id,
  * code); ledger lines are append-only (there is no update on the port, and the
  * fake's `ledger` array is frozen row by row so a test can prove nothing old
- * moved); balances change only through incrementBalance. Not a test file (no
+ * moved); balances change only through postEntry's balance moves. Not a test file (no
  * .test suffix): npm test's glob skips it.
  */
 export interface FakeJournalRow {
@@ -89,21 +89,18 @@ export class FakeChart implements ChartDb, PostingDb {
     return row;
   }
 
-  async insertJournalEntry(r: Omit<FakeJournalRow, 'id'>) {
-    const je: FakeJournalRow = { ...r, id: this.nextId('je') };
+  /** HYG-04: the one posting — the journal row, then every line, then every balance move (what postJournal's `post` does in production). */
+  async postEntry(input: { entry: Omit<FakeJournalRow, 'id'>; lines: Array<{ account_id: string; entry_type: 'D' | 'C'; amount: bigint; balanceDelta: bigint; created_by: string | null }> }) {
+    const je: FakeJournalRow = { ...input.entry, id: this.nextId('je') };
     this.journal.push(je);
+    for (const l of input.lines) this.postLine({ journal_entry_id: je.id, account_id: l.account_id, entry_type: l.entry_type, amount: l.amount, created_by: l.created_by });
+    for (const l of input.lines) {
+      const row = this.accounts.find((a) => a.id === l.account_id);
+      if (!row) throw new Error(`fake chart: no account ${l.account_id}`);
+      this.increments.push({ accountId: l.account_id, delta: l.balanceDelta });
+      row.settled_balance = BigInt(row.settled_balance) + l.balanceDelta;
+    }
     return { id: je.id };
-  }
-
-  async insertLedgerLine(r: Omit<FakeLedgerRow, 'id'>) {
-    return { id: this.postLine(r).id };
-  }
-
-  async incrementBalance(accountId: string, delta: bigint) {
-    const row = this.accounts.find((a) => a.id === accountId);
-    if (!row) throw new Error(`fake chart: no account ${accountId}`);
-    this.increments.push({ accountId, delta });
-    row.settled_balance = BigInt(row.settled_balance) + delta;
   }
 
   snapshotLedger(): string {

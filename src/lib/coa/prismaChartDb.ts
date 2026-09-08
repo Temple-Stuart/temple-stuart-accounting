@@ -1,15 +1,15 @@
 import { randomUUID } from 'crypto';
 import type { PrismaClient } from '@prisma/client';
 import type { ChartAccountRow, ChartDb, ChartPatch, NewChartAccount } from './accounts';
-import type { PostingDb } from './reclassify';
 
 /**
- * COA-01 — the Prisma bindings of the two ports (accounts.ts ChartDb,
- * reclassify.ts PostingDb). A route hands the client (or a $transaction
- * context) in; the policies never import prisma.
+ * COA-01 — the Prisma binding of the chart port (accounts.ts ChartDb). A
+ * route hands the client (or a $transaction context) in; the policies never
+ * import prisma. HYG-04: the reclass posting port is postJournal's `post`
+ * (src/lib/posting/postJournal.ts) — no ledger write lives here.
  */
 
-type Client = Pick<PrismaClient, 'chart_of_accounts' | 'journal_entries' | 'ledger_entries'>;
+type Client = Pick<PrismaClient, 'chart_of_accounts'>;
 
 const SELECT = {
   id: true, userId: true, entity_id: true, entity_type: true, code: true, name: true,
@@ -56,37 +56,6 @@ export function prismaChartDb(client: Client, userId: string): ChartDb {
     async update(id, patch: ChartPatch) {
       const r = await client.chart_of_accounts.update({ where: { id }, data: { ...patch, updated_at: new Date() }, select: SELECT });
       return row(r, userId);
-    },
-  };
-}
-
-export function prismaPostingDb(client: Client): PostingDb {
-  return {
-    async insertJournalEntry(r) {
-      const je = await client.journal_entries.create({
-        data: {
-          userId: r.userId,
-          entity_id: r.entity_id,
-          date: r.date,
-          description: r.description,
-          source_type: r.source_type,
-          status: r.status,
-          request_id: r.request_id,
-          created_by: r.created_by,
-          metadata: r.metadata,
-        },
-        select: { id: true },
-      });
-      return je;
-    },
-    async insertLedgerLine(r) {
-      return client.ledger_entries.create({ data: r, select: { id: true } });
-    },
-    async incrementBalance(accountId, delta) {
-      await client.chart_of_accounts.update({
-        where: { id: accountId },
-        data: { settled_balance: { increment: delta }, version: { increment: 1 }, updated_at: new Date() },
-      });
     },
   };
 }

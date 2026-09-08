@@ -8,7 +8,7 @@ import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { assertPeriodOpen, PeriodClosedError } from '@/lib/period-close-guard';
 import { ValidationError } from '@/lib/errors/ValidationError';
 import { planReclassification, postReclassification } from '@/lib/coa/reclassify';
-import { prismaPostingDb } from '@/lib/coa/prismaChartDb';
+import { postJournal } from '@/lib/posting/postJournal';
 import type { ChartAccountRow } from '@/lib/coa/accounts';
 
 /**
@@ -23,7 +23,8 @@ import type { ChartAccountRow } from '@/lib/coa/accounts';
  * deltas by the rule every writer uses. Posted in one transaction with
  * source_type 'reclass' and the memo in the description and metadata. NO
  * prior entry, line or transaction is edited — the port has no way to.
- * Period-close is enforced like every other posting path.
+ * Period-close is enforced like every other posting path; the posting itself
+ * is postJournal's (HYG-04).
  *
  * Gate: verified email → user → tab:books → the entity is the user's
  * (defensive 404) → both accounts in that entity (404).
@@ -92,20 +93,13 @@ export async function POST(request: Request) {
     // Period close enforcement — the same guard every posting path calls.
     await assertPeriodOpen(prisma, user.id, entity.id, date);
 
+    // HYG-04: ONE posting discipline — postJournal (SET CONSTRAINTS ALL
+    // IMMEDIATE first, the lines in one statement, the id read back after
+    // commit); the reclass plan is posted through its `post`.
     const requestId = randomUUID();
-    const result = await prisma.$transaction(async (tx) =>
-      postReclassification(prismaPostingDb(tx), { userId: user.id, entityId: entity.id, requestId, createdBy: userEmail }, plan),
+    const { result } = await postJournal(prisma, async (_tx, post) =>
+      postReclassification({ postEntry: post }, { userId: user.id, entityId: entity.id, requestId, createdBy: userEmail }, plan),
     );
-
-    // READ-AFTER-COMMIT (COA-01 probe 3): a DEFERRED constraint trigger refuses
-    // at COMMIT, and Prisma's interactive $transaction was observed to RESOLVE
-    // through that refusal with nothing written. A reclass is balanced by
-    // construction, so the balance trigger never refuses it — but success is
-    // claimed only from the row itself, never from the transaction's promise.
-    const landed = await prisma.journal_entries.findFirst({ where: { id: result.journalEntryId, userId: user.id }, select: { id: true } });
-    if (!landed) {
-      return failClosedResponse('COA reclassify', 'The database refused the entry at commit — nothing was posted', new Error(`journal entry ${result.journalEntryId} not found after commit`));
-    }
 
     return NextResponse.json({
       success: true,
