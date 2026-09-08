@@ -57,6 +57,7 @@ model accounts {
   users                   users?                    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   entity                  entities?                 @relation(fields: [entity_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   investment_transactions investment_transactions[]
+  holdings                holdings[]
   transactions            transactions[]
   bank_reconciliations    bank_reconciliations[]
 
@@ -386,8 +387,37 @@ model securities {
   /// REBUILD-01 PR-2c: the arrival this row was parsed from; NULL before the cutoff (no backfill).
   arrival_id               String?
   investment_transactions  investment_transactions[]
+  holdings                 holdings[]
   arrival                  arrivals?                 @relation(fields: [arrival_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
+  @@index([arrival_id])
+}
+
+/// REBUILD-01 PR-2d: one Plaid holding as it stood at one moment — the SNAPSHOT kind (the rule book's plaid · holding row).
+/// One row per account + security + as_of; the same position on a later day is a new row, never a rewrite. Every row is
+/// parsed from an arrival (arrival_id NOT NULL — the table is younger than the store, so there is no cutoff to honor).
+model holdings {
+  id                         String     @id
+  accountId                  String
+  security_id                String
+  /// The moment the snapshot stands for: the UTC date the answer arrived — the third part of the composed their_id.
+  as_of                      DateTime   @db.Date
+  quantity                   Float
+  cost_basis                 Float?
+  institution_price          Float
+  institution_price_as_of    DateTime?  @db.Date
+  institution_price_datetime DateTime?
+  institution_value          Float
+  iso_currency_code          String?
+  unofficial_currency_code   String?
+  arrival_id                 String
+  createdAt                  DateTime   @default(now())
+  updatedAt                  DateTime
+  accounts                   accounts   @relation(fields: [accountId], references: [id])
+  security                   securities @relation(fields: [security_id], references: [securityId])
+  arrival                    arrivals   @relation(fields: [arrival_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([accountId, security_id, as_of])
   @@index([arrival_id])
 }
 
@@ -3679,6 +3709,7 @@ model arrivals {
   investment_transactions investment_transactions[]
   securities    securities[]
   reservations  reservations[]
+  holdings      holdings[]
 
   /// PR-2: the same thing is the same provider + id + content; a correction is a new row.
   @@unique([provider, their_id, fingerprint])

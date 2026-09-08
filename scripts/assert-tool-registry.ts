@@ -36,8 +36,11 @@
  * they pass, as constants or literals) has a rule. A feed the book does not
  * name cannot be landed: the build fails before the code does.
  *
- * THE KIND-VIEWS LAW (TABLES-01): src/lib/kindViews.ts KIND_VIEW_CENSUS is the
- * census of the typed feed tables; the *_kind_views migration must be its
+ * THE KIND-VIEWS LAW (TABLES-01; REBUILD-01 PR-2d): src/lib/kindViews.ts
+ * KIND_VIEW_CENSUS is the census of the typed feed tables; the EFFECTIVE text of
+ * the six views — each view's newest CREATE VIEW across the migrations in order
+ * (the *_kind_views migration created them; a later migration drops and
+ * recreates one, as *_holdings_snapshot does the snapshot view) — must be the
  * generator's text verbatim — (a) every census table in exactly one view,
  * (b) that view is the rule book's kind for the table's feed, (c) posting
  * unions nothing, (d) all six views carry the common columns in the same
@@ -74,7 +77,7 @@ import { EXPECTED_STATUS_COUNTS, FAMILIES, FAMILY_PAGES, FAMILY_READS, TOOL_REGI
 import { OWNER_UTILITIES } from '../src/lib/shellMenu';
 import { ANSWERS_HOME, ANSWER_READS, ANSWER_ROWS, NET_WORTH_READ, answersLaw } from '../src/lib/answers';
 import { ARRIVAL_KINDS, PROVIDERS, PROVIDER_CODES, ROUTING_RULES, RULE_BOOK, providersLaw, ruleFor } from '../src/lib/providers';
-import { KIND_VIEWS_HONEST_LINE, KIND_VIEW_CENSUS, STOPPED_TABLES, VIEW_COLUMNS, kindOfTable, kindViewsLaw, parseViews } from '../src/lib/kindViews';
+import { KIND_VIEWS_HONEST_LINE, KIND_VIEW_CENSUS, STOPPED_TABLES, VIEW_COLUMNS, kindOfTable, kindViewsLaw, latestViews, latestViewsSql, parseViews } from '../src/lib/kindViews';
 
 /**
  * Routes whose door is outside the app map: the front door and its marketing
@@ -450,7 +453,10 @@ console.log(`✔ The answers law passed — ${ANSWER_ROWS.length}/4 questions on
 // ── THE KIND-VIEWS LAW (TABLES-01) ──────────────────────────────────────────
 const viewsMigration = ALL_MIGRATIONS.find((m) => m.dir.endsWith('_kind_views'));
 if (!viewsMigration) violations.push('kind views: no prisma/migrations/*_kind_views/migration.sql');
-violations.push(...kindViewsLaw({ throwOnFail: false, migrationSql: viewsMigration?.sql ?? '' }));
+// REBUILD-01 PR-2d: a view is redefined by a later migration that drops and recreates it — the law reads each view's NEWEST text.
+const effectiveViews = latestViews(ALL_MIGRATIONS);
+if (effectiveViews.length !== ARRIVAL_KINDS.length) violations.push(`kind views: ${effectiveViews.length} of ${ARRIVAL_KINDS.length} views have a CREATE VIEW in the migrations`);
+violations.push(...kindViewsLaw({ throwOnFail: false, migrationSql: latestViewsSql(ALL_MIGRATIONS) }));
 // schema.prisma: the six `view` models, the common columns in order, the views preview on
 if (!/previewFeatures\s*=\s*\[[^\]]*"views"/.test(schemaText)) violations.push('kind views: generator client must enable previewFeatures = ["views"]');
 const VIEW_FIELD_TYPES: Record<string, string> = { arrival_kind: 'arrival_kind', text: 'String', timestamptz: 'DateTime' };
@@ -466,7 +472,7 @@ const landingSrc = readFileSync(resolve(ROOT, 'src/components/landing/Landing.ts
 if (!landingSrc.includes('{KIND_VIEWS_HONEST_LINE}')) violations.push("kind views: the deck's step 5 must render KIND_VIEWS_HONEST_LINE (never a retyped line)");
 console.log('THE KIND VIEWS — the census, each table once, the kind from the rule book');
 for (const t of KIND_VIEW_CENSUS) console.log(`${t.table.padEnd(26)} ${kindOfTable(t).padEnd(10)} ${Array.isArray(t.feed) ? `${t.feed[0]} · ${t.feed[1]}` : `by ${t.feed.column}: ${Object.values(t.feed.map).map(([p, r]) => `${p} · ${r}`).join(' | ')}`}`);
-for (const v of parseViews(viewsMigration?.sql ?? '')) console.log(`view ${v.name.padEnd(10)} ← ${v.tables.length ? v.tables.join(', ') : '(nothing)'}`);
+for (const v of effectiveViews) { const p = parseViews(v.sql)[0]; console.log(`view ${v.kind.padEnd(10)} ← ${p && p.tables.length ? p.tables.join(', ') : '(nothing)'}  — ${v.dir}`); }
 console.log(`stopped (reported, not viewed): ${STOPPED_TABLES.map((s) => s.table).join(' · ')}`);
 console.log(`honest line: ${KIND_VIEWS_HONEST_LINE}`);
 

@@ -4,6 +4,8 @@ import { plaidClient } from '@/lib/plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { decryptToken } from '@/lib/secrets/tokenCipher';
 import { failureEnvelope } from '@/lib/plaid/failLoud';
+// REBUILD-01 PR-2d: holdings come from the STORED snapshot — Plaid is never asked for them here.
+import { latestHoldingsSnapshot } from '@/lib/arrivals/holdingsSnapshot';
 
 export async function GET() {
   try {
@@ -21,25 +23,20 @@ export async function GET() {
     let holdings: any[] = [];
     
     const plaidItems = await prisma.plaid_items.findMany({
-      where: { userId: user.id }
+      where: { userId: user.id },
+      include: { accounts: { select: { id: true, accountId: true } } },
     });
 
     for (const item of plaidItems) {
+      // REBUILD-01 PR-2d: the latest stored snapshot per account (never asked live).
+      const snapshot = await latestHoldingsSnapshot(prisma, item.accounts);
+      holdings = holdings.concat(snapshot.holdings);
+
       // HYG-01: STOP AND DECLARE — a failed provider call is the response, never an
       // empty page. `stage` names the call in flight.
-      let stage: 'holdings' | 'investments' = 'holdings';
+      const stage = 'investments';
       try {
-        // Get investment holdings
-        const holdingsResponse = await plaidClient.investmentsHoldingsGet({
-          access_token: decryptToken(item.accessToken)
-        });
-        
-        if (holdingsResponse.data.holdings) {
-          holdings = holdings.concat(holdingsResponse.data.holdings);
-        }
-
         // Get investment transactions
-        stage = 'investments';
         const transactionsResponse = await plaidClient.investmentsTransactionsGet({
           access_token: decryptToken(item.accessToken),
           start_date: '2020-01-01',

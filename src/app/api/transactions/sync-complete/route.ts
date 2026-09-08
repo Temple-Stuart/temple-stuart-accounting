@@ -16,6 +16,10 @@ import { prismaDomain } from '@/lib/arrivals/prismaDomain';
 // transactions as arrivals, the parser reading them, one statement per kind.
 import { INVESTMENT_TRANSACTION, runInvestmentsPage } from '@/lib/arrivals/plaidInvestmentsPage';
 import { prismaInvestmentsDomain } from '@/lib/arrivals/prismaInvestmentsDomain';
+// REBUILD-01 PR-2d: holdings land as SNAPSHOTS — one holdings answer per item per sync,
+// raw-first, the composed their_id labeled, one statement per kind.
+import { HOLDING, runHoldingsPage } from '@/lib/arrivals/plaidHoldingsPage';
+import { prismaHoldingsDomain } from '@/lib/arrivals/prismaHoldingsDomain';
 import type { Prisma } from '@prisma/client';
 
 export const maxDuration = 300; // 5 minutes for Pro plan
@@ -300,12 +304,72 @@ export async function POST() {
       }
     };
 
+    // REBUILD-01 PR-2d: the holdings stage — one /investments/holdings/get per item per
+    // sync (the natural place: the item loop already runs every stage per item under
+    // HYG-03's isolation). Raw-first in ONE transaction: the wire → arrivals (the
+    // answer's securities, one per holding with a COMPOSED their_id —
+    // holding:<account_id>:<security_id>:<as_of>, the as_of being the UTC date the
+    // answer arrived — labeled composed, kind snapshot by the rule book) → the parser
+    // reading the ARRIVAL payloads → holdings rows, one per account + security +
+    // as_of (the same snapshot again is already_landed and writes nothing; a
+    // position moved the same day is corrected; a new day is a new row) → read /
+    // status = done. The batching binding replays the writes as one statement per
+    // kind. /api/investments reads what this stores — Plaid is asked once.
+    const syncHoldings = async (item: PlaidItem): Promise<StageOutcome> => {
+      try {
+        let holdingsResponse;
+        try {
+          holdingsResponse = await plaidClient.investmentsHoldingsGet({
+            access_token: decryptToken(item.accessToken),
+          });
+        } catch (askError) {
+          // A failed ask is evidence of the ask — the non-2xx answer's exact bytes land
+          // (no arrivals) before the stage declares the failure.
+          await recordFailedAnswer(prismaLanding(prisma as unknown as Prisma.TransactionClient), { userId: user.id, err: askError, resource: HOLDING });
+          throw askError;
+        }
+        const wire = wireOf(holdingsResponse, 'investmentsHoldingsGet');
+
+        let batch: ReturnType<typeof prismaHoldingsDomain> | null = null;
+        const started = Date.now();
+        const result = await runHoldingsPage(
+          prisma,
+          (tx) => {
+            batch = prismaHoldingsDomain(tx as Prisma.TransactionClient);
+            return { landing: prismaLanding(tx as Prisma.TransactionClient), domain: batch, finish: () => batch!.finish() };
+          },
+          {
+            userId: user.id,
+            connection: item.itemId,
+            accounts: item.accounts.map((acc) => ({ id: acc.id, accountId: acc.accountId })),
+            wire,
+            httpStatus: holdingsResponse.status,
+            securities: holdingsResponse.data.securities,
+            holdings: holdingsResponse.data.holdings,
+          },
+        );
+        const ms = Date.now() - started;
+        const stats = batch ? (batch as ReturnType<typeof prismaHoldingsDomain>).stats() : { intents: 0, statements: 0 };
+        if (!result.ok) {
+          console.error(`Holdings stage failed for ${bankName(item.institutionName)} after ${ms}ms:`, result.failure.error);
+          return result.failure;
+        }
+        console.log(`[sync] ${bankName(item.institutionName)} holdings as of ${result.asOf}: ${holdingsResponse.data.holdings.length} holdings + ${holdingsResponse.data.securities.length} securities, ${JSON.stringify(result.counts)}, ${stats.intents} domain intents → ${stats.statements} statements, ${ms}ms`);
+        return stageOk('holdings', { ...result.counts });
+      } catch (error) {
+        const failure = await declareStageFailure('holdings', error, item);
+        console.error(`Holdings stage failed for ${bankName(item.institutionName)}:`, failure.error);
+        return failure;
+      }
+    };
+
     const items = await syncEachItem(
       plaidItems,
       (item) => { console.log(`Syncing ${item.institutionName || 'Bank'}...`); return bankName(item.institutionName); },
       [
         ['transactions', syncTransactions],
         ['investments', syncInvestments],
+        ['holdings', syncHoldings],
       ],
     );
     // BANK-03: retired items ride the answer with no stages — the banner says "retired", never "failed".
@@ -314,23 +378,26 @@ export async function POST() {
     // The run's totals — summed over the stages that succeeded (a failed stage has no counts).
     const tx = sumStageCounts(items, 'transactions');
     const inv = sumStageCounts(items, 'investments');
+    const hold = sumStageCounts(items, 'holdings');
     const allOk = items.every((i) => i.stages.every((s) => s.ok));
     const { status, body } = syncItemsEnvelope(items, {
       success: allOk,
       synced: {
         transactions: tx.synced ?? 0,
         investmentTransactions: inv.synced ?? 0,
-        securities: inv.securities ?? 0
+        securities: inv.securities ?? 0,
+        // REBUILD-01 PR-2d: holdings rows written this run (a snapshot already stored writes none).
+        holdings: hold.holdings ?? 0
       },
       skipped: {
         transactions: tx.skipped ?? 0,
         investmentTransactions: inv.skipped ?? 0
       },
-      // REBUILD-01 PR-2 / PR-2c: the store's counts for this run — both phases.
+      // REBUILD-01 PR-2 / PR-2c / PR-2d: the store's counts for this run — all three phases.
       landed: {
-        arrivals: (tx.landed ?? 0) + (inv.landed ?? 0),
-        already_landed: (tx.already_landed ?? 0) + (inv.already_landed ?? 0),
-        corrected: (tx.corrected ?? 0) + (inv.corrected ?? 0)
+        arrivals: (tx.landed ?? 0) + (inv.landed ?? 0) + (hold.landed ?? 0),
+        already_landed: (tx.already_landed ?? 0) + (inv.already_landed ?? 0) + (hold.already_landed ?? 0),
+        corrected: (tx.corrected ?? 0) + (inv.corrected ?? 0) + (hold.corrected ?? 0)
       }
     });
     return NextResponse.json(body, { status });
