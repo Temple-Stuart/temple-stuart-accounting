@@ -7,14 +7,12 @@ import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { ADMIN_USER_ID } from '@/lib/tiers';
 import { assertPeriodOpen, PeriodClosedError } from '@/lib/period-close-guard';
+import { balanceDeltaOf, postJournal } from '@/lib/posting/postJournal';
 
 function dollarsToCents(amount: number): bigint {
   return BigInt(Math.round(amount * 100));
 }
 
-function updateBalance(entryType: string, accountBalanceType: string, amountCents: bigint): bigint {
-  return entryType === accountBalanceType ? amountCents : -amountCents;
-}
 
 /**
  * POST /api/admin/fix-entity-assignment
@@ -88,7 +86,8 @@ export async function POST(request: NextRequest) {
 
     for (const txn of ownedTxns) {
       try {
-        await prisma.$transaction(async (tx) => {
+        // HYG-04: the reversal and the new entry post through postJournal's `post` — both ids read back after commit.
+        await postJournal(prisma, async (tx, post) => {
           // 1. Find the original journal entry
           const original = await tx.journal_entries.findFirst({
             where: {
@@ -113,9 +112,9 @@ export async function POST(request: NextRequest) {
           await assertPeriodOpen(tx, user.id, original.entity_id, now);
           await assertPeriodOpen(tx, user.id, targetEntityId, new Date(txn.date));
 
-          // 3. Create reversal for original
-          const reversalEntry = await tx.journal_entries.create({
-            data: {
+          // 3. Create reversal for original — the opposite line for every original line
+          const reversalEntry = await post({
+            entry: {
               userId: user.id,
               entity_id: original.entity_id,
               date: now,
@@ -128,30 +127,17 @@ export async function POST(request: NextRequest) {
               request_id: `${batchId}-rev-${txn.transactionId}`,
               created_by: userEmail,
             },
-          });
-
-          // Reverse ledger entries and COA balances
-          for (const entry of original.ledger_entries) {
-            const oppositeType = entry.entry_type === 'D' ? 'C' : 'D';
-
-            await tx.ledger_entries.create({
-              data: {
-                journal_entry_id: reversalEntry.id,
+            lines: original.ledger_entries.map((entry) => {
+              const oppositeType: 'D' | 'C' = entry.entry_type === 'D' ? 'C' : 'D';
+              return {
                 account_id: entry.account_id,
                 entry_type: oppositeType,
                 amount: entry.amount,
+                balanceDelta: balanceDeltaOf(oppositeType, entry.account.balance_type, entry.amount),
                 created_by: userEmail,
-              },
-            });
-
-            await tx.chart_of_accounts.update({
-              where: { id: entry.account.id },
-              data: {
-                settled_balance: { increment: updateBalance(oppositeType, entry.account.balance_type, entry.amount) },
-                version: { increment: 1 },
-              },
-            });
-          }
+              };
+            }),
+          });
 
           // Mark original as reversed
           await tx.journal_entries.update({
@@ -186,8 +172,8 @@ export async function POST(request: NextRequest) {
           const debitBalanceType = isExpense ? targetCoaAccount.balance_type : bankAccount.balance_type;
           const creditBalanceType = isExpense ? bankAccount.balance_type : targetCoaAccount.balance_type;
 
-          const newJe = await tx.journal_entries.create({
-            data: {
+          const newJe = await post({
+            entry: {
               userId: user.id,
               entity_id: targetEntityId,
               date: new Date(txn.date),
@@ -198,22 +184,10 @@ export async function POST(request: NextRequest) {
               request_id: `${batchId}-new-${txn.transactionId}`,
               created_by: userEmail,
             },
-          });
-
-          await tx.ledger_entries.create({
-            data: { journal_entry_id: newJe.id, account_id: debitAccountId, entry_type: 'D', amount: amountCents, created_by: userEmail },
-          });
-          await tx.ledger_entries.create({
-            data: { journal_entry_id: newJe.id, account_id: creditAccountId, entry_type: 'C', amount: amountCents, created_by: userEmail },
-          });
-
-          await tx.chart_of_accounts.update({
-            where: { id: debitAccountId },
-            data: { settled_balance: { increment: updateBalance('D', debitBalanceType, amountCents) }, version: { increment: 1 } },
-          });
-          await tx.chart_of_accounts.update({
-            where: { id: creditAccountId },
-            data: { settled_balance: { increment: updateBalance('C', creditBalanceType, amountCents) }, version: { increment: 1 } },
+            lines: [
+              { account_id: debitAccountId, entry_type: 'D', amount: amountCents, balanceDelta: balanceDeltaOf('D', debitBalanceType, amountCents), created_by: userEmail },
+              { account_id: creditAccountId, entry_type: 'C', amount: amountCents, balanceDelta: balanceDeltaOf('C', creditBalanceType, amountCents), created_by: userEmail },
+            ],
           });
 
           // 6. Update transaction's entity_id and accountCode

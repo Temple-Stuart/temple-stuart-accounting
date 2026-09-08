@@ -1,8 +1,7 @@
 import { PrismaClient, journal_entries } from '@prisma/client';
 import { ValidationError } from '@/lib/errors/ValidationError';
 import { assertPeriodOpen } from '@/lib/period-close-guard';
-
-type Tx = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
+import { balanceDeltaOf, postJournal } from '@/lib/posting/postJournal';
 
 export type CommitResult = journal_entries & { alreadyExisted?: boolean };
 
@@ -47,11 +46,13 @@ function dollarsToCents(amount: number): bigint {
   return BigInt(Math.round(amount * 100));
 }
 
-function updateBalance(entryType: string, accountBalanceType: string, amountCents: bigint): bigint {
-  // If entry_type matches account's balance_type, ADD; otherwise SUBTRACT
-  return entryType === accountBalanceType ? amountCents : -amountCents;
-}
-
+/**
+ * HYG-04: both writers post through postJournal — SET CONSTRAINTS ALL
+ * IMMEDIATE first, the lines in one statement, the entry id read back after
+ * commit. The guards (idempotency, period close, account lookups) and the
+ * follow-up writes (links, the transaction's status) run inside the same
+ * transaction, exactly where they ran before.
+ */
 export async function commitPlaidTransaction(
   prisma: PrismaClient,
   params: CommitPlaidTransactionParams
@@ -72,7 +73,7 @@ export async function commitPlaidTransaction(
     links,
   } = params;
 
-  return prisma.$transaction(async (tx: Tx) => {
+  const { result } = await postJournal(prisma, async (tx, post): Promise<CommitResult> => {
     // ═══════════════════════════════════════════════════════════════════
     // IDEMPOTENCY GUARD — Prevent duplicate JEs on retry
     // If a JE with this request_id already exists, return it immediately.
@@ -121,16 +122,15 @@ export async function commitPlaidTransaction(
     // Plaid positive = money left account = EXPENSE: DR expense, CR bank
     // Plaid negative = money entered account = INCOME: DR bank, CR income/revenue
 
-    const debitAccountId = isExpense ? expenseOrIncomeAccount.id : bankAccount.id;
-    const creditAccountId = isExpense ? bankAccount.id : expenseOrIncomeAccount.id;
-    const debitBalanceType = isExpense ? expenseOrIncomeAccount.balance_type : bankAccount.balance_type;
-    const creditBalanceType = isExpense ? bankAccount.balance_type : expenseOrIncomeAccount.balance_type;
+    const debitAccount = isExpense ? expenseOrIncomeAccount : bankAccount;
+    const creditAccount = isExpense ? bankAccount : expenseOrIncomeAccount;
 
-    // Create journal entry
+    // Create the journal entry — one debit line, one credit line, the balance
+    // moves by the rule every writer uses.
     // DIM-3: vendor_id is born WITH the entry (null = dimensionless, the
     // legacy-epoch semantic — never backfilled, never imputed).
-    const journalEntry = await tx.journal_entries.create({
-      data: {
+    const posted = await post({
+      entry: {
         userId,
         entity_id: entityId,
         date,
@@ -138,44 +138,26 @@ export async function commitPlaidTransaction(
         source_type: 'plaid_txn',
         source_id: transactionId,
         status: 'posted',
-        request_id: requestId,
+        request_id: requestId ?? null,
         created_by: createdBy || null,
         vendor_id: vendorId || null,
       },
-    });
-
-    // Create debit ledger entry
-    const debitEntry = await tx.ledger_entries.create({
-      data: {
-        journal_entry_id: journalEntry.id,
-        account_id: debitAccountId,
-        entry_type: 'D',
-        amount: amountCents,
-        created_by: createdBy || null,
-      },
-    });
-
-    // Create credit ledger entry
-    const creditEntry = await tx.ledger_entries.create({
-      data: {
-        journal_entry_id: journalEntry.id,
-        account_id: creditAccountId,
-        entry_type: 'C',
-        amount: amountCents,
-        created_by: createdBy || null,
-      },
+      lines: [
+        { account_id: debitAccount.id, entry_type: 'D', amount: amountCents, balanceDelta: balanceDeltaOf('D', debitAccount.balance_type, amountCents), created_by: createdBy || null },
+        { account_id: creditAccount.id, entry_type: 'C', amount: amountCents, balanceDelta: balanceDeltaOf('C', creditAccount.balance_type, amountCents), created_by: createdBy || null },
+      ],
     });
 
     // ─── DIM-3: allocation links on the EXPENSE-SIDE line ────────────────────
-    // This service builds exactly ONE D + ONE C line; the categorized
+    // The entry has exactly ONE D + ONE C line; the categorized
     // (expense/income) account rides the DEBIT when the Plaid amount is
     // positive (expense) and the CREDIT when negative (income) — so the
     // links' line is always unambiguously identifiable. Created INSIDE this
-    // $transaction: a link-write failure (including the DIM-1 CHECK/partial-
+    // transaction: a link-write failure (including the DIM-1 CHECK/partial-
     // unique constraints) rolls back the WHOLE entry, loudly — the entry's
     // atomicity is sacred; dimensions are born with it or not at all.
     if (links && links.length > 0) {
-      const expenseSideEntryId = isExpense ? debitEntry.id : creditEntry.id;
+      const expenseSideEntryId = isExpense ? posted.lineIds[0] : posted.lineIds[1];
       await tx.ledger_line_links.createMany({
         data: links.map((l) => ({
           ledger_entry_id: expenseSideEntryId,
@@ -189,24 +171,6 @@ export async function commitPlaidTransaction(
       });
     }
 
-    // Update settled_balance on debit account
-    await tx.chart_of_accounts.update({
-      where: { id: debitAccountId },
-      data: {
-        settled_balance: { increment: updateBalance('D', debitBalanceType, amountCents) },
-        version: { increment: 1 },
-      },
-    });
-
-    // Update settled_balance on credit account
-    await tx.chart_of_accounts.update({
-      where: { id: creditAccountId },
-      data: {
-        settled_balance: { increment: updateBalance('C', creditBalanceType, amountCents) },
-        version: { increment: 1 },
-      },
-    });
-
     // Update transaction status
     await tx.transactions.update({
       where: { transactionId },
@@ -216,8 +180,10 @@ export async function commitPlaidTransaction(
       },
     });
 
-    return journalEntry;
+    return tx.journal_entries.findUniqueOrThrow({ where: { id: posted.id } });
   });
+
+  return result;
 }
 
 export async function reversePlaidTransaction(
@@ -226,7 +192,7 @@ export async function reversePlaidTransaction(
 ) {
   const { userId, journalEntryId, transactionId, requestId, createdBy } = params;
 
-  return prisma.$transaction(async (tx: Tx) => {
+  const { result } = await postJournal(prisma, async (tx, post) => {
     // Look up original journal entry with its ledger entries and linked accounts
     const original = await tx.journal_entries.findUnique({
       where: { id: journalEntryId },
@@ -259,9 +225,10 @@ export async function reversePlaidTransaction(
     const reversalDate = new Date();
     await assertPeriodOpen(tx, userId, original.entity_id, reversalDate);
 
-    // Create reversal journal entry
-    const reversalEntry = await tx.journal_entries.create({
-      data: {
+    // Create the reversal: the opposite line for every original line, the
+    // balances moved back by the same rule.
+    const reversal = await post({
+      entry: {
         userId,
         entity_id: original.entity_id,
         date: reversalDate,
@@ -271,43 +238,27 @@ export async function reversePlaidTransaction(
         status: 'posted',
         is_reversal: true,
         reverses_entry_id: original.id,
-        request_id: requestId,
+        request_id: requestId ?? null,
         created_by: createdBy || null,
       },
-    });
-
-    // Create opposite ledger entries and reverse COA balances
-    for (const entry of original.ledger_entries) {
-      const oppositeType = entry.entry_type === 'D' ? 'C' : 'D';
-
-      await tx.ledger_entries.create({
-        data: {
-          journal_entry_id: reversalEntry.id,
+      lines: original.ledger_entries.map((entry) => {
+        const oppositeType: 'D' | 'C' = entry.entry_type === 'D' ? 'C' : 'D';
+        return {
           account_id: entry.account_id,
           entry_type: oppositeType,
           amount: entry.amount,
+          balanceDelta: balanceDeltaOf(oppositeType, entry.account.balance_type, entry.amount),
           created_by: createdBy || null,
-        },
-      });
-
-      // Reverse the balance: opposite entry type applied to account
-      await tx.chart_of_accounts.update({
-        where: { id: entry.account.id },
-        data: {
-          settled_balance: {
-            increment: updateBalance(oppositeType, entry.account.balance_type, entry.amount),
-          },
-          version: { increment: 1 },
-        },
-      });
-    }
+        };
+      }),
+    });
 
     // Mark original as reversed
     await tx.journal_entries.update({
       where: { id: original.id },
       data: {
         status: 'reversed',
-        reversed_by_entry_id: reversalEntry.id,
+        reversed_by_entry_id: reversal.id,
       },
     });
 
@@ -320,6 +271,8 @@ export async function reversePlaidTransaction(
       },
     });
 
-    return { originalId: original.id, reversalId: reversalEntry.id };
+    return { originalId: original.id, reversalId: reversal.id };
   });
+
+  return result;
 }

@@ -5,6 +5,8 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { ensureBookkeepingInitialized } from '@/lib/ensure-bookkeeping';
 import { assertPeriodOpen, PeriodClosedError } from '@/lib/period-close-guard';
 import { requireTabAccess } from '@/lib/auth-helpers';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
+import { balanceDeltaOf, postJournal } from '@/lib/posting/postJournal';
 
 export async function POST(request: Request) {
   try {
@@ -65,11 +67,13 @@ export async function POST(request: Request) {
     // Period close enforcement
     await assertPeriodOpen(prisma, user.id, entityId, new Date(date));
 
-    // Create journal entry in transaction
+    // HYG-04: ONE posting discipline — postJournal: SET CONSTRAINTS ALL
+    // IMMEDIATE first, every line in one statement, the entry read back after
+    // commit. An unbalanced entry the DB refuses throws inside the transaction.
     const requestId = randomUUID();
-    const result = await prisma.$transaction(async (tx) => {
-      const journalEntry = await tx.journal_entries.create({
-        data: {
+    const { result } = await postJournal(prisma, async (_tx, post) =>
+      post({
+        entry: {
           userId: user.id,
           entity_id: entityId,
           date: new Date(date),
@@ -79,44 +83,25 @@ export async function POST(request: Request) {
           request_id: requestId,
           created_by: userEmail,
         },
-      });
-
-      for (const line of lines) {
-        const account = accounts.find((a) => a.code === line.accountCode)!;
-        const amountCents = BigInt(Math.round(line.amount));
-
-        await tx.ledger_entries.create({
-          data: {
-            journal_entry_id: journalEntry.id,
+        lines: lines.map((line: { accountCode: string; entryType: 'D' | 'C'; amount: number }) => {
+          const account = accounts.find((a) => a.code === line.accountCode)!;
+          const amountCents = BigInt(Math.round(line.amount));
+          return {
             account_id: account.id,
             entry_type: line.entryType,
             amount: amountCents,
+            balanceDelta: balanceDeltaOf(line.entryType, account.balance_type, amountCents),
             created_by: userEmail,
-          },
-        });
-
-        const balanceChange = line.entryType === account.balance_type
-          ? amountCents
-          : -amountCents;
-
-        await tx.chart_of_accounts.update({
-          where: { id: account.id },
-          data: {
-            settled_balance: { increment: balanceChange },
-            version: { increment: 1 },
-          },
-        });
-      }
-
-      return journalEntry;
-    });
+          };
+        }),
+      }),
+    );
 
     return NextResponse.json({ success: true, journalEntryId: result.id });
   } catch (error) {
     if (error instanceof PeriodClosedError) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
-    console.error('Manual journal entry error:', error);
-    return NextResponse.json({ error: 'Failed to create journal entry' }, { status: 500 });
+    return failClosedResponse('Manual journal entry', 'Failed to create journal entry', error);
   }
 }
