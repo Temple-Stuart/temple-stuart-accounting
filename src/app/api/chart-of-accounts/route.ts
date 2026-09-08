@@ -1,9 +1,29 @@
-import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { ensureBookkeepingInitialized } from '@/lib/ensure-bookkeeping';
 import { requireTabAccess } from '@/lib/auth-helpers';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
+import { addAccount } from '@/lib/coa/accounts';
+import { prismaChartDb } from '@/lib/coa/prismaChartDb';
+
+/**
+ * /api/chart-of-accounts
+ *
+ * GET  — the user's accounts (optionally one entity); active only unless
+ *        include_archived=true, so every categorization list that reads this
+ *        route hides retired accounts by default (COA-01).
+ * POST — add an account (COA-01): { entityId, code, name, family, subType? }.
+ *        The code follows the ENTITY's scheme (src/lib/coa/scheme.ts): four
+ *        digits or the entity letter and four digits, inside the family's
+ *        range, unique in the entity's chart — a retired account at that code
+ *        is a 409 with the restore hint. `accountType` is accepted as the
+ *        legacy name of `family`. Every refusal is a ValidationError answered
+ *        verbatim at its status; faults are the fixed failClosed line.
+ *
+ * Gate order on both: verified email → user → tab:books → the entity is the
+ * user's (defensive 404).
+ */
 
 export async function GET(request: Request) {
   try {
@@ -28,11 +48,12 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const entityId = searchParams.get('entity_id') || null;
+    const includeArchived = searchParams.get('include_archived') === 'true';
 
     const accounts = await prisma.chart_of_accounts.findMany({
       where: {
         userId: user.id,
-        is_archived: false,
+        ...(includeArchived ? {} : { is_archived: false }),
         ...(entityId && { entity_id: entityId })
       },
       orderBy: [
@@ -62,18 +83,9 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ accounts: serializedAccounts });
   } catch (error) {
-    console.error('COA fetch error:', error);
-    return NextResponse.json({ error: 'Failed to fetch chart of accounts' }, { status: 500 });
+    return failClosedResponse('COA fetch', 'Failed to fetch chart of accounts', error);
   }
 }
-
-const BALANCE_TYPE_MAP: Record<string, string> = {
-  asset: 'D',
-  expense: 'D',
-  liability: 'C',
-  equity: 'C',
-  revenue: 'C',
-};
 
 export async function POST(request: Request) {
   try {
@@ -92,50 +104,32 @@ export async function POST(request: Request) {
     const tabGate = await requireTabAccess(user.id, 'tab:books');
     if (tabGate) return tabGate;
 
-    // DIM-2: subType is optional — the S segment of the dimensional string,
-    // stored in the existing sub_type column (VarChar(50)).
-    const { code, name, accountType, entityId, subType } = await request.json();
+    await ensureBookkeepingInitialized(user);
 
-    if (!code || !name || !accountType || !entityId) {
-      return NextResponse.json({ error: 'code, name, accountType, and entityId are required' }, { status: 400 });
-    }
-    if (subType !== undefined && subType !== null && typeof subType !== 'string') {
-      return NextResponse.json({ error: 'subType must be a string' }, { status: 400 });
-    }
+    const body = await request.json().catch(() => ({}));
+    const { code, name, entityId, subType } = body ?? {};
+    const family = body?.family ?? body?.accountType;
 
-    const balanceType = BALANCE_TYPE_MAP[accountType.toLowerCase()];
-    if (!balanceType) {
-      return NextResponse.json({ error: 'Invalid accountType. Must be asset, liability, equity, revenue, or expense' }, { status: 400 });
+    if (typeof entityId !== 'string' || !entityId) {
+      return NextResponse.json({ error: 'entityId is required', field: 'entityId' }, { status: 400 });
     }
 
-    // Verify entity belongs to user
+    // Verify entity belongs to user — defensive 404.
     const entity = await prisma.entities.findFirst({
-      where: { id: entityId, userId: user.id }
+      where: { id: entityId, userId: user.id },
+      select: { id: true, entity_type: true },
     });
     if (!entity) {
-      return NextResponse.json({ error: 'Entity not found or not owned by user' }, { status: 404 });
+      return NextResponse.json({ error: 'Entity not found' }, { status: 404 });
     }
 
-    // Check compound unique [userId, entity_id, code]
-    const existing = await prisma.chart_of_accounts.findFirst({
-      where: { userId: user.id, entity_id: entityId, code }
-    });
-    if (existing) {
-      return NextResponse.json({ error: `Account code "${code}" already exists for this entity` }, { status: 409 });
-    }
-
-    const account = await prisma.chart_of_accounts.create({
-      data: {
-        id: randomUUID(),
-        code,
-        name,
-        account_type: accountType.toLowerCase(),
-        balance_type: balanceType,
-        sub_type: typeof subType === 'string' && subType.trim() ? subType.trim() : null,
-        entity_id: entityId,
-        entity_type: entity.entity_type,
-        userId: user.id,
-      }
+    const account = await addAccount(prismaChartDb(prisma, user.id), {
+      userId: user.id,
+      entity,
+      code,
+      name,
+      family,
+      subType,
     });
 
     return NextResponse.json({
@@ -156,7 +150,6 @@ export async function POST(request: Request) {
       }
     });
   } catch (error) {
-    console.error('COA create error:', error);
-    return NextResponse.json({ error: 'Failed to create account' }, { status: 500 });
+    return failClosedResponse('COA create', 'Failed to create account', error);
   }
 }
