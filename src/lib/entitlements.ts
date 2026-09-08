@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { ADMIN_USER_ID } from '@/lib/tiers';
+import { isAdminUser } from '@/lib/admin';
 import { GOOGLE_CATEGORY_KEYS } from '@/lib/categoryKeys';
 // SELL-02: which entitlement keys satisfy a tab gate is the OFFER's say (src/lib/offer.ts keysGranting).
 import { keysGranting } from '@/lib/offer';
@@ -13,14 +13,14 @@ export { GOOGLE_CATEGORY_KEYS };
  * The Google category keys this user is CURRENTLY entitled to: rows with status 'active'
  * whose entitlement has not expired (currentPeriodEnd is null OR in the future).
  *
- * Admin (ADMIN_USER_ID) gets ALL Google keys — mirrors the admin bypass in tiers.ts:68.
+ * Admin (ADMIN_USER_ID in the env, src/lib/admin.ts — throws when unset) gets ALL Google keys.
  *
  * Fail-loud: a DB error PROPAGATES (no try/catch here). We never return a silent [] —
  * that would falsely lock every category and hide the failure. The caller's error path
  * surfaces the real error.
  */
 export async function getEntitledCategories(userId: string): Promise<string[]> {
-  if (userId === ADMIN_USER_ID) return [...GOOGLE_CATEGORY_KEYS];
+  if (isAdminUser(userId)) return [...GOOGLE_CATEGORY_KEYS];
 
   const now = new Date();
   const rows = await prisma.userCategoryEntitlement.findMany({
@@ -41,15 +41,15 @@ export async function getEntitledCategories(userId: string): Promise<string[]> {
  * bundle, or an offer that grants it (SELL-02: Books grants tab:trade, tab:tax
  * and tab:compliance — keysGranting, src/lib/offer.ts). One purchase satisfies
  * every tab it grants, resolved here at read time (never fanned out into
- * per-tab rows at write time). Admin (ADMIN_USER_ID) always passes — mirrors
- * getEntitledCategories above.
+ * per-tab rows at write time). Admin (ADMIN_USER_ID in the env) always passes —
+ * mirrors getEntitledCategories above; an unset env throws (the gate cannot decide).
  *
  * Fail-loud: a DB error PROPAGATES (no try/catch). We never return a silent
  * false — that would hide the failure as a lock. And there is no default
  * grant: no row → false, always.
  */
 export async function hasTabAccess(userId: string, tabKey: string): Promise<boolean> {
-  if (userId === ADMIN_USER_ID) return true;
+  if (isAdminUser(userId)) return true;
 
   const now = new Date();
   const row = await prisma.userCategoryEntitlement.findFirst({

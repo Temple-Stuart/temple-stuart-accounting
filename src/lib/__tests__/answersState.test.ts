@@ -24,8 +24,8 @@ import {
 const QUESTIONS = ANSWER_ROWS.map(([q]) => q);
 const NONE: Readonly<Record<string, boolean>> = Object.fromEntries(OFFERS.map((o) => [o.key, false]));
 const ALL: Readonly<Record<string, boolean>> = Object.fromEntries(OFFERS.map((o) => [o.key, true]));
-const free: ViewerFacts = { userId: 'user-free', entitledKeys: [], accountsLinked: null, soleProp: null };
-const paid = (over: Partial<ViewerFacts>): ViewerFacts => ({ userId: 'user-paid', entitledKeys: [ANSWERS_TAB], accountsLinked: 2, soleProp: true, ...over });
+const free: ViewerFacts = { isAdmin: false, entitledKeys: [], accountsLinked: null, soleProp: null };
+const paid = (over: Partial<ViewerFacts>): ViewerFacts => ({ isAdmin: false, entitledKeys: [ANSWERS_TAB], accountsLinked: 2, soleProp: true, ...over });
 const states = (facts: ViewerFacts, availability = NONE): CardState[] => QUESTIONS.map((q) => cardState(q, facts, availability));
 
 test('the law: CARD_NEEDS covers the four questions in order; the Answers ride with an offer whose key the gate resolves', () => {
@@ -55,8 +55,9 @@ test('a free account → four OFFER-line cards from offer.ts, no HTTP text, the 
     assert.deepEqual(st.door, { kind: 'link', href: OFFER_PAGE });
   }
   // the bundle unlocks the Answers too — the gate's own keysGranting
-  assert.equal(answersLocked({ userId: 'u', entitledKeys: ['bundle:all'] }), false);
-  assert.equal(answersLocked({ userId: 'u', entitledKeys: ['tab:tax'] }), true, 'a tab that does not carry the Answers does not unlock them');
+  assert.equal(answersLocked({ isAdmin: false, entitledKeys: ['bundle:all'] }), false);
+  assert.equal(answersLocked({ isAdmin: false, entitledKeys: ['tab:tax'] }), true, 'a tab that does not carry the Answers does not unlock them');
+  assert.equal(answersLocked({ isAdmin: true, entitledKeys: [] }), false, "the admin bypass is the server's verdict, never an id compared here");
 });
 
 test('with a live price the offer line carries the number and the door is the one checkout call', () => {

@@ -68,7 +68,8 @@ export type CardState =
   | { kind: 'read' };
 
 export interface ViewerFacts {
-  userId: string;
+  /** The server's verdict on the admin bypass (/api/auth/me isAdmin) — SELL-05b: never an id compared here. */
+  isAdmin: boolean;
   /** The viewer's active entitlement keys (/api/auth/me entitledCategories — every active row's key). */
   entitledKeys: readonly string[];
   /** Linked accounts on live Plaid items (/api/accounts); null until read. */
@@ -82,8 +83,8 @@ export function offerLine(card: OfferCardModel): string {
   return `${card.label} — ${card.price.text} — ${OFFER_VERB}.`;
 }
 
-export function answersLocked(facts: Pick<ViewerFacts, 'userId' | 'entitledKeys'>): boolean {
-  return isTabLocked(ANSWERS_TAB, [...facts.entitledKeys], facts.userId);
+export function answersLocked(facts: Pick<ViewerFacts, 'isAdmin' | 'entitledKeys'>): boolean {
+  return isTabLocked(ANSWERS_TAB, [...facts.entitledKeys], facts.isAdmin);
 }
 
 /**

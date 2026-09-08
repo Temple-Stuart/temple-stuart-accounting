@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-import { getStripe, getTierFromPriceId, getEntitlementKeyFromPriceId } from '@/lib/stripe';
+import { getStripe, getEntitlementKeyFromPriceId } from '@/lib/stripe';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 // REBUILD-01 PR-4: every delivery lands raw-first — the signed bytes, one arrival per event
 // (client_secret redacted and declared), the handler from the arrival, one transaction.
@@ -14,34 +14,9 @@ const OWNER_EMAIL = process.env.OWNER_EMAIL;
 /** The handler's database — the delivery's transaction client (PR-4), so its writes roll back with the landing. writeAuditLog keeps its own hash-chained transaction. */
 type Db = Prisma.TransactionClient;
 
-// PAYWALL: every tier entitlement change lands in the tamper-evident audit log.
-// actor = external_integration (Stripe, authenticated by webhook signature);
-// request_id = `${event.id}:${userId}` so Stripe's at-least-once retries and
-// multi-user events cannot double-log (writeAuditLog dedupes by request_id).
-async function auditTierChange(opts: {
-  eventId: string;
-  eventType: string;
-  userId: string;
-  email: string | null;
-  fromTier: string;
-  toTier: string;
-  subscriptionId: string | null;
-}) {
-  await writeAuditLog({
-    actor: { type: 'external_integration', email: 'stripe-webhook' },
-    action: {
-      type: opts.toTier === 'free' ? 'permission_revoked' : 'permission_granted',
-      description: `Stripe ${opts.eventType}: tier ${opts.fromTier} → ${opts.toTier} for ${opts.email ?? opts.userId}`,
-    },
-    target: { table: 'users', id: opts.userId },
-    payload: {
-      before: { tier: opts.fromTier },
-      after: { tier: opts.toTier },
-      metadata: { stripe_event: opts.eventType, subscription_id: opts.subscriptionId },
-    },
-    request_id: `${opts.eventId}:${opts.userId}`,
-  });
-}
+// SELL-05b: the tier branch is gone — the offer's entitlement keys are the ONLY prices
+// this webhook grants; every other price is declared and grants nothing. users.tier is
+// never written here any more.
 
 // ENTITLEMENT-WRITER: every entitlement grant/revoke lands in the same
 // tamper-evident audit log. request_id includes the key so one Stripe event
@@ -196,11 +171,10 @@ async function handleStripeEvent(db: Db, event: Stripe.Event): Promise<void> {
           const subscription = await getStripe().subscriptions.retrieve(subscriptionId);
           const priceId = subscription.items.data[0]?.price.id;
 
-          // FALLBACK TRIPWIRE: a paid tier is granted ONLY from a verified,
+          // FALLBACK TRIPWIRE: an entitlement is granted ONLY from a verified,
           // recognized price ID. No readable price → NO grant (the previous
-          // `: 'pro'` default here was a default-to-paid violation). An
-          // unrecognized price maps to 'free' (getTierFromPriceId) — a no-op
-          // for a checkout user, never an escalation.
+          // default-to-paid here was a violation). An unrecognized price
+          // grants nothing, loudly — never an escalation.
           if (!priceId) {
             console.error(
               `Stripe webhook: checkout.session.completed ${event.id} has no price ID on subscription ${subscriptionId} — NO grant (fail-safe)`,
@@ -209,11 +183,9 @@ async function handleStripeEvent(db: Db, event: Stripe.Event): Promise<void> {
           }
 
           // ENTITLEMENT-WRITER: route by what the PAID PRICE actually is.
-          // An entitlement price grants an entitlement row (never touches
-          // user.tier); a tier price grants a tier (never an entitlement);
-          // an unrecognized price grants NOTHING, loudly.
+          // An entitlement price grants an entitlement row; any other price
+          // grants NOTHING, loudly (SELL-05b: there is no tier to grant).
           const entitlementKey = getEntitlementKeyFromPriceId(priceId);
-          const tier = getTierFromPriceId(priceId); // 'free' when not a tier price
 
           const checkoutUser = await db.users.findUnique({ where: { id: userId } });
           if (!checkoutUser || checkoutUser.email === OWNER_EMAIL) break;
@@ -239,28 +211,10 @@ async function handleStripeEvent(db: Db, event: Stripe.Event): Promise<void> {
               subscriptionId,
               currentPeriodEnd: entitlementPeriodEnd(subscription),
             });
-          } else if (tier !== 'free') {
-            await db.users.update({
-              where: { id: userId },
-              data: {
-                tier,
-                stripeSubscriptionId: subscriptionId,
-                stripeCustomerId: session.customer as string,
-              },
-            });
-            await auditTierChange({
-              eventId: event.id,
-              eventType: event.type,
-              userId,
-              email: checkoutUser.email,
-              fromTier: checkoutUser.tier,
-              toTier: tier,
-              subscriptionId,
-            });
           } else {
-            // FALLBACK TRIPWIRE: recognized by neither map — nothing granted.
+            // FALLBACK TRIPWIRE: not an entitlement price — nothing granted.
             console.error(
-              `Stripe webhook: checkout.session.completed ${event.id} price ${priceId} matches no tier and no entitlement key — NO grant (fail-safe)`,
+              `Stripe webhook: checkout.session.completed ${event.id} price ${priceId} matches no entitlement key — NO grant (fail-safe)`,
             );
           }
         }
@@ -278,9 +232,7 @@ async function handleStripeEvent(db: Db, event: Stripe.Event): Promise<void> {
         });
         if (!user || user.email === OWNER_EMAIL) break;
 
-        // ENTITLEMENT-WRITER: route by subscription type (a user can hold a
-        // tier subscription AND entitlement subscriptions — an update to one
-        // must never touch the other).
+        // ENTITLEMENT-WRITER: only an entitlement subscription is ours to update.
         const entitlementKey = priceId ? getEntitlementKeyFromPriceId(priceId) : null;
 
         if (entitlementKey) {
@@ -301,39 +253,10 @@ async function handleStripeEvent(db: Db, event: Stripe.Event): Promise<void> {
           break;
         }
 
-        const tier = priceId ? getTierFromPriceId(priceId) : 'free';
-        // Mixed-subscription guard: only treat this as the user's TIER
-        // subscription if the price maps to a tier OR this subscription is the
-        // one recorded as their tier subscription. An unrecognized price on
-        // some other subscription must never downgrade the tier.
-        if (tier === 'free' && user.stripeSubscriptionId !== subscription.id) {
-          console.error(
-            `Stripe webhook: subscription.updated ${event.id} price ${priceId ?? 'none'} is neither tier nor entitlement and not the user's tier subscription — NO change (fail-safe)`,
-          );
-          break;
-        }
-        // Fail-safe by construction: unknown price → 'free', missing price →
-        // 'free', non-active subscription → 'free'. A paid tier is only ever
-        // set from a recognized price on an ACTIVE subscription.
-        const effectiveTier = subscription.status === 'active' ? tier : 'free';
-        await db.users.update({
-          where: { id: user.id },
-          data: {
-            tier: effectiveTier,
-            stripeSubscriptionId: subscription.id,
-          },
-        });
-        if (effectiveTier !== user.tier) {
-          await auditTierChange({
-            eventId: event.id,
-            eventType: event.type,
-            userId: user.id,
-            email: user.email,
-            fromTier: user.tier,
-            toTier: effectiveTier,
-            subscriptionId: subscription.id,
-          });
-        }
+        // SELL-05b: not an entitlement price → NO change, declared (there is no tier to move).
+        console.error(
+          `Stripe webhook: subscription.updated ${event.id} price ${priceId ?? 'none'} is not an entitlement price — NO change (fail-safe)`,
+        );
         break;
       }
 
@@ -347,8 +270,7 @@ async function handleStripeEvent(db: Db, event: Stripe.Event): Promise<void> {
         if (!user || user.email === OWNER_EMAIL) break;
 
         // ENTITLEMENT-WRITER: if this subscription backs entitlement rows,
-        // revoke exactly those rows (status → inactive, audit-logged) and do
-        // NOT touch the user's tier.
+        // revoke exactly those rows (status → inactive, audit-logged).
         const entitlementRows = await db.userCategoryEntitlement.findMany({
           where: { userId: user.id, stripeSubscriptionId: subscription.id },
         });
@@ -372,34 +294,10 @@ async function handleStripeEvent(db: Db, event: Stripe.Event): Promise<void> {
           break;
         }
 
-        // Mixed-subscription guard: only reset the TIER when the deleted
-        // subscription is the user's recorded tier subscription. Deleting some
-        // other (unrecognized) subscription must never downgrade the tier.
-        if (user.stripeSubscriptionId !== subscription.id) {
-          console.error(
-            `Stripe webhook: subscription.deleted ${event.id} (${subscription.id}) backs no entitlement rows and is not the user's tier subscription — NO change (fail-safe)`,
-          );
-          break;
-        }
-
-        await db.users.update({
-          where: { id: user.id },
-          data: {
-            tier: 'free',
-            stripeSubscriptionId: null,
-          },
-        });
-        if (user.tier !== 'free') {
-          await auditTierChange({
-            eventId: event.id,
-            eventType: event.type,
-            userId: user.id,
-            email: user.email,
-            fromTier: user.tier,
-            toTier: 'free',
-            subscriptionId: subscription.id,
-          });
-        }
+        // SELL-05b: a subscription backing no entitlement rows is not ours — NO change, declared.
+        console.error(
+          `Stripe webhook: subscription.deleted ${event.id} (${subscription.id}) backs no entitlement rows — NO change (fail-safe)`,
+        );
         break;
       }
     }

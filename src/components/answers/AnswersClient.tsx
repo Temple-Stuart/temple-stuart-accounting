@@ -325,7 +325,7 @@ export default function AnswersClient({ viewer, offerAvailability }: { viewer: s
       if (!live) return;
       if (me.status !== 'ok') { if (me.status === 'failed') setProfileError(me.message); return; }
       setIsAdmin(Boolean(me.data.user.isAdmin));
-      const base = { userId: me.data.user.id, entitledKeys: me.data.user.entitledCategories ?? [] };
+      const base = { isAdmin: me.data.user.isAdmin === true, entitledKeys: me.data.user.entitledCategories ?? [] };
       if (answersLocked(base)) { setFacts({ ...base, accountsLinked: null, soleProp: null }); return; }
       const [accounts, entities] = await Promise.all([readJson<AccountsAnswer>('/api/accounts'), readJson<EntitiesAnswer>('/api/entities')]);
       if (!live) return;

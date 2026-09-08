@@ -47,7 +47,7 @@ export interface AppLayoutProps {
 interface CookieUser {
   email: string;
   name: string;
-  /** /api/auth/me → isAdminUser(user.id); gates the utilities menu. */
+  /** /api/auth/me → isAdmin (src/lib/admin.ts, ADMIN_USER_ID in the env); gates the utilities menu. */
   isAdmin?: boolean;
 }
 

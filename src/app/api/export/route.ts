@@ -12,7 +12,7 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
  * entitlement gate, deliberately and permanently: a paywalled export is the
  * Bench disease (Bench's collapse locked customers out of their own books).
  * The bar is verified email + user scoping ONLY — the same bar as every
- * DB-only read (the /api/runway precedent). Do not add requireTier or
+ * DB-only read (the /api/runway precedent). Do not add a tab gate or
  * requireTabAccess here, ever. Users can always take their data and leave.
  *
  * READ-ONLY — findMany only; zero writes anywhere on this path.

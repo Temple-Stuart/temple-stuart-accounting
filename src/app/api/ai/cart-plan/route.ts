@@ -1,5 +1,6 @@
-import { requireTier } from '@/lib/auth-helpers';
-import { requireAiRateLimit } from '@/lib/ai-rate-limit';
+import { aiCaps } from '@/lib/ai/caps';
+import { aiHourlyCap } from '@/lib/ai-rate-limit';
+import { requireRoutineBudget } from '@/lib/routineFireBudget';
 import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
@@ -87,13 +88,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const tierGate = requireTier(user.tier, 'ai', user.id);
-    if (tierGate) return tierGate;
-
-    // SEC-5: per-user LLM volume cap (before the paid call).
-    const aiLimit = await requireAiRateLimit(user.id);
-    if (aiLimit) return aiLimit;
-
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
@@ -103,6 +97,11 @@ export async function POST(request: NextRequest) {
     if (!body.category || !VALID_CATEGORIES.includes(body.category)) {
       return NextResponse.json({ error: 'Invalid category. Must be one of: clothing, hygiene, cleaning, kitchen' }, { status: 400 });
     }
+
+    // SELL-05b: no tier — the AI caps (the hourly volume cap, then the daily cap), reserved once the input is valid and BEFORE the paid call; declared when hit.
+    const capped = await aiCaps({ hourly: aiHourlyCap, reserveDaily: requireRoutineBudget }, user.id);
+    if (capped) return NextResponse.json(capped.body, { status: capped.status, headers: capped.headers });
+
 
     const { category, budgetMin, budgetMax, householdSize, cadence, preferences, excludeItems } = body;
     const config = CATEGORY_CONFIG[category];

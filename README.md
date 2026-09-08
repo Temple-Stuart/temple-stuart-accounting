@@ -2,7 +2,7 @@
 
 Twenty-five business tools on one data pipe that ends in one Ledger and one Calendar.
 
-Source-available (BSL 1.1) · built and operated in production by its founder as User #1 · as of 2026-09-02: 116 Prisma models, 292 API route files, 121 feeds from 20 providers (counted August 24, 2026)
+Source-available (BSL 1.1) · built and operated in production by its founder as User #1 · as of 2026-09-02: 116 Prisma models, 291 API route files, 121 feeds from 20 providers (counted August 24, 2026)
 
 ## The system
 
@@ -310,7 +310,7 @@ Versions from package.json, read 2026-09-02:
 
 Observed versus authored (step 6): what the world sends is observed; what you do is authored; the blueprint keeps the two apart and matches them on one key. Today the Plaid feeds land word for word, fingerprinted — 9,092 transactions, 712 investment transactions, 247 securities, counted September 7, 2026; the other providers still land parsed — see the gap ledger, step 14.
 
-Scale, as of 2026-09-02: 116 Prisma models, 34 enums, 292 API route files, 37 runtime dependencies, 18 dev dependencies, one test file (`npm test`).
+Scale, as of 2026-09-02: 116 Prisma models, 34 enums, 291 API route files, 37 runtime dependencies, 18 dev dependencies, one test file (`npm test`).
 
 ## Engineering discipline
 
@@ -366,11 +366,11 @@ You need Node (the code is typed against `@types/node ^20`), PostgreSQL, and a h
 
 | Vendor / concern | Keys | Needed when |
 |---|---|---|
-| Core | `DATABASE_URL` (read by Prisma, `prisma/schema.prisma:7`), `JWT_SECRET`, `NEXTAUTH_SECRET`, `OWNER_EMAIL`, `NEXT_PUBLIC_OWNER_EMAIL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_BASE_URL` | Required |
+| Core | `DATABASE_URL` (read by Prisma, `prisma/schema.prisma:7`), `JWT_SECRET`, `NEXTAUTH_SECRET`, `OWNER_EMAIL`, `ADMIN_USER_ID` (the admin's users.id; every admin gate throws when it is unset — `src/lib/admin.ts`), `NEXT_PUBLIC_OWNER_EMAIL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_BASE_URL` | Required |
 | Set by the platform | `NODE_ENV`, `VERCEL`, `NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA` | Provided by Vercel / Node; nothing to set |
 | Plaid (bank sync) | `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_REDIRECT_URI` (the OAuth return URL, `src/lib/plaid/oauth.ts`) | Required unless Books sync is disabled — no link token is created without the redirect URI |
 | Provider tokens at rest | `TOKEN_ENCRYPTION_KEY` (base64 of 32 bytes), `TOKEN_ENCRYPTION_KEY_ID` (`src/lib/secrets/tokenCipher.ts`) | Required — every Plaid and tastytrade token read or write fails loud without both |
-| Stripe (payments) | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_PRO_PRICE_ID`, `STRIPE_PRO_PLUS_PRICE_ID`; per entitlement `STRIPE_TAB_<KEY>_PRICE_ID`, `STRIPE_CAT_<KEY>_PRICE_ID`, `STRIPE_BUNDLE_ALL_PRICE_ID` (`src/lib/stripe.ts:49-55`) | Required to sell modules; skip to run everything unlocked |
+| Stripe (payments) | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`; per entitlement `STRIPE_TAB_<KEY>_PRICE_ID`, `STRIPE_CAT_<KEY>_PRICE_ID`, `STRIPE_BUNDLE_ALL_PRICE_ID` (`src/lib/stripe.ts`) | Required to sell modules; skip to run everything unlocked |
 | Flights and stays (LiteAPI) | `LITEAPI_SANDBOX_KEY`, `LITEAPI_PRODUCTION_KEY`, `LITEAPI_MODE`, `FLIGHTS_LANE` (set to `liteapi`; `src/lib/flightsLane.ts:20`) | Required unless travel is disabled |
 | Tours (Viator) | `VIATOR_API_KEY` | Required unless activities are disabled |
 | Visa rules (RapidAPI) | `RAPIDAPI_VISA_KEY`, `RAPIDAPI_VISA_HOST` | Required unless the visa check is disabled |

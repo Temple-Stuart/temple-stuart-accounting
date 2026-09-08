@@ -209,10 +209,12 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange, offerAvaila
   // Auth state: null = unknown (initial), true/false once /api/auth/me resolves.
   const [authed, setAuthed] = useState<boolean | null>(null);
   // PR-2b: per-category entitlements + user id (server-computed via /api/auth/me). Drive the
-  // homepage Travel-tab category-section locks (isCategoryLocked). Logged-out → [] / '' → all
-  // 9 sections render locked. Loaded from the SAME auth/me effect below (no extra fetch).
+  // homepage per-TAB locks (isTabLocked) — SELL-05b: the category sections carry no lock any
+  // more. Loaded from the SAME auth/me effect below (no extra fetch).
   const [entitledCategories, setEntitledCategories] = useState<string[]>([]);
   const [currentUserId, setCurrentUserId] = useState('');
+  // SELL-05b: the admin bypass is the SERVER's verdict (/api/auth/me isAdmin) — never an id compared here.
+  const [isAdmin, setIsAdmin] = useState(false);
   // PR-HCR-Trips1: bumped after a create so the All Trips list re-fetches in place.
   const [tripsRefresh, setTripsRefresh] = useState(0);
   // PR-HCR-Trips2: the selected trip, lifted out of AllTripsList so later budget
@@ -318,6 +320,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange, offerAvaila
           // the per-tab locks below need no extra endpoint.
           setEntitledCategories(Array.isArray(data?.user?.entitledCategories) ? data.user.entitledCategories : []);
           setCurrentUserId(data?.user?.id || '');
+          setIsAdmin(data?.user?.isAdmin === true);
         }
       })
       .catch(() => { if (!cancelled) setAuthed(false); });
@@ -325,14 +328,14 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange, offerAvaila
   }, []);
 
   // TAB-SHOW-AND-GATE: the four paid-tab locks. isTabLocked is the client twin
-  // of hasTabAccess — specific tab key OR bundle:all unlocks; admin (by user id,
-  // the same comparison the server's isAdmin used) is never locked. Logged out
+  // of hasTabAccess — specific tab key OR bundle:all unlocks; the admin (the
+  // server's isAdmin verdict from /api/auth/me — SELL-05b) is never locked. Logged out
   // (entitledCategories=[] and currentUserId='') → locked. FALLBACK TRIPWIRE:
   // there is no default-unlock — no key match means the SHOW surface, always.
-  const tradeLocked = isTabLocked('tab:trade', entitledCategories, currentUserId);
-  const booksLocked = isTabLocked('tab:books', entitledCategories, currentUserId);
-  const taxLocked = isTabLocked('tab:tax', entitledCategories, currentUserId);
-  const complianceLocked = isTabLocked('tab:compliance', entitledCategories, currentUserId);
+  const tradeLocked = isTabLocked('tab:trade', entitledCategories, isAdmin);
+  const booksLocked = isTabLocked('tab:books', entitledCategories, isAdmin);
+  const taxLocked = isTabLocked('tab:tax', entitledCategories, isAdmin);
+  const complianceLocked = isTabLocked('tab:compliance', entitledCategories, isAdmin);
 
   // TRADING-PR-2 / PR-Trade-inline: launcher-owned scan filter state (mirrors the
   // dashboard's lifted state + the same localStorage 'scanner-filters' key). The Trade

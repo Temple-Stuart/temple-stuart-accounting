@@ -22,7 +22,7 @@ import { requireTabAccess } from '@/lib/auth-helpers';
  *     account is tagged to the Trading entity_id. So capital is reported `tracked: false`.
  *   • Drawdown — no peak/trough data exists. `tracked: false`.
  *
- * PAYWALL ruling (supersedes the earlier "requireTier is correctly absent" note): this route IS
+ * PAYWALL ruling (supersedes the earlier "no tier gate" note): this route IS
  * the Trading P&L analytics feature — a paid module surface, so it is gated even though it
  * spends no external money; the gate here is the PAYWALL, not a cost control. Since
  * TAB-SERVER-GATE that gate is the tab:trade entitlement (requireTabAccess below):
@@ -48,7 +48,7 @@ export async function GET() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // PAYWALL: Trading P&L analytics is a paid (Pro) feature — same requireTier
+    // PAYWALL: Trading P&L analytics is a paid feature — the tab entitlement
     // pattern as ai/cart-plan/route.ts:89-90.
     // TAB-SERVER-GATE: tab:trade entitlement replaces the 'tradingAnalytics' tier gate
     const tierGate = await requireTabAccess(user.id, 'tab:trade');

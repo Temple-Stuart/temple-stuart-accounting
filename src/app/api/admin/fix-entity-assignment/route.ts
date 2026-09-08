@@ -5,7 +5,7 @@ import { summarizeError, userFacingMessage } from '@/lib/http/failClosed';
 import { ValidationError } from '@/lib/errors/ValidationError';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { ADMIN_USER_ID } from '@/lib/tiers';
+import { isAdminUser } from '@/lib/admin';
 import { assertPeriodOpen, PeriodClosedError } from '@/lib/period-close-guard';
 import { balanceDeltaOf, postJournal } from '@/lib/posting/postJournal';
 
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Admin-only
-    if (user.id !== ADMIN_USER_ID) {
+    if (!isAdminUser(user.id)) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 

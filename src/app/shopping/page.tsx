@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/ui';
-import { canAccess } from '@/lib/tiers';
+import { AI_ACCESS_LINE } from '@/lib/ai/caps';
 import MealPlannerForm, { MealPlan, Ingredient } from '@/components/shopping/MealPlannerForm';
 import MealPlanDashboard from '@/components/shopping/MealPlanDashboard';
 import CartPlannerForm, { CartPlan, CartItem, CartCategory } from '@/components/shopping/CartPlannerForm';
@@ -31,15 +31,13 @@ export default function ShoppingPage() {
     clothing: null, hygiene: null, cleaning: null, kitchen: null,
   });
   const [activeCategory, setActiveCategory] = useState<PlannerCategory>('meals');
-  const [userTier, setUserTier] = useState<string>('free');
-  const [currentUserId, setCurrentUserId] = useState<string>('');
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [commitLoading, setCommitLoading] = useState(false);
 
   useEffect(() => {
-    fetch('/api/auth/me').then(res => res.ok ? res.json() : null).then(data => {
-      if (data?.user?.tier) setUserTier(data.user.tier); if (data?.user?.id) setCurrentUserId(data.user.id);
-    }).finally(() => setLoading(false));
+    // SELL-05b: the page has no tier wall — the AI routes gate on a signed-in user and the AI
+    // daily cap (declared as their own 429 line under the form). The middleware already
+    // requires the cookie for this page; nothing here reads a tier.
+    setLoading(false);
 
     const saved = localStorage.getItem(getMealPlanKey());
     if (saved) {
@@ -247,17 +245,13 @@ export default function ShoppingPage() {
                     onCommit={commitLoading ? undefined : () => handleCommit('meals')}
                   />
                 ) : (
-                  /* DASHBOARD-GATE-ALIGN: mirror the server rule exactly — these AI routes gate
-                     on requireTier('ai') (Pro+ only), so the client checks canAccess, not === 'free'
-                     (the old check let a Pro user through to a guaranteed 403). */
-                  !canAccess(userTier, 'ai', currentUserId) ? (
-                    <div className="text-center py-8">
-                      <div className="text-sm font-medium text-text-primary mb-2">AI Shopping Planner requires Pro+</div>
-                      <div className="text-xs text-text-muted mb-4">AI-powered planning is gated on a plan that is not for sale yet. Nothing here names a price that is not in the offer.</div>
-                      <button onClick={() => setShowUpgradeModal(true)} className="px-6 py-2 text-xs bg-brand-purple text-white font-medium hover:bg-brand-purple-hover">See the offer</button>
+                  /* SELL-05b: no tier wall — the honest line, then the form; the route's cap
+                     declares itself (429) under the form when hit. */
+                  (
+                    <div className="space-y-3" data-ai-access>
+                      <p className="text-[11px] text-text-faint">{AI_ACCESS_LINE}</p>
+                      <MealPlannerForm onPlanGenerated={handleMealGenerated} />
                     </div>
-                  ) : (
-                    <MealPlannerForm onPlanGenerated={handleMealGenerated} />
                   )
                 )
               )}
@@ -275,20 +269,16 @@ export default function ShoppingPage() {
                     onCommit={commitLoading ? undefined : () => handleCommit(cat)}
                   />
                 ) : (
-                  /* DASHBOARD-GATE-ALIGN: mirror the server rule exactly — these AI routes gate
-                     on requireTier('ai') (Pro+ only), so the client checks canAccess, not === 'free'
-                     (the old check let a Pro user through to a guaranteed 403). */
-                  !canAccess(userTier, 'ai', currentUserId) ? (
-                    <div className="text-center py-8">
-                      <div className="text-sm font-medium text-text-primary mb-2">AI Shopping Planner requires Pro+</div>
-                      <div className="text-xs text-text-muted mb-4">AI-powered planning is gated on a plan that is not for sale yet. Nothing here names a price that is not in the offer.</div>
-                      <button onClick={() => setShowUpgradeModal(true)} className="px-6 py-2 text-xs bg-brand-purple text-white font-medium hover:bg-brand-purple-hover">See the offer</button>
+                  /* SELL-05b: no tier wall — the honest line, then the form; the route's cap
+                     declares itself (429) under the form when hit. */
+                  (
+                    <div className="space-y-3" data-ai-access>
+                      <p className="text-[11px] text-text-faint">{AI_ACCESS_LINE}</p>
+                      <CartPlannerForm
+                        category={cat}
+                        onPlanGenerated={(plan) => handleCartGenerated(cat, plan)}
+                      />
                     </div>
-                  ) : (
-                    <CartPlannerForm
-                      category={cat}
-                      onPlanGenerated={(plan) => handleCartGenerated(cat, plan)}
-                    />
                   )
                 );
               })()}
@@ -297,19 +287,6 @@ export default function ShoppingPage() {
         </div>
       </div>
 
-      {showUpgradeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowUpgradeModal(false)} />
-          <div className="relative z-10 bg-white border border-border p-6 max-w-md">
-            <div className="text-sm font-medium text-text-primary mb-2">AI Shopping Planner requires Pro+</div>
-            <div className="text-xs text-text-muted mb-4">AI-powered planning is gated on a plan that is not for sale yet. Nothing here names a price that is not in the offer.</div>
-            <div className="flex gap-2">
-              <button onClick={() => window.location.href = "/pricing"} className="flex-1 px-4 py-2 text-xs bg-brand-purple text-white font-medium hover:bg-brand-purple-hover">See the offer</button>
-              <button onClick={() => setShowUpgradeModal(false)} className="flex-1 px-4 py-2 text-xs border border-border text-text-secondary font-medium hover:bg-bg-row">Not Now</button>
-            </div>
-          </div>
-        </div>
-      )}
     </AppLayout>
   );
 }
