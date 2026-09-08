@@ -2,7 +2,7 @@
 
 Twenty-five business tools on one data pipe that ends in one Ledger and one Calendar.
 
-Source-available (BSL 1.1) · built and operated in production by its founder as User #1 · as of 2026-09-02: 115 Prisma models, 291 API route files, 121 feeds from 20 providers (counted August 24, 2026)
+Source-available (BSL 1.1) · built and operated in production by its founder as User #1 · as of 2026-09-02: 115 Prisma models, 290 API route files, 121 feeds from 20 providers (counted August 24, 2026)
 
 ## The system
 
@@ -310,7 +310,7 @@ Versions from package.json, read 2026-09-02:
 
 Observed versus authored (step 6): what the world sends is observed; what you do is authored; the blueprint keeps the two apart and matches them on one key. Today the Plaid feeds land word for word, fingerprinted — 9,092 transactions, 712 investment transactions, 247 securities, counted September 7, 2026; the other providers still land parsed — see the gap ledger, step 14.
 
-Scale, as of 2026-09-02: 115 Prisma models, 34 enums, 291 API route files, 37 runtime dependencies, 18 dev dependencies, one test file (`npm test`).
+Scale, as of 2026-09-02: 115 Prisma models, 34 enums, 290 API route files, 37 runtime dependencies, 18 dev dependencies, one test file (`npm test`).
 
 ## Engineering discipline
 

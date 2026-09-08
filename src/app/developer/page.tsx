@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { ANSWERS_HOME } from '@/lib/answers';
+import { PASSWORD_MIN_LENGTH } from '@/lib/auth/registration';
 
 export default function DeveloperDashboard() {
   const [authenticated, setAuthenticated] = useState(false);
@@ -17,7 +18,6 @@ export default function DeveloperDashboard() {
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const router = useRouter();
 
   const DEV_PASSWORD = 'temple2024';
 
@@ -102,8 +102,10 @@ export default function DeveloperDashboard() {
       const data = await response.json();
 
       if (response.ok) {
-        setMessage('Success! Redirecting to dashboard...');
-        setTimeout(() => router.push('/dashboard'), 1000);
+        // SELL-03: the server's own line and the one front door.
+        const landing = typeof data?.landing === 'string' ? data.landing : ANSWERS_HOME;
+        setMessage(`${typeof data?.message === 'string' ? data.message : 'Signed in'} — opening ${landing}`);
+        setTimeout(() => { window.location.href = landing; }, 800);
       } else {
         setMessage(data.error || 'Something went wrong');
       }
@@ -416,7 +418,7 @@ export default function DeveloperDashboard() {
                     onChange={(e) => setClientPassword(e.target.value)}
                     className="w-full px-4 py-3 border border-border rounded focus:outline-none focus:border-purple-600"
                     required
-                    minLength={8}
+                    minLength={PASSWORD_MIN_LENGTH}
                   />
                 </div>
 

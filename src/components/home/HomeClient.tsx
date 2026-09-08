@@ -39,7 +39,6 @@ export default function HomeClient({ offerAvailability }: {
   const [activeTab, setActiveTab] = useState('calendar');
   // PR-Auth-Home → NAV-01c: login from the home page lands on THE ANSWERS (/answers),
   // the post-login front door — the same door the /login page and /hub use.
-  const [loginRedirect] = useState('/answers');
   const [loginMode, setLoginMode] = useState<'login' | 'register'>('login');
 
   // PR-Auth-Home: the home shell now learns who's logged in (same /api/auth/me check the
@@ -380,7 +379,7 @@ export default function HomeClient({ offerAvailability }: {
           <div className="relative z-10">
             <LoginBox
               onClose={() => setShowLogin(false)}
-              onSuccess={() => {
+              onSuccess={(result) => {
                 if (pendingBuyKey) {
                   // SELL-02: the purchase resume — checkout for the pending key; Stripe returns to /answers.
                   const key = pendingBuyKey;
@@ -391,9 +390,9 @@ export default function HomeClient({ offerAvailability }: {
                     .catch((err: unknown) => setBuyError(err instanceof Error ? err.message : 'Could not start checkout'));
                   return;
                 }
-                window.location.href = loginRedirect;
+                // SELL-03: the one front door — the server names it (/answers).
+                window.location.href = result.landing;
               }}
-              redirectTo={loginRedirect}
               initialMode={loginMode}
             />
           </div>
