@@ -22,7 +22,8 @@
  *     of reloading. Checkout failure renders the house red alert box —
  *     fail-loud, never silent.
  *
- * NO LOOP by construction: a non-purchase LoginBox onSuccess reloads '/'; a
+ * NO LOOP by construction: a non-purchase LoginBox onSuccess opens the front
+ * door, /answers (SELL-03 — the server names the landing); a
  * successful login/registration set the signed userEmail cookie, so the
  * server branch now VERIFIES the arrival and renders <HomeClient/> — the
  * Landing renders only while verification fails, so a logged-in user can
@@ -116,7 +117,7 @@ export default function GuestLanding({ offerAvailability, logoAvailability }: {
           <div className="relative z-10">
             <LoginBox
               onClose={() => { setShowLogin(false); setPendingBuyKey(null); }}
-              onSuccess={() => {
+              onSuccess={(result) => {
                 if (pendingBuyKey) {
                   // Purchase resume: stay on the page and go straight to
                   // checkout — Stripe returns to /answers?unlocked=<key> on
@@ -125,10 +126,10 @@ export default function GuestLanding({ offerAvailability, logoAvailability }: {
                   startCheckout(pendingBuyKey);
                   setPendingBuyKey(null);
                 } else {
-                  window.location.href = '/';
+                  // SELL-03: the one front door — the server names it (/answers).
+                  window.location.href = result.landing;
                 }
               }}
-              redirectTo="/"
               initialMode={loginMode}
             />
           </div>

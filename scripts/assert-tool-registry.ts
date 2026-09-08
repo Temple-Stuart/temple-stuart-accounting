@@ -91,8 +91,8 @@ import { PURCHASABLE_ENTITLEMENT_KEYS } from '../src/lib/stripe';
 const GUEST_ROUTES: ReadonlyArray<{ route: string; why: string }> = [
   { route: '/', why: 'the front door — src/middleware.ts PUBLIC_PATHS' },
   { route: '/[tab]', why: 'the cockpit paths (/runway /travel /routines /projects /content /trade /books /tax) — every cockpit home in the registry; src/app/[tab]/page.tsx TAB_PATHS' },
-  { route: '/login', why: 'the sign-in page — src/app/accounts/page.tsx:37 sends an unauthenticated viewer here' },
-  { route: '/pricing', why: 'PUBLIC_PATHS; a permanent redirect to the deck (/#modules)' },
+  { route: '/login', why: 'the sign-in page (the one LoginBox, SELL-03) — src/app/accounts/page.tsx:37 sends an unauthenticated viewer here' },
+  { route: '/pricing', why: 'PUBLIC_PATHS; renders THE OFFER (SELL-02) — LandingHeader.tsx, LandingFooter.tsx' },
   { route: '/how-pricing-works', why: 'LandingHeader.tsx:52, LandingFooter.tsx:54, the HomeClient header' },
   { route: '/privacy', why: 'LandingFooter.tsx:56, PUBLIC_PATHS' },
   { route: '/terms', why: 'LandingFooter.tsx:55, PUBLIC_PATHS' },

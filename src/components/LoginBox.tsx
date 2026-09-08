@@ -1,30 +1,55 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
+import { ANSWERS_HOME } from '@/lib/answers';
+import { PASSWORD_MIN_LENGTH } from '@/lib/auth/registration';
+
+/**
+ * SELL-03 — THE sign-in / sign-up box: the deck's modal (GuestLanding), the
+ * cockpit's modal (HomeClient) and the /login page all mount this one
+ * component. Every completion lands on ONE front door, ANSWERS_HOME
+ * (/answers): the email routes answer `landing` and the box navigates there
+ * with a full page load (so the fresh cookie is honored); OAuth's callbackUrl
+ * is the same door. A caller that must do something first (the purchase
+ * resume — checkout for a pending module key) passes onSuccess and owns the
+ * navigation; nothing else redirects anywhere else.
+ *
+ * The password hint is PASSWORD_MIN_LENGTH — the number the server enforces
+ * (src/lib/auth/registration.ts) — so client and server cannot disagree. A
+ * refusal renders the server's own words; after sign-up the box shows the
+ * server's message ("You're signed in") while the front door opens.
+ */
+
+export interface AuthResult {
+  mode: 'login' | 'register';
+  /** The server's own line — "You're signed in" after sign-up. */
+  message: string;
+  /** The one front door, from the server when it names it, else ANSWERS_HOME. */
+  landing: string;
+}
 
 interface LoginBoxProps {
   onClose?: () => void;
-  onSuccess?: () => void;
-  redirectTo?: string;
+  /** Own the completion (the purchase resume); when absent the box opens `result.landing`. */
+  onSuccess?: (result: AuthResult) => void;
   initialMode?: 'login' | 'register';
 }
 
-// NAV-01c: the post-login front door is /answers (src/lib/answers.ts ANSWERS_HOME).
-export default function LoginBox({ onClose, onSuccess, redirectTo = '/answers', initialMode = 'login' }: LoginBoxProps) {
+export default function LoginBox({ onClose, onSuccess, initialMode = 'login' }: LoginBoxProps) {
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const router = useRouter();
+  const [notice, setNotice] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setNotice('');
 
     const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/signup';
     const body = mode === 'login'
@@ -37,36 +62,45 @@ export default function LoginBox({ onClose, onSuccess, redirectTo = '/answers', 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
+      const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
+        const result: AuthResult = {
+          mode,
+          message: typeof data?.message === 'string' ? data.message : 'Signed in',
+          landing: typeof data?.landing === 'string' && data.landing.startsWith('/') ? data.landing : ANSWERS_HOME,
+        };
+        setNotice(result.message);
         if (onSuccess) {
-          onSuccess();
+          onSuccess(result);
         } else {
-          router.push(redirectTo);
+          // A full navigation, not a client transition: the cookie the server
+          // just set must be on the request that renders the front door.
+          window.location.href = result.landing;
         }
         onClose?.();
       } else {
-        const data = await res.json();
-        setError(data.error || `${mode === 'login' ? 'Login' : 'Registration'} failed`);
+        setError(typeof data?.error === 'string' ? data.error : `${mode === 'login' ? 'Login' : 'Registration'} failed (HTTP ${res.status})`);
+        setLoading(false);
       }
     } catch {
       setError('Something went wrong');
-    } finally {
       setLoading(false);
     }
   };
 
   const handleOAuthLogin = (provider: string) => {
-    signIn(provider, { callbackUrl: redirectTo });
+    signIn(provider, { callbackUrl: ANSWERS_HOME });
   };
 
   const switchMode = () => {
     setMode(mode === 'login' ? 'register' : 'login');
     setError('');
+    setNotice('');
   };
 
   return (
-    <div className="bg-white shadow-sm p-8 w-full max-w-md mx-4 border border-border">
+    <div className="bg-white shadow-sm p-8 w-full max-w-md mx-4 border border-border" data-login-box={mode}>
       <div className="text-center mb-6">
         <div className="flex items-center justify-center gap-2 mb-4">
           <div className="w-8 h-8 bg-brand-purple flex items-center justify-center">
@@ -85,6 +119,7 @@ export default function LoginBox({ onClose, onSuccess, redirectTo = '/answers', 
       {/* OAuth Buttons */}
       <div className="space-y-2 mb-5">
         <button
+          type="button"
           onClick={() => handleOAuthLogin('google')}
           className="w-full flex items-center justify-center gap-3 px-4 py-2.5 bg-white border border-border hover:bg-bg-row hover:border-border transition-all text-sm font-medium text-text-secondary"
         >
@@ -98,6 +133,7 @@ export default function LoginBox({ onClose, onSuccess, redirectTo = '/answers', 
         </button>
 
         <button
+          type="button"
           onClick={() => handleOAuthLogin('github')}
           className="w-full flex items-center justify-center gap-3 px-4 py-2.5 bg-brand-purple text-white hover:bg-brand-purple-hover transition-all text-sm font-medium"
         >
@@ -141,12 +177,13 @@ export default function LoginBox({ onClose, onSuccess, redirectTo = '/answers', 
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder={mode === 'register' ? 'Password (min 8 characters)' : 'Password'}
+          placeholder={mode === 'register' ? `Password (min ${PASSWORD_MIN_LENGTH} characters)` : 'Password'}
           className="w-full px-4 py-2.5 border border-border text-sm text-text-primary placeholder-text-faint focus:outline-none focus:border-brand-purple"
           required
-          minLength={mode === 'register' ? 8 : undefined}
+          minLength={mode === 'register' ? PASSWORD_MIN_LENGTH : undefined}
         />
-        {error && <p className="text-brand-red text-xs">{error}</p>}
+        {error && <p className="text-brand-red text-xs" role="alert" data-auth-error>{error}</p>}
+        {notice && <p className="text-emerald-700 text-xs" role="status" data-auth-notice>{notice} — opening your answers…</p>}
         <button
           type="submit"
           disabled={loading}
@@ -159,11 +196,13 @@ export default function LoginBox({ onClose, onSuccess, redirectTo = '/answers', 
         </button>
       </form>
 
-      {/* Mode Switcher */}
+      {/* Mode Switcher — the register link on every mount, /login included */}
       <div className="mt-4 text-center">
         <button
+          type="button"
           onClick={switchMode}
           className="text-xs text-text-muted hover:text-brand-purple transition-colors"
+          data-auth-switch={mode === 'login' ? 'register' : 'login'}
         >
           {mode === 'login'
             ? "Don't have an account? Sign up free"
@@ -174,6 +213,7 @@ export default function LoginBox({ onClose, onSuccess, redirectTo = '/answers', 
 
       {onClose && (
         <button
+          type="button"
           onClick={onClose}
           className="mt-3 w-full text-center text-xs text-text-faint hover:text-text-secondary"
         >
