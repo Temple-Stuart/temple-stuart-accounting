@@ -34,6 +34,7 @@
 import { useEffect, useState } from 'react';
 import Landing from './Landing';
 import CheckoutResultBanner from '@/components/CheckoutResultBanner';
+import VerifyResultBanner from '@/components/VerifyResultBanner';
 import LoginBox from '@/components/LoginBox';
 // SELL-02: the `?module=<key>` door and the one checkout call.
 import { moduleDoorPlan } from '@/lib/offer';
@@ -91,6 +92,8 @@ export default function GuestLanding({ offerAvailability, logoAvailability }: {
       {/* UNLOCK-BANNER: the checkout result card — the ?unlocked/?cancelled
           params the purchase resume returns with land here for guests. */}
       <CheckoutResultBanner />
+      {/* SELL-03b: a bad verification link lands here with ?verify=<state> — the declared error and the resend. */}
+      <VerifyResultBanner />
       <Landing
         offerAvailability={offerAvailability}
         logoAvailability={logoAvailability}

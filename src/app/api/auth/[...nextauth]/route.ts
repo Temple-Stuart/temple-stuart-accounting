@@ -34,7 +34,8 @@ const handler = NextAuth({
           where: { email: { equals: normalizedEmail, mode: 'insensitive' } }
         });
         if (!existingUser) {
-          // Create user in our users table
+          // Create user in our users table — SELL-03b: the provider verified
+          // the address, so the account is verified at creation.
           await prisma.users.create({
             data: {
               id: generateId(),
@@ -42,8 +43,13 @@ const handler = NextAuth({
               name: user.name || normalizedEmail.split('@')[0],
               password: '',
               updatedAt: new Date(),
+              email_verified_at: new Date(),
             }
           });
+        } else if (!existingUser.email_verified_at) {
+          // SELL-03b: an email-signup that never used its link, now signing in
+          // through a provider that verified the same address — verified.
+          await prisma.users.update({ where: { id: existingUser.id }, data: { email_verified_at: new Date() } });
         }
 
         // Set the userEmail cookie for API routes

@@ -101,11 +101,14 @@ export default function DeveloperDashboard() {
 
       const data = await response.json();
 
-      if (response.ok) {
-        // SELL-03: the server's own line and the one front door.
+      if (response.ok && isLogin) {
+        // SELL-03: the one front door.
         const landing = typeof data?.landing === 'string' ? data.landing : ANSWERS_HOME;
-        setMessage(`${typeof data?.message === 'string' ? data.message : 'Signed in'} — opening ${landing}`);
+        setMessage(`Signed in — opening ${landing}`);
         setTimeout(() => { window.location.href = landing; }, 800);
+      } else if (response.ok) {
+        // SELL-03b: a sign-up answers the same line for every address; the link in the mail signs in.
+        setMessage(typeof data?.message === 'string' ? data.message : 'Check your email to finish signing in.');
       } else {
         setMessage(data.error || 'Something went wrong');
       }
