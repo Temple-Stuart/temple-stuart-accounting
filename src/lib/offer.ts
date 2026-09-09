@@ -162,11 +162,29 @@ export function beatsOf(b: Beats): string[] {
   return BEAT_NAMES.filter((name) => b[name]);
 }
 
-/** What a selling surface may say about a tool — from its registry status, never typed. */
-export function claimLine(tool: Pick<ToolEntry, 'name' | 'status' | 'beats'>): string {
+/**
+ * What a selling surface may say about a tool — from its registry status, never typed.
+ * TRUTH-01b: a PARTIAL with all four beats cited says WHY it is not LIVE (the registry's
+ * `why`, verbatim — "partial — <why>"); fewer than four beats keeps the beats form
+ * ("partial — discover · decide"). A four-beat PARTIAL without a why is a registry-law
+ * violation, thrown here too — never the beats form as a stand-in.
+ */
+export function claimLine(tool: Pick<ToolEntry, 'name' | 'status' | 'beats' | 'why'>): string {
   if (tool.status === 'LIVE') return 'built and running';
-  if (tool.status === 'PARTIAL') return `partial — ${beatsOf(tool.beats).join(' · ')}`;
+  if (tool.status === 'PARTIAL') {
+    const beats = beatsOf(tool.beats);
+    if (beats.length === BEAT_NAMES.length) {
+      if (!tool.why?.trim()) throw new OfferLawError(`${tool.name} is PARTIAL with four beats and no why — the registry law requires one`);
+      return `partial — ${tool.why}`;
+    }
+    return `partial — ${beats.join(' · ')}`;
+  }
   throw new OfferLawError(`${tool.name} is NOT_BUILT — it cannot be sold, so it has no claim line`);
+}
+
+/** The landing's free line — the free set's names and a count-true noun ("tool" for one, "tools" otherwise); the rest of the sentence is the one the landing carried. */
+export function freeSetLine(free: ReadonlyArray<Pick<ToolEntry, 'name'>> = FREE_TOOLS): string {
+  return `Free with an account, no module to buy: ${free.map((t) => t.name).join(', ')} — the registry's live ${free.length === 1 ? 'tool' : 'tools'} with no tab gate.`;
 }
 
 /** The claim line for a cockpit section's primary tool (COCKPIT_PRIMARY_TOOL) — the free showcases' CTAs read this. */

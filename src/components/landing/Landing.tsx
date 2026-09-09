@@ -184,7 +184,7 @@ import { PROVIDER_MENU, ROUTING_RULES } from '@/lib/providers';
 // TABLES-01: step 5's honest line — every table name from the kind-views census, none retyped.
 import { KIND_VIEWS_HONEST_LINE } from '@/lib/kindViews';
 // SELL-02: the offer — what is sold and what is free, from ONE source; the hero's counts from the registry.
-import { FREE_TOOLS, OFFERS, heroCountsLine, offerCard } from '@/lib/offer';
+import { OFFERS, freeSetLine, heroCountsLine, offerCard } from '@/lib/offer';
 import OfferCard from '@/components/OfferCard';
 // PR-ELEV-1: the coming-soon tiles became badged "Soon" chips INSIDE the
 // booking strip (travelStripModes) — the separate tile row is gone.
@@ -2180,7 +2180,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             ))}
           </div>
           <p className="mt-5 text-[13px] text-text-secondary" data-free-set>
-            Free with an account, no module to buy: {FREE_TOOLS.map((t) => t.name).join(', ')} — the registry&apos;s live tools with no tab gate.
+            {/* TRUTH-01b: the sentence is freeSetLine (src/lib/offer.ts) — the noun follows FREE_TOOLS.length: "tool" for one. */}
+            {freeSetLine()}
           </p>
         </div>
       </section>
