@@ -33,6 +33,15 @@ prose. **Reuse over rebuild** — search for what exists before writing anything
   **cost/paid calls**, or **security**, STOP and **confirm/report before building**. Report
   the finding, then proceed only on the established plan.
 
+## Dependency upgrades
+- **Every version bump's PR body quotes the release notes' behavior changes, not only the
+  advisories.** When the notes are silent, diff the installed package against the old one
+  (`npm pack <pkg>@<old>` vs `node_modules/<pkg>`) and quote the change. ENV-01's lesson:
+  next-auth 4.24.15 changed origin detection in one line (`utils/detect-origin.js` — NEXTAUTH_URL
+  now wins over the request host on Vercel) and broke GitHub sign-in with no advisory naming it.
+- A variable a **dependency** reads (NEXTAUTH_URL, DATABASE_URL, VERCEL_*) is declared in
+  `src/lib/envLaw.ts` — the env law at build requires every one documented in the README.
+
 ## Fail-loud / no fallback
 - **No silent fallbacks. No silent catches. No fake/placeholder data — ever.**
 - If you are about to write "fallback" logic: **STOP**, state the rationale, and ask Alex
