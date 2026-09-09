@@ -33,6 +33,14 @@ prose. **Reuse over rebuild** — search for what exists before writing anything
   **cost/paid calls**, or **security**, STOP and **confirm/report before building**. Report
   the finding, then proceed only on the established plan.
 
+## The tool registry's rubric
+- **Status means the job is done, not that code exists** (`src/lib/toolRegistry.ts`, TRUTH-01):
+  **LIVE** = all four loop beats cited in code AND the tool does the job the sheet names, for a
+  customer, on production. **Four beats never imply LIVE.** A **PARTIAL** tool with four beats
+  carries a `why` note saying what is not done for a customer (the law throws without it).
+  **NOT_BUILT** ⇔ no beats. The counts are a law; bump them only with a new dated census. Every
+  count on a public or selling surface derives from the registry — never typed.
+
 ## Fail-loud / no fallback
 - **No silent fallbacks. No silent catches. No fake/placeholder data — ever.**
 - If you are about to write "fallback" logic: **STOP**, state the rationale, and ask Alex
