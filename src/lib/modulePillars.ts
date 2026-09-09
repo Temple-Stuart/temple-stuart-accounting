@@ -20,9 +20,9 @@ export interface PillarDef {
    *  lead the module page's paid block already states) — rendered there so
    *  the claim is preserved, not deleted. Claims stay the FD-1o
    *  gate-verified ones: Runway = /api/runway:38 DB-only ledger read;
-   *  Routines = enrich-routine/route.ts:42 requireTier('ai'); Projects =
+   *  Routines = enrich-routine/route.ts (the AI daily cap, SELL-05); Projects =
    *  requirePipeBudget, default cap 20 (pipeBudget.ts:15); Content =
-   *  generate-script/route.ts:53 requireTier('ai'). Travel's equivalent
+   *  generate-script/route.ts (the AI daily cap). Travel's equivalent
    *  already lives in ModulePageClient's travel branch. */
   accessNote?: string;
 }

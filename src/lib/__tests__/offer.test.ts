@@ -101,10 +101,11 @@ test('the grants: Books unlocks Trade, Tax and Compliance at both gates; the bun
   assert.equal(offerGranting('tab:trade')?.key, 'tab:books', 'the locked Trade tab sells Books');
   assert.equal(offerGranting('tab:travel')?.key, 'bundle:all');
   // the client twin
-  assert.equal(isTabLocked('tab:trade', ['tab:books'], 'u_1'), false, 'a Books holder is not locked out of Trade');
-  assert.equal(isTabLocked('tab:trade', ['brunch_coffee'], 'u_1'), true);
-  assert.equal(isTabLocked('tab:books', [], 'u_1'), true);
-  assert.equal(isTabLocked('tab:tax', ['bundle:all'], 'u_1'), false);
+  assert.equal(isTabLocked('tab:trade', ['tab:books'], false), false, 'a Books holder is not locked out of Trade');
+  assert.equal(isTabLocked('tab:trade', ['brunch_coffee'], false), true);
+  assert.equal(isTabLocked('tab:books', [], false), true);
+  assert.equal(isTabLocked('tab:tax', ['bundle:all'], false), false);
+  assert.equal(isTabLocked('tab:books', [], true), false, "SELL-05b: the admin bypass is the server's isAdmin verdict");
 });
 
 test('the free set is the registry\'s LIVE tools with no gate; the gate map covers every tool', () => {

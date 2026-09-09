@@ -73,7 +73,7 @@
  * "AI trip planner" / "AI trip & flight planning" (the existing MODULES blurb's
  * own tension, ModuleLauncher.tsx:99 — flagged, not propagated here) · eSIM/
  * Mozio/insurance/events as features (their honest coming-soon rows below stay
- * untouched) · the pro_plus trip scan as available · travelers persistence ·
+ * untouched) · the trip scan (free with an account, under the AI daily cap — SELL-05b) as available · travelers persistence ·
  * Booked/Project columns · ledger auto-posting · confirmation emails · a Travel
  * paywall/trial framing (free access is permanent, by design).
  */

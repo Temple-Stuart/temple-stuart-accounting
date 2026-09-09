@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 
-// SEC-5: per-user VOLUME cap for the paid-LLM (/api/ai/*) routes. Those routes
-// gate tier ACCESS (requireTier('ai')) but not volume, so one ai-tier user could
-// loop unbounded OpenAI/Anthropic spend. A single shared per-user bucket across
-// all /api/ai/* routes caps total LLM calls per window — the concern is total
-// spend, not per-endpoint.
+// SEC-5: per-user VOLUME cap for the paid-LLM (/api/ai/*) routes — the hourly
+// burst meter. SELL-05b: those routes gate on a signed-in user and the AI DAILY
+// cap (src/lib/ai/caps.ts aiCaps runs this hourly cap first, then the daily
+// reservation); no tier stands in front of it any more. A single shared
+// per-user bucket across all /api/ai/* routes caps total LLM calls per window —
+// the concern is total spend, not per-endpoint.
 //
 // Env-tunable, mirroring rateLimit.ts's searchRateLimitDefaults (SEARCH_RATE_LIMIT
 // / SEARCH_RATE_WINDOW) pattern — the same env-default resolution already used in
@@ -28,24 +29,28 @@ function aiRateDefaults(): { limit: number; windowSeconds: number } {
   };
 }
 
-/**
- * Per-user volume cap for paid-LLM routes. Returns a 429 NextResponse when the
- * user has exceeded the window, else null (caller proceeds). Call AFTER
- * requireTier and BEFORE the paid LLM call — no paid token is spent on a
- * rate-limited request.
- */
-export async function requireAiRateLimit(userId: string): Promise<NextResponse | null> {
+export const AI_HOURLY_LINE = 'AI request limit reached — please wait before trying again.';
+
+/** The hourly cap as an outcome (src/lib/ai/caps.ts reads this): a declared 429, or null when the user may proceed. */
+export async function aiHourlyCap(userId: string): Promise<{ status: 429; body: { error: string; kind: 'hourly_cap' }; headers: { 'Retry-After': string } } | null> {
   const { limit, windowSeconds } = aiRateDefaults();
   try {
     await rateLimit(`ai:${userId}`, { limit, windowSeconds });
     return null;
   } catch (error) {
     if (error instanceof RateLimitError) {
-      return NextResponse.json(
-        { error: 'AI request limit reached — please wait before trying again.' },
-        { status: 429, headers: { 'Retry-After': String(error.retryAfterSeconds) } }
-      );
+      return { status: 429, body: { error: AI_HOURLY_LINE, kind: 'hourly_cap' }, headers: { 'Retry-After': String(error.retryAfterSeconds) } };
     }
     throw error;
   }
+}
+
+/**
+ * Per-user volume cap for paid-LLM routes, as a NextResponse. Returns a 429
+ * when the user has exceeded the window, else null (caller proceeds). Call
+ * BEFORE the paid LLM call — no paid token is spent on a rate-limited request.
+ */
+export async function requireAiRateLimit(userId: string): Promise<NextResponse | null> {
+  const refused = await aiHourlyCap(userId);
+  return refused ? NextResponse.json(refused.body, { status: refused.status, headers: refused.headers }) : null;
 }

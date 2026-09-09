@@ -39,7 +39,7 @@ import { attributeBurn, resolveOperatingEntities } from '@/lib/runway/entities';
  * runway_months / zero_date are present ONLY in the 'ok' state; otherwise null.
  *
  * DB-only read — no paid external call → verifyCookie (getVerifiedEmail) + user lookup +
- * user-scoping are the bar; requireTier is correctly absent (cf. ai/cart-plan/route.ts:77-88,
+ * user-scoping are the bar; no paid gate belongs here (cf. ai/cart-plan/route.ts,
  * which tiers ONLY because it calls OpenAI).
  */
 

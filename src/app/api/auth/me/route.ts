@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { isAdminUser } from '@/lib/tiers';
+import { isAdminUser } from '@/lib/admin';
 import { getEntitledCategories } from '@/lib/entitlements';
 
 export async function GET() {

@@ -63,6 +63,12 @@ test('over the daily cap → a declared 429 with the cap\'s own line, nothing se
   assert.deepEqual(r, { status: 429, body: { error: BURST_LINE, kind: 'burst' }, headers: { 'Retry-After': '42' } });
   assert.equal(burst.calls.cacheFresh, 0);
 
+  // SELL-05b: a corrupt cache row is DECLARED — never an empty list, never the fixed line
+  const corrupt = harness({ fresh: true, cached: async () => { throw named('PlacesCacheCorruptError', 'places_cache row p1 holds a corrupt types value — expected a JSON array of strings', { placeId: 'p1', field: 'types' }); } });
+  const c = await categorySearch(corrupt.deps, { viewer: 'u@x.co', ip: '1.1.1.1', body });
+  assert.deepEqual(c, { status: 500, body: { error: 'places_cache row p1 holds a corrupt types value — expected a JSON array of strings', source: 'cache', kind: 'cache_corrupt', placeId: 'p1', field: 'types' } });
+  assert.equal(corrupt.calls.search, 0, 'a corrupt cache never falls through to Google');
+
   // a fault is not a refusal — rethrown for the route's fail-closed line
   assert.equal(capRefusal(new Error('boom')), null);
   await assert.rejects(() => categorySearch(harness({ search: async () => { throw new Error('REQUEST_DENIED'); } }).deps, { viewer: 'u@x.co', ip: '1', body }), /REQUEST_DENIED/);

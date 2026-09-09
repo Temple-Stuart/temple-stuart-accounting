@@ -64,7 +64,7 @@
  * "3 patterns" · any next-N-occurrences preview (the /upcoming route has zero
  * UI consumers) · hub_scheduled_items · automation dashboards / Inngest
  * evaluator UI (only its OUTPUTS render: pills, streaks) · "Claude Code
- * Routines" naming · Scenify-as-free (it is Pro+-gated; mirrored inert +
+ * Routines" naming · Scenify-as-free (it is under the AI daily cap; mirrored inert +
  * labeled) · travel-COA budget claims · retired content surfaces
  * (AvailableRoutinesList/SectionG/ContentTable) · guest-transfer claims ·
  * one-click quarterly (custom escape hatch only).
@@ -313,8 +313,8 @@ function BudgetFeedPanel() {
  *  picker (ContentPipeline.tsx:414-445 — numbered selection, name/entity/step
  *  count) + scene-per-step (schema: scene_groups 1:1 routine :3133, scenes 1:1
  *  step :3156) + the daily-plan strip (SectionC_DailyPlan.tsx:90,322-323).
- *  ✨ AI suggest is mirrored INERT and labeled Pro+ (enrich-routine gate,
- *  tiers.ts:57-65) — no free-AI implication. */
+ *  ✨ AI suggest is mirrored INERT and labeled by its gate — the AI daily cap
+ *  (enrich-routine, SELL-05) — no unmetered-AI implication. */
 function ContentDayPanel() {
   return (
     <DarkSlide title="Feed 3 · content — steps become scenes">
@@ -325,7 +325,7 @@ function ContentDayPanel() {
         <p className="border-t border-border pt-1 text-text-faint">one scene per step →</p>
         <p><span className="text-text-muted">10:30</span> Stock the fridge <span className="float-right text-text-faint">scene 1</span></p>
         <p><span className="text-text-muted">10:45</span> Fill the water tank <span className="float-right text-text-faint">scene 2</span></p>
-        <p className="pt-1"><span className="rounded border border-border px-1.5 py-0.5 text-text-faint">✨ AI suggest — Pro+ · preview only</span> <span className="float-right text-[10px] italic text-text-faint">prefills shot notes; nothing auto-saves</span></p>
+        <p className="pt-1"><span className="rounded border border-border px-1.5 py-0.5 text-text-faint">✨ AI suggest — AI daily cap · preview only</span> <span className="float-right text-[10px] italic text-text-faint">prefills shot notes; nothing auto-saves</span></p>
         <p className="border-t border-border pt-1 text-text-faint">and on your day plan, read-only:</p>
         <p><span className="text-text-muted">10:30</span> <span className="text-text-primary">Prep the truck for the lunch rush</span> <Pill status="pending" /></p>
       </div>

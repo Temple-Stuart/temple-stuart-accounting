@@ -1,5 +1,6 @@
-import { requireTier } from '@/lib/auth-helpers';
-import { requireAiRateLimit } from '@/lib/ai-rate-limit';
+import { aiCaps } from '@/lib/ai/caps';
+import { aiHourlyCap } from '@/lib/ai-rate-limit';
+import { requireRoutineBudget } from '@/lib/routineFireBudget';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import OpenAI from 'openai';
@@ -83,18 +84,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const tierGate = requireTier(user.tier, 'ai', user.id);
-    if (tierGate) return tierGate;
+    const { messages, action } = await req.json();
 
-    // SEC-5: per-user LLM volume cap (before the paid call).
-    const aiLimit = await requireAiRateLimit(user.id);
-    if (aiLimit) return aiLimit;
+    // SELL-05b: no tier — the AI caps (the hourly volume cap, then the daily cap), reserved once the input is valid and BEFORE the paid call; declared when hit.
+    const capped = await aiCaps({ hourly: aiHourlyCap, reserveDaily: requireRoutineBudget }, user.id);
+    if (capped) return NextResponse.json(capped.body, { status: capped.status, headers: capped.headers });
 
+    // The paid client is built only once every gate has passed.
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
 
-    const { messages, action } = await req.json();
 
     const chatMessages = action === 'start' 
       ? [

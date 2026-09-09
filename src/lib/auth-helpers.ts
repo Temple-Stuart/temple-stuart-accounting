@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { canAccess, TierConfig } from '@/lib/tiers';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { hasTabAccess } from '@/lib/entitlements';
 
@@ -31,23 +30,9 @@ export async function requireUser() {
   return user;
 }
 
-/**
- * Gate a route by tier + feature.
- * Returns null if allowed, or a NextResponse 403 if blocked.
- *
- * Usage in any API route:
- *   const gate = requireTier(user.tier, 'ai');
- *   if (gate) return gate;
- */
-export function requireTier(tier: string | null | undefined, feature: keyof TierConfig, userId?: string | null): NextResponse | null {
-  if (!canAccess(tier, feature, userId)) {
-    return NextResponse.json(
-      { error: 'Upgrade required', feature, message: `This feature requires a plan with ${feature} access.` },
-      { status: 403 }
-    );
-  }
-  return null;
-}
+// SELL-05b: requireTier (the tier gate) is gone with the tier system — one entitlement
+// model: the offer decides what is sold (requireTabAccess below); paid-per-use AI gates on
+// a signed-in user and the AI daily cap (src/lib/ai/caps.ts).
 
 /**
  * TAB-SERVER-GATE: gate a route by per-tab entitlement — the server-side twin

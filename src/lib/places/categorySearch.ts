@@ -22,8 +22,8 @@
  * every Google call counted against the monthly cap.
  *
  * The cap errors are matched by NAME (RateLimitError, TravelSearchQuotaError,
- * GooglePlacesQuotaError all set it) — their modules import prisma, and this
- * one imports nothing that does.
+ * GooglePlacesQuotaError, PlacesCacheCorruptError all set it) — their modules
+ * import prisma, and this one imports nothing that does.
  */
 import { GOOGLE_CATEGORY_KEYS } from '@/lib/categoryKeys';
 
@@ -144,6 +144,11 @@ export function capRefusal(err: unknown): Outcome | null {
   }
   if (e.name === 'GooglePlacesQuotaError') {
     return { status: 429, body: { error: e.message, source: 'google', kind: 'quota_exceeded', used: e.callCount ?? 0, cap: e.cap ?? 0 } };
+  }
+  // SELL-05b: a corrupt cache row is declared (placesCache.ts PlacesCacheCorruptError) — never an empty list, never the fixed line.
+  if (e.name === 'PlacesCacheCorruptError') {
+    const c = err as Error & { placeId?: string; field?: string };
+    return { status: 500, body: { error: e.message, source: 'cache', kind: 'cache_corrupt', placeId: c.placeId ?? null, field: c.field ?? null } };
   }
   return null;
 }

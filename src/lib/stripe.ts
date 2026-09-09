@@ -17,17 +17,9 @@ export function getStripe(): Stripe {
   return _stripe;
 }
 
-export function getTierFromPriceId(priceId: string): string {
-  if (priceId === process.env.STRIPE_PRO_PRICE_ID) return 'pro';
-  if (priceId === process.env.STRIPE_PRO_PLUS_PRICE_ID) return 'pro_plus';
-  return 'free';
-}
-
-export function getPriceIdFromTier(tier: string): string | null {
-  if (tier === 'pro') return process.env.STRIPE_PRO_PRICE_ID || null;
-  if (tier === 'pro_plus') return process.env.STRIPE_PRO_PLUS_PRICE_ID || null;
-  return null;
-}
+// SELL-05b: the tier price maps (STRIPE_PRO_PRICE_ID / STRIPE_PRO_PLUS_PRICE_ID) are gone with
+// the tier system. The offer's keys below are the ONLY prices the store knows; a Stripe event
+// for any other price grants nothing, loudly (the webhook's fail-safe).
 
 // ═══ ENTITLEMENT-WRITER: per-key price mapping ═══
 // SELL-02: the purchasable entitlement vocabulary is THE OFFER's keys
@@ -59,8 +51,8 @@ export function getPriceIdFromEntitlementKey(key: string): string | null {
 
 /**
  * Reverse lookup for the webhook: which entitlement key (if any) does a paid
- * price ID belong to? Returns null for tier prices and unknown prices —
- * the caller must treat null as "not an entitlement purchase", NEVER grant.
+ * price ID belong to? Returns null for an unknown price — the caller must
+ * treat null as "not an entitlement purchase", NEVER grant.
  */
 export function getEntitlementKeyFromPriceId(priceId: string): string | null {
   if (!priceId) return null;

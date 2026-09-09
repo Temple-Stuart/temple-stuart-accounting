@@ -9,7 +9,7 @@ import DestinationMap from '@/components/trips/DestinationMap';
 import { TripScanProvider, TripScanControls, TripApiSection, getGooglePlaceCatKeys, TripScanModals } from '@/components/trips/TripPlannerAI';
 import TripTimeline from '@/components/trips/TripTimeline';
 import TripHeader from '@/components/trips/TripHeader';
-import { ADMIN_USER_ID } from '@/lib/tiers';
+import { AI_ACCESS_LINE } from '@/lib/ai/caps';
 import { coaCodeToLabel } from '@/lib/travelCOA';
 import 'leaflet/dist/leaflet.css';
 
@@ -134,13 +134,9 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
     amount: '', date: new Date().toISOString().split('T')[0], location: '', splitWith: [] as string[]
   });
   const [savingExpense, setSavingExpense] = useState(false);
-  const [userTier, setUserTier] = useState<string>('free');
-  const [currentUserId, setCurrentUserId] = useState<string>('');
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
   // PR-B: per-category entitlements from /api/auth/me. Default [] (all Google locked) until it
   // loads — the safe gate default, NOT a permissive fallback.
-  const [entitledCategories, setEntitledCategories] = useState<string[]>([]);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Inline date editing
   const [editingDates, setEditingDates] = useState(false);
@@ -160,7 +156,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
   // Vendor commitment state (legacy — commit now handled inside TripPlannerAI)
 
-  useEffect(() => { loadTrip(); loadParticipants(); loadDestinations(); loadBudgetItems(); loadVendorOptions(); loadScannerResults(); fetch("/api/auth/me").then(res => res.ok ? res.json() : null).then(data => { if (data?.user?.tier) setUserTier(data.user.tier); if (data?.user?.email) setCurrentUserEmail(data.user.email); if (data?.user?.id) setCurrentUserId(data.user.id); if (Array.isArray(data?.user?.entitledCategories)) setEntitledCategories(data.user.entitledCategories); }); }, [id]);
+  useEffect(() => { loadTrip(); loadParticipants(); loadDestinations(); loadBudgetItems(); loadVendorOptions(); loadScannerResults(); fetch("/api/auth/me").then(res => res.ok ? res.json() : null).then(data => { if (data?.user?.email) setCurrentUserEmail(data.user.email); }); }, [id]);
 
   // Re-resolve budget item locations when scanner results or itinerary become available
   useEffect(() => {
@@ -771,11 +767,11 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                   peer top-level section via <TripApiSection> reading TripScanContext;
                   the planner panel is dissolved). Chips stay page-level; the dates +
                   Refresh control (TripScanControls) and the sections share one
-                  provider. The provider is NOT mounted for gated users, so no scan /
-                  paid call fires for free/pro. ── */}
+                  provider. SELL-05b: no tier wall — the scan route gates on a signed-in user
+                  and the AI daily cap (declared as its own 429); the honest line renders
+                  where the wall stood. ── */}
             {(() => {
               const selectedDest = destinations.find((d: any) => d.resort?.name === trip.destination);
-              const gated = (userTier === 'free' || userTier === 'pro') && currentUserId !== ADMIN_USER_ID;
               const chipsBlock = (
                 <>
               {/* Destination pills — select scan target */}
@@ -834,27 +830,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
               </div>
               ) : null;
-              if (gated) {
-                return (
-                  <>
-                    <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-                      <div className="bg-brand-purple text-white px-4 py-2.5 text-sm font-semibold">Destinations &amp; Dates</div>
-                      <div className="bg-white p-4 space-y-4">{chipsBlock}</div>
-                    </div>
-                    {flightsBlock}
-                    <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-                      <div className="bg-brand-purple text-white px-4 py-2.5 text-sm font-semibold">Trip Planner</div>
-                      <div className="bg-white p-4">
-                        <div className="text-center py-8">
-                          <div className="text-sm font-medium text-gray-900 mb-2">AI Trip Planner requires Pro+</div>
-                          <div className="text-xs text-gray-500 mb-4">Upgrade to Pro+ ($40/mo) to unlock AI-powered trip planning.</div>
-                          <button onClick={() => setShowUpgradeModal(true)} className="px-6 py-2 text-xs bg-brand-gold text-white font-medium rounded-lg hover:bg-brand-gold-bright">View Plans</button>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                );
-              }
               return (
                 <TripScanProvider
                   input={{
@@ -867,10 +842,9 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     daysTravel: trip.daysTravel,
                     tripDates,
                     onCommitted: () => { loadTrip(); loadBudgetItems(); loadVendorOptions(); loadScannerResults(); },
-                    entitledCategories,
-                    currentUserId,
                   }}
                 >
+                  <p className="text-[11px] text-text-faint" data-ai-access>{AI_ACCESS_LINE}</p>
                   <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
                     <div className="bg-brand-purple text-white px-4 py-2.5 text-sm font-semibold">Destinations &amp; Dates</div>
                     <div className="bg-white p-4 space-y-4">

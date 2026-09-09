@@ -1,10 +1,9 @@
-import { requireTier } from '@/lib/auth-helpers';
+import { withDailyCap } from '@/lib/ai/dailyCap';
+import { requireRoutineBudget } from '@/lib/routineFireBudget';
 import { ValidationError } from '@/lib/errors/ValidationError';
 import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
-import { getEntitledCategories } from '@/lib/entitlements';
-import { GOOGLE_CATEGORY_KEYS } from '@/lib/categoryKeys';
 import { searchPlacesMultiQuery, CATEGORY_SEARCHES, formatPriceLevel } from '@/lib/placesSearch';
 import { getCachedPlaces, cachePlaces, isCacheFresh } from '@/lib/placesCache';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -136,9 +135,6 @@ export async function POST(
 
     const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    const tierGate = requireTier(user.tier, 'tripAI', user.id);
-    if (tierGate) return tierGate;
-
     const body = await request.json();
     const {
       city,
@@ -194,19 +190,10 @@ export async function POST(
       return NextResponse.json({ error: 'Valid category required' }, { status: 400 });
     }
 
-    // PR-C: server-side PER-CATEGORY entitlement gate — the REAL lock. The PR-B client lock (the
-    // 🔒 card + the dispatcher skip) is UI-only and a crafted direct POST can bypass it, so this
-    // enforces it server-side BEFORE any Google fetch. Only PAID Google categories are gated;
-    // commission categories (not in GOOGLE_CATEGORY_KEYS) skip this and stay free. Admin passes
-    // because getEntitledCategories returns ALL keys for ADMIN_USER_ID. FAIL-CLOSED: a DB error in
-    // getEntitledCategories propagates to the outer catch (500) — it NEVER opens a paid category.
-    // The baseline requireTier('tripAI') at the top stays as-is (defense in depth).
-    if ((GOOGLE_CATEGORY_KEYS as readonly string[]).includes(category)) {
-      const entitled = await getEntitledCategories(user.id);
-      if (!entitled.includes(category)) {
-        return NextResponse.json({ error: 'Category not unlocked', category }, { status: 403 });
-      }
-    }
+    // SELL-05b: no per-category entitlement gate — nothing sells a Google category key
+    // (the offer law keeps the nine out of the purchasable set), so the lock could only
+    // refuse. The gate is a signed-in user + the AI daily cap, reserved below once the
+    // trip is the caller's (the cost control before any paid Google call).
 
     const maxResults = rawMaxResults || 33;
     const { id: tripId } = await params;
@@ -225,6 +212,10 @@ export async function POST(
     if (!ownedTrip) {
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
     }
+
+    // SELL-05b: the AI daily cap (AI_ROUTINE_DAILY_CAP) — one reservation per scan call, declared when hit.
+    const capped = await withDailyCap(requireRoutineBudget, user.id);
+    if (capped) return NextResponse.json(capped.body, { status: capped.status });
 
     // Activities passed explicitly with the request (used only to expand the
     // search queries — there is no traveler profile).
