@@ -72,7 +72,9 @@
  * The assert:showroom pattern: a plain script wired into the `build` script so
  * it runs in CI / Vercel and fails the BUILD. It imports the registry (which
  * runs its module-scope law: sheet cells 25/25 both ways, LIVE/PARTIAL have a
- * home, NOT_BUILT have none, beats agree with status, counts 6/7/12) and adds
+ * home, NOT_BUILT have none, beats agree with status — TRUTH-01: NOT_BUILT ⇔ no
+ * beats, LIVE ⇒ four, a four-beat PARTIAL says why — counts match the dated
+ * census) and adds
  * the check only the filesystem can answer: every home and every link resolves
  * to a page file — `src/app/<route>/page.tsx`, or a single segment in the
  * `[tab]` allowlist (src/app/[tab]/page.tsx TAB_PATHS), or `/?tab=` on the root.

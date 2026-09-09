@@ -15,4 +15,6 @@ export interface ShellUtility {
 export const OWNER_UTILITIES: readonly ShellUtility[] = [
   { label: 'Developer console', href: '/developer', why: 'prospects + client accounts behind its own gate — src/app/developer/page.tsx:23' },
   { label: 'Data observatory', href: '/data-observatory', why: 'source health probes; the check route is requireAdmin — src/app/api/data-observatory/check/route.ts:934' },
+  // TRUTH-01: CRM is NOT_BUILT (no contact or deal object), so /owner is no tool's home — it keeps its door here.
+  { label: 'Owner · proposals inbox', href: '/owner', why: "the founder's proposals inbox behind requireAdmin — src/app/api/owner/proposals/route.ts; not a customer's CRM" },
 ];

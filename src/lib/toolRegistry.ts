@@ -3,10 +3,19 @@
  * today, where, and in what state", keyed on the deck's PROBLEM_SHEET (the six
  * families and the 25 names are imported, never retyped).
  *
- * Every fact below is the TOOL CENSUS verbatim (session report, main
- * `cec371d6`): status LIVE = all four loop beats cited · PARTIAL = some ·
- * NOT_BUILT = no page or route implements the tool. 6 LIVE · 7 PARTIAL ·
- * 12 NOT_BUILT — the counts are a LAW below; bump them only with a new census.
+ * Every fact below is the TOOL CENSUS verbatim. THE RUBRIC (TRUTH-01,
+ * census 2026-09-09 — status means the job is done, not that code exists):
+ *   LIVE      = all four loop beats cited in code AND the tool does the job
+ *               the sheet names, for a customer, on production. Four beats
+ *               never imply LIVE.
+ *   PARTIAL   = some of the job; a PARTIAL with four beats MUST carry a `why`
+ *               note saying what is not done for a customer (the law throws
+ *               without it).
+ *   NOT_BUILT = no beats — no page or route does any of the tool's job (code
+ *               that touches the name but belongs to another tool is cited,
+ *               not counted).
+ * 2 LIVE · 9 PARTIAL · 14 NOT_BUILT — the counts are a LAW below; bump them
+ * only with a new dated census.
  *
  * `home` is an EXISTING route only — this PR links, it moves nothing. A
  * cockpit-hosted tool also carries `cockpitKey` (the ModuleLauncher section
@@ -23,8 +32,9 @@
  * home resolves to a page file):
  *   1. registry keys == PROBLEM_SHEET cells, 25/25, both directions;
  *   2. a LIVE or PARTIAL tool has a home; a NOT_BUILT tool has none;
- *   3. beats agree with status (LIVE ⇔ four; NOT_BUILT ⇔ none; PARTIAL ⇔ some);
- *   4. status counts == 6 / 7 / 12;
+ *   3. NOT_BUILT ⇔ no beats; LIVE ⇒ four beats; a PARTIAL with four beats
+ *      carries a `why` note (thrown without it) — four beats never imply LIVE;
+ *   4. status counts == the dated census (EXPECTED_STATUS_COUNTS);
  *   5. (NAV-02) every family has one page route — single-segment kebab-case,
  *      unique, never a cockpit path or a tool's home.
  */
@@ -61,6 +71,8 @@ export interface ToolFacts {
   citation: string;
   /** A census note that changes how the home should be read. */
   note?: string;
+  /** TRUTH-01: a PARTIAL tool with all four beats cited says here what is NOT done for a customer on production — the law throws without it. */
+  why?: string;
 }
 
 export interface ToolEntry extends ToolFacts {
@@ -74,31 +86,34 @@ const ALL: Beats = { discover: true, decide: true, commit: true, record: true };
 const NONE: Beats = { discover: false, decide: false, commit: false, record: false };
 const some = (b: Partial<Beats>): Beats => ({ ...NONE, ...b });
 
-export const EXPECTED_STATUS_COUNTS: Readonly<Record<ToolStatus, number>> = { LIVE: 6, PARTIAL: 7, NOT_BUILT: 12 };
+// census 2026-09-09 (TRUTH-01): door by door, the job done for a customer on production.
+export const EXPECTED_STATUS_COUNTS: Readonly<Record<ToolStatus, number>> = { LIVE: 2, PARTIAL: 9, NOT_BUILT: 14 };
 
 const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // ── THE WORK ──
   Calendar: {
-    slug: 'calendar', status: 'LIVE', beats: ALL, home: '/agenda',
+    slug: 'calendar', status: 'PARTIAL', beats: ALL, home: '/agenda',
+    why: 'an agenda list whose commit lands on calendar_events; the calendar grid itself lives on /runway',
     links: [{ label: 'Routines · the recurring form', cockpitKey: 'routines' }],
     citation: 'src/app/api/agenda/route.ts:5 (discover) · :56 (decide, draft :86) · src/app/api/agenda/[id]/route.ts:54 (commit) · :84 (record → calendar_events)',
     note: 'Reachable from no menu until this PR; the tab keyed "calendar" is Runway.',
   },
   Tasks: {
-    slug: 'tasks', status: 'LIVE', beats: ALL, home: '/projects', cockpitKey: 'projects',
+    slug: 'tasks', status: 'PARTIAL', beats: ALL, home: '/projects', cockpitKey: 'projects',
+    why: "the founder's build pipeline — accepting a task fires a paid Claude Code build (tasks/[taskId]/route.ts:392-402); not a customer's task tool",
     links: [{ label: 'Issue log', href: '/operations/issues' }, { label: 'Audit tail', href: '/operations/audit-log' }],
     citation: 'src/app/api/operations/projects/[id]/tasks/route.ts:43 · generate-tasks/route.ts:42 · tasks/bulk-create/route.ts:117 · tasks/[taskId]/route.ts:82 → :339, :370',
   },
   Time: {
-    slug: 'time', status: 'LIVE', beats: ALL, home: '/content', cockpitKey: 'content',
+    slug: 'time', status: 'PARTIAL', beats: ALL, home: '/content', cockpitKey: 'content',
+    why: 'day blocks and a daily log inside the Narrative pipeline; no time tool',
     links: [{ label: 'Daily plan · North Star', href: '/operations' }],
     citation: 'src/app/api/operations/tasks/unscheduled/route.ts · daily-plan/items/route.ts:120 · daily-plan/items/[itemId]/blocks/route.ts:36 · daily-plan/blocks/[blockId]/route.ts:38, :163',
   },
   // ── MONEY IN ──
   CRM: {
-    slug: 'crm', status: 'PARTIAL', beats: some({ discover: true, commit: true }), home: '/owner',
-    citation: 'src/app/api/owner/proposals/route.ts:11 (discover) · src/app/api/owner/proposals/[id]/route.ts:21 (commit); no draft, no record',
-    note: 'Owner-only triage of inbound proposals; no contact or deal object.',
+    slug: 'crm', status: 'NOT_BUILT', beats: NONE, home: null,
+    citation: "/owner is the founder's proposals inbox — no contact or deal object (src/app/api/owner/proposals/route.ts)",
   },
   Contracts: { slug: 'contracts', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 5 — no page, route, or model' },
   Invoicing: { slug: 'invoicing', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 6 — no invoice model, no A/R route' },
@@ -107,9 +122,8 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   'Bill Pay': { slug: 'bill-pay', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 8 — operations_vendor_directory (schema:3478) is a read-only GET (vendor-directory/route.ts:12)' },
   Payroll: { slug: 'payroll', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 9 — no page, route, or model' },
   Expenses: {
-    slug: 'expenses', status: 'PARTIAL', beats: some({ decide: true }), home: '/budgets/trips',
-    citation: 'src/app/budgets/trips/[id]/page.tsx:406 → src/app/api/trips/[id]/expenses/route.ts:70 (create, status pending :145); no receipt, status never flips, never reaches the ledger',
-    note: 'Trip cost-splitting on the legacy trip pages, not a receipt flow.',
+    slug: 'expenses', status: 'NOT_BUILT', beats: NONE, home: null,
+    citation: "trip cost split on the trip planner (src/app/api/trips/[id]/expenses/route.ts:70) is Travel's, not an expenses tool",
   },
   Travel: {
     slug: 'travel', status: 'LIVE', beats: ALL, home: '/travel', cockpitKey: 'travel',
@@ -118,7 +132,8 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   },
   Mileage: { slug: 'mileage', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 12 — no miles or odometer column in prisma/schema.prisma' },
   Budget: {
-    slug: 'budget', status: 'LIVE', beats: ALL, home: '/business',
+    slug: 'budget', status: 'PARTIAL', beats: ALL, home: '/business',
+    why: 'actuals by entity plus recurring lines on module_expenses; no plan vs actual; no personal · trade · travel roll-up',
     links: [
       { label: 'Personal', href: '/personal' }, { label: 'Home', href: '/home' }, { label: 'Auto', href: '/auto' },
       { label: 'Growth', href: '/growth' }, { label: 'Health', href: '/health' },
@@ -306,30 +321,36 @@ function beatCount(b: Beats): number {
 }
 
 /** THE LAW. Throws on the first violation; returns the violations list when asked not to throw. */
-export function registryLaw(opts: { throwOnFail?: boolean; familyPages?: Readonly<Record<FamilyName, string>> } = {}): string[] {
+export function registryLaw(opts: { throwOnFail?: boolean; familyPages?: Readonly<Record<FamilyName, string>>; registry?: readonly ToolEntry[] } = {}): string[] {
   const violations: string[] = [];
+  // TRUTH-01: the per-tool rules and the counts run over an injectable registry so a test can hand in a broken one.
+  const registry = opts.registry ?? TOOL_REGISTRY;
   const cells = PROBLEM_SHEET.flatMap((f) => f.tools as readonly string[]);
   const keys = Object.keys(FACTS);
   if (cells.length !== 25) violations.push(`PROBLEM_SHEET has ${cells.length} cells, expected 25`);
   for (const c of cells) if (!(c in FACTS)) violations.push(`sheet cell "${c}" has no registry facts`);
   for (const k of keys) if (!cells.includes(k)) violations.push(`registry key "${k}" is not a sheet cell`);
   if (new Set(cells).size !== cells.length) violations.push('PROBLEM_SHEET cells are not unique');
-  if (TOOL_REGISTRY.length !== 25) violations.push(`registry has ${TOOL_REGISTRY.length} entries, expected 25`);
+  if (registry.length !== 25) violations.push(`registry has ${registry.length} entries, expected 25`);
   const slugs = new Set<string>();
-  for (const t of TOOL_REGISTRY) {
+  for (const t of registry) {
     if (slugs.has(t.slug)) violations.push(`${t.name}: duplicate slug "${t.slug}"`);
     slugs.add(t.slug);
     if (!/^[a-z][a-z0-9-]*$/.test(t.slug)) violations.push(`${t.name}: slug "${t.slug}" is not kebab-case`);
     const n = beatCount(t.beats);
+    // rule 3 (TRUTH-01): NOT_BUILT ⇔ no beats; LIVE ⇒ four beats; a four-beat PARTIAL says why it is not LIVE.
     if (t.status === 'LIVE' && (n !== 4 || t.home === null)) violations.push(`${t.name}: LIVE needs four beats and a home (beats ${n}, home ${t.home})`);
-    if (t.status === 'PARTIAL' && (n === 0 || n === 4 || t.home === null)) violations.push(`${t.name}: PARTIAL needs 1-3 beats and a home (beats ${n}, home ${t.home})`);
+    if (t.status === 'PARTIAL' && (n === 0 || t.home === null)) violations.push(`${t.name}: PARTIAL needs at least one beat and a home (beats ${n}, home ${t.home})`);
+    if (t.status === 'PARTIAL' && n === 4 && !t.why?.trim()) violations.push(`${t.name}: PARTIAL with four beats must say why it is not LIVE (why: what is not done for a customer on production)`);
+    if (t.status !== 'PARTIAL' && t.why) violations.push(`${t.name}: why belongs only to a PARTIAL tool`);
     if (t.status === 'NOT_BUILT' && (n !== 0 || t.home !== null || t.cockpitKey || (t.links && t.links.length))) violations.push(`${t.name}: NOT_BUILT must have no beats, no home, no links`);
+    if (t.status !== 'NOT_BUILT' && n === 0) violations.push(`${t.name}: ${t.status} with no beats — no beats is NOT_BUILT`);
     if (t.home !== null && !t.home.startsWith('/')) violations.push(`${t.name}: home "${t.home}" is not a route`);
     for (const l of t.links ?? []) {
       if ((l.href ? 1 : 0) + (l.cockpitKey ? 1 : 0) !== 1) violations.push(`${t.name}: link "${l.label}" must have exactly one of href / cockpitKey`);
     }
   }
-  const counts = statusCounts();
+  const counts = statusCounts(registry);
   for (const s of Object.keys(EXPECTED_STATUS_COUNTS) as ToolStatus[]) {
     if (counts[s] !== EXPECTED_STATUS_COUNTS[s]) violations.push(`${s} count ${counts[s]} ≠ census ${EXPECTED_STATUS_COUNTS[s]} (bump only with a census)`);
   }
@@ -337,7 +358,7 @@ export function registryLaw(opts: { throwOnFail?: boolean; familyPages?: Readonl
     if (!(name in FACTS)) violations.push(`COCKPIT_PRIMARY_TOOL[${key}] names unknown tool "${name}"`);
     if (!(key in COCKPIT_PATH)) violations.push(`COCKPIT_PRIMARY_TOOL key "${key}" has no COCKPIT_PATH`);
   }
-  for (const t of TOOL_REGISTRY) {
+  for (const t of registry) {
     if (t.cockpitKey && !(t.cockpitKey in COCKPIT_PATH)) violations.push(`${t.name}: cockpitKey "${t.cockpitKey}" has no COCKPIT_PATH`);
     for (const l of t.links ?? []) if (l.cockpitKey && !(l.cockpitKey in COCKPIT_PATH)) violations.push(`${t.name}: link "${l.label}" cockpit key "${l.cockpitKey}" has no COCKPIT_PATH`);
   }

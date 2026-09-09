@@ -34,10 +34,15 @@ test('a NOT_BUILT tool in an offer fails the law (the build); so does a free too
   const notBuilt = [{ ...b, tools: [...b.tools, 'Payroll' as const] }, OFFERS[1]];
   assert.match(offerLaw({ throwOnFail: false, offers: notBuilt }).join('\n'), /Payroll is NOT_BUILT — a tool that does not exist cannot be sold/);
   assert.throws(() => offerLaw({ offers: notBuilt }), OfferLawError);
-  const free = [{ ...b, tools: [...b.tools, 'Calendar' as const] }, OFFERS[1]];
+  // TRUTH-01: Travel is the one LIVE tool with no gate — the free tool a seller may not list.
+  const free = [{ ...b, tools: [...b.tools, 'Travel' as const] }, OFFERS[1]];
   const v = offerLaw({ throwOnFail: false, offers: free }).join('\n');
-  assert.match(v, /Calendar carries no tab gate/);
-  assert.match(v, /Calendar: free \(LIVE, no gate\) and also sold/);
+  assert.match(v, /Travel carries no tab gate/);
+  assert.match(v, /Travel: free \(LIVE, no gate\) and also sold/);
+  // a four-beat PARTIAL with no gate (Calendar since TRUTH-01) is not free and not sold: the gate line fires, the free line does not
+  const partialUngated = offerLaw({ throwOnFail: false, offers: [{ ...b, tools: [...b.tools, 'Calendar' as const] }, OFFERS[1]] }).join('\n');
+  assert.match(partialUngated, /Calendar carries no tab gate/);
+  assert.doesNotMatch(partialUngated, /Calendar: free/);
   const narrow = [{ ...b, grants: ['tab:books' as const] }, OFFERS[1]];
   assert.match(offerLaw({ throwOnFail: false, offers: narrow }).join('\n'), /Brokerage is gated by tab:trade, which this offer does not grant/);
   const smallBundle = [b, { ...OFFERS[1], grants: ['tab:books' as const] }];
@@ -66,9 +71,10 @@ test('claim lines come from the registry: "built and running" for LIVE only, "pa
   }
   assert.equal(card.includesAnswers, true);
   // the free showcases' CTAs read the registry through the cockpit key
-  assert.equal(claimForCockpit('projects'), 'built and running');
-  assert.equal(claimForCockpit('content'), 'built and running');
-  assert.equal(claimForCockpit('calendar'), 'built and running');
+  // TRUTH-01: Tasks and Time are four-beat PARTIALs (the job is not done for a customer), so the showcase CTAs no longer say built and running.
+  assert.equal(claimForCockpit('projects'), 'partial — discover · decide · commit · record');
+  assert.equal(claimForCockpit('content'), 'partial — discover · decide · commit · record');
+  assert.equal(claimForCockpit('calendar'), 'partial — discover · decide · commit · record'); // Budget, a four-beat PARTIAL since TRUTH-01
   assert.throws(() => claimForCockpit('nope'), OfferLawError);
 });
 
@@ -109,15 +115,16 @@ test('the grants: Books unlocks Trade, Tax and Compliance at both gates; the bun
 });
 
 test('the free set is the registry\'s LIVE tools with no gate; the gate map covers every tool', () => {
-  assert.deepEqual(FREE_TOOLS.map((t) => t.name), ['Calendar', 'Tasks', 'Time', 'Travel', 'Budget']);
+  // TRUTH-01 (census 2026-09-09): Calendar, Tasks, Time and Budget are PARTIAL — four beats cited, the job not done for a customer — so the free set is Travel alone.
+  assert.deepEqual(FREE_TOOLS.map((t) => t.name), ['Travel']);
   assert.equal(Object.keys(TOOL_GATE).length, TOOL_REGISTRY.length);
   for (const t of TOOL_REGISTRY) assert.ok(t.name in TOOL_GATE, t.name);
   assert.equal(TOOL_GATE.CRM, 'owner');
 });
 
 test('the hero line is the registry\'s counts in words — never typed', () => {
-  assert.equal(heroCountsLine(), 'Twenty-five tools, counted: six live, seven partial, twelve on the blueprint.');
-  assert.equal(heroCountsLine(TOOL_REGISTRY.filter((t) => t.status !== 'NOT_BUILT')), 'Thirteen tools, counted: six live, seven partial, zero on the blueprint.');
+  assert.equal(heroCountsLine(), 'Twenty-five tools, counted: two live, nine partial, fourteen on the blueprint.');
+  assert.equal(heroCountsLine(TOOL_REGISTRY.filter((t) => t.status !== 'NOT_BUILT')), 'Eleven tools, counted: two live, nine partial, zero on the blueprint.');
   assert.equal(numberWord(25), 'twenty-five');
   assert.throws(() => numberWord(26), OfferLawError);
 });
