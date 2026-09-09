@@ -285,8 +285,8 @@ The app lands on `/answers` — HOME: the four answers, then the whole sheet (25
 
 | # | Step | Family | Status | Opens | Jobs |
 |---|---|---|---|---|---|
-| 1 | ACCOUNTS | WHAT YOU OWN | PARTIAL | `/accounts` | Banking (PARTIAL), Brokerage (PARTIAL), Retirement (NOT_BUILT), Fixed Assets (NOT_BUILT) |
-| 2 | TRADING | WHAT YOU OWN | PARTIAL | `/trading` | Trade Log (PARTIAL) |
+| 1 | ACCOUNTS | WHAT YOU OWN | PARTIAL | `/accounts` | Banking (PARTIAL), Retirement (NOT_BUILT), Fixed Assets (NOT_BUILT) |
+| 2 | TRADING | WHAT YOU OWN | PARTIAL | `/trading` | Brokerage (PARTIAL), Trade Log (PARTIAL) |
 | 3 | BOOKS | THE PROOF | LIVE | `/books` | Bookkeeping (LIVE) |
 | 4 | TAX | THE PROOF | PARTIAL | `/tax` | Tax (PARTIAL) |
 | 5 | COMPLIANCE | THE PROOF | PARTIAL | `/compliance` | Compliance (PARTIAL) |

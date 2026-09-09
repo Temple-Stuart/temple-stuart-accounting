@@ -17,7 +17,11 @@
  *   4. steps are numbered 1..12 with no gaps, in the order listed;
  *   5. a step's screen is a route or null; a step with no screen holds no LIVE
  *      tool (nothing finished hides behind an honest page);
- *   6. slugs are unique and kebab-case.
+ *   6. slugs are unique and kebab-case;
+ *   7. (ACCOUNTS-01b) a job's HOME lives inside its own step — neither the home
+ *      the registry names nor the DOOR the rail opens for it (doorOf, which
+ *      prefers a cockpit path) may be another step's screen. Without this the
+ *      rail sent step 1 ACCOUNTS to /books, step 3's room.
  * The build adds what only the filesystem can answer: every non-null screen
  * resolves to a page file.
  */
@@ -47,8 +51,14 @@ export interface Step {
 }
 
 export const STEPS: readonly Step[] = [
-  { number: 1, slug: 'accounts', name: 'ACCOUNTS', family: 'WHAT YOU OWN', tools: ['Banking', 'Brokerage', 'Retirement', 'Fixed Assets'], screen: '/accounts' },
-  { number: 2, slug: 'trading', name: 'TRADING', family: 'WHAT YOU OWN', tools: ['Trade Log'], screen: '/trading' },
+  // ACCOUNTS-01b: Brokerage walks with step 2, not step 1. Its home is /trading —
+  // step 2's screen — and rule 7 below holds a job's home inside its own step. Both
+  // steps are WHAT YOU OWN, so rule 2 is untouched; the counts and every status are.
+  // It also fixes a gate mismatch: /api/accounts is tab:books-gated (route.ts:22),
+  // so step 1 carrying Brokerage's tab:trade told a trade-only viewer the step was
+  // open when its data route would 403 them.
+  { number: 1, slug: 'accounts', name: 'ACCOUNTS', family: 'WHAT YOU OWN', tools: ['Banking', 'Retirement', 'Fixed Assets'], screen: '/accounts' },
+  { number: 2, slug: 'trading', name: 'TRADING', family: 'WHAT YOU OWN', tools: ['Brokerage', 'Trade Log'], screen: '/trading' },
   { number: 3, slug: 'books', name: 'BOOKS', family: 'THE PROOF', tools: ['Bookkeeping'], screen: '/books' },
   { number: 4, slug: 'tax', name: 'TAX', family: 'THE PROOF', tools: ['Tax'], screen: '/tax' },
   { number: 5, slug: 'compliance', name: 'COMPLIANCE', family: 'THE PROOF', tools: ['Compliance'], screen: '/compliance' },
@@ -199,6 +209,30 @@ export function stepsLaw(opts: { throwOnFail?: boolean; steps?: readonly Step[];
     if (s.screen !== null) continue;
     const live = s.tools.filter((n) => registry.find((t) => t.name === n)?.status === 'LIVE');
     if (live.length) violations.push(`${s.name}: no screen, but ${live.join(', ')} ${live.length === 1 ? 'is' : 'are'} LIVE — a finished job has a room`);
+  }
+
+  // 7. a job's home is inside its own step — never another step's screen
+  // (ACCOUNTS-01b). Both the registry's `home` and the door the rail actually
+  // opens are checked: doorOf prefers a tool's cockpit path over its home, so a
+  // home inside the step with a cockpitKey pointing out of it would still send
+  // the rail to another step's room — the exact bug this rule exists to stop.
+  const screenOwner = new Map<string, Step>();
+  for (const s of steps) if (s.screen) screenOwner.set(s.screen, s);
+  for (const s of steps) {
+    for (const name of s.tools) {
+      const tool = registry.find((t) => t.name === name);
+      if (!tool || tool.home === null) continue;
+      const seen = new Set<string>();
+      const door = doorOf(tool);
+      for (const [what, href] of [['home', tool.home], ['door', door.kind === 'none' ? null : door.href]] as const) {
+        if (href === null || seen.has(href)) continue;
+        seen.add(href);
+        const owner = screenOwner.get(href);
+        if (owner && owner.slug !== s.slug) {
+          violations.push(`${name}: ${what} ${href} is ${owner.name}'s screen, but ${name} sits in ${s.name} — a job's home is inside its own step`);
+        }
+      }
+    }
   }
 
   if (violations.length && opts.throwOnFail !== false) throw new StepsLawError(violations.join('\n  '));

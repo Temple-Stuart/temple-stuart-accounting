@@ -146,22 +146,37 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     note: 'Six category pages, reachable from no menu until this PR; the draft form works on /business only (coaAccounts, census note B).',
   },
   // ── WHAT YOU OWN ──
+  // ACCOUNTS-01b: Banking's home is its OWN screen. Until ACCOUNTS-01 the tool had
+  // no room of its own, so the registry pointed it at Books' Source Accounts phase
+  // and carried /accounts as a "legacy page" link. /accounts is now step 1's screen
+  // and shows these accounts, so the home IS /accounts and the link is gone (a tool
+  // does not link to itself). No cockpitKey: Banking is no longer a cockpit section.
   Banking: {
-    slug: 'banking', status: 'PARTIAL', beats: some({ discover: true }), home: '/books', cockpitKey: 'books',
-    links: [{ label: 'Accounts · the legacy page', href: '/accounts' }],
-    citation: 'src/components/home/BooksPipeline.tsx:296 (Source Accounts) · src/app/api/accounts/route.ts:6; no transfer route exists',
+    slug: 'banking', status: 'PARTIAL', beats: some({ discover: true }), home: '/accounts',
+    citation: 'src/components/accounts/AccountsClient.tsx:118 (connect) · :127 (sync) · :201 (reconnect), through src/components/bank/useBankConnection.ts:83 · :101 · :122 · :164 · src/app/api/accounts/route.ts:6; no transfer route exists',
   },
   'Fixed Assets': { slug: 'fixed-assets', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 15 — no depreciation or placed-in-service field' },
   Retirement: { slug: 'retirement', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 16 — 1099-R intake at src/app/api/tax/calculate/route.ts:250 is Tax' },
+  // ACCOUNTS-01b: the home is /trading, the full room — it is the only surface that
+  // CONNECTS a brokerage (src/app/trading/page.tsx:263 /api/tastytrade/connect) and it
+  // carries chains, positions and the journal. The cockpit's Trade tab connects
+  // nothing, so it was never this tool's home; the old "Standalone cockpit" link is
+  // deleted because the standalone cockpit IS the home. /trade keeps its door from
+  // Trade Log's "Grade · on the Trade tab" link — see that row.
   Brokerage: {
-    slug: 'brokerage', status: 'PARTIAL', beats: some({ discover: true, decide: true }), home: '/trade', cockpitKey: 'trade',
-    links: [{ label: 'Standalone cockpit · chains, connect, observatory, journal', href: '/trading' }],
+    slug: 'brokerage', status: 'PARTIAL', beats: some({ discover: true, decide: true }), home: '/trading',
     citation: 'src/app/api/tastytrade/chains/route.ts:58 · scanner/route.ts:205 · src/app/api/trade-cards/route.ts:72 (status queued :92); no order is ever sent (ConvergenceIntelligence.tsx:840)',
   },
+  // ACCOUNTS-01b: home /books → /trading. Trade Log sits in step 2 TRADING, whose
+  // screen is /trading — a job's home may not be another step's screen (the steps
+  // law). /trading is where the job is done for a customer: it posts the balanced
+  // entry (page.tsx:640 → api/trading/commit-to-ledger/route.ts:168 postJournal) and
+  // saves the journal (page.tsx:733 → /api/trading-journal). The Books pipeline
+  // still READS investment transactions; that is Bookkeeping's row, not this one.
   'Trade Log': {
-    slug: 'trade-log', status: 'PARTIAL', beats: some({ discover: true, commit: true, record: true }), home: '/books', cockpitKey: 'books',
+    slug: 'trade-log', status: 'PARTIAL', beats: some({ discover: true, commit: true, record: true }), home: '/trading',
     links: [{ label: 'Grade · on the Trade tab', cockpitKey: 'trade' }],
-    citation: 'src/app/api/transactions/sync-complete/route.ts:185 → :242 · investment-transactions/commit-to-ledger/route.ts:106 → src/lib/position-tracker-service.ts:170, :307-311 · :601, :619; no persisted draft',
+    citation: 'src/app/trading/page.tsx:640 → src/app/api/trading/commit-to-ledger/route.ts:168 · page.tsx:733 → /api/trading-journal · src/app/api/transactions/sync-complete/route.ts:185 → :242 · investment-transactions/commit-to-ledger/route.ts:106 → src/lib/position-tracker-service.ts:170, :307-311 · :601, :619; no persisted draft',
   },
   // ── WHAT YOU OWE ──
   Debt: { slug: 'debt', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 19 — src/app/api/net-worth/route.ts:36 is a totals read; no schedule, no lender' },
