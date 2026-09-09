@@ -5,6 +5,10 @@ import { useSession, signOut } from 'next-auth/react';
 import { useEffect, useState, Suspense } from 'react';
 import TripCreationBar from '@/components/trips/TripCreationBar';
 import ShellBar from '@/components/ui/ShellBar';
+// ACCOUNTS-01: the rail is on every signed-in page. AppLayout is where most rooms
+// mount their shell, so mounting it here gives them all the same navigation — its
+// open/collapsed state lives above the pages (RailState), so walking does not reset it.
+import Rail from '@/components/shell/Rail';
 
 export interface LedgerMetrics {
   balance: number;
@@ -49,6 +53,8 @@ interface CookieUser {
   name: string;
   /** /api/auth/me → isAdmin (src/lib/admin.ts, ADMIN_USER_ID in the env); gates the utilities menu. */
   isAdmin?: boolean;
+  /** /api/auth/me → entitledCategories; the rail's lock chip reads these (no second request). */
+  entitledCategories?: string[];
 }
 
 // ─── Route Groups ────────────────────────────────────────────────────────────
@@ -185,6 +191,11 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
         onSignOut={handleSignOut}
       />
 
+      <div className="flex flex-1 min-w-0 flex-col sm:flex-row">
+      <Rail
+        entitledKeys={(currentUser as CookieUser | null | undefined)?.entitledCategories}
+        isAdmin={Boolean((currentUser as { isAdmin?: boolean } | null | undefined)?.isAdmin)}
+      />
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Travel Search Bar (only on Travel routes) */}
         {showTravelSearch && (
@@ -278,6 +289,7 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
         )}
 
         <main className="max-w-[1800px] mx-auto w-full">{children}</main>
+      </div>
       </div>
     </div>
   );

@@ -8,7 +8,8 @@ import {
 } from 'lucide-react';
 import { SECTION_HEADER, STATE } from '@/lib/ds';
 import Rail from '@/components/shell/Rail';
-import { readSyncOutcome, syncLine, type SyncOutcome } from '@/lib/plaid/failLoud';
+// ACCOUNTS-01: the connect / sync glue is the shared hook (src/components/bank/useBankConnection.ts).
+import { useBankConnection } from '@/components/bank/useBankConnection';
 import CreateTripForm from '@/components/trips/CreateTripForm';
 import TripBookings from '@/components/trips/TripBookings';
 import UnattachedBookings from '@/components/trips/UnattachedBookings';
@@ -67,11 +68,9 @@ import BookkeepingCockpitBar from '@/components/bookkeeping/BookkeepingCockpitBa
 import BooksPipeline from '@/components/home/BooksPipeline';
 // BANK-01b: the new-item Link's onExit is surfaced too — the reason under the cockpit
 // bar (the sync line's slot), the report to /api/plaid/link-exit for the log.
-import { LINK_CANCELLED, linkExitOutcome, notLoggedSuffix, postLinkExit, type LinkExitError, type LinkExitMetadata } from '@/lib/plaid/linkExit';
 // BANK-01c: the OAuth round trip — the link token and the flow are kept before Link
 // opens (Plaid's guide: local storage, same browser session) so /plaid/oauth-return can
 // re-open Link with the SAME token; the return page's outcome line lands here.
-import { forgetLinkFlow, keepLinkFlow, takeReturnOutcome } from '@/lib/plaid/oauth';
 // TAX-1: the closed-books handoff gate — shows the tax wizard only once a period is
 // closed, otherwise a "close your books first" screen that jumps to the Books tab.
 import TaxHandoffGate from '@/components/home/TaxHandoffGate';
@@ -412,14 +411,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange, offerAvaila
     totalAssets: number; totalLiabilities: number; totalEquity: number;
     isBalanced: boolean; hasActivity: boolean; connectedAccounts: number; periodStatus: 'open' | 'closed';
   } | null>(null);
-  const [booksSyncing, setBooksSyncing] = useState(false);
-  // HYG-01: the sync route's returned line (200 ok / 207 partial / non-2xx failure),
-  // rendered inline under the cockpit bar. Cleared when the next sync starts.
-  const [booksSyncMessage, setBooksSyncMessage] = useState<SyncOutcome | null>(null);
-  // Plaid Link token for onLinkAccount (fetched from the auth-gated /api/plaid/link-token).
-  const [booksLinkToken, setBooksLinkToken] = useState<string | null>(null);
-  // BANK-01c: Plaid's `expiration` for that token — the kept round-trip entry expires with it.
-  const [booksLinkExpiration, setBooksLinkExpiration] = useState<string | null>(null);
 
   const loadBooksCockpit = useCallback(async () => {
     setBooksState('loading');
@@ -470,84 +461,14 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange, offerAvaila
   useEffect(() => {
     if (booksLocked) return;
     loadBooksCockpit();
-    // BANK-01c: an OAuth round trip that ended on /plaid/oauth-return left its outcome line
-    // for this banner (the 'new' flow; a reconnect's line goes to its row in the pipe).
-    const back = takeReturnOutcome(window.localStorage, 'new');
-    if (back) setBooksSyncMessage(back.outcome);
-    fetch('/api/plaid/link-token', { method: 'POST' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        // BANK-01c: the token is usable only with its expiration — the round-trip entry
-        // must expire with it; a token without one is a contract break, not a link.
-        if (d?.link_token && typeof d.expiration === 'string') {
-          setBooksLinkToken(d.link_token);
-          setBooksLinkExpiration(d.expiration);
-        }
-      })
-      .catch(() => { /* no token → onLinkAccount guards on it, fail-loud (button no-ops until ready) */ });
   }, [booksLocked, loadBooksCockpit]);
 
-  // onSync — faithful to dashboard/page.tsx:348 (syncAccounts): POST the auth-gated
-  // /api/transactions/sync-complete, then re-read the cockpit. No auth weakened.
-  const booksSyncAccounts = async () => {
-    setBooksSyncing(true);
-    setBooksSyncMessage(null);
-    try {
-      const res = await fetch('/api/transactions/sync-complete', { method: 'POST' });
-      // HYG-01: read the declared outcome — a failed or partial sync is shown, never swallowed.
-      setBooksSyncMessage(await readSyncOutcome(res));
-      await loadBooksCockpit();
-    } finally {
-      setBooksSyncing(false);
-    }
-  };
-
-  // onLinkAccount — faithful to dashboard/page.tsx:334 (openPlaidLink): open Plaid Link
-  // with the auth-gated link token; on success POST the auth-gated /api/plaid/exchange-token
-  // then re-read the cockpit. The dashboard's free-tier upgrade-modal branch is intentionally
-  // omitted: this surface and the server routes it calls are both tab:books-gated
-  // (TAB-SHOW-AND-GATE client-side; TAB-SERVER-GATE flipped /api/plaid/link-token +
-  // exchange-token to requireTabAccess('tab:books')) — an unentitled user gets no link
-  // token, so this button no-ops. Guards on token + window.Plaid exactly like the
-  // dashboard (no fallback).
-  const booksLinkAccount = () => {
-    if (!booksLinkToken || !booksLinkExpiration || !(window as any).Plaid) return; // eslint-disable-line @typescript-eslint/no-explicit-any
-    // BANK-01c: keep the token + flow for the OAuth return page before Link opens (Plaid's
-    // guide: the same link_token must re-open Link after the bank's redirect).
-    keepLinkFlow(window.localStorage, { linkToken: booksLinkToken, flow: { kind: 'new' }, expiresAt: booksLinkExpiration });
-    (window as any).Plaid.create({ // eslint-disable-line @typescript-eslint/no-explicit-any
-      token: booksLinkToken,
-      onSuccess: async (publicToken: string, metadata: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-        forgetLinkFlow(window.localStorage, booksLinkToken);
-        await fetch('/api/plaid/exchange-token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            publicToken,
-            institutionId: metadata.institution?.institution_id,
-            institutionName: metadata.institution?.name,
-            entityId: 'personal',
-          }),
-        });
-        await loadBooksCockpit();
-      },
-      // BANK-01b: same wiring as the Reconnect flow — an error → the line under the
-      // cockpit bar ("Plaid Link: CODE — message") and the report to the log; a cancel →
-      // "Account link cancelled". No itemId: there is no item yet.
-      onExit: async (error: LinkExitError | null, metadata: LinkExitMetadata) => {
-        forgetLinkFlow(window.localStorage, booksLinkToken);
-        const exit = linkExitOutcome(error, metadata ?? {}, LINK_CANCELLED);
-        if (exit.kind === 'connected') return;
-        if (exit.kind === 'cancelled') {
-          setBooksSyncMessage(syncLine('ok', exit.note));
-          return;
-        }
-        setBooksSyncMessage(syncLine('error', exit.note));
-        const posted = await postLinkExit(exit.report);
-        if (!posted.logged) setBooksSyncMessage(syncLine('error', exit.note + notLoggedSuffix(posted.status)));
-      },
-    }).open();
-  };
+  // ACCOUNTS-01: the link token, Plaid Link, exchange-token, sync-complete and the OAuth
+  // return line all live in the shared hook now — the SAME glue step 1's screen (/accounts)
+  // and Books' Source Accounts drive, against the same routes. Enabled only for a viewer who
+  // actually sees this surface: a locked tab fetches no token.
+  const bank = useBankConnection({ onChanged: loadBooksCockpit, enabled: !booksLocked });
+  const booksSyncMessage = bank.message;
 
   // Travel register-gate: guests fill the form freely, but "Create trip" while
   // unauthenticated opens the register modal instead of POSTing. Returns true
@@ -1333,9 +1254,9 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange, offerAvaila
                     connectedAccounts={booksData.connectedAccounts}
                     periodLabel={`${new Date().toLocaleString('en-US', { month: 'long' })} ${booksYear}`}
                     periodStatus={booksData.periodStatus}
-                    onSync={booksSyncAccounts}
-                    syncing={booksSyncing}
-                    onLinkAccount={booksLinkAccount}
+                    onSync={bank.syncAccounts}
+                    syncing={bank.syncing}
+                    onLinkAccount={bank.linkAccount}
                   />
                 )}
                 {booksSyncMessage && (

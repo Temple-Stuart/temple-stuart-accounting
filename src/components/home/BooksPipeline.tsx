@@ -30,13 +30,11 @@ import StageStrip, { type StagePhase } from '@/components/ui/StageStrip';
 import { PIPE_PHASES } from '@/lib/pipePhases';
 // BANK-01: the HYG-01 envelope reader — the Reconnect flow reads link-token /
 // reconnect-complete answers exactly as the Sync button reads sync-complete.
-import { readSyncOutcome } from '@/lib/plaid/failLoud';
+import { useBankConnection } from '@/components/bank/useBankConnection';
 // BANK-01b: Plaid Link's onExit is surfaced — the reason on the row, the report in the log.
-import { RECONNECT_CANCELLED, linkExitOutcome, notLoggedSuffix, postLinkExit, type LinkExitError, type LinkExitMetadata } from '@/lib/plaid/linkExit';
 // BANK-01c: the OAuth round trip — the update-mode token and the reconnect flow (item +
 // bank) are kept before Link opens so /plaid/oauth-return re-opens Link with the SAME
 // token; the return page's outcome line lands on the row.
-import { forgetLinkFlow, keepLinkFlow, takeReturnOutcome } from '@/lib/plaid/oauth';
 
 const [PIPE_FEED, PIPE_CODE, PIPE_RECONCILE, PIPE_CLOSE, PIPE_REPORTS, PIPE_EXPORT] = PIPE_PHASES.books;
 import SectionHeader from '@/components/ui/SectionHeader';
@@ -194,78 +192,13 @@ export default function BooksPipeline() {
     setEntityId(def?.id ?? null);
   }, []);
 
-  // BANK-01: Reconnect a bank — Plaid Link in UPDATE MODE for the existing item. The
-  // server mints the update-mode token from the stored (encrypted) access token; the
-  // browser sees the link token only. After Link's onSuccess there is NO public-token
-  // exchange — reconnect-complete asks /item/get whether the item is healthy and answers
-  // with the HYG-01 envelope, which renders inline (fail-loud, never swallowed).
-  // BANK-01b: a third tone — 'note' — for a plain outcome (a cancel) that is neither ok nor an error.
-  const [reconnectNote, setReconnectNote] = useState<{ itemId: string; text: string; tone: 'ok' | 'error' | 'note' } | null>(null);
-  const [reconnecting, setReconnecting] = useState<string | null>(null);
-  // BANK-01c: a reconnect that went through the OAuth return page left its outcome line
-  // for this row (ok / error / a cancel as the plain tone).
-  useEffect(() => {
-    const back = takeReturnOutcome(window.localStorage, 'reconnect');
-    if (!back || back.flow.kind !== 'reconnect') return;
-    setReconnectNote({ itemId: back.flow.itemId, text: back.outcome.text, tone: back.outcome.tone === 'ok' ? 'ok' : back.outcome.tone === 'error' ? 'error' : 'note' });
-  }, []);
-  const reconnectItem = async (itemId: string, institution: string) => {
-    const plaid = (window as unknown as { Plaid?: { create: (cfg: Record<string, unknown>) => { open(): void } } }).Plaid;
-    if (!plaid) {
-      setReconnectNote({ itemId, text: 'Plaid Link has not loaded yet — try again in a moment.', tone: 'error' });
-      return;
-    }
-    setReconnecting(itemId);
-    setReconnectNote(null);
-    try {
-      const res = await fetch('/api/plaid/link-token', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId }),
-      });
-      if (!res.ok) {
-        const out = await readSyncOutcome(res);
-        setReconnectNote({ itemId, text: out.text, tone: 'error' });
-        return;
-      }
-      const { link_token: token, expiration } = (await res.json()) as { link_token: string; expiration?: unknown };
-      if (typeof expiration !== 'string') {
-        setReconnectNote({ itemId, text: 'The link token answer carried no expiration — not opening Plaid Link.', tone: 'error' });
-        return;
-      }
-      // BANK-01c: keep the token + the reconnect flow for the OAuth return page before Link
-      // opens (Plaid's guide: the same link_token must re-open Link after the bank's redirect).
-      keepLinkFlow(window.localStorage, { linkToken: token, flow: { kind: 'reconnect', itemId, institution }, expiresAt: expiration });
-      plaid.create({
-        token,
-        onSuccess: async () => {
-          forgetLinkFlow(window.localStorage, token);
-          const done = await fetch('/api/plaid/reconnect-complete', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId }),
-          });
-          const out = await readSyncOutcome(done);
-          setReconnectNote({ itemId, text: out.text, tone: out.tone === 'ok' ? 'ok' : 'error' });
-          await reloadAll();
-        },
-        // BANK-01b: Link's exit is the only place it says why it closed. An error →
-        // the row's line ("Plaid Link: CODE — message") and the report to
-        // /api/plaid/link-exit so the log carries it; a cancel → "Reconnect cancelled".
-        onExit: async (error: LinkExitError | null, metadata: LinkExitMetadata) => {
-          setReconnecting(null);
-          forgetLinkFlow(window.localStorage, token);
-          const exit = linkExitOutcome(error, metadata ?? {}, RECONNECT_CANCELLED, itemId);
-          if (exit.kind === 'connected') return;
-          if (exit.kind === 'cancelled') {
-            setReconnectNote({ itemId, text: exit.note, tone: 'note' });
-            return;
-          }
-          setReconnectNote({ itemId, text: exit.note, tone: 'error' });
-          const posted = await postLinkExit(exit.report);
-          if (!posted.logged) setReconnectNote({ itemId, text: exit.note + notLoggedSuffix(posted.status), tone: 'error' });
-        },
-      }).open();
-    } finally {
-      setReconnecting(null);
-    }
-  };
+  // ACCOUNTS-01: Reconnect is the shared hook now — the SAME update-mode Link,
+  // reconnect-complete and link-exit report step 1's screen (/accounts) drives. Books'
+  // Source Accounts phase is unchanged: it still offers Reconnect on a flagged row.
+  const bank = useBankConnection({ onChanged: () => reloadAll() });
+  const reconnectNote = bank.reconnectNote;
+  const reconnecting = bank.reconnecting;
+  const reconnectItem = bank.reconnect;
 
   const reloadAll = useCallback(async () => {
     setState('loading');
