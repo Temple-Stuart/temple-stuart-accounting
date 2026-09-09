@@ -10,11 +10,14 @@
  * target has a door. A child page is reached through its parent (segment-prefix
  * rule: /agenda/[id] through /agenda). A page with no door fails the build.
  *
- * THE FAMILY MAP LAW (NAV-02): every tool appears in its family's menu exactly
- * once and on its family's page exactly once (familyMenu / familyCards, the
- * registry's one source); each family page route has a page file that names
- * its family; FamilyNav renders familyMenu() and FamilyPage renders
- * familyCards() — never a retyped list.
+ * THE STEPS LAW (SHELL-01): the rail walks the sheet in FLOW ORDER — the
+ * module-scope law of src/lib/steps.ts re-run here (every registry job in
+ * exactly one step; every step in one family, holding that family's jobs; the
+ * families in flow order; steps 1..12 with no gaps; a roomless step holds
+ * nothing LIVE), plus what only the filesystem can answer: every step's screen
+ * resolves to a page file, the roomless steps' one page exists
+ * (src/app/step/[slug]/page.tsx), and the rail and the sheet render FROM
+ * steps.ts — never a retyped list.
  *
  * THE ANSWERS LAW (NAV-01c): the module-scope law of src/lib/answers.ts re-run
  * here (ANSWER_READS keys === ANSWER_ROWS questions 4/4 in order; a computed
@@ -85,7 +88,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { readdirSync, statSync } from 'node:fs';
 import { PROBLEM_SHEET } from '../src/lib/problemSheet';
-import { EXPECTED_STATUS_COUNTS, FAMILIES, FAMILY_PAGES, FAMILY_READS, TOOL_REGISTRY, familyCards, familyMenu, registryLaw, statusCounts } from '../src/lib/toolRegistry';
+import { EXPECTED_STATUS_COUNTS, FAMILY_READS, TOOL_REGISTRY, registryLaw, statusCounts } from '../src/lib/toolRegistry';
+import { FLOW_ORDER, STEPS, stepHref, stepLinks, stepStatus, stepsLaw, stepsOf, toolsOfStep } from '../src/lib/steps';
 import { OWNER_UTILITIES } from '../src/lib/shellMenu';
 import { ANSWERS_HOME, ANSWER_READS, ANSWER_ROWS, NET_WORTH_READ, answersLaw } from '../src/lib/answers';
 import { ARRIVAL_KINDS, PROVIDERS, PROVIDER_CODES, ROUTING_RULES, RULE_BOOK, providersLaw, ruleFor } from '../src/lib/providers';
@@ -194,25 +198,26 @@ for (const t of TOOL_REGISTRY) {
 // ── THE REACHABILITY LAW (NAV-01b) ──────────────────────────────────────────
 type Door = { route: string; kind: string; via: string };
 const doors: Door[] = [];
-// NAV-02: the family navigation's doors are what it RENDERS — each family's menu
-// (familyMenu: "All of <FAMILY>" → the family page, then each tool's door) and
-// each family's page (familyCards: the registry home, the related surfaces, and
-// the family's reads). Nothing renders inline under the bar any more.
-for (const f of FAMILIES) {
-  doors.push({ route: FAMILY_PAGES[f], kind: 'family menu', via: `${f} · "All of ${f}"` });
-  for (const item of familyMenu(f)) {
-    if (item.kind === 'tool' && item.door.kind !== 'none') doors.push({ route: item.door.href, kind: 'family menu', via: `${f} · ${item.tool.name}` });
+// SHELL-01: the rail's doors are what it RENDERS — Home first, then every step
+// (its room, or /step/<slug> when it has none) and, inside the open step, each
+// room it holds (stepLinks — the registry's own doorOf / doorOfLink, so every
+// page the retired family navigation opened is opened here). The sheet on HOME
+// carries the same steps plus each family's reads (pages that read across a
+// family and belong to no single job).
+doors.push({ route: ANSWERS_HOME, kind: 'rail', via: 'Home · the rail\'s first entry' });
+for (const step of STEPS) {
+  doors.push({ route: stepHref(step), kind: 'rail', via: `${step.number}. ${step.name}` });
+  for (const l of stepLinks(step)) {
+    if (l.door.kind !== 'none') doors.push({ route: l.door.href, kind: 'rail', via: `${step.number}. ${step.name} · "${l.label}"` });
   }
-  for (const c of familyCards(f)) {
-    if (c.home) doors.push({ route: c.home, kind: 'family page', via: `${FAMILY_PAGES[f]} · ${c.tool.name} · Open` });
-    for (const l of c.links) if (l.door.kind !== 'none') doors.push({ route: l.door.href, kind: 'family page', via: `${FAMILY_PAGES[f]} · ${c.tool.name} · "${l.label}"` });
-  }
-  for (const r of FAMILY_READS[f] ?? []) doors.push({ route: r.href as string, kind: 'family page', via: `${FAMILY_PAGES[f]} · read "${r.label}"` });
+}
+for (const f of FLOW_ORDER) {
+  for (const step of stepsOf(f)) doors.push({ route: stepHref(step), kind: 'sheet', via: `${f} · ${step.name}` });
+  for (const r of FAMILY_READS[f] ?? []) doors.push({ route: r.href as string, kind: 'sheet', via: `${f} · read "${r.label}"` });
 }
 for (const u of OWNER_UTILITIES) doors.push({ route: u.href, kind: 'utilities menu', via: u.label });
 for (const g of GUEST_ROUTES) doors.push({ route: g.route, kind: 'listed route', via: g.why });
-// NAV-01c: THE ANSWERS is the family navigation's first entry; each card opens its lens's home.
-doors.push({ route: ANSWERS_HOME, kind: 'family nav', via: 'THE ANSWERS · first entry' });
+// NAV-01c: each answer card opens its lens's home.
 for (const [q, r] of Object.entries(ANSWER_READS)) if (r.computed) doors.push({ route: r.home, kind: 'answers', via: `"${q}" · Open · ${r.home}` });
 doors.push({ route: NET_WORTH_READ.home, kind: 'answers', via: `Net worth · Open · ${NET_WORTH_READ.home}` });
 
@@ -243,7 +248,7 @@ console.log('REACHABILITY — every page under src/app and its door');
 for (const p of pages) {
   const d = reach.get(p.route);
   console.log(`${p.route.padEnd(48)} ${d ? `${d.kind.padEnd(15)} ${d.via}` : 'NO DOOR'}`);
-  if (!d) violations.push(`${p.route} (${p.file}) has no door — not in a family menu, on a family page, in the utilities menu, GUEST_ROUTES, or a redirect`);
+  if (!d) violations.push(`${p.route} (${p.file}) has no door — not on the rail, on the sheet, in the utilities menu, GUEST_ROUTES, or a redirect`);
 }
 for (const d of doors) {
   if (d.route.startsWith('/?')) continue;
@@ -251,51 +256,39 @@ for (const d of doors) {
 }
 console.log(`pages: ${pages.length} · doors: ${doors.length}`);
 
-// ── THE FAMILY MAP LAW (NAV-02) ─────────────────────────────────────────────
-const inMenus = new Map<string, string[]>();
-const onPages = new Map<string, string[]>();
-console.log('FAMILY MENUS — "All of <FAMILY>" first, then the tools in sheet order');
-for (const f of FAMILIES) {
-  const menu = familyMenu(f);
-  const first = menu[0];
-  if (!first || first.kind !== 'family' || first.label !== `All of ${f}` || first.href !== FAMILY_PAGES[f]) violations.push(`${f}: the menu's first item must be "All of ${f}" → ${FAMILY_PAGES[f]}`);
-  const names: string[] = [];
-  for (const item of menu.slice(1)) {
-    if (item.kind !== 'tool') { violations.push(`${f}: a second family item in the menu`); continue; }
-    names.push(item.tool.name);
-    inMenus.set(item.tool.name, [...(inMenus.get(item.tool.name) ?? []), f]);
-  }
-  const sheet = PROBLEM_SHEET.find((x) => x.header === f)?.tools ?? [];
-  if (names.join('|') !== sheet.join('|')) violations.push(`${f}: menu order [${names.join(', ')}] ≠ sheet order [${sheet.join(', ')}]`);
-  for (const c of familyCards(f)) onPages.set(c.tool.name, [...(onPages.get(c.tool.name) ?? []), f]);
-  console.log(`${f.padEnd(13)} ${menu.map((i) => (i.kind === 'family' ? `[${i.label} → ${i.href}]` : `${i.tool.name}${i.door.kind === 'none' ? ' (no door)' : ` → ${i.door.href}`}`)).join(' · ')}`);
+// ── THE STEPS LAW (SHELL-01) ────────────────────────────────────────────────
+violations.push(...stepsLaw({ throwOnFail: false }));
+console.log('THE STEPS — the rail walks the sheet in flow order');
+for (const step of STEPS) {
+  const tools = toolsOfStep(step);
+  const rooms = stepLinks(step).map((l) => (l.door.kind === 'none' ? '—' : l.door.href));
+  console.log(
+    `${String(step.number).padStart(2, '0')}  ${step.name.padEnd(11)} ${step.family.padEnd(13)} ${stepStatus(step, tools).padEnd(9)} ${stepHref(step).padEnd(16)} ${tools.map((t) => t.name).join(' · ').padEnd(46)} ${rooms.join(' ')}`,
+  );
+  if (step.screen !== null && !pageFor(step.screen, tabs)) violations.push(`${step.name}: screen ${step.screen} has no page file`);
 }
-for (const t of TOOL_REGISTRY) {
-  const m = inMenus.get(t.name) ?? [];
-  const c = onPages.get(t.name) ?? [];
-  if (m.length !== 1 || m[0] !== t.family) violations.push(`${t.name}: in ${m.length} family menu(s) [${m.join(', ')}] — must be exactly once, in ${t.family}`);
-  if (c.length !== 1 || c[0] !== t.family) violations.push(`${t.name}: on ${c.length} family page(s) [${c.join(', ')}] — must be exactly once, on ${FAMILY_PAGES[t.family]}`);
+// A step with no room opens ONE page — the honest one that states its jobs.
+const STEP_PAGE = 'src/app/step/[slug]/page.tsx';
+if (!existsSync(resolve(ROOT, STEP_PAGE))) violations.push(`${STEP_PAGE} is missing — a step with no room opens it`);
+// The rail and the sheet render FROM steps.ts, never a retyped list.
+const RAIL = 'src/components/shell/Rail.tsx';
+const SHEET = 'src/components/shell/TheSheet.tsx';
+const railSrc = existsSync(resolve(ROOT, RAIL)) ? readFileSync(resolve(ROOT, RAIL), 'utf8') : '';
+const sheetSrc = existsSync(resolve(ROOT, SHEET)) ? readFileSync(resolve(ROOT, SHEET), 'utf8') : '';
+if (!railSrc) violations.push(`${RAIL} is missing — it is the navigation`);
+for (const token of ['FLOW_ORDER', 'stepsOf(', 'stepLinks(', 'stepStatus(']) {
+  if (railSrc && !railSrc.includes(token)) violations.push(`${RAIL} must render from steps.ts (${token}) — never a retyped list`);
 }
-console.log('FAMILY PAGES — route → page file (names its family) → cards');
-const FAMILY_NAV = 'src/components/home/FamilyNav.tsx';
-const FAMILY_PAGE = 'src/components/home/FamilyPage.tsx';
-for (const f of FAMILIES) {
-  const route = FAMILY_PAGES[f];
-  const file = pageFor(route, tabs);
-  const expected = `src/app${route}/page.tsx`;
-  if (file !== expected) violations.push(`${f}: family page ${route} has no page file (${expected})`);
-  const src = file === expected ? readFileSync(resolve(ROOT, expected), 'utf8') : '';
-  const names = src.split(`family="${f}"`).length - 1;
-  if (file === expected && names !== 1) violations.push(`${expected} must name its family exactly once (family="${f}" ×${names})`);
-  if (file === expected && !src.includes("from '@/components/home/FamilyPage'")) violations.push(`${expected} must render FamilyPage`);
-  console.log(`${f.padEnd(13)} ${route.padEnd(15)} ${(file ?? 'NO PAGE FILE').padEnd(34)} ${familyCards(f).length} cards`);
+// Real access, not the word: the file's own comment says it stores nothing.
+if (railSrc && /(?:local|session)Storage\s*[.[]/.test(railSrc)) violations.push(`${RAIL} must keep open/collapsed in React state only — no browser storage (SHELL-01)`);
+if (!sheetSrc) violations.push(`${SHEET} is missing — HOME carries the whole sheet`);
+for (const token of ['FLOW_ORDER', 'stepsOf(', 'toolsOfStep(']) {
+  if (sheetSrc && !sheetSrc.includes(token)) violations.push(`${SHEET} must render from steps.ts (${token}) — never a retyped list`);
 }
-const navSrc = existsSync(resolve(ROOT, FAMILY_NAV)) ? readFileSync(resolve(ROOT, FAMILY_NAV), 'utf8') : '';
-const pageSrc = existsSync(resolve(ROOT, FAMILY_PAGE)) ? readFileSync(resolve(ROOT, FAMILY_PAGE), 'utf8') : '';
-if (!navSrc.includes('familyMenu(')) violations.push(`${FAMILY_NAV} must render the menu from familyMenu() — never a retyped list`);
-if (!pageSrc.includes('familyCards(')) violations.push(`${FAMILY_PAGE} must render the cards from familyCards() — never a retyped list`);
-if (!navSrc.includes('role="menu"')) violations.push(`${FAMILY_NAV} must render the family tabs as menus (role="menu")`);
-if (/role="tabpanel"/.test(navSrc)) violations.push(`${FAMILY_NAV} renders a tab panel inline under the bar — the map of a family is its page`);
+const HOME_CLIENT = 'src/components/answers/AnswersClient.tsx';
+const homeSrc = readFileSync(resolve(ROOT, HOME_CLIENT), 'utf8');
+if (!homeSrc.includes('<TheSheet />')) violations.push(`${HOME_CLIENT} must render the sheet below the answers (SHELL-01)`);
+if (!homeSrc.includes('<Rail ')) violations.push(`${HOME_CLIENT} must render the rail`);
 
 // ── THE ANSWERS LAW (NAV-01c) ───────────────────────────────────────────────
 violations.push(...answersLaw({ throwOnFail: false }));
@@ -537,8 +530,8 @@ if (violations.length) {
   process.exit(1);
 }
 console.log('✔ Tool registry law passed — 25/25 cells, homes resolve to page files, counts match the census.');
-console.log(`✔ Reachability law passed — ${pages.length} pages, every one has a door (family menus and family pages count).`);
-console.log(`✔ The family map law passed — ${FAMILIES.length} menus, ${FAMILIES.length} family pages, every tool once in each.`);
+console.log(`✔ Reachability law passed — ${pages.length} pages, every one has a door (the rail, the sheet, the utilities menu, a listed route, or a redirect to one).`);
+console.log(`✔ The steps law passed — ${STEPS.length} steps over ${FLOW_ORDER.length} families in flow order, every one of ${TOOL_REGISTRY.length} jobs walked once, every screen a page file; the rail and the sheet render from steps.ts.`);
 console.log(`✔ The answers law passed — ${ANSWER_ROWS.length}/4 questions on ${ANSWERS_HOME}, every number sourced.`);
 // ── THE KIND-VIEWS LAW (TABLES-01) ──────────────────────────────────────────
 const viewsMigration = ALL_MIGRATIONS.find((m) => m.dir.endsWith('_kind_views'));
