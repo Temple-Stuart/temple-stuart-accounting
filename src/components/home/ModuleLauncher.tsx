@@ -7,7 +7,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { SECTION_HEADER, STATE } from '@/lib/ds';
-import FamilyNav from './FamilyNav';
+import Rail from '@/components/shell/Rail';
 import { readSyncOutcome, syncLine, type SyncOutcome } from '@/lib/plaid/failLoud';
 import CreateTripForm from '@/components/trips/CreateTripForm';
 import TripBookings from '@/components/trips/TripBookings';
@@ -658,14 +658,15 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange, offerAvaila
   return (
     <>
       {/* NAV-01a: no fixed bottom bar any more, so no bottom padding to clear it. */}
-      <div>
-      {/* NAV-01a: THE FAMILY NAVIGATION replaces the nine product-history tabs on
-          every viewport — the deck's six families, each listing its tools with
-          their true state (src/lib/toolRegistry.ts). A cockpit-hosted tool opens
-          its section below through the SAME selectTab funnel the tabs used, so
-          the URL is still written as today and every deep link still restores
-          (the path/param effect above is untouched). */}
-      <FamilyNav activeModule={activeModule} onSelectModule={selectTab} />
+      <div className="flex flex-col sm:flex-row">
+      {/* SHELL-01: THE RAIL replaces the six family menus — the sheet walked in flow
+          order, twelve steps. A cockpit-hosted room still opens its section below
+          through the SAME selectTab funnel the menus used, so the URL is written as
+          today and every deep link still restores (the path/param effect above is
+          untouched). The lock chip reads the entitlement keys this component already
+          holds — no second request. */}
+      <Rail activeModule={activeModule} onSelectModule={selectTab} entitledKeys={authed === null ? undefined : entitledCategories} isAdmin={isAdmin} />
+      <div className="min-w-0 flex-1">
       {/* HOME-PR-7: each module is its own FULL-WIDTH band with an ALTERNATING
           background (white / light-gray bg-bg-row) + generous vertical padding,
           so the six read as distinct breathing sections (the old marketing
@@ -1484,6 +1485,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange, offerAvaila
         </section>
         );
       })}
+      </div>
       </div>
 
       {/* NAV-01a: the fixed mobile bottom tab bar is retired — the family nav at

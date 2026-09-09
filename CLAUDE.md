@@ -50,6 +50,23 @@ prose. **Reuse over rebuild** — search for what exists before writing anything
   **NOT_BUILT** ⇔ no beats. The counts are a law; bump them only with a new dated census. Every
   count on a public or selling surface derives from the registry — never typed.
 
+## The steps law (the shell)
+- **The app lands on `/answers` (HOME)** — the four answers, then THE SHEET: every job with its
+  true status and the door to its step. **A collapsible rail** (`src/components/shell/Rail.tsx`)
+  walks the sheet in **FLOW ORDER** — what you own, the proof, what you owe, money in, money out,
+  the work — `src/lib/steps.ts`.
+- **Every job sits in exactly one step; every step sits in one family, holding that family's jobs;
+  the steps are numbered 1..N with no gaps.** A step's status is **derived** from its jobs (LIVE
+  when every one is, NOT_BUILT when every one is, else PARTIAL). A step with no screen opens an
+  **honest page** at `/step/<slug>` that names its jobs and says it is not built — never a
+  placeholder, never a redirect that pretends.
+- **The rail and the sheet render FROM `steps.ts` and the registry — never a retyped list**, and
+  the rail keeps open/collapsed in **React state only: no localStorage, no sessionStorage, no
+  cookie.** `stepsLaw()` runs at module scope and again at build.
+- **No page may lose its door.** The reachability law's vocabulary is the rail, the sheet, the
+  utilities menu, a listed guest route, or a redirect to one — a page with no door **fails the
+  build**, and is reported, never redirected to hide it.
+
 ## Fail-loud / no fallback
 - **No silent fallbacks. No silent catches. No fake/placeholder data — ever.**
 - If you are about to write "fallback" logic: **STOP**, state the rationale, and ask Alex

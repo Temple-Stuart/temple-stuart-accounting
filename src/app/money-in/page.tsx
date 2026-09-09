@@ -1,16 +1,8 @@
-import { getVerifiedEmail } from '@/lib/cookie-auth';
-import FamilyPage from '@/components/home/FamilyPage';
+import { redirect } from 'next/navigation';
 
-/**
- * NAV-02 — /money-in, the MONEY IN family page: the map of the family's tools
- * (src/lib/toolRegistry.ts FAMILY_PAGES; one card per tool from familyCards()).
- * Auth: a protected path — middleware (src/middleware.ts) bounces an unverified
- * visitor to '/' before this renders; the verified cookie names the viewer for
- * the shell bar only, and nothing here touches the database (the /answers shape).
- */
-export const dynamic = 'force-dynamic';
-
-export default async function MoneyInPage() {
-  const viewer = await getVerifiedEmail();
-  return <FamilyPage family="MONEY IN" viewer={viewer ?? ''} />;
+// SHELL-01: the six family pages are retired. HOME (/answers) carries the whole
+// sheet — every job in its step, with its true status — and the rail walks the
+// steps in flow order. MONEY IN's map lives there now; the URL keeps resolving.
+export default function MoneyInPage() {
+  redirect('/answers');
 }

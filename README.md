@@ -279,6 +279,25 @@ BLUEPRINT is the step's headline; TODAY is the deck's honest-state line, verbati
 | 13 | One $100.00 sale runs the machine. Then every other door opens. | Alive today: the travel match — card charges find their bookings and propose the match; you approve it. The project lane is wired end to end: a task lands for your review, and accepting it fires the build that answers it. | the travel match is alive; the project lane is wired end to end; the sale's lines and lenses wait on steps 10–11. |
 | 14 | Click any number. Walk it back. | Alive today: the fingerprint, on the rules and the audit log — every regulation pull is hashed the moment it lands, and the audit log hash-chains every entry it records; the citation re-check is written, but the hash it compares against is stored empty today, so it proves nothing yet. Today the Plaid feeds land in that table — every answer word for word, fingerprinted: 9,092 transactions, 712 investment transactions, 247 securities, counted September 7, 2026. The other providers still land parsed; the same table is the shape they're moving into. | fingerprints on the rules corpus, the audit log and the Plaid feeds; none on the other providers' feeds yet; the citation re-check still compares against an empty hash. |
 
+## Navigation
+
+The app lands on `/answers` — HOME: the four answers, then the whole sheet (25 jobs, each with its true status and the door to its step). A collapsible rail walks the sheet in FLOW ORDER: 6 families, 12 steps, every job in exactly one step. A step's status is derived from its jobs (LIVE when every one is, NOT_BUILT when every one is, else PARTIAL); a step with no screen opens an honest page that names its jobs and says it is not built. The list below is generated from `src/lib/steps.ts`, whose law runs at build (`scripts/assert-tool-registry.ts`).
+
+| # | Step | Family | Status | Opens | Jobs |
+|---|---|---|---|---|---|
+| 1 | ACCOUNTS | WHAT YOU OWN | PARTIAL | `/accounts` | Banking (PARTIAL), Brokerage (PARTIAL), Retirement (NOT_BUILT), Fixed Assets (NOT_BUILT) |
+| 2 | TRADING | WHAT YOU OWN | PARTIAL | `/trading` | Trade Log (PARTIAL) |
+| 3 | BOOKS | THE PROOF | LIVE | `/books` | Bookkeeping (LIVE) |
+| 4 | TAX | THE PROOF | PARTIAL | `/tax` | Tax (PARTIAL) |
+| 5 | COMPLIANCE | THE PROOF | PARTIAL | `/compliance` | Compliance (PARTIAL) |
+| 6 | FP&A | THE PROOF | NOT_BUILT | `/step/fpa` (honest page — not built) | FP&A (NOT_BUILT) |
+| 7 | OWED | WHAT YOU OWE | NOT_BUILT | `/step/owed` (honest page — not built) | Debt (NOT_BUILT), Sales Tax (NOT_BUILT), Ent Filings (NOT_BUILT) |
+| 8 | SALES | MONEY IN | NOT_BUILT | `/step/sales` (honest page — not built) | CRM (NOT_BUILT), Contracts (NOT_BUILT), Invoicing (NOT_BUILT), Payments (NOT_BUILT) |
+| 9 | SPEND | MONEY OUT | NOT_BUILT | `/step/spend` (honest page — not built) | Bill Pay (NOT_BUILT), Payroll (NOT_BUILT), Expenses (NOT_BUILT), Mileage (NOT_BUILT) |
+| 10 | TRAVEL | MONEY OUT | LIVE | `/travel` | Travel (LIVE) |
+| 11 | BUDGET | MONEY OUT | PARTIAL | `/business` | Budget (PARTIAL) |
+| 12 | OPERATIONS | THE WORK | PARTIAL | `/projects` | Calendar (PARTIAL), Tasks (PARTIAL), Time (PARTIAL) |
+
 ## The nine modules
 
 | Module | What exists in code |

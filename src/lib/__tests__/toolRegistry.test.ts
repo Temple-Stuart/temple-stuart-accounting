@@ -26,7 +26,7 @@ test('the four four-beat PARTIALs each carry the census note; no LIVE or NOT_BUI
   const fourBeatPartials = TOOL_REGISTRY.filter((t) => t.status === 'PARTIAL' && beats(t) === 4).map((t) => t.name);
   assert.deepEqual(fourBeatPartials, ['Calendar', 'Tasks', 'Time', 'Budget']);
   assert.equal(byName('Calendar').why, 'an agenda list whose commit lands on calendar_events; the calendar grid itself lives on /runway');
-  assert.equal(byName('Tasks').why, "the founder's build pipeline — accepting a task fires a paid Claude Code build (tasks/[taskId]/route.ts:392-402); not a customer's task tool");
+  assert.equal(byName('Tasks').why, "the founder's build pipeline — accepting a task fires a paid Claude Code build; not a customer's task tool");
   assert.equal(byName('Time').why, 'day blocks and a daily log inside the Narrative pipeline; no time tool');
   assert.equal(byName('Budget').why, 'actuals by entity plus recurring lines on module_expenses; no plan vs actual; no personal · trade · travel roll-up');
   for (const t of TOOL_REGISTRY) if (t.status !== 'PARTIAL') assert.equal(t.why, undefined, `${t.name} carries no why`);
