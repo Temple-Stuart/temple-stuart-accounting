@@ -3,6 +3,8 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireAdmin } from '@/lib/require-admin';
 import { prisma } from '@/lib/prisma';
 import { getTastytradeClient } from '@/lib/tastytrade';
+// OBSERVATORY-01: what each feed costs, derived from the call sites — counts only, no rates.
+import { FEED_COST, callsMade, type FeedProvider } from '@/lib/observatory/feedCost';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -19,6 +21,21 @@ interface CheckResult {
   rawData: unknown;
   dataSource?: string;
   lastConfirmedLive?: string | null;
+  // OBSERVATORY-01 — every row says what it cost and what it asked about.
+  /** Who this probe called. */
+  provider?: FeedProvider;
+  /** Metered by the vendor (lands on an invoice). */
+  billable?: boolean;
+  /** The evidence for `billable` — never a guessed rate. */
+  costBasis?: string;
+  /** Upstream calls THIS probe made. 0 when it was skipped or the market was closed. */
+  upstreamCalls?: number;
+  /** Does the convergence scan use this same feed? */
+  usedByScan?: boolean;
+  /** Where the scan calls it, or why it does not. */
+  scanCitation?: string;
+  /** The symbol this probe actually asked about — not always the selected one. */
+  probedSymbol?: string | null;
 }
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -85,7 +102,7 @@ async function checkTastyTradeIVHV(): Promise<CheckResult> {
     return { id: 1, source: 'TastyTrade IV/HV', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
   if (!(process.env.TASTYTRADE_CLIENT_SECRET && process.env.TASTYTRADE_REFRESH_TOKEN)) {
-    return { id: 1, source: 'TastyTrade IV/HV', endpoint: 'TastyTrade API', status: 'BROKEN', records: '0', lastValue: 'Missing credentials — market is OPEN', latency: '—', rawData: null, dataSource: 'TastyTrade' };
+    return { id: 1, source: 'TastyTrade IV/HV', endpoint: 'TastyTrade API', status: 'BROKEN', records: '0', lastValue: 'Missing credentials — market is OPEN', latency: '—', rawData: null, dataSource: 'TastyTrade', upstreamCalls: 0 };
   }
   try {
     const start = performance.now();
@@ -660,7 +677,7 @@ async function checkTastyTradeGreeks(): Promise<CheckResult> {
     return { id: 23, source: 'TastyTrade Greeks', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
   if (!(process.env.TASTYTRADE_CLIENT_SECRET && process.env.TASTYTRADE_REFRESH_TOKEN)) {
-    return { id: 23, source: 'TastyTrade Greeks', endpoint: 'TastyTrade API', status: 'BROKEN', records: '0', lastValue: 'Missing credentials — market is OPEN', latency: '—', rawData: null, dataSource: 'TastyTrade' };
+    return { id: 23, source: 'TastyTrade Greeks', endpoint: 'TastyTrade API', status: 'BROKEN', records: '0', lastValue: 'Missing credentials — market is OPEN', latency: '—', rawData: null, dataSource: 'TastyTrade', upstreamCalls: 0 };
   }
   try {
     const start = performance.now();
@@ -693,7 +710,7 @@ async function checkTastyTradeCandles(): Promise<CheckResult> {
     return { id: 24, source: 'TastyTrade Candles', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
   if (!(process.env.TASTYTRADE_CLIENT_SECRET && process.env.TASTYTRADE_REFRESH_TOKEN)) {
-    return { id: 24, source: 'TastyTrade Candles', endpoint: 'TastyTrade API', status: 'BROKEN', records: '0', lastValue: 'Missing credentials — market is OPEN', latency: '—', rawData: null, dataSource: 'TastyTrade' };
+    return { id: 24, source: 'TastyTrade Candles', endpoint: 'TastyTrade API', status: 'BROKEN', records: '0', lastValue: 'Missing credentials — market is OPEN', latency: '—', rawData: null, dataSource: 'TastyTrade', upstreamCalls: 0 };
   }
   try {
     // Candle streaming is too heavy for a health check — validate TT auth
@@ -728,7 +745,7 @@ async function checkTastyTradeOptionsFlow(): Promise<CheckResult> {
     return { id: 31, source: 'TastyTrade Options Flow', endpoint: 'TastyTrade chain API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
   if (!(process.env.TASTYTRADE_CLIENT_SECRET && process.env.TASTYTRADE_REFRESH_TOKEN)) {
-    return { id: 31, source: 'TastyTrade Options Flow', endpoint: 'TastyTrade chain API', status: 'BROKEN', records: '0', lastValue: 'Missing credentials — market is OPEN', latency: '—', rawData: null, dataSource: 'TastyTrade' };
+    return { id: 31, source: 'TastyTrade Options Flow', endpoint: 'TastyTrade chain API', status: 'BROKEN', records: '0', lastValue: 'Missing credentials — market is OPEN', latency: '—', rawData: null, dataSource: 'TastyTrade', upstreamCalls: 0 };
   }
   try {
     const start = performance.now();
@@ -759,7 +776,7 @@ async function checkTastyTradeSPYCorrelation(): Promise<CheckResult> {
     return { id: 32, source: 'TastyTrade SPY Correlation', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
   if (!(process.env.TASTYTRADE_CLIENT_SECRET && process.env.TASTYTRADE_REFRESH_TOKEN)) {
-    return { id: 32, source: 'TastyTrade SPY Correlation', endpoint: 'TastyTrade API', status: 'BROKEN', records: '0', lastValue: 'Missing credentials — market is OPEN', latency: '—', rawData: null, dataSource: 'TastyTrade' };
+    return { id: 32, source: 'TastyTrade SPY Correlation', endpoint: 'TastyTrade API', status: 'BROKEN', records: '0', lastValue: 'Missing credentials — market is OPEN', latency: '—', rawData: null, dataSource: 'TastyTrade', upstreamCalls: 0 };
   }
   try {
     const start = performance.now();
@@ -785,13 +802,20 @@ async function checkTastyTradeSPYCorrelation(): Promise<CheckResult> {
   }
 }
 
+/**
+ * OBSERVATORY-01: this probe measures NOTHING — it makes no call and reads no
+ * result. It used to return status LIVE with latency '0ms', which is a claim
+ * with nothing behind it. It now reports SKIPPED with the reason, which is the
+ * truth: whether the derived peer stats work is decided by feeds 14 and 27,
+ * and this check does not compute them.
+ */
 function checkPeerStats(): CheckResult {
   return {
     id: 33, source: 'Peer Stats (computed)', endpoint: 'Derived: Finnhub peers + 10-K',
-    status: 'LIVE',
+    status: 'SKIPPED',
     records: '—',
-    lastValue: 'Computed from Finnhub peers + 10-K text + GICS sectors',
-    latency: '0ms',
+    lastValue: 'Not probed — derived from feeds 14 (peers) and 27 (10-K); this check computes nothing and calls nothing',
+    latency: '—',
     rawData: null,
     dataSource: 'Internal',
   };
@@ -1070,7 +1094,7 @@ export async function GET(request: NextRequest) {
     checkTastyTradeOptionsFlow(),
     // Check 32: TastyTrade SPY Correlation (market-hours gated)
     checkTastyTradeSPYCorrelation(),
-    // Check 33: Peer Stats (computed — always LIVE)
+    // Check 33: Peer Stats — derived, never probed (reports SKIPPED with its reason)
     Promise.resolve(checkPeerStats()),
   ]);
 
@@ -1102,6 +1126,29 @@ export async function GET(request: NextRequest) {
     if (!r.dataSource) {
       r.dataSource = SOURCE_PROVIDER[r.id] ?? 'Internal';
     }
+  }
+
+  // ── OBSERVATORY-01: every row carries its cost, read from the call sites ──
+  // A SKIPPED or market-closed probe made no call, so it is charged nothing —
+  // the status is the evidence. `probedSymbol` is the symbol the probe actually
+  // asked about: the TastyTrade feeds ask about a FIXED ticker (AAPL, and SPY
+  // for the correlation), not the one the viewer selected.
+  // A probe that returned at one of its OWN guards before calling anything
+  // declares upstreamCalls: 0 on the spot; that declaration wins. Otherwise a
+  // SKIPPED or market-closed probe made no call, and everything else made the
+  // calls its cost row names — including a BROKEN one, which called and got a
+  // bad answer.
+  const marketClosedOrSkipped = (status: SourceStatus) => status === 'SKIPPED' || status === 'MKT-HRS';
+  for (const r of results) {
+    const cost = FEED_COST[r.id];
+    if (!cost) continue;
+    r.provider = cost.provider;
+    r.billable = cost.billable;
+    r.costBasis = cost.basis;
+    r.upstreamCalls = r.upstreamCalls ?? (marketClosedOrSkipped(r.status) ? 0 : cost.upstreamCalls);
+    r.usedByScan = cost.usedByScan;
+    r.scanCitation = cost.scanCitation;
+    r.probedSymbol = cost.probes === 'none' ? null : cost.probes === 'selected' ? symbol : cost.probes;
   }
 
   // ── Write results to ObservatoryHealthLog ──
@@ -1152,6 +1199,10 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     symbol,
     checkedAt: new Date().toISOString(),
+    marketOpen,
+    // OBSERVATORY-01: what THIS check spent, by provider, counted from the rows
+    // that actually ran. Counts only — the rate lives in the vendor's invoice.
+    spend: callsMade(results),
     results,
   });
 }

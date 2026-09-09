@@ -99,6 +99,7 @@ import { KIND_VIEWS_HONEST_LINE, KIND_VIEW_CENSUS, STOPPED_TABLES, VIEW_COLUMNS,
 // SELL-02: the offer law — every sales claim from the registry, every price from one source.
 import { FREE_TOOLS, OFFERS, TOOL_GATE, heroCountsLine, offerCard, offerLaw, priceEnvName } from '../src/lib/offer';
 import { DYNAMIC_READ_ENV, LIBRARY_READ_ENV } from '../src/lib/envLaw';
+import { FEED_COST, FEED_IDS, SCAN_COST, feedCostLaw, scanCostLine } from '../src/lib/observatory/feedCost';
 import { PURCHASABLE_ENTITLEMENT_KEYS } from '../src/lib/stripe';
 
 /**
@@ -546,11 +547,19 @@ for (const e of LIBRARY_READ_ENV) {
   else if (!row.includes(e.readBy)) violations.push(`env: README.md's row for ${e.name} does not name its reader '${e.readBy}'`);
 }
 
+// The FIRST gate: everything checked above this line. Laws below push onto the
+// same list and are raised by the second gate at the end of this file.
+// OBSERVATORY-01 found that gate missing: the kind-views law (below) pushed
+// violations no gate ever read, so it could not fail a build. `raised` marks
+// what this gate already reported so the second one does not repeat it.
 if (violations.length) {
   console.error('\n✖ TOOL REGISTRY LAW FAILED:');
   for (const v of violations) console.error(`  ${v}`);
   process.exit(1);
 }
+// Nothing above survived unreported (the gate exits), so this is 0 — it marks
+// where the second gate starts reading, and says so rather than assuming it.
+const raised = violations.length;
 console.log('✔ Tool registry law passed — 25/25 cells, homes resolve to page files, counts match the census.');
 console.log(`✔ Reachability law passed — ${pages.length} pages, every one has a door (the rail, the sheet, the utilities menu, a listed route, or a redirect to one).`);
 console.log(`✔ The steps law passed — ${STEPS.length} steps over ${FLOW_ORDER.length} families in flow order, every one of ${TOOL_REGISTRY.length} jobs walked once, every screen a page file that wears the shell; the rail and the sheet render from steps.ts.`);
@@ -586,4 +595,64 @@ console.log(`✔ The rule book law passed — ${RULE_BOOK.length} rules, ${callS
 console.log(`✔ The kind views law passed — ${ARRIVAL_KINDS.length} views over ${KIND_VIEW_CENSUS.length} feed tables, each once, the kind from the rule book; posting unions nothing; ${STOPPED_TABLES.length} tables reported, not viewed.`);
 console.log(`✔ The posting law passed — every journal and ledger row is created by postJournal.ts (SET CONSTRAINTS ALL IMMEDIATE first, one statement for the lines, read back after commit); ${postingPaths.size} files post through it.`);
 console.log(`✔ The env law passed — ${srcEnv.size} names read as src literals, ${libraryEnv.size} read by a library (src/lib/envLaw.ts), ${dynamicEnv.size} by a computed key; every one documented in README.md, nothing documented that nothing reads.`);
+// ── THE OBSERVATORY LAW (OBSERVATORY-01) ──────────────────────────
+// The observatory measures or says nothing. It rendered a 33-row
+// HARDCODED_SOURCES array — typed statuses, typed latencies, typed values, dates
+// frozen at 2026-03-02 — whenever no check had run, and a spend decision was
+// read off it. No file under src/components/data-observatory may hold a typed
+// array of statuses, latencies or record counts again: the pattern is banned by
+// name, and by shape for a renamed copy.
+violations.push(...feedCostLaw({ throwOnFail: false }));
+const OBSERVATORY_DIR = 'src/components/data-observatory';
+const BANNED_NAMES = /\b(HARDCODED_[A-Z_]+|SAMPLE_[A-Z_]+|MOCK_[A-Z_]+|FALLBACK_[A-Z_]+)\b/;
+// A typed measurement: an object literal carrying a status AND a latency or a
+// record count, written into source rather than measured.
+const TYPED_MEASUREMENT = /status:\s*'(LIVE|BROKEN|PARTIAL|MKT-HRS|SKIPPED)'[^\n]*(latency|records):/;
+const NOT_MEASURED_MARK = 'data-not-measured';
+const observatoryFiles = existsSync(resolve(ROOT, OBSERVATORY_DIR))
+  ? readdirSync(resolve(ROOT, OBSERVATORY_DIR)).filter((f) => f.endsWith('.tsx') || f.endsWith('.ts'))
+  : [];
+if (observatoryFiles.length === 0) violations.push(`observatory: ${OBSERVATORY_DIR} holds no file — the screen is the law's subject`);
+let observatoryRowsTyped = 0;
+for (const f of observatoryFiles) {
+  const rel = `${OBSERVATORY_DIR}/${f}`;
+  const src = readFileSync(resolve(ROOT, rel), 'utf8');
+  // The doc comment names the deleted array on purpose; only real code counts.
+  const code = src.split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
+  const named = code.match(BANNED_NAMES);
+  if (named) {
+    observatoryRowsTyped += 1;
+    violations.push(`observatory: ${rel} declares ${named[0]} — the observatory measures or says nothing; no typed status, latency or record array`);
+  }
+  const shaped = code.match(TYPED_MEASUREMENT);
+  if (shaped) {
+    observatoryRowsTyped += 1;
+    violations.push(`observatory: ${rel} writes a status with a latency or record count into source (${shaped[0].slice(0, 60)}…) — a row renders only from a measurement`);
+  }
+}
+const observatorySrc = observatoryFiles.includes('DataObservatory.tsx')
+  ? readFileSync(resolve(ROOT, `${OBSERVATORY_DIR}/DataObservatory.tsx`), 'utf8')
+  : '';
+if (!observatorySrc) violations.push(`observatory: ${OBSERVATORY_DIR}/DataObservatory.tsx is missing — it is the screen`);
+else if (!observatorySrc.includes(NOT_MEASURED_MARK)) {
+  violations.push(`observatory: DataObservatory.tsx must render the not-measured state (${NOT_MEASURED_MARK}) — with no check run there is nothing to show`);
+}
+console.log('THE OBSERVATORY — what each feed costs, read from the call sites');
+for (const id of FEED_IDS) {
+  const c = FEED_COST[id];
+  console.log(`${String(id).padStart(2, '0')}  ${c.provider.padEnd(11)} ${(c.billable ? 'METERED' : 'not metered').padEnd(12)} ${String(c.upstreamCalls).padStart(2)} call(s)  probes ${c.probes.padEnd(9)} scan: ${c.usedByScan ? 'yes' : 'NO '}  ${c.scanCitation.slice(0, 72)}`);
+}
+console.log(scanCostLine());
+console.log(`✔ The observatory law passed — ${FEED_IDS.length} feeds each carry provider, metered, calls and scan use; ${observatoryFiles.length} file(s) under ${OBSERVATORY_DIR} hold ${observatoryRowsTyped} typed measurement(s); the screen renders a not-measured state. One scan of one symbol: ${SCAN_COST.filter((c) => (c.callsPerSymbol ?? 0) > 0).map((c) => `${c.callsPerSymbol} ${c.provider}`).join(' · ')}.`);
 console.log(`✔ The offer law passed — ${OFFERS.length} offers over ${new Set(OFFERS.flatMap((o) => o.tools)).size} tools (LIVE or PARTIAL only), ${FREE_TOOLS.length} free; the purchasable keys are the offers'; "built and running" typed nowhere but offer.ts; ${SELLING_SURFACES.length} selling surfaces render the offer.`);
+
+// ── THE SECOND GATE ─────────────────────────────────────────────────────────
+// Every law below the first gate — kind views, arrivals, the rule book,
+// posting, env, the observatory, the offer — pushes onto `violations`. Without
+// this, those pushes were printed by nothing and failed nothing. A law that
+// cannot fail the build is not a law.
+if (violations.length > raised) {
+  console.error('\n✖ BUILD LAW FAILED:');
+  for (const v of violations.slice(raised)) console.error(`  ${v}`);
+  process.exit(1);
+}
