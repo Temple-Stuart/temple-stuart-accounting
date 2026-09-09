@@ -59,6 +59,16 @@
  * side is the CREATE TABLE plus every later migration's ALTER TABLE … ADD
  * COLUMN / ALTER COLUMN … SET NOT NULL on that table, in migration order.
  *
+ * THE ENV LAW (ENV-01): every variable the app reads is documented in
+ * README.md's "## Self-hosting" section, and nothing documented there is read
+ * by nothing. Three kinds of read: a `process.env.X` literal in src (the
+ * grep), a variable a DEPENDENCY reads for us (src/lib/envLaw.ts
+ * LIBRARY_READ_ENV — name, reading package, where, need, shape; each row must
+ * appear in the README with its reader), and a computed key (DYNAMIC_READ_ENV).
+ * A name declared library-read that src also reads as a literal is a
+ * contradiction and fails. The night next-auth 4.24.15 started obeying
+ * NEXTAUTH_URL, the README could not have known the variable existed.
+ *
  * The assert:showroom pattern: a plain script wired into the `build` script so
  * it runs in CI / Vercel and fails the BUILD. It imports the registry (which
  * runs its module-scope law: sheet cells 25/25 both ways, LIVE/PARTIAL have a
@@ -82,6 +92,7 @@ import { ARRIVAL_KINDS, PROVIDERS, PROVIDER_CODES, ROUTING_RULES, RULE_BOOK, pro
 import { KIND_VIEWS_HONEST_LINE, KIND_VIEW_CENSUS, STOPPED_TABLES, VIEW_COLUMNS, kindOfTable, kindViewsLaw, latestViews, latestViewsSql, parseViews } from '../src/lib/kindViews';
 // SELL-02: the offer law — every sales claim from the registry, every price from one source.
 import { FREE_TOOLS, OFFERS, TOOL_GATE, heroCountsLine, offerCard, offerLaw, priceEnvName } from '../src/lib/offer';
+import { DYNAMIC_READ_ENV, LIBRARY_READ_ENV } from '../src/lib/envLaw';
 import { PURCHASABLE_ENTITLEMENT_KEYS } from '../src/lib/stripe';
 
 /**
@@ -497,6 +508,29 @@ if (!/ledger_entries\.createMany\(/.test(postingHome)) violations.push('posting:
 if (!/PostingNotLandedError/.test(postingHome)) violations.push('posting: postJournal.ts has no read-back failure');
 if (postingPaths.size < 12) violations.push(`posting: only ${postingPaths.size} files route through postJournal() — the audit counted 12`);
 
+// ─── THE ENV LAW (ENV-01) ────────────────────────────────────────────────────
+const readmeText = readFileSync(resolve(ROOT, 'README.md'), 'utf8');
+const selfHosting = readmeText.split(/^## /m).find((section) => section.startsWith('Self-hosting')) ?? '';
+if (!selfHosting) violations.push('env: README.md has no "## Self-hosting" section');
+const documentedEnv = new Set([...selfHosting.matchAll(/`([A-Z][A-Z0-9_]+)`/g)].map((m) => m[1]));
+const srcEnv = new Set<string>();
+for (const { src } of srcFiles) for (const m of src.matchAll(/process\.env\.([A-Z][A-Z0-9_]+)/g)) srcEnv.add(m[1]);
+const libraryEnv = new Set(LIBRARY_READ_ENV.map((e) => e.name));
+const dynamicEnv = new Set(DYNAMIC_READ_ENV.map((e) => e.name));
+for (const name of libraryEnv) if (srcEnv.has(name)) violations.push(`env: ${name} is declared library-read (src/lib/envLaw.ts) but src reads process.env.${name} as a literal — not library-read`);
+const readKind = (name: string) => (srcEnv.has(name) ? 'a src literal' : libraryEnv.has(name) ? 'a library' : 'a computed key');
+for (const name of [...new Set([...srcEnv, ...libraryEnv, ...dynamicEnv])].sort()) {
+  if (!documentedEnv.has(name)) violations.push(`env: ${name} is read (${readKind(name)}) but README.md's Self-hosting section does not document it`);
+}
+for (const name of [...documentedEnv].sort()) {
+  if (!srcEnv.has(name) && !libraryEnv.has(name) && !dynamicEnv.has(name)) violations.push(`env: README.md documents ${name} but nothing reads it`);
+}
+for (const e of LIBRARY_READ_ENV) {
+  const row = selfHosting.split('\n').find((line) => line.startsWith(`| \`${e.name}\` |`));
+  if (!row) violations.push(`env: README.md has no library row for ${e.name} (src/lib/envLaw.ts)`);
+  else if (!row.includes(e.readBy)) violations.push(`env: README.md's row for ${e.name} does not name its reader '${e.readBy}'`);
+}
+
 if (violations.length) {
   console.error('\n✖ TOOL REGISTRY LAW FAILED:');
   for (const v of violations) console.error(`  ${v}`);
@@ -536,4 +570,5 @@ console.log(`✔ The arrivals law passed — ${PROVIDERS.length} providers, enum
 console.log(`✔ The rule book law passed — ${RULE_BOOK.length} rules, ${callSites.length} landing call sites covered, enum arrival_kind === the six kinds, the migration applies ${applied.length} rules the book holds.`);
 console.log(`✔ The kind views law passed — ${ARRIVAL_KINDS.length} views over ${KIND_VIEW_CENSUS.length} feed tables, each once, the kind from the rule book; posting unions nothing; ${STOPPED_TABLES.length} tables reported, not viewed.`);
 console.log(`✔ The posting law passed — every journal and ledger row is created by postJournal.ts (SET CONSTRAINTS ALL IMMEDIATE first, one statement for the lines, read back after commit); ${postingPaths.size} files post through it.`);
+console.log(`✔ The env law passed — ${srcEnv.size} names read as src literals, ${libraryEnv.size} read by a library (src/lib/envLaw.ts), ${dynamicEnv.size} by a computed key; every one documented in README.md, nothing documented that nothing reads.`);
 console.log(`✔ The offer law passed — ${OFFERS.length} offers over ${new Set(OFFERS.flatMap((o) => o.tools)).size} tools (LIVE or PARTIAL only), ${FREE_TOOLS.length} free; the purchasable keys are the offers'; "built and running" typed nowhere but offer.ts; ${SELLING_SURFACES.length} selling surfaces render the offer.`);

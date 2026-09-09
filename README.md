@@ -362,11 +362,11 @@ The deck's own count: today that is 121 feeds from 20 providers — counted Augu
 
 ## Self-hosting
 
-You need Node (the code is typed against `@types/node ^20`), PostgreSQL, and a host — it is built for Vercel. Then the keys. Every name below is read by the code (`grep -rhoE "process\.env\.[A-Z0-9_]+" src`, 2026-09-02).
+You need Node (the code is typed against `@types/node ^20`), PostgreSQL, and a host — it is built for Vercel. Then the keys. Every name in the first table is read by the code (`grep -rhoE "process\.env\.[A-Z0-9_]+" src`, 2026-09-02); the second table is what a dependency reads for it, which that grep cannot see — declared in `src/lib/envLaw.ts`, and the build's env law (`scripts/assert-tool-registry.ts`) requires every name in both tables documented here and nothing documented that nothing reads.
 
 | Vendor / concern | Keys | Needed when |
 |---|---|---|
-| Core | `DATABASE_URL` (read by Prisma, `prisma/schema.prisma:7`), `JWT_SECRET` (the ONE session secret — the former NEXTAUTH_SECRET is retired: the server refuses to boot while it is set, `src/lib/secretGuard.ts`), `OWNER_EMAIL`, `ADMIN_USER_ID` (the admin's users.id; every admin gate throws when it is unset — `src/lib/admin.ts`), `NEXT_PUBLIC_OWNER_EMAIL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_BASE_URL` | Required |
+| Core | `JWT_SECRET` (the ONE session secret — the former NEXTAUTH_SECRET is retired: the server refuses to boot while it is set, `src/lib/secretGuard.ts`), `OWNER_EMAIL`, `ADMIN_USER_ID` (the admin's users.id; every admin gate throws when it is unset — `src/lib/admin.ts`), `NEXT_PUBLIC_OWNER_EMAIL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_BASE_URL` | Required |
 | Set by the platform | `NODE_ENV`, `NEXT_RUNTIME` (`nodejs` or `edge`, set by Next.js — the session-secret boot guard runs on the Node runtime only, `src/instrumentation.ts`), `NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA` | Provided by Vercel / Node / Next; nothing to set |
 | Plaid (bank sync) | `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_REDIRECT_URI` (the OAuth return URL, `src/lib/plaid/oauth.ts`) | Required unless Books sync is disabled — no link token is created without the redirect URI |
 | Provider tokens at rest | `TOKEN_ENCRYPTION_KEY` (base64 of 32 bytes), `TOKEN_ENCRYPTION_KEY_ID` (`src/lib/secrets/tokenCipher.ts`) | Required — every Plaid and tastytrade token read or write fails loud without both |
@@ -384,6 +384,23 @@ You need Node (the code is typed against `@types/node ^20`), PostgreSQL, and a h
 | Routine and audit hooks | `CRON_SECRET`, `ROUTINE_AUDIT_TOKEN`, `ROUTINE_AUDIT_FIRE_URL`, `EXEC_ROUTINE_TOKEN`, `EXEC_ROUTINE_FIRE_URL`, `EXEC_INGEST_SECRET`, `AUDIT_INGEST_SECRET` | Required unless scheduled routines are disabled |
 | Rate limits and caps | `SEARCH_RATE_LIMIT`, `SEARCH_RATE_WINDOW`, `SCAN_RATE_LIMIT`, `SCAN_RATE_WINDOW`, `AI_RATE_LIMIT`, `AI_RATE_WINDOW`, `AI_PIPE_DAILY_CAP`, `AI_EXEC_DAILY_CAP`, `AI_ROUTINE_DAILY_CAP`, `AI_DISCOVERY_DAILY_CAP`, `TRAVEL_SEARCH_DAILY_CAP`; per provider `TRAVEL_SEARCH_DAILY_CAP_<PROVIDER>` (`src/lib/travelSearchQuota.ts:79`) | Optional; the code has defaults |
 | Misc | `YELP_API_KEY` | Required unless its feature is disabled |
+
+### Read by a library
+
+Variables no line of this code reads — a dependency does. The night next-auth 4.24.15 started building every OAuth callback from `NEXTAUTH_URL` (its `utils/detect-origin.js`), the table above could not have known the variable existed; in production the server now refuses to boot unless `NEXTAUTH_URL` is the https origin whose host equals `NEXT_PUBLIC_APP_URL`'s (`src/lib/siteUrlGuard.ts`).
+
+| Name | Read by | Where | Needed | Expected shape |
+|---|---|---|---|---|
+| `DATABASE_URL` | prisma | prisma/schema.prisma:12 `url = env("DATABASE_URL")` — the client and every migration | Required | postgresql://user:password@host:5432/db?sslmode=require (Azure Postgres requires SSL) |
+| `NEXTAUTH_URL` | next-auth | utils/detect-origin.js:9 (the origin of every OAuth callback and redirect — since 4.24.15 it wins over the request host on Vercel), jwt/index.js:65 (secure-cookie decision), react/index.js:53-54 (client base URL) | Required | the deployment's https origin with no path — its host must equal NEXT_PUBLIC_APP_URL's (https://www.templestuart.com in production; a bare templestuart.com is refused at boot by src/lib/siteUrlGuard.ts) |
+| `NEXTAUTH_URL_INTERNAL` | next-auth | react/index.js:55-56 (server-side fetch base when the public origin is not reachable from the server) | Optional | an http(s) origin; unset here |
+| `AUTH_TRUST_HOST` | next-auth | utils/detect-origin.js:10 (trust x-forwarded-host when NEXTAUTH_URL is unset) | Optional | unset — NEXTAUTH_URL rules the origin; never set this to paper over a wrong NEXTAUTH_URL |
+| `AUTH_SECRET` | next-auth | next/index.js:17,49,128 (the fallback when options.secret is unset — ours is JWT_SECRET, so this is never consulted) | Optional | unset — SECRET-01: JWT_SECRET is the one session secret |
+| `VERCEL` | next-auth | utils/detect-origin.js:10 (trust the forwarded host when NEXTAUTH_URL is unset), jwt/index.js:65 (secure cookies) | Set by the host | "1" on Vercel; set by the host |
+| `VERCEL_URL` | next-auth | react/index.js:53 (client base URL fallback when NEXTAUTH_URL is unset) | Set by the host | <deployment>.vercel.app, set by the host — never the production origin |
+| `VERCEL_ENV` | the boot check | src/lib/siteUrlGuard.ts (through the env record: production / preview / development — the NEXTAUTH_URL check runs for production only, a Preview has a per-deploy host) | Set by the host | production / preview / development; set by the host |
+| `PORT` | next | dist/server/lib/start-server.js (`next start` — self-hosting only; Vercel runs its own runtime) | Set by the host | a port number; set by the host |
+| `HOSTNAME` | next | dist/build/utils.js (`next start` bind host — self-hosting only) | Set by the host | a hostname; set by the host |
 
 Yes, that's a lot of keys. That's why the next section exists.
 
