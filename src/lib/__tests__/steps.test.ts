@@ -54,14 +54,19 @@ test('a step with no room opens /step/<slug>; one with a room opens the room', (
 
 test('sub-links are derived from the registry — every door the family navigation gave a page, the rail gives it too; the step\'s own screen is not repeated and an href is listed once', () => {
   const byStep = Object.fromEntries(STEPS.map((s) => [s.slug, stepLinks(s).map((l) => (l.door.kind === 'none' ? 'none' : l.door.href))]));
-  assert.deepEqual(byStep.accounts, ['/books', '/trade', '/trading']);
+  // ACCOUNTS-01b: step 1 has NO sub-link — Banking's home is the step's own screen
+  // (dropped as the step row's own door) and Retirement and Fixed Assets are
+  // NOT_BUILT. Step 2 keeps one room: /trade, the cockpit tab that carries the
+  // grade and the coverage declaration, which /trading does not.
+  assert.deepEqual(byStep.accounts, []);
+  assert.deepEqual(byStep.trading, ['/trade']);
   assert.deepEqual(byStep.books, ['/chart-of-accounts']);
   assert.deepEqual(byStep.tax, ['/dashboard/tax-filing']);
   assert.deepEqual(byStep.compliance, ['/?tab=compliance', '/soc2']);
   assert.deepEqual(byStep.travel, ['/budgets/trips']);
   assert.deepEqual(byStep.budget, ['/personal', '/home', '/auto', '/growth', '/health', '/shopping', '/hub/itinerary', '/runway']);
   assert.deepEqual(byStep.operations, ['/agenda', '/routines', '/operations/issues', '/operations/audit-log', '/content', '/operations']);
-  for (const slug of ['fpa', 'owed', 'sales', 'spend']) assert.deepEqual(byStep[slug], [], `${slug} has no door to give`);
+  for (const slug of ['accounts', 'fpa', 'owed', 'sales', 'spend']) assert.deepEqual(byStep[slug], [], `${slug} has no door to give`);
   // no step repeats its own screen, and no href twice within a step
   for (const s of STEPS) {
     const hrefs = stepLinks(s).map((l) => (l.door.kind === 'none' ? 'none' : l.door.href));
@@ -79,7 +84,10 @@ test('the room at /content is labelled Narrative — label only, the route is un
 
 test('a step names the entitlement keys its jobs are gated by — the tab keys, from the offer\'s gate map', () => {
   assert.deepEqual(stepGates(stepBySlug('books')!, TOOL_GATE), ['tab:books']);
-  assert.deepEqual(stepGates(stepBySlug('accounts')!, TOOL_GATE), ['tab:books', 'tab:trade']);
+  // ACCOUNTS-01b: step 1 is tab:books only — the key /api/accounts actually asks
+  // for (route.ts:22). Brokerage's tab:trade walks with step 2, where it is used.
+  assert.deepEqual(stepGates(stepBySlug('accounts')!, TOOL_GATE), ['tab:books']);
+  assert.deepEqual(stepGates(stepBySlug('trading')!, TOOL_GATE), ['tab:trade', 'tab:books']);
   assert.deepEqual(stepGates(stepBySlug('travel')!, TOOL_GATE), []);
   assert.deepEqual(stepGates(stepBySlug('sales')!, TOOL_GATE), [], 'CRM is the founder\'s own surface (gate "owner"), not a sold tab');
 });
@@ -119,4 +127,30 @@ test('the law rejects: a job in two steps, a job in no step, a numbering gap, a 
   // and it throws by default
   assert.throws(() => stepsLaw({ steps: dropped }), StepsLawError);
   assert.throws(() => stepsLaw({ steps: dropped }), /STEPS LAW: /);
+});
+
+test('ACCOUNTS-01b — a job\'s home lives inside its own step: neither the registry home nor the door the rail opens may be another step\'s screen', () => {
+  // the real steps hold it: every home is its own step's screen, or no step's screen at all
+  const owner = new Map(STEPS.flatMap((s) => (s.screen ? [[s.screen, s] as const] : [])));
+  for (const s of STEPS) {
+    for (const t of toolsOfStep(s)) {
+      if (t.home === null) continue;
+      const held = owner.get(t.home);
+      assert.ok(!held || held.slug === s.slug, `${t.name}: home ${t.home} is ${held?.name}'s screen, not ${s.name}'s`);
+    }
+  }
+
+  // the bug this rule exists to stop: Banking's home back at /books, step 3's room
+  const asBanking = (facts: Partial<ToolEntry>) =>
+    TOOL_REGISTRY.map((t) => (t.name === 'Banking' ? { ...t, ...facts } : t));
+  const homeOut = stepsLaw({ throwOnFail: false, registry: asBanking({ home: '/books' }) }).join('\n');
+  assert.match(homeOut, /Banking: home \/books is BOOKS's screen, but Banking sits in ACCOUNTS — a job's home is inside its own step/);
+
+  // and the door, not only the home: a home inside the step whose cockpitKey points out of it
+  const doorOut = stepsLaw({ throwOnFail: false, registry: asBanking({ cockpitKey: 'books' }) }).join('\n');
+  assert.match(doorOut, /Banking: door \/books is BOOKS's screen, but Banking sits in ACCOUNTS/);
+  assert.doesNotMatch(doorOut, /Banking: home/, 'the home is /accounts and legal — only the door it resolves through is not');
+
+  // a home that is no step's screen is fine — Calendar's /agenda and Time's /content are rooms, not steps
+  assert.deepEqual(stepsLaw({ throwOnFail: false }), []);
 });
