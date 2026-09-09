@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  FREE_TOOLS, OFFERS, OfferLawError, SELLABLE_KEYS, TOOL_GATE, claimForCockpit, claimLine, heroCountsLine, keysGranting, moduleDoorPlan,
+  FREE_TOOLS, OFFERS, OfferLawError, SELLABLE_KEYS, TOOL_GATE, claimForCockpit, claimLine, freeSetLine, heroCountsLine, keysGranting, moduleDoorPlan,
   numberWord, offerAvailabilityFromEnv, offerCard, offerFor, offerFromModuleParam, offerGranting, offerLaw, priceEnvName, priceLineFor, type Offer,
 } from '../offer';
 import { TOOL_REGISTRY, type ToolEntry } from '../toolRegistry';
@@ -63,6 +63,19 @@ test('claim lines come from the registry: "built and running" for LIVE only, "pa
   assert.equal(claimLine(tool('Trade Log')), 'partial — discover · commit · record');
   assert.equal(claimLine(tool('Banking')), 'partial — discover');
   assert.throws(() => claimLine(tool('Payroll')), /Payroll is NOT_BUILT — it cannot be sold/);
+  // TRUTH-01b: a four-beat PARTIAL says why — the registry's note verbatim, never the four beats
+  for (const name of ['Calendar', 'Tasks', 'Time', 'Budget'] as const) {
+    const t = tool(name);
+    assert.equal(t.status, 'PARTIAL');
+    assert.equal(claimLine(t), `partial — ${t.why}`);
+    assert.ok(!claimLine(t).includes('discover'), `${name}: the why, not the beats`);
+  }
+  assert.equal(claimLine(tool('Calendar')), 'partial — an agenda list whose commit lands on calendar_events; the calendar grid itself lives on /runway');
+  // a four-beat PARTIAL with no why is thrown, not rendered as the beats form
+  assert.throws(() => claimLine({ ...tool('Calendar'), why: undefined }), /Calendar is PARTIAL with four beats and no why/);
+  assert.throws(() => claimLine({ ...tool('Calendar'), why: '  ' }), /Calendar is PARTIAL with four beats and no why/);
+  // fewer than four beats keeps the beats form even when a why is present
+  assert.equal(claimLine({ ...tool('Tax'), why: 'not used' }), 'partial — discover · decide');
   const card = offerCard(books(), {});
   assert.deepEqual(card.tools.map((t) => t.name), ['Banking', 'Brokerage', 'Trade Log', 'Bookkeeping', 'Tax', 'Compliance'], 'sheet order; Trade, Tax and Compliance ride inside Books');
   for (const t of card.tools) {
@@ -72,9 +85,9 @@ test('claim lines come from the registry: "built and running" for LIVE only, "pa
   assert.equal(card.includesAnswers, true);
   // the free showcases' CTAs read the registry through the cockpit key
   // TRUTH-01: Tasks and Time are four-beat PARTIALs (the job is not done for a customer), so the showcase CTAs no longer say built and running.
-  assert.equal(claimForCockpit('projects'), 'partial — discover · decide · commit · record');
-  assert.equal(claimForCockpit('content'), 'partial — discover · decide · commit · record');
-  assert.equal(claimForCockpit('calendar'), 'partial — discover · decide · commit · record'); // Budget, a four-beat PARTIAL since TRUTH-01
+  assert.equal(claimForCockpit('projects'), "partial — the founder's build pipeline — accepting a task fires a paid Claude Code build (tasks/[taskId]/route.ts:392-402); not a customer's task tool");
+  assert.equal(claimForCockpit('content'), 'partial — day blocks and a daily log inside the Narrative pipeline; no time tool');
+  assert.equal(claimForCockpit('calendar'), 'partial — actuals by entity plus recurring lines on module_expenses; no plan vs actual; no personal · trade · travel roll-up'); // Budget, a four-beat PARTIAL since TRUTH-01
   assert.throws(() => claimForCockpit('nope'), OfferLawError);
 });
 
@@ -117,6 +130,9 @@ test('the grants: Books unlocks Trade, Tax and Compliance at both gates; the bun
 test('the free set is the registry\'s LIVE tools with no gate; the gate map covers every tool', () => {
   // TRUTH-01 (census 2026-09-09): Calendar, Tasks, Time and Budget are PARTIAL — four beats cited, the job not done for a customer — so the free set is Travel alone.
   assert.deepEqual(FREE_TOOLS.map((t) => t.name), ['Travel']);
+  // TRUTH-01b: the landing's free line — singular for the one free tool, plural otherwise, the rest of the sentence unchanged
+  assert.equal(freeSetLine(), "Free with an account, no module to buy: Travel — the registry's live tool with no tab gate.");
+  assert.equal(freeSetLine([{ name: 'Travel' }, { name: 'Budget' }]), "Free with an account, no module to buy: Travel, Budget — the registry's live tools with no tab gate.");
   assert.equal(Object.keys(TOOL_GATE).length, TOOL_REGISTRY.length);
   for (const t of TOOL_REGISTRY) assert.ok(t.name in TOOL_GATE, t.name);
   assert.equal(TOOL_GATE.CRM, 'owner');
