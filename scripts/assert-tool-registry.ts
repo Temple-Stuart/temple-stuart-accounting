@@ -15,9 +15,11 @@
  * exactly one step; every step in one family, holding that family's jobs; the
  * families in flow order; steps 1..12 with no gaps; a roomless step holds
  * nothing LIVE), plus what only the filesystem can answer: every step's screen
- * resolves to a page file, the roomless steps' one page exists
- * (src/app/step/[slug]/page.tsx), and the rail and the sheet render FROM
- * steps.ts — never a retyped list.
+ * resolves to a page file THAT MOUNTS THE APP SHELL (ACCOUNTS-01: the rail is on
+ * every step's screen — the page file, or a layout above it, renders ShellFrame /
+ * AppLayout / the cockpit; a step whose room drops the navigation fails the
+ * build), the roomless steps' one page exists (src/app/step/[slug]/page.tsx), and
+ * the rail and the sheet render FROM steps.ts — never a retyped list.
  *
  * THE ANSWERS LAW (NAV-01c): the module-scope law of src/lib/answers.ts re-run
  * here (ANSWER_READS keys === ANSWER_ROWS questions 4/4 in order; a computed
@@ -256,6 +258,21 @@ for (const d of doors) {
 }
 console.log(`pages: ${pages.length} · doors: ${doors.length}`);
 
+// ACCOUNTS-01: does this page wear the app shell — in its own file, or in any layout
+// above it? The shells that carry the rail: ShellFrame, AppLayout, and the cockpit
+// (HomeClient / AnswersClient / ModulePageClient, which mount it themselves).
+const SHELLS = ['ShellFrame', 'AppLayout', 'HomeClient', 'AnswersClient', 'ModulePageClient'];
+function mountsShell(pageFile: string): boolean {
+  const read = (f: string) => (existsSync(resolve(ROOT, f)) ? readFileSync(resolve(ROOT, f), 'utf8') : '');
+  if (SHELLS.some((shell) => read(pageFile).includes(shell))) return true;
+  let dir = pageFile.slice(0, pageFile.lastIndexOf('/'));
+  while (dir.startsWith('src/app')) {
+    if (SHELLS.some((shell) => read(`${dir}/layout.tsx`).includes(shell))) return true;
+    dir = dir.slice(0, dir.lastIndexOf('/'));
+  }
+  return false;
+}
+
 // ── THE STEPS LAW (SHELL-01) ────────────────────────────────────────────────
 violations.push(...stepsLaw({ throwOnFail: false }));
 console.log('THE STEPS — the rail walks the sheet in flow order');
@@ -265,7 +282,12 @@ for (const step of STEPS) {
   console.log(
     `${String(step.number).padStart(2, '0')}  ${step.name.padEnd(11)} ${step.family.padEnd(13)} ${stepStatus(step, tools).padEnd(9)} ${stepHref(step).padEnd(16)} ${tools.map((t) => t.name).join(' · ').padEnd(46)} ${rooms.join(' ')}`,
   );
-  if (step.screen !== null && !pageFor(step.screen, tabs)) violations.push(`${step.name}: screen ${step.screen} has no page file`);
+  if (step.screen !== null) {
+    const file = pageFor(step.screen, tabs);
+    if (!file) violations.push(`${step.name}: screen ${step.screen} has no page file`);
+    // ACCOUNTS-01: and that page wears the shell, so the rail is present in the room.
+    else if (!mountsShell(file)) violations.push(`${step.name}: ${step.screen} (${file}) mounts no shell — the rail must be on every step's screen (ShellFrame, AppLayout, or the cockpit, in the page or a layout above it)`);
+  }
 }
 // A step with no room opens ONE page — the honest one that states its jobs.
 const STEP_PAGE = 'src/app/step/[slug]/page.tsx';
@@ -531,7 +553,7 @@ if (violations.length) {
 }
 console.log('✔ Tool registry law passed — 25/25 cells, homes resolve to page files, counts match the census.');
 console.log(`✔ Reachability law passed — ${pages.length} pages, every one has a door (the rail, the sheet, the utilities menu, a listed route, or a redirect to one).`);
-console.log(`✔ The steps law passed — ${STEPS.length} steps over ${FLOW_ORDER.length} families in flow order, every one of ${TOOL_REGISTRY.length} jobs walked once, every screen a page file; the rail and the sheet render from steps.ts.`);
+console.log(`✔ The steps law passed — ${STEPS.length} steps over ${FLOW_ORDER.length} families in flow order, every one of ${TOOL_REGISTRY.length} jobs walked once, every screen a page file that wears the shell; the rail and the sheet render from steps.ts.`);
 console.log(`✔ The answers law passed — ${ANSWER_ROWS.length}/4 questions on ${ANSWERS_HOME}, every number sourced.`);
 // ── THE KIND-VIEWS LAW (TABLES-01) ──────────────────────────────────────────
 const viewsMigration = ALL_MIGRATIONS.find((m) => m.dir.endsWith('_kind_views'));

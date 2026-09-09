@@ -36,14 +36,20 @@ export async function GET(request: NextRequest) {
       // BANK-01: the item's last Plaid ITEM_ERROR, so the Books page can offer Reconnect.
       lastErrorCode: item.last_error_code,
       lastErrorAt: item.last_error_at,
+      // ACCOUNTS-01: currentBalance is Float? — nullable. It is sent AS IT IS; the screen
+      // renders a missing balance as "—" (src/lib/accountsView.ts money()). The old `|| 0`
+      // turned "the institution reported nothing" into "zero dollars".
       accounts: item.accounts.map(account => ({
         id: account.id,
         name: account.name,
         type: account.type,
         subtype: account.subtype,
         mask: account.mask,
-        balance: account.currentBalance || 0,
+        balance: account.currentBalance,
         entityType: account.entityType || null,
+        // ACCOUNTS-01: the row's last write — a sync, or an entity assignment. NOT a sync
+        // timestamp: the product records none per account, and the screen says so.
+        updatedAt: account.updatedAt,
       }))
     }));
 

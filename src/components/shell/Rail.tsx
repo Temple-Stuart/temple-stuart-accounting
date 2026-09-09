@@ -13,8 +13,10 @@
  * under the family navigation has one here. Nothing is retyped.
  *
  * Open / collapsed is REACT STATE ONLY — no localStorage, no sessionStorage, no
- * cookie (SHELL-01 forbids browser storage): open on load, collapsed to a strip
- * of step numbers when the viewer says so, for as long as the page lives.
+ * cookie (SHELL-01 forbids browser storage). ACCOUNTS-01: that state is held by
+ * the provider the ROOT LAYOUT mounts (src/components/shell/RailState.tsx), which
+ * client navigation never unmounts — so a collapsed rail stays collapsed as you
+ * walk from one step's room to another.
  *
  * Doors: on the cockpit a cockpit-hosted room opens in place through the SAME
  * selectTab funnel the family menu used (onSelectModule — the URL is written as
@@ -39,6 +41,7 @@ import { TOOL_GATE } from '@/lib/offer';
 import { FLOW_ORDER, STEPS, stepBySlug, stepGates, stepHref, stepLinks, stepOfTool, stepStatus, stepsOf, type Step } from '@/lib/steps';
 import { COCKPIT_PRIMARY_TOOL, type ToolDoor } from '@/lib/toolRegistry';
 import { StatusChip } from '@/components/home/ToolChrome';
+import { useRailState } from '@/components/shell/RailState';
 
 interface Props {
   /** The cockpit's active section key (ModuleLauncher activeModule). Absent off the cockpit. */
@@ -93,7 +96,9 @@ function stepLocked(step: Step, entitledKeys: readonly string[] | undefined, isA
 
 export default function Rail({ activeModule, onSelectModule, entitledKeys, isAdmin = false }: Props) {
   const pathname = usePathname();
-  const [open, setOpen] = useState(true);
+  // Above the pages, so navigating between steps does not reopen a collapsed rail.
+  const { open, setOpen } = useRailState();
+  // The drawer is per-page and ephemeral: it closes when you pick a step.
   const [drawer, setDrawer] = useState(false);
   const drawerButton = useRef<HTMLButtonElement>(null);
   const active = activeStepOf(pathname, activeModule);
